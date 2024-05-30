@@ -1,6 +1,7 @@
 mod globals;
 mod inputs;
 
+mod packed_returns;
 mod private_context;
 mod public_context;
 mod interface;
@@ -14,6 +15,6 @@ use call_interfaces::{
     PublicStaticVoidCallInterface
 };
 use private_context::PrivateContext;
-use private_context::PackedReturns;
+use packed_returns::PackedReturns;
 use public_context::PublicContext;
 use public_context::FunctionReturns;

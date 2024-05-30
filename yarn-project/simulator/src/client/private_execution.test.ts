@@ -194,7 +194,6 @@ describe('Private Execution test suite', () => {
 
   beforeEach(async () => {
     trees = {};
-    // TODO(#6640) most of the oracles bellow seem to be stateless - move to beforeAll
     oracle = mock<DBOracle>();
     oracle.getKeyValidationRequest.mockImplementation((pkMHash: Fr, contractAddress: AztecAddress) => {
       if (pkMHash.equals(ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash())) {
@@ -209,8 +208,7 @@ describe('Private Execution test suite', () => {
         return Promise.resolve(
           new KeyValidationRequest(
             ownerCompleteAddress.publicKeys.masterOutgoingViewingPublicKey,
-            // TODO(#6640)): nuke this ugly conversion
-            Fr.fromBuffer(computeOvskApp(ownerOvskM, contractAddress).toBuffer()),
+            computeOvskApp(ownerOvskM, contractAddress),
           ),
         );
       }
@@ -226,8 +224,7 @@ describe('Private Execution test suite', () => {
         return Promise.resolve(
           new KeyValidationRequest(
             recipientCompleteAddress.publicKeys.masterOutgoingViewingPublicKey,
-            // TODO(#6640)): nuke this ugly conversion
-            Fr.fromBuffer(computeOvskApp(recipientOvskM, contractAddress).toBuffer()),
+            computeOvskApp(recipientOvskM, contractAddress),
           ),
         );
       }
@@ -323,6 +320,8 @@ describe('Private Execution test suite', () => {
   });
 
   describe('stateful test contract', () => {
+    const valueNoteTypeId = StatefulTestContractArtifact.notes['ValueNote'].id;
+
     const contractAddress = defaultContractAddress;
     const mockFirstNullifier = new Fr(1111);
     let currentNoteIndex = 0n;
@@ -373,8 +372,7 @@ describe('Private Execution test suite', () => {
       expect(result.newNotes).toHaveLength(1);
       const newNote = result.newNotes[0];
       expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner));
-      // TODO(#6640)): update the constants here
-      expect(newNote.noteTypeId).toEqual(new Fr(869710811710178111116101n)); // ValueNote
+      expect(newNote.noteTypeId).toEqual(valueNoteTypeId); // ValueNote
 
       const newNoteHashes = getNonEmptyItems(result.callStackItem.publicInputs.newNoteHashes);
       expect(newNoteHashes).toHaveLength(1);
@@ -404,8 +402,7 @@ describe('Private Execution test suite', () => {
       expect(result.newNotes).toHaveLength(1);
       const newNote = result.newNotes[0];
       expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner));
-      // TODO(#6640): update the constants here
-      expect(newNote.noteTypeId).toEqual(new Fr(869710811710178111116101n)); // ValueNote
+      expect(newNote.noteTypeId).toEqual(valueNoteTypeId); // ValueNote
 
       const newNoteHashes = getNonEmptyItems(result.callStackItem.publicInputs.newNoteHashes);
       expect(newNoteHashes).toHaveLength(1);
@@ -437,16 +434,14 @@ describe('Private Execution test suite', () => {
         recipient,
       );
 
-      const noteTypeId = StatefulTestContractArtifact.notes['ValueNote'].id;
-
       const notes = [
-        buildNote(60n, ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash(), storageSlot, noteTypeId),
-        buildNote(80n, ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash(), storageSlot, noteTypeId),
+        buildNote(60n, ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash(), storageSlot, valueNoteTypeId),
+        buildNote(80n, ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash(), storageSlot, valueNoteTypeId),
       ];
       oracle.getNotes.mockResolvedValue(notes);
 
       const consumedNotes = await asyncMap(notes, ({ nonce, note }) =>
-        acirSimulator.computeNoteHashAndNullifier(contractAddress, nonce, storageSlot, noteTypeId, note),
+        acirSimulator.computeNoteHashAndNullifier(contractAddress, nonce, storageSlot, valueNoteTypeId, note),
       );
       await insertLeaves(consumedNotes.map(n => n.siloedNoteHash));
 
@@ -461,14 +456,19 @@ describe('Private Execution test suite', () => {
       expect(result.newNotes).toHaveLength(2);
       const [changeNote, recipientNote] = result.newNotes;
       expect(recipientNote.storageSlot).toEqual(recipientStorageSlot);
-      expect(recipientNote.noteTypeId).toEqual(noteTypeId);
+      expect(recipientNote.noteTypeId).toEqual(valueNoteTypeId);
 
       const newNoteHashes = getNonEmptyItems(result.callStackItem.publicInputs.newNoteHashes);
       expect(newNoteHashes).toHaveLength(2);
       const [changeNoteHash, recipientNoteHash] = newNoteHashes;
       const [recipientInnerNoteHash, changeInnerNoteHash] = [
-        await acirSimulator.computeInnerNoteHash(contractAddress, recipientStorageSlot, noteTypeId, recipientNote.note),
-        await acirSimulator.computeInnerNoteHash(contractAddress, storageSlot, noteTypeId, changeNote.note),
+        await acirSimulator.computeInnerNoteHash(
+          contractAddress,
+          recipientStorageSlot,
+          valueNoteTypeId,
+          recipientNote.note,
+        ),
+        await acirSimulator.computeInnerNoteHash(contractAddress, storageSlot, valueNoteTypeId, changeNote.note),
       ];
       expect(recipientNoteHash.value).toEqual(recipientInnerNoteHash);
       expect(changeNoteHash.value).toEqual(changeInnerNoteHash);
@@ -499,15 +499,19 @@ describe('Private Execution test suite', () => {
       const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'destroy_and_create_no_init_check');
 
       const storageSlot = computeSlotForMapping(new Fr(1n), owner);
-      const noteTypeId = StatefulTestContractArtifact.notes['ValueNote'].id;
 
       const notes = [
-        buildNote(balance, ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash(), storageSlot, noteTypeId),
+        buildNote(
+          balance,
+          ownerCompleteAddress.publicKeys.masterNullifierPublicKey.hash(),
+          storageSlot,
+          valueNoteTypeId,
+        ),
       ];
       oracle.getNotes.mockResolvedValue(notes);
 
       const consumedNotes = await asyncMap(notes, ({ nonce, note }) =>
-        acirSimulator.computeNoteHashAndNullifier(contractAddress, nonce, storageSlot, noteTypeId, note),
+        acirSimulator.computeNoteHashAndNullifier(contractAddress, nonce, storageSlot, valueNoteTypeId, note),
       );
       await insertLeaves(consumedNotes.map(n => n.siloedNoteHash));
 
@@ -944,6 +948,8 @@ describe('Private Execution test suite', () => {
   });
 
   describe('pending note hashes contract', () => {
+    const valueNoteTypeId = PendingNoteHashesContractArtifact.notes['ValueNote'].id;
+
     beforeEach(() => {
       oracle.getFunctionArtifact.mockImplementation((_, selector) =>
         Promise.resolve(getFunctionArtifact(PendingNoteHashesContractArtifact, selector)),
@@ -983,12 +989,11 @@ describe('Private Execution test suite', () => {
         PendingNoteHashesContractArtifact.storageLayout['balances'].slot,
         owner,
       );
-      const noteTypeId = PendingNoteHashesContractArtifact.notes['ValueNote'].id;
 
       const innerNoteHash = await acirSimulator.computeInnerNoteHash(
         contractAddress,
         storageSlot,
-        noteTypeId,
+        valueNoteTypeId,
         noteAndSlot.note,
       );
       expect(noteHash).toEqual(innerNoteHash);
@@ -1057,12 +1062,11 @@ describe('Private Execution test suite', () => {
         PendingNoteHashesContractArtifact.storageLayout['balances'].slot,
         owner,
       );
-      const noteTypeId = PendingNoteHashesContractArtifact.notes['ValueNote'].id;
 
       expect(execInsert.newNotes).toHaveLength(1);
       const noteAndSlot = execInsert.newNotes[0];
       expect(noteAndSlot.storageSlot).toEqual(storageSlot);
-      expect(noteAndSlot.noteTypeId).toEqual(noteTypeId);
+      expect(noteAndSlot.noteTypeId).toEqual(valueNoteTypeId);
 
       expect(noteAndSlot.note.items[0]).toEqual(new Fr(amountToTransfer));
 

@@ -1,5 +1,5 @@
 import { AztecAddress, KeyValidationRequest, computeOvskApp, derivePublicKeyFromSecretKey } from '@aztec/circuits.js';
-import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
+import { GrumpkinScalar } from '@aztec/foundation/fields';
 
 import { L1NotePayload } from './l1_note_payload.js';
 import { TaggedNote } from './tagged_note.js';
@@ -52,10 +52,8 @@ describe('L1 Note Payload', () => {
 
   const getKeyValidationRequest = (ovskM: GrumpkinScalar, app: AztecAddress) => {
     const ovskApp = computeOvskApp(ovskM, app);
-    // TODO(#6640)): get rid of this ugly conversion
-    const ovskAppFr = Fr.fromBuffer(ovskApp.toBuffer());
-
     const ovpkM = derivePublicKeyFromSecretKey(ovskM);
-    return new KeyValidationRequest(ovpkM, ovskAppFr);
+
+    return new KeyValidationRequest(ovpkM, ovskApp);
   };
 });

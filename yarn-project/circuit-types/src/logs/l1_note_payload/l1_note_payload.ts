@@ -1,6 +1,6 @@
 import {
   AztecAddress,
-  GrumpkinPrivateKey,
+  type GrumpkinPrivateKey,
   type KeyValidationRequest,
   type PublicKey,
   computeIvpkApp,
@@ -106,11 +106,8 @@ export class L1NotePayload {
       this.note,
     ).computeCiphertext(ephSk, ivpkApp);
 
-    // TODO(#6640)): do we want the conversion to be here? Unify the type everywhere?
-    const ovskApp = GrumpkinPrivateKey.fromBuffer(ovKeys.skApp.toBuffer());
-
     const outgoingBodyCiphertext = new EncryptedLogOutgoingBody(ephSk, recipient, ivpkApp).computeCiphertext(
-      ovskApp,
+      ovKeys.skAppAsGrumpkinPrivateKey,
       ephPk,
     );
 

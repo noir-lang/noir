@@ -1,13 +1,16 @@
 use crate::{
-    context::{inputs::PrivateContextInputs, interface::ContextInterface},
+    context::{inputs::PrivateContextInputs, interface::ContextInterface, packed_returns::PackedReturns},
     messaging::process_l1_to_l2_message,
     hash::{hash_args_array, ArgsHasher, compute_unencrypted_log_hash},
     keys::constants::{NULLIFIER_INDEX, OUTGOING_INDEX, NUM_KEY_TYPES, sk_generators},
     note::{note_interface::NoteInterface, utils::compute_note_hash_for_insertion},
     oracle::{
-    key_validation_request::get_key_validation_request, arguments, returns,
+    key_validation_request::get_key_validation_request, arguments, returns::pack_returns,
     call_private_function::call_private_function_internal, header::get_header_at,
-    logs::{emit_encrypted_log, emit_encrypted_note_log, compute_encrypted_log},
+    logs::{
+    emit_encrypted_log, emit_encrypted_note_log, compute_encrypted_log,
+    emit_contract_class_unencrypted_log_private_internal, emit_unencrypted_log_private_internal
+},
     logs_traits::{LensForEncryptedLog, ToBytesForUnencryptedLog},
     enqueue_public_function_call::{
     enqueue_public_function_call_internal, set_public_teardown_function_call_internal,
@@ -35,8 +38,8 @@ use dep::protocol_types::{
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
     grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint, header::Header,
-    messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader,
-    traits::{is_empty, Deserialize, Empty}, utils::arrays::find_index
+    messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader, traits::{is_empty, Empty},
+    utils::arrays::find_index
 };
 
 // When finished, one can call .finish() to convert back to the abi
@@ -153,7 +156,7 @@ impl PrivateContext {
     }
 
     pub fn set_return_hash(&mut self, returns_hasher: ArgsHasher) {
-        returns::pack_returns(returns_hasher.fields);
+        pack_returns(returns_hasher.fields);
         self.return_hash = returns_hasher.hash();
     }
 
@@ -717,69 +720,3 @@ impl Empty for PrivateContext {
         }
     }
 }
-
-// TODO(#6640)): This should be in its own file
-struct PackedReturns {
-  packed_returns: Field,
-}
-
-impl PackedReturns {
-    pub fn new(packed_returns: Field) -> Self {
-        PackedReturns { packed_returns }
-    }
-
-    pub fn assert_empty(self) {
-        assert_eq(self.packed_returns, 0);
-    }
-
-    pub fn raw(self) -> Field {
-        self.packed_returns
-    }
-
-    pub fn unpack<N>(self) -> [Field; N] {
-        let unpacked: [Field; N] = returns::unpack_returns(self.packed_returns);
-        assert_eq(self.packed_returns, hash_args_array(unpacked));
-        unpacked
-    }
-
-    pub fn unpack_into<T, N>(self) -> T where T: Deserialize<N> {
-        let unpacked: [Field; N] = self.unpack();
-        Deserialize::deserialize(unpacked)
-    }
-}
-
-// TODO(#6640)): This should not be here but in oracle folder
-#[oracle(emitUnencryptedLog)]
-fn emit_unencrypted_log_oracle_private<T>(
-    _contract_address: AztecAddress,
-    _event_selector: Field,
-    _message: T,
-    _counter: u32
-) -> Field {}
-
-unconstrained pub fn emit_unencrypted_log_private_internal<T>(
-    contract_address: AztecAddress,
-    event_selector: Field,
-    message: T,
-    counter: u32
-) -> Field {
-    emit_unencrypted_log_oracle_private(contract_address, event_selector, message, counter)
-}
-
-#[oracle(emitContractClassUnencryptedLog)]
-fn emit_contract_class_unencrypted_log_private<N>(
-    contract_address: AztecAddress,
-    event_selector: Field,
-    message: [Field; N],
-    counter: u32
-) -> Field {}
-
-unconstrained pub fn emit_contract_class_unencrypted_log_private_internal<N>(
-    contract_address: AztecAddress,
-    event_selector: Field,
-    message: [Field; N],
-    counter: u32
-) -> Field {
-    emit_contract_class_unencrypted_log_private(contract_address, event_selector, message, counter)
-}
-

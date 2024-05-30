@@ -6,7 +6,7 @@ use dep::protocol_types::{
 use crate::{
     context::PrivateContext,
     oracle::{keys::get_public_keys_and_partial_address, key_validation_request::get_key_validation_request},
-    keys::{public_keys::PublicKeys, constants::{NULLIFIER_INDEX, INCOMING_INDEX, OUTGOING_INDEX}},
+    keys::{public_keys::PublicKeys, constants::{NULLIFIER_INDEX, INCOMING_INDEX, OUTGOING_INDEX, TAGGING_INDEX}},
     state_vars::{shared_mutable::shared_mutable_private_getter::SharedMutablePrivateGetter}
 };
 
@@ -17,7 +17,7 @@ trait KeyGetters {
   fn get_npk_m(header: Header, context: &mut PrivateContext, address: AztecAddress) -> GrumpkinPoint;
   fn get_ivpk_m(header: Header, context: &mut PrivateContext, address: AztecAddress) -> GrumpkinPoint;
   fn get_ovpk_m(header: Header, context: &mut PrivateContext, address: AztecAddress) -> GrumpkinPoint;
-//   fn get_tpk_m(header: Header, context: &mut PrivateContext, address: AztecAddress) -> GrumpkinPoint;
+  fn get_tpk_m(header: Header, context: &mut PrivateContext, address: AztecAddress) -> GrumpkinPoint;
   fn get_npk_m_hash(header: Header, context: &mut PrivateContext, address: AztecAddress) -> Field;
 }
 
@@ -34,9 +34,9 @@ impl KeyGetters for Header {
         get_master_key(context, address, OUTGOING_INDEX, self)
     }
 
-    // fn get_tpk_m(self, context: &mut PrivateContext, address: AztecAddress) -> GrumpkinPoint {
-    //     get_master_key(context, address, TAGGING_INDEX, self)
-    // }
+    fn get_tpk_m(self, context: &mut PrivateContext, address: AztecAddress) -> GrumpkinPoint {
+        get_master_key(context, address, TAGGING_INDEX, self)
+    }
 
     fn get_npk_m_hash(self, context: &mut PrivateContext, address: AztecAddress) -> Field {
         get_master_key(context, address, NULLIFIER_INDEX, self).hash()

@@ -60,3 +60,37 @@ unconstrained pub fn compute_encrypted_log<N, M>(
         preimage
     )
 }
+
+#[oracle(emitUnencryptedLog)]
+fn emit_unencrypted_log_oracle_private<T>(
+    _contract_address: AztecAddress,
+    _event_selector: Field,
+    _message: T,
+    _counter: u32
+) -> Field {}
+
+unconstrained pub fn emit_unencrypted_log_private_internal<T>(
+    contract_address: AztecAddress,
+    event_selector: Field,
+    message: T,
+    counter: u32
+) -> Field {
+    emit_unencrypted_log_oracle_private(contract_address, event_selector, message, counter)
+}
+
+#[oracle(emitContractClassUnencryptedLog)]
+fn emit_contract_class_unencrypted_log_private<N>(
+    contract_address: AztecAddress,
+    event_selector: Field,
+    message: [Field; N],
+    counter: u32
+) -> Field {}
+
+unconstrained pub fn emit_contract_class_unencrypted_log_private_internal<N>(
+    contract_address: AztecAddress,
+    event_selector: Field,
+    message: [Field; N],
+    counter: u32
+) -> Field {
+    emit_contract_class_unencrypted_log_private(contract_address, event_selector, message, counter)
+}
