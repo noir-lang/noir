@@ -562,8 +562,8 @@ impl<'interner> Monomorphizer<'interner> {
         let location = self.interner.expr_location(&array);
         let typ = Self::convert_type(&self.interner.id_type(array), location, self.interner)?;
 
-        let length = length.evaluate_to_u64(self.interner).ok_or_else(|| {
-            let location = self.interner.expr_location(&array);
+        let length = length.evaluate_to_u64(&location, self.interner).map_err(|_| {
+            // TODO: add ArithExprError to UnknownArrayLength
             MonomorphizationError::UnknownArrayLength { location }
         })?;
 
@@ -878,9 +878,12 @@ impl<'interner> Monomorphizer<'interner> {
                     TypeBinding::Unbound(_) => {
                         unreachable!("Unbound type variable used in expression")
                     }
-                    TypeBinding::Bound(binding) => binding.evaluate_to_u64(self.interner).unwrap_or_else(|| {
-                        panic!("Non-numeric type variable used in expression expecting a value")
-                    }),
+                    TypeBinding::Bound(binding) => {
+                        let location = self.interner.id_location(expr_id);
+                        binding.evaluate_to_u64(&location, self.interner).unwrap_or_else(|err| {
+                            panic!("Non-numeric type variable used in expression expecting a value: {:?}", err)
+                        })
+                    },
                 };
 
                 let value = FieldElement::from(value as u128);
@@ -899,22 +902,23 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::FieldElement => ast::Type::Field,
             HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool => ast::Type::Bool,
-            HirType::String(size) => ast::Type::String(size.evaluate_to_u64(interner).unwrap_or(0)),
+            HirType::String(size) => ast::Type::String(size.evaluate_to_u64(&location, interner).unwrap_or(0)),
             HirType::FmtString(size, fields) => {
-                let size = size.evaluate_to_u64(interner).unwrap_or(0);
+                let size = size.evaluate_to_u64(&location, interner).unwrap_or(0);
                 let fields = Box::new(Self::convert_type(fields.as_ref(), location, interner)?);
                 ast::Type::FmtString(size, fields)
             }
             HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
                 let element = Box::new(Self::convert_type(element.as_ref(), location, interner)?);
-                let length = match length.evaluate_to_u64(interner) {
-                    Some(length) => length,
-                    None => {
+                let length = match length.evaluate_to_u64(&location, interner) {
+                    Ok(length) => length,
+                    Err(arith_expr_error) => {
                         // TODO: cleanup
                         dbg!("convert_type: TypeAnnotationsNeeded", typ, length);
 
-                        return Err(MonomorphizationError::TypeAnnotationsNeeded { location })
+                        // TODO: add ArithExprError to TypeAnnotationsNeeded
+                        return Err(MonomorphizationError::ArithExprError { arith_expr_error, location })
                     },
                 };
                 ast::Type::Array(length, element)
@@ -998,9 +1002,10 @@ impl<'interner> Monomorphizer<'interner> {
 
                 try_vecmap(generics, |generic| {
                     // Self::convert_type(generic, location)
-                    match generic.evaluate_to_u64(interner) {
-                        Some(result) => Ok(result),
-                        None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
+                    match generic.evaluate_to_u64(&location, interner) {
+                        Ok(result) => Ok(result),
+                        // TODO: add ArithExprError to TypeAnnotationsNeeded
+                        Err(_) => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
                     }
                 })?;
 

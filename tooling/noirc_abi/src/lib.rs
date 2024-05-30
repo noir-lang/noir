@@ -13,6 +13,7 @@ use acvm::{
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
+use noirc_errors::Location;
 use noirc_frontend::ast::{Signedness, Visibility};
 use noirc_frontend::{hir::Context, Type, TypeBinding, TypeVariableKind};
 use noirc_frontend::node_interner::NodeInterner;
@@ -139,7 +140,7 @@ impl AbiType {
             Type::FieldElement => Self::Field,
             Type::Array(size, typ) => {
                 let length = size
-                    .evaluate_to_u64(&dummy_interner)
+                    .evaluate_to_u64(&Location::dummy(), &dummy_interner)
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
                 Self::Array { length, typ: Box::new(Self::from_type(context, typ)) }
@@ -162,7 +163,7 @@ impl AbiType {
             Type::Bool => Self::Boolean,
             Type::String(size) => {
                 let size = size
-                    .evaluate_to_u64(&dummy_interner)
+                    .evaluate_to_u64(&Location::dummy(), &dummy_interner)
                     .expect("Cannot have variable sized strings as a parameter to main");
                 Self::String { length: size }
             }
@@ -611,7 +612,7 @@ impl AbiErrorType {
         match typ {
             Type::FmtString(len, item_types) => {
                 let dummy_interner = NodeInterner::default();
-                let length = len.evaluate_to_u64(&dummy_interner).expect("Cannot evaluate fmt length");
+                let length = len.evaluate_to_u64(&Location::dummy(), &dummy_interner).expect("Cannot evaluate fmt length");
                 let Type::Tuple(item_types) = item_types.as_ref() else {
                     unreachable!("FmtString items must be a tuple")
                 };

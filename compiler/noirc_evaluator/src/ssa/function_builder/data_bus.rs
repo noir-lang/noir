@@ -3,6 +3,7 @@ use std::rc::Rc;
 use crate::ssa::ir::{types::Type, value::ValueId};
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
+use noirc_errors::Location;
 use noirc_frontend::ast;
 use noirc_frontend::hir_def::function::FunctionSignature;
 use noirc_frontend::node_interner::NodeInterner;
@@ -39,7 +40,7 @@ impl DataBusBuilder {
                 ast::Visibility::DataBus => true,
             };
             let dummy_interner = NodeInterner::default();
-            let len = param.1.field_count(&dummy_interner) as usize;
+            let len = param.1.field_count(&Location::dummy(), &dummy_interner) as usize;
             params_is_databus.extend(vec![is_databus; len]);
         }
         params_is_databus

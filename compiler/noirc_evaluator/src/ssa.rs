@@ -18,7 +18,7 @@ use acvm::acir::{
     native_types::Witness,
 };
 
-use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
+use noirc_errors::{debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables}, Location};
 
 use noirc_frontend::ast::Visibility;
 use noirc_frontend::{
@@ -275,7 +275,7 @@ fn split_public_and_private_inputs(
         .iter()
         .map(|(_, typ, visibility)| {
             let dummy_interner = NodeInterner::default();
-            let num_field_elements_needed = typ.field_count(&dummy_interner) as usize;
+            let num_field_elements_needed = typ.field_count(&Location::dummy(), &dummy_interner) as usize;
             let witnesses = input_witnesses[idx..idx + num_field_elements_needed].to_vec();
             idx += num_field_elements_needed;
             (visibility, witnesses)

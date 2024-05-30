@@ -21,7 +21,7 @@ use crate::{
         },
     },
     macros_api::{HirExpression, HirLiteral, HirStatement, NodeInterner},
-    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
+    node_interner::{ArithExprError, DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
     Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
 
@@ -347,16 +347,20 @@ impl<'a> Interpreter<'a> {
             }
             DefinitionKind::GenericType(type_variable) => {
                 let value = match &*type_variable.borrow() {
-                    TypeBinding::Unbound(_) => None,
-                    TypeBinding::Bound(binding) => binding.evaluate_to_u64(self.interner),
+                    TypeBinding::Unbound(var_id) => Err(ArithExprError::UnboundVariable {
+                        binding: type_variable.clone(),
+                        name: format!("#type_variable_id_{}_{:?}", var_id, ident)
+                    }),
+                    TypeBinding::Bound(binding) => binding.evaluate_to_u64(&definition.location, self.interner),
                 };
 
-                if let Some(value) = value {
+                if let Ok(value) = value {
                     let typ = self.interner.id_type(id);
                     self.evaluate_integer((value as u128).into(), false, id)
                 } else {
                     let location = self.interner.expr_location(&id);
                     let typ = Type::TypeVariable(type_variable.clone(), TypeVariableKind::Normal);
+                    // TODO: include ArithExprError in NonIntegerArrayLength
                     Err(InterpreterError::NonIntegerArrayLength { typ, location })
                 }
             }
@@ -500,12 +504,14 @@ impl<'a> Interpreter<'a> {
             }
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let element = self.evaluate(repeated_element)?;
+                let location = self.interner.expr_location(&id);
 
-                if let Some(length) = length.evaluate_to_u64(self.interner) {
+                if let Ok(length) = length.evaluate_to_u64(&location, self.interner) {
                     let elements = (0..length).map(|_| element.clone()).collect();
                     Ok(Value::Array(elements, typ))
                 } else {
                     let location = self.interner.expr_location(&id);
+                    // TODO: include ArithExprError in NonIntegerArrayLength
                     Err(InterpreterError::NonIntegerArrayLength { typ: length, location })
                 }
             }

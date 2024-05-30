@@ -8,7 +8,7 @@ use std::{
 use crate::{
     ast::IntegerBitSize,
     hir::type_check::TypeCheckError,
-    node_interner::{ArithConstraint, ArithConstraints, ArithExpr, ArithId, ExprId, NodeInterner, TraitId, TypeAliasId},
+    node_interner::{ArithConstraint, ArithConstraints, ArithExpr, ArithExprError, ArithId, ExprId, NeedsInterning, NodeInterner, TraitId, TypeAliasId},
 };
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
@@ -118,28 +118,28 @@ pub enum Type {
 
 impl Type {
     /// Returns the number of field elements required to represent the type once encoded.
-    pub fn field_count(&self, interner: &NodeInterner) -> u32 {
+    pub fn field_count(&self, location: &Location, interner: &NodeInterner) -> u32 {
         match self {
             Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
             Type::Array(size, typ) => {
                 let length = size
-                    .evaluate_to_u64(interner)
+                    .evaluate_to_u64(location, interner)
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
-                (length as u32) * typ.field_count(interner)
+                (length as u32) * typ.field_count(location, interner)
             }
             Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
-                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count(interner))
+                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count(location, interner))
             }
-            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(interner),
+            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(location, interner),
             Type::Tuple(fields) => {
-                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count(interner))
+                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count(location, interner))
             }
             Type::String(size) => {
                 let size = size
-                    .evaluate_to_u64(interner)
+                    .evaluate_to_u64(location, interner)
                     .expect("Cannot have variable sized strings as a parameter to main");
                 size as u32
             }
@@ -535,6 +535,8 @@ impl TypeVariable {
 
 /// TypeBindings are the mutable insides of a TypeVariable.
 /// They are either bound to some type, or are unbound.
+// TODO: cleanup debug
+#[derive(Debug)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum TypeBinding {
     Bound(Type),
@@ -1265,7 +1267,8 @@ impl Type {
                     match other {
                         Self::GenericArith(lhs, lhs_generics) => {
                             let name: Rc<std::string::String> = format!("#implicit_var({:?})", var).into();
-                            let rhs = ArithExpr::Variable(var.clone(), name, Default::default()).to_id();
+                            let rhs_expr = ArithExpr::Variable(var.clone(), name, Default::default());
+                            let rhs = rhs_expr.to_id();
                             let rhs_generics = vec![];
              
                             // TODO: cleanup
@@ -1275,6 +1278,7 @@ impl Type {
                                 lhs_generics: lhs_generics.to_vec(),
                                 rhs,
                                 rhs_generics,
+                                needs_interning: NeedsInterning::Rhs(rhs_expr),
                             });
              
                         }
@@ -1294,7 +1298,8 @@ impl Type {
                     match other {
                         Self::GenericArith(lhs, lhs_generics) => {
                             let name: Rc<std::string::String> = format!("#implicit_var({:?})", var).into();
-                            let rhs = ArithExpr::Variable(var.clone(), name, Default::default()).to_id();
+                            let rhs_expr = ArithExpr::Variable(var.clone(), name, Default::default());
+                            let rhs = rhs_expr.to_id();
                             let rhs_generics = vec![];
              
                             // TODO: cleanup
@@ -1304,6 +1309,7 @@ impl Type {
                                 lhs_generics: lhs_generics.to_vec(),
                                 rhs,
                                 rhs_generics,
+                                needs_interning: NeedsInterning::Rhs(rhs_expr),
                             });
              
                         }
@@ -1322,7 +1328,8 @@ impl Type {
                     match other {
                         Self::GenericArith(lhs, lhs_generics) => {
                             let name: Rc<std::string::String> = format!("#implicit_var({:?})", var).into();
-                            let rhs = ArithExpr::Variable(var.clone(), name, Default::default()).to_id();
+                            let rhs_expr = ArithExpr::Variable(var.clone(), name, Default::default());
+                            let rhs = rhs_expr.to_id();
                             let rhs_generics = vec![];
              
                             // TODO: cleanup
@@ -1332,6 +1339,7 @@ impl Type {
                                 lhs_generics: lhs_generics.to_vec(),
                                 rhs,
                                 rhs_generics,
+                                needs_interning: NeedsInterning::Rhs(rhs_expr),
                             });
              
                         }
@@ -1354,7 +1362,8 @@ impl Type {
                     match other {
                         Self::GenericArith(lhs, lhs_generics) => {
                             let name: Rc<std::string::String> = format!("#implicit_var({:?})", var).into();
-                            let rhs = ArithExpr::Variable(var.clone(), name, Default::default()).to_id();
+                            let rhs_expr = ArithExpr::Variable(var.clone(), name, Default::default());
+                            let rhs = rhs_expr.to_id();
                             let rhs_generics = vec![];
              
                             // TODO: cleanup
@@ -1364,6 +1373,7 @@ impl Type {
                                 lhs_generics: lhs_generics.to_vec(),
                                 rhs,
                                 rhs_generics,
+                                needs_interning: NeedsInterning::Rhs(rhs_expr),
                             });
              
                         }
@@ -1463,14 +1473,15 @@ impl Type {
                     lhs_generics: lhs_generics.to_vec(),
                     rhs: *rhs,
                     rhs_generics: rhs_generics.to_vec(),
+                    needs_interning: NeedsInterning::Neither,
                 });
 
                 Ok(())
             }
 
-            // TODO: add cases for (GenericArith, NamedGeneric), (NamedGeneric, GenericArith)
             (GenericArith(lhs, lhs_generics), Constant(rhs)) => {
-                let rhs = ArithExpr::Constant(*rhs).to_id();
+                let rhs_expr = ArithExpr::Constant(*rhs);
+                let rhs = rhs_expr.to_id();
                 let rhs_generics = vec![];
 
                 // TODO: cleanup
@@ -1480,13 +1491,15 @@ impl Type {
                     lhs_generics: lhs_generics.to_vec(),
                     rhs,
                     rhs_generics,
+                    needs_interning: NeedsInterning::Rhs(rhs_expr),
                 });
 
                 Ok(())
             }
 
             (Constant(lhs), GenericArith(rhs, rhs_generics)) => {
-                let lhs = ArithExpr::Constant(*lhs).to_id();
+                let lhs_expr = ArithExpr::Constant(*lhs);
+                let lhs = lhs_expr.to_id();
                 let lhs_generics = vec![];
 
                 // TODO: cleanup
@@ -1496,6 +1509,7 @@ impl Type {
                     lhs_generics,
                     rhs: *rhs,
                     rhs_generics: rhs_generics.to_vec(),
+                    needs_interning: NeedsInterning::Lhs(lhs_expr),
                 });
 
                 Ok(())
@@ -1603,48 +1617,44 @@ impl Type {
 
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u64.
-    pub fn evaluate_to_u64(&self, interner: &NodeInterner) -> Option<u64> {
+    pub fn evaluate_to_u64(&self, location: &Location, interner: &NodeInterner) -> Result<u64, ArithExprError> {
         if let Some(binding) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
 
                 // TODO: cleanup
-                dbg!("evaluate_to_u64: binding found:", binding, binding.evaluate_to_u64(interner));
-                return binding.evaluate_to_u64(interner);
+                dbg!("evaluate_to_u64: binding found:", binding, binding.evaluate_to_u64(location, interner));
+                return binding.evaluate_to_u64(location, interner);
+            } else {
+                // TODO: cleanup
+                dbg!("evaluate_to_u64: no binding found:", &*binding.borrow());
             }
         }
 
         match self {
-            Type::TypeVariable(_, TypeVariableKind::Constant(size)) => Some(*size),
-            Type::Array(len, _elem) => len.evaluate_to_u64(interner),
-            Type::Constant(x) => Some(*x),
+            Type::TypeVariable(_, TypeVariableKind::Constant(size)) => Ok(*size),
+            Type::Array(len, _elem) => len.evaluate_to_u64(location, interner),
+            Type::Constant(x) => Ok(*x),
             Type::GenericArith(arith_id, generics) => {
                 // TODO: cleanup
                 dbg!("evaluate_to_u64 case for GenericArith began", generics);
 
                 let (expr, location) = interner.get_arithmetic_expression(*arith_id);
 
-                if let Ok(generics) = ArithConstraint::evaluate_generics_to_u64(&generics, location, interner) {
-                    // TODO: cleanup
-                    dbg!("evaluate_to_u64: evaluate_generics_to_u64", &generics);
-                    match expr.evaluate(&generics) {
-                        Ok(result) => return Some(result),
-                        Err(err) => {
-                            // TODO: cleanup
-                            dbg!("evaluate_to_u64 case for GenericArith failed", err);
-                        }
-                    }
-                } else {
+                // TODO: cleanup
+                dbg!("evaluate_to_u64: evaluate_generics_to_u64", &generics);
+                dbg!(ArithConstraint::evaluate_generics_to_u64(&generics, location, interner));
 
-                    // TODO: cleanup
-                    dbg!(ArithConstraint::evaluate_generics_to_u64(&generics, location, interner));
+                let generics = ArithConstraint::evaluate_generics_to_u64(&generics, location, interner)?;
 
-                } 
-                None
+                // TODO: cleanup
+                expr.evaluate(&generics)
+
             }
-            _ => {
+            unexpected_type => {
                 // TODO: cleanup
                 dbg!("evaluate_to_u64: leftover case");
-                None
+                let unexpected_type = unexpected_type.clone();
+                Err(ArithExprError::EvaluateUnexpectedType { unexpected_type })
             },
         }
     }
@@ -2045,8 +2055,9 @@ impl From<&Type> for PrintableType {
         match value {
             Type::FieldElement => PrintableType::Field,
             Type::Array(size, typ) => {
+                let location = Location::dummy();
                 let interner = NodeInterner::default();
-                let length = size.evaluate_to_u64(&interner).expect("Cannot print variable sized arrays");
+                let length = size.evaluate_to_u64(&location, &interner).expect("Cannot print variable sized arrays");
                 let typ = typ.as_ref();
                 PrintableType::Array { length, typ: Box::new(typ.into()) }
             }
@@ -2072,8 +2083,9 @@ impl From<&Type> for PrintableType {
             }
             Type::Bool => PrintableType::Boolean,
             Type::String(size) => {
+                let location = Location::dummy();
                 let interner = NodeInterner::default();
-                let size = size.evaluate_to_u64(&interner).expect("Cannot print variable sized strings");
+                let size = size.evaluate_to_u64(&location, &interner).expect("Cannot print variable sized strings");
                 PrintableType::String { length: size }
             }
             Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
