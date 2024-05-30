@@ -1,0 +1,35 @@
+name: aztec-devnet
+services:
+  pxe:
+    image: aztecprotocol/aztec:${AZTEC_DOCKER_TAG:-latest}
+    environment:
+      LOG_LEVEL: info
+      DEBUG: aztec:*
+      DEBUG_COLORS: 1
+      CHAIN_ID: 31337
+      VERSION: 1
+      PXE_PROVER_ENABLED: ${PXE_PROVER_ENABLED:-1}
+      NODE_NO_WARNINGS: 1
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "export AZTEC_NODE_URL=$$(cat /var/run/secrets/aztec-node-url); node /usr/src/yarn-project/aztec/dest/bin/index.js start --pxe",
+      ]
+    secrets:
+      - aztec-node-url
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  cli:
+    image: aztecprotocol/aztec:${AZTEC_DOCKER_TAG:-latest}
+    environment:
+      PXE_URL: http://pxe:8080
+      NODE_NO_WARNINGS: 1
+      PRIVATE_KEY:
+    entrypoint: ["node", "/usr/src/yarn-project/cli/dest/bin/index.js"]
+    profiles:
+      - cli
+
+secrets:
+  aztec-node-url:
+    environment: AZTEC_NODE_URL

@@ -1,35 +1,18 @@
 import { type PXE, createPXEClient } from '@aztec/aztec.js';
 import { type DebugLogger } from '@aztec/foundation/log';
-import { fileURLToPath } from '@aztec/foundation/url';
 
-import { readFileSync } from 'fs';
-import { dirname, resolve } from 'path';
 import { gtr, ltr, satisfies, valid } from 'semver';
 
 /**
  * Creates a PXE client with a given set of retries on non-server errors.
  * Checks that PXE matches the expected version, and warns if not.
  * @param rpcUrl - URL of the RPC server wrapping the PXE.
- * @param logger - Debug logger to warn version incompatibilities.
+ * @param _logger - Debug logger to warn version incompatibilities.
  * @returns A PXE client.
  */
-export async function createCompatibleClient(rpcUrl: string, logger: DebugLogger) {
+export function createCompatibleClient(rpcUrl: string, _logger: DebugLogger): Promise<PXE> {
   const pxe = createPXEClient(rpcUrl);
-  const packageJsonPath = resolve(dirname(fileURLToPath(import.meta.url)), '../package.json');
-  const packageJsonContents = JSON.parse(readFileSync(packageJsonPath).toString());
-  const expectedVersionRange = packageJsonContents.version;
-
-  try {
-    await checkServerVersion(pxe, expectedVersionRange);
-  } catch (err) {
-    if (err instanceof VersionMismatchError) {
-      logger.warn(err.message);
-    } else {
-      throw err;
-    }
-  }
-
-  return pxe;
+  return Promise.resolve(pxe);
 }
 
 /** Mismatch between server and client versions. */
