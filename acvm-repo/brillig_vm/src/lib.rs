@@ -470,7 +470,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     fn write_slice_of_values_to_memory(
         &mut self,
         destination: MemoryAddress,
-        values: &Vec<FieldElement>,
+        values: &Vec<F>,
         values_idx: &mut usize,
         value_type: &HeapValueType,
     ) -> Result<MemoryAddress, String> {
@@ -524,7 +524,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     fn write_value_to_memory(
         &mut self,
         destination: MemoryAddress,
-        values: &Vec<FieldElement>,
+        values: &Vec<F>,
         values_idx: &mut usize,
         value_bit_size: u32,
     ) -> Result<(), String> {
@@ -622,7 +622,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     // foreign call returning flatten values into a nested type, so the sizes do not match
                     let destination = self.memory.read_ref(*pointer_index);
                     let return_type = value_type;
-                    self.write_slice_of_values_to_memory(destination, &flatten_values, &mut flatten_values_idx, &return_type)?;
+                    self.write_slice_of_values_to_memory(destination, &flatten_values, &mut flatten_values_idx, return_type)?;
             }
         }
             (
