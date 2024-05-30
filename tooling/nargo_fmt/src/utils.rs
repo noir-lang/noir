@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::items::HasItem;
 use crate::rewrite;
 use crate::visitor::{FmtVisitor, Shape};
-use noirc_frontend::ast::{Expression, Ident, Param, Visibility};
+use noirc_frontend::ast::{Expression, Ident, Param, UnresolvedGeneric, Visibility};
 use noirc_frontend::hir::resolution::errors::Span;
 use noirc_frontend::lexer::Lexer;
 use noirc_frontend::token::Token;
@@ -163,6 +163,19 @@ impl HasItem for Param {
 impl HasItem for Ident {
     fn span(&self) -> Span {
         self.span()
+    }
+
+    fn format(self, visitor: &FmtVisitor, _shape: Shape) -> String {
+        visitor.slice(self.span()).into()
+    }
+}
+
+impl HasItem for UnresolvedGeneric {
+    fn span(&self) -> Span {
+        match self {
+            UnresolvedGeneric::Variable(ident) => ident.span(),
+            UnresolvedGeneric::Numeric { ident, typ } => ident.span().merge(typ.span.expect("Should have a span for numeric generic type")),
+        }
     }
 
     fn format(self, visitor: &FmtVisitor, _shape: Shape) -> String {

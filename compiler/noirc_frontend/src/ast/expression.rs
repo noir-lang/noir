@@ -38,7 +38,28 @@ pub enum ExpressionKind {
 
 /// A Vec of unresolved names for type variables.
 /// For `fn foo<A, B>(...)` this corresponds to vec!["A", "B"].
-pub type UnresolvedGenerics = Vec<Ident>;
+pub type UnresolvedGenerics = Vec<UnresolvedGeneric>;
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum UnresolvedGeneric {
+    Variable(Ident),
+    Numeric { ident: Ident, typ: UnresolvedType },
+}
+
+impl Display for UnresolvedGeneric {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UnresolvedGeneric::Variable(ident) => write!(f, "{ident}"),
+            UnresolvedGeneric::Numeric { ident, typ } => write!(f, "let {ident}: {typ}"),
+        }
+    }
+}
+
+impl From<Ident> for UnresolvedGeneric {
+    fn from(value: Ident) -> Self {
+        UnresolvedGeneric::Variable(value)
+    }
+}
 
 impl ExpressionKind {
     pub fn into_path(self) -> Option<Path> {

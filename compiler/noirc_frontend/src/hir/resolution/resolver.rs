@@ -28,11 +28,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::rc::Rc;
 
 use crate::ast::{
-    ArrayLiteral, BinaryOpKind, BlockExpression, Expression, ExpressionKind, ForRange,
-    FunctionDefinition, FunctionKind, FunctionReturnType, Ident, ItemVisibility, LValue,
-    LetStatement, Literal, NoirFunction, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
-    Statement, StatementKind, TraitBound, UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint,
-    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+    ArrayLiteral, BinaryOpKind, BlockExpression, Expression, ExpressionKind, ForRange, FunctionDefinition, FunctionKind, FunctionReturnType, Ident, ItemVisibility, LValue, LetStatement, Literal, NoirFunction, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern, Statement, StatementKind, TraitBound, UnaryOp, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT
 };
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
@@ -125,6 +121,7 @@ pub struct Resolver<'a> {
     /// unique type variables if we're resolving a struct. Empty otherwise.
     /// This is a Vec rather than a map to preserve the order a functions generics
     /// were declared in.
+    // TODO: Switch this to a ResolvedGeneric struct
     generics: Vec<(Rc<String>, TypeVariable, Span)>,
 
     /// When resolving lambda expressions, we need to keep track of the variables
@@ -217,7 +214,8 @@ impl<'a> Resolver<'a> {
                 let mut new_generic_ident: Ident =
                     format!("T{}_impl_{}", func_id, path.as_string()).into();
                 let mut new_generic_path = Path::from_ident(new_generic_ident.clone());
-                while impl_trait_generics.contains(&new_generic_ident)
+                let mut new_generic = UnresolvedGeneric::from(new_generic_ident.clone());
+                while impl_trait_generics.contains(&new_generic)
                     || self.lookup_generic_or_global_type(&new_generic_path).is_some()
                 {
                     new_generic_ident =
@@ -225,7 +223,7 @@ impl<'a> Resolver<'a> {
                     new_generic_path = Path::from_ident(new_generic_ident.clone());
                     counter += 1;
                 }
-                impl_trait_generics.insert(new_generic_ident.clone());
+                impl_trait_generics.insert(UnresolvedGeneric::from(new_generic_ident.clone()));
 
                 let is_synthesized = true;
                 let new_generic_type_data =
@@ -243,7 +241,7 @@ impl<'a> Resolver<'a> {
                 };
 
                 parameter.typ.typ = new_generic_type_data;
-                func.def.generics.push(new_generic_ident);
+                func.def.generics.push(new_generic_ident.into());
                 func.def.where_clause.push(new_trait_constraint);
             }
         }
@@ -902,14 +900,20 @@ impl<'a> Resolver<'a> {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
             let typevar = TypeVariable::unbound(id);
-            let span = generic.0.span();
+            let ident = Ident::from(generic);
+            let span = ident.0.span();
+
+            if let UnresolvedGeneric::Numeric { ident, .. } = generic {
+                let definition = DefinitionKind::GenericType(typevar.clone());
+                self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
+            } 
 
             // Check for name collisions of this generic
-            let name = Rc::new(generic.0.contents.clone());
+            let name = Rc::new(ident.0.contents.clone());
 
             if let Some((_, _, first_span)) = self.find_generic(&name) {
                 self.errors.push(ResolverError::DuplicateDefinition {
-                    name: generic.0.contents.clone(),
+                    name: ident.0.contents.clone(),
                     first_span: *first_span,
                     second_span: span,
                 });
@@ -928,6 +932,7 @@ impl<'a> Resolver<'a> {
         assert_eq!(names.len(), generics.len());
 
         for (name, typevar) in names.iter().zip(generics) {
+            let name = Ident::from(name);
             self.add_existing_generic(&name.0.contents, name.0.span(), typevar.clone());
         }
     }
@@ -1088,7 +1093,10 @@ impl<'a> Resolver<'a> {
 
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
-            .filter_map(|generic| self.find_generic(&generic.0.contents))
+            .filter_map(|generic| {
+                let generic = Ident::from(generic);
+                self.find_generic(&generic.0.contents)
+            })
             .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
             .collect();
 

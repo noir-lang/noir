@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    ast::{FunctionKind, UnresolvedTraitConstraint},
+    ast::{FunctionKind, UnresolvedGeneric, UnresolvedTraitConstraint},
     hir::{
         def_collector::{
             dc_crate::{
@@ -385,7 +385,8 @@ impl<'context> Elaborator<'context> {
                 let mut new_generic_ident: Ident =
                     format!("T{}_impl_{}", func_id, path.as_string()).into();
                 let mut new_generic_path = Path::from_ident(new_generic_ident.clone());
-                while impl_trait_generics.contains(&new_generic_ident)
+                let mut new_generic = UnresolvedGeneric::from(new_generic_ident.clone());
+                while impl_trait_generics.contains(&new_generic)
                     || self.lookup_generic_or_global_type(&new_generic_path).is_some()
                 {
                     new_generic_ident =
@@ -393,7 +394,7 @@ impl<'context> Elaborator<'context> {
                     new_generic_path = Path::from_ident(new_generic_ident.clone());
                     counter += 1;
                 }
-                impl_trait_generics.insert(new_generic_ident.clone());
+                impl_trait_generics.insert(UnresolvedGeneric::from(new_generic_ident.clone()));
 
                 let is_synthesized = true;
                 let new_generic_type_data =
@@ -411,13 +412,13 @@ impl<'context> Elaborator<'context> {
                 };
 
                 parameter.typ.typ = new_generic_type_data;
-                func.def.generics.push(new_generic_ident);
+                func.def.generics.push(new_generic_ident.into());
                 func.def.where_clause.push(new_trait_constraint);
             }
         }
         self.add_generics(&impl_trait_generics.into_iter().collect());
     }
-
+    
     /// Add the given generics to scope.
     /// Each generic will have a fresh Shared<TypeBinding> associated with it.
     pub fn add_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
@@ -425,6 +426,7 @@ impl<'context> Elaborator<'context> {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
             let typevar = TypeVariable::unbound(id);
+            let generic = Ident::from(generic);
             let span = generic.0.span();
 
             // Check for name collisions of this generic
@@ -643,7 +645,10 @@ impl<'context> Elaborator<'context> {
 
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
-            .filter_map(|generic| self.find_generic(&generic.0.contents))
+            .filter_map(|generic| {
+                let generic = Ident::from(generic);
+                self.find_generic(&generic.0.contents)
+            })
             .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
             .collect();
 
@@ -844,7 +849,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn elaborate_impls(&mut self, impls: Vec<(Vec<Ident>, Span, UnresolvedFunctions)>) {
+    fn elaborate_impls(&mut self, impls: Vec<(UnresolvedGenerics, Span, UnresolvedFunctions)>) {
         for (_, _, functions) in impls {
             self.file = functions.file_id;
             self.recover_generics(|this| this.elaborate_functions(functions));
@@ -868,7 +873,7 @@ impl<'context> Elaborator<'context> {
     fn collect_impls(
         &mut self,
         module: LocalModuleId,
-        impls: &mut [(Vec<Ident>, Span, UnresolvedFunctions)],
+        impls: &mut [(UnresolvedGenerics, Span, UnresolvedFunctions)],
     ) {
         self.local_module = module;
 
