@@ -420,6 +420,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_nullifier_exists);
     commitments.avm_main_sel_op_or =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_or);
+    commitments.avm_main_sel_op_pedersen =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_pedersen);
     commitments.avm_main_sel_op_poseidon2 =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_poseidon2);
     commitments.avm_main_sel_op_radix_le =
@@ -509,6 +511,14 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
     commitments.avm_mem_val = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_val);
     commitments.avm_mem_w_in_tag =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_w_in_tag);
+    commitments.avm_pedersen_clk =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_pedersen_clk);
+    commitments.avm_pedersen_input =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_pedersen_input);
+    commitments.avm_pedersen_output =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_pedersen_output);
+    commitments.avm_pedersen_pedersen_sel =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_pedersen_pedersen_sel);
     commitments.avm_poseidon2_clk =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_poseidon2_clk);
     commitments.avm_poseidon2_input =
@@ -609,6 +619,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
     commitments.perm_main_conv = transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_conv);
     commitments.perm_main_pos2_perm =
         transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_pos2_perm);
+    commitments.perm_main_pedersen =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_pedersen);
     commitments.perm_main_mem_a =
         transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_mem_a);
     commitments.perm_main_mem_b =

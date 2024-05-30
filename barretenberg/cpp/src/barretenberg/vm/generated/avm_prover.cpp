@@ -279,6 +279,7 @@ void AvmProver::execute_wire_commitments_round()
     witness_commitments.avm_main_sel_op_nullifier_exists =
         commitment_key->commit(key->avm_main_sel_op_nullifier_exists);
     witness_commitments.avm_main_sel_op_or = commitment_key->commit(key->avm_main_sel_op_or);
+    witness_commitments.avm_main_sel_op_pedersen = commitment_key->commit(key->avm_main_sel_op_pedersen);
     witness_commitments.avm_main_sel_op_poseidon2 = commitment_key->commit(key->avm_main_sel_op_poseidon2);
     witness_commitments.avm_main_sel_op_radix_le = commitment_key->commit(key->avm_main_sel_op_radix_le);
     witness_commitments.avm_main_sel_op_sender = commitment_key->commit(key->avm_main_sel_op_sender);
@@ -329,6 +330,10 @@ void AvmProver::execute_wire_commitments_round()
     witness_commitments.avm_mem_tsp = commitment_key->commit(key->avm_mem_tsp);
     witness_commitments.avm_mem_val = commitment_key->commit(key->avm_mem_val);
     witness_commitments.avm_mem_w_in_tag = commitment_key->commit(key->avm_mem_w_in_tag);
+    witness_commitments.avm_pedersen_clk = commitment_key->commit(key->avm_pedersen_clk);
+    witness_commitments.avm_pedersen_input = commitment_key->commit(key->avm_pedersen_input);
+    witness_commitments.avm_pedersen_output = commitment_key->commit(key->avm_pedersen_output);
+    witness_commitments.avm_pedersen_pedersen_sel = commitment_key->commit(key->avm_pedersen_pedersen_sel);
     witness_commitments.avm_poseidon2_clk = commitment_key->commit(key->avm_poseidon2_clk);
     witness_commitments.avm_poseidon2_input = commitment_key->commit(key->avm_poseidon2_input);
     witness_commitments.avm_poseidon2_output = commitment_key->commit(key->avm_poseidon2_output);
@@ -631,6 +636,8 @@ void AvmProver::execute_wire_commitments_round()
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_nullifier_exists,
                                  witness_commitments.avm_main_sel_op_nullifier_exists);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_or, witness_commitments.avm_main_sel_op_or);
+    transcript->send_to_verifier(commitment_labels.avm_main_sel_op_pedersen,
+                                 witness_commitments.avm_main_sel_op_pedersen);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_poseidon2,
                                  witness_commitments.avm_main_sel_op_poseidon2);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_radix_le,
@@ -686,6 +693,11 @@ void AvmProver::execute_wire_commitments_round()
     transcript->send_to_verifier(commitment_labels.avm_mem_tsp, witness_commitments.avm_mem_tsp);
     transcript->send_to_verifier(commitment_labels.avm_mem_val, witness_commitments.avm_mem_val);
     transcript->send_to_verifier(commitment_labels.avm_mem_w_in_tag, witness_commitments.avm_mem_w_in_tag);
+    transcript->send_to_verifier(commitment_labels.avm_pedersen_clk, witness_commitments.avm_pedersen_clk);
+    transcript->send_to_verifier(commitment_labels.avm_pedersen_input, witness_commitments.avm_pedersen_input);
+    transcript->send_to_verifier(commitment_labels.avm_pedersen_output, witness_commitments.avm_pedersen_output);
+    transcript->send_to_verifier(commitment_labels.avm_pedersen_pedersen_sel,
+                                 witness_commitments.avm_pedersen_pedersen_sel);
     transcript->send_to_verifier(commitment_labels.avm_poseidon2_clk, witness_commitments.avm_poseidon2_clk);
     transcript->send_to_verifier(commitment_labels.avm_poseidon2_input, witness_commitments.avm_poseidon2_input);
     transcript->send_to_verifier(commitment_labels.avm_poseidon2_output, witness_commitments.avm_poseidon2_output);
@@ -766,6 +778,7 @@ void AvmProver::execute_log_derivative_inverse_round()
     witness_commitments.perm_main_bin = commitment_key->commit(key->perm_main_bin);
     witness_commitments.perm_main_conv = commitment_key->commit(key->perm_main_conv);
     witness_commitments.perm_main_pos2_perm = commitment_key->commit(key->perm_main_pos2_perm);
+    witness_commitments.perm_main_pedersen = commitment_key->commit(key->perm_main_pedersen);
     witness_commitments.perm_main_mem_a = commitment_key->commit(key->perm_main_mem_a);
     witness_commitments.perm_main_mem_b = commitment_key->commit(key->perm_main_mem_b);
     witness_commitments.perm_main_mem_c = commitment_key->commit(key->perm_main_mem_c);
@@ -816,6 +829,7 @@ void AvmProver::execute_log_derivative_inverse_round()
     transcript->send_to_verifier(commitment_labels.perm_main_bin, witness_commitments.perm_main_bin);
     transcript->send_to_verifier(commitment_labels.perm_main_conv, witness_commitments.perm_main_conv);
     transcript->send_to_verifier(commitment_labels.perm_main_pos2_perm, witness_commitments.perm_main_pos2_perm);
+    transcript->send_to_verifier(commitment_labels.perm_main_pedersen, witness_commitments.perm_main_pedersen);
     transcript->send_to_verifier(commitment_labels.perm_main_mem_a, witness_commitments.perm_main_mem_a);
     transcript->send_to_verifier(commitment_labels.perm_main_mem_b, witness_commitments.perm_main_mem_b);
     transcript->send_to_verifier(commitment_labels.perm_main_mem_c, witness_commitments.perm_main_mem_c);

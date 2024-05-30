@@ -8,6 +8,7 @@ include "gadgets/avm_conversion.pil";
 include "gadgets/avm_sha256.pil";
 include "gadgets/avm_poseidon2.pil";
 include "gadgets/avm_keccakf1600.pil";
+include "gadgets/avm_pedersen.pil";
 
 namespace avm_main(256);
     //===== CONSTANT POLYNOMIALS ==================================================
@@ -54,6 +55,7 @@ namespace avm_main(256);
     pol commit sel_op_sha256;
     pol commit sel_op_poseidon2;
     pol commit sel_op_keccak;
+    pol commit sel_op_pedersen;
     
     //===== Fix Range Checks Selectors=============================================
     // We re-use the clk column for the lookup values of 8-bit resp. 16-bit range check.
@@ -211,6 +213,7 @@ namespace avm_main(256);
     sel_op_sha256 * (1 - sel_op_sha256) = 0;
     sel_op_poseidon2 * (1 - sel_op_poseidon2) = 0;
     sel_op_keccak * (1 - sel_op_keccak) = 0;
+    sel_op_pedersen * (1 - sel_op_pedersen) = 0;
 
     sel_op_add * (1 - sel_op_add) = 0;
     sel_op_sub * (1 - sel_op_sub) = 0;
@@ -364,7 +367,7 @@ namespace avm_main(256);
     //===== CONTROL_FLOW_CONSISTENCY ============================================
     pol INTERNAL_CALL_STACK_SELECTORS = (first + sel_internal_call + sel_internal_return + sel_halt);
     pol ALL_BINARY_SEL = sel_op_and + sel_op_or + sel_op_xor;
-    pol ALL_GADGET_SEL = sel_op_radix_le + sel_op_sha256 + sel_op_poseidon2 + sel_op_keccak;
+    pol ALL_GADGET_SEL = sel_op_radix_le + sel_op_sha256 + sel_op_poseidon2 + sel_op_keccak + sel_op_pedersen;
     pol ALL_MEMORY_SEL = sel_cmov + sel_mov;
     pol OPCODE_SELECTORS = ALU_ALL_SEL + ALL_BINARY_SEL + ALL_MEMORY_SEL + ALL_GADGET_SEL + KERNEL_INPUT_SELECTORS + KERNEL_OUTPUT_SELECTORS;
 
@@ -576,6 +579,11 @@ namespace avm_main(256);
     // sel_op_keccak {clk, ia, ic}
     // is
     // avm_keccakf1600.keccakf1600_sel {avm_keccakf1600.clk, avm_keccakf1600.input, avm_keccakf1600.output};
+
+    #[PERM_MAIN_PEDERSEN]
+    sel_op_pedersen {clk, ia}
+    is
+    avm_pedersen.pedersen_sel {avm_pedersen.clk, avm_pedersen.input};
 
     #[PERM_MAIN_MEM_A]
     mem_op_a {clk, space_id, mem_idx_a, ia, rwa

@@ -1145,6 +1145,81 @@ TEST_F(AvmExecutionTests, keccakOpCode)
     validate_trace(std::move(trace));
 }
 
+// Positive test with Pedersen.
+TEST_F(AvmExecutionTests, pedersenHashOpCode)
+{
+
+    // Test vectors from pedersen_hash in noir/noir-repo/acvm-repo/blackbox_solver/
+    // input = [1,1]
+    // output = 0x1c446df60816b897cda124524e6b03f36df0cec333fad87617aab70d7861daa6
+    // hash_index = 5;
+    FF expected_output = FF("0x1c446df60816b897cda124524e6b03f36df0cec333fad87617aab70d7861daa6");
+    std::string bytecode_hex = to_hex(OpCode::CALLDATACOPY) + // Calldatacopy
+                               "00"                           // Indirect flag
+                               "00000000"                     // cd_offset
+                               "00000002"                     // copy_size
+                               "00000000"                     // dst_offset
+                               + to_hex(OpCode::SET) +        // opcode SET for direct hash index offset
+                               "00"                           // Indirect flag
+                               "03"                           // U32
+                               "00000005"                     // value 5
+                               "00000002"                     // input_offset 2
+                               + to_hex(OpCode::SET) +        // opcode SET for indirect src
+                               "00"                           // Indirect flag
+                               "03"                           // U32
+                               "00000000"                     // value 0 (i.e. where the src will be read from)
+                               "00000004"                     // dst_offset 4
+                               + to_hex(OpCode::SET) +        // opcode SET for direct src_length
+                               "00"                           // Indirect flag
+                               "03"                           // U32
+                               "00000002"                     // value 2
+                               "00000005"                     // dst_offset
+                               + to_hex(OpCode::PEDERSEN) +   // opcode PEDERSEN
+                               "04"                           // Indirect flag (3rd operand indirect)
+                               "00000002"                     // hash_index offset (direct)
+                               "00000003"                     // dest offset (direct)
+                               "00000004"                     // input offset (indirect)
+                               "00000005"                     // length offset (direct)
+                               + to_hex(OpCode::RETURN) +     // opcode RETURN
+                               "00"                           // Indirect flag
+                               "00000003"                     // ret offset 3
+                               "00000001";                    // ret size 1
+
+    auto bytecode = hex_to_bytes(bytecode_hex);
+    auto instructions = Deserialization::parse(bytecode);
+
+    ASSERT_THAT(instructions, SizeIs(6));
+    // Pedersen
+    EXPECT_THAT(instructions.at(4),
+                AllOf(Field(&Instruction::op_code, OpCode::PEDERSEN),
+                      Field(&Instruction::operands,
+                            ElementsAre(VariantWith<uint8_t>(4),
+                                        VariantWith<uint32_t>(2),
+                                        VariantWith<uint32_t>(3),
+                                        VariantWith<uint32_t>(4),
+                                        VariantWith<uint32_t>(5)))));
+
+    // Assign a vector that we will mutate internally in gen_trace to store the return values;
+    std::vector<FF> returndata = std::vector<FF>();
+    std::vector<FF> calldata = { FF(1), FF(1) };
+    std::vector<FF> public_inputs_vec(PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH);
+    auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
+
+    // Find the first row enabling the pedersen selector
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_pedersen == 1; });
+    EXPECT_EQ(row->avm_main_ind_a, 4);     // Register A is indirect
+    EXPECT_EQ(row->avm_main_mem_idx_a, 0); // Indirect(4) -> 1
+    EXPECT_EQ(row->avm_main_ia, 1);        // The first input
+    // The second row loads the U32 values
+    std::advance(row, 1);
+    EXPECT_EQ(row->avm_main_ia, 2); // Input length is 2
+    EXPECT_EQ(row->avm_main_ib, 5); // Hash offset is 5
+
+    EXPECT_EQ(returndata[0], expected_output);
+
+    validate_trace(std::move(trace));
+}
+
 // Positive test for Kernel Input opcodes
 TEST_F(AvmExecutionTests, kernelInputOpcodes)
 {

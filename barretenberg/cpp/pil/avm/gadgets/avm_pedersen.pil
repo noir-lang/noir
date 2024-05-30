@@ -1,0 +1,14 @@
+
+include "../avm_main.pil";
+
+namespace avm_pedersen(256);
+
+    pol commit clk;
+
+    // Selector for Pedersen Hash Operation
+    pol commit pedersen_sel;
+    pedersen_sel * (1 - pedersen_sel) = 0;
+
+    // These will all be arrays, but we just store the first element for permutation to the main trace for now
+    pol commit input;
+    pol commit output;
