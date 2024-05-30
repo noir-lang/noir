@@ -89,8 +89,15 @@ export class L1NotePayload {
    * @param ivpk - The incoming viewing public key of the recipient
    * @param ovKeys - The outgoing viewing keys of the sender
    * @returns A buffer containing the encrypted log payload
+   * @throws If the ivpk is zero.
    */
   public encrypt(ephSk: GrumpkinPrivateKey, recipient: AztecAddress, ivpk: PublicKey, ovKeys: KeyValidationRequest) {
+    if (ivpk.isZero()) {
+      throw new Error(
+        `Attempting to encrypt with a zero ivpk. You have probably passed a zero value in your Noir code somewhere thinking that the note won't broadcasted... but it was.`,
+      );
+    }
+
     const ephPk = derivePublicKeyFromSecretKey(ephSk);
 
     const header = new EncryptedLogHeader(this.contractAddress);

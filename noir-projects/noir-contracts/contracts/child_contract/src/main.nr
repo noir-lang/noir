@@ -57,7 +57,7 @@ contract Child {
         let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
 
         let mut note = ValueNote::new(new_value, owner_npk_m_hash);
-        storage.a_map_with_private_values.at(owner).insert(&mut note, true, msg_sender_ovpk_m, owner_ivpk_m);
+        storage.a_map_with_private_values.at(owner).insert(&mut note, msg_sender_ovpk_m, owner_ivpk_m);
         new_value
     }
 

@@ -29,9 +29,9 @@ impl NoteInterface<TEST_NOTE_LEN, TEST_NOTE_BYTES_LENGTH> for TestNote {
     }
 
     fn broadcast(self, context: &mut PrivateContext, slot: Field, ovpk_m: GrumpkinPoint, ivpk_m: GrumpkinPoint) {
-        assert(
-            false, "TestNote does not support broadcast. Add it to PXE directly using the `.addNote` function."
-        );
+      // TestNote does not support broadcasting. Since this function gets called in various places anyway we will verify
+      // that the dev really did not intend to broadcast by checking that zero keys were passed in.
+      assert(ovpk_m.is_zero() & ivpk_m.is_zero(), "TestNote does not support broadcast.");
     }
 }
 

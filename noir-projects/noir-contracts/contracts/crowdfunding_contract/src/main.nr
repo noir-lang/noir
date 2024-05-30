@@ -88,7 +88,7 @@ contract Crowdfunding {
         let donor_ovpk_m = header.get_ovpk_m(&mut context, donor);
         let donor_ivpk_m = header.get_ivpk_m(&mut context, donor);
         let mut note = ValueNote::new(amount as Field, donor_npk_m_hash);
-        storage.donation_receipts.insert(&mut note, true, donor_ovpk_m, donor_ivpk_m);
+        storage.donation_receipts.insert(&mut note, donor_ovpk_m, donor_ivpk_m);
     }
     // docs:end:donate
 

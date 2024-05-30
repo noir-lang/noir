@@ -74,7 +74,7 @@ impl<T> BalancesMap<T, &mut PrivateContext> {
         let mut addend_note = T::new(addend, owner_npk_m_hash);
 
         // docs:start:insert
-        self.map.at(owner).insert(&mut addend_note, true, outgoing_viewer_ovpk_m, owner_ivpk_m);
+        self.map.at(owner).insert(&mut addend_note, outgoing_viewer_ovpk_m, owner_ivpk_m);
         // docs:end:insert
     }
 

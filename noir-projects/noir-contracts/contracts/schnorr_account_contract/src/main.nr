@@ -39,7 +39,7 @@ contract SchnorrAccount {
 
         // docs:start:initialize
         let mut pub_key_note = PublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this_npk_m_hash);
-        storage.signing_public_key.initialize(&mut pub_key_note, true, this_ovpk_m, this_ivpk_m);
+        storage.signing_public_key.initialize(&mut pub_key_note, this_ovpk_m, this_ivpk_m);
         // docs:end:initialize
     }
 

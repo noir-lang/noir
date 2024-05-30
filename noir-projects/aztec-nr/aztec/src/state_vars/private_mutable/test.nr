@@ -22,13 +22,12 @@ fn test_initialize_or_replace_without_nullifier() {
 
     let ovpk_m: GrumpkinPoint = zeroed();
     let ivpk_m: GrumpkinPoint = zeroed();
-    let broadcast = false;
 
     let value = 42;
     let mut note = MockNote::new(value).contract_address(contract_address).storage_slot(storage_slot).build();
 
     OracleMock::mock("checkNullifierExists").returns(0);
-    state_var.initialize_or_replace(&mut note, broadcast, ovpk_m, ivpk_m);
+    state_var.initialize_or_replace(&mut note, ovpk_m, ivpk_m);
 
     // Since we reported there was no nullifier, we should initialize and see the following side-effects:
     // - a new note being created

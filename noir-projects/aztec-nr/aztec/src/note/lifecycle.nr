@@ -10,7 +10,6 @@ pub fn create_note<Note, N, M>(
     context: &mut PrivateContext,
     storage_slot: Field,
     note: &mut Note,
-    broadcast: bool,
     ovpk_m: GrumpkinPoint,
     ivpk_m: GrumpkinPoint
 ) where Note: NoteInterface<N, M> {
@@ -37,9 +36,7 @@ pub fn create_note<Note, N, M>(
 
     context.push_new_note_hash(inner_note_hash);
 
-    if broadcast {
-        Note::broadcast(*note, context, storage_slot, ovpk_m, ivpk_m);
-    }
+    Note::broadcast(*note, context, storage_slot, ovpk_m, ivpk_m);
 }
 
 pub fn create_note_hash_from_public<Note, N, M>(

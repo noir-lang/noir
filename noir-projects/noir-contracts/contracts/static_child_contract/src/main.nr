@@ -45,7 +45,7 @@ contract StaticChild {
         let msg_sender_ovpk_m = header.get_ovpk_m(&mut context, context.msg_sender());
         let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
         let mut note = ValueNote::new(new_value, owner_npk_m_hash);
-        storage.a_private_value.insert(&mut note, true, msg_sender_ovpk_m, owner_ivpk_m);
+        storage.a_private_value.insert(&mut note, msg_sender_ovpk_m, owner_ivpk_m);
         new_value
     }
 
@@ -61,7 +61,7 @@ contract StaticChild {
         let outgoing_viewer_ovpk_m = header.get_ovpk_m(&mut context, outgoing_viewer);
         let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
         let mut note = ValueNote::new(new_value, owner_npk_m_hash);
-        storage.a_private_value.insert(&mut note, true, outgoing_viewer_ovpk_m, owner_ivpk_m);
+        storage.a_private_value.insert(&mut note, outgoing_viewer_ovpk_m, owner_ivpk_m);
         new_value
     }
 

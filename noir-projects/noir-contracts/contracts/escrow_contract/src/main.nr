@@ -21,7 +21,7 @@ contract Escrow {
         let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
 
         let mut note = AddressNote::new(owner, owner_npk_m_hash);
-        storage.owner.initialize(&mut note, true, msg_sender_ovpk_m, owner_ivpk_m);
+        storage.owner.initialize(&mut note, msg_sender_ovpk_m, owner_ivpk_m);
     }
 
     // Withdraws balance. Requires that msg.sender is the owner.

@@ -36,7 +36,7 @@ contract PendingNoteHashes {
         let mut note = ValueNote::new(amount, owner_npk_m_hash);
 
         // Insert note
-        owner_balance.insert(&mut note, true, outgoing_viewer_ovpk_m, owner_ivpk_m);
+        owner_balance.insert(&mut note, outgoing_viewer_ovpk_m, owner_ivpk_m);
 
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, amount);
         // get note inserted above
@@ -70,7 +70,7 @@ contract PendingNoteHashes {
 
         // Insert note
         let mut note = ValueNote::new(amount, owner_npk_m_hash);
-        owner_balance.insert(&mut note, true, msg_sender_ovpk_m, owner_ivpk_m);
+        owner_balance.insert(&mut note, msg_sender_ovpk_m, owner_ivpk_m);
 
         0
     }
@@ -92,7 +92,7 @@ contract PendingNoteHashes {
         let mut note = ValueNote::new(amount, owner_npk_m_hash);
 
         // Insert note
-        owner_balance.insert(&mut note, true, outgoing_viewer_ovpk_m, owner_ivpk_m);
+        owner_balance.insert(&mut note, outgoing_viewer_ovpk_m, owner_ivpk_m);
     }
 
     // Nested/inner function to create and insert a note
@@ -394,7 +394,7 @@ contract PendingNoteHashes {
 
         for i in 0..max_notes_per_call() {
             let mut note = ValueNote::new(i as Field, owner_npk_m_hash);
-            owner_balance.insert(&mut note, true, outgoing_viewer_ovpk_m, owner_ivpk_m);
+            owner_balance.insert(&mut note, outgoing_viewer_ovpk_m, owner_ivpk_m);
         }
     }
 

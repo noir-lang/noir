@@ -48,9 +48,9 @@ impl NoteInterface<MOCK_NOTE_LENGTH, MOCK_NOTE_BYTES_LENGTH> for MockNote {
     }
 
     fn broadcast(self, context: &mut PrivateContext, slot: Field, ovpk_m: GrumpkinPoint, ivpk_m: GrumpkinPoint) {
-      assert(
-        false, "MockNote does not support broadcast."
-      );
+      // MockNote does not support broadcasting. Since this function gets called in various places anyway we will verify
+      // that the dev really did not intend to broadcast by checking that zero keys were passed in.
+      assert(ovpk_m.is_zero() & ivpk_m.is_zero(), "MockNote does not support broadcast.");
     }
 
     fn to_be_bytes(self, storage_slot: Field) -> [u8; MOCK_NOTE_BYTES_LENGTH] {

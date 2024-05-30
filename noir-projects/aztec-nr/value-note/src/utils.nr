@@ -24,12 +24,7 @@ pub fn increment(
 
     let mut note = ValueNote::new(amount, recipient_npk_m_hash);
     // Insert the new note to the owner's set of notes and emit the log if value is non-zero.
-    balance.insert(
-        &mut note,
-        amount != 0,
-        outgoing_viewer_ovpk_m,
-        recipient_ivpk_m
-    );
+    balance.insert(&mut note, outgoing_viewer_ovpk_m, recipient_ivpk_m);
 }
 
 // Find some of the `owner`'s notes whose values add up to the `amount`.

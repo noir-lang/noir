@@ -14,14 +14,14 @@ contract Vanilla {
     fn constructor(number: Field, owner: AztecAddress, owner_npk_m_hash: Field, owner_ovpk_m: GrumpkinPoint, owner_ivpk_m: GrumpkinPoint) {
         let numbers = storage.numbers;
         let mut new_number = ValueNote::new(number, owner_npk_m_hash);
-        numbers.at(owner).initialize(&mut new_number, true, owner_ovpk_m, owner_ivpk_m);
+        numbers.at(owner).initialize(&mut new_number, owner_ovpk_m, owner_ivpk_m);
     }
 
     #[aztec(private)]
     fn setNumber(number: Field, owner: AztecAddress, owner_npk_m_hash: Field, owner_ovpk_m: GrumpkinPoint, owner_ivpk_m: GrumpkinPoint) {
         let numbers = storage.numbers;
         let mut new_number = ValueNote::new(number, owner_npk_m_hash);
-        numbers.at(owner).replace(&mut new_number, true, owner_ovpk_m, owner_ivpk_m);
+        numbers.at(owner).replace(&mut new_number, owner_ovpk_m, owner_ivpk_m);
     }
 
     unconstrained fn getNumber(owner: AztecAddress) -> pub ValueNote {
