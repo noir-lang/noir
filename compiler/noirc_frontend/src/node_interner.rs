@@ -396,7 +396,7 @@ impl ArithOpKind {
             Self::Mul => Ok(x * y),
             Self::Add => Ok(x + y),
             Self::Sub => {
-                x.checked_sub(y).ok_or_else(|| ArithExprError::SubUnderflow { lhs: x, rhs: y })
+                x.checked_sub(y).ok_or(ArithExprError::SubUnderflow { lhs: x, rhs: y })
             }
         }
     }
@@ -531,9 +531,9 @@ impl ArithConstraint {
 
         // TODO: remove cloned
         let lhs_generics: Vec<_> =
-            self.lhs_generics.iter().cloned().chain(lhs_new_generics.into_iter()).collect();
+            self.lhs_generics.iter().cloned().chain(lhs_new_generics).collect();
         let rhs_generics: Vec<_> =
-            self.rhs_generics.iter().cloned().chain(rhs_new_generics.into_iter()).collect();
+            self.rhs_generics.iter().cloned().chain(rhs_new_generics).collect();
 
         dbg!("validating: post-follow_bindings", &lhs_expr, &rhs_expr);
 
@@ -1292,10 +1292,8 @@ impl NodeInterner {
     }
 
     pub fn get_arith_expression(&self, arith_id: ArithId) -> &(ArithExpr, Location) {
-        self.arith_expressions.get(&arith_id).expect(&*format!(
-            "ICE: unknown ArithId ({:?})\n\n{:?}",
-            arith_id, self.arith_expressions
-        ))
+        self.arith_expressions.get(&arith_id).unwrap_or_else(|| panic!("ICE: unknown ArithId ({:?})\n\n{:?}",
+            arith_id, self.arith_expressions))
     }
 
     /// Intern an empty function.

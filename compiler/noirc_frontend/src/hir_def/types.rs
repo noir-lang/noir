@@ -691,7 +691,7 @@ impl Type {
                 }
             }),
             Type::GenericArith(_, generics) => {
-                generics.iter().any(|generic| named_generic_id_matches_target(generic))
+                generics.iter().any(named_generic_id_matches_target)
             }
             Type::MutableReference(element) => element.contains_numeric_typevar(target_id),
             Type::String(length) => named_generic_id_matches_target(length),
@@ -1596,7 +1596,7 @@ impl Type {
             Type::GenericArith(arith_id, generics) => {
                 let (expr, location) = interner.get_arith_expression(*arith_id);
                 let generics =
-                    ArithConstraint::evaluate_generics_to_u64(&generics, location, interner)?;
+                    ArithConstraint::evaluate_generics_to_u64(generics, location, interner)?;
                 expr.evaluate(&generics)
             }
             unexpected_type => {

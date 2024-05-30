@@ -843,7 +843,7 @@ impl<'a> Resolver<'a> {
             UnresolvedTypeExpression::Constant(int, span) => {
                 // we intern constants so that they can be resolved during trait resolution
                 let arith_expr = ArithExpr::Constant(int);
-                let location = Location { span: span, file: self.file };
+                let location = Location { span, file: self.file };
                 let _ = self.interner.push_arith_expression(arith_expr, location);
                 Type::Constant(int)
             }
@@ -887,7 +887,7 @@ impl<'a> Resolver<'a> {
                             self.interner.push_arith_expression(arith_expr, op_location);
                         let new_generics = lhs_generics
                             .into_iter()
-                            .chain(rhs_generics.into_iter())
+                            .chain(rhs_generics)
                             .collect::<HashSet<_>>()
                             .into_iter()
                             .collect::<Vec<_>>();

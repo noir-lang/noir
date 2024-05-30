@@ -1039,10 +1039,10 @@ impl<'interner> Monomorphizer<'interner> {
                     match generic.evaluate_to_u64(&location, interner) {
                         Ok(result) => Ok(result),
                         Err(arith_expr_error) => {
-                            return Err(MonomorphizationError::ArithExprError {
+                            Err(MonomorphizationError::ArithExprError {
                                 arith_expr_error,
                                 location,
-                            });
+                            })
                         }
                     }
                 })?;
@@ -1855,9 +1855,9 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Validate and consume all of the `ArithConstraints``
     fn validate_arith_constraints(&mut self) -> Result<(), MonomorphizationError> {
-        let arith_constraints = self.interner.arith_constraints.replace(vec![].into());
+        let arith_constraints = self.interner.arith_constraints.replace(vec![]);
         for arith_constraint in arith_constraints {
-            arith_constraint.validate(self.interner)?
+            arith_constraint.validate(self.interner)?;
         }
         Ok(())
     }

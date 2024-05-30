@@ -22,10 +22,10 @@ use crate::{
         Ident, NodeInterner, NoirFunction, NoirStruct, Pattern, SecondaryAttribute, StructId,
     },
     node_interner::{
-        ArithConstraints, DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId,
+        DefinitionKind, DependencyId, ExprId, FuncId, TraitId,
         TypeAliasId,
     },
-    Shared, StructType, Type, TypeVariable,
+    Shared, Type, TypeVariable,
 };
 use crate::{
     ast::{TraitBound, UnresolvedGenerics},
