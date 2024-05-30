@@ -9,6 +9,7 @@ use crate::errors::FilesystemError;
 pub(super) mod inputs;
 pub(super) mod program;
 pub(super) mod proof;
+pub(super) mod trace;
 pub(super) mod witness;
 
 pub(super) fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {

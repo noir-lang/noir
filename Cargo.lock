@@ -2568,6 +2568,7 @@ dependencies = [
  "nargo_toml",
  "noir_debugger",
  "noir_lsp",
+ "noir_tracer",
  "noirc_abi",
  "noirc_driver",
  "noirc_errors",
@@ -2746,6 +2747,15 @@ dependencies = [
  "tokio",
  "tower",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "noir_tracer"
+version = "0.30.0"
+dependencies = [
+ "acvm",
+ "nargo",
+ "noir_debugger",
 ]
 
 [[package]]

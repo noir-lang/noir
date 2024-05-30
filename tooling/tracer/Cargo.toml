@@ -1,0 +1,14 @@
+[package]
+name = "noir_tracer"
+description = "Tracer for Noir that produces execution traces"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+acvm.workspace = true
+nargo.workspace = true
+noir_debugger.workspace = true
