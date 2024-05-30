@@ -6,12 +6,8 @@ import { type ProtocolArtifact, ProtocolCircuitArtifacts } from '@aztec/noir-pro
 import * as fs from 'fs/promises';
 
 import { BB_RESULT, generateContractForCircuit, generateKeyForNoirCircuit, verifyProof } from '../bb/execute.js';
+import { type BBConfig } from '../config.js';
 import { extractVkData } from '../verification_key/verification_key_data.js';
-
-export type BBConfig = {
-  bbBinaryPath: string;
-  bbWorkingDirectory: string;
-};
 
 export class BBCircuitVerifier {
   private constructor(

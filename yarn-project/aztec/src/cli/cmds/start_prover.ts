@@ -1,60 +1,56 @@
-import { type ProvingJobSource } from '@aztec/circuit-types';
-import { type ProverClientConfig, getProverEnvVars } from '@aztec/prover-client';
-import { ProverPool, createProvingJobSourceClient } from '@aztec/prover-client/prover-pool';
-
-import { tmpdir } from 'node:os';
+import { BBNativeRollupProver, TestCircuitProver } from '@aztec/bb-prover';
+import { type ServerCircuitProver } from '@aztec/circuit-types';
+import { getProverEnvVars } from '@aztec/prover-client';
+import { ProverAgent, createProvingJobSourceClient } from '@aztec/prover-client/prover-agent';
 
 import { type ServiceStarter, parseModuleOptions } from '../util.js';
 
-type ProverOptions = ProverClientConfig &
-  Partial<{
-    proverUrl: string;
-    agents: string;
-    acvmBinaryPath?: string;
-    bbBinaryPath?: string;
-    simulate?: string;
-  }>;
-
 export const startProver: ServiceStarter = async (options, signalHandlers, logger) => {
-  const proverOptions: ProverOptions = {
-    proverUrl: process.env.PROVER_URL,
+  const proverOptions = {
     ...getProverEnvVars(),
     ...parseModuleOptions(options.prover),
   };
-  let source: ProvingJobSource;
 
-  if (typeof proverOptions.proverUrl === 'string') {
-    logger(`Connecting to prover at ${proverOptions.proverUrl}`);
-    source = createProvingJobSourceClient(proverOptions.proverUrl, 'provingJobSource');
-  } else {
+  if (!proverOptions.nodeUrl) {
     throw new Error('Starting prover without an orchestrator is not supported');
   }
 
-  const agentCount = proverOptions.agents ? parseInt(proverOptions.agents, 10) : proverOptions.proverAgents;
-  if (agentCount === 0 || !Number.isSafeInteger(agentCount)) {
-    throw new Error('Cannot start prover without agents');
-  }
+  logger(`Connecting to prover at ${proverOptions.nodeUrl}`);
+  const source = createProvingJobSourceClient(proverOptions.nodeUrl, 'provingJobSource');
 
-  let pool: ProverPool;
-  if (proverOptions.simulate) {
-    pool = ProverPool.testPool(undefined, agentCount);
-  } else if (proverOptions.acvmBinaryPath && proverOptions.bbBinaryPath) {
-    pool = ProverPool.nativePool(
-      {
-        acvmBinaryPath: proverOptions.acvmBinaryPath,
-        bbBinaryPath: proverOptions.bbBinaryPath,
-        acvmWorkingDirectory: tmpdir(),
-        bbWorkingDirectory: tmpdir(),
-      },
-      agentCount,
-    );
+  const agentConcurrency =
+    // string if it was set as a CLI option, ie start --prover proverAgentConcurrency=10
+    typeof proverOptions.proverAgentConcurrency === 'string'
+      ? parseInt(proverOptions.proverAgentConcurrency, 10)
+      : proverOptions.proverAgentConcurrency;
+
+  const pollInterval =
+    // string if it was set as a CLI option, ie start --prover proverAgentPollInterval=10
+    typeof proverOptions.proverAgentPollInterval === 'string'
+      ? parseInt(proverOptions.proverAgentPollInterval, 10)
+      : proverOptions.proverAgentPollInterval;
+
+  let circuitProver: ServerCircuitProver;
+  if (proverOptions.realProofs) {
+    if (!proverOptions.acvmBinaryPath || !proverOptions.bbBinaryPath) {
+      throw new Error('Cannot start prover without simulation or native prover options');
+    }
+
+    circuitProver = await BBNativeRollupProver.new({
+      acvmBinaryPath: proverOptions.acvmBinaryPath,
+      bbBinaryPath: proverOptions.bbBinaryPath,
+      acvmWorkingDirectory: proverOptions.acvmWorkingDirectory,
+      bbWorkingDirectory: proverOptions.bbWorkingDirectory,
+    });
   } else {
-    throw new Error('Cannot start prover without simulation or native prover options');
+    circuitProver = new TestCircuitProver();
   }
 
-  logger(`Starting ${agentCount} prover agents`);
-  await pool.start(source);
-  signalHandlers.push(() => pool.stop());
+  const agent = new ProverAgent(circuitProver, agentConcurrency, pollInterval);
+  agent.start(source);
+  logger(`Started prover agent with concurrency limit of ${agentConcurrency}`);
+
+  signalHandlers.push(() => agent.stop());
 
   return Promise.resolve([]);
 };

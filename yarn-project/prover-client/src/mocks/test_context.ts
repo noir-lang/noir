@@ -38,9 +38,8 @@ import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { TestCircuitProver } from '../../../bb-prover/src/test/test_circuit_prover.js';
 import { ProvingOrchestrator } from '../orchestrator/orchestrator.js';
-import { MemoryProvingQueue } from '../prover-pool/memory-proving-queue.js';
-import { ProverAgent } from '../prover-pool/prover-agent.js';
-import { ProverPool } from '../prover-pool/prover-pool.js';
+import { MemoryProvingQueue } from '../prover-agent/memory-proving-queue.js';
+import { ProverAgent } from '../prover-agent/prover-agent.js';
 import { getEnvironmentConfig, getSimulationProvider, makeGlobals } from './fixtures.js';
 
 class DummyProverClient implements BlockProver {
@@ -78,7 +77,7 @@ export class TestContext {
     public globalVariables: GlobalVariables,
     public actualDb: MerkleTreeOperations,
     public prover: ServerCircuitProver,
-    public proverPool: ProverPool,
+    public proverAgent: ProverAgent,
     public orchestrator: ProvingOrchestrator,
     public blockNumber: number,
     public directoriesToCleanup: string[],
@@ -130,10 +129,10 @@ export class TestContext {
     }
 
     const queue = new MemoryProvingQueue();
-    const proverPool = new ProverPool(proverCount, i => new ProverAgent(localProver, 10, `${i}`));
     const orchestrator = new ProvingOrchestrator(actualDb, queue);
+    const agent = new ProverAgent(localProver, proverCount);
 
-    await proverPool.start(queue);
+    agent.start(queue);
 
     return new this(
       publicExecutor,
@@ -144,7 +143,7 @@ export class TestContext {
       globalVariables,
       actualDb,
       localProver,
-      proverPool,
+      agent,
       orchestrator,
       blockNumber,
       [config?.directoryToCleanup ?? ''],
@@ -153,7 +152,7 @@ export class TestContext {
   }
 
   async cleanup() {
-    await this.proverPool.stop();
+    await this.proverAgent.stop();
     for (const dir of this.directoriesToCleanup.filter(x => x !== '')) {
       await fs.rm(dir, { recursive: true, force: true });
     }

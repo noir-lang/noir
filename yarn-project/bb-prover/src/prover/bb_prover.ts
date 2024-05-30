@@ -63,6 +63,7 @@ import {
   verifyProof,
   writeProofAsFields,
 } from '../bb/execute.js';
+import type { ACVMConfig, BBConfig } from '../config.js';
 import { PublicKernelArtifactMapping } from '../mappings/mappings.js';
 import { mapProtocolArtifactNameToCircuitName } from '../stats.js';
 import { extractVkData } from '../verification_key/verification_key_data.js';
@@ -71,14 +72,10 @@ const logger = createDebugLogger('aztec:bb-prover');
 
 const CIRCUITS_WITHOUT_AGGREGATION: Set<ServerProtocolArtifact> = new Set(['BaseParityArtifact']);
 
-export type BBProverConfig = {
-  bbBinaryPath: string;
-  bbWorkingDirectory: string;
-  acvmBinaryPath: string;
-  acvmWorkingDirectory: string;
+export interface BBProverConfig extends BBConfig, ACVMConfig {
   // list of circuits supported by this prover. defaults to all circuits if empty
   circuitFilter?: ServerProtocolArtifact[];
-};
+}
 
 /**
  * Prover implementation that uses barretenberg native proving

@@ -1,11 +1,9 @@
 import { getSchnorrAccount, getSchnorrWallet } from '@aztec/accounts/schnorr';
-import { type AztecNodeService } from '@aztec/aztec-node';
 import { TxStatus } from '@aztec/aztec.js';
 import { type AccountWallet } from '@aztec/aztec.js/wallet';
 import { CompleteAddress, Fq, Fr } from '@aztec/circuits.js';
 import { FPCContract, GasTokenContract, TestContract, TokenContract } from '@aztec/noir-contracts.js';
 import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
-import { ProverPool } from '@aztec/prover-client/prover-pool';
 import { type PXEService, createPXEService } from '@aztec/pxe';
 
 import { jest } from '@jest/globals';
@@ -39,7 +37,6 @@ describe('benchmarks/proving', () => {
 
   let acvmCleanup: () => Promise<void>;
   let bbCleanup: () => Promise<void>;
-  let proverPool: ProverPool;
 
   // setup the environment quickly using fake proofs
   beforeAll(async () => {
@@ -48,7 +45,7 @@ describe('benchmarks/proving', () => {
       {
         // do setup with fake proofs
         realProofs: false,
-        proverAgents: 4,
+        proverAgentConcurrency: 4,
         proverAgentPollInterval: 10,
         minTxsPerBlock: 1,
       },
@@ -110,25 +107,14 @@ describe('benchmarks/proving', () => {
     acvmCleanup = acvmConfig.cleanup;
     bbCleanup = bbConfig.cleanup;
 
-    proverPool = ProverPool.nativePool(
-      {
-        ...acvmConfig,
-        ...bbConfig,
-      },
-      2,
-      10,
-    );
-
     ctx.logger.info('Stopping fake provers');
     await ctx.aztecNode.setConfig({
-      // stop the fake provers
-      proverAgents: 0,
+      proverAgentConcurrency: 1,
       realProofs: true,
       minTxsPerBlock: 2,
     });
 
     ctx.logger.info('Starting real provers');
-    await proverPool.start((ctx.aztecNode as AztecNodeService).getProver().getProvingJobSource());
 
     ctx.logger.info('Starting PXEs configured with real proofs');
     provingPxes = [];
@@ -161,7 +147,6 @@ describe('benchmarks/proving', () => {
     for (const pxe of provingPxes) {
       await pxe.stop();
     }
-    await proverPool.stop();
     await ctx.teardown();
     await acvmCleanup();
     await bbCleanup();

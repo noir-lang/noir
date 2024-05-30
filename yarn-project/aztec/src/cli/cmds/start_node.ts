@@ -6,7 +6,7 @@ import {
 import { NULL_KEY } from '@aztec/ethereum';
 import { type ServerList } from '@aztec/foundation/json-rpc/server';
 import { type LogFn } from '@aztec/foundation/log';
-import { createProvingJobSourceServer } from '@aztec/prover-client/prover-pool';
+import { createProvingJobSourceServer } from '@aztec/prover-client/prover-agent';
 import { type PXEServiceConfig, createPXERpcServer, getPXEServiceConfig } from '@aztec/pxe';
 
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';

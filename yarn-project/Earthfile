@@ -184,6 +184,7 @@ end-to-end:
     ENV BB_BINARY_PATH=/usr/src/barretenberg/cpp/build/bin/bb
     ENV ACVM_WORKING_DIRECTORY=/usr/src/acvm
     ENV ACVM_BINARY_PATH=/usr/src/noir/noir-repo/target/release/acvm
+    ENV PROVER_AGENT_CONCURRENCY=8
     RUN mkdir -p $BB_WORKING_DIRECTORY $ACVM_WORKING_DIRECTORY
     COPY +anvil/anvil /opt/foundry/bin/anvil
     COPY +end-to-end-prod/usr/src /usr/src

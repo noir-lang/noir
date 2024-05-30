@@ -40,6 +40,10 @@ const MAX_RETRIES = 3;
 
 const defaultIdGenerator = () => randomBytes(4).toString('hex');
 
+/**
+ * A helper class that sits in between services that need proofs created and agents that can create them.
+ * The queue accumulates jobs and provides them to agents in FIFO order.
+ */
 export class MemoryProvingQueue implements ServerCircuitProver, ProvingJobSource {
   private log = createDebugLogger('aztec:prover-client:prover-pool:queue');
   private queue = new MemoryFifo<ProvingJobWithResolvers>();

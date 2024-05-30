@@ -8,9 +8,6 @@ import { jest } from '@jest/globals';
 import { TestCircuitProver } from '../../../bb-prover/src/test/test_circuit_prover.js';
 import { makeEmptyProcessedTestTx } from '../mocks/fixtures.js';
 import { TestContext } from '../mocks/test_context.js';
-import { MemoryProvingQueue } from '../prover-pool/memory-proving-queue.js';
-import { ProverAgent } from '../prover-pool/prover-agent.js';
-import { ProverPool } from '../prover-pool/prover-pool.js';
 import { ProvingOrchestrator } from './orchestrator.js';
 
 const logger = createDebugLogger('aztec:orchestrator-failures');
@@ -18,7 +15,6 @@ const logger = createDebugLogger('aztec:orchestrator-failures');
 describe('prover/orchestrator/failures', () => {
   let context: TestContext;
   let orchestrator: ProvingOrchestrator;
-  let proverPool: ProverPool;
 
   beforeEach(async () => {
     context = await TestContext.new(logger);
@@ -30,18 +26,10 @@ describe('prover/orchestrator/failures', () => {
 
   describe('error handling', () => {
     let mockProver: ServerCircuitProver;
-    let queue: MemoryProvingQueue;
 
-    beforeEach(async () => {
+    beforeEach(() => {
       mockProver = new TestCircuitProver(new WASMSimulator());
-      proverPool = new ProverPool(1, i => new ProverAgent(mockProver, 10, `${i}`));
-      queue = new MemoryProvingQueue();
-      orchestrator = new ProvingOrchestrator(context.actualDb, queue);
-      await proverPool.start(queue);
-    });
-
-    afterEach(async () => {
-      await proverPool.stop();
+      orchestrator = new ProvingOrchestrator(context.actualDb, mockProver);
     });
 
     it.each([

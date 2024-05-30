@@ -4,7 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./dest/index.js",
-    "./prover-pool": "./dest/prover-pool/index.js"
+    "./prover-agent": "./dest/prover-agent/index.js"
   },
   "typedocOptions": {
     "entryPoints": [

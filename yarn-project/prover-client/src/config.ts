@@ -14,8 +14,6 @@ export type ProverClientConfig = ProverConfig & {
   bbWorkingDirectory: string;
   /** The path to the bb binary */
   bbBinaryPath: string;
-  /** The interval agents poll for jobs at */
-  proverAgentPollInterval: number;
 };
 
 /**
@@ -29,25 +27,31 @@ export function getProverEnvVars(): ProverClientConfig {
     ACVM_BINARY_PATH = '',
     BB_WORKING_DIRECTORY = tmpdir(),
     BB_BINARY_PATH = '',
+    /** @deprecated */
     PROVER_AGENTS = '1',
-    PROVER_AGENT_POLL_INTERVAL_MS = '50',
+    PROVER_AGENT_ENABLED = '1',
+    PROVER_AGENT_CONCURRENCY = PROVER_AGENTS,
+    PROVER_AGENT_POLL_INTERVAL_MS = '100',
     PROVER_REAL_PROOFS = '',
   } = process.env;
 
-  const parsedProverAgents = parseInt(PROVER_AGENTS, 10);
-  const proverAgents = Number.isSafeInteger(parsedProverAgents) ? parsedProverAgents : 0;
+  const realProofs = ['1', 'true'].includes(PROVER_REAL_PROOFS);
+  const proverAgentEnabled = ['1', 'true'].includes(PROVER_AGENT_ENABLED);
+  const parsedProverConcurrency = parseInt(PROVER_AGENT_CONCURRENCY, 10);
+  const proverAgentConcurrency = Number.isSafeInteger(parsedProverConcurrency) ? parsedProverConcurrency : 1;
   const parsedProverAgentPollInterval = parseInt(PROVER_AGENT_POLL_INTERVAL_MS, 10);
   const proverAgentPollInterval = Number.isSafeInteger(parsedProverAgentPollInterval)
     ? parsedProverAgentPollInterval
-    : 50;
+    : 100;
 
   return {
     acvmWorkingDirectory: ACVM_WORKING_DIRECTORY,
     acvmBinaryPath: ACVM_BINARY_PATH,
     bbBinaryPath: BB_BINARY_PATH,
     bbWorkingDirectory: BB_WORKING_DIRECTORY,
-    proverAgents,
-    realProofs: ['1', 'true'].includes(PROVER_REAL_PROOFS),
+    realProofs,
+    proverAgentEnabled,
     proverAgentPollInterval,
+    proverAgentConcurrency,
   };
 }

@@ -189,6 +189,7 @@ __metadata:
     "@aztec/archiver": "workspace:^"
     "@aztec/aztec-node": "workspace:^"
     "@aztec/aztec.js": "workspace:^"
+    "@aztec/bb-prover": "workspace:^"
     "@aztec/builder": "workspace:^"
     "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"

@@ -1,5 +1,4 @@
 import { SchnorrAccountContractArtifact, getSchnorrAccount } from '@aztec/accounts/schnorr';
-import { type AztecNodeService } from '@aztec/aztec-node';
 import {
   type AccountWalletWithSecretKey,
   type AztecNode,
@@ -18,7 +17,6 @@ import {
 import { BBCircuitVerifier, BBNativeProofCreator } from '@aztec/bb-prover';
 import { RollupAbi } from '@aztec/l1-artifacts';
 import { TokenContract } from '@aztec/noir-contracts.js';
-import { ProverPool } from '@aztec/prover-client/prover-pool';
 import { type PXEService } from '@aztec/pxe';
 
 // @ts-expect-error solc-js doesn't publish its types https://github.com/ethereum/solc-js/issues/689
@@ -67,7 +65,6 @@ export class FullProverTest {
   tokenSim!: TokenSimulator;
   aztecNode!: AztecNode;
   pxe!: PXEService;
-  private proverPool!: ProverPool;
   private provenComponents: ProvenSetup[] = [];
   private bbConfigCleanup?: () => Promise<void>;
   private acvmConfigCleanup?: () => Promise<void>;
@@ -153,24 +150,12 @@ export class FullProverTest {
 
     this.circuitProofVerifier = await BBCircuitVerifier.new(bbConfig);
 
-    this.proverPool = ProverPool.nativePool(
-      {
-        ...acvmConfig,
-        ...bbConfig,
-      },
-      4,
-      10,
-    );
-
     this.logger.debug(`Configuring the node for real proofs...`);
     await this.aztecNode.setConfig({
-      // stop the fake provers
-      proverAgents: 0,
+      proverAgentConcurrency: 1,
       realProofs: true,
       minTxsPerBlock: 2, // min 2 txs per block
     });
-
-    await this.proverPool.start((this.aztecNode as AztecNodeService).getProver().getProvingJobSource());
 
     this.proofCreator = new BBNativeProofCreator(bbConfig.bbBinaryPath, bbConfig.bbWorkingDirectory);
 

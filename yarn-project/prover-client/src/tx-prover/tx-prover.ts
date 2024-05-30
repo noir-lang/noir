@@ -1,27 +1,28 @@
-import { BBCircuitVerifier, type BBProverConfig } from '@aztec/bb-prover';
+import { BBCircuitVerifier, type BBConfig, BBNativeRollupProver, TestCircuitProver } from '@aztec/bb-prover';
 import { type ProcessedTx } from '@aztec/circuit-types';
 import {
   type BlockResult,
   type ProverClient,
   type ProvingJobSource,
   type ProvingTicket,
+  type ServerCircuitProver,
 } from '@aztec/circuit-types/interfaces';
 import { type Fr, type GlobalVariables, type VerificationKeys, getMockVerificationKeys } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { type SimulationProvider } from '@aztec/simulator';
+import { NativeACVMSimulator } from '@aztec/simulator';
 import { type WorldStateSynchronizer } from '@aztec/world-state';
 
 import { type ProverClientConfig } from '../config.js';
 import { ProvingOrchestrator } from '../orchestrator/orchestrator.js';
-import { MemoryProvingQueue } from '../prover-pool/memory-proving-queue.js';
-import { ProverPool } from '../prover-pool/prover-pool.js';
+import { MemoryProvingQueue } from '../prover-agent/memory-proving-queue.js';
+import { ProverAgent } from '../prover-agent/prover-agent.js';
 
 const logger = createDebugLogger('aztec:tx-prover');
 
 const PRIVATE_KERNEL = 'PrivateKernelTailArtifact';
 const PRIVATE_KERNEL_TO_PUBLIC = 'PrivateKernelTailToPublicArtifact';
 
-async function retrieveRealPrivateKernelVerificationKeys(config: BBProverConfig) {
+async function retrieveRealPrivateKernelVerificationKeys(config: BBConfig) {
   logger.info(`Retrieving private kernel verification keys`);
   const bbVerifier = await BBCircuitVerifier.new(config, [PRIVATE_KERNEL, PRIVATE_KERNEL_TO_PUBLIC]);
   const vks: VerificationKeys = {
@@ -37,38 +38,58 @@ async function retrieveRealPrivateKernelVerificationKeys(config: BBProverConfig)
 export class TxProver implements ProverClient {
   private orchestrator: ProvingOrchestrator;
   private queue = new MemoryProvingQueue();
+  private running = false;
 
   constructor(
     private config: ProverClientConfig,
     private worldStateSynchronizer: WorldStateSynchronizer,
-    protected vks: VerificationKeys,
-    private proverPool?: ProverPool,
+    private vks: VerificationKeys,
+    private agent?: ProverAgent,
   ) {
-    logger.info(`BB ${config.bbBinaryPath}, directory: ${config.bbWorkingDirectory}`);
     this.orchestrator = new ProvingOrchestrator(worldStateSynchronizer.getLatest(), this.queue);
   }
 
   async updateProverConfig(config: Partial<ProverClientConfig>): Promise<void> {
-    if (typeof config.proverAgents === 'number') {
-      await this.proverPool?.rescale(config.proverAgents);
+    const newConfig = { ...this.config, ...config };
+
+    if (newConfig.realProofs !== this.config.realProofs) {
+      this.vks = await (newConfig.realProofs
+        ? retrieveRealPrivateKernelVerificationKeys(newConfig)
+        : getMockVerificationKeys());
+
+      const circuitProver = await TxProver.buildCircuitProver(newConfig);
+      this.agent?.setCircuitProver(circuitProver);
     }
-    if (typeof config.realProofs === 'boolean' && config.realProofs) {
-      this.vks = await retrieveRealPrivateKernelVerificationKeys(this.config);
+
+    if (this.config.proverAgentConcurrency !== newConfig.proverAgentConcurrency) {
+      this.agent?.setMaxConcurrency(newConfig.proverAgentConcurrency);
     }
+
+    this.config = newConfig;
   }
 
   /**
    * Starts the prover instance
    */
-  public async start() {
-    await this.proverPool?.start(this.queue);
+  public start() {
+    if (this.running) {
+      return Promise.resolve();
+    }
+
+    this.running = true;
+    this.agent?.start(this.queue);
+    return Promise.resolve();
   }
 
   /**
    * Stops the prover instance
    */
   public async stop() {
-    await this.proverPool?.stop();
+    if (!this.running) {
+      return;
+    }
+    this.running = false;
+    await this.agent?.stop();
   }
 
   /**
@@ -77,34 +98,34 @@ export class TxProver implements ProverClient {
    * @param worldStateSynchronizer - An instance of the world state
    * @returns An instance of the prover, constructed and started.
    */
-  public static async new(
-    config: ProverClientConfig,
-    simulationProvider: SimulationProvider,
-    worldStateSynchronizer: WorldStateSynchronizer,
-  ) {
-    let pool: ProverPool | undefined;
-    if (config.proverAgents === 0) {
-      pool = undefined;
-    } else if (config.realProofs) {
-      if (
-        !config.acvmBinaryPath ||
-        !config.acvmWorkingDirectory ||
-        !config.bbBinaryPath ||
-        !config.bbWorkingDirectory
-      ) {
-        throw new Error();
-      }
+  public static async new(config: ProverClientConfig, worldStateSynchronizer: WorldStateSynchronizer) {
+    const agent = config.proverAgentEnabled
+      ? new ProverAgent(
+          await TxProver.buildCircuitProver(config),
+          config.proverAgentConcurrency,
+          config.proverAgentPollInterval,
+        )
+      : undefined;
 
-      pool = ProverPool.nativePool(config, config.proverAgents, config.proverAgentPollInterval);
-    } else {
-      pool = ProverPool.testPool(simulationProvider, config.proverAgents, config.proverAgentPollInterval);
-    }
+    const vks = await (config.realProofs
+      ? retrieveRealPrivateKernelVerificationKeys(config)
+      : getMockVerificationKeys());
 
-    const vks = config.realProofs ? await retrieveRealPrivateKernelVerificationKeys(config) : getMockVerificationKeys();
-
-    const prover = new TxProver(config, worldStateSynchronizer, vks, pool);
+    const prover = new TxProver(config, worldStateSynchronizer, vks, agent);
     await prover.start();
     return prover;
+  }
+
+  private static async buildCircuitProver(config: ProverClientConfig): Promise<ServerCircuitProver> {
+    if (config.realProofs) {
+      return await BBNativeRollupProver.new(config);
+    }
+
+    const simulationProvider = config.acvmBinaryPath
+      ? new NativeACVMSimulator(config.acvmWorkingDirectory, config.acvmBinaryPath)
+      : undefined;
+
+    return new TestCircuitProver(simulationProvider);
   }
 
   /**
@@ -155,7 +176,7 @@ export class TxProver implements ProverClient {
     return this.orchestrator.setBlockCompleted();
   }
 
-  getProvingJobSource(): ProvingJobSource {
+  public getProvingJobSource(): ProvingJobSource {
     return this.queue;
   }
 }

@@ -147,9 +147,7 @@ export class AztecNodeService implements AztecNode {
 
     // start the prover if we have been told to
     const simulationProvider = await getSimulationProvider(config, log);
-    const prover = config.disableProver
-      ? await DummyProver.new()
-      : await TxProver.new(config, simulationProvider, worldStateSynchronizer);
+    const prover = config.disableProver ? await DummyProver.new() : await TxProver.new(config, worldStateSynchronizer);
 
     // now create the sequencer
     const sequencer = config.disableSequencer
