@@ -348,6 +348,8 @@ impl<'context> Elaborator<'context> {
                 let func_type =
                     self.type_check_variable(function_name, function_id, turbofish_generics);
 
+                self.interner.push_expr_type(function_id, func_type.clone());
+
                 // Type check the new call now that it has been changed from a method call
                 // to a function call. This way we avoid duplicating code.
                 let typ = self.type_check_call(&function_call, func_type, function_args, span);
