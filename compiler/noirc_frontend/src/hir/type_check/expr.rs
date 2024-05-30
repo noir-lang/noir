@@ -68,17 +68,22 @@ impl<'interner> TypeChecker<'interner> {
                 for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
                     let location = self.interner.expr_location(&arr[index]);
 
-                    elem_type.unify(&first_elem_type, &self.interner.arith_constraints, &mut self.errors, || {
-                        TypeCheckError::NonHomogeneousArray {
-                            first_span: self.interner.expr_location(&arr[0]).span,
-                            first_type: first_elem_type.to_string(),
-                            first_index: index,
-                            second_span: location.span,
-                            second_type: elem_type.to_string(),
-                            second_index: index + 1,
-                        }
-                        .add_context("elements in an array must have the same type")
-                    });
+                    elem_type.unify(
+                        &first_elem_type,
+                        &self.interner.arith_constraints,
+                        &mut self.errors,
+                        || {
+                            TypeCheckError::NonHomogeneousArray {
+                                first_span: self.interner.expr_location(&arr[0]).span,
+                                first_type: first_elem_type.to_string(),
+                                first_index: index,
+                                second_span: location.span,
+                                second_type: elem_type.to_string(),
+                                second_index: index + 1,
+                            }
+                            .add_context("elements in an array must have the same type")
+                        },
+                    );
                 }
 
                 (Ok(arr.len() as u64), Box::new(first_elem_type.clone()))
@@ -665,13 +670,16 @@ impl<'interner> TypeChecker<'interner> {
         let index_type = self.check_expression(&index_expr.index);
         let span = self.interner.expr_span(&index_expr.index);
 
-        index_type.unify(&self.polymorphic_integer_or_field(), &self.interner.arith_constraints, &mut self.errors, || {
-            TypeCheckError::TypeMismatch {
+        index_type.unify(
+            &self.polymorphic_integer_or_field(),
+            &self.interner.arith_constraints,
+            &mut self.errors,
+            || TypeCheckError::TypeMismatch {
                 expected_typ: "an integer".to_owned(),
                 expr_typ: index_type.to_string(),
                 expr_span: span,
-            }
-        });
+            },
+        );
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
         // times as needed to get the underlying array.
@@ -1319,10 +1327,12 @@ impl<'interner> TypeChecker<'interner> {
         span: Span,
     ) -> Type {
         let mut unify = |expected| {
-            rhs_type.unify(&expected, &self.interner.arith_constraints, &mut self.errors, || TypeCheckError::TypeMismatch {
-                expr_typ: rhs_type.to_string(),
-                expected_typ: expected.to_string(),
-                expr_span: span,
+            rhs_type.unify(&expected, &self.interner.arith_constraints, &mut self.errors, || {
+                TypeCheckError::TypeMismatch {
+                    expr_typ: rhs_type.to_string(),
+                    expected_typ: expected.to_string(),
+                    expr_span: span,
+                }
             });
             expected
         };
@@ -1334,10 +1344,12 @@ impl<'interner> TypeChecker<'interner> {
                         .push(TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span });
                 }
                 let expected = self.polymorphic_integer_or_field();
-                rhs_type.unify(&expected, &self.interner.arith_constraints, &mut self.errors, || TypeCheckError::InvalidUnaryOp {
-                    kind: rhs_type.to_string(),
-                    span,
-                });
+                rhs_type.unify(
+                    &expected,
+                    &self.interner.arith_constraints,
+                    &mut self.errors,
+                    || TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span },
+                );
                 expected
             }
             crate::ast::UnaryOp::Not => {

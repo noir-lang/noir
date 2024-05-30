@@ -288,9 +288,12 @@ impl<'a> Interpreter<'a> {
         let typ = typ.follow_bindings();
         let value_type = value.get_type();
 
-        typ.try_unify(&value_type, &mut TypeBindings::new(), &self.interner.arith_constraints).map_err(|_| {
-            InterpreterError::TypeMismatch { expected: typ, value: value.clone(), location }
-        })
+        typ.try_unify(&value_type, &mut TypeBindings::new(), &self.interner.arith_constraints)
+            .map_err(|_| InterpreterError::TypeMismatch {
+                expected: typ,
+                value: value.clone(),
+                location,
+            })
     }
 
     /// Evaluate an expression and return the result
@@ -349,9 +352,11 @@ impl<'a> Interpreter<'a> {
                 let value = match &*type_variable.borrow() {
                     TypeBinding::Unbound(var_id) => Err(ArithExprError::UnboundVariable {
                         binding: type_variable.clone(),
-                        name: format!("#type_variable_id_{}_{:?}", var_id, ident)
+                        name: format!("#type_variable_id_{}_{:?}", var_id, ident),
                     }),
-                    TypeBinding::Bound(binding) => binding.evaluate_to_u64(&definition.location, self.interner),
+                    TypeBinding::Bound(binding) => {
+                        binding.evaluate_to_u64(&definition.location, self.interner)
+                    }
                 };
 
                 if let Ok(value) = value {

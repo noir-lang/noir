@@ -174,9 +174,8 @@ pub struct CollectedItems {
 pub(crate) type ImplMap =
     HashMap<(UnresolvedType, LocalModuleId), Vec<(UnresolvedGenerics, Span, UnresolvedFunctions)>>;
 
-// TODO cleanup
-#[derive(PartialEq)]
-#[derive(Debug, Clone)]
+// TODO cleanup PartialEq
+#[derive(PartialEq, Debug, Clone)]
 pub enum CompilationError {
     ParseError(ParserError),
     DefinitionError(DefCollectorErrorKind),

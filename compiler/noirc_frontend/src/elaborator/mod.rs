@@ -21,7 +21,10 @@ use crate::{
     macros_api::{
         Ident, NodeInterner, NoirFunction, NoirStruct, Pattern, SecondaryAttribute, StructId,
     },
-    node_interner::{ArithConstraints, DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId},
+    node_interner::{
+        ArithConstraints, DefinitionKind, DependencyId, ExprId, FuncId, StmtId, TraitId,
+        TypeAliasId,
+    },
     Shared, StructType, Type, TypeVariable,
 };
 use crate::{

@@ -425,7 +425,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
             HirExpression::Literal(HirLiteral::Integer(value, sign)) => {
                 let location = self.interner.id_location(expr);
-                let typ = Self::convert_type(&self.interner.id_type(expr), location, self.interner)?;
+                let typ =
+                    Self::convert_type(&self.interner.id_type(expr), location, self.interner)?;
 
                 if sign {
                     match typ {
@@ -461,7 +462,11 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Expression::Unary(ast::Unary {
                     operator: prefix.operator,
                     rhs: Box::new(self.expr(prefix.rhs)?),
-                    result_type: Self::convert_type(&self.interner.id_type(expr), location, self.interner)?,
+                    result_type: Self::convert_type(
+                        &self.interner.id_type(expr),
+                        location,
+                        self.interner,
+                    )?,
                     location,
                 })
             }
@@ -523,7 +528,8 @@ impl<'interner> Monomorphizer<'interner> {
                     if_expr.alternative.map(|alt| self.expr(alt)).transpose()?.map(Box::new);
 
                 let location = self.interner.expr_location(&expr);
-                let typ = Self::convert_type(&self.interner.id_type(expr), location, self.interner)?;
+                let typ =
+                    Self::convert_type(&self.interner.id_type(expr), location, self.interner)?;
                 ast::Expression::If(ast::If { condition, consequence, alternative: else_, typ })
             }
 
@@ -836,7 +842,11 @@ impl<'interner> Monomorphizer<'interner> {
             return Ok(None);
         };
 
-        let typ = Self::convert_type(&self.interner.definition_type(ident.id), ident.location, self.interner)?;
+        let typ = Self::convert_type(
+            &self.interner.definition_type(ident.id),
+            ident.location,
+            self.interner,
+        )?;
         Ok(Some(ast::Ident { location: Some(ident.location), mutable, definition, name, typ }))
     }
 
@@ -905,7 +915,7 @@ impl<'interner> Monomorphizer<'interner> {
                         binding.evaluate_to_u64(&location, self.interner).unwrap_or_else(|err| {
                             panic!("Non-numeric type variable used in expression expecting a value: {:?}", err)
                         })
-                    },
+                    }
                 };
 
                 let value = FieldElement::from(value as u128);
@@ -919,12 +929,18 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Convert a non-tuple/struct type to a monomorphized type
-    fn convert_type(typ: &HirType, location: Location, interner: &NodeInterner) -> Result<ast::Type, MonomorphizationError> {
+    fn convert_type(
+        typ: &HirType,
+        location: Location,
+        interner: &NodeInterner,
+    ) -> Result<ast::Type, MonomorphizationError> {
         Ok(match typ {
             HirType::FieldElement => ast::Type::Field,
             HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool => ast::Type::Bool,
-            HirType::String(size) => ast::Type::String(size.evaluate_to_u64(&location, interner).unwrap_or(0)),
+            HirType::String(size) => {
+                ast::Type::String(size.evaluate_to_u64(&location, interner).unwrap_or(0))
+            }
             HirType::FmtString(size, fields) => {
                 let size = size.evaluate_to_u64(&location, interner).unwrap_or(0);
                 let fields = Box::new(Self::convert_type(fields.as_ref(), location, interner)?);
@@ -940,8 +956,11 @@ impl<'interner> Monomorphizer<'interner> {
                         dbg!("convert_type: TypeAnnotationsNeeded", typ, length);
 
                         // TODO: add ArithExprError to TypeAnnotationsNeeded
-                        return Err(MonomorphizationError::ArithExprError { arith_expr_error, location })
-                    },
+                        return Err(MonomorphizationError::ArithExprError {
+                            arith_expr_error,
+                            location,
+                        });
+                    }
                 };
                 ast::Type::Array(length, element)
             }
@@ -984,7 +1003,9 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirType::Struct(def, args) => {
                 let fields = def.borrow().get_fields(args);
-                let fields = try_vecmap(fields, |(_, field)| Self::convert_type(&field, location, interner))?;
+                let fields = try_vecmap(fields, |(_, field)| {
+                    Self::convert_type(&field, location, interner)
+                })?;
                 ast::Type::Tuple(fields)
             }
 
@@ -1016,7 +1037,6 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::GenericArith(_arith_id, generics) => {
-
                 // let length = match length.evaluate_to_u64() {
                 //     Some(length) => length,
                 //     None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
@@ -1027,7 +1047,9 @@ impl<'interner> Monomorphizer<'interner> {
                     match generic.evaluate_to_u64(&location, interner) {
                         Ok(result) => Ok(result),
                         // TODO: add ArithExprError to TypeAnnotationsNeeded
-                        Err(_) => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
+                        Err(_) => {
+                            return Err(MonomorphizationError::TypeAnnotationsNeeded { location })
+                        }
                     }
                 })?;
 
@@ -1187,7 +1209,11 @@ impl<'interner> Monomorphizer<'interner> {
                 definition: Definition::Local(local_id),
                 mutable: false,
                 name: "tmp".to_string(),
-                typ: Self::convert_type(&self.interner.id_type(call.func), location, self.interner)?,
+                typ: Self::convert_type(
+                    &self.interner.id_type(call.func),
+                    location,
+                    self.interner,
+                )?,
             });
 
             let env_argument =
@@ -1433,8 +1459,9 @@ impl<'interner> Monomorphizer<'interner> {
         let location = self.interner.expr_location(&expr);
         let ret_type = Self::convert_type(&lambda.return_type, location, self.interner)?;
         let lambda_name = "lambda";
-        let parameter_types =
-            try_vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ, location, self.interner))?;
+        let parameter_types = try_vecmap(&lambda.parameters, |(_, typ)| {
+            Self::convert_type(typ, location, self.interner)
+        })?;
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
         let parameters =
@@ -1495,8 +1522,9 @@ impl<'interner> Monomorphizer<'interner> {
         let location = self.interner.expr_location(&expr);
         let ret_type = Self::convert_type(&lambda.return_type, location, self.interner)?;
         let lambda_name = "lambda";
-        let parameter_types =
-            try_vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ, location, self.interner))?;
+        let parameter_types = try_vecmap(&lambda.parameters, |(_, typ)| {
+            Self::convert_type(typ, location, self.interner)
+        })?;
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
         let parameters =
@@ -1519,7 +1547,10 @@ impl<'interner> Monomorphizer<'interner> {
                         );
 
                         let ident = Box::new(ast::Expression::Ident(lambda_ctx.env_ident.clone()));
-                        Ok::<_, MonomorphizationError>(ast::Expression::ExtractTupleField(ident, field_index))
+                        Ok::<_, MonomorphizationError>(ast::Expression::ExtractTupleField(
+                            ident,
+                            field_index,
+                        ))
                     }
                     None => {
                         let ident = self.local_ident(&capture.ident)?.unwrap();

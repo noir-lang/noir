@@ -235,13 +235,16 @@ impl<'interner> TypeChecker<'interner> {
                 let expr_span = self.interner.expr_span(index);
                 let location = *location;
 
-                index_type.unify(&self.polymorphic_integer_or_field(), &self.interner.arith_constraints, &mut self.errors, || {
-                    TypeCheckError::TypeMismatch {
+                index_type.unify(
+                    &self.polymorphic_integer_or_field(),
+                    &self.interner.arith_constraints,
+                    &mut self.errors,
+                    || TypeCheckError::TypeMismatch {
                         expected_typ: "an integer".to_owned(),
                         expr_typ: index_type.to_string(),
                         expr_span,
-                    }
-                });
+                    },
+                );
 
                 let (mut lvalue_type, mut lvalue, mut mutable) =
                     self.check_lvalue(array, assign_span);

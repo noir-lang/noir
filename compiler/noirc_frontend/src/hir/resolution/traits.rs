@@ -449,8 +449,7 @@ pub(crate) fn resolve_trait_impls(
         let module_id = ModuleId { krate: crate_id, local_id: local_mod_id };
         let path_resolver = StandardPathResolver::new(module_id);
 
-        let self_type_span = unresolved_type.span
-            .unwrap_or_else(|| trait_impl.trait_path.span());
+        let self_type_span = unresolved_type.span.unwrap_or_else(|| trait_impl.trait_path.span());
 
         let mut resolver =
             Resolver::new(interner, &path_resolver, &context.def_maps, trait_impl.file_id);
@@ -465,14 +464,16 @@ pub(crate) fn resolve_trait_impls(
         if self_type.contains_generic_arith() {
             let error = ResolverError::ImplOnGenericArith { span: self_type_span };
             errors.push((error.into(), trait_impl.file_id));
-        } else if trait_generics.iter().any(|trait_generic| trait_generic.contains_generic_arith()) {
-            let impl_type_span = trait_impl.trait_generics.iter().fold(self_type_span, |acc, trait_generic| {
-                if let Some(trait_generic_span) = trait_generic.span {
-                    acc.merge(trait_generic_span)
-                } else {
-                    acc
-                }
-            });
+        } else if trait_generics.iter().any(|trait_generic| trait_generic.contains_generic_arith())
+        {
+            let impl_type_span =
+                trait_impl.trait_generics.iter().fold(self_type_span, |acc, trait_generic| {
+                    if let Some(trait_generic_span) = trait_generic.span {
+                        acc.merge(trait_generic_span)
+                    } else {
+                        acc
+                    }
+                });
             let error = ResolverError::ImplWithGenericArith { span: impl_type_span };
             errors.push((error.into(), trait_impl.file_id));
         }

@@ -43,7 +43,10 @@ impl MonomorphizationError {
 impl From<MonomorphizationError> for FileDiagnostic {
     fn from(error: MonomorphizationError) -> FileDiagnostic {
         let location = error.location();
-        let call_stack: Vec<_> = std::iter::once(location).chain(error.other_locations()).filter(|x| x != &Location::dummy()).collect();
+        let call_stack: Vec<_> = std::iter::once(location)
+            .chain(error.other_locations())
+            .filter(|x| x != &Location::dummy())
+            .collect();
         let diagnostic = error.into_diagnostic();
         diagnostic.in_file(location.file).with_call_stack(call_stack)
     }
@@ -52,7 +55,7 @@ impl From<MonomorphizationError> for FileDiagnostic {
 impl From<ArithConstraintError> for MonomorphizationError {
     fn from(error: ArithConstraintError) -> Self {
         Self::ArithConstraintError { error }
-    } 
+    }
 }
 
 impl MonomorphizationError {

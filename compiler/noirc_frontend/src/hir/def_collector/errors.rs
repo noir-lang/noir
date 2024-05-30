@@ -22,9 +22,8 @@ pub enum DuplicateType {
     TraitAssociatedFunction,
 }
 
-// TODO cleanup
-#[derive(PartialEq)]
-#[derive(Error, Debug, Clone)]
+// TODO cleanup PartialEq
+#[derive(PartialEq, Error, Debug, Clone)]
 pub enum DefCollectorErrorKind {
     #[error("duplicate {typ} found in namespace")]
     Duplicate { typ: DuplicateType, first_def: Ident, second_def: Ident },
@@ -71,9 +70,8 @@ pub enum DefCollectorErrorKind {
 }
 
 /// An error struct that macro processors can return.
-// TODO cleanup
-#[derive(PartialEq)]
-#[derive(Debug, Clone)]
+// TODO cleanup PartialEq
+#[derive(PartialEq, Debug, Clone)]
 pub struct MacroError {
     pub primary_message: String,
     pub secondary_message: Option<String>,

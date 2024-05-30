@@ -8,7 +8,10 @@ use std::{
 use crate::{
     ast::IntegerBitSize,
     hir::type_check::TypeCheckError,
-    node_interner::{ArithConstraint, ArithConstraints, ArithExpr, ArithExprError, ArithId, ExprId, NeedsInterning, NodeInterner, TraitId, TypeAliasId},
+    node_interner::{
+        ArithConstraint, ArithConstraints, ArithExpr, ArithExprError, ArithId, ExprId,
+        NeedsInterning, NodeInterner, TraitId, TypeAliasId,
+    },
 };
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
@@ -131,12 +134,16 @@ impl Type {
             Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
-                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count(location, interner))
+                fields.iter().fold(0, |acc, (_, field_type)| {
+                    acc + field_type.field_count(location, interner)
+                })
             }
-            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(location, interner),
-            Type::Tuple(fields) => {
-                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count(location, interner))
+            Type::Alias(def, generics) => {
+                def.borrow().get_type(generics).field_count(location, interner)
             }
+            Type::Tuple(fields) => fields
+                .iter()
+                .fold(0, |acc, field_typ| acc + field_typ.field_count(location, interner)),
             Type::String(size) => {
                 let size = size
                     .evaluate_to_u64(location, interner)
@@ -536,8 +543,7 @@ impl TypeVariable {
 /// TypeBindings are the mutable insides of a TypeVariable.
 /// They are either bound to some type, or are unbound.
 // TODO: cleanup debug
-#[derive(Debug)]
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeBinding {
     Bound(Type),
     Unbound(TypeVariableId),
@@ -622,7 +628,11 @@ impl Type {
         use TypeVariableKind as K;
         matches!(
             self.follow_bindings(),
-            FieldElement | Integer(..) | Bool | TypeVariable(_, K::Integer | K::IntegerOrField) | GenericArith(..)
+            FieldElement
+                | Integer(..)
+                | Bool
+                | TypeVariable(_, K::Integer | K::IntegerOrField)
+                | GenericArith(..)
         )
     }
 
@@ -838,12 +848,8 @@ impl Type {
         match self {
             Type::Array(_len, typ) => typ.contains_generic_arith(),
             Type::Slice(typ) => typ.contains_generic_arith(),
-            Type::Struct(_s, args) => {
-                args.iter().any(|arg| arg.contains_generic_arith())
-            }
-            Type::Alias(_alias, args) => {
-                args.iter().any(|arg| arg.contains_generic_arith())
-            }
+            Type::Struct(_s, args) => args.iter().any(|arg| arg.contains_generic_arith()),
+            Type::Alias(_alias, args) => args.iter().any(|arg| arg.contains_generic_arith()),
             Type::Tuple(elements) => {
                 elements.iter().any(|element| element.contains_generic_arith())
             }
@@ -1166,10 +1172,8 @@ impl Type {
         var: &TypeVariable,
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
-
         // TODO: cleanup
         dbg!("try_bind_to", self, var);
-
 
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
@@ -1190,7 +1194,6 @@ impl Type {
         // Check if the target id occurs within `this` before binding. Otherwise this could
         // cause infinitely recursive types
         if this.occurs(target_id) {
-
             // TODO: cleanup
             panic!("try_bind_to this.occurs()");
             Err(UnificationError)
@@ -1262,15 +1265,16 @@ impl Type {
             (TypeVariable(var, Kind::IntegerOrField), other)
             | (other, TypeVariable(var, Kind::IntegerOrField)) => {
                 other.try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
-
                     // TODO: reduce copy/paste, see below
                     match other {
                         Self::GenericArith(lhs, lhs_generics) => {
-                            let name: Rc<std::string::String> = format!("#implicit_var({:?})", var).into();
-                            let rhs_expr = ArithExpr::Variable(var.clone(), name, Default::default());
+                            let name: Rc<std::string::String> =
+                                format!("#implicit_var({:?})", var).into();
+                            let rhs_expr =
+                                ArithExpr::Variable(var.clone(), name, Default::default());
                             let rhs = rhs_expr.to_id();
                             let rhs_generics = vec![];
-             
+
                             // TODO: cleanup
                             dbg!("try_bind_to(3)", lhs, lhs_generics, rhs, &rhs_generics);
                             arith_constraints.borrow_mut().push(ArithConstraint {
@@ -1280,7 +1284,6 @@ impl Type {
                                 rhs_generics,
                                 needs_interning: NeedsInterning::Rhs(rhs_expr),
                             });
-             
                         }
                         _ => (),
                     }
@@ -1293,15 +1296,16 @@ impl Type {
             (TypeVariable(var, Kind::Integer), other)
             | (other, TypeVariable(var, Kind::Integer)) => {
                 other.try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
-
                     // TODO: reduce copy/paste, see below and above
                     match other {
                         Self::GenericArith(lhs, lhs_generics) => {
-                            let name: Rc<std::string::String> = format!("#implicit_var({:?})", var).into();
-                            let rhs_expr = ArithExpr::Variable(var.clone(), name, Default::default());
+                            let name: Rc<std::string::String> =
+                                format!("#implicit_var({:?})", var).into();
+                            let rhs_expr =
+                                ArithExpr::Variable(var.clone(), name, Default::default());
                             let rhs = rhs_expr.to_id();
                             let rhs_generics = vec![];
-             
+
                             // TODO: cleanup
                             dbg!("try_bind_to(3)", lhs, lhs_generics, rhs, &rhs_generics);
                             arith_constraints.borrow_mut().push(ArithConstraint {
@@ -1311,7 +1315,6 @@ impl Type {
                                 rhs_generics,
                                 needs_interning: NeedsInterning::Rhs(rhs_expr),
                             });
-             
                         }
                         _ => (),
                     }
@@ -1323,15 +1326,16 @@ impl Type {
 
             (TypeVariable(var, Kind::Normal), other) | (other, TypeVariable(var, Kind::Normal)) => {
                 other.try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
-
                     // TODO: reduce copy/paste, see above
                     match other {
                         Self::GenericArith(lhs, lhs_generics) => {
-                            let name: Rc<std::string::String> = format!("#implicit_var({:?})", var).into();
-                            let rhs_expr = ArithExpr::Variable(var.clone(), name, Default::default());
+                            let name: Rc<std::string::String> =
+                                format!("#implicit_var({:?})", var).into();
+                            let rhs_expr =
+                                ArithExpr::Variable(var.clone(), name, Default::default());
                             let rhs = rhs_expr.to_id();
                             let rhs_generics = vec![];
-             
+
                             // TODO: cleanup
                             dbg!("try_bind_to(3)", lhs, lhs_generics, rhs, &rhs_generics);
                             arith_constraints.borrow_mut().push(ArithConstraint {
@@ -1341,7 +1345,6 @@ impl Type {
                                 rhs_generics,
                                 needs_interning: NeedsInterning::Rhs(rhs_expr),
                             });
-             
                         }
                         _ => (),
                     }
@@ -1350,22 +1353,22 @@ impl Type {
                     let tt = other.try_bind_to(var, bindings);
                     dbg!("try_bind_to(result)", &tt);
                     tt
-
                 })
             }
 
             (TypeVariable(var, Kind::Constant(length)), other)
             | (other, TypeVariable(var, Kind::Constant(length))) => other
                 .try_unify_to_type_variable(var, bindings, arith_constraints, |bindings| {
-
                     // TODO: reduce copy/paste, see above
                     match other {
                         Self::GenericArith(lhs, lhs_generics) => {
-                            let name: Rc<std::string::String> = format!("#implicit_var({:?})", var).into();
-                            let rhs_expr = ArithExpr::Variable(var.clone(), name, Default::default());
+                            let name: Rc<std::string::String> =
+                                format!("#implicit_var({:?})", var).into();
+                            let rhs_expr =
+                                ArithExpr::Variable(var.clone(), name, Default::default());
                             let rhs = rhs_expr.to_id();
                             let rhs_generics = vec![];
-             
+
                             // TODO: cleanup
                             dbg!("try_bind_to(3)", lhs, lhs_generics, rhs, &rhs_generics);
                             arith_constraints.borrow_mut().push(ArithConstraint {
@@ -1375,7 +1378,6 @@ impl Type {
                                 rhs_generics,
                                 needs_interning: NeedsInterning::Rhs(rhs_expr),
                             });
-             
                         }
                         _ => (),
                     }
@@ -1545,15 +1547,16 @@ impl Type {
                 // We may have already "bound" this type variable in this call to
                 // try_unify, so check those bindings as well.
                 match bindings.get(id) {
-                    Some((_, binding)) => binding.clone().try_unify(self, bindings, arith_constraints),
+                    Some((_, binding)) => {
+                        binding.clone().try_unify(self, bindings, arith_constraints)
+                    }
 
                     // Otherwise, bind it
                     None => {
-
                         // TODO: cleanup
                         dbg!("try_unify_to_type_variable", self, type_variable);
                         bind_variable(bindings)
-                    },
+                    }
                 }
             }
         }
@@ -1574,7 +1577,9 @@ impl Type {
     ) {
         let mut bindings = TypeBindings::new();
 
-        if let Err(UnificationError) = self.try_unify(expected, &mut bindings, &interner.arith_constraints) {
+        if let Err(UnificationError) =
+            self.try_unify(expected, &mut bindings, &interner.arith_constraints)
+        {
             if !self.try_array_to_slice_coercion(expected, expression, interner) {
                 errors.push(make_error());
             }
@@ -1617,12 +1622,19 @@ impl Type {
 
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u64.
-    pub fn evaluate_to_u64(&self, location: &Location, interner: &NodeInterner) -> Result<u64, ArithExprError> {
+    pub fn evaluate_to_u64(
+        &self,
+        location: &Location,
+        interner: &NodeInterner,
+    ) -> Result<u64, ArithExprError> {
         if let Some(binding) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
-
                 // TODO: cleanup
-                dbg!("evaluate_to_u64: binding found:", binding, binding.evaluate_to_u64(location, interner));
+                dbg!(
+                    "evaluate_to_u64: binding found:",
+                    binding,
+                    binding.evaluate_to_u64(location, interner)
+                );
                 return binding.evaluate_to_u64(location, interner);
             } else {
                 // TODO: cleanup
@@ -1644,18 +1656,18 @@ impl Type {
                 dbg!("evaluate_to_u64: evaluate_generics_to_u64", &generics);
                 dbg!(ArithConstraint::evaluate_generics_to_u64(&generics, location, interner));
 
-                let generics = ArithConstraint::evaluate_generics_to_u64(&generics, location, interner)?;
+                let generics =
+                    ArithConstraint::evaluate_generics_to_u64(&generics, location, interner)?;
 
                 // TODO: cleanup
                 expr.evaluate(&generics)
-
             }
             unexpected_type => {
                 // TODO: cleanup
                 dbg!("evaluate_to_u64: leftover case");
                 let unexpected_type = unexpected_type.clone();
                 Err(ArithExprError::EvaluateUnexpectedType { unexpected_type })
-            },
+            }
         }
     }
 
@@ -1939,7 +1951,9 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 !typevars.iter().any(|var| var.id() == target_id) && typ.occurs(target_id)
             }
-            Type::GenericArith(_, generics) => generics.iter().any(|generic| generic.occurs(target_id)),
+            Type::GenericArith(_, generics) => {
+                generics.iter().any(|generic| generic.occurs(target_id))
+            }
             Type::Function(args, ret, env) => {
                 args.iter().any(|arg| arg.occurs(target_id))
                     || ret.occurs(target_id)
@@ -2000,7 +2014,9 @@ impl Type {
                 Function(args, ret, env)
             }
 
-            GenericArith(arith_id, generics) => GenericArith(*arith_id, vecmap(generics, |generic| generic.follow_bindings())),
+            GenericArith(arith_id, generics) => {
+                GenericArith(*arith_id, vecmap(generics, |generic| generic.follow_bindings()))
+            }
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
             TraitAsType(s, name, args) => {
@@ -2094,7 +2110,9 @@ impl From<&Type> for PrintableType {
             Type::Array(size, typ) => {
                 let location = Location::dummy();
                 let interner = NodeInterner::default();
-                let length = size.evaluate_to_u64(&location, &interner).expect("Cannot print variable sized arrays");
+                let length = size
+                    .evaluate_to_u64(&location, &interner)
+                    .expect("Cannot print variable sized arrays");
                 let typ = typ.as_ref();
                 PrintableType::Array { length, typ: Box::new(typ.into()) }
             }
@@ -2122,7 +2140,9 @@ impl From<&Type> for PrintableType {
             Type::String(size) => {
                 let location = Location::dummy();
                 let interner = NodeInterner::default();
-                let size = size.evaluate_to_u64(&location, &interner).expect("Cannot print variable sized strings");
+                let size = size
+                    .evaluate_to_u64(&location, &interner)
+                    .expect("Cannot print variable sized strings");
                 PrintableType::String { length: size }
             }
             Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
