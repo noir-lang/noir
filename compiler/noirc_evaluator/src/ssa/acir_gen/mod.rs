@@ -390,6 +390,27 @@ impl<'a> Context<'a> {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
         let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
+        let num_return_witnesses =
+            self.get_num_return_witnesses(entry_block.unwrap_terminator(), dfg);
+
+        // Create a witness for each return witness we have to guarantee that the return witnesses match the standard
+        // layout for serializing those types as if they were being passed as inputs.
+        //
+        // This is required for recursion as otherwise in situations where we cannot make use of the program's ABI
+        // (e.g. for `std::verify_proof` or the solidity verifier), we need extra knowledge about the program we're
+        // working with rather than following the standard ABI encoding rules.
+        //
+        // We allocate these witnesses now before performing ACIR gen for the rest of the program as the location of
+        // the function's return values can then be determined through knowledge of its ABI alone.
+        let return_witness_vars =
+            vecmap(0..num_return_witnesses, |_| self.acir_context.add_variable());
+        let return_witnesses: Vec<Witness> = return_witness_vars
+            .iter()
+            .map(|return_var| {
+                let expr = self.acir_context.var_to_expression(*return_var).unwrap();
+                expr.to_witness().expect("return vars should be witnesses")
+            })
+            .collect();
 
         self.data_bus = dfg.data_bus.to_owned();
         let mut warnings = Vec::new();
@@ -400,22 +421,13 @@ impl<'a> Context<'a> {
         let (return_vars, return_warnings) =
             self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
-        // Create a witness for each return witness we have to guarantee that the return witnesses match the standard
-        // layout for serializing those types as if they were being passed as inputs.
+        // TODO: This is a naive method of assigning the return values to their witnesses as
+        // we're likely to get a number of constraints which are asserting one witness to be equal to another.
         //
-        // This is required for recursion as otherwise in situations where we cannot make use of the program's ABI
-        // (e.g. for `std::verify_proof` or the solidity verifier), we need extra knowledge about the program we're
-        // working with rather than following the standard ABI encoding rules.
-        //
-        // TODO: We're being conservative here by generating a new witness for every expression.
-        // This means that we're likely to get a number of constraints which are just renumbering witnesses.
-        // This can be tackled by:
-        // - Tracking the last assigned public input witness and only renumbering a witness if it is below this value.
-        // - Modifying existing constraints to rearrange their outputs so they are suitable
-        //   - See: https://github.com/noir-lang/noir/pull/4467
-        let return_witnesses = try_vecmap(return_vars, |return_var| {
-            self.acir_context.force_var_to_new_witness(return_var)
-        })?;
+        // We should search through the program and relabel these witnesses so we can remove this constraint.
+        for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars) {
+            self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
+        }
 
         warnings.extend(return_warnings);
         Ok(self.acir_context.finish(input_witness, return_witnesses, warnings))
@@ -1706,6 +1718,33 @@ impl<'a> Context<'a> {
         let result_ids = dfg.instruction_results(instruction);
         let typ = dfg.type_of_value(result_ids[0]).into();
         self.define_result(dfg, instruction, AcirValue::Var(result, typ));
+    }
+
+    /// Converts an SSA terminator's return values into their ACIR representations
+    fn get_num_return_witnesses(
+        &mut self,
+        terminator: &TerminatorInstruction,
+        dfg: &DataFlowGraph,
+    ) -> usize {
+        let return_values = match terminator {
+            TerminatorInstruction::Return { return_values, .. } => return_values,
+            // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
+            _ => unreachable!("ICE: Program must have a singular return"),
+        };
+
+        return_values.iter().fold(0, |acc, value_id| {
+            let is_databus = self
+                .data_bus
+                .return_data
+                .map_or(false, |return_databus| dfg[*value_id] == dfg[return_databus]);
+
+            if !is_databus {
+                // We do not return value for the data bus.
+                acc + dfg.type_of_value(*value_id).flattened_size()
+            } else {
+                acc
+            }
+        })
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations
