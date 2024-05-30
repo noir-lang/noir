@@ -164,6 +164,7 @@ async function executePublicFunctionAcvm(
     return {
       execution,
       returnValues: [],
+      noteHashReadRequests: [],
       newNoteHashes: [],
       newL2ToL1Messages: [],
       // TODO (side effects) get these values in the revert case from the vm
@@ -193,6 +194,7 @@ async function executePublicFunctionAcvm(
   const returnWitness = witnessMapToFields(returnWitnessMap);
   const {
     returnsHash,
+    noteHashReadRequests: noteHashReadRequestsPadded,
     nullifierReadRequests: nullifierReadRequestsPadded,
     nullifierNonExistentReadRequests: nullifierNonExistentReadRequestsPadded,
     newL2ToL1Msgs,
@@ -204,6 +206,7 @@ async function executePublicFunctionAcvm(
   } = PublicCircuitPublicInputs.fromFields(returnWitness);
   const returnValues = await context.unpackReturns(returnsHash);
 
+  const noteHashReadRequests = noteHashReadRequestsPadded.filter(v => !v.isEmpty());
   const nullifierReadRequests = nullifierReadRequestsPadded.filter(v => !v.isEmpty());
   const nullifierNonExistentReadRequests = nullifierNonExistentReadRequestsPadded.filter(v => !v.isEmpty());
   const newL2ToL1Messages = newL2ToL1Msgs.filter(v => !v.isEmpty());
@@ -234,6 +237,7 @@ async function executePublicFunctionAcvm(
 
   return {
     execution,
+    noteHashReadRequests,
     newNoteHashes,
     newL2ToL1Messages,
     newNullifiers,

@@ -108,6 +108,7 @@ export class PublicExecutionResultBuilder {
     return {
       execution: this._execution,
       nestedExecutions: this._nestedExecutions,
+      noteHashReadRequests: [],
       nullifierReadRequests: [],
       nullifierNonExistentReadRequests: [],
       contractStorageUpdateRequests: this._contractStorageUpdateRequests,

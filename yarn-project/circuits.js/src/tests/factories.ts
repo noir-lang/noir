@@ -408,6 +408,7 @@ export function makePublicCircuitPublicInputs(
     makeCallContext(seed, { storageContractAddress: storageContractAddress ?? makeAztecAddress(seed) }),
     fr(seed + 0x100),
     fr(seed + 0x200),
+    tupleGenerator(MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, makeReadRequest, seed + 0x300, ReadRequest.empty),
     tupleGenerator(MAX_NULLIFIER_READ_REQUESTS_PER_CALL, makeReadRequest, seed + 0x400, ReadRequest.empty),
     tupleGenerator(MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL, makeReadRequest, seed + 0x420, ReadRequest.empty),
     tupleGenerator(

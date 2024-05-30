@@ -1901,6 +1901,7 @@ export function mapPublicCircuitPublicInputsToNoir(
     call_context: mapCallContextToNoir(publicInputs.callContext),
     args_hash: mapFieldToNoir(publicInputs.argsHash),
     returns_hash: mapFieldToNoir(publicInputs.returnsHash),
+    note_hash_read_requests: mapTuple(publicInputs.noteHashReadRequests, mapReadRequestToNoir),
     nullifier_read_requests: mapTuple(publicInputs.nullifierReadRequests, mapReadRequestToNoir),
     nullifier_non_existent_read_requests: mapTuple(publicInputs.nullifierNonExistentReadRequests, mapReadRequestToNoir),
     contract_storage_update_requests: mapTuple(

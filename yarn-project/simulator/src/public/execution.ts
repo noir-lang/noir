@@ -34,6 +34,8 @@ export interface PublicExecutionResult {
   endSideEffectCounter: Fr;
   /** The new nullifiers to be inserted into the nullifier tree. */
   newNullifiers: Nullifier[];
+  /** The note hash read requests emitted in this call. */
+  noteHashReadRequests: ReadRequest[];
   /** The nullifier read requests emitted in this call. */
   nullifierReadRequests: ReadRequest[];
   /** The nullifier non existent read requests emitted in this call. */
