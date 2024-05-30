@@ -892,6 +892,27 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
         bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
+
+    static void test_pow()
+    {
+        Builder builder;
+
+        fq base_val(engine.get_random_uint256());
+        uint32_t exponent_val = engine.get_random_uint32();
+        fq expected = base_val.pow(exponent_val);
+
+        fq_ct base(&builder, static_cast<uint256_t>(base_val));
+        fq_ct result = base.pow(exponent_val);
+        EXPECT_EQ(fq(result.get_value()), expected);
+
+        fr_ct exponent = witness_ct(&builder, exponent_val);
+        result = base.pow(exponent);
+        EXPECT_EQ(fq(result.get_value()), expected);
+
+        info("num gates = ", builder.get_num_gates());
+        bool check_result = CircuitChecker::check(builder);
+        EXPECT_EQ(check_result, true);
+    }
 };
 
 // Define types for which the above tests will be constructed.
@@ -989,6 +1010,11 @@ TYPED_TEST(stdlib_bigfield, inverse)
 TYPED_TEST(stdlib_bigfield, assert_equal_not_equal)
 {
     TestFixture::test_assert_equal_not_equal();
+}
+
+TYPED_TEST(stdlib_bigfield, pow)
+{
+    TestFixture::test_pow();
 }
 
 // // This test was disabled before the refactor to use TYPED_TEST's/

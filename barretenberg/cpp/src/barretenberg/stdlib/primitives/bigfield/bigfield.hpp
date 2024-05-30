@@ -91,7 +91,7 @@ template <typename Builder, typename T> class bigfield {
      *
      * @param value
      */
-    bigfield(const bb::fq value)
+    bigfield(const native value)
         : bigfield(nullptr, uint256_t(value))
     {}
 
@@ -245,6 +245,15 @@ template <typename Builder, typename T> class bigfield {
 
     bigfield sqr() const;
     bigfield sqradd(const std::vector<bigfield>& to_add) const;
+    /**
+     * @brief compute 'this ** exponent'
+     * @details The exponent is implicity range constrained to 32 bits.
+     *
+     * @param exponent A 32-bit witness
+     * @return bigfield
+     */
+    bigfield pow(const field_t<Builder>& exponent) const;
+    bigfield pow(const uint32_t exponent) const;
     bigfield madd(const bigfield& to_mul, const std::vector<bigfield>& to_add) const;
 
     static void perform_reductions_for_mult_madd(std::vector<bigfield>& mul_left,
