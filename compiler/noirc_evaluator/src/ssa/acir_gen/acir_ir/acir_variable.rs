@@ -269,16 +269,6 @@ impl AcirContext {
         Ok(witness)
     }
 
-    /// Creates a new [`Witness`] which is constrained to be equal to an [`AcirVar`]
-    pub(crate) fn force_var_to_new_witness(
-        &mut self,
-        var: AcirVar,
-    ) -> Result<Witness, InternalError> {
-        let expression = self.var_to_expression(var)?;
-        let witness = self.acir_ir.create_witness_for_expression(&expression);
-        Ok(witness)
-    }
-
     /// Converts an [`AcirVar`] to an [`Expression`]
     pub(crate) fn var_to_expression(
         &self,
