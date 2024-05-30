@@ -79,7 +79,7 @@ impl<'context> Elaborator<'context> {
                 HirPattern::Mutable(Box::new(pattern), location)
             }
             Pattern::Tuple(fields, span) => {
-                let field_types = match expected_type {
+                let field_types = match expected_type.follow_bindings() {
                     Type::Tuple(fields) => fields,
                     Type::Error => Vec::new(),
                     expected_type => {
