@@ -15,9 +15,9 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
-            HirMethodReference, HirPrefixExpression,
+            HirConstructorExpression, HirIfExpression, HirIndexExpression, HirInfixExpression,
+            HirLambda, HirMemberAccess, HirMethodCallExpression, HirMethodReference,
+            HirPrefixExpression,
         },
         traits::TraitConstraint,
     },
@@ -84,10 +84,10 @@ impl<'context> Elaborator<'context> {
                     expr_type: inner_expr_type.clone(),
                     expr_span: span,
                 });
+            }
 
-                if i + 1 == statements.len() {
-                    block_type = stmt_type;
-                }
+            if i + 1 == statements.len() {
+                block_type = stmt_type;
             }
         }
 
@@ -347,6 +347,8 @@ impl<'context> Elaborator<'context> {
 
                 let func_type =
                     self.type_check_variable(function_name, function_id, turbofish_generics);
+
+                self.interner.push_expr_type(function_id, func_type.clone());
 
                 // Type check the new call now that it has been changed from a method call
                 // to a function call. This way we avoid duplicating code.

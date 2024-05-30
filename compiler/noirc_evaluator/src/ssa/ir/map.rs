@@ -115,7 +115,7 @@ impl std::fmt::Display for Id<super::instruction::Instruction> {
 /// access to indices is provided. Since IDs must be stable and correspond
 /// to indices in the internal Vec, operations that would change element
 /// ordering like pop, remove, swap_remove, etc, are not possible.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct DenseMap<T> {
     storage: Vec<T>,
 }

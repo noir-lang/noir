@@ -10,12 +10,15 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::errors::{RuntimeError, SsaReport};
-use acvm::acir::{
-    circuit::{
-        brillig::BrilligBytecode, Circuit, ErrorSelector, ExpressionWidth, Program as AcirProgram,
-        PublicInputs,
+use acvm::{
+    acir::{
+        circuit::{
+            brillig::BrilligBytecode, Circuit, ErrorSelector, ExpressionWidth,
+            Program as AcirProgram, PublicInputs,
+        },
+        native_types::Witness,
     },
-    native_types::Witness,
+    FieldElement,
 };
 
 use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
@@ -55,8 +58,9 @@ pub(crate) fn optimize_into_acir(
     let ssa = SsaBuilder::new(program, print_passes, force_brillig_output, print_timings)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
-        .run_pass(Ssa::inline_functions, "After Inlining:")
+        .run_pass(Ssa::separate_runtime, "After Runtime Separation:")
         .run_pass(Ssa::resolve_is_unconstrained, "After Resolving IsUnconstrained:")
+        .run_pass(Ssa::inline_functions, "After Inlining:")
         // Run mem2reg with the CFG separated into blocks
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
@@ -102,7 +106,7 @@ fn time<T>(name: &str, print_timings: bool, f: impl FnOnce() -> T) -> T {
 
 #[derive(Default)]
 pub struct SsaProgramArtifact {
-    pub program: AcirProgram,
+    pub program: AcirProgram<FieldElement>,
     pub debug: Vec<DebugInfo>,
     pub warnings: Vec<SsaReport>,
     pub main_input_witnesses: Vec<Witness>,
@@ -113,7 +117,7 @@ pub struct SsaProgramArtifact {
 
 impl SsaProgramArtifact {
     fn new(
-        unconstrained_functions: Vec<BrilligBytecode>,
+        unconstrained_functions: Vec<BrilligBytecode<FieldElement>>,
         error_types: BTreeMap<ErrorSelector, HirType>,
     ) -> Self {
         let program = AcirProgram { functions: Vec::default(), unconstrained_functions };
@@ -194,7 +198,7 @@ pub fn create_program(
 
 pub struct SsaCircuitArtifact {
     name: String,
-    circuit: Circuit,
+    circuit: Circuit<FieldElement>,
     debug_info: DebugInfo,
     warnings: Vec<SsaReport>,
     input_witnesses: Vec<Witness>,

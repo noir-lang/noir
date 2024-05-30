@@ -4,9 +4,90 @@ use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
+/// This trait is extremely unstable and WILL have breaking changes.
+pub trait AcirField:
+    std::marker::Sized
+    + Display
+    + Debug
+    + Default
+    + Clone
+    + Copy
+    + Neg<Output = Self>
+    + Add<Self, Output = Self>
+    + Sub<Self, Output = Self>
+    + Mul<Self, Output = Self>
+    + Div<Self, Output = Self>
+    + PartialOrd
+    + AddAssign<Self>
+    + SubAssign<Self>
+    + From<usize>
+    + From<u128>
+    // + From<u64>
+    // + From<u32>
+    // + From<u16>
+    // + From<u8>
+    + From<bool>
+    + Hash
+    + std::cmp::Eq
+{
+    fn one() -> Self;
+    fn zero() -> Self;
+
+    fn is_zero(&self) -> bool;
+    fn is_one(&self) -> bool;
+
+    fn pow(&self, exponent: &Self) -> Self;
+
+    /// Maximum number of bits needed to represent a field element
+    /// This is not the amount of bits being used to represent a field element
+    /// Example, you only need 254 bits to represent a field element in BN256
+    /// But the representation uses 256 bits, so the top two bits are always zero
+    /// This method would return 254
+    fn max_num_bits() -> u32;
+
+    /// Maximum numbers of bytes needed to represent a field element
+    /// We are not guaranteed that the number of bits being used to represent a field element
+    /// will always be divisible by 8. If the case that it is not, we add one to the max number of bytes
+    /// For example, a max bit size of 254 would give a max byte size of 32.
+    fn max_num_bytes() -> u32;
+
+    fn modulus() -> BigUint;
+
+    /// This is the number of bits required to represent this specific field element
+    fn num_bits(&self) -> u32;
+
+    fn to_u128(self) -> u128;
+
+    fn try_into_u128(self) -> Option<u128>;
+
+    fn to_i128(self) -> i128;
+
+    fn try_to_u64(&self) -> Option<u64>;
+
+    /// Computes the inverse or returns zero if the inverse does not exist
+    /// Before using this FieldElement, please ensure that this behavior is necessary
+    fn inverse(&self) -> Self;
+
+    fn to_hex(self) -> String;
+
+    fn from_hex(hex_str: &str) -> Option<Self>;
+
+    fn to_be_bytes(self) -> Vec<u8>;
+
+    /// Converts bytes into a FieldElement and applies a reduction if needed.
+    fn from_be_bytes_reduce(bytes: &[u8]) -> Self;
+
+    /// Returns the closest number of bytes to the bits specified
+    /// This method truncates
+    fn fetch_nearest_bytes(&self, num_bits: usize) -> Vec<u8>;
+
+    fn and(&self, rhs: &Self, num_bits: u32) -> Self;
+    fn xor(&self, rhs: &Self, num_bits: u32) -> Self;
+}
+
 // XXX: Switch out for a trait and proper implementations
 // This implementation is in-efficient, can definitely remove hex usage and Iterator instances for trivial functionality
-#[derive(Clone, Copy, Eq, PartialOrd, Ord)]
+#[derive(Default, Clone, Copy, Eq, PartialOrd, Ord)]
 pub struct FieldElement<F: PrimeField>(F);
 
 impl<F: PrimeField> std::fmt::Display for FieldElement<F> {
@@ -161,53 +242,24 @@ impl<F: PrimeField> From<bool> for FieldElement<F> {
 }
 
 impl<F: PrimeField> FieldElement<F> {
-    pub fn one() -> FieldElement<F> {
-        FieldElement(F::one())
-    }
-    pub fn zero() -> FieldElement<F> {
-        FieldElement(F::zero())
+    pub fn from_repr(field: F) -> Self {
+        Self(field)
     }
 
-    pub fn is_zero(&self) -> bool {
-        self == &Self::zero()
-    }
-    pub fn is_one(&self) -> bool {
-        self == &Self::one()
+    // XXX: This method is used while this field element
+    // implementation is not generic.
+    pub fn into_repr(self) -> F {
+        self.0
     }
 
-    pub fn is_negative(&self) -> bool {
+    fn is_negative(&self) -> bool {
         self.neg().num_bits() < self.num_bits()
     }
 
-    pub fn pow(&self, exponent: &Self) -> Self {
-        FieldElement(self.0.pow(exponent.0.into_bigint()))
+    fn fits_in_u128(&self) -> bool {
+        self.num_bits() <= 128
     }
 
-    /// Maximum number of bits needed to represent a field element
-    /// This is not the amount of bits being used to represent a field element
-    /// Example, you only need 254 bits to represent a field element in BN256
-    /// But the representation uses 256 bits, so the top two bits are always zero
-    /// This method would return 254
-    pub const fn max_num_bits() -> u32 {
-        F::MODULUS_BIT_SIZE
-    }
-
-    /// Maximum numbers of bytes needed to represent a field element
-    /// We are not guaranteed that the number of bits being used to represent a field element
-    /// will always be divisible by 8. If the case that it is not, we add one to the max number of bytes
-    /// For example, a max bit size of 254 would give a max byte size of 32.
-    pub const fn max_num_bytes() -> u32 {
-        let num_bytes = Self::max_num_bits() / 8;
-        if Self::max_num_bits() % 8 == 0 {
-            num_bytes
-        } else {
-            num_bytes + 1
-        }
-    }
-
-    pub fn modulus() -> BigUint {
-        F::MODULUS.into()
-    }
     /// Returns None, if the string is not a canonical
     /// representation of a field element; less than the order
     /// or if the hex string is invalid.
@@ -221,125 +273,6 @@ impl<F: PrimeField> FieldElement<F> {
         Some(FieldElement(fr))
     }
 
-    /// This is the number of bits required to represent this specific field element
-    pub fn num_bits(&self) -> u32 {
-        let bits = self.bits();
-        // Iterate the number of bits and pop off all leading zeroes
-        let iter = bits.iter().skip_while(|x| !(**x));
-        // Note: count will panic if it goes over usize::MAX.
-        // This may not be suitable for devices whose usize < u16
-        iter.count() as u32
-    }
-
-    pub fn fits_in_u128(&self) -> bool {
-        self.num_bits() <= 128
-    }
-
-    pub fn to_u128(self) -> u128 {
-        let bytes = self.to_be_bytes();
-        u128::from_be_bytes(bytes[16..32].try_into().unwrap())
-    }
-
-    pub fn try_into_u128(self) -> Option<u128> {
-        self.fits_in_u128().then(|| self.to_u128())
-    }
-
-    pub fn to_i128(self) -> i128 {
-        let is_negative = self.is_negative();
-        let bytes = if is_negative { self.neg() } else { self }.to_be_bytes();
-        i128::from_be_bytes(bytes[16..32].try_into().unwrap()) * if is_negative { -1 } else { 1 }
-    }
-
-    pub fn try_to_u64(&self) -> Option<u64> {
-        (self.num_bits() <= 64).then(|| self.to_u128() as u64)
-    }
-
-    /// Computes the inverse or returns zero if the inverse does not exist
-    /// Before using this FieldElement, please ensure that this behavior is necessary
-    pub fn inverse(&self) -> FieldElement<F> {
-        let inv = self.0.inverse().unwrap_or_else(F::zero);
-        FieldElement(inv)
-    }
-
-    pub fn try_inverse(mut self) -> Option<Self> {
-        self.0.inverse_in_place().map(|f| FieldElement(*f))
-    }
-
-    pub fn from_repr(field: F) -> Self {
-        Self(field)
-    }
-
-    // XXX: This method is used while this field element
-    // implementation is not generic.
-    pub fn into_repr(self) -> F {
-        self.0
-    }
-
-    pub fn to_hex(self) -> String {
-        let mut bytes = Vec::new();
-        self.0.serialize_uncompressed(&mut bytes).unwrap();
-        bytes.reverse();
-        hex::encode(bytes)
-    }
-    pub fn from_hex(hex_str: &str) -> Option<FieldElement<F>> {
-        let value = hex_str.strip_prefix("0x").unwrap_or(hex_str);
-        // Values of odd length require an additional "0" prefix
-        let sanitized_value =
-            if value.len() % 2 == 0 { value.to_string() } else { format!("0{}", value) };
-        let hex_as_bytes = hex::decode(sanitized_value).ok()?;
-        Some(FieldElement::from_be_bytes_reduce(&hex_as_bytes))
-    }
-
-    pub fn to_be_bytes(self) -> Vec<u8> {
-        // to_be_bytes! uses little endian which is why we reverse the output
-        // TODO: Add a little endian equivalent, so the caller can use whichever one
-        // TODO they desire
-        let mut bytes = Vec::new();
-        self.0.serialize_uncompressed(&mut bytes).unwrap();
-        bytes.reverse();
-        bytes
-    }
-
-    /// Converts bytes into a FieldElement and applies a
-    /// reduction if needed.
-    pub fn from_be_bytes_reduce(bytes: &[u8]) -> FieldElement<F> {
-        FieldElement(F::from_be_bytes_mod_order(bytes))
-    }
-
-    pub fn bits(&self) -> Vec<bool> {
-        let bytes = self.to_be_bytes();
-        let mut bits = Vec::with_capacity(bytes.len() * 8);
-        for byte in bytes {
-            let _bits = FieldElement::<F>::byte_to_bit(byte);
-            bits.extend(_bits);
-        }
-        bits
-    }
-
-    fn byte_to_bit(byte: u8) -> Vec<bool> {
-        let mut bits = Vec::with_capacity(8);
-        for index in (0..=7).rev() {
-            bits.push((byte & (1 << index)) >> index == 1);
-        }
-        bits
-    }
-
-    /// Returns the closest number of bytes to the bits specified
-    /// This method truncates
-    pub fn fetch_nearest_bytes(&self, num_bits: usize) -> Vec<u8> {
-        fn nearest_bytes(num_bits: usize) -> usize {
-            ((num_bits + 7) / 8) * 8
-        }
-
-        let num_bytes = nearest_bytes(num_bits);
-        let num_elements = num_bytes / 8;
-
-        let mut bytes = self.to_be_bytes();
-        bytes.reverse(); // put it in big endian format. XXX(next refactor): we should be explicit about endianness.
-
-        bytes[0..num_elements].to_vec()
-    }
-
     // mask_to methods will not remove any bytes from the field
     // they are simply zeroed out
     // Whereas truncate_to will remove those bits and make the byte array smaller
@@ -347,6 +280,24 @@ impl<F: PrimeField> FieldElement<F> {
         let mut bytes = self.to_be_bytes();
         mask_vector_le(&mut bytes, num_bits as usize);
         bytes
+    }
+
+    fn bits(&self) -> Vec<bool> {
+        fn byte_to_bit(byte: u8) -> Vec<bool> {
+            let mut bits = Vec::with_capacity(8);
+            for index in (0..=7).rev() {
+                bits.push((byte & (1 << index)) >> index == 1);
+            }
+            bits
+        }
+
+        let bytes = self.to_be_bytes();
+        let mut bits = Vec::with_capacity(bytes.len() * 8);
+        for byte in bytes {
+            let _bits = byte_to_bit(byte);
+            bits.extend(_bits);
+        }
+        bits
     }
 
     fn and_xor(&self, rhs: &FieldElement<F>, num_bits: u32, is_xor: bool) -> FieldElement<F> {
@@ -371,14 +322,147 @@ impl<F: PrimeField> FieldElement<F> {
 
         FieldElement::from_be_bytes_reduce(&and_byte_arr)
     }
-    pub fn and(&self, rhs: &FieldElement<F>, num_bits: u32) -> FieldElement<F> {
+}
+
+impl<F: PrimeField> AcirField for FieldElement<F> {
+    fn one() -> FieldElement<F> {
+        FieldElement(F::one())
+    }
+    fn zero() -> FieldElement<F> {
+        FieldElement(F::zero())
+    }
+
+    fn is_zero(&self) -> bool {
+        self == &Self::zero()
+    }
+    fn is_one(&self) -> bool {
+        self == &Self::one()
+    }
+
+    fn pow(&self, exponent: &Self) -> Self {
+        FieldElement(self.0.pow(exponent.0.into_bigint()))
+    }
+
+    /// Maximum number of bits needed to represent a field element
+    /// This is not the amount of bits being used to represent a field element
+    /// Example, you only need 254 bits to represent a field element in BN256
+    /// But the representation uses 256 bits, so the top two bits are always zero
+    /// This method would return 254
+    fn max_num_bits() -> u32 {
+        F::MODULUS_BIT_SIZE
+    }
+
+    /// Maximum numbers of bytes needed to represent a field element
+    /// We are not guaranteed that the number of bits being used to represent a field element
+    /// will always be divisible by 8. If the case that it is not, we add one to the max number of bytes
+    /// For example, a max bit size of 254 would give a max byte size of 32.
+    fn max_num_bytes() -> u32 {
+        let num_bytes = Self::max_num_bits() / 8;
+        if Self::max_num_bits() % 8 == 0 {
+            num_bytes
+        } else {
+            num_bytes + 1
+        }
+    }
+
+    fn modulus() -> BigUint {
+        F::MODULUS.into()
+    }
+
+    /// This is the number of bits required to represent this specific field element
+    fn num_bits(&self) -> u32 {
+        let bits = self.bits();
+        // Iterate the number of bits and pop off all leading zeroes
+        let iter = bits.iter().skip_while(|x| !(**x));
+        // Note: count will panic if it goes over usize::MAX.
+        // This may not be suitable for devices whose usize < u16
+        iter.count() as u32
+    }
+
+    fn to_u128(self) -> u128 {
+        let bytes = self.to_be_bytes();
+        u128::from_be_bytes(bytes[16..32].try_into().unwrap())
+    }
+
+    fn try_into_u128(self) -> Option<u128> {
+        self.fits_in_u128().then(|| self.to_u128())
+    }
+
+    fn to_i128(self) -> i128 {
+        let is_negative = self.is_negative();
+        let bytes = if is_negative { self.neg() } else { self }.to_be_bytes();
+        i128::from_be_bytes(bytes[16..32].try_into().unwrap()) * if is_negative { -1 } else { 1 }
+    }
+
+    fn try_to_u64(&self) -> Option<u64> {
+        (self.num_bits() <= 64).then(|| self.to_u128() as u64)
+    }
+
+    /// Computes the inverse or returns zero if the inverse does not exist
+    /// Before using this FieldElement, please ensure that this behavior is necessary
+    fn inverse(&self) -> FieldElement<F> {
+        let inv = self.0.inverse().unwrap_or_else(F::zero);
+        FieldElement(inv)
+    }
+
+    fn to_hex(self) -> String {
+        let mut bytes = Vec::new();
+        self.0.serialize_uncompressed(&mut bytes).unwrap();
+        bytes.reverse();
+        hex::encode(bytes)
+    }
+    fn from_hex(hex_str: &str) -> Option<FieldElement<F>> {
+        let value = hex_str.strip_prefix("0x").unwrap_or(hex_str);
+        // Values of odd length require an additional "0" prefix
+        let sanitized_value =
+            if value.len() % 2 == 0 { value.to_string() } else { format!("0{}", value) };
+        let hex_as_bytes = hex::decode(sanitized_value).ok()?;
+        Some(FieldElement::from_be_bytes_reduce(&hex_as_bytes))
+    }
+
+    fn to_be_bytes(self) -> Vec<u8> {
+        // to_be_bytes! uses little endian which is why we reverse the output
+        // TODO: Add a little endian equivalent, so the caller can use whichever one
+        // TODO they desire
+        let mut bytes = Vec::new();
+        self.0.serialize_uncompressed(&mut bytes).unwrap();
+        bytes.reverse();
+        bytes
+    }
+
+    /// Converts bytes into a FieldElement and applies a
+    /// reduction if needed.
+    fn from_be_bytes_reduce(bytes: &[u8]) -> FieldElement<F> {
+        FieldElement(F::from_be_bytes_mod_order(bytes))
+    }
+
+    /// Returns the closest number of bytes to the bits specified
+    /// This method truncates
+    fn fetch_nearest_bytes(&self, num_bits: usize) -> Vec<u8> {
+        fn nearest_bytes(num_bits: usize) -> usize {
+            ((num_bits + 7) / 8) * 8
+        }
+
+        let num_bytes = nearest_bytes(num_bits);
+        let num_elements = num_bytes / 8;
+
+        let mut bytes = self.to_be_bytes();
+        bytes.reverse(); // put it in big endian format. XXX(next refactor): we should be explicit about endianness.
+
+        bytes[0..num_elements].to_vec()
+    }
+
+    fn and(&self, rhs: &FieldElement<F>, num_bits: u32) -> FieldElement<F> {
         self.and_xor(rhs, num_bits, false)
     }
-    pub fn xor(&self, rhs: &FieldElement<F>, num_bits: u32) -> FieldElement<F> {
+    fn xor(&self, rhs: &FieldElement<F>, num_bits: u32) -> FieldElement<F> {
         self.and_xor(rhs, num_bits, true)
     }
 }
 
+use std::fmt::Debug;
+use std::fmt::Display;
+use std::hash::Hash;
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 
 impl<F: PrimeField> Neg for FieldElement<F> {
@@ -489,6 +573,8 @@ fn superscript(n: u64) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::{AcirField, FieldElement};
+
     #[test]
     fn and() {
         let max = 10_000u32;
@@ -496,7 +582,7 @@ mod tests {
         let num_bits = (std::mem::size_of::<u32>() * 8) as u32 - max.leading_zeros();
 
         for x in 0..max {
-            let x = crate::generic_ark::FieldElement::<ark_bn254::Fr>::from(x as i128);
+            let x = FieldElement::<ark_bn254::Fr>::from(x as i128);
             let res = x.and(&x, num_bits);
             assert_eq!(res.to_be_bytes(), x.to_be_bytes());
         }
@@ -513,8 +599,7 @@ mod tests {
         ];
 
         for (i, string) in hex_strings.into_iter().enumerate() {
-            let minus_i_field_element =
-                -crate::generic_ark::FieldElement::<ark_bn254::Fr>::from(i as i128);
+            let minus_i_field_element = -FieldElement::<ark_bn254::Fr>::from(i as i128);
             assert_eq!(minus_i_field_element.to_hex(), string);
         }
     }
@@ -525,12 +610,9 @@ mod tests {
         let hex_strings =
             vec![("0x0", "0x00"), ("0x1", "0x01"), ("0x002", "0x0002"), ("0x00003", "0x000003")];
         for (i, case) in hex_strings.into_iter().enumerate() {
-            let i_field_element =
-                crate::generic_ark::FieldElement::<ark_bn254::Fr>::from(i as i128);
-            let odd_field_element =
-                crate::generic_ark::FieldElement::<ark_bn254::Fr>::from_hex(case.0).unwrap();
-            let even_field_element =
-                crate::generic_ark::FieldElement::<ark_bn254::Fr>::from_hex(case.1).unwrap();
+            let i_field_element = FieldElement::<ark_bn254::Fr>::from(i as i128);
+            let odd_field_element = FieldElement::<ark_bn254::Fr>::from_hex(case.0).unwrap();
+            let even_field_element = FieldElement::<ark_bn254::Fr>::from_hex(case.1).unwrap();
 
             assert_eq!(i_field_element, odd_field_element);
             assert_eq!(odd_field_element, even_field_element);
@@ -539,7 +621,7 @@ mod tests {
 
     #[test]
     fn max_num_bits_smoke() {
-        let max_num_bits_bn254 = crate::generic_ark::FieldElement::<ark_bn254::Fr>::max_num_bits();
+        let max_num_bits_bn254 = FieldElement::<ark_bn254::Fr>::max_num_bits();
         assert_eq!(max_num_bits_bn254, 254);
     }
 }

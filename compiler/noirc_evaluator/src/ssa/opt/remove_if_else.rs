@@ -1,6 +1,6 @@
 use std::collections::hash_map::Entry;
 
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::ir::value::ValueId;

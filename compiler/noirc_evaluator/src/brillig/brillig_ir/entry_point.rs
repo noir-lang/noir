@@ -5,7 +5,7 @@ use super::{
     registers::BrilligRegistersContext,
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
-use acvm::{acir::brillig::MemoryAddress, FieldElement};
+use acvm::{acir::brillig::MemoryAddress, acir::AcirField, FieldElement};
 
 pub(crate) const MAX_STACK_SIZE: usize = 2048;
 
