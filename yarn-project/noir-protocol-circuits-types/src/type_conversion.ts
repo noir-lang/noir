@@ -1770,6 +1770,14 @@ export function mapCombineHintsToNoir(combineHints: CombineHints): CombineHintsN
       combineHints.sortedPublicDataUpdateRequestsIndexes,
       mapNumberToNoir,
     ),
+    deduped_public_data_update_requests: mapTuple(
+      combineHints.dedupedPublicDataUpdateRequests,
+      mapPublicDataUpdateRequestToNoir,
+    ),
+    deduped_public_data_update_requests_runs: mapTuple(
+      combineHints.dedupedPublicDataUpdateRequestsRuns,
+      mapNumberToNoir,
+    ),
   };
 }
 

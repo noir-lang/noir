@@ -39,7 +39,10 @@ export function buildPrivateKernelTailHints(publicInputs: PrivateKernelCircuitPu
   const [sortedCallRequests, sortedCallRequestsIndexes] = sortByCounterGetSortedHints(
     publicInputs.end.publicCallStack,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-    /* ascending */ false,
+    {
+      ascending: false,
+      hintIndexesBy: 'sorted',
+    },
   );
 
   return new PrivateKernelTailHints(

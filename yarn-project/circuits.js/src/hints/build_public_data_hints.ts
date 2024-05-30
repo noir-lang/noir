@@ -29,7 +29,7 @@ export async function buildPublicDataHints(
   oracle: PublicDataMembershipWitnessOracle,
   publicDataReads: Tuple<PublicDataRead, typeof MAX_PUBLIC_DATA_READS_PER_TX>,
   publicDataUpdateRequests: Tuple<PublicDataUpdateRequest, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
-) {
+): Promise<Tuple<PublicDataHint, typeof MAX_PUBLIC_DATA_HINTS>> {
   const publicDataLeafSlots = [...publicDataReads, ...publicDataUpdateRequests]
     .filter(r => !r.isEmpty())
     .map(r => r.leafSlot.toBigInt());

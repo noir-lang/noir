@@ -10,7 +10,13 @@ import {
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MAX_UNENCRYPTED_LOGS_PER_TX,
 } from '../../constants.gen.js';
-import { getNonEmptyItems, mergeAccumulatedData, sortByCounterGetSortedHints } from '../../utils/index.js';
+import {
+  deduplicateSortedArray,
+  getNonEmptyItems,
+  mergeAccumulatedData,
+  sortByCounterGetSortedHints,
+  sortByPositionThenCounterGetSortedHints,
+} from '../../utils/index.js';
 import { LogHash } from '../log_hash.js';
 import { NoteHash } from '../note_hash.js';
 import { PublicDataUpdateRequest } from '../public_data_update_request.js';
@@ -27,6 +33,11 @@ export class CombineHints {
       typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
     >,
     public readonly sortedPublicDataUpdateRequestsIndexes: Tuple<number, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
+    public readonly dedupedPublicDataUpdateRequests: Tuple<
+      PublicDataUpdateRequest,
+      typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+    >,
+    public readonly dedupedPublicDataUpdateRequestsRuns: Tuple<number, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
   ) {}
 
   static getFields(fields: FieldsOf<CombineHints>) {
@@ -37,6 +48,8 @@ export class CombineHints {
       fields.sortedUnencryptedLogsHashesIndexes,
       fields.sortedPublicDataUpdateRequests,
       fields.sortedPublicDataUpdateRequestsIndexes,
+      fields.dedupedPublicDataUpdateRequests,
+      fields.dedupedPublicDataUpdateRequestsRuns,
     ] as const;
   }
 
@@ -55,6 +68,8 @@ export class CombineHints {
       reader.readNumbers(MAX_NEW_NOTE_HASHES_PER_TX),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, LogHash),
       reader.readNumbers(MAX_UNENCRYPTED_LOGS_PER_TX),
+      reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
+      reader.readNumbers(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX),
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
       reader.readNumbers(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX),
     );
@@ -95,9 +110,24 @@ export class CombineHints {
       MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
     );
 
-    const [sortedPublicDataUpdateRequests, sortedPublicDataUpdateRequestsIndexes] = sortByCounterGetSortedHints(
-      publicDataUpdateRequests,
+    // Since we're using `check_permutation` in the circuit, we need index hints based on the original array.
+    const [sortedPublicDataUpdateRequests, sortedPublicDataUpdateRequestsIndexes] =
+      sortByPositionThenCounterGetSortedHints(publicDataUpdateRequests, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, {
+        ascending: true,
+        hintIndexesBy: 'original',
+      });
+
+    // further, we need to fill in the rest of the hints with an identity mapping
+    for (let i = 0; i < MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX; i++) {
+      if (publicDataUpdateRequests[i].isEmpty()) {
+        sortedPublicDataUpdateRequestsIndexes[i] = i;
+      }
+    }
+
+    const [dedupedPublicDataUpdateRequests, dedupedPublicDataUpdateRequestsRuns] = deduplicateSortedArray(
+      sortedPublicDataUpdateRequests,
       MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+      () => PublicDataUpdateRequest.empty(),
     );
 
     return CombineHints.from({
@@ -107,6 +137,8 @@ export class CombineHints {
       sortedUnencryptedLogsHashesIndexes,
       sortedPublicDataUpdateRequests,
       sortedPublicDataUpdateRequestsIndexes,
+      dedupedPublicDataUpdateRequests,
+      dedupedPublicDataUpdateRequestsRuns,
     });
   }
 
@@ -123,7 +155,11 @@ export class CombineHints {
   sortedPublicDataUpdateRequests: ${getNonEmptyItems(this.sortedPublicDataUpdateRequests)
     .map(h => inspect(h))
     .join(', ')},
-  sortedPublicDataUpdateRequestsIndexes: ${this.sortedPublicDataUpdateRequestsIndexes}
+  sortedPublicDataUpdateRequestsIndexes: ${this.sortedPublicDataUpdateRequestsIndexes},
+  dedupedPublicDataUpdateRequests: ${getNonEmptyItems(this.dedupedPublicDataUpdateRequests)
+    .map(h => inspect(h))
+    .join(', ')},
+  dedupedPublicDataUpdateRequestsRuns: ${this.dedupedPublicDataUpdateRequestsRuns},
 }`;
   }
 }

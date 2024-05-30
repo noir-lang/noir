@@ -1,25 +1,28 @@
 import { makeTuple } from '@aztec/foundation/array';
+import { Fr } from '@aztec/foundation/fields';
 import { type Tuple } from '@aztec/foundation/serialize';
 
 import { type IsEmpty } from '../interfaces/index.js';
 import {
   countAccumulatedItems,
+  deduplicateSortedArray,
   getNonEmptyItems,
   isEmptyArray,
   mergeAccumulatedData,
   sortByCounter,
   sortByCounterGetSortedHints,
+  sortByPositionThenCounter,
 } from './index.js';
 
 class TestItem {
-  constructor(public value: number, public counter = 0) {}
+  constructor(public value: number, public counter = 0, public position = Fr.ZERO) {}
 
   static empty() {
     return new TestItem(0);
   }
 
   isEmpty() {
-    return !this.value && !this.counter;
+    return !this.value && !this.counter && Fr.isZero(this.position);
   }
 }
 
@@ -307,6 +310,165 @@ describe('utils', () => {
       ]);
 
       expect(hints).toEqual([2, 0, 1, 0, 0]);
+    });
+  });
+
+  describe('sortByPositionThenCounter', () => {
+    it('sorts items by position and then by counter in ascending order', () => {
+      const arr: TestItem[] = [
+        new TestItem(4, 2, new Fr(3)),
+        new TestItem(1, 1, new Fr(1)),
+        new TestItem(3, 3, new Fr(2)),
+        new TestItem(2, 4, new Fr(1)),
+        new TestItem(5, 1, new Fr(2)),
+      ];
+
+      const sorted = sortByPositionThenCounter(arr);
+
+      expect(sorted).toEqual([
+        new TestItem(1, 1, new Fr(1)),
+        new TestItem(2, 4, new Fr(1)),
+        new TestItem(5, 1, new Fr(2)),
+        new TestItem(3, 3, new Fr(2)),
+        new TestItem(4, 2, new Fr(3)),
+      ]);
+    });
+
+    it('sorts items by position and then by counter in descending order', () => {
+      const arr: TestItem[] = [
+        new TestItem(4, 2, new Fr(3)),
+        new TestItem(1, 1, new Fr(1)),
+        new TestItem(3, 3, new Fr(2)),
+        new TestItem(2, 4, new Fr(1)),
+        new TestItem(5, 1, new Fr(2)),
+      ];
+
+      const sorted = sortByPositionThenCounter(arr, false);
+
+      expect(sorted).toEqual([
+        new TestItem(4, 2, new Fr(3)),
+        new TestItem(3, 3, new Fr(2)),
+        new TestItem(5, 1, new Fr(2)),
+        new TestItem(2, 4, new Fr(1)),
+        new TestItem(1, 1, new Fr(1)),
+      ]);
+    });
+
+    it('handles arrays with empty items correctly', () => {
+      const arr: TestItem[] = [
+        new TestItem(4, 2, new Fr(3)),
+        new TestItem(1, 1, new Fr(1)),
+        new TestItem(0, 0, new Fr(0)),
+        new TestItem(5, 1, new Fr(2)),
+        new TestItem(0, 0, new Fr(0)),
+      ];
+
+      const sorted = sortByPositionThenCounter(arr);
+
+      expect(sorted).toEqual([
+        new TestItem(1, 1, new Fr(1)),
+        new TestItem(5, 1, new Fr(2)),
+        new TestItem(4, 2, new Fr(3)),
+        new TestItem(0, 0, new Fr(0)),
+        new TestItem(0, 0, new Fr(0)),
+      ]);
+    });
+
+    it('sorts items with same position by counter in ascending order', () => {
+      const arr: TestItem[] = [
+        new TestItem(4, 2, new Fr(1)),
+        new TestItem(1, 1, new Fr(1)),
+        new TestItem(3, 3, new Fr(1)),
+        new TestItem(2, 4, new Fr(1)),
+        new TestItem(5, 1, new Fr(1)),
+      ];
+
+      const sorted = sortByPositionThenCounter(arr);
+
+      expect(sorted).toEqual([
+        new TestItem(1, 1, new Fr(1)),
+        new TestItem(5, 1, new Fr(1)),
+        new TestItem(4, 2, new Fr(1)),
+        new TestItem(3, 3, new Fr(1)),
+        new TestItem(2, 4, new Fr(1)),
+      ]);
+    });
+  });
+
+  describe('deduplicateArray', () => {
+    it('deduplicates and returns run lengths correctly', () => {
+      const arr: Tuple<TestItem, 10> = [
+        new TestItem(1, 1, new Fr(1)),
+        new TestItem(2, 4, new Fr(1)),
+        new TestItem(3, 3, new Fr(2)),
+        new TestItem(4, 2, new Fr(3)),
+        new TestItem(5, 5, new Fr(3)),
+        new TestItem(6, 6, new Fr(3)),
+        new TestItem(7, 8, new Fr(4)),
+        new TestItem(8, 9, new Fr(4)),
+        new TestItem(9, 7, new Fr(5)),
+        new TestItem(0, 0, new Fr(0)),
+      ];
+
+      const [dedupedArray, runLengths] = deduplicateSortedArray(arr, 10, TestItem.empty);
+
+      const expectedDedupedArray: Tuple<TestItem, 10> = [
+        new TestItem(2, 4, new Fr(1)),
+        new TestItem(3, 3, new Fr(2)),
+        new TestItem(6, 6, new Fr(3)),
+        new TestItem(8, 9, new Fr(4)),
+        new TestItem(9, 7, new Fr(5)),
+        new TestItem(0, 0, new Fr(0)),
+        new TestItem(0, 0, new Fr(0)),
+        new TestItem(0, 0, new Fr(0)),
+        new TestItem(0, 0, new Fr(0)),
+        new TestItem(0, 0, new Fr(0)),
+      ];
+
+      const expectedRunLengths = [2, 1, 3, 2, 1, 0, 0, 0, 0, 0];
+
+      expect(dedupedArray).toEqual(expectedDedupedArray);
+      expect(runLengths).toEqual(expectedRunLengths);
+    });
+
+    it('handles arrays with all empty items', () => {
+      const arr: Tuple<TestItem, 10> = Array(10).fill(new TestItem(0, 0, new Fr(0))) as Tuple<TestItem, 10>;
+
+      const [dedupedArray, runLengths] = deduplicateSortedArray(arr, 10, TestItem.empty);
+
+      const expectedDedupedArray: Tuple<TestItem, 10> = Array(10).fill(new TestItem(0, 0, new Fr(0))) as Tuple<
+        TestItem,
+        10
+      >;
+      const expectedRunLengths = Array(10).fill(0);
+
+      expect(dedupedArray).toEqual(expectedDedupedArray);
+      expect(runLengths).toEqual(expectedRunLengths);
+    });
+
+    it('handles arrays with no duplicates', () => {
+      const arr: Tuple<TestItem, 5> = [
+        new TestItem(1, 1, new Fr(1)),
+        new TestItem(2, 2, new Fr(2)),
+        new TestItem(3, 3, new Fr(3)),
+        new TestItem(4, 4, new Fr(4)),
+        new TestItem(5, 5, new Fr(5)),
+      ];
+
+      const [dedupedArray, runLengths] = deduplicateSortedArray(arr, 5, TestItem.empty);
+
+      const expectedDedupedArray: Tuple<TestItem, 5> = [
+        new TestItem(1, 1, new Fr(1)),
+        new TestItem(2, 2, new Fr(2)),
+        new TestItem(3, 3, new Fr(3)),
+        new TestItem(4, 4, new Fr(4)),
+        new TestItem(5, 5, new Fr(5)),
+      ];
+
+      const expectedRunLengths = [1, 1, 1, 1, 1];
+
+      expect(dedupedArray).toEqual(expectedDedupedArray);
+      expect(runLengths).toEqual(expectedRunLengths);
     });
   });
 

@@ -5,7 +5,7 @@ use crate::public_data_tree_leaf::PublicDataTreeLeaf;
 use crate::address::AztecAddress;
 use crate::contrakt::storage_update_request::StorageUpdateRequest;
 use crate::data::hash::{compute_public_data_tree_value, compute_public_data_tree_index};
-use crate::abis::side_effect::Ordered;
+use crate::abis::side_effect::{Ordered, Positioned};
 
 struct PublicDataUpdateRequest {
     leaf_slot : Field,
@@ -23,6 +23,12 @@ impl PublicDataUpdateRequest {
             new_value: compute_public_data_tree_value(update_request.new_value),
             counter: update_request.counter
         }
+    }
+}
+
+impl Positioned for PublicDataUpdateRequest {
+    fn position(self) -> Field {
+        self.leaf_slot
     }
 }
 

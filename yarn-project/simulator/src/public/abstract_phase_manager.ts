@@ -28,9 +28,7 @@ import {
   MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_DATA_READS_PER_CALL,
-  MAX_PUBLIC_DATA_READS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
-  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MAX_UNENCRYPTED_LOGS_PER_CALL,
   MembershipWitness,
   NESTED_RECURSIVE_PROOF_LENGTH,
@@ -40,8 +38,6 @@ import {
   type PublicCallRequest,
   PublicCallStackItem,
   PublicCircuitPublicInputs,
-  PublicDataRead,
-  PublicDataUpdateRequest,
   PublicKernelCircuitPrivateInputs,
   type PublicKernelCircuitPublicInputs,
   PublicKernelData,
@@ -53,15 +49,13 @@ import {
   makeEmptyRecursiveProof,
 } from '@aztec/circuits.js';
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
-import { arrayNonEmptyLength, padArrayEnd } from '@aztec/foundation/collection';
+import { padArrayEnd } from '@aztec/foundation/collection';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { type Tuple } from '@aztec/foundation/serialize';
 import {
   type PublicExecution,
   type PublicExecutionResult,
   type PublicExecutor,
   accumulateReturnValues,
-  collectPublicDataReads,
   isPublicExecutionResult,
 } from '@aztec/simulator';
 import { type MerkleTreeOperations } from '@aztec/world-state';
@@ -338,9 +332,6 @@ export abstract class AbstractPhaseManager {
 
         enqueuedCallResults.push(accumulateReturnValues(enqueuedExecutionResult));
       }
-      // HACK(#1622): Manually patches the ordering of public state actions
-      // TODO(#757): Enforce proper ordering of public state actions
-      this.patchPublicStorageActionOrdering(kernelOutput, enqueuedExecutionResult!);
     }
 
     return [publicKernelInputs, kernelOutput, newUnencryptedFunctionLogs, undefined, enqueuedCallResults, gasUsed];
@@ -498,63 +489,4 @@ export abstract class AbstractPhaseManager {
     const publicCallStack = padArrayEnd(publicCallRequests, CallRequest.empty(), MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL);
     return new PublicCallData(callStackItem, publicCallStack, makeEmptyProof(), bytecodeHash);
   }
-
-  // HACK(#1622): this is a hack to fix ordering of public state in the call stack. Since the private kernel
-  // cannot keep track of side effects that happen after or before a nested call, we override the public
-  // state actions it emits with whatever we got from the simulator. As a sanity check, we at least verify
-  // that the elements are the same, so we are only tweaking their ordering.
-  // See yarn-project/end-to-end/src/e2e_ordering.test.ts
-  // See https://github.com/AztecProtocol/aztec-packages/issues/1616
-  // TODO(#757): Enforce proper ordering of public state actions
-  /**
-   * Patch the ordering of storage actions output from the public kernel.
-   * @param publicInputs - to be patched here: public inputs to the kernel iteration up to this point
-   * @param execResult - result of the top/first execution for this enqueued public call
-   */
-  private patchPublicStorageActionOrdering(
-    publicInputs: PublicKernelCircuitPublicInputs,
-    execResult: PublicExecutionResult,
-  ) {
-    const { publicDataReads } = publicInputs.validationRequests;
-
-    // Convert ContractStorage* objects to PublicData* objects and sort them in execution order.
-    // Note, this only pulls simulated reads/writes from the current phase,
-    // so the returned result will be a subset of the public kernel output.
-
-    const simPublicDataReads = collectPublicDataReads(execResult);
-
-    // We only want to reorder the items from the public inputs of the
-    // most recently processed top/enqueued call.
-
-    const numReadsInKernel = arrayNonEmptyLength(publicDataReads, f => f.isEmpty());
-    const numReadsBeforeThisEnqueuedCall = numReadsInKernel - simPublicDataReads.length;
-    publicInputs.validationRequests.publicDataReads = padArrayEnd(
-      [
-        // do not mess with items from previous top/enqueued calls in kernel output
-        ...publicInputs.validationRequests.publicDataReads.slice(0, numReadsBeforeThisEnqueuedCall),
-        ...simPublicDataReads,
-      ],
-      PublicDataRead.empty(),
-      MAX_PUBLIC_DATA_READS_PER_TX,
-    );
-  }
-}
-
-export function removeRedundantPublicDataWrites(
-  writes: Tuple<PublicDataUpdateRequest, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
-) {
-  const lastWritesMap = new Map<string, boolean>();
-  const patch = <N extends number>(requests: Tuple<PublicDataUpdateRequest, N>) =>
-    requests.filter(write => {
-      const leafSlot = write.leafSlot.toString();
-      const exists = lastWritesMap.get(leafSlot);
-      lastWritesMap.set(leafSlot, true);
-      return !exists;
-    });
-
-  return padArrayEnd(
-    patch(writes.reverse()).reverse(),
-    PublicDataUpdateRequest.empty(),
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-  );
 }

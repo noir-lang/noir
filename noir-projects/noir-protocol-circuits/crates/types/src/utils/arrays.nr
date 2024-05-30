@@ -1,6 +1,7 @@
 use dep::std::array;
 use dep::std::cmp::Eq;
 use crate::traits::{Empty, is_empty};
+use crate::abis::side_effect::{Positioned, Ordered};
 
 pub fn array_to_bounded_vec<T, N>(array: [T; N]) -> BoundedVec<T, N> where T: Empty + Eq {
     let mut len = 0;
@@ -176,6 +177,323 @@ pub fn assert_sorted_array<T, N, Env>(
                 assert(ordering(sorted_array[i - 1], sorted_array[i]), "Values not sorted");
             }
         }
+    }
+}
+
+pub fn assert_deduped_array<T, N, Env>(
+    original_array: [T; N],
+    deduped_array: [T; N],
+    run_lengths: [u64; N]
+) where T: Positioned + Ordered + Empty + Eq {
+    /*
+    The original_array here needs to be sorted based on the `position` field of the container,
+    *and* a secondary sort based on the `counter` field of the container. 
+
+    For example, the storage slot in the case of public data update requests.
+    The run_lengths array should contain the length of each run of the original_array.
+    The deduped_array should contain the deduplicated array.
+
+    For example, if the original array is writing `(position,value,counter)`s:
+    [ (1,1,1), (1,2,4), (2,3,3), (3,4,2), (3,5,5), (3,6,6), (4,7,8), (4,8,9), (5,9,7), (0,0,0), ... padding with zeros ]
+    then run_lengths array is:
+    [
+        2, // run of 1s
+        1, // run of 2
+        3, // run of 3s
+        2, // run of 4s
+        1, // run of 5
+        0,
+        0,
+        ... padding with zeros
+    ]
+    
+    then the deduped_array should be:
+    [ (1,2,4), (2,3,3), (3,6,6), (4,8,9), (5,9,7), (0,0,0), ... padding with zeros ]
+    */
+
+    let deduped_len = validate_array(deduped_array); // This also makes sure that the array is padded with empty items.  
+    let run_lengths_len = array_length(run_lengths); // Don't have to be a "validated" array because non zero padded values don't hurt.  
+    assert_eq(deduped_len, run_lengths_len, "Deduped array length does not match number of run lengths");
+
+    let mut seen_empty = false;
+    // container at the start of the current run
+    let mut start_run_index = 0;
+    // the index we are collapsing into
+    let mut deduped_index = 0;
+    // the length of the current run we are collapsing
+    let mut run_counter = run_lengths[deduped_index];
+    for i in 0..N {
+        let current_container = original_array[i];
+        if is_empty(current_container) {
+            seen_empty = true;
+        } else {
+            assert(!seen_empty, "Empty values must be padded to the right");
+            assert(run_counter > 0, "Invalid run length");
+            assert(
+                current_container.position().eq(original_array[start_run_index].position()), "The position of the current container must match the start of the run"
+            );
+            run_counter -= 1;
+            if run_counter == 0 {
+                assert(
+                    deduped_array[deduped_index].eq(current_container), "The container we are collapsing into must match the current container"
+                );
+                start_run_index = i + 1;
+                deduped_index += 1;
+                run_counter = run_lengths[deduped_index];
+            } else {
+                // we're in a run, so this container must have a lower counter.
+                // note we don't check for overflow here, as the run_lengths array must be correct.
+                assert(
+                    current_container.counter() <= original_array[i + 1].counter(), "Containers in a run must be sorted by counter"
+                );
+            }
+        }
+    }
+
+    assert_eq(deduped_index, deduped_len, "Final deduped index does not match deduped array length");
+}
+
+mod tests {
+
+    use crate::utils::arrays::assert_deduped_array;
+    use crate::abis::side_effect::{Positioned, Ordered};
+    use crate::traits::{Empty, is_empty};
+
+    struct TestContainer {
+        value: Field,
+        position: Field,
+        counter: u32,
+    }
+
+    impl Positioned for TestContainer {
+        fn position(self) -> Field {
+            self.position
+        }
+    }
+
+    impl Ordered for TestContainer {
+        fn counter(self) -> u32 {
+            self.counter
+        }
+    }
+
+    impl Empty for TestContainer {
+        fn empty() -> Self {
+            TestContainer { value: 0, position: 0, counter: 0 }
+        }
+    }
+
+    impl Eq for TestContainer {
+        fn eq(self, other: Self) -> bool {
+            self.value.eq(other.value) & self.position.eq(other.position) & self.counter.eq(other.counter)
+        }
+    }
+
+    #[test]
+    fn assert_deduped_array_basic_test() {
+        let original_array = [
+            TestContainer { value: 1, position: 1, counter: 1 },
+            TestContainer { value: 2, position: 1, counter: 4 },
+            TestContainer { value: 3, position: 2, counter: 3 },
+            TestContainer { value: 4, position: 3, counter: 2 },
+            TestContainer { value: 5, position: 3, counter: 5 },
+            TestContainer { value: 6, position: 3, counter: 6 },
+            TestContainer { value: 7, position: 4, counter: 8 },
+            TestContainer { value: 8, position: 4, counter: 9 },
+            TestContainer { value: 9, position: 5, counter: 7 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 }
+        ];
+        let deduped_array = [
+            TestContainer { value: 2, position: 1, counter: 4 },
+            TestContainer { value: 3, position: 2, counter: 3 },
+            TestContainer { value: 6, position: 3, counter: 6 },
+            TestContainer { value: 8, position: 4, counter: 9 },
+            TestContainer { value: 9, position: 5, counter: 7 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 }
+        ];
+        let run_lengths = [2, 1, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0];
+        assert_deduped_array(original_array, deduped_array, run_lengths);
+    }
+
+    #[test]
+    fn assert_deduped_array_empty_arrays() {
+        let original_array = [TestContainer { value: 0, position: 0, counter: 0 }; 12];
+        let deduped_array = [TestContainer { value: 0, position: 0, counter: 0 }; 12];
+        let run_lengths = [0; 12];
+        assert_deduped_array(original_array, deduped_array, run_lengths);
+    }
+
+    #[test]
+    fn assert_deduped_array_no_duplicates() {
+        let original_array = [
+            TestContainer { value: 1, position: 1, counter: 1 },
+            TestContainer { value: 2, position: 2, counter: 2 },
+            TestContainer { value: 3, position: 3, counter: 3 },
+            TestContainer { value: 4, position: 4, counter: 4 },
+            TestContainer { value: 5, position: 5, counter: 5 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 }
+        ];
+        let deduped_array = original_array;
+        let run_lengths = [1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0];
+        assert_deduped_array(original_array, deduped_array, run_lengths);
+    }
+
+    #[test]
+    fn assert_deduped_array_single_run_at_end() {
+        let original_array = [
+            TestContainer { value: 1, position: 1, counter: 1 },
+            TestContainer { value: 2, position: 2, counter: 2 },
+            TestContainer { value: 3, position: 3, counter: 3 },
+            TestContainer { value: 4, position: 4, counter: 4 },
+            TestContainer { value: 5, position: 5, counter: 5 },
+            TestContainer { value: 6, position: 6, counter: 7 },
+            TestContainer { value: 7, position: 6, counter: 8 },
+            TestContainer { value: 8, position: 6, counter: 9 }
+        ];
+        let deduped_array = [
+            TestContainer { value: 1, position: 1, counter: 1 },
+            TestContainer { value: 2, position: 2, counter: 2 },
+            TestContainer { value: 3, position: 3, counter: 3 },
+            TestContainer { value: 4, position: 4, counter: 4 },
+            TestContainer { value: 5, position: 5, counter: 5 },
+            TestContainer { value: 8, position: 6, counter: 9 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 }
+        ];
+        let run_lengths = [1, 1, 1, 1, 1, 3, 0, 0];
+        assert_deduped_array(original_array, deduped_array, run_lengths);
+    }
+
+    #[test]
+    fn assert_deduped_array_all_duplicates() {
+        let original_array = [
+            TestContainer { value: 1, position: 1, counter: 1 },
+            TestContainer { value: 2, position: 1, counter: 2 },
+            TestContainer { value: 3, position: 1, counter: 3 },
+            TestContainer { value: 4, position: 1, counter: 4 },
+            TestContainer { value: 5, position: 1, counter: 5 },
+            TestContainer { value: 6, position: 1, counter: 6 },
+            TestContainer { value: 7, position: 1, counter: 7 },
+            TestContainer { value: 8, position: 1, counter: 8 },
+            TestContainer { value: 9, position: 1, counter: 9 }
+        ];
+        let deduped_array = [
+            TestContainer { value: 9, position: 1, counter: 9 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 }
+        ];
+        let run_lengths = [9, 0, 0, 0, 0, 0, 0, 0, 0];
+        assert_deduped_array(original_array, deduped_array, run_lengths);
+    }
+
+    #[test(should_fail_with = "Empty values must be padded to the right")]
+    fn test_empty_not_padded_right() {
+        let original_array = [
+            TestContainer { value: 1, position: 1, counter: 1 },
+            TestContainer { value: 2, position: 1, counter: 2 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 3, position: 2, counter: 3 }
+        ];
+        let deduped_array = [
+            TestContainer { value: 2, position: 1, counter: 2 },
+            TestContainer { value: 3, position: 2, counter: 3 },
+            TestContainer { value: 0, position: 0, counter: 0 },
+            TestContainer { value: 0, position: 0, counter: 0 }
+        ];
+        let run_lengths = [2, 1, 0, 0];
+        assert_deduped_array(original_array, deduped_array, run_lengths);
+    }
+
+    #[test(should_fail_with = "The position of the current container must match the start of the run")]
+    fn test_mismatched_position_in_run() {
+        let original_array = [
+            TestContainer { value: 1, position: 1, counter: 1 },
+            TestContainer { value: 2, position: 1, counter: 2 },
+            TestContainer { value: 3, position: 2, counter: 3 },
+            TestContainer { value: 4, position: 3, counter: 4 }
+        ];
+        let deduped_array = [
+            TestContainer { value: 2, position: 1, counter: 2 },
+            TestContainer { value: 3, position: 2, counter: 3 },
+            TestContainer { value: 4, position: 3, counter: 4 },
+            TestContainer { value: 0, position: 0, counter: 0 }
+        ];
+        let run_lengths = [3, 1, 1, 0];
+        assert_deduped_array(original_array, deduped_array, run_lengths);
+    }
+
+    #[test(should_fail_with = "The container we are collapsing into must match the current container")]
+    fn test_mismatched_deduped_value() {
+        let original_array = [
+            TestContainer { value: 1, position: 1, counter: 1 },
+            TestContainer { value: 2, position: 1, counter: 2 },
+            TestContainer { value: 3, position: 2, counter: 3 },
+            TestContainer { value: 4, position: 3, counter: 4 }
+        ];
+        let deduped_array = [
+            TestContainer { value: 1, position: 1, counter: 1 },
+            TestContainer { value: 3, position: 2, counter: 3 },
+            TestContainer { value: 4, position: 3, counter: 4 },
+            TestContainer { value: 0, position: 0, counter: 0 }
+        ];
+        let run_lengths = [2, 1, 1, 0];
+        assert_deduped_array(original_array, deduped_array, run_lengths);
+    }
+
+    #[test(should_fail_with = "Deduped array length does not match number of run lengths")]
+    fn test_run_lengths_not_zero_padded() {
+        let original_array = [
+            TestContainer { value: 1, position: 1, counter: 1 },
+            TestContainer { value: 2, position: 1, counter: 2 },
+            TestContainer { value: 3, position: 2, counter: 3 },
+            TestContainer { value: 4, position: 3, counter: 4 }
+        ];
+        let deduped_array = [
+            TestContainer { value: 2, position: 1, counter: 2 },
+            TestContainer { value: 3, position: 2, counter: 3 },
+            TestContainer { value: 4, position: 3, counter: 4 },
+            TestContainer { value: 0, position: 0, counter: 0 }
+        ];
+        let run_lengths = [2, 1, 1, 1]; // Last element should be 0
+        assert_deduped_array(original_array, deduped_array, run_lengths);
+    }
+
+    #[test(should_fail_with = "Deduped array length does not match number of run lengths")]
+    fn test_deduped_padding_not_zero_padded() {
+        let original_array = [
+            TestContainer { value: 1, position: 1, counter: 1 },
+            TestContainer { value: 2, position: 1, counter: 2 },
+            TestContainer { value: 3, position: 2, counter: 3 },
+            TestContainer { value: 4, position: 3, counter: 4 }
+        ];
+        let deduped_array = [
+            TestContainer { value: 2, position: 1, counter: 2 },
+            TestContainer { value: 3, position: 2, counter: 3 },
+            TestContainer { value: 4, position: 3, counter: 4 },
+            TestContainer { value: 1, position: 1, counter: 1 }// Last element should be 0
+        ];
+        let run_lengths = [2, 1, 1, 0];
+        assert_deduped_array(original_array, deduped_array, run_lengths);
     }
 }
 

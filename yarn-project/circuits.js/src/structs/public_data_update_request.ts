@@ -44,6 +44,10 @@ export class PublicDataUpdateRequest {
     return this.sideEffectCounter;
   }
 
+  get position() {
+    return this.leafSlot;
+  }
+
   toBuffer() {
     return serializeToBuffer(this.leafSlot, this.newValue, this.sideEffectCounter);
   }

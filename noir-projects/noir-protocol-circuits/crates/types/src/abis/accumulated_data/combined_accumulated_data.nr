@@ -3,14 +3,14 @@ use crate::{
     abis::{
     accumulated_data::public_accumulated_data::PublicAccumulatedData, note_hash::NoteHash,
     nullifier::Nullifier, public_data_update_request::PublicDataUpdateRequest,
-    log_hash::{LogHash, NoteLogHash}, gas::Gas, side_effect::Ordered
+    log_hash::{LogHash, NoteLogHash}, gas::Gas, side_effect::{Ordered, Positioned}
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, COMBINED_ACCUMULATED_DATA_LENGTH,
     MAX_UNENCRYPTED_LOGS_PER_TX
 },
-    utils::{arrays::{array_merge, assert_sorted_array}, reader::Reader},
+    utils::{arrays::{array_merge, assert_sorted_array, assert_deduped_array, check_permutation}, reader::Reader},
     traits::{Empty, Serialize, Deserialize}
 };
 
@@ -19,8 +19,12 @@ struct CombineHints {
     sorted_note_hashes_indexes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
     sorted_unencrypted_logs_hashes: [LogHash; MAX_UNENCRYPTED_LOGS_PER_TX],
     sorted_unencrypted_logs_hashes_indexes: [u64; MAX_UNENCRYPTED_LOGS_PER_TX],
+    // the public data update requests are sorted by their leaf index AND counter
     sorted_public_data_update_requests: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     sorted_public_data_update_requests_indexes: [u64; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+    // THEN deduplicated based on their leaf slot
+    deduped_public_data_update_requests: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+    deduped_public_data_update_requests_runs: [u64; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
 }
 
 struct CombinedAccumulatedData {
@@ -65,11 +69,18 @@ impl CombinedAccumulatedData {
             non_revertible.public_data_update_requests,
             revertible.public_data_update_requests
         );
-        assert_sorted_array(
+
+        // Just check a permutation here...
+        check_permutation(
             merged_public_data_update_requests,
             combine_hints.sorted_public_data_update_requests,
-            combine_hints.sorted_public_data_update_requests_indexes,
-            asc_sort_by_counters
+            combine_hints.sorted_public_data_update_requests_indexes
+        );
+        // ...because the ordering checks are done here.
+        assert_deduped_array(
+            combine_hints.sorted_public_data_update_requests,
+            combine_hints.deduped_public_data_update_requests,
+            combine_hints.deduped_public_data_update_requests_runs
         );
 
         // TODO(Miranda): Hash here or elsewhere?
@@ -117,7 +128,7 @@ impl CombinedAccumulatedData {
             note_encrypted_log_preimages_length,
             encrypted_log_preimages_length,
             unencrypted_log_preimages_length,
-            public_data_update_requests: combine_hints.sorted_public_data_update_requests,
+            public_data_update_requests: combine_hints.deduped_public_data_update_requests,
             gas_used: revertible.gas_used + non_revertible.gas_used
         }
     }

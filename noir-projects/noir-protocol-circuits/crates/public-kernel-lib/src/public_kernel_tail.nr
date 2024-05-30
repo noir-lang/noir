@@ -119,8 +119,8 @@ mod tests {
         hash::{silo_nullifier, sha256_to_field},
         public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
         tests::{fixture_builder::FixtureBuilder, merkle_tree_utils::NonEmptyMerkleTree, sort::sort_get_sorted_hints},
-        traits::is_empty, partial_state_reference::PartialStateReference, utils::arrays::array_merge,
-        merkle_tree::MembershipWitness
+        traits::is_empty, partial_state_reference::PartialStateReference,
+        utils::arrays::{array_length, array_merge}, merkle_tree::MembershipWitness
     };
 
     fn build_nullifier_tree<N>() -> NonEmptyMerkleTree<MAX_NEW_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT> {
@@ -322,20 +322,26 @@ mod tests {
                 previous_kernel.public_inputs.end_non_revertible.public_data_update_requests,
                 previous_kernel.public_inputs.end.public_data_update_requests
             );
-            let sorted = sort_get_sorted_hints(
-                merged,
-                |a: PublicDataUpdateRequest, b: PublicDataUpdateRequest| a.counter() < b.counter()
-            );
-            let sorted_public_data_update_requests = sorted.sorted_array;
-            let sorted_public_data_update_requests_indexes = sorted.sorted_index_hints;
+
+            let mut deduped_public_data_update_requests_runs = [0; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
+            let mut sorted_public_data_update_requests_indexes = [0; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
+            let array_length = array_length(merged);
+            for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
+                if i < array_length {
+                    deduped_public_data_update_requests_runs[i] = 1;
+                }
+                sorted_public_data_update_requests_indexes[i] = i;
+            }
 
             let combine_hints = CombineHints {
                 sorted_note_hashes,
                 sorted_note_hashes_indexes,
                 sorted_unencrypted_logs_hashes,
                 sorted_unencrypted_logs_hashes_indexes,
-                sorted_public_data_update_requests,
-                sorted_public_data_update_requests_indexes
+                sorted_public_data_update_requests: merged,
+                sorted_public_data_update_requests_indexes,
+                deduped_public_data_update_requests: merged,
+                deduped_public_data_update_requests_runs
             };
 
             let kernel = PublicKernelTailCircuitPrivateInputs {

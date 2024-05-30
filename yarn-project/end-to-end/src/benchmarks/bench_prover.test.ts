@@ -1,7 +1,7 @@
 import { getSchnorrAccount, getSchnorrWallet } from '@aztec/accounts/schnorr';
-import { TxStatus } from '@aztec/aztec.js';
+import { PrivateFeePaymentMethod, PublicFeePaymentMethod, TxStatus } from '@aztec/aztec.js';
 import { type AccountWallet } from '@aztec/aztec.js/wallet';
-import { CompleteAddress, Fq, Fr } from '@aztec/circuits.js';
+import { CompleteAddress, Fq, Fr, GasSettings } from '@aztec/circuits.js';
 import { FPCContract, GasTokenContract, TestContract, TokenContract } from '@aztec/noir-contracts.js';
 import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 import { type PXEService, createPXEService } from '@aztec/pxe';
@@ -160,58 +160,54 @@ describe('benchmarks/proving', () => {
     ctx.logger.info('+----------------------+');
 
     const fnCalls = [
-      //(await getTestContractOnPXE(1)).methods.emit_unencrypted(43),
-      //(await getTestContractOnPXE(2)).methods.create_l2_to_l1_message_public(45, 46, EthAddress.random()),
       (await getTokenContract(0)).methods.transfer_public(schnorrWalletAddress.address, recipient.address, 1000, 0),
       (await getTokenContract(1)).methods.transfer(schnorrWalletAddress.address, recipient.address, 1000, 0),
+      // (await getTestContractOnPXE(2)).methods.emit_unencrypted(43),
+      // (await getTestContractOnPXE(3)).methods.create_l2_to_l1_message_public(45, 46, EthAddress.random()),
     ];
 
-    // const feeFnCall1 = {
-    //   gasSettings: GasSettings.default(),
-    //   paymentMethod: new PublicFeePaymentMethod(
-    //     initialTokenContract.address,
-    //     initialFpContract.address,
-    //     await getWalletOnPxe(2),
-    //   ),
-    // };
+    const feeFnCall0 = {
+      gasSettings: GasSettings.default(),
+      paymentMethod: new PublicFeePaymentMethod(
+        initialTokenContract.address,
+        initialFpContract.address,
+        await getWalletOnPxe(0),
+      ),
+    };
 
-    // const feeFnCall3 = {
-    //   gasSettings: GasSettings.default(),
-    //   paymentMethod: new PrivateFeePaymentMethod(
-    //     initialTokenContract.address,
-    //     initialFpContract.address,
-    //     await getWalletOnPxe(2),
-    //   ),
-    // };
+    const feeFnCall1 = {
+      gasSettings: GasSettings.default(),
+      paymentMethod: new PrivateFeePaymentMethod(
+        initialTokenContract.address,
+        initialFpContract.address,
+        await getWalletOnPxe(1),
+      ),
+    };
 
-    ctx.logger.info('Proving first two transactions');
+    ctx.logger.info('Proving transactions');
     await Promise.all([
-      // fnCalls[0].prove({
-      //   fee: feeFnCall1,
-      // }),
-      fnCalls[0].prove(),
-      fnCalls[1].prove(),
+      fnCalls[0].prove({
+        fee: feeFnCall0,
+      }),
+      fnCalls[1].prove({
+        fee: feeFnCall1,
+      }),
+      // fnCalls[2].prove(),
+      // fnCalls[3].prove(),
     ]);
 
-    // ctx.logger.info('Proving the next transactions');
-    // await Promise.all([
-    //   fnCalls[2].prove(),
-    //   fnCalls[3].prove({
-    //     fee: feeFnCall3,
-    //   }),
-    // ]);
-
-    ctx.logger.info('Finished proving all transactions');
+    ctx.logger.info('Finished proving');
 
     ctx.logger.info('Sending transactions');
     const txs = [
-      // fnCalls[0].send({
-      //   fee: feeFnCall1,
-      // }),
-      fnCalls[0].send(),
-      fnCalls[1].send(),
+      fnCalls[0].send({
+        fee: feeFnCall0,
+      }),
+      fnCalls[1].send({
+        fee: feeFnCall1,
+      }),
       // fnCalls[2].send(),
-      // fnCalls[3].send({ fee: feeFnCall3 }),
+      // fnCalls[3].send(),
     ];
 
     const receipts = await Promise.all(txs.map(tx => tx.wait({ timeout: txTimeoutSec })));
