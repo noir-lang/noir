@@ -115,7 +115,7 @@ contract PendingNoteHashes {
         note.randomness = 2;
 
         // Insert note
-        owner_balance.insert(&mut note, true, outgoing_viewer_ovpk_m, owner_ivpk_m);
+        owner_balance.insert(&mut note, outgoing_viewer_ovpk_m, owner_ivpk_m);
     }
 
     // Nested/inner function to create and insert a note
@@ -132,7 +132,7 @@ contract PendingNoteHashes {
         let mut note = ValueNote::new(amount, owner_npk_m_hash);
 
         // Insert note
-        owner_balance.insert(&mut note, true, outgoing_viewer_ovpk_m, owner_ivpk_m);
+        owner_balance.insert(&mut note, outgoing_viewer_ovpk_m, owner_ivpk_m);
 
         // Emit note again
         context.encrypt_and_emit_note(
@@ -360,7 +360,7 @@ contract PendingNoteHashes {
         let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
         let mut good_note = ValueNote::new(10, owner_npk_m_hash);
         // Insert good note with real log
-        owner_balance.insert(&mut good_note, true, outgoing_viewer_ovpk_m, owner_ivpk_m);
+        owner_balance.insert(&mut good_note, outgoing_viewer_ovpk_m, owner_ivpk_m);
 
         // We will emit a note log with an incorrect preimage to ensure the pxe throws
         // This note has not been inserted...
