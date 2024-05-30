@@ -36,11 +36,7 @@ use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{AssertionPayload, ErrorSelector, OpcodeLocation};
 use acvm::acir::native_types::Witness;
 use acvm::acir::BlackBoxFunc;
-use acvm::{
-    acir::AcirField,
-    acir::{circuit::opcodes::BlockId, native_types::Expression},
-    FieldElement,
-};
+use acvm::{acir::circuit::opcodes::BlockId, acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
@@ -330,36 +326,8 @@ impl Ssa {
             bytecode: brillig.byte_code,
         });
 
-        let runtime_types = self.functions.values().map(|function| function.runtime());
-        for (acir, runtime_type) in acirs.iter_mut().zip(runtime_types) {
-            if matches!(runtime_type, RuntimeType::Acir(_)) {
-                generate_distinct_return_witnesses(acir);
-            }
-        }
-
         Ok((acirs, brillig, self.error_selector_to_type))
     }
-}
-
-fn generate_distinct_return_witnesses(acir: &mut GeneratedAcir) {
-    // Create a witness for each return witness we have to guarantee that the return witnesses match the standard
-    // layout for serializing those types as if they were being passed as inputs.
-    //
-    // This is required for recursion as otherwise in situations where we cannot make use of the program's ABI
-    // (e.g. for `std::verify_proof` or the solidity verifier), we need extra knowledge about the program we're
-    // working with rather than following the standard ABI encoding rules.
-    //
-    // TODO: We're being conservative here by generating a new witness for every expression.
-    // This means that we're likely to get a number of constraints which are just renumbering witnesses.
-    // This can be tackled by:
-    // - Tracking the last assigned public input witness and only renumbering a witness if it is below this value.
-    // - Modifying existing constraints to rearrange their outputs so they are suitable
-    //   - See: https://github.com/noir-lang/noir/pull/4467
-    let distinct_return_witness = vecmap(acir.return_witnesses.clone(), |return_witness| {
-        acir.create_witness_for_expression(&Expression::from(return_witness))
-    });
-
-    acir.return_witnesses = distinct_return_witness;
 }
 
 impl<'a> Context<'a> {
@@ -429,8 +397,28 @@ impl<'a> Context<'a> {
             warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa, brillig)?);
         }
 
-        warnings.extend(self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?);
-        Ok(self.acir_context.finish(input_witness, warnings))
+        let (return_vars, return_warnings) =
+            self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
+
+        // Create a witness for each return witness we have to guarantee that the return witnesses match the standard
+        // layout for serializing those types as if they were being passed as inputs.
+        //
+        // This is required for recursion as otherwise in situations where we cannot make use of the program's ABI
+        // (e.g. for `std::verify_proof` or the solidity verifier), we need extra knowledge about the program we're
+        // working with rather than following the standard ABI encoding rules.
+        //
+        // TODO: We're being conservative here by generating a new witness for every expression.
+        // This means that we're likely to get a number of constraints which are just renumbering witnesses.
+        // This can be tackled by:
+        // - Tracking the last assigned public input witness and only renumbering a witness if it is below this value.
+        // - Modifying existing constraints to rearrange their outputs so they are suitable
+        //   - See: https://github.com/noir-lang/noir/pull/4467
+        let return_witnesses = try_vecmap(return_vars, |return_var| {
+            self.acir_context.force_var_to_new_witness(return_var)
+        })?;
+
+        warnings.extend(return_warnings);
+        Ok(self.acir_context.finish(input_witness, return_witnesses, warnings))
     }
 
     fn convert_brillig_main(
@@ -468,17 +456,13 @@ impl<'a> Context<'a> {
         )?;
         self.shared_context.insert_generated_brillig(main_func.id(), arguments, 0, code);
 
-        let output_vars: Vec<_> = output_values
+        let return_witnesses: Vec<Witness> = output_values
             .iter()
             .flat_map(|value| value.clone().flatten())
-            .map(|value| value.0)
-            .collect();
+            .map(|(value, _)| self.acir_context.var_to_witness(value))
+            .collect::<Result<_, _>>()?;
 
-        for acir_var in output_vars {
-            self.acir_context.return_var(acir_var)?;
-        }
-
-        let generated_acir = self.acir_context.finish(witness_inputs, Vec::new());
+        let generated_acir = self.acir_context.finish(witness_inputs, return_witnesses, Vec::new());
 
         assert_eq!(
             generated_acir.opcodes().len(),
@@ -1729,7 +1713,7 @@ impl<'a> Context<'a> {
         &mut self,
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
-    ) -> Result<Vec<SsaReport>, RuntimeError> {
+    ) -> Result<(Vec<AcirVar>, Vec<SsaReport>), RuntimeError> {
         let (return_values, call_stack) = match terminator {
             TerminatorInstruction::Return { return_values, call_stack } => {
                 (return_values, call_stack.clone())
@@ -1739,6 +1723,7 @@ impl<'a> Context<'a> {
         };
 
         let mut has_constant_return = false;
+        let mut return_vars: Vec<AcirVar> = Vec::new();
         for value_id in return_values {
             let is_databus = self
                 .data_bus
@@ -1759,7 +1744,7 @@ impl<'a> Context<'a> {
                         dfg,
                     )?;
                 } else {
-                    self.acir_context.return_var(acir_var)?;
+                    return_vars.push(acir_var);
                 }
             }
         }
@@ -1770,7 +1755,7 @@ impl<'a> Context<'a> {
             Vec::new()
         };
 
-        Ok(warnings)
+        Ok((return_vars, warnings))
     }
 
     /// Gets the cached `AcirVar` that was converted from the corresponding `ValueId`. If it does
