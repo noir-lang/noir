@@ -46,17 +46,10 @@ E2E_TEST:
   # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
   RUN docker run -e HARDWARE_CONCURRENCY=$hardware_concurrency --rm aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG $test || $allow_fail
 
-
-# END TO END TARGETS
-# These are picked up automatically by ci.yml
-# you can end them in e.g. -8core to use that many cores.
-# Only stuff that exercises prover should use more.
-# Default is 4 core.
-
-e2e-2-pxes-8core:
+e2e-2-pxes:
   DO +E2E_TEST --test=./src/e2e_2_pxes.test.ts
 
-e2e-prover-64core:
+e2e-prover:
   DO +E2E_TEST --test=./src/e2e_prover --hardware_concurrency=${HARDWARE_CONCURRENCY:-32}
 
 e2e-account-contracts:
@@ -71,13 +64,13 @@ e2e-authwit:
 e2e-avm-simulator:
   DO +E2E_TEST --test=./src/e2e_avm_simulator.test.ts
 
-e2e-blacklist-token-contract-8core:
+e2e-blacklist-token-contract:
   DO +E2E_TEST --test=./src/e2e_blacklist_token_contract
 
 e2e-block-building:
   DO +E2E_TEST --test=./src/e2e_block_building.test.ts
 
-e2e-card-game-8core:
+e2e-card-game:
   DO +E2E_TEST --test=./src/e2e_card_game.test.ts
 
 e2e-cheat-codes:
@@ -95,7 +88,7 @@ e2e-crowdfunding-and-claim:
 e2e-delegate-calls:
   DO +E2E_TEST --test=./src/e2e_delegate_calls
 
-e2e-deploy-contract-8core:
+e2e-deploy-contract:
   DO +E2E_TEST --test=./src/e2e_deploy_contract
 
 e2e-encryption:
@@ -110,7 +103,7 @@ e2e-key-registry:
 e2e-keys:
   DO +E2E_TEST --test=./src/e2e_keys.test.ts
 
-e2e-lending-contract-8core:
+e2e-lending-contract:
   DO +E2E_TEST --test=./src/e2e_lending_contract.test.ts
 
 e2e-max-block-number:
@@ -119,7 +112,7 @@ e2e-max-block-number:
 e2e-multiple-accounts-1-enc-key:
   DO +E2E_TEST --test=./src/e2e_multiple_accounts_1_enc_key.test.ts
 
-e2e-nested-contract-8core:
+e2e-nested-contract:
   DO +E2E_TEST --test=./src/e2e_nested_contract
 
 e2e-non-contract-account:
@@ -152,13 +145,13 @@ e2e-fees-dapp-subscription:
 e2e-fees-failures:
   DO +E2E_TEST --test=./src/e2e_fees/failures.test.ts
 
-e2e-fees-native-payments-8core:
+e2e-fees-native-payments:
   DO +E2E_TEST --test=./src/e2e_fees/native_payments.test.ts
 
 e2e-fees-account-init:
   DO +E2E_TEST --test=./src/e2e_fees/account_init.test.ts
 
-e2e-public-cross-chain-messaging-8core:
+e2e-public-cross-chain-messaging:
   DO +E2E_TEST --test=./src/e2e_public_cross_chain_messaging
 
 e2e-public-to-private-messaging:
@@ -170,16 +163,16 @@ e2e-state-vars:
 e2e-static-calls:
   DO +E2E_TEST --test=./src/e2e_static_calls.test.ts
 
-e2e-token-contract-8core:
+e2e-token-contract:
   DO +E2E_TEST --test=./src/e2e_token_contract
 
-flakey-e2e-tests-8core:
+flakey-e2e-tests:
   DO +E2E_TEST --test=./src/flakey --allow_fail=true
 
 e2e-sandbox-example:
   DO +E2E_COMPOSE_TEST --test=e2e_sandbox_example.test.ts
 
-uniswap-trade-on-l1-from-l2-8core:
+uniswap-trade-on-l1-from-l2:
   DO +E2E_COMPOSE_TEST --test=uniswap_trade_on_l1_from_l2.test.ts
 
 integration-l1-publisher:
@@ -212,28 +205,28 @@ guides-dapp-testing:
 # guides-up-quick-start:
 #   DO +E2E_COMPOSE_TEST --test=guides/up_quick_start.test.ts
 
-bench-publish-rollup-16core:
+bench-publish-rollup:
   ARG PULL_REQUEST
   ARG BRANCH
   ARG COMMIT_HASH
   DO +E2E_COMPOSE_TEST --test=benchmarks/bench_publish_rollup.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --compose_file=./scripts/docker-compose-no-sandbox.yml
   DO ../../+UPLOAD_LOGS --PULL_REQUEST=$PULL_REQUEST --BRANCH=$BRANCH --COMMIT_HASH=$COMMIT_HASH
 
-bench-process-history-16core:
+bench-process-history:
   ARG PULL_REQUEST
   ARG BRANCH
   ARG COMMIT_HASH
   DO +E2E_COMPOSE_TEST --test=benchmarks/bench_process_history.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --compose_file=./scripts/docker-compose-no-sandbox.yml
   DO ../../+UPLOAD_LOGS --PULL_REQUEST=$PULL_REQUEST --BRANCH=$BRANCH --COMMIT_HASH=$COMMIT_HASH
 
-bench-tx-size-16core:
+bench-tx-size:
   ARG PULL_REQUEST
   ARG BRANCH
   ARG COMMIT_HASH
   DO +E2E_COMPOSE_TEST --test=benchmarks/bench_tx_size_fees.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --enable_gas=1 --compose_file=./scripts/docker-compose-no-sandbox.yml
   DO ../../+UPLOAD_LOGS --PULL_REQUEST=$PULL_REQUEST --BRANCH=$BRANCH --COMMIT_HASH=$COMMIT_HASH
 
-bench-prover-64core:
+bench-prover:
   ARG PULL_REQUEST
   ARG BRANCH
   ARG COMMIT_HASH
