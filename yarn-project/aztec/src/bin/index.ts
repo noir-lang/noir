@@ -63,6 +63,6 @@ async function main() {
 
 main().catch(err => {
   debugLogger.error(`Error in command execution`);
-  debugLogger.error(err);
+  debugLogger.error(err + '\n' + err.stack);
   process.exit(1);
 });

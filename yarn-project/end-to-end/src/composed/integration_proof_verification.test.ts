@@ -63,8 +63,6 @@ describe('proof_verification', () => {
     const acvm = await getACVMConfig(logger);
 
     circuitVerifier = await BBCircuitVerifier.new({
-      acvmBinaryPath: acvm!.acvmBinaryPath,
-      acvmWorkingDirectory: acvm!.acvmWorkingDirectory,
       bbBinaryPath: bb!.bbBinaryPath,
       bbWorkingDirectory: bb!.bbWorkingDirectory,
     });

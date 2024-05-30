@@ -8,8 +8,8 @@
  */
 import { type Fr } from '@aztec/circuits.js';
 
-export { AccountContract } from './contract.js';
-export { AccountInterface, AuthWitnessProvider } from './interface.js';
+export { type AccountContract } from './contract.js';
+export { type AccountInterface, type AuthWitnessProvider } from './interface.js';
 export * from './wallet.js';
 
 /** A contract deployment salt. */

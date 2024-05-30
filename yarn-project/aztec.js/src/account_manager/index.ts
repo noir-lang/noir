@@ -17,7 +17,10 @@ import { DeployAccountSentTx } from './deploy_account_sent_tx.js';
 /**
  * Options to deploy an account contract.
  */
-export type DeployAccountOptions = Pick<DeployOptions, 'fee' | 'skipClassRegistration' | 'skipPublicDeployment'>;
+export type DeployAccountOptions = Pick<
+  DeployOptions,
+  'fee' | 'skipClassRegistration' | 'skipPublicDeployment' | 'estimateGas'
+>;
 
 /**
  * Manages a user account. Provides methods for calculating the account's address, deploying the account contract,
@@ -163,6 +166,7 @@ export class AccountManager {
           skipInitialization: false,
           universalDeploy: true,
           fee: opts?.fee,
+          estimateGas: opts?.estimateGas,
         }),
       )
       .then(tx => tx.getTxHash());

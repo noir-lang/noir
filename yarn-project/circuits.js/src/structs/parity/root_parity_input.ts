@@ -19,6 +19,10 @@ export class RootParityInput<PROOF_LENGTH extends number> {
     return serializeToBuffer(...RootParityInput.getFields(this));
   }
 
+  toString() {
+    return this.toBuffer().toString('hex');
+  }
+
   static from<PROOF_LENGTH extends number>(
     fields: FieldsOf<RootParityInput<PROOF_LENGTH>>,
   ): RootParityInput<PROOF_LENGTH> {
@@ -29,12 +33,22 @@ export class RootParityInput<PROOF_LENGTH extends number> {
     return [fields.proof, fields.verificationKey, fields.publicInputs] as const;
   }
 
-  static fromBuffer<PROOF_LENGTH extends number>(buffer: Buffer | BufferReader, size: PROOF_LENGTH) {
+  static fromBuffer<PROOF_LENGTH extends number | undefined>(
+    buffer: Buffer | BufferReader,
+    expectedSize?: PROOF_LENGTH,
+  ): RootParityInput<PROOF_LENGTH extends number ? PROOF_LENGTH : number> {
     const reader = BufferReader.asReader(buffer);
     return new RootParityInput(
-      RecursiveProof.fromBuffer<PROOF_LENGTH>(reader, size),
+      RecursiveProof.fromBuffer<PROOF_LENGTH>(reader, expectedSize),
       reader.readObject(VerificationKeyAsFields),
       reader.readObject(ParityPublicInputs),
     );
+  }
+
+  static fromString<PROOF_LENGTH extends number | undefined>(
+    str: string,
+    expectedSize?: PROOF_LENGTH,
+  ): RootParityInput<PROOF_LENGTH extends number ? PROOF_LENGTH : number> {
+    return RootParityInput.fromBuffer(Buffer.from(str, 'hex'), expectedSize);
   }
 }

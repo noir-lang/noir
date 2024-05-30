@@ -95,7 +95,7 @@ export interface L1ContractArtifactsForDeployment {
  */
 export function createL1Clients(
   rpcUrl: string,
-  mnemonicOrHdAccount: string | HDAccount,
+  mnemonicOrHdAccount: string | HDAccount | PrivateKeyAccount,
   chain: Chain = foundry,
 ): { publicClient: PublicClient<HttpTransport, Chain>; walletClient: WalletClient<HttpTransport, Chain, Account> } {
   const hdAccount =

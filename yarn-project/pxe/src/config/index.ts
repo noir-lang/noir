@@ -37,12 +37,22 @@ export type PXEServiceConfig = PXEConfig & KernelProverConfig & BBProverConfig;
  * Creates an instance of PXEServiceConfig out of environment variables using sensible defaults for integration testing if not set.
  */
 export function getPXEServiceConfig(): PXEServiceConfig {
-  const { PXE_BLOCK_POLLING_INTERVAL_MS, PXE_L2_STARTING_BLOCK, PXE_DATA_DIRECTORY } = process.env;
+  const {
+    PXE_BLOCK_POLLING_INTERVAL_MS,
+    PXE_L2_STARTING_BLOCK,
+    PXE_DATA_DIRECTORY,
+    BB_BINARY_PATH,
+    BB_WORKING_DIRECTORY,
+    PXE_PROVER_ENABLED,
+  } = process.env;
 
   return {
     l2BlockPollingIntervalMS: PXE_BLOCK_POLLING_INTERVAL_MS ? +PXE_BLOCK_POLLING_INTERVAL_MS : 1000,
     l2StartingBlock: PXE_L2_STARTING_BLOCK ? +PXE_L2_STARTING_BLOCK : INITIAL_L2_BLOCK_NUM,
     dataDirectory: PXE_DATA_DIRECTORY,
+    bbBinaryPath: BB_BINARY_PATH,
+    bbWorkingDirectory: BB_WORKING_DIRECTORY,
+    proverEnabled: ['1', 'true'].includes(PXE_PROVER_ENABLED!),
   };
 }
 

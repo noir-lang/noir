@@ -1,0 +1,48 @@
+{
+  "extends": "..",
+  "compilerOptions": {
+    "outDir": "dest",
+    "rootDir": "src",
+    "tsBuildInfoFile": ".tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../accounts"
+    },
+    {
+      "path": "../aztec.js"
+    },
+    {
+      "path": "../bb-prover"
+    },
+    {
+      "path": "../circuit-types"
+    },
+    {
+      "path": "../circuits.js"
+    },
+    {
+      "path": "../ethereum"
+    },
+    {
+      "path": "../foundation"
+    },
+    {
+      "path": "../l1-artifacts"
+    },
+    {
+      "path": "../noir-contracts.js"
+    },
+    {
+      "path": "../protocol-contracts"
+    },
+    {
+      "path": "../simulator"
+    },
+    {
+      "path": "../types"
+    }
+  ],
+  "include": ["src"],
+  "exclude": ["contracts"]
+}

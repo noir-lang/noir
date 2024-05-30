@@ -167,7 +167,7 @@ describe('abi/encoder', () => {
     };
     const args = ['garbage'];
 
-    expect(() => encodeArguments(testFunctionAbi, args)).toThrow('Invalid argument "garbage" of type field');
+    expect(() => encodeArguments(testFunctionAbi, args)).toThrow('Invalid hex-encoded string: "garbage"');
   });
 
   it('throws when passing string argument as integer', () => {
@@ -191,9 +191,7 @@ describe('abi/encoder', () => {
       returnTypes: [],
     };
     const args = ['garbage'];
-    expect(() => encodeArguments(testFunctionAbi, args)).toThrow(
-      `Type 'string' with value 'garbage' passed to BaseField ctor.`,
-    );
+    expect(() => encodeArguments(testFunctionAbi, args)).toThrow(`Cannot convert garbage to a BigInt`);
   });
 
   it('throws when passing object argument as field', () => {

@@ -61,6 +61,7 @@ export class DiscV5Service extends EventEmitter implements PeerDiscoveryService 
       bindAddrs: { ip4: listenMultiAddrUdp },
       config: {
         lookupTimeout: 2000,
+        allowUnverifiedSessions: true,
       },
     });
 

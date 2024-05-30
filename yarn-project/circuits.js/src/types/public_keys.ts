@@ -117,4 +117,12 @@ export class PublicKeys {
       reader.readObject(Point),
     );
   }
+
+  toString() {
+    return this.toBuffer().toString('hex');
+  }
+
+  static fromString(keys: string) {
+    return PublicKeys.fromBuffer(Buffer.from(keys, 'hex'));
+  }
 }

@@ -24,13 +24,14 @@ export {
   Contract,
   ContractBase,
   ContractFunctionInteraction,
-  ContractMethod,
-  ContractNotes,
-  ContractStorageLayout,
+  type ContractMethod,
+  type ContractNotes,
+  type ContractStorageLayout,
   DeployMethod,
   DeploySentTx,
+  type SendMethodOptions,
   SentTx,
-  WaitOpts,
+  type WaitOpts,
 } from './contract/index.js';
 
 export { ContractDeployer } from './deployment/index.js';

@@ -49,6 +49,7 @@ export class BootstrapNode {
       bindAddrs: { ip4: listenAddrUdp },
       config: {
         lookupTimeout: 2000,
+        allowUnverifiedSessions: true,
       },
     });
 

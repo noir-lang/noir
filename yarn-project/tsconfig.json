@@ -46,7 +46,8 @@
     { "path": "types/tsconfig.json" },
     { "path": "world-state/tsconfig.json" },
     { "path": "scripts/tsconfig.json" },
-    { "path": "entrypoints/tsconfig.json" }
+    { "path": "entrypoints/tsconfig.json" },
+    { "path": "cli/tsconfig.json" }
   ],
   "files": ["./@types/jest/index.d.ts"]
 }

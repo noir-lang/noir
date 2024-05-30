@@ -235,15 +235,20 @@ export class VerificationKeyData {
     return serializeToBuffer(this.keyAsFields, this.keyAsBytes.length, this.keyAsBytes);
   }
 
-  /**
-	@@ -126,28 +97,14 @@ export class VerificationKeyAsFields {
-   */
+  toString() {
+    return this.toBuffer().toString('hex');
+  }
+
   static fromBuffer(buffer: Buffer | BufferReader): VerificationKeyData {
     const reader = BufferReader.asReader(buffer);
     const verificationKeyAsFields = reader.readObject(VerificationKeyAsFields);
     const length = reader.readNumber();
     const bytes = reader.readBytes(length);
     return new VerificationKeyData(verificationKeyAsFields, bytes);
+  }
+
+  static fromString(str: string): VerificationKeyData {
+    return VerificationKeyData.fromBuffer(Buffer.from(str, 'hex'));
   }
 
   public clone() {

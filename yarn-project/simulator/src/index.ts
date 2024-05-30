@@ -6,3 +6,4 @@ export * from './public/index.js';
 export * from './simulator/index.js';
 export * from './mocks/index.js';
 export * from './stats/index.js';
+export * from './utils.js';

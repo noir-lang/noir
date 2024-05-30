@@ -6,18 +6,22 @@ import { type ProtocolArtifact, ProtocolCircuitArtifacts } from '@aztec/noir-pro
 import * as fs from 'fs/promises';
 
 import { BB_RESULT, generateContractForCircuit, generateKeyForNoirCircuit, verifyProof } from '../bb/execute.js';
-import { type BBProverConfig } from '../prover/bb_prover.js';
 import { extractVkData } from '../verification_key/verification_key_data.js';
+
+export type BBConfig = {
+  bbBinaryPath: string;
+  bbWorkingDirectory: string;
+};
 
 export class BBCircuitVerifier {
   private constructor(
-    private config: BBProverConfig,
+    private config: BBConfig,
     private verificationKeys = new Map<ProtocolArtifact, Promise<VerificationKeyData>>(),
     private logger: DebugLogger,
   ) {}
 
   public static async new(
-    config: BBProverConfig,
+    config: BBConfig,
     initialCircuits: ProtocolArtifact[] = [],
     logger = createDebugLogger('aztec:bb-verifier'),
   ) {

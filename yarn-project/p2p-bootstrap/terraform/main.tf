@@ -105,7 +105,7 @@ resource "aws_ecs_task_definition" "p2p-bootstrap" {
 [
   {
     "name": "${var.DEPLOY_TAG}-p2p-bootstrap-${count.index + 1}",
-    "image": "${var.DOCKERHUB_ACCOUNT}/aztec:devnet",
+    "image": "${var.DOCKERHUB_ACCOUNT}/aztec:${var.DEPLOY_TAG}",
     "command": ["start", "--p2p-bootstrap"],
     "essential": true,
     "memoryReservation": 3776,
@@ -145,7 +145,7 @@ resource "aws_ecs_task_definition" "p2p-bootstrap" {
       },
       {
         "name": "DEBUG",
-        "value": "aztec:*"
+        "value": "aztec:*,discv5:*"
       },
       {
         "name": "P2P_MIN_PEERS",
@@ -251,9 +251,10 @@ resource "aws_security_group_rule" "allow-bootstrap-udp" {
 
 # Egress Rule for UDP Traffic
 resource "aws_security_group_rule" "allow-bootstrap-udp-egress" {
+  count             = local.bootnode_count
   type              = "egress"
-  from_port         = var.BOOTNODE_LISTEN_PORT
-  to_port           = var.BOOTNODE_LISTEN_PORT
+  from_port         = var.BOOTNODE_LISTEN_PORT + count.index
+  to_port           = var.BOOTNODE_LISTEN_PORT + count.index
   protocol          = "udp"
   security_group_id = data.terraform_remote_state.aztec-network_iac.outputs.p2p_security_group_id
   cidr_blocks       = ["0.0.0.0/0"]

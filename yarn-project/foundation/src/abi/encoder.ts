@@ -46,6 +46,8 @@ class ArgumentEncoder {
           this.flattened.push(new Fr(BigInt(arg)));
         } else if (typeof arg === 'bigint') {
           this.flattened.push(new Fr(arg));
+        } else if (typeof arg === 'string') {
+          this.flattened.push(Fr.fromString(arg));
         } else if (typeof arg === 'boolean') {
           this.flattened.push(new Fr(arg ? 1n : 0n));
         } else if (typeof arg === 'object') {
@@ -103,7 +105,12 @@ class ArgumentEncoder {
         break;
       }
       case 'integer':
-        this.flattened.push(new Fr(arg));
+        if (typeof arg === 'string') {
+          const value = BigInt(arg);
+          this.flattened.push(new Fr(value));
+        } else {
+          this.flattened.push(new Fr(arg));
+        }
         break;
       default:
         throw new Error(`Unsupported type: ${abiType}`);

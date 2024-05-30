@@ -38,9 +38,16 @@ export class RecursiveProof<N extends number> {
    * @param buffer - A Buffer or BufferReader containing the length-encoded proof data.
    * @returns A Proof instance containing the decoded proof data.
    */
-  static fromBuffer<N extends number>(buffer: Buffer | BufferReader, size: N): RecursiveProof<N> {
+  static fromBuffer<N extends number | undefined>(
+    buffer: Buffer | BufferReader,
+    expectedSize?: N,
+  ): RecursiveProof<N extends number ? N : number> {
     const reader = BufferReader.asReader(buffer);
-    return new RecursiveProof<N>(reader.readArray(size, Fr), Proof.fromBuffer(reader), reader.readBoolean());
+    const size = reader.readNumber();
+    if (typeof expectedSize === 'number' && expectedSize !== size) {
+      throw new Error(`Expected proof length ${expectedSize}, got ${size}`);
+    }
+    return new RecursiveProof(reader.readArray(size, Fr) as any, Proof.fromBuffer(reader), reader.readBoolean());
   }
 
   /**
@@ -50,7 +57,7 @@ export class RecursiveProof<N extends number> {
    * @returns A Buffer containing the serialized proof data in custom format.
    */
   public toBuffer() {
-    return serializeToBuffer(this.proof, this.binaryProof, this.fieldsValid);
+    return serializeToBuffer(this.proof.length, this.proof, this.binaryProof, this.fieldsValid);
   }
 
   /**
@@ -66,8 +73,11 @@ export class RecursiveProof<N extends number> {
    * @param str - A hex string to deserialize from.
    * @returns - A new Proof instance.
    */
-  static fromString<N extends number>(str: string, size: N) {
-    return RecursiveProof.fromBuffer(Buffer.from(str, 'hex'), size);
+  static fromString<N extends number | undefined>(
+    str: string,
+    expectedSize?: N,
+  ): RecursiveProof<N extends number ? N : number> {
+    return RecursiveProof.fromBuffer(Buffer.from(str, 'hex'), expectedSize);
   }
 }
 

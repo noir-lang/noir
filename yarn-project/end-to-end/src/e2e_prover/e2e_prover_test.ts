@@ -151,10 +151,7 @@ export class FullProverTest {
       throw new Error(`Test must be run with BB native configuration`);
     }
 
-    this.circuitProofVerifier = await BBCircuitVerifier.new({
-      ...acvmConfig,
-      ...bbConfig,
-    });
+    this.circuitProofVerifier = await BBCircuitVerifier.new(bbConfig);
 
     this.proverPool = ProverPool.nativePool(
       {

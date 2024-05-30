@@ -19,22 +19,14 @@ variable "CHAIN_ID" {
   default = 31337
 }
 
-variable "BOOTNODE_LISTEN_PORT" {
-  type    = number
-  default = 40500
-}
-
-variable "BOOTNODE_1_PEER_ID" {
-  type = string
-}
-
-variable "BOOTNODE_2_PEER_ID" {
-  type = string
-}
-
-variable "NODE_TCP_PORT" {
+variable "NODE_P2P_TCP_PORT" {
   type    = number
   default = 40400
+}
+
+variable "NODE_P2P_UDP_PORT" {
+  type    = number
+  default = 40300
 }
 
 variable "NODE_1_PRIVATE_KEY" {
@@ -69,4 +61,21 @@ variable "P2P_MIN_PEERS" {
 variable "P2P_MAX_PEERS" {
   type    = string
   default = 100
+}
+
+variable "P2P_ENABLED" {
+  type = bool
+}
+
+variable "AVAILABILITY_ORACLE_CONTRACT_ADDRESS" { type = string }
+variable "ROLLUP_CONTRACT_ADDRESS" { type = string }
+variable "REGISTRY_CONTRACT_ADDRESS" { type = string }
+variable "INBOX_CONTRACT_ADDRESS" { type = string }
+variable "OUTBOX_CONTRACT_ADDRESS" { type = string }
+variable "GAS_TOKEN_CONTRACT_ADDRESS" { type = string }
+variable "GAS_PORTAL_CONTRACT_ADDRESS" { type = string }
+variable "AGENTS_PER_SEQUENCER" { type = string }
+variable "PROVING_ENABLED" {
+  type    = bool
+  default = true
 }

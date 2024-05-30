@@ -7,7 +7,6 @@ import {
 } from '@aztec/circuits.js';
 import { type ContractArtifact, type FunctionArtifact, getInitializer } from '@aztec/foundation/abi';
 import { type Fr } from '@aztec/foundation/fields';
-import { createDebugLogger } from '@aztec/foundation/log';
 import { type ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { type Wallet } from '../account/index.js';
@@ -52,8 +51,6 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
 
   /** Cached call to request() */
   private functionCalls?: ExecutionRequestInit;
-
-  private log = createDebugLogger('aztec:js:deploy_method');
 
   constructor(
     private publicKeysHash: Fr,
@@ -119,6 +116,12 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
       };
 
       if (options.estimateGas) {
+        // Why do we call this seemingly idempotent getter method here, without using its return value?
+        // This call pushes a capsule required for contract class registration under the hood. And since
+        // capsules are a stack, when we run the simulation for estimating gas, we consume the capsule
+        // that was meant for the actual call. So we need to push it again here. Hopefully this design
+        // will go away soon.
+        await this.getDeploymentFunctionCalls(options);
         request.fee = await this.getFeeOptionsFromEstimatedGas(request);
       }
 
