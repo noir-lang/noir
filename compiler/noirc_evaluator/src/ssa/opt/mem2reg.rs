@@ -406,7 +406,7 @@ impl<'f> PerFunctionContext<'f> {
 mod tests {
     use std::rc::Rc;
 
-    use acvm::FieldElement;
+    use acvm::{acir::AcirField, FieldElement};
     use im::vector;
 
     use crate::ssa::{

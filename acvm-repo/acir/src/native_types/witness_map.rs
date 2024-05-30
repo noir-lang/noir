@@ -4,7 +4,6 @@ use std::{
     ops::Index,
 };
 
-use acir_field::FieldElement;
 use flate2::bufread::GzDecoder;
 use flate2::bufread::GzEncoder;
 use flate2::Compression;
@@ -25,63 +24,63 @@ pub struct WitnessMapError(#[from] SerializationError);
 
 /// A map from the witnesses in a constraint system to the field element values
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
-pub struct WitnessMap(BTreeMap<Witness, FieldElement>);
+pub struct WitnessMap<F>(BTreeMap<Witness, F>);
 
-impl WitnessMap {
+impl<F> WitnessMap<F> {
     pub fn new() -> Self {
         Self(BTreeMap::new())
     }
-    pub fn get(&self, witness: &Witness) -> Option<&FieldElement> {
+    pub fn get(&self, witness: &Witness) -> Option<&F> {
         self.0.get(witness)
     }
-    pub fn get_index(&self, index: u32) -> Option<&FieldElement> {
+    pub fn get_index(&self, index: u32) -> Option<&F> {
         self.0.get(&index.into())
     }
     pub fn contains_key(&self, key: &Witness) -> bool {
         self.0.contains_key(key)
     }
-    pub fn insert(&mut self, key: Witness, value: FieldElement) -> Option<FieldElement> {
+    pub fn insert(&mut self, key: Witness, value: F) -> Option<F> {
         self.0.insert(key, value)
     }
 }
 
-impl Index<&Witness> for WitnessMap {
-    type Output = FieldElement;
+impl<F> Index<&Witness> for WitnessMap<F> {
+    type Output = F;
 
     fn index(&self, index: &Witness) -> &Self::Output {
         &self.0[index]
     }
 }
 
-pub struct IntoIter(btree_map::IntoIter<Witness, FieldElement>);
+pub struct IntoIter<F>(btree_map::IntoIter<Witness, F>);
 
-impl Iterator for IntoIter {
-    type Item = (Witness, FieldElement);
+impl<F> Iterator for IntoIter<F> {
+    type Item = (Witness, F);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
 }
 
-impl IntoIterator for WitnessMap {
-    type Item = (Witness, FieldElement);
-    type IntoIter = IntoIter;
+impl<F> IntoIterator for WitnessMap<F> {
+    type Item = (Witness, F);
+    type IntoIter = IntoIter<F>;
 
     fn into_iter(self) -> Self::IntoIter {
         IntoIter(self.0.into_iter())
     }
 }
 
-impl From<BTreeMap<Witness, FieldElement>> for WitnessMap {
-    fn from(value: BTreeMap<Witness, FieldElement>) -> Self {
+impl<F> From<BTreeMap<Witness, F>> for WitnessMap<F> {
+    fn from(value: BTreeMap<Witness, F>) -> Self {
         Self(value)
     }
 }
 
-impl TryFrom<WitnessMap> for Vec<u8> {
+impl<F: Serialize> TryFrom<WitnessMap<F>> for Vec<u8> {
     type Error = WitnessMapError;
 
-    fn try_from(val: WitnessMap) -> Result<Self, Self::Error> {
+    fn try_from(val: WitnessMap<F>) -> Result<Self, Self::Error> {
         let buf = bincode::serialize(&val).unwrap();
         let mut deflater = GzEncoder::new(buf.as_slice(), Compression::best());
         let mut buf_c = Vec::new();
@@ -90,7 +89,7 @@ impl TryFrom<WitnessMap> for Vec<u8> {
     }
 }
 
-impl TryFrom<&[u8]> for WitnessMap {
+impl<F: for<'a> Deserialize<'a>> TryFrom<&[u8]> for WitnessMap<F> {
     type Error = WitnessMapError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {

@@ -1,4 +1,4 @@
-use acvm::acir::brillig::Opcode as BrilligOpcode;
+use acvm::{acir::brillig::Opcode as BrilligOpcode, FieldElement};
 use std::collections::{BTreeMap, HashMap};
 
 use crate::ssa::ir::dfg::CallStack;
@@ -19,7 +19,7 @@ pub(crate) enum BrilligParameter {
 /// This is ready to run bytecode with attached metadata.
 #[derive(Debug, Default)]
 pub(crate) struct GeneratedBrillig {
-    pub(crate) byte_code: Vec<BrilligOpcode>,
+    pub(crate) byte_code: Vec<BrilligOpcode<FieldElement>>,
     pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
     pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
 }
@@ -28,7 +28,7 @@ pub(crate) struct GeneratedBrillig {
 /// Artifacts resulting from the compilation of a function into brillig byte code.
 /// It includes the bytecode of the function and all the metadata that allows linking with other functions.
 pub(crate) struct BrilligArtifact {
-    pub(crate) byte_code: Vec<BrilligOpcode>,
+    pub(crate) byte_code: Vec<BrilligOpcode<FieldElement>>,
     /// A map of bytecode positions to assertion messages.
     /// Some error messages (compiler intrinsics) are not emitted via revert data,
     /// instead, they are handled externally so they don't add size to user programs.
@@ -154,7 +154,7 @@ impl BrilligArtifact {
     }
 
     /// Adds a brillig instruction to the brillig byte code
-    pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode) {
+    pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode<FieldElement>) {
         if !self.call_stack.is_empty() {
             self.locations.insert(self.index_of_next_opcode(), self.call_stack.clone());
         }
@@ -164,7 +164,7 @@ impl BrilligArtifact {
     /// Adds a unresolved jump to be fixed at the end of bytecode processing.
     pub(crate) fn add_unresolved_jump(
         &mut self,
-        jmp_instruction: BrilligOpcode,
+        jmp_instruction: BrilligOpcode<FieldElement>,
         destination: UnresolvedJumpLocation,
     ) {
         assert!(
@@ -178,7 +178,7 @@ impl BrilligArtifact {
     /// Adds a unresolved external call that will be fixed once linking has been done.
     pub(crate) fn add_unresolved_external_call(
         &mut self,
-        call_instruction: BrilligOpcode,
+        call_instruction: BrilligOpcode<FieldElement>,
         destination: UnresolvedJumpLocation,
     ) {
         // TODO: Add a check to ensure that the opcode is a call instruction
@@ -188,7 +188,7 @@ impl BrilligArtifact {
     }
 
     /// Returns true if the opcode is a jump instruction
-    fn is_jmp_instruction(instruction: &BrilligOpcode) -> bool {
+    fn is_jmp_instruction(instruction: &BrilligOpcode<FieldElement>) -> bool {
         matches!(
             instruction,
             BrilligOpcode::JumpIfNot { .. }

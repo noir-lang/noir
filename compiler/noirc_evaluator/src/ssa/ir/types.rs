@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 
 /// A numeric type in the Intermediate representation

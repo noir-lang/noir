@@ -19,7 +19,7 @@ use acir::{
     },
     native_types::{Expression, Witness},
 };
-use acir_field::FieldElement;
+use acir_field::{AcirField, FieldElement};
 use brillig::{HeapArray, HeapValueType, MemoryAddress, ValueOrArray};
 
 #[test]
@@ -34,12 +34,12 @@ fn addition_circuit() {
         q_c: FieldElement::zero(),
     });
 
-    let circuit = Circuit {
+    let circuit: Circuit<FieldElement> = Circuit {
         current_witness_index: 4,
         opcodes: vec![addition],
         private_parameters: BTreeSet::from([Witness(1), Witness(2)]),
         return_values: PublicInputs([Witness(3)].into()),
-        ..Circuit::default()
+        ..Circuit::<FieldElement>::default()
     };
     let program = Program { functions: vec![circuit], unconstrained_functions: vec![] };
 
@@ -59,18 +59,19 @@ fn addition_circuit() {
 
 #[test]
 fn multi_scalar_mul_circuit() {
-    let multi_scalar_mul = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::MultiScalarMul {
-        points: vec![
-            FunctionInput { witness: Witness(1), num_bits: 128 },
-            FunctionInput { witness: Witness(2), num_bits: 128 },
-            FunctionInput { witness: Witness(3), num_bits: 1 },
-        ],
-        scalars: vec![
-            FunctionInput { witness: Witness(4), num_bits: 128 },
-            FunctionInput { witness: Witness(5), num_bits: 128 },
-        ],
-        outputs: (Witness(6), Witness(7), Witness(8)),
-    });
+    let multi_scalar_mul: Opcode<FieldElement> =
+        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::MultiScalarMul {
+            points: vec![
+                FunctionInput { witness: Witness(1), num_bits: 128 },
+                FunctionInput { witness: Witness(2), num_bits: 128 },
+                FunctionInput { witness: Witness(3), num_bits: 1 },
+            ],
+            scalars: vec![
+                FunctionInput { witness: Witness(4), num_bits: 128 },
+                FunctionInput { witness: Witness(5), num_bits: 128 },
+            ],
+            outputs: (Witness(6), Witness(7), Witness(8)),
+        });
 
     let circuit = Circuit {
         current_witness_index: 9,
@@ -107,7 +108,7 @@ fn pedersen_circuit() {
         domain_separator: 0,
     });
 
-    let circuit = Circuit {
+    let circuit: Circuit<FieldElement> = Circuit {
         current_witness_index: 4,
         opcodes: vec![pedersen],
         private_parameters: BTreeSet::from([Witness(1)]),
@@ -151,7 +152,7 @@ fn schnorr_verify_circuit() {
         output,
     });
 
-    let circuit = Circuit {
+    let circuit: Circuit<FieldElement> = Circuit {
         current_witness_index: 100,
         opcodes: vec![schnorr],
         private_parameters: BTreeSet::from_iter((1..=last_input).map(Witness)),
@@ -219,7 +220,7 @@ fn simple_brillig_foreign_call() {
         predicate: None,
     }];
 
-    let circuit = Circuit {
+    let circuit: Circuit<FieldElement> = Circuit {
         current_witness_index: 8,
         opcodes,
         private_parameters: BTreeSet::from([Witness(1), Witness(2)]),

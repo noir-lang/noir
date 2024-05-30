@@ -1,4 +1,4 @@
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use noirc_errors::{Position, Span, Spanned};
 use std::{fmt, iter::Map, vec::IntoIter};
 

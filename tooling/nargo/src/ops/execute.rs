@@ -1,22 +1,24 @@
 use acvm::acir::circuit::brillig::BrilligBytecode;
-use acvm::acir::circuit::{OpcodeLocation, Program, ResolvedOpcodeLocation};
+use acvm::acir::circuit::{
+    OpcodeLocation, Program, ResolvedAssertionPayload, ResolvedOpcodeLocation,
+};
 use acvm::acir::native_types::WitnessStack;
 use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ACVM};
-use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
+use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use crate::errors::ExecutionError;
 use crate::NargoError;
 
 use super::foreign_calls::ForeignCallExecutor;
 
-struct ProgramExecutor<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> {
-    functions: &'a [Circuit],
+struct ProgramExecutor<'a, B: BlackBoxFunctionSolver<FieldElement>, F: ForeignCallExecutor> {
+    functions: &'a [Circuit<FieldElement>],
 
-    unconstrained_functions: &'a [BrilligBytecode],
+    unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
 
     // This gets built as we run through the program looking at each function call
-    witness_stack: WitnessStack,
+    witness_stack: WitnessStack<FieldElement>,
 
     blackbox_solver: &'a B,
 
@@ -32,10 +34,12 @@ struct ProgramExecutor<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> {
     current_function_index: usize,
 }
 
-impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, B, F> {
+impl<'a, B: BlackBoxFunctionSolver<FieldElement>, F: ForeignCallExecutor>
+    ProgramExecutor<'a, B, F>
+{
     fn new(
-        functions: &'a [Circuit],
-        unconstrained_functions: &'a [BrilligBytecode],
+        functions: &'a [Circuit<FieldElement>],
+        unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
         blackbox_solver: &'a B,
         foreign_call_executor: &'a mut F,
     ) -> Self {
@@ -50,12 +54,15 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
         }
     }
 
-    fn finalize(self) -> WitnessStack {
+    fn finalize(self) -> WitnessStack<FieldElement> {
         self.witness_stack
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn execute_circuit(&mut self, initial_witness: WitnessMap) -> Result<WitnessMap, NargoError> {
+    fn execute_circuit(
+        &mut self,
+        initial_witness: WitnessMap<FieldElement>,
+    ) -> Result<WitnessMap<FieldElement>, NargoError> {
         let circuit = &self.functions[self.current_function_index];
         let mut acvm = ACVM::new(
             self.blackbox_solver,
@@ -102,13 +109,14 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
                         _ => None,
                     };
 
-                    let assertion_payload = match &error {
-                        OpcodeResolutionError::BrilligFunctionFailed { payload, .. }
-                        | OpcodeResolutionError::UnsatisfiedConstrain { payload, .. } => {
-                            payload.clone()
-                        }
-                        _ => None,
-                    };
+                    let assertion_payload: Option<ResolvedAssertionPayload<FieldElement>> =
+                        match &error {
+                            OpcodeResolutionError::BrilligFunctionFailed { payload, .. }
+                            | OpcodeResolutionError::UnsatisfiedConstrain { payload, .. } => {
+                                payload.clone()
+                            }
+                            _ => None,
+                        };
 
                     return Err(NargoError::ExecutionError(match assertion_payload {
                         Some(payload) => ExecutionError::AssertionFailed(
@@ -166,12 +174,12 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
 }
 
 #[tracing::instrument(level = "trace", skip_all)]
-pub fn execute_program<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
-    program: &Program,
-    initial_witness: WitnessMap,
+pub fn execute_program<B: BlackBoxFunctionSolver<FieldElement>, F: ForeignCallExecutor>(
+    program: &Program<FieldElement>,
+    initial_witness: WitnessMap<FieldElement>,
     blackbox_solver: &B,
     foreign_call_executor: &mut F,
-) -> Result<WitnessStack, NargoError> {
+) -> Result<WitnessStack<FieldElement>, NargoError> {
     let mut executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,
