@@ -1,26 +1,20 @@
-import { type Fr, type Tx } from '@aztec/aztec.js';
-import { type BBNativeProofCreator } from '@aztec/bb-prover';
+import { type Fr } from '@aztec/aztec.js';
 import { getTestData, isGenerateTestDataEnabled, writeTestData } from '@aztec/foundation/testing';
-import { type ClientProtocolArtifact } from '@aztec/noir-protocol-circuits-types';
 
 import { FullProverTest } from './e2e_prover_test.js';
 
 const TIMEOUT = 1_800_000;
 
-async function verifyProof(circuitType: ClientProtocolArtifact, tx: Tx, proofCreator: BBNativeProofCreator) {
-  await expect(proofCreator.verifyProofForProtocolCircuit(circuitType, tx.proof)).resolves.not.toThrow();
-}
-
 describe('full_prover', () => {
   const t = new FullProverTest('full_prover');
-  let { provenAssets, accounts, tokenSim, logger, proofCreator, wallets } = t;
+  let { provenAssets, accounts, tokenSim, logger, wallets } = t;
 
   beforeAll(async () => {
     await t.applyBaseSnapshots();
     await t.applyMintSnapshot();
     await t.setup();
     await t.deployVerifier();
-    ({ provenAssets, accounts, tokenSim, logger, proofCreator, wallets } = t);
+    ({ provenAssets, accounts, tokenSim, logger, wallets } = t);
   });
 
   afterAll(async () => {
@@ -60,11 +54,11 @@ describe('full_prover', () => {
 
       // This will recursively verify all app and kernel circuits involved in the private stage of this transaction!
       logger.info(`Verifying kernel tail to public proof`);
-      await verifyProof('PrivateKernelTailToPublicArtifact', publicTx, proofCreator!);
+      await expect(t.circuitProofVerifier?.verifyProof(publicTx)).resolves.not.toThrow();
 
       // This will recursively verify all app and kernel circuits involved in the private stage of this transaction!
       logger.info(`Verifying private kernel tail proof`);
-      await verifyProof('PrivateKernelTailArtifact', privateTx, proofCreator!);
+      await expect(t.circuitProofVerifier?.verifyProof(privateTx)).resolves.not.toThrow();
 
       const sentPrivateTx = privateInteraction.send();
       const sentPublicTx = publicInteraction.send();
@@ -98,4 +92,20 @@ describe('full_prover', () => {
     },
     TIMEOUT,
   );
+
+  it('rejects txs with invalid proofs', async () => {
+    const privateInteraction = t.fakeProofsAsset.methods.transfer(accounts[0].address, accounts[1].address, 1, 0);
+    const publicInteraction = t.fakeProofsAsset.methods.transfer_public(accounts[0].address, accounts[1].address, 1, 0);
+
+    const sentPrivateTx = privateInteraction.send();
+    const sentPublicTx = publicInteraction.send();
+
+    const results = await Promise.allSettled([
+      sentPrivateTx.wait({ timeout: 10, interval: 0.1 }),
+      sentPublicTx.wait({ timeout: 10, interval: 0.1 }),
+    ]);
+
+    expect(String((results[0] as PromiseRejectedResult).reason)).toMatch(/Tx dropped by P2P node/);
+    expect(String((results[1] as PromiseRejectedResult).reason)).toMatch(/Tx dropped by P2P node/);
+  });
 });

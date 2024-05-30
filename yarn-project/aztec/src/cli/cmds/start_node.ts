@@ -88,7 +88,7 @@ export const startNode = async (
   services.push({ node: nodeServer });
 
   if (!nodeConfig.disableProver) {
-    const provingJobSource = createProvingJobSourceServer(node.getProver().getProvingJobSource());
+    const provingJobSource = createProvingJobSourceServer(node.getProver()!.getProvingJobSource());
     services.push({ provingJobSource });
   }
 

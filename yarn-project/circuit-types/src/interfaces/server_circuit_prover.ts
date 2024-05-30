@@ -2,6 +2,7 @@ import {
   type PublicInputsAndProof,
   type PublicKernelNonTailRequest,
   type PublicKernelTailRequest,
+  type Tx,
 } from '@aztec/circuit-types';
 import {
   type BaseOrMergeRollupPublicInputs,
@@ -18,6 +19,7 @@ import {
   type RootParityInputs,
   type RootRollupInputs,
   type RootRollupPublicInputs,
+  type VerificationKeys,
 } from '@aztec/circuits.js';
 
 /**
@@ -103,4 +105,21 @@ export interface PublicProver {
    * @param publicInputs - Public inputs obtained via simulation.
    */
   getPublicKernelCircuitProof(publicInputs: PublicKernelCircuitPublicInputs): Promise<Proof>;
+}
+
+/**
+ * A verifier used by nodes to check tx proofs are valid.
+ */
+export interface ClientProtocolCircuitVerifier {
+  /**
+   * Verifies the private protocol circuit's proof.
+   * @param tx - The tx to verify the proof of
+   * @returns True if the proof is valid, false otherwise
+   */
+  verifyProof(tx: Tx): Promise<boolean>;
+
+  /**
+   * Returns the verification keys used to verify tx proofs.
+   */
+  getVerificationKeys(): Promise<VerificationKeys>;
 }

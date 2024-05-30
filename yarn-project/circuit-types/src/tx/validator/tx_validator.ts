@@ -1,4 +1,5 @@
-import { type ProcessedTx, type Tx } from '@aztec/circuit-types';
+import { type ProcessedTx } from '../processed_tx.js';
+import { type Tx } from '../tx.js';
 
 export type AnyTx = Tx | ProcessedTx;
 

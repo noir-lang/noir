@@ -1,3 +1,5 @@
+import { type VerificationKeys } from '@aztec/circuits.js';
+
 import { type BlockProver } from './block-prover.js';
 import { type ProvingJobSource } from './proving-job.js';
 
@@ -28,5 +30,5 @@ export interface ProverClient extends BlockProver {
 
   getProvingJobSource(): ProvingJobSource;
 
-  updateProverConfig(config: Partial<ProverConfig>): Promise<void>;
+  updateProverConfig(config: Partial<ProverConfig & { vks: VerificationKeys }>): Promise<void>;
 }

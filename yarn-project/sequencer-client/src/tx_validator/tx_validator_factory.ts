@@ -1,5 +1,5 @@
 import { type AllowedFunction, type ProcessedTx, type Tx, type TxValidator } from '@aztec/circuit-types';
-import { type EthAddress, type GlobalVariables } from '@aztec/circuits.js';
+import { type GlobalVariables } from '@aztec/circuits.js';
 import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 import { WorldStateDB, WorldStatePublicDB } from '@aztec/simulator';
 import { type ContractDataSource } from '@aztec/types/contracts';
@@ -12,11 +12,7 @@ import { MetadataTxValidator } from './metadata_validator.js';
 import { PhasesTxValidator } from './phases_validator.js';
 
 export class TxValidatorFactory {
-  constructor(
-    private merkleTreeDb: MerkleTreeOperations,
-    private contractDataSource: ContractDataSource,
-    private gasPortalAddress: EthAddress,
-  ) {}
+  constructor(private merkleTreeDb: MerkleTreeOperations, private contractDataSource: ContractDataSource) {}
 
   validatorForNewTxs(globalVariables: GlobalVariables, setupAllowList: AllowedFunction[]): TxValidator<Tx> {
     return new AggregateTxValidator(

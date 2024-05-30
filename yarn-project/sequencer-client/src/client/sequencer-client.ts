@@ -54,7 +54,7 @@ export class SequencerClient {
       l2BlockSource,
       l1ToL2MessageSource,
       publicProcessorFactory,
-      new TxValidatorFactory(merkleTreeDb, contractDataSource, config.l1Contracts.gasPortalAddress),
+      new TxValidatorFactory(merkleTreeDb, contractDataSource),
       config,
     );
 

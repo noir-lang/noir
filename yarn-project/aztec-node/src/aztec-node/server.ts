@@ -1,5 +1,7 @@
 import { type ArchiveSource, Archiver, KVArchiverDataStore, createArchiverClient } from '@aztec/archiver';
+import { BBCircuitVerifier, TestCircuitVerifier } from '@aztec/bb-prover';
 import {
+  AggregateTxValidator,
   type AztecNode,
   type FromLogType,
   type GetUnencryptedLogsResponse,
@@ -24,6 +26,7 @@ import {
   type TxHash,
   TxReceipt,
   TxStatus,
+  type TxValidator,
   partitionReverts,
 } from '@aztec/circuit-types';
 import {
@@ -49,7 +52,7 @@ import { AztecLmdbStore } from '@aztec/kv-store/lmdb';
 import { initStoreForRollup, openTmpStore } from '@aztec/kv-store/utils';
 import { SHA256Trunc, StandardTree } from '@aztec/merkle-tree';
 import { AztecKVTxPool, type P2P, createP2PClient } from '@aztec/p2p';
-import { DummyProver, TxProver } from '@aztec/prover-client';
+import { TxProver } from '@aztec/prover-client';
 import { type GlobalVariableBuilder, SequencerClient, getGlobalVariableBuilder } from '@aztec/sequencer-client';
 import { PublicProcessorFactory, WASMSimulator } from '@aztec/simulator';
 import {
@@ -67,13 +70,15 @@ import {
 
 import { type AztecNodeConfig } from './config.js';
 import { getSimulationProvider } from './simulator-factory.js';
+import { MetadataTxValidator } from './tx_validator/tx_metadata_validator.js';
+import { TxProofValidator } from './tx_validator/tx_proof_validator.js';
 
 /**
  * The aztec node.
  */
 export class AztecNodeService implements AztecNode {
   constructor(
-    protected readonly config: AztecNodeConfig,
+    protected config: AztecNodeConfig,
     protected readonly p2pClient: P2P,
     protected readonly blockSource: L2BlockSource,
     protected readonly encryptedLogsSource: L2LogsSource,
@@ -86,7 +91,8 @@ export class AztecNodeService implements AztecNode {
     protected readonly version: number,
     protected readonly globalVariableBuilder: GlobalVariableBuilder,
     protected readonly merkleTreesDb: AztecKVStore,
-    private readonly prover: ProverClient,
+    private readonly prover: ProverClient | undefined,
+    private txValidator: TxValidator,
     private log = createDebugLogger('aztec:node'),
   ) {
     const message =
@@ -145,9 +151,21 @@ export class AztecNodeService implements AztecNode {
     // start both and wait for them to sync from the block source
     await Promise.all([p2pClient.start(), worldStateSynchronizer.start()]);
 
+    const proofVerifier = config.realProofs ? await BBCircuitVerifier.new(config) : new TestCircuitVerifier();
+    const txValidator = new AggregateTxValidator(
+      new MetadataTxValidator(config.chainId),
+      new TxProofValidator(proofVerifier),
+    );
+
     // start the prover if we have been told to
     const simulationProvider = await getSimulationProvider(config, log);
-    const prover = config.disableProver ? await DummyProver.new() : await TxProver.new(config, worldStateSynchronizer);
+    const prover = config.disableProver
+      ? undefined
+      : await TxProver.new(config, await proofVerifier.getVerificationKeys(), worldStateSynchronizer);
+
+    if (!prover && !config.disableSequencer) {
+      throw new Error("Can't start a sequencer without a prover");
+    }
 
     // now create the sequencer
     const sequencer = config.disableSequencer
@@ -159,7 +177,7 @@ export class AztecNodeService implements AztecNode {
           archiver,
           archiver,
           archiver,
-          prover,
+          prover!,
           simulationProvider,
         );
 
@@ -178,6 +196,7 @@ export class AztecNodeService implements AztecNode {
       getGlobalVariableBuilder(config),
       store,
       prover,
+      txValidator,
       log,
     );
   }
@@ -190,7 +209,7 @@ export class AztecNodeService implements AztecNode {
     return this.sequencer;
   }
 
-  public getProver(): ProverClient {
+  public getProver(): ProverClient | undefined {
     return this.prover;
   }
 
@@ -292,6 +311,13 @@ export class AztecNodeService implements AztecNode {
    */
   public async sendTx(tx: Tx) {
     this.log.info(`Received tx ${tx.getTxHash()}`);
+
+    const [_, invalidTxs] = await this.txValidator.validateTxs([tx]);
+    if (invalidTxs.length > 0) {
+      this.log.warn(`Rejecting tx ${tx.getTxHash()} because of validation errors`);
+      return;
+    }
+
     await this.p2pClient!.sendTx(tx);
   }
 
@@ -327,7 +353,7 @@ export class AztecNodeService implements AztecNode {
     await this.p2pClient.stop();
     await this.worldStateSynchronizer.stop();
     await this.blockSource.stop();
-    await this.prover.stop();
+    await this.prover?.stop();
     this.log.info(`Stopped`);
   }
 
@@ -684,8 +710,24 @@ export class AztecNodeService implements AztecNode {
   }
 
   public async setConfig(config: Partial<SequencerConfig & ProverConfig>): Promise<void> {
+    const newConfig = { ...this.config, ...config };
     this.sequencer?.updateSequencerConfig(config);
-    await this.prover.updateProverConfig(config);
+    await this.prover?.updateProverConfig(config);
+
+    if (newConfig.realProofs !== this.config.realProofs) {
+      const proofVerifier = config.realProofs ? await BBCircuitVerifier.new(newConfig) : new TestCircuitVerifier();
+
+      this.txValidator = new AggregateTxValidator(
+        new MetadataTxValidator(this.chainId),
+        new TxProofValidator(proofVerifier),
+      );
+
+      await this.prover?.updateProverConfig({
+        vks: await proofVerifier.getVerificationKeys(),
+      });
+    }
+
+    this.config = newConfig;
   }
 
   /**

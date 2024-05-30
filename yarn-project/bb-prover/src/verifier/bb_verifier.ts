@@ -1,7 +1,12 @@
-import { type Proof, type VerificationKeyData } from '@aztec/circuits.js';
+import { type ClientProtocolCircuitVerifier, Tx } from '@aztec/circuit-types';
+import { type Proof, type VerificationKeyData, type VerificationKeys } from '@aztec/circuits.js';
 import { runInDirectory } from '@aztec/foundation/fs';
 import { type DebugLogger, type LogFn, createDebugLogger } from '@aztec/foundation/log';
-import { type ProtocolArtifact, ProtocolCircuitArtifacts } from '@aztec/noir-protocol-circuits-types';
+import {
+  type ClientProtocolArtifact,
+  type ProtocolArtifact,
+  ProtocolCircuitArtifacts,
+} from '@aztec/noir-protocol-circuits-types';
 
 import * as fs from 'fs/promises';
 
@@ -9,7 +14,7 @@ import { BB_RESULT, generateContractForCircuit, generateKeyForNoirCircuit, verif
 import { type BBConfig } from '../config.js';
 import { extractVkData } from '../verification_key/verification_key_data.js';
 
-export class BBCircuitVerifier {
+export class BBCircuitVerifier implements ClientProtocolCircuitVerifier {
   private constructor(
     private config: BBConfig,
     private verificationKeys = new Map<ProtocolArtifact, Promise<VerificationKeyData>>(),
@@ -111,5 +116,31 @@ export class BBCircuitVerifier {
     }
 
     return fs.readFile(result.contractPath!, 'utf-8');
+  }
+
+  async verifyProof(tx: Tx): Promise<boolean> {
+    const { proof, enqueuedPublicFunctionCalls } = tx;
+    const expectedCircuit: ClientProtocolArtifact =
+      enqueuedPublicFunctionCalls.length > 0 ? 'PrivateKernelTailToPublicArtifact' : 'PrivateKernelTailArtifact';
+
+    try {
+      await this.verifyProofForCircuit(expectedCircuit, proof);
+      return true;
+    } catch (err) {
+      this.logger.warn(`Failed to verify ${expectedCircuit} proof for tx ${Tx.getHash(tx)}: ${String(err)}`);
+      return false;
+    }
+  }
+
+  async getVerificationKeys(): Promise<VerificationKeys> {
+    const [privateKernelCircuit, privateKernelToPublicCircuit] = await Promise.all([
+      this.getVerificationKeyData('PrivateKernelTailArtifact'),
+      this.getVerificationKeyData('PrivateKernelTailToPublicArtifact'),
+    ]);
+
+    return {
+      privateKernelCircuit,
+      privateKernelToPublicCircuit,
+    };
   }
 }
