@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::{hash_map::DefaultHasher, HashMap};
+use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
@@ -278,11 +279,11 @@ impl ArithExpr {
 
                     Type::NamedGeneric(new_binding, new_name) => (Self::Variable(new_binding, new_name, *index), vec![]),
                     Type::TypeVariable(_new_binding, TypeVariableKind::Constant(value)) => (Self::Constant(value), vec![]),
-                    Type::TypeVariable(new_binding, kind) => {
-                        let new_name = format!("#implicit_var_{:?}_{:?}", new_binding, kind);
-                        let new_index = ArithGenericId(*offset_amount);
-                        *offset_amount += 1;
-                        (Self::Variable(new_binding.clone(), new_name.into(), new_index), vec![Type::TypeVariable(new_binding, kind)])
+                    Type::TypeVariable(new_binding, _kind) => {
+                        Self::Variable(new_binding, name.clone(), *index).follow_bindings(interner, offset_amount)
+                    }
+                    Type::Constant(value) => {
+                        (ArithExpr::Constant(value), vec![])
                     }
                     other => panic!("ICE: follow_bindings on Type::NamedGeneric produced a result other than a variable or constant: {:?}", other),
                 }
@@ -321,7 +322,7 @@ impl ArithExpr {
                 match kind {
                     // commutative cases
                     ArithOpKind::Add | ArithOpKind::Mul => {
-                        let (lhs, rhs) = if lhs.to_id() <= rhs.to_id() {
+                        let (lhs, rhs) = if lhs <= rhs {
                             (lhs.clone(), rhs.clone())
                         } else {
                             (rhs.clone(), lhs.clone())
@@ -399,8 +400,42 @@ impl std::fmt::Display for ArithExpr {
 }
 
 // TODO: relocate
+/// Constant < Variable < Op
+impl PartialOrd for ArithExpr {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self {
+            Self::Op { kind, lhs, rhs } => {
+                match other {
+                    Self::Op { kind: other_kind, lhs: other_lhs, rhs: other_rhs } => {
+                        (kind, lhs, rhs).partial_cmp(&(other_kind, other_lhs, other_rhs))
+                    }
+                    Self::Variable(..) => Some(Ordering::Greater),
+                    Self::Constant(..) => Some(Ordering::Greater),
+                }
+            }
+            Self::Variable(binding, name, index) => {
+                match other {
+                    Self::Op { .. } => Some(Ordering::Less),
+                    Self::Variable(other_binding, other_name, other_index) => {
+                        (binding.id().0, name, index).partial_cmp(&(other_binding.id().0, other_name, other_index))
+                    }
+                    Self::Constant(..) => Some(Ordering::Greater),
+                }
+            }
+            Self::Constant(self_result) => {
+                match other {
+                    Self::Op { .. } => Some(Ordering::Less),
+                    Self::Variable(..) => Some(Ordering::Less),
+                    Self::Constant(other_result) => self_result.partial_cmp(other_result),
+                }
+            }
+        }
+    }
+}
+
+// TODO: relocate
 /// A binary operation that's allowed in an ArithExpr
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash)]
 pub enum ArithOpKind {
     Mul,
     Add,
@@ -587,15 +622,9 @@ impl ArithConstraint {
                 Type::apply_type_bindings(fresh_bindings);
 
                 if generics_match {
+                    // impute the unified lhs_generics into both ArithExpr's
                     let lhs_expr = lhs_expr.impute_variables(&lhs_generics).nf();
-                    let rhs_expr = rhs_expr.impute_variables(&rhs_generics).nf();
-
-                    // TODO: cleanup
-                    dbg!(&lhs_expr);
-                    dbg!(&rhs_expr);
-                    dbg!(lhs_expr.nf());
-                    dbg!(rhs_expr.nf());
-
+                    let rhs_expr = rhs_expr.impute_variables(&lhs_generics).nf();
                     if lhs_expr == rhs_expr {
                         Ok(())
                     } else {
