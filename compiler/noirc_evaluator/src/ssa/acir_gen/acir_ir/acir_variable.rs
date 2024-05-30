@@ -1219,7 +1219,6 @@ impl AcirContext {
 
     /// Calls a Blackbox function on the given inputs and returns a given set of outputs
     /// to represent the result of the blackbox function.
-    /// current_side_effect_enabled is required for MultiScalarMul and EmbeddedCurveAdd which have side effects
     pub(crate) fn black_box_function(
         &mut self,
         name: BlackBoxFunc,
