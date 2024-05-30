@@ -797,7 +797,7 @@ impl<'a> Resolver<'a> {
 
     // TODO: relocate
     // TODO: rename (prepare for what?)
-    fn prepare_arithmetic_expression(&mut self, typ: Type, span: Span) -> (ArithExpr, Vec<Type>) {
+    fn prepare_arith_expression(&mut self, typ: Type, span: Span) -> (ArithExpr, Vec<Type>) {
         match typ {
             Type::Constant(value) => (ArithExpr::Constant(value), vec![]),
             Type::NamedGeneric(typevar, name) => (
@@ -805,15 +805,11 @@ impl<'a> Resolver<'a> {
                 vec![Type::NamedGeneric(typevar, name)],
             ),
             Type::GenericArith(arith_id, generics) => {
-                let (arith_expr, _location) = self.interner.get_arithmetic_expression(arith_id);
+                let (arith_expr, _location) = self.interner.get_arith_expression(arith_id);
                 (arith_expr.clone(), generics)
             }
 
             _ => {
-                // // TODO: revert before PR
-                // let span =
-                //     if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
-                // self.push_err(ResolverError::InvalidArrayLengthExpr { span: span });
                 self.push_err(ResolverError::InvalidArrayLengthExpr { span });
                 (ArithExpr::Constant(0), vec![])
             }
@@ -823,8 +819,6 @@ impl<'a> Resolver<'a> {
     fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
-                // TODO: need to intern this variable for generic arith?
-                // does resolving [unknown-var] vs. [generic-arith] work?
                 let var_or_constant =
                     self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
                         self.push_err(ResolverError::NoSuchNumericTypeVariable {
@@ -838,7 +832,7 @@ impl<'a> Resolver<'a> {
                         let arith_expr =
                             ArithExpr::Variable(binding.clone(), name.clone(), Default::default());
                         let location = Location { span: path.span, file: self.file };
-                        let _ = self.interner.push_arithmetic_expression(arith_expr, location);
+                        let _ = self.interner.push_arith_expression(arith_expr, location);
                     }
                     // expect Type::Constant's to be interned at their declarations
                     _ => (),
@@ -850,7 +844,7 @@ impl<'a> Resolver<'a> {
                 // we intern constants so that they can be resolved during trait resolution
                 let arith_expr = ArithExpr::Constant(int);
                 let location = Location { span: span, file: self.file };
-                let _ = self.interner.push_arithmetic_expression(arith_expr, location);
+                let _ = self.interner.push_arith_expression(arith_expr, location);
                 Type::Constant(int)
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, op_span) => {
@@ -859,15 +853,15 @@ impl<'a> Resolver<'a> {
                 let rhs = self.convert_expression_type(*rhs);
 
                 let span = if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
-                let (lhs, lhs_generics) = self.prepare_arithmetic_expression(lhs, span);
-                let (rhs, rhs_generics) = self.prepare_arithmetic_expression(rhs, span);
+                let (lhs, lhs_generics) = self.prepare_arith_expression(lhs, span);
+                let (rhs, rhs_generics) = self.prepare_arith_expression(rhs, span);
 
                 match (lhs, rhs) {
                     (ArithExpr::Constant(lhs), ArithExpr::Constant(rhs)) => {
                         let int = op.function()(lhs, rhs);
                         let arith_expr = ArithExpr::Constant(int);
                         let op_location = Location { span: op_span, file: self.file };
-                        let _ = self.interner.push_arithmetic_expression(arith_expr, op_location);
+                        let _ = self.interner.push_arith_expression(arith_expr, op_location);
                         assert!(lhs_generics.is_empty(), "constant generics expected to be empty");
                         assert!(rhs_generics.is_empty(), "constant generics expected to be empty");
                         Type::Constant(int)
@@ -890,7 +884,7 @@ impl<'a> Resolver<'a> {
                             ArithExpr::Op { kind, lhs: Box::new(lhs), rhs: Box::new(rhs) };
                         let op_location = Location { span: op_span, file: self.file };
                         let new_id =
-                            self.interner.push_arithmetic_expression(arith_expr, op_location);
+                            self.interner.push_arith_expression(arith_expr, op_location);
                         let new_generics = lhs_generics
                             .into_iter()
                             .chain(rhs_generics.into_iter())
@@ -899,84 +893,7 @@ impl<'a> Resolver<'a> {
                             .collect::<Vec<_>>();
 
                         Type::GenericArith(new_id, new_generics)
-                    } // (Type::GenericArith(lhs_id, lhs_generics), Type::Constant(rhs)) => {
-                      //     // TODO: check op, etc
-                      //
-                      //     Type::GenericArith(new_id, lhs_generics)
-                      // }
-                      //
-                      // (Type::NamedGeneric(lhs), Type::GenericArith(rhs_id, rhs_generics)) => {
-                      //
-                      //     // TODO: check op, etc
-                      //
-                      //     Type::GenericArith(new_id, new_generics)
-                      // }
-                      //
-                      // (Type::GenericArith(lhs_id, lhs_generics), Type::NamedGeneric(rhs)) => {
-                      //     // TODO: check op, etc
-                      //
-                      //     Type::GenericArith(new_id, new_generics)
-                      // }
-                      //
-                      // (Type::GenericArith(lhs_id, lhs_generics), Type::GenericArith(rhs_id, rhs_generics)) => {
-                      //     // TODO: check op, etc
-                      //
-                      //     Type::GenericArith(new_id, new_generics)
-                      // }
-
-                      // (Type::GenericArith(rhs, _), Type::GenericArith(lhs, _)) => {
-                      //     match (lhs, rhs) {
-                      //         (GenericArith::Constant(lhs), GenericArith::Constant(rhs)) => {
-                      //             Type::GenericArith(GenericArith::Constant(op.function()(lhs, rhs)), vec![].into())
-                      //         }
-                      //         (lhs, rhs) => {
-                      //             match op {
-                      //                 BinaryTypeOperator::Addition => {
-                      //                     Type::GenericArith(GenericArith::Op {
-                      //                         kind: GenericArithOpKind::Add,
-                      //                         lhs: Box::new(lhs),
-                      //                         rhs: Box::new(rhs),
-                      //                     }, vec![].into())
-                      //                 }
-                      //                 BinaryTypeOperator::Multiplication => {
-                      //                     Type::GenericArith(GenericArith::Op {
-                      //                         kind: GenericArithOpKind::Mul,
-                      //                         lhs: Box::new(lhs),
-                      //                         rhs: Box::new(rhs),
-                      //                     }, vec![].into())
-                      //                 }
-                      //                 BinaryTypeOperator::Subtraction => {
-                      //                     Type::GenericArith(GenericArith::Op {
-                      //                         kind: GenericArithOpKind::Sub,
-                      //                         lhs: Box::new(lhs),
-                      //                         rhs: Box::new(rhs),
-                      //                     }, vec![].into())
-                      //                 }
-                      //                 _ => {
-                      //                     self.push_err(ResolverError::InvalidGenericArithOp { span: op_span });
-                      //                     Type::GenericArith(GenericArith::Constant(0), vec![].into())
-                      //                 }
-                      //             }
-                      //         }
-                      //     }
-                      // }
-
-                      // // TODO cleanup
-                      // (lhs, rhs) => {
-                      //
-                      //     // let span =
-                      //     //     if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
-                      //     // // TODO: revert before PR
-                      //     // dbg!("convert_expression_type", &lhs, &rhs);
-                      //     self.push_err(ResolverError::InvalidArrayLengthExpr { span: op_span });
-                      //     Type::Constant(0)
-                      // }
-                      // // (lhs, _) => {
-                      // //     let span =
-                      // //         if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
-                      // //     self.push_err(ResolverError::InvalidArrayLengthExpr { span });
-                      // //     Type::Constant(0)
-                      // // }
+                    } 
                 }
             }
         }

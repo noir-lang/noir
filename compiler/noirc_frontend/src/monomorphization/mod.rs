@@ -583,9 +583,11 @@ impl<'interner> Monomorphizer<'interner> {
         let location = self.interner.expr_location(&array);
         let typ = Self::convert_type(&self.interner.id_type(array), location, self.interner)?;
 
-        let length = length.evaluate_to_u64(&location, self.interner).map_err(|_| {
-            // TODO: add ArithExprError to UnknownArrayLength
-            MonomorphizationError::UnknownArrayLength { location }
+        let length = length.evaluate_to_u64(&location, self.interner).map_err(|arith_expr_error| {
+            MonomorphizationError::ArithExprError {
+                arith_expr_error,
+                location,
+            }
         })?;
 
         let contents = try_vecmap(0..length, |_| self.expr(repeated_element))?;
@@ -952,10 +954,6 @@ impl<'interner> Monomorphizer<'interner> {
                 let length = match length.evaluate_to_u64(&location, interner) {
                     Ok(length) => length,
                     Err(arith_expr_error) => {
-                        // TODO: cleanup
-                        dbg!("convert_type: TypeAnnotationsNeeded", typ, length);
-
-                        // TODO: add ArithExprError to TypeAnnotationsNeeded
                         return Err(MonomorphizationError::ArithExprError {
                             arith_expr_error,
                             location,
@@ -1037,18 +1035,14 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::GenericArith(_arith_id, generics) => {
-                // let length = match length.evaluate_to_u64() {
-                //     Some(length) => length,
-                //     None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
-                // };
-
                 try_vecmap(generics, |generic| {
-                    // Self::convert_type(generic, location)
                     match generic.evaluate_to_u64(&location, interner) {
                         Ok(result) => Ok(result),
-                        // TODO: add ArithExprError to TypeAnnotationsNeeded
-                        Err(_) => {
-                            return Err(MonomorphizationError::TypeAnnotationsNeeded { location })
+                        Err(arith_expr_error) => {
+                            return Err(MonomorphizationError::ArithExprError {
+                                arith_expr_error,
+                                location,
+                            });
                         }
                     }
                 })?;
@@ -1861,15 +1855,8 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Validate and consume all of the `ArithConstraints``
     fn validate_arith_constraints(&mut self) -> Result<(), MonomorphizationError> {
-        // TODO: cleanup
-        // let arith_constraints = std::mem::replace(&mut self.interner.arith_constraints.borrow_mut(), vec![].into());
         let arith_constraints = self.interner.arith_constraints.replace(vec![].into());
-        dbg!("validate_arith_constraints running..", &arith_constraints);
-        dbg!("validate_arith_constraints ok?", &self.interner.arith_constraints);
-
         for arith_constraint in arith_constraints {
-            // TODO: cleanup
-            dbg!("validate_arith_constraints for loop.. ({:?})", &arith_constraint);
             arith_constraint.validate(self.interner)?
         }
         Ok(())

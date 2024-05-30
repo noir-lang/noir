@@ -541,8 +541,6 @@ impl<'interner> TypeChecker<'interner> {
                         .collect::<Option<Vec<_>>>();
 
                     if let Some(constraints) = constraints {
-                        // TODO cleanup
-                        dbg!("verify_trait_constraint", object_type, trait_generics, &constraints);
                         self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
                     }
                 }
@@ -994,12 +992,6 @@ impl<'interner> TypeChecker<'interner> {
 
             (lhs, rhs) => {
                 self.unify(lhs, rhs, || {
-                    // TODO: cleanup
-                    // let mut test_bindings = std::collections::HashMap::new();
-                    // let test_arith_constraints = &Default::default();
-                    // dbg!("comparator_operand_type_rules", &lhs, &rhs, lhs.try_unify(rhs, &mut test_bindings, test_arith_constraints));
-                    dbg!("comparator_operand_type_rules", &lhs, &rhs);
-
                     TypeCheckError::TypeMismatchWithSource {
                         expected: lhs.clone(),
                         actual: rhs.clone(),
@@ -1181,8 +1173,6 @@ impl<'interner> TypeChecker<'interner> {
         span: Span,
     ) -> bool {
         self.unify(lhs_type, rhs_type, || {
-            // TODO cleanup
-            dbg!("bind_type_variables_for_infix");
             TypeCheckError::TypeMismatchWithSource {
                 expected: lhs_type.clone(),
                 actual: rhs_type.clone(),
@@ -1305,9 +1295,6 @@ impl<'interner> TypeChecker<'interner> {
                     return Err(TypeCheckError::InvalidShiftSize { span });
                 }
                 self.unify(lhs, rhs, || {
-                    // TODO: cleanup
-                    dbg!("infix_operand_type_rules", &lhs, &rhs);
-
                     TypeCheckError::TypeMismatchWithSource {
                         expected: lhs.clone(),
                         actual: rhs.clone(),

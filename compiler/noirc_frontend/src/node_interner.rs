@@ -155,8 +155,6 @@ pub struct NodeInterner {
     globals: Vec<GlobalInfo>,
     global_attributes: HashMap<GlobalId, Vec<SecondaryAttribute>>,
 
-    // TODO: rename to arith_expressions
-    // arithmetic_expressions: HashMap<ArithId, (ArithExpr, Location)>,
     arith_expressions: HashMap<ArithId, (ArithExpr, Location)>,
 
     pub(crate) arith_constraints: ArithConstraints,
@@ -189,8 +187,6 @@ pub struct NodeInterner {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ArithId {
     Dummy,
-    // TODO cleanup
-    // Incremental(usize),
     Hash(u64),
 }
 
@@ -215,11 +211,6 @@ pub enum ArithExpr {
 }
 
 impl ArithExpr {
-    // // TODO: resolve variables given function
-    // pub fn resolve(&mut self, _f: F) {
-    //     unimplemented!();
-    // }
-
     pub fn try_constant(&self) -> Option<u64> {
         match self {
             Self::Constant(x) => Some(*x),
@@ -266,16 +257,15 @@ impl ArithExpr {
             }
             Self::Variable(binding, name, index) => {
                 match Type::NamedGeneric(binding.clone(), name.clone()).follow_bindings() {
-                    // TODO: nested case currently unimplemented
                     Type::GenericArith(arith_id, generics) => {
-                        let (arith_expr, _location) = interner.get_arithmetic_expression(arith_id);
+                        let (arith_expr, _location) = interner.get_arith_expression(arith_id);
                         let arith_expr = arith_expr.offset_generic_indices(*offset_amount);
                         *offset_amount = arith_expr.max_generic_index().0;
                         (arith_expr, generics)
                     }
 
                     Type::NamedGeneric(new_binding, new_name) => (Self::Variable(new_binding, new_name, *index), vec![]),
-                    Type::TypeVariable(new_binding, TypeVariableKind::Constant(value)) => (Self::Constant(value), vec![]),
+                    Type::TypeVariable(_new_binding, TypeVariableKind::Constant(value)) => (Self::Constant(value), vec![]),
                     Type::TypeVariable(new_binding, kind) => {
                         let new_name = format!("#implicit_var_{:?}_{:?}", new_binding, kind);
                         let new_index = GenericIndex(*offset_amount);
@@ -364,7 +354,7 @@ impl ArithExpr {
 
     pub(crate) fn max_generic_index(&self) -> GenericIndex {
         match self {
-            Self::Op { kind, lhs, rhs } => {
+            Self::Op { lhs, rhs, .. } => {
                 let lhs_max = lhs.max_generic_index();
                 let rhs_max = rhs.max_generic_index();
                 std::cmp::max(lhs_max, rhs_max)
@@ -432,7 +422,7 @@ impl std::fmt::Display for ArithOpKind {
     }
 }
 
-// TODO: relocate + add proper messages
+// TODO: relocate
 #[derive(Debug, thiserror::Error)]
 pub enum ArithExprError {
     SubUnderflow { lhs: u64, rhs: u64 },
@@ -496,11 +486,8 @@ impl ArithConstraint {
     ) -> Result<HashMap<GenericIndex, u64>, ArithExprError> {
         // TODO: put the inner type variable in as well and unify once it's looked up to ensure
         // they match
-        //
-        // TODO: cloned needed still?
         generics
             .iter()
-            .cloned()
             .enumerate()
             .map(|(index, generic)| {
                 generic
@@ -510,24 +497,23 @@ impl ArithConstraint {
             .collect::<Result<HashMap<_, _>, _>>()
     }
 
-    // TODO: better errors
     pub fn validate(&self, interner: &NodeInterner) -> Result<(), ArithConstraintError> {
         // TODO: cleanup
         dbg!("validating", self);
 
-        // TODO: so many clones needed? (get_arithmetic_expression returns a reference)
+        // TODO: so many clones needed? (get_arith_expression returns a reference)
         let (lhs, rhs) = match &self.needs_interning {
             NeedsInterning::Lhs(lhs_expr) => (
                 (lhs_expr.clone(), Location::dummy()),
-                interner.get_arithmetic_expression(self.rhs).clone(),
+                interner.get_arith_expression(self.rhs).clone(),
             ),
             NeedsInterning::Rhs(rhs_expr) => (
-                interner.get_arithmetic_expression(self.lhs).clone(),
+                interner.get_arith_expression(self.lhs).clone(),
                 (rhs_expr.clone(), Location::dummy()),
             ),
             NeedsInterning::Neither => (
-                interner.get_arithmetic_expression(self.lhs).clone(),
-                interner.get_arithmetic_expression(self.rhs).clone(),
+                interner.get_arith_expression(self.lhs).clone(),
+                interner.get_arith_expression(self.rhs).clone(),
             ),
         };
         let (lhs_expr, lhs_location) = lhs;
@@ -635,8 +621,6 @@ impl ArithConstraint {
                     let lhs_expr = lhs_expr.map_variables(&mut |_var: &TypeVariable, name: &Rc<String>, index: GenericIndex| {
                         let new_var = self.lhs_generics
                             .get(index.0)
-                            // .get(&var.id())
-                            // TODO: better error needed?
                             .expect("all variables in a GenericArith ArithExpr to be in the included Vec")
                             .get_outer_type_variable()
                             .expect("all args to GenericArith to be NamedGeneric/TypeVariable's");
@@ -646,21 +630,11 @@ impl ArithConstraint {
                     let rhs_expr = rhs_expr.map_variables(&mut |_var: &TypeVariable, name: &Rc<String>, index: GenericIndex| {
                         let new_var = self.lhs_generics
                             .get(index.0)
-                            // .get(&var.id())
-                            // TODO: better error needed?
                             .expect("all variables in a GenericArith ArithExpr to be in the included Vec")
                             .get_outer_type_variable()
                             .expect("all args to GenericArith to be NamedGeneric/TypeVariable's");
                         (new_var, name.clone(), index)
                     }).nf();
-
-                    // let rhs_expr = rhs_expr.map_variables(&mut |_, name: &Rc<String>| {
-                    //     let var = lhs_name_to_generic
-                    //         .get(name)
-                    //         // TODO: better error needed?
-                    //         .expect("all variables in a GenericArith ArithExpr to be in the included Vec");
-                    //     (var.clone(), name.clone())
-                    // });
 
                     if lhs_expr == rhs_expr {
                         Ok(())
@@ -674,7 +648,6 @@ impl ArithConstraint {
                         })
                     }
                 } else {
-                    // unresolved generics are preventing resolution
                     Err(ArithConstraintError::ArithExprError {
                         arith_expr_error,
                         location: lhs_location,
@@ -689,7 +662,6 @@ impl ArithConstraint {
 pub type ArithConstraints = RefCell<Vec<ArithConstraint>>;
 
 // TODO relocate/cleanup
-// TODO add proper messages
 #[derive(Debug, thiserror::Error)]
 pub enum ArithConstraintError {
     UnresolvedGeneric {
@@ -726,7 +698,6 @@ impl std::fmt::Display for ArithConstraintError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::UnresolvedGeneric { generic, .. } => {
-                // TODO: better error message
                 if let Type::NamedGeneric(_, name) = generic {
                     write!(f, "Unresolved generic value: {}", name)
                 } else {
@@ -734,7 +705,6 @@ impl std::fmt::Display for ArithConstraintError {
                 }
             }
             Self::EvaluatedToDifferentValues { lhs_evaluated, rhs_evaluated, .. } => {
-                // TODO: better error message
                 write!(
                     f,
                     "Generic arithmetic evaluated to different values: {} != {}",
@@ -751,8 +721,7 @@ impl std::fmt::Display for ArithConstraintError {
             }
             Self::DistinctExpressions { lhs_expr, rhs_expr, generics, .. } => {
                 // TODO: better error message (this prints Result's)
-                // TODO: pretty print ArithExpr's
-                write!(f, "Generic arithmetic appears to be distinct: {:?} != {:?}, where the arguments are: {:?}", lhs_expr, rhs_expr, generics)
+                write!(f, "Generic arithmetic appears to be distinct: {} != {}, where the arguments are: {:?}", lhs_expr, rhs_expr, generics)
             }
             Self::ArithExprError { arith_expr_error, .. } => arith_expr_error.fmt(f),
         }
@@ -1316,25 +1285,18 @@ impl NodeInterner {
         id
     }
 
-    // TODO rename to push_arith_expression
-    pub fn push_arithmetic_expression(&mut self, expr: ArithExpr, location: Location) -> ArithId {
+    pub fn push_arith_expression(&mut self, expr: ArithExpr, location: Location) -> ArithId {
         let arith_id = expr.to_id();
         self.arith_expressions.insert(arith_id, (expr, location));
         arith_id
     }
 
-    // TODO: rename to get_arith_expression
-    pub fn get_arithmetic_expression(&self, arith_id: ArithId) -> &(ArithExpr, Location) {
+    pub fn get_arith_expression(&self, arith_id: ArithId) -> &(ArithExpr, Location) {
         self.arith_expressions.get(&arith_id).expect(&*format!(
             "ICE: unknown ArithId ({:?})\n\n{:?}",
             arith_id, self.arith_expressions
         ))
     }
-
-    // TODO cleanup
-    // pub fn next_arith_id(&self) -> ArithId {
-    //     ArithId::Incremental(self.arithmetic_expressions.len())
-    // }
 
     /// Intern an empty function.
     pub fn push_empty_fn(&mut self) -> FuncId {
@@ -1927,8 +1889,6 @@ impl NodeInterner {
                         &instantiation_bindings,
                         recursion_limit,
                     ) {
-                        // TODO: cleanup
-                        dbg!("lookup_trait_implementation_helper where clause");
                         errors.push(make_constraint());
                         return Err(errors);
                     }
@@ -1943,8 +1903,6 @@ impl NodeInterner {
             *type_bindings = fresh_bindings;
             Ok(impl_)
         } else if matching_impls.is_empty() {
-            // TODO: cleanup
-            dbg!("lookup_trait_implementation_helper no matching impl");
             Err(vec![make_constraint()])
         } else {
             // multiple matching impls, type annotations needed

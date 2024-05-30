@@ -1391,13 +1391,7 @@ fn basic_generic_arith() {
     if !errors.is_empty() {
         dbg!(&errors);
     }
-    assert_eq!(errors, vec![]);
-    // assert_eq!(errors.len(), 0);
-
-    // assert!(matches!(
-    //     errors[0].0,
-    //     CompilationError::ResolverError(ResolverError::FoldAttributeOnUnconstrained { .. })
-    // ));
+    assert_eq!(errors.len(), 0);
 }
 
 #[test]
