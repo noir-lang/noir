@@ -494,7 +494,10 @@ fn check_trait_wrong_parameter_type() {
     }";
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
-    assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
+
+    // This is a duplicate error in the name resolver & type checker.
+    // In the elaborator there is no duplicate and only 1 error is issued
+    assert!(errors.len() <= 2, "Expected 1 or 2 errors, got: {:?}", errors);
 
     for (err, _file_id) in errors {
         match &err {
@@ -593,22 +596,20 @@ fn check_impl_struct_not_trait() {
         bar: Field,
         array: [Field; 2],
     }
-    
+
     struct Default {
         x: Field,
         z: Field, 
     }
     
-    // Default is struct not a trait
+    // Default is a struct not a trait
     impl Default for Foo {
         fn default(x: Field, y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
     }
     
-    fn main() {
-    }
-    
+    fn main() {}
     ";
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
