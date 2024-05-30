@@ -3103,8 +3103,8 @@ mod test {
         check_call_opcode(
             &func_with_nested_call_opcodes[1],
             2,
-            vec![Witness(2), Witness(1)],
-            vec![Witness(3)],
+            vec![Witness(3), Witness(1)],
+            vec![Witness(4)],
         );
     }
 
@@ -3124,13 +3124,13 @@ mod test {
                 for (expected_input, input) in expected_inputs.iter().zip(inputs) {
                     assert_eq!(
                         expected_input, input,
-                        "Expected witness {expected_input:?} but got {input:?}"
+                        "Expected input witness {expected_input:?} but got {input:?}"
                     );
                 }
                 for (expected_output, output) in expected_outputs.iter().zip(outputs) {
                     assert_eq!(
                         expected_output, output,
-                        "Expected witness {expected_output:?} but got {output:?}"
+                        "Expected output witness {expected_output:?} but got {output:?}"
                     );
                 }
             }
