@@ -1,10 +1,8 @@
-import { EncryptedL2NoteLog } from '@aztec/circuit-types';
 import { siloNullifier } from '@aztec/circuits.js/hash';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
 import { type NoteData } from '../acvm/index.js';
-import { CountedNoteLog } from './execution_result.js';
 
 export interface PendingNote {
   note: NoteData;
@@ -37,23 +35,6 @@ export class ExecutionNoteCache {
     const notes = this.newNotes.get(note.contractAddress.toBigInt()) ?? [];
     notes.push({ note, counter });
     this.newNotes.set(note.contractAddress.toBigInt(), notes);
-  }
-
-  /**
-   * Create a new log linked to a note in this cache.
-   * @param encryptedNote - Encrypted new note created during execution.
-   * @param counter - Counter of the log.
-   * @param innerNoteHash - Hashed new note created during execution.
-   */
-  public addNewLog(encryptedNote: Buffer, counter: number, innerNoteHash: Fr) {
-    const note = Array.from(this.newNotes.values())
-      .flat()
-      .find(n => n.note.innerNoteHash.equals(innerNoteHash));
-    if (!note) {
-      throw new Error('Attempt to add a note log for note that does not exist.');
-    }
-    const log = new CountedNoteLog(new EncryptedL2NoteLog(encryptedNote), counter, note.counter);
-    return log;
   }
 
   /**

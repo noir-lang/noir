@@ -320,6 +320,14 @@ export class Synchronizer {
   }
 
   /**
+   * Returns the note processor stats.
+   * @returns The note processor stats for notes for each public key being tracked.
+   */
+  public getSyncStats() {
+    return Object.fromEntries(this.noteProcessors.map(n => [n.masterIncomingViewingPublicKey.toString(), n.stats]));
+  }
+
+  /**
    * Retry decoding any deferred notes for the specified contract address.
    * @param contractAddress - the contract address that has just been added
    */

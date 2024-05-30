@@ -84,7 +84,7 @@ pub fn compute_note_hash_for_consumption<Note, N, M>(note: Note) -> Field where 
     // 2. The note was inserted in a previous transaction, and was inserted in public
     // 3. The note was inserted in a previous transaction, and was inserted in private
 
-    if (header.is_transient) {
+    if (header.note_hash_counter != 0) {
         // If a note is transient, we just read the inner_note_hash (kernel will silo by contract address).
         compute_inner_note_hash(note)
     } else {

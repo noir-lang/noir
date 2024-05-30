@@ -712,6 +712,10 @@ export class PXEService implements PXE {
     return Promise.resolve(this.synchronizer.getSyncStatus());
   }
 
+  public getSyncStats() {
+    return Promise.resolve(this.synchronizer.getSyncStats());
+  }
+
   public async isContractClassPubliclyRegistered(id: Fr): Promise<boolean> {
     return !!(await this.node.getContractClass(id));
   }

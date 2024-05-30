@@ -2,6 +2,7 @@ import {
   type AuthWitness,
   type AztecNode,
   EncryptedL2Log,
+  EncryptedL2NoteLog,
   L1NotePayload,
   Note,
   type NoteStatus,
@@ -29,7 +30,7 @@ import { type NoteData, toACVMWitness } from '../acvm/index.js';
 import { type PackedValuesCache } from '../common/packed_values_cache.js';
 import { type DBOracle } from './db_oracle.js';
 import { type ExecutionNoteCache } from './execution_note_cache.js';
-import { CountedLog, type CountedNoteLog, type ExecutionResult, type NoteAndSlot } from './execution_result.js';
+import { CountedLog, CountedNoteLog, type ExecutionResult, type NoteAndSlot } from './execution_result.js';
 import { pickNotes } from './pick_notes.js';
 import { executePrivateFunction } from './private_execution.js';
 import { ViewDataOracle } from './view_data_oracle.js';
@@ -350,12 +351,12 @@ export class ClientExecutionContext extends ViewDataOracle {
 
   /**
    * Emit encrypted note data
-   * @param noteHash - The note hash.
+   * @param noteHashCounter - The note hash counter.
    * @param encryptedNote - The encrypted note data.
-   * @param counter - The effects counter.
+   * @param counter - The log counter.
    */
-  public override emitEncryptedNoteLog(noteHash: Fr, encryptedNote: Buffer, counter: number) {
-    const encryptedLog = this.noteCache.addNewLog(encryptedNote, counter, noteHash);
+  public override emitEncryptedNoteLog(noteHashCounter: number, encryptedNote: Buffer, counter: number) {
+    const encryptedLog = new CountedNoteLog(new EncryptedL2NoteLog(encryptedNote), counter, noteHashCounter);
     this.noteEncryptedLogs.push(encryptedLog);
   }
 

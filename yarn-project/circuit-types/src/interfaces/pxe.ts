@@ -8,6 +8,7 @@ import { type L2Block } from '../l2_block.js';
 import { type GetUnencryptedLogsResponse, type LogFilter } from '../logs/index.js';
 import { type ExtendedNote } from '../notes/index.js';
 import { type NoteFilter } from '../notes/note_filter.js';
+import { type NoteProcessorStats } from '../stats/stats.js';
 import { type SimulatedTx, type Tx, type TxHash, type TxReceipt } from '../tx/index.js';
 import { type TxEffect } from '../tx_effect.js';
 import { type TxExecutionRequest } from '../tx_execution_request.js';
@@ -301,6 +302,12 @@ export interface PXE {
    * @returns The latest block synchronized for blocks, and the latest block synched for notes for each public key being tracked.
    */
   getSyncStatus(): Promise<SyncStatus>;
+
+  /**
+   * Returns the note processor stats.
+   * @returns The note processor stats for notes for each public key being tracked.
+   */
+  getSyncStats(): Promise<{ [key: string]: NoteProcessorStats }>;
 
   /**
    * Returns a Contact Instance given its address, which includes the contract class identifier,

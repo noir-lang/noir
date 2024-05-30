@@ -2,14 +2,18 @@ use dep::protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint};
 
 // = 480 + 32 * N bytes
 #[oracle(emitEncryptedNoteLog)]
-fn emit_encrypted_note_log_oracle<M>(_note_hash: Field, _encrypted_note: [u8; M], _counter: u32) {}
+fn emit_encrypted_note_log_oracle<M>(
+    _note_hash_counter: u32,
+    _encrypted_note: [u8; M],
+    _counter: u32
+) {}
 
 unconstrained pub fn emit_encrypted_note_log<M>(
-    note_hash: Field,
+    note_hash_counter: u32,
     encrypted_note: [u8; M],
     counter: u32
 ) {
-    emit_encrypted_note_log_oracle(note_hash, encrypted_note, counter)
+    emit_encrypted_note_log_oracle(note_hash_counter, encrypted_note, counter)
 }
 
 #[oracle(emitEncryptedLog)]

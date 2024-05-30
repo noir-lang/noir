@@ -346,15 +346,14 @@ impl PrivateContext {
         ivpk_m: GrumpkinPoint,
         note: Note
     ) where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
-        let note_hash: Field = compute_note_hash_for_insertion(note);
+        let note_hash_counter = note.get_header().note_hash_counter;
         let note_exists_index = find_index(
             self.new_note_hashes.storage,
-            |n: NoteHash| n.value == note_hash
+            |n: NoteHash| n.counter == note_hash_counter
         );
         assert(
             note_exists_index != MAX_NEW_NOTE_HASHES_PER_CALL, "Can only emit a note log for an existing note."
         );
-        let note_hash_counter = self.new_note_hashes.storage[note_exists_index].counter;
         let preimage = note.serialize_content();
         let counter = self.next_counter();
 
@@ -370,7 +369,7 @@ impl PrivateContext {
             ivpk_m,
             preimage
         );
-        emit_encrypted_note_log(note_hash, encrypted_log, counter);
+        emit_encrypted_note_log(note_hash_counter, encrypted_log, counter);
 
         // Current unoptimized size of the encrypted log
         // incoming_tag (32 bytes)

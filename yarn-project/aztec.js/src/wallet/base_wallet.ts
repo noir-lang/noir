@@ -15,6 +15,7 @@ import {
   type TxHash,
   type TxReceipt,
 } from '@aztec/circuit-types';
+import { type NoteProcessorStats } from '@aztec/circuit-types/stats';
 import { type AztecAddress, type CompleteAddress, type Fq, type Fr, type PartialAddress } from '@aztec/circuits.js';
 import { type ContractArtifact } from '@aztec/foundation/abi';
 import { type ContractClassWithId, type ContractInstanceWithAddress } from '@aztec/types/contracts';
@@ -157,6 +158,9 @@ export abstract class BaseWallet implements Wallet {
   }
   getSyncStatus(): Promise<SyncStatus> {
     return this.pxe.getSyncStatus();
+  }
+  getSyncStats(): Promise<{ [key: string]: NoteProcessorStats }> {
+    return this.pxe.getSyncStats();
   }
   addAuthWitness(authWitness: AuthWitness) {
     return this.pxe.addAuthWitness(authWitness);

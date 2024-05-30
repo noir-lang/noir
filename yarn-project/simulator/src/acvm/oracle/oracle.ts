@@ -297,10 +297,10 @@ export class Oracle {
     );
   }
 
-  emitEncryptedNoteLog([noteHash]: ACVMField[], encryptedNote: ACVMField[], [counter]: ACVMField[]): void {
+  emitEncryptedNoteLog([noteHashCounter]: ACVMField[], encryptedNote: ACVMField[], [counter]: ACVMField[]): void {
     // Convert each field to a number and then to a buffer (1 byte is stored in 1 field)
     const processedInput = Buffer.from(encryptedNote.map(fromACVMField).map(f => f.toNumber()));
-    this.typedOracle.emitEncryptedNoteLog(fromACVMField(noteHash), processedInput, +counter);
+    this.typedOracle.emitEncryptedNoteLog(+noteHashCounter, processedInput, +counter);
   }
 
   computeEncryptedLog(

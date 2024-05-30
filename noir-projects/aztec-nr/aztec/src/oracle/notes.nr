@@ -142,11 +142,11 @@ unconstrained pub fn get_notes<Note, N, NB, M, S, NS>(
         if i < num_notes {
             // lengths named as per typescript.
             let return_header_length: u64 = 2; // num_notes & contract_address.
-            let extra_preimage_length: u64 = 2; // nonce & is_transient.
+            let extra_preimage_length: u64 = 2; // nonce & note_hash_counter.
             let read_offset: u64 = return_header_length + i * (N + extra_preimage_length);
             let nonce = fields[read_offset];
-            let is_transient = fields[read_offset + 1] as bool;
-            let header = NoteHeader { contract_address, nonce, storage_slot, is_transient };
+            let note_hash_counter = fields[read_offset + 1] as u32;
+            let header = NoteHeader { contract_address, nonce, storage_slot, note_hash_counter };
             let serialized_note = arr_copy_slice(fields, [0; N], read_offset + 2);
             let mut note = Note::deserialize_content(serialized_note);
             // TODO: change this to note.set_header(header) once https://github.com/noir-lang/noir/issues/4095 is fixed

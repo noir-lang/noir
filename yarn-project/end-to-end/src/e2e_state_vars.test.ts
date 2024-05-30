@@ -167,7 +167,7 @@ describe('e2e_state_vars', () => {
       expect(noteBefore.randomness).toEqual(noteAfter.randomness);
       expect(noteBefore.header.contract_address).toEqual(noteAfter.header.contract_address);
       expect(noteBefore.header.storage_slot).toEqual(noteAfter.header.storage_slot);
-      expect(noteBefore.header.is_transient).toEqual(noteAfter.header.is_transient);
+      expect(noteBefore.header.note_hash_counter).toEqual(noteAfter.header.note_hash_counter);
       // !!! Nonce must be different
       expect(noteBefore.header.nonce).not.toEqual(noteAfter.header.nonce);
     });

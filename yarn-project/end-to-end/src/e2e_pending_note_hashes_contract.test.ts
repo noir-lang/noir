@@ -117,6 +117,30 @@ describe('e2e_pending_note_hashes_contract', () => {
     await expectNoteLogsSquashedExcept(0);
   });
 
+  it('Squash! Aztec.nr function can "create" and "nullify" note in the same TX with 2 note logs', async () => {
+    // Kernel will squash the noteHash and its nullifier and both note logs
+    // Realistic way to describe this test is "Mint note A, then burn note A in the same transaction"
+    const mintAmount = 65n;
+
+    const deployedContract = await deployContract();
+
+    const outgoingViewer = owner;
+    await deployedContract.methods
+      .test_insert_then_get_then_nullify_all_in_nested_calls(
+        mintAmount,
+        owner,
+        outgoingViewer,
+        deployedContract.methods.insert_note_extra_emit.selector,
+        deployedContract.methods.get_then_nullify_note.selector,
+      )
+      .send()
+      .wait();
+
+    await expectNoteHashesSquashedExcept(0);
+    await expectNullifiersSquashedExcept(0);
+    await expectNoteLogsSquashedExcept(0);
+  });
+
   it('Squash! Aztec.nr function can "create" 2 notes and "nullify" both in the same TX', async () => {
     // Kernel will squash both noteHashes and their nullifier.
     // Realistic way to describe this test is "Mint notes A and B, then burn both in the same transaction"
@@ -156,6 +180,31 @@ describe('e2e_pending_note_hashes_contract', () => {
         owner,
         outgoingViewer,
         deployedContract.methods.insert_note.selector,
+        deployedContract.methods.get_then_nullify_note.selector,
+      )
+      .send()
+      .wait();
+
+    await expectNoteHashesSquashedExcept(1);
+    await expectNullifiersSquashedExcept(0);
+    await expectNoteLogsSquashedExcept(1);
+  });
+
+  it('Squash! Aztec.nr function can "create" 2 notes with the same inner note hash and "nullify" 1 in the same TX', async () => {
+    // Kernel will squash one noteHash and its nullifier, where two notes with the same inner hash exist.
+    // The other note will become persistent!
+    // Realistic way to describe this test is "Mint notes A and B, then burn note A in the same transaction"
+    const mintAmount = 65n;
+
+    const deployedContract = await deployContract();
+
+    const outgoingViewer = owner;
+    await deployedContract.methods
+      .test_insert2_then_get2_then_nullify1_all_in_nested_calls(
+        mintAmount,
+        owner,
+        outgoingViewer,
+        deployedContract.methods.insert_note_static_randomness.selector,
         deployedContract.methods.get_then_nullify_note.selector,
       )
       .send()
@@ -248,5 +297,20 @@ describe('e2e_pending_note_hashes_contract', () => {
       .test_recursively_create_notes(owner, outgoingViewer, Math.ceil(minToNeedReset / notesPerIteration))
       .send()
       .wait();
+  });
+
+  it('Should drop note log for non existent note', async () => {
+    const deployedContract = await deployContract();
+    const outgoingViewer = owner;
+    // Add a note of value 10, with a note log
+    // Then emit another note log with the same counter as the one above, but with value 5
+    await deployedContract.methods.test_emit_bad_note_log(owner, outgoingViewer).send().wait();
+
+    const mIVPK = wallet.getCompleteAddress().publicKeys.masterIncomingViewingPublicKey.toString();
+    const syncStats = await wallet.getSyncStats();
+    // Expect two decryptable note logs to be emitted
+    expect(syncStats[mIVPK].decrypted).toEqual(2);
+    // Expect one note log to be dropped
+    expect(syncStats[mIVPK].failed).toEqual(1);
   });
 });

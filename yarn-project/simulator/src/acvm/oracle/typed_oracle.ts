@@ -180,7 +180,7 @@ export abstract class TypedOracle {
     throw new OracleMethodNotAvailableError('emitEncryptedLog');
   }
 
-  emitEncryptedNoteLog(_noteHash: Fr, _encryptedNote: Buffer, _counter: number): void {
+  emitEncryptedNoteLog(_noteHashCounter: number, _encryptedNote: Buffer, _counter: number): void {
     throw new OracleMethodNotAvailableError('emitEncryptedNoteLog');
   }
 
