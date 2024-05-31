@@ -15,11 +15,10 @@ fn main() {
 
     double_numeric_generics_test();
 
-    let my_type: MyType<20> = PublicStorage::read();
-    assert(my_type.fields.len() == 20);
-    for field in my_type.fields {
-        assert(field == 1);
-    }
+    let my_type = PublicStorage::read::<MyType, 3>();
+    assert(my_type.a == 1);
+    assert(my_type.b == 2);
+    assert(my_type.c == 3);
 }
 
 fn id<I>(x: [Field; I]) -> [Field; I] {
@@ -56,26 +55,20 @@ fn double_numeric_generics_test() {
     assert(double::<7 + 8>() == 30);
 }
 
-struct MyType<N> {
-    fields: [Field; N]
+struct MyType {
+    a: Field,
+    b: Field,
+    c: Field,
 }
 
-impl<N> Deserialize<N> for MyType<N> {
+impl<N> Deserialize<N> for MyType {
     fn deserialize(fields: [Field; N]) -> Self {
-        let mut new_fields = [0; N];
-        for i in 0..N {
-            new_fields[i] = fields[i];
-        }
-        MyType { fields: new_fields }
+        MyType { a: fields[0], b: fields[1], c: fields[2] }
     }
 }
 
 trait Deserialize<N> {
     fn deserialize(fields: [Field; N]) -> Self;
-}
-
-fn storage_read() -> Field {
-    1
 }
 
 struct PublicStorage {}
@@ -84,8 +77,13 @@ impl PublicStorage {
     fn read<T, let N: u64>() -> T where T: Deserialize<N> {
         let mut fields = [0; N];
         for i in 0..N {
-            fields[i] = storage_read();
+            // TODO: Removing this cast I get an error as expected as deserialzie
+            // expects an array of fields not u64, but the error could be improved.
+            // Getting the following: `Expected type [Field; u64], found type [u64; u64]`
+            fields[i] = i as Field + 1;
         }
         T::deserialize(fields)
     }
 }
+
+

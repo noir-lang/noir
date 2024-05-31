@@ -138,7 +138,7 @@ pub(crate) type UnaryRhsMemberAccess =
     (Ident, Option<(Option<Vec<UnresolvedType>>, Vec<Expression>)>);
 
 /// The precursor to TypeExpression, this is the type that the parser allows
-/// to be used in the length position of an array type. Only constants, variables,
+/// to be used in the length position of an array type. Only constant integers, booleans, variables,
 /// and numeric binary operators are allowed here.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {

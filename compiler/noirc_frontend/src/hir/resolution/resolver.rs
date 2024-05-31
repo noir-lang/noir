@@ -905,13 +905,18 @@ impl<'a> Resolver<'a> {
 
             if let UnresolvedGeneric::Numeric { ident, typ } = generic {
                 let typ = self.resolve_type(typ.clone());
-                if !matches!(typ, Type::FieldElement | Type::Integer(_, _) | Type::Bool) {
-                    self.errors.push(ResolverError::UnsupportedNumericGenericType { ident: ident.clone(), typ })
+                if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
+                    self.errors.push(ResolverError::UnsupportedNumericGenericType { ident: ident.clone(), typ: typ.clone() })
                 }
+                typevar.bind(typ.clone());
                 let definition = DefinitionKind::GenericType(typevar.clone());
-                self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
+                let hir_ident = self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
+                // Push the definition type because if one is missing, when the numeric generic is used in an expression
+                // its definition type will be resolved to a polymorphic integer or field. 
+                // We do not yet fully support bool generics but this will be a foot-gun once we look to add support 
+                // and is can lead to confusing errors.
+                self.interner.push_definition_type(hir_ident.id, typ);
             } 
-
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
 

@@ -15,7 +15,7 @@ use crate::{
     macros_api::{
         ForLoopStatement, ForRange, HirStatement, LetStatement, Statement, StatementKind,
     },
-    node_interner::{DefinitionId, DefinitionKind, StmtId},
+    node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
     Type,
 };
 
@@ -24,7 +24,7 @@ use super::Elaborator;
 impl<'context> Elaborator<'context> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
         match statement.kind {
-            StatementKind::Let(let_stmt) => self.elaborate_let(let_stmt),
+            StatementKind::Let(let_stmt) => self.elaborate_local_let(let_stmt),
             StatementKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
@@ -51,7 +51,35 @@ impl<'context> Elaborator<'context> {
         (id, typ)
     }
 
-    pub(super) fn elaborate_let(&mut self, let_stmt: LetStatement) -> (HirStatement, Type) {
+    pub(super) fn elaborate_local_let(&mut self, let_stmt: LetStatement) -> (HirStatement, Type) {
+        let (statement, typ, _) = self.elaborate_let(let_stmt);
+        (statement, typ)
+    }
+
+    /// Elaborates a global let statement. Compared to the local version, this
+    /// version fixes up the result to use the given DefinitionId rather than
+    /// the fresh one defined by the let pattern.
+    pub(super) fn elaborate_global_let(&mut self, let_stmt: LetStatement, global_id: GlobalId) {
+        let (let_statement, _typ, new_ids) = self.elaborate_let(let_stmt);
+        let statement_id = self.interner.get_global(global_id).let_statement;
+
+        // To apply the changes from the fresh id created in elaborate_let to this global
+        // we need to change the definition kind and update the type.
+        assert_eq!(new_ids.len(), 1, "Globals should only define 1 value");
+        let new_id = new_ids[0].id;
+
+        self.interner.definition_mut(new_id).kind = DefinitionKind::Global(global_id);
+
+        let definition_id = self.interner.get_global(global_id).definition_id;
+        let definition_type = self.interner.definition_type(new_id);
+        self.interner.push_definition_type(definition_id, definition_type);
+
+        self.interner.replace_statement(statement_id, let_statement);
+    }
+
+    /// Elaborate a local or global let statement. In addition to the HirLetStatement and unit
+    /// type, this also returns each HirIdent defined by this let statement.
+    fn elaborate_let(&mut self, let_stmt: LetStatement) -> (HirStatement, Type, Vec<HirIdent>) {
         let expr_span = let_stmt.expression.span;
         let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
         let definition = DefinitionKind::Local(Some(expression));
@@ -77,14 +105,18 @@ impl<'context> Elaborator<'context> {
             expr_type
         };
 
-        let let_ = HirLetStatement {
-            pattern: self.elaborate_pattern(let_stmt.pattern, r#type.clone(), definition),
-            r#type,
-            expression,
-            attributes: let_stmt.attributes,
-            comptime: let_stmt.comptime,
-        };
-        (HirStatement::Let(let_), Type::Unit)
+        let mut created_ids = Vec::new();
+        let pattern = self.elaborate_pattern_and_store_ids(
+            let_stmt.pattern,
+            r#type.clone(),
+            definition,
+            &mut created_ids,
+        );
+
+        let attributes = let_stmt.attributes;
+        let comptime = let_stmt.comptime;
+        let let_ = HirLetStatement { pattern, r#type, expression, attributes, comptime };
+        (HirStatement::Let(let_), Type::Unit, created_ids)
     }
 
     pub(super) fn elaborate_constrain(&mut self, stmt: ConstrainStatement) -> (HirStatement, Type) {

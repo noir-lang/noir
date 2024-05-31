@@ -1445,27 +1445,82 @@ fn specify_method_types_with_turbofish() {
 }
 
 #[test]
-fn unsupported_numeric_generic_type() {
+fn struct_numeric_generic() {
     let src = r#"
     struct Foo {
         inner: u64
     }
 
     fn double<let N: Foo>() -> u64 {
-        N.inner * 2
-    }
-
-    impl<T> Foo<T> {
-        fn generic_method<U>(_self: Self) -> U where U: Default {
-            U::default()
-        }
-    }
-    
-    fn main() {
-        let foo: Foo<u64> = Foo { inner: 1 };
-        let _ = double::<foo>();
+        N * 2
     }
     "#;
     let errors = get_program_errors(src);
-    dbg!(errors.clone());
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
+    ));
+}
+
+#[test]
+fn bool_numeric_generic() {
+    let src = r#"
+    fn read<let N: bool>() -> Field {
+        if N {
+            0
+        } else {
+            1
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
+    ));
+}
+
+#[test]
+fn numeric_generic_binary_operation_type_mismatch() {
+    let src = r#"
+    fn double<let N: Field>() {
+        let check: bool = true;
+        assert(N == check);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }),
+    ));
+}
+
+#[test]
+fn bool_generic_as_loop_bound() {
+    let src = r#"
+    fn read<let N: bool>() {
+        let mut fields = [0; N];
+        for i in 0..N {
+            fields[i] = i + 1;
+        }
+        assert(fields[0] == 1);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
+    ));
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch { expected_typ, expr_typ, .. }) = &errors[1].0 else {
+        panic!("Got an error other than a type mismatch");
+    };
+
+    assert_eq!(expected_typ, "Field");
+    assert_eq!(expr_typ, "bool");
 }
