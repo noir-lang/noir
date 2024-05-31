@@ -40,10 +40,10 @@ ENV ACVM_BINARY_PATH=/usr/src/noir/noir-repo/target/release/acvm
 ENV ACVM_WORKING_DIRECTORY=/usr/src/yarn-project/acvm
 
 RUN mkdir -p $BB_WORKING_DIRECTORY $ACVM_WORKING_DIRECTORY && \
-  [[ $(arch) == "x86_64" ]] && \
+  test $(arch) = "x86_64" && \
   echo -n RootRollupArtifact PrivateKernelTailArtifact PrivateKernelTailToPublicArtifact | xargs -d ' ' -P 3 -I {} node bb-prover/dest/bb/index.js write-vk -c {} && \
   node bb-prover/dest/bb/index.js write-contract -c RootRollupArtifact -n UltraVerifier.sol || \
-  true
+  echo "Skipping VK generation arch=$(arch)"
 
 RUN yarn workspaces focus @aztec/aztec @aztec/builder @aztec/cli --production && yarn cache clean
 
