@@ -672,7 +672,6 @@ template <typename Builder> bb::fr field_t<Builder>::get_value() const
 template <typename Builder> bool_t<Builder> field_t<Builder>::operator==(const field_t& other) const
 {
     Builder* ctx = (context == nullptr) ? other.context : context;
-
     if (is_constant() && other.is_constant()) {
         return (get_value() == other.get_value());
     }

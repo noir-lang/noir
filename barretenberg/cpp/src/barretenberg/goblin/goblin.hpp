@@ -186,6 +186,11 @@ class GoblinVerifier {
     using TranslatorVerificationKey = bb::TranslatorFlavor::VerificationKey;
     using MergeVerifier = bb::MergeVerifier_<MegaFlavor>;
 
+    struct VerifierInput {
+        std::shared_ptr<ECCVMVerificationKey> eccvm_verification_key;
+        std::shared_ptr<TranslatorVerificationKey> translator_verification_key;
+    };
+
   private:
     std::shared_ptr<ECCVMVerificationKey> eccvm_verification_key;
     std::shared_ptr<TranslatorVerificationKey> translator_verification_key;
@@ -195,6 +200,11 @@ class GoblinVerifier {
                    std::shared_ptr<TranslatorVerificationKey> translator_verification_key)
         : eccvm_verification_key(eccvm_verification_key)
         , translator_verification_key(translator_verification_key)
+    {}
+
+    GoblinVerifier(VerifierInput input)
+        : eccvm_verification_key(input.eccvm_verification_key)
+        , translator_verification_key(input.translator_verification_key)
     {}
 
     /**

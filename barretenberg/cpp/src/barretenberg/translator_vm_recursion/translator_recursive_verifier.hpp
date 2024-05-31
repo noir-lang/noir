@@ -21,7 +21,7 @@ template <typename Flavor> class TranslatorRecursiveVerifier_ {
     using RelationSeparator = typename Flavor::RelationSeparator;
     using PairingPoints = std::array<GroupElement, 2>;
     using TranslationEvaluations = TranslationEvaluations_<BF, FF>;
-    using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<Builder>>;
+    using Transcript = typename Flavor::Transcript;
     using RelationParams = ::bb::RelationParameters<FF>;
 
     BF evaluation_input_x = 0;
@@ -35,7 +35,9 @@ template <typename Flavor> class TranslatorRecursiveVerifier_ {
 
     RelationParams relation_parameters;
 
-    TranslatorRecursiveVerifier_(Builder* builder, const std::shared_ptr<NativeVerificationKey>& native_verifier_key);
+    TranslatorRecursiveVerifier_(Builder* builder,
+                                 const std::shared_ptr<NativeVerificationKey>& native_verifier_key,
+                                 const std::shared_ptr<Transcript>& transcript);
 
     void put_translation_data_in_relation_parameters(const BF& evaluation_input_x,
                                                      const BF& batching_challenge_v,

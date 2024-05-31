@@ -491,7 +491,7 @@ template <typename Curve_> class IPA {
                                        // to a bb::fr, not a grumpkin::fr, which is a BaseField element for
                                        // Grumpkin
 
-        // Ensure polynomial length cannot be changed from it's genuine value
+        // Ensure polynomial length cannot be changed from its default specified valued
         poly_length_var.fix_witness();
 
         const uint32_t poly_length = static_cast<uint32_t>(poly_length_var.get_value());

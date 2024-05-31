@@ -6,5 +6,8 @@ barretenberg_module(
     ultra_honk
     stdlib_poseidon2
     protogalaxy
+    goblin
+    translator_vm_recursion
+    eccvm_recursion
     client_ivc
 )

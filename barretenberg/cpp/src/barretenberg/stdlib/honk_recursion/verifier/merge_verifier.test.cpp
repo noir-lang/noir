@@ -1,4 +1,5 @@
 #include "barretenberg/ultra_honk/merge_verifier.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/goblin/mock_circuits.hpp"
 #include "barretenberg/stdlib/honk_recursion/verifier/merge_recursive_verifier.hpp"
@@ -16,10 +17,9 @@ namespace bb::stdlib::recursion::goblin {
  *
  * @tparam Builder
  */
-class RecursiveMergeVerifierTest : public testing::Test {
+template <class RecursiveBuilder> class RecursiveMergeVerifierTest : public testing::Test {
 
     // Types for recursive verifier circuit
-    using RecursiveBuilder = MegaCircuitBuilder;
     using RecursiveMergeVerifier = MergeRecursiveVerifier_<RecursiveBuilder>;
 
     // Define types relevant for inner circuit
@@ -82,23 +82,22 @@ class RecursiveMergeVerifierTest : public testing::Test {
             EXPECT_EQ(recursive_manifest[i], native_manifest[i]);
         }
 
-        // Check 3: Construct and verify a (goblin) ultra honk proof of the Merge recursive verifier circuit
-        {
-            auto instance = std::make_shared<InnerProverInstance>(outer_circuit);
-            MegaProver prover(instance);
-            auto verification_key = std::make_shared<MegaFlavor::VerificationKey>(instance->proving_key);
-            MegaVerifier verifier(verification_key);
-            auto proof = prover.construct_proof();
-            bool verified = verifier.verify_proof(proof);
-
-            EXPECT_TRUE(verified);
-        }
+        // Check the recursive merge verifier circuit
+        CircuitChecker::check(outer_circuit);
     }
 };
 
-TEST_F(RecursiveMergeVerifierTest, SingleRecursiveVerification)
+// Run the recursive verifier tests with Ultra and Mega builders
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/1024): Ultra fails, possibly due to repeated points in
+// batch mul?
+// using Builders = testing::Types<MegaCircuitBuilder, UltraCircuitBuilder>;
+using Builders = testing::Types<MegaCircuitBuilder>;
+
+TYPED_TEST_SUITE(RecursiveMergeVerifierTest, Builders);
+
+TYPED_TEST(RecursiveMergeVerifierTest, SingleRecursiveVerification)
 {
-    RecursiveMergeVerifierTest::test_recursive_merge_verification();
+    TestFixture::test_recursive_merge_verification();
 };
 
 } // namespace bb::stdlib::recursion::goblin
