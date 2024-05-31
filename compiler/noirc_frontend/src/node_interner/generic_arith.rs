@@ -407,7 +407,10 @@ impl ArithConstraint {
         ) {
             // all generics resolved
             Ok((lhs_generics, rhs_generics)) => {
-                match (lhs_expr.evaluate(interner, &lhs_generics), rhs_expr.evaluate(interner, &rhs_generics)) {
+                match (
+                    lhs_expr.evaluate(interner, &lhs_generics),
+                    rhs_expr.evaluate(interner, &rhs_generics),
+                ) {
                     (Ok(lhs_evaluated), Ok(rhs_evaluated)) => {
                         if lhs_evaluated == rhs_evaluated {
                             Ok(())
