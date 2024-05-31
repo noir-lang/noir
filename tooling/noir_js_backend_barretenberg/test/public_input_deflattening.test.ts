@@ -23,20 +23,6 @@ const abi: Abi = {
       visibility: 'public',
     },
   ],
-  param_witnesses: {
-    array_with_returned_element: [
-      {
-        start: 1,
-        end: 11,
-      },
-    ],
-    pub_field: [
-      {
-        start: 11,
-        end: 12,
-      },
-    ],
-  },
   return_type: {
     abi_type: {
       kind: 'tuple',
@@ -54,7 +40,6 @@ const abi: Abi = {
     },
     visibility: 'public',
   },
-  return_witnesses: [2, 13, 13],
   error_types: {},
 };
 
