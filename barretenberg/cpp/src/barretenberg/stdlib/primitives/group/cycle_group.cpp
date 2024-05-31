@@ -83,6 +83,20 @@ cycle_group<Builder>::cycle_group(const AffineElement& _in)
 {}
 
 /**
+ * @brief Construct a cycle_group representation of Group::one.
+ *
+ * @tparam Builder
+ * @param _context
+ * @return cycle_group<Builder>
+ */
+template <typename Builder> cycle_group<Builder> cycle_group<Builder>::one(Builder* _context)
+{
+    field_t x(_context, Group::one.x);
+    field_t y(_context, Group::one.y);
+    return cycle_group<Builder>(x, y, false);
+}
+
+/**
  * @brief Converts an AffineElement into a circuit witness.
  *
  * @details Somewhat expensive as we do an on-curve check and `_is_infinity` is a witness and not a constant.
@@ -540,25 +554,28 @@ cycle_group<Builder>::cycle_scalar::cycle_scalar(const field_t& _lo, const field
     , hi(_hi)
 {}
 
-template <typename Builder> cycle_group<Builder>::cycle_scalar::cycle_scalar(const field_t& _in)
+template <typename Builder> cycle_group<Builder>::cycle_scalar::cycle_scalar(const field_t& in)
 {
-    const uint256_t value(_in.get_value());
+    const uint256_t value(in.get_value());
     const uint256_t lo_v = value.slice(0, LO_BITS);
     const uint256_t hi_v = value.slice(LO_BITS, HI_BITS);
     constexpr uint256_t shift = uint256_t(1) << LO_BITS;
-    if (_in.is_constant()) {
+    if (in.is_constant()) {
         lo = lo_v;
         hi = hi_v;
     } else {
-        lo = witness_t(_in.get_context(), lo_v);
-        hi = witness_t(_in.get_context(), hi_v);
-        (lo + hi * shift).assert_equal(_in);
+        lo = witness_t(in.get_context(), lo_v);
+        hi = witness_t(in.get_context(), hi_v);
+        (lo + hi * shift).assert_equal(in);
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/1022): ensure lo and hi are in bb::fr modulus not
+        // bb::fq modulus otherwise we could have two representations for in
+        validate_scalar_is_in_field();
     }
 }
 
-template <typename Builder> cycle_group<Builder>::cycle_scalar::cycle_scalar(const ScalarField& _in)
+template <typename Builder> cycle_group<Builder>::cycle_scalar::cycle_scalar(const ScalarField& in)
 {
-    const uint256_t value(_in);
+    const uint256_t value(in);
     const uint256_t lo_v = value.slice(0, LO_BITS);
     const uint256_t hi_v = value.slice(LO_BITS, HI_BITS);
     lo = lo_v;
@@ -627,6 +644,37 @@ typename cycle_group<Builder>::cycle_scalar cycle_group<Builder>::cycle_scalar::
     cycle_scalar result{ lo, hi, NUM_BITS, skip_primality_test, true };
     return result;
 }
+/**
+ * @brief Construct a new cycle scalar from a bigfield _value, over the same ScalarField Field. If  _value is a witness,
+ * we add constraints to ensure the conversion is correct by reconstructing a bigfield from the limbs of the
+ * cycle_scalar and checking equality with the initial _value.
+ *
+ * @tparam Builder
+ * @param _value
+ * @todo (https://github.com/AztecProtocol/barretenberg/issues/1016): Optimise this method
+ */
+template <typename Builder> cycle_group<Builder>::cycle_scalar::cycle_scalar(BigScalarField& scalar)
+{
+    auto* ctx = get_context() ? get_context() : scalar.get_context();
+    const uint256_t value((scalar.get_value() % uint512_t(ScalarField::modulus)).lo);
+    const uint256_t value_lo = value.slice(0, LO_BITS);
+    const uint256_t value_hi = value.slice(LO_BITS, HI_BITS);
+    if (scalar.is_constant()) {
+        lo = value_lo;
+        hi = value_hi;
+        // N.B. to be able to call assert equal, these cannot be constants
+    } else {
+        lo = witness_t(ctx, value_lo);
+        hi = witness_t(ctx, value_hi);
+        field_t zero = field_t(0);
+        zero.convert_constant_to_fixed_witness(ctx);
+        BigScalarField lo_big(lo, zero);
+        BigScalarField hi_big(hi, zero);
+        BigScalarField res = lo_big + hi_big * BigScalarField((uint256_t(1) << LO_BITS));
+        scalar.assert_equal(res);
+        validate_scalar_is_in_field();
+    }
+};
 
 template <typename Builder> bool cycle_group<Builder>::cycle_scalar::is_constant() const
 {
@@ -1186,8 +1234,8 @@ typename cycle_group<Builder>::batch_mul_internal_output cycle_group<Builder>::_
  * @return cycle_group<Builder>
  */
 template <typename Builder>
-cycle_group<Builder> cycle_group<Builder>::batch_mul(const std::vector<cycle_scalar>& scalars,
-                                                     const std::vector<cycle_group>& base_points,
+cycle_group<Builder> cycle_group<Builder>::batch_mul(const std::vector<cycle_group>& base_points,
+                                                     const std::vector<cycle_scalar>& scalars,
                                                      const GeneratorContext context)
 {
     ASSERT(scalars.size() == base_points.size());
@@ -1323,10 +1371,21 @@ cycle_group<Builder> cycle_group<Builder>::batch_mul(const std::vector<cycle_sca
 
 template <typename Builder> cycle_group<Builder> cycle_group<Builder>::operator*(const cycle_scalar& scalar) const
 {
-    return batch_mul({ scalar }, { *this });
+    return batch_mul({ *this }, { scalar });
 }
 
 template <typename Builder> cycle_group<Builder>& cycle_group<Builder>::operator*=(const cycle_scalar& scalar)
+{
+    *this = operator*(scalar);
+    return *this;
+}
+
+template <typename Builder> cycle_group<Builder> cycle_group<Builder>::operator*(const BigScalarField& scalar) const
+{
+    return batch_mul({ *this }, { scalar });
+}
+
+template <typename Builder> cycle_group<Builder>& cycle_group<Builder>::operator*=(const BigScalarField& scalar)
 {
     *this = operator*(scalar);
     return *this;

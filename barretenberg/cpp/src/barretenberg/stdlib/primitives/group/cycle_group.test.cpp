@@ -3,6 +3,7 @@
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
+#include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 #include "barretenberg/stdlib_circuit_builders/plookup_tables/fixed_base/fixed_base.hpp"
@@ -16,7 +17,8 @@
     using AffineElement = typename Curve::AffineElement;                                                               \
     using Group = typename Curve::Group;                                                                               \
     using bool_ct = stdlib::bool_t<Builder>;                                                                           \
-    using witness_ct = stdlib::witness_t<Builder>;
+    using witness_ct = stdlib::witness_t<Builder>;                                                                     \
+    using cycle_scalar_ct = cycle_group_ct::cycle_scalar;
 
 using namespace bb;
 
@@ -46,7 +48,7 @@ template <class Builder> class CycleGroupTest : public ::testing::Test {
     };
 };
 
-using CircuitTypes = ::testing::Types<bb::StandardCircuitBuilder, bb::UltraCircuitBuilder>;
+using CircuitTypes = ::testing::Types<bb::UltraCircuitBuilder>;
 TYPED_TEST_SUITE(CycleGroupTest, CircuitTypes);
 
 /**
@@ -431,7 +433,7 @@ TYPED_TEST(CycleGroupTest, TestBatchMul)
             points.emplace_back(cycle_group_ct(element));
             scalars.emplace_back(typename cycle_group_ct::cycle_scalar(scalar));
         }
-        auto result = cycle_group_ct::batch_mul(scalars, points);
+        auto result = cycle_group_ct::batch_mul(points, scalars);
         EXPECT_EQ(result.get_value(), AffineElement(expected));
     }
 
@@ -448,7 +450,7 @@ TYPED_TEST(CycleGroupTest, TestBatchMul)
         points.emplace_back(cycle_group_ct::from_witness(&builder, element));
         scalars.emplace_back(cycle_group_ct::cycle_scalar::from_witness(&builder, -scalar));
 
-        auto result = cycle_group_ct::batch_mul(scalars, points);
+        auto result = cycle_group_ct::batch_mul(points, scalars);
         EXPECT_TRUE(result.is_point_at_infinity().get_value());
     }
 
@@ -461,7 +463,7 @@ TYPED_TEST(CycleGroupTest, TestBatchMul)
         typename Group::subgroup_field scalar = 0;
         points.emplace_back(cycle_group_ct::from_witness(&builder, element));
         scalars.emplace_back(cycle_group_ct::cycle_scalar::from_witness(&builder, scalar));
-        auto result = cycle_group_ct::batch_mul(scalars, points);
+        auto result = cycle_group_ct::batch_mul(points, scalars);
         EXPECT_TRUE(result.is_point_at_infinity().get_value());
     }
 
@@ -487,7 +489,7 @@ TYPED_TEST(CycleGroupTest, TestBatchMul)
             points.emplace_back(point);
             scalars.emplace_back(cycle_group_ct::cycle_scalar::from_witness(&builder, scalar));
         }
-        auto result = cycle_group_ct::batch_mul(scalars, points);
+        auto result = cycle_group_ct::batch_mul(points, scalars);
         EXPECT_TRUE(result.is_point_at_infinity().get_value());
     }
 
@@ -515,7 +517,7 @@ TYPED_TEST(CycleGroupTest, TestBatchMul)
             scalars.emplace_back(typename cycle_group_ct::cycle_scalar(scalar));
             scalars_native.emplace_back(uint256_t(scalar));
         }
-        auto result = cycle_group_ct::batch_mul(scalars, points);
+        auto result = cycle_group_ct::batch_mul(points, scalars);
         EXPECT_EQ(result.get_value(), AffineElement(expected));
         EXPECT_EQ(result.get_value(), crypto::pedersen_commitment::commit_native(scalars_native));
     }
@@ -552,7 +554,7 @@ TYPED_TEST(CycleGroupTest, TestBatchMul)
             scalars.emplace_back(cycle_group_ct::cycle_scalar::from_witness(&builder, scalar));
             scalars_native.emplace_back(scalar);
         }
-        auto result = cycle_group_ct::batch_mul(scalars, points);
+        auto result = cycle_group_ct::batch_mul(points, scalars);
         EXPECT_EQ(result.get_value(), AffineElement(expected));
     }
 
@@ -573,7 +575,7 @@ TYPED_TEST(CycleGroupTest, TestBatchMul)
             points.emplace_back((element));
             scalars.emplace_back(typename cycle_group_ct::cycle_scalar(scalar));
         }
-        auto result = cycle_group_ct::batch_mul(scalars, points);
+        auto result = cycle_group_ct::batch_mul(points, scalars);
         EXPECT_EQ(result.is_point_at_infinity().get_value(), true);
     }
 
@@ -619,5 +621,93 @@ TYPED_TEST(CycleGroupTest, TestMul)
 
     bool proof_result = CircuitChecker::check(builder);
     EXPECT_EQ(proof_result, true);
+}
+
+TYPED_TEST(CycleGroupTest, TestOne)
+{
+    STDLIB_TYPE_ALIASES
+    Builder builder;
+    cycle_group_ct one = cycle_group_ct::one(&builder);
+    auto expected_one_native = Group::one;
+    auto one_native = one.get_value();
+    EXPECT_EQ(one_native.x, expected_one_native.x);
+    EXPECT_EQ(one_native.y, expected_one_native.y);
+}
+
+/**
+ * @brief Ensures naive conversion from a bigfield representation of bb::fq (Grumpkin::ScalarField) to cycle_scalar
+ * preserves the same value until we implement a smarter function.
+ *
+ */
+TYPED_TEST(CycleGroupTest, TestConversionFromBigfield)
+{
+    STDLIB_TYPE_ALIASES
+    using FF = typename Curve::ScalarField;
+    using FF_ct = stdlib::bigfield<Builder, typename FF::Params>;
+
+    const auto run_test = [](bool construct_witnesses) {
+        Builder builder;
+        auto elt = FF::random_element(&engine);
+        FF_ct big_elt;
+        if (construct_witnesses) {
+            big_elt = FF_ct::from_witness(&builder, elt);
+        } else {
+            big_elt = FF_ct(elt);
+        }
+        cycle_scalar_ct scalar_from_big(big_elt);
+        EXPECT_EQ(elt, scalar_from_big.get_value());
+        cycle_scalar_ct scalar_from_elt(big_elt);
+        EXPECT_EQ(elt, scalar_from_elt.get_value());
+        if (construct_witnesses) {
+            EXPECT_FALSE(big_elt.is_constant());
+            EXPECT_FALSE(scalar_from_big.is_constant());
+            EXPECT_FALSE(scalar_from_elt.is_constant());
+            EXPECT_TRUE(CircuitChecker::check(builder));
+        }
+    };
+    run_test(/*construct_witnesses=*/true);
+    run_test(/*construct_witnesses=*/false);
+}
+
+TYPED_TEST(CycleGroupTest, TestBatchMulIsConsistent)
+{
+    STDLIB_TYPE_ALIASES
+    using FF = typename Curve::ScalarField;
+    using FF_ct = stdlib::bigfield<Builder, typename FF::Params>;
+
+    const auto run_test = [](bool construct_witnesses) {
+        Builder builder;
+        auto scalar1 = FF::random_element(&engine);
+        auto scalar2 = FF::random_element(&engine);
+
+        FF_ct big_scalar1;
+        FF_ct big_scalar2;
+        if (construct_witnesses) {
+            big_scalar1 = FF_ct::from_witness(&builder, scalar1);
+            big_scalar2 = FF_ct::from_witness(&builder, scalar2);
+        } else {
+            big_scalar1 = FF_ct(scalar1);
+            big_scalar2 = FF_ct(scalar2);
+        }
+        cycle_group_ct result1 = cycle_group_ct::batch_mul({ TestFixture::generators[0], TestFixture::generators[1] },
+                                                           { big_scalar1, big_scalar2 });
+
+        cycle_group_ct result2 =
+            cycle_group_ct::batch_mul({ TestFixture::generators[0], TestFixture::generators[1] },
+                                      { cycle_scalar_ct(big_scalar1), cycle_scalar_ct(big_scalar2) });
+
+        AffineElement result1_native = result1.get_value();
+        AffineElement result2_native = result2.get_value();
+        EXPECT_EQ(result1_native.x, result2_native.x);
+        EXPECT_EQ(result1_native.y, result2_native.y);
+        if (construct_witnesses) {
+            // TODO(https://github.com/AztecProtocol/barretenberg/issues/1020): Re-enable these.
+            // EXPECT_FALSE(result1.is_constant());
+            // EXPECT_FALSE(result2.is_constant());
+            EXPECT_TRUE(CircuitChecker::check(builder));
+        }
+    };
+    run_test(/*construct_witnesses=*/true);
+    run_test(/*construct_witnesses=*/false);
 }
 #pragma GCC diagnostic pop

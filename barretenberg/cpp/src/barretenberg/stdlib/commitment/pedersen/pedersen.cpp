@@ -22,7 +22,7 @@ cycle_group<C> pedersen_commitment<C>::commit(const std::vector<field_t>& inputs
         points.emplace_back(base_points[i]);
     }
 
-    return cycle_group::batch_mul(scalars, points);
+    return cycle_group::batch_mul(points, scalars);
 }
 
 template <typename C>
@@ -37,7 +37,7 @@ cycle_group<C> pedersen_commitment<C>::commit(const std::vector<std::pair<field_
         points.emplace_back(context.generators->get(1, context.offset, context.domain_separator)[0]);
     }
 
-    return cycle_group::batch_mul(scalars, points);
+    return cycle_group::batch_mul(points, scalars);
 }
 
 template class pedersen_commitment<bb::StandardCircuitBuilder>;

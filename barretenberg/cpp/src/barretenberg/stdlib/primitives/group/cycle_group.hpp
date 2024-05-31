@@ -2,6 +2,7 @@
 
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
+#include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
@@ -36,6 +37,7 @@ template <typename Builder> class cycle_group {
     using AffineElement = typename Curve::AffineElement;
     using GeneratorContext = crypto::GeneratorContext<Curve>;
     using ScalarField = typename Curve::ScalarField;
+    using BigScalarField = stdlib::bigfield<Builder, typename ScalarField::Params>;
 
     static constexpr size_t STANDARD_NUM_TABLE_BITS = 1;
     static constexpr size_t ULTRA_NUM_TABLE_BITS = 4;
@@ -103,6 +105,8 @@ template <typename Builder> class cycle_group {
             return _use_bn254_scalar_field_for_primality_test;
         }
         void validate_scalar_is_in_field() const;
+
+        explicit cycle_scalar(BigScalarField&);
     };
 
     /**
@@ -171,6 +175,7 @@ template <typename Builder> class cycle_group {
     cycle_group(field_t _x, field_t _y, bool_t _is_infinity);
     cycle_group(const FF& _x, const FF& _y, bool _is_infinity);
     cycle_group(const AffineElement& _in);
+    static cycle_group one(Builder* _context);
     static cycle_group from_witness(Builder* _context, const AffineElement& _in);
     static cycle_group from_constant_witness(Builder* _context, const AffineElement& _in);
     Builder* get_context(const cycle_group& other) const;
@@ -196,11 +201,23 @@ template <typename Builder> class cycle_group {
     cycle_group operator-() const;
     cycle_group& operator+=(const cycle_group& other);
     cycle_group& operator-=(const cycle_group& other);
-    static cycle_group batch_mul(const std::vector<cycle_scalar>& scalars,
-                                 const std::vector<cycle_group>& base_points,
+    static cycle_group batch_mul(const std::vector<cycle_group>& base_points,
+                                 const std::vector<BigScalarField>& scalars,
+                                 GeneratorContext context = {})
+    {
+        std::vector<cycle_scalar> cycle_scalars;
+        for (auto scalar : scalars) {
+            cycle_scalars.emplace_back(scalar);
+        }
+        return batch_mul(base_points, cycle_scalars, context);
+    }
+    static cycle_group batch_mul(const std::vector<cycle_group>& base_points,
+                                 const std::vector<cycle_scalar>& scalars,
                                  GeneratorContext context = {});
     cycle_group operator*(const cycle_scalar& scalar) const;
     cycle_group& operator*=(const cycle_scalar& scalar);
+    cycle_group operator*(const BigScalarField& scalar) const;
+    cycle_group& operator*=(const BigScalarField& scalar);
     bool_t operator==(const cycle_group& other) const;
     void assert_equal(const cycle_group& other, std::string const& msg = "cycle_group::assert_equal") const;
     static cycle_group conditional_assign(const bool_t& predicate, const cycle_group& lhs, const cycle_group& rhs);

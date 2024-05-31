@@ -58,26 +58,10 @@
             "ms-vscode.cpptools"
         ]
     },
-    "launch": {
-        // Configure LLDB
-        "configurations": [
-            {
-                "name": "(lldb) Launch Target",
-                "type": "lldb",
-                "request": "launch",
-                "program": "${command:cmake.launchTargetPath}",
-                "args": [],
-                "cwd": "${workspaceFolder}/cpp/build",
-                "internalConsoleOptions": "openOnSessionStart",
-                "console": "internalConsole",
-            }
-        ],
-    },
     // Global settings which will apply to all subprojects.
     // Each subproject may have their own `.vscode/settings.json`
     // for configuring extensions which are specific to a certain project.
     // Some settings can only be configured here.
-    // The following are just provided as example.
     "settings": {
         "files.associations": {
             "*.tcc": "cpp",
@@ -96,7 +80,6 @@
         //
         // Location of base CMakeLists file
         "cmake.sourceDirectory": "${workspaceFolder}/cpp/",
-        "cmake.buildDirectory": "${workspaceFolder}/cpp/build",
         //
         // C/C++ (should be disabled)
         //
@@ -116,9 +99,9 @@
         //
         // Ensures tests are run from the `build` directory
         // which ensures SRS can be read
-        "testMate.cpp.test.workingDirectory": "${workspaceFolder}/cpp/build",
+        "testMate.cpp.test.workingDirectory": "${command:cmake.buildDirectory}",
         // Filter all binaries that are not tests or benchmarks
-        "testMate.cpp.test.executables": "${workspaceFolder}/cpp/{build}/bin/*{test,Test,TEST,bench}*",
+        "testMate.cpp.test.executables": "${command:cmake.buildDirectory}/bin/*{test,Test,TEST,bench}*",
         //
         // Other
         //
@@ -144,21 +127,24 @@
                 }
             ]
         },
-        //
-        // GTest adapter (not currently used)
-        //
-        "gtest-adapter.debugConfig": [
-            "(lldb) Launch Target"
-        ],
         "[cpp]": {
             "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
         },
         "cmake.configureArgs": [
-            "--preset clang16",
             "-G Ninja"
         ],
-        "cmake.useCMakePresets": "auto",
+        "cmake.useCMakePresets": "always",
         "editor.inlayHints.enabled": "offUnlessPressed",
-        "git.detectSubmodules": false
+        "git.detectSubmodules": false,
+        "testMate.cpp.discovery.loadOnStartup": false,
+        "testMate.cpp.debug.configTemplate": {
+            "type": "lldb",
+            "MIMode": "lldb",
+            "program": "${exec}",
+            "args": "${argsArray}",
+            "cwd": "${command:cmake.buildDirectory}",
+            "internalConsoleOptions": "openOnSessionStart",
+            "console": "internalConsole",
+        }    
     },
 }
