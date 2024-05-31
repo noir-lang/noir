@@ -516,7 +516,7 @@ impl std::ops::Index<BasicBlockId> for FunctionBuilder {
 mod tests {
     use std::rc::Rc;
 
-    use acvm::FieldElement;
+    use acvm::{acir::AcirField, FieldElement};
 
     use crate::ssa::ir::{
         instruction::{Endian, Intrinsic},

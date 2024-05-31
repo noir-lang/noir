@@ -27,7 +27,19 @@ impl<'context> Elaborator<'context> {
         expected_type: Type,
         definition_kind: DefinitionKind,
     ) -> HirPattern {
-        self.elaborate_pattern_mut(pattern, expected_type, definition_kind, None)
+        self.elaborate_pattern_mut(pattern, expected_type, definition_kind, None, &mut Vec::new())
+    }
+
+    /// Equivalent to `elaborate_pattern`, this version just also
+    /// adds any new DefinitionIds that were created to the given Vec.
+    pub(super) fn elaborate_pattern_and_store_ids(
+        &mut self,
+        pattern: Pattern,
+        expected_type: Type,
+        definition_kind: DefinitionKind,
+        created_ids: &mut Vec<HirIdent>,
+    ) -> HirPattern {
+        self.elaborate_pattern_mut(pattern, expected_type, definition_kind, None, created_ids)
     }
 
     fn elaborate_pattern_mut(
@@ -36,6 +48,7 @@ impl<'context> Elaborator<'context> {
         expected_type: Type,
         definition: DefinitionKind,
         mutable: Option<Span>,
+        new_definitions: &mut Vec<HirIdent>,
     ) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
@@ -47,6 +60,7 @@ impl<'context> Elaborator<'context> {
                 };
                 let ident = self.add_variable_decl(name, mutable.is_some(), true, definition);
                 self.interner.push_definition_type(ident.id, expected_type);
+                new_definitions.push(ident.clone());
                 HirPattern::Identifier(ident)
             }
             Pattern::Mutable(pattern, span, _) => {
@@ -54,13 +68,18 @@ impl<'context> Elaborator<'context> {
                     self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span });
                 }
 
-                let pattern =
-                    self.elaborate_pattern_mut(*pattern, expected_type, definition, Some(span));
+                let pattern = self.elaborate_pattern_mut(
+                    *pattern,
+                    expected_type,
+                    definition,
+                    Some(span),
+                    new_definitions,
+                );
                 let location = Location::new(span, self.file);
                 HirPattern::Mutable(Box::new(pattern), location)
             }
             Pattern::Tuple(fields, span) => {
-                let field_types = match expected_type {
+                let field_types = match expected_type.follow_bindings() {
                     Type::Tuple(fields) => fields,
                     Type::Error => Vec::new(),
                     expected_type => {
@@ -79,7 +98,13 @@ impl<'context> Elaborator<'context> {
 
                 let fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
                     let field_type = field_types.get(i).cloned().unwrap_or(Type::Error);
-                    self.elaborate_pattern_mut(field, field_type, definition.clone(), mutable)
+                    self.elaborate_pattern_mut(
+                        field,
+                        field_type,
+                        definition.clone(),
+                        mutable,
+                        new_definitions,
+                    )
                 });
                 let location = Location::new(span, self.file);
                 HirPattern::Tuple(fields, location)
@@ -91,10 +116,12 @@ impl<'context> Elaborator<'context> {
                 expected_type,
                 definition,
                 mutable,
+                new_definitions,
             ),
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn elaborate_struct_pattern(
         &mut self,
         name: Path,
@@ -103,6 +130,7 @@ impl<'context> Elaborator<'context> {
         expected_type: Type,
         definition: DefinitionKind,
         mutable: Option<Span>,
+        new_definitions: &mut Vec<HirIdent>,
     ) -> HirPattern {
         let error_identifier = |this: &mut Self| {
             // Must create a name here to return a HirPattern::Identifier. Allowing
@@ -140,6 +168,7 @@ impl<'context> Elaborator<'context> {
             expected_type.clone(),
             definition,
             mutable,
+            new_definitions,
         );
 
         HirPattern::Struct(expected_type, fields, location)
@@ -148,6 +177,7 @@ impl<'context> Elaborator<'context> {
     /// Resolve all the fields of a struct constructor expression.
     /// Ensures all fields are present, none are repeated, and all
     /// are part of the struct.
+    #[allow(clippy::too_many_arguments)]
     fn resolve_constructor_pattern_fields(
         &mut self,
         struct_type: Shared<StructType>,
@@ -156,6 +186,7 @@ impl<'context> Elaborator<'context> {
         expected_type: Type,
         definition: DefinitionKind,
         mutable: Option<Span>,
+        new_definitions: &mut Vec<HirIdent>,
     ) -> Vec<(Ident, HirPattern)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::default();
@@ -163,8 +194,13 @@ impl<'context> Elaborator<'context> {
 
         for (field, pattern) in fields {
             let field_type = expected_type.get_field_type(&field.0.contents).unwrap_or(Type::Error);
-            let resolved =
-                self.elaborate_pattern_mut(pattern, field_type, definition.clone(), mutable);
+            let resolved = self.elaborate_pattern_mut(
+                pattern,
+                field_type,
+                definition.clone(),
+                mutable,
+                new_definitions,
+            );
 
             if unseen_fields.contains(&field) {
                 unseen_fields.remove(&field);
@@ -237,6 +273,18 @@ impl<'context> Elaborator<'context> {
         }
 
         ident
+    }
+
+    pub fn add_existing_variable_to_scope(&mut self, name: String, ident: HirIdent) {
+        let second_span = ident.location.span;
+        let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
+
+        let old_value = self.scopes.get_mut_scope().add_key_value(name.clone(), resolver_meta);
+
+        if let Some(old_value) = old_value {
+            let first_span = old_value.ident.location.span;
+            self.push_err(ResolverError::DuplicateDefinition { name, first_span, second_span });
+        }
     }
 
     pub fn add_global_variable_decl(

@@ -49,7 +49,7 @@ pub struct TypeChecker<'interner> {
 pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<TypeCheckError> {
     let meta = interner.function_meta(&func_id);
     let declared_return_type = meta.return_type().clone();
-    let can_ignore_ret = meta.can_ignore_return_type();
+    let can_ignore_ret = meta.is_stub();
 
     let function_body_id = &interner.function(&func_id).as_expr();
 
@@ -237,7 +237,13 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 
     let impl_ =
         meta.trait_impl.expect("Trait impl function should have a corresponding trait impl");
-    let impl_ = interner.get_trait_implementation(impl_);
+
+    // If the trait implementation is not defined in the interner then there was a previous
+    // error in resolving the trait path and there is likely no trait for this impl.
+    let Some(impl_) = interner.try_get_trait_implementation(impl_) else {
+        return errors;
+    };
+
     let impl_ = impl_.borrow();
     let trait_info = interner.get_trait(impl_.trait_id);
 
@@ -549,7 +555,10 @@ pub mod test {
             trait_constraints: Vec::new(),
             direct_generics: Vec::new(),
             is_entry_point: true,
+            is_trait_function: false,
             has_inline_attribute: false,
+            all_generics: Vec::new(),
+            parameter_idents: Vec::new(),
         };
         interner.push_fn_meta(func_meta, func_id);
 

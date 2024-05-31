@@ -6,6 +6,7 @@ use acvm::{
         ResolvedOpcodeLocation,
     },
     pwg::{ErrorLocation, OpcodeResolutionError},
+    FieldElement,
 };
 use noirc_abi::{display_abi_error, Abi, AbiErrorType};
 use noirc_errors::{
@@ -95,10 +96,10 @@ impl NargoError {
 #[derive(Debug, Error)]
 pub enum ExecutionError {
     #[error("Failed assertion")]
-    AssertionFailed(ResolvedAssertionPayload, Vec<ResolvedOpcodeLocation>),
+    AssertionFailed(ResolvedAssertionPayload<FieldElement>, Vec<ResolvedOpcodeLocation>),
 
     #[error("Failed to solve program: '{}'", .0)]
-    SolvingError(OpcodeResolutionError, Option<Vec<ResolvedOpcodeLocation>>),
+    SolvingError(OpcodeResolutionError<FieldElement>, Option<Vec<ResolvedOpcodeLocation>>),
 }
 
 /// Extracts the opcode locations from a nargo error.

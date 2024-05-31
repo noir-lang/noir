@@ -26,6 +26,7 @@ use crate::{
     token::IntType,
     BinaryTypeOperator,
 };
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
@@ -91,7 +92,7 @@ pub enum UnresolvedTypeData {
     Integer(Signedness, IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
     Expression(UnresolvedTypeExpression),
-    String(Option<UnresolvedTypeExpression>),
+    String(UnresolvedTypeExpression),
     FormatString(UnresolvedTypeExpression, Box<UnresolvedType>),
     Unit,
 
@@ -190,10 +191,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             }
             Expression(expression) => expression.fmt(f),
             Bool => write!(f, "bool"),
-            String(len) => match len {
-                None => write!(f, "str<_>"),
-                Some(len) => write!(f, "str<{len}>"),
-            },
+            String(len) => write!(f, "str<{len}>"),
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
             Function(args, ret, env) => {
                 let args = vecmap(args, ToString::to_string).join(", ");

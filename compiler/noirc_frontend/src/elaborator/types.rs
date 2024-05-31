@@ -1,18 +1,18 @@
 use std::rc::Rc;
 
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{
-        BinaryOpKind, IntegerBitSize, NoirTypeAlias, UnresolvedGenerics, UnresolvedTraitConstraint,
+        BinaryOpKind, IntegerBitSize, UnresolvedGenerics, UnresolvedTraitConstraint,
         UnresolvedTypeExpression,
     },
     hir::{
         def_map::ModuleDefId,
         resolution::{
             errors::ResolverError,
-            import::PathResolution,
             resolver::{verify_mutable_reference, SELF_TYPE_NAME},
         },
         type_check::{Source, TypeCheckError},
@@ -23,17 +23,14 @@ use crate::{
             HirPrefixExpression,
         },
         function::FuncMeta,
-        traits::{Trait, TraitConstraint},
+        traits::TraitConstraint,
     },
     macros_api::{
         HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
         UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
-    node_interner::{
-        DefinitionKind, DependencyId, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId,
-        TypeAliasId,
-    },
-    Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable, TypeVariableKind,
+    node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
+    Generics, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
 use super::Elaborator;
@@ -42,59 +39,52 @@ impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type
     pub(super) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         let span = typ.span;
-        let resolved_type = self.resolve_type_inner(typ, &mut vec![]);
+        let resolved_type = self.resolve_type_inner(typ);
         if resolved_type.is_nested_slice() {
             self.push_err(ResolverError::NestedSlices { span: span.unwrap() });
         }
-
         resolved_type
     }
 
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
-    pub fn resolve_type_inner(
-        &mut self,
-        typ: UnresolvedType,
-        new_variables: &mut Generics,
-    ) -> Type {
+    pub fn resolve_type_inner(&mut self, typ: UnresolvedType) -> Type {
         use crate::ast::UnresolvedTypeData::*;
 
         let resolved_type = match typ.typ {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
-                let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
-                let size = self.resolve_array_size(Some(size), new_variables);
+                let elem = Box::new(self.resolve_type_inner(*elem));
+                let size = self.convert_expression_type(size);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
-                let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
+                let elem = Box::new(self.resolve_type_inner(*elem));
                 Type::Slice(elem)
             }
             Expression(expr) => self.convert_expression_type(expr),
             Integer(sign, bits) => Type::Integer(sign, bits),
             Bool => Type::Bool,
             String(size) => {
-                let resolved_size = self.resolve_array_size(size, new_variables);
+                let resolved_size = self.convert_expression_type(size);
                 Type::String(Box::new(resolved_size))
             }
             FormatString(size, fields) => {
                 let resolved_size = self.convert_expression_type(size);
-                let fields = self.resolve_type_inner(*fields, new_variables);
+                let fields = self.resolve_type_inner(*fields);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
             Code => Type::Code,
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,
-            Named(path, args, _) => self.resolve_named_type(path, args, new_variables),
-            TraitAsType(path, args) => self.resolve_trait_as_type(path, args, new_variables),
+            Named(path, args, _) => self.resolve_named_type(path, args),
+            TraitAsType(path, args) => self.resolve_trait_as_type(path, args),
 
-            Tuple(fields) => {
-                Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
-            }
+            Tuple(fields) => Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field))),
             Function(args, ret, env) => {
-                let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
-                let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
+                let args = vecmap(args, |arg| self.resolve_type_inner(arg));
+                let ret = Box::new(self.resolve_type_inner(*ret));
 
                 // expect() here is valid, because the only places we don't have a span are omitted types
                 // e.g. a function without return type implicitly has a spanless UnresolvedType::Unit return type
@@ -102,7 +92,7 @@ impl<'context> Elaborator<'context> {
                 let env_span =
                     env.span.expect("Unexpected missing span for closure environment type");
 
-                let env = Box::new(self.resolve_type_inner(*env, new_variables));
+                let env = Box::new(self.resolve_type_inner(*env));
 
                 match *env {
                     Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
@@ -118,9 +108,9 @@ impl<'context> Elaborator<'context> {
                 }
             }
             MutableReference(element) => {
-                Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
+                Type::MutableReference(Box::new(self.resolve_type_inner(*element)))
             }
-            Parenthesized(typ) => self.resolve_type_inner(*typ, new_variables),
+            Parenthesized(typ) => self.resolve_type_inner(*typ),
         };
 
         if let Type::Struct(_, _) = resolved_type {
@@ -139,12 +129,7 @@ impl<'context> Elaborator<'context> {
         self.generics.iter().find(|(name, _, _)| name.as_ref() == target_name)
     }
 
-    fn resolve_named_type(
-        &mut self,
-        path: Path,
-        args: Vec<UnresolvedType>,
-        new_variables: &mut Generics,
-    ) -> Type {
+    fn resolve_named_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
         if args.is_empty() {
             if let Some(typ) = self.lookup_generic_or_global_type(&path) {
                 return typ;
@@ -167,7 +152,7 @@ impl<'context> Elaborator<'context> {
         }
 
         let span = path.span();
-        let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+        let mut args = vecmap(args, |arg| self.resolve_type_inner(arg));
 
         if let Some(type_alias) = self.lookup_type_alias(path.clone()) {
             let type_alias = type_alias.borrow();
@@ -233,13 +218,8 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn resolve_trait_as_type(
-        &mut self,
-        path: Path,
-        args: Vec<UnresolvedType>,
-        new_variables: &mut Generics,
-    ) -> Type {
-        let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+    fn resolve_trait_as_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
+        let args = vecmap(args, |arg| self.resolve_type_inner(arg));
 
         if let Some(t) = self.lookup_trait_or_error(path) {
             Type::TraitAsType(t.id, Rc::new(t.name.to_string()), args)
@@ -286,26 +266,6 @@ impl<'context> Elaborator<'context> {
                 Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
             _ => None,
-        }
-    }
-
-    fn resolve_array_size(
-        &mut self,
-        length: Option<UnresolvedTypeExpression>,
-        new_variables: &mut Generics,
-    ) -> Type {
-        match length {
-            None => {
-                let id = self.interner.next_type_variable_id();
-                let typevar = TypeVariable::unbound(id);
-                new_variables.push(typevar.clone());
-
-                // 'Named'Generic is a bit of a misnomer here, we want a type variable that
-                // wont be bound over but this one has no name since we do not currently
-                // require users to explicitly be generic over array lengths.
-                Type::NamedGeneric(typevar, Rc::new("".into()))
-            }
-            Some(length) => self.convert_expression_type(length),
         }
     }
 
@@ -625,7 +585,7 @@ impl<'context> Elaborator<'context> {
     pub(super) fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {
         match &typ.typ {
             UnresolvedTypeData::Unspecified => self.interner.next_type_variable(),
-            _ => self.resolve_type_inner(typ, &mut vec![]),
+            _ => self.resolve_type(typ),
         }
     }
 
@@ -635,7 +595,7 @@ impl<'context> Elaborator<'context> {
         rhs_type: &Type,
         span: Span,
     ) -> Type {
-        let mut unify = |this: &mut Self, expected| {
+        let unify = |this: &mut Self, expected| {
             this.unify(rhs_type, &expected, || TypeCheckError::TypeMismatch {
                 expr_typ: rhs_type.to_string(),
                 expected_typ: expected.to_string(),

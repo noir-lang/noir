@@ -17,6 +17,5 @@ acir_field.workspace = true
 serde.workspace = true
 
 [features]
-default = ["bn254"]
 bn254 = ["acir_field/bn254"]
 bls12_381 = ["acir_field/bls12_381"]

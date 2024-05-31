@@ -5,7 +5,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acvm::acir::native_types::{WitnessMap, WitnessStack};
+use acir::FieldElement;
+use acvm::acir::{
+    native_types::{WitnessMap, WitnessStack},
+    AcirField,
+};
 
 use crate::errors::{CliError, FilesystemError};
 
@@ -31,7 +35,9 @@ fn write_to_file(bytes: &[u8], path: &Path) -> String {
 }
 
 /// Creates a toml representation of the provided witness map
-pub(crate) fn create_output_witness_string(witnesses: &WitnessMap) -> Result<String, CliError> {
+pub(crate) fn create_output_witness_string(
+    witnesses: &WitnessMap<FieldElement>,
+) -> Result<String, CliError> {
     let mut witness_map: BTreeMap<String, String> = BTreeMap::new();
     for (key, value) in witnesses.clone().into_iter() {
         witness_map.insert(key.0.to_string(), format!("0x{}", value.to_hex()));
@@ -41,7 +47,7 @@ pub(crate) fn create_output_witness_string(witnesses: &WitnessMap) -> Result<Str
 }
 
 pub(crate) fn save_witness_to_dir<P: AsRef<Path>>(
-    witnesses: WitnessStack,
+    witnesses: WitnessStack<FieldElement>,
     witness_name: &str,
     witness_dir: P,
 ) -> Result<PathBuf, FilesystemError> {

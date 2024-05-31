@@ -18,7 +18,7 @@ pub use poseidon2::poseidon2_permutation;
 #[derive(Default)]
 pub struct Bn254BlackBoxSolver;
 
-impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
+impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
     fn schnorr_verify(
         &self,
         public_key_x: &FieldElement,

@@ -17,6 +17,7 @@ use acvm::acir::{
     BlackBoxFunc,
 };
 use acvm::{
+    acir::AcirField,
     acir::{circuit::directives::Directive, native_types::Expression},
     FieldElement,
 };
@@ -41,12 +42,9 @@ pub(crate) struct GeneratedAcir {
     current_witness_index: Option<u32>,
 
     /// The opcodes of which the compiled ACIR will comprise.
-    opcodes: Vec<AcirOpcode>,
+    opcodes: Vec<AcirOpcode<FieldElement>>,
 
     /// All witness indices that comprise the final return value of the program
-    ///
-    /// Note: This may contain repeated indices, which is necessary for later mapping into the
-    /// abi's return type.
     pub(crate) return_witnesses: Vec<Witness>,
 
     /// All witness indices which are inputs to the main function
@@ -60,7 +58,7 @@ pub(crate) struct GeneratedAcir {
     pub(crate) call_stack: CallStack,
 
     /// Correspondence between an opcode index and the error message associated with it.
-    pub(crate) assertion_payloads: BTreeMap<OpcodeLocation, AssertionPayload>,
+    pub(crate) assertion_payloads: BTreeMap<OpcodeLocation, AssertionPayload<FieldElement>>,
 
     pub(crate) warnings: Vec<SsaReport>,
 
@@ -99,18 +97,18 @@ impl GeneratedAcir {
     }
 
     /// Adds a new opcode into ACIR.
-    pub(crate) fn push_opcode(&mut self, opcode: AcirOpcode) {
+    pub(crate) fn push_opcode(&mut self, opcode: AcirOpcode<FieldElement>) {
         self.opcodes.push(opcode);
         if !self.call_stack.is_empty() {
             self.locations.insert(self.last_acir_opcode_location(), self.call_stack.clone());
         }
     }
 
-    pub(crate) fn opcodes(&self) -> &[AcirOpcode] {
+    pub(crate) fn opcodes(&self) -> &[AcirOpcode<FieldElement>] {
         &self.opcodes
     }
 
-    pub(crate) fn take_opcodes(&mut self) -> Vec<AcirOpcode> {
+    pub(crate) fn take_opcodes(&mut self) -> Vec<AcirOpcode<FieldElement>> {
         std::mem::take(&mut self.opcodes)
     }
 
@@ -129,7 +127,7 @@ impl GeneratedAcir {
     ///
     /// If `expr` can be represented as a `Witness` then this function will return it,
     /// else a new opcode will be added to create a `Witness` that is equal to `expr`.
-    pub(crate) fn get_or_create_witness(&mut self, expr: &Expression) -> Witness {
+    pub(crate) fn get_or_create_witness(&mut self, expr: &Expression<FieldElement>) -> Witness {
         match expr.to_witness() {
             Some(witness) => witness,
             None => self.create_witness_for_expression(expr),
@@ -142,7 +140,10 @@ impl GeneratedAcir {
     /// This means you cannot multiply an infinite amount of `Expression`s together.
     /// Once the `Expression` goes over degree-2, then it needs to be reduced to a `Witness`
     /// which has degree-1 in order to be able to continue the multiplication chain.
-    pub(crate) fn create_witness_for_expression(&mut self, expression: &Expression) -> Witness {
+    pub(crate) fn create_witness_for_expression(
+        &mut self,
+        expression: &Expression<FieldElement>,
+    ) -> Witness {
         let fresh_witness = self.next_witness_index();
 
         // Create a constraint that sets them to be equal to each other
@@ -159,11 +160,6 @@ impl GeneratedAcir {
         self.assert_is_zero(constraint);
 
         fresh_witness
-    }
-
-    /// Adds a witness index to the program's return witnesses.
-    pub(crate) fn push_return_witness(&mut self, witness: Witness) {
-        self.return_witnesses.push(witness);
     }
 }
 
@@ -392,7 +388,7 @@ impl GeneratedAcir {
     /// Only radix that are a power of two are supported
     pub(crate) fn radix_le_decompose(
         &mut self,
-        input_expr: &Expression,
+        input_expr: &Expression<FieldElement>,
         radix: u32,
         limb_count: u32,
         bit_size: u32,
@@ -438,7 +434,7 @@ impl GeneratedAcir {
     ///
     /// Safety: It is the callers responsibility to ensure that the
     /// resulting `Witness` is constrained to be the inverse.
-    pub(crate) fn brillig_inverse(&mut self, expr: Expression) -> Witness {
+    pub(crate) fn brillig_inverse(&mut self, expr: Expression<FieldElement>) -> Witness {
         // Create the witness for the result
         let inverted_witness = self.next_witness_index();
 
@@ -462,14 +458,18 @@ impl GeneratedAcir {
     ///
     /// If `expr` is not zero, then the constraint system will
     /// fail upon verification.
-    pub(crate) fn assert_is_zero(&mut self, expr: Expression) {
+    pub(crate) fn assert_is_zero(&mut self, expr: Expression<FieldElement>) {
         self.push_opcode(AcirOpcode::AssertZero(expr));
     }
 
     /// Returns a `Witness` that is constrained to be:
     /// - `1` if `lhs == rhs`
     /// - `0` otherwise
-    pub(crate) fn is_equal(&mut self, lhs: &Expression, rhs: &Expression) -> Witness {
+    pub(crate) fn is_equal(
+        &mut self,
+        lhs: &Expression<FieldElement>,
+        rhs: &Expression<FieldElement>,
+    ) -> Witness {
         let t = lhs - rhs;
 
         self.is_zero(&t)
@@ -527,7 +527,7 @@ impl GeneratedAcir {
     /// By setting `z` to be `0`, we can make `y` equal to `1`.
     /// This is easily observed: `y = 1 - t * 0`
     /// Now since `y` is one, this means that `t` needs to be zero, or else `y * t == 0` will fail.
-    fn is_zero(&mut self, t_expr: &Expression) -> Witness {
+    fn is_zero(&mut self, t_expr: &Expression<FieldElement>) -> Witness {
         // We're checking for equality with zero so we can negate the expression without changing the result.
         // This is useful as it will sometimes allow us to simplify an expression down to a witness.
         let t_witness = if let Some(witness) = t_expr.to_witness() {
@@ -588,9 +588,9 @@ impl GeneratedAcir {
 
     pub(crate) fn brillig_call(
         &mut self,
-        predicate: Option<Expression>,
+        predicate: Option<Expression<FieldElement>>,
         generated_brillig: &GeneratedBrillig,
-        inputs: Vec<BrilligInputs>,
+        inputs: Vec<BrilligInputs<FieldElement>>,
         outputs: Vec<BrilligOutputs>,
         brillig_function_index: u32,
         stdlib_func: Option<BrilligStdlibFunc>,

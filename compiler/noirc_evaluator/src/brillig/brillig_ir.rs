@@ -27,7 +27,10 @@ pub(crate) use instructions::BrilligBinaryOp;
 
 use self::{artifact::BrilligArtifact, registers::BrilligRegistersContext};
 use crate::ssa::ir::dfg::CallStack;
-use acvm::acir::brillig::{MemoryAddress, Opcode as BrilligOpcode};
+use acvm::{
+    acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
+    FieldElement,
+};
 use debug_show::DebugShow;
 
 /// The Brillig VM does not apply a limit to the memory address space,
@@ -110,7 +113,7 @@ impl BrilligContext {
         result
     }
     /// Adds a brillig instruction to the brillig byte code
-    fn push_opcode(&mut self, opcode: BrilligOpcode) {
+    fn push_opcode(&mut self, opcode: BrilligOpcode<FieldElement>) {
         self.obj.push_opcode(opcode);
     }
 
@@ -143,7 +146,7 @@ pub(crate) mod tests {
 
     pub(crate) struct DummyBlackBoxSolver;
 
-    impl BlackBoxFunctionSolver for DummyBlackBoxSolver {
+    impl BlackBoxFunctionSolver<FieldElement> for DummyBlackBoxSolver {
         fn schnorr_verify(
             &self,
             _public_key_x: &FieldElement,
@@ -217,8 +220,8 @@ pub(crate) mod tests {
 
     pub(crate) fn create_and_run_vm(
         calldata: Vec<FieldElement>,
-        bytecode: &[BrilligOpcode],
-    ) -> (VM<'_, DummyBlackBoxSolver>, usize, usize) {
+        bytecode: &[BrilligOpcode<FieldElement>],
+    ) -> (VM<'_, FieldElement, DummyBlackBoxSolver>, usize, usize) {
         let mut vm = VM::new(calldata, bytecode, vec![], &DummyBlackBoxSolver);
 
         let status = vm.process_opcodes();
@@ -277,7 +280,7 @@ pub(crate) mod tests {
 
         context.stop_instruction();
 
-        let bytecode: Vec<BrilligOpcode> = context.artifact().finish().byte_code;
+        let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
         let number_sequence: Vec<FieldElement> =
             (0_usize..12_usize).map(FieldElement::from).collect();
         let mut vm = VM::new(
