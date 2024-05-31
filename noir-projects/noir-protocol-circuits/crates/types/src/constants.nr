@@ -43,9 +43,13 @@ global MAX_NEW_NOTE_HASHES_PER_TX: u64 = 64;
 global MAX_NEW_NULLIFIERS_PER_TX: u64 = 64;
 global MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX: u64 = 8;
 global MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX: u64 = 32;
+// If you touch any of the constants below don't forget to update MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX.
 global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: u64 = 31;
 global PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: u64 = 1;
-global MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: u64 = 32; // MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX + PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+// We cannot do constant propagation below and instead we have to hardcode the value because the generated code in TS
+// would then result in the type of the constant be a number and not a literal type. This would mess up the types.
+// Pain.
+global MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: u64 = 32; // MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX + PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX;
 global MAX_PUBLIC_DATA_READS_PER_TX: u64 = 32;
 global MAX_NEW_L2_TO_L1_MSGS_PER_TX: u64 = 2;
 global MAX_NOTE_HASH_READ_REQUESTS_PER_TX: u64 = 128;
