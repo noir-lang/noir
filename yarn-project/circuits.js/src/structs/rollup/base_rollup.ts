@@ -1,3 +1,4 @@
+import { makeTuple } from '@aztec/foundation/array';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
@@ -72,6 +73,17 @@ export class ConstantRollupData {
       fields.mergeRollupVkHash,
       fields.globalVariables,
     ] as const;
+  }
+
+  static empty() {
+    return new ConstantRollupData(
+      AppendOnlyTreeSnapshot.zero(),
+      Fr.ZERO,
+      Fr.ZERO,
+      Fr.ZERO,
+      Fr.ZERO,
+      GlobalVariables.empty(),
+    );
   }
 
   toBuffer() {
@@ -194,5 +206,20 @@ export class BaseRollupInputs {
    */
   static fromString(str: string) {
     return BaseRollupInputs.fromBuffer(Buffer.from(str, 'hex'));
+  }
+
+  static empty() {
+    return new BaseRollupInputs(
+      KernelData.empty(),
+      PartialStateReference.empty(),
+      StateDiffHints.empty(),
+      PublicDataHint.empty(),
+      makeTuple(MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataTreeLeaf.empty),
+      makeTuple(MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, () => 0),
+      makeTuple(MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataTreeLeafPreimage.empty),
+      makeTuple(MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, () => MembershipWitness.empty(PUBLIC_DATA_TREE_HEIGHT)),
+      MembershipWitness.empty(ARCHIVE_HEIGHT),
+      ConstantRollupData.empty(),
+    );
   }
 }

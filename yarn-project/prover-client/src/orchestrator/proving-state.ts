@@ -1,4 +1,4 @@
-import { type L2Block, type MerkleTreeId, type ProcessedTx, type ProvingResult } from '@aztec/circuit-types';
+import { type L2Block, type MerkleTreeId, type ProvingResult } from '@aztec/circuit-types';
 import {
   type AppendOnlyTreeSnapshot,
   type BaseOrMergeRollupPublicInputs,
@@ -59,7 +59,6 @@ export class ProvingState {
     public readonly globalVariables: GlobalVariables,
     public readonly newL1ToL2Messages: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>,
     numRootParityInputs: number,
-    public readonly emptyTx: ProcessedTx,
     public readonly messageTreeSnapshot: AppendOnlyTreeSnapshot,
     public readonly messageTreeRootSiblingPath: Tuple<Fr, typeof L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH>,
     public readonly privateKernelVerificationKeys: VerificationKeys,

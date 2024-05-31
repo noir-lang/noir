@@ -5,6 +5,7 @@ import {
   type KernelCircuitPublicInputs,
   type MergeRollupInputs,
   type NESTED_RECURSIVE_PROOF_LENGTH,
+  type PrivateKernelEmptyInputData,
   type PublicKernelCircuitPublicInputs,
   type RECURSIVE_PROOF_LENGTH,
   type RecursiveProof,
@@ -42,6 +43,7 @@ export type ProvingJob<T extends ProvingRequest> = {
 };
 
 export enum ProvingRequestType {
+  PRIVATE_KERNEL_EMPTY,
   PUBLIC_VM,
 
   PUBLIC_KERNEL_NON_TAIL,
@@ -90,9 +92,14 @@ export type ProvingRequest =
   | {
       type: ProvingRequestType.ROOT_ROLLUP;
       inputs: RootRollupInputs;
+    }
+  | {
+      type: ProvingRequestType.PRIVATE_KERNEL_EMPTY;
+      inputs: PrivateKernelEmptyInputData;
     };
 
 export type ProvingRequestPublicInputs = {
+  [ProvingRequestType.PRIVATE_KERNEL_EMPTY]: PublicInputsAndProof<KernelCircuitPublicInputs>;
   [ProvingRequestType.PUBLIC_VM]: PublicInputsAndProof<object>;
 
   [ProvingRequestType.PUBLIC_KERNEL_NON_TAIL]: PublicInputsAndProof<PublicKernelCircuitPublicInputs>;

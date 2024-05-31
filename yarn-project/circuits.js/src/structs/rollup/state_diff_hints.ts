@@ -1,3 +1,4 @@
+import { makeTuple } from '@aztec/foundation/array';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
@@ -93,6 +94,18 @@ export class StateDiffHints {
       reader.readArray(NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, Fr),
       reader.readArray(NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, Fr),
       reader.readArray(PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, Fr),
+    );
+  }
+
+  static empty() {
+    return new StateDiffHints(
+      makeTuple(MAX_NEW_NULLIFIERS_PER_TX, NullifierLeafPreimage.empty),
+      makeTuple(MAX_NEW_NULLIFIERS_PER_TX, () => MembershipWitness.empty(NULLIFIER_TREE_HEIGHT)),
+      makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero),
+      makeTuple(MAX_NEW_NULLIFIERS_PER_TX, () => 0),
+      makeTuple(NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, Fr.zero),
+      makeTuple(NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, Fr.zero),
+      makeTuple(PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, Fr.zero),
     );
   }
 }

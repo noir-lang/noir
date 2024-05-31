@@ -7,7 +7,6 @@ import {
   type SimulationError,
   Tx,
   type TxValidator,
-  makeEmptyProcessedTx,
   makeProcessedTx,
   validateProcessedTx,
 } from '@aztec/circuit-types';
@@ -210,15 +209,6 @@ export class PublicProcessor {
     ] = new PublicDataUpdateRequest(leafSlot, updatedBalance, 0);
 
     return finalPublicDataUpdateRequests;
-  }
-
-  /**
-   * Makes an empty processed tx. Useful for padding a block to a power of two number of txs.
-   * @returns A processed tx with empty data.
-   */
-  public makeEmptyProcessedTx(): ProcessedTx {
-    const { chainId, version } = this.globalVariables;
-    return makeEmptyProcessedTx(this.historicalHeader.clone(), chainId, version);
   }
 
   private async processTxWithPublicCalls(tx: Tx): Promise<[ProcessedTx, NestedProcessReturnValues[]]> {

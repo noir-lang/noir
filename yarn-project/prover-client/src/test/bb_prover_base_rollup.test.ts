@@ -1,8 +1,7 @@
 import { BBNativeRollupProver, type BBProverConfig } from '@aztec/bb-prover';
-import { VerificationKeyData } from '@aztec/circuits.js';
+import { makePaddingProcessedTx } from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
 
-import { makeBloatedProcessedTx } from '../mocks/fixtures.js';
 import { TestContext } from '../mocks/test_context.js';
 import { buildBaseRollupInput } from '../orchestrator/block-building-helpers.js';
 
@@ -24,16 +23,26 @@ describe('prover/bb_prover/base-rollup', () => {
     await context.cleanup();
   });
 
-  // TODO(@PhilWindle): Re-enable once we can handle empty tx slots
-  it.skip('proves the base rollup', async () => {
-    const tx = await makeBloatedProcessedTx(context.actualDb, 1);
+  it('proves the base rollup', async () => {
+    const header = await context.actualDb.buildInitialHeader();
+    const chainId = context.globalVariables.chainId;
+    const version = context.globalVariables.version;
+
+    const inputs = {
+      header,
+      chainId,
+      version,
+    };
+
+    const paddingTxPublicInputsAndProof = await context.prover.getEmptyPrivateKernelProof(inputs);
+    const tx = makePaddingProcessedTx(paddingTxPublicInputsAndProof);
 
     logger.verbose('Building base rollup inputs');
     const baseRollupInputs = await buildBaseRollupInput(
       tx,
       context.globalVariables,
       context.actualDb,
-      VerificationKeyData.makeFake(),
+      paddingTxPublicInputsAndProof.verificationKey,
     );
     logger.verbose('Proving base rollups');
     const proofOutputs = await context.prover.getBaseRollupProof(baseRollupInputs);

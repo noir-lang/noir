@@ -41,12 +41,7 @@ export interface BlockProver {
    * @param l1ToL2Messages - The set of L1 to L2 messages to be included in this block
    * @param emptyTx - An instance of an empty transaction to be used in this block
    */
-  startNewBlock(
-    numTxs: number,
-    globalVariables: GlobalVariables,
-    l1ToL2Messages: Fr[],
-    emptyTx: ProcessedTx,
-  ): Promise<ProvingTicket>;
+  startNewBlock(numTxs: number, globalVariables: GlobalVariables, l1ToL2Messages: Fr[]): Promise<ProvingTicket>;
 
   /**
    * Add a processed transaction to the current block

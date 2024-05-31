@@ -1,28 +1,74 @@
 import { BBNativeRollupProver, type BBProverConfig } from '@aztec/bb-prover';
-import { PROVING_STATUS, makeEmptyProcessedTx, mockTx } from '@aztec/circuit-types';
-import { Fr, Header, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, getMockVerificationKeys } from '@aztec/circuits.js';
+import { PROVING_STATUS, mockTx } from '@aztec/circuit-types';
+import { Fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, getMockVerificationKeys } from '@aztec/circuits.js';
 import { makeTuple } from '@aztec/foundation/array';
 import { times } from '@aztec/foundation/collection';
-import { createDebugLogger } from '@aztec/foundation/log';
+import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 
 import { TestContext } from '../mocks/test_context.js';
-
-const logger = createDebugLogger('aztec:bb-prover-full-rollup');
 
 describe('prover/bb_prover/full-rollup', () => {
   let context: TestContext;
   let prover: BBNativeRollupProver;
+  let logger: DebugLogger;
 
   beforeAll(async () => {
     const buildProver = async (bbConfig: BBProverConfig) => {
       prover = await BBNativeRollupProver.new(bbConfig);
       return prover;
     };
+    logger = createDebugLogger('aztec:bb-prover-full-rollup');
     context = await TestContext.new(logger, 1, buildProver);
   });
 
   afterAll(async () => {
     await context.cleanup();
+  });
+
+  it('proves a private-only rollup full of empty txs', async () => {
+    const totalTxs = 2;
+    const nonEmptyTxs = 0;
+
+    logger.info(`Proving a private-only full rollup with ${nonEmptyTxs}/${totalTxs} non-empty transactions`);
+    const initialHeader = await context.actualDb.buildInitialHeader();
+    const txs = times(nonEmptyTxs, (i: number) => {
+      const tx = mockTx(1000 * (i + 1), {
+        numberOfNonRevertiblePublicCallRequests: 0,
+        numberOfRevertiblePublicCallRequests: 0,
+      });
+      tx.data.constants.historicalHeader = initialHeader;
+      return tx;
+    });
+
+    const l1ToL2Messages = makeTuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>(
+      NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+      Fr.random,
+    );
+
+    logger.info(`Starting new block`);
+    const provingTicket = await context.orchestrator.startNewBlock(
+      totalTxs,
+      context.globalVariables,
+      l1ToL2Messages,
+      getMockVerificationKeys(),
+    );
+
+    logger.info(`Processing public functions`);
+    const [processed, failed] = await context.processPublicFunctions(txs, nonEmptyTxs, context.blockProver);
+    expect(processed.length).toBe(nonEmptyTxs);
+    expect(failed.length).toBe(0);
+
+    logger.info(`Setting block as completed`);
+    await context.orchestrator.setBlockCompleted();
+
+    const provingResult = await provingTicket.provingPromise;
+
+    expect(provingResult.status).toBe(PROVING_STATUS.SUCCESS);
+
+    logger.info(`Finalising block`);
+    const blockResult = await context.orchestrator.finaliseBlock();
+
+    await expect(prover.verifyProof('RootRollupArtifact', blockResult.proof)).resolves.not.toThrow();
   });
 
   // TODO(@PhilWindle): Remove public functions and re-enable once we can handle empty tx slots
@@ -47,7 +93,6 @@ describe('prover/bb_prover/full-rollup', () => {
       numTransactions,
       context.globalVariables,
       l1ToL2Messages,
-      makeEmptyProcessedTx(Header.empty(), new Fr(1234), new Fr(1)),
       getMockVerificationKeys(),
     );
 

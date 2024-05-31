@@ -14,7 +14,7 @@ import { sleep } from '@aztec/foundation/sleep';
 import { jest } from '@jest/globals';
 
 import { TestCircuitProver } from '../../../bb-prover/src/test/test_circuit_prover.js';
-import { makeBloatedProcessedTx, makeEmptyProcessedTestTx, makeGlobals } from '../mocks/fixtures.js';
+import { makeBloatedProcessedTx, makeGlobals } from '../mocks/fixtures.js';
 import { TestContext } from '../mocks/test_context.js';
 import { ProvingOrchestrator } from './orchestrator.js';
 
@@ -52,7 +52,7 @@ describe('prover/orchestrator/lifecycle', () => {
         2,
         globals1,
         l1ToL2Messages,
-        await makeEmptyProcessedTestTx(context.actualDb),
+
         getMockVerificationKeys(),
       );
 
@@ -76,7 +76,7 @@ describe('prover/orchestrator/lifecycle', () => {
         2,
         globals2,
         l1ToL2Messages,
-        await makeEmptyProcessedTestTx(context.actualDb),
+
         getMockVerificationKeys(),
       );
 
@@ -110,7 +110,7 @@ describe('prover/orchestrator/lifecycle', () => {
         2,
         globals1,
         l1ToL2Messages,
-        await makeEmptyProcessedTestTx(context.actualDb),
+
         getMockVerificationKeys(),
       );
 
@@ -122,7 +122,7 @@ describe('prover/orchestrator/lifecycle', () => {
         2,
         globals2,
         l1ToL2Messages,
-        await makeEmptyProcessedTestTx(context.actualDb),
+
         getMockVerificationKeys(),
       );
 
@@ -155,7 +155,7 @@ describe('prover/orchestrator/lifecycle', () => {
         2,
         makeGlobalVariables(1),
         [],
-        await makeEmptyProcessedTestTx(context.actualDb),
+
         getMockVerificationKeys(),
       );
 

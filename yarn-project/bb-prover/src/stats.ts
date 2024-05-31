@@ -55,7 +55,13 @@ export function mapProtocolArtifactNameToCircuitName(
       return 'private-kernel-reset-medium';
     case 'PrivateKernelResetSmallArtifact':
       return 'private-kernel-reset-small';
-    default:
+    case 'EmptyNestedArtifact':
+      return 'empty-nested';
+    case 'PrivateKernelEmptyArtifact':
+      return 'private-kernel-empty';
+    default: {
+      const _foo: never = artifact;
       throw new Error(`Unknown circuit type: ${artifact}`);
+    }
   }
 }

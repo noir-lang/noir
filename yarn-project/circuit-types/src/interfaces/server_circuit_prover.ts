@@ -11,6 +11,7 @@ import {
   type KernelCircuitPublicInputs,
   type MergeRollupInputs,
   type NESTED_RECURSIVE_PROOF_LENGTH,
+  type PrivateKernelEmptyInputData,
   type Proof,
   type PublicCircuitPublicInputs,
   type PublicKernelCircuitPublicInputs,
@@ -86,6 +87,11 @@ export interface ServerCircuitProver {
    */
   getPublicTailProof(
     kernelRequest: PublicKernelTailRequest,
+    signal?: AbortSignal,
+  ): Promise<PublicInputsAndProof<KernelCircuitPublicInputs>>;
+
+  getEmptyPrivateKernelProof(
+    inputs: PrivateKernelEmptyInputData,
     signal?: AbortSignal,
   ): Promise<PublicInputsAndProof<KernelCircuitPublicInputs>>;
 }

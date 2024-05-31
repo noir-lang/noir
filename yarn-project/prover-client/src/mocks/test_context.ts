@@ -44,13 +44,8 @@ import { getEnvironmentConfig, getSimulationProvider, makeGlobals } from './fixt
 
 class DummyProverClient implements BlockProver {
   constructor(private orchestrator: ProvingOrchestrator, private verificationKeys = getMockVerificationKeys()) {}
-  startNewBlock(
-    numTxs: number,
-    globalVariables: GlobalVariables,
-    l1ToL2Messages: Fr[],
-    emptyTx: ProcessedTx,
-  ): Promise<ProvingTicket> {
-    return this.orchestrator.startNewBlock(numTxs, globalVariables, l1ToL2Messages, emptyTx, this.verificationKeys);
+  startNewBlock(numTxs: number, globalVariables: GlobalVariables, l1ToL2Messages: Fr[]): Promise<ProvingTicket> {
+    return this.orchestrator.startNewBlock(numTxs, globalVariables, l1ToL2Messages, this.verificationKeys);
   }
   addNewTx(tx: ProcessedTx): Promise<void> {
     return this.orchestrator.addNewTx(tx);

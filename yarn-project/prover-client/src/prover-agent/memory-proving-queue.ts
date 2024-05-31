@@ -16,6 +16,7 @@ import type {
   KernelCircuitPublicInputs,
   MergeRollupInputs,
   NESTED_RECURSIVE_PROOF_LENGTH,
+  PrivateKernelEmptyInputData,
   PublicKernelCircuitPublicInputs,
   RECURSIVE_PROOF_LENGTH,
   RootParityInput,
@@ -148,6 +149,13 @@ export class MemoryProvingQueue implements ServerCircuitProver, ProvingJobSource
     }
 
     return promise;
+  }
+
+  getEmptyPrivateKernelProof(
+    inputs: PrivateKernelEmptyInputData,
+    signal?: AbortSignal,
+  ): Promise<PublicInputsAndProof<KernelCircuitPublicInputs>> {
+    return this.enqueue({ type: ProvingRequestType.PRIVATE_KERNEL_EMPTY, inputs }, signal);
   }
 
   /**

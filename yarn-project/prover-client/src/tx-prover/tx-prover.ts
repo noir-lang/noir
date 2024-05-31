@@ -118,17 +118,15 @@ export class TxProver implements ProverClient {
    * @param numTxs - The complete size of the block, must be a power of 2
    * @param globalVariables - The global variables for this block
    * @param l1ToL2Messages - The set of L1 to L2 messages to be included in this block
-   * @param emptyTx - An instance of an empty transaction to be used in this block
    */
   public async startNewBlock(
     numTxs: number,
     globalVariables: GlobalVariables,
     newL1ToL2Messages: Fr[],
-    emptyTx: ProcessedTx,
   ): Promise<ProvingTicket> {
     const previousBlockNumber = globalVariables.blockNumber.toNumber() - 1;
     await this.worldStateSynchronizer.syncImmediate(previousBlockNumber);
-    return this.orchestrator.startNewBlock(numTxs, globalVariables, newL1ToL2Messages, emptyTx, this.vks);
+    return this.orchestrator.startNewBlock(numTxs, globalVariables, newL1ToL2Messages, this.vks);
   }
 
   /**

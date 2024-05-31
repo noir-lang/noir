@@ -3,7 +3,6 @@ import { getMockVerificationKeys } from '@aztec/circuits.js';
 import { times } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 
-import { makeEmptyProcessedTestTx } from '../mocks/fixtures.js';
 import { TestContext } from '../mocks/test_context.js';
 
 const logger = createDebugLogger('aztec:orchestrator-multi-public-functions');
@@ -42,7 +41,7 @@ describe('prover/orchestrator/public-functions', () => {
           numTransactions,
           context.globalVariables,
           [],
-          await makeEmptyProcessedTestTx(context.actualDb),
+
           getMockVerificationKeys(),
         );
 

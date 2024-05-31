@@ -46,7 +46,7 @@ describe('prover/orchestrator/mixed-blocks', () => {
           txs.length,
           context.globalVariables,
           l1ToL2Messages,
-          await makeEmptyProcessedTestTx(context.actualDb),
+
           getMockVerificationKeys(),
         );
 

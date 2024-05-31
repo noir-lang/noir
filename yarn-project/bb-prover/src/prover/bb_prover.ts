@@ -13,10 +13,14 @@ import {
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
   type BaseRollupInputs,
+  EmptyNestedCircuitInputs,
+  EmptyNestedData,
   Fr,
   type KernelCircuitPublicInputs,
   type MergeRollupInputs,
   NESTED_RECURSIVE_PROOF_LENGTH,
+  type PrivateKernelEmptyInputData,
+  PrivateKernelEmptyInputs,
   Proof,
   type PublicKernelCircuitPublicInputs,
   RECURSIVE_PROOF_LENGTH,
@@ -33,6 +37,7 @@ import { runInDirectory } from '@aztec/foundation/fs';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
 import {
+  EmptyNestedArtifact,
   ServerCircuitArtifacts,
   type ServerProtocolArtifact,
   convertBaseParityInputsToWitnessMap,
@@ -41,6 +46,8 @@ import {
   convertBaseRollupOutputsFromWitnessMap,
   convertMergeRollupInputsToWitnessMap,
   convertMergeRollupOutputsFromWitnessMap,
+  convertPrivateKernelEmptyInputsToWitnessMap,
+  convertPrivateKernelEmptyOutputsFromWitnessMap,
   convertPublicTailInputsToWitnessMap,
   convertPublicTailOutputFromWitnessMap,
   convertRootParityInputsToWitnessMap,
@@ -50,7 +57,8 @@ import {
 } from '@aztec/noir-protocol-circuits-types';
 import { NativeACVMSimulator } from '@aztec/simulator';
 
-import { type WitnessMap } from '@noir-lang/types';
+import { abiEncode } from '@noir-lang/noirc_abi';
+import { type Abi, type WitnessMap } from '@noir-lang/types';
 import * as fs from 'fs/promises';
 
 import {
@@ -70,7 +78,10 @@ import { extractVkData } from '../verification_key/verification_key_data.js';
 
 const logger = createDebugLogger('aztec:bb-prover');
 
-const CIRCUITS_WITHOUT_AGGREGATION: Set<ServerProtocolArtifact> = new Set(['BaseParityArtifact']);
+const CIRCUITS_WITHOUT_AGGREGATION: Set<ServerProtocolArtifact> = new Set([
+  'BaseParityArtifact',
+  'EmptyNestedArtifact',
+]);
 
 export interface BBProverConfig extends BBConfig, ACVMConfig {
   // list of circuits supported by this prover. defaults to all circuits if empty
@@ -265,6 +276,53 @@ export class BBNativeRollupProver implements ServerCircuitProver {
     await this.verifyProof('RootRollupArtifact', proof);
 
     return makePublicInputsAndProof(circuitOutput, recursiveProof, verificationKey);
+  }
+
+  public async getEmptyPrivateKernelProof(
+    inputs: PrivateKernelEmptyInputData,
+  ): Promise<PublicInputsAndProof<KernelCircuitPublicInputs>> {
+    const emptyNested = await this.getEmptyNestedProof();
+    const emptyPrivateKernelProof = await this.getEmptyPrivateKernelProofFromEmptyNested(
+      PrivateKernelEmptyInputs.from({
+        ...inputs,
+        emptyNested,
+      }),
+    );
+
+    return emptyPrivateKernelProof;
+  }
+
+  private async getEmptyNestedProof(): Promise<EmptyNestedData> {
+    const inputs = new EmptyNestedCircuitInputs();
+    const { proof } = await this.createRecursiveProof(
+      inputs,
+      'EmptyNestedArtifact',
+      RECURSIVE_PROOF_LENGTH,
+      (nothing: any) => abiEncode(EmptyNestedArtifact.abi as Abi, { _inputs: nothing as any }),
+      () => new EmptyNestedCircuitInputs(),
+    );
+
+    const verificationKey = await this.getVerificationKeyDataForCircuit('EmptyNestedArtifact');
+    await this.verifyProof('EmptyNestedArtifact', proof.binaryProof);
+
+    return new EmptyNestedData(proof, verificationKey.keyAsFields);
+  }
+
+  private async getEmptyPrivateKernelProofFromEmptyNested(
+    inputs: PrivateKernelEmptyInputs,
+  ): Promise<PublicInputsAndProof<KernelCircuitPublicInputs>> {
+    const { circuitOutput, proof } = await this.createRecursiveProof(
+      inputs,
+      'PrivateKernelEmptyArtifact',
+      NESTED_RECURSIVE_PROOF_LENGTH,
+      convertPrivateKernelEmptyInputsToWitnessMap,
+      convertPrivateKernelEmptyOutputsFromWitnessMap,
+    );
+
+    const verificationKey = await this.getVerificationKeyDataForCircuit('PrivateKernelEmptyArtifact');
+    await this.verifyProof('PrivateKernelEmptyArtifact', proof.binaryProof);
+
+    return makePublicInputsAndProof(circuitOutput, proof, verificationKey);
   }
 
   private async generateProofWithBB<
@@ -625,7 +683,7 @@ export class BBNativeRollupProver implements ServerCircuitProver {
       true,
     );
     if (proof.proof.length !== proofLength) {
-      throw new Error("Proof length doesn't match expected length");
+      throw new Error(`Proof length doesn't match expected length (${proof.proof.length} != ${proofLength})`);
     }
 
     return proof;

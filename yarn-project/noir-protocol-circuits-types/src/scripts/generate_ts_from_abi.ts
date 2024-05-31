@@ -24,6 +24,8 @@ const circuits = [
   'rollup_base',
   'rollup_merge',
   'rollup_root',
+  'private_kernel_empty',
+  'empty_nested',
 ];
 
 const main = async () => {

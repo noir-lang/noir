@@ -76,7 +76,7 @@ describe('prover/orchestrator/failures', () => {
         txs.length,
         context.globalVariables,
         [],
-        await makeEmptyProcessedTestTx(context.actualDb),
+
         getMockVerificationKeys(),
       );
 

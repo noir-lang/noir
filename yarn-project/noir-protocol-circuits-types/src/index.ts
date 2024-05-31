@@ -7,6 +7,7 @@ import {
   type MergeRollupInputs,
   type ParityPublicInputs,
   type PrivateKernelCircuitPublicInputs,
+  type PrivateKernelEmptyInputs,
   type PrivateKernelInitCircuitPrivateInputs,
   type PrivateKernelInnerCircuitPrivateInputs,
   type PrivateKernelResetCircuitPrivateInputsVariants,
@@ -29,8 +30,12 @@ import { type Abi, abiDecode, abiEncode } from '@noir-lang/noirc_abi';
 import { type WitnessMap } from '@noir-lang/types';
 import { strict as assert } from 'assert';
 
+import EmptyNestedJson from './target/empty_nested.json' assert { type: 'json' };
+import EmptyNestedSimulatedJson from './target/empty_nested_simulated.json' assert { type: 'json' };
 import BaseParityJson from './target/parity_base.json' assert { type: 'json' };
 import RootParityJson from './target/parity_root.json' assert { type: 'json' };
+import PrivateKernelEmptyJson from './target/private_kernel_empty.json' assert { type: 'json' };
+import PrivateKernelEmptySimulatedJson from './target/private_kernel_empty_simulated.json' assert { type: 'json' };
 import PrivateKernelInitJson from './target/private_kernel_init.json' assert { type: 'json' };
 import PrivateKernelInitSimulatedJson from './target/private_kernel_init_simulated.json' assert { type: 'json' };
 import PrivateKernelInnerJson from './target/private_kernel_inner.json' assert { type: 'json' };
@@ -63,6 +68,7 @@ import {
   mapBaseOrMergeRollupPublicInputsFromNoir,
   mapBaseParityInputsToNoir,
   mapBaseRollupInputsToNoir,
+  mapEmptyKernelInputsToNoir,
   mapKernelCircuitPublicInputsFromNoir,
   mapMergeRollupInputsToNoir,
   mapParityPublicInputsFromNoir,
@@ -87,6 +93,7 @@ import {
   type PrivateKernelInitReturnType as InitReturnType,
   type PrivateKernelInnerReturnType as InnerReturnType,
   type RollupMergeReturnType as MergeRollupReturnType,
+  type PrivateKernelEmptyReturnType,
   type PublicKernelAppLogicReturnType as PublicPublicPreviousReturnType,
   type PublicKernelSetupReturnType as PublicSetupReturnType,
   type PrivateKernelResetReturnType as ResetReturnType,
@@ -124,6 +131,10 @@ export const PrivateKernelTailArtifact = PrivateKernelTailJson as NoirCompiledCi
 
 export const PrivateKernelTailToPublicArtifact = PrivateKernelTailToPublicJson as NoirCompiledCircuit;
 
+export const PrivateKernelEmptyArtifact = PrivateKernelEmptyJson as NoirCompiledCircuit;
+
+export const EmptyNestedArtifact = EmptyNestedJson as NoirCompiledCircuit;
+
 export const SimulatedPublicKernelSetupArtifact = PublicKernelSetupSimulatedJson as NoirCompiledCircuit;
 
 export const SimulatedPublicKernelAppLogicArtifact = PublicKernelAppLogicSimulatedJson as NoirCompiledCircuit;
@@ -131,6 +142,10 @@ export const SimulatedPublicKernelAppLogicArtifact = PublicKernelAppLogicSimulat
 export const SimulatedPublicKernelTeardownArtifact = PublicKernelTeardownSimulatedJson as NoirCompiledCircuit;
 
 export const SimulatedPublicKernelTailArtifact = PublicKernelTailSimulatedJson as NoirCompiledCircuit;
+
+export const SimulatedPrivateKernelEmptyArtifact = PrivateKernelEmptySimulatedJson as NoirCompiledCircuit;
+
+export const SimulatedEmptyNestedArtifact = EmptyNestedSimulatedJson as NoirCompiledCircuit;
 
 export const PublicKernelSetupArtifact = PublicKernelSetupJson as NoirCompiledCircuit;
 
@@ -166,6 +181,8 @@ export const PrivateResetTagToArtifactName: Record<PrivateKernelResetTags, Priva
 };
 
 export type ServerProtocolArtifact =
+  | 'EmptyNestedArtifact'
+  | 'PrivateKernelEmptyArtifact'
   | 'PublicKernelSetupArtifact'
   | 'PublicKernelAppLogicArtifact'
   | 'PublicKernelTeardownArtifact'
@@ -186,6 +203,8 @@ export type ClientProtocolArtifact =
 export type ProtocolArtifact = ServerProtocolArtifact | ClientProtocolArtifact;
 
 export const ServerCircuitArtifacts: Record<ServerProtocolArtifact, NoirCompiledCircuit> = {
+  EmptyNestedArtifact: EmptyNestedArtifact,
+  PrivateKernelEmptyArtifact: PrivateKernelEmptyArtifact,
   PublicKernelSetupArtifact: PublicKernelSetupArtifact,
   PublicKernelAppLogicArtifact: PublicKernelAppLogicArtifact,
   PublicKernelTeardownArtifact: PublicKernelTeardownArtifact,
@@ -198,6 +217,8 @@ export const ServerCircuitArtifacts: Record<ServerProtocolArtifact, NoirCompiled
 };
 
 export const SimulatedServerCircuitArtifacts: Record<ServerProtocolArtifact, NoirCompiledCircuit> = {
+  EmptyNestedArtifact: SimulatedEmptyNestedArtifact,
+  PrivateKernelEmptyArtifact: SimulatedPrivateKernelEmptyArtifact,
   PublicKernelSetupArtifact: SimulatedPublicKernelSetupArtifact,
   PublicKernelAppLogicArtifact: SimulatedPublicKernelAppLogicArtifact,
   PublicKernelTeardownArtifact: SimulatedPublicKernelTeardownArtifact,
@@ -501,6 +522,12 @@ export function convertBaseRollupInputsToWitnessMap(inputs: BaseRollupInputs): W
   return initialWitnessMap;
 }
 
+export function convertPrivateKernelEmptyInputsToWitnessMap(inputs: PrivateKernelEmptyInputs): WitnessMap {
+  const mapped = mapEmptyKernelInputsToNoir(inputs);
+  const initialWitnessMap = abiEncode(PrivateKernelEmptyJson.abi as Abi, { input: mapped as any });
+  return initialWitnessMap;
+}
+
 /**
  * Converts the inputs of the simulated base rollup circuit into a witness map.
  * @param inputs - The base rollup inputs.
@@ -619,6 +646,14 @@ export function convertPublicTailInputsToWitnessMap(inputs: PublicKernelTailCirc
   const mapped = mapPublicKernelTailCircuitPrivateInputsToNoir(inputs);
   const initialWitnessMap = abiEncode(PublicKernelTailJson.abi as Abi, { input: mapped as any });
   return initialWitnessMap;
+}
+
+export function convertPrivateKernelEmptyOutputsFromWitnessMap(outputs: WitnessMap): KernelCircuitPublicInputs {
+  const decodedInputs: DecodedInputs = abiDecode(PrivateKernelEmptyJson.abi as Abi, outputs);
+
+  const returnType = decodedInputs.return_value as PrivateKernelEmptyReturnType;
+
+  return mapKernelCircuitPublicInputsFromNoir(returnType);
 }
 
 /**

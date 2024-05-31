@@ -2,6 +2,7 @@ import {
   EncryptedNoteTxL2Logs,
   EncryptedTxL2Logs,
   PublicDataWrite,
+  type PublicInputsAndProof,
   type SimulationError,
   type Tx,
   TxEffect,
@@ -14,11 +15,14 @@ import {
   type GasFees,
   type Header,
   KernelCircuitPublicInputs,
+  type NESTED_RECURSIVE_PROOF_LENGTH,
   type Proof,
   type PublicDataUpdateRequest,
   type PublicKernelCircuitPrivateInputs,
   type PublicKernelCircuitPublicInputs,
   type PublicKernelTailCircuitPrivateInputs,
+  type RecursiveProof,
+  type VerificationKeyData,
   makeEmptyProof,
 } from '@aztec/circuits.js';
 
@@ -147,6 +151,36 @@ export function makeProcessedTx(
     publicKernelRequests,
     gasUsed,
     finalPublicDataUpdateRequests: finalPublicDataUpdateRequests ?? kernelOutput.end.publicDataUpdateRequests,
+  };
+}
+
+export type PaddingProcessedTx = ProcessedTx & {
+  verificationKey: VerificationKeyData;
+  recursiveProof: RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>;
+};
+
+/**
+ * Makes a padding empty tx with a valid proof.
+ * @returns A valid padding processed tx.
+ */
+export function makePaddingProcessedTx(
+  kernelOutput: PublicInputsAndProof<KernelCircuitPublicInputs>,
+): PaddingProcessedTx {
+  const hash = new TxHash(Fr.ZERO.toBuffer());
+  return {
+    hash,
+    noteEncryptedLogs: EncryptedNoteTxL2Logs.empty(),
+    encryptedLogs: EncryptedTxL2Logs.empty(),
+    unencryptedLogs: UnencryptedTxL2Logs.empty(),
+    data: kernelOutput.inputs,
+    proof: kernelOutput.proof.binaryProof,
+    isEmpty: true,
+    revertReason: undefined,
+    publicKernelRequests: [],
+    gasUsed: {},
+    finalPublicDataUpdateRequests: [],
+    verificationKey: kernelOutput.verificationKey,
+    recursiveProof: kernelOutput.proof,
   };
 }
 

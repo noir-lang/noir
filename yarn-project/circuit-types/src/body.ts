@@ -40,6 +40,9 @@ export class Body {
   [inspect.custom]() {
     return `Body {
   txEffects: ${inspect(this.txEffects)},
+  emptyTxEffectsCount: ${this.numberOfTxsIncludingPadded},
+  emptyTxEffectHash: ${TxEffect.empty().hash().toString('hex')},
+  txsEffectsHash: ${this.getTxsEffectsHash().toString('hex')},
 }`;
   }
 

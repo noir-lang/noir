@@ -10,9 +10,12 @@ import {
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
   type BaseRollupInputs,
+  EmptyNestedData,
   type KernelCircuitPublicInputs,
   type MergeRollupInputs,
   NESTED_RECURSIVE_PROOF_LENGTH,
+  type PrivateKernelEmptyInputData,
+  PrivateKernelEmptyInputs,
   type Proof,
   type PublicKernelCircuitPublicInputs,
   RECURSIVE_PROOF_LENGTH,
@@ -30,6 +33,7 @@ import { Timer } from '@aztec/foundation/timer';
 import {
   BaseParityArtifact,
   MergeRollupArtifact,
+  PrivateKernelEmptyArtifact,
   RootParityArtifact,
   RootRollupArtifact,
   type ServerProtocolArtifact,
@@ -39,6 +43,8 @@ import {
   convertBaseParityOutputsFromWitnessMap,
   convertMergeRollupInputsToWitnessMap,
   convertMergeRollupOutputsFromWitnessMap,
+  convertPrivateKernelEmptyInputsToWitnessMap,
+  convertPrivateKernelEmptyOutputsFromWitnessMap,
   convertRootParityInputsToWitnessMap,
   convertRootParityOutputsFromWitnessMap,
   convertRootRollupInputsToWitnessMap,
@@ -63,6 +69,8 @@ const VERIFICATION_KEYS: Record<ServerProtocolArtifact, VerificationKeyAsFields>
   BaseRollupArtifact: VerificationKeyAsFields.makeFake(),
   MergeRollupArtifact: VerificationKeyAsFields.makeFake(),
   RootRollupArtifact: VerificationKeyAsFields.makeFake(),
+  PrivateKernelEmptyArtifact: VerificationKeyAsFields.makeFake(),
+  EmptyNestedArtifact: VerificationKeyAsFields.makeFake(),
 };
 
 /**
@@ -76,6 +84,25 @@ export class TestCircuitProver implements ServerCircuitProver {
     private simulationProvider?: SimulationProvider,
     private logger = createDebugLogger('aztec:test-prover'),
   ) {}
+
+  public async getEmptyPrivateKernelProof(
+    inputs: PrivateKernelEmptyInputData,
+  ): Promise<PublicInputsAndProof<KernelCircuitPublicInputs>> {
+    const emptyNested = new EmptyNestedData(
+      makeRecursiveProof(RECURSIVE_PROOF_LENGTH),
+      VERIFICATION_KEYS['EmptyNestedArtifact'],
+    );
+    const kernelInputs = new PrivateKernelEmptyInputs(emptyNested, inputs.header, inputs.chainId, inputs.version);
+    const witnessMap = convertPrivateKernelEmptyInputsToWitnessMap(kernelInputs);
+    const witness = await this.wasmSimulator.simulateCircuit(witnessMap, PrivateKernelEmptyArtifact);
+    const result = convertPrivateKernelEmptyOutputsFromWitnessMap(witness);
+
+    return makePublicInputsAndProof(
+      result,
+      makeRecursiveProof(NESTED_RECURSIVE_PROOF_LENGTH),
+      VerificationKeyData.makeFake(),
+    );
+  }
 
   /**
    * Simulates the base parity circuit from its inputs.

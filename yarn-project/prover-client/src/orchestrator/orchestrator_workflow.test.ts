@@ -15,7 +15,6 @@ import { type MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
 import { type MockProxy, mock } from 'jest-mock-extended';
 
-import { makeEmptyProcessedTestTx } from '../mocks/fixtures.js';
 import { ProvingOrchestrator } from './orchestrator.js';
 
 describe('prover/orchestrator', () => {
@@ -47,13 +46,7 @@ describe('prover/orchestrator', () => {
         }
       });
 
-      await orchestrator.startNewBlock(
-        2,
-        makeGlobalVariables(1),
-        [message],
-        await makeEmptyProcessedTestTx(actualDb),
-        getMockVerificationKeys(),
-      );
+      await orchestrator.startNewBlock(2, makeGlobalVariables(1), [message], getMockVerificationKeys());
 
       await sleep(10);
       expect(mockProver.getBaseParityProof).toHaveBeenCalledTimes(NUM_BASE_PARITY_PER_ROOT_PARITY);

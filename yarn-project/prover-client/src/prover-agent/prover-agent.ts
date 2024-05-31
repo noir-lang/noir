@@ -139,7 +139,12 @@ export class ProverAgent {
         return this.circuitProver.getRootParityProof(inputs);
       }
 
+      case ProvingRequestType.PRIVATE_KERNEL_EMPTY: {
+        return this.circuitProver.getEmptyPrivateKernelProof(inputs);
+      }
+
       default: {
+        const _exhaustive: never = type;
         return Promise.reject(new Error(`Invalid proof request type: ${type}`));
       }
     }

@@ -2,9 +2,12 @@ import {
   Body,
   L2Block,
   MerkleTreeId,
+  type PaddingProcessedTx,
   type ProcessedTx,
   PublicKernelType,
   type TxEffect,
+  makeEmptyProcessedTx,
+  makePaddingProcessedTx,
   toTxEffect,
 } from '@aztec/circuit-types';
 import {
@@ -22,6 +25,7 @@ import {
   type BaseRollupInputs,
   Fr,
   type GlobalVariables,
+  type Header,
   type KernelCircuitPublicInputs,
   L1_TO_L2_MSG_SUBTREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
@@ -88,6 +92,8 @@ const KernelTypesWithoutFunctions: Set<PublicKernelType> = new Set<PublicKernelT
 export class ProvingOrchestrator {
   private provingState: ProvingState | undefined = undefined;
   private pendingProvingJobs: AbortController[] = [];
+  private paddingTx: PaddingProcessedTx | undefined = undefined;
+  private initialHeader: Header | undefined = undefined;
 
   constructor(private db: MerkleTreeOperations, private prover: ServerCircuitProver) {}
 
@@ -96,7 +102,6 @@ export class ProvingOrchestrator {
    * @param numTxs - The total number of transactions in the block. Must be a power of 2
    * @param globalVariables - The global variables for the block
    * @param l1ToL2Messages - The l1 to l2 messages for the block
-   * @param emptyTx - The instance of an empty transaction to be used to pad this block
    * @param verificationKeys - The private kernel verification keys
    * @returns A proving ticket, containing a promise notifying of proving completion
    */
@@ -104,9 +109,13 @@ export class ProvingOrchestrator {
     numTxs: number,
     globalVariables: GlobalVariables,
     l1ToL2Messages: Fr[],
-    emptyTx: ProcessedTx,
     verificationKeys: VerificationKeys,
   ): Promise<ProvingTicket> {
+    // Create initial header if not done so yet
+    if (!this.initialHeader) {
+      this.initialHeader = await this.db.buildInitialHeader();
+    }
+
     // Check that the length of the array of txs is a power of two
     // See https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
     if (!Number.isInteger(numTxs) || numTxs < 2 || (numTxs & (numTxs - 1)) !== 0) {
@@ -160,7 +169,6 @@ export class ProvingOrchestrator {
       globalVariables,
       l1ToL2MessagesPadded,
       baseParityInputs.length,
-      emptyTx,
       messageTreeSnapshot,
       newL1ToL2MessageTreeRootSiblingPath,
       verificationKeys,
@@ -195,7 +203,8 @@ export class ProvingOrchestrator {
 
     logger.info(`Received transaction: ${tx.hash}`);
 
-    await this.startTransaction(tx, this.provingState);
+    const [inputs, treeSnapshots] = await this.prepareTransaction(tx, this.provingState);
+    this.enqueueFirstProof(inputs, treeSnapshots, tx, this.provingState);
   }
 
   /**
@@ -206,14 +215,78 @@ export class ProvingOrchestrator {
       throw new Error(`Invalid proving state, call startNewBlock before adding transactions or completing the block`);
     }
 
-    // we need to pad the rollup with empty transactions
-    logger.debug(
-      `Padding rollup with ${
-        this.provingState.totalNumTxs - this.provingState.transactionsReceived
-      } empty transactions`,
+    // we may need to pad the rollup with empty transactions
+    const paddingTxCount = this.provingState.totalNumTxs - this.provingState.transactionsReceived;
+    if (paddingTxCount === 0) {
+      return;
+    }
+
+    logger.debug(`Padding rollup with ${paddingTxCount} empty transactions`);
+    // Make an empty padding transaction
+    // Insert it into the tree the required number of times to get all of the
+    // base rollup inputs
+    // Then enqueue the proving of all the transactions
+    const unprovenPaddingTx = makeEmptyProcessedTx(
+      this.initialHeader ?? (await this.db.buildInitialHeader()),
+      this.provingState.globalVariables.chainId,
+      this.provingState.globalVariables.version,
     );
-    for (let i = this.provingState.transactionsReceived; i < this.provingState.totalNumTxs; i++) {
-      await this.startTransaction(this.provingState.emptyTx, this.provingState);
+    const txInputs: Array<{ inputs: BaseRollupInputs; snapshot: TreeSnapshots }> = [];
+    for (let i = 0; i < paddingTxCount; i++) {
+      const [inputs, snapshot] = await this.prepareTransaction(unprovenPaddingTx, this.provingState);
+      const txInput = {
+        inputs,
+        snapshot,
+      };
+      txInputs.push(txInput);
+    }
+
+    // Now enqueue the proving
+    this.enqueuePaddingTxs(this.provingState, txInputs, unprovenPaddingTx);
+  }
+
+  // Enqueues the proving of the required padding transactions
+  // If the fully proven padding transaction is not available, this will first be proven
+  private enqueuePaddingTxs(
+    provingState: ProvingState,
+    txInputs: Array<{ inputs: BaseRollupInputs; snapshot: TreeSnapshots }>,
+    unprovenPaddingTx: ProcessedTx,
+  ) {
+    if (this.paddingTx) {
+      // We already have the padding transaction
+      this.provePaddingTransactions(txInputs, this.paddingTx, provingState);
+      return;
+    }
+    this.deferredProving(
+      provingState,
+      signal =>
+        this.prover.getEmptyPrivateKernelProof(
+          {
+            // Chain id and version should not change even if the proving state does, so it's safe to use them for the padding tx
+            // which gets cached across multiple runs of the orchestrator with different proving states. If they were to change,
+            // we'd have to clear out the paddingTx here and regenerate it when they do.
+            chainId: unprovenPaddingTx.data.constants.globalVariables.chainId,
+            version: unprovenPaddingTx.data.constants.globalVariables.version,
+            header: unprovenPaddingTx.data.constants.historicalHeader,
+          },
+          signal,
+        ),
+      result => {
+        this.paddingTx = makePaddingProcessedTx(result);
+        this.provePaddingTransactions(txInputs, this.paddingTx, provingState);
+      },
+    );
+  }
+
+  private provePaddingTransactions(
+    txInputs: Array<{ inputs: BaseRollupInputs; snapshot: TreeSnapshots }>,
+    paddingTx: PaddingProcessedTx,
+    provingState: ProvingState,
+  ) {
+    for (let i = 0; i < txInputs.length; i++) {
+      txInputs[i].inputs.kernelData.vk = paddingTx.verificationKey;
+      txInputs[i].inputs.kernelData.proof = paddingTx.recursiveProof;
+      this.enqueueFirstProof(txInputs[i].inputs, txInputs[i].snapshot, paddingTx, provingState);
     }
   }
 
@@ -298,16 +371,25 @@ export class ProvingOrchestrator {
    * @param tx - The transaction whose proving we wish to commence
    * @param provingState - The proving state being worked on
    */
-  private async startTransaction(tx: ProcessedTx, provingState: ProvingState) {
+  private async prepareTransaction(tx: ProcessedTx, provingState: ProvingState) {
     // Pass the private kernel tail vk here as the previous one.
     // If there are public functions then this key will be overwritten once the public tail has been proven
     const previousKernelVerificationKey = provingState.privateKernelVerificationKeys.privateKernelCircuit;
+
     const txInputs = await this.prepareBaseRollupInputs(provingState, tx, previousKernelVerificationKey);
     if (!txInputs) {
       // This should not be possible
       throw new Error(`Unable to add padding transaction, preparing base inputs failed`);
     }
-    const [inputs, treeSnapshots] = txInputs;
+    return txInputs;
+  }
+
+  private enqueueFirstProof(
+    inputs: BaseRollupInputs,
+    treeSnapshots: TreeSnapshots,
+    tx: ProcessedTx,
+    provingState: ProvingState,
+  ) {
     const txProvingState = new TxProvingState(
       tx,
       inputs,

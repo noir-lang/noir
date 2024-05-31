@@ -36,7 +36,6 @@ describe('prover/orchestrator/blocks', () => {
         txs.length,
         context.globalVariables,
         [],
-        await makeEmptyProcessedTestTx(context.actualDb),
         getMockVerificationKeys(),
       );
 
@@ -61,7 +60,6 @@ describe('prover/orchestrator/blocks', () => {
         2,
         context.globalVariables,
         [],
-        await makeEmptyProcessedTestTx(context.actualDb),
         getMockVerificationKeys(),
       );
 
@@ -93,7 +91,6 @@ describe('prover/orchestrator/blocks', () => {
         txs.length,
         context.globalVariables,
         l1ToL2Messages,
-        await makeEmptyProcessedTestTx(context.actualDb),
         getMockVerificationKeys(),
       );
 

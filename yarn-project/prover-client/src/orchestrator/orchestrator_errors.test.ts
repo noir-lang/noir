@@ -33,7 +33,7 @@ describe('prover/orchestrator/errors', () => {
         txs.length,
         context.globalVariables,
         [],
-        await makeEmptyProcessedTestTx(context.actualDb),
+
         getMockVerificationKeys(),
       );
 
@@ -80,7 +80,7 @@ describe('prover/orchestrator/errors', () => {
         txs.length,
         context.globalVariables,
         [],
-        await makeEmptyProcessedTestTx(context.actualDb),
+
         getMockVerificationKeys(),
       );
 
@@ -100,7 +100,7 @@ describe('prover/orchestrator/errors', () => {
         2,
         context.globalVariables,
         [],
-        await makeEmptyProcessedTestTx(context.actualDb),
+
         getMockVerificationKeys(),
       );
 
@@ -120,7 +120,7 @@ describe('prover/orchestrator/errors', () => {
               blockSize,
               context.globalVariables,
               [],
-              await makeEmptyProcessedTestTx(context.actualDb),
+
               getMockVerificationKeys(),
             ),
         ).rejects.toThrow(`Length of txs for the block should be a power of two and at least two (got ${blockSize})`);
@@ -136,7 +136,7 @@ describe('prover/orchestrator/errors', () => {
             2,
             context.globalVariables,
             l1ToL2Messages,
-            await makeEmptyProcessedTestTx(context.actualDb),
+
             getMockVerificationKeys(),
           ),
       ).rejects.toThrow('Too many L1 to L2 messages');
