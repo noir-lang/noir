@@ -3,8 +3,6 @@ title: Debugging
 sidebar_position: 2
 ---
 
-import DocCardList from '@theme/DocCardList';
-
 On this section you can learn how to debug your Aztec.nr smart contracts and common errors that you may run into.
 
 # Logging in Aztec.nr
@@ -61,5 +59,3 @@ Alternatively you can update the `DEBUG` environment variable in docker-compose.
 environment:
   DEBUG: aztec:*
 ```
-
-<DocCardList/>

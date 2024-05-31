@@ -4,8 +4,6 @@ title: Inner Workings of Functions
 
 Below, we go more into depth of what is happening under the hood when you create a function in an Aztec contract and what the attributes are really doing.
 
-To get a more practical understanding about functions, read [the rest of this section](./index.md).
-
 ## Private functions
 
 Aztec.nr uses an attribute system to annotate a function's type. Annotating a function with the `#[aztec(private)]` attribute tells the framework that this is a private function that will be executed on a users device. The compiler will create a circuit to define this function.
@@ -93,4 +91,4 @@ This:
 1. Prepares the ACIR for execution
 2. Converts `args` into a format suitable for the ACVM (Abstract Circuit Virtual Machine), creating an initial witness (witness = set of inputs required to compute the function). `args` might be an oracle to request a user's balance
 3. Executes the function in the ACVM, which involves running the ACIR with the initial witness and the context. If requesting a user's balance, this would query the balance from the PXE database
-4. Extracts the return values from the `partialWitness` and decodes them based on the artifact to get the final function output. The [artifact](../contract_structure.md) is the compiled output of the contract, and has information like the function signature, parameter types, and return types
+4. Extracts the return values from the `partialWitness` and decodes them based on the artifact to get the final function output. The [artifact](../../../../reference/smart_contract_reference/contract_artifact.md) is the compiled output of the contract, and has information like the function signature, parameter types, and return types

@@ -13,9 +13,9 @@ You will learn:
 - Typescript glue code to format and authenticate transactions
 - Deploying and testing the account contract
 
-Writing your own account contract allows you to define the rules by which user transactions are authorized and paid for, as well as how user keys are managed (including key rotation and recovery). In other words, writing an account contract lets you make the most out of [account abstraction](../aztec/concepts/index.md#what-is-account-abstraction) in the Aztec network.
+Writing your own account contract allows you to define the rules by which user transactions are authorized and paid for, as well as how user keys are managed (including key rotation and recovery). In other words, writing an account contract lets you make the most out of [account abstraction](../aztec/concepts/accounts/index.md#what-is-account-abstraction) in the Aztec network.
 
-It is highly recommended that you understand how an [account](../aztec/concepts/index.md) is defined in Aztec, as well as the differences between privacy and authentication [keys](../aztec/concepts/accounts/keys.md). You will also need to know how to write a contract in Noir, as well as some basic [Typescript](https://www.typescriptlang.org/).
+It is highly recommended that you understand how an [account](../aztec/concepts/accounts/index.md) is defined in Aztec, as well as the differences between privacy and authentication [keys](../aztec/concepts/accounts/keys.md). You will also need to know how to write a contract in Noir, as well as some basic [Typescript](https://www.typescriptlang.org/).
 
 For this tutorial, we will write an account contract that uses Schnorr signatures for authenticating transaction requests.
 
@@ -83,11 +83,11 @@ More signing schemes are available in case you want to experiment with other typ
 
 Let's try creating a new account backed by our account contract, and interact with a simple token contract to test it works.
 
-To create and deploy the account, we will use the `AccountManager` class, which takes an instance of an Private Execution Environment (PXE), a [privacy private key](../aztec/concepts/accounts/keys.md#privacy-keys), and an instance of our `AccountContract` class:
+To create and deploy the account, we will use the `AccountManager` class, which takes an instance of an Private Execution Environment (PXE), a [privacy private key](../aztec/concepts/accounts/keys.md#incoming-viewing-keys), and an instance of our `AccountContract` class:
 
 #include_code account-contract-deploy yarn-project/end-to-end/src/guides/writing_an_account_contract.test.ts typescript
 
-Note that we get a [`Wallet` instance](../aztec/concepts/index.md#account-contracts-and-wallets) out of the account, which we can use for initializing the token contract class after deployment, so any transactions sent to it are sent from our wallet. We can then send a transaction to it and check its effects:
+Note that we get a `Wallet` instance out of the account, which we can use for initializing the token contract class after deployment, so any transactions sent to it are sent from our wallet. We can then send a transaction to it and check its effects:
 
 #include_code account-contract-works yarn-project/end-to-end/src/guides/writing_an_account_contract.test.ts typescript
 

@@ -2,7 +2,7 @@
 title: Communicating with L1
 ---
 
-Is this your first time hearing the word `Portal`? Check out the [concepts section](../../../../protocol-specs/l1-smart-contracts/index.md).
+Is this your first time hearing the word `Portal`? Check out the [protocol spec](../../../../protocol-specs/l1-smart-contracts/index.md).
 
 Follow the [token bridge tutorial](../../../../tutorials/contract_tutorials/advanced/token_bridge/index.md) for hands-on experience writing and deploying a Portal contract.
 

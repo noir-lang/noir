@@ -11,12 +11,12 @@ In this guide we will cover how to interact with your Aztec.nr smart contracts i
 
 ## Create TS file and install libraries
 
-Pick where you'd like your tests to live and create a Typescript project. 
+Pick where you'd like your tests to live and create a Typescript project.
 
 You will need to install Aztec.js:
 
 ```bash
-yarn add @aztec/aztecjs 
+yarn add @aztec/aztecjs
 ```
 
 You can use `aztec.js` to write assertions about transaction statuses, about chain state both public and private, and about logs.
@@ -49,8 +49,8 @@ Alternatively, you can [create a new account.](./create_account.md).
 
 You can send transactions within your tests with Aztec.js. Read how to do that in these guides:
 
-* [Call a view (unconstrained) function](./call_view_function.md)
-* [Send a transaction](./send_transaction.md)
+- [Call a view (unconstrained) function](./call_view_function.md)
+- [Send a transaction](./send_transaction.md)
 
 ### Using debug options
 
@@ -128,7 +128,7 @@ We can query the PXE for the unencrypted logs emitted in the block where our tra
 
 ## Cheats
 
-The [`CheatCodes`](../../reference/sandbox_reference/cheat_codes.md) class, which we used for [calculating the storage slot above](#state), also includes a set of cheat methods for modifying the chain state that can be handy for testing.
+The [`CheatCodes`](../../reference/sandbox_reference/cheat_codes.md) class, which we used for [calculating the storage slot above](#querying-state), also includes a set of cheat methods for modifying the chain state that can be handy for testing.
 
 ### Set next block timestamp
 
@@ -142,9 +142,9 @@ We can then call `warp` and rely on the `isTimeEqual` function to check that the
 
 ## Further reading
 
-* [How to call a view transactions in Aztec.js](./call_view_function.md)
-* [How to send a transactions in Aztec.js](./send_transaction.md)
-* [How to deploy a contract in Aztec.js](./deploy_contract.md)
-* [How to create an account in Aztec.js](./create_account.md)
-* [Cheat codes](../../reference/sandbox_reference/cheat_codes.md)
-* [How to compile a contract](../smart_contracts/how_to_compile_contract.md).
+- [How to call a view transactions in Aztec.js](./call_view_function.md)
+- [How to send a transactions in Aztec.js](./send_transaction.md)
+- [How to deploy a contract in Aztec.js](./deploy_contract.md)
+- [How to create an account in Aztec.js](./create_account.md)
+- [Cheat codes](../../reference/sandbox_reference/cheat_codes.md)
+- [How to compile a contract](../smart_contracts/how_to_compile_contract.md).

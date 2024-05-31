@@ -194,7 +194,7 @@ Users may create a proof against a historical state in Aztec. The rollup circuit
 
 - "Array size exceeds target length" - happens if you add more items than allowed by the constants set due to our circuit limitations (eg sending too many L2 to L1 messages or creating a function that exceeds the call stack length or returns more values than what Aztec.nr functions allow)
 
-- "Failed to publish block" - Happens when sequencer tries to submit its L2 block + proof to the rollup contract. Use the CLI to find any solidity error and then refer the [Contract errors section](#l1-aztec-contract-errors).
+- "Failed to publish block" - Happens when sequencer tries to submit its L2 block + proof to the rollup contract.
 
 ## L1 Aztec Contract Errors
 

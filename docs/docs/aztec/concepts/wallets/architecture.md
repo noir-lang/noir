@@ -10,7 +10,7 @@ Architecture-wise, a wallet is an instance of an **Private Execution Environment
 The PXE also communicates with an **Aztec Node** for retrieving public information or broadcasting transactions.
 Note that the PXE requires a local database for keeping private state, and is also expected to be continuously syncing new blocks for trial-decryption of user notes.
 
-Additionally, a wallet must be able to handle one or more [account contract implementations](../index.md#account-contracts-and-wallets). When a user creates a new account, the account is represented on-chain by an account contract. The wallet is responsible for deploying and interacting with this contract. A wallet may support multiple flavours of accounts, such as an account that uses ECDSA signatures, or one that relies on WebAuthn, or one that requires multi-factor authentication. For a user, the choice of what account implementation to use is then determined by the wallet they interact with.
+Additionally, a wallet must be able to handle one or more [account contract implementations](../accounts/index.md#account-contracts-and-wallets). When a user creates a new account, the account is represented on-chain by an account contract. The wallet is responsible for deploying and interacting with this contract. A wallet may support multiple flavours of accounts, such as an account that uses ECDSA signatures, or one that relies on WebAuthn, or one that requires multi-factor authentication. For a user, the choice of what account implementation to use is then determined by the wallet they interact with.
 
 In code, this translates to a wallet implementing an **AccountInterface** interface that defines [how to create an _execution request_ out of an array of _function calls_](./index.md#transaction-lifecycle) for the specific implementation of an account contract and [how to generate an _auth witness_](./index.md#authorizing-actions) for authorizing actions on behalf of the user. Think of this interface as the Javascript counterpart of an account contract, or the piece of code that knows how to format a transaction and authenticate an action based on the rules defined by the user's account contract implementation.
 
@@ -25,8 +25,3 @@ The account interface is used for creating an _execution request_ out of one or 
 A wallet exposes the PXE interface to dapps by running an PXE instance. The PXE requires a keystore and a database implementation for storing keys, private state, and recipient encryption public keys.
 
 #include_code pxe-interface /yarn-project/circuit-types/src/interfaces/pxe.ts typescript
-
-
-
-
-

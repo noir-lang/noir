@@ -30,9 +30,9 @@ _The transaction has not been broadcasted to the sequencer network yet. For now,
 
 _The transaction has still not been broadcasted to the sequencer network yet and continues to live solely within the context of the PXE._
 
-3. **The PXE proves correct execution** – At this point, the PXE proves correct execution (via zero-knowledge proofs) of the authorization and of the private transfer method. Once the proofs have been generated, the PXE sends the proofs and required inputs (inputs are new note commitments, stored in the [note hash tree](storage/trees/index.md#note-hash-tree) and nullifiers stored in the [nullifiers tree](storage/trees/index.md#nullifier-tree)) to the sequencer. Nullifiers are data that invalidate old commitments, ensuring that commitments can only be used once.
+1. **The PXE proves correct execution** – At this point, the PXE proves correct execution (via zero-knowledge proofs) of the authorization and of the private transfer method. Once the proofs have been generated, the PXE sends the proofs and required inputs (inputs are new note commitments, stored in the [note hash tree](../../protocol-specs/state/note-hash-tree.md) and nullifiers stored in the [nullifiers tree](../../protocol-specs/state/nullifier-tree.md)) to the sequencer. Nullifiers are data that invalidate old commitments, ensuring that commitments can only be used once.
 
-_The sequencer has received the transaction proof and can begin to process the transaction - verifying proofs and applying updates to the relevant [data trees](storage/trees/index.md) - alongside other public and private transactions._
+_The sequencer has received the transaction proof and can begin to process the transaction - verifying proofs and applying updates to the relevant [data trees](../../protocol-specs/state/index.md) - alongside other public and private transactions._
 
 4. **The sequencer has the necessary information to act** – the randomly-selected sequencer (based on the Fernet sequencer selection protocol) validates the transaction proofs along with required inputs (e.g. the note commitments and nullifiers) for this private transfer. The sequencer also executes public functions and requests proofs of public execution from a prover network. The sequencer updates the corresponding data trees and does the same for other private transactions. When the sequencer receives proofs from the prover network, the proofs will be bundled into a final rollup proof.
 
@@ -42,7 +42,7 @@ _The sequencer has passed the transaction information – proofs of correct exec
 
 ### Going deeper
 
-Transactions on Aztec start with a call from Aztec.js or the Aztec CLI, which creates a request containing transaction details. This request moves to the Private Execution Environment (PXE) which simulates and processes it. Then the PXE interacts with the Aztec Node which uses the sequencer to ensure that all the transaction details are enqueued properly. The sequencer then submits the block to the rollup contract, and the transaction is successfully mined.
+Transactions on Aztec start with a call from Aztec.js, which creates a request containing transaction details. This request moves to the Private Execution Environment (PXE) which simulates and processes it. Then the PXE interacts with the Aztec Node which uses the sequencer to ensure that all the transaction details are enqueued properly. The sequencer then submits the block to the rollup contract, and the transaction is successfully mined.
 
 <a href="https://raw.githubusercontent.com/AztecProtocol/aztec-packages/835b87ead8e031ea78952f75c61b0526da290f54/docs/static/img/sandbox_sending_a_tx.png"><img src="/img/sandbox_sending_a_tx.png" alt="Sending a transaction" /></a>
 

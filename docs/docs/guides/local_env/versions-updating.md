@@ -4,6 +4,7 @@ sidebar_position: 0
 ---
 
 ## Versions
+
 Aztec tools (sandbox, nargo), dependencies (aztec-nr), and sample contracts are constantly being improved.
 When developing and referring to example .nr files/snippets, it is helpful to verify the versions of different components (below), and if required keep them in lock-step by [updating](#updating).
 
@@ -16,16 +17,18 @@ The `aztec-nargo` versions follow `nargo` versions, which is different to the Az
 The latest version of the Aztec tooling is currently `#include_aztec_version` , updating roughly every week.
 
 ### Dependency versions
+
 Dependency versions in a contract's `Nargo.toml` file correspond to the `aztec-packages` repository tag `aztec-packages` (filter tags by `aztec`...)
 
 If you get an error like: `Cannot read file ~/nargo/github.com/AztecProtocol/aztec-packages/...`
 Check the `git=` github url, tag, and directory.
 
 :::note
-The folder structure changed at **0.24.0** from `yarn-project/aztec-nr` to `noir-projects/aztec-nr`.  More details [here](https://docs.aztec.network/misc/migration_notes#aztecnr-aztec-nr-contracts-location-change-in-nargotoml)
+The folder structure changed at **0.24.0** from `yarn-project/aztec-nr` to `noir-projects/aztec-nr`. More details [here](https://docs.aztec.network/misc/migration_notes#aztecnr-aztec-nr-contracts-location-change-in-nargotoml)
 :::
 
 ### Example contract versions
+
 Example contracts serve as a helpful reference between versions of the aztec-nr framework since they are strictly maintained with each release.
 
 Code referenced in the documentation is sourced from contracts within [this directory](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/noir-projects/noir-contracts/contracts).
@@ -34,6 +37,7 @@ As in the previous section, the location of the noir contracts moved at version 
 
 :::tip
 Notice the difference between the sample Counter contract from `0.23.0` to `0.24.0` shows the `note_type_id` was added.
+
 ```shell
 diff ~/nargo/github.com/AztecProtocol/aztec-packages-v0.23.0/yarn-project/noir-contracts/contracts/counter_contract/src/main.nr ~/nargo/github.com/AztecProtocol/aztec-packages-v0.24.0/noir-projects/noir-contracts/contracts/counter_contract/src/main.nr
 ```
@@ -42,9 +46,11 @@ diff ~/nargo/github.com/AztecProtocol/aztec-packages-v0.23.0/yarn-project/noir-c
 57a58
 >         note_type_id: Field,
 ```
+
 :::
 
 ### Language server version (aztec-nargo)
+
 The [Noir LSP](https://docs.aztec.network/developers/contracts/main.md#install-noir-lsp-recommended) uses your local version of `aztec-nargo`, and thus also `aztec-nargo compile`.
 The path of the former (once installed) can be seen by hovering over "Nargo" in the bottom status bar of VS Code, and the latter via the `which aztec-nargo` command.
 
@@ -53,11 +59,13 @@ For Aztec contract files, this should be `aztec-nargo` and for noir-only files t
 :::
 
 This can present confusion when opening older contracts (and dependencies) written in older version of noir, such as:
+
 - Logs filled with errors from the dependencies
 - Or the LSP fails (re-runs automatically then stops)
-The second point requires a restart of the extension, which you can trigger with the command palette (Ctrl + Shift + P) and typing "Reload Window".
+  The second point requires a restart of the extension, which you can trigger with the command palette (Ctrl + Shift + P) and typing "Reload Window".
 
 ## Updating
+
 ### Steps to keep up to date
 
 1. Update the Aztec sandbox to the latest version (includes `aztec-nargo`, pxe, etc):
@@ -81,7 +89,7 @@ cd your/aztec/project
 aztec-builder update . --contract src/contract1 --contract src/contract2
 ```
 
-The sandbox must be running for the update command to work. Make sure it is [installed and running](../../reference/sandbox_reference/index.md).
+The sandbox must be running for the update command to work. Make sure it is [installed and running](../../reference/sandbox_reference/sandbox-reference.md).
 
 Follow [updating Aztec.nr packages](#updating-aztecnr-packages) and [updating JavaScript packages](#updating-aztecjs-packages) guides.
 

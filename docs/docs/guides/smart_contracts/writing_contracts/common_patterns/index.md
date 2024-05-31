@@ -88,7 +88,7 @@ This pattern is discussed in detail in [writing a token contract section in the 
 
 ### Discovering my notes
 
-When you send someone a note, the note hash gets added to the [note hash tree](../../../../aztec/concepts/storage/trees/index.md#note-hash-tree). To spend the note, the receiver needs to get the note itself (the note hash preimage). There are two ways you can get a hold of your notes:
+When you send someone a note, the note hash gets added to the [note hash tree](../../../../protocol-specs/state/note-hash-tree.md). To spend the note, the receiver needs to get the note itself (the note hash preimage). There are two ways you can get a hold of your notes:
 
 1. When sending someone a note, use `encrypt_and_emit_note` (the function encrypts the log in such a way that only a recipient can decrypt it). PXE then tries to decrypt all the encrypted logs, and stores the successfully decrypted one. [More info here](../how_to_emit_event.md)
 2. Manually using `pxe.addNote()` - If you choose to not emit logs to save gas or when creating a note in the public domain and want to consume it in private domain (`encrypt_and_emit_note` shouldn't be called in the public domain because everything is public), like in the previous section where we created a TransparentNote in public.

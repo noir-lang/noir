@@ -3,8 +3,6 @@ title: How to Compile a Contract
 sidebar_position: 3
 ---
 
-import Disclaimer from "@site/src/components/Disclaimers/\_wip_disclaimer.mdx";
-
 Once you have written a contract in Aztec.nr, you will need to compile it into an [artifact](../../aztec/concepts/smart_contracts/contract_structure.md) in order to use it.
 
 In this guide we will cover how to do so, both using the `aztec-nargo` command and programmatically.
@@ -26,12 +24,14 @@ This will output a JSON [artifact](../../aztec/concepts/smart_contracts/contract
 :::note
 This command looks for `Nargo.toml` files by ascending up the parent directories, and will compile the top-most Nargo.toml file it finds.
 Eg: if you are in `/hobbies/cool-game/contracts/easter-egg/`, and both `cool-game` and `easter-egg` contain a Nargo.toml file, then `aztec-nargo compile` will be performed on `cool-game/Nargo.toml` and compile the project(s) specified within it. Eg
+
 ```
 [workspace]
 members = [
     "contracts/easter-egg",
 ]
 ```
+
 :::
 
 ### Typescript Interfaces
@@ -215,7 +215,7 @@ export class TokenContract extends ContractBase {
       nonce: FieldLike,
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
-  
+
   ...
 
   };
@@ -228,7 +228,7 @@ Read more about interacting with contracts using `aztec.js` [here](../../getting
 
 An Aztec.nr contract can [call a function](writing_contracts/call_functions.md) in another contract via `context.call_private_function` or `context.call_public_function`. However, this requires manually assembling the function selector and manually serializing the arguments, which is not type-safe.
 
-To make this easier, the compiler automatically generates interface structs that expose a convenience method for each function listed in a given contract artifact. These structs are intended to be used from another contract project that calls into the current one. 
+To make this easier, the compiler automatically generates interface structs that expose a convenience method for each function listed in a given contract artifact. These structs are intended to be used from another contract project that calls into the current one.
 
 Below is an example of interface usage generated from the [Token](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/token_contract/src/main.nr) contract, used from the [FPC](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/noir-contracts/contracts/fpc_contract/src/main.nr):
 
@@ -269,5 +269,3 @@ At the moment, the compiler generates these interfaces from already compiled ABI
 ## Next steps
 
 Once you have compiled your contracts, you can use the generated artifacts via the `Contract` class in the `aztec.js` package to deploy and interact with them, or rely on the type-safe typescript classes directly.
-
-<Disclaimer/>

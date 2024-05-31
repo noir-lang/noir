@@ -10,9 +10,11 @@ We are working on a better solution for this so expect an update soon, but curre
 ## Run the sandbox in one terminal
 
 Rather than use the usual command, run:
+
 ```bash
 cd ~/.aztec && docker-compose up
 ```
+
 This removes any other arguments, allowing you to ensure an isolated environment for the sandbox so it doesn't interfere with another PXE.
 
 ## Run PXE mode in another terminal
@@ -39,6 +41,4 @@ You should see something like this:
 Aztec Server listening on port 8080
 ```
 
-You can learn more about custom commands in the [sandbox reference](../../reference/sandbox_reference/index.md).
-
-
+You can learn more about custom commands in the [sandbox reference](../../reference/sandbox_reference/sandbox-reference.md).

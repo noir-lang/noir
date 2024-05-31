@@ -13,7 +13,6 @@ The full code for this tutorial is [available on the `aztec-packages` repository
 - Linux or OSX environment
 - [NodeJS](https://nodejs.org/) 18 or higher
 - [Aztec Sandbox](../../getting_started.md)
-- [Aztec CLI](../../reference/sandbox_reference/index.md)
 
 ## Prerequisites
 

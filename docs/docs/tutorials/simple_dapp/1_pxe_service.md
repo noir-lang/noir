@@ -2,7 +2,7 @@
 
 PXE is a component of the Aztec Protocol that provides a private execution environment for your application.
 
-As an app developer, the [PXE](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/pxe) interface provides you with access to the user's accounts and their private state, as well as a connection to the network for accessing public global state.
+As an app developer, the [PXE](../../aztec/concepts/pxe/index.md) interface provides you with access to the user's accounts and their private state, as well as a connection to the network for accessing public global state.
 
 During the Sandbox phase, this role is fulfilled by the [Aztec Sandbox](../../reference/sandbox_reference/index.md), which runs a local PXE and an Aztec Node, both connected to a local Ethereum development node like Anvil.
 The Sandbox also includes a set of pre-initialized accounts that you can use from your app.
@@ -48,4 +48,4 @@ User accounts:
 
 ## Next steps
 
-With a working connection to PXE, let's now setup our application by [compiling and deploying our contracts](./contract_deployment.md).
+With a working connection to PXE, let's now setup our application by [compiling and deploying our contracts](./2_contract_deployment.md).

@@ -7,7 +7,7 @@ sidebar_position: 1
 
 This section shows how to create schnorr account wallets on the Aztec Sandbox.
 
-An in-depth explaining about accounts on aztec can be found [here](../../aztec/concepts/index.md). But creating an account on the Sandbox does 2 things:
+An in-depth explaining about accounts on aztec can be found [here](../../aztec/concepts/accounts/index.md). But creating an account on the Sandbox does 2 things:
 
 1. Deploys an account contract -- representing you -- allowing you to perform actions on the network (deploy contracts, call functions etc).
 2. Adds your encryption keys to the Private eXecution Environment (PXE) allowing it to decrypt and manage your private state.

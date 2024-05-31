@@ -20,12 +20,12 @@ Unlike on Ethereum, there are 2 types of events supported by Aztec: [encrypted](
 Encrypted events can only be emitted by private functions and are encrypted using a public key of a recipient.
 For this reason it is necessary to register a recipient in the Private Execution Environment (PXE) before encrypting the events for them.
 
-First we need to get a hold of recipient's [complete address](#complete-address).
+First we need to get a hold of recipient's [complete address](../../../aztec/concepts/accounts/keys#complete-address).
 Below are some ways how we could instantiate it after getting the information in a string form from a recipient:
 
 #include_code instantiate-complete-address /yarn-project/circuits.js/src/structs/complete_address.test.ts rust
 
-Then to register the recipient's [complete address](../../../aztec/concepts/accounts/keys.md#complete-address) in PXE we would call `registerRecipient` PXE endpoint using [Aztec.js](../../../aztec/core_components.md#aztecjs):
+Then to register the recipient's complete address in PXE we would call `registerRecipient` PXE endpoint using [Aztec.js](../../../aztec/core_components.md#aztecjs):
 
 #include_code register-recipient /yarn-project/aztec.js/src/wallet/create_recipient.ts rust
 
@@ -51,7 +51,7 @@ Aztec.nr enables smart contract developers to design custom notes, meaning devel
 
 ## Encrypted Events
 
-To emit generic event information as an encrypted log, call the context method `encrypt_and_emit_note`. Currently, only arrays of 
+To emit generic event information as an encrypted log, call the context method `encrypt_and_emit_note`. Currently, only arrays of
 fields are supported, and the PXE will fail to decrypt, process and store this data, so it will not be queryable automatically.
 
 ## Unencrypted Events
@@ -60,6 +60,7 @@ Unencrypted events are events which can be read by anyone.
 They can be emitted by both public and private functions.
 
 :::danger
+
 - Emitting unencrypted events from private function is a significant privacy leak and it should be considered by the developer whether it is acceptable.
 
 :::
