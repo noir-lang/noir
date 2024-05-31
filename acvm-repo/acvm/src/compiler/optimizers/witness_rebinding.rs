@@ -3,13 +3,13 @@ use std::collections::{BTreeSet, HashMap};
 use crate::compiler::optimizers::GeneralOptimizer;
 use acir::{
     circuit::{
-        brillig::{Brillig, BrilligInputs, BrilligOutputs},
+        brillig::{BrilligInputs, BrilligOutputs},
         directives::Directive,
         opcodes::{BlackBoxFuncCall, FunctionInput, MemOp},
         Circuit, Opcode,
     },
     native_types::{Expression, Witness},
-    FieldElement,
+    AcirField,
 };
 
 /// `WitnessRebindingOptimizer` will remove redundant range constraints.
@@ -33,13 +33,13 @@ use acir::{
 ///
 /// This optimization pass looks for [`Opcode::AssertZero`] opcodes of this form and replaces references and replaces
 /// all references to one of these witnesses with the other to apply this equality in all other opcodes.
-pub(crate) struct WitnessRebindingOptimizer {
-    circuit: Circuit,
+pub(crate) struct WitnessRebindingOptimizer<F> {
+    circuit: Circuit<F>,
 }
 
-impl WitnessRebindingOptimizer {
+impl<F: AcirField> WitnessRebindingOptimizer<F> {
     /// Creates a new `WitnessRebindingOptimizer`
-    pub(crate) fn new(circuit: Circuit) -> Self {
+    pub(crate) fn new(circuit: Circuit<F>) -> Self {
         Self { circuit }
     }
 
@@ -60,9 +60,9 @@ impl WitnessRebindingOptimizer {
                 Opcode::AssertZero(Expression { mul_terms, linear_combinations, q_c })
                     if mul_terms.is_empty() && q_c.is_zero() && linear_combinations.len() == 2 =>
                 {
-                    let [(k1, w1), (k2, w2)]: [(FieldElement, Witness); 2] =
+                    let [(k1, w1), (k2, w2)]: [(F, Witness); 2] =
                         linear_combinations.clone().try_into().unwrap();
-                    if k1 * k2 == -FieldElement::one() {
+                    if k1 * k2 == -F::one() {
                         match (required_witnesses.contains(&w1), required_witnesses.contains(&w2)) {
                             (false, false) | (true, false) => {
                                 equivalent_witnesses.insert(w2, w1);
@@ -89,9 +89,9 @@ impl WitnessRebindingOptimizer {
 
     /// Returns a `Circuit` where any witnesses assigned to be equal to a another witness has been replaced.
     pub(crate) fn rebind_witnesses(
-        circuit: Circuit,
+        circuit: Circuit<F>,
         order_list: Vec<usize>,
-    ) -> (Circuit, Vec<usize>) {
+    ) -> (Circuit<F>, Vec<usize>) {
         let old_circuit_size = circuit.opcodes.len();
 
         let optimizer = Self::new(circuit);
@@ -108,7 +108,7 @@ impl WitnessRebindingOptimizer {
     pub(crate) fn rebind_witnesses_iteration(
         mut self,
         order_list: Vec<usize>,
-    ) -> (Circuit, Vec<usize>) {
+    ) -> (Circuit<F>, Vec<usize>) {
         let known_witnesses = self.gather_equivalent_witnesses();
 
         let opcodes = std::mem::take(&mut self.circuit.opcodes);
@@ -124,10 +124,10 @@ impl WitnessRebindingOptimizer {
             }
         }
 
-        fn remap_expression(
+        fn remap_expression<F: AcirField>(
             witness_mapping: &HashMap<Witness, Witness>,
-            expression: Expression,
-        ) -> Expression {
+            expression: Expression<F>,
+        ) -> Expression<F> {
             GeneralOptimizer::optimize(Expression {
                 mul_terms: expression
                     .mul_terms
@@ -170,57 +170,6 @@ impl WitnessRebindingOptimizer {
                     }
                     Opcode::AssertZero(new_expr)
                 }
-                Opcode::Brillig(brillig) => {
-                    let remapped_inputs = brillig
-                        .inputs
-                        .into_iter()
-                        .map(|input| match input {
-                            BrilligInputs::Single(expr) => {
-                                BrilligInputs::Single(remap_expression(&known_witnesses, expr))
-                            }
-                            BrilligInputs::Array(expr_array) => {
-                                let new_input: Vec<_> = expr_array
-                                    .into_iter()
-                                    .map(|expr| remap_expression(&known_witnesses, expr))
-                                    .collect();
-
-                                BrilligInputs::Array(new_input)
-                            }
-                            mem_array @ BrilligInputs::MemoryArray(_) => mem_array,
-                        })
-                        .collect();
-
-                    let remapped_outputs = brillig
-                        .outputs
-                        .into_iter()
-                        .map(|output| match output {
-                            BrilligOutputs::Simple(witness) => {
-                                BrilligOutputs::Simple(resolve_witness(&known_witnesses, witness))
-                            }
-                            BrilligOutputs::Array(witness_array) => {
-                                let new_output: Vec<_> = witness_array
-                                    .into_iter()
-                                    .map(|expr| resolve_witness(&known_witnesses, expr))
-                                    .collect();
-
-                                BrilligOutputs::Array(new_output)
-                            }
-                        })
-                        .collect();
-
-                    let remapped_predicate = brillig
-                        .predicate
-                        .map(|predicate| remap_expression(&known_witnesses, predicate));
-
-                    let new_brillig = Brillig {
-                        inputs: remapped_inputs,
-                        outputs: remapped_outputs,
-                        predicate: remapped_predicate,
-                        ..brillig
-                    };
-
-                    Opcode::Brillig(new_brillig)
-                }
                 Opcode::BlackBoxFuncCall(func) => Opcode::BlackBoxFuncCall(match func {
                     BlackBoxFuncCall::AND { lhs, rhs, output } => BlackBoxFuncCall::AND {
                         lhs: remap_function_input(&known_witnesses, lhs),
@@ -243,7 +192,9 @@ impl WitnessRebindingOptimizer {
                         outputs: outputs
                             .into_iter()
                             .map(|output| resolve_witness(&known_witnesses, output))
-                            .collect(),
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .unwrap(),
                     },
                     BlackBoxFuncCall::Blake2s { inputs, outputs } => BlackBoxFuncCall::Blake2s {
                         inputs: inputs
@@ -253,7 +204,9 @@ impl WitnessRebindingOptimizer {
                         outputs: outputs
                             .into_iter()
                             .map(|output| resolve_witness(&known_witnesses, output))
-                            .collect(),
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .unwrap(),
                     },
                     BlackBoxFuncCall::Blake3 { inputs, outputs } => BlackBoxFuncCall::Blake3 {
                         inputs: inputs
@@ -263,7 +216,9 @@ impl WitnessRebindingOptimizer {
                         outputs: outputs
                             .into_iter()
                             .map(|output| resolve_witness(&known_witnesses, output))
-                            .collect(),
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .unwrap(),
                     },
                     BlackBoxFuncCall::SchnorrVerify {
                         public_key_x,
@@ -277,7 +232,9 @@ impl WitnessRebindingOptimizer {
                         signature: signature
                             .into_iter()
                             .map(|input| remap_function_input(&known_witnesses, input))
-                            .collect(),
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .unwrap(),
                         message: message
                             .into_iter()
                             .map(|input| remap_function_input(&known_witnesses, input))
@@ -317,19 +274,27 @@ impl WitnessRebindingOptimizer {
                         public_key_x: public_key_x
                             .into_iter()
                             .map(|input| remap_function_input(&known_witnesses, input))
-                            .collect(),
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .unwrap(),
                         public_key_y: public_key_y
                             .into_iter()
                             .map(|input| remap_function_input(&known_witnesses, input))
-                            .collect(),
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .unwrap(),
                         signature: signature
                             .into_iter()
                             .map(|input| remap_function_input(&known_witnesses, input))
-                            .collect(),
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .unwrap(),
                         hashed_message: hashed_message
                             .into_iter()
                             .map(|input| remap_function_input(&known_witnesses, input))
-                            .collect(),
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .unwrap(),
                         output: resolve_witness(&known_witnesses, output),
                     },
                     BlackBoxFuncCall::EcdsaSecp256r1 {
@@ -342,41 +307,45 @@ impl WitnessRebindingOptimizer {
                         public_key_x: public_key_x
                             .into_iter()
                             .map(|input| remap_function_input(&known_witnesses, input))
-                            .collect(),
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .unwrap(),
                         public_key_y: public_key_y
                             .into_iter()
                             .map(|input| remap_function_input(&known_witnesses, input))
-                            .collect(),
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .unwrap(),
                         signature: signature
                             .into_iter()
                             .map(|input| remap_function_input(&known_witnesses, input))
-                            .collect(),
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .unwrap(),
                         hashed_message: hashed_message
                             .into_iter()
                             .map(|input| remap_function_input(&known_witnesses, input))
-                            .collect(),
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .unwrap(),
                         output: resolve_witness(&known_witnesses, output),
                     },
-                    BlackBoxFuncCall::FixedBaseScalarMul { low, high, outputs } => {
-                        BlackBoxFuncCall::FixedBaseScalarMul {
-                            low: remap_function_input(&known_witnesses, low),
-                            high: remap_function_input(&known_witnesses, high),
-                            outputs: (
-                                resolve_witness(&known_witnesses, outputs.0),
-                                resolve_witness(&known_witnesses, outputs.1),
-                            ),
-                        }
-                    }
-                    BlackBoxFuncCall::Keccak256 { inputs, outputs } => {
+                    BlackBoxFuncCall::Keccak256 { inputs, var_message_size, outputs } => {
                         BlackBoxFuncCall::Keccak256 {
                             inputs: inputs
                                 .into_iter()
                                 .map(|input| remap_function_input(&known_witnesses, input))
                                 .collect(),
+                            var_message_size: remap_function_input(
+                                &known_witnesses,
+                                var_message_size,
+                            ),
                             outputs: outputs
                                 .into_iter()
                                 .map(|output| resolve_witness(&known_witnesses, output))
-                                .collect(),
+                                .collect::<Vec<_>>()
+                                .try_into()
+                                .unwrap(),
                         }
                     }
                     BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
@@ -384,28 +353,17 @@ impl WitnessRebindingOptimizer {
                             inputs: inputs
                                 .into_iter()
                                 .map(|input| remap_function_input(&known_witnesses, input))
-                                .collect(),
+                                .collect::<Vec<_>>()
+                                .try_into()
+                                .unwrap(),
                             outputs: outputs
                                 .into_iter()
                                 .map(|output| resolve_witness(&known_witnesses, output))
-                                .collect(),
+                                .collect::<Vec<_>>()
+                                .try_into()
+                                .unwrap(),
                         }
                     }
-                    BlackBoxFuncCall::Keccak256VariableLength {
-                        inputs,
-                        var_message_size,
-                        outputs,
-                    } => BlackBoxFuncCall::Keccak256VariableLength {
-                        inputs: inputs
-                            .into_iter()
-                            .map(|input| remap_function_input(&known_witnesses, input))
-                            .collect(),
-                        var_message_size,
-                        outputs: outputs
-                            .into_iter()
-                            .map(|output| resolve_witness(&known_witnesses, output))
-                            .collect(),
-                    },
                     BlackBoxFuncCall::RecursiveAggregation {
                         verification_key,
                         proof,
@@ -426,22 +384,25 @@ impl WitnessRebindingOptimizer {
                             .collect(),
                         key_hash: remap_function_input(&known_witnesses, key_hash),
                     },
-                    BlackBoxFuncCall::EmbeddedCurveAdd {
-                        input1_x,
-                        input1_y,
-                        input2_x,
-                        input2_y,
-                        outputs,
-                    } => BlackBoxFuncCall::EmbeddedCurveAdd {
-                        input1_x: remap_function_input(&known_witnesses, input1_x),
-                        input1_y: remap_function_input(&known_witnesses, input1_y),
-                        input2_x: remap_function_input(&known_witnesses, input2_x),
-                        input2_y: remap_function_input(&known_witnesses, input2_y),
-                        outputs: (
-                            resolve_witness(&known_witnesses, outputs.0),
-                            resolve_witness(&known_witnesses, outputs.1),
-                        ),
-                    },
+                    BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs } => {
+                        BlackBoxFuncCall::EmbeddedCurveAdd {
+                            input1: Box::new([
+                                remap_function_input(&known_witnesses, input1[0]),
+                                remap_function_input(&known_witnesses, input1[2]),
+                                remap_function_input(&known_witnesses, input1[2]),
+                            ]),
+                            input2: Box::new([
+                                remap_function_input(&known_witnesses, input2[0]),
+                                remap_function_input(&known_witnesses, input2[2]),
+                                remap_function_input(&known_witnesses, input2[2]),
+                            ]),
+                            outputs: (
+                                resolve_witness(&known_witnesses, outputs.0),
+                                resolve_witness(&known_witnesses, outputs.1),
+                                resolve_witness(&known_witnesses, outputs.2),
+                            ),
+                        }
+                    }
                     BlackBoxFuncCall::BigIntAdd { lhs, rhs, output } => {
                         BlackBoxFuncCall::BigIntAdd { lhs, rhs, output }
                     }
@@ -491,15 +452,62 @@ impl WitnessRebindingOptimizer {
                             inputs: inputs
                                 .into_iter()
                                 .map(|input| remap_function_input(&known_witnesses, input))
-                                .collect(),
+                                .collect::<Vec<_>>()
+                                .try_into()
+                                .unwrap(),
                             hash_values: hash_values
                                 .into_iter()
                                 .map(|input| remap_function_input(&known_witnesses, input))
-                                .collect(),
+                                .collect::<Vec<_>>()
+                                .try_into()
+                                .unwrap(),
                             outputs: outputs
                                 .into_iter()
                                 .map(|expr| resolve_witness(&known_witnesses, expr))
+                                .collect::<Vec<_>>()
+                                .try_into()
+                                .unwrap(),
+                        }
+                    }
+                    BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } => {
+                        BlackBoxFuncCall::AES128Encrypt {
+                            inputs: inputs
+                                .into_iter()
+                                .map(|input| remap_function_input(&known_witnesses, input))
                                 .collect(),
+                            iv: iv
+                                .into_iter()
+                                .map(|input| remap_function_input(&known_witnesses, input))
+                                .collect::<Vec<_>>()
+                                .try_into()
+                                .unwrap(),
+                            key: key
+                                .into_iter()
+                                .map(|input| remap_function_input(&known_witnesses, input))
+                                .collect::<Vec<_>>()
+                                .try_into()
+                                .unwrap(),
+                            outputs: outputs
+                                .into_iter()
+                                .map(|output| resolve_witness(&known_witnesses, output))
+                                .collect(),
+                        }
+                    }
+                    BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
+                        BlackBoxFuncCall::MultiScalarMul {
+                            points: points
+                                .into_iter()
+                                .map(|input| remap_function_input(&known_witnesses, input))
+                                .collect(),
+                            scalars: scalars
+                                .into_iter()
+                                .map(|input| remap_function_input(&known_witnesses, input))
+                                .collect(),
+                            outputs: (
+                                resolve_witness(&known_witnesses, outputs.0),
+                                resolve_witness(&known_witnesses, outputs.1),
+                                resolve_witness(&known_witnesses, outputs.2),
+                            ),
                         }
                     }
                 }),
@@ -522,14 +530,15 @@ impl WitnessRebindingOptimizer {
                     predicate: predicate
                         .map(|predicate| remap_expression(&known_witnesses, predicate)),
                 },
-                Opcode::MemoryInit { block_id, init } => Opcode::MemoryInit {
+                Opcode::MemoryInit { block_id, init, block_type } => Opcode::MemoryInit {
                     block_id,
                     init: init
                         .into_iter()
                         .map(|wit| resolve_witness(&known_witnesses, wit))
                         .collect(),
+                    block_type,
                 },
-                Opcode::Call { id, inputs, outputs } => Opcode::Call {
+                Opcode::Call { id, inputs, outputs, predicate } => Opcode::Call {
                     id,
                     inputs: inputs
                         .into_iter()
@@ -539,6 +548,44 @@ impl WitnessRebindingOptimizer {
                         .into_iter()
                         .map(|wit| resolve_witness(&known_witnesses, wit))
                         .collect(),
+                    predicate: predicate.map(|expr| remap_expression(&known_witnesses, expr)),
+                },
+                Opcode::BrilligCall { id, inputs, outputs, predicate } => Opcode::BrilligCall {
+                    id,
+                    inputs: inputs
+                        .into_iter()
+                        .map(|input| match input {
+                            BrilligInputs::Single(expr) => {
+                                BrilligInputs::Single(remap_expression(&known_witnesses, expr))
+                            }
+                            BrilligInputs::Array(expr_array) => {
+                                let new_input: Vec<_> = expr_array
+                                    .into_iter()
+                                    .map(|expr| remap_expression(&known_witnesses, expr))
+                                    .collect();
+
+                                BrilligInputs::Array(new_input)
+                            }
+                            mem_array @ BrilligInputs::MemoryArray(_) => mem_array,
+                        })
+                        .collect(),
+                    outputs: outputs
+                        .into_iter()
+                        .map(|output| match output {
+                            BrilligOutputs::Simple(witness) => {
+                                BrilligOutputs::Simple(resolve_witness(&known_witnesses, witness))
+                            }
+                            BrilligOutputs::Array(witness_array) => {
+                                let new_output: Vec<_> = witness_array
+                                    .into_iter()
+                                    .map(|expr| resolve_witness(&known_witnesses, expr))
+                                    .collect();
+
+                                BrilligOutputs::Array(new_output)
+                            }
+                        })
+                        .collect(),
+                    predicate: predicate.map(|expr| remap_expression(&known_witnesses, expr)),
                 },
             };
 
