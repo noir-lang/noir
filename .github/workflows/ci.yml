@@ -70,6 +70,10 @@ jobs:
               - 'noir-projects/**'
             non-barretenberg-cpp:
               - '!(barretenberg/cpp/**)'
+              # don't consider AVM stuff 'core bb'
+              - barretenberg/cpp/pil/**
+              - barretenberg/cpp/src/barretenberg/vm/**
+              - barretenberg/cpp/src/barretenberg/**/generated/*
             non-docs:
               - '!(docs/**)'
             non-misc-ci:
