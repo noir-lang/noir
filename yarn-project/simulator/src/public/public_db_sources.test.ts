@@ -6,7 +6,7 @@ import { type MerkleTreeOperations } from '@aztec/world-state';
 
 import { type MockProxy, mock } from 'jest-mock-extended';
 
-import { WorldStatePublicDB } from './public_executor.js';
+import { WorldStatePublicDB } from './public_db_sources.js';
 
 const DB_VALUES_SIZE = 10;
 

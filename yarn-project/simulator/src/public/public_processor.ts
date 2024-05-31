@@ -38,7 +38,7 @@ import {
   publicKernelPhaseToKernelType,
 } from './abstract_phase_manager.js';
 import { PhaseManagerFactory } from './phase_manager_factory.js';
-import { ContractsDataSourcePublicDB, WorldStateDB, WorldStatePublicDB } from './public_executor.js';
+import { ContractsDataSourcePublicDB, WorldStateDB, WorldStatePublicDB } from './public_db_sources.js';
 import { RealPublicKernelCircuitSimulator } from './public_kernel.js';
 import { type PublicKernelCircuitSimulator } from './public_kernel_circuit_simulator.js';
 

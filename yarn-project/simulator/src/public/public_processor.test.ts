@@ -51,7 +51,7 @@ import { jest } from '@jest/globals';
 import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { PublicExecutionResultBuilder, makeFunctionCall } from '../mocks/fixtures.js';
-import { type ContractsDataSourcePublicDB, type WorldStatePublicDB } from './public_executor.js';
+import { type ContractsDataSourcePublicDB, type WorldStatePublicDB } from './public_db_sources.js';
 import { RealPublicKernelCircuitSimulator } from './public_kernel.js';
 import { type PublicKernelCircuitSimulator } from './public_kernel_circuit_simulator.js';
 import { PublicProcessor } from './public_processor.js';

@@ -32,7 +32,7 @@ import { toFunctionSelector } from 'viem';
 import { MessageLoadOracleInputs } from '../index.js';
 import { buildL1ToL2Message } from '../test/utils.js';
 import { computeSlotForMapping } from '../utils.js';
-import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from './db.js';
+import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from './db_interfaces.js';
 import { type PublicExecution } from './execution.js';
 import { PublicExecutor } from './executor.js';
 

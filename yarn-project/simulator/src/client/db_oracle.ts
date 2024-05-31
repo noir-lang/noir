@@ -12,7 +12,7 @@ import { type Fr } from '@aztec/foundation/fields';
 import { type ContractInstance } from '@aztec/types/contracts';
 
 import { type NoteData } from '../acvm/index.js';
-import { type CommitmentsDB } from '../public/db.js';
+import { type CommitmentsDB } from '../public/db_interfaces.js';
 
 /**
  * Error thrown when a contract is not found in the database.

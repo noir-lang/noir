@@ -63,13 +63,9 @@ export interface PublicExecutionResult {
    * Useful for maintaining correct ordering in ts.
    */
   allUnencryptedLogs: UnencryptedFunctionL2Logs;
-  /**
-   * Whether the execution reverted.
-   */
+  /** Whether the execution reverted. */
   reverted: boolean;
-  /**
-   * The revert reason if the execution reverted.
-   */
+  /** The revert reason if the execution reverted. */
   revertReason?: SimulationError;
   /** How much gas was available for this public execution. */
   startGasLeft: Gas;

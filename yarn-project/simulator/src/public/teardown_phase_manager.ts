@@ -12,7 +12,7 @@ import { type MerkleTreeOperations } from '@aztec/world-state';
 import { inspect } from 'util';
 
 import { AbstractPhaseManager, PublicKernelPhase, makeAvmProvingRequest } from './abstract_phase_manager.js';
-import { type ContractsDataSourcePublicDB } from './public_executor.js';
+import { type ContractsDataSourcePublicDB } from './public_db_sources.js';
 import { type PublicKernelCircuitSimulator } from './public_kernel_circuit_simulator.js';
 
 /**
