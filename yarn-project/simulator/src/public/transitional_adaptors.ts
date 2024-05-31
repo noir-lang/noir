@@ -73,6 +73,7 @@ export function convertAvmResultsToPxResult(
   fromPx: PublicExecution,
   startGas: Gas,
   endAvmContext: AvmContext,
+  bytecode: Buffer | undefined,
 ): PublicExecutionResult {
   const endPersistableState = endAvmContext.persistableState;
   const endMachineState = endAvmContext.machineState;
@@ -92,6 +93,8 @@ export function convertAvmResultsToPxResult(
     startGasLeft: startGas,
     endGasLeft: endMachineState.gasLeft,
     transactionFee: endAvmContext.environment.transactionFee,
+    bytecode: bytecode,
+    calldata: endAvmContext.environment.calldata,
   };
 }
 

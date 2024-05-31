@@ -70,13 +70,17 @@ export interface PublicExecutionResult {
   /**
    * The revert reason if the execution reverted.
    */
-  revertReason: SimulationError | undefined;
+  revertReason?: SimulationError;
   /** How much gas was available for this public execution. */
   startGasLeft: Gas;
   /** How much gas was left after this public execution. */
   endGasLeft: Gas;
   /** Transaction fee set for this tx. */
   transactionFee: Fr;
+  /** Bytecode used for this execution. */
+  bytecode?: Buffer;
+  /** Calldata used for this execution. */
+  calldata: Fr[];
 }
 
 /**

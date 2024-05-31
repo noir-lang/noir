@@ -2,7 +2,7 @@ import {
   EncryptedNoteTxL2Logs,
   EncryptedTxL2Logs,
   PublicDataWrite,
-  type PublicInputsAndProof,
+  type PublicInputsAndRecursiveProof,
   type SimulationError,
   type Tx,
   TxEffect,
@@ -49,6 +49,17 @@ export type PublicKernelNonTailRequest = {
 
 export type PublicKernelRequest = PublicKernelTailRequest | PublicKernelNonTailRequest;
 
+export const AVM_REQUEST = 'AVM' as const;
+
+export type AvmProvingRequest = {
+  type: typeof AVM_REQUEST;
+  bytecode: Buffer;
+  calldata: Fr[];
+  kernelRequest: PublicKernelNonTailRequest;
+};
+
+export type PublicProvingRequest = AvmProvingRequest | PublicKernelRequest;
+
 /**
  * Represents a tx that has been processed by the sequencer public processor,
  * so its kernel circuit public inputs are filled in.
@@ -71,15 +82,18 @@ export type ProcessedTx = Pick<Tx, 'proof' | 'noteEncryptedLogs' | 'encryptedLog
    */
   revertReason: SimulationError | undefined;
   /**
-   * The collection of public kernel circuit inputs for simulation/proving
+   * The inputs for AVM and kernel proving.
    */
-  publicKernelRequests: PublicKernelRequest[];
+  publicProvingRequests: PublicProvingRequest[];
   /**
    * Gas usage per public execution phase.
    * Doesn't account for any base costs nor DA gas used in private execution.
    */
   gasUsed: Partial<Record<PublicKernelType, Gas>>;
-  /** All public data updates for this transaction, including those created or updated by the protocol, such as balance updates from fee payments. */
+  /**
+   * All public data updates for this transaction, including those created
+   * or updated by the protocol, such as balance updates from fee payments.
+   */
   finalPublicDataUpdateRequests: PublicDataUpdateRequest[];
 };
 
@@ -133,7 +147,7 @@ export function makeProcessedTx(
   tx: Tx,
   kernelOutput: KernelCircuitPublicInputs,
   proof: Proof,
-  publicKernelRequests: PublicKernelRequest[],
+  publicProvingRequests: PublicProvingRequest[],
   revertReason?: SimulationError,
   gasUsed: ProcessedTx['gasUsed'] = {},
   finalPublicDataUpdateRequests?: PublicDataUpdateRequest[],
@@ -148,7 +162,7 @@ export function makeProcessedTx(
     unencryptedLogs: revertReason ? UnencryptedTxL2Logs.empty() : tx.unencryptedLogs,
     isEmpty: false,
     revertReason,
-    publicKernelRequests,
+    publicProvingRequests,
     gasUsed,
     finalPublicDataUpdateRequests: finalPublicDataUpdateRequests ?? kernelOutput.end.publicDataUpdateRequests,
   };
@@ -164,7 +178,7 @@ export type PaddingProcessedTx = ProcessedTx & {
  * @returns A valid padding processed tx.
  */
 export function makePaddingProcessedTx(
-  kernelOutput: PublicInputsAndProof<KernelCircuitPublicInputs>,
+  kernelOutput: PublicInputsAndRecursiveProof<KernelCircuitPublicInputs>,
 ): PaddingProcessedTx {
   const hash = new TxHash(Fr.ZERO.toBuffer());
   return {
@@ -176,7 +190,7 @@ export function makePaddingProcessedTx(
     proof: kernelOutput.proof.binaryProof,
     isEmpty: true,
     revertReason: undefined,
-    publicKernelRequests: [],
+    publicProvingRequests: [],
     gasUsed: {},
     finalPublicDataUpdateRequests: [],
     verificationKey: kernelOutput.verificationKey,
@@ -205,7 +219,7 @@ export function makeEmptyProcessedTx(header: Header, chainId: Fr, version: Fr): 
     proof: emptyProof,
     isEmpty: true,
     revertReason: undefined,
-    publicKernelRequests: [],
+    publicProvingRequests: [],
     gasUsed: {},
     finalPublicDataUpdateRequests: [],
   };

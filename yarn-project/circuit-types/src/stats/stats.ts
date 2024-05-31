@@ -79,6 +79,7 @@ export type CircuitName =
   | 'public-kernel-app-logic'
   | 'public-kernel-teardown'
   | 'public-kernel-tail'
+  | 'avm-circuit'
   | 'empty-nested'
   | 'private-kernel-empty';
 

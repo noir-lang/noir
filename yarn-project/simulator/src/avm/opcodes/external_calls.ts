@@ -86,13 +86,15 @@ abstract class ExternalCall extends Instruction {
     const startSideEffectCounter = nestedContext.persistableState.trace.accessCounter;
 
     const oldStyleExecution = createPublicExecution(startSideEffectCounter, nestedContext.environment, calldata);
-    const nestedCallResults: AvmContractCallResults = await new AvmSimulator(nestedContext).execute();
+    const simulator = new AvmSimulator(nestedContext);
+    const nestedCallResults: AvmContractCallResults = await simulator.execute();
     const pxResults = convertAvmResultsToPxResult(
       nestedCallResults,
       startSideEffectCounter,
       oldStyleExecution,
       Gas.from(allocatedGas),
       nestedContext,
+      simulator.getBytecode(),
     );
     // store the old PublicExecutionResult object to maintain a recursive data structure for the old kernel
     context.persistableState.transitionalExecutionResult.nestedExecutions.push(pxResults);

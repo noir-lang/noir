@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'path';
 
 import { type BBSuccess, BB_RESULT, generateAvmProof, verifyAvmProof } from './bb/execute.js';
+import { extractVkData } from './verification_key/verification_key_data.js';
 
 const TIMEOUT = 30_000;
 
@@ -25,22 +26,29 @@ describe('AVM WitGen, proof generation and verification', () => {
       const bbWorkingDirectory = await fs.mkdtemp(path.join(tmpdir(), 'bb-'));
 
       // First we simulate (though it's not needed in this simple case).
-      const results = await new AvmSimulator(context).executeBytecode(bytecode);
+      const simulator = new AvmSimulator(context);
+      const results = await simulator.executeBytecode(bytecode);
       expect(results.reverted).toBe(false);
 
       // Then we prove.
+      const uncompressedBytecode = simulator.getBytecode()!;
       const proofRes = await generateAvmProof(
         bbPath,
         bbWorkingDirectory,
-        bytecode,
+        uncompressedBytecode,
         context.environment.calldata,
         logger,
       );
       expect(proofRes.status).toEqual(BB_RESULT.SUCCESS);
 
-      // Then we verify.
+      // Then we test VK extraction.
       const succeededRes = proofRes as BBSuccess;
-      const verificationRes = await verifyAvmProof(bbPath, succeededRes.proofPath!, succeededRes.vkPath!, logger);
+      const verificationKey = await extractVkData(succeededRes.vkPath!);
+      expect(verificationKey.keyAsBytes).toHaveLength(16);
+
+      // Then we verify.
+      const rawVkPath = path.join(succeededRes.vkPath!, 'vk');
+      const verificationRes = await verifyAvmProof(bbPath, succeededRes.proofPath!, rawVkPath, logger);
       expect(verificationRes.status).toBe(BB_RESULT.SUCCESS);
     },
     TIMEOUT,

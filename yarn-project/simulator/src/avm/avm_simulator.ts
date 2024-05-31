@@ -17,6 +17,7 @@ import { decodeFromBytecode } from './serialization/bytecode_serialization.js';
 
 export class AvmSimulator {
   private log: DebugLogger;
+  private bytecode: Buffer | undefined;
 
   constructor(private context: AvmContext) {
     this.log = createDebugLogger(
@@ -44,6 +45,13 @@ export class AvmSimulator {
   }
 
   /**
+   * Return the bytecode used for execution, if any.
+   */
+  public getBytecode(): Buffer | undefined {
+    return this.bytecode;
+  }
+
+  /**
    * Executes the provided bytecode in the current context.
    * This method is useful for testing and debugging.
    */
@@ -51,6 +59,7 @@ export class AvmSimulator {
     const decompressedBytecode = await decompressBytecodeIfCompressed(bytecode);
     assert(isAvmBytecode(decompressedBytecode), "AVM simulator can't execute non-AVM bytecode");
 
+    this.bytecode = decompressedBytecode;
     return await this.executeInstructions(decodeFromBytecode(decompressedBytecode));
   }
 

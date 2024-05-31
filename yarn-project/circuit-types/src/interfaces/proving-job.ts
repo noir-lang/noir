@@ -1,4 +1,5 @@
 import {
+  type AvmCircuitInputs,
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
   type BaseRollupInputs,
@@ -6,6 +7,7 @@ import {
   type MergeRollupInputs,
   type NESTED_RECURSIVE_PROOF_LENGTH,
   type PrivateKernelEmptyInputData,
+  type Proof,
   type PublicKernelCircuitPublicInputs,
   type RECURSIVE_PROOF_LENGTH,
   type RecursiveProof,
@@ -18,18 +20,23 @@ import {
 
 import type { PublicKernelNonTailRequest, PublicKernelTailRequest } from '../tx/processed_tx.js';
 
-export type PublicInputsAndProof<T> = {
+export type ProofAndVerificationKey = {
+  proof: Proof;
+  verificationKey: VerificationKeyData;
+};
+
+export type PublicInputsAndRecursiveProof<T> = {
   inputs: T;
   proof: RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>;
   verificationKey: VerificationKeyData;
 };
 
-export function makePublicInputsAndProof<T>(
+export function makePublicInputsAndRecursiveProof<T>(
   inputs: T,
   proof: RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>,
   verificationKey: VerificationKeyData,
 ) {
-  const result: PublicInputsAndProof<T> = {
+  const result: PublicInputsAndRecursiveProof<T> = {
     inputs,
     proof,
     verificationKey,
@@ -60,8 +67,7 @@ export enum ProvingRequestType {
 export type ProvingRequest =
   | {
       type: ProvingRequestType.PUBLIC_VM;
-      // prefer object over unknown so that we can run "in" checks, e.g. `'toBuffer' in request.inputs`
-      inputs: object;
+      inputs: AvmCircuitInputs;
     }
   | {
       type: ProvingRequestType.PUBLIC_KERNEL_NON_TAIL;
@@ -99,15 +105,15 @@ export type ProvingRequest =
     };
 
 export type ProvingRequestPublicInputs = {
-  [ProvingRequestType.PRIVATE_KERNEL_EMPTY]: PublicInputsAndProof<KernelCircuitPublicInputs>;
-  [ProvingRequestType.PUBLIC_VM]: PublicInputsAndProof<object>;
+  [ProvingRequestType.PRIVATE_KERNEL_EMPTY]: PublicInputsAndRecursiveProof<KernelCircuitPublicInputs>;
+  [ProvingRequestType.PUBLIC_VM]: ProofAndVerificationKey;
 
-  [ProvingRequestType.PUBLIC_KERNEL_NON_TAIL]: PublicInputsAndProof<PublicKernelCircuitPublicInputs>;
-  [ProvingRequestType.PUBLIC_KERNEL_TAIL]: PublicInputsAndProof<KernelCircuitPublicInputs>;
+  [ProvingRequestType.PUBLIC_KERNEL_NON_TAIL]: PublicInputsAndRecursiveProof<PublicKernelCircuitPublicInputs>;
+  [ProvingRequestType.PUBLIC_KERNEL_TAIL]: PublicInputsAndRecursiveProof<KernelCircuitPublicInputs>;
 
-  [ProvingRequestType.BASE_ROLLUP]: PublicInputsAndProof<BaseOrMergeRollupPublicInputs>;
-  [ProvingRequestType.MERGE_ROLLUP]: PublicInputsAndProof<BaseOrMergeRollupPublicInputs>;
-  [ProvingRequestType.ROOT_ROLLUP]: PublicInputsAndProof<RootRollupPublicInputs>;
+  [ProvingRequestType.BASE_ROLLUP]: PublicInputsAndRecursiveProof<BaseOrMergeRollupPublicInputs>;
+  [ProvingRequestType.MERGE_ROLLUP]: PublicInputsAndRecursiveProof<BaseOrMergeRollupPublicInputs>;
+  [ProvingRequestType.ROOT_ROLLUP]: PublicInputsAndRecursiveProof<RootRollupPublicInputs>;
 
   [ProvingRequestType.BASE_PARITY]: RootParityInput<typeof RECURSIVE_PROOF_LENGTH>;
   [ProvingRequestType.ROOT_PARITY]: RootParityInput<typeof NESTED_RECURSIVE_PROOF_LENGTH>;

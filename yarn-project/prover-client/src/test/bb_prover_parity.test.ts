@@ -118,21 +118,16 @@ describe('prover/bb_prover/parity', () => {
     });
 
     // Check the invalid VK scenario with an invalid witness assertion
-    await expect(context.prover.getRootParityProof(new RootParityInputs(tupleWithDefectiveVK))).rejects.toThrow();
+    await expect(context.prover.getRootParityProof(new RootParityInputs(tupleWithDefectiveVK))).rejects.toThrow(
+      'Failed to generate witness',
+    );
 
-    const defectiveTuples = [tupleWithDefectiveProof, tupleWithDefectiveInputs];
-
-    for (const t of defectiveTuples) {
-      try {
+    for (const t of [tupleWithDefectiveProof, tupleWithDefectiveInputs]) {
+      await expect(async () => {
         const result = await context.prover.getRootParityProof(new RootParityInputs(t));
         await bbProver.verifyProof('RootParityArtifact', result.proof.binaryProof);
         fail('Proof should not be generated and verified');
-      } catch (error) {
-        expect([
-          new Error('Failed to generate proof'),
-          new Error('Failed to verify RootParityArtifact proof!'),
-        ]).toContainEqual(error);
-      }
+      }).rejects.toThrow(/Failed to generate proof|Failed to verify proof/);
     }
   });
 });

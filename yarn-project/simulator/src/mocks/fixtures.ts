@@ -141,6 +141,7 @@ export class PublicExecutionResultBuilder {
       startGasLeft: Gas.test(),
       endGasLeft: Gas.test(),
       transactionFee: Fr.ZERO,
+      calldata: [],
       ...overrides,
     };
   }

@@ -118,7 +118,7 @@ describe('public_processor', () => {
         unencryptedLogs: tx.unencryptedLogs,
         isEmpty: false,
         revertReason: undefined,
-        publicKernelRequests: [],
+        publicProvingRequests: [],
         gasUsed: {},
         finalPublicDataUpdateRequests: times(
           MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,

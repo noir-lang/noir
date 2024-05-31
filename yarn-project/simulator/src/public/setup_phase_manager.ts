@@ -1,9 +1,9 @@
-import { type PublicKernelRequest, PublicKernelType, type Tx } from '@aztec/circuit-types';
+import { PublicKernelType, type PublicProvingRequest, type Tx } from '@aztec/circuit-types';
 import { type GlobalVariables, type Header, type PublicKernelCircuitPublicInputs } from '@aztec/circuits.js';
 import { type PublicExecutor, type PublicStateDB } from '@aztec/simulator';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
-import { AbstractPhaseManager, PublicKernelPhase } from './abstract_phase_manager.js';
+import { AbstractPhaseManager, PublicKernelPhase, makeAvmProvingRequest } from './abstract_phase_manager.js';
 import { type ContractsDataSourcePublicDB } from './public_executor.js';
 import { type PublicKernelCircuitSimulator } from './public_kernel_circuit_simulator.js';
 
@@ -29,7 +29,7 @@ export class SetupPhaseManager extends AbstractPhaseManager {
     // TODO(#6464): Should we allow emitting contracts in the private setup phase?
     // if so, this should only add contracts that were deployed during private app logic.
     await this.publicContractsDB.addNewContracts(tx);
-    const [kernelInputs, publicKernelOutput, newUnencryptedFunctionLogs, revertReason, _returnValues, gasUsed] =
+    const { publicProvingInformation, kernelOutput, newUnencryptedLogs, revertReason, gasUsed } =
       await this.processEnqueuedPublicCalls(tx, previousPublicKernelOutput).catch(
         // the abstract phase manager throws if simulation gives error in a non-revertible phase
         async err => {
@@ -37,24 +37,13 @@ export class SetupPhaseManager extends AbstractPhaseManager {
           throw err;
         },
       );
-    tx.unencryptedLogs.addFunctionLogs(newUnencryptedFunctionLogs);
+    tx.unencryptedLogs.addFunctionLogs(newUnencryptedLogs);
     await this.publicStateDB.checkpoint();
 
     // Return a list of setup proving requests
-    const kernelRequests = kernelInputs.map(input => {
-      const request: PublicKernelRequest = {
-        type: PublicKernelType.SETUP,
-        inputs: input,
-      };
-      return request;
+    const publicProvingRequests: PublicProvingRequest[] = publicProvingInformation.map(info => {
+      return makeAvmProvingRequest(info, PublicKernelType.SETUP);
     });
-    return {
-      kernelRequests,
-      kernelInputs,
-      publicKernelOutput,
-      revertReason,
-      returnValues: [],
-      gasUsed,
-    };
+    return { publicProvingRequests, publicKernelOutput: kernelOutput, revertReason, returnValues: [], gasUsed };
   }
 }

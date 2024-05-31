@@ -1,8 +1,11 @@
 import {
+  AVM_REQUEST,
+  type AvmProvingRequest,
   MerkleTreeId,
   type NestedProcessReturnValues,
-  type PublicKernelRequest,
+  type PublicKernelNonTailRequest,
   PublicKernelType,
+  type PublicProvingRequest,
   type SimulationError,
   type Tx,
   type UnencryptedFunctionL2Logs,
@@ -93,6 +96,57 @@ export function publicKernelPhaseToKernelType(phase: PublicKernelPhase): PublicK
   }
 }
 
+export type PublicProvingInformation = {
+  calldata: Fr[];
+  bytecode: Buffer;
+  inputs: PublicKernelCircuitPrivateInputs;
+};
+
+export function makeAvmProvingRequest(
+  info: PublicProvingInformation,
+  kernelType: PublicKernelNonTailRequest['type'],
+): AvmProvingRequest {
+  return {
+    type: AVM_REQUEST,
+    bytecode: info.bytecode,
+    calldata: info.calldata,
+    kernelRequest: {
+      type: kernelType,
+      inputs: info.inputs,
+    },
+  };
+}
+
+export type TxPublicCallsResult = {
+  /** Inputs to be used for proving */
+  publicProvingInformation: PublicProvingInformation[];
+  /** The public kernel output at the end of the Tx */
+  kernelOutput: PublicKernelCircuitPublicInputs;
+  /** Unencrypted logs generated during the execution of this Tx */
+  newUnencryptedLogs: UnencryptedFunctionL2Logs[];
+  /** Revert reason, if any */
+  revertReason?: SimulationError;
+  /** Return values of simulating complete callstack */
+  returnValues: NestedProcessReturnValues[];
+  /** Gas used during the execution this Tx */
+  gasUsed?: Gas;
+};
+
+export type PhaseResult = {
+  /** The collection of public proving requests */
+  publicProvingRequests: PublicProvingRequest[];
+  /** The output of the public kernel circuit simulation for this phase */
+  publicKernelOutput: PublicKernelCircuitPublicInputs;
+  /** The final output of the public kernel circuit for this phase */
+  finalKernelOutput?: KernelCircuitPublicInputs;
+  /** Revert reason, if any */
+  revertReason?: SimulationError;
+  /** Return values of simulating complete callstack */
+  returnValues: NestedProcessReturnValues[];
+  /** Gas used during the execution this phase */
+  gasUsed?: Gas;
+};
+
 export abstract class AbstractPhaseManager {
   protected hintsBuilder: HintsBuilder;
   protected log: DebugLogger;
@@ -107,36 +161,12 @@ export abstract class AbstractPhaseManager {
     this.hintsBuilder = new HintsBuilder(db);
     this.log = createDebugLogger(`aztec:sequencer:${phase}`);
   }
+
   /**
-   *
    * @param tx - the tx to be processed
    * @param publicKernelPublicInputs - the output of the public kernel circuit for the previous phase
-   * @param previousPublicKernelProof - the proof of the public kernel circuit for the previous phase
    */
-  abstract handle(
-    tx: Tx,
-    publicKernelPublicInputs: PublicKernelCircuitPublicInputs,
-  ): Promise<{
-    /**
-     * The collection of public kernel requests
-     */
-    kernelRequests: PublicKernelRequest[];
-    /**
-     * the output of the public kernel circuit for this phase
-     */
-    publicKernelOutput: PublicKernelCircuitPublicInputs;
-    /**
-     * the final output of the public kernel circuit for this phase
-     */
-    finalKernelOutput?: KernelCircuitPublicInputs;
-    /**
-     * revert reason, if any
-     */
-    revertReason: SimulationError | undefined;
-    returnValues: NestedProcessReturnValues[];
-    /** Gas used during the execution this particular phase. */
-    gasUsed: Gas | undefined;
-  }>;
+  abstract handle(tx: Tx, publicKernelPublicInputs: PublicKernelCircuitPublicInputs): Promise<PhaseResult>;
 
   public static extractEnqueuedPublicCallsByPhase(tx: Tx): Record<PublicKernelPhase, PublicCallRequest[]> {
     const data = tx.data.forPublic;
@@ -208,40 +238,32 @@ export abstract class AbstractPhaseManager {
     return calls;
   }
 
-  // REFACTOR: Do not return an array and instead return a struct with similar shape to that returned by `handle`
   protected async processEnqueuedPublicCalls(
     tx: Tx,
     previousPublicKernelOutput: PublicKernelCircuitPublicInputs,
-  ): Promise<
-    [
-      PublicKernelCircuitPrivateInputs[],
-      PublicKernelCircuitPublicInputs,
-      UnencryptedFunctionL2Logs[],
-      SimulationError | undefined,
-      NestedProcessReturnValues[],
-      Gas,
-    ]
-  > {
-    let kernelOutput: PublicKernelCircuitPublicInputs = previousPublicKernelOutput;
-    const publicKernelInputs: PublicKernelCircuitPrivateInputs[] = [];
-
+  ): Promise<TxPublicCallsResult> {
     const enqueuedCalls = this.extractEnqueuedPublicCalls(tx);
 
     if (!enqueuedCalls || !enqueuedCalls.length) {
-      return [[], kernelOutput, [], undefined, [], Gas.empty()];
+      return {
+        publicProvingInformation: [],
+        kernelOutput: previousPublicKernelOutput,
+        newUnencryptedLogs: [],
+        returnValues: [],
+        gasUsed: Gas.empty(),
+      };
     }
-
-    const newUnencryptedFunctionLogs: UnencryptedFunctionL2Logs[] = [];
-
-    // Transaction fee is zero for all phases except teardown
-    const transactionFee = this.getTransactionFee(tx, previousPublicKernelOutput);
 
     // TODO(#1684): Should multiple separately enqueued public calls be treated as
     // separate public callstacks to be proven by separate public kernel sequences
     // and submitted separately to the base rollup?
 
+    const provingInformationList: PublicProvingInformation[] = [];
+    const newUnencryptedFunctionLogs: UnencryptedFunctionL2Logs[] = [];
+    // Transaction fee is zero for all phases except teardown
+    const transactionFee = this.getTransactionFee(tx, previousPublicKernelOutput);
     let gasUsed = Gas.empty();
-
+    let kernelPublicOutput: PublicKernelCircuitPublicInputs = previousPublicKernelOutput;
     const enqueuedCallResults = [];
 
     for (const enqueuedCall of enqueuedCalls) {
@@ -253,9 +275,9 @@ export abstract class AbstractPhaseManager {
       while (executionStack.length) {
         const current = executionStack.pop()!;
         const isExecutionRequest = !isPublicExecutionResult(current);
-        const sideEffectCounter = lastSideEffectCounter(kernelOutput) + 1;
-        const availableGas = this.getAvailableGas(tx, kernelOutput);
-        const pendingNullifiers = this.getSiloedPendingNullifiers(kernelOutput);
+        const sideEffectCounter = lastSideEffectCounter(kernelPublicOutput) + 1;
+        const availableGas = this.getAvailableGas(tx, kernelPublicOutput);
+        const pendingNullifiers = this.getSiloedPendingNullifiers(kernelPublicOutput);
 
         const result = isExecutionRequest
           ? await this.publicExecutor.simulate(
@@ -269,6 +291,9 @@ export abstract class AbstractPhaseManager {
             )
           : current;
 
+        // Accumulate gas used in this execution
+        gasUsed = gasUsed.add(Gas.from(result.startGasLeft).sub(Gas.from(result.endGasLeft)));
+
         // Sanity check for a current upstream assumption.
         // Consumers of the result seem to expect "reverted <=> revertReason !== undefined".
         const functionSelector = result.execution.functionSelector.toString();
@@ -277,9 +302,6 @@ export abstract class AbstractPhaseManager {
             `Simulation of ${result.execution.contractAddress.toString()}:${functionSelector} reverted with no reason.`,
           );
         }
-
-        // Accumulate gas used in this execution
-        gasUsed = gasUsed.add(Gas.from(result.startGasLeft).sub(Gas.from(result.endGasLeft)));
 
         if (result.reverted && !PhaseIsRevertible[this.phase]) {
           this.log.debug(
@@ -293,23 +315,28 @@ export abstract class AbstractPhaseManager {
         if (isExecutionRequest) {
           newUnencryptedFunctionLogs.push(result.allUnencryptedLogs);
         }
+        executionStack.push(...result.nestedExecutions);
 
+        // Simulate the public kernel circuit.
         this.log.debug(
           `Running public kernel circuit for ${result.execution.contractAddress.toString()}:${functionSelector}`,
         );
-        executionStack.push(...result.nestedExecutions);
         const callData = await this.getPublicCallData(result, isExecutionRequest);
+        const [privateInputs, publicInputs] = await this.runKernelCircuit(kernelPublicOutput, callData);
+        kernelPublicOutput = publicInputs;
 
-        const circuitResult = await this.runKernelCircuit(kernelOutput, callData);
-        kernelOutput = circuitResult[1];
+        // Capture the inputs for later proving in the AVM and kernel.
+        const publicProvingInformation: PublicProvingInformation = {
+          calldata: result.calldata,
+          bytecode: result.bytecode!,
+          inputs: privateInputs,
+        };
+        provingInformationList.push(publicProvingInformation);
 
-        // Capture the inputs to the kernel circuit for later proving
-        publicKernelInputs.push(circuitResult[0]);
-
-        // sanity check. Note we can't expect them to just be equal, because e.g.
+        // Sanity check: Note we can't expect them to just be equal, because e.g.
         // if the simulator reverts in app logic, it "resets" and result.reverted will be false when we run teardown,
         // but the kernel carries the reverted flag forward. But if the simulator reverts, so should the kernel.
-        if (result.reverted && kernelOutput.revertCode.isOK()) {
+        if (result.reverted && kernelPublicOutput.revertCode.isOK()) {
           throw new Error(
             `Public kernel circuit did not revert on ${result.execution.contractAddress.toString()}:${functionSelector}, but simulator did.`,
           );
@@ -324,7 +351,14 @@ export abstract class AbstractPhaseManager {
             }`,
           );
           // TODO(@spalladino): Check gasUsed is correct. The AVM should take care of setting gasLeft to zero upon a revert.
-          return [[], kernelOutput, [], result.revertReason, [], gasUsed];
+          return {
+            publicProvingInformation: [],
+            kernelOutput: kernelPublicOutput,
+            newUnencryptedLogs: [],
+            revertReason: result.revertReason,
+            returnValues: [],
+            gasUsed,
+          };
         }
 
         if (!enqueuedExecutionResult) {
@@ -335,10 +369,16 @@ export abstract class AbstractPhaseManager {
       }
     }
 
-    return [publicKernelInputs, kernelOutput, newUnencryptedFunctionLogs, undefined, enqueuedCallResults, gasUsed];
+    return {
+      publicProvingInformation: provingInformationList,
+      kernelOutput: kernelPublicOutput,
+      newUnencryptedLogs: newUnencryptedFunctionLogs,
+      returnValues: enqueuedCallResults,
+      gasUsed,
+    };
   }
 
-  /** Returns all pending private and public nullifiers.  */
+  /** Returns all pending private and public nullifiers. */
   private getSiloedPendingNullifiers(ko: PublicKernelCircuitPublicInputs) {
     return [...ko.end.newNullifiers, ...ko.endNonRevertibleData.newNullifiers].filter(n => !n.isEmpty());
   }
@@ -354,14 +394,7 @@ export abstract class AbstractPhaseManager {
     return Fr.ZERO;
   }
 
-  protected async runKernelCircuit(
-    previousOutput: PublicKernelCircuitPublicInputs,
-    callData: PublicCallData,
-  ): Promise<[PublicKernelCircuitPrivateInputs, PublicKernelCircuitPublicInputs]> {
-    return await this.getKernelCircuitOutput(previousOutput, callData);
-  }
-
-  protected async getKernelCircuitOutput(
+  private async runKernelCircuit(
     previousOutput: PublicKernelCircuitPublicInputs,
     callData: PublicCallData,
   ): Promise<[PublicKernelCircuitPrivateInputs, PublicKernelCircuitPublicInputs]> {

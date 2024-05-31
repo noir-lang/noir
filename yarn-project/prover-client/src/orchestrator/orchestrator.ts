@@ -15,11 +15,12 @@ import {
   PROVING_STATUS,
   type ProvingResult,
   type ProvingTicket,
-  type PublicInputsAndProof,
+  type PublicInputsAndRecursiveProof,
   type ServerCircuitProver,
 } from '@aztec/circuit-types/interfaces';
 import {
   AGGREGATION_OBJECT_LENGTH,
+  AvmCircuitInputs,
   type BaseOrMergeRollupPublicInputs,
   BaseParityInputs,
   type BaseRollupInputs,
@@ -39,7 +40,7 @@ import {
   type RootParityInput,
   RootParityInputs,
   type VerificationKeyAsFields,
-  type VerificationKeyData,
+  VerificationKeyData,
   type VerificationKeys,
   makeEmptyProof,
 } from '@aztec/circuits.js';
@@ -49,7 +50,6 @@ import { AbortedError } from '@aztec/foundation/error';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { promiseWithResolvers } from '@aztec/foundation/promise';
 import { BufferReader, type Tuple } from '@aztec/foundation/serialize';
-import { sleep } from '@aztec/foundation/sleep';
 import { pushTestData } from '@aztec/foundation/testing';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
@@ -80,11 +80,6 @@ const logger = createDebugLogger('aztec:prover:proving-orchestrator');
  *
  * The proving implementation is determined by the provided prover. This could be for example a local prover or a remote prover pool.
  */
-
-const KernelTypesWithoutFunctions: Set<PublicKernelType> = new Set<PublicKernelType>([
-  PublicKernelType.NON_PUBLIC,
-  PublicKernelType.TAIL,
-]);
 
 /**
  * The orchestrator, managing the flow of recursive proving operations required to build the rollup proof tree.
@@ -404,8 +399,8 @@ export class ProvingOrchestrator {
       this.enqueueBaseRollup(provingState, BigInt(txIndex), txProvingState);
       return;
     }
-    // Enqueue all of the VM proving requests
-    // Rather than handle the Kernel Tail as a special case here, we will just handle it inside executeVM
+    // Enqueue all of the VM/kernel proving requests
+    // Rather than handle the Kernel Tail as a special case here, we will just handle it inside enqueueVM
     for (let i = 0; i < numPublicKernels; i++) {
       logger.debug(`Enqueueing public VM ${i} for tx ${txIndex}`);
       this.enqueueVM(provingState, txIndex, i);
@@ -738,25 +733,44 @@ export class ProvingOrchestrator {
     const txProvingState = provingState.getTxProvingState(txIndex);
     const publicFunction = txProvingState.getPublicFunctionState(functionIndex);
 
-    // Prove the VM if this is a kernel that requires one
-    if (!KernelTypesWithoutFunctions.has(publicFunction.publicKernelRequest.type)) {
-      // Just sleep for a small amount of time
-      this.deferredProving(
-        provingState,
-        () => sleep(100),
-        () => {
-          logger.debug(`Proven VM for function index ${functionIndex} of tx index ${txIndex}`);
-          this.checkAndEnqueuePublicKernel(provingState, txIndex, functionIndex);
-        },
-      );
+    // If there is a VM request, we need to prove it. Otherwise, continue with the kernel.
+    if (publicFunction.vmRequest) {
+      // This function tries to do AVM proving. If there is a failure, it fakes the proof unless AVM_PROVING_STRICT is defined.
+      // Nothing downstream depends on the AVM proof yet. So having this mode lets us incrementally build the AVM circuit.
+      const doAvmProving = async (signal: AbortSignal) => {
+        const inputs: AvmCircuitInputs = new AvmCircuitInputs(
+          publicFunction.vmRequest!.bytecode,
+          publicFunction.vmRequest!.calldata,
+        );
+        try {
+          return await this.prover.getAvmProof(inputs, signal);
+        } catch (err) {
+          if (process.env.AVM_PROVING_STRICT) {
+            throw err;
+          } else {
+            logger.warn(`Error thrown when proving AVM circuit: ${err}`);
+            logger.warn(`AVM_PROVING_STRICT is off, faking AVM proof and carrying on...`);
+            return { proof: makeEmptyProof(), verificationKey: VerificationKeyData.makeFake() };
+          }
+        }
+      };
+      this.deferredProving(provingState, doAvmProving, proofAndVk => {
+        logger.debug(`Proven VM for function index ${functionIndex} of tx index ${txIndex}`);
+        this.checkAndEnqueuePublicKernel(provingState, txIndex, functionIndex, proofAndVk.proof);
+      });
     } else {
-      this.checkAndEnqueuePublicKernel(provingState, txIndex, functionIndex);
+      this.checkAndEnqueuePublicKernel(provingState, txIndex, functionIndex, /*vmProof=*/ makeEmptyProof());
     }
   }
 
-  private checkAndEnqueuePublicKernel(provingState: ProvingState, txIndex: number, functionIndex: number) {
+  private checkAndEnqueuePublicKernel(
+    provingState: ProvingState,
+    txIndex: number,
+    functionIndex: number,
+    vmProof: Proof,
+  ) {
     const txProvingState = provingState.getTxProvingState(txIndex);
-    const kernelRequest = txProvingState.getNextPublicKernelFromVMProof(functionIndex, makeEmptyProof());
+    const kernelRequest = txProvingState.getNextPublicKernelFromVMProof(functionIndex, vmProof);
     if (kernelRequest.code === TX_PROVING_CODE.READY) {
       if (kernelRequest.function === undefined) {
         // Should not be possible
@@ -785,7 +799,7 @@ export class ProvingOrchestrator {
 
     this.deferredProving(
       provingState,
-      (signal): Promise<PublicInputsAndProof<KernelCircuitPublicInputs | PublicKernelCircuitPublicInputs>> => {
+      (signal): Promise<PublicInputsAndRecursiveProof<KernelCircuitPublicInputs | PublicKernelCircuitPublicInputs>> => {
         if (request.type === PublicKernelType.TAIL) {
           return this.prover.getPublicTailProof(request, signal);
         } else {

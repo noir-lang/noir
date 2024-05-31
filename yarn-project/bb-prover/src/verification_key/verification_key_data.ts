@@ -1,5 +1,4 @@
 import {
-  CIRCUIT_PUBLIC_INPUTS_INDEX,
   Fr,
   type VERIFICATION_KEY_LENGTH_IN_FIELDS,
   VerificationKeyAsFields,
@@ -8,18 +7,19 @@ import {
 import { type Tuple } from '@aztec/foundation/serialize';
 
 import * as fs from 'fs/promises';
+import * as path from 'path';
 
 import { VK_FIELDS_FILENAME, VK_FILENAME } from '../bb/execute.js';
 
 /**
  * Reads the verification key data stored at the specified location and parses into a VerificationKeyData
- * @param filePath - The directory containing the verification key data files
+ * @param vkDirectoryPath - The directory containing the verification key data files
  * @returns The verification key data
  */
-export async function extractVkData(filePath: string): Promise<VerificationKeyData> {
+export async function extractVkData(vkDirectoryPath: string): Promise<VerificationKeyData> {
   const [rawFields, rawBinary] = await Promise.all([
-    fs.readFile(`${filePath}/${VK_FIELDS_FILENAME}`, { encoding: 'utf-8' }),
-    fs.readFile(`${filePath}/${VK_FILENAME}`),
+    fs.readFile(path.join(vkDirectoryPath, VK_FIELDS_FILENAME), { encoding: 'utf-8' }),
+    fs.readFile(path.join(vkDirectoryPath, VK_FILENAME)),
   ]);
   const fieldsJson = JSON.parse(rawFields);
   const fields = fieldsJson.map(Fr.fromString);
@@ -32,8 +32,4 @@ export async function extractVkData(filePath: string): Promise<VerificationKeyDa
   );
   const vk = new VerificationKeyData(vkAsFields, rawBinary);
   return vk;
-}
-
-export function getNumPublicInputsFromVKFields(vk: VerificationKeyAsFields) {
-  return Number(vk.key[CIRCUIT_PUBLIC_INPUTS_INDEX]);
 }

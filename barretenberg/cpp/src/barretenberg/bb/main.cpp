@@ -512,12 +512,12 @@ void vk_as_fields(const std::string& vk_path, const std::string& output_path)
  * @brief Writes an avm proof and corresponding (incomplete) verification key to files.
  *
  * Communication:
- * - Filesystem: The proof and vk are written to the paths output_path/proof and output_path/vk
+ * - Filesystem: The proof and vk are written to the paths output_path/proof and output_path/{vk, vk_fields.json}
  *
  * @param bytecode_path Path to the file containing the serialised bytecode
  * @param calldata_path Path to the file containing the serialised calldata (could be empty)
  * @param crs_path Path to the file containing the CRS (ignition is suitable for now)
- * @param output_path Path (directory) to write the output proof and verification key
+ * @param output_path Path (directory) to write the output proof and verification keys
  */
 void avm_prove(const std::filesystem::path& bytecode_path,
                const std::filesystem::path& calldata_path,
@@ -539,9 +539,19 @@ void avm_prove(const std::filesystem::path& bytecode_path,
     auto const [verification_key, proof] = avm_trace::Execution::prove(avm_bytecode, call_data);
     // TODO(ilyas): <#4887>: Currently we only need these two parts of the vk, look into pcs_verification key reqs
     std::vector<uint64_t> vk_vector = { verification_key.circuit_size, verification_key.num_public_inputs };
+    std::vector<fr> vk_as_fields = { verification_key.circuit_size, verification_key.num_public_inputs };
+    std::string vk_json = vk_to_json(vk_as_fields);
 
-    write_file(output_path / "proof", to_buffer(proof));
-    write_file(output_path / "vk", to_buffer(vk_vector));
+    const auto proof_path = output_path / "proof";
+    const auto vk_path = output_path / "vk";
+    const auto vk_fields_path = output_path / "vk_fields.json";
+
+    write_file(proof_path, to_buffer(proof));
+    vinfo("proof written to: ", proof_path);
+    write_file(vk_path, to_buffer(vk_vector));
+    vinfo("vk written to: ", vk_path);
+    write_file(vk_fields_path, { vk_json.begin(), vk_json.end() });
+    vinfo("vk as fields written to: ", vk_fields_path);
 }
 
 /**

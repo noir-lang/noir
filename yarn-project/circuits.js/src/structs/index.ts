@@ -1,4 +1,5 @@
 export * from '@aztec/foundation/eth-address';
+export * from './avm/avm.js';
 export * from './call_context.js';
 export * from './call_request.js';
 export * from './caller_context.js';

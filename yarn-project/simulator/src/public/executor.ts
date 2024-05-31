@@ -109,6 +109,7 @@ async function executeTopLevelPublicFunctionAvm(
     executionContext.execution,
     startGas,
     avmContext,
+    simulator.getBytecode(),
   );
 }
 
@@ -185,6 +186,7 @@ async function executePublicFunctionAcvm(
       startGasLeft: context.availableGas,
       endGasLeft: Gas.empty(),
       transactionFee: context.transactionFee,
+      calldata: context.execution.args,
     };
   }
 
@@ -261,6 +263,7 @@ async function executePublicFunctionAcvm(
     startGasLeft,
     endGasLeft,
     transactionFee: context.transactionFee,
+    calldata: context.execution.args,
   };
 }
 

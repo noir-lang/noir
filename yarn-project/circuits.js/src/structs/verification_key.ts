@@ -178,7 +178,8 @@ export class VerificationKey {
   }
 
   /**
-	@@ -126,28 +97,14 @@ export class VerificationKeyAsFields {
+   * Deserializes class from a buffer.
+   * @returns A VerificationKey instance.
    */
   static fromBuffer(buffer: Buffer | BufferReader): VerificationKey {
     const reader = BufferReader.asReader(buffer);

@@ -42,18 +42,16 @@ export class TailPhaseManager extends AbstractPhaseManager {
     );
 
     // Return a tail proving request
-    const request: PublicKernelRequest = {
+    const kernelRequest: PublicKernelRequest = {
       type: PublicKernelType.TAIL,
       inputs: inputs,
     };
 
     return {
-      kernelRequests: [request],
+      publicProvingRequests: [kernelRequest],
       publicKernelOutput: previousPublicKernelOutput,
       finalKernelOutput,
-      revertReason: undefined,
       returnValues: [],
-      gasUsed: undefined,
     };
   }
 

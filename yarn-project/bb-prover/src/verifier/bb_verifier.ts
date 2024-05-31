@@ -9,8 +9,16 @@ import {
 } from '@aztec/noir-protocol-circuits-types';
 
 import * as fs from 'fs/promises';
+import * as path from 'path';
 
-import { BB_RESULT, generateContractForCircuit, generateKeyForNoirCircuit, verifyProof } from '../bb/execute.js';
+import {
+  BB_RESULT,
+  PROOF_FILENAME,
+  VK_FILENAME,
+  generateContractForCircuit,
+  generateKeyForNoirCircuit,
+  verifyProof,
+} from '../bb/execute.js';
 import { type BBConfig } from '../config.js';
 import { extractVkData } from '../verification_key/verification_key_data.js';
 
@@ -78,11 +86,11 @@ export class BBCircuitVerifier implements ClientProtocolCircuitVerifier {
 
   public async verifyProofForCircuit(circuit: ProtocolArtifact, proof: Proof) {
     const operation = async (bbWorkingDirectory: string) => {
-      const proofFileName = `${bbWorkingDirectory}/proof`;
-      const verificationKeyPath = `${bbWorkingDirectory}/vk`;
+      const proofFileName = path.join(bbWorkingDirectory, PROOF_FILENAME);
+      const verificationKeyPath = path.join(bbWorkingDirectory, VK_FILENAME);
       const verificationKey = await this.getVerificationKeyData(circuit);
 
-      this.logger.debug(`Verifying with key: ${verificationKey.keyAsFields.hash.toString()}`);
+      this.logger.debug(`${circuit} Verifying with key: ${verificationKey.keyAsFields.hash.toString()}`);
 
       await fs.writeFile(proofFileName, proof.buffer);
       await fs.writeFile(verificationKeyPath, verificationKey.keyAsBytes);
@@ -97,6 +105,8 @@ export class BBCircuitVerifier implements ClientProtocolCircuitVerifier {
         const errorMessage = `Failed to verify ${circuit} proof!`;
         throw new Error(errorMessage);
       }
+
+      this.logger.debug(`${circuit} verification successful`);
     };
     await runInDirectory(this.config.bbWorkingDirectory, operation);
   }
