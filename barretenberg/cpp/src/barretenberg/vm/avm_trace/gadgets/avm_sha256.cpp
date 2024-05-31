@@ -1,7 +1,8 @@
-#include "avm_sha256.hpp"
-#include "../avm_common.hpp"
+#include "barretenberg/vm/avm_trace/gadgets/avm_sha256.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/numeric/uint128/uint128.hpp"
+#include "barretenberg/vm/avm_trace/avm_common.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -128,4 +129,5 @@ std::array<uint8_t, 32> AvmSha256TraceBuilder::sha256(const std::vector<uint8_t>
     sha256_trace.push_back(Sha256TraceEntry{ clk, {}, {}, {} });
     return output;
 }
+
 } // namespace bb::avm_trace

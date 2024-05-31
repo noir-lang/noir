@@ -1,5 +1,7 @@
 #pragma once
+
 #include "aztec_constants.hpp"
+
 #include <cstdint>
 
 // NOTE(MD): for now we will only include the public inputs that are included in call_context

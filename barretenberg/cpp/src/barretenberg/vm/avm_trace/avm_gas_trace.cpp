@@ -1,4 +1,4 @@
-#include "avm_gas_trace.hpp"
+#include "barretenberg/vm/avm_trace/avm_gas_trace.hpp"
 
 namespace bb::avm_trace {
 

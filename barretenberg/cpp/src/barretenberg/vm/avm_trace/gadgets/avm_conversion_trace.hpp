@@ -1,11 +1,14 @@
 #pragma once
 
-#include "../avm_common.hpp"
 #include "barretenberg/numeric/uint128/uint128.hpp"
+#include "barretenberg/vm/avm_trace/avm_common.hpp"
+
 #include <cstdint>
 #include <unordered_map>
+#include <vector>
 
 namespace bb::avm_trace {
+
 class AvmConversionTraceBuilder {
   public:
     struct ConversionTraceEntry {
@@ -27,4 +30,5 @@ class AvmConversionTraceBuilder {
   private:
     std::vector<ConversionTraceEntry> conversion_trace;
 };
+
 } // namespace bb::avm_trace

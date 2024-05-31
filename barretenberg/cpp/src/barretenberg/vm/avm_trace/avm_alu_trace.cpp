@@ -1,5 +1,4 @@
-#include "avm_alu_trace.hpp"
-#include "barretenberg/numeric/uint256/uint256.hpp"
+#include "barretenberg/vm/avm_trace/avm_alu_trace.hpp"
 
 namespace bb::avm_trace {
 
@@ -1062,4 +1061,5 @@ FF AvmAluTraceBuilder::op_div(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
     alu_trace.insert(alu_trace.end(), rows.begin(), rows.end());
     return c_u256;
 }
+
 } // namespace bb::avm_trace

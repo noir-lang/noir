@@ -1,6 +1,7 @@
 #pragma once
 
-#include "avm_common.hpp"
+#include "barretenberg/vm/avm_trace/avm_common.hpp"
+
 #include <cstdint>
 
 namespace bb::avm_trace {

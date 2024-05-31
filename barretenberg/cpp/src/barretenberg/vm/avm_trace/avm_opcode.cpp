@@ -1,4 +1,6 @@
-#include "avm_opcode.hpp"
+#include "barretenberg/vm/avm_trace/avm_opcode.hpp"
+#include "barretenberg/common/log.hpp"
+#include "barretenberg/common/serialize.hpp"
 
 namespace bb::avm_trace {
 

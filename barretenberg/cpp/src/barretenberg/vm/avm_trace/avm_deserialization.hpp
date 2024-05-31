@@ -1,13 +1,8 @@
 #pragma once
 
-#include "barretenberg/numeric/uint128/uint128.hpp"
-#include "barretenberg/vm/avm_trace/avm_common.hpp"
 #include "barretenberg/vm/avm_trace/avm_instructions.hpp"
-#include "barretenberg/vm/avm_trace/avm_opcode.hpp"
-#include <cstddef>
+
 #include <cstdint>
-#include <unordered_map>
-#include <variant>
 #include <vector>
 
 namespace bb::avm_trace {

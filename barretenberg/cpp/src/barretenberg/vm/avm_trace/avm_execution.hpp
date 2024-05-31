@@ -2,9 +2,9 @@
 
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
-#include "barretenberg/vm/avm_trace/avm_helper.hpp"
 #include "barretenberg/vm/avm_trace/avm_instructions.hpp"
 #include "barretenberg/vm/avm_trace/avm_trace.hpp"
+
 #include <cstddef>
 #include <cstdint>
 #include <vector>

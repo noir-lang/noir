@@ -1,5 +1,6 @@
 // GENERATED FILE - DO NOT EDIT, RUN yarn remake-constants in circuits.js
 #pragma once
+
 #include <cstddef>
 
 const size_t MAX_NEW_NOTE_HASHES_PER_CALL = 16;

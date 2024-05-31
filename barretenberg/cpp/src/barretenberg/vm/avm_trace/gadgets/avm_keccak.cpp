@@ -1,10 +1,10 @@
-
-
 #include "barretenberg/vm/avm_trace/gadgets/avm_keccak.hpp"
 #include "barretenberg/crypto/hashers/hashers.hpp"
 #include "barretenberg/crypto/keccak/keccak.hpp"
+
 #include <algorithm>
 #include <cstdint>
+
 namespace bb::avm_trace {
 
 AvmKeccakTraceBuilder::AvmKeccakTraceBuilder()
@@ -80,4 +80,5 @@ std::array<uint8_t, 32> AvmKeccakTraceBuilder::keccak(uint32_t clk, std::vector<
     });
     return output_bytes;
 }
+
 } // namespace bb::avm_trace

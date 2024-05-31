@@ -1,7 +1,10 @@
 #pragma once
 
-#include "../avm_common.hpp"
+#include "barretenberg/vm/avm_trace/avm_common.hpp"
+
+#include <array>
 #include <cstdint>
+#include <vector>
 
 namespace bb::avm_trace {
 class AvmSha256TraceBuilder {
@@ -26,4 +29,5 @@ class AvmSha256TraceBuilder {
   private:
     std::vector<Sha256TraceEntry> sha256_trace;
 };
+
 } // namespace bb::avm_trace

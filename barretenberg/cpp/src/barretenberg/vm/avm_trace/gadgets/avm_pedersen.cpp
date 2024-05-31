@@ -1,7 +1,6 @@
-
-#include "avm_pedersen.hpp"
-#include "../avm_common.hpp"
+#include "barretenberg/vm/avm_trace/gadgets/avm_pedersen.hpp"
 #include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
+#include "barretenberg/vm/avm_trace/avm_common.hpp"
 
 namespace bb::avm_trace {
 
@@ -30,4 +29,5 @@ FF AvmPedersenTraceBuilder::pedersen_hash(const std::vector<FF>& inputs, uint32_
 
     return output;
 }
+
 } // namespace bb::avm_trace

@@ -1,5 +1,4 @@
-
-#include "avm_common.hpp"
+#include "barretenberg/vm/avm_trace/avm_common.hpp"
 #include "barretenberg/vm/avm_trace/avm_opcode.hpp"
 
 namespace bb::avm_trace {
@@ -141,4 +140,5 @@ class AvmGasTraceBuilder {
     uint32_t remaining_l2_gas = 0;
     uint32_t remaining_da_gas = 0;
 };
+
 } // namespace bb::avm_trace

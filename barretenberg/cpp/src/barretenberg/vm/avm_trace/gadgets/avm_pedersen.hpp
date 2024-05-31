@@ -1,9 +1,12 @@
-
 #pragma once
 
-#include "../avm_common.hpp"
+#include "barretenberg/vm/avm_trace/avm_common.hpp"
+
+#include <cstdint>
+#include <vector>
 
 namespace bb::avm_trace {
+
 class AvmPedersenTraceBuilder {
   public:
     struct PedersenTraceEntry {
@@ -25,4 +28,5 @@ class AvmPedersenTraceBuilder {
   private:
     std::vector<PedersenTraceEntry> pedersen_trace;
 };
+
 } // namespace bb::avm_trace

@@ -147,6 +147,7 @@ function generateTypescriptConstants({ constants, generatorIndexEnum }: ParsedCo
 function generateCppConstants({ constants }: ParsedContent, targetPath: string) {
   const resultCpp: string = `// GENERATED FILE - DO NOT EDIT, RUN yarn remake-constants in circuits.js
 #pragma once
+
 #include <cstddef>
 
 ${processConstantsCpp(constants)}

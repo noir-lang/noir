@@ -1,6 +1,5 @@
 
-#include "avm_conversion_trace.hpp"
-#include "../avm_common.hpp"
+#include "barretenberg/vm/avm_trace/gadgets/avm_conversion_trace.hpp"
 
 namespace bb::avm_trace {
 
@@ -58,4 +57,5 @@ std::vector<uint8_t> AvmConversionTraceBuilder::op_to_radix_le(FF const& a,
 
     return bytes;
 }
+
 } // namespace bb::avm_trace

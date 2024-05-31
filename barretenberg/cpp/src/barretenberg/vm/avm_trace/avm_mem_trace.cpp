@@ -1,6 +1,7 @@
-#include "avm_mem_trace.hpp"
+#include "barretenberg/vm/avm_trace/avm_mem_trace.hpp"
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 #include "barretenberg/vm/avm_trace/avm_trace.hpp"
+
 #include <cstdint>
 
 namespace bb::avm_trace {

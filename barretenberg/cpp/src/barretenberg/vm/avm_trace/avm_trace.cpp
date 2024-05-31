@@ -11,12 +11,10 @@
 #include <sys/types.h>
 #include <vector>
 
-#include "avm_common.hpp"
-#include "avm_helper.hpp"
-#include "avm_mem_trace.hpp"
-#include "avm_trace.hpp"
-#include "barretenberg/vm/avm_trace/avm_kernel_trace.hpp"
+#include "barretenberg/common/throw_or_abort.hpp"
+#include "barretenberg/vm/avm_trace/avm_helper.hpp"
 #include "barretenberg/vm/avm_trace/avm_opcode.hpp"
+#include "barretenberg/vm/avm_trace/avm_trace.hpp"
 
 namespace bb::avm_trace {
 

@@ -1,6 +1,11 @@
 #pragma once
 
-#include "avm_common.hpp"
+#include "barretenberg/numeric/uint256/uint256.hpp"
+#include "barretenberg/vm/avm_trace/avm_common.hpp"
+#include <array>
+#include <cstdint>
+#include <unordered_map>
+#include <vector>
 
 namespace bb::avm_trace {
 
@@ -102,4 +107,5 @@ class AvmAluTraceBuilder {
     template <typename T> std::tuple<uint8_t, uint8_t, std::array<uint16_t, 15>> to_alu_slice_registers(T a);
     std::vector<AluTraceEntry> cmp_range_check_helper(AluTraceEntry row, std::vector<uint256_t> hi_lo_limbs);
 };
+
 } // namespace bb::avm_trace

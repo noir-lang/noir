@@ -1,8 +1,10 @@
-
 #pragma once
 
-#include "../avm_common.hpp"
+#include "barretenberg/vm/avm_trace/avm_common.hpp"
+
+#include <array>
 #include <cstdint>
+#include <vector>
 
 namespace bb::avm_trace {
 class AvmPoseidon2TraceBuilder {
