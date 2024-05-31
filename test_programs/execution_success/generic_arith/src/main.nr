@@ -19,6 +19,23 @@ fn tail<T, N>(xs: [T; N]) -> [T; N - 1] {
     out
 }
 
+fn backwards_tail<T, N>(xs: [T; N + 1]) -> [T; N] {
+    let mut out: [T; N] = [dep::std::unsafe::zeroed(); N];
+    for i in 1..(N+1) {
+        out[i-1] = xs[i];
+    }
+    out
+}
+
+fn cons<T, N>(x: T, xs: [T; N]) -> [T; N + 1] {
+    let mut out: [T; N + 1] = [dep::std::unsafe::zeroed(); N + 1];
+    out[0] = x;
+    for i in 1..(N+1) {
+        out[i] = xs[i-1];
+    }
+    out
+}
+
 fn split_first<T, N>(x: [T; N]) -> (T, [T; N - 1]) {
     (x[0], tail(x))
 }
@@ -97,9 +114,29 @@ fn main() {
     let foo_result: [Field; 3] = foo(input_array);
     assert(foo_result == [0, 0, 0]);
 
+
+    // tail
     let input_array: [Field; 3] = [1, 2, 3];
     let result: [Field; 2] = tail(input_array);
     assert(result == [2, 3]);
+
+    let result: [Field; 1] = tail(result);
+    assert(result == [3]);
+
+
+    // backwards_tail
+    let input_array: [Field; 3] = [1, 2, 3];
+    let result: [Field; 2] = backwards_tail(input_array);
+    assert(result == [2, 3]);
+
+    let result: [Field; 1] = backwards_tail(result);
+    assert(result == [3]);
+
+
+    // cons
+    let input_array: [Field; 0] = [];
+    let result: [Field; 1] = cons(2, input_array);
+    assert(result == [2]);
 
     // NOTE: fixed in the elaborator
     //
