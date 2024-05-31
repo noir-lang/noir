@@ -23,20 +23,20 @@ import {Hash} from "../Hash.sol";
  *  |                                                                                                     |            | TxEffect 0 {
  *  | 0x4                                                                                                 | 0x1        |   revertCode
  *  | 0x5                                                                                                 | 0x20       |   transactionFee
- *  | 0x25                                                                                                | 0x1        |   len(newNoteHashes) (denoted b)
- *  | 0x25 + 0x1                                                                                          | b * 0x20   |   newNoteHashes
- *  | 0x25 + 0x1 + b * 0x20                                                                               | 0x1        |   len(newNullifiers) (denoted c)
- *  | 0x25 + 0x1 + b * 0x20 + 0x1                                                                         | c * 0x20   |   newNullifiers
- *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20                                                              | 0x1        |   len(newL2ToL1Msgs) (denoted d)
- *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1                                                        | d * 0x20   |   newL2ToL1Msgs
- *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20                                             | 0x1        |   len(newPublicDataWrites) (denoted e)
- *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01                                      | e * 0x40   |   newPublicDataWrites
- *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40                           | 0x04       |   byteLen(newNoteEncryptedLogs) (denoted f)
- *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4                     | f          |   newNoteEncryptedLogs
- *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f                 | 0x04       |   byteLen(newEncryptedLogs) (denoted g)
- *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4           | g          |   newEncryptedLogs
- *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4 + g       | 0x04       |   byteLen(newUnencryptedLogs) (denoted h)
- *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4 + g + 0x04| h          |   newUnencryptedLogs
+ *  | 0x25                                                                                                | 0x1        |   len(noteHashes) (denoted b)
+ *  | 0x25 + 0x1                                                                                          | b * 0x20   |   noteHashes
+ *  | 0x25 + 0x1 + b * 0x20                                                                               | 0x1        |   len(nullifiers) (denoted c)
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1                                                                         | c * 0x20   |   nullifiers
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20                                                              | 0x1        |   len(l2ToL1Msgs) (denoted d)
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1                                                        | d * 0x20   |   l2ToL1Msgs
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20                                             | 0x1        |   len(publicDataUpdateRequests) (denoted e)
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01                                      | e * 0x40   |   publicDataUpdateRequests
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40                           | 0x04       |   byteLen(noteEncryptedLogs) (denoted f)
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4                     | f          |   noteEncryptedLogs
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f                 | 0x04       |   byteLen(encryptedLogs) (denoted g)
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4           | g          |   encryptedLogs
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4 + g       | 0x04       |   byteLen(unencryptedLogs) (denoted h)
+ *  | 0x25 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4 + g + 0x04| h          |   unencryptedLogs
  *  |                                                                                                     |            | },
  *  |                                                                                                     |            | TxEffect 1 {
  *  |                                                                                                     |            |   ...
@@ -103,10 +103,10 @@ library TxsDecoder {
          * Leaf_i = (
          *    revertCode,
          *    transactionFee,
-         *    newNoteHashesKernel,
-         *    newNullifiersKernel,
-         *    newL2ToL1MsgsKernel,
-         *    newPublicDataWritesKernel,
+         *    noteHashesKernel,
+         *    nullifiersKernel,
+         *    l2ToL1MsgsKernel,
+         *    publicDataUpdateRequestsKernel,
          *    noteEncryptedLogsLength,
          *    encryptedLogsLength,
          *    unencryptedLogsLength,
@@ -118,57 +118,65 @@ library TxsDecoder {
          * Zero values.
          */
 
-        // Revert Code
+        // REVERT CODE
         offsets.revertCode = offset;
         offset += 0x1;
 
-        // Transaction Fee
+        // TX FEE
         offsets.transactionFee = offset;
         offset += 0x20;
 
-        // Note hashes
+        // NOTE HASHES
         uint256 count = read1(_body, offset);
         offset += 0x1;
         counts.noteHash = count;
         offsets.noteHash = offset;
         offset += count * 0x20; // each note hash is 0x20 bytes long
 
-        // Nullifiers
+        // NULLIFIERS
         count = read1(_body, offset);
         offset += 0x1;
         counts.nullifier = count;
         offsets.nullifier = offset;
         offset += count * 0x20; // each nullifier is 0x20 bytes long
 
-        // L2 to L1 messages
+        // L2 TO L1 MESSAGES
         count = read1(_body, offset);
         offset += 0x1;
         counts.l2ToL1Msgs = count;
         offsets.l2ToL1Msgs = offset;
         offset += count * 0x20; // each l2 to l1 message is 0x20 bytes long
 
-        // Public data writes
+        // PUBLIC DATA UPDATE REQUESTS
         count = read1(_body, offset);
         offset += 0x1;
         counts.publicData = count;
         offsets.publicData = offset;
-        offset += count * 0x40; // each public data write is 0x40 bytes long
+        offset += count * 0x40; // each public data update request is 0x40 bytes long
 
-        /**
-         * Compute encrypted and unencrypted logs hashes corresponding to the current leaf.
-         * Note: will advance offsets by the number of bytes processed.
-         */
+        // NOTE ENCRYPTED LOGS LENGTH
         offsets.noteEncryptedLogsLength = offset;
         offset += 0x20;
+
+        // ENCRYPTED LOGS LENGTH
         offsets.encryptedLogsLength = offset;
         offset += 0x20;
+
+        // UNENCRYPTED LOGS LENGTH
         offsets.unencryptedLogsLength = offset;
         offset += 0x20;
 
+        /**
+         * Compute note, encrypted and unencrypted logs hashes corresponding to the current leaf.
+         * Note: will advance offsets by the number of bytes processed.
+         */
+        // NOTE ENCRYPTED LOGS HASH
         (vars.noteEncryptedLogsHash, offset, vars.kernelNoteEncryptedLogsLength) =
           computeKernelNoteEncryptedLogsHash(offset, _body);
+        // ENCRYPTED LOGS HASH
         (vars.encryptedLogsHash, offset, vars.kernelEncryptedLogsLength) =
           computeKernelEncryptedLogsHash(offset, _body);
+        // UNENCRYPTED LOGS HASH
         (vars.unencryptedLogsHash, offset, vars.kernelUnencryptedLogsLength) =
           computeKernelUnencryptedLogsHash(offset, _body);
 
