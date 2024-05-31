@@ -96,6 +96,8 @@ pub enum ResolverError {
     FoldAttributeOnUnconstrained { ident: Ident },
     #[error("The only supported types of numeric generics are integers, fields, and booleans")]
     UnsupportedNumericGenericType { ident: Ident, typ: Type },
+    #[error("Numeric generics should be explicit")]
+    UseExplicitNumericGeneric { ident: Ident },
 }
 
 impl ResolverError {
@@ -395,6 +397,15 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     format!("{name} has a type of {typ}. The only supported types of numeric generics are integers, fields, and booleans."),
                     "Unsupported numeric generic type".to_string(),
                     ident.0.span(),
+                )
+            }
+            ResolverError::UseExplicitNumericGeneric { ident } => {
+                let name = &ident.0.contents;
+
+                Diagnostic::simple_warning(
+                    String::from("Noir now supports explicit numeric generics. Support for implicit numeric generics will be removed in the following release."), 
+                format!("Numeric generic `{name}` should now be specified with `let {name}: <annotated type>`"), 
+                ident.0.span(),
                 )
             }
         }

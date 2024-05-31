@@ -926,6 +926,7 @@ impl<'a> Resolver<'a> {
                 // and is can lead to confusing errors.
                 self.interner.push_definition_type(hir_ident.id, typ);
             }
+            
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
 
@@ -1167,6 +1168,7 @@ impl<'a> Resolver<'a> {
         !func.def.is_unconstrained
     }
 
+    // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this method in favor of explicit numeric generics
     fn declare_numeric_generics(&mut self, params: &[Type], return_type: &Type) {
         if self.generics.is_empty() {
             return;
@@ -1182,9 +1184,22 @@ impl<'a> Resolver<'a> {
             if let Some((name, _, span)) =
                 self.generics.iter().find(|(name, _, _)| name.as_ref() == &name_to_find)
             {
+                let scope = self.scopes.get_mut_scope();
+                let value = scope.find(&name_to_find);
+                if value.is_some() {
+                    // With the addition of explicit numeric generics we do not want to introduce numeric generics in this manner
+                    // However, this is going to be a big breaking change so for now we simply issue a warning while users have time
+                    // to transition to the new syntax
+                    // e.g. this code would break with a duplicate definition error:
+                    // ```
+                    // fn foo<let N: u8>(arr: [Field; N]) { }
+                    // ```
+                    continue;
+                }
                 let ident = Ident::new(name.to_string(), *span);
                 let definition = DefinitionKind::GenericType(type_variable);
-                self.add_variable_decl_inner(ident, false, false, false, definition);
+                self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
+                self.errors.push(ResolverError::UseExplicitNumericGeneric { ident });
             }
         }
     }

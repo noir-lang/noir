@@ -8,8 +8,7 @@ use crate::parser::spanned;
 use crate::token::{Keyword, Token};
 use crate::{
     ast::{
-        FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param,
-        Visibility,
+        FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param, Visibility,
     },
     parser::{ParserError, ParserErrorReason},
 };

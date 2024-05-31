@@ -19,6 +19,12 @@ fn main() {
     assert(my_type.a == 1);
     assert(my_type.b == 2);
     assert(my_type.c == 3);
+
+    let foo = baz::<10>();
+    assert(foo.inner == 10);
+
+    let new_arr = update_arr([0, 1, 2, 3]);
+    assert(new_arr[0] == 5);
 }
 
 fn id<I>(x: [Field; I]) -> [Field; I] {
@@ -45,6 +51,7 @@ fn foo(mut s: MyStruct<2+1>) -> MyStruct<10/2-2> {
 }
 
 fn double<let N: u64>() -> u64 {
+    // Used as an expression
     N * 2
 }
 
@@ -67,7 +74,7 @@ impl<N> Deserialize<N> for MyType {
     }
 }
 
-trait Deserialize<N> {
+trait Deserialize<let N: u64> {
     fn deserialize(fields: [Field; N]) -> Self;
 }
 
@@ -75,7 +82,9 @@ struct PublicStorage {}
 
 impl PublicStorage {
     fn read<T, let N: u64>() -> T where T: Deserialize<N> {
-        let mut fields = [0; N];
+        // Used as a type within a function body
+        let mut fields: [Field; N] = [0; N];
+        // Used a loop bound
         for i in 0..N {
             // TODO: Removing this cast I get an error as expected as deserialzie
             // expects an array of fields not u64, but the error could be improved.
@@ -86,4 +95,14 @@ impl PublicStorage {
     }
 }
 
+// Used in the signature of a function
+fn update_arr<let N: u8>(mut arr: [Field; N]) -> [Field; N] {
+    arr[0] = 5;
+    arr
+}
 
+// Used as a field of a struct
+struct Foo<let N: u64> {
+    inner: N,
+}
+fn baz<let N: u64>() -> Foo<N> { Foo { inner: N } }

@@ -1527,3 +1527,12 @@ fn bool_generic_as_loop_bound() {
     assert_eq!(expected_typ, "Field");
     assert_eq!(expr_typ, "bool");
 }
+
+#[test]
+fn numeric_generic_in_function_signature() {
+    let src = r#"
+    fn foo<let N: u8>(arr: [Field; N]) -> [Field; N] { arr }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+}

@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    ast::{FunctionKind, UnresolvedTraitConstraint},
+    ast::{FunctionKind, UnresolvedGeneric, UnresolvedTraitConstraint},
     hir::{
         def_collector::{
             dc_crate::{
@@ -406,15 +406,36 @@ impl<'context> Elaborator<'context> {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
             let typevar = TypeVariable::unbound(id);
-            let generic = Ident::from(generic);
-            let span = generic.0.span();
+            let ident = Ident::from(generic);
+            let span = ident.0.span();
+
+            // Declare numeric generics
+            if let UnresolvedGeneric::Numeric { ident, typ } = generic {
+                let typ = self.resolve_type(typ.clone());
+                if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
+                    let unsupported_typ_err = CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType {
+                        ident: ident.clone(),
+                        typ: typ.clone(),
+                    });
+                    self.errors.push((unsupported_typ_err, self.file));
+                }
+                typevar.bind(typ.clone());
+                let definition = DefinitionKind::GenericType(typevar.clone());
+                let hir_ident =
+                    self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
+                // Push the definition type because if one is missing, when the numeric generic is used in an expression
+                // its definition type will be resolved to a polymorphic integer or field.
+                // We do not yet fully support bool generics but this will be a foot-gun once we look to add support
+                // and is can lead to confusing errors.
+                self.interner.push_definition_type(hir_ident.id, typ);
+            }
 
             // Check for name collisions of this generic
-            let name = Rc::new(generic.0.contents.clone());
+            let name = Rc::new(ident.0.contents.clone());
 
             if let Some((_, _, first_span)) = self.find_generic(&name) {
                 self.push_err(ResolverError::DuplicateDefinition {
-                    name: generic.0.contents.clone(),
+                    name: ident.0.contents.clone(),
                     first_span: *first_span,
                     second_span: span,
                 });
@@ -721,9 +742,27 @@ impl<'context> Elaborator<'context> {
             if let Some((name, _, span)) =
                 self.generics.iter().find(|(name, _, _)| name.as_ref() == &name_to_find)
             {
+                let scope = self.scopes.get_mut_scope();
+                let value = scope.find(&name_to_find);
+                if value.is_some() {
+                    // With the addition of explicit numeric generics we do not want to introduce numeric generics in this manner
+                    // However, this is going to be a big breaking change so for now we simply issue a warning while users have time
+                    // to transition to the new syntax
+                    // e.g. this code would break with a duplicate definition error:
+                    // ```
+                    // fn foo<let N: u8>(arr: [Field; N]) { }
+                    // ```
+                    continue;
+                }
                 let ident = Ident::new(name.to_string(), *span);
                 let definition = DefinitionKind::GenericType(type_variable);
-                self.add_variable_decl_inner(ident, false, false, false, definition);
+                self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
+                self.errors.push((
+                    CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric {
+                        ident,
+                    }),
+                    self.file,
+                ));
             }
         }
     }
