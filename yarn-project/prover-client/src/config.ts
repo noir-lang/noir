@@ -23,6 +23,7 @@ export type ProverClientConfig = ProverConfig & {
  */
 export function getProverEnvVars(): ProverClientConfig {
   const {
+    AZTEC_NODE_URL,
     ACVM_WORKING_DIRECTORY = tmpdir(),
     ACVM_BINARY_PATH = '',
     BB_WORKING_DIRECTORY = tmpdir(),
@@ -53,5 +54,6 @@ export function getProverEnvVars(): ProverClientConfig {
     proverAgentEnabled,
     proverAgentPollInterval,
     proverAgentConcurrency,
+    nodeUrl: AZTEC_NODE_URL,
   };
 }
