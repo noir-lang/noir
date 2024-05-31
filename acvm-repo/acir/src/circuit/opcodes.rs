@@ -71,7 +71,7 @@ pub enum Opcode {
     /// ACIR is able to address any array of witnesses. Each array is assigned
     /// an id (BlockId) and needs to be initialized with the MemoryInit opcode.
     /// Then it is possible to read and write from/to an array by providing the
-    /// index and the value we read/write, as arithmetic expression. Note that
+    /// index and the value we read/write as arithmetic expressions. Note that
     /// ACIR arrays all have a known fixed length (given in the MemoryInit
     /// opcode below)
     ///
