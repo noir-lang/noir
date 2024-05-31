@@ -1534,7 +1534,7 @@ impl Type {
                 let (expr, location) = interner.get_arith_expression(*arith_id);
                 let generics =
                     ArithConstraint::evaluate_generics_to_u64(generics, location, interner)?;
-                expr.evaluate(&generics)
+                expr.evaluate(interner, &generics)
             }
             unexpected_type => Err(ArithExprError::EvaluateUnexpectedType {
                 unexpected_type: unexpected_type.clone(),

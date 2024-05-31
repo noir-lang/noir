@@ -46,18 +46,23 @@ impl ArithExpr {
         }
     }
 
-    pub fn evaluate(&self, arguments: &Vec<(u64, Type)>) -> Result<u64, ArithExprError> {
+    pub fn evaluate(
+        &self,
+        _interner: &NodeInterner,
+        arguments: &Vec<(u64, Type)>,
+    ) -> Result<u64, ArithExprError> {
         match self {
             Self::Op { kind, lhs, rhs } => {
-                let lhs = lhs.evaluate(arguments)?;
-                let rhs = rhs.evaluate(arguments)?;
+                // TODO: interner unused, see https://github.com/noir-lang/noir/issues/5150
+                let interner = NodeInterner::default();
+                let lhs = lhs.evaluate(&interner, arguments)?;
+                let rhs = rhs.evaluate(&interner, arguments)?;
                 kind.evaluate(lhs, rhs)
             }
             Self::Variable(binding, name, index) => {
                 if let Some((result, _other_var)) = arguments.get(index.0) {
-                    // TODO: assertion fails https://github.com/noir-lang/noir/issues/5150
-                    // (remove other_var if unneeded)
-                    // interner: &NodeInterner,
+                    // // TODO: assertion fails https://github.com/noir-lang/noir/issues/5150
+                    // // (remove other_var if unneeded)
                     //
                     // let mut fresh_bindings = TypeBindings::new();
                     // assert!(Type::NamedGeneric(binding.clone(), name.clone())
@@ -402,7 +407,7 @@ impl ArithConstraint {
         ) {
             // all generics resolved
             Ok((lhs_generics, rhs_generics)) => {
-                match (lhs_expr.evaluate(&lhs_generics), rhs_expr.evaluate(&rhs_generics)) {
+                match (lhs_expr.evaluate(interner, &lhs_generics), rhs_expr.evaluate(interner, &rhs_generics)) {
                     (Ok(lhs_evaluated), Ok(rhs_evaluated)) => {
                         if lhs_evaluated == rhs_evaluated {
                             Ok(())
