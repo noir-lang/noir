@@ -21,7 +21,6 @@ it('executes a single-ACIR program correctly', async () => {
   expect(returnValue).to.be.eq('0x05');
 });
 
-
 it('circuit with a fmt string assert message should fail with the resolved assertion message', async () => {
   const inputs = {
     x: '10',
