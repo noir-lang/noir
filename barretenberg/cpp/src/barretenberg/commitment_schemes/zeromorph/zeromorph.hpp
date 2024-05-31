@@ -541,12 +541,8 @@ template <typename PCS> class ZeroMorphVerifier_ {
         auto phi_n_x = phi_numerator / (x_challenge - 1);
 
         // Add contribution: -v * x * \Phi_n(x) * [1]_1
-        if constexpr (Curve::is_stdlib_type) {
-            auto builder = x_challenge.get_context();
-            scalars.emplace_back(FF(builder, -1) * batched_evaluation * x_challenge * phi_n_x);
-        } else {
-            scalars.emplace_back(FF(-1) * batched_evaluation * x_challenge * phi_n_x);
-        }
+        scalars.emplace_back(FF(-1) * batched_evaluation * x_challenge * phi_n_x);
+
         commitments.emplace_back(first_g1);
 
         // Add contribution: x * \sum_{i=0}^{m-1} \rho^i*[f_i]
@@ -704,20 +700,18 @@ template <typename PCS> class ZeroMorphVerifier_ {
 
         // Compute commitment C_{\zeta,Z}
         Commitment C_zeta_Z;
-        FF evaluation;
         if constexpr (Curve::is_stdlib_type) {
+
             // Express operation as a batch_mul in order to use Goblinization if available
             auto builder = z_challenge.get_context();
             std::vector<FF> scalars = { FF(builder, 1), z_challenge };
             std::vector<Commitment> points = { C_zeta_x, C_Z_x };
             C_zeta_Z = Commitment::batch_mul(points, scalars);
-            evaluation = FF(builder, 0);
         } else {
             C_zeta_Z = C_zeta_x + C_Z_x * z_challenge;
-            evaluation = FF(0);
         }
 
-        return { .opening_pair = { .challenge = x_challenge, .evaluation = evaluation }, .commitment = C_zeta_Z };
+        return { .opening_pair = { .challenge = x_challenge, .evaluation = FF(0) }, .commitment = C_zeta_Z };
     }
 
     /**
@@ -782,14 +776,8 @@ template <typename PCS> class ZeroMorphVerifier_ {
                                       const std::vector<RefVector<Commitment>>& concatenation_group_commitments = {},
                                       RefSpan<FF> concatenated_evaluations = {})
     {
-        Commitment first_g1;
-        // Retrieve the first element in the SRS [1]_1 which will be different depending on the curve we operate on
-        if constexpr (Curve::is_stdlib_type) {
-            auto builder = multivariate_challenge[0].get_context();
-            first_g1 = Commitment(builder, vk->srs->get_first_g1());
-        } else {
-            first_g1 = vk->get_first_g1();
-        }
+        Commitment first_g1 = vk->get_first_g1();
+
         auto opening_claim = compute_univariate_evaluation_opening_claim(unshifted_commitments,
                                                                          to_be_shifted_commitments,
                                                                          unshifted_evaluations,

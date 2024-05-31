@@ -25,11 +25,13 @@ template <typename BuilderType> class ECCVMRecursiveFlavor_ {
     using CircuitBuilder = BuilderType; // determines the arithmetisation of recursive verifier
     using Curve = stdlib::grumpkin<CircuitBuilder>;
     using Commitment = Curve::AffineElement;
+    using GroupElement = Curve::Element;
     using FF = Curve::ScalarField;
     using BF = Curve::BaseField;
     using RelationSeparator = FF;
     using NativeFlavor = ECCVMFlavor;
     using NativeVerificationKey = NativeFlavor::VerificationKey;
+    using PCS = IPA<Curve>;
 
     static constexpr size_t NUM_WIRES = ECCVMFlavor::NUM_WIRES;
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often

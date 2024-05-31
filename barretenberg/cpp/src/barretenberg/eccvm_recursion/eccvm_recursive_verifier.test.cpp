@@ -20,6 +20,8 @@ template <typename RecursiveFlavor> class ECCVMRecursiveTests : public ::testing
     using InnerFF = InnerFlavor::FF;
     using InnerBF = InnerFlavor::BF;
 
+    using Transcript = InnerFlavor::Transcript;
+
     using RecursiveVerifier = ECCVMRecursiveVerifier_<RecursiveFlavor>;
 
     using OuterBuilder = typename RecursiveFlavor::CircuitBuilder;
@@ -74,6 +76,7 @@ template <typename RecursiveFlavor> class ECCVMRecursiveTests : public ::testing
     {
         InnerBuilder builder = generate_circuit(&engine);
         InnerProver prover(builder);
+        info(builder.get_num_gates());
         auto proof = prover.construct_proof();
         auto verification_key = std::make_shared<typename InnerFlavor::VerificationKey>(prover.key);
 
@@ -84,6 +87,17 @@ template <typename RecursiveFlavor> class ECCVMRecursiveTests : public ::testing
 
         // Check for a failure flag in the recursive verifier circuit
         EXPECT_EQ(outer_circuit.failed(), false) << outer_circuit.err();
+
+        InnerVerifier native_verifier(prover.key);
+        bool native_result = native_verifier.verify_proof(proof);
+        EXPECT_TRUE(native_result);
+
+        auto recursive_manifest = verifier.transcript->get_manifest();
+        auto native_manifest = native_verifier.transcript->get_manifest();
+        for (size_t i = 0; i < recursive_manifest.size(); ++i) {
+            EXPECT_EQ(recursive_manifest[i], native_manifest[i])
+                << "Recursive Verifier/Verifier manifest discrepency in round " << i;
+        }
 
         // Ensure verification key is the same
         EXPECT_EQ(verifier.key->circuit_size, verification_key->circuit_size);

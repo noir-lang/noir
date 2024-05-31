@@ -70,13 +70,14 @@ cycle_group<Builder>::cycle_group(const FF& _x, const FF& _y, bool is_infinity)
  * @note This produces a circuit-constant object i.e. known at compile-time, no constraints.
  *       If `_in` is not fixed for a given circuit, use `from_witness` instead
  *
+ * @details ensures the representation of point at infinity is consistent
  * @tparam Builder
  * @param _in
  */
 template <typename Builder>
 cycle_group<Builder>::cycle_group(const AffineElement& _in)
-    : x(_in.x)
-    , y(_in.y)
+    : x(_in.is_point_at_infinity() ? 0 : _in.x)
+    , y(_in.is_point_at_infinity() ? 0 : _in.y)
     , _is_infinity(_in.is_point_at_infinity())
     , _is_constant(true)
     , context(nullptr)

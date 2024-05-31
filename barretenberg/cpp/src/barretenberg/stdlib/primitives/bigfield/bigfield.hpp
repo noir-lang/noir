@@ -253,7 +253,7 @@ template <typename Builder, typename T> class bigfield {
      * @return bigfield
      */
     bigfield pow(const field_t<Builder>& exponent) const;
-    bigfield pow(const uint32_t exponent) const;
+    bigfield pow(const size_t exponent) const;
     bigfield madd(const bigfield& to_mul, const std::vector<bigfield>& to_add) const;
 
     static void perform_reductions_for_mult_madd(std::vector<bigfield>& mul_left,

@@ -975,7 +975,7 @@ bigfield<Builder, T> bigfield<Builder, T>::sqradd(const std::vector<bigfield>& t
  * @todo TODO(https://github.com/AztecProtocol/barretenberg/issues/1015) Security of this (as part of the whole class)
  */
 
-template <typename Builder, typename T> bigfield<Builder, T> bigfield<Builder, T>::pow(const uint32_t exponent) const
+template <typename Builder, typename T> bigfield<Builder, T> bigfield<Builder, T>::pow(const size_t exponent) const
 {
     auto* ctx = get_context() ? get_context() : nullptr;
 

@@ -12,9 +12,10 @@ template <typename Flavor> class ECCVMRecursiveVerifier_ {
     using NativeVerificationKey = typename Flavor::NativeVerificationKey;
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
     using Builder = typename Flavor::CircuitBuilder;
-    // using PCS = typename Flavor::PCS;
+    using PCS = typename Flavor::PCS;
     using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<Builder>>;
-    using VerifierCommitments = typename Flavor::VerifierCommitments; // dunno if I need thos
+    using VerifierCommitments = typename Flavor::VerifierCommitments;
+
   public:
     explicit ECCVMRecursiveVerifier_(Builder* builder,
                                      const std::shared_ptr<NativeVerificationKey>& native_verifier_key);
