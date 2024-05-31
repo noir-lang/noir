@@ -3,7 +3,7 @@ mod lib;
 contract FPC {
     use dep::aztec::{
         protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress, traits::is_empty},
-        state_vars::SharedImmutable, context::{interface::PublicContextInterface, gas::GasOpts}
+        state_vars::SharedImmutable, context::gas::GasOpts
     };
     use dep::token::Token;
     use dep::gas_token::GasToken;

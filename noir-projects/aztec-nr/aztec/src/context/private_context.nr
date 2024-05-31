@@ -1,5 +1,5 @@
 use crate::{
-    context::{inputs::PrivateContextInputs, interface::ContextInterface, packed_returns::PackedReturns},
+    context::{inputs::PrivateContextInputs, packed_returns::PackedReturns},
     messaging::process_l1_to_l2_message,
     hash::{hash_args_array, ArgsHasher, compute_unencrypted_log_hash},
     keys::constants::{NULLIFIER_INDEX, OUTGOING_INDEX, NUM_KEY_TYPES, sk_generators},
@@ -82,7 +82,33 @@ struct PrivateContext {
     last_key_validation_requests: [Option<KeyValidationRequest>; NUM_KEY_TYPES],
 }
 
-impl ContextInterface for PrivateContext {
+impl PrivateContext {
+    pub fn new(inputs: PrivateContextInputs, args_hash: Field) -> PrivateContext {
+        PrivateContext {
+            inputs,
+            side_effect_counter: inputs.start_side_effect_counter + 1,
+            min_revertible_side_effect_counter: 0,
+            is_fee_payer: false,
+            args_hash,
+            return_hash: 0,
+            max_block_number: MaxBlockNumber::empty(),
+            note_hash_read_requests: BoundedVec::new(),
+            nullifier_read_requests: BoundedVec::new(),
+            key_validation_requests_and_generators: BoundedVec::new(),
+            new_note_hashes: BoundedVec::new(),
+            new_nullifiers: BoundedVec::new(),
+            historical_header: inputs.historical_header,
+            private_call_requests: BoundedVec::new(),
+            public_call_stack_hashes: BoundedVec::new(),
+            public_teardown_function_hash: 0,
+            new_l2_to_l1_msgs: BoundedVec::new(),
+            note_encrypted_logs_hashes: BoundedVec::new(),
+            encrypted_logs_hashes: BoundedVec::new(),
+            unencrypted_logs_hashes: BoundedVec::new(),
+            last_key_validation_requests: [Option::none(); NUM_KEY_TYPES]
+        }
+    }
+
     fn msg_sender(self) -> AztecAddress {
         self.inputs.call_context.msg_sender
     }
@@ -113,34 +139,6 @@ impl ContextInterface for PrivateContext {
 
     fn push_new_nullifier(&mut self, nullifier: Field, nullified_note_hash: Field) {
         self.new_nullifiers.push(Nullifier { value: nullifier, note_hash: nullified_note_hash, counter: self.next_counter() });
-    }
-}
-
-impl PrivateContext {
-    pub fn new(inputs: PrivateContextInputs, args_hash: Field) -> PrivateContext {
-        PrivateContext {
-            inputs,
-            side_effect_counter: inputs.start_side_effect_counter + 1,
-            min_revertible_side_effect_counter: 0,
-            is_fee_payer: false,
-            args_hash,
-            return_hash: 0,
-            max_block_number: MaxBlockNumber::empty(),
-            note_hash_read_requests: BoundedVec::new(),
-            nullifier_read_requests: BoundedVec::new(),
-            key_validation_requests_and_generators: BoundedVec::new(),
-            new_note_hashes: BoundedVec::new(),
-            new_nullifiers: BoundedVec::new(),
-            historical_header: inputs.historical_header,
-            private_call_requests: BoundedVec::new(),
-            public_call_stack_hashes: BoundedVec::new(),
-            public_teardown_function_hash: 0,
-            new_l2_to_l1_msgs: BoundedVec::new(),
-            note_encrypted_logs_hashes: BoundedVec::new(),
-            encrypted_logs_hashes: BoundedVec::new(),
-            unencrypted_logs_hashes: BoundedVec::new(),
-            last_key_validation_requests: [Option::none(); NUM_KEY_TYPES]
-        }
     }
 
     // Returns the header of a block whose state is used during private execution (not the block the transaction is
