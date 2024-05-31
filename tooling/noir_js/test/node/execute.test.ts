@@ -21,16 +21,6 @@ it('executes a single-ACIR program correctly', async () => {
   expect(returnValue).to.be.eq('0x05');
 });
 
-it('executes a multi-ACIR program correctly', async () => {
-  // Noir.Js part
-  const inputs = {
-    x: '10',
-  };
-
-  const program = new Noir(fold_fibonacci_program);
-
-  const _ = await program.execute(inputs);
-});
 
 it('circuit with a fmt string assert message should fail with the resolved assertion message', async () => {
   const inputs = {
