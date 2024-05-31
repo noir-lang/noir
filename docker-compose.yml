@@ -2,6 +2,8 @@ name: aztec-devnet
 services:
   pxe:
     image: aztecprotocol/aztec:${AZTEC_DOCKER_TAG:-latest}
+    # need to run bb for proofs and bb is only built for x86
+    platform: linux/amd64
     environment:
       LOG_LEVEL: info
       DEBUG: aztec:*
@@ -22,6 +24,8 @@ services:
       - "host.docker.internal:host-gateway"
   cli:
     image: aztecprotocol/aztec:${AZTEC_DOCKER_TAG:-latest}
+    # run the same image as pxe
+    platform: linux/amd64
     environment:
       PXE_URL: http://pxe:8080
       NODE_NO_WARNINGS: 1
