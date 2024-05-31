@@ -1,8 +1,5 @@
 #include "avm_kernel_trace.hpp"
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
-#include "barretenberg/vm/avm_trace/avm_trace.hpp"
-#include "constants.hpp"
-#include <cstdint>
 #include <sys/types.h>
 
 // For the meantime, we do not fire around the public inputs as a vector or otherwise

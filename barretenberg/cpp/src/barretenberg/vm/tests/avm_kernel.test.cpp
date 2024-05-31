@@ -625,7 +625,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitNoteHash)
             /*w_in_tag=*/AvmMemoryTag::FF,
             /*side_effect_counter=*/0);
 
-        check_kernel_outputs(trace.at(output_offset + 1), 1234, /*side_effect_counter=*/0, /*metadata=*/0);
+        check_kernel_outputs(trace.at(output_offset), 1234, /*side_effect_counter=*/0, /*metadata=*/0);
     };
 
     test_kernel_lookup(apply_opcodes, checks);
@@ -656,7 +656,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitNullifier)
 
         // Validate lookup and counts
         // Plus 1 as we have a padded empty first row
-        check_kernel_outputs(trace.at(output_offset + 1), 1234, /*side_effect_counter=*/0, /*metadata=*/0);
+        check_kernel_outputs(trace.at(output_offset), 1234, /*side_effect_counter=*/0, /*metadata=*/0);
     };
 
     test_kernel_lookup(apply_opcodes, checks);
@@ -687,7 +687,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitL2ToL1Msg)
 
         );
 
-        check_kernel_outputs(trace.at(output_offset + 1), 1234, /*side_effect_counter=*/0, /*metadata=*/0);
+        check_kernel_outputs(trace.at(output_offset), 1234, /*side_effect_counter=*/0, /*metadata=*/0);
     };
 
     test_kernel_lookup(apply_opcodes, checks);
@@ -716,7 +716,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitUnencryptedLog)
             /*w_in_tag=*/AvmMemoryTag::FF,
             /*side_effect_counter=*/0);
 
-        check_kernel_outputs(trace.at(output_offset + 1), 1234, 0, 0);
+        check_kernel_outputs(trace.at(output_offset), 1234, 0, 0);
     };
 
     test_kernel_lookup(apply_opcodes, checks);
@@ -754,7 +754,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelSload)
 
         );
 
-        check_kernel_outputs(trace.at(output_offset + 1), value, /*side_effect_counter=*/0, slot);
+        check_kernel_outputs(trace.at(output_offset), value, /*side_effect_counter=*/0, slot);
     };
 
     test_kernel_lookup(apply_opcodes, checks);
@@ -790,7 +790,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelSstore)
             /*w_in_tag=*/AvmMemoryTag::FF,
             /*side_effect_counter=*/0);
 
-        check_kernel_outputs(trace.at(output_offset + 1), value, /*side_effect_counter=*/0, slot);
+        check_kernel_outputs(trace.at(output_offset), value, /*side_effect_counter=*/0, slot);
     };
 
     test_kernel_lookup(apply_opcodes, checks);
@@ -826,7 +826,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNoteHashExists)
 
             /*side_effect_counter=*/0);
 
-        check_kernel_outputs(trace.at(output_offset + 1), value, /*side_effect_counter=*/0, exists);
+        check_kernel_outputs(trace.at(output_offset), value, /*side_effect_counter=*/0, exists);
     };
 
     test_kernel_lookup(apply_opcodes, checks);
@@ -861,7 +861,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNullifierExists)
             /*w_in_tag=*/AvmMemoryTag::FF,
             /*side_effect_counter=*/0);
 
-        check_kernel_outputs(trace.at(output_offset + 1), value, /*side_effect_counter=*/0, exists);
+        check_kernel_outputs(trace.at(output_offset), value, /*side_effect_counter=*/0, exists);
     };
 
     test_kernel_lookup(apply_opcodes, checks);
@@ -896,7 +896,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelL1ToL2MsgExists)
             /*w_in_tag=*/AvmMemoryTag::FF,
             /*side_effect_counter=*/0);
 
-        check_kernel_outputs(trace.at(output_offset + 1), value, /*side_effect_counter=*/0, exists);
+        check_kernel_outputs(trace.at(output_offset), value, /*side_effect_counter=*/0, exists);
     };
 
     test_kernel_lookup(apply_opcodes, checks);

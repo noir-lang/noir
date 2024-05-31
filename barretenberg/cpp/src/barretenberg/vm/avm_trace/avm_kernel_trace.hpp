@@ -2,7 +2,6 @@
 
 #include "avm_common.hpp"
 #include "barretenberg/numeric/uint128/uint128.hpp"
-#include "constants.hpp"
 #include <cstdint>
 #include <unordered_map>
 
@@ -21,9 +20,9 @@ inline const uint32_t END_GLOBAL_VARIABLES = START_GLOBAL_VARIABLES + GLOBAL_VAR
 inline const uint32_t START_SIDE_EFFECT_COUNTER = END_GLOBAL_VARIABLES;
 
 // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6715): update these to come from the global inputs
-inline const uint32_t FEE_PER_DA_GAS_SELECTOR = START_SIDE_EFFECT_COUNTER + 1;
-inline const uint32_t FEE_PER_L2_GAS_SELECTOR = FEE_PER_DA_GAS_SELECTOR + 1;
-inline const uint32_t TRANSACTION_FEE_SELECTOR = FEE_PER_L2_GAS_SELECTOR + 1;
+inline const uint32_t FEE_PER_DA_GAS_SELECTOR = START_GLOBAL_VARIABLES + 6;
+inline const uint32_t FEE_PER_L2_GAS_SELECTOR = START_GLOBAL_VARIABLES + 7;
+inline const uint32_t TRANSACTION_FEE_SELECTOR = KERNEL_INPUTS_LENGTH - 1;
 
 const std::array<uint32_t, 11> KERNEL_INPUTS_SELECTORS = {
     SENDER_SELECTOR,   ADDRESS_SELECTOR, FEE_PER_DA_GAS_SELECTOR, FEE_PER_L2_GAS_SELECTOR, TRANSACTION_FEE_SELECTOR,

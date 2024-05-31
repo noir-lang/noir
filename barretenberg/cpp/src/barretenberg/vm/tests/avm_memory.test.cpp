@@ -8,10 +8,19 @@ using namespace bb::avm_trace;
 class AvmMemoryTests : public ::testing::Test {
   public:
     AvmTraceBuilder trace_builder;
+    VmPublicInputs public_inputs{};
 
   protected:
     // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
-    void SetUp() override { srs::init_crs_factory("../srs_db/ignition"); };
+    void SetUp() override
+    {
+        srs::init_crs_factory("../srs_db/ignition");
+        std::array<FF, KERNEL_INPUTS_LENGTH> kernel_inputs{};
+        kernel_inputs.at(DA_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_DA_GAS;
+        kernel_inputs.at(L2_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_L2_GAS;
+        std::get<0>(public_inputs) = kernel_inputs;
+        trace_builder = AvmTraceBuilder(public_inputs);
+    };
 };
 
 /******************************************************************************
@@ -70,7 +79,7 @@ TEST_F(AvmMemoryTests, mismatchedTagAddOperation)
     EXPECT_EQ(row->avm_mem_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U8)));
     EXPECT_EQ(row->avm_mem_tag, FF(static_cast<uint32_t>(AvmMemoryTag::FF)));
 
-    validate_trace(std::move(trace), {}, true);
+    validate_trace(std::move(trace), public_inputs, true);
 }
 
 // Testing an equality operation with a mismatched memory tag.

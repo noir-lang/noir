@@ -82,10 +82,19 @@ std::vector<AvmMemoryTag> mem_tag_arr{
 class AvmCmpTests : public ::testing::Test {
   public:
     AvmTraceBuilder trace_builder;
+    VmPublicInputs public_inputs{};
 
   protected:
     // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
-    void SetUp() override { srs::init_crs_factory("../srs_db/ignition"); };
+    void SetUp() override
+    {
+        srs::init_crs_factory("../srs_db/ignition");
+        std::array<FF, KERNEL_INPUTS_LENGTH> kernel_inputs{};
+        kernel_inputs.at(DA_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_DA_GAS;
+        kernel_inputs.at(L2_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_L2_GAS;
+        std::get<0>(public_inputs) = kernel_inputs;
+        trace_builder = AvmTraceBuilder(public_inputs);
+    };
 };
 class AvmCmpTestsLT : public AvmCmpTests, public testing::WithParamInterface<ThreeOpParamRow> {};
 class AvmCmpTestsLTE : public AvmCmpTests, public testing::WithParamInterface<ThreeOpParamRow> {};
@@ -303,7 +312,6 @@ TEST_P(AvmCmpNegativeTestsLT, ParamTest)
     const auto [failure, params] = GetParam();
     const auto [failure_string, failure_mode] = failure;
     const auto [a, b, output] = params;
-    auto trace_builder = avm_trace::AvmTraceBuilder();
     trace_builder.calldata_copy(0, 0, 3, 0, std::vector<FF>{ a, b, output });
     trace_builder.op_lt(0, 0, 1, 2, AvmMemoryTag::FF);
     trace_builder.return_op(0, 0, 0);
@@ -322,7 +330,6 @@ TEST_P(AvmCmpNegativeTestsLTE, ParamTest)
     const auto [failure, params] = GetParam();
     const auto [failure_string, failure_mode] = failure;
     const auto [a, b, output] = params;
-    auto trace_builder = avm_trace::AvmTraceBuilder();
     trace_builder.calldata_copy(0, 0, 3, 0, std::vector<FF>{ a, b, output });
     trace_builder.op_lte(0, 0, 1, 2, AvmMemoryTag::FF);
     trace_builder.return_op(0, 0, 0);

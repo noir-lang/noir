@@ -78,6 +78,13 @@ void log_avm_trace(std::vector<Row> const& trace, size_t beg, size_t end, bool e
             info("diff_mid:           ", trace.at(i).avm_mem_diff_mid);
             info("diff_lo:            ", trace.at(i).avm_mem_diff_lo);
 
+            info("=======GAS ACCOUNTING================================================================");
+            info("opcode active:      ", trace.at(i).avm_main_gas_cost_active);
+            info("l2_gas_remaining:   ", trace.at(i).avm_main_l2_gas_remaining);
+            info("da_gas_remaining:   ", trace.at(i).avm_main_da_gas_remaining);
+            info("l2_gas_op:          ", trace.at(i).avm_main_l2_gas_op);
+            info("da_gas_op:          ", trace.at(i).avm_main_da_gas_op);
+
             if (enable_selectors) {
                 info("=======SELECTORS======================================================================");
                 info("sel_op_add:           ", trace.at(i).avm_main_sel_op_add);

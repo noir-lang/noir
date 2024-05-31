@@ -5,6 +5,7 @@
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 #include "barretenberg/vm/avm_trace/avm_deserialization.hpp"
 #include "barretenberg/vm/avm_trace/avm_opcode.hpp"
+#include "barretenberg/vm/avm_trace/aztec_constants.hpp"
 #include <cstdint>
 #include <memory>
 #include <sys/types.h>
@@ -18,11 +19,31 @@ using bb::utils::hex_to_bytes;
 
 class AvmExecutionTests : public ::testing::Test {
   public:
-    AvmTraceBuilder trace_builder;
+    std::vector<FF> public_inputs_vec{};
+
+    AvmExecutionTests()
+        : public_inputs_vec(PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH){};
 
   protected:
     // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
-    void SetUp() override { srs::init_crs_factory("../srs_db/ignition"); };
+    void SetUp() override
+    {
+        srs::init_crs_factory("../srs_db/ignition");
+        public_inputs_vec.at(DA_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_DA_GAS;
+        public_inputs_vec.at(L2_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_L2_GAS;
+    };
+
+    /**
+     * @brief Generate the execution trace pertaining to the supplied instructions.
+     *
+     * @param instructions A vector of the instructions to be executed.
+     * @return The trace as a vector of Row.
+     */
+    std::vector<Row> gen_trace_from_instr(std::vector<Instruction> const& instructions) const
+    {
+        std::vector<FF> calldata{};
+        return Execution::gen_trace(instructions, calldata, public_inputs_vec);
+    }
 };
 
 // Basic positive test with an ADD and RETURN opcode.
@@ -62,8 +83,8 @@ TEST_F(AvmExecutionTests, basicAddReturn)
                       Field(&Instruction::operands,
                             ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(0), VariantWith<uint32_t>(0)))));
 
-    auto trace = Execution::gen_trace(instructions);
-    validate_trace(std::move(trace), {}, true);
+    auto trace = gen_trace_from_instr(instructions);
+    validate_trace(std::move(trace), Execution::convert_public_inputs(public_inputs_vec), true);
 }
 
 // Positive test for SET and SUB opcodes
@@ -123,12 +144,12 @@ TEST_F(AvmExecutionTests, setAndSubOpcodes)
                                         VariantWith<uint32_t>(51),
                                         VariantWith<uint32_t>(1)))));
 
-    auto trace = Execution::gen_trace(instructions);
+    auto trace = gen_trace_from_instr(instructions);
 
     // Find the first row enabling the subtraction selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_sub == 1; });
     EXPECT_EQ(row->avm_main_ic, 10000); // 47123 - 37123 = 10000
-    validate_trace(std::move(trace), {}, true);
+    validate_trace(std::move(trace), Execution::convert_public_inputs(public_inputs_vec), true);
 }
 
 // Positive test for multiple MUL opcodes
@@ -201,7 +222,7 @@ TEST_F(AvmExecutionTests, powerWithMulOpcodes)
                       Field(&Instruction::operands,
                             ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(0), VariantWith<uint32_t>(0)))));
 
-    auto trace = Execution::gen_trace(instructions);
+    auto trace = gen_trace_from_instr(instructions);
 
     // Find the first row enabling the multiplication selector and pc = 13
     auto row = std::ranges::find_if(
@@ -262,7 +283,7 @@ TEST_F(AvmExecutionTests, simpleInternalCall)
     // INTERNALRETURN
     EXPECT_EQ(instructions.at(5).op_code, OpCode::INTERNALRETURN);
 
-    auto trace = Execution::gen_trace(instructions);
+    auto trace = gen_trace_from_instr(instructions);
 
     // Expected sequence of PCs during execution
     std::vector<FF> pc_sequence{ 0, 1, 4, 5, 2, 3 };
@@ -341,7 +362,7 @@ TEST_F(AvmExecutionTests, nestedInternalCalls)
         EXPECT_EQ(instructions.at(i).op_code, opcode_sequence.at(i));
     }
 
-    auto trace = Execution::gen_trace(instructions);
+    auto trace = gen_trace_from_instr(instructions);
 
     // Expected sequence of PCs during execution
     std::vector<FF> pc_sequence{ 0, 1, 2, 8, 6, 7, 9, 10, 4, 5, 11, 3 };
@@ -411,7 +432,8 @@ TEST_F(AvmExecutionTests, jumpAndCalldatacopy)
                 AllOf(Field(&Instruction::op_code, OpCode::JUMP),
                       Field(&Instruction::operands, ElementsAre(VariantWith<uint32_t>(3)))));
 
-    auto trace = Execution::gen_trace(instructions, std::vector<FF>{ 13, 156 });
+    std::vector<FF> returndata{};
+    auto trace = Execution::gen_trace(instructions, returndata, std::vector<FF>{ 13, 156 }, public_inputs_vec);
 
     // Expected sequence of PCs during execution
     std::vector<FF> pc_sequence{ 0, 1, 3, 4 };
@@ -470,7 +492,7 @@ TEST_F(AvmExecutionTests, movOpcode)
               Field(&Instruction::operands,
                     ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(171), VariantWith<uint32_t>(33)))));
 
-    auto trace = Execution::gen_trace(instructions);
+    auto trace = gen_trace_from_instr(instructions);
 
     // Find the first row enabling the MOV selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_mov == 1; });
@@ -524,7 +546,7 @@ TEST_F(AvmExecutionTests, cmovOpcode)
                                         VariantWith<uint32_t>(32),
                                         VariantWith<uint32_t>(18)))));
 
-    auto trace = Execution::gen_trace(instructions);
+    auto trace = gen_trace_from_instr(instructions);
 
     // Find the first row enabling the CMOV selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_cmov == 1; });
@@ -574,7 +596,7 @@ TEST_F(AvmExecutionTests, indMovOpcode)
                       Field(&Instruction::operands,
                             ElementsAre(VariantWith<uint8_t>(1), VariantWith<uint32_t>(1), VariantWith<uint32_t>(2)))));
 
-    auto trace = Execution::gen_trace(instructions);
+    auto trace = gen_trace_from_instr(instructions);
 
     // Find the first row enabling the MOV selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_mov == 1; });
@@ -616,7 +638,7 @@ TEST_F(AvmExecutionTests, setAndCastOpcodes)
                                         VariantWith<uint32_t>(17),
                                         VariantWith<uint32_t>(18)))));
 
-    auto trace = Execution::gen_trace(instructions);
+    auto trace = gen_trace_from_instr(instructions);
 
     // Find the first row enabling the cast selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_cast == 1; });
@@ -671,8 +693,8 @@ TEST_F(AvmExecutionTests, toRadixLeOpcode)
 
     // Assign a vector that we will mutate internally in gen_trace to store the return values;
     std::vector<FF> returndata = std::vector<FF>();
-    std::vector<FF> public_inputs = std::vector<FF>();
-    auto trace = Execution::gen_trace(instructions, returndata, std::vector<FF>{ FF::modulus - FF(1) }, public_inputs);
+    auto trace =
+        Execution::gen_trace(instructions, returndata, std::vector<FF>{ FF::modulus - FF(1) }, public_inputs_vec);
 
     // Find the first row enabling the TORADIXLE selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_radix_le == 1; });
@@ -770,7 +792,6 @@ TEST_F(AvmExecutionTests, sha256CompressionOpcode)
                                         726610467,  813867028, 4091010797ULL, 3974542186ULL };
 
     std::vector<FF> calldata = std::vector<FF>();
-    std::vector<FF> public_inputs_vec(PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH);
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
 
     // Find the first row enabling the Sha256Compression selector
@@ -862,7 +883,6 @@ TEST_F(AvmExecutionTests, sha256Opcode)
     // Assign a vector that we will mutate internally in gen_trace to store the return values;
     std::vector<FF> returndata = std::vector<FF>();
     std::vector<FF> calldata = std::vector<FF>();
-    std::vector<FF> public_inputs_vec(PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH);
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
 
     // Find the first row enabling the sha256 selector
@@ -944,7 +964,6 @@ TEST_F(AvmExecutionTests, poseidon2PermutationOpCode)
         FF(std::string("0x0cbea457c91c22c6c31fd89afd2541efc2edf31736b9f721e823b2165c90fd41"))
     };
 
-    std::vector<FF> public_inputs_vec(PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH);
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
 
     // Find the first row enabling the poseidon2 selector
@@ -1040,7 +1059,6 @@ TEST_F(AvmExecutionTests, keccakf1600OpCode)
     // Assign a vector that we will mutate internally in gen_trace to store the return values;
     std::vector<FF> calldata = std::vector<FF>();
     std::vector<FF> returndata = std::vector<FF>();
-    std::vector<FF> public_inputs_vec(PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH);
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
 
     // Find the first row enabling the keccak selector
@@ -1123,7 +1141,6 @@ TEST_F(AvmExecutionTests, keccakOpCode)
     // Assign a vector that we will mutate internally in gen_trace to store the return values;
     std::vector<FF> calldata = std::vector<FF>();
     std::vector<FF> returndata = std::vector<FF>();
-    std::vector<FF> public_inputs_vec(PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH);
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
 
     // Find the first row enabling the keccak selector
@@ -1202,7 +1219,6 @@ TEST_F(AvmExecutionTests, pedersenHashOpCode)
     // Assign a vector that we will mutate internally in gen_trace to store the return values;
     std::vector<FF> returndata = std::vector<FF>();
     std::vector<FF> calldata = { FF(1), FF(1) };
-    std::vector<FF> public_inputs_vec(PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH);
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
 
     // Find the first row enabling the pedersen selector
@@ -1337,8 +1353,6 @@ TEST_F(AvmExecutionTests, kernelInputOpcodes)
                                    feeperdagas, transactionfee, chainid,
                                    version,     blocknumber,    /*coinbase,*/ timestamp };
 
-    std::vector<FF> public_inputs_vec(PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH);
-
     // Set up public inputs to contain the above values
     // TODO: maybe have a javascript like object construction so that this is readable
     // Reduce the amount of times we have similar code to this
@@ -1360,7 +1374,7 @@ TEST_F(AvmExecutionTests, kernelInputOpcodes)
     // Transaction fee
     public_inputs_vec[TRANSACTION_FEE_OFFSET] = transactionfee;
 
-    auto trace = Execution::gen_trace(instructions, calldata, returndata, public_inputs_vec);
+    auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
 
     // Validate that the opcode read the correct value into ia
     // Check sender
@@ -1431,7 +1445,7 @@ TEST_F(AvmExecutionTests, ExecutorThrowsWithIncorrectNumberOfPublicInputs)
     std::vector<FF> returndata = {};
     std::vector<FF> public_inputs_vec = { 1 };
 
-    EXPECT_THROW_WITH_MESSAGE(Execution::gen_trace(instructions, calldata, returndata, public_inputs_vec),
+    EXPECT_THROW_WITH_MESSAGE(Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec),
                               "Public inputs vector is not of PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH");
 }
 

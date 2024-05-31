@@ -17,15 +17,16 @@ namespace constants(256);
     pol COINBASE_SELECTOR = 33; 
 
     pol END_GLOBAL_VARIABLES = 29 + 8; // We only use the first 5 of 8 global variables for now
-    
-    pol START_SIDE_EFFECT_COUNTER = 37;
 
     // Gas
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6715): This has since moved into the global variables
-    pol FEE_PER_DA_GAS_SELECTOR = 38;
-    pol FEE_PER_L2_GAS_SELECTOR = 39;
+    pol FEE_PER_DA_GAS_SELECTOR = 35;
+    pol FEE_PER_L2_GAS_SELECTOR = 36;
+
+    pol START_SIDE_EFFECT_COUNTER = 37;
 
     pol TRANSACTION_FEE_SELECTOR = 40;
 
     // Other AVM specific constants
     pol INTERNAL_CALL_SPACE_ID = 255;
+

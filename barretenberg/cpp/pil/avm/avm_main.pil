@@ -4,6 +4,7 @@ include "avm_alu.pil";
 include "avm_binary.pil";
 include "constants.pil";
 include "avm_kernel.pil";
+include "avm_gas.pil";
 include "gadgets/avm_conversion.pil";
 include "gadgets/avm_sha256.pil";
 include "gadgets/avm_poseidon2.pil";
@@ -49,6 +50,44 @@ namespace avm_main(256);
 
     pol commit sel_op_sload;
     pol commit sel_op_sstore;
+
+    //===== GAS ACCOUNTING ========================================================
+    // 1. The gas lookup table (in avm_gas.pil) is constant and maps the opcode value to L2/DA gas (fixed) cost.
+    // 2. Read gas_op from gas table based on the opcode value
+    // 3. TODO(#6588): constrain gas start and gas end
+
+    // TODO: Opcode value (byte) will be constrained by the bytecode validation circuit
+    pol commit opcode_val;
+
+    // "gas_remaining" values correspond to the gas quantity which remains BEFORE the execution of the opcode
+    // of the pertaining line. This means that the last value will be written on the row following the last
+    // opcode execution.
+    pol commit l2_gas_remaining;
+    pol commit da_gas_remaining;
+
+    // TODO: allow lookups to evaluate expressions
+    pol commit l2_gas_op;
+    pol commit da_gas_op;
+
+    #[LOOKUP_OPCODE_GAS]
+    gas_cost_active {opcode_val, l2_gas_op, da_gas_op}
+    in
+    avm_gas.gas_cost_sel {clk, avm_gas.l2_gas_fixed_table, avm_gas.da_gas_fixed_table};
+
+    // Constrain that the gas decrements correctly per instruction
+    #[L2_GAS_REMAINING_DECREMENT]
+    gas_cost_active * (l2_gas_remaining' - l2_gas_remaining + l2_gas_op) = 0;
+    #[DA_GAS_REMAINING_DECREMENT]
+    gas_cost_active * (da_gas_remaining' - da_gas_remaining + da_gas_op) = 0;
+
+    // Constrain that the remaining gas is unchanged otherwise (multi-line operations)
+    #[L2_GAS_INACTIVE]
+    (1 - gas_cost_active) * l2_gas_op = 0;
+    #[DA_GAS_INACTIVE]
+    (1 - gas_cost_active) * da_gas_op = 0;
+
+    // TODO: constrain that it stays the same if an opcode selector is not active -> TODO: will this break when the opcode takes multiple rows
+    // So we also need to constrain that it is the first line of the opcodes execution
 
     //===== Gadget Selectors ======================================================
     pol commit sel_op_radix_le;
@@ -366,10 +405,22 @@ namespace avm_main(256);
 
     //===== CONTROL_FLOW_CONSISTENCY ============================================
     pol INTERNAL_CALL_STACK_SELECTORS = (first + sel_internal_call + sel_internal_return + sel_halt);
+    pol ALL_CTRL_FLOW_SEL = sel_jump + sel_internal_call + sel_internal_return;
+
     pol ALL_BINARY_SEL = sel_op_and + sel_op_or + sel_op_xor;
     pol ALL_GADGET_SEL = sel_op_radix_le + sel_op_sha256 + sel_op_poseidon2 + sel_op_keccak + sel_op_pedersen;
     pol ALL_MEMORY_SEL = sel_cmov + sel_mov;
-    pol OPCODE_SELECTORS = ALU_ALL_SEL + ALL_BINARY_SEL + ALL_MEMORY_SEL + ALL_GADGET_SEL + KERNEL_INPUT_SELECTORS + KERNEL_OUTPUT_SELECTORS;
+    pol OPCODE_SELECTORS = sel_op_fdiv + ALU_ALL_SEL + ALL_BINARY_SEL + ALL_MEMORY_SEL + ALL_GADGET_SEL + KERNEL_INPUT_SELECTORS + KERNEL_OUTPUT_SELECTORS;
+
+    // TODO: gas_cost_active is activating gas accounting on a given row. All opcode with selectors
+    //       are activated through the relation below. The other opcodes which are implemented purely
+    //       through memory sub-operations such as CALLDATACOPY, RETURN, SET are activated by
+    //       setting a newly introduced boolean mem_op_activate_gas which is set in witness generation.
+    //       We should remove this shortcut and constrain this activation through bytecode decomposition.
+    //       Alternatively, we introduce a boolean selector for the three opcodes mentioned above.
+    pol commit gas_cost_active;
+    pol commit mem_op_activate_gas; // TODO: remove this one
+    gas_cost_active - OPCODE_SELECTORS - ALL_CTRL_FLOW_SEL - mem_op_activate_gas = 0;
 
     // Program counter must increment if not jumping or returning
     #[PC_INCREMENT]
@@ -636,7 +687,7 @@ namespace avm_main(256);
     #[LOOKUP_MEM_RNG_CHK_LO]
     avm_mem.rng_chk_sel {avm_mem.diff_lo} in sel_rng_16 {clk};
 
-    #[LOOKUP_MEM_RNG_CHK_MID]
+    #[LOOKUP_MEM_RNG_CHK_MID] 
     avm_mem.rng_chk_sel {avm_mem.diff_mid} in sel_rng_16 {clk};
 
     #[LOOKUP_MEM_RNG_CHK_HI]

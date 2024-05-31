@@ -27,4 +27,11 @@ inline const uint32_t FEE_PER_DA_GAS_OFFSET = PCPI_GLOBALS_START + 6;
 inline const uint32_t FEE_PER_L2_GAS_OFFSET = PCPI_GLOBALS_START + 7;
 
 inline const uint32_t TRANSACTION_FEE_OFFSET = PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH - 1;
+inline const uint32_t DA_GAS_LEFT_PCPI_OFFSET = PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH - 3 - GAS_LENGTH;
+inline const uint32_t L2_GAS_LEFT_PCPI_OFFSET = PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH - 2 - GAS_LENGTH;
+
 // END INDEXES in the PUBLIC_CIRCUIT_PUBLIC_INPUTS
+
+// L2 and Da gas left are the 3rd last and 2nd last items in the context kernel inputs respectively
+inline const std::size_t DA_GAS_LEFT_CONTEXT_INPUTS_OFFSET = KERNEL_INPUTS_LENGTH - 3;
+inline const std::size_t L2_GAS_LEFT_CONTEXT_INPUTS_OFFSET = KERNEL_INPUTS_LENGTH - 2;

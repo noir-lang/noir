@@ -1,0 +1,9 @@
+
+namespace avm_gas(256);
+    // TODO: WILL BE FIXED - we should be able to have this be a fixed column / the lookup tables are fixed so require no selectors
+    // TODO: All the columns here will have to be constant (when supported by our powdr fork and proving system)
+    pol commit gas_cost_sel;
+
+    // TODO(ISSUE_NUMBER): Constrain variable gas costs
+    pol commit l2_gas_fixed_table;
+    pol commit da_gas_fixed_table;

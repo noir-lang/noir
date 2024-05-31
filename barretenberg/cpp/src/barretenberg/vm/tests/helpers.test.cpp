@@ -49,7 +49,7 @@ void validate_trace(std::vector<Row>&& trace, VmPublicInputs public_inputs, bool
 
         std::vector<std::vector<FF>> public_inputs_as_vec = bb::avm_trace::copy_public_inputs_columns(public_inputs);
 
-        bool verified = verifier.verify_proof(proof, public_inputs_as_vec);
+        bool verified = verifier.verify_proof(proof, { public_inputs_as_vec });
 
         EXPECT_TRUE(verified);
     }
@@ -143,101 +143,101 @@ void clear_range_check_counters(std::vector<Row>& trace, uint256_t previous_valu
     // Find the main row where the old u8 value in the first register is looked up
     size_t lookup_value = static_cast<uint8_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u8_0_counts = trace.at(lookup_value + 1).lookup_u8_0_counts - 1;
+    trace.at(lookup_value).lookup_u8_0_counts = trace.at(lookup_value).lookup_u8_0_counts - 1;
     previous_value >>= 8;
     lookup_value = static_cast<uint8_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u8_1_counts = trace.at(lookup_value + 1).lookup_u8_1_counts - 1;
+    trace.at(lookup_value).lookup_u8_1_counts = trace.at(lookup_value).lookup_u8_1_counts - 1;
     previous_value >>= 8;
 
     // U_16_0: Find the main row where the old u16 value in the first register is looked up
     lookup_value = static_cast<uint16_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u16_0_counts = trace.at(lookup_value + 1).lookup_u16_0_counts - 1;
+    trace.at(lookup_value).lookup_u16_0_counts = trace.at(lookup_value).lookup_u16_0_counts - 1;
     previous_value >>= 16;
 
     // U_16_1: Find the main row where the old u16 value in the second register is looked up
     lookup_value = static_cast<uint16_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u16_1_counts = trace.at(lookup_value + 1).lookup_u16_1_counts - 1;
+    trace.at(lookup_value).lookup_u16_1_counts = trace.at(lookup_value).lookup_u16_1_counts - 1;
     previous_value >>= 16;
 
     // U_16_2: Find the main row where the old u16 value in the second register is looked up
     lookup_value = static_cast<uint16_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u16_2_counts = trace.at(lookup_value + 1).lookup_u16_2_counts - 1;
+    trace.at(lookup_value).lookup_u16_2_counts = trace.at(lookup_value).lookup_u16_2_counts - 1;
     previous_value >>= 16;
 
     // U_16_3: Find the main row where the old u16 value in the second register is looked up
     lookup_value = static_cast<uint16_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u16_3_counts = trace.at(lookup_value + 1).lookup_u16_3_counts - 1;
+    trace.at(lookup_value).lookup_u16_3_counts = trace.at(lookup_value).lookup_u16_3_counts - 1;
     previous_value >>= 16;
 
     // U_16_4: Find the main row where the old u16 value in the second register is looked up
     lookup_value = static_cast<uint16_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u16_4_counts = trace.at(lookup_value + 1).lookup_u16_4_counts - 1;
+    trace.at(lookup_value).lookup_u16_4_counts = trace.at(lookup_value).lookup_u16_4_counts - 1;
     previous_value >>= 16;
 
     // U_16_5: Find the main row where the old u16 value in the second register is looked up
     lookup_value = static_cast<uint16_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u16_5_counts = trace.at(lookup_value + 1).lookup_u16_5_counts - 1;
+    trace.at(lookup_value).lookup_u16_5_counts = trace.at(lookup_value).lookup_u16_5_counts - 1;
     previous_value >>= 16;
 
     // U_16_6: Find the main row where the old u16 value in the second register is looked up
     lookup_value = static_cast<uint16_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u16_6_counts = trace.at(lookup_value + 1).lookup_u16_6_counts - 1;
+    trace.at(lookup_value).lookup_u16_6_counts = trace.at(lookup_value).lookup_u16_6_counts - 1;
     previous_value >>= 16;
 
     // U_16_7: Find the main row where the old u16 value in the second register is looked up
     lookup_value = static_cast<uint16_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u16_7_counts = trace.at(lookup_value + 1).lookup_u16_7_counts - 1;
+    trace.at(lookup_value).lookup_u16_7_counts = trace.at(lookup_value).lookup_u16_7_counts - 1;
     previous_value >>= 16;
 
     // U_16_8: Find the main row where the old u16 value in the second register is looked up
     lookup_value = static_cast<uint16_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u16_8_counts = trace.at(lookup_value + 1).lookup_u16_8_counts - 1;
+    trace.at(lookup_value).lookup_u16_8_counts = trace.at(lookup_value).lookup_u16_8_counts - 1;
     previous_value >>= 16;
 
     // U_16_9: Find the main row where the old u16 value in the second register is looked up
     lookup_value = static_cast<uint16_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u16_9_counts = trace.at(lookup_value + 1).lookup_u16_9_counts - 1;
+    trace.at(lookup_value).lookup_u16_9_counts = trace.at(lookup_value).lookup_u16_9_counts - 1;
     previous_value >>= 16;
 
     // U_16_10: Find the main row where the old u16 value in the second register is looked up
     lookup_value = static_cast<uint16_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u16_10_counts = trace.at(lookup_value + 1).lookup_u16_10_counts - 1;
+    trace.at(lookup_value).lookup_u16_10_counts = trace.at(lookup_value).lookup_u16_10_counts - 1;
     previous_value >>= 16;
 
     // U_16_11: Find the main row where the old u16 value in the second register is looked up
     lookup_value = static_cast<uint16_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u16_11_counts = trace.at(lookup_value + 1).lookup_u16_11_counts - 1;
+    trace.at(lookup_value).lookup_u16_11_counts = trace.at(lookup_value).lookup_u16_11_counts - 1;
     previous_value >>= 16;
 
     // U_16_12: Find the main row where the old u16 value in the second register is looked up
     lookup_value = static_cast<uint16_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u16_12_counts = trace.at(lookup_value + 1).lookup_u16_12_counts - 1;
+    trace.at(lookup_value).lookup_u16_12_counts = trace.at(lookup_value).lookup_u16_12_counts - 1;
     previous_value >>= 16;
 
     // U_16_13: Find the main row where the old u16 value in the second register is looked up
     lookup_value = static_cast<uint16_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u16_13_counts = trace.at(lookup_value + 1).lookup_u16_13_counts - 1;
+    trace.at(lookup_value).lookup_u16_13_counts = trace.at(lookup_value).lookup_u16_13_counts - 1;
     previous_value >>= 16;
 
     // U_16_14: Find the main row where the old u16 value in the second register is looked up
     lookup_value = static_cast<uint16_t>(previous_value);
     // Decrement the counter
-    trace.at(lookup_value + 1).lookup_u16_14_counts = trace.at(lookup_value + 1).lookup_u16_14_counts - 1;
+    trace.at(lookup_value).lookup_u16_14_counts = trace.at(lookup_value).lookup_u16_14_counts - 1;
     previous_value >>= 16;
 }
 

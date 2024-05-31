@@ -1,7 +1,9 @@
 #include "avm_common.test.hpp"
 #include "barretenberg/numeric/uint128/uint128.hpp"
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
+#include "barretenberg/vm/avm_trace/avm_trace.hpp"
 #include "barretenberg/vm/tests/helpers.test.hpp"
+#include <array>
 #include <cstdint>
 
 namespace tests_avm {
@@ -197,114 +199,118 @@ size_t common_validate_div(std::vector<Row> const& trace,
 
     return static_cast<size_t>(alu_row - trace.begin());
 }
-
-// Generate a trace with an EQ opcode operation.
-std::vector<Row> gen_trace_eq(uint128_t const& a,
-                              uint128_t const& b,
-                              uint32_t const& addr_a,
-                              uint32_t const& addr_b,
-                              uint32_t const& addr_c,
-                              avm_trace::AvmMemoryTag tag)
-{
-    auto trace_builder = avm_trace::AvmTraceBuilder();
-    trace_builder.op_set(0, a, addr_a, tag);
-    trace_builder.op_set(0, b, addr_b, tag);
-    trace_builder.op_eq(0, addr_a, addr_b, addr_c, tag);
-    trace_builder.return_op(0, 0, 0);
-    return trace_builder.finalize();
-}
-
-// This function generates a mutated trace of an addition where a and b are the passed inputs.
-// a and b are stored in memory indices 0 and 1. c_mutated is the wrong result of the addition
-// and the memory and alu trace are created consistently with the wrong value c_mutated.
-std::vector<Row> gen_mutated_trace_add(FF const& a, FF const& b, FF const& c_mutated, avm_trace::AvmMemoryTag tag)
-{
-    auto trace_builder = avm_trace::AvmTraceBuilder();
-    trace_builder.op_set(0, uint128_t{ a }, 0, tag);
-    trace_builder.op_set(0, uint128_t{ b }, 1, tag);
-    trace_builder.op_add(0, 0, 1, 2, tag);
-    trace_builder.halt();
-    auto trace = trace_builder.finalize();
-
-    auto select_row = [](Row r) { return r.avm_main_sel_op_add == FF(1); };
-    mutate_ic_in_trace(trace, select_row, c_mutated, true);
-
-    return trace;
-}
-
-// This function generates a mutated trace of a subtraction where a and b are the passed inputs.
-// a and b are stored in memory indices 0 and 1. c_mutated is the wrong result of the subtraction
-// and the memory and alu trace are created consistently with the wrong value c_mutated.
-std::vector<Row> gen_mutated_trace_sub(FF const& a, FF const& b, FF const& c_mutated, avm_trace::AvmMemoryTag tag)
-{
-    auto trace_builder = avm_trace::AvmTraceBuilder();
-    trace_builder.op_set(0, uint128_t{ a }, 0, tag);
-    trace_builder.op_set(0, uint128_t{ b }, 1, tag);
-    trace_builder.op_sub(0, 0, 1, 2, tag);
-    trace_builder.halt();
-    auto trace = trace_builder.finalize();
-
-    auto select_row = [](Row r) { return r.avm_main_sel_op_sub == FF(1); };
-    mutate_ic_in_trace(trace, select_row, c_mutated, true);
-
-    return trace;
-}
-
-// This function generates a mutated trace of a multiplication where a and b are the passed inputs.
-// a and b are stored in memory indices 0 and 1. c_mutated is the wrong result of the multiplication
-// and the memory and alu trace are created consistently with the wrong value c_mutated.
-std::vector<Row> gen_mutated_trace_mul(FF const& a, FF const& b, FF const& c_mutated, avm_trace::AvmMemoryTag tag)
-{
-    auto trace_builder = avm_trace::AvmTraceBuilder();
-    trace_builder.op_set(0, uint128_t{ a }, 0, tag);
-    trace_builder.op_set(0, uint128_t{ b }, 1, tag);
-    trace_builder.op_mul(0, 0, 1, 2, tag);
-    trace_builder.halt();
-    auto trace = trace_builder.finalize();
-
-    auto select_row = [](Row r) { return r.avm_main_sel_op_mul == FF(1); };
-    mutate_ic_in_trace(trace, select_row, c_mutated, true);
-
-    return trace;
-}
-
-// This function generates a mutated trace of an equality check where a and b are the passed inputs.
-// a and b are stored in memory indices 0 and 1 and c contains the boolean value of the equality check.
-// Here we mutate c to be an incorrect evaluation of the equality and the memory and alu trace are
-// created consistently with the wrong value c_mutated.
-// Additionally, we can also mutate the value stored in inv_diff where inv_diff is (a - b)^-1
-std::vector<Row> gen_mutated_trace_eq(
-    FF const& a, FF const& b, FF const& c_mutated, FF const& mutated_inv_diff, avm_trace::AvmMemoryTag tag)
-{
-    auto trace_builder = avm_trace::AvmTraceBuilder();
-    trace_builder.op_set(0, uint128_t{ a }, 0, tag);
-    trace_builder.op_set(0, uint128_t{ b }, 1, tag);
-    trace_builder.op_eq(0, 0, 1, 2, tag);
-    trace_builder.halt();
-    auto trace = trace_builder.finalize();
-
-    auto select_row = [](Row r) { return r.avm_main_sel_op_eq == FF(1); };
-    mutate_ic_in_trace(trace, select_row, c_mutated, true);
-
-    auto main_trace_row = std::ranges::find_if(trace.begin(), trace.end(), select_row);
-    auto main_clk = main_trace_row->avm_main_clk;
-    auto alu_row =
-        std::ranges::find_if(trace.begin(), trace.end(), [main_clk](Row r) { return r.avm_alu_clk == main_clk; });
-
-    main_trace_row->avm_alu_op_eq_diff_inv = mutated_inv_diff;
-    alu_row->avm_alu_op_eq_diff_inv = mutated_inv_diff;
-
-    return trace;
-}
 } // anonymous namespace
 
 class AvmArithmeticTests : public ::testing::Test {
   public:
     AvmTraceBuilder trace_builder;
+    VmPublicInputs public_inputs{};
 
   protected:
     // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
-    void SetUp() override { srs::init_crs_factory("../srs_db/ignition"); };
+    void SetUp() override
+    {
+        srs::init_crs_factory("../srs_db/ignition");
+        std::array<FF, KERNEL_INPUTS_LENGTH> kernel_inputs{};
+        kernel_inputs.at(DA_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_DA_GAS;
+        kernel_inputs.at(L2_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_L2_GAS;
+        std::get<0>(public_inputs) = kernel_inputs;
+        trace_builder = AvmTraceBuilder(public_inputs);
+    };
+
+    // Generate a trace with an EQ opcode operation.
+    std::vector<Row> gen_trace_eq(uint128_t const& a,
+                                  uint128_t const& b,
+                                  uint32_t const& addr_a,
+                                  uint32_t const& addr_b,
+                                  uint32_t const& addr_c,
+                                  avm_trace::AvmMemoryTag tag)
+    {
+        trace_builder.op_set(0, a, addr_a, tag);
+        trace_builder.op_set(0, b, addr_b, tag);
+        trace_builder.op_eq(0, addr_a, addr_b, addr_c, tag);
+        trace_builder.return_op(0, 0, 0);
+        return trace_builder.finalize();
+    }
+
+    // This function generates a mutated trace of an addition where a and b are the passed inputs.
+    // a and b are stored in memory indices 0 and 1. c_mutated is the wrong result of the addition
+    // and the memory and alu trace are created consistently with the wrong value c_mutated.
+    std::vector<Row> gen_mutated_trace_add(FF const& a, FF const& b, FF const& c_mutated, avm_trace::AvmMemoryTag tag)
+    {
+        trace_builder.op_set(0, uint128_t{ a }, 0, tag);
+        trace_builder.op_set(0, uint128_t{ b }, 1, tag);
+        trace_builder.op_add(0, 0, 1, 2, tag);
+        trace_builder.halt();
+        auto trace = trace_builder.finalize();
+
+        auto select_row = [](Row r) { return r.avm_main_sel_op_add == FF(1); };
+        mutate_ic_in_trace(trace, select_row, c_mutated, true);
+
+        return trace;
+    }
+
+    // This function generates a mutated trace of a subtraction where a and b are the passed inputs.
+    // a and b are stored in memory indices 0 and 1. c_mutated is the wrong result of the subtraction
+    // and the memory and alu trace are created consistently with the wrong value c_mutated.
+    std::vector<Row> gen_mutated_trace_sub(FF const& a, FF const& b, FF const& c_mutated, avm_trace::AvmMemoryTag tag)
+    {
+        trace_builder.op_set(0, uint128_t{ a }, 0, tag);
+        trace_builder.op_set(0, uint128_t{ b }, 1, tag);
+        trace_builder.op_sub(0, 0, 1, 2, tag);
+        trace_builder.halt();
+        auto trace = trace_builder.finalize();
+
+        auto select_row = [](Row r) { return r.avm_main_sel_op_sub == FF(1); };
+        mutate_ic_in_trace(trace, select_row, c_mutated, true);
+
+        return trace;
+    }
+
+    // This function generates a mutated trace of a multiplication where a and b are the passed inputs.
+    // a and b are stored in memory indices 0 and 1. c_mutated is the wrong result of the multiplication
+    // and the memory and alu trace are created consistently with the wrong value c_mutated.
+    std::vector<Row> gen_mutated_trace_mul(FF const& a, FF const& b, FF const& c_mutated, avm_trace::AvmMemoryTag tag)
+    {
+        trace_builder.op_set(0, uint128_t{ a }, 0, tag);
+        trace_builder.op_set(0, uint128_t{ b }, 1, tag);
+        trace_builder.op_mul(0, 0, 1, 2, tag);
+        trace_builder.halt();
+        auto trace = trace_builder.finalize();
+
+        auto select_row = [](Row r) { return r.avm_main_sel_op_mul == FF(1); };
+        mutate_ic_in_trace(trace, select_row, c_mutated, true);
+
+        return trace;
+    }
+
+    // This function generates a mutated trace of an equality check where a and b are the passed inputs.
+    // a and b are stored in memory indices 0 and 1 and c contains the boolean value of the equality check.
+    // Here we mutate c to be an incorrect evaluation of the equality and the memory and alu trace are
+    // created consistently with the wrong value c_mutated.
+    // Additionally, we can also mutate the value stored in inv_diff where inv_diff is (a - b)^-1
+    std::vector<Row> gen_mutated_trace_eq(
+        FF const& a, FF const& b, FF const& c_mutated, FF const& mutated_inv_diff, avm_trace::AvmMemoryTag tag)
+    {
+        trace_builder.op_set(0, uint128_t{ a }, 0, tag);
+        trace_builder.op_set(0, uint128_t{ b }, 1, tag);
+        trace_builder.op_eq(0, 0, 1, 2, tag);
+        trace_builder.halt();
+        auto trace = trace_builder.finalize();
+
+        auto select_row = [](Row r) { return r.avm_main_sel_op_eq == FF(1); };
+        mutate_ic_in_trace(trace, select_row, c_mutated, true);
+
+        auto main_trace_row = std::ranges::find_if(trace.begin(), trace.end(), select_row);
+        auto main_clk = main_trace_row->avm_main_clk;
+        auto alu_row =
+            std::ranges::find_if(trace.begin(), trace.end(), [main_clk](Row r) { return r.avm_alu_clk == main_clk; });
+
+        main_trace_row->avm_alu_op_eq_diff_inv = mutated_inv_diff;
+        alu_row->avm_alu_op_eq_diff_inv = mutated_inv_diff;
+
+        return trace;
+    }
 };
 
 class AvmArithmeticTestsFF : public AvmArithmeticTests {};
@@ -378,7 +384,7 @@ TEST_F(AvmArithmeticTestsFF, addition)
     EXPECT_EQ(alu_row.avm_alu_cf, FF(0));
     EXPECT_EQ(alu_row.avm_alu_u8_r0, FF(0));
 
-    validate_trace(std::move(trace), {}, true);
+    validate_trace(std::move(trace), public_inputs, true);
 }
 
 // Test on basic subtraction over finite field type.
@@ -555,7 +561,7 @@ TEST_F(AvmArithmeticTestsFF, mixedOperationsWithError)
     trace_builder.halt();
 
     auto trace = trace_builder.finalize();
-    validate_trace(std::move(trace), {}, true);
+    validate_trace(std::move(trace), public_inputs, true);
 }
 
 // Test of equality on FF elements
@@ -597,7 +603,6 @@ TEST_P(AvmArithmeticTestsDiv, division)
 {
     const auto [operands, mem_tag] = GetParam();
     const auto [a, b, output] = operands;
-    auto trace_builder = avm_trace::AvmTraceBuilder();
     trace_builder.op_set(0, uint128_t(a), 0, mem_tag);
     trace_builder.op_set(0, uint128_t(b), 1, mem_tag);
     trace_builder.op_div(0, 0, 1, 2, mem_tag);
@@ -617,7 +622,6 @@ INSTANTIATE_TEST_SUITE_P(AvmArithmeticTestsDiv,
 // We check that the operator error flag is raised.
 TEST_F(AvmArithmeticTests, DivisionByZeroError)
 {
-    auto trace_builder = avm_trace::AvmTraceBuilder();
     trace_builder.op_set(0, 100, 0, AvmMemoryTag::U128);
     trace_builder.op_set(0, 0, 1, AvmMemoryTag::U128);
     trace_builder.op_div(0, 0, 1, 2, AvmMemoryTag::U128);
