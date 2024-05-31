@@ -342,6 +342,11 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
         case OpCode::JUMP:
             trace_builder.jump(std::get<uint32_t>(inst.operands.at(0)));
             break;
+        case OpCode::JUMPI:
+            trace_builder.jumpi(std::get<uint8_t>(inst.operands.at(0)),
+                                std::get<uint32_t>(inst.operands.at(1)),
+                                std::get<uint32_t>(inst.operands.at(2)));
+            break;
         case OpCode::INTERNALCALL:
             trace_builder.internal_call(std::get<uint32_t>(inst.operands.at(0)));
             break;

@@ -69,7 +69,7 @@ const std::unordered_map<OpCode, std::vector<OperandType>> OPCODE_WIRE_FORMAT = 
     { OpCode::DAGASLEFT, getter_format },
     // Machine State - Internal Control Flow
     { OpCode::JUMP, { OperandType::UINT32 } },
-    // JUMPI
+    { OpCode::JUMPI, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32 } },
     { OpCode::INTERNALCALL, { OperandType::UINT32 } },
     { OpCode::INTERNALRETURN, {} },
     // Machine State - Memory

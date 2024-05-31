@@ -454,6 +454,102 @@ TEST_F(AvmExecutionTests, jumpAndCalldatacopy)
     validate_trace(std::move(trace));
 }
 
+// Positive test for JUMPI.
+// We invoke CALLDATACOPY on a FF array of one value which will serve as the conditional value
+// for JUMPI ans set this value at memory offset 10.
+// Then, we set value 20 (UINT16) at memory offset 101.
+// Then, a JUMPI call is performed. Depending of the conditional value, the next opcode (ADD) is
+// omitted or not, i.e., we jump to the subsequent opcode MUL.
+// Bytecode layout: CALLDATACOPY  SET  JUMPI  ADD   MUL  RETURN
+//                        0        1     2     3     4      5
+// We test this bytecode with two calldatacopy values: 9873123 and 0.
+TEST_F(AvmExecutionTests, jumpiAndCalldatacopy)
+{
+    std::string bytecode_hex = to_hex(OpCode::CALLDATACOPY) + // opcode CALLDATACOPY (no in tag)
+                               "00"                           // Indirect flag
+                               "00000000"                     // cd_offset
+                               "00000001"                     // copy_size
+                               "0000000A"                     // dst_offset 10
+                               + to_hex(OpCode::SET) +        // opcode SET
+                               "00"                           // Indirect flag
+                               "02"                           // U16
+                               "0014"                         // val 20
+                               "00000065"                     // dst_offset 101
+                               + to_hex(OpCode::JUMPI) +      // opcode JUMPI
+                               "00"                           // Indirect flag
+                               "00000004"                     // jmp_dest (MUL located at 4)
+                               "0000000A"                     // cond_offset 10
+                               + to_hex(OpCode::ADD) +        // opcode ADD
+                               "00"                           // Indirect flag
+                               "02"                           // U16
+                               "00000065"                     // addr 101
+                               "00000065"                     // addr 101
+                               "00000065"                     // output addr 101
+                               + to_hex(OpCode::MUL) +        // opcode MUL
+                               "00"                           // Indirect flag
+                               "02"                           // U16
+                               "00000065"                     // addr 101
+                               "00000065"                     // addr 101
+                               "00000066"                     // output of MUL addr 102
+                               + to_hex(OpCode::RETURN) +     // opcode RETURN
+                               "00"                           // Indirect flag
+                               "00000000"                     // ret offset 0
+                               "00000000"                     // ret size 0
+        ;
+
+    auto bytecode = hex_to_bytes(bytecode_hex);
+    auto instructions = Deserialization::parse(bytecode);
+
+    ASSERT_THAT(instructions, SizeIs(6));
+
+    // We test parsing of JUMPI.
+
+    // JUMPI
+    EXPECT_THAT(
+        instructions.at(2),
+        AllOf(Field(&Instruction::op_code, OpCode::JUMPI),
+              Field(&Instruction::operands,
+                    ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(4), VariantWith<uint32_t>(10)))));
+
+    std::vector<FF> returndata{};
+    auto trace_jump = Execution::gen_trace(instructions, returndata, std::vector<FF>{ 9873123 }, public_inputs_vec);
+    auto trace_no_jump = Execution::gen_trace(instructions, returndata, std::vector<FF>{ 0 }, public_inputs_vec);
+
+    // Expected sequence of PCs during execution with jump
+    std::vector<FF> pc_sequence_jump{ 0, 1, 2, 4, 5 };
+    // Expected sequence of PCs during execution without jump
+    std::vector<FF> pc_sequence_no_jump{ 0, 1, 2, 3, 4, 5 };
+
+    for (size_t i = 0; i < 5; i++) {
+        EXPECT_EQ(trace_jump.at(i + 1).avm_main_pc, pc_sequence_jump.at(i));
+    }
+
+    for (size_t i = 0; i < 6; i++) {
+        EXPECT_EQ(trace_no_jump.at(i + 1).avm_main_pc, pc_sequence_no_jump.at(i));
+    }
+
+    // JUMP CASE
+    // Find the first row enabling the MUL opcode
+    auto row =
+        std::ranges::find_if(trace_jump.begin(), trace_jump.end(), [](Row r) { return r.avm_main_sel_op_mul == 1; });
+    EXPECT_EQ(row->avm_main_ic, 400); // 400 = 20 * 20
+
+    // Find the first row enabling the addition selector.
+    row = std::ranges::find_if(trace_jump.begin(), trace_jump.end(), [](Row r) { return r.avm_main_sel_op_add == 1; });
+    // It must have failed as addition was "jumped over".
+    EXPECT_EQ(row, trace_jump.end());
+
+    // NO JUMP CASE
+    // Find the first row enabling the MUL opcode
+    row = std::ranges::find_if(
+        trace_no_jump.begin(), trace_no_jump.end(), [](Row r) { return r.avm_main_sel_op_mul == 1; });
+    EXPECT_EQ(row->avm_main_ic, 1600); // 800 = (20 + 20) * (20 + 20)
+
+    // traces validation
+    validate_trace(std::move(trace_jump));
+    validate_trace(std::move(trace_no_jump));
+}
+
 // Positive test with MOV.
 TEST_F(AvmExecutionTests, movOpcode)
 {
@@ -787,7 +883,8 @@ TEST_F(AvmExecutionTests, sha256CompressionOpcode)
     // Assign a vector that we will mutate internally in gen_trace to store the return values;
     std::vector<FF> returndata = std::vector<FF>();
     // Test vector output taken from noir black_box_solver
-    // Uint32Array.from([1862536192, 526086805, 2067405084, 593147560, 726610467, 813867028, 4091010797,3974542186]),
+    // Uint32Array.from([1862536192, 526086805, 2067405084, 593147560, 726610467, 813867028,
+    // 4091010797,3974542186]),
     std::vector<FF> expected_output = { 1862536192, 526086805, 2067405084,    593147560,
                                         726610467,  813867028, 4091010797ULL, 3974542186ULL };
 
@@ -1347,8 +1444,8 @@ TEST_F(AvmExecutionTests, kernelInputOpcodes)
     // Not in simulator
     // FF coinbase = 10;
 
-    // The return data for this test should be a the opcodes in sequence, as the opcodes dst address lines up with this
-    // array The returndata call above will then return this array
+    // The return data for this test should be a the opcodes in sequence, as the opcodes dst address lines up with
+    // this array The returndata call above will then return this array
     std::vector<FF> returndata = { sender,      address,        feeperl2gas,
                                    feeperdagas, transactionfee, chainid,
                                    version,     blocknumber,    /*coinbase,*/ timestamp };

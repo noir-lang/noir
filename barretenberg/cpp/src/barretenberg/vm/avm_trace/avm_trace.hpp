@@ -124,6 +124,9 @@ class AvmTraceBuilder {
     // Jump to a given program counter.
     void jump(uint32_t jmp_dest);
 
+    // Jump conditionally to a given program counter.
+    void jumpi(uint8_t indirect, uint32_t jmp_dest, uint32_t cond_offset);
+
     // Jump to a given program counter; storing the return location on a call stack.
     // TODO(md): this program counter MUST be an operand to the OPCODE.
     void internal_call(uint32_t jmp_dest);

@@ -266,6 +266,7 @@ template <typename FF> struct AvmFullRow {
     FF avm_main_sel_internal_call{};
     FF avm_main_sel_internal_return{};
     FF avm_main_sel_jump{};
+    FF avm_main_sel_jumpi{};
     FF avm_main_sel_mov{};
     FF avm_main_sel_mov_a{};
     FF avm_main_sel_mov_b{};
@@ -521,8 +522,8 @@ class AvmCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 428;
-    static constexpr size_t num_polys = 364;
+    static constexpr size_t num_fixed_columns = 429;
+    static constexpr size_t num_polys = 365;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -727,6 +728,7 @@ class AvmCircuitBuilder {
             polys.avm_main_sel_internal_call[i] = rows[i].avm_main_sel_internal_call;
             polys.avm_main_sel_internal_return[i] = rows[i].avm_main_sel_internal_return;
             polys.avm_main_sel_jump[i] = rows[i].avm_main_sel_jump;
+            polys.avm_main_sel_jumpi[i] = rows[i].avm_main_sel_jumpi;
             polys.avm_main_sel_mov[i] = rows[i].avm_main_sel_mov;
             polys.avm_main_sel_mov_a[i] = rows[i].avm_main_sel_mov_a;
             polys.avm_main_sel_mov_b[i] = rows[i].avm_main_sel_mov_b;

@@ -1950,6 +1950,65 @@ void AvmTraceBuilder::jump(uint32_t jmp_dest)
 }
 
 /**
+ * @brief JUMPI OPCODE
+ *        Jumps to a new `jmp_dest` if M[cond_offset] > 0
+ *        This function sets the next program counter to the provided `jmp_dest` if condition > 0.
+ *        Otherwise, program counter is incremented.
+ *
+ * @param indirect A byte encoding information about indirect/direct memory access.
+ * @param jmp_dest The destination to jump to
+ * @param cond_offset Offset of the condition
+ */
+void AvmTraceBuilder::jumpi(uint8_t indirect, uint32_t jmp_dest, uint32_t cond_offset)
+{
+    auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
+
+    bool tag_match = true;
+    uint32_t direct_cond_offset = cond_offset;
+
+    bool indirect_cond_flag = is_operand_indirect(indirect, 0);
+
+    if (indirect_cond_flag) {
+        auto read_ind_d =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_D, cond_offset);
+        direct_cond_offset = uint32_t(read_ind_d.val);
+        tag_match = tag_match && read_ind_d.tag_match;
+    }
+
+    // Specific JUMPI loading of conditional value into intermediate register id without any tag constraint.
+    auto read_d = mem_trace_builder.read_and_load_jumpi_opcode(call_ptr, clk, direct_cond_offset);
+
+    const bool id_zero = read_d.val == 0;
+    FF const inv = !id_zero ? read_d.val.invert() : 1;
+    uint32_t next_pc = !id_zero ? jmp_dest : pc + 1;
+
+    // Constrain gas cost
+    gas_trace_builder.constrain_gas_lookup(clk, OpCode::JUMPI);
+
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_call_ptr = call_ptr,
+        .avm_main_ia = FF(next_pc),
+        .avm_main_id = read_d.val,
+        .avm_main_id_zero = static_cast<uint32_t>(id_zero),
+        .avm_main_ind_d = indirect_cond_flag ? cond_offset : 0,
+        .avm_main_ind_op_d = static_cast<uint32_t>(indirect_cond_flag),
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_inv = inv,
+        .avm_main_mem_idx_d = direct_cond_offset,
+        .avm_main_mem_op_d = 1,
+        .avm_main_pc = FF(pc),
+        .avm_main_r_in_tag = static_cast<uint32_t>(read_d.tag),
+        .avm_main_sel_jumpi = FF(1),
+        .avm_main_tag_err = static_cast<uint32_t>(!tag_match),
+        .avm_main_w_in_tag = static_cast<uint32_t>(read_d.tag),
+    });
+
+    // Adjust parameters for the next row
+    pc = next_pc;
+}
+
+/**
  * @brief INTERNAL_CALL OPCODE
  *        This opcode effectively jumps to a new `jmp_dest` and stores the return program counter
  *        (current program counter + 1) onto a call stack.

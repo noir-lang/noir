@@ -384,6 +384,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_internal_return);
     commitments.avm_main_sel_jump =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_jump);
+    commitments.avm_main_sel_jumpi =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_jumpi);
     commitments.avm_main_sel_mov =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_mov);
     commitments.avm_main_sel_mov_a =

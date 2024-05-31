@@ -115,6 +115,7 @@ namespace avm_main(256);
     pol commit sel_internal_call;
     pol commit sel_internal_return;
     pol commit sel_jump;
+    pol commit sel_jumpi;
     
     // Halt program execution
     pol commit sel_halt;
@@ -273,6 +274,7 @@ namespace avm_main(256);
     sel_internal_call * (1 - sel_internal_call) = 0;
     sel_internal_return * (1 - sel_internal_return) = 0;
     sel_jump * (1 - sel_jump) = 0;
+    sel_jumpi * (1 - sel_jumpi) = 0;
     sel_halt * (1 - sel_halt) = 0;
 
     // Might be removed if derived from opcode based on a lookup of constants
@@ -373,7 +375,13 @@ namespace avm_main(256);
 
     //===== CONTROL FLOW =======================================================
     //===== JUMP ===============================================================
+    #[PC_JUMP]
     sel_jump * (pc' - ia) = 0;
+
+    #[PC_JUMPI]
+    sel_jumpi * ((1 - id_zero) * (pc' - ia) + id_zero * (pc' - pc - 1)) = 0;
+
+    // TODO: Consolidation with #[PC_JUMP] and sel_internal_call * (pc' - ia) = 0; sel_internal_return * (pc' - ia) = 0;
 
     //===== INTERNAL_CALL ======================================================
     // - The program counter in the next row should be equal to the value loaded from the ia register
@@ -405,7 +413,7 @@ namespace avm_main(256);
 
     //===== CONTROL_FLOW_CONSISTENCY ============================================
     pol INTERNAL_CALL_STACK_SELECTORS = (first + sel_internal_call + sel_internal_return + sel_halt);
-    pol ALL_CTRL_FLOW_SEL = sel_jump + sel_internal_call + sel_internal_return;
+    pol ALL_CTRL_FLOW_SEL = sel_jump + sel_jumpi + sel_internal_call + sel_internal_return;
 
     pol ALL_BINARY_SEL = sel_op_and + sel_op_or + sel_op_xor;
     pol ALL_GADGET_SEL = sel_op_radix_le + sel_op_sha256 + sel_op_poseidon2 + sel_op_keccak + sel_op_pedersen;
@@ -442,16 +450,17 @@ namespace avm_main(256);
     //====== MEMORY OPCODES CONSTRAINTS =========================================
 
     // TODO: consolidate with zero division error handling
+    // TODO: Ensure that operation decompostion will ensure mutual exclusivity of sel_cmov and sel_jumpi
 
-    // When sel_cmov == 1, we need id == 0 <==> id_zero == 0
+    // When sel_cmov or sel_jumpi == 1, we need id == 0 <==> id_zero == 0
     // This can be achieved with the 2 following relations.
     // inv is an extra witness to show that we can invert id, i.e., inv = id^(-1)
     // If id == 0, we have to set inv = 1 to satisfy the second relation,
     // because id_zero == 1 from the first relation.
     #[CMOV_CONDITION_RES_1]
-    sel_cmov * (id * inv - 1 + id_zero) = 0;
+    (sel_cmov + sel_jumpi) * (id * inv - 1 + id_zero) = 0;
     #[CMOV_CONDITION_RES_2]
-    sel_cmov * id_zero * (1 - inv) = 0;
+    (sel_cmov + sel_jumpi) * id_zero * (1 - inv) = 0;
 
     // Boolean selectors telling whether we move ia to ic or ib to ic.
     // Boolean constraints and mutual exclusivity are derived from their

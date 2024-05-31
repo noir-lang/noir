@@ -199,6 +199,7 @@
     [[maybe_unused]] auto avm_main_sel_internal_call = View(new_term.avm_main_sel_internal_call);                      \
     [[maybe_unused]] auto avm_main_sel_internal_return = View(new_term.avm_main_sel_internal_return);                  \
     [[maybe_unused]] auto avm_main_sel_jump = View(new_term.avm_main_sel_jump);                                        \
+    [[maybe_unused]] auto avm_main_sel_jumpi = View(new_term.avm_main_sel_jumpi);                                      \
     [[maybe_unused]] auto avm_main_sel_mov = View(new_term.avm_main_sel_mov);                                          \
     [[maybe_unused]] auto avm_main_sel_mov_a = View(new_term.avm_main_sel_mov_a);                                      \
     [[maybe_unused]] auto avm_main_sel_mov_b = View(new_term.avm_main_sel_mov_b);                                      \
