@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 
 use crate::ast::{ItemVisibility, Path, TraitItem};
 use crate::{
@@ -386,54 +386,6 @@ pub(crate) fn resolve_trait_by_path(
     }
 }
 
-// // TODO cleanup
-// // TODO recurse on types to look for GenericArith
-// fn contains_arith_generics(
-//     self_type: &Type,
-//     self_type_span: Span,
-//     file_id: FileId,
-//     errors: &mut Vec<(CompilationError, FileId)>,
-// ) {
-//
-//     // match self_type {
-//     //     Type::GenericArith(..) => {
-//     //         // let span = self_type_span.unwrap_or_else(|| trait_impl.trait_path.span());
-//     //     }
-//     //     _ => (),
-//
-//     // let contains_arith_generics = match self {
-//     //     Type::Array(_len, typ) => {
-//     //         write!(f, "[{typ}; {len}]")
-//     //     }
-//     //     Type::Slice(typ) => {
-//     //         write!(f, "[{typ}]")
-//     //     }
-//     //     Type::Struct(_s, args) => {
-//     //         let args = vecmap(args, |arg| arg.to_string());
-//     //     }
-//     //     Type::Alias(_alias, args) => {
-//     //         let args = vecmap(args, |arg| arg.to_string());
-//     //     }
-//     //     Type::Tuple(elements) => {
-//     //         let elements = vecmap(elements, ToString::to_string);
-//     //     }
-//     //     Type::Forall(typevars, typ) => {
-//     //         let typevars = vecmap(typevars, |var| var.id().to_string());
-//     //     }
-//     //     Type::GenericArith(..) => {
-//     //         _
-//     //     }
-//     //
-//     //     _ => (),
-//     //
-//     // }
-//
-//
-//     // let generics = vecmap(generics, ToString::to_string);
-//
-//
-// }
-
 pub(crate) fn resolve_trait_impls(
     context: &mut Context,
     traits: Vec<UnresolvedTraitImpl>,
@@ -444,7 +396,7 @@ pub(crate) fn resolve_trait_impls(
     let mut methods = Vec::<(FileId, FuncId)>::new();
 
     for trait_impl in traits {
-        let unresolved_type = trait_impl.object_type;
+        let unresolved_type = &trait_impl.object_type;
         let local_mod_id = trait_impl.module_id;
         let module_id = ModuleId { krate: crate_id, local_id: local_mod_id };
         let path_resolver = StandardPathResolver::new(module_id);
@@ -460,23 +412,13 @@ pub(crate) fn resolve_trait_impls(
 
         let self_type = resolver.resolve_type(unresolved_type.clone());
 
-        // prevent GenericArith in self_type
-        if self_type.contains_generic_arith() {
-            let error = ResolverError::ImplOnGenericArith { span: self_type_span };
-            errors.push((error.into(), trait_impl.file_id));
-        } else if trait_generics.iter().any(|trait_generic| trait_generic.contains_generic_arith())
-        {
-            let impl_type_span =
-                trait_impl.trait_generics.iter().fold(self_type_span, |acc, trait_generic| {
-                    if let Some(trait_generic_span) = trait_generic.span {
-                        acc.merge(trait_generic_span)
-                    } else {
-                        acc
-                    }
-                });
-            let error = ResolverError::ImplWithGenericArith { span: impl_type_span };
-            errors.push((error.into(), trait_impl.file_id));
-        }
+        prevent_generic_arith_in_self_type(&self_type, &trait_impl, self_type_span, errors);
+        prevent_generic_arith_in_trait_generics(
+            &trait_generics,
+            &trait_impl,
+            self_type_span,
+            errors,
+        );
 
         let impl_generics = resolver.get_generics().to_vec();
         let impl_id = interner.next_trait_impl_id();
@@ -557,4 +499,37 @@ pub(crate) fn resolve_trait_impls(
     }
 
     methods
+}
+
+fn prevent_generic_arith_in_self_type(
+    self_type: &Type,
+    trait_impl: &UnresolvedTraitImpl,
+    self_type_span: Span,
+    errors: &mut Vec<(CompilationError, FileId)>,
+) {
+    // prevent GenericArith in self_type and trait_generics
+    if self_type.contains_generic_arith() {
+        let error = ResolverError::ImplOnGenericArith { span: self_type_span };
+        errors.push((error.into(), trait_impl.file_id));
+    }
+}
+
+fn prevent_generic_arith_in_trait_generics(
+    trait_generics: &[Type],
+    trait_impl: &UnresolvedTraitImpl,
+    self_type_span: Span,
+    errors: &mut Vec<(CompilationError, FileId)>,
+) {
+    if trait_generics.iter().any(|trait_generic| trait_generic.contains_generic_arith()) {
+        let impl_type_span =
+            trait_impl.trait_generics.iter().fold(self_type_span, |acc, trait_generic| {
+                if let Some(trait_generic_span) = trait_generic.span {
+                    acc.merge(trait_generic_span)
+                } else {
+                    acc
+                }
+            });
+        let error = ResolverError::ImplWithGenericArith { span: impl_type_span };
+        errors.push((error.into(), trait_impl.file_id));
+    }
 }

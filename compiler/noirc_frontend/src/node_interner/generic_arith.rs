@@ -55,7 +55,7 @@ impl ArithExpr {
             }
             Self::Variable(binding, name, index) => {
                 if let Some((result, _other_var)) = arguments.get(index.0) {
-                    // TODO: assertion fails
+                    // TODO: assertion fails https://github.com/noir-lang/noir/issues/5150
                     // (remove other_var if unneeded)
                     // interner: &NodeInterner,
                     //
@@ -287,7 +287,7 @@ impl std::fmt::Display for ArithOpKind {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Clone, Debug, thiserror::Error)]
 pub enum ArithExprError {
     SubUnderflow { lhs: u64, rhs: u64 },
 
@@ -303,13 +303,22 @@ impl std::fmt::Display for ArithExprError {
                 write!(f, "subtracting {} - {} underflowed", lhs, rhs)
             }
             Self::UnboundVariable { binding, name } => {
+                let use_elaborator_notice =
+                    // TODO: https://github.com/noir-lang/noir/issues/5149
+                    "\nIf you're seeing this error inside of a definition that type checks,\n".to_owned() +
+                    "running with '--use-elaborator' may fix it. (See Issue#5149 for more info)";
                 if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    write!(f, "unbound variable when resolving generic arithmetic: {}", name)
+                    write!(
+                        f,
+                        "unbound variable when resolving generic arithmetic: {}{}",
+                        name, use_elaborator_notice
+                    )
                 } else {
                     write!(
                         f,
-                        "unbound variable when resolving generic arithmetic: {}",
-                        binding.borrow()
+                        "unbound variable when resolving generic arithmetic: {}{}",
+                        binding.borrow(),
+                        use_elaborator_notice
                     )
                 }
             }

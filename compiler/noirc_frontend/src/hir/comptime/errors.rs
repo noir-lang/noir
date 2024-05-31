@@ -1,12 +1,14 @@
-use crate::{hir::def_collector::dc_crate::CompilationError, Type};
+use crate::{
+    hir::def_collector::dc_crate::CompilationError, node_interner::generic_arith::ArithExprError,
+    Type,
+};
 use acvm::{acir::AcirField, FieldElement};
 use noirc_errors::{CustomDiagnostic, Location};
 
 use super::value::Value;
 
 /// The possible errors that can halt the interpreter.
-// TODO cleanup PartialEq
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum InterpreterError {
     ArgumentCountMismatch { expected: usize, actual: usize, location: Location },
     TypeMismatch { expected: Type, value: Value, location: Location },
@@ -24,7 +26,7 @@ pub enum InterpreterError {
     NonArrayIndexed { value: Value, location: Location },
     NonIntegerUsedAsIndex { value: Value, location: Location },
     NonIntegerIntegerLiteral { typ: Type, location: Location },
-    NonIntegerArrayLength { typ: Type, location: Location },
+    NonIntegerArrayLength { typ: Type, location: Location, arith_expr_error: ArithExprError },
     NonNumericCasted { value: Value, location: Location },
     IndexOutOfBounds { index: usize, length: usize, location: Location },
     ExpectedStructToHaveField { value: Value, field_name: String, location: Location },
@@ -197,9 +199,9 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "This is likely a bug".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
-            InterpreterError::NonIntegerArrayLength { typ, location } => {
+            InterpreterError::NonIntegerArrayLength { typ, location, arith_expr_error } => {
                 let msg = format!("Non-integer array length: `{typ}`");
-                let secondary = "Array lengths must be integers".into();
+                let secondary = format!("Array lengths must be integers\n{}", arith_expr_error);
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::NonNumericCasted { value, location } => {

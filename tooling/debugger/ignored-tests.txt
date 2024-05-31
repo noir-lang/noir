@@ -10,6 +10,7 @@ fold_complex_outputs
 fold_distinct_return
 fold_fibonacci
 fold_numeric_generic_poseidon
+generic_arith
 is_unconstrained
 modulus
 references

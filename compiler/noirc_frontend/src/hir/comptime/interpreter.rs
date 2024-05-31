@@ -361,14 +361,21 @@ impl<'a> Interpreter<'a> {
                     }
                 };
 
-                if let Ok(value) = value {
-                    let typ = self.interner.id_type(id);
-                    self.evaluate_integer((value as u128).into(), false, id)
-                } else {
-                    let location = self.interner.expr_location(&id);
-                    let typ = Type::TypeVariable(type_variable.clone(), TypeVariableKind::Normal);
-                    // TODO: include ArithExprError in NonIntegerArrayLength
-                    Err(InterpreterError::NonIntegerArrayLength { typ, location })
+                match value {
+                    Ok(value) => {
+                        let typ = self.interner.id_type(id);
+                        self.evaluate_integer((value as u128).into(), false, id)
+                    }
+                    Err(arith_expr_error) => {
+                        let location = self.interner.expr_location(&id);
+                        let typ =
+                            Type::TypeVariable(type_variable.clone(), TypeVariableKind::Normal);
+                        Err(InterpreterError::NonIntegerArrayLength {
+                            typ,
+                            location,
+                            arith_expr_error,
+                        })
+                    }
                 }
             }
         }
@@ -513,13 +520,19 @@ impl<'a> Interpreter<'a> {
                 let element = self.evaluate(repeated_element)?;
                 let location = self.interner.expr_location(&id);
 
-                if let Ok(length) = length.evaluate_to_u64(&location, self.interner) {
-                    let elements = (0..length).map(|_| element.clone()).collect();
-                    Ok(Value::Array(elements, typ))
-                } else {
-                    let location = self.interner.expr_location(&id);
-                    // TODO: include ArithExprError in NonIntegerArrayLength
-                    Err(InterpreterError::NonIntegerArrayLength { typ: length, location })
+                match length.evaluate_to_u64(&location, self.interner) {
+                    Ok(length) => {
+                        let elements = (0..length).map(|_| element.clone()).collect();
+                        Ok(Value::Array(elements, typ))
+                    }
+                    Err(arith_expr_error) => {
+                        let location = self.interner.expr_location(&id);
+                        Err(InterpreterError::NonIntegerArrayLength {
+                            typ: length,
+                            location,
+                            arith_expr_error,
+                        })
+                    }
                 }
             }
         }

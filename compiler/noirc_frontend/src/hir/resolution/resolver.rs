@@ -776,7 +776,6 @@ impl<'a> Resolver<'a> {
                     });
                 if let Type::NamedGeneric(ref binding, ref name) = var_or_constant {
                     // we intern variables so that they can be resolved during trait resolution
-                    // and otherwise expect Type::Constant's to be interned at their declarations
                     let arith_expr =
                         ArithExpr::Variable(binding.clone(), name.clone(), Default::default());
                     let location = Location { span: path.span, file: self.file };
