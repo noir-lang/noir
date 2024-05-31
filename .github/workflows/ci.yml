@@ -48,8 +48,8 @@ jobs:
       l1-contracts: ${{ steps.filter.outputs.l1-contracts }}
       non-docs: ${{ steps.filter.outputs.non-docs }}
       non-misc-ci: ${{ steps.filter.outputs.non-misc-ci }}
+      non-barretenberg-cpp: ${{ steps.filter.outputs.non-barretenberg-cpp }}
     steps:
-    # For pull requests it's not necessary to checkout the code
       - uses: actions/checkout@v4
         with: { ref: "${{ env.GIT_COMMIT }}" }
       - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36
@@ -68,6 +68,8 @@ jobs:
               - 'l1-contracts/**'
             noir-projects:
               - 'noir-projects/**'
+            non-barretenberg-cpp:
+              - '!(barretenberg/cpp/**)'
             non-docs:
               - '!(docs/**)'
             non-misc-ci:
@@ -77,7 +79,7 @@ jobs:
 
   build:
     needs: [setup, changes]
-    if: ${{ needs.changes.outputs.non-docs == 'true' && needs.changes.outputs.non-misc-ci == 'true' }}
+    if: ${{ needs.changes.outputs.non-docs == 'true' && needs.changes.outputs.non-misc-ci == 'true' && needs.changes.outputs.non-barretenberg-cpp == 'true' }}
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     outputs:
       e2e_list: ${{ steps.e2e_list.outputs.list }}
@@ -103,7 +105,8 @@ jobs:
 
   # all the non-bench end-to-end integration tests for aztec
   e2e:
-    needs: build
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs.non-barretenberg-cpp == 'true' }}
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
@@ -132,7 +135,8 @@ jobs:
 
   # all the benchmarking end-to-end integration tests for aztec (not required to merge)
   bench-e2e:
-    needs: build
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs.non-barretenberg-cpp == 'true' }}
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
@@ -167,7 +171,8 @@ jobs:
   acir-bench:
     runs-on: ubuntu-20.04
     needs: [setup, changes]
-    if: ${{ needs.changes.outputs.barretenberg == 'true' || needs.changes.outputs.noir == 'true' }}
+    # Note: not fully accurate, but to work with bench-summary needs to be the same as bench-e2e
+    if: ${{ needs.changes.outputs.non-barretenberg-cpp == 'true' }}
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ env.GIT_COMMIT }}" }
@@ -241,7 +246,7 @@ jobs:
   bb-gcc:
     needs: [build, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
-    if: ${{ needs.changes.outputs.barretenberg == 'true' }}
+    if: ${{ needs.changes.outputs.barretenberg-cpp == 'true' }}
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ env.GIT_COMMIT }}" }
@@ -353,7 +358,7 @@ jobs:
   noir-format:
     needs: [setup, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
-    if: ${{ needs.changes.outputs.barretenberg == 'true' || needs.changes.outputs.noir == 'true' }}
+    if: ${{ needs.changes.outputs.noir == 'true' }}
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ env.GIT_COMMIT }}" }
@@ -372,7 +377,7 @@ jobs:
   noir-test:
     needs: [setup, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
-    if: ${{ needs.changes.outputs.barretenberg == 'true' || needs.changes.outputs.noir == 'true' }}
+    if: ${{ needs.changes.outputs.noir == 'true' }}
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ env.GIT_COMMIT }}" }
@@ -493,8 +498,9 @@ jobs:
         run: earthly-ci --no-output ./l1-contracts+test
 
   docs-preview:
-    needs: setup
+    needs: [setup, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
+    if: ${{ needs.changes.outputs.non-barretenberg-cpp == 'true' }}
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ env.GIT_COMMIT }}" }
@@ -590,7 +596,7 @@ jobs:
         run: earthly-ci -P --no-output +test --box=${{ matrix.box }} --browser=${{ matrix.browser }} --mode=cache
 
   protocol-circuits-gates-report:
-    needs: setup
+    needs: [setup, changes]
     if: ${{ needs.changes.outputs.non-docs == 'true' && needs.changes.outputs.non-misc-ci == 'true' }}
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     permissions:
