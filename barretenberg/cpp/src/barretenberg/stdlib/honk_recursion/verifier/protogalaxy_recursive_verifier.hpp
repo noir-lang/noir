@@ -27,6 +27,12 @@ template <class VerifierInstances> class ProtoGalaxyRecursiveVerifier_ {
     static constexpr size_t NUM = VerifierInstances::NUM;
     using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<Builder>>;
 
+    struct VerifierInput {
+        using Instance = NativeInstance;
+        std::shared_ptr<Instance> accumulator;
+        std::vector<std::shared_ptr<NativeVerificationKey>> instance_vks;
+    };
+
     static constexpr size_t NUM_SUBRELATIONS = Flavor::NUM_SUBRELATIONS;
 
     CommitmentLabels commitment_labels;
@@ -35,11 +41,9 @@ template <class VerifierInstances> class ProtoGalaxyRecursiveVerifier_ {
     std::shared_ptr<Transcript> transcript;
     VerifierInstances instances;
 
-    ProtoGalaxyRecursiveVerifier_(Builder* builder,
-                                  std::shared_ptr<NativeInstance>& accumulator,
-                                  const std::vector<std::shared_ptr<NativeVerificationKey>>& native_inst_vks)
+    ProtoGalaxyRecursiveVerifier_(Builder* builder, const VerifierInput& input_data)
         : builder(builder)
-        , instances(VerifierInstances(builder, accumulator, native_inst_vks)){};
+        , instances(VerifierInstances(builder, input_data.accumulator, input_data.instance_vks)){};
 
     /**
      * @brief Given a new round challenge δ for each iteration of the full ProtoGalaxy protocol, compute the vector

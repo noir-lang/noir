@@ -17,7 +17,7 @@ void ClientIVC::accumulate(ClientCircuit& circuit, const std::shared_ptr<Verific
     // If a previous fold proof exists, add a recursive folding verification to the circuit
     if (!fold_output.proof.empty()) {
         BB_OP_COUNT_TIME_NAME("construct_circuits");
-        FoldingRecursiveVerifier verifier{ &circuit, verifier_accumulator, { instance_vk } };
+        FoldingRecursiveVerifier verifier{ &circuit, { verifier_accumulator, { instance_vk } } };
         auto verifier_accum = verifier.verify_folding_proof(fold_output.proof);
         verifier_accumulator = std::make_shared<VerifierInstance>(verifier_accum->get_value());
     }

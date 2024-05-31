@@ -6,4 +6,5 @@ barretenberg_module(
     ultra_honk
     stdlib_poseidon2
     protogalaxy
+    client_ivc
 )
