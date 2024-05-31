@@ -404,13 +404,11 @@ impl<'a> Context<'a> {
         // the function's return values can then be determined through knowledge of its ABI alone.
         let return_witness_vars =
             vecmap(0..num_return_witnesses, |_| self.acir_context.add_variable());
-        let return_witnesses: Vec<Witness> = return_witness_vars
-            .iter()
-            .map(|return_var| {
-                let expr = self.acir_context.var_to_expression(*return_var).unwrap();
-                expr.to_witness().expect("return vars should be witnesses")
-            })
-            .collect();
+
+        let return_witnesses = vecmap(&return_witness_vars, |return_var| {
+            let expr = self.acir_context.var_to_expression(*return_var).unwrap();
+            expr.to_witness().expect("return vars should be witnesses")
+        });
 
         self.data_bus = dfg.data_bus.to_owned();
         let mut warnings = Vec::new();
