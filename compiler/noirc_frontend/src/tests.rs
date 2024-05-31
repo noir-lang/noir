@@ -1517,7 +1517,10 @@ fn bool_generic_as_loop_bound() {
         CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
     ));
 
-    let CompilationError::TypeError(TypeCheckError::TypeMismatch { expected_typ, expr_typ, .. }) = &errors[1].0 else {
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch {
+        expected_typ, expr_typ, ..
+    }) = &errors[1].0
+    else {
         panic!("Got an error other than a type mismatch");
     };
 

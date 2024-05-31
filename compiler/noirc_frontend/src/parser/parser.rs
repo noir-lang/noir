@@ -810,9 +810,7 @@ fn generic_type_args<'a>(
         // parser afterward.
         .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
         .or(type_expression()
-            .map_with_span(|expr, span| {
-                UnresolvedTypeData::Expression(expr).with_span(span)
-            }))
+            .map_with_span(|expr, span| UnresolvedTypeData::Expression(expr).with_span(span)))
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .at_least(1)

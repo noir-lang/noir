@@ -4,15 +4,18 @@ use super::{
     parameter_name_recovery, parameter_recovery, parenthesized, parse_type, pattern,
     self_parameter, where_clause, NoirParser,
 };
-use crate::{ast::{UnresolvedGeneric, UnresolvedGenerics}, parser::labels::ParsingRuleLabel};
 use crate::parser::spanned;
 use crate::token::{Keyword, Token};
 use crate::{
     ast::{
-        FunctionDefinition, FunctionReturnType, Ident, ItemVisibility, NoirFunction, Param,
+        FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param,
         Visibility,
     },
     parser::{ParserError, ParserErrorReason},
+};
+use crate::{
+    ast::{UnresolvedGeneric, UnresolvedGenerics},
+    parser::labels::ParsingRuleLabel,
 };
 
 use chumsky::prelude::*;
@@ -81,13 +84,18 @@ fn function_modifiers() -> impl NoirParser<(bool, ItemVisibility, bool)> {
 }
 
 pub(super) fn generic() -> impl NoirParser<UnresolvedGeneric> {
-    keyword(Keyword::Let).or_not().ignore_then(ident()).then_ignore(just(Token::Colon).or_not()).then(parse_type().or_not()).map(|(ident, typ)| {
-        if let Some(typ) = typ {
-            UnresolvedGeneric::Numeric { ident, typ }
-        } else {
-            UnresolvedGeneric::Variable(ident)
-        }
-    })
+    keyword(Keyword::Let)
+        .or_not()
+        .ignore_then(ident())
+        .then_ignore(just(Token::Colon).or_not())
+        .then(parse_type().or_not())
+        .map(|(ident, typ)| {
+            if let Some(typ) = typ {
+                UnresolvedGeneric::Numeric { ident, typ }
+            } else {
+                UnresolvedGeneric::Variable(ident)
+            }
+        })
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list

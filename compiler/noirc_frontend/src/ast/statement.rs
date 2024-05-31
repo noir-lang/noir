@@ -7,7 +7,8 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 use super::{
-    BlockExpression, Expression, ExpressionKind, IndexExpression, MemberAccessExpression, MethodCallExpression, UnresolvedGeneric, UnresolvedType
+    BlockExpression, Expression, ExpressionKind, IndexExpression, MemberAccessExpression,
+    MethodCallExpression, UnresolvedGeneric, UnresolvedType,
 };
 use crate::lexer::token::SpannedToken;
 use crate::macros_api::SecondaryAttribute;
@@ -227,7 +228,7 @@ impl From<SpannedToken> for Ident {
 impl From<UnresolvedGeneric> for Ident {
     fn from(value: UnresolvedGeneric) -> Self {
         match value {
-            UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } => ident
+            UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } => ident,
         }
     }
 }
@@ -235,7 +236,9 @@ impl From<UnresolvedGeneric> for Ident {
 impl From<&UnresolvedGeneric> for Ident {
     fn from(value: &UnresolvedGeneric) -> Self {
         match value {
-            UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } => ident.clone()
+            UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } => {
+                ident.clone()
+            }
         }
     }
 }

@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    ast::{FunctionKind, UnresolvedGeneric, UnresolvedTraitConstraint},
+    ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
         def_collector::{
             dc_crate::{
@@ -398,7 +398,7 @@ impl<'context> Elaborator<'context> {
 
         generic_type
     }
-    
+
     /// Add the given generics to scope.
     /// Each generic will have a fresh Shared<TypeBinding> associated with it.
     pub fn add_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {

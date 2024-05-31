@@ -174,7 +174,9 @@ impl HasItem for UnresolvedGeneric {
     fn span(&self) -> Span {
         match self {
             UnresolvedGeneric::Variable(ident) => ident.span(),
-            UnresolvedGeneric::Numeric { ident, typ } => ident.span().merge(typ.span.expect("Should have a span for numeric generic type")),
+            UnresolvedGeneric::Numeric { ident, typ } => {
+                ident.span().merge(typ.span.expect("Should have a span for numeric generic type"))
+            }
         }
     }
 

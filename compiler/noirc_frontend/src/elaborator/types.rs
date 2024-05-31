@@ -6,8 +6,8 @@ use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{
-        BinaryOpKind, IntegerBitSize, UnresolvedGenerics, UnresolvedTraitConstraint,
-        UnresolvedTypeExpression, Ident,
+        BinaryOpKind, Ident, IntegerBitSize, UnresolvedGenerics, UnresolvedTraitConstraint,
+        UnresolvedTypeExpression,
     },
     hir::{
         def_map::ModuleDefId,

@@ -28,7 +28,12 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::rc::Rc;
 
 use crate::ast::{
-    ArrayLiteral, BinaryOpKind, BlockExpression, Expression, ExpressionKind, ForRange, FunctionDefinition, FunctionKind, FunctionReturnType, Ident, ItemVisibility, LValue, LetStatement, Literal, NoirFunction, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern, Statement, StatementKind, TraitBound, UnaryOp, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT
+    ArrayLiteral, BinaryOpKind, BlockExpression, Expression, ExpressionKind, ForRange,
+    FunctionDefinition, FunctionKind, FunctionReturnType, Ident, ItemVisibility, LValue,
+    LetStatement, Literal, NoirFunction, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
+    Statement, StatementKind, TraitBound, UnaryOp, UnresolvedGeneric, UnresolvedGenerics,
+    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    Visibility, ERROR_IDENT,
 };
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
@@ -214,7 +219,7 @@ impl<'a> Resolver<'a> {
                 let mut new_generic_ident: Ident =
                     format!("T{}_impl_{}", func_id, path.as_string()).into();
                 let mut new_generic_path = Path::from_ident(new_generic_ident.clone());
-                let mut new_generic = UnresolvedGeneric::from(new_generic_ident.clone());
+                let new_generic = UnresolvedGeneric::from(new_generic_ident.clone());
                 while impl_trait_generics.contains(&new_generic)
                     || self.lookup_generic_or_global_type(&new_generic_path).is_some()
                 {
@@ -906,17 +911,21 @@ impl<'a> Resolver<'a> {
             if let UnresolvedGeneric::Numeric { ident, typ } = generic {
                 let typ = self.resolve_type(typ.clone());
                 if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
-                    self.errors.push(ResolverError::UnsupportedNumericGenericType { ident: ident.clone(), typ: typ.clone() })
+                    self.errors.push(ResolverError::UnsupportedNumericGenericType {
+                        ident: ident.clone(),
+                        typ: typ.clone(),
+                    });
                 }
                 typevar.bind(typ.clone());
                 let definition = DefinitionKind::GenericType(typevar.clone());
-                let hir_ident = self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
+                let hir_ident =
+                    self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
                 // Push the definition type because if one is missing, when the numeric generic is used in an expression
-                // its definition type will be resolved to a polymorphic integer or field. 
-                // We do not yet fully support bool generics but this will be a foot-gun once we look to add support 
+                // its definition type will be resolved to a polymorphic integer or field.
+                // We do not yet fully support bool generics but this will be a foot-gun once we look to add support
                 // and is can lead to confusing errors.
                 self.interner.push_definition_type(hir_ident.id, typ);
-            } 
+            }
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
 

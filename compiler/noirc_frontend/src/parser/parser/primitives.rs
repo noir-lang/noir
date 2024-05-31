@@ -87,9 +87,7 @@ pub(super) fn turbofish<'a>(
 pub(super) fn variable() -> impl NoirParser<ExpressionKind> {
     path()
         .then(turbofish(super::parse_type()))
-        .map(|(path, generics)| {
-            ExpressionKind::Variable(path, generics)
-        })
+        .map(|(path, generics)| ExpressionKind::Variable(path, generics))
 }
 
 pub(super) fn variable_no_turbofish() -> impl NoirParser<ExpressionKind> {
