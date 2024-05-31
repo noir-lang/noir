@@ -220,7 +220,7 @@ impl<'interner> Interpreter<'interner> {
             HirStatement::Expression(expression) => self.scan_expression(expression),
             HirStatement::Semi(semi) => self.scan_expression(semi),
             HirStatement::Error => Ok(()),
-            HirStatement::Comptime(comptime) => Ok(()),
+            HirStatement::Comptime(_) => Ok(()),
         }
     }
 

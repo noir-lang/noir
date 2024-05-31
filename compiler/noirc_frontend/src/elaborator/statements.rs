@@ -438,6 +438,7 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(super) fn elaborate_comptime(&mut self, statement: Statement) -> (HirStatement, Type) {
+        let span = statement.span;
         let (hir_statement, typ) = self.elaborate_statement(statement);
         let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
 
@@ -448,6 +449,7 @@ impl<'context> Elaborator<'context> {
         let unit = HirExpression::Literal(HirLiteral::Unit);
         let unit = self.interner.push_expr(unit);
         self.interner.push_expr_type(unit, Type::Unit);
+        self.interner.push_expr_location(unit, span, self.file);
         (HirStatement::Expression(unit), typ)
     }
 }

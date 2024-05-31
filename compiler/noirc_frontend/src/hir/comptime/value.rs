@@ -10,9 +10,7 @@ use crate::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Ident, IntegerBitSize, Signedness,
     },
     hir_def::expr::{HirIdent, HirLambda, ImplKind},
-    macros_api::{
-        Expression, ExpressionKind, HirExpression, Literal, NodeInterner, Path,
-    },
+    macros_api::{Expression, ExpressionKind, HirExpression, Literal, NodeInterner, Path},
     node_interner::FuncId,
     Shared, Type,
 };
@@ -83,8 +81,6 @@ impl Value {
         interner: &mut NodeInterner,
         location: Location,
     ) -> IResult<Expression> {
-        let typ = self.get_type().into_owned();
-
         let kind = match self {
             Value::Unit => ExpressionKind::Literal(Literal::Unit),
             Value::Bool(value) => ExpressionKind::Literal(Literal::Bool(value)),
@@ -126,11 +122,14 @@ impl Value {
                 ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
             }
             Value::String(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
-            Value::Function(id, _typ) => {
+            Value::Function(id, typ) => {
                 let id = interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
-                let ident = HirExpression::Ident(HirIdent { location, id, impl_kind }, None);
-                ExpressionKind::Hir(ident)
+                let ident = HirIdent { location, id, impl_kind };
+                let expr_id = interner.push_expr(HirExpression::Ident(ident, None));
+                interner.push_expr_location(expr_id, location.span, location.file);
+                interner.push_expr_type(expr_id, typ);
+                ExpressionKind::Resolved(expr_id)
             }
             Value::Closure(_lambda, _env, _typ) => {
                 // TODO: How should a closure's environment be inlined?
@@ -148,7 +147,7 @@ impl Value {
                 })?;
 
                 let struct_type = match typ.follow_bindings() {
-                    Type::Struct(def, generics) => Some((def, generics)),
+                    Type::Struct(def, _) => Some(def.borrow().id),
                     _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
                 };
 

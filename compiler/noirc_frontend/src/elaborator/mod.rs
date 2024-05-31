@@ -20,8 +20,7 @@ use crate::{
     },
     hir_def::{expr::HirIdent, function::Parameters, traits::TraitConstraint},
     macros_api::{
-        HirExpression, HirLiteral, Ident, NodeInterner, NoirFunction, NoirStruct, Pattern,
-        SecondaryAttribute, StructId,
+        Ident, NodeInterner, NoirFunction, NoirStruct, Pattern, SecondaryAttribute, StructId,
     },
     node_interner::{
         DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, TraitId, TypeAliasId,
