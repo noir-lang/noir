@@ -388,12 +388,12 @@ impl<F: AcirField> WitnessRebindingOptimizer<F> {
                         BlackBoxFuncCall::EmbeddedCurveAdd {
                             input1: Box::new([
                                 remap_function_input(&known_witnesses, input1[0]),
-                                remap_function_input(&known_witnesses, input1[2]),
+                                remap_function_input(&known_witnesses, input1[1]),
                                 remap_function_input(&known_witnesses, input1[2]),
                             ]),
                             input2: Box::new([
                                 remap_function_input(&known_witnesses, input2[0]),
-                                remap_function_input(&known_witnesses, input2[2]),
+                                remap_function_input(&known_witnesses, input2[1]),
                                 remap_function_input(&known_witnesses, input2[2]),
                             ]),
                             outputs: (
