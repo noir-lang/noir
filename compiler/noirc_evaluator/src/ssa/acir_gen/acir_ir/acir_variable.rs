@@ -255,7 +255,7 @@ impl AcirContext {
     }
 
     /// Converts an [`AcirVar`] to a [`Witness`]
-    fn var_to_witness(&mut self, var: AcirVar) -> Result<Witness, InternalError> {
+    pub(crate) fn var_to_witness(&mut self, var: AcirVar) -> Result<Witness, InternalError> {
         let expression = self.var_to_expression(var)?;
         let witness = if let Some(constant) = expression.to_const() {
             // Check if a witness has been assigned this value already, if so reuse it.
@@ -1027,15 +1027,6 @@ impl AcirContext {
         Ok(remainder)
     }
 
-    /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
-    /// `GeneratedAcir`'s return witnesses.
-    pub(crate) fn return_var(&mut self, acir_var: AcirVar) -> Result<(), InternalError> {
-        let return_var = self.get_or_create_witness_var(acir_var)?;
-        let witness = self.var_to_witness(return_var)?;
-        self.acir_ir.push_return_witness(witness);
-        Ok(())
-    }
-
     /// Constrains the `AcirVar` variable to be of type `NumericType`.
     pub(crate) fn range_constrain_var(
         &mut self,
@@ -1538,9 +1529,11 @@ impl AcirContext {
     pub(crate) fn finish(
         mut self,
         inputs: Vec<Witness>,
+        return_values: Vec<Witness>,
         warnings: Vec<SsaReport>,
     ) -> GeneratedAcir {
         self.acir_ir.input_witnesses = inputs;
+        self.acir_ir.return_witnesses = return_values;
         self.acir_ir.warnings = warnings;
         self.acir_ir
     }
