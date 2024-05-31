@@ -1,4 +1,3 @@
-use crate::backends::Backend;
 use crate::errors::CliError;
 
 use super::{init_cmd::initialize_project, NargoConfig};
@@ -30,12 +29,7 @@ pub(crate) struct NewCommand {
     pub(crate) contract: bool,
 }
 
-pub(crate) fn run(
-    // Backend is currently unused, but we might want to use it to inform the "new" template in the future
-    _backend: &Backend,
-    args: NewCommand,
-    config: NargoConfig,
-) -> Result<(), CliError> {
+pub(crate) fn run(args: NewCommand, config: NargoConfig) -> Result<(), CliError> {
     let package_dir = config.program_dir.join(&args.path);
 
     if package_dir.exists() {

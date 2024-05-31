@@ -1,5 +1,163 @@
 # Changelog
 
+## [0.30.0](https://github.com/noir-lang/noir/compare/v0.29.0...v0.30.0) (2024-05-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove `Opcode::Brillig` from ACIR (https://github.com/AztecProtocol/aztec-packages/pull/5995)
+* AES blackbox (https://github.com/AztecProtocol/aztec-packages/pull/6016)
+
+### Features
+
+* `multi_scalar_mul` blackbox func (https://github.com/AztecProtocol/aztec-packages/pull/6097) ([73a635e](https://github.com/noir-lang/noir/commit/73a635e5086cf3407f9846ce39807cd15b4e485a))
+* `variable_base_scalar_mul` blackbox func (https://github.com/AztecProtocol/aztec-packages/pull/6039) ([73a635e](https://github.com/noir-lang/noir/commit/73a635e5086cf3407f9846ce39807cd15b4e485a))
+* Add `Not` trait to stdlib ([#4999](https://github.com/noir-lang/noir/issues/4999)) ([95d4d13](https://github.com/noir-lang/noir/commit/95d4d133d1eb5e0eb44cd928d8183d890e970a13))
+* Add `std::ops::Neg` trait to stdlib ([07930d4](https://github.com/noir-lang/noir/commit/07930d4373a393146210efae69e6ec40171f047b))
+* Add native rust implementations of pedersen functions ([#4871](https://github.com/noir-lang/noir/issues/4871)) ([fb039f7](https://github.com/noir-lang/noir/commit/fb039f74df23aea39bc0593a5d538d82b4efadf0))
+* Add support for u16/i16 ([#4985](https://github.com/noir-lang/noir/issues/4985)) ([e43661d](https://github.com/noir-lang/noir/commit/e43661d16c1cd07e2af2392b88d29c689889ff9a))
+* AES blackbox (https://github.com/AztecProtocol/aztec-packages/pull/6016) ([73a635e](https://github.com/noir-lang/noir/commit/73a635e5086cf3407f9846ce39807cd15b4e485a))
+* Do not return databus returndata, keep it private. ([#5023](https://github.com/noir-lang/noir/issues/5023)) ([a5b7df1](https://github.com/noir-lang/noir/commit/a5b7df12faf9d71ff24f8c5cde5e78da44558caf))
+* Dynamic assertion payloads v2 (https://github.com/AztecProtocol/aztec-packages/pull/5949) ([73a635e](https://github.com/noir-lang/noir/commit/73a635e5086cf3407f9846ce39807cd15b4e485a))
+* Implement `From` array trait for `BoundedVec` ([#4927](https://github.com/noir-lang/noir/issues/4927)) ([bf491dc](https://github.com/noir-lang/noir/commit/bf491dce9595d0e37057ae6d6721eb7a83cec0e2))
+* Implement `ops` traits on `u16`/`i16` ([#4996](https://github.com/noir-lang/noir/issues/4996)) ([8b65663](https://github.com/noir-lang/noir/commit/8b65663f9e836c11a87e458bd7c6a52920448d5c))
+* Implement `std::ops::Sub` on `EmbeddedCurvePoint` ([07930d4](https://github.com/noir-lang/noir/commit/07930d4373a393146210efae69e6ec40171f047b))
+* Increase default expression width to 4 ([#4995](https://github.com/noir-lang/noir/issues/4995)) ([f01d309](https://github.com/noir-lang/noir/commit/f01d3090759a5ff0f1f83c5616d22890c6bd76be))
+* Parsing non-string assertion payloads in noir js (https://github.com/AztecProtocol/aztec-packages/pull/6079) ([73a635e](https://github.com/noir-lang/noir/commit/73a635e5086cf3407f9846ce39807cd15b4e485a))
+* Remove query to backend to get expression width ([#4975](https://github.com/noir-lang/noir/issues/4975)) ([e5f356b](https://github.com/noir-lang/noir/commit/e5f356b063fe4facbd14320b7eafed664d0bb027))
+* Set aztec private functions to be recursive (https://github.com/AztecProtocol/aztec-packages/pull/6192) ([73a635e](https://github.com/noir-lang/noir/commit/73a635e5086cf3407f9846ce39807cd15b4e485a))
+
+
+### Bug Fixes
+
+* Compute the correct slice length when coercing from a literal array of complex types ([#4986](https://github.com/noir-lang/noir/issues/4986)) ([f3f1150](https://github.com/noir-lang/noir/commit/f3f11507983009771656811f9570bdbe6849c7ef))
+* Defer overflow checks for unsigned integers to acir-gen ([#4832](https://github.com/noir-lang/noir/issues/4832)) ([b577761](https://github.com/noir-lang/noir/commit/b5777613c51f26fb4f580b9168c4190b1f4bd8f7))
+* Fix no predicates for brillig with intermediate functions ([#5015](https://github.com/noir-lang/noir/issues/5015)) ([9c6de4b](https://github.com/noir-lang/noir/commit/9c6de4b25d318c6d211361dd62a112a9d2432c56))
+* Fixed several vulnerabilities in U128, added some tests ([#5024](https://github.com/noir-lang/noir/issues/5024)) ([e5ab24d](https://github.com/noir-lang/noir/commit/e5ab24d6a4154d11b3c8ae08f4431b7b93c76f23))
+* Ignore no_predicates in brillig functions ([#5012](https://github.com/noir-lang/noir/issues/5012)) ([b541e79](https://github.com/noir-lang/noir/commit/b541e793e20fa3c991e0328ec2ff7926bdcdfd45))
+* Set index and value to 0 for array_get with predicate ([#4971](https://github.com/noir-lang/noir/issues/4971)) ([c49d3a9](https://github.com/noir-lang/noir/commit/c49d3a9ded819b828cffdfc031e86614da21e329))
+
+
+### Miscellaneous Chores
+
+* Remove `Opcode::Brillig` from ACIR (https://github.com/AztecProtocol/aztec-packages/pull/5995) ([73a635e](https://github.com/noir-lang/noir/commit/73a635e5086cf3407f9846ce39807cd15b4e485a))
+
+## [0.29.0](https://github.com/noir-lang/noir/compare/v0.28.0...v0.29.0) (2024-05-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* use `distinct` return value witnesses by default ([#4951](https://github.com/noir-lang/noir/issues/4951))
+* Bit shift is restricted to u8 right operand ([#4907](https://github.com/noir-lang/noir/issues/4907))
+
+### Features
+
+* Add `#[inline(tag)]` attribute and codegen ([#4913](https://github.com/noir-lang/noir/issues/4913)) ([1ec9cdc](https://github.com/noir-lang/noir/commit/1ec9cdc7013e867db3672d27e3a6104e4b7e7eef))
+* Add de-sugaring for `impl Trait` in function parameters ([#4919](https://github.com/noir-lang/noir/issues/4919)) ([8aad2e4](https://github.com/noir-lang/noir/commit/8aad2e45acbe08afc3902db95a83324f822c35eb))
+* Add variable size sha256 ([#4920](https://github.com/noir-lang/noir/issues/4920)) ([dbfca58](https://github.com/noir-lang/noir/commit/dbfca58a817ee1f1512e3e02138119f363c3d12b))
+* Bit shift is restricted to u8 right operand ([#4907](https://github.com/noir-lang/noir/issues/4907)) ([c4b0369](https://github.com/noir-lang/noir/commit/c4b03691feca17ef268acab523292f3051f672ea))
+* Complex outputs from acir call ([#4952](https://github.com/noir-lang/noir/issues/4952)) ([2e085b9](https://github.com/noir-lang/noir/commit/2e085b935b143c1305b70cd7ae86907b61a45fc0))
+* **experimental:** `comptime` globals ([#4918](https://github.com/noir-lang/noir/issues/4918)) ([8a3c7f1](https://github.com/noir-lang/noir/commit/8a3c7f1c11666ed5140a63a5aa296ef417c97bfa))
+* Handle `BrilligCall` opcodes in the debugger ([#4897](https://github.com/noir-lang/noir/issues/4897)) ([b380dc4](https://github.com/noir-lang/noir/commit/b380dc44de5c9f8de278ece3d531ebbc2c9238ba))
+* Handle `no_predicates` attribute ([#4942](https://github.com/noir-lang/noir/issues/4942)) ([0ce04d3](https://github.com/noir-lang/noir/commit/0ce04d3ea8734b76d96f5dd0fb2a6cdd4081969e))
+* Handle empty response foreign calls without an external resolver ([#4959](https://github.com/noir-lang/noir/issues/4959)) ([0154bde](https://github.com/noir-lang/noir/commit/0154bdef9f6dfe45497d77ecbf3904dcc138b8d7))
+* Optimize array sets in if conditions (alternate version) ([#4716](https://github.com/noir-lang/noir/issues/4716)) ([a87c655](https://github.com/noir-lang/noir/commit/a87c655c6c8c077c71e3372cc9181b7870348a3d))
+* Use `distinct` return value witnesses by default ([#4951](https://github.com/noir-lang/noir/issues/4951)) ([5f1b584](https://github.com/noir-lang/noir/commit/5f1b58470779e977293323d10ab9a8f0857ea29e))
+
+
+### Bug Fixes
+
+* Ban self-referential structs ([#4883](https://github.com/noir-lang/noir/issues/4883)) ([800f670](https://github.com/noir-lang/noir/commit/800f670b63a5a2ae08f09a86dae767089f7f67af))
+* Discard ref counts during unrolling ([#4923](https://github.com/noir-lang/noir/issues/4923)) ([91062db](https://github.com/noir-lang/noir/commit/91062db84a749bf191eae9ce487a2315cc74bfb2))
+* Ensure where clauses propagated to trait default definitions ([#4894](https://github.com/noir-lang/noir/issues/4894)) ([aaac0f6](https://github.com/noir-lang/noir/commit/aaac0f6bffbe11eb090145354f1b82919bb93cb7))
+* Move remove_if_else pass after second inlining  ([#4976](https://github.com/noir-lang/noir/issues/4976)) ([96fb3e9](https://github.com/noir-lang/noir/commit/96fb3e94b3a2f7b586d17ea9445f44267f5d9c6d))
+* Nested array equality ([#4903](https://github.com/noir-lang/noir/issues/4903)) ([0cf2e2a](https://github.com/noir-lang/noir/commit/0cf2e2a1b8d247bed03ba5b7b1be5cd30f0d51b2))
+* Require for all foldable functions to use distinct return  ([#4949](https://github.com/noir-lang/noir/issues/4949)) ([d4c6806](https://github.com/noir-lang/noir/commit/d4c68066ab35ce1c52510cf0c038fb627a0677c3))
+* Use annotated type when checking declaration ([#4966](https://github.com/noir-lang/noir/issues/4966)) ([f7fa696](https://github.com/noir-lang/noir/commit/f7fa69661006e1e10ddeecee1cdf8f024d6bc3e9))
+
+## [0.28.0](https://github.com/noir-lang/noir/compare/v0.27.0...v0.28.0) (2024-04-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add `as_array` and remove `_slice` variants of hash functions ([#4675](https://github.com/noir-lang/noir/issues/4675))
+* reserve keyword `super` ([#4836](https://github.com/noir-lang/noir/issues/4836))
+* contract interfaces and better function calls (https://github.com/AztecProtocol/aztec-packages/pull/5687)
+* change backend width to 4 (https://github.com/AztecProtocol/aztec-packages/pull/5374)
+* Use fixed size arrays in black box functions where sizes are known (https://github.com/AztecProtocol/aztec-packages/pull/5620)
+* trap with revert data (https://github.com/AztecProtocol/aztec-packages/pull/5732)
+* **acir:** BrilligCall opcode  (https://github.com/AztecProtocol/aztec-packages/pull/5709)
+* remove fixed-length keccak256 (https://github.com/AztecProtocol/aztec-packages/pull/5617)
+* storage_layout and `#[aztec(storage)]` (https://github.com/AztecProtocol/aztec-packages/pull/5387)
+* **acir:** Add predicate to call opcode (https://github.com/AztecProtocol/aztec-packages/pull/5616)
+* contract_abi-exports (https://github.com/AztecProtocol/aztec-packages/pull/5386)
+
+### Features
+
+* **acir_gen:** Brillig stdlib ([#4848](https://github.com/noir-lang/noir/issues/4848)) ([0c8175c](https://github.com/noir-lang/noir/commit/0c8175cb539efd9427c73ae5af0d48abe688ebab))
+* **acir:** Add predicate to call opcode (https://github.com/AztecProtocol/aztec-packages/pull/5616) ([2bd006a](https://github.com/noir-lang/noir/commit/2bd006ae07499e8702b0fa9565855f0a5ef1a589))
+* **acir:** BrilligCall opcode  (https://github.com/AztecProtocol/aztec-packages/pull/5709) ([0f9ae0a](https://github.com/noir-lang/noir/commit/0f9ae0ac1d68714b56ba4524aedcc67212494f1b))
+* Add `min` and `max` functions to the stdlib ([#4839](https://github.com/noir-lang/noir/issues/4839)) ([6cfb328](https://github.com/noir-lang/noir/commit/6cfb328d0d162eaa20ad1a118d085e03a52d049d))
+* Add `NARGO_FOREIGN_CALL_TIMEOUT` environment variable ([#4780](https://github.com/noir-lang/noir/issues/4780)) ([791f1c8](https://github.com/noir-lang/noir/commit/791f1c8522d49972dad4eb940f9cad437e28b25b))
+* Add comptime Interpreter ([#4821](https://github.com/noir-lang/noir/issues/4821)) ([5992436](https://github.com/noir-lang/noir/commit/599243633281e6827f0f4f095fb12d313e0125fa))
+* Add return values to aztec fns (https://github.com/AztecProtocol/aztec-packages/pull/5389) ([2bd006a](https://github.com/noir-lang/noir/commit/2bd006ae07499e8702b0fa9565855f0a5ef1a589))
+* Allow numeric generics to non inlined ACIR functions ([#4834](https://github.com/noir-lang/noir/issues/4834)) ([9cc03a4](https://github.com/noir-lang/noir/commit/9cc03a4d6f714a1b2d31c6982eb8e791ba5c869c))
+* **avm:** Integrate AVM with initializers (https://github.com/AztecProtocol/aztec-packages/pull/5469) ([2bd006a](https://github.com/noir-lang/noir/commit/2bd006ae07499e8702b0fa9565855f0a5ef1a589))
+* Brillig heterogeneous memory cells (https://github.com/AztecProtocol/aztec-packages/pull/5608) ([305bcdc](https://github.com/noir-lang/noir/commit/305bcdcbd01cb84dbaac900f14cb6cf867f83bda))
+* Brillig pointer codegen and execution (https://github.com/AztecProtocol/aztec-packages/pull/5737) ([0f9ae0a](https://github.com/noir-lang/noir/commit/0f9ae0ac1d68714b56ba4524aedcc67212494f1b))
+* Change backend width to 4 (https://github.com/AztecProtocol/aztec-packages/pull/5374) ([0f9ae0a](https://github.com/noir-lang/noir/commit/0f9ae0ac1d68714b56ba4524aedcc67212494f1b))
+* Contract interfaces and better function calls (https://github.com/AztecProtocol/aztec-packages/pull/5687) ([0f9ae0a](https://github.com/noir-lang/noir/commit/0f9ae0ac1d68714b56ba4524aedcc67212494f1b))
+* Contract_abi-exports (https://github.com/AztecProtocol/aztec-packages/pull/5386) ([2bd006a](https://github.com/noir-lang/noir/commit/2bd006ae07499e8702b0fa9565855f0a5ef1a589))
+* **experimental:** Add `comptime` keyword ([#4840](https://github.com/noir-lang/noir/issues/4840)) ([4dfd7f0](https://github.com/noir-lang/noir/commit/4dfd7f03bc1b9cf57f5829c435a560bed53b7f46))
+* Get last mock oracles params ([#4789](https://github.com/noir-lang/noir/issues/4789)) ([1d96937](https://github.com/noir-lang/noir/commit/1d96937a8e94a91c0c17c97102498d067fca76c3))
+* Impl of missing functionality in new key store (https://github.com/AztecProtocol/aztec-packages/pull/5750) ([0f9ae0a](https://github.com/noir-lang/noir/commit/0f9ae0ac1d68714b56ba4524aedcc67212494f1b))
+* Implement `Eq` trait on `BoundedVec` ([#4830](https://github.com/noir-lang/noir/issues/4830)) ([6cefe16](https://github.com/noir-lang/noir/commit/6cefe16deb643951c0cc552d08e22272900ed456))
+* Lalrpop lexer prototype ([#4656](https://github.com/noir-lang/noir/issues/4656)) ([25ad018](https://github.com/noir-lang/noir/commit/25ad018a55b61dd861e899f050c48200f0a00430))
+* **nargo:** Handle call stacks for multiple Acir calls ([#4711](https://github.com/noir-lang/noir/issues/4711)) ([5b23171](https://github.com/noir-lang/noir/commit/5b231714740447d82cde7cdbe65d4a8b46a31df4))
+* Narrow ABI encoding errors down to target problem argument/field ([#4798](https://github.com/noir-lang/noir/issues/4798)) ([e412e6e](https://github.com/noir-lang/noir/commit/e412e6e30910472b9d5f9000370ce5138ad39ce7))
+* Proving the rollup circuits (https://github.com/AztecProtocol/aztec-packages/pull/5599) ([5b352d6](https://github.com/noir-lang/noir/commit/5b352d6266c40522f5626f79d2f36a409b482aaa))
+* Reserve keyword `super` ([#4836](https://github.com/noir-lang/noir/issues/4836)) ([d5028a6](https://github.com/noir-lang/noir/commit/d5028a613e5a65ad1286dd20ce0fb0313f19f6ee))
+* Restore hashing args via slice for performance (https://github.com/AztecProtocol/aztec-packages/pull/5539) ([2bd006a](https://github.com/noir-lang/noir/commit/2bd006ae07499e8702b0fa9565855f0a5ef1a589))
+* Simplify `BoundedVec::eq` ([#4838](https://github.com/noir-lang/noir/issues/4838)) ([3d33a33](https://github.com/noir-lang/noir/commit/3d33a33e74c3e7d0fc511059b07f0ef9ddd9b667))
+* **simulator:** Fetch return values at circuit execution (https://github.com/AztecProtocol/aztec-packages/pull/5642) ([305bcdc](https://github.com/noir-lang/noir/commit/305bcdcbd01cb84dbaac900f14cb6cf867f83bda))
+* Split `backend_barretenburg` into prover and verifier classes ([#4769](https://github.com/noir-lang/noir/issues/4769)) ([ce1e662](https://github.com/noir-lang/noir/commit/ce1e6624ece3c91f06b0273af9ba88e703c1b589))
+* Storage_layout and `#[aztec(storage)]` (https://github.com/AztecProtocol/aztec-packages/pull/5387) ([2bd006a](https://github.com/noir-lang/noir/commit/2bd006ae07499e8702b0fa9565855f0a5ef1a589))
+* Sync from noir (https://github.com/AztecProtocol/aztec-packages/pull/5572) ([2bd006a](https://github.com/noir-lang/noir/commit/2bd006ae07499e8702b0fa9565855f0a5ef1a589))
+* Sync from noir (https://github.com/AztecProtocol/aztec-packages/pull/5619) ([2bd006a](https://github.com/noir-lang/noir/commit/2bd006ae07499e8702b0fa9565855f0a5ef1a589))
+* Sync from noir (https://github.com/AztecProtocol/aztec-packages/pull/5697) ([305bcdc](https://github.com/noir-lang/noir/commit/305bcdcbd01cb84dbaac900f14cb6cf867f83bda))
+* Sync from noir (https://github.com/AztecProtocol/aztec-packages/pull/5725) ([5b352d6](https://github.com/noir-lang/noir/commit/5b352d6266c40522f5626f79d2f36a409b482aaa))
+* Sync from noir (https://github.com/AztecProtocol/aztec-packages/pull/5794) ([0f9ae0a](https://github.com/noir-lang/noir/commit/0f9ae0ac1d68714b56ba4524aedcc67212494f1b))
+* Sync from noir (https://github.com/AztecProtocol/aztec-packages/pull/5814) ([0f9ae0a](https://github.com/noir-lang/noir/commit/0f9ae0ac1d68714b56ba4524aedcc67212494f1b))
+* Sync from noir (https://github.com/AztecProtocol/aztec-packages/pull/5935) ([1b867b1](https://github.com/noir-lang/noir/commit/1b867b121fba5db3087ca845b4934e6732b23fd1))
+* Sync from noir (https://github.com/AztecProtocol/aztec-packages/pull/5955) ([1b867b1](https://github.com/noir-lang/noir/commit/1b867b121fba5db3087ca845b4934e6732b23fd1))
+* Sync from noir (https://github.com/AztecProtocol/aztec-packages/pull/5999) ([1b867b1](https://github.com/noir-lang/noir/commit/1b867b121fba5db3087ca845b4934e6732b23fd1))
+* Trap with revert data (https://github.com/AztecProtocol/aztec-packages/pull/5732) ([0f9ae0a](https://github.com/noir-lang/noir/commit/0f9ae0ac1d68714b56ba4524aedcc67212494f1b))
+* Unroll loops iteratively ([#4779](https://github.com/noir-lang/noir/issues/4779)) ([f831b0b](https://github.com/noir-lang/noir/commit/f831b0bdbf99cab1bcd24d494c4546a36309465e))
+* Use fixed size arrays in black box functions where sizes are known (https://github.com/AztecProtocol/aztec-packages/pull/5620) ([0f9ae0a](https://github.com/noir-lang/noir/commit/0f9ae0ac1d68714b56ba4524aedcc67212494f1b))
+* Variable length returns (https://github.com/AztecProtocol/aztec-packages/pull/5633) ([305bcdc](https://github.com/noir-lang/noir/commit/305bcdcbd01cb84dbaac900f14cb6cf867f83bda))
+
+
+### Bug Fixes
+
+* ArrayGet and Set are not pure ([#4783](https://github.com/noir-lang/noir/issues/4783)) ([90ee479](https://github.com/noir-lang/noir/commit/90ee4792c8e7115e55a3b1dadd1e43066ad8ac66))
+* Avoid huge unrolling in hash_args (https://github.com/AztecProtocol/aztec-packages/pull/5703) ([305bcdc](https://github.com/noir-lang/noir/commit/305bcdcbd01cb84dbaac900f14cb6cf867f83bda))
+* Catch panics from EC point creation (e.g. the point is at infinity) ([#4790](https://github.com/noir-lang/noir/issues/4790)) ([645dba1](https://github.com/noir-lang/noir/commit/645dba192f16ef34018828186ffb297422a8dc73))
+* Don't reuse brillig with slice arguments (https://github.com/AztecProtocol/aztec-packages/pull/5800) ([0f9ae0a](https://github.com/noir-lang/noir/commit/0f9ae0ac1d68714b56ba4524aedcc67212494f1b))
+* **experimental:** Skip over comptime functions in scan pass ([#4893](https://github.com/noir-lang/noir/issues/4893)) ([f267d42](https://github.com/noir-lang/noir/commit/f267d4205b46317eacb1c247c9dca0e7698d1259))
+* Fix curve parameters for bigints ([#4900](https://github.com/noir-lang/noir/issues/4900)) ([5985e42](https://github.com/noir-lang/noir/commit/5985e4285de9e29f7c986103a49fdaec59228887))
+* Fix panic when returning a zeroed unit value ([#4797](https://github.com/noir-lang/noir/issues/4797)) ([2ea9292](https://github.com/noir-lang/noir/commit/2ea92926956658ea99d8fb97734831eba00d3a4b))
+* Issue 4682 and add solver for unconstrained bigintegers ([#4729](https://github.com/noir-lang/noir/issues/4729)) ([e4d33c1](https://github.com/noir-lang/noir/commit/e4d33c126a2795d9aaa6048d4e91b64cb4bbe4f2))
+* Primary_message typo in errors.rs (https://github.com/AztecProtocol/aztec-packages/pull/5646) ([5b352d6](https://github.com/noir-lang/noir/commit/5b352d6266c40522f5626f79d2f36a409b482aaa))
+* Proper field inversion for bigints ([#4802](https://github.com/noir-lang/noir/issues/4802)) ([b46d0e3](https://github.com/noir-lang/noir/commit/b46d0e39f4252f8bbaa987f88d112e4c233b3d61))
+* Reset the noir-gates-diff report on master ([#4878](https://github.com/noir-lang/noir/issues/4878)) ([50bc325](https://github.com/noir-lang/noir/commit/50bc32587a837c930ed14175c98ace1530c54bef))
+* Update noir-gates-diff commit to use master reference report ([#4891](https://github.com/noir-lang/noir/issues/4891)) ([4a3ffb7](https://github.com/noir-lang/noir/commit/4a3ffb7b4c5cdd5fcadb19e7f251b1ee27b0c02b))
+
+
+### Miscellaneous Chores
+
+* Add `as_array` and remove `_slice` variants of hash functions ([#4675](https://github.com/noir-lang/noir/issues/4675)) ([8e39706](https://github.com/noir-lang/noir/commit/8e39706cbb51f27b42fbe851aaa6a67070d07c74))
+* Remove fixed-length keccak256 (https://github.com/AztecProtocol/aztec-packages/pull/5617) ([305bcdc](https://github.com/noir-lang/noir/commit/305bcdcbd01cb84dbaac900f14cb6cf867f83bda))
+
 ## [0.27.0](https://github.com/noir-lang/noir/compare/v0.26.0...v0.27.0) (2024-04-10)
 
 
@@ -109,7 +267,7 @@
 * reserve `unchecked` keyword ([#4432](https://github.com/noir-lang/noir/issues/4432))
 * Remove empty value from bounded vec ([#4431](https://github.com/noir-lang/noir/issues/4431))
 * Ban Fields in for loop indices and bitwise ops ([#4376](https://github.com/noir-lang/noir/issues/4376))
-* bump msrv to 1.73.0 ([#4406](https://github.com/noir-lang/noir/issues/4406))
+* Bump msrv to 1.73.0 ([#4406](https://github.com/noir-lang/noir/issues/4406))
 * **ci:** Bump MSRV to 1.72.1 and enforce that ACVM can be published using updated lockfile ([#4385](https://github.com/noir-lang/noir/issues/4385))
 * Restrict bit sizes ([#4235](https://github.com/noir-lang/noir/issues/4235))
 * move noir out of yarn-project (https://github.com/AztecProtocol/aztec-packages/pull/4479)

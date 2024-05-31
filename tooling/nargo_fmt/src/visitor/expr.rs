@@ -1,7 +1,8 @@
-use noirc_frontend::{
-    hir::resolution::errors::Span, lexer::Lexer, token::Token, BlockExpression,
-    ConstructorExpression, Expression, ExpressionKind, IfExpression, Statement, StatementKind,
+use noirc_frontend::ast::Expression;
+use noirc_frontend::ast::{
+    BlockExpression, ConstructorExpression, ExpressionKind, IfExpression, Statement, StatementKind,
 };
+use noirc_frontend::{hir::resolution::errors::Span, lexer::Lexer, token::Token};
 
 use super::{ExpressionType, FmtVisitor, Shape};
 use crate::{

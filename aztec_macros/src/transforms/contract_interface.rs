@@ -1,9 +1,11 @@
+use noirc_errors::Location;
+use noirc_frontend::ast::{Ident, NoirFunction, UnresolvedTypeData};
 use noirc_frontend::{
     graph::CrateId,
     macros_api::{FileId, HirContext, HirExpression, HirLiteral, HirStatement},
     parse_program,
     parser::SortedModule,
-    NoirFunction, Type, UnresolvedTypeData,
+    Type,
 };
 
 use crate::utils::{
@@ -38,7 +40,7 @@ use crate::utils::{
 // }
 //
 // The selector placeholder has to be replaced with the actual function signature after type checking in the next macro pass
-pub fn stub_function(aztec_visibility: &str, func: &NoirFunction) -> String {
+pub fn stub_function(aztec_visibility: &str, func: &NoirFunction, is_static_call: bool) -> String {
     let fn_name = func.name().to_string();
     let fn_parameters = func
         .parameters()
@@ -52,12 +54,13 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction) -> String {
         })
         .collect::<Vec<_>>()
         .join(", ");
-    let fn_return_type: noirc_frontend::UnresolvedType = func.return_type();
+    let fn_return_type: noirc_frontend::ast::UnresolvedType = func.return_type();
 
     let fn_selector = format!("dep::aztec::protocol_types::abis::function_selector::FunctionSelector::from_signature(\"{}\")", SELECTOR_PLACEHOLDER);
 
     let parameters = func.parameters();
     let is_void = if matches!(fn_return_type.typ, UnresolvedTypeData::Unit) { "Void" } else { "" };
+    let is_static = if is_static_call { "Static" } else { "" };
     let return_type_hint = if is_void == "Void" {
         "".to_string()
     } else {
@@ -74,7 +77,8 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction) -> String {
                 for i in 0..{0}.len() {{
                     args_acc = args_acc.append(hash_{0}[i].as_slice());
                 }}\n",
-                        param_name, typ.typ
+                        param_name,
+                        typ.typ.to_string().replace("plain::", "")
                     )
                 }
                 _ => {
@@ -84,7 +88,7 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction) -> String {
         })
         .collect::<Vec<_>>()
         .join("");
-    if aztec_visibility != "Avm" {
+    if aztec_visibility != "Public" {
         let args_hash = if !parameters.is_empty() {
             format!(
                 "let mut args_acc: [Field] = &[];
@@ -99,18 +103,18 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction) -> String {
 
         let fn_body = format!(
             "{}
-                dep::aztec::context::{}{}CallInterface {{
+                dep::aztec::context::{}{}{}CallInterface {{
                     target_contract: self.target_contract,
                     selector: {},
                     args_hash,
                 }}",
-            args_hash, aztec_visibility, is_void, fn_selector,
+            args_hash, aztec_visibility, is_static, is_void, fn_selector,
         );
         format!(
-            "pub fn {}(self, {}) -> dep::aztec::context::{}{}CallInterface{} {{
+            "pub fn {}(self, {}) -> dep::aztec::context::{}{}{}CallInterface{} {{
                     {}
                 }}",
-            fn_name, fn_parameters, aztec_visibility, is_void, return_type_hint, fn_body
+            fn_name, fn_parameters, aztec_visibility, is_static, is_void, return_type_hint, fn_body
         )
     } else {
         let args = format!(
@@ -121,18 +125,19 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction) -> String {
         );
         let fn_body = format!(
             "{}
-            dep::aztec::context::Avm{}CallInterface {{
+            dep::aztec::context::Public{}{}CallInterface {{
                 target_contract: self.target_contract,
                 selector: {},
                 args: args_acc,
+                gas_opts: dep::aztec::context::gas::GasOpts::default(),
             }}",
-            args, is_void, fn_selector,
+            args, is_static, is_void, fn_selector,
         );
         format!(
-            "pub fn {}(self, {}) -> dep::aztec::context::Avm{}CallInterface{} {{
+            "pub fn {}(self, {}) -> dep::aztec::context::Public{}{}CallInterface{} {{
                     {}
             }}",
-            fn_name, fn_parameters, is_void, return_type_hint, fn_body
+            fn_name, fn_parameters, is_static, is_void, return_type_hint, fn_body
         )
     }
 }
@@ -143,7 +148,7 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction) -> String {
 pub fn generate_contract_interface(
     module: &mut SortedModule,
     module_name: &str,
-    stubs: &[String],
+    stubs: &[(String, Location)],
 ) -> Result<(), AztecMacroError> {
     let contract_interface = format!(
         "
@@ -169,7 +174,7 @@ pub fn generate_contract_interface(
         }}
     ",
         module_name,
-        stubs.join("\n"),
+        stubs.iter().map(|(src, _)| src.to_owned()).collect::<Vec<String>>().join("\n"),
     );
 
     let (contract_interface_ast, errors) = parse_program(&contract_interface);
@@ -179,8 +184,27 @@ pub fn generate_contract_interface(
     }
 
     let mut contract_interface_ast = contract_interface_ast.into_sorted();
+    let mut impl_with_locations = contract_interface_ast.impls.pop().unwrap();
+
+    impl_with_locations.methods = impl_with_locations
+        .methods
+        .iter()
+        .enumerate()
+        .map(|(i, (method, orig_span))| {
+            if method.name() == "at" {
+                (method.clone(), *orig_span)
+            } else {
+                let (_, new_location) = stubs[i];
+                let mut modified_method = method.clone();
+                modified_method.def.name =
+                    Ident::new(modified_method.name().to_string(), new_location.span);
+                (modified_method, *orig_span)
+            }
+        })
+        .collect();
+
     module.types.push(contract_interface_ast.types.pop().unwrap());
-    module.impls.push(contract_interface_ast.impls.pop().unwrap());
+    module.impls.push(impl_with_locations);
     module.functions.push(contract_interface_ast.functions.pop().unwrap());
 
     Ok(())

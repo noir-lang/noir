@@ -6,9 +6,9 @@ use std::rc::Rc;
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
+use crate::ast::{FunctionKind, FunctionReturnType, Visibility};
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
-use crate::FunctionKind;
-use crate::{Distinctness, FunctionReturnType, Type, TypeVariable, Visibility};
+use crate::{Type, TypeVariable};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -95,11 +95,13 @@ pub struct FuncMeta {
 
     pub parameters: Parameters,
 
+    /// The HirIdent of each identifier within the parameter list.
+    /// Note that this includes separate entries for each identifier in e.g. tuple patterns.
+    pub parameter_idents: Vec<HirIdent>,
+
     pub return_type: FunctionReturnType,
 
     pub return_visibility: Visibility,
-
-    pub return_distinctness: Distinctness,
 
     /// The type of this function. Either a Type::Function
     /// or a Type::Forall for generic functions.
@@ -110,6 +112,12 @@ pub struct FuncMeta {
     /// an `impl<T>` block. This also does not include implicit generics added by the compiler
     /// such as a trait's `Self` type variable.
     pub direct_generics: Vec<(Rc<String>, TypeVariable)>,
+
+    /// All the generics used by this function, which includes any implicit generics or generics
+    /// from outer scopes, such as those introduced by an impl.
+    /// This is stored when the FuncMeta is first created to later be used to set the current
+    /// generics when the function's body is later resolved.
+    pub all_generics: Vec<(Rc<String>, TypeVariable, Span)>,
 
     pub location: Location,
 
@@ -125,21 +133,25 @@ pub struct FuncMeta {
     /// For non-contracts, this means the function is `main`.
     pub is_entry_point: bool,
 
+    /// True if this function was defined within a trait (not a trait impl!).
+    /// Trait functions are just stubs and shouldn't have their return type checked
+    /// against their body type, nor should unused variables be checked.
+    pub is_trait_function: bool,
+
     /// True if this function is marked with an attribute
-    /// that indicates it should not be inlined, such as for folding.
-    pub should_fold: bool,
+    /// that indicates it should be inlined differently than the default (inline everything).
+    /// For example, such as `fold` (never inlined) or `no_predicates` (inlined after flattening)
+    pub has_inline_attribute: bool,
 }
 
 impl FuncMeta {
-    /// Builtin, LowLevel and Oracle functions usually have the return type
-    /// declared, however their function bodies will be empty
-    /// So this method tells the type checker to ignore the return
-    /// of the empty function, which is unit
-    pub fn can_ignore_return_type(&self) -> bool {
-        match self.kind {
-            FunctionKind::LowLevel | FunctionKind::Builtin | FunctionKind::Oracle => true,
-            FunctionKind::Normal | FunctionKind::Recursive => false,
-        }
+    /// A stub function does not have a body. This includes Builtin, LowLevel,
+    /// and Oracle functions in addition to method declarations within a trait.
+    ///
+    /// We don't check the return type of these functions since it will always have
+    /// an empty body, and we don't check for unused parameters.
+    pub fn is_stub(&self) -> bool {
+        self.kind.can_ignore_return_type() || self.is_trait_function
     }
 
     pub fn function_signature(&self) -> FunctionSignature {

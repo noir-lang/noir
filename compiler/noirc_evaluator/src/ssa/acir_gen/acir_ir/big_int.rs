@@ -1,4 +1,4 @@
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use num_bigint::BigUint;
 
 /// Represents a bigint value in the form (id, modulus) where

@@ -188,34 +188,36 @@ pub(crate) fn convert_black_box_call(
                 unreachable!("ICE: Schnorr verify expects two registers for the public key, an array for signature, an array for the message hash and one result register")
             }
         }
-        BlackBoxFunc::FixedBaseScalarMul => {
-            if let (
-                [BrilligVariable::SingleAddr(low), BrilligVariable::SingleAddr(high)],
-                [BrilligVariable::BrilligArray(result_array)],
-            ) = (function_arguments, function_results)
+        BlackBoxFunc::MultiScalarMul => {
+            if let ([points, scalars], [BrilligVariable::BrilligArray(outputs)]) =
+                (function_arguments, function_results)
             {
-                brillig_context.black_box_op_instruction(BlackBoxOp::FixedBaseScalarMul {
-                    low: low.address,
-                    high: high.address,
-                    result: result_array.to_heap_array(),
+                let points = convert_array_or_vector(brillig_context, points, bb_func);
+                let scalars = convert_array_or_vector(brillig_context, scalars, bb_func);
+                brillig_context.black_box_op_instruction(BlackBoxOp::MultiScalarMul {
+                    points: points.to_heap_vector(),
+                    scalars: scalars.to_heap_vector(),
+                    outputs: outputs.to_heap_array(),
                 });
             } else {
                 unreachable!(
-                    "ICE: FixedBaseScalarMul expects one register argument and one array result"
+                    "ICE: MultiScalarMul expects two register arguments and one array result"
                 )
             }
         }
         BlackBoxFunc::EmbeddedCurveAdd => {
             if let (
-                [BrilligVariable::SingleAddr(input1_x), BrilligVariable::SingleAddr(input1_y), BrilligVariable::SingleAddr(input2_x), BrilligVariable::SingleAddr(input2_y)],
+                [BrilligVariable::SingleAddr(input1_x), BrilligVariable::SingleAddr(input1_y), BrilligVariable::SingleAddr(input1_infinite), BrilligVariable::SingleAddr(input2_x), BrilligVariable::SingleAddr(input2_y), BrilligVariable::SingleAddr(input2_infinite)],
                 [BrilligVariable::BrilligArray(result_array)],
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::EmbeddedCurveAdd {
                     input1_x: input1_x.address,
                     input1_y: input1_y.address,
+                    input1_infinite: input1_infinite.address,
                     input2_x: input2_x.address,
                     input2_y: input2_y.address,
+                    input2_infinite: input2_infinite.address,
                     result: result_array.to_heap_array(),
                 });
             } else {
@@ -233,9 +235,7 @@ pub(crate) fn convert_black_box_call(
         BlackBoxFunc::RANGE => unreachable!(
             "ICE: `BlackBoxFunc::RANGE` calls should be transformed into a `Instruction::Cast`"
         ),
-        BlackBoxFunc::RecursiveAggregation => unimplemented!(
-            "ICE: `BlackBoxFunc::RecursiveAggregation` is not implemented by the Brillig VM"
-        ),
+        BlackBoxFunc::RecursiveAggregation => {}
         BlackBoxFunc::BigIntAdd => {
             if let (
                 [BrilligVariable::SingleAddr(lhs), BrilligVariable::SingleAddr(lhs_modulus), BrilligVariable::SingleAddr(rhs), BrilligVariable::SingleAddr(rhs_modulus)],
@@ -399,6 +399,28 @@ pub(crate) fn convert_black_box_call(
                 });
             } else {
                 unreachable!("ICE: Sha256Compression expects two array argument, one array result")
+            }
+        }
+        BlackBoxFunc::AES128Encrypt => {
+            if let (
+                [inputs, BrilligVariable::BrilligArray(iv), BrilligVariable::BrilligArray(key)],
+                [BrilligVariable::SingleAddr(out_len), outputs],
+            ) = (function_arguments, function_results)
+            {
+                let inputs = convert_array_or_vector(brillig_context, inputs, bb_func);
+                let outputs = convert_array_or_vector(brillig_context, outputs, bb_func);
+                let output_vec = outputs.to_heap_vector();
+                brillig_context.black_box_op_instruction(BlackBoxOp::AES128Encrypt {
+                    inputs: inputs.to_heap_vector(),
+                    iv: iv.to_heap_array(),
+                    key: key.to_heap_array(),
+                    outputs: output_vec,
+                });
+                brillig_context.mov_instruction(out_len.address, output_vec.size);
+                // Returns slice, so we need to allocate memory for it after the fact
+                brillig_context.increase_free_memory_pointer_instruction(output_vec.size);
+            } else {
+                unreachable!("ICE: AES128Encrypt expects three array arguments, one array result")
             }
         }
     }

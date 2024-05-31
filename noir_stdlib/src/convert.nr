@@ -12,12 +12,12 @@ impl<T> From<T> for T {
 
 // docs:start:into-trait
 trait Into<T> {
-    fn into(input: Self) -> T;
+    fn into(self) -> T;
 }
 
 impl<T, U> Into<T> for U where T: From<U> {
-  fn into(input: U) -> T {
-      T::from(input)
+  fn into(self) -> T {
+      T::from(self)
   }
 }
 // docs:end:into-trait

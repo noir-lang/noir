@@ -1,29 +1,32 @@
-use std::borrow::Borrow;
-
+use acvm::acir::AcirField;
 use noirc_errors::Span;
+use noirc_frontend::ast::{
+    BlockExpression, Expression, ExpressionKind, FunctionDefinition, Ident, Literal, NoirFunction,
+    NoirStruct, Pattern, StatementKind, TypeImpl, UnresolvedType, UnresolvedTypeData,
+};
 use noirc_frontend::{
     graph::CrateId,
     macros_api::{
         FieldElement, FileId, HirContext, HirExpression, HirLiteral, HirStatement, NodeInterner,
     },
-    node_interner::{TraitId, TraitImplKind},
+    node_interner::TraitId,
     parse_program,
     parser::SortedModule,
     token::SecondaryAttribute,
-    BlockExpression, Expression, ExpressionKind, FunctionDefinition, Ident, Literal, NoirFunction,
-    NoirStruct, PathKind, Pattern, StatementKind, Type, TypeImpl, UnresolvedType,
-    UnresolvedTypeData,
+    Type,
 };
 
 use crate::{
-    chained_dep, chained_path,
+    chained_path,
     utils::{
         ast_utils::{
             call, expression, ident, ident_path, is_custom_attribute, lambda, make_statement,
             make_type, pattern, return_type, variable, variable_path,
         },
         errors::AztecMacroError,
-        hir_utils::{collect_crate_structs, collect_traits, get_contract_module_data},
+        hir_utils::{
+            collect_crate_structs, collect_traits, get_contract_module_data, get_serialized_length,
+        },
     },
 };
 
@@ -46,7 +49,58 @@ pub fn check_for_storage_definition(
     Ok(result.iter().map(|&r#struct| r#struct.name.0.contents.clone()).next())
 }
 
-// Check to see if the user has defined a storage struct
+// Injects the Context generic in each of the Storage struct fields to avoid boilerplate,
+// taking maps into account (including nested maps)
+fn inject_context_in_storage_field(field: &mut UnresolvedType) -> Result<(), AztecMacroError> {
+    match &mut field.typ {
+        UnresolvedTypeData::Named(path, generics, _) => {
+            generics.push(make_type(UnresolvedTypeData::Named(
+                ident_path("Context"),
+                vec![],
+                false,
+            )));
+            match path.segments.last().unwrap().0.contents.as_str() {
+                "Map" => inject_context_in_storage_field(&mut generics[1]),
+                _ => Ok(()),
+            }
+        }
+        _ => Err(AztecMacroError::CouldNotInjectContextGenericInStorage {
+            secondary_message: Some(format!("Unsupported type: {:?}", field.typ)),
+        }),
+    }
+}
+
+// Injects the Context generic in the storage struct to avoid boilerplate
+// Transforms this:
+// struct Storage {
+//     a_var: SomeStoragePrimitive<ASerializableType>,
+//     a_map: Map<Field, SomeStoragePrimitive<ASerializableType>>,
+// }
+//
+// Into this:
+//
+// struct Storage<Context> {
+//     a_var: SomeStoragePrimitive<ASerializableType, Context>,
+//     a_map: Map<Field, SomeStoragePrimitive<ASerializableType, Context>, Context>,
+// }
+pub fn inject_context_in_storage(module: &mut SortedModule) -> Result<(), AztecMacroError> {
+    let storage_struct = module
+        .types
+        .iter_mut()
+        .find(|r#struct| {
+            r#struct.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(storage)"))
+        })
+        .unwrap();
+    storage_struct.generics.push(ident("Context"));
+    storage_struct
+        .fields
+        .iter_mut()
+        .map(|(_, field)| inject_context_in_storage_field(field))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(())
+}
+
+// Check to see if the user has defined an impl for the storage struct
 pub fn check_for_storage_implementation(
     module: &SortedModule,
     storage_struct_name: &String,
@@ -77,22 +131,22 @@ pub fn generate_storage_field_constructor(
                         variable("context"),
                         slot,
                         lambda(
+                            // This lambda will be equivalent to the following
+                            // | context, slot | { T::new(context, slot) }
+                            // Since the `new` function has type bindings for its arguments, we don't specify the types
+                            // of either context nor slot, and avoid that way having to deal with the generic context
+                            // type.
                             vec![
-                                (
-                                    pattern("context"),
-                                    make_type(UnresolvedTypeData::Named(
-                                        chained_dep!("aztec", "context", "Context"),
-                                        vec![],
-                                        true,
-                                    )),
-                                ),
+                                (pattern("context"), make_type(UnresolvedTypeData::Unspecified)),
                                 (
                                     Pattern::Identifier(ident("slot")),
-                                    make_type(UnresolvedTypeData::FieldElement),
+                                    make_type(UnresolvedTypeData::Unspecified),
                                 ),
                             ],
                             generate_storage_field_constructor(
-                                &(type_ident.clone(), generics.iter().last().unwrap().clone()),
+                                // Map is expected to have three generic parameters: key, value and context (i.e.
+                                // Map<K, V, Context>. Here `get(1)` fetches the value type.
+                                &(type_ident.clone(), generics.get(1).unwrap().clone()),
                                 variable("slot"),
                             )?,
                         ),
@@ -111,15 +165,15 @@ pub fn generate_storage_field_constructor(
 // Generates the Storage implementation block from the Storage struct definition if it does not exist
 /// From:
 ///
-/// struct Storage {
-///     a_map: Map<Field, SomeStoragePrimitive<ASerializableType>>,
-///     a_nested_map: Map<Field, Map<Field, SomeStoragePrimitive<ASerializableType>>>,
-///     a_field: SomeStoragePrimitive<ASerializableType>,
+/// struct Storage<Context> {
+///     a_map: Map<Field, SomeStoragePrimitive<ASerializableType, Context>, Context>,
+///     a_nested_map: Map<Field, Map<Field, SomeStoragePrimitive<ASerializableType, Context>, Context>, Context>,
+///     a_field: SomeStoragePrimitive<ASerializableType, Context>,
 /// }
 ///
 /// To:
 ///
-/// impl Storage {
+/// impl<Context> Storage<Contex> {
 ///    fn init(context: Context) -> Self {
 ///        Storage {
 ///             a_map: Map::new(context, 0, |context, slot| {
@@ -165,17 +219,15 @@ pub fn generate_storage_implementation(
         ExpressionKind::constructor((chained_path!(storage_struct_name), field_constructors)),
     )));
 
+    // This is the type over which the impl is generic.
+    let generic_context_ident = ident("Context");
+    let generic_context_type =
+        make_type(UnresolvedTypeData::Named(ident_path("Context"), vec![], true));
+
     let init = NoirFunction::normal(FunctionDefinition::normal(
         &ident("init"),
         &vec![],
-        &[(
-            ident("context"),
-            make_type(UnresolvedTypeData::Named(
-                chained_dep!("aztec", "context", "Context"),
-                vec![],
-                true,
-            )),
-        )],
+        &[(ident("context"), generic_context_type.clone())],
         &BlockExpression { statements: vec![storage_constructor_statement] },
         &[],
         &return_type(chained_path!("Self")),
@@ -183,11 +235,16 @@ pub fn generate_storage_implementation(
 
     let storage_impl = TypeImpl {
         object_type: UnresolvedType {
-            typ: UnresolvedTypeData::Named(chained_path!(storage_struct_name), vec![], true),
+            typ: UnresolvedTypeData::Named(
+                chained_path!(storage_struct_name),
+                vec![generic_context_type.clone()],
+                true,
+            ),
             span: Some(Span::default()),
         },
         type_span: Span::default(),
-        generics: vec![],
+        generics: vec![generic_context_ident],
+
         methods: vec![(init, Span::default())],
     };
     module.impls.push(storage_impl);
@@ -196,7 +253,7 @@ pub fn generate_storage_implementation(
 }
 
 /// Obtains the serialized length of a type that implements the Serialize trait.
-fn get_serialized_length(
+pub fn get_storage_serialized_length(
     traits: &[TraitId],
     typ: &Type,
     interner: &NodeInterner,
@@ -214,48 +271,22 @@ fn get_serialized_length(
             secondary_message: Some("State storage variable must be generic".to_string()),
         })?;
 
-    let is_note = traits.iter().any(|&trait_id| {
-        let r#trait = interner.get_trait(trait_id);
-        r#trait.name.0.contents == "NoteInterface"
-            && !interner.lookup_all_trait_implementations(stored_in_state, trait_id).is_empty()
-    });
+    let is_note = match stored_in_state {
+        Type::Struct(typ, _) => interner
+            .struct_attributes(&typ.borrow().id)
+            .iter()
+            .any(|attr| is_custom_attribute(attr, "aztec(note)")),
+        _ => false,
+    };
 
     // Maps and (private) Notes always occupy a single slot. Someone could store a Note in PublicMutable for whatever reason though.
     if struct_name == "Map" || (is_note && struct_name != "PublicMutable") {
         return Ok(1);
     }
 
-    let serialized_trait_impl_kind = traits
-        .iter()
-        .find_map(|&trait_id| {
-            let r#trait = interner.get_trait(trait_id);
-            if r#trait.borrow().name.0.contents == "Serialize"
-                && r#trait.borrow().generics.len() == 1
-            {
-                interner
-                    .lookup_all_trait_implementations(stored_in_state, trait_id)
-                    .into_iter()
-                    .next()
-            } else {
-                None
-            }
-        })
-        .ok_or(AztecMacroError::CouldNotAssignStorageSlots {
-            secondary_message: Some("Stored data must implement Serialize trait".to_string()),
-        })?;
-
-    let serialized_trait_impl_id = match serialized_trait_impl_kind {
-        TraitImplKind::Normal(trait_impl_id) => Ok(trait_impl_id),
-        _ => Err(AztecMacroError::CouldNotAssignStorageSlots { secondary_message: None }),
-    }?;
-
-    let serialized_trait_impl_shared = interner.get_trait_implementation(*serialized_trait_impl_id);
-    let serialized_trait_impl = serialized_trait_impl_shared.borrow();
-
-    match serialized_trait_impl.trait_generics.first().unwrap() {
-        Type::Constant(value) => Ok(*value),
-        _ => Err(AztecMacroError::CouldNotAssignStorageSlots { secondary_message: None }),
-    }
+    get_serialized_length(traits, "Serialize", stored_in_state, interner).map_err(|err| {
+        AztecMacroError::CouldNotAssignStorageSlots { secondary_message: Some(err.primary_message) }
+    })
 }
 
 /// Assigns storage slots to the storage struct fields based on the serialized length of the types. This automatic assignment
@@ -365,7 +396,9 @@ pub fn assign_storage_slots(
 
             let mut storage_slot: u64 = 1;
             for (index, (_, expr_id)) in storage_constructor_expression.fields.iter().enumerate() {
-                let fields = storage_struct.borrow().get_fields(&[]);
+                let fields = storage_struct
+                    .borrow()
+                    .get_fields(&storage_constructor_expression.struct_generics);
                 let (field_name, field_type) = fields.get(index).unwrap();
                 let new_call_expression = match context.def_interner.expression(expr_id) {
                     HirExpression::Call(hir_call_expression) => Ok(hir_call_expression),
@@ -436,7 +469,7 @@ pub fn assign_storage_slots(
                 };
 
                 let type_serialized_len =
-                    get_serialized_length(&traits, field_type, &context.def_interner)
+                    get_storage_serialized_length(&traits, field_type, &context.def_interner)
                         .map_err(|err| (err, file_id))?;
 
                 context.def_interner.update_expression(new_call_expression.arguments[1], |expr| {
@@ -504,7 +537,7 @@ pub fn generate_storage_layout(
     let (struct_ast, errors) = parse_program(&storage_fields_source);
     if !errors.is_empty() {
         dbg!(errors);
-        return Err(AztecMacroError::CouldNotImplementNoteInterface {
+        return Err(AztecMacroError::CouldNotExportStorageLayout {
             secondary_message: Some("Failed to parse Noir macro code (struct StorageLayout). This is either a bug in the compiler or the Noir macro code".to_string()),
             span: None
         });

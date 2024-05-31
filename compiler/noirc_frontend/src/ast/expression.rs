@@ -1,14 +1,16 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
-use crate::token::{Attributes, Token};
-use crate::{
-    Distinctness, Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
+use crate::ast::{
+    Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
-use acvm::FieldElement;
+use crate::token::{Attributes, Token};
+use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
+
+use super::UnaryRhsMemberAccess;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
@@ -23,11 +25,14 @@ pub enum ExpressionKind {
     Cast(Box<CastExpression>),
     Infix(Box<InfixExpression>),
     If(Box<IfExpression>),
-    Variable(Path),
+    // The optional vec here is the optional list of generics
+    // provided by the turbofish operator, if used
+    Variable(Path, Option<Vec<UnresolvedType>>),
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
     Quote(BlockExpression),
+    Comptime(BlockExpression),
     Error,
 }
 
@@ -38,7 +43,7 @@ pub type UnresolvedGenerics = Vec<Ident>;
 impl ExpressionKind {
     pub fn into_path(self) -> Option<Path> {
         match self {
-            ExpressionKind::Variable(path) => Some(path),
+            ExpressionKind::Variable(path, _) => Some(path),
             _ => None,
         }
     }
@@ -163,16 +168,19 @@ impl Expression {
 
     pub fn member_access_or_method_call(
         lhs: Expression,
-        (rhs, args): (Ident, Option<Vec<Expression>>),
+        (rhs, args): UnaryRhsMemberAccess,
         span: Span,
     ) -> Expression {
         let kind = match args {
             None => ExpressionKind::MemberAccess(Box::new(MemberAccessExpression { lhs, rhs })),
-            Some(arguments) => ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                object: lhs,
-                method_name: rhs,
-                arguments,
-            })),
+            Some((generics, arguments)) => {
+                ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                    object: lhs,
+                    method_name: rhs,
+                    generics,
+                    arguments,
+                }))
+            }
         };
         Expression::new(kind, span)
     }
@@ -400,7 +408,6 @@ pub struct FunctionDefinition {
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub return_type: FunctionReturnType,
     pub return_visibility: Visibility,
-    pub return_distinctness: Distinctness,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -435,6 +442,8 @@ pub struct CallExpression {
 pub struct MethodCallExpression {
     pub object: Expression,
     pub method_name: Ident,
+    /// Method calls have an optional list of generics if the turbofish operator was used
+    pub generics: Option<Vec<UnresolvedType>>,
     pub arguments: Vec<Expression>,
 }
 
@@ -494,7 +503,14 @@ impl Display for ExpressionKind {
             Cast(cast) => cast.fmt(f),
             Infix(infix) => infix.fmt(f),
             If(if_expr) => if_expr.fmt(f),
-            Variable(path) => path.fmt(f),
+            Variable(path, generics) => {
+                if let Some(generics) = generics {
+                    let generics = vecmap(generics, ToString::to_string);
+                    write!(f, "{path}::<{}>", generics.join(", "))
+                } else {
+                    path.fmt(f)
+                }
+            }
             Constructor(constructor) => constructor.fmt(f),
             MemberAccess(access) => access.fmt(f),
             Tuple(elements) => {
@@ -504,6 +520,7 @@ impl Display for ExpressionKind {
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
             Quote(block) => write!(f, "quote {block}"),
+            Comptime(block) => write!(f, "comptime {block}"),
             Error => write!(f, "Error"),
         }
     }
@@ -696,7 +713,6 @@ impl FunctionDefinition {
             where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
             return_visibility: Visibility::Private,
-            return_distinctness: Distinctness::DuplicationAllowed,
         }
     }
 }

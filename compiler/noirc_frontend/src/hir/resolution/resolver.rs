@@ -11,6 +11,8 @@
 // XXX: Change mentions of intern to resolve. In regards to the above comment
 //
 // XXX: Resolver does not check for unused functions
+use acvm::acir::AcirField;
+
 use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCapturedVar,
     HirCastExpression, HirConstructorExpression, HirExpression, HirIdent, HirIfExpression,
@@ -22,28 +24,25 @@ use crate::hir_def::traits::{Trait, TraitConstraint};
 use crate::macros_api::SecondaryAttribute;
 use crate::token::{Attributes, FunctionAttribute};
 use regex::Regex;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::rc::Rc;
 
+use crate::ast::{
+    ArrayLiteral, BinaryOpKind, BlockExpression, Expression, ExpressionKind, ForRange,
+    FunctionDefinition, FunctionKind, FunctionReturnType, Ident, ItemVisibility, LValue,
+    LetStatement, Literal, NoirFunction, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
+    Statement, StatementKind, TraitBound, UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint,
+    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+};
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
+use crate::hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver};
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
     StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
 };
-use crate::{
-    hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
-    BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirFunction,
-    StatementKind,
-};
-use crate::{
-    ArrayLiteral, BinaryOpKind, Distinctness, ForRange, FunctionDefinition, FunctionReturnType,
-    Generics, ItemVisibility, LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
-    Shared, Statement, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind, UnaryOp,
-    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
-};
+use crate::{Generics, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
@@ -59,17 +58,17 @@ use crate::hir_def::{
 use super::errors::{PubPosition, ResolverError};
 use super::import::PathResolution;
 
-const SELF_TYPE_NAME: &str = "Self";
+pub const SELF_TYPE_NAME: &str = "Self";
 
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
 
 pub struct LambdaContext {
-    captures: Vec<HirCapturedVar>,
+    pub captures: Vec<HirCapturedVar>,
     /// the index in the scope tree
     /// (sometimes being filled by ScopeTree's find method)
-    scope_index: usize,
+    pub scope_index: usize,
 }
 
 /// The primary jobs of the Resolver are to validate that every variable found refers to exactly 1
@@ -98,6 +97,21 @@ pub struct Resolver<'a> {
     /// The current dependency item we're resolving.
     /// Used to link items to their dependencies in the dependency graph
     current_item: Option<DependencyId>,
+
+    /// In-resolution names
+    ///
+    /// This needs to be a set because we can have multiple in-resolution
+    /// names when resolving structs that are declared in reverse order of their
+    /// dependencies, such as in the following case:
+    ///
+    /// ```
+    /// struct Wrapper {
+    ///     value: Wrapped
+    /// }
+    /// struct Wrapped {
+    /// }
+    /// ```
+    resolving_ids: BTreeSet<StructId>,
 
     /// True if the current module is a contract.
     /// This is usually determined by self.path_resolver.module_id(), but it can
@@ -162,6 +176,7 @@ impl<'a> Resolver<'a> {
             lambda_stack: Vec::new(),
             current_trait_impl: None,
             current_item: None,
+            resolving_ids: BTreeSet::new(),
             file,
             in_contract,
             in_unconstrained_fn: false,
@@ -189,6 +204,52 @@ impl<'a> Resolver<'a> {
         self.errors.push(err);
     }
 
+    /// This turns function parameters of the form:
+    /// fn foo(x: impl Bar)
+    ///
+    /// into
+    /// fn foo<T0_impl_Bar>(x: T0_impl_Bar) where T0_impl_Bar: Bar
+    fn desugar_impl_trait_args(&mut self, func: &mut NoirFunction, func_id: FuncId) {
+        let mut impl_trait_generics = HashSet::new();
+        let mut counter: usize = 0;
+        for parameter in func.def.parameters.iter_mut() {
+            if let UnresolvedTypeData::TraitAsType(path, args) = &parameter.typ.typ {
+                let mut new_generic_ident: Ident =
+                    format!("T{}_impl_{}", func_id, path.as_string()).into();
+                let mut new_generic_path = Path::from_ident(new_generic_ident.clone());
+                while impl_trait_generics.contains(&new_generic_ident)
+                    || self.lookup_generic_or_global_type(&new_generic_path).is_some()
+                {
+                    new_generic_ident =
+                        format!("T{}_impl_{}_{}", func_id, path.as_string(), counter).into();
+                    new_generic_path = Path::from_ident(new_generic_ident.clone());
+                    counter += 1;
+                }
+                impl_trait_generics.insert(new_generic_ident.clone());
+
+                let is_synthesized = true;
+                let new_generic_type_data =
+                    UnresolvedTypeData::Named(new_generic_path, vec![], is_synthesized);
+                let new_generic_type =
+                    UnresolvedType { typ: new_generic_type_data.clone(), span: None };
+                let new_trait_bound = TraitBound {
+                    trait_path: path.clone(),
+                    trait_id: None,
+                    trait_generics: args.to_vec(),
+                };
+                let new_trait_constraint = UnresolvedTraitConstraint {
+                    typ: new_generic_type,
+                    trait_bound: new_trait_bound,
+                };
+
+                parameter.typ.typ = new_generic_type_data;
+                func.def.generics.push(new_generic_ident);
+                func.def.where_clause.push(new_trait_constraint);
+            }
+        }
+        self.add_generics(&impl_trait_generics.into_iter().collect());
+    }
+
     /// Resolving a function involves interning the metadata
     /// interning any statements inside of the function
     /// and interning the function itself
@@ -196,7 +257,7 @@ impl<'a> Resolver<'a> {
     /// Since lowering would require scope data, unless we add an extra resolution field to the AST
     pub fn resolve_function(
         mut self,
-        func: NoirFunction,
+        mut func: NoirFunction,
         func_id: FuncId,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
         self.scopes.start_function();
@@ -204,8 +265,9 @@ impl<'a> Resolver<'a> {
 
         // Check whether the function has globals in the local module and add them to the scope
         self.resolve_local_globals();
-
         self.add_generics(&func.def.generics);
+
+        self.desugar_impl_trait_args(&mut func, func_id);
         self.trait_bounds = func.def.where_clause.clone();
 
         let is_low_level_or_oracle = func
@@ -260,7 +322,6 @@ impl<'a> Resolver<'a> {
             where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
             return_visibility: Visibility::Private,
-            return_distinctness: Distinctness::DuplicationAllowed,
         };
 
         let (hir_func, func_meta) = self.intern_function(NoirFunction { kind, def }, func_id);
@@ -477,45 +538,43 @@ impl<'a> Resolver<'a> {
 
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
-    fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
-        use UnresolvedTypeData::*;
+    fn resolve_type_inner(&mut self, typ: UnresolvedType) -> Type {
+        use crate::ast::UnresolvedTypeData::*;
 
         let resolved_type = match typ.typ {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
-                let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
-                let size = self.resolve_array_size(Some(size), new_variables);
+                let elem = Box::new(self.resolve_type_inner(*elem));
+                let size = self.convert_expression_type(size);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
-                let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
+                let elem = Box::new(self.resolve_type_inner(*elem));
                 Type::Slice(elem)
             }
             Expression(expr) => self.convert_expression_type(expr),
             Integer(sign, bits) => Type::Integer(sign, bits),
             Bool => Type::Bool,
             String(size) => {
-                let resolved_size = self.resolve_array_size(size, new_variables);
+                let resolved_size = self.convert_expression_type(size);
                 Type::String(Box::new(resolved_size))
             }
             FormatString(size, fields) => {
                 let resolved_size = self.convert_expression_type(size);
-                let fields = self.resolve_type_inner(*fields, new_variables);
+                let fields = self.resolve_type_inner(*fields);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
             Code => Type::Code,
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,
-            Named(path, args, _) => self.resolve_named_type(path, args, new_variables),
-            TraitAsType(path, args) => self.resolve_trait_as_type(path, args, new_variables),
+            Named(path, args, _) => self.resolve_named_type(path, args),
+            TraitAsType(path, args) => self.resolve_trait_as_type(path, args),
 
-            Tuple(fields) => {
-                Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
-            }
+            Tuple(fields) => Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field))),
             Function(args, ret, env) => {
-                let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
-                let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
+                let args = vecmap(args, |arg| self.resolve_type_inner(arg));
+                let ret = Box::new(self.resolve_type_inner(*ret));
 
                 // expect() here is valid, because the only places we don't have a span are omitted types
                 // e.g. a function without return type implicitly has a spanless UnresolvedType::Unit return type
@@ -523,7 +582,7 @@ impl<'a> Resolver<'a> {
                 let env_span =
                     env.span.expect("Unexpected missing span for closure environment type");
 
-                let env = Box::new(self.resolve_type_inner(*env, new_variables));
+                let env = Box::new(self.resolve_type_inner(*env));
 
                 match *env {
                     Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
@@ -539,9 +598,9 @@ impl<'a> Resolver<'a> {
                 }
             }
             MutableReference(element) => {
-                Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
+                Type::MutableReference(Box::new(self.resolve_type_inner(*element)))
             }
-            Parenthesized(typ) => self.resolve_type_inner(*typ, new_variables),
+            Parenthesized(typ) => self.resolve_type_inner(*typ),
         };
 
         if let Type::Struct(_, _) = resolved_type {
@@ -560,12 +619,7 @@ impl<'a> Resolver<'a> {
         self.generics.iter().find(|(name, _, _)| name.as_ref() == target_name)
     }
 
-    fn resolve_named_type(
-        &mut self,
-        path: Path,
-        args: Vec<UnresolvedType>,
-        new_variables: &mut Generics,
-    ) -> Type {
+    fn resolve_named_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
         if args.is_empty() {
             if let Some(typ) = self.lookup_generic_or_global_type(&path) {
                 return typ;
@@ -588,7 +642,7 @@ impl<'a> Resolver<'a> {
         }
 
         let span = path.span();
-        let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+        let mut args = vecmap(args, |arg| self.resolve_type_inner(arg));
 
         if let Some(type_alias) = self.lookup_type_alias(path.clone()) {
             let type_alias = type_alias.borrow();
@@ -619,6 +673,14 @@ impl<'a> Resolver<'a> {
 
         match self.lookup_struct_or_error(path) {
             Some(struct_type) => {
+                if self.resolving_ids.contains(&struct_type.borrow().id) {
+                    self.push_err(ResolverError::SelfReferentialStruct {
+                        span: struct_type.borrow().name.span(),
+                    });
+
+                    return Type::Error;
+                }
+
                 let expected_generic_count = struct_type.borrow().generics.len();
                 if !self.in_contract
                     && self
@@ -627,7 +689,7 @@ impl<'a> Resolver<'a> {
                         .iter()
                         .any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
                 {
-                    self.push_err(ResolverError::AbiAttributeOusideContract {
+                    self.push_err(ResolverError::AbiAttributeOutsideContract {
                         span: struct_type.borrow().name.span(),
                     });
                 }
@@ -646,13 +708,8 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn resolve_trait_as_type(
-        &mut self,
-        path: Path,
-        args: Vec<UnresolvedType>,
-        new_variables: &mut Generics,
-    ) -> Type {
-        let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+    fn resolve_trait_as_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
+        let args = vecmap(args, |arg| self.resolve_type_inner(arg));
 
         if let Some(t) = self.lookup_trait_or_error(path) {
             Type::TraitAsType(t.id, Rc::new(t.name.to_string()), args)
@@ -702,26 +759,6 @@ impl<'a> Resolver<'a> {
                 Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
             _ => None,
-        }
-    }
-
-    fn resolve_array_size(
-        &mut self,
-        length: Option<UnresolvedTypeExpression>,
-        new_variables: &mut Generics,
-    ) -> Type {
-        match length {
-            None => {
-                let id = self.interner.next_type_variable_id();
-                let typevar = TypeVariable::unbound(id);
-                new_variables.push(typevar.clone());
-
-                // 'Named'Generic is a bit of a misnomer here, we want a type variable that
-                // wont be bound over but this one has no name since we do not currently
-                // require users to explicitly be generic over array lengths.
-                Type::NamedGeneric(typevar, Rc::new("".into()))
-            }
-            Some(length) => self.convert_expression_type(length),
         }
     }
 
@@ -777,11 +814,10 @@ impl<'a> Resolver<'a> {
     /// Translates an UnresolvedType to a Type
     pub fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         let span = typ.span;
-        let resolved_type = self.resolve_type_inner(typ, &mut vec![]);
+        let resolved_type = self.resolve_type_inner(typ);
         if resolved_type.is_nested_slice() {
             self.errors.push(ResolverError::NestedSlices { span: span.unwrap() });
         }
-
         resolved_type
     }
 
@@ -822,7 +858,7 @@ impl<'a> Resolver<'a> {
     fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {
         match &typ.typ {
             UnresolvedTypeData::Unspecified => self.interner.next_type_variable(),
-            _ => self.resolve_type_inner(typ, &mut vec![]),
+            _ => self.resolve_type(typ),
         }
     }
 
@@ -889,7 +925,10 @@ impl<'a> Resolver<'a> {
         self.resolve_local_globals();
 
         self.current_item = Some(DependencyId::Struct(struct_id));
+
+        self.resolving_ids.insert(struct_id);
         let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
+        self.resolving_ids.remove(&struct_id);
 
         (generics, fields, self.errors)
     }
@@ -929,9 +968,25 @@ impl<'a> Resolver<'a> {
         let name_ident = HirIdent::non_trait_method(id, location);
 
         let attributes = func.attributes().clone();
+        let has_no_predicates_attribute = attributes.is_no_predicates();
         let should_fold = attributes.is_foldable();
+        if !self.inline_attribute_allowed(func) {
+            if has_no_predicates_attribute {
+                self.push_err(ResolverError::NoPredicatesAttributeOnUnconstrained {
+                    ident: func.name_ident().clone(),
+                });
+            } else if should_fold {
+                self.push_err(ResolverError::FoldAttributeOnUnconstrained {
+                    ident: func.name_ident().clone(),
+                });
+            }
+        }
+        // Both the #[fold] and #[no_predicates] alter a function's inline type and code generation in similar ways.
+        // In certain cases such as type checking (for which the following flag will be used) both attributes
+        // indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
+        let has_inline_attribute = has_no_predicates_attribute || should_fold;
 
-        let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
+        let generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
         let mut parameters = vec![];
         let mut parameter_types = vec![];
 
@@ -944,7 +999,7 @@ impl<'a> Resolver<'a> {
             }
 
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
-            let typ = self.resolve_type_inner(typ, &mut generics);
+            let typ = self.resolve_type_inner(typ);
 
             parameters.push((pattern, typ.clone(), visibility));
             parameter_types.push(typ);
@@ -982,12 +1037,6 @@ impl<'a> Resolver<'a> {
             });
         }
 
-        if !self.distinct_allowed(func)
-            && func.def.return_distinctness != Distinctness::DuplicationAllowed
-        {
-            self.push_err(ResolverError::DistinctNotAllowed { ident: func.name_ident().clone() });
-        }
-
         if matches!(attributes.function, Some(FunctionAttribute::Test { .. }))
             && !parameters.is_empty()
         {
@@ -1020,11 +1069,15 @@ impl<'a> Resolver<'a> {
             parameters: parameters.into(),
             return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
-            return_distinctness: func.def.return_distinctness,
             has_body: !func.def.body.is_empty(),
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
             is_entry_point: self.is_entry_point_function(func),
-            should_fold,
+            has_inline_attribute,
+
+            // This is only used by the elaborator
+            all_generics: Vec::new(),
+            is_trait_function: false,
+            parameter_idents: Vec::new(),
         }
     }
 
@@ -1049,15 +1102,10 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    /// True if the `distinct` keyword is allowed on a function's return type
-    fn distinct_allowed(&self, func: &NoirFunction) -> bool {
-        if self.in_contract {
-            // "unconstrained" functions are compiled to brillig and thus duplication of
-            // witness indices in their abis is not a concern.
-            !func.def.is_unconstrained
-        } else {
-            func.name() == MAIN_FUNCTION
-        }
+    fn inline_attribute_allowed(&self, func: &NoirFunction) -> bool {
+        // Inline attributes are only relevant for constrained functions
+        // as all unconstrained functions are not inlined
+        !func.def.is_unconstrained
     }
 
     fn declare_numeric_generics(&mut self, params: &[Type], return_type: &Type) {
@@ -1104,9 +1152,14 @@ impl<'a> Resolver<'a> {
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
-            | Type::TraitAsType(..)
             | Type::Code
             | Type::Forall(_, _) => (),
+
+            Type::TraitAsType(_, _, args) => {
+                for arg in args {
+                    Self::find_numeric_generics_in_type(arg, found);
+                }
+            }
 
             Type::Array(length, element_type) => {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
@@ -1171,20 +1224,23 @@ impl<'a> Resolver<'a> {
 
     pub fn resolve_global_let(
         &mut self,
-        let_stmt: crate::LetStatement,
+        let_stmt: LetStatement,
         global_id: GlobalId,
     ) -> HirStatement {
         self.current_item = Some(DependencyId::Global(global_id));
         let expression = self.resolve_expression(let_stmt.expression);
-        let global_id = self.interner.next_global_id();
         let definition = DefinitionKind::Global(global_id);
 
         if !self.in_contract
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
-            self.push_err(ResolverError::AbiAttributeOusideContract {
-                span: let_stmt.pattern.span(),
-            });
+            let span = let_stmt.pattern.span();
+            self.push_err(ResolverError::AbiAttributeOutsideContract { span });
+        }
+
+        if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
+            let span = let_stmt.pattern.span();
+            self.push_err(ResolverError::MutableGlobal { span });
         }
 
         HirStatement::Let(HirLetStatement {
@@ -1192,6 +1248,7 @@ impl<'a> Resolver<'a> {
             r#type: self.resolve_type(let_stmt.r#type),
             expression,
             attributes: let_stmt.attributes,
+            comptime: let_stmt.comptime,
         })
     }
 
@@ -1205,18 +1262,18 @@ impl<'a> Resolver<'a> {
                     r#type: self.resolve_type(let_stmt.r#type),
                     expression,
                     attributes: let_stmt.attributes,
+                    comptime: let_stmt.comptime,
                 })
             }
             StatementKind::Constrain(constrain_stmt) => {
-                let span = constrain_stmt.0.span;
-                let assert_msg_call_expr_id =
-                    self.resolve_assert_message(constrain_stmt.1, span, constrain_stmt.0.clone());
                 let expr_id = self.resolve_expression(constrain_stmt.0);
+                let assert_message_expr_id =
+                    constrain_stmt.1.map(|assert_expr_id| self.resolve_expression(assert_expr_id));
 
                 HirStatement::Constrain(HirConstrainStatement(
                     expr_id,
                     self.file,
-                    assert_msg_call_expr_id,
+                    assert_message_expr_id,
                 ))
             }
             StatementKind::Expression(expr) => {
@@ -1262,7 +1319,7 @@ impl<'a> Resolver<'a> {
                     range @ ForRange::Array(_) => {
                         let for_stmt =
                             range.into_for(for_loop.identifier, for_loop.block, for_loop.span);
-                        self.resolve_stmt(for_stmt, for_loop.span)
+                        self.resolve_stmt(for_stmt.kind, for_loop.span)
                     }
                 }
             }
@@ -1276,57 +1333,19 @@ impl<'a> Resolver<'a> {
             }
             StatementKind::Error => HirStatement::Error,
             StatementKind::Comptime(statement) => {
-                let statement = self.resolve_stmt(*statement, span);
-                HirStatement::Comptime(self.interner.push_stmt(statement))
+                let hir_statement = self.resolve_stmt(statement.kind, statement.span);
+                let statement_id = self.interner.push_stmt(hir_statement);
+                self.interner.push_stmt_location(statement_id, statement.span, self.file);
+                HirStatement::Comptime(statement_id)
             }
         }
     }
 
-    fn resolve_assert_message(
-        &mut self,
-        assert_message_expr: Option<Expression>,
-        span: Span,
-        condition: Expression,
-    ) -> Option<ExprId> {
-        let assert_message_expr = assert_message_expr?;
-
-        if matches!(
-            assert_message_expr,
-            Expression { kind: ExpressionKind::Literal(Literal::Str(..)), .. }
-        ) {
-            return Some(self.resolve_expression(assert_message_expr));
-        }
-
-        let is_in_stdlib = self.path_resolver.module_id().krate.is_stdlib();
-        let assert_msg_call_path = if is_in_stdlib {
-            ExpressionKind::Variable(Path {
-                segments: vec![Ident::from("internal"), Ident::from("resolve_assert_message")],
-                kind: PathKind::Crate,
-                span,
-            })
-        } else {
-            ExpressionKind::Variable(Path {
-                segments: vec![
-                    Ident::from("std"),
-                    Ident::from("internal"),
-                    Ident::from("resolve_assert_message"),
-                ],
-                kind: PathKind::Dep,
-                span,
-            })
-        };
-        let assert_msg_call_args = vec![assert_message_expr.clone(), condition];
-        let assert_msg_call_expr = Expression::call(
-            Expression { kind: assert_msg_call_path, span },
-            assert_msg_call_args,
-            span,
-        );
-        Some(self.resolve_expression(assert_msg_call_expr))
-    }
-
     pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
         let hir_stmt = self.resolve_stmt(stmt.kind, stmt.span);
-        self.interner.push_stmt(hir_stmt)
+        let id = self.interner.push_stmt(hir_stmt);
+        self.interner.push_stmt_location(id, stmt.span, self.file);
+        id
     }
 
     fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {
@@ -1430,14 +1449,20 @@ impl<'a> Resolver<'a> {
                 Literal::FmtStr(str) => self.resolve_fmt_str_literal(str, expr.span),
                 Literal::Unit => HirLiteral::Unit,
             }),
-            ExpressionKind::Variable(path) => {
+            ExpressionKind::Variable(path, generics) => {
+                let generics =
+                    generics.map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
+
                 if let Some((method, constraint, assumed)) = self.resolve_trait_generic_path(&path)
                 {
-                    HirExpression::Ident(HirIdent {
-                        location: Location::new(expr.span, self.file),
-                        id: self.interner.trait_method_id(method),
-                        impl_kind: ImplKind::TraitMethod(method, constraint, assumed),
-                    })
+                    HirExpression::Ident(
+                        HirIdent {
+                            location: Location::new(expr.span, self.file),
+                            id: self.interner.trait_method_id(method),
+                            impl_kind: ImplKind::TraitMethod(method, constraint, assumed),
+                        },
+                        generics,
+                    )
                 } else {
                     // If the Path is being used as an Expression, then it is referring to a global from a separate module
                     // Otherwise, then it is referring to an Identifier
@@ -1474,7 +1499,7 @@ impl<'a> Resolver<'a> {
                         }
                     }
 
-                    HirExpression::Ident(hir_ident)
+                    HirExpression::Ident(hir_ident, generics)
                 }
             }
             ExpressionKind::Prefix(prefix) => {
@@ -1512,12 +1537,20 @@ impl<'a> Resolver<'a> {
             ExpressionKind::MethodCall(call_expr) => {
                 let method = call_expr.method_name;
                 let object = self.resolve_expression(call_expr.object);
+
+                // Cannot verify the generic count here equals the expected count since we don't
+                // know which definition `method` refers to until it is resolved during type checking.
+                let generics = call_expr
+                    .generics
+                    .map(|generics| vecmap(generics, |typ| self.resolve_type(typ)));
+
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
                 let location = Location::new(expr.span, self.file);
                 HirExpression::MethodCall(HirMethodCallExpression {
-                    arguments,
                     method,
                     object,
+                    generics,
+                    arguments,
                     location,
                 })
             }
@@ -1534,7 +1567,9 @@ impl<'a> Resolver<'a> {
                 collection: self.resolve_expression(indexed_expr.collection),
                 index: self.resolve_expression(indexed_expr.index),
             }),
-            ExpressionKind::Block(block_expr) => self.resolve_block(block_expr),
+            ExpressionKind::Block(block_expr) => {
+                HirExpression::Block(self.resolve_block(block_expr))
+            }
             ExpressionKind::Constructor(constructor) => {
                 let span = constructor.type_name.span();
 
@@ -1601,6 +1636,7 @@ impl<'a> Resolver<'a> {
 
             // The quoted expression isn't resolved since we don't want errors if variables aren't defined
             ExpressionKind::Quote(block) => HirExpression::Quote(block),
+            ExpressionKind::Comptime(block) => HirExpression::Comptime(self.resolve_block(block)),
         };
 
         // If these lines are ever changed, make sure to change the early return
@@ -1933,14 +1969,14 @@ impl<'a> Resolver<'a> {
         Ok(path_resolution.module_def_id)
     }
 
-    fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
+    fn resolve_block(&mut self, block_expr: BlockExpression) -> HirBlockExpression {
         let statements =
             self.in_new_scope(|this| vecmap(block_expr.statements, |stmt| this.intern_stmt(stmt)));
-        HirExpression::Block(HirBlockExpression { statements })
+        HirBlockExpression { statements }
     }
 
     pub fn intern_block(&mut self, block: BlockExpression) -> ExprId {
-        let hir_block = self.resolve_block(block);
+        let hir_block = HirExpression::Block(self.resolve_block(block));
         self.interner.push_expr(hir_block)
     }
 
@@ -1990,7 +2026,7 @@ impl<'a> Resolver<'a> {
             HirExpression::Literal(HirLiteral::Integer(int, false)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
-            HirExpression::Ident(ident) => {
+            HirExpression::Ident(ident, _) => {
                 let definition = self.interner.definition(ident.id);
                 match definition.kind {
                     DefinitionKind::Global(global_id) => {
@@ -2044,7 +2080,7 @@ impl<'a> Resolver<'a> {
             let variable = scope_tree.find(ident_name);
             if let Some((old_value, _)) = variable {
                 old_value.num_times_used += 1;
-                let ident = HirExpression::Ident(old_value.ident.clone());
+                let ident = HirExpression::Ident(old_value.ident.clone(), None);
                 let expr_id = self.interner.push_expr(ident);
                 self.interner.push_expr_location(expr_id, call_expr_span, self.file);
                 fmt_str_idents.push(expr_id);
@@ -2084,7 +2120,7 @@ pub fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<
             let span = interner.expr_span(&rhs);
             Err(ResolverError::MutableReferenceToArrayElement { span })
         }
-        HirExpression::Ident(ident) => {
+        HirExpression::Ident(ident, _) => {
             if let Some(definition) = interner.try_definition(ident.id) {
                 if !definition.mutable {
                     return Err(ResolverError::MutableReferenceToImmutableVariable {

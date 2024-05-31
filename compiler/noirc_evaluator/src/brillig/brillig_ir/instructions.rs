@@ -1,8 +1,9 @@
 use acvm::{
     acir::brillig::{
-        BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapValueType, MemoryAddress,
+        BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapValueType, MemoryAddress,
         Opcode as BrilligOpcode, ValueOrArray,
     },
+    acir::AcirField,
     FieldElement,
 };
 
@@ -75,12 +76,6 @@ impl BrilligContext {
         result: SingleAddrVariable,
         operation: BrilligBinaryOp,
     ) {
-        assert!(
-            lhs.bit_size == rhs.bit_size,
-            "Not equal bit size for lhs and rhs: lhs {}, rhs {}",
-            lhs.bit_size,
-            rhs.bit_size
-        );
         let is_field_op = lhs.bit_size == FieldElement::max_num_bits();
         let expected_result_bit_size =
             BrilligContext::binary_result_bit_size(operation, lhs.bit_size);
@@ -218,7 +213,7 @@ impl BrilligContext {
     /// Adds a unresolved `Jump` to the bytecode.
     fn add_unresolved_jump(
         &mut self,
-        jmp_instruction: BrilligOpcode,
+        jmp_instruction: BrilligOpcode<FieldElement>,
         destination: UnresolvedJumpLocation,
     ) {
         self.obj.add_unresolved_jump(jmp_instruction, destination);
@@ -386,7 +381,7 @@ impl BrilligContext {
             constant,
             result.bit_size
         );
-        if result.bit_size > 128 && !constant.fits_in_u128() {
+        if result.bit_size > 128 && constant.num_bits() > 128 {
             let high = FieldElement::from_be_bytes_reduce(
                 constant.to_be_bytes().get(0..16).expect("FieldElement::to_be_bytes() too short!"),
             );
@@ -466,10 +461,10 @@ impl BrilligContext {
         });
     }
 
-    pub(super) fn trap_instruction(&mut self, revert_data_offset: usize, revert_data_size: usize) {
-        self.debug_show.trap_instruction(revert_data_offset, revert_data_size);
+    pub(super) fn trap_instruction(&mut self, revert_data: HeapArray) {
+        self.debug_show.trap_instruction(revert_data);
 
-        self.push_opcode(BrilligOpcode::Trap { revert_data_offset, revert_data_size });
+        self.push_opcode(BrilligOpcode::Trap { revert_data });
     }
 }
 

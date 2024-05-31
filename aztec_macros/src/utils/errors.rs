@@ -1,5 +1,6 @@
 use noirc_errors::Span;
-use noirc_frontend::{macros_api::MacroError, UnresolvedTypeData};
+use noirc_frontend::ast;
+use noirc_frontend::macros_api::MacroError;
 
 use super::constants::MAX_CONTRACT_PRIVATE_FUNCTIONS;
 
@@ -7,18 +8,20 @@ use super::constants::MAX_CONTRACT_PRIVATE_FUNCTIONS;
 pub enum AztecMacroError {
     AztecDepNotFound,
     ContractHasTooManyPrivateFunctions { span: Span },
-    UnsupportedFunctionArgumentType { span: Span, typ: UnresolvedTypeData },
-    UnsupportedFunctionReturnType { span: Span, typ: UnresolvedTypeData },
-    UnsupportedStorageType { span: Option<Span>, typ: UnresolvedTypeData },
+    UnsupportedFunctionArgumentType { span: Span, typ: ast::UnresolvedTypeData },
+    UnsupportedFunctionReturnType { span: Span, typ: ast::UnresolvedTypeData },
+    UnsupportedStorageType { span: Option<Span>, typ: ast::UnresolvedTypeData },
     CouldNotAssignStorageSlots { secondary_message: Option<String> },
     CouldNotImplementComputeNoteHashAndNullifier { secondary_message: Option<String> },
     CouldNotImplementNoteInterface { span: Option<Span>, secondary_message: Option<String> },
     MultipleStorageDefinitions { span: Option<Span> },
     CouldNotExportStorageLayout { span: Option<Span>, secondary_message: Option<String> },
+    CouldNotInjectContextGenericInStorage { secondary_message: Option<String> },
     CouldNotExportFunctionAbi { span: Option<Span>, secondary_message: Option<String> },
     CouldNotGenerateContractInterface { secondary_message: Option<String> },
     EventError { span: Span, message: String },
     UnsupportedAttributes { span: Span, secondary_message: Option<String> },
+    PublicArgsDisallowed { span: Span },
 }
 
 impl From<AztecMacroError> for MacroError {
@@ -74,6 +77,11 @@ impl From<AztecMacroError> for MacroError {
                 secondary_message,
                 span,
             },
+            AztecMacroError::CouldNotInjectContextGenericInStorage { secondary_message } => MacroError {
+                primary_message: "Could not inject context generic in storage".to_string(),
+                secondary_message,
+                span: None
+            },
             AztecMacroError::CouldNotExportFunctionAbi { secondary_message, span } => MacroError {
                 primary_message: "Could not generate and export function abi".to_string(),
                 secondary_message,
@@ -92,6 +100,11 @@ impl From<AztecMacroError> for MacroError {
             AztecMacroError::UnsupportedAttributes { span, secondary_message } => MacroError {
                 primary_message: "Unsupported attributes in contract function".to_string(),
                 secondary_message,
+                span: Some(span),
+            },
+            AztecMacroError::PublicArgsDisallowed { span } => MacroError {
+                primary_message: "Aztec functions can't have public arguments".to_string(),
+                secondary_message: None,
                 span: Some(span),
             },
         }

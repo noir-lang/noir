@@ -1,6 +1,7 @@
 use acvm::acir::circuit::ExpressionWidth;
 use acvm::acir::native_types::WitnessMap;
-use backend_interface::Backend;
+use acvm::FieldElement;
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::workspace::Workspace;
@@ -29,8 +30,8 @@ use noir_debugger::errors::{DapError, LoadError};
 #[derive(Debug, Clone, Args)]
 pub(crate) struct DapCommand {
     /// Override the expression width requested by the backend.
-    #[arg(long, value_parser = parse_expression_width)]
-    expression_width: Option<ExpressionWidth>,
+    #[arg(long, value_parser = parse_expression_width, default_value = "4")]
+    expression_width: ExpressionWidth,
 
     #[clap(long)]
     preflight_check: bool,
@@ -101,7 +102,7 @@ fn load_and_compile_project(
     expression_width: ExpressionWidth,
     acir_mode: bool,
     skip_instrumentation: bool,
-) -> Result<(CompiledProgram, WitnessMap), LoadError> {
+) -> Result<(CompiledProgram, WitnessMap<FieldElement>), LoadError> {
     let workspace = find_workspace(project_folder, package)
         .ok_or(LoadError::Generic(workspace_not_found_error_msg(project_folder, package)))?;
     let package = workspace
@@ -194,11 +195,9 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
                     Ok((compiled_program, initial_witness)) => {
                         server.respond(req.ack()?)?;
 
-                        let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver::new();
-
                         noir_debugger::run_dap_loop(
                             server,
-                            &blackbox_solver,
+                            &Bn254BlackBoxSolver,
                             compiled_program,
                             initial_witness,
                         )?;
@@ -249,14 +248,7 @@ fn run_preflight_check(
     Ok(())
 }
 
-pub(crate) fn run(
-    backend: &Backend,
-    args: DapCommand,
-    _config: NargoConfig,
-) -> Result<(), CliError> {
-    let expression_width =
-        args.expression_width.unwrap_or_else(|| backend.get_backend_info_or_default());
-
+pub(crate) fn run(args: DapCommand, _config: NargoConfig) -> Result<(), CliError> {
     // When the --preflight-check flag is present, we run Noir's DAP server in "pre-flight mode", which test runs
     // the DAP initialization code without actually starting the DAP server.
     //
@@ -270,12 +262,12 @@ pub(crate) fn run(
     // the DAP loop is established, which otherwise are considered "out of band" by the maintainers of the DAP spec.
     // More details here: https://github.com/microsoft/vscode/issues/108138
     if args.preflight_check {
-        return run_preflight_check(expression_width, args).map_err(CliError::DapError);
+        return run_preflight_check(args.expression_width, args).map_err(CliError::DapError);
     }
 
     let output = BufWriter::new(std::io::stdout());
     let input = BufReader::new(std::io::stdin());
     let server = Server::new(input, output);
 
-    loop_uninitialized_dap(server, expression_width).map_err(CliError::DapError)
+    loop_uninitialized_dap(server, args.expression_width).map_err(CliError::DapError)
 }

@@ -1,26 +1,29 @@
 use acir::{
     circuit::opcodes::{BlackBoxFuncCall, FunctionInput},
     native_types::{Witness, WitnessMap},
-    FieldElement,
+    AcirField,
 };
 use acvm_blackbox_solver::{blake2s, blake3, keccak256, keccakf1600, sha256};
 
 use self::{
-    bigint::AcvmBigIntSolver, hash::solve_poseidon2_permutation_opcode, pedersen::pedersen_hash,
+    aes128::solve_aes128_encryption_opcode, bigint::AcvmBigIntSolver,
+    hash::solve_poseidon2_permutation_opcode, pedersen::pedersen_hash,
 };
 
 use super::{insert_value, OpcodeNotSolvable, OpcodeResolutionError};
 use crate::{pwg::witness_to_value, BlackBoxFunctionSolver};
 
+mod aes128;
 pub(crate) mod bigint;
-mod fixed_base_scalar_mul;
+mod embedded_curve_ops;
 mod hash;
 mod logic;
 mod pedersen;
 mod range;
 mod signature;
+pub(crate) mod utils;
 
-use fixed_base_scalar_mul::{embedded_curve_add, fixed_base_scalar_mul};
+use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 // Hash functions should eventually be exposed for external consumers.
 use hash::{solve_generic_256_hash_opcode, solve_sha_256_permutation_opcode};
 use logic::{and, xor};
@@ -34,8 +37,8 @@ use signature::{
 /// Check if all of the inputs to the function have assignments
 ///
 /// Returns the first missing assignment if any are missing
-fn first_missing_assignment(
-    witness_assignments: &WitnessMap,
+fn first_missing_assignment<F>(
+    witness_assignments: &WitnessMap<F>,
     inputs: &[FunctionInput],
 ) -> Option<Witness> {
     inputs.iter().find_map(|input| {
@@ -48,16 +51,16 @@ fn first_missing_assignment(
 }
 
 /// Check if all of the inputs to the function have assignments
-fn contains_all_inputs(witness_assignments: &WitnessMap, inputs: &[FunctionInput]) -> bool {
+fn contains_all_inputs<F>(witness_assignments: &WitnessMap<F>, inputs: &[FunctionInput]) -> bool {
     inputs.iter().all(|input| witness_assignments.contains_key(&input.witness))
 }
 
-pub(crate) fn solve(
-    backend: &impl BlackBoxFunctionSolver,
-    initial_witness: &mut WitnessMap,
+pub(crate) fn solve<F: AcirField>(
+    backend: &impl BlackBoxFunctionSolver<F>,
+    initial_witness: &mut WitnessMap<F>,
     bb_func: &BlackBoxFuncCall,
     bigint_solver: &mut AcvmBigIntSolver,
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     let inputs = bb_func.get_inputs_vec();
     if !contains_all_inputs(initial_witness, &inputs) {
         let unassigned_witness = first_missing_assignment(initial_witness, &inputs)
@@ -68,6 +71,9 @@ pub(crate) fn solve(
     }
 
     match bb_func {
+        BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } => {
+            solve_aes128_encryption_opcode(initial_witness, inputs, iv, key, outputs)
+        }
         BlackBoxFuncCall::AND { lhs, rhs, output } => and(initial_witness, lhs, rhs, output),
         BlackBoxFuncCall::XOR { lhs, rhs, output } => xor(initial_witness, lhs, rhs, output),
         BlackBoxFuncCall::RANGE { input } => solve_range_opcode(initial_witness, input),
@@ -102,7 +108,7 @@ pub(crate) fn solve(
             }
             let output_state = keccakf1600(state)?;
             for (output_witness, value) in outputs.iter().zip(output_state.into_iter()) {
-                insert_value(output_witness, FieldElement::from(value as u128), initial_witness)?;
+                insert_value(output_witness, F::from(value as u128), initial_witness)?;
             }
             Ok(())
         }
@@ -155,19 +161,11 @@ pub(crate) fn solve(
             message.as_ref(),
             *output,
         ),
-        BlackBoxFuncCall::FixedBaseScalarMul { low, high, outputs } => {
-            fixed_base_scalar_mul(backend, initial_witness, *low, *high, *outputs)
+        BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
+            multi_scalar_mul(backend, initial_witness, points, scalars, *outputs)
         }
-        BlackBoxFuncCall::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, outputs } => {
-            embedded_curve_add(
-                backend,
-                initial_witness,
-                *input1_x,
-                *input1_y,
-                *input2_x,
-                *input2_y,
-                *outputs,
-            )
+        BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs } => {
+            embedded_curve_add(backend, initial_witness, **input1, **input2, *outputs)
         }
         // Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM
         BlackBoxFuncCall::RecursiveAggregation { .. } => Ok(()),

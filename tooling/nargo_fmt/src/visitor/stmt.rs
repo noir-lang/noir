@@ -1,8 +1,9 @@
 use std::iter::zip;
 
-use noirc_frontend::{
-    macros_api::Span, ConstrainKind, ConstrainStatement, ExpressionKind, ForRange, Statement,
-    StatementKind,
+use noirc_frontend::macros_api::Span;
+
+use noirc_frontend::ast::{
+    ConstrainKind, ConstrainStatement, ExpressionKind, ForRange, Statement, StatementKind,
 };
 
 use crate::{rewrite, visitor::expr::wrap_exprs};
@@ -102,7 +103,7 @@ impl super::FmtVisitor<'_> {
             StatementKind::Error => unreachable!(),
             StatementKind::Break => self.push_rewrite("break;".into(), span),
             StatementKind::Continue => self.push_rewrite("continue;".into(), span),
-            StatementKind::Comptime(statement) => self.visit_stmt(*statement, span, is_last),
+            StatementKind::Comptime(statement) => self.visit_stmt(statement.kind, span, is_last),
         }
     }
 }

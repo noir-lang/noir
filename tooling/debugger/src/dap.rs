@@ -1,11 +1,10 @@
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
-use std::str::FromStr;
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{Circuit, OpcodeLocation};
 use acvm::acir::native_types::WitnessMap;
-use acvm::BlackBoxFunctionSolver;
+use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use crate::context::DebugCommandResult;
 use crate::context::DebugContext;
@@ -32,7 +31,7 @@ use noirc_driver::CompiledProgram;
 
 type BreakpointId = i64;
 
-pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> {
+pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> {
     server: Server<R, W>,
     context: DebugContext<'a, B>,
     debug_artifact: &'a DebugArtifact,
@@ -58,14 +57,14 @@ impl From<i64> for ScopeReferences {
     }
 }
 
-impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
+impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<'a, R, W, B> {
     pub fn new(
         server: Server<R, W>,
         solver: &'a B,
-        circuit: &'a Circuit,
+        circuit: &'a Circuit<FieldElement>,
         debug_artifact: &'a DebugArtifact,
-        initial_witness: WitnessMap,
-        unconstrained_functions: &'a [BrilligBytecode],
+        initial_witness: WitnessMap<FieldElement>,
+        unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
     ) -> Self {
         let context = DebugContext::new(
             solver,
@@ -205,6 +204,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                     Some(frame) => format!("{} {}", frame.function_name, index),
                     None => format!("frame #{index}"),
                 };
+                let address = self.context.opcode_location_to_address(opcode_location);
 
                 StackFrame {
                     id: index as i64,
@@ -218,7 +218,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                     }),
                     line: line_number as i64,
                     column: column_number as i64,
-                    instruction_pointer_reference: Some(opcode_location.to_string()),
+                    instruction_pointer_reference: Some(address.to_string()),
                     ..StackFrame::default()
                 }
             })
@@ -240,50 +240,41 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         let Command::Disassemble(ref args) = req.command else {
             unreachable!("handle_disassemble called on a non disassemble request");
         };
-        let starting_ip = OpcodeLocation::from_str(args.memory_reference.as_str()).ok();
+
+        // we assume memory references are unsigned integers
+        let starting_address = args.memory_reference.parse::<i64>().unwrap_or(0);
         let instruction_offset = args.instruction_offset.unwrap_or(0);
-        let (mut opcode_location, mut invalid_count) =
-            self.context.offset_opcode_location(&starting_ip, instruction_offset);
+
+        let mut address = starting_address + instruction_offset;
         let mut count = args.instruction_count;
 
         let mut instructions: Vec<DisassembledInstruction> = vec![];
 
-        // leading invalid locations (when the request goes back
-        // beyond the start of the program)
-        if invalid_count < 0 {
-            while invalid_count < 0 {
+        while count > 0 {
+            let opcode_location = if address >= 0 {
+                self.context.address_to_opcode_location(address as usize)
+            } else {
+                None
+            };
+
+            if let Some(opcode_location) = opcode_location {
                 instructions.push(DisassembledInstruction {
-                    address: String::from("---"),
-                    instruction: String::from("---"),
+                    address: address.to_string(),
+                    // we'll use the instruction_bytes field to render the OpcodeLocation
+                    instruction_bytes: Some(opcode_location.to_string()),
+                    instruction: self.context.render_opcode_at_location(&opcode_location),
                     ..DisassembledInstruction::default()
                 });
-                invalid_count += 1;
-                count -= 1;
+            } else {
+                // entry for invalid location to fill up the request
+                instructions.push(DisassembledInstruction {
+                    address: "---".to_owned(),
+                    instruction: "---".to_owned(),
+                    ..DisassembledInstruction::default()
+                });
             }
-            if count > 0 {
-                opcode_location = Some(OpcodeLocation::Acir(0));
-            }
-        }
-        // the actual opcodes
-        while count > 0 && opcode_location.is_some() {
-            instructions.push(DisassembledInstruction {
-                address: format!("{}", opcode_location.unwrap()),
-                instruction: self.context.render_opcode_at_location(&opcode_location),
-                ..DisassembledInstruction::default()
-            });
-            (opcode_location, _) = self.context.offset_opcode_location(&opcode_location, 1);
             count -= 1;
-        }
-        // any remaining instruction count is beyond the valid opcode
-        // vector so return invalid placeholders
-        while count > 0 {
-            instructions.push(DisassembledInstruction {
-                address: String::from("---"),
-                instruction: String::from("---"),
-                ..DisassembledInstruction::default()
-            });
-            invalid_count -= 1;
-            count -= 1;
+            address += 1;
         }
 
         self.server.respond(
@@ -418,25 +409,35 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             .breakpoints
             .iter()
             .map(|breakpoint| {
-                let Ok(location) =
-                    OpcodeLocation::from_str(breakpoint.instruction_reference.as_str())
-                else {
+                let offset = breakpoint.offset.unwrap_or(0);
+                let address = breakpoint.instruction_reference.parse::<i64>().unwrap_or(0) + offset;
+                let Ok(address): Result<usize, _> = address.try_into() else {
                     return Breakpoint {
                         verified: false,
-                        message: Some(String::from("Missing instruction reference")),
+                        message: Some(String::from("Invalid instruction reference/offset")),
                         ..Breakpoint::default()
                     };
                 };
-                if !self.context.is_valid_opcode_location(&location) {
+                let Some(location) = self
+                    .context
+                    .address_to_opcode_location(address)
+                    .filter(|location| self.context.is_valid_opcode_location(location))
+                else {
                     return Breakpoint {
                         verified: false,
                         message: Some(String::from("Invalid opcode location")),
                         ..Breakpoint::default()
                     };
-                }
+                };
                 let id = self.get_next_breakpoint_id();
                 breakpoints_to_set.push((location, id));
-                Breakpoint { id: Some(id), verified: true, ..Breakpoint::default() }
+                Breakpoint {
+                    id: Some(id),
+                    verified: true,
+                    offset: Some(0),
+                    instruction_reference: Some(address.to_string()),
+                    ..Breakpoint::default()
+                }
             })
             .collect();
 
@@ -496,15 +497,17 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                         ..Breakpoint::default()
                     };
                 }
-                let instruction_reference = format!("{}", location);
+                let breakpoint_address = self.context.opcode_location_to_address(&location);
+                let instruction_reference = format!("{}", breakpoint_address);
                 let breakpoint_id = self.get_next_breakpoint_id();
                 breakpoints_to_set.push((location, breakpoint_id));
                 Breakpoint {
                     id: Some(breakpoint_id),
                     verified: true,
                     source: Some(args.source.clone()),
-                    instruction_reference: Some(instruction_reference),
                     line: Some(line),
+                    instruction_reference: Some(instruction_reference),
+                    offset: Some(0),
                     ..Breakpoint::default()
                 }
             })
@@ -599,17 +602,13 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     }
 }
 
-pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver>(
+pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>>(
     server: Server<R, W>,
     solver: &B,
     program: CompiledProgram,
-    initial_witness: WitnessMap,
+    initial_witness: WitnessMap<FieldElement>,
 ) -> Result<(), ServerError> {
-    let debug_artifact = DebugArtifact {
-        debug_symbols: program.debug,
-        file_map: program.file_map,
-        warnings: program.warnings,
-    };
+    let debug_artifact = DebugArtifact { debug_symbols: program.debug, file_map: program.file_map };
     let mut session = DapSession::new(
         server,
         solver,

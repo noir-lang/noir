@@ -14,9 +14,9 @@ You can find the complete app code for this guide [here](https://github.com/noir
 
 :::note
 
-Feel free to use whatever versions, just keep in mind that Nargo and the NoirJS packages are meant to be in sync. For example, Nargo 0.19.x matches `noir_js@0.19.x`, etc.
+Feel free to use whatever versions, just keep in mind that Nargo and the NoirJS packages are meant to be in sync. For example, Nargo 0.26.x matches `noir_js@0.26.x`, etc.
 
-In this guide, we will be pinned to 0.19.4.
+In this guide, we will be pinned to 0.26.0.
 
 :::
 
@@ -24,7 +24,7 @@ Before we start, we want to make sure we have Node and Nargo installed.
 
 We start by opening a terminal and executing `node --version`. If we don't get an output like `v20.10.0`, that means node is not installed. Let's do that by following the handy [nvm guide](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script).
 
-As for `Nargo`, we can follow the the [Nargo guide](../getting_started/installation/index.md) to install it. If you're lazy, just paste this on a terminal and run `noirup`:
+As for `Nargo`, we can follow the [Nargo guide](../getting_started/installation/index.md) to install it. If you're lazy, just paste this on a terminal and run `noirup`:
 
 ```sh
 curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
@@ -34,7 +34,7 @@ Easy enough. Onwards!
 
 ## Our project
 
-ZK is a powerful technology. An app that doesn't reveal one of the inputs to *anyone* is almost unbelievable, yet Noir makes it as easy as a single line of code.
+ZK is a powerful technology. An app that doesn't reveal one of the inputs to _anyone_ is almost unbelievable, yet Noir makes it as easy as a single line of code.
 
 In fact, it's so simple that it comes nicely packaged in `nargo`. Let's do that!
 
@@ -42,13 +42,13 @@ In fact, it's so simple that it comes nicely packaged in `nargo`. Let's do that!
 
 Run:
 
-```nargo new circuit```
+`nargo new circuit`
 
 And... That's about it. Your program is ready to be compiled and run.
 
 To compile, let's `cd` into the `circuit` folder to enter our project, and call:
 
-```nargo compile```
+`nargo compile`
 
 This compiles our circuit into `json` format and add it to a new `target` folder.
 
@@ -77,10 +77,55 @@ Vite is a powerful tool to generate static websites. While it provides all kinds
 
 To do this this, go back to the previous folder (`cd ..`) and create a new vite project by running `npm create vite` and choosing "Vanilla" and "Javascript".
 
-You should see `vite-project` appear in your root folder. This seems like a good time to `cd` into it and install our NoirJS packages:
+A wild `vite-project` directory should now appear in your root folder! Let's not waste any time and dive right in:
 
 ```bash
-npm i @noir-lang/backend_barretenberg@0.19.4 @noir-lang/noir_js@0.19.4
+cd vite-project
+```
+
+### Setting Up Vite and Configuring the Project
+
+Before we proceed with any coding, let's get our environment tailored for Noir. We'll start by laying down the foundations with a `vite.config.js` file. This little piece of configuration is our secret sauce for making sure everything meshes well with the NoirJS libraries and other special setups we might need, like handling WebAssembly modules. Here’s how you get that going:
+
+#### Creating the vite.config.js
+
+In your freshly minted `vite-project` folder, create a new file named `vite.config.js` and open it in your code editor. Paste the following to set the stage:
+
+```javascript
+import { defineConfig } from "vite";
+import copy from "rollup-plugin-copy";
+
+export default defineConfig({
+  esbuild: {
+    target: "esnext",
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      target: "esnext",
+    },
+  },
+  plugins: [
+    copy({
+      targets: [
+        { src: "node_modules/**/*.wasm", dest: "node_modules/.vite/dist" },
+      ],
+      copySync: true,
+      hook: "buildStart",
+    }),
+  ],
+  server: {
+    port: 3000,
+  },
+});
+```
+
+#### Install Dependencies
+
+Now that our stage is set, install the necessary NoirJS packages along with our other dependencies:
+
+```bash
+npm install && npm install @noir-lang/backend_barretenberg@0.26.0 @noir-lang/noir_js@0.26.0
+npm install rollup-plugin-copy --save-dev
 ```
 
 :::info
@@ -99,7 +144,7 @@ At this point in the tutorial, your folder structure should look like this:
 
 #### Some cleanup
 
-`npx create vite` is amazing but it creates a bunch of files we don't really need for our simple example. Actually, let's just delete everything except for `index.html`, `main.js` and `package.json`. I feel lighter already.
+`npx create vite` is amazing but it creates a bunch of files we don't really need for our simple example. Actually, let's just delete everything except for `vite.config.js`, `index.html`, `main.js` and `package.json`. I feel lighter already.
 
 ![my heart is ready for you, noir.js](@site/static/img/memes/titanic.jpeg)
 
@@ -139,7 +184,7 @@ Our app won't run like this, of course. We need some working HTML, at least. Let
 </html>
 ```
 
-It *could* be a beautiful UI... Depending on which universe you live in.
+It _could_ be a beautiful UI... Depending on which universe you live in.
 
 ## Some good old vanilla Javascript
 
@@ -150,14 +195,14 @@ Start by pasting in this boilerplate code:
 ```js
 const setup = async () => {
   await Promise.all([
-    import("@noir-lang/noirc_abi").then(module => 
-      module.default(new URL("@noir-lang/noirc_abi/web/noirc_abi_wasm_bg.wasm", import.meta.url).toString())
+    import('@noir-lang/noirc_abi').then((module) =>
+      module.default(new URL('@noir-lang/noirc_abi/web/noirc_abi_wasm_bg.wasm', import.meta.url).toString()),
     ),
-    import("@noir-lang/acvm_js").then(module => 
-      module.default(new URL("@noir-lang/acvm_js/web/acvm_js_bg.wasm", import.meta.url).toString())
-    )
+    import('@noir-lang/acvm_js').then((module) =>
+      module.default(new URL('@noir-lang/acvm_js/web/acvm_js_bg.wasm', import.meta.url).toString()),
+    ),
   ]);
-}
+};
 
 function display(container, msg) {
   const c = document.getElementById(container);
@@ -169,11 +214,10 @@ function display(container, msg) {
 document.getElementById('submitGuess').addEventListener('click', async () => {
   try {
     // here's where love happens
-  } catch(err) {
-    display("logs", "Oh 💔 Wrong guess")
+  } catch (err) {
+    display('logs', 'Oh 💔 Wrong guess');
   }
 });
-
 ```
 
 The display function doesn't do much. We're simply manipulating our website to see stuff happening. For example, if the proof fails, it will simply log a broken heart 😢
@@ -189,6 +233,7 @@ At this point in the tutorial, your folder structure should look like this:
 └── circuit
     └── ...same as above
 └── vite-project
+    └── vite.config.js
     ├── main.js
     ├── package.json
     └── index.html

@@ -1,6 +1,8 @@
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
+use crate::ast::UnaryOp;
 use crate::hir_def::expr::{HirExpression, HirIdent, HirLiteral};
 use crate::hir_def::stmt::{
     HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
@@ -8,7 +10,6 @@ use crate::hir_def::stmt::{
 };
 use crate::hir_def::types::Type;
 use crate::node_interner::{DefinitionId, ExprId, StmtId};
-use crate::UnaryOp;
 
 use super::errors::{Source, TypeCheckError};
 use super::TypeChecker;
@@ -348,8 +349,10 @@ impl<'interner> TypeChecker<'interner> {
             if annotated_type.is_unsigned() {
                 self.lint_overflowing_uint(&rhs_expr, &annotated_type);
             }
+            annotated_type
+        } else {
+            expr_type
         }
-        expr_type
     }
 
     /// Check if an assignment is overflowing with respect to `annotated_type`

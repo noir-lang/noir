@@ -1,5 +1,5 @@
 use crate::black_box::BlackBoxOp;
-use acir_field::FieldElement;
+use acir_field::{AcirField, FieldElement};
 use serde::{Deserialize, Serialize};
 
 pub type Label = usize;
@@ -52,6 +52,12 @@ pub struct HeapArray {
     pub size: usize,
 }
 
+impl Default for HeapArray {
+    fn default() -> Self {
+        Self { pointer: MemoryAddress(0), size: 0 }
+    }
+}
+
 /// A memory-sized vector passed starting from a Brillig memory location and with a memory-held size
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub struct HeapVector {
@@ -83,7 +89,7 @@ pub enum ValueOrArray {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum BrilligOpcode {
+pub enum BrilligOpcode<F> {
     /// Takes the fields in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
     /// and stores the value in the `result` address.  
@@ -136,7 +142,7 @@ pub enum BrilligOpcode {
     Const {
         destination: MemoryAddress,
         bit_size: u32,
-        value: FieldElement,
+        value: F,
     },
     Return,
     /// Used to get data from an outside source.
@@ -179,8 +185,7 @@ pub enum BrilligOpcode {
     BlackBox(BlackBoxOp),
     /// Used to denote execution failure, returning data after the offset
     Trap {
-        revert_data_offset: usize,
-        revert_data_size: usize,
+        revert_data: HeapArray,
     },
     /// Stop execution, returning data after the offset
     Stop {

@@ -3,9 +3,7 @@ pub use self::compile::{
     compile_workspace, report_errors,
 };
 pub use self::execute::execute_program;
-pub use self::foreign_calls::{
-    DefaultForeignCallExecutor, ForeignCall, ForeignCallExecutor, NargoForeignCallResult,
-};
+pub use self::foreign_calls::{DefaultForeignCallExecutor, ForeignCall, ForeignCallExecutor};
 pub use self::optimize::{optimize_contract, optimize_program};
 pub use self::transform::{transform_contract, transform_program};
 
