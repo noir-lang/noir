@@ -3,6 +3,7 @@ FROM --platform=linux/amd64 aztecprotocol/noir-packages as noir-packages
 FROM --platform=linux/amd64 aztecprotocol/l1-contracts as contracts
 FROM --platform=linux/amd64 aztecprotocol/noir-projects as noir-projects
 FROM aztecprotocol/noir as noir
+# we don't build the bb binary for arm so this will be copied but won't be working on arm images
 FROM --platform=linux/amd64 aztecprotocol/barretenberg-x86_64-linux-clang as barretenberg
 
 FROM node:18.19.0 as builder
@@ -39,8 +40,10 @@ ENV ACVM_BINARY_PATH=/usr/src/noir/noir-repo/target/release/acvm
 ENV ACVM_WORKING_DIRECTORY=/usr/src/yarn-project/acvm
 
 RUN mkdir -p $BB_WORKING_DIRECTORY $ACVM_WORKING_DIRECTORY && \
+  [[ $(arch) == "x86_64" ]] && \
   echo -n RootRollupArtifact PrivateKernelTailArtifact PrivateKernelTailToPublicArtifact | xargs -d ' ' -P 3 -I {} node bb-prover/dest/bb/index.js write-vk -c {} && \
-  node bb-prover/dest/bb/index.js write-contract -c RootRollupArtifact -n UltraVerifier.sol
+  node bb-prover/dest/bb/index.js write-contract -c RootRollupArtifact -n UltraVerifier.sol || \
+  true
 
 RUN yarn workspaces focus @aztec/aztec @aztec/builder @aztec/cli --production && yarn cache clean
 
