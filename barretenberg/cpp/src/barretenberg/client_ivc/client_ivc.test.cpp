@@ -5,6 +5,7 @@
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 
 #include <gtest/gtest.h>
+
 using namespace bb;
 
 class ClientIVCTests : public ::testing::Test {
