@@ -152,7 +152,7 @@ export class FullProverTest {
 
     this.logger.debug(`Configuring the node for real proofs...`);
     await this.aztecNode.setConfig({
-      proverAgentConcurrency: 1,
+      proverAgentConcurrency: 2,
       realProofs: true,
       minTxsPerBlock: 2, // min 2 txs per block
     });
