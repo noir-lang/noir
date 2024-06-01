@@ -132,6 +132,8 @@ export class BBNativeRollupProver implements ServerCircuitProver {
 
     const verificationKey = await this.getVerificationKeyDataForCircuit('BaseParityArtifact');
 
+    await this.verifyProof('BaseParityArtifact', proof.binaryProof);
+
     return new RootParityInput(proof, verificationKey.keyAsFields, circuitOutput);
   }
 
@@ -152,6 +154,8 @@ export class BBNativeRollupProver implements ServerCircuitProver {
     );
 
     const verificationKey = await this.getVerificationKeyDataForCircuit('RootParityArtifact');
+
+    await this.verifyProof('RootParityArtifact', proof.binaryProof);
 
     return new RootParityInput(proof, verificationKey.keyAsFields, circuitOutput);
   }
@@ -202,6 +206,8 @@ export class BBNativeRollupProver implements ServerCircuitProver {
 
     const verificationKey = await this.getVerificationKeyDataForCircuit(kernelOps.artifact);
 
+    await this.verifyProof(kernelOps.artifact, proof.binaryProof);
+
     return makePublicInputsAndRecursiveProof(circuitOutput, proof, verificationKey);
   }
 
@@ -222,6 +228,8 @@ export class BBNativeRollupProver implements ServerCircuitProver {
     );
 
     const verificationKey = await this.getVerificationKeyDataForCircuit('PublicKernelTailArtifact');
+
+    await this.verifyProof('PublicKernelTailArtifact', proof.binaryProof);
 
     return makePublicInputsAndRecursiveProof(circuitOutput, proof, verificationKey);
   }
@@ -251,6 +259,8 @@ export class BBNativeRollupProver implements ServerCircuitProver {
 
     const verificationKey = await this.getVerificationKeyDataForCircuit('BaseRollupArtifact');
 
+    await this.verifyProof('BaseRollupArtifact', proof.binaryProof);
+
     return makePublicInputsAndRecursiveProof(circuitOutput, proof, verificationKey);
   }
 
@@ -271,6 +281,8 @@ export class BBNativeRollupProver implements ServerCircuitProver {
     );
 
     const verificationKey = await this.getVerificationKeyDataForCircuit('MergeRollupArtifact');
+
+    await this.verifyProof('MergeRollupArtifact', proof.binaryProof);
 
     return makePublicInputsAndRecursiveProof(circuitOutput, proof, verificationKey);
   }

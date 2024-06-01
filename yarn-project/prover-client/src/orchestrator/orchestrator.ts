@@ -93,6 +93,13 @@ export class ProvingOrchestrator {
   constructor(private db: MerkleTreeOperations, private prover: ServerCircuitProver) {}
 
   /**
+   * Resets the orchestrator's cached padding tx.
+   */
+  public reset() {
+    this.paddingTx = undefined;
+  }
+
+  /**
    * Starts off a new block
    * @param numTxs - The total number of transactions in the block. Must be a power of 2
    * @param globalVariables - The global variables for the block
@@ -249,9 +256,11 @@ export class ProvingOrchestrator {
   ) {
     if (this.paddingTx) {
       // We already have the padding transaction
+      logger.debug(`Enqueuing ${txInputs.length} padding transactions using existing padding tx`);
       this.provePaddingTransactions(txInputs, this.paddingTx, provingState);
       return;
     }
+    logger.debug(`Enqueuing deferred proving for padding txs to enqueue ${txInputs.length} paddings`);
     this.deferredProving(
       provingState,
       signal =>
@@ -260,24 +269,33 @@ export class ProvingOrchestrator {
             // Chain id and version should not change even if the proving state does, so it's safe to use them for the padding tx
             // which gets cached across multiple runs of the orchestrator with different proving states. If they were to change,
             // we'd have to clear out the paddingTx here and regenerate it when they do.
-            chainId: unprovenPaddingTx.data.constants.globalVariables.chainId,
-            version: unprovenPaddingTx.data.constants.globalVariables.version,
+            chainId: unprovenPaddingTx.data.constants.txContext.chainId,
+            version: unprovenPaddingTx.data.constants.txContext.version,
             header: unprovenPaddingTx.data.constants.historicalHeader,
           },
           signal,
         ),
       result => {
+        logger.debug(`Completed proof for padding tx, now enqueuing ${txInputs.length} padding txs`);
         this.paddingTx = makePaddingProcessedTx(result);
         this.provePaddingTransactions(txInputs, this.paddingTx, provingState);
       },
     );
   }
 
+  /**
+   * Prepares the cached sets of base rollup inputs for padding transactions and proves them
+   * @param txInputs - The base rollup inputs, start and end hash paths etc
+   * @param paddingTx - The padding tx, contains the header, proof, vk, public inputs used in the proof
+   * @param provingState - The block proving state
+   */
   private provePaddingTransactions(
     txInputs: Array<{ inputs: BaseRollupInputs; snapshot: TreeSnapshots }>,
     paddingTx: PaddingProcessedTx,
     provingState: ProvingState,
   ) {
+    // The padding tx contains the proof and vk, generated separately from the base inputs
+    // Copy these into the base rollup inputs
     for (let i = 0; i < txInputs.length; i++) {
       txInputs[i].inputs.kernelData.vk = paddingTx.verificationKey;
       txInputs[i].inputs.kernelData.proof = paddingTx.recursiveProof;
@@ -559,10 +577,17 @@ export class ProvingOrchestrator {
       return;
     }
 
+    logger.debug(
+      `Enqueuing deferred proving base rollup${
+        tx.processedTx.isEmpty ? ' with padding tx' : ''
+      } for ${tx.processedTx.hash.toString()}`,
+    );
+
     this.deferredProving(
       provingState,
       signal => this.prover.getBaseRollupProof(tx.baseRollupInputs, signal),
       result => {
+        logger.debug(`Completed proof for base rollup for tx ${tx.processedTx.hash.toString()}`);
         validatePartialState(result.inputs.end, tx.treeSnapshots);
         const currentLevel = provingState.numMergeLevels + 1n;
         this.storeAndExecuteNextMergeLevel(provingState, currentLevel, index, [

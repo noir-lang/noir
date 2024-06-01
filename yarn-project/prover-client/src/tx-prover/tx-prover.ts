@@ -49,6 +49,10 @@ export class TxProver implements ProverClient {
       this.agent?.setMaxConcurrency(newConfig.proverAgentConcurrency);
     }
 
+    if (!this.config.realProofs && newConfig.realProofs) {
+      this.orchestrator.reset();
+    }
+
     this.config = newConfig;
   }
 
