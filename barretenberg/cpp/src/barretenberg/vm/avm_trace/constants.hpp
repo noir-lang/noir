@@ -2,6 +2,7 @@
 
 #include "aztec_constants.hpp"
 
+#include <cstddef>
 #include <cstdint>
 
 // NOTE(MD): for now we will only include the public inputs that are included in call_context
