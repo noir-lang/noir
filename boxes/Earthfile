@@ -42,7 +42,7 @@ build:
     SAVE ARTIFACT /usr/src /usr/src
 
 boxes:
-    FROM node:18.19
+    FROM ../build-images/+base-slim-node
     # prefetch playwright installs earlier in downloads
     RUN npx playwright install --with-deps
     COPY --dir +build/usr/src /usr

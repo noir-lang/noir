@@ -1,14 +1,14 @@
 VERSION 0.8
-FROM node:18.19.0
+FROM ../../build-images/+base-slim-node
 
 pack-base-benchmark:
   # Copies the base benchmark (ie the master run) into a container and packs it as an artifact,
-  # so it can be consumed from bench-comment. Note that we need to download base-benchmark 
+  # so it can be consumed from bench-comment. Note that we need to download base-benchmark
   # outside of this target beforehand. We cannot run it within an Earthly container because it needs
-  # access to the .git folder, and we cannot run it with a LOCALLY statement because Earthly does 
-  # not support secrets when running locally (and we need) the AWS access keys to access S3. 
-  # We also cannot COPY the local file directly from bench-comment, since the file must be present 
-  # within the build context so we can copy it (ie within yarn-project/scripts), and that invalidates 
+  # access to the .git folder, and we cannot run it with a LOCALLY statement because Earthly does
+  # not support secrets when running locally (and we need) the AWS access keys to access S3.
+  # We also cannot COPY the local file directly from bench-comment, since the file must be present
+  # within the build context so we can copy it (ie within yarn-project/scripts), and that invalidates
   # the cache of yarn-project+build since it does a `COPY . .`, and we cannot add the bench file to
   # earthlyignore or we would not be able to copy it from anywhere. So we need to place this target
   # outside yarn-project altogether, since that folder should not be modified.

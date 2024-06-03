@@ -1,5 +1,5 @@
 VERSION 0.8
-FROM node:18.19.0
+FROM ../../build-images/+base-slim-node
 
 build:
   FROM ../+build
@@ -17,7 +17,7 @@ download-logs:
   ENV COMMIT_HASH=$COMMIT_HASH
   ENV PULL_REQUEST=$PULL_REQUEST
   ENV BRANCH=$BRANCH
-  RUN --secret AWS_ACCESS_KEY_ID --secret AWS_SECRET_ACCESS_KEY ./scripts/logs/download_logs_from_s3.sh 
+  RUN --secret AWS_ACCESS_KEY_ID --secret AWS_SECRET_ACCESS_KEY ./scripts/logs/download_logs_from_s3.sh
   SAVE ARTIFACT $LOG_FOLDER logs
 
 bench-aggregate:

@@ -1,5 +1,11 @@
 VERSION 0.8
 
+base-slim-node:
+  # TODO(AD): chosen because this was the most common base image we used, but should we use newer?
+  FROM node:18.19.0
+  RUN echo 'Acquire::Retries "3"; Acquire::https::Timeout "240"; Acquire::http::Timeout "240"; APT::Get::Assume-Yes "true"; APT::Install-Recommends "false"; APT::Install-Suggests "false";' \
+    > /etc/apt/apt.conf.d/99-aztec-build
+
 base-build:
   FROM ubuntu:noble
   RUN export DEBIAN_FRONTEND="noninteractive" \

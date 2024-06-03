@@ -68,7 +68,7 @@ barretenberg-acir-tests-sol:
 
 barretenberg-acir-tests-bb.js:
     # Playwright not supported on base image ubuntu:noble, results in unmet dependencies
-    FROM node:18.19.0
+    FROM ../build-images/+base-slim-node
     RUN apt update && apt install -y curl jq lsof
 
     COPY ./ts/+build/build/ /usr/src/barretenberg/ts
@@ -103,4 +103,3 @@ barretenberg-acir-tests-bb.js:
     # Commenting for now as fails intermittently. Unreproducable on mainframe.
     # See https://github.com/AztecProtocol/aztec-packages/issues/2104
     #RUN BROWSER=webkit THREAD_MODEL=st ./run_acir_tests_browser.sh 1_mul
-    

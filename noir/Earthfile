@@ -189,7 +189,7 @@ packages-test-node:
       run test:node
 
 packages-test-browser:
-    FROM node:18
+    FROM ../build-images/+base-slim-node
     COPY --dir +packages-test-build/usr/src /usr
     WORKDIR /usr/src/noir/noir-repo
     RUN ./.github/scripts/playwright-install.sh
