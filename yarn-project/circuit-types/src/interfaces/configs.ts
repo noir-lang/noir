@@ -37,4 +37,6 @@ export interface SequencerConfig {
   allowedFunctionsInSetup?: AllowedFunction[];
   /** The list of functions calls allowed to run teardown */
   allowedFunctionsInTeardown?: AllowedFunction[];
+  /** Max block size */
+  maxBlockSizeInBytes?: number;
 }
