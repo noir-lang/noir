@@ -19,7 +19,7 @@ use crate::{
     Type,
 };
 
-use super::Elaborator;
+use super::{lints::overflowing_uint::lint_overflowing_uint, Elaborator};
 
 impl<'context> Elaborator<'context> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
@@ -98,7 +98,7 @@ impl<'context> Elaborator<'context> {
                 }
             });
             if annotated_type.is_unsigned() {
-                self.lint_overflowing_uint(&expression, &annotated_type);
+                lint_overflowing_uint(&self.interner, &expression, &annotated_type);
             }
             annotated_type
         } else {
