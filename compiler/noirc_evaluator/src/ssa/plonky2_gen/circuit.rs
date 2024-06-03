@@ -90,6 +90,26 @@ impl Plonky2Circuit {
         Ok(proof_serialized)
     }
 
+    fn verify_public_inputs_in_proof(
+        public_inputs: WitnessMap<FieldElement>,
+        proof: &P2ProofWithPublicInputs,
+    ) -> bool {
+        let mut next_index: usize = 0;
+        for (witness, element) in public_inputs {
+            if witness != acvm::acir::native_types::Witness(next_index.try_into().unwrap()) {
+                return false;
+            }
+            if noir_to_plonky2_field(element) != proof.public_inputs[next_index] {
+                return false;
+            }
+            next_index += 1;
+        }
+        if proof.public_inputs.len() != next_index {
+            return false;
+        }
+        true
+    }
+
     pub fn verify(
         &self,
         proof: &[u8],
@@ -102,6 +122,11 @@ impl Plonky2Circuit {
                 return Err(Plonky2GenError::ICE { message: error_message });
             }
         };
+        if !Self::verify_public_inputs_in_proof(public_inputs, &deserialized_proof) {
+            return Err(Plonky2GenError::ICE {
+                message: "Public inputs don't match proof".to_string(),
+            });
+        }
         match self.data.verify(deserialized_proof) {
             Ok(_) => Ok(true),
             Err(error) => {
