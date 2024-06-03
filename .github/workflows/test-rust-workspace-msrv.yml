@@ -111,7 +111,7 @@ jobs:
           fi
         env:
           # We treat any cancelled, skipped or failing jobs as a failure for the workflow as a whole.
-          FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+          FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'skipped') }}
     
       - name: Checkout
         if: ${{ failure() }}

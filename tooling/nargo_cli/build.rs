@@ -38,6 +38,26 @@ fn main() {
     generate_compile_failure_tests(&mut test_file, &test_dir);
 }
 
+/// Some tests are explicitly ignored in brillig due to them failing.
+/// These should be fixed and removed from this list.
+const IGNORED_BRILLIG_TESTS: [&str; 11] = [
+    // Takes a very long time to execute as large loops do not get simplified.
+    &"regression_4709",
+    // bit sizes for bigint operation doesn't match up.
+    &"bigint",
+    // ICE due to looking for function which doesn't exist.
+    &"fold_after_inlined_calls",
+    &"fold_basic",
+    &"fold_basic_nested_call",
+    &"fold_call_witness_condition",
+    &"fold_complex_outputs",
+    &"fold_distinct_return",
+    &"fold_fibonacci",
+    &"fold_numeric_generic_poseidon",
+    // Expected to fail as test asserts on which runtime it is in.
+    &"is_unconstrained",
+];
+
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_sub_dir = "execution_success";
     let test_data_dir = test_data_dir.join(test_sub_dir);
@@ -55,6 +75,9 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
         };
         let test_dir = &test_dir.path();
 
+        let brillig_ignored =
+            if IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()) { "\n#[ignore]" } else { "" };
+
         write!(
             test_file,
             r#"
@@ -63,9 +86,19 @@ fn execution_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("execute").arg("--force");
+
+    cmd.assert().success();
+}}
+
+#[test]{brillig_ignored}
+fn execution_success_{test_name}_brillig() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("execute").arg("--force").arg("--force-brillig");
 
     cmd.assert().success();
 }}
@@ -101,7 +134,6 @@ fn execution_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("execute").arg("--force");
 
@@ -139,7 +171,6 @@ fn noir_test_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("test");
 
@@ -177,7 +208,6 @@ fn noir_test_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("test");
 
@@ -218,7 +248,6 @@ fn compile_success_empty_{test_name}() {{
 
     let test_program_dir = PathBuf::from("{test_dir}");
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("info");
     cmd.arg("--json");
@@ -269,7 +298,6 @@ fn compile_success_contract_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile").arg("--force");
 
@@ -307,7 +335,6 @@ fn compile_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile").arg("--force");
 

@@ -1,0 +1,7 @@
+[package]
+name = "turbofish_call_func_diff_types"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.29.0"
+
+[dependencies]

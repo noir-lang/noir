@@ -3,6 +3,7 @@ use super::{
     directives::Directive,
 };
 use crate::native_types::{Expression, Witness};
+use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 
 mod black_box_function_call;
@@ -11,9 +12,22 @@ mod memory_operation;
 pub use black_box_function_call::{BlackBoxFuncCall, FunctionInput};
 pub use memory_operation::{BlockId, MemOp};
 
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum BlockType {
+    Memory,
+    CallData,
+    ReturnData,
+}
+
+impl BlockType {
+    pub fn is_databus(&self) -> bool {
+        matches!(self, BlockType::CallData | BlockType::ReturnData)
+    }
+}
+
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Opcode {
+pub enum Opcode<F> {
     /// An `AssertZero` opcode adds the constraint that `P(w) = 0`, where
     /// `w=(w_1,..w_n)` is a tuple of `n` witnesses, and `P` is a multi-variate
     /// polynomial of total degree at most `2`.
@@ -34,7 +48,7 @@ pub enum Opcode {
     /// opcode `z-x*y=0`, which would constrain `z` to be `x*y`.
     ///
     /// The solver expects that at most one witness is not known when executing the opcode.
-    AssertZero(Expression),
+    AssertZero(Expression<F>),
 
     /// Calls to "gadgets" which rely on backends implementing support for
     /// specialized constraints.
@@ -64,8 +78,8 @@ pub enum Opcode {
     /// compiler.
     ///
     /// Directives will be replaced by Brillig opcodes in the future.
-    Directive(Directive),
-
+    Directive(Directive<F>),
+  
     /// Atomic operation on a block of memory
     ///
     /// ACIR is able to address any array of witnesses. Each array is assigned
@@ -80,30 +94,34 @@ pub enum Opcode {
         /// identifier of the array
         block_id: BlockId,
         /// describe the memory operation to perform
-        op: MemOp,
+        op: MemOp<F>,
         /// Predicate of the memory operation - indicates if it should be skipped
-        predicate: Option<Expression>,
+        predicate: Option<Expression<F>>,
     },
-
+  
     /// Initialize an ACIR array from a vector of witnesses.
     /// - block_id: identifier of the array
     /// - init: Vector of witnesses specifying the initial value of the array
     ///
     /// There must be only one MemoryInit per block_id, and MemoryOp opcodes must
     /// come after the MemoryInit.
-    MemoryInit { block_id: BlockId, init: Vec<Witness> },
-
+    MemoryInit {
+        block_id: BlockId,
+        init: Vec<Witness>,
+        block_type: BlockType,
+    },
+  
     /// Calls to unconstrained functions
     BrilligCall {
         /// Id for the function being called. It is the responsibility of the executor
         /// to fetch the appropriate Brillig bytecode from this id.
         id: u32,
         /// Inputs to the function call
-        inputs: Vec<BrilligInputs>,
+        inputs: Vec<BrilligInputs<F>>,
         /// Outputs to the function call
         outputs: Vec<BrilligOutputs>,
         /// Predicate of the Brillig execution - indicates if it should be skipped
-        predicate: Option<Expression>,
+        predicate: Option<Expression<F>>,
     },
 
     /// Calls to functions represented as a separate circuit. A call opcode allows us
@@ -117,11 +135,11 @@ pub enum Opcode {
         /// Outputs of the function call
         outputs: Vec<Witness>,
         /// Predicate of the circuit execution - indicates if it should be skipped
-        predicate: Option<Expression>,
+        predicate: Option<Expression<F>>,
     },
 }
 
-impl std::fmt::Display for Opcode {
+impl<F: AcirField> std::fmt::Display for Opcode<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Opcode::AssertZero(expr) => {
@@ -166,8 +184,12 @@ impl std::fmt::Display for Opcode {
                     write!(f, "(id: {}, op {} at: {}) ", block_id.0, op.operation, op.index)
                 }
             }
-            Opcode::MemoryInit { block_id, init } => {
-                write!(f, "INIT ")?;
+            Opcode::MemoryInit { block_id, init, block_type: databus } => {
+                match databus {
+                    BlockType::Memory => write!(f, "INIT ")?,
+                    BlockType::CallData => write!(f, "INIT CALLDATA ")?,
+                    BlockType::ReturnData => write!(f, "INIT RETURNDATA ")?,
+                }
                 write!(f, "(id: {}, len: {}) ", block_id.0, init.len())
             }
             // We keep the display for a BrilligCall and circuit Call separate as they
@@ -192,7 +214,7 @@ impl std::fmt::Display for Opcode {
     }
 }
 
-impl std::fmt::Debug for Opcode {
+impl<F: AcirField> std::fmt::Debug for Opcode<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(self, f)
     }

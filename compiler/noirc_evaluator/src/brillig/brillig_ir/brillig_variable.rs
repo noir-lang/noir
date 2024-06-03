@@ -1,4 +1,5 @@
 use acvm::{
+    acir::AcirField,
     brillig_vm::brillig::{HeapArray, HeapValueType, HeapVector, MemoryAddress, ValueOrArray},
     FieldElement,
 };

@@ -334,7 +334,9 @@ impl DebugShow {
                     outputs
                 );
             }
-            BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } => {
+            BlackBoxOp::EmbeddedCurveAdd {
+                input1_x, input1_y, input2_x, input2_y, result, ..
+            } => {
                 debug_println!(
                     self.enable_debug_trace,
                     "  EMBEDDED_CURVE_ADD ({} {}) ({} {}) -> {}",
@@ -448,6 +450,15 @@ impl DebugShow {
                     "  SHA256COMPRESSION {} {} -> {}",
                     input,
                     hash_values,
+                    output
+                );
+            }
+            BlackBoxOp::ToRadix { input, radix, output } => {
+                debug_println!(
+                    self.enable_debug_trace,
+                    "  TO_RADIX {} {} -> {}",
+                    input,
+                    radix,
                     output
                 );
             }

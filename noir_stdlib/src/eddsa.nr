@@ -3,6 +3,7 @@ use crate::ec::consts::te::baby_jubjub;
 use crate::ec::tecurve::affine::Point as TEPoint;
 use crate::hash::{Hash, Hasher, BuildHasher, BuildHasherDefault};
 use crate::hash::poseidon::PoseidonHasher;
+use crate::default::Default;
 
 // Returns true if signature is valid
 pub fn eddsa_poseidon_verify(
@@ -13,28 +14,25 @@ pub fn eddsa_poseidon_verify(
     signature_r8_y: Field,
     message: Field
 ) -> bool {
-    let mut hasher = PoseidonHasher::default();
-    eddsa_verify_with_hasher(
+    eddsa_verify::<PoseidonHasher>(
         pub_key_x,
         pub_key_y,
         signature_s,
         signature_r8_x,
         signature_r8_y,
-        message,
-        &mut hasher
+        message
     )
 }
 
-pub fn eddsa_verify_with_hasher<H>(
+pub fn eddsa_verify<H>(
     pub_key_x: Field,
     pub_key_y: Field,
     signature_s: Field,
     signature_r8_x: Field,
     signature_r8_y: Field,
-    message: Field,
-    hasher: &mut H
+    message: Field
 ) -> bool 
-where H: Hasher {
+where H: Hasher + Default {
     // Verifies by testing:
     // S * B8 = R8 + H(R8, A, m) * A8
     let bjj = baby_jubjub();
@@ -47,12 +45,13 @@ where H: Hasher {
     // Ensure S < Subgroup Order
     assert(signature_s.lt(bjj.suborder));
     // Calculate the h = H(R, A, msg)
-    signature_r8_x.hash(hasher);
-    signature_r8_y.hash(hasher);
-    pub_key_x.hash(hasher);
-    pub_key_y.hash(hasher);
-    message.hash(hasher);
-    let hash: Field = (*hasher).finish();
+    let mut hasher = H::default();
+    hasher.write(signature_r8_x);
+    hasher.write(signature_r8_y);
+    hasher.write(pub_key_x);
+    hasher.write(pub_key_y);
+    hasher.write(message);
+    let hash: Field = hasher.finish();
     // Calculate second part of the right side:  right2 = h*8*A
     // Multiply by 8 by doubling 3 times. This also ensures that the result is in the subgroup.
     let pub_key_mul_2 = bjj.curve.add(pub_key, pub_key);

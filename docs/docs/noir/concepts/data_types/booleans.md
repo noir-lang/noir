@@ -23,9 +23,6 @@ fn main() {
 }
 ```
 
-> **Note:** When returning a boolean value, it will show up as a value of 1 for `true` and 0 for
-> `false` in _Verifier.toml_.
-
 The boolean type is most commonly used in conditionals like `if` expressions and `assert`
 statements. More about conditionals is covered in the [Control Flow](../control_flow) and
 [Assert Function](../assert) sections.

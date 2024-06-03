@@ -21,7 +21,7 @@
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
 use std::collections::HashSet;
 
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 
 use crate::ssa::{
@@ -288,6 +288,7 @@ mod test {
             value::{Value, ValueId},
         },
     };
+    use acvm::acir::AcirField;
 
     #[test]
     fn simple_constant_fold() {

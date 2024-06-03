@@ -1,6 +1,7 @@
 use chumsky::prelude::*;
 
 use crate::ast::{ExpressionKind, Ident, UnaryOp};
+use crate::macros_api::UnresolvedType;
 use crate::{
     parser::{labels::ParsingRuleLabel, ExprParser, NoirParser, ParserError},
     token::{Keyword, Token, TokenKind},
@@ -77,8 +78,20 @@ where
         .map(|rhs| ExpressionKind::prefix(UnaryOp::Dereference { implicitly_added: false }, rhs))
 }
 
+pub(super) fn turbofish<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<Option<Vec<UnresolvedType>>> + 'a {
+    just(Token::DoubleColon).ignore_then(super::generic_type_args(type_parser)).or_not()
+}
+
 pub(super) fn variable() -> impl NoirParser<ExpressionKind> {
-    path().map(ExpressionKind::Variable)
+    path()
+        .then(turbofish(super::parse_type()))
+        .map(|(path, generics)| ExpressionKind::Variable(path, generics))
+}
+
+pub(super) fn variable_no_turbofish() -> impl NoirParser<ExpressionKind> {
+    path().map(|path| ExpressionKind::Variable(path, None))
 }
 
 #[cfg(test)]

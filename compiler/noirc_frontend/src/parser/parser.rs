@@ -35,7 +35,7 @@ use super::{spanned, Item, ItemKind};
 use crate::ast::{
     BinaryOp, BinaryOpKind, BlockExpression, ForLoopStatement, ForRange, Ident, IfExpression,
     InfixExpression, LValue, Literal, ModuleDeclaration, NoirTypeAlias, Param, Path, Pattern,
-    Recoverable, Statement, TraitBound, TypeImpl, UnresolvedTraitConstraint,
+    Recoverable, Statement, TraitBound, TypeImpl, UnaryRhsMemberAccess, UnresolvedTraitConstraint,
     UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 use crate::ast::{
@@ -676,9 +676,9 @@ fn parse_type<'a>() -> impl NoirParser<UnresolvedType> + 'a {
     recursive(parse_type_inner)
 }
 
-fn parse_type_inner(
-    recursive_type_parser: impl NoirParser<UnresolvedType>,
-) -> impl NoirParser<UnresolvedType> {
+fn parse_type_inner<'a>(
+    recursive_type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
     choice((
         field_type(),
         int_type(),
@@ -745,15 +745,13 @@ fn bool_type() -> impl NoirParser<UnresolvedType> {
 
 fn string_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::String)
-        .ignore_then(
-            type_expression().delimited_by(just(Token::Less), just(Token::Greater)).or_not(),
-        )
+        .ignore_then(type_expression().delimited_by(just(Token::Less), just(Token::Greater)))
         .map_with_span(|expr, span| UnresolvedTypeData::String(expr).with_span(span))
 }
 
-fn format_string_type(
-    type_parser: impl NoirParser<UnresolvedType>,
-) -> impl NoirParser<UnresolvedType> {
+fn format_string_type<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
     keyword(Keyword::FormatString)
         .ignore_then(
             type_expression()
@@ -783,22 +781,27 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
     })
 }
 
-fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+fn named_type<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
     path().then(generic_type_args(type_parser)).map_with_span(|(path, args), span| {
         UnresolvedTypeData::Named(path, args, false).with_span(span)
     })
 }
 
-fn named_trait(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+fn named_trait<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
     keyword(Keyword::Impl).ignore_then(path()).then(generic_type_args(type_parser)).map_with_span(
         |(path, args), span| UnresolvedTypeData::TraitAsType(path, args).with_span(span),
     )
 }
 
-fn generic_type_args(
-    type_parser: impl NoirParser<UnresolvedType>,
-) -> impl NoirParser<Vec<UnresolvedType>> {
+fn generic_type_args<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<Vec<UnresolvedType>> + 'a {
     type_parser
+        .clone()
         // Without checking for a terminating ',' or '>' here we may incorrectly
         // parse a generic `N * 2` as just the type `N` then fail when there is no
         // separator afterward. Failing early here ensures we try the `type_expression`
@@ -814,7 +817,9 @@ fn generic_type_args(
         .map(Option::unwrap_or_default)
 }
 
-fn array_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+fn array_type<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
     just(Token::LeftBracket)
         .ignore_then(type_parser)
         .then(just(Token::Semicolon).ignore_then(type_expression()))
@@ -1037,6 +1042,7 @@ where
             expr_no_constructors,
             statement,
             allow_constructors,
+            parse_type(),
         ))
     })
 }
@@ -1057,6 +1063,7 @@ fn atom_or_right_unary<'a, P, P2, S>(
     expr_no_constructors: P2,
     statement: S,
     allow_constructors: bool,
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
 ) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
@@ -1067,7 +1074,7 @@ where
         Call(Vec<Expression>),
         ArrayIndex(Expression),
         Cast(UnresolvedType),
-        MemberAccess((Ident, Option<Vec<Expression>>)),
+        MemberAccess(UnaryRhsMemberAccess),
     }
 
     // `(arg1, ..., argN)` in `my_func(arg1, ..., argN)`
@@ -1081,14 +1088,17 @@ where
 
     // `as Type` in `atom as Type`
     let cast_rhs = keyword(Keyword::As)
-        .ignore_then(parse_type())
+        .ignore_then(type_parser.clone())
         .map(UnaryRhs::Cast)
         .labelled(ParsingRuleLabel::Cast);
+
+    // A turbofish operator is optional in a method call to specify generic types
+    let turbofish = primitives::turbofish(type_parser);
 
     // `.foo` or `.foo(args)` in `atom.foo` or `atom.foo(args)`
     let member_rhs = just(Token::Dot)
         .ignore_then(field_name())
-        .then(parenthesized(expression_list(expr_parser.clone())).or_not())
+        .then(turbofish.then(parenthesized(expression_list(expr_parser.clone()))).or_not())
         .map(UnaryRhs::MemberAccess)
         .labelled(ParsingRuleLabel::FieldAccess);
 
@@ -1277,7 +1287,7 @@ fn type_expression_atom<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 
 where
     P: ExprParser + 'a,
 {
-    variable()
+    primitives::variable_no_turbofish()
         .or(literal())
         .map_with_span(Expression::new)
         .or(parenthesized(expr_parser))
@@ -1367,22 +1377,19 @@ mod test {
 
     #[test]
     fn parse_cast() {
+        let expression_nc = expression_no_constructors(expression());
         parse_all(
             atom_or_right_unary(
                 expression(),
                 expression_no_constructors(expression()),
                 fresh_statement(),
                 true,
+                parse_type(),
             ),
             vec!["x as u8", "x as u16", "0 as Field", "(x + 3) as [Field; 8]"],
         );
         parse_all_failing(
-            atom_or_right_unary(
-                expression(),
-                expression_no_constructors(expression()),
-                fresh_statement(),
-                true,
-            ),
+            atom_or_right_unary(expression(), expression_nc, fresh_statement(), true, parse_type()),
             vec!["x as pub u8"],
         );
     }
@@ -1402,6 +1409,7 @@ mod test {
                 expression_no_constructors(expression()),
                 fresh_statement(),
                 true,
+                parse_type(),
             ),
             valid,
         );

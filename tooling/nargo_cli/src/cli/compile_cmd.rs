@@ -22,7 +22,6 @@ use notify_debouncer_full::new_debouncer;
 
 use crate::errors::CliError;
 
-use super::fs::program::only_acir;
 use super::fs::program::{read_program_from_file, save_contract_to_file, save_program_to_file};
 use super::NargoConfig;
 use rayon::prelude::*;
@@ -111,7 +110,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
     Ok(())
 }
 
-fn compile_workspace_full(
+pub(super) fn compile_workspace_full(
     workspace: &Workspace,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
@@ -136,10 +135,9 @@ fn compile_workspace_full(
         .partition(|package| package.is_binary());
 
     // Save build artifacts to disk.
-    let only_acir = compile_options.only_acir;
     for (package, program) in binary_packages.into_iter().zip(compiled_programs) {
         let program = nargo::ops::transform_program(program, compile_options.expression_width);
-        save_program(program.clone(), &package, &workspace.target_directory_path(), only_acir);
+        save_program(program.clone(), &package, &workspace.target_directory_path());
     }
     let circuit_dir = workspace.target_directory_path();
     for (package, contract) in contract_packages.into_iter().zip(compiled_contracts) {
@@ -197,18 +195,9 @@ pub(super) fn compile_workspace(
     }
 }
 
-pub(super) fn save_program(
-    program: CompiledProgram,
-    package: &Package,
-    circuit_dir: &Path,
-    only_acir_opt: bool,
-) {
-    if only_acir_opt {
-        only_acir(program.program, circuit_dir);
-    } else {
-        let program_artifact = ProgramArtifact::from(program.clone());
-        save_program_to_file(&program_artifact, &package.name, circuit_dir);
-    }
+pub(super) fn save_program(program: CompiledProgram, package: &Package, circuit_dir: &Path) {
+    let program_artifact = ProgramArtifact::from(program.clone());
+    save_program_to_file(&program_artifact, &package.name, circuit_dir);
 }
 
 fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Path) {
