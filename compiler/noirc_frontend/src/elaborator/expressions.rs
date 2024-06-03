@@ -636,7 +636,7 @@ impl<'context> Elaborator<'context> {
         let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
 
         let make_error = |this: &mut Self, error: InterpreterError| {
-            this.push_err(error);
+            this.errors.push(error.into_compilation_error_pair());
             let error = this.interner.push_expr(HirExpression::Error);
             this.interner.push_expr_location(error, span, this.file);
             (error, Type::Error)

@@ -1082,7 +1082,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub(super) fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
+    pub fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
         let rhs = self.evaluate(let_.expression)?;
         let location = self.interner.expr_location(&let_.expression);
         self.define_pattern(&let_.pattern, &let_.r#type, rhs, location)?;

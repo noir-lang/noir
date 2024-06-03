@@ -443,7 +443,7 @@ impl<'context> Elaborator<'context> {
         let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
 
         if let Err(error) = interpreter.evaluate_statement(hir_statement) {
-            self.push_err(error);
+            self.errors.push(error.into_compilation_error_pair());
         }
 
         let unit = HirExpression::Literal(HirLiteral::Unit);

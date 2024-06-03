@@ -6,7 +6,7 @@ use std::{
 use crate::{
     ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
-        comptime,
+        comptime::{self, Interpreter},
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
@@ -1238,7 +1238,20 @@ impl<'context> Elaborator<'context> {
             self.push_err(ResolverError::MutableGlobal { span });
         }
 
+        let comptime = let_stmt.comptime;
+
         self.elaborate_global_let(let_stmt, global_id);
+
+        if comptime {
+            let let_statement = self.interner.get_global_let_statement(global_id)
+                .expect("Let statement of global should be set by elaborate_global_let");
+
+            let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+            
+            if let Err(error) = interpreter.evaluate_let(let_statement) {
+                self.errors.push(error.into_compilation_error_pair());
+            }
+        }
 
         // Avoid defaulting the types of globals here since they may be used in any function.
         // Otherwise we may prematurely default to a Field inside the next function if this
