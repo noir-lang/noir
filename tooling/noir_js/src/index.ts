@@ -1,6 +1,6 @@
 import * as acvm from '@noir-lang/acvm_js';
 import * as abi from '@noir-lang/noirc_abi';
-import { CompiledCircuit, ProofData } from '@noir-lang/types';
+import { CompiledCircuit } from '@noir-lang/types';
 
 export {
   ecdsa_secp256r1_verify,
@@ -22,4 +22,4 @@ export { ErrorWithPayload } from './witness_generation.js';
 export { acvm, abi };
 
 // type exports for typedoc
-export { CompiledCircuit, ProofData };
+export { CompiledCircuit };
