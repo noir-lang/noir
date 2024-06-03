@@ -489,7 +489,7 @@ workflows:
       or:
         - equal: [ master, << pipeline.git.branch >> ]
         - matches: { pattern: ".*circle-ci.*", value: << pipeline.git.branch >> }
-        - matches: { pattern: ".*", value: << pipeline.git.tag >> }
+        - matches: { pattern: ".+", value: << pipeline.git.tag >> }
     jobs:
       # Noir
       - noir-x86_64: *defaults
