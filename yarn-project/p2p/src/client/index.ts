@@ -28,7 +28,7 @@ export const createP2PClient = async (
       queryForIp,
     } = config;
     if (!configAnnounceTcpHostname) {
-      if (!queryForIp) {
+      if (queryForIp) {
         const publicIp = await getPublicIp();
         const announceHostname = `/ip4/${publicIp}`;
         config.announceTcpHostname = announceHostname;
