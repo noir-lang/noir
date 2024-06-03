@@ -3,6 +3,9 @@
 
 #include "acir_format.hpp"
 #include "barretenberg/common/streams.hpp"
+#include "barretenberg/crypto/schnorr/schnorr.hpp"
+#include "barretenberg/plonk/composer/standard_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/serialize/test_helper.hpp"
 #include "ecdsa_secp256k1.hpp"
@@ -10,6 +13,8 @@
 using namespace bb;
 using namespace bb::crypto;
 using namespace acir_format;
+
+using Composer = plonk::UltraComposer;
 
 class AcirFormatTests : public ::testing::Test {
   protected:

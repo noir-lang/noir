@@ -248,7 +248,7 @@ jobs:
             +bench-comment
 
   bb-gcc:
-    needs: [build, changes]
+    needs: [setup, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     if: ${{ needs.changes.outputs.barretenberg-cpp == 'true' }}
     steps:

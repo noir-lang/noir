@@ -6,7 +6,6 @@
 
 namespace bb::crypto::merkle_tree {
 
-using fr = bb::stdlib::fr;
 using fr_hash_path = std::vector<std::pair<fr, fr>>;
 using fr_sibling_path = std::vector<fr>;
 template <typename Ctx> using hash_path = std::vector<std::pair<bb::stdlib::field_t<Ctx>, bb::stdlib::field_t<Ctx>>>;

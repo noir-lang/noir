@@ -1,5 +1,8 @@
 #include "honk_recursion_constraint.hpp"
 #include "acir_format.hpp"
+#include "barretenberg/sumcheck/instance/prover_instance.hpp"
+#include "barretenberg/ultra_honk/ultra_prover.hpp"
+#include "barretenberg/ultra_honk/ultra_verifier.hpp"
 
 #include <gtest/gtest.h>
 #include <vector>

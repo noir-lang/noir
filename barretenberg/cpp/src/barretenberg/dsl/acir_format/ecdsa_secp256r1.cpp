@@ -1,6 +1,7 @@
 #include "ecdsa_secp256r1.hpp"
 #include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 #include "barretenberg/stdlib/encryption/ecdsa/ecdsa.hpp"
+#include "barretenberg/stdlib/primitives/curves/secp256r1.hpp"
 #include "ecdsa_secp256k1.hpp"
 
 using namespace bb;
@@ -8,6 +9,8 @@ using namespace bb::crypto;
 using namespace bb::plonk;
 
 namespace acir_format {
+
+using secp256r1_ct = stdlib::secp256r1<Builder>;
 
 secp256r1_ct::g1_ct ecdsa_convert_inputs(Builder* ctx, const secp256r1::g1::affine_element& input)
 {

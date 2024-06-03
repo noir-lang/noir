@@ -8,7 +8,6 @@
 
 namespace bb::stdlib {
 
-using namespace bb;
 /**
  * @brief stdlib class that evaluates in-circuit poseidon2 hashes, consistent with behavior in
  * crypto::poseidon2

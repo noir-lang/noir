@@ -1,11 +1,13 @@
 #pragma once
-#include "barretenberg/dsl/types.hpp"
+#include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
+#include "barretenberg/plonk/transcript/transcript_wrappers.hpp"
 #include <vector>
 
 namespace acir_format {
 
 using namespace bb::plonk;
+using Builder = bb::UltraCircuitBuilder;
 
 /**
  * @brief RecursionConstraint struct contains information required to recursively verify a proof!

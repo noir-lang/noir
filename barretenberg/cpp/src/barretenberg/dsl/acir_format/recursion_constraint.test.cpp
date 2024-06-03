@@ -1,5 +1,6 @@
 #include "recursion_constraint.hpp"
 #include "acir_format.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 
@@ -7,8 +8,10 @@
 #include <vector>
 
 using namespace acir_format;
+using namespace bb;
 using namespace bb::plonk;
 
+using Composer = plonk::UltraComposer;
 class AcirRecursionConstraint : public ::testing::Test {
   protected:
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }

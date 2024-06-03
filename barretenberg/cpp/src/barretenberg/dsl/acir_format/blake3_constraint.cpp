@@ -1,4 +1,6 @@
 #include "blake3_constraint.hpp"
+#include "barretenberg/stdlib/hash/blake3s/blake3s.hpp"
+#include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 #include "round.hpp"
 
 namespace acir_format {
@@ -36,9 +38,9 @@ template <typename Builder> void create_blake3_constraints(Builder& builder, con
     }
 }
 
-template void create_blake3_constraints<UltraCircuitBuilder>(UltraCircuitBuilder& builder,
-                                                             const Blake3Constraint& constraint);
-template void create_blake3_constraints<MegaCircuitBuilder>(MegaCircuitBuilder& builder,
-                                                            const Blake3Constraint& constraint);
+template void create_blake3_constraints<bb::UltraCircuitBuilder>(bb::UltraCircuitBuilder& builder,
+                                                                 const Blake3Constraint& constraint);
+template void create_blake3_constraints<bb::MegaCircuitBuilder>(bb::MegaCircuitBuilder& builder,
+                                                                const Blake3Constraint& constraint);
 
 } // namespace acir_format

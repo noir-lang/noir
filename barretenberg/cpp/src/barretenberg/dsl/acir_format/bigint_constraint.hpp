@@ -1,6 +1,8 @@
 #pragma once
-#include "barretenberg/dsl/types.hpp"
+#include "barretenberg/ecc/curves/secp256k1/secp256k1.hpp"
+#include "barretenberg/ecc/curves/secp256r1/secp256r1.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
+#include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
 
 #include <array>
 #include <cstdint>

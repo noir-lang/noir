@@ -1,13 +1,14 @@
 #pragma once
-#include "barretenberg/dsl/types.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
 #include <cstdint>
+#include <vector>
 
 namespace acir_format {
 
 struct MultiScalarMul {
     std::vector<uint32_t> points;
     std::vector<uint32_t> scalars;
+
     uint32_t out_point_x;
     uint32_t out_point_y;
     uint32_t out_point_is_infinite;

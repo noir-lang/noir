@@ -1,17 +1,18 @@
 #include "sha256_constraint.hpp"
-#include "barretenberg/dsl/types.hpp"
 #include "barretenberg/stdlib/hash/sha256/sha256.hpp"
 #include "barretenberg/stdlib/hash/sha256/sha256_plookup.hpp"
 #include "round.hpp"
 
 namespace acir_format {
 
+using namespace bb;
+
 // This function does not work (properly) because the stdlib:sha256 function is not working correctly for 512 bits
 // pair<witness_index, bits>
 template <typename Builder> void create_sha256_constraints(Builder& builder, const Sha256Constraint& constraint)
 {
-    using byte_array_ct = bb::stdlib::byte_array<Builder>;
-    using field_ct = bb::stdlib::field_t<Builder>;
+    using byte_array_ct = stdlib::byte_array<Builder>;
+    using field_ct = stdlib::field_t<Builder>;
 
     // Create byte array struct
     byte_array_ct arr(&builder);
@@ -32,7 +33,7 @@ template <typename Builder> void create_sha256_constraints(Builder& builder, con
     }
 
     // Compute sha256
-    byte_array_ct output_bytes = bb::stdlib::sha256<Builder>(arr);
+    byte_array_ct output_bytes = stdlib::sha256<Builder>(arr);
 
     // Convert byte array to vector of field_t
     auto bytes = output_bytes.bytes();
@@ -45,7 +46,7 @@ template <typename Builder> void create_sha256_constraints(Builder& builder, con
 template <typename Builder>
 void create_sha256_compression_constraints(Builder& builder, const Sha256Compression& constraint)
 {
-    using field_ct = bb::stdlib::field_t<Builder>;
+    using field_ct = stdlib::field_t<Builder>;
 
     std::array<field_ct, 16> inputs;
     std::array<field_ct, 8> hash_inputs;
@@ -69,7 +70,7 @@ void create_sha256_compression_constraints(Builder& builder, const Sha256Compres
     }
 
     // Compute sha256 compression
-    auto output_bytes = bb::stdlib::sha256_plookup::sha256_block<Builder>(hash_inputs, inputs);
+    auto output_bytes = stdlib::sha256_plookup::sha256_block<Builder>(hash_inputs, inputs);
 
     for (size_t i = 0; i < 8; ++i) {
         poly_triple assert_equal{

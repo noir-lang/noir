@@ -1,12 +1,16 @@
 #include "blake2s_constraint.hpp"
+#include "barretenberg/stdlib/hash/blake2s/blake2s.hpp"
+#include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 #include "round.hpp"
 
 namespace acir_format {
 
+using namespace bb;
+
 template <typename Builder> void create_blake2s_constraints(Builder& builder, const Blake2sConstraint& constraint)
 {
-    using byte_array_ct = bb::stdlib::byte_array<Builder>;
-    using field_ct = bb::stdlib::field_t<Builder>;
+    using byte_array_ct = stdlib::byte_array<Builder>;
+    using field_ct = stdlib::field_t<Builder>;
 
     // Create byte array struct
     byte_array_ct arr(&builder);
@@ -26,7 +30,7 @@ template <typename Builder> void create_blake2s_constraints(Builder& builder, co
         arr.write(element_bytes);
     }
 
-    byte_array_ct output_bytes = bb::stdlib::blake2s<Builder>(arr);
+    byte_array_ct output_bytes = stdlib::blake2s<Builder>(arr);
 
     // Convert byte array to vector of field_t
     auto bytes = output_bytes.bytes();

@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <span>
 
+using namespace bb;
+
 namespace acir_format {
 
 template <typename Builder> void create_aes128_constraints(Builder& builder, const AES128Constraint& constraint)

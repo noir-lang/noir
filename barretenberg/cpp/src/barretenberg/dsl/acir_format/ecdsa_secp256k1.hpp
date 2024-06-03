@@ -1,10 +1,14 @@
 #pragma once
 #include "barretenberg/crypto/ecdsa/ecdsa.hpp"
-#include "barretenberg/dsl/types.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
+#include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
+#include "barretenberg/stdlib/primitives/witness/witness.hpp"
 #include <vector>
 
 namespace acir_format {
+
+using Builder = bb::UltraCircuitBuilder;
+using witness_ct = bb::stdlib::witness_t<Builder>;
 
 struct EcdsaSecp256k1Constraint {
     // This is the byte representation of the hashed message.
@@ -47,10 +51,10 @@ bb::stdlib::byte_array<Builder> ecdsa_array_of_bytes_to_byte_array(Builder& buil
 // gcc needs to be able to see the implementation order to generate code for
 // all Builder specializations (e.g. bb::Goblin::Builder vs. bb::UltraCircuitBuilder)
 template <typename Builder>
-crypto::ecdsa_signature ecdsa_convert_signature(Builder& builder, std::array<uint32_t, 64> signature)
+bb::crypto::ecdsa_signature ecdsa_convert_signature(Builder& builder, std::array<uint32_t, 64> signature)
 {
 
-    crypto::ecdsa_signature signature_cr;
+    bb::crypto::ecdsa_signature signature_cr;
 
     // Get the witness assignment for each witness index
     // Write the witness assignment to the byte_array
@@ -58,11 +62,11 @@ crypto::ecdsa_signature ecdsa_convert_signature(Builder& builder, std::array<uin
     for (unsigned int i = 0; i < 32; i++) {
         auto witness_index = signature[i];
 
-        std::vector<uint8_t> fr_bytes(sizeof(fr));
+        std::vector<uint8_t> fr_bytes(sizeof(bb::fr));
 
-        fr value = builder.get_variable(witness_index);
+        bb::fr value = builder.get_variable(witness_index);
 
-        fr::serialize_to_buffer(value, &fr_bytes[0]);
+        bb::fr::serialize_to_buffer(value, &fr_bytes[0]);
 
         signature_cr.r[i] = fr_bytes.back();
     }
@@ -70,11 +74,11 @@ crypto::ecdsa_signature ecdsa_convert_signature(Builder& builder, std::array<uin
     for (unsigned int i = 32; i < 64; i++) {
         auto witness_index = signature[i];
 
-        std::vector<uint8_t> fr_bytes(sizeof(fr));
+        std::vector<uint8_t> fr_bytes(sizeof(bb::fr));
 
-        fr value = builder.get_variable(witness_index);
+        bb::fr value = builder.get_variable(witness_index);
 
-        fr::serialize_to_buffer(value, &fr_bytes[0]);
+        bb::fr::serialize_to_buffer(value, &fr_bytes[0]);
 
         signature_cr.s[i - 32] = fr_bytes.back();
     }

@@ -1,11 +1,18 @@
 #include "honk_recursion_constraint.hpp"
+#include "barretenberg/flavor/flavor.hpp"
+#include "barretenberg/stdlib/honk_recursion/verifier/ultra_recursive_verifier.hpp"
+#include "barretenberg/stdlib/plonk_recursion/aggregation_state/aggregation_state.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/constants.hpp"
+#include "barretenberg/stdlib/primitives/curves/bn254.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_recursive_flavor.hpp"
 #include "recursion_constraint.hpp"
 
 namespace acir_format {
 
 using namespace bb;
-using namespace bb::stdlib::recursion::honk;
+using field_ct = stdlib::field_t<Builder>;
+using bn254 = stdlib::bn254<Builder>;
+using aggregation_state_ct = bb::stdlib::recursion::aggregation_state<bn254>;
 
 std::array<bn254::Group, 2> agg_points_from_witness_indicies(
     Builder& builder, const std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE>& obj_witness_indices)
@@ -46,7 +53,7 @@ std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> create_ho
 {
     using Flavor = UltraRecursiveFlavor_<Builder>;
     using RecursiveVerificationKey = Flavor::VerificationKey;
-    using RecursiveVerifier = UltraRecursiveVerifier_<Flavor>;
+    using RecursiveVerifier = bb::stdlib::recursion::honk::UltraRecursiveVerifier_<Flavor>;
 
     // Ignore the case of invalid witness assignments for now.
     static_cast<void>(has_valid_witness_assignments);

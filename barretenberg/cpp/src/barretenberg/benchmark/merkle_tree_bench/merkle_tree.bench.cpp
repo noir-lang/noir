@@ -5,6 +5,7 @@
 #include <benchmark/benchmark.h>
 
 using namespace benchmark;
+using namespace bb;
 using namespace bb::crypto::merkle_tree;
 
 using TreeType = MerkleTree<MemoryStore, PedersenHashPolicy>;

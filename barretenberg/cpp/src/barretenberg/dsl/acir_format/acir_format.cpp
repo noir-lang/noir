@@ -1,10 +1,13 @@
 #include "acir_format.hpp"
 #include "barretenberg/common/log.hpp"
+#include "barretenberg/stdlib/primitives/field/field_conversion.hpp"
 #include "barretenberg/stdlib_circuit_builders/mega_circuit_builder.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 #include <cstddef>
 
 namespace acir_format {
+
+using namespace bb;
 
 template class DSLBigInts<UltraCircuitBuilder>;
 template class DSLBigInts<MegaCircuitBuilder>;
@@ -284,11 +287,11 @@ void build_constraints(Builder& builder,
             size_t agg_obj_indices_idx = 0;
             for (fq val : aggregation_object_fq_values) {
                 const uint256_t x = val;
-                std::array<bb::fr, fq_ct::NUM_LIMBS> val_limbs = {
+                std::array<fr, fq_ct::NUM_LIMBS> val_limbs = {
                     x.slice(0, fq_ct::NUM_LIMB_BITS),
                     x.slice(fq_ct::NUM_LIMB_BITS, fq_ct::NUM_LIMB_BITS * 2),
                     x.slice(fq_ct::NUM_LIMB_BITS * 2, fq_ct::NUM_LIMB_BITS * 3),
-                    x.slice(fq_ct::NUM_LIMB_BITS * 3, bb::stdlib::field_conversion::TOTAL_BITS)
+                    x.slice(fq_ct::NUM_LIMB_BITS * 3, stdlib::field_conversion::TOTAL_BITS)
                 };
                 for (size_t i = 0; i < fq_ct::NUM_LIMBS; ++i) {
                     uint32_t idx = builder.add_variable(val_limbs[i]);

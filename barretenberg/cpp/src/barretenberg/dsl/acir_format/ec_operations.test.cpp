@@ -1,13 +1,19 @@
 #include "ec_operations.hpp"
 #include "acir_format.hpp"
 #include "barretenberg/circuit_checker/circuit_checker.hpp"
+#include "barretenberg/plonk/composer/standard_composer.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
+#include "barretenberg/stdlib/primitives/curves/secp256k1.hpp"
+#include "barretenberg/stdlib/primitives/group/cycle_group.hpp"
 
 #include <gtest/gtest.h>
 #include <vector>
 
 namespace acir_format::tests {
+
+using Composer = plonk::UltraComposer;
 using curve_ct = bb::stdlib::secp256k1<Builder>;
 
 class EcOperations : public ::testing::Test {

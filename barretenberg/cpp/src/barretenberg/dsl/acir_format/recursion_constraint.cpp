@@ -1,4 +1,5 @@
 #include "recursion_constraint.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 #include "barretenberg/plonk/transcript/transcript_wrappers.hpp"
 #include "barretenberg/stdlib/plonk_recursion/aggregation_state/aggregation_state.hpp"
@@ -7,7 +8,18 @@
 
 namespace acir_format {
 
-using namespace bb::plonk;
+using namespace bb;
+
+using Transcript_ct = bb::stdlib::recursion::Transcript<Builder>;
+using bn254 = stdlib::bn254<Builder>;
+using noir_recursive_settings = stdlib::recursion::recursive_ultra_verifier_settings<bn254>;
+using verification_key_ct = stdlib::recursion::verification_key<bn254>;
+using field_ct = stdlib::field_t<Builder>;
+using Composer = plonk::UltraComposer;
+using bn254 = stdlib::bn254<Builder>;
+using aggregation_state_ct = stdlib::recursion::aggregation_state<bn254>;
+
+using namespace plonk;
 
 // `NUM_LIMB_BITS_IN_FIELD_SIMULATION` is the limb size when simulating a non-native field using the bigfield class
 // A aggregation object is two acir_format::g1_ct types where each coordinate in a point is a non-native field.
@@ -50,7 +62,7 @@ std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> create_recurs
         const std::vector<fr> dummy_key = export_dummy_key_in_recursion_format(
             PolynomialManifest(Builder::CIRCUIT_TYPE), inner_proof_contains_recursive_proof);
         const auto manifest = Composer::create_manifest(input.public_inputs.size());
-        std::vector<bb::fr> dummy_proof =
+        std::vector<fr> dummy_proof =
             export_dummy_transcript_in_recursion_format(manifest, inner_proof_contains_recursive_proof);
 
         for (size_t i = 0; i < input.public_inputs.size(); ++i) {
@@ -58,8 +70,7 @@ std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> create_recurs
             // if we do NOT have a witness assignment (i.e. are just building the proving/verification keys),
             // we add our dummy public input values as Builder variables.
             // if we DO have a valid witness assignment, we use the real witness assignment
-            bb::fr dummy_field =
-                has_valid_witness_assignments ? builder.get_variable(public_input_idx) : dummy_proof[i];
+            fr dummy_field = has_valid_witness_assignments ? builder.get_variable(public_input_idx) : dummy_proof[i];
             // Create a copy constraint between our dummy field and the witness index provided by RecursionConstraint.
             // This will make the RecursionConstraint idx equal to `dummy_field`.
             // In the case of a valid witness assignment, this does nothing (as dummy_field = real value)
@@ -78,12 +89,12 @@ std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> create_recurs
                           dummy_proof.begin() + static_cast<std::ptrdiff_t>(input.public_inputs.size()));
         for (size_t i = 0; i < input.proof.size(); ++i) {
             const auto proof_field_idx = input.proof[i];
-            bb::fr dummy_field = has_valid_witness_assignments ? builder.get_variable(proof_field_idx) : dummy_proof[i];
+            fr dummy_field = has_valid_witness_assignments ? builder.get_variable(proof_field_idx) : dummy_proof[i];
             builder.assert_equal(builder.add_variable(dummy_field), proof_field_idx);
         }
         for (size_t i = 0; i < input.key.size(); ++i) {
             const auto key_field_idx = input.key[i];
-            bb::fr dummy_field = has_valid_witness_assignments ? builder.get_variable(key_field_idx) : dummy_key[i];
+            fr dummy_field = has_valid_witness_assignments ? builder.get_variable(key_field_idx) : dummy_key[i];
             builder.assert_equal(builder.add_variable(dummy_field), key_field_idx);
         }
     }
@@ -148,7 +159,7 @@ std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> create_recurs
     vkey->program_width = noir_recursive_settings::program_width;
 
     Transcript_ct transcript(&builder, manifest, proof_fields, input.public_inputs.size());
-    aggregation_state_ct result = bb::stdlib::recursion::verify_proof_<bn254, noir_recursive_settings>(
+    aggregation_state_ct result = stdlib::recursion::verify_proof_<bn254, noir_recursive_settings>(
         &builder, vkey, transcript, previous_aggregation);
 
     // Assign correct witness value to the verification key hash
@@ -176,9 +187,9 @@ std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> create_recurs
  *        This method exports the key formatted in the manner our recursive verifier expects.
  *        NOTE: only used by the dsl at the moment. Might be cleaner to make this a dsl function?
  *
- * @return std::vector<bb::fr>
+ * @return std::vector<fr>
  */
-std::vector<bb::fr> export_key_in_recursion_format(std::shared_ptr<verification_key> const& vkey)
+std::vector<fr> export_key_in_recursion_format(std::shared_ptr<verification_key> const& vkey)
 {
     std::vector<fr> output;
     output.emplace_back(vkey->domain.root);
@@ -226,10 +237,10 @@ std::vector<bb::fr> export_key_in_recursion_format(std::shared_ptr<verification_
  *        We want a non-zero circuit size as this element will be inverted by the circuit
  *        and we do not want an "inverting 0" error thrown
  *
- * @return std::vector<bb::fr>
+ * @return std::vector<fr>
  */
-std::vector<bb::fr> export_dummy_key_in_recursion_format(const PolynomialManifest& polynomial_manifest,
-                                                         const bool contains_recursive_proof)
+std::vector<fr> export_dummy_key_in_recursion_format(const PolynomialManifest& polynomial_manifest,
+                                                     const bool contains_recursive_proof)
 {
     std::vector<fr> output;
     output.emplace_back(1); // domain.domain (will be inverted)
@@ -252,8 +263,8 @@ std::vector<bb::fr> export_dummy_key_in_recursion_format(const PolynomialManifes
             // This check can also trigger a runtime error due to causing 0 to be inverted.
             // When creating dummy verification key points we must be mindful of the above and make sure that each
             // transcript point is unique.
-            auto scalar = bb::fr::random_element();
-            const auto element = bb::g1::affine_element(bb::g1::one * scalar);
+            auto scalar = fr::random_element();
+            const auto element = g1::affine_element(g1::one * scalar);
             auto g1_as_fields = export_g1_affine_element_as_fields(element);
             output.emplace_back(g1_as_fields.x_lo);
             output.emplace_back(g1_as_fields.x_hi);
@@ -268,14 +279,14 @@ std::vector<bb::fr> export_dummy_key_in_recursion_format(const PolynomialManifes
 }
 
 /**
- * @brief Returns transcript represented as a vector of bb::fr.
+ * @brief Returns transcript represented as a vector of fr.
  *        Used to represent recursive proofs (i.e. proof represented as circuit-native field elements)
  *
- * @return std::vector<bb::fr>
+ * @return std::vector<fr>
  */
-std::vector<bb::fr> export_transcript_in_recursion_format(const transcript::StandardTranscript& transcript)
+std::vector<fr> export_transcript_in_recursion_format(const transcript::StandardTranscript& transcript)
 {
-    std::vector<bb::fr> fields;
+    std::vector<fr> fields;
     const auto num_rounds = transcript.get_manifest().get_num_rounds();
     for (size_t i = 0; i < num_rounds; ++i) {
         for (const auto& manifest_element : transcript.get_manifest().get_round_manifest(i).elements) {
@@ -307,18 +318,18 @@ std::vector<bb::fr> export_transcript_in_recursion_format(const transcript::Stan
  * errors being thrown.
  *
  * @param manifest
- * @return std::vector<bb::fr>
+ * @return std::vector<fr>
  */
-std::vector<bb::fr> export_dummy_transcript_in_recursion_format(const transcript::Manifest& manifest,
-                                                                const bool contains_recursive_proof)
+std::vector<fr> export_dummy_transcript_in_recursion_format(const transcript::Manifest& manifest,
+                                                            const bool contains_recursive_proof)
 {
-    std::vector<bb::fr> fields;
+    std::vector<fr> fields;
     const auto num_rounds = manifest.get_num_rounds();
     for (size_t i = 0; i < num_rounds; ++i) {
         for (const auto& manifest_element : manifest.get_round_manifest(i).elements) {
             if (!manifest_element.derived_by_verifier) {
                 if (manifest_element.num_bytes == 32 && manifest_element.name != "public_inputs") {
-                    // auto scalar = bb::fr::random_element();
+                    // auto scalar = fr::random_element();
                     fields.emplace_back(0);
                 } else if (manifest_element.num_bytes == 64 && manifest_element.name != "public_inputs") {
                     // the std::biggroup class creates unsatisfiable constraints when identical points are
@@ -327,8 +338,8 @@ std::vector<bb::fr> export_dummy_transcript_in_recursion_format(const transcript
                     // identical. And prover points should contain randomness for an honest Prover). This check can
                     // also trigger a runtime error due to causing 0 to be inverted. When creating dummy proof
                     // points we must be mindful of the above and make sure that each point is unique.
-                    auto scalar = bb::fr::random_element();
-                    const auto group_element = bb::g1::affine_element(bb::g1::one * scalar);
+                    auto scalar = fr::random_element();
+                    const auto group_element = g1::affine_element(g1::one * scalar);
                     auto g1_as_fields = export_g1_affine_element_as_fields(group_element);
                     fields.emplace_back(g1_as_fields.x_lo);
                     fields.emplace_back(g1_as_fields.x_hi);
@@ -348,8 +359,8 @@ std::vector<bb::fr> export_dummy_transcript_in_recursion_format(const transcript
                             fields.emplace_back(0);
                         }
                         for (size_t k = 0; k < RecursionConstraint::NUM_AGGREGATION_ELEMENTS; ++k) {
-                            auto scalar = bb::fr::random_element();
-                            const auto group_element = bb::g1::affine_element(bb::g1::one * scalar);
+                            auto scalar = fr::random_element();
+                            const auto group_element = g1::affine_element(g1::one * scalar);
                             auto g1_as_fields = export_g1_affine_element_as_fields(group_element);
                             fields.emplace_back(g1_as_fields.x_lo);
                             fields.emplace_back(g1_as_fields.x_hi);
@@ -358,7 +369,7 @@ std::vector<bb::fr> export_dummy_transcript_in_recursion_format(const transcript
                         }
                     } else {
                         for (size_t j = 0; j < num_public_inputs; ++j) {
-                            // auto scalar = bb::fr::random_element();
+                            // auto scalar = fr::random_element();
                             fields.emplace_back(0);
                         }
                     }
@@ -376,14 +387,14 @@ size_t recursion_proof_size_without_public_inputs()
     return dummy_transcript.size();
 }
 
-G1AsFields export_g1_affine_element_as_fields(const bb::g1::affine_element& group_element)
+G1AsFields export_g1_affine_element_as_fields(const g1::affine_element& group_element)
 {
     const uint256_t x = group_element.x;
     const uint256_t y = group_element.y;
-    const bb::fr x_lo = x.slice(0, TWO_LIMBS_BITS_IN_FIELD_SIMULATION);
-    const bb::fr x_hi = x.slice(TWO_LIMBS_BITS_IN_FIELD_SIMULATION, FOUR_LIMBS_BITS_IN_FIELD_SIMULATION);
-    const bb::fr y_lo = y.slice(0, TWO_LIMBS_BITS_IN_FIELD_SIMULATION);
-    const bb::fr y_hi = y.slice(TWO_LIMBS_BITS_IN_FIELD_SIMULATION, FOUR_LIMBS_BITS_IN_FIELD_SIMULATION);
+    const fr x_lo = x.slice(0, TWO_LIMBS_BITS_IN_FIELD_SIMULATION);
+    const fr x_hi = x.slice(TWO_LIMBS_BITS_IN_FIELD_SIMULATION, FOUR_LIMBS_BITS_IN_FIELD_SIMULATION);
+    const fr y_lo = y.slice(0, TWO_LIMBS_BITS_IN_FIELD_SIMULATION);
+    const fr y_hi = y.slice(TWO_LIMBS_BITS_IN_FIELD_SIMULATION, FOUR_LIMBS_BITS_IN_FIELD_SIMULATION);
 
     return G1AsFields{ x_lo, x_hi, y_lo, y_hi };
 }

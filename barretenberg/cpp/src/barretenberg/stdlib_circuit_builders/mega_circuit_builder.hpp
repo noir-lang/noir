@@ -7,8 +7,6 @@
 
 namespace bb {
 
-using namespace bb;
-
 template <typename FF> class MegaCircuitBuilder_ : public UltraCircuitBuilder_<UltraHonkArith<FF>> {
   private:
     DataBus databus; // Container for public calldata/returndata

@@ -1,5 +1,4 @@
 #pragma once
-#include "barretenberg/dsl/types.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include <cstdint>
 #include <vector>
@@ -8,8 +7,8 @@ namespace acir_format {
 
 struct MemOp {
     uint8_t access_type;
-    poly_triple index;
-    poly_triple value;
+    bb::poly_triple index;
+    bb::poly_triple value;
 };
 
 enum BlockType {
@@ -20,14 +19,14 @@ enum BlockType {
 };
 
 struct BlockConstraint {
-    std::vector<poly_triple> init;
+    std::vector<bb::poly_triple> init;
     std::vector<MemOp> trace;
     BlockType type;
 };
 
 template <typename Builder>
 void create_block_constraints(Builder& builder,
-                              const BlockConstraint constraint,
+                              const BlockConstraint& constraint,
                               bool has_valid_witness_assignments = true);
 
 template <typename B> inline void read(B& buf, MemOp& mem_op)

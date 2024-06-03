@@ -8,7 +8,6 @@
 
 namespace bb::stdlib {
 
-using namespace bb;
 /**
  * @brief stdlib class that evaluates in-circuit pedersen hashes, consistent with behavior in
  * crypto::pedersen_hash

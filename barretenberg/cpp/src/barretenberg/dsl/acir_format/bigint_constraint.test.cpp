@@ -2,6 +2,7 @@
 #include "acir_format.hpp"
 #include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 
@@ -10,6 +11,8 @@
 #include <vector>
 
 namespace acir_format::tests {
+
+using Composer = plonk::UltraComposer;
 
 class BigIntTests : public ::testing::Test {
   protected:
@@ -228,7 +231,7 @@ TEST_F(BigIntTests, TestBigIntConstraintSimple)
 
     BigIntFromLeBytes from_le_bytes_constraint_bigint1{
         .inputs = { 1 },
-        .modulus = { 0x47, 0xFD, 0x7C, 0xD8, 0x16, 0x8C, 0x20, 0x3C, 0x8d, 0xca, 0x71, 0x68, 0x91, 0x6a, 0x81, 0x97, 
+        .modulus = { 0x47, 0xFD, 0x7C, 0xD8, 0x16, 0x8C, 0x20, 0x3C, 0x8d, 0xca, 0x71, 0x68, 0x91, 0x6a, 0x81, 0x97,
   0x5d, 0x58, 0x81, 0x81, 0xb6, 0x45, 0x50, 0xb8, 0x29, 0xa0, 0x31, 0xe1, 0x72, 0x4e, 0x64, 0x30, },
         .result = 1,
     };

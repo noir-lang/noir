@@ -2,7 +2,7 @@
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/dsl/acir_format/acir_format.hpp"
-#include "barretenberg/dsl/types.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/sol_gen.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
@@ -11,6 +11,9 @@
 #include <memory>
 
 namespace acir_proofs {
+
+using namespace bb;
+using Composer = plonk::UltraComposer;
 
 AcirComposer::AcirComposer(size_t size_hint, bool verbose)
     : size_hint_(size_hint)
@@ -35,7 +38,7 @@ void AcirComposer::create_circuit(acir_format::AcirFormat& constraint_system, Wi
 
 std::shared_ptr<bb::plonk::proving_key> AcirComposer::init_proving_key()
 {
-    acir_format::Composer composer;
+    Composer composer;
     vinfo("computing proving key...");
     proving_key_ = composer.compute_proving_key(builder_);
     return proving_key_;
@@ -47,7 +50,7 @@ std::vector<uint8_t> AcirComposer::create_proof()
         throw_or_abort("Must compute proving key before constructing proof.");
     }
 
-    acir_format::Composer composer(proving_key_, nullptr);
+    Composer composer(proving_key_, nullptr);
 
     vinfo("creating proof...");
     std::vector<uint8_t> proof;
@@ -68,7 +71,7 @@ std::shared_ptr<bb::plonk::verification_key> AcirComposer::init_verification_key
         throw_or_abort("Compute proving key first.");
     }
     vinfo("computing verification key...");
-    acir_format::Composer composer(proving_key_, nullptr);
+    Composer composer(proving_key_, nullptr);
     verification_key_ = composer.compute_verification_key(builder_);
 
     vinfo("done.");
@@ -83,7 +86,7 @@ void AcirComposer::load_verification_key(bb::plonk::verification_key_data&& data
 
 bool AcirComposer::verify_proof(std::vector<uint8_t> const& proof)
 {
-    acir_format::Composer composer(proving_key_, verification_key_);
+    Composer composer(proving_key_, verification_key_);
 
     if (!verification_key_) {
         vinfo("computing verification key...");
@@ -123,10 +126,8 @@ std::string AcirComposer::get_solidity_verifier()
 std::vector<bb::fr> AcirComposer::serialize_proof_into_fields(std::vector<uint8_t> const& proof,
                                                               size_t num_inner_public_inputs)
 {
-    plonk::transcript::StandardTranscript transcript(proof,
-                                                     acir_format::Composer::create_manifest(num_inner_public_inputs),
-                                                     plonk::transcript::HashType::PedersenBlake3s,
-                                                     16);
+    plonk::transcript::StandardTranscript transcript(
+        proof, Composer::create_manifest(num_inner_public_inputs), plonk::transcript::HashType::PedersenBlake3s, 16);
 
     return acir_format::export_transcript_in_recursion_format(transcript);
 }

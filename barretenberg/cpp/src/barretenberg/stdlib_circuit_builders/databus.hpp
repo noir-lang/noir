@@ -3,8 +3,6 @@
 #include <cstdint>
 namespace bb {
 
-using namespace bb;
-
 /**
  * @brief A DataBus column
  *

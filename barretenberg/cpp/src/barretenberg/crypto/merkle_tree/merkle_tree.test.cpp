@@ -5,6 +5,7 @@
 #include "memory_store.hpp"
 #include "memory_tree.hpp"
 
+using namespace bb;
 using namespace bb::stdlib;
 using namespace bb::crypto::merkle_tree;
 

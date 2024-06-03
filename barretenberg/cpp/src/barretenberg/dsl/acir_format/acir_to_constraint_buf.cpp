@@ -1,8 +1,13 @@
 #include "acir_to_constraint_buf.hpp"
+#include "barretenberg/common/container.hpp"
 #ifndef __wasm__
 #include "barretenberg/bb/get_bytecode.hpp"
 #endif
+#include "barretenberg/common/map.hpp"
 namespace acir_format {
+
+using namespace bb;
+
 /**
  * @brief Construct a poly_tuple for a standard width-3 arithmetic gate from its acir representation
  *
@@ -50,7 +55,7 @@ poly_triple serialize_arithmetic_gate(Program::Expression const& arg)
     // If necessary, set values for linears terms q_l * w_l, q_r * w_r and q_o * w_o
     ASSERT(arg.linear_combinations.size() <= 3); // We can only accommodate 3 linear terms
     for (const auto& linear_term : arg.linear_combinations) {
-        bb::fr selector_value(uint256_t(std::get<0>(linear_term)));
+        fr selector_value(uint256_t(std::get<0>(linear_term)));
         uint32_t witness_idx = std::get<1>(linear_term).value;
 
         // If the witness index has not yet been set or if the corresponding linear term is active, set the witness
@@ -88,7 +93,7 @@ poly_triple serialize_arithmetic_gate(Program::Expression const& arg)
     pt.q_c = uint256_t(arg.q_c);
     return pt;
 }
-mul_quad_<bb::fr> serialize_mul_quad_gate(Program::Expression const& arg)
+mul_quad_<fr> serialize_mul_quad_gate(Program::Expression const& arg)
 {
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/816): The initialization of the witness indices a,b,c
     // to 0 is implicitly assuming that (builder.zero_idx == 0) which is no longer the case. Now, witness idx 0 in
@@ -96,16 +101,16 @@ mul_quad_<bb::fr> serialize_mul_quad_gate(Program::Expression const& arg)
     // erroneously populated with this value. This does not cause failures however because the corresponding selector
     // will indeed be 0 so the gate will be satisfied. Still, its a bad idea to have erroneous wire values
     // even if they dont break the relation. They'll still add cost in commitments, for example.
-    mul_quad_<bb::fr> quad{ .a = 0,
-                            .b = 0,
-                            .c = 0,
-                            .d = 0,
-                            .mul_scaling = 0,
-                            .a_scaling = 0,
-                            .b_scaling = 0,
-                            .c_scaling = 0,
-                            .d_scaling = 0,
-                            .const_scaling = 0 };
+    mul_quad_<fr> quad{ .a = 0,
+                        .b = 0,
+                        .c = 0,
+                        .d = 0,
+                        .mul_scaling = 0,
+                        .a_scaling = 0,
+                        .b_scaling = 0,
+                        .c_scaling = 0,
+                        .d_scaling = 0,
+                        .const_scaling = 0 };
 
     // Flags indicating whether each witness index for the present mul_quad has been set
     bool a_set = false;
@@ -125,7 +130,7 @@ mul_quad_<bb::fr> serialize_mul_quad_gate(Program::Expression const& arg)
     // If necessary, set values for linears terms q_l * w_l, q_r * w_r and q_o * w_o
     ASSERT(arg.linear_combinations.size() <= 4); // We can only accommodate 4 linear terms
     for (const auto& linear_term : arg.linear_combinations) {
-        bb::fr selector_value(uint256_t(std::get<0>(linear_term)));
+        fr selector_value(uint256_t(std::get<0>(linear_term)));
         uint32_t witness_idx = std::get<1>(linear_term).value;
 
         // If the witness index has not yet been set or if the corresponding linear term is active, set the witness
@@ -543,10 +548,10 @@ WitnessVector witness_map_to_witness_vector(WitnessStack::WitnessMap const& witn
         // To ensure that witnesses sit at the correct indices in the `WitnessVector`, we fill any indices
         // which do not exist within the `WitnessMap` with the dummy value of zero.
         while (index < e.first.value) {
-            wv.push_back(bb::fr(0));
+            wv.push_back(fr(0));
             index++;
         }
-        wv.push_back(bb::fr(uint256_t(e.second)));
+        wv.push_back(fr(uint256_t(e.second)));
         index++;
     }
     return wv;

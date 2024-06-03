@@ -1,5 +1,7 @@
 #pragma once
-#include "barretenberg/dsl/types.hpp"
+#include "barretenberg/common/serialize.hpp"
+#include <array>
+#include <cstdint>
 #include <vector>
 
 namespace acir_format {

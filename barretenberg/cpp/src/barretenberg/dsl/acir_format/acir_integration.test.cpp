@@ -1,6 +1,8 @@
 #include "barretenberg/client_ivc/client_ivc.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #ifndef __wasm__
 #include "barretenberg/bb/exec_pipe.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/dsl/acir_format/acir_to_constraint_buf.hpp"
 
@@ -9,6 +11,7 @@
 
 // #define LOG_SIZES
 
+using namespace bb;
 class AcirIntegrationTest : public ::testing::Test {
   public:
     static std::vector<uint8_t> get_bytecode(const std::string& bytecodePath)

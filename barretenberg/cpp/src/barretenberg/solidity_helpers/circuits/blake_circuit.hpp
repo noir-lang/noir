@@ -3,16 +3,11 @@
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 
-using namespace bb::plonk;
-using namespace bb::stdlib;
-
-using numeric::uint256_t;
-
 template <typename Builder> class BlakeCircuit {
   public:
-    typedef stdlib::field_t<Builder> field_ct;
-    typedef stdlib::public_witness_t<Builder> public_witness_ct;
-    typedef stdlib::byte_array<Builder> byte_array_ct;
+    using field_ct = bb::stdlib::field_t<Builder>;
+    using public_witness_ct = bb::stdlib::public_witness_t<Builder>;
+    using byte_array_ct = bb::stdlib::byte_array<Builder>;
 
     static constexpr size_t NUM_PUBLIC_INPUTS = 4;
 
@@ -25,7 +20,7 @@ template <typename Builder> class BlakeCircuit {
             input_buffer.write(byte_array_ct(field_ct(public_witness_ct(&builder, public_inputs[i]))));
         }
 
-        stdlib::blake2s<Builder>(input_buffer);
+        bb::stdlib::blake2s<Builder>(input_buffer);
 
         return builder;
     }

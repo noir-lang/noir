@@ -9,7 +9,6 @@
 
 namespace bb::stdlib {
 
-using namespace bb;
 template <typename Params, typename Builder> class Poseidon2Permutation {
   public:
     using NativePermutation = crypto::Poseidon2Permutation<Params>;

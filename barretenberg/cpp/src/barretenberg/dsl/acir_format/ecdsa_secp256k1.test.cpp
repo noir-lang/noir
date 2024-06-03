@@ -1,8 +1,10 @@
 #include "ecdsa_secp256k1.hpp"
 #include "acir_format.hpp"
 #include "barretenberg/crypto/ecdsa/ecdsa.hpp"
+#include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
+#include "barretenberg/stdlib/primitives/curves/secp256k1.hpp"
 
 #include <gtest/gtest.h>
 #include <vector>
@@ -11,6 +13,7 @@ using namespace bb;
 using namespace bb::crypto;
 using namespace acir_format;
 using curve_ct = stdlib::secp256k1<Builder>;
+using Composer = plonk::UltraComposer;
 
 class ECDSASecp256k1 : public ::testing::Test {
   protected:

@@ -1,12 +1,16 @@
 #include "pedersen.hpp"
+#include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
+#include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
+#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders_fwd.hpp"
+#include "barretenberg/stdlib/primitives/field/field.hpp"
 
 namespace acir_format {
 
-using namespace bb::plonk;
+using namespace bb;
 
 template <typename Builder> void create_pedersen_constraint(Builder& builder, const PedersenConstraint& input)
 {
-    using field_ct = bb::stdlib::field_t<Builder>;
+    using field_ct = stdlib::field_t<Builder>;
 
     std::vector<field_ct> scalars;
 
@@ -24,7 +28,7 @@ template <typename Builder> void create_pedersen_constraint(Builder& builder, co
 
 template <typename Builder> void create_pedersen_hash_constraint(Builder& builder, const PedersenHashConstraint& input)
 {
-    using field_ct = bb::stdlib::field_t<Builder>;
+    using field_ct = stdlib::field_t<Builder>;
 
     std::vector<field_ct> scalars;
 

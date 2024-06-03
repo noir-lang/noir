@@ -1,6 +1,5 @@
 #include "bigint_constraint.hpp"
 #include "barretenberg/common/assert.hpp"
-#include "barretenberg/dsl/types.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/numeric/uintx/uintx.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
@@ -8,6 +7,8 @@
 #include <cstdint>
 
 namespace acir_format {
+
+using namespace bb;
 
 ModulusId modulus_param_to_id(ModulusParam param)
 {

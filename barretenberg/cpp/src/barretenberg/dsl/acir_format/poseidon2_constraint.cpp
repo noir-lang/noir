@@ -1,11 +1,17 @@
 #include "poseidon2_constraint.hpp"
+#include "barretenberg/crypto/poseidon2/poseidon2_params.hpp"
+#include "barretenberg/stdlib/hash/poseidon2/poseidon2_permutation.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders_fwd.hpp"
+#include "barretenberg/stdlib/primitives/field/field.hpp"
 
 namespace acir_format {
+
+using namespace bb;
+
 template <typename Builder> void create_poseidon2_permutations(Builder& builder, const Poseidon2Constraint& constraint)
 {
-    using field_ct = bb::stdlib::field_t<Builder>;
-    using Poseidon2Params = bb::stdlib::crypto::Poseidon2Bn254ScalarFieldParams;
+    using field_ct = stdlib::field_t<Builder>;
+    using Poseidon2Params = crypto::Poseidon2Bn254ScalarFieldParams;
     using State = std::array<field_ct, Poseidon2Params::t>;
 
     ASSERT(constraint.state.size() == constraint.len);
@@ -17,7 +23,7 @@ template <typename Builder> void create_poseidon2_permutations(Builder& builder,
         state[i] = field_ct::from_witness_index(&builder, constraint.state[i]);
     }
     State output_state;
-    output_state = bb::stdlib::Poseidon2Permutation<Poseidon2Params, Builder>::permutation(&builder, state);
+    output_state = stdlib::Poseidon2Permutation<Poseidon2Params, Builder>::permutation(&builder, state);
     for (size_t i = 0; i < output_state.size(); ++i) {
         poly_triple assert_equal{
             .a = output_state[i].normalize().witness_index,

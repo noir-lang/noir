@@ -20,6 +20,7 @@
 #include "schnorr_verify.hpp"
 #include "sha256_constraint.hpp"
 #include <utility>
+#include <vector>
 
 namespace acir_format {
 
@@ -63,10 +64,11 @@ struct AcirFormat {
     // A standard plonk arithmetic constraint, as defined in the poly_triple struct, consists of selector values
     // for q_M,q_L,q_R,q_O,q_C and indices of three variables taking the role of left, right and output wire
     // This could be a large vector so use slab allocator, we don't expect the blackbox implementations to be so large.
-    std::vector<poly_triple_<curve::BN254::ScalarField>,
-                ContainerSlabAllocator<poly_triple_<curve::BN254::ScalarField>>>
+    std::vector<bb::poly_triple_<bb::curve::BN254::ScalarField>,
+                bb::ContainerSlabAllocator<bb::poly_triple_<bb::curve::BN254::ScalarField>>>
         poly_triple_constraints;
-    std::vector<mul_quad_<curve::BN254::ScalarField>, ContainerSlabAllocator<mul_quad_<curve::BN254::ScalarField>>>
+    std::vector<bb::mul_quad_<bb::curve::BN254::ScalarField>,
+                bb::ContainerSlabAllocator<bb::mul_quad_<bb::curve::BN254::ScalarField>>>
         quad_constraints;
     std::vector<BlockConstraint> block_constraints;
 
@@ -101,7 +103,7 @@ struct AcirFormat {
     friend bool operator==(AcirFormat const& lhs, AcirFormat const& rhs) = default;
 };
 
-using WitnessVector = std::vector<fr, ContainerSlabAllocator<fr>>;
+using WitnessVector = std::vector<bb::fr, bb::ContainerSlabAllocator<bb::fr>>;
 using WitnessVectorStack = std::vector<std::pair<uint32_t, WitnessVector>>;
 
 struct AcirProgram {
@@ -139,12 +141,12 @@ struct AcirProgramStack {
     void pop_back() { witness_stack.pop_back(); }
 };
 
-template <typename Builder = UltraCircuitBuilder>
+template <typename Builder = bb::UltraCircuitBuilder>
 Builder create_circuit(const AcirFormat& constraint_system,
                        size_t size_hint = 0,
                        WitnessVector const& witness = {},
                        bool honk_recursion = false,
-                       std::shared_ptr<ECCOpQueue> op_queue = std::make_shared<ECCOpQueue>());
+                       std::shared_ptr<bb::ECCOpQueue> op_queue = std::make_shared<bb::ECCOpQueue>());
 
 template <typename Builder>
 void build_constraints(Builder& builder,
