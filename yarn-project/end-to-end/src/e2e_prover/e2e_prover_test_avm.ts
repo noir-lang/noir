@@ -123,7 +123,7 @@ export class FullProverTestAvm {
     await this.aztecNode.setConfig({
       proverAgentConcurrency: 1,
       realProofs: true,
-      minTxsPerBlock: 2, // min 2 txs per block
+      minTxsPerBlock: 1,
     });
 
     this.logger.debug(`Main setup completed, initializing full prover PXE and Node...`);

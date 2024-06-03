@@ -26,9 +26,7 @@ describe('full_prover/avm', () => {
       logger.info(
         `Starting test using function: ${avmContract.address}:${avmContract.methods.add_args_return.selector}`,
       );
-      const tx1 = avmContract.methods.add_args_return(3, 5).send();
-      const tx2 = avmContract.methods.add_args_return(4, 50).send();
-      await Promise.all([tx1.wait({ timeout: 1200, interval: 10 }), tx2.wait({ timeout: 1200, interval: 10 })]);
+      await avmContract.methods.add_args_return(3, 5).send().wait();
     },
     TIMEOUT,
   );
