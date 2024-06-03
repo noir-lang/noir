@@ -82,6 +82,14 @@ export abstract class TypedOracle {
     throw new OracleMethodNotAvailableError('unpackReturns');
   }
 
+  getBlockNumber(): Promise<number> {
+    throw new OracleMethodNotAvailableError('getBlockNumber');
+  }
+
+  getContractAddress(): Promise<AztecAddress> {
+    throw new OracleMethodNotAvailableError('getContractAddress');
+  }
+
   getKeyValidationRequest(_pkMHash: Fr): Promise<KeyValidationRequest> {
     throw new OracleMethodNotAvailableError('getKeyValidationRequest');
   }

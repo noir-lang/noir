@@ -27,9 +27,10 @@ On this and the following pages in this section, you’ll learn:
 Aztec contracts have three different modes of execution: [private](../../../aztec/glossary/call_types.md#private-execution), [public](../../../aztec/glossary/call_types.md#public-execution) and [top-level unconstrained](../../../aztec/glossary/call_types.md#top-level-unconstrained). How storage is accessed depends on the execution mode: for example, `PublicImmutable` can be read in all execution modes but only initialized in public, while `PrivateMutable` is entirely unavailable in public.
 
 Aztec.nr prevents developers from calling functions unavailable in the current execution mode via the `context` variable that is injected into all contract functions. Its type indicates the current execution mode:
- - `&mut PrivateContext` for private execution
- - `&mut PublicContext` for public execution
- - `()` for unconstrained
+
+- `&mut PrivateContext` for private execution
+- `&mut PublicContext` for public execution
+- `UncontrainedContext` for top-level unconstrained execution
 
 All state variables are generic over this `Context` type, and expose different methods in each execution mode. In the example above, `PublicImmutable`'s `initialize` function is only available with a public execution context, and so the following code results in a compilation error:
 

@@ -1,6 +1,7 @@
 use dep::aztec::prelude::{AztecAddress, FunctionSelector, PrivateContext, NoteHeader, NoteGetterOptions, NoteViewerOptions};
 
 use dep::aztec::{
+    context::UnconstrainedContext,
     protocol_types::{
     traits::{ToField, Serialize, FromField}, grumpkin_point::GrumpkinPoint,
     constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL
@@ -153,7 +154,7 @@ impl Deck<&mut PrivateContext> {
     }
 }
 
-impl Deck<()> {
+impl Deck<UnconstrainedContext> {
     unconstrained pub fn view_cards(self, offset: u32) -> [Option<Card>; MAX_NOTES_PER_PAGE] {
         let mut options = NoteViewerOptions::new();
         let opt_notes = self.set.view_notes(options.set_offset(offset));

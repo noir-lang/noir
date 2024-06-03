@@ -1,6 +1,6 @@
 use crate::{
-    context::{PrivateContext, PublicContext}, oracle::{storage::{storage_read, storage_write}},
-    state_vars::storage::Storage
+    context::{PrivateContext, PublicContext, UnconstrainedContext},
+    oracle::{storage::{storage_read, storage_write}}, state_vars::storage::Storage
 };
 use dep::protocol_types::{constants::INITIALIZATION_SLOT_SEPARATOR, traits::{Deserialize, Serialize}};
 
@@ -49,7 +49,7 @@ impl<T> SharedImmutable<T, &mut PublicContext> {
     }
 }
 
-impl<T> SharedImmutable<T, ()> {
+impl<T> SharedImmutable<T, UnconstrainedContext> {
     pub fn read_public<T_SERIALIZED_LEN>(self) -> T where T: Deserialize<T_SERIALIZED_LEN> {
         let fields = storage_read(self.storage_slot);
         T::deserialize(fields)

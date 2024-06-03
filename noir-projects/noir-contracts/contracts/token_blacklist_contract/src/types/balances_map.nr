@@ -1,9 +1,7 @@
-use dep::aztec::prelude::{
-    AztecAddress, NoteGetterOptions, NoteViewerOptions, NoteHeader, NoteInterface, PrivateContext,
-    PrivateSet, Map
-};
+use dep::aztec::prelude::{AztecAddress, NoteGetterOptions, NoteViewerOptions, NoteHeader, NoteInterface, PrivateSet, Map};
 use dep::aztec::{
-    hash::pedersen_hash, protocol_types::constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
+    context::{PrivateContext, UnconstrainedContext}, hash::pedersen_hash,
+    protocol_types::constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
     note::{note_getter::view_notes, note_getter_options::SortOrder}
 };
 use crate::types::token_note::{TokenNote, OwnedNote};
@@ -25,7 +23,7 @@ impl<T, Context> BalancesMap<T, Context> {
     }
 }
 
-impl<T> BalancesMap<T, ()> {
+impl<T> BalancesMap<T, UnconstrainedContext> {
     unconstrained pub fn balance_of<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN>(
         self: Self,
         owner: AztecAddress

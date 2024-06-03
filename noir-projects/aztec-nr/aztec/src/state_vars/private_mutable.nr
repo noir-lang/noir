@@ -3,7 +3,7 @@ use dep::protocol_types::{
     grumpkin_point::GrumpkinPoint, hash::pedersen_hash
 };
 
-use crate::context::PrivateContext;
+use crate::context::{PrivateContext, UnconstrainedContext};
 use crate::note::{
     lifecycle::{create_note, destroy_note}, note_getter::{get_note, view_notes},
     note_interface::NoteInterface, note_viewer_options::NoteViewerOptions
@@ -124,7 +124,7 @@ impl<Note> PrivateMutable<Note, &mut PrivateContext> {
     // docs:end:get_note
 }
 
-impl<Note> PrivateMutable<Note, ()> {
+impl<Note> PrivateMutable<Note, UnconstrainedContext> {
     unconstrained pub fn is_initialized(self) -> bool {
         let nullifier = self.compute_initialization_nullifier();
         check_nullifier_exists(nullifier)
