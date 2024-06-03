@@ -96,8 +96,8 @@ resource "aws_ecs_task_definition" "p2p-bootstrap" {
   family                   = "${var.DEPLOY_TAG}-p2p-bootstrap-${count.index + 1}"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = "2048"
-  memory                   = "4096"
+  cpu                      = "256"
+  memory                   = "1024"
   execution_role_arn       = data.terraform_remote_state.setup_iac.outputs.ecs_task_execution_role_arn
   task_role_arn            = data.terraform_remote_state.aztec2_iac.outputs.cloudwatch_logging_ecs_role_arn
 
@@ -108,7 +108,7 @@ resource "aws_ecs_task_definition" "p2p-bootstrap" {
     "image": "${var.DOCKERHUB_ACCOUNT}/aztec:${var.DEPLOY_TAG}",
     "command": ["start", "--p2p-bootstrap"],
     "essential": true,
-    "memoryReservation": 3776,
+    "memoryReservation": 776,
     "portMappings": [
       {
         "containerPort": ${var.BOOTNODE_LISTEN_PORT + count.index},
