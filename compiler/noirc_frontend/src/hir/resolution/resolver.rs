@@ -126,7 +126,6 @@ pub struct Resolver<'a> {
     /// unique type variables if we're resolving a struct. Empty otherwise.
     /// This is a Vec rather than a map to preserve the order a functions generics
     /// were declared in.
-    // TODO: Switch this to a ResolvedGeneric struct
     generics: Vec<(Rc<String>, TypeVariable, Span)>,
 
     /// When resolving lambda expressions, we need to keep track of the variables
@@ -908,6 +907,7 @@ impl<'a> Resolver<'a> {
             let ident = Ident::from(generic);
             let span = ident.0.span();
 
+            // Declare numeric generics
             if let UnresolvedGeneric::Numeric { ident, typ } = generic {
                 let typ = self.resolve_type(typ.clone());
                 if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
@@ -916,7 +916,6 @@ impl<'a> Resolver<'a> {
                         typ: typ.clone(),
                     });
                 }
-                typevar.bind(typ.clone());
                 let definition = DefinitionKind::GenericType(typevar.clone());
                 let hir_ident =
                     self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
@@ -926,7 +925,7 @@ impl<'a> Resolver<'a> {
                 // and is can lead to confusing errors.
                 self.interner.push_definition_type(hir_ident.id, typ);
             }
-            
+
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
 
@@ -1138,6 +1137,7 @@ impl<'a> Resolver<'a> {
             all_generics: Vec::new(),
             is_trait_function: false,
             parameter_idents: Vec::new(),
+            generic_idents: Vec::new(),
         }
     }
 

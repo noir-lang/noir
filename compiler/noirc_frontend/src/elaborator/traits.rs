@@ -21,6 +21,7 @@ use super::Elaborator;
 impl<'context> Elaborator<'context> {
     pub fn collect_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
+            self.scopes.start_scope();
             self.recover_generics(|this| {
                 this.add_generics(&unresolved_trait.trait_def.generics);
 
@@ -44,6 +45,7 @@ impl<'context> Elaborator<'context> {
             if self.crate_id.is_stdlib() {
                 self.interner.try_add_operator_trait(trait_id);
             }
+            self.scopes.end_scope();
         }
     }
 
@@ -147,6 +149,7 @@ impl<'context> Elaborator<'context> {
         func_id: FuncId,
     ) {
         let old_generic_count = self.generics.len();
+        let old_generic_ident_count = self.generic_idents.len();
         self.scopes.start_function();
 
         self.trait_bounds = where_clause.to_vec();
@@ -179,5 +182,6 @@ impl<'context> Elaborator<'context> {
         // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
         self.trait_bounds.clear();
         self.generics.truncate(old_generic_count);
+        self.generic_idents.truncate(old_generic_ident_count);
     }
 }

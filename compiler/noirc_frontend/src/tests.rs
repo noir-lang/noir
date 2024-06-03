@@ -1536,3 +1536,6 @@ fn numeric_generic_in_function_signature() {
     let errors = get_program_errors(src);
     assert!(errors.is_empty());
 }
+
+// #[test]
+// fn generic

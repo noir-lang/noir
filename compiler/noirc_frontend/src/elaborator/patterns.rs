@@ -264,6 +264,7 @@ impl<'context> Elaborator<'context> {
 
         if !allow_shadowing {
             if let Some(old_value) = old_value {
+                dbg!(old_value.ident.clone());
                 self.push_err(ResolverError::DuplicateDefinition {
                     name: name.0.contents,
                     first_span: old_value.ident.location.span,

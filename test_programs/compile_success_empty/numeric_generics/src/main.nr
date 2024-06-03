@@ -1,3 +1,5 @@
+global N = 1000;
+
 fn main() {
     let a = id([1, 2]);
     let b = id([1, 2, 3]);
@@ -21,7 +23,7 @@ fn main() {
     assert(my_type.c == 3);
 
     let foo = baz::<10>();
-    assert(foo.inner == 10);
+    assert(foo.inner == [1; 10]);
 
     let new_arr = update_arr([0, 1, 2, 3]);
     assert(new_arr[0] == 5);
@@ -68,7 +70,9 @@ struct MyType {
     c: Field,
 }
 
-impl<N> Deserialize<N> for MyType {
+// TODO 1: getting some duplicate definition errors here
+// TODO 2: Ban in the trait constraint specifying a numeric generic
+impl<let N: u64> Deserialize<N> for MyType {
     fn deserialize(fields: [Field; N]) -> Self {
         MyType { a: fields[0], b: fields[1], c: fields[2] }
     }
@@ -103,6 +107,14 @@ fn update_arr<let N: u8>(mut arr: [Field; N]) -> [Field; N] {
 
 // Used as a field of a struct
 struct Foo<let N: u64> {
-    inner: N,
+    inner: [u64; N],
 }
-fn baz<let N: u64>() -> Foo<N> { Foo { inner: N } }
+fn baz<let N: u64>() -> Foo<N> {
+    Foo { inner: [1; N] }
+}
+
+impl<let N: u64> Foo<N> {
+    fn bar(self) -> u64 {
+        N * self.inner[0]
+    }
+}

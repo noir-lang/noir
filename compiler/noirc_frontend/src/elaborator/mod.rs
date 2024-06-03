@@ -100,6 +100,11 @@ pub struct Elaborator<'context> {
     /// were declared in.
     generics: Vec<(Rc<String>, TypeVariable, Span)>,
 
+    /// The idents for each numeric generic on a function
+    /// These definitions are generated when creating function metas 
+    /// and need to be brought into scope later when elaborating the function body.
+    generic_idents: Vec<HirIdent>,
+
     /// When resolving lambda expressions, we need to keep track of the variables
     /// that are captured. We do this in order to create the hidden environment
     /// parameter for the lambda function.
@@ -167,6 +172,7 @@ impl<'context> Elaborator<'context> {
             nested_loops: 0,
             in_contract: false,
             generics: Vec::new(),
+            generic_idents: Vec::new(),
             lambda_stack: Vec::new(),
             self_type: None,
             current_item: None,
@@ -199,23 +205,76 @@ impl<'context> Elaborator<'context> {
         for global in literal_globals {
             this.elaborate_global(global);
         }
-
+        if !this.errors.is_empty() {
+            dbg!(this.errors.clone());
+            for e in this.errors.iter() {
+                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
+                    dbg!("GOT DUP DEF");
+                }
+            }
+        }
         for (alias_id, alias) in items.type_aliases {
             this.define_type_alias(alias_id, alias);
         }
-
+        if !this.errors.is_empty() {
+            dbg!(this.errors.clone());
+            for e in this.errors.iter() {
+                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
+                    dbg!("GOT DUP DEF");
+                }
+            }
+        }
         this.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
+        if !this.errors.is_empty() {
+            dbg!(this.errors.clone());
+            for e in this.errors.iter() {
+                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
+                    dbg!("GOT DUP DEF");
+                }
+            }
+        }
         this.collect_traits(items.traits);
-
+        // if !this.errors.is_empty() {
+        //     dbg!(this.errors.clone());
+        // }
+        if !this.errors.is_empty() {
+            dbg!(this.errors.clone());
+            for e in this.errors.iter() {
+                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
+                    dbg!("GOT DUP DEF");
+                }
+            }
+        }
+        dbg!("COLLECTED TRAITS");
+        dbg!(this.generic_idents.clone());
         // Must resolve structs before we resolve globals.
         this.collect_struct_definitions(items.types);
-
+        // if !this.errors.is_empty() {
+        //     dbg!(this.errors.clone());
+        // }
+        if !this.errors.is_empty() {
+            for e in this.errors.iter() {
+                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
+                    dbg!("GOT DUP DEF");
+                    dbg!(this.generic_idents.clone());
+                }
+            }
+        }
         // Bind trait impls to their trait. Collect trait functions, that have a
         // default implementation, which hasn't been overridden.
         for trait_impl in &mut items.trait_impls {
             this.collect_trait_impl(trait_impl);
         }
-
+        // if !this.errors.is_empty() {
+        //     dbg!(this.errors.clone());
+        // }
+        if !this.errors.is_empty() {
+            for e in this.errors.iter() {
+                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
+                    dbg!("GOT DUP DEF");
+                }
+            }
+        }
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
         // done during def collection since we need to be able to resolve the type of
@@ -226,25 +285,61 @@ impl<'context> Elaborator<'context> {
         for ((_self_type, module), impls) in &mut items.impls {
             this.collect_impls(*module, impls);
         }
-
+        if !this.errors.is_empty() {
+            for e in this.errors.iter() {
+                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
+                    dbg!("GOT DUP DEF");
+                }
+            }
+        }
+        // if !this.errors.is_empty() {
+        //     dbg!(this.errors.clone());
+        // }
         // We must wait to resolve non-literal globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to to ensure they are valid.
         for global in non_literal_globals {
             this.elaborate_global(global);
         }
+        if !this.errors.is_empty() {
+            for e in this.errors.iter() {
+                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
+                    dbg!("GOT DUP DEF");
+                }
+            }
+        }
 
         for functions in items.functions {
             this.elaborate_functions(functions);
+        }
+        if !this.errors.is_empty() {
+            for e in this.errors.iter() {
+                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
+                    dbg!("GOT DUP DEF");
+                }
+            }
         }
 
         for impls in items.impls.into_values() {
             this.elaborate_impls(impls);
         }
-
+        if !this.errors.is_empty() {
+            for e in this.errors.iter() {
+                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
+                    dbg!("GOT DUP DEF");
+                }
+            }
+        }
         for trait_impl in items.trait_impls {
             this.elaborate_trait_impl(trait_impl);
         }
-
+        // if !this.errors.is_empty() {
+        //     dbg!(this.errors.clone());
+        //     for e in this.errors.iter() {
+        //         if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
+        //             dbg!("GOT DUP DEF");
+        //         }
+        //     }
+        // }
         let cycle_errors = this.interner.check_for_dependency_cycles();
         this.errors.extend(cycle_errors);
         this.errors
@@ -254,8 +349,12 @@ impl<'context> Elaborator<'context> {
     /// back to the previous length.
     fn recover_generics<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         let generics_count = self.generics.len();
+        let generic_idents_count = self.generic_idents.len();
         let ret = f(self);
         self.generics.truncate(generics_count);
+        // dbg!(self.generic_idents.clone());
+        // dbg!(generic_idents_count);
+        self.generic_idents.truncate(generic_idents_count);
         ret
     }
 
@@ -268,7 +367,9 @@ impl<'context> Elaborator<'context> {
             self.local_module = local_module;
             self.recover_generics(|this| this.elaborate_function(func, id));
         }
-
+        // if !self.generic_idents.is_empty() {
+        //     dbg!(self.generic_idents.clone());
+        // }
         self.self_type = None;
         self.trait_id = None;
     }
@@ -301,8 +402,14 @@ impl<'context> Elaborator<'context> {
             let name = self.interner.definition_name(parameter.id).to_owned();
             self.add_existing_variable_to_scope(name, parameter.clone());
         }
+        // We should introduce the IDs for numeric generic into scope as we do with parameters
+        for numeric_generic in &func_meta.generic_idents {
+            let name = self.interner.definition_name(numeric_generic.id).to_owned();
+            self.add_existing_variable_to_scope(name, numeric_generic.clone());
+        }
 
         self.generics = func_meta.all_generics.clone();
+
         self.declare_numeric_generics(&func_meta.parameters, func_meta.return_type());
         self.add_trait_constraints_to_scope(&func_meta);
 
@@ -419,21 +526,24 @@ impl<'context> Elaborator<'context> {
                     });
                     self.errors.push((unsupported_typ_err, self.file));
                 }
-                typevar.bind(typ.clone());
                 let definition = DefinitionKind::GenericType(typevar.clone());
+                // dbg!(ident.clone());
                 let hir_ident =
                     self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
+                // dbg!(hir_ident.clone());
                 // Push the definition type because if one is missing, when the numeric generic is used in an expression
                 // its definition type will be resolved to a polymorphic integer or field.
                 // We do not yet fully support bool generics but this will be a foot-gun once we look to add support
                 // and is can lead to confusing errors.
                 self.interner.push_definition_type(hir_ident.id, typ);
+                self.generic_idents.push(hir_ident)
             }
 
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
 
             if let Some((_, _, first_span)) = self.find_generic(&name) {
+                dbg!(name.clone());
                 self.push_err(ResolverError::DuplicateDefinition {
                     name: ident.0.contents.clone(),
                     first_span: *first_span,
@@ -675,6 +785,7 @@ impl<'context> Elaborator<'context> {
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
             parameter_idents,
+            generic_idents: self.generic_idents.clone(),
             return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
             has_body: !func.def.body.is_empty(),
@@ -745,6 +856,8 @@ impl<'context> Elaborator<'context> {
                 let scope = self.scopes.get_mut_scope();
                 let value = scope.find(&name_to_find);
                 if value.is_some() {
+                    let value = value.unwrap();
+                    // dbg!(value.ident.clone());
                     // With the addition of explicit numeric generics we do not want to introduce numeric generics in this manner
                     // However, this is going to be a big breaking change so for now we simply issue a warning while users have time
                     // to transition to the new syntax
@@ -756,7 +869,12 @@ impl<'context> Elaborator<'context> {
                 }
                 let ident = Ident::new(name.to_string(), *span);
                 let definition = DefinitionKind::GenericType(type_variable);
-                self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
+                // if name.to_string() == "N".to_string() {
+                //     dbg!(ident.clone());
+                //     dbg!(self.generic_idents.clone());
+                // }
+                let x = self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
+                self.generic_idents.push(x);
                 self.errors.push((
                     CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric {
                         ident,
@@ -899,6 +1017,8 @@ impl<'context> Elaborator<'context> {
         self.self_type = None;
         self.current_trait_impl = None;
         self.generics.clear();
+        // dbg!(self.generic_idents.clone());
+        self.generic_idents.clear();
     }
 
     fn collect_impls(
@@ -909,15 +1029,23 @@ impl<'context> Elaborator<'context> {
         self.local_module = module;
 
         for (generics, span, unresolved) in impls {
+            self.push_scope();
+
             self.file = unresolved.file_id;
             let old_generic_count = self.generics.len();
+            let old_generic_ident_count = self.generic_idents.len();
             self.add_generics(generics);
             self.declare_methods_on_struct(false, unresolved, *span);
             self.generics.truncate(old_generic_count);
+            self.generic_idents.truncate(old_generic_ident_count);
+
+            self.pop_scope();
         }
     }
 
     fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
+        self.push_scope();
+
         self.local_module = trait_impl.module_id;
         self.file = trait_impl.file_id;
         trait_impl.trait_id = self.resolve_trait_by_path(trait_impl.trait_path.clone());
@@ -933,6 +1061,7 @@ impl<'context> Elaborator<'context> {
             self.push_err(DefCollectorErrorKind::MutableReferenceInTraitImpl { span });
         }
 
+        // TODO: this assertion will trigger an assertion rather than a nice error
         assert!(trait_impl.trait_id.is_some());
         if let Some(trait_id) = trait_impl.trait_id {
             self.collect_trait_impl_methods(trait_id, trait_impl);
@@ -988,6 +1117,9 @@ impl<'context> Elaborator<'context> {
         }
 
         self.generics.clear();
+        self.generic_idents.clear();
+
+        self.pop_scope();
     }
 
     fn get_module_mut(&mut self, module: ModuleId) -> &mut ModuleData {
@@ -1176,6 +1308,8 @@ impl<'context> Elaborator<'context> {
     }
 
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
+        self.push_scope();
+
         self.file = alias.file_id;
         self.local_module = alias.module_id;
 
@@ -1184,6 +1318,9 @@ impl<'context> Elaborator<'context> {
         let typ = self.resolve_type(alias.type_alias_def.typ);
         self.interner.set_type_alias(alias_id, typ, generics);
         self.generics.clear();
+        self.generic_idents.clear();
+
+        self.pop_scope();
     }
 
     fn collect_struct_definitions(&mut self, structs: BTreeMap<StructId, UnresolvedStruct>) {
@@ -1194,6 +1331,8 @@ impl<'context> Elaborator<'context> {
         // Resolve each field in each struct.
         // Each struct should already be present in the NodeInterner after def collection.
         for (type_id, typ) in structs {
+            self.push_scope();
+
             self.file = typ.file_id;
             self.local_module = typ.module_id;
             let (generics, fields) = self.resolve_struct_fields(typ.struct_def, type_id);
@@ -1202,6 +1341,7 @@ impl<'context> Elaborator<'context> {
                 struct_def.set_fields(fields);
                 struct_def.generics = generics;
             });
+            self.pop_scope();
         }
 
         // Check whether the struct fields have nested slices
@@ -1281,19 +1421,27 @@ impl<'context> Elaborator<'context> {
         }
 
         for ((self_type, local_module), function_sets) in impls {
+            self.push_scope();
+
             self.local_module = *local_module;
 
             for (generics, _, function_set) in function_sets {
+
                 self.add_generics(generics);
                 let self_type = self.resolve_type(self_type.clone());
                 function_set.self_type = Some(self_type.clone());
                 self.self_type = Some(self_type);
                 self.define_function_metas_for_functions(function_set);
                 self.generics.clear();
+                self.generic_idents.clear();
             }
+
+            self.pop_scope();
         }
 
         for trait_impl in trait_impls {
+            self.push_scope();
+
             self.file = trait_impl.file_id;
             self.local_module = trait_impl.module_id;
 
@@ -1318,6 +1466,9 @@ impl<'context> Elaborator<'context> {
             trait_impl.resolved_object_type = self.self_type.take();
             trait_impl.impl_id = self.current_trait_impl.take();
             self.generics.clear();
+            self.generic_idents.clear();
+
+            self.pop_scope();
         }
     }
 
