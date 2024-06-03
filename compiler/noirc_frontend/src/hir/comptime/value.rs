@@ -177,7 +177,7 @@ impl Value {
 
     /// Converts any unsigned `Value` into a `u128`.
     /// Returns `None` for negative integers.
-    pub(crate) fn into_u128(&self) -> Option<u128> {
+    pub(crate) fn to_u128(&self) -> Option<u128> {
         match self {
             Self::Field(value) => Some(value.to_u128()),
             Self::I8(value) => {

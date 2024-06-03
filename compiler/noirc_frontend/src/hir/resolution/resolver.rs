@@ -2077,7 +2077,7 @@ impl<'a> Resolver<'a> {
                             Some(ResolverError::ArrayLengthInterpreter { error, span })
                         })?;
 
-                if let Some(result) = evaluated_value.into_u128() {
+                if let Some(result) = evaluated_value.to_u128() {
                     Ok(result)
                 } else {
                     Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
