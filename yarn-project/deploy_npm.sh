@@ -95,12 +95,13 @@ deploy_package noir-contracts.js
 deploy_package kv-store
 deploy_package merkle-tree
 deploy_package noir-protocol-circuits-types
+deploy_package world-state
 deploy_package simulator
 deploy_package bb-prover
 deploy_package key-store
 deploy_package pxe
 deploy_package archiver
 deploy_package p2p
-deploy_package world-state
+deploy_package prover-client
 deploy_package sequencer-client
 deploy_package aztec-node
