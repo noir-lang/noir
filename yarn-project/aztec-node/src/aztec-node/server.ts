@@ -161,7 +161,14 @@ export class AztecNodeService implements AztecNode {
     const simulationProvider = await getSimulationProvider(config, log);
     const prover = config.disableProver
       ? undefined
-      : await TxProver.new(config, await proofVerifier.getVerificationKeys(), worldStateSynchronizer);
+      : await TxProver.new(
+          config,
+          await proofVerifier.getVerificationKeys(),
+          worldStateSynchronizer,
+          await archiver
+            .getBlock(-1)
+            .then(b => b?.header ?? worldStateSynchronizer.getCommitted().buildInitialHeader()),
+        );
 
     if (!prover && !config.disableSequencer) {
       throw new Error("Can't start a sequencer without a prover");

@@ -88,9 +88,8 @@ export class ProvingOrchestrator {
   private provingState: ProvingState | undefined = undefined;
   private pendingProvingJobs: AbortController[] = [];
   private paddingTx: PaddingProcessedTx | undefined = undefined;
-  private initialHeader: Header | undefined = undefined;
 
-  constructor(private db: MerkleTreeOperations, private prover: ServerCircuitProver) {}
+  constructor(private db: MerkleTreeOperations, private prover: ServerCircuitProver, private initialHeader?: Header) {}
 
   /**
    * Resets the orchestrator's cached padding tx.

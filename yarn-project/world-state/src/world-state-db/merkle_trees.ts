@@ -171,13 +171,14 @@ export class MerkleTrees implements MerkleTreeDb {
     if (!fromDb) {
       // We are not initializing from db so we need to populate the first leaf of the archive tree which is a hash of
       // the initial header.
-      const initialHeder = await this.buildInitialHeader(true);
-      await this.#updateArchive(initialHeder, true);
+      const initialHeader = await this.buildInitialHeader(true);
+      await this.#updateArchive(initialHeader, true);
     }
 
     await this.#commit();
   }
 
+  // REFACTOR: Make this private. It only makes sense if called at the beginning of the lifecycle of the object.
   public async buildInitialHeader(includeUncommitted: boolean): Promise<Header> {
     const state = await this.getStateReference(includeUncommitted);
     return new Header(
