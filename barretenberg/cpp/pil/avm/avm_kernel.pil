@@ -25,29 +25,36 @@ namespace avm_kernel(256);
     pol commit side_effect_counter;
 
     // FIXED INDEXES
+    // Exists checks
     pol START_NOTE_HASH_EXISTS_WRITE_OFFSET = 0;
-    pol START_EMIT_NOTE_HASH_WRITE_OFFSET = 4;
-    pol START_NULLIFIER_EXISTS_OFFSET = 8;
-    pol START_EMIT_NULLIFIER_WRITE_OFFSET = 12;
-    pol START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET = 16;
-    pol START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET = 20;
-    pol START_EMIT_L2_TO_l1_MSG = 24;
+    pol START_NULLIFIER_EXISTS_OFFSET = 32; // START_NOTE_HASH_EXISTS_WRITE_OFFSET + MAX_NOTE_HASH_READ_REQUESTS_PER_CALL TODO: exists and non exists
+    pol START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET = 96; //  START_NULLIFIER_EXISTS_OFFET + (MAX_NULLIFIER_READ_REQUESTS_PER_CALL + MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL)
 
-    pol START_SLOAD_WRITE_OFFSET = 28;
-    pol START_SSTORE_WRITE_OFFSET = 32;
+    // Public storage requests
+    pol START_SLOAD_WRITE_OFFSET = 112; // START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET + MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL
+    pol START_SSTORE_WRITE_OFFSET = 144; // START_SSTORE_WRITE_OFFSET + MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL
+    
+    // Emit data 
+    pol START_EMIT_NOTE_HASH_WRITE_OFFSET = 160; // START_SLOAD_WRITE_OFFSET + MAX_PUBLIC_DATA_READS_PER_CALL
+    pol START_EMIT_NULLIFIER_WRITE_OFFSET = 176; // START_EMIT_NOTE_HASH_WRITE_OFFSET + MAX_NEW_NOTE_HASHES_PER_CALL
+    pol START_EMIT_L2_TO_l1_MSG = 192; // START_EMIT_NULLIFIER_WRITE_OFFSET + MAX_NEW_NULLIFIERS_PER_CALL
+    pol START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET = 194; // START_EMIT_L2_TO_L1_MSG + MAX_NEW_L2_TO_L1_MSGS_PER_CALL
+
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6465): Must constrain write_offset counters to be less than side effect MAX
     // Current write offsets for each opcode
     pol commit note_hash_exist_write_offset;
-    pol commit emit_note_hash_write_offset;
     pol commit nullifier_exists_write_offset;
-    pol commit emit_nullifier_write_offset;
     pol commit l1_to_l2_msg_exists_write_offset;
-    pol commit emit_unencrypted_log_write_offset;
-    pol commit emit_l2_to_l1_msg_write_offset;
 
     pol commit sload_write_offset;
     pol commit sstore_write_offset;
+
+    pol commit emit_note_hash_write_offset;
+    pol commit emit_nullifier_write_offset;
+    pol commit emit_unencrypted_log_write_offset;
+    pol commit emit_l2_to_l1_msg_write_offset;
+
 
     pol NOT_LAST = (1 - avm_main.last);
 

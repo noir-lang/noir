@@ -89,35 +89,40 @@ class AvmKernelTraceBuilder {
 
     // Outputs
     // Each returns the selector that was used
-    void op_note_hash_exists(uint32_t clk, const FF& note_hash, uint32_t result);
-    void op_emit_note_hash(uint32_t clk, const FF& note_hash);
-    void op_nullifier_exists(uint32_t clk, const FF& nullifier, uint32_t result);
-    void op_emit_nullifier(uint32_t clk, const FF& nullifier);
-    void op_l1_to_l2_msg_exists(uint32_t clk, const FF& message, uint32_t result);
-    void op_emit_unencrypted_log(uint32_t clk, const FF& log_hash);
-    void op_emit_l2_to_l1_msg(uint32_t clk, const FF& message);
+    void op_note_hash_exists(uint32_t clk, uint32_t side_effect_counter, const FF& note_hash, uint32_t result);
+    void op_emit_note_hash(uint32_t clk, uint32_t side_effect_counter, const FF& note_hash);
+    void op_nullifier_exists(uint32_t clk, uint32_t side_effect_counter, const FF& nullifier, uint32_t result);
+    void op_emit_nullifier(uint32_t clk, uint32_t side_effect_counter, const FF& nullifier);
+    void op_l1_to_l2_msg_exists(uint32_t clk, uint32_t side_effect_counter, const FF& message, uint32_t result);
+    void op_emit_unencrypted_log(uint32_t clk, uint32_t side_effect_counter, const FF& log_hash);
+    void op_emit_l2_to_l1_msg(uint32_t clk, uint32_t side_effect_counter, const FF& message);
 
-    void op_sload(uint32_t clk, const FF& slot, const FF& value);
-    void op_sstore(uint32_t clk, const FF& slot, const FF& value);
+    void op_sload(uint32_t clk, uint32_t side_effect_counter, const FF& slot, const FF& value);
+    void op_sstore(uint32_t clk, uint32_t side_effect_counter, const FF& slot, const FF& value);
 
-    // Temp: these are temporary offsets
+    // TODO: Move into constants.hpp?
     static const uint32_t START_NOTE_HASH_EXISTS_WRITE_OFFSET = 0;
-    static const uint32_t START_EMIT_NOTE_HASH_WRITE_OFFSET = 4;
-    static const uint32_t START_NULLIFIER_EXISTS_OFFSET = 8;
-    static const uint32_t START_EMIT_NULLIFIER_WRITE_OFFSET = 12;
-    static const uint32_t START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET = 16;
-    static const uint32_t START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET = 20;
-    static const uint32_t START_L2_TO_L1_MSG_WRITE_OFFSET = 24;
+    static const uint32_t START_NULLIFIER_EXISTS_OFFSET =
+        START_NOTE_HASH_EXISTS_WRITE_OFFSET + MAX_NOTE_HASH_READ_REQUESTS_PER_CALL;
+    static const uint32_t START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET =
+        START_NULLIFIER_EXISTS_OFFSET + (2 * MAX_NULLIFIER_READ_REQUESTS_PER_CALL);
 
-    static const uint32_t START_SLOAD_WRITE_OFFSET = 28;
-    static const uint32_t START_SSTORE_WRITE_OFFSET = 32;
+    static const uint32_t START_SLOAD_WRITE_OFFSET =
+        START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET + MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL;
+    static const uint32_t START_SSTORE_WRITE_OFFSET =
+        START_SLOAD_WRITE_OFFSET + MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL;
+
+    static const uint32_t START_EMIT_NOTE_HASH_WRITE_OFFSET =
+        START_SSTORE_WRITE_OFFSET + MAX_PUBLIC_DATA_READS_PER_CALL;
+    static const uint32_t START_EMIT_NULLIFIER_WRITE_OFFSET =
+        START_EMIT_NOTE_HASH_WRITE_OFFSET + MAX_NEW_NOTE_HASHES_PER_CALL;
+    static const uint32_t START_L2_TO_L1_MSG_WRITE_OFFSET =
+        START_EMIT_NULLIFIER_WRITE_OFFSET + MAX_NEW_NULLIFIERS_PER_CALL;
+    static const uint32_t START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET =
+        START_L2_TO_L1_MSG_WRITE_OFFSET + MAX_NEW_L2_TO_L1_MSGS_PER_CALL;
 
   private:
     std::vector<KernelTraceEntry> kernel_trace;
-
-    // Side effect counter will incremenent when any state writing values are
-    // encountered
-    uint32_t side_effect_counter = 0;
 
     // Output index counters
     uint32_t note_hash_exists_offset = 0;
@@ -132,6 +137,9 @@ class AvmKernelTraceBuilder {
     uint32_t sstore_write_offset = 0;
 
     FF perform_kernel_input_lookup(uint32_t selector);
-    void perform_kernel_output_lookup(uint32_t write_offset, const FF& value, const FF& metadata);
+    void perform_kernel_output_lookup(uint32_t write_offset,
+                                      uint32_t side_effect_counter,
+                                      const FF& value,
+                                      const FF& metadata);
 };
 } // namespace bb::avm_trace

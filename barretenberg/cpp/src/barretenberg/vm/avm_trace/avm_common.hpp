@@ -5,11 +5,16 @@
 
 #include <array>
 #include <cstdint>
+#include <unordered_map>
 
 namespace bb::avm_trace {
 
 using Flavor = bb::AvmFlavor;
 using FF = Flavor::FF;
+
+} // namespace bb::avm_trace
+
+namespace bb::avm_trace {
 
 // There are 4 public input columns, 1 for context inputs, and 3 for emitting side effects
 using VmPublicInputs = std::tuple<std::array<FF, KERNEL_INPUTS_LENGTH>,   // Input: Kernel context inputs
@@ -34,5 +39,8 @@ static const uint32_t MAX_MEM_TAG = 6;
 static const size_t NUM_MEM_SPACES = 256;
 static const uint8_t INTERNAL_CALL_SPACE_ID = 255;
 static const uint32_t MAX_SIZE_INTERNAL_STACK = 1 << 16;
+
+// Side effect counter -> value
+using ExecutionHints = std::unordered_map<uint32_t, FF>;
 
 } // namespace bb::avm_trace

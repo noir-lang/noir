@@ -22,6 +22,7 @@ global ARGS_LENGTH: u64 = 16;
 
 // docs:start:constants
 // "PER CALL" CONSTANTS
+// If modifiying, update avm_kernel.pil / avm_constants.pil offset values (our pil does not yet support constant evaluation so values are hardcoded)
 global MAX_NEW_NOTE_HASHES_PER_CALL: u64 = 16;
 global MAX_NEW_NULLIFIERS_PER_CALL: u64 = 16;
 global MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL: u64 = 4;

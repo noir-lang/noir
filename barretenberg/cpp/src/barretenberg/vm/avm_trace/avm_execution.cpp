@@ -47,11 +47,16 @@ std::vector<FF> Execution::getDefaultPublicInputs()
  * @return The verifier key and zk proof of the execution.
  */
 std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<uint8_t> const& bytecode,
-                                                                   std::vector<FF> const& calldata)
+                                                                   std::vector<FF> const& calldata,
+                                                                   std::vector<FF> const& public_inputs_vec,
+                                                                   ExecutionHints const& execution_hints)
 {
+    // TODO: temp
+    info("logging to silence warning for now: ", public_inputs_vec.size());
+
     auto instructions = Deserialization::parse(bytecode);
     std::vector<FF> returndata{};
-    auto trace = gen_trace(instructions, returndata, calldata, getDefaultPublicInputs());
+    auto trace = gen_trace(instructions, returndata, calldata, getDefaultPublicInputs(), execution_hints);
     auto circuit_builder = bb::AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
 
@@ -61,6 +66,23 @@ std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<u
     auto proof = prover.construct_proof();
     // TODO(#4887): Might need to return PCS vk when full verify is supported
     return std::make_tuple(*verifier.key, proof);
+}
+
+/**
+ * @brief Generate the execution trace pertaining to the supplied instructions.
+ *
+ * @param instructions A vector of the instructions to be executed.
+ * @param calldata expressed as a vector of finite field elements.
+ * @param public_inputs expressed as a vector of finite field elements.
+ * @return The trace as a vector of Row.
+ */
+std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructions,
+                                      std::vector<FF> const& calldata,
+                                      std::vector<FF> const& public_inputs,
+                                      ExecutionHints const& execution_hints)
+{
+    std::vector<FF> returndata{};
+    return gen_trace(instructions, returndata, calldata, public_inputs, execution_hints);
 }
 
 /**
@@ -135,28 +157,13 @@ bool Execution::verify(AvmFlavor::VerificationKey vk, HonkProof const& proof)
  *
  * @param instructions A vector of the instructions to be executed.
  * @param calldata expressed as a vector of finite field elements.
- * @param public_inputs expressed as a vector of finite field elements.
  * @return The trace as a vector of Row.
  */
 std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructions,
                                       std::vector<FF> const& calldata,
-                                      std::vector<FF> const& public_inputs)
+                                      std::vector<FF> const& public_inputs_vec)
 {
     std::vector<FF> returndata{};
-    return gen_trace(instructions, returndata, calldata, public_inputs);
-}
-
-/**
- * @brief Generate the execution trace pertaining to the supplied instructions.
- *
- * @param instructions A vector of the instructions to be executed.
- * @param calldata expressed as a vector of finite field elements.
- * @return The trace as a vector of Row.
- */
-std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructions, std::vector<FF> const& calldata)
-{
-    std::vector<FF> returndata{};
-    std::vector<FF> public_inputs_vec = {};
     return gen_trace(instructions, returndata, calldata, public_inputs_vec);
 }
 
@@ -171,13 +178,14 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
 std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructions,
                                       std::vector<FF>& returndata,
                                       std::vector<FF> const& calldata,
-                                      std::vector<FF> const& public_inputs_vec)
+                                      std::vector<FF> const& public_inputs_vec,
+                                      ExecutionHints const& execution_hints)
 
 {
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6718): construction of the public input columns
     // should be done in the kernel - this is stubbed and underconstrained
     VmPublicInputs public_inputs = convert_public_inputs(public_inputs_vec);
-    AvmTraceBuilder trace_builder(public_inputs);
+    AvmTraceBuilder trace_builder(public_inputs, execution_hints);
 
     // Copied version of pc maintained in trace builder. The value of pc is evolving based
     // on opcode logic and therefore is not maintained here. However, the next opcode in the execution
@@ -337,6 +345,36 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
             break;
         case OpCode::TIMESTAMP:
             trace_builder.op_timestamp(std::get<uint32_t>(inst.operands.at(1)));
+            break;
+        case OpCode::NOTEHASHEXISTS:
+            trace_builder.op_note_hash_exists(std::get<uint32_t>(inst.operands.at(1)),
+                                              std::get<uint32_t>(inst.operands.at(2)));
+            break;
+        case OpCode::EMITNOTEHASH:
+            trace_builder.op_emit_note_hash(std::get<uint32_t>(inst.operands.at(1)));
+            break;
+        case OpCode::NULLIFIEREXISTS:
+            trace_builder.op_nullifier_exists(std::get<uint32_t>(inst.operands.at(1)),
+                                              std::get<uint32_t>(inst.operands.at(2)));
+            break;
+        case OpCode::EMITNULLIFIER:
+            trace_builder.op_emit_nullifier(std::get<uint32_t>(inst.operands.at(1)));
+            break;
+        case OpCode::SLOAD:
+            trace_builder.op_sload(std::get<uint32_t>(inst.operands.at(1)), std::get<uint32_t>(inst.operands.at(2)));
+            break;
+        case OpCode::SSTORE:
+            trace_builder.op_sstore(std::get<uint32_t>(inst.operands.at(1)), std::get<uint32_t>(inst.operands.at(2)));
+            break;
+        case OpCode::L1TOL2MSGEXISTS:
+            trace_builder.op_l1_to_l2_msg_exists(std::get<uint32_t>(inst.operands.at(1)),
+                                                 std::get<uint32_t>(inst.operands.at(2)));
+            break;
+        case OpCode::EMITUNENCRYPTEDLOG:
+            trace_builder.op_emit_unencrypted_log(std::get<uint32_t>(inst.operands.at(1)));
+            break;
+        case OpCode::SENDL2TOL1MSG:
+            trace_builder.op_emit_l2_to_l1_msg(std::get<uint32_t>(inst.operands.at(1)));
             break;
             // Machine State - Internal Control Flow
         case OpCode::JUMP:
