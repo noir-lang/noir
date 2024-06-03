@@ -1,7 +1,55 @@
 import { type PXE, createPXEClient } from '@aztec/aztec.js';
 import { type DebugLogger } from '@aztec/foundation/log';
+import { NoRetryError } from '@aztec/foundation/retry';
 
+import axios, { type AxiosError, type AxiosResponse } from 'axios';
 import { gtr, ltr, satisfies, valid } from 'semver';
+
+export async function axiosFetch(
+  host: string,
+  rpcMethod: string,
+  body: any,
+  useApiEndpoints: boolean,
+  _noRetry = true,
+) {
+  let resp: AxiosResponse;
+  if (useApiEndpoints) {
+    resp = await axios
+      .post(`${host}/${rpcMethod}`, body, {
+        headers: { 'content-type': 'application/json' },
+      })
+      .catch((error: AxiosError) => {
+        if (error.response) {
+          return error.response;
+        }
+        throw error;
+      });
+  } else {
+    resp = await axios
+      .post(
+        host,
+        { ...body, method: rpcMethod },
+        {
+          headers: { 'content-type': 'application/json' },
+        },
+      )
+      .catch((error: AxiosError) => {
+        if (error.response) {
+          return error.response;
+        }
+        throw error;
+      });
+  }
+
+  const isOK = resp.status >= 200 && resp.status < 300;
+  if (isOK) {
+    return resp.data;
+  } else if (resp.status >= 400 && resp.status < 500) {
+    throw new NoRetryError('(JSON-RPC PROPAGATED) ' + resp.data.error.message);
+  } else {
+    throw new Error('(JSON-RPC PROPAGATED) ' + resp.data.error.message);
+  }
+}
 
 /**
  * Creates a PXE client with a given set of retries on non-server errors.
@@ -11,7 +59,8 @@ import { gtr, ltr, satisfies, valid } from 'semver';
  * @returns A PXE client.
  */
 export function createCompatibleClient(rpcUrl: string, _logger: DebugLogger): Promise<PXE> {
-  const pxe = createPXEClient(rpcUrl);
+  // Use axios due to timeout issues with fetch when proving TXs.
+  const pxe = createPXEClient(rpcUrl, axiosFetch);
   return Promise.resolve(pxe);
 }
 

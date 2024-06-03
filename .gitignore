@@ -22,3 +22,4 @@ cmake-build-debug
 # Earthly
 .arg
 .secret
+.bb_tmp
