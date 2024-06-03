@@ -35,7 +35,7 @@ class GoblinRecursiveVerifier {
      *
      * @todo(https://github.com/AztecProtocol/barretenberg/issues/991): The GoblinProof should aleady be a stdlib proof
      */
-    void verify(GoblinProof&);
+    void verify(const GoblinProof&);
 
   private:
     Builder* builder;

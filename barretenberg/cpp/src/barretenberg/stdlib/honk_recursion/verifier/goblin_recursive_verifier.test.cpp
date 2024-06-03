@@ -103,4 +103,68 @@ TEST_F(GoblinRecursiveVerifierTests, Basic)
     }
 }
 
+/**
+ * @brief Ensure failure of the goblin recursive verification circuit for a bad ECCVM proof
+ *
+ */
+TEST_F(GoblinRecursiveVerifierTests, ECCVMFailure)
+{
+    auto [proof, verifier_input] = create_goblin_prover_output();
+
+    // Tamper with the ECCVM proof
+    for (auto& val : proof.eccvm_proof) {
+        if (val > 0) { // tamper by finding the first non-zero value and incrementing it by 1
+            val += 1;
+            break;
+        }
+    }
+
+    Builder builder;
+    GoblinRecursiveVerifier verifier{ &builder, verifier_input };
+    verifier.verify(proof);
+
+    EXPECT_FALSE(CircuitChecker::check(builder));
+}
+
+/**
+ * @brief Ensure failure of the goblin recursive verification circuit for a bad Translator proof
+ *
+ */
+TEST_F(GoblinRecursiveVerifierTests, TranslatorFailure)
+{
+    auto [proof, verifier_input] = create_goblin_prover_output();
+
+    // Tamper with the Translator proof
+    for (auto& val : proof.translator_proof) {
+        if (val > 0) { // tamper by finding the first non-zero value and incrementing it by 1
+            val += 1;
+            break;
+        }
+    }
+
+    Builder builder;
+    GoblinRecursiveVerifier verifier{ &builder, verifier_input };
+    verifier.verify(proof);
+
+    EXPECT_FALSE(CircuitChecker::check(builder));
+}
+
+/**
+ * @brief Ensure failure of the goblin recursive verification circuit for bad translation evaluations
+ *
+ */
+TEST_F(GoblinRecursiveVerifierTests, TranslationEvaluationsFailure)
+{
+    auto [proof, verifier_input] = create_goblin_prover_output();
+
+    // Tamper with one of the translation evaluations
+    proof.translation_evaluations.Px += 1;
+
+    Builder builder;
+    GoblinRecursiveVerifier verifier{ &builder, verifier_input };
+    verifier.verify(proof);
+
+    EXPECT_FALSE(CircuitChecker::check(builder));
+}
+
 } // namespace bb::stdlib::recursion::honk
