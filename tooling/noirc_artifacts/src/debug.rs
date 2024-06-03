@@ -43,7 +43,7 @@ impl DebugArtifact {
             );
         }
 
-        Self { debug_symbols, file_map, }
+        Self { debug_symbols, file_map }
     }
 
     /// Given a location, returns its file's source code
@@ -119,10 +119,7 @@ impl DebugArtifact {
 
 impl From<CompiledProgram> for DebugArtifact {
     fn from(compiled_program: CompiledProgram) -> Self {
-        DebugArtifact {
-            debug_symbols: compiled_program.debug,
-            file_map: compiled_program.file_map,
-        }
+        DebugArtifact { debug_symbols: compiled_program.debug, file_map: compiled_program.file_map }
     }
 }
 
@@ -143,10 +140,7 @@ impl From<CompiledContract> for DebugArtifact {
             .flat_map(|contract_function| contract_function.debug)
             .collect();
 
-        DebugArtifact {
-            debug_symbols: all_functions_debug,
-            file_map: compiled_artifact.file_map,
-        }
+        DebugArtifact { debug_symbols: all_functions_debug, file_map: compiled_artifact.file_map }
     }
 }
 
@@ -158,10 +152,7 @@ impl From<ContractArtifact> for DebugArtifact {
             .flat_map(|contract_function| contract_function.debug_symbols.debug_infos)
             .collect();
 
-        DebugArtifact {
-            debug_symbols: all_functions_debug,
-            file_map: compiled_artifact.file_map,
-        }
+        DebugArtifact { debug_symbols: all_functions_debug, file_map: compiled_artifact.file_map }
     }
 }
 

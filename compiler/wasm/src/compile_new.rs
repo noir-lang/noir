@@ -4,8 +4,8 @@ use crate::compile::{
 };
 use crate::errors::{CompileError, JsCompileError};
 use acvm::acir::circuit::ExpressionWidth;
-use noirc_artifacts::contract::{ContractArtifact, ContractFunctionArtifact};
 use nargo::parse_all;
+use noirc_artifacts::contract::{ContractArtifact, ContractFunctionArtifact};
 use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
     NOIR_ARTIFACT_VERSION_STRING,
