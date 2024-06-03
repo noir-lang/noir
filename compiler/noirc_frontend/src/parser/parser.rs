@@ -745,9 +745,7 @@ fn bool_type() -> impl NoirParser<UnresolvedType> {
 
 fn string_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::String)
-        .ignore_then(
-            type_expression().delimited_by(just(Token::Less), just(Token::Greater)).or_not(),
-        )
+        .ignore_then(type_expression().delimited_by(just(Token::Less), just(Token::Greater)))
         .map_with_span(|expr, span| UnresolvedTypeData::String(expr).with_span(span))
 }
 

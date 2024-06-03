@@ -65,11 +65,13 @@ impl<'context> Elaborator<'context> {
 
         // To apply the changes from the fresh id created in elaborate_let to this global
         // we need to change the definition kind and update the type.
-        let definition_id = self.interner.get_global(global_id).definition_id;
-        self.interner.definition_mut(definition_id).kind = DefinitionKind::Global(global_id);
-
         assert_eq!(new_ids.len(), 1, "Globals should only define 1 value");
-        let definition_type = self.interner.definition_type(new_ids[0].id);
+        let new_id = new_ids[0].id;
+
+        self.interner.definition_mut(new_id).kind = DefinitionKind::Global(global_id);
+
+        let definition_id = self.interner.get_global(global_id).definition_id;
+        let definition_type = self.interner.definition_type(new_id);
         self.interner.push_definition_type(definition_id, definition_type);
 
         self.interner.replace_statement(statement_id, let_statement);
