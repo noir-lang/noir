@@ -35,35 +35,35 @@ pub enum BlackBoxFunc {
     ///   bit_size bit integers
     XOR,
 
-    /// Range constraint to ensure that a [`FieldElement`][acir_field::FieldElement]
+    /// Range constraint to ensure that a witness
     /// can be represented in the specified number of bits.
     /// - input: (witness, bit_size)
     RANGE,
 
     /// Computes SHA256 of the inputs
-    /// - inputs are a byte array, i.e a vector of (FieldElement, 8)
-    /// - output is a byte array of len 32, i.e an array of 32 (FieldElement, 8),
+    /// - inputs are a byte array, i.e a vector of (witness, 8)
+    /// - output is a byte array of len 32, i.e an array of 32 (witness, 8),
     ///   constrained to be the sha256 of the inputs.
     SHA256,
 
     /// Computes the Blake2s hash of the inputs, as specified in
     /// https://tools.ietf.org/html/rfc7693
-    /// - inputs are a byte array, i.e a vector of (FieldElement, 8)
+    /// - inputs are a byte array, i.e a vector of (witness, 8)
     /// - output is a byte array of length 32, i.e. an array of 32
-    /// (FieldElement, 8), constrained to be the blake2s of the inputs.
+    /// (witness, 8), constrained to be the blake2s of the inputs.
     Blake2s,
 
     /// Computes the Blake3 hash of the inputs
-    /// - inputs are a byte array, i.e a vector of (FieldElement, 8)
+    /// - inputs are a byte array, i.e a vector of (witness, 8)
     /// - output is a byte array of length 32, i.e an array of 32
-    /// (FieldElement, 8), constrained to be the blake3 of the inputs.
+    /// (witness, 8), constrained to be the blake3 of the inputs.
     Blake3,
 
     /// Verify a Schnorr signature over the embedded curve
     /// - inputs are:
-    ///     - Public key as 2 (FieldElement, 254)
-    ///     - signature as a vector of 64 bytes (FieldElement, 8)
-    ///     - message as a vector of (FieldElement, 8)
+    ///     - Public key as 2 (witness, 254)
+    ///     - signature as a vector of 64 bytes (witness, 8)
+    ///     - message as a vector of (witness, 8)
     /// - output: A witness representing the result of the signature
     /// verification; 0 for failure and 1 for success.
     ///
@@ -87,7 +87,7 @@ pub enum BlackBoxFunc {
     ///
     /// Computes a Pedersen commitment of the inputs using generators of the
     /// embedded curve
-    /// - input: vector of (FieldElement, 254)
+    /// - input: vector of (witness, 254)
     /// - output: 2 witnesses representing the x,y coordinates of the resulting
     ///   Grumpkin point
     /// - domain separator: a constant public value (a field element) that you
@@ -99,13 +99,15 @@ pub enum BlackBoxFunc {
     /// Aztec's Barretenberg, the latter is bigger than the ACIR field so it is
     /// straightforward. The Pedersen generators are managed by the proving
     /// system.
+    ///
+    /// The commitment is expected to be additively homomorphic
     PedersenCommitment,
 
     /// Calculates a Pedersen hash to the inputs.
     ///
     /// Computes a Pedersen hash of the inputs and their number, using
     /// generators of the embedded curve
-    /// - input: vector of (FieldElement, 254)
+    /// - input: vector of (witness, 254)
     /// - output: the x-coordinate of the pedersen commitment of the
     ///   'prepended input' (see below)
     /// - domain separator: a constant public value (a field element) that you
@@ -113,7 +115,8 @@ pub enum BlackBoxFunc {
     ///   uses 0 as domain separator.
     ///
     /// In Barretenberg, PedersenHash is doing the same as PedersenCommitment,
-    /// except that it prepends the inputs with their length.
+    /// except that it prepends the inputs with their length. This is expected
+    /// to not be additively homomorphic.
     PedersenHash,
 
     /// Verifies a ECDSA signature over the secp256k1 curve.
@@ -135,16 +138,18 @@ pub enum BlackBoxFunc {
     /// Same as EcdsaSecp256k1, but done over another curve.
     EcdsaSecp256r1,
 
-    /// Multiple scalar multiplication with a variable base/input point (P) of the embedded curve
+    /// Multiple scalar multiplication (MSM) with a variable base/input point
+    /// (P) of the embedded curve. An MSM multiplies the points and scalars and
+    /// sums the results.
     /// - input:
-    ///     points (FieldElement, N) a vector of x and y coordinates of input
+    ///     points (witness, N) a vector of x and y coordinates of input
     ///     points `[x1, y1, x2, y2,...]`.
-    ///     scalars (FieldElement, N) a vector of low and high limbs of input
-    ///     scalars `[s1_low, s1_high, s2_low, s2_high, ...]`. (FieldElement, N)
+    ///     scalars (witness, N) a vector of low and high limbs of input
+    ///     scalars `[s1_low, s1_high, s2_low, s2_high, ...]`. (witness, N)
     ///     For Barretenberg, they must both be less than 128 bits.
-    /// - output: (FieldElement, N) a vector of x and y coordinates of output
-    ///   points `[op1_x, op1_y, op2_x, op2_y, ...]``. Points computed as
-    ///   `s_low*P+s_high*2^{128}*P`
+    /// - output:
+    ///     a tuple of `x` and `y` coordinates of output.
+    ///     Points computed as `s_low*P+s_high*2^{128}*P`
     ///
     /// Because the Grumpkin scalar field is bigger than the ACIR field, we
     /// provide 2 ACIR fields representing the low and high parts of the Grumpkin
@@ -152,8 +157,8 @@ pub enum BlackBoxFunc {
     MultiScalarMul,
 
     /// Computes the Keccak-256 (Ethereum version) of the inputs.
-    /// - inputs: Vector of bytes (FieldElement, 8)
-    /// - outputs: Array of 32 bytes (FieldElement, 8)
+    /// - inputs: Vector of bytes (witness, 8)
+    /// - outputs: Array of 32 bytes (witness, 8)
     Keccak256,
 
     /// Keccak Permutation function of width 1600
@@ -167,34 +172,32 @@ pub enum BlackBoxFunc {
     /// top-level verifier or aggregated upon again.
     ///
     /// **Warning: this opcode is subject to change.**
-    /// Note that the `254` in `(FieldElement, 254)` refers to the upper bound of
-    /// the `FieldElement`.
-    /// - verification_key: Vector of (FieldElement, 254) representing the
+    /// Note that the `254` in `(witness, 254)` refers to the upper bound of
+    /// the `witness`.
+    /// - verification_key: Vector of (witness, 254) representing the
     ///   verification key of the circuit being verified
-    /// - public_inputs: Vector of (FieldElement, 254)  representing the public
+    /// - public_inputs: Vector of (witness, 254)  representing the public
     ///   inputs corresponding to the proof being verified
-    /// - key_hash: one (FieldElement, 254). It should be the hash of the
+    /// - key_hash: one (witness, 254). It should be the hash of the
     ///   verification key. Barretenberg expects the Pedersen hash of the
     ///   verification key
-    ///
-    /// This black box function does not fully verify a proof, what it does is
-    /// verifying that the key_hash is indeed a hash of verification_key,
-    /// allowing the user to use the verification key as private inputs and only
-    /// have the key_hash as public input, which is more performant.
     ///
     /// Another thing that it does is preparing the verification of the proof.
     /// In order to fully verify a proof, some operations may still be required
     /// to be done by the final verifier. This is why this black box function
     /// does not say if verification is passing or not.
     ///
+    /// This black box function does not fully verify a proof, what it does is
+    /// verifying that the key_hash is indeed a hash of verification_key,
+    /// allowing the user to use the verification key as private inputs and only
+    /// have the key_hash as public input, which is more performant.
     ///
     /// If one of the recursive proofs you verify with the black box function does not
     /// verify, then the verification of the proof of the main ACIR program will
     /// ultimately fail.
     RecursiveAggregation,
 
-    /// Addition over the embedded curve on which
-    /// [`FieldElement`][acir_field::FieldElement] is defined.
+    /// Addition over the embedded curve on which the witness is defined.
     EmbeddedCurveAdd,
 
     /// BigInt addition
@@ -219,9 +222,9 @@ pub enum BlackBoxFunc {
     Poseidon2Permutation,
 
     /// SHA256 compression function
-    /// - input: [(FieldElement, 32); 16]
-    /// - state: [(FieldElement, 32); 8]
-    /// - output: [(FieldElement, 32); 8]
+    /// - input: [(witness, 32); 16]
+    /// - state: [(witness, 32); 8]
+    /// - output: [(witness, 32); 8]
     Sha256Compression,
 }
 

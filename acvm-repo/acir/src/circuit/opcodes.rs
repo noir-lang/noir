@@ -63,8 +63,7 @@ pub enum Opcode<F> {
     /// Some more advanced computations assume that the proving system has an
     /// 'embedded curve'. It is a curve that cycles with the main curve of the
     /// proving system, i.e the scalar field of the embedded curve is the base
-    /// field of the main one, and vice-versa. The curves used by the proving
-    /// system are dependent on the proving system (and/or its configuration).
+    /// field of the main one, and vice-versa.
     ///
     /// Aztec's Barretenberg uses BN254 as the main curve and Grumpkin as the
     /// embedded curve.
@@ -79,7 +78,7 @@ pub enum Opcode<F> {
     ///
     /// Directives will be replaced by Brillig opcodes in the future.
     Directive(Directive<F>),
-  
+
     /// Atomic operation on a block of memory
     ///
     /// ACIR is able to address any array of witnesses. Each array is assigned
@@ -89,7 +88,8 @@ pub enum Opcode<F> {
     /// ACIR arrays all have a known fixed length (given in the MemoryInit
     /// opcode below)
     ///
-    /// - predicate: an arithmetic expression that disable the opcode when it is null.
+    /// - predicate: an arithmetic expression that disables the execution of the
+    ///   opcode when the expression evaluates to zero
     MemoryOp {
         /// identifier of the array
         block_id: BlockId,
@@ -98,19 +98,15 @@ pub enum Opcode<F> {
         /// Predicate of the memory operation - indicates if it should be skipped
         predicate: Option<Expression<F>>,
     },
-  
+
     /// Initialize an ACIR array from a vector of witnesses.
     /// - block_id: identifier of the array
     /// - init: Vector of witnesses specifying the initial value of the array
     ///
     /// There must be only one MemoryInit per block_id, and MemoryOp opcodes must
     /// come after the MemoryInit.
-    MemoryInit {
-        block_id: BlockId,
-        init: Vec<Witness>,
-        block_type: BlockType,
-    },
-  
+    MemoryInit { block_id: BlockId, init: Vec<Witness>, block_type: BlockType },
+
     /// Calls to unconstrained functions
     BrilligCall {
         /// Id for the function being called. It is the responsibility of the executor
