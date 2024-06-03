@@ -91,7 +91,7 @@ Typically, `Npk_m` is stored in a note and later on, the note is nullified using
 Validity of `nsk_app` is verified by our [protocol kernel circuits](../../../protocol-specs/circuits/private-kernel-tail#verifying-and-splitting-ordered-data).
 
 ## Incoming viewing keys
-The app-siloed version of public key (denoted `Ivpk_app`) is used to encrypt a note for a recipient and the the corresponding secret key (`ivsk_app`) is used by recipient during decryption.
+The app-siloed version of public key (denoted `Ivpk_app`) is used to encrypt a note for a recipient and the corresponding secret key (`ivsk_app`) is used by recipient during decryption.
 
 ## Outgoing viewing keys
 App-siloed versions of outgoing viewing keys are denoted `ovsk_app` and `Ovpk_app`.

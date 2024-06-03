@@ -27,6 +27,6 @@ gh pr create --base master --head $NEW_BRANCH --title "chore: redo typo PR by $A
 
 # Step 5: Close the original PR
 echo "Closing original PR #$ORIGINAL_PR_NUMBER"
-gh pr close $ORIGINAL_PR_NUMBER --delete-branch
+gh pr close $ORIGINAL_PR_NUMBER
 
 echo "Script completed."
