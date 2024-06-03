@@ -20,11 +20,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || env.GITHUB_REF }}
+          ref: ${{ inputs.tag || github.ref }}
       - uses: ./.github/ci-setup-action
+        env:
+          DOCKERHUB_PASSWORD: "${{ secrets.DOCKERHUB_PASSWORD }}"
         with:
-          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
           concurrency_key: docs-preview-${{ inputs.username || github.actor }}-x86
 
       - timeout-minutes: 25
-        run: earthly-ci --no-output ./docs/+deploy-prod --NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }} --NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }}
+        run: earthly-ci --no-output ./docs/+deploy-prod --NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }} --NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }} --COMMIT_TAG=${{ inputs.tag }}

@@ -11,6 +11,8 @@ deps:
 
 build:
   ARG ENV
+  ARG COMMIT_TAG
+  ENV COMMIT_TAG=$COMMIT_TAG
   BUILD ../yarn-project/+build-dev
   BUILD ../+release-meta
   FROM +deps
