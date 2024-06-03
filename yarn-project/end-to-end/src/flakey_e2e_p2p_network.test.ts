@@ -76,7 +76,7 @@ describe('e2e_p2p_network', () => {
     const config: BootNodeConfig = {
       udpListenPort: BOOT_NODE_TCP_PORT,
       udpListenIp: '0.0.0.0',
-      announceHostname: '/ip4/127.0.0.1',
+      announceUdpHostname: '/ip4/127.0.0.1',
       announcePort: BOOT_NODE_TCP_PORT,
       peerIdPrivateKey: Buffer.from(peerId.privateKey!).toString('hex'),
       minPeerCount: 10,
@@ -102,7 +102,8 @@ describe('e2e_p2p_network', () => {
       udpListenPort: tcpListenPort,
       tcpListenIp: '0.0.0.0',
       udpListenIp: '0.0.0.0',
-      announceHostname: '/ip4/127.0.0.1',
+      announceTcpHostname: '/ip4/127.0.0.1',
+      announceUdpHostname: '/ip4/127.0.0.1',
       bootstrapNodes: [bootstrapNode],
       minTxsPerBlock: NUM_TXS_PER_BLOCK,
       maxTxsPerBlock: NUM_TXS_PER_BLOCK,

@@ -60,9 +60,15 @@ export interface P2PConfig {
   transactionProtocol: string;
 
   /**
-   * Hostname to announce.
+   * TCP Hostname to announce.
    */
-  announceHostname?: string;
+  announceTcpHostname?: string;
+
+  /**
+   * UDP Hostname to announce.
+   * If not provided, will use the same hostname as TCP.
+   */
+  announceUdpHostname?: string;
 
   /**
    * Port to announce.
@@ -93,6 +99,11 @@ export interface P2PConfig {
    * The transaction gossiping message version.
    */
   txGossipVersion: SemVer;
+
+  /**
+   * If announceUdpHostname or announceTcpHostname are not provided, query for the IP address of the machine. Default is false.
+   */
+  queryForIp: boolean;
 }
 
 /**
@@ -111,7 +122,8 @@ export function getP2PConfigEnvVars(): P2PConfig {
     P2P_UDP_LISTEN_IP,
     PEER_ID_PRIVATE_KEY,
     BOOTSTRAP_NODES,
-    P2P_ANNOUNCE_HOSTNAME,
+    P2P_ANNOUNCE_TCP_HOSTNAME,
+    P2P_ANNOUNCE_UDP_HOSTNAME,
     P2P_ANNOUNCE_PORT,
     P2P_NAT_ENABLED,
     P2P_MIN_PEERS,
@@ -119,6 +131,7 @@ export function getP2PConfigEnvVars(): P2PConfig {
     DATA_DIRECTORY,
     TX_GOSSIP_VERSION,
     P2P_TX_PROTOCOL,
+    P2P_QUERY_FOR_IP,
   } = process.env;
   const envVars: P2PConfig = {
     p2pEnabled: P2P_ENABLED === 'true',
@@ -132,13 +145,15 @@ export function getP2PConfigEnvVars(): P2PConfig {
     peerIdPrivateKey: PEER_ID_PRIVATE_KEY,
     bootstrapNodes: BOOTSTRAP_NODES ? BOOTSTRAP_NODES.split(',') : [],
     transactionProtocol: P2P_TX_PROTOCOL ? P2P_TX_PROTOCOL : '/aztec/0.1.0',
-    announceHostname: P2P_ANNOUNCE_HOSTNAME,
+    announceTcpHostname: P2P_ANNOUNCE_TCP_HOSTNAME,
+    announceUdpHostname: P2P_ANNOUNCE_UDP_HOSTNAME,
     announcePort: P2P_ANNOUNCE_PORT ? +P2P_ANNOUNCE_PORT : undefined,
     enableNat: P2P_NAT_ENABLED === 'true',
     minPeerCount: P2P_MIN_PEERS ? +P2P_MIN_PEERS : 10,
     maxPeerCount: P2P_MAX_PEERS ? +P2P_MAX_PEERS : 100,
     dataDirectory: DATA_DIRECTORY,
     txGossipVersion: TX_GOSSIP_VERSION ? new SemVer(TX_GOSSIP_VERSION) : new SemVer('0.1.0'),
+    queryForIp: P2P_QUERY_FOR_IP === 'true',
   };
   return envVars;
 }

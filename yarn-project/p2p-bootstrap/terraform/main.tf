@@ -136,7 +136,7 @@ resource "aws_ecs_task_definition" "p2p-bootstrap" {
         "value": "${local.bootnode_keys[count.index]}"
       },
       {
-        "name": "P2P_ANNOUNCE_HOSTNAME",
+        "name": "P2P_ANNOUNCE_UDP_HOSTNAME",
         "value": "/ip4/${data.terraform_remote_state.aztec-network_iac.outputs.p2p_eip}"
       },
       {

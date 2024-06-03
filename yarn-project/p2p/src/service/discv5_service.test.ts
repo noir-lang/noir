@@ -30,13 +30,15 @@ describe('Discv5Service', () => {
   let bootNodePeerId: PeerId;
   let port = 7890;
   const baseConfig = {
-    announceHostname: '/ip4/127.0.0.1',
+    announceUdpHostname: '/ip4/127.0.0.1',
+    announceTcpHostname: '/ip4/127.0.0.1',
     announcePort: port,
     tcpListenPort: port,
     udpListenIp: '0.0.0.0',
     udpListenPort: port,
     minPeerCount: 1,
     maxPeerCount: 100,
+    queryForIp: false,
   };
 
   beforeEach(async () => {

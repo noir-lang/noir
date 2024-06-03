@@ -15,7 +15,9 @@ const p2pOptions =
   'tcpListenIp:TCP_LISTEN_IP - string - The tcp IP on which the P2P service should listen for connections. Default: 0.0.0.0\n' +
   'peerIdPrivateKey:PEER_ID_PRIVATE_KEY - string - An optional peer id private key. If blank, will generate a random key.\n' +
   'bootstrapNodes:BOOTSTRAP_NODES - string - A list of bootstrap peers to connect to.\n' +
-  'announceHostname:P2P_ANNOUNCE_HOSTNAME - string - P2P Hostname to announce.\n' +
+  'announceTcpHostname:P2P_ANNOUNCE_TCP_HOSTNAME - string - P2P Hostname to announce for TCP communications.\n' +
+  'announceUdpHostname:P2P_ANNOUNCE_UDP_HOSTNAME - string - P2P Hostname to announce for UDP communications used in peer discovery.\n' +
+  'queryForIp:P2P_QUERY_FOR_IP - boolean - Whether to query for the public IP address if a hostname has not been provided. Default: false\n' +
   'announcePort:P2P_ANNOUNCE_PORT - number - P2P Port to announce.\n' +
   'enableNat:P2P_NAT_ENABLED - boolean - Whether to enable NAT from libp2p (ignored for bootstrap node). Default: false\n' +
   'minPeerCount:P2P_MIN_PEERS - number - The minimum number of peers to connect to. Default: 10\n' +

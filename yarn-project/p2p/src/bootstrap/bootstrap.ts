@@ -13,7 +13,7 @@ import { createLibP2PPeerId } from '../service/index.js';
  * Required P2P config values for a bootstrap node.
  */
 export type BootNodeConfig = Partial<P2PConfig> &
-  Pick<P2PConfig, 'announceHostname' | 'announcePort'> &
+  Pick<P2PConfig, 'announceUdpHostname' | 'announcePort'> &
   Required<Pick<P2PConfig, 'udpListenIp' | 'udpListenPort'>>;
 
 /**
@@ -31,13 +31,13 @@ export class BootstrapNode {
    * @returns An empty promise.
    */
   public async start(config: BootNodeConfig) {
-    const { peerIdPrivateKey, udpListenIp, udpListenPort, announceHostname, announcePort } = config;
+    const { peerIdPrivateKey, udpListenIp, udpListenPort, announceUdpHostname, announcePort } = config;
     const peerId = await createLibP2PPeerId(peerIdPrivateKey);
     this.peerId = peerId;
     const enr = SignableENR.createFromPeerId(peerId);
 
     const listenAddrUdp = multiaddr(`/ip4/${udpListenIp}/udp/${udpListenPort}`);
-    const publicAddr = multiaddr(`${announceHostname}/udp/${announcePort}`);
+    const publicAddr = multiaddr(`${announceUdpHostname}/udp/${announcePort}`);
     enr.setLocationMultiaddr(publicAddr);
     enr.set(AZTEC_ENR_KEY, Uint8Array.from([AZTEC_NET]));
 

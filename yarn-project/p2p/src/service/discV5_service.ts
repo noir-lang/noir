@@ -39,15 +39,16 @@ export class DiscV5Service extends EventEmitter implements PeerDiscoveryService 
 
   constructor(private peerId: PeerId, config: P2PConfig, private logger = createDebugLogger('aztec:discv5_service')) {
     super();
-    const { announceHostname, tcpListenPort, udpListenIp, udpListenPort, bootstrapNodes } = config;
+    const { announceUdpHostname, announceTcpHostname, tcpListenPort, udpListenIp, udpListenPort, bootstrapNodes } =
+      config;
     this.bootstrapNodes = bootstrapNodes;
     // create ENR from PeerId
     this.enr = SignableENR.createFromPeerId(peerId);
     // Add aztec identification to ENR
     this.enr.set(AZTEC_ENR_KEY, Uint8Array.from([AZTEC_NET]));
 
-    const multiAddrUdp = multiaddr(`${announceHostname}/udp/${udpListenPort}/p2p/${peerId.toString()}`);
-    const multiAddrTcp = multiaddr(`${announceHostname}/tcp/${tcpListenPort}/p2p/${peerId.toString()}`);
+    const multiAddrUdp = multiaddr(`${announceUdpHostname}/udp/${udpListenPort}/p2p/${peerId.toString()}`);
+    const multiAddrTcp = multiaddr(`${announceTcpHostname}/tcp/${tcpListenPort}/p2p/${peerId.toString()}`);
 
     const listenMultiAddrUdp = multiaddr(`/ip4/${udpListenIp}/udp/${udpListenPort}`);
 

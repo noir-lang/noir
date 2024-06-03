@@ -116,7 +116,8 @@ P2P_TCP_LISTEN_PORT=40400 # The tcp port on which the P2P service should listen 
 P2P_TCP_LISTEN_IP= #The tcp IP on which the P2P service should listen for connections.
 PEER_ID_PRIVATE_KEY='' # An optional peer id private key. If blank, will generate a random key.
 BOOTSTRAP_NODES='' # A list of bootstrap peers to connect to, separated by commas
-P2P_ANNOUNCE_HOSTNAME='' # Hostname to announce to the p2p network
+P2P_ANNOUNCE_TCP_HOSTNAME='' # TCP Hostname to announce to the p2p network
+P2P_ANNOUNCE_UDP_HOSTNAME='' # UDP Hostname to announce to the p2p network (used for peer discovery)
 P2P_ANNOUNCE_PORT='' # Port to announce to the p2p network
 P2P_NAT_ENABLED='false' # Whether to enable NAT from libp2p
 P2P_MIN_PEERS=10 # The minimum number of peers (a peer count below this will cause the node to look for more peers)
@@ -155,7 +156,7 @@ The P2P Bootstrap node is a standalone app whose purpose is to assist new P2P ne
 P2P_TCP_LISTEN_IP='0.0.0.0' # The IP Address on which to listen for connections.
 P2P_TCP_LISTEN_PORT=40400 # The port on which to listen for connections.
 PEER_ID_PRIVATE_KEY='' # The private key to be used by the peer for secure communications with other peers. This key will also be used to derive the Peer ID.
-P2P_ANNOUNCE_HOSTNAME='' # The IPAddress/Hostname that other peers should use to connect to this node, this may be different to P2P_TCP_LISTEN_IP if e.g. the node is behind a NAT.
+P2P_ANNOUNCE_UDP_HOSTNAME='' # The IPAddress/Hostname that other peers should use to connect to this node, this may be different to P2P_TCP_LISTEN_IP if e.g. the node is behind a NAT.
 P2P_ANNOUNCE_PORT='' # The port that other peers should use to connect to this node, this may be different to P2P_TCP_LISTEN_PORT if e.g. the node is behind a NAT.
 ```
 
