@@ -1,8 +1,11 @@
 import { type ProvingJobSource } from '@aztec/circuit-types';
 import {
+  AvmCircuitInputs,
   BaseOrMergeRollupPublicInputs,
   BaseParityInputs,
   BaseRollupInputs,
+  Fr,
+  Header,
   KernelCircuitPublicInputs,
   MergeRollupInputs,
   ParityPublicInputs,
@@ -26,6 +29,9 @@ export function createProvingJobSourceServer(queue: ProvingJobSource): JsonRpcSe
   return new JsonRpcServer(
     queue,
     {
+      Header,
+      Fr,
+      AvmCircuitInputs,
       BaseParityInputs,
       BaseOrMergeRollupPublicInputs,
       BaseRollupInputs,
@@ -56,6 +62,9 @@ export function createProvingJobSourceClient(
   return createJsonRpcClient(
     url,
     {
+      Header,
+      Fr,
+      AvmCircuitInputs,
       BaseParityInputs,
       BaseOrMergeRollupPublicInputs,
       BaseRollupInputs,

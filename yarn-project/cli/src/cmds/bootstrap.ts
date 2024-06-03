@@ -31,10 +31,10 @@ export async function bootstrap(rpcUrl: string, log: LogFn) {
 
   // prove these txs sequentially otherwise global fetch with default options times out with real proofs
   await keyRegistryTx.prove(keyRegistryDeployParams);
-  await gasTokenTx.prove(gasTokenDeployParams);
-
-  // also deploy the accounts sequentially otherwise there's too much data and publishing TxEffects fails
   const keyRegistry = await keyRegistryTx.send(keyRegistryDeployParams).deployed(waitOpts);
+
+  await gasTokenTx.prove(gasTokenDeployParams);
+  // also deploy the accounts sequentially otherwise there's too much data and publishing TxEffects fails
   const gasToken = await gasTokenTx.send(gasTokenDeployParams).deployed(waitOpts);
 
   log(`Key Registry deployed at canonical address ${keyRegistry.address.toString()}`);

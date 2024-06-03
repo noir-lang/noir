@@ -1,5 +1,5 @@
-import { type Fr } from '@aztec/foundation/fields';
-import { serializeToBuffer } from '@aztec/foundation/serialize';
+import { Fr } from '@aztec/foundation/fields';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
 // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6774): add public inputs.
@@ -11,7 +11,7 @@ export class AvmCircuitInputs {
    * @returns - The inputs serialized to a buffer.
    */
   toBuffer() {
-    return serializeToBuffer(...AvmCircuitInputs.getFields(this));
+    return serializeToBuffer(this.bytecode.length, this.bytecode, this.calldata.length, this.calldata);
   }
 
   /**
@@ -38,5 +38,14 @@ export class AvmCircuitInputs {
    */
   static getFields(fields: FieldsOf<AvmCircuitInputs>) {
     return [fields.bytecode, fields.calldata] as const;
+  }
+
+  static fromBuffer(buff: Buffer | BufferReader): AvmCircuitInputs {
+    const reader = BufferReader.asReader(buff);
+    return new AvmCircuitInputs(reader.readBuffer(), reader.readVector(Fr));
+  }
+
+  static fromString(str: string): AvmCircuitInputs {
+    return AvmCircuitInputs.fromBuffer(Buffer.from(str, 'hex'));
   }
 }
