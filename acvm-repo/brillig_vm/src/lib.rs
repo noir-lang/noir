@@ -559,12 +559,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 destinations.len()
             ));
         }
-        let flatten_values = if values.is_empty() { Vec::new() } else { values[0].fields() };
+        let flatten_values_vec = values.iter().map(|value| value.fields()).collect::<Vec<_>>();
         let mut flatten_values_idx = 0; //index of values read from flatten_values
         let values = values.clone();
 
-        for ((destination, value_type), output) in
-            destinations.iter().zip(destination_value_types).zip(&values)
+        for (((destination, value_type), output), flatten_values) in
+            destinations.iter().zip(destination_value_types).zip(&values).zip(flatten_values_vec)
         {
             match (destination, value_type) {
             (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(bit_size)) => {
