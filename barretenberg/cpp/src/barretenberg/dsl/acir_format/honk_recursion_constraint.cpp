@@ -55,9 +55,6 @@ std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> create_ho
     using RecursiveVerificationKey = Flavor::VerificationKey;
     using RecursiveVerifier = bb::stdlib::recursion::honk::UltraRecursiveVerifier_<Flavor>;
 
-    // Ignore the case of invalid witness assignments for now.
-    static_cast<void>(has_valid_witness_assignments);
-
     // Construct aggregation points from the nested aggregation witness indices
     std::array<bn254::Group, 2> nested_aggregation_points =
         agg_points_from_witness_indicies(builder, nested_aggregation_object);
@@ -122,6 +119,23 @@ std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> create_ho
 
     // Recursively verify the proof
     auto vkey = std::make_shared<RecursiveVerificationKey>(builder, key_fields);
+    if (!has_valid_witness_assignments) {
+        // Set vkey->circuit_size correctly based on the proof size
+        size_t num_frs_comm = bb::field_conversion::calc_num_bn254_frs<UltraFlavor::Commitment>();
+        size_t num_frs_fr = bb::field_conversion::calc_num_bn254_frs<UltraFlavor::FF>();
+        assert((input.proof.size() - HonkRecursionConstraint::inner_public_input_offset -
+                UltraFlavor::NUM_WITNESS_ENTITIES * num_frs_comm - UltraFlavor::NUM_ALL_ENTITIES * num_frs_fr -
+                2 * num_frs_comm) %
+                   (num_frs_comm + num_frs_fr * UltraFlavor::BATCHED_RELATION_PARTIAL_LENGTH) ==
+               0);
+        vkey->log_circuit_size = (input.proof.size() - HonkRecursionConstraint::inner_public_input_offset -
+                                  UltraFlavor::NUM_WITNESS_ENTITIES * num_frs_comm -
+                                  UltraFlavor::NUM_ALL_ENTITIES * num_frs_fr - 2 * num_frs_comm) /
+                                 (num_frs_comm + num_frs_fr * UltraFlavor::BATCHED_RELATION_PARTIAL_LENGTH);
+        vkey->circuit_size = (1 << vkey->log_circuit_size);
+        vkey->num_public_inputs = input.public_inputs.size();
+        vkey->pub_inputs_offset = UltraFlavor::has_zero_row ? 1 : 0;
+    }
     RecursiveVerifier verifier(&builder, vkey);
     std::array<typename Flavor::GroupElement, 2> pairing_points = verifier.verify_proof(proof_fields);
 
