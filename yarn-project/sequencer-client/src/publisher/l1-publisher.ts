@@ -247,6 +247,7 @@ export class L1Publisher implements L2BlockReceiver {
   private async sendPublishTx(encodedBody: Buffer): Promise<string | undefined> {
     while (!this.interrupted) {
       try {
+        this.log.info(`TxEffects size=${encodedBody.length} bytes`);
         return await this.txSender.sendPublishTx(encodedBody);
       } catch (err) {
         this.log.error(`TxEffects publish failed`, err);

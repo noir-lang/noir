@@ -5,12 +5,14 @@ import {
   type PaddingProcessedTx,
   type ProcessedTx,
   PublicKernelType,
+  Tx,
   type TxEffect,
   makeEmptyProcessedTx,
   makePaddingProcessedTx,
   toTxEffect,
 } from '@aztec/circuit-types';
 import {
+  BlockProofError,
   type BlockResult,
   PROVING_STATUS,
   type ProvingResult,
@@ -318,64 +320,71 @@ export class ProvingOrchestrator {
    * @returns The fully proven block and proof.
    */
   public async finaliseBlock() {
-    if (
-      !this.provingState ||
-      !this.provingState.rootRollupPublicInputs ||
-      !this.provingState.finalProof ||
-      !this.provingState.finalAggregationObject
-    ) {
-      throw new Error(`Invalid proving state, a block must be proven before it can be finalised`);
-    }
-    if (this.provingState.block) {
-      throw new Error('Block already finalised');
-    }
+    try {
+      if (
+        !this.provingState ||
+        !this.provingState.rootRollupPublicInputs ||
+        !this.provingState.finalProof ||
+        !this.provingState.finalAggregationObject
+      ) {
+        throw new Error(`Invalid proving state, a block must be proven before it can be finalised`);
+      }
+      if (this.provingState.block) {
+        throw new Error('Block already finalised');
+      }
 
-    const rootRollupOutputs = this.provingState.rootRollupPublicInputs;
+      const rootRollupOutputs = this.provingState.rootRollupPublicInputs;
 
-    logger?.debug(`Updating and validating root trees`);
-    await this.db.updateArchive(rootRollupOutputs.header);
+      logger?.debug(`Updating and validating root trees`);
+      await this.db.updateArchive(rootRollupOutputs.header);
 
-    await validateRootOutput(rootRollupOutputs, this.db);
+      await validateRootOutput(rootRollupOutputs, this.db);
 
-    // Collect all new nullifiers, commitments, and contracts from all txs in this block
-    const gasFees = this.provingState.globalVariables.gasFees;
-    const nonEmptyTxEffects: TxEffect[] = this.provingState!.allTxs.map(txProvingState =>
-      toTxEffect(txProvingState.processedTx, gasFees),
-    ).filter(txEffect => !txEffect.isEmpty());
-    const blockBody = new Body(nonEmptyTxEffects);
+      // Collect all new nullifiers, commitments, and contracts from all txs in this block
+      const gasFees = this.provingState.globalVariables.gasFees;
+      const nonEmptyTxEffects: TxEffect[] = this.provingState!.allTxs.map(txProvingState =>
+        toTxEffect(txProvingState.processedTx, gasFees),
+      ).filter(txEffect => !txEffect.isEmpty());
+      const blockBody = new Body(nonEmptyTxEffects);
 
-    const l2Block = L2Block.fromFields({
-      archive: rootRollupOutputs.archive,
-      header: rootRollupOutputs.header,
-      body: blockBody,
-    });
+      const l2Block = L2Block.fromFields({
+        archive: rootRollupOutputs.archive,
+        header: rootRollupOutputs.header,
+        body: blockBody,
+      });
 
-    if (!l2Block.body.getTxsEffectsHash().equals(rootRollupOutputs.header.contentCommitment.txsEffectsHash)) {
-      logger.debug(inspect(blockBody));
-      throw new Error(
-        `Txs effects hash mismatch, ${l2Block.body
-          .getTxsEffectsHash()
-          .toString('hex')} == ${rootRollupOutputs.header.contentCommitment.txsEffectsHash.toString('hex')} `,
+      if (!l2Block.body.getTxsEffectsHash().equals(rootRollupOutputs.header.contentCommitment.txsEffectsHash)) {
+        logger.debug(inspect(blockBody));
+        throw new Error(
+          `Txs effects hash mismatch, ${l2Block.body
+            .getTxsEffectsHash()
+            .toString('hex')} == ${rootRollupOutputs.header.contentCommitment.txsEffectsHash.toString('hex')} `,
+        );
+      }
+
+      logger.info(`Successfully proven block ${l2Block.number}!`);
+
+      this.provingState.block = l2Block;
+
+      const blockResult: BlockResult = {
+        proof: this.provingState.finalProof,
+        aggregationObject: this.provingState.finalAggregationObject,
+        block: l2Block,
+      };
+
+      pushTestData('blockResults', {
+        block: l2Block.toString(),
+        proof: this.provingState.finalProof.toString(),
+        aggregationObject: blockResult.aggregationObject.map(x => x.toString()),
+      });
+
+      return blockResult;
+    } catch (err) {
+      throw new BlockProofError(
+        err && typeof err === 'object' && 'message' in err ? String(err.message) : String(err),
+        this.provingState?.allTxs.map(x => Tx.getHash(x.processedTx)) ?? [],
       );
     }
-
-    logger.info(`Successfully proven block ${l2Block.number}!`);
-
-    this.provingState.block = l2Block;
-
-    const blockResult: BlockResult = {
-      proof: this.provingState.finalProof,
-      aggregationObject: this.provingState.finalAggregationObject,
-      block: l2Block,
-    };
-
-    pushTestData('blockResults', {
-      block: l2Block.toString(),
-      proof: this.provingState.finalProof.toString(),
-      aggregationObject: blockResult.aggregationObject.map(x => x.toString()),
-    });
-
-    return blockResult;
   }
 
   /**

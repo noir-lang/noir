@@ -83,6 +83,7 @@ describe('proof_verification', () => {
           enabled: true,
           runs: 200,
         },
+        evmVersion: 'paris',
         outputSelection: {
           '*': {
             '*': ['evm.bytecode.object', 'abi'],

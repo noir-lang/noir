@@ -80,7 +80,7 @@ export function makeFetch(retries: number[], noRetry: boolean, log?: DebugLogger
       `JsonRpcClient request ${rpcMethod} to ${host}`,
       makeBackoff(retries),
       log,
-      true,
+      false,
     );
   };
 }

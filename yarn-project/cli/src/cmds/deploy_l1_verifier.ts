@@ -3,6 +3,7 @@ import { createL1Clients, deployL1Contract } from '@aztec/ethereum';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 import { MockVerifierAbi, MockVerifierBytecode, RollupAbi } from '@aztec/l1-artifacts';
 
+import { InvalidOptionArgumentError } from 'commander';
 // @ts-expect-error solc-js doesn't publish its types https://github.com/ethereum/solc-js/issues/689
 import solc from 'solc';
 import { getContract } from 'viem';
@@ -15,11 +16,14 @@ export async function deployUltraVerifier(
   privateKey: string,
   mnemonic: string,
   pxeRpcUrl: string,
-  bbBinaryPath: string,
-  bbWorkingDirectory: string,
+  bbBinaryPath = process.env.BB_BINARY_PATH,
+  bbWorkingDirectory = process.env.BB_WORKING_DIRECTORY,
   log: LogFn,
   debugLogger: DebugLogger,
 ) {
+  if (!bbBinaryPath || !bbWorkingDirectory) {
+    throw new InvalidOptionArgumentError('Missing path to bb binary and working directory');
+  }
   const circuitVerifier = await BBCircuitVerifier.new({ bbBinaryPath, bbWorkingDirectory });
   const contractSrc = await circuitVerifier.generateSolidityContract('RootRollupArtifact', 'UltraVerifier.sol');
   log('Generated UltraVerifier contract');
@@ -37,6 +41,7 @@ export async function deployUltraVerifier(
         enabled: true,
         runs: 200,
       },
+      evmVersion: 'paris',
       outputSelection: {
         '*': {
           '*': ['evm.bytecode.object', 'abi'],
