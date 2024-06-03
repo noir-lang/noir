@@ -1,9 +1,9 @@
 use noirc_errors::{Span, Spanned};
 use noirc_frontend::ast::{
     BinaryOpKind, CallExpression, CastExpression, Expression, ExpressionKind, FunctionReturnType,
-    Ident, IndexExpression, InfixExpression, Lambda, LetStatement, MethodCallExpression,
-    NoirTraitImpl, Path, Pattern, PrefixExpression, Statement, StatementKind, TraitImplItem,
-    UnaryOp, UnresolvedType, UnresolvedTypeData,
+    Ident, IndexExpression, InfixExpression, Lambda, LetStatement, MemberAccessExpression,
+    MethodCallExpression, NoirTraitImpl, Path, Pattern, PrefixExpression, Statement, StatementKind,
+    TraitImplItem, UnaryOp, UnresolvedType, UnresolvedTypeData,
 };
 use noirc_frontend::token::SecondaryAttribute;
 
@@ -27,15 +27,15 @@ pub fn expression(kind: ExpressionKind) -> Expression {
 }
 
 pub fn variable(name: &str) -> Expression {
-    expression(ExpressionKind::Variable(ident_path(name)))
+    expression(ExpressionKind::Variable(ident_path(name), None))
 }
 
 pub fn variable_ident(identifier: Ident) -> Expression {
-    expression(ExpressionKind::Variable(path(identifier)))
+    expression(ExpressionKind::Variable(path(identifier), None))
 }
 
 pub fn variable_path(path: Path) -> Expression {
-    expression(ExpressionKind::Variable(path))
+    expression(ExpressionKind::Variable(path, None))
 }
 
 pub fn method_call(
@@ -47,6 +47,7 @@ pub fn method_call(
         object,
         method_name: ident(method_name),
         arguments,
+        generics: None,
     })))
 }
 
@@ -123,6 +124,13 @@ pub fn make_eq(lhs: Expression, rhs: Expression) -> Expression {
 
 pub fn make_statement(kind: StatementKind) -> Statement {
     Statement { span: Span::default(), kind }
+}
+
+pub fn member_access(lhs: Expression, member: &str) -> Expression {
+    expression(ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
+        lhs,
+        rhs: ident(member),
+    })))
 }
 
 #[macro_export]

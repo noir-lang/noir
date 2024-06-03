@@ -65,7 +65,7 @@ impl<'interner> Interpreter<'interner> {
 
     fn scan_expression(&mut self, expr: ExprId) -> IResult<()> {
         match self.interner.expression(&expr) {
-            HirExpression::Ident(ident) => self.scan_ident(ident, expr),
+            HirExpression::Ident(ident, _) => self.scan_ident(ident, expr),
             HirExpression::Literal(literal) => self.scan_literal(literal),
             HirExpression::Block(block) => self.scan_block(block),
             HirExpression::Prefix(prefix) => self.scan_expression(prefix.rhs),

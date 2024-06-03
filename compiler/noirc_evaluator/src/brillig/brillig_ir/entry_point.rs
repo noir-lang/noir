@@ -5,9 +5,9 @@ use super::{
     registers::BrilligRegistersContext,
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
-use acvm::{acir::brillig::MemoryAddress, FieldElement};
+use acvm::{acir::brillig::MemoryAddress, acir::AcirField, FieldElement};
 
-pub(crate) const MAX_STACK_SIZE: usize = 1024;
+pub(crate) const MAX_STACK_SIZE: usize = 2048;
 
 impl BrilligContext {
     /// Creates an entry point artifact that will jump to the function label provided.

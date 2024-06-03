@@ -1,7 +1,7 @@
 use acir::{
     circuit::{brillig::BrilligOutputs, directives::Directive, Circuit, ExpressionWidth, Opcode},
     native_types::{Expression, Witness},
-    FieldElement,
+    AcirField,
 };
 use indexmap::IndexMap;
 
@@ -12,10 +12,10 @@ pub(crate) use csat::CSatTransformer;
 use super::{transform_assert_messages, AcirTransformationMap};
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
-pub fn transform(
-    acir: Circuit,
+pub fn transform<F: AcirField>(
+    acir: Circuit<F>,
     expression_width: ExpressionWidth,
-) -> (Circuit, AcirTransformationMap) {
+) -> (Circuit<F>, AcirTransformationMap) {
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
@@ -34,11 +34,11 @@ pub fn transform(
 ///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 #[tracing::instrument(level = "trace", name = "transform_acir", skip(acir, acir_opcode_positions))]
-pub(super) fn transform_internal(
-    acir: Circuit,
+pub(super) fn transform_internal<F: AcirField>(
+    acir: Circuit<F>,
     expression_width: ExpressionWidth,
     acir_opcode_positions: Vec<usize>,
-) -> (Circuit, Vec<usize>) {
+) -> (Circuit<F>, Vec<usize>) {
     let mut transformer = match &expression_width {
         ExpressionWidth::Unbounded => {
             return (acir, acir_opcode_positions);
@@ -64,7 +64,7 @@ pub(super) fn transform_internal(
     let mut next_witness_index = acir.current_witness_index + 1;
     // maps a normalized expression to the intermediate variable which represents the expression, along with its 'norm'
     // the 'norm' is simply the value of the first non zero coefficient in the expression, taken from the linear terms, or quadratic terms if there is none.
-    let mut intermediate_variables: IndexMap<Expression, (FieldElement, Witness)> = IndexMap::new();
+    let mut intermediate_variables: IndexMap<Expression<F>, (F, Witness)> = IndexMap::new();
     for (index, opcode) in acir.opcodes.into_iter().enumerate() {
         match opcode {
             Opcode::AssertZero(arith_expr) => {
@@ -83,7 +83,7 @@ pub(super) fn transform_internal(
                     // de-normalize
                     let mut intermediate_opcode = g * *norm;
                     // constrain the intermediate opcode to the intermediate variable
-                    intermediate_opcode.linear_combinations.push((-FieldElement::one(), *w));
+                    intermediate_opcode.linear_combinations.push((-F::one(), *w));
                     intermediate_opcode.sort();
                     new_opcodes.push(intermediate_opcode);
                 }

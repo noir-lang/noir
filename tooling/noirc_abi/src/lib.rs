@@ -8,7 +8,7 @@ use acvm::{
         circuit::ErrorSelector,
         native_types::{Witness, WitnessMap},
     },
-    FieldElement,
+    AcirField, FieldElement,
 };
 use errors::AbiError;
 use input_parser::InputValue;
@@ -331,7 +331,7 @@ impl Abi {
         &self,
         input_map: &InputMap,
         return_value: Option<InputValue>,
-    ) -> Result<WitnessMap, AbiError> {
+    ) -> Result<WitnessMap<FieldElement>, AbiError> {
         // Check that no extra witness values have been provided.
         let param_names = self.parameter_names();
         if param_names.len() < input_map.len() {
@@ -439,7 +439,7 @@ impl Abi {
     /// Decode a `WitnessMap` into the types specified in the ABI.
     pub fn decode(
         &self,
-        witness_map: &WitnessMap,
+        witness_map: &WitnessMap<FieldElement>,
     ) -> Result<(InputMap, Option<InputValue>), AbiError> {
         let public_inputs_map =
             try_btree_map(self.parameters.clone(), |AbiParameter { name, typ, .. }| {
@@ -471,7 +471,15 @@ impl Abi {
                         .copied()
                 })
             {
-                Some(decode_value(&mut return_witness_values.into_iter(), &return_type.abi_type)?)
+                // We do not return value for the data bus.
+                if return_type.visibility == AbiVisibility::DataBus {
+                    None
+                } else {
+                    Some(decode_value(
+                        &mut return_witness_values.into_iter(),
+                        &return_type.abi_type,
+                    )?)
+                }
             } else {
                 // Unlike for the circuit inputs, we tolerate not being able to find the witness values for the return value.
                 // This is because the user may be decoding a partial witness map for which is hasn't been calculated yet.
@@ -644,7 +652,7 @@ pub fn display_abi_error(
 mod test {
     use std::collections::BTreeMap;
 
-    use acvm::{acir::native_types::Witness, FieldElement};
+    use acvm::{acir::native_types::Witness, AcirField, FieldElement};
 
     use crate::{
         input_parser::InputValue, Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility,

@@ -15,9 +15,9 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
-            HirMethodReference, HirPrefixExpression,
+            HirConstructorExpression, HirIfExpression, HirIndexExpression, HirInfixExpression,
+            HirLambda, HirMemberAccess, HirMethodCallExpression, HirMethodReference,
+            HirPrefixExpression,
         },
         traits::TraitConstraint,
     },
@@ -48,7 +48,12 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.span),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.span),
             ExpressionKind::If(if_) => self.elaborate_if(*if_),
-            ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
+            ExpressionKind::Variable(variable, generics) => {
+                let generics = generics.map(|option_inner| {
+                    option_inner.into_iter().map(|generic| self.resolve_type(generic)).collect()
+                });
+                return self.elaborate_variable(variable, generics);
+            }
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
             ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda),
             ExpressionKind::Parenthesized(expr) => return self.elaborate_expression(*expr),
@@ -79,10 +84,10 @@ impl<'context> Elaborator<'context> {
                     expr_type: inner_expr_type.clone(),
                     expr_span: span,
                 });
+            }
 
-                if i + 1 == statements.len() {
-                    block_type = stmt_type;
-                }
+            if i + 1 == statements.len() {
+                block_type = stmt_type;
             }
         }
 
@@ -185,11 +190,11 @@ impl<'context> Elaborator<'context> {
             let variable = scope_tree.find(ident_name);
             if let Some((old_value, _)) = variable {
                 old_value.num_times_used += 1;
-                let ident = HirExpression::Ident(old_value.ident.clone());
+                let ident = HirExpression::Ident(old_value.ident.clone(), None);
                 let expr_id = self.interner.push_expr(ident);
                 self.interner.push_expr_location(expr_id, call_expr_span, self.file);
                 let ident = old_value.ident.clone();
-                let typ = self.type_check_variable(ident, expr_id);
+                let typ = self.type_check_variable(ident, expr_id, None);
                 self.interner.push_expr_type(expr_id, typ.clone());
                 capture_types.push(typ);
                 fmt_str_idents.push(expr_id);
@@ -286,16 +291,25 @@ impl<'context> Elaborator<'context> {
             Some(method_ref) => {
                 // Automatically add `&mut` if the method expects a mutable reference and
                 // the object is not already one.
-                if let HirMethodReference::FuncId(func_id) = &method_ref {
-                    if *func_id != FuncId::dummy_id() {
-                        let function_type = self.interner.function_meta(func_id).typ.clone();
-
-                        self.try_add_mutable_reference_to_object(
-                            &function_type,
-                            &mut object_type,
-                            &mut object,
-                        );
+                let func_id = match &method_ref {
+                    HirMethodReference::FuncId(func_id) => *func_id,
+                    HirMethodReference::TraitMethodId(method_id, _) => {
+                        let id = self.interner.trait_method_id(*method_id);
+                        let definition = self.interner.definition(id);
+                        let DefinitionKind::Function(func_id) = definition.kind else {
+                            unreachable!("Expected trait function to be a DefinitionKind::Function")
+                        };
+                        func_id
                     }
+                };
+
+                if func_id != FuncId::dummy_id() {
+                    let function_type = self.interner.function_meta(&func_id).typ.clone();
+                    self.try_add_mutable_reference_to_object(
+                        &function_type,
+                        &mut object_type,
+                        &mut object,
+                    );
                 }
 
                 // These arguments will be given to the desugared function call.
@@ -314,7 +328,12 @@ impl<'context> Elaborator<'context> {
 
                 let location = Location::new(span, self.file);
                 let method = method_call.method_name;
-                let method_call = HirMethodCallExpression { method, object, arguments, location };
+                let generics = method_call.generics.map(|option_inner| {
+                    option_inner.into_iter().map(|generic| self.resolve_type(generic)).collect()
+                });
+                let turbofish_generics = generics.clone();
+                let method_call =
+                    HirMethodCallExpression { method, object, arguments, location, generics };
 
                 // Desugar the method call into a normal, resolved function call
                 // so that the backend doesn't need to worry about methods
@@ -326,7 +345,10 @@ impl<'context> Elaborator<'context> {
                     self.interner,
                 );
 
-                let func_type = self.type_check_variable(function_name, function_id);
+                let func_type =
+                    self.type_check_variable(function_name, function_id, turbofish_generics);
+
+                self.interner.push_expr_type(function_id, func_type.clone());
 
                 // Type check the new call now that it has been changed from a method call
                 // to a function call. This way we avoid duplicating code.

@@ -43,11 +43,19 @@ Generating a Solidity Verifier contract is actually a one-command process. Howev
 This is by far the most straight-forward step. Just run:
 
 ```sh
-nargo codegen-verifier
+nargo compile
 ```
 
-A new `contract` folder would then be generated in your project directory, containing the Solidity
-file `plonk_vk.sol`. It can be deployed to any EVM blockchain acting as a verifier smart contract.
+This will compile your source code into a Noir build artifact to be stored in the `./target` directory, you can then generate the smart contract using the commands:
+
+```sh
+# Here we pass the path to the newly generated Noir artifact.
+bb write_vk -b ./target/<noir_artifact_name>.json
+bb contract
+```
+
+replacing `<noir_artifact_name>` with the name of your Noir project. A new `contract` folder would then be generated in your project directory, containing the Solidity
+file `contract.sol`. It can be deployed to any EVM blockchain acting as a verifier smart contract.
 
 :::info
 
@@ -123,11 +131,25 @@ To verify a proof using the Solidity verifier contract, we call the `verify` fun
 function verify(bytes calldata _proof, bytes32[] calldata _publicInputs) external view returns (bool)
 ```
 
-When using the default example in the [Hello Noir](../getting_started/hello_noir/index.md) guide, the easiest way to confirm that the verifier contract is doing its job is by calling the `verify` function via remix with the required parameters. For `_proof`, run `nargo prove` and use the string in `proof/<file>.proof` (adding the hex `0x` prefix). We can also copy the public input from `Verifier.toml`, as it will be properly formatted as 32-byte strings:
+When using the default example in the [Hello Noir](../getting_started/hello_noir/index.md) guide, the easiest way to confirm that the verifier contract is doing its job is by calling the `verify` function via remix with the required parameters. Note that the public inputs must be passed in separately to the rest of the proof so we must split the proof as returned from `bb`.
 
+First generate a proof with `bb` at the location `./proof` using the steps in [get started](../getting_started/hello_noir/index.md), this proof is in a binary format but we want to convert it into a hex string to pass into Remix, this can be done with the 
+
+```bash
+# This value must be changed to match the number of public inputs (including return values!) in your program.
+NUM_PUBLIC_INPUTS=1
+PUBLIC_INPUT_BYTES=32*NUM_PUBLIC_INPUTS
+HEX_PUBLIC_INPUTS=$(head -c $PUBLIC_INPUT_BYTES ./proof | od -An -v -t x1 | tr -d $' \n')
+HEX_PROOF=$(tail -c +$(($PUBLIC_INPUT_BYTES + 1)) ./proof | od -An -v -t x1 | tr -d $' \n')
+
+echo "Public inputs:"
+echo $HEX_PUBLIC_INPUTS
+
+echo "Proof:"
+echo "0x$HEX_PROOF"
 ```
-0x...<proof bytes>... , [0x0000.....02]
-```
+
+Remix expects that the public inputs will be split into an array of `bytes32` values so `HEX_PUBLIC_INPUTS` needs to be split up into 32 byte chunks which are prefixed with `0x` accordingly.
 
 A programmatic example of how the `verify` function is called can be seen in the example zk voting application [here](https://github.com/noir-lang/noir-examples/blob/33e598c257e2402ea3a6b68dd4c5ad492bce1b0a/foundry-voting/src/zkVote.sol#L35):
 
@@ -144,11 +166,9 @@ function castVote(bytes calldata proof, uint proposalId, uint vote, bytes32 null
 
 :::info[Return Values]
 
-A circuit doesn't have the concept of a return value. Return values are just syntactic sugar in
-Noir.
+A circuit doesn't have the concept of a return value. Return values are just syntactic sugar in Noir.
 
-Under the hood, the return value is passed as an input to the circuit and is checked at the end of
-the circuit program.
+Under the hood, the return value is passed as an input to the circuit and is checked at the end of the circuit program.
 
 For example, if you have Noir program like this:
 
@@ -162,11 +182,11 @@ fn main(
 ) -> pub Field
 ```
 
-the `verify` function will expect the public inputs array (second function parameter) to be of length 3, the two inputs and the return value. Like before, these values are populated in Verifier.toml after running `nargo prove`.
+the `verify` function will expect the public inputs array (second function parameter) to be of length 3, the two inputs and the return value.
 
 Passing only two inputs will result in an error such as `PUBLIC_INPUT_COUNT_INVALID(3, 2)`.
 
-In this case, the inputs parameter to `verify` would be an array ordered as `[pubkey_x, pubkey_y, return]`.
+In this case, the inputs parameter to `verify` would be an array ordered as `[pubkey_x, pubkey_y, return`.
 
 :::
 
@@ -210,7 +230,7 @@ It would be incorrect to say that a Noir proof verification costs any gas at all
 
 ## A Note on EVM chains
 
-ZK-SNARK verification depends on some precompiled cryptographic primitives such as Elliptic Curve Pairings (if you like complex math, you can read about EC Pairings [here](https://medium.com/@VitalikButerin/exploring-elliptic-curve-pairings-c73c1864e627)). Not all EVM chains support EC Pairings, notably some of the ZK-EVMs. This means that you won't be able to use the verifier contract in all of them.
+Noir proof verification requires the ecMul, ecAdd and ecPairing precompiles. Not all EVM chains support EC Pairings, notably some of the ZK-EVMs. This means that you won't be able to use the verifier contract in all of them. You can find an incomplete list of which EVM chains support these precompiles [here](https://www.evmdiff.com/features?feature=precompiles).
 
 For example, chains like `zkSync ERA` and `Polygon zkEVM` do not currently support these precompiles, so proof verification via Solidity verifier contracts won't work. Here's a quick list of EVM chains that have been tested and are known to work:
 

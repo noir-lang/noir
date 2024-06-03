@@ -3,6 +3,7 @@ use super::{
     directives::Directive,
 };
 use crate::native_types::{Expression, Witness};
+use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 
 mod black_box_function_call;
@@ -11,25 +12,39 @@ mod memory_operation;
 pub use black_box_function_call::{BlackBoxFuncCall, FunctionInput};
 pub use memory_operation::{BlockId, MemOp};
 
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum BlockType {
+    Memory,
+    CallData,
+    ReturnData,
+}
+
+impl BlockType {
+    pub fn is_databus(&self) -> bool {
+        matches!(self, BlockType::CallData | BlockType::ReturnData)
+    }
+}
+
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Opcode {
-    AssertZero(Expression),
+pub enum Opcode<F> {
+    AssertZero(Expression<F>),
     /// Calls to "gadgets" which rely on backends implementing support for specialized constraints.
     ///
     /// Often used for exposing more efficient implementations of SNARK-unfriendly computations.  
     BlackBoxFuncCall(BlackBoxFuncCall),
-    Directive(Directive),
+    Directive(Directive<F>),
     /// Atomic operation on a block of memory
     MemoryOp {
         block_id: BlockId,
-        op: MemOp,
+        op: MemOp<F>,
         /// Predicate of the memory operation - indicates if it should be skipped
-        predicate: Option<Expression>,
+        predicate: Option<Expression<F>>,
     },
     MemoryInit {
         block_id: BlockId,
         init: Vec<Witness>,
+        block_type: BlockType,
     },
     /// Calls to unconstrained functions
     BrilligCall {
@@ -37,11 +52,11 @@ pub enum Opcode {
         /// to fetch the appropriate Brillig bytecode from this id.
         id: u32,
         /// Inputs to the function call
-        inputs: Vec<BrilligInputs>,
+        inputs: Vec<BrilligInputs<F>>,
         /// Outputs to the function call
         outputs: Vec<BrilligOutputs>,
         /// Predicate of the Brillig execution - indicates if it should be skipped
-        predicate: Option<Expression>,
+        predicate: Option<Expression<F>>,
     },
     /// Calls to functions represented as a separate circuit. A call opcode allows us
     /// to build a call stack when executing the outer-most circuit.
@@ -54,11 +69,11 @@ pub enum Opcode {
         /// Outputs of the function call
         outputs: Vec<Witness>,
         /// Predicate of the circuit execution - indicates if it should be skipped
-        predicate: Option<Expression>,
+        predicate: Option<Expression<F>>,
     },
 }
 
-impl std::fmt::Display for Opcode {
+impl<F: AcirField> std::fmt::Display for Opcode<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Opcode::AssertZero(expr) => {
@@ -103,8 +118,12 @@ impl std::fmt::Display for Opcode {
                     write!(f, "(id: {}, op {} at: {}) ", block_id.0, op.operation, op.index)
                 }
             }
-            Opcode::MemoryInit { block_id, init } => {
-                write!(f, "INIT ")?;
+            Opcode::MemoryInit { block_id, init, block_type: databus } => {
+                match databus {
+                    BlockType::Memory => write!(f, "INIT ")?,
+                    BlockType::CallData => write!(f, "INIT CALLDATA ")?,
+                    BlockType::ReturnData => write!(f, "INIT RETURNDATA ")?,
+                }
                 write!(f, "(id: {}, len: {}) ", block_id.0, init.len())
             }
             // We keep the display for a BrilligCall and circuit Call separate as they
@@ -129,7 +148,7 @@ impl std::fmt::Display for Opcode {
     }
 }
 
-impl std::fmt::Debug for Opcode {
+impl<F: AcirField> std::fmt::Debug for Opcode<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(self, f)
     }

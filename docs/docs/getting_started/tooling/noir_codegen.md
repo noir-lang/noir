@@ -2,7 +2,7 @@
 title: Noir Codegen for TypeScript
 description: Learn how to use Noir codegen to generate TypeScript bindings 
 keywords: [Nargo, Noir, compile, TypeScript]
-sidebar_position: 2
+sidebar_position: 3
 ---
 
 When using TypeScript, it is extra work to interpret Noir program outputs in a type-safe way. Third party libraries may exist for popular Noir programs, but they are either hard to find or unmaintained.

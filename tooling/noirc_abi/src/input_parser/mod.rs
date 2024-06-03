@@ -3,7 +3,7 @@ use num_traits::{Num, Zero};
 use std::collections::{BTreeMap, HashSet};
 use thiserror::Error;
 
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use serde::Serialize;
 
 use crate::errors::InputParserError;
@@ -229,7 +229,7 @@ impl Format {
 mod serialization_tests {
     use std::collections::BTreeMap;
 
-    use acvm::FieldElement;
+    use acvm::{AcirField, FieldElement};
     use strum::IntoEnumIterator;
 
     use crate::{
@@ -362,7 +362,7 @@ fn field_from_big_int(bigint: BigInt) -> FieldElement {
 
 #[cfg(test)]
 mod test {
-    use acvm::FieldElement;
+    use acvm::{AcirField, FieldElement};
     use num_bigint::BigUint;
 
     use super::parse_str_to_field;
