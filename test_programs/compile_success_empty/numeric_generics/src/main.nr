@@ -90,9 +90,6 @@ impl PublicStorage {
         let mut fields: [Field; N] = [0; N];
         // Used a loop bound
         for i in 0..N {
-            // TODO: Removing this cast I get an error as expected as deserialzie
-            // expects an array of fields not u64, but the error could be improved.
-            // Getting the following: `Expected type [Field; u64], found type [u64; u64]`
             fields[i] = i as Field + 1;
         }
         T::deserialize(fields)

@@ -249,9 +249,7 @@ impl<'context> Elaborator<'context> {
         dbg!(this.generic_idents.clone());
         // Must resolve structs before we resolve globals.
         this.collect_struct_definitions(items.types);
-        // if !this.errors.is_empty() {
-        //     dbg!(this.errors.clone());
-        // }
+
         if !this.errors.is_empty() {
             for e in this.errors.iter() {
                 if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
@@ -265,9 +263,7 @@ impl<'context> Elaborator<'context> {
         for trait_impl in &mut items.trait_impls {
             this.collect_trait_impl(trait_impl);
         }
-        // if !this.errors.is_empty() {
-        //     dbg!(this.errors.clone());
-        // }
+
         if !this.errors.is_empty() {
             for e in this.errors.iter() {
                 if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
@@ -292,9 +288,7 @@ impl<'context> Elaborator<'context> {
                 }
             }
         }
-        // if !this.errors.is_empty() {
-        //     dbg!(this.errors.clone());
-        // }
+
         // We must wait to resolve non-literal globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to to ensure they are valid.
         for global in non_literal_globals {
@@ -352,8 +346,6 @@ impl<'context> Elaborator<'context> {
         let generic_idents_count = self.generic_idents.len();
         let ret = f(self);
         self.generics.truncate(generics_count);
-        // dbg!(self.generic_idents.clone());
-        // dbg!(generic_idents_count);
         self.generic_idents.truncate(generic_idents_count);
         ret
     }
