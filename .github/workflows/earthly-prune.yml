@@ -1,0 +1,39 @@
+# prune earthly runners to workaround a sticky issue with 'graph edge' 
+# by default prunes cache from last 8 hours, see 'earthly prune --help' for other options
+
+name: Earthly Prune
+on:
+  workflow_dispatch:
+    inputs:
+      username:
+        required: false
+        type: string
+      prune_flags:
+        default: "--age 8h"
+        type: string
+
+concurrency:
+  # force parallelism in master
+  group: prune-${{ inputs.username || github.actor }}
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    uses: ./.github/workflows/setup-runner.yml
+    with:
+      username: ${{ inputs.username || github.actor }}
+      runner_type: builder-x86
+    secrets: inherit
+
+  publish:
+    needs: setup
+    runs-on: master-x86
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: ./.github/ci-setup-action
+        env:
+          DOCKERHUB_PASSWORD: "${{ secrets.DOCKERHUB_PASSWORD }}"
+      - timeout-minutes: 25
+        run: earthly-ci prune ${{ inputs.prune_flags }}
