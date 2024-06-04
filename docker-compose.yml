@@ -11,6 +11,7 @@ services:
       CHAIN_ID: 31337
       VERSION: 1
       PXE_PROVER_ENABLED: ${PXE_PROVER_ENABLED:-1}
+      PXE_DATA_DIRECTORY: /var/lib/aztec/pxe
       NODE_NO_WARNINGS: 1
     entrypoint:
       [
@@ -22,6 +23,8 @@ services:
       - aztec-node-url
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      - aztec-pxe:/var/lib/aztec/pxe
   cli:
     image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:e101ddc5ec24fc2c52af0e13b9005329d388481d9ccbf07289bdd62faba44615}
     # run the same image as pxe
