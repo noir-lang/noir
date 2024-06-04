@@ -57,6 +57,7 @@
         "curvegroup",
         "databus",
         "debouncer",
+        "defaultable",
         "deflater",
         "deflatten",
         "deflattened",

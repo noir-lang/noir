@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{collections::BTreeMap, rc::Rc};
 
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
@@ -22,7 +22,7 @@ use crate::{
             HirBinaryOp, HirCallExpression, HirIdent, HirMemberAccess, HirMethodReference,
             HirPrefixExpression,
         },
-        function::FuncMeta,
+        function::{FuncMeta, Parameters},
         traits::TraitConstraint,
     },
     macros_api::{
@@ -33,7 +33,7 @@ use crate::{
     Generics, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
-use super::Elaborator;
+use super::{lints, Elaborator};
 
 impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type
@@ -499,44 +499,6 @@ impl<'context> Elaborator<'context> {
                 }
             }
             _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
-        }
-    }
-
-    /// Check if an assignment is overflowing with respect to `annotated_type`
-    /// in a declaration statement where `annotated_type` is an unsigned integer
-    pub(super) fn lint_overflowing_uint(&mut self, rhs_expr: &ExprId, annotated_type: &Type) {
-        let expr = self.interner.expression(rhs_expr);
-        let span = self.interner.expr_span(rhs_expr);
-        match expr {
-            HirExpression::Literal(HirLiteral::Integer(value, false)) => {
-                let v = value.to_u128();
-                if let Type::Integer(_, bit_count) = annotated_type {
-                    let bit_count: u32 = (*bit_count).into();
-                    let max = 1 << bit_count;
-                    if v >= max {
-                        self.push_err(TypeCheckError::OverflowingAssignment {
-                            expr: value,
-                            ty: annotated_type.clone(),
-                            range: format!("0..={}", max - 1),
-                            span,
-                        });
-                    };
-                };
-            }
-            HirExpression::Prefix(expr) => {
-                self.lint_overflowing_uint(&expr.rhs, annotated_type);
-                if matches!(expr.operator, UnaryOp::Minus) {
-                    self.push_err(TypeCheckError::InvalidUnaryOp {
-                        kind: "annotated_type".to_string(),
-                        span,
-                    });
-                }
-            }
-            HirExpression::Infix(expr) => {
-                self.lint_overflowing_uint(&expr.lhs, annotated_type);
-                self.lint_overflowing_uint(&expr.rhs, annotated_type);
-            }
-            _ => {}
         }
     }
 
@@ -1182,55 +1144,31 @@ impl<'context> Elaborator<'context> {
         args: Vec<(Type, ExprId, Span)>,
         span: Span,
     ) -> Type {
-        // Need to setup these flags here as `self` is borrowed mutably to type check the rest of the call expression
-        // These flags are later used to type check calls to unconstrained functions from constrained functions
+        self.run_lint(|elaborator| {
+            lints::deprecated_function(elaborator.interner, call.func).map(Into::into)
+        });
+
         let func_mod = self.current_function.map(|func| self.interner.function_modifiers(&func));
         let is_current_func_constrained =
             func_mod.map_or(true, |func_mod| !func_mod.is_unconstrained);
-
         let is_unconstrained_call = self.is_unconstrained_call(call.func);
-        self.check_if_deprecated(call.func);
-
-        // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
-        if is_current_func_constrained && is_unconstrained_call {
-            for (typ, _, _) in args.iter() {
-                if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
-                    self.push_err(TypeCheckError::ConstrainedReferenceToUnconstrained { span });
-                }
+        let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
+        if crossing_runtime_boundary {
+            let errors = lints::unconstrained_function_args(&args);
+            for error in errors {
+                self.push_err(error);
             }
         }
 
         let return_type = self.bind_function_type(func_type, args, span);
 
-        // Check that we are not passing a slice from an unconstrained runtime to a constrained runtime
-        if is_current_func_constrained && is_unconstrained_call {
-            if return_type.contains_slice() {
-                self.push_err(TypeCheckError::UnconstrainedSliceReturnToConstrained { span });
-            } else if matches!(&return_type.follow_bindings(), Type::MutableReference(_)) {
-                self.push_err(TypeCheckError::UnconstrainedReferenceToConstrained { span });
-            }
-        };
+        if crossing_runtime_boundary {
+            self.run_lint(|_| {
+                lints::unconstrained_function_return(&return_type, span).map(Into::into)
+            });
+        }
 
         return_type
-    }
-
-    fn check_if_deprecated(&mut self, expr: ExprId) {
-        if let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
-            self.interner.expression(&expr)
-        {
-            if let Some(DefinitionKind::Function(func_id)) =
-                self.interner.try_definition(id).map(|def| &def.kind)
-            {
-                let attributes = self.interner.function_attributes(func_id);
-                if let Some(note) = attributes.get_deprecated_note() {
-                    self.push_err(TypeCheckError::CallDeprecated {
-                        name: self.interner.definition_name(id).to_string(),
-                        note,
-                        span: location.span,
-                    });
-                }
-            }
-        }
     }
 
     fn is_unconstrained_call(&self, expr: ExprId) -> bool {
@@ -1422,6 +1360,98 @@ impl<'context> Elaborator<'context> {
             });
         } else {
             self.generics.push((rc_name, typevar, span));
+        }
+    }
+
+    pub fn find_numeric_generics(
+        parameters: &Parameters,
+        return_type: &Type,
+    ) -> Vec<(String, TypeVariable)> {
+        let mut found = BTreeMap::new();
+        for (_, parameter, _) in &parameters.0 {
+            Self::find_numeric_generics_in_type(parameter, &mut found);
+        }
+        Self::find_numeric_generics_in_type(return_type, &mut found);
+        found.into_iter().collect()
+    }
+
+    fn find_numeric_generics_in_type(typ: &Type, found: &mut BTreeMap<String, TypeVariable>) {
+        match typ {
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Error
+            | Type::TypeVariable(_, _)
+            | Type::Constant(_)
+            | Type::NamedGeneric(_, _)
+            | Type::Code
+            | Type::Forall(_, _) => (),
+
+            Type::TraitAsType(_, _, args) => {
+                for arg in args {
+                    Self::find_numeric_generics_in_type(arg, found);
+                }
+            }
+
+            Type::Array(length, element_type) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
+                }
+                Self::find_numeric_generics_in_type(element_type, found);
+            }
+
+            Type::Slice(element_type) => {
+                Self::find_numeric_generics_in_type(element_type, found);
+            }
+
+            Type::Tuple(fields) => {
+                for field in fields {
+                    Self::find_numeric_generics_in_type(field, found);
+                }
+            }
+
+            Type::Function(parameters, return_type, _env) => {
+                for parameter in parameters {
+                    Self::find_numeric_generics_in_type(parameter, found);
+                }
+                Self::find_numeric_generics_in_type(return_type, found);
+            }
+
+            Type::Struct(struct_type, generics) => {
+                for (i, generic) in generics.iter().enumerate() {
+                    if let Type::NamedGeneric(type_variable, name) = generic {
+                        if struct_type.borrow().generic_is_numeric(i) {
+                            found.insert(name.to_string(), type_variable.clone());
+                        }
+                    } else {
+                        Self::find_numeric_generics_in_type(generic, found);
+                    }
+                }
+            }
+            Type::Alias(alias, generics) => {
+                for (i, generic) in generics.iter().enumerate() {
+                    if let Type::NamedGeneric(type_variable, name) = generic {
+                        if alias.borrow().generic_is_numeric(i) {
+                            found.insert(name.to_string(), type_variable.clone());
+                        }
+                    } else {
+                        Self::find_numeric_generics_in_type(generic, found);
+                    }
+                }
+            }
+            Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
+            Type::String(length) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
+                }
+            }
+            Type::FmtString(length, fields) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
+                }
+                Self::find_numeric_generics_in_type(fields, found);
+            }
         }
     }
 }
