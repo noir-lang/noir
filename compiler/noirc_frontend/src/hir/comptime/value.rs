@@ -181,11 +181,7 @@ impl Value {
         match self {
             Self::Field(value) => Some(value.to_u128()),
             Self::I8(value) => {
-                if value < &0 {
-                    None
-                } else {
-                    Some(*value as u128)
-                }
+                (*value >= 0).then(|| *value as u128)
             }
             Self::I16(value) => {
                 if value < &0 {
