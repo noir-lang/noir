@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.42.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.41.0...barretenberg.js-v0.42.0) (2024-06-04)
+
+
+### Features
+
+* Enable honk_recursion through acir ([#6719](https://github.com/AztecProtocol/aztec-packages/issues/6719)) ([7ce4cbe](https://github.com/AztecProtocol/aztec-packages/commit/7ce4cbef78ac0da590fbbad184219038ffa5afd9))
+* Fold acir programs ([#6563](https://github.com/AztecProtocol/aztec-packages/issues/6563)) ([f7d6541](https://github.com/AztecProtocol/aztec-packages/commit/f7d65416c741790ce5b5cda8cba08d869a659670))
+* Folding acir programs ([#6685](https://github.com/AztecProtocol/aztec-packages/issues/6685)) ([8d1788d](https://github.com/AztecProtocol/aztec-packages/commit/8d1788de43c41929ce131c3dbd4687ce555e48bc))
+* Sumcheck part of ECCVM recursive verifier instantiated as an UltraCircuit ([#6413](https://github.com/AztecProtocol/aztec-packages/issues/6413)) ([afe84a2](https://github.com/AztecProtocol/aztec-packages/commit/afe84a201cb8462c0e9f538b4518085f68bbdab5))
+
+
+### Bug Fixes
+
+* Add cbind declarations for new methods to fix autogen ([#6622](https://github.com/AztecProtocol/aztec-packages/issues/6622)) ([2429cd8](https://github.com/AztecProtocol/aztec-packages/commit/2429cd87a980eca62d2ff4543e6887f5ee9dd600))
+
+
+### Miscellaneous
+
+* Remove acir goblin flow ([#6724](https://github.com/AztecProtocol/aztec-packages/issues/6724)) ([f035231](https://github.com/AztecProtocol/aztec-packages/commit/f035231ca5cde4592be599a2e7b4ce706cdee27d))
+* Ultra goblin --&gt; mega ([#6674](https://github.com/AztecProtocol/aztec-packages/issues/6674)) ([d272abd](https://github.com/AztecProtocol/aztec-packages/commit/d272abd1b332aae8d062b2340afd5cabf61e31d9))
+
 ## [0.41.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.40.1...barretenberg.js-v0.41.0) (2024-05-21)
 
 

@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.42.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.41.0...aztec-package-v0.42.0) (2024-06-04)
+
+
+### Features
+
+* Devnet docker compose ([#6761](https://github.com/AztecProtocol/aztec-packages/issues/6761)) ([c62dfee](https://github.com/AztecProtocol/aztec-packages/commit/c62dfeecfb81a0eb82794c31ff6aa30f0366d5c9))
+* Inject fee payment update in base rollup ([#6403](https://github.com/AztecProtocol/aztec-packages/issues/6403)) ([4991188](https://github.com/AztecProtocol/aztec-packages/commit/4991188afcab7c5c707fea99797bd3f5222ab2dc))
+* Node verifies proofs ([#6735](https://github.com/AztecProtocol/aztec-packages/issues/6735)) ([3a215ed](https://github.com/AztecProtocol/aztec-packages/commit/3a215ed3e4f9015267d55b2a8572475dc5cc55d4))
+* Re-introduced Aztec CLI ([#6734](https://github.com/AztecProtocol/aztec-packages/issues/6734)) ([a120015](https://github.com/AztecProtocol/aztec-packages/commit/a1200153ad17e51e77508323831baaed9d395780))
+
+
+### Bug Fixes
+
+* UDP comms for AWS ([#6827](https://github.com/AztecProtocol/aztec-packages/issues/6827)) ([f4814d3](https://github.com/AztecProtocol/aztec-packages/commit/f4814d399a64c9a99fd9bc0114abac1328e58bd0))
+
+
+### Miscellaneous
+
+* Devnet setup for p2p bootstrap node ([#6660](https://github.com/AztecProtocol/aztec-packages/issues/6660)) ([e0bb743](https://github.com/AztecProtocol/aztec-packages/commit/e0bb743e8f6db7c589f88265e1cf1ee93e3e0c88)), closes [#6513](https://github.com/AztecProtocol/aztec-packages/issues/6513)
+* Remove prover-pool ([#6727](https://github.com/AztecProtocol/aztec-packages/issues/6727)) ([5833f29](https://github.com/AztecProtocol/aztec-packages/commit/5833f29445dd757b9ab6b755d6cae09d11e9414a))
+
 ## [0.41.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.40.1...aztec-package-v0.41.0) (2024-05-21)
 
 
