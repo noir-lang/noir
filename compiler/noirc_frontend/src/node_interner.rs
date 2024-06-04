@@ -1145,6 +1145,10 @@ impl NodeInterner {
         }
     }
 
+    pub fn try_get_trait_implementation(&self, id: TraitImplId) -> Option<Shared<TraitImpl>> {
+        self.trait_implementations.get(&id).cloned()
+    }
+
     pub fn get_trait_implementation(&self, id: TraitImplId) -> Shared<TraitImpl> {
         self.trait_implementations[&id].clone()
     }

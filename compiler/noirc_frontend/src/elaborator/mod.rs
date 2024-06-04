@@ -15,7 +15,7 @@ use crate::{
         },
         resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext},
         scope::ScopeForest as GenericScopeForest,
-        type_check::TypeCheckError,
+        type_check::{check_trait_impl_method_matches_declaration, TypeCheckError},
     },
     hir_def::{expr::HirIdent, function::Parameters, traits::TraitConstraint},
     macros_api::{
@@ -30,15 +30,12 @@ use crate::{
     hir::{
         def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
         def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
-        resolution::{
-            errors::PubPosition, import::PathResolution, path_resolver::StandardPathResolver,
-        },
+        resolution::{import::PathResolution, path_resolver::StandardPathResolver},
         Context,
     },
     hir_def::function::{FuncMeta, HirFunction},
-    macros_api::{Param, Path, UnresolvedType, UnresolvedTypeData, Visibility},
+    macros_api::{Param, Path, UnresolvedType, UnresolvedTypeData},
     node_interner::TraitImplId,
-    token::FunctionAttribute,
     Generics,
 };
 use crate::{
@@ -51,6 +48,7 @@ use crate::{
 };
 
 mod expressions;
+mod lints;
 mod patterns;
 mod scope;
 mod statements;
@@ -306,7 +304,7 @@ impl<'context> Elaborator<'context> {
             .expect("FuncMetas should be declared before a function is elaborated")
             .clone();
 
-        // The DefinitionIds for each parameter were already created in define_function_meta
+        // The `DefinitionId`s for each parameter were already created in `define_function_meta`
         // so we need to reintroduce the same IDs into scope here.
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
@@ -477,6 +475,12 @@ impl<'context> Elaborator<'context> {
         self.errors.push((error.into(), self.file));
     }
 
+    fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
+        if let Some(error) = lint(self) {
+            self.push_err(error);
+        }
+    }
+
     fn resolve_where_clause(&mut self, clause: &mut [UnresolvedTraitConstraint]) {
         for bound in clause {
             if let Some(trait_id) = self.resolve_trait_by_path(bound.trait_bound.trait_path.clone())
@@ -558,6 +562,8 @@ impl<'context> Elaborator<'context> {
     ) {
         self.current_function = Some(func_id);
         self.resolve_where_clause(&mut func.def.where_clause);
+        // `func` is no longer mutated.
+        let func = &*func;
 
         // Without this, impl methods can accidentally be placed in contracts. See #3254
         if self.self_type.is_some() {
@@ -571,26 +577,28 @@ impl<'context> Elaborator<'context> {
         let id = self.interner.function_definition_id(func_id);
         let name_ident = HirIdent::non_trait_method(id, location);
 
-        let attributes = func.attributes().clone();
-        let has_no_predicates_attribute = attributes.is_no_predicates();
-        let should_fold = attributes.is_foldable();
-        if !self.inline_attribute_allowed(func) {
-            if has_no_predicates_attribute {
-                self.push_err(ResolverError::NoPredicatesAttributeOnUnconstrained {
-                    ident: func.name_ident().clone(),
-                });
-            } else if should_fold {
-                self.push_err(ResolverError::FoldAttributeOnUnconstrained {
-                    ident: func.name_ident().clone(),
-                });
-            }
-        }
+        let is_entry_point = self.is_entry_point_function(func);
+
+        self.run_lint(|_| lints::inlining_attributes(func).map(Into::into));
+        self.run_lint(|_| lints::missing_pub(func, is_entry_point).map(Into::into));
+        self.run_lint(|elaborator| {
+            lints::unnecessary_pub_return(func, elaborator.pub_allowed(func)).map(Into::into)
+        });
+        self.run_lint(|elaborator| {
+            lints::low_level_function_outside_stdlib(func, elaborator.crate_id).map(Into::into)
+        });
+        self.run_lint(|_| lints::test_function_with_args(func).map(Into::into));
+        self.run_lint(|_| {
+            lints::recursive_non_entrypoint_function(func, is_entry_point).map(Into::into)
+        });
+
         // Both the #[fold] and #[no_predicates] alter a function's inline type and code generation in similar ways.
         // In certain cases such as type checking (for which the following flag will be used) both attributes
         // indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
+        let has_no_predicates_attribute = func.attributes().is_no_predicates();
+        let should_fold = func.attributes().is_foldable();
         let has_inline_attribute = has_no_predicates_attribute || should_fold;
-        let is_entry_point = self.is_entry_point_function(func);
-
+        let is_pub_allowed = self.pub_allowed(func);
         self.add_generics(&func.def.generics);
 
         let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
@@ -601,12 +609,9 @@ impl<'context> Elaborator<'context> {
         let mut parameter_idents = Vec::new();
 
         for Param { visibility, pattern, typ, span: _ } in func.parameters().iter().cloned() {
-            if visibility == Visibility::Public && !self.pub_allowed(func) {
-                self.push_err(ResolverError::UnnecessaryPub {
-                    ident: func.name_ident().clone(),
-                    position: PubPosition::Parameter,
-                });
-            }
+            self.run_lint(|_| {
+                lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
+            });
 
             let type_span = typ.span.unwrap_or_else(|| pattern.span());
 
@@ -614,7 +619,7 @@ impl<'context> Elaborator<'context> {
                 UnresolvedTypeData::TraitAsType(path, args) => {
                     self.desugar_impl_trait_arg(path, args, &mut generics, &mut trait_constraints)
                 }
-                _ => self.resolve_type_inner(typ, &mut generics),
+                _ => self.resolve_type_inner(typ),
             };
 
             self.check_if_type_is_valid_for_program_input(
@@ -635,44 +640,6 @@ impl<'context> Elaborator<'context> {
         }
 
         let return_type = Box::new(self.resolve_type(func.return_type()));
-
-        if !self.pub_allowed(func) && func.def.return_visibility == Visibility::Public {
-            self.push_err(ResolverError::UnnecessaryPub {
-                ident: func.name_ident().clone(),
-                position: PubPosition::ReturnType,
-            });
-        }
-
-        let is_low_level_function =
-            attributes.function.as_ref().map_or(false, |func| func.is_low_level());
-
-        if !self.crate_id.is_stdlib() && is_low_level_function {
-            let error =
-                ResolverError::LowLevelFunctionOutsideOfStdlib { ident: func.name_ident().clone() };
-            self.push_err(error);
-        }
-
-        // 'pub' is required on return types for entry point functions
-        if is_entry_point
-            && return_type.as_ref() != &Type::Unit
-            && func.def.return_visibility == Visibility::Private
-        {
-            self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() });
-        }
-        // '#[recursive]' attribute is only allowed for entry point functions
-        if !is_entry_point && func.kind == FunctionKind::Recursive {
-            self.push_err(ResolverError::MisplacedRecursiveAttribute {
-                ident: func.name_ident().clone(),
-            });
-        }
-
-        if matches!(attributes.function, Some(FunctionAttribute::Test { .. }))
-            && !parameters.is_empty()
-        {
-            self.push_err(ResolverError::TestFunctionHasParameters {
-                span: func.name_ident().span(),
-            });
-        }
 
         let mut typ = Type::Function(parameter_types, return_type, Box::new(Type::Unit));
 
@@ -734,14 +701,8 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn inline_attribute_allowed(&self, func: &NoirFunction) -> bool {
-        // Inline attributes are only relevant for constrained functions
-        // as all unconstrained functions are not inlined
-        !func.def.is_unconstrained
-    }
-
-    /// True if the 'pub' keyword is allowed on parameters in this function
-    /// 'pub' on function parameters is only allowed for entry point functions
+    /// True if the `pub` keyword is allowed on parameters in this function
+    /// `pub` on function parameters is only allowed for entry point functions
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
         self.is_entry_point_function(func) || func.attributes().is_foldable()
     }
@@ -927,6 +888,12 @@ impl<'context> Elaborator<'context> {
         self.generics = trait_impl.resolved_generics;
         self.current_trait_impl = trait_impl.impl_id;
 
+        for (module, function, _) in &trait_impl.methods.functions {
+            self.local_module = *module;
+            let errors = check_trait_impl_method_matches_declaration(self.interner, *function);
+            self.errors.extend(errors.into_iter().map(|error| (error.into(), self.file)));
+        }
+
         self.elaborate_functions(trait_impl.methods);
 
         self.self_type = None;
@@ -963,12 +930,14 @@ impl<'context> Elaborator<'context> {
 
         self.local_module = trait_impl.module_id;
         self.file = trait_impl.file_id;
+        self.current_trait_impl = trait_impl.impl_id;
         trait_impl.trait_id = self.resolve_trait_by_path(trait_impl.trait_path.clone());
 
         let self_type = trait_impl.methods.self_type.clone();
         let self_type =
             self_type.expect("Expected struct type to be set before collect_trait_impl");
 
+        self.self_type = Some(self_type.clone());
         let self_type_span = trait_impl.object_type.span;
 
         if matches!(self_type, Type::MutableReference(_)) {
@@ -976,13 +945,11 @@ impl<'context> Elaborator<'context> {
             self.push_err(DefCollectorErrorKind::MutableReferenceInTraitImpl { span });
         }
 
-        // TODO: this assertion will trigger an assertion rather than a nice error
-        assert!(trait_impl.trait_id.is_some());
         if let Some(trait_id) = trait_impl.trait_id {
+            self.generics = trait_impl.resolved_generics.clone();
             self.collect_trait_impl_methods(trait_id, trait_impl);
 
             let span = trait_impl.object_type.span.expect("All trait self types should have spans");
-            self.generics = trait_impl.resolved_generics.clone();
             self.declare_methods_on_struct(true, &mut trait_impl.methods, span);
 
             let methods = trait_impl.methods.function_ids();
@@ -1033,6 +1000,9 @@ impl<'context> Elaborator<'context> {
 
         self.generics.clear();
         self.generic_idents.clear();
+
+        self.current_trait_impl = None;
+        self.self_type = None;
 
         self.pop_scope();
     }
@@ -1149,6 +1119,7 @@ impl<'context> Elaborator<'context> {
                     let module = self.module_id();
                     let location = Location::new(default_impl.def.span, trait_impl.file_id);
                     self.interner.push_function(func_id, &default_impl.def, module, location);
+                    self.define_function_meta(&mut default_impl_clone, func_id, false);
                     func_ids_in_trait.insert(func_id);
                     ordered_methods.push((
                         method.default_impl_module_id,

@@ -45,9 +45,6 @@ pub(crate) struct GeneratedAcir {
     opcodes: Vec<AcirOpcode<FieldElement>>,
 
     /// All witness indices that comprise the final return value of the program
-    ///
-    /// Note: This may contain repeated indices, which is necessary for later mapping into the
-    /// abi's return type.
     pub(crate) return_witnesses: Vec<Witness>,
 
     /// All witness indices which are inputs to the main function
@@ -163,11 +160,6 @@ impl GeneratedAcir {
         self.assert_is_zero(constraint);
 
         fresh_witness
-    }
-
-    /// Adds a witness index to the program's return witnesses.
-    pub(crate) fn push_return_witness(&mut self, witness: Witness) {
-        self.return_witnesses.push(witness);
     }
 }
 

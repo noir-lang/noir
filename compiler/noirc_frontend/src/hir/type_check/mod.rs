@@ -237,7 +237,13 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 
     let impl_ =
         meta.trait_impl.expect("Trait impl function should have a corresponding trait impl");
-    let impl_ = interner.get_trait_implementation(impl_);
+
+    // If the trait implementation is not defined in the interner then there was a previous
+    // error in resolving the trait path and there is likely no trait for this impl.
+    let Some(impl_) = interner.try_get_trait_implementation(impl_) else {
+        return errors;
+    };
+
     let impl_ = impl_.borrow();
     let trait_info = interner.get_trait(impl_.trait_id);
 
