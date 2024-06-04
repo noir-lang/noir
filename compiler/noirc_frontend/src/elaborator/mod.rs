@@ -434,7 +434,7 @@ impl<'context> Elaborator<'context> {
             let mut is_numeric_generic = false;
             // Declare numeric generics
             if let UnresolvedGeneric::Numeric { ident, typ } = generic {
-                let typ = self.resolve_type(typ.clone());
+                let mut typ = self.resolve_type(typ.clone());
                 if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
                     let unsupported_typ_err = CompilationError::ResolverError(
                         ResolverError::UnsupportedNumericGenericType {
@@ -443,6 +443,7 @@ impl<'context> Elaborator<'context> {
                         },
                     );
                     self.errors.push((unsupported_typ_err, self.file));
+                    typ = Type::Error;
                 }
                 let definition = DefinitionKind::GenericType(typevar.clone());
                 let hir_ident =

@@ -883,12 +883,13 @@ impl<'a> Resolver<'a> {
             let mut is_numeric_generic = false;
             // Declare numeric generics
             if let UnresolvedGeneric::Numeric { ident, typ } = generic {
-                let typ = self.resolve_type(typ.clone());
+                let mut typ = self.resolve_type(typ.clone());
                 if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
                     self.errors.push(ResolverError::UnsupportedNumericGenericType {
                         ident: ident.clone(),
                         typ: typ.clone(),
                     });
+                    typ = Type::Error;
                 }
                 let definition = DefinitionKind::GenericType(typevar.clone());
                 let hir_ident =
