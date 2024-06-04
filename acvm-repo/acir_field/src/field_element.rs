@@ -216,8 +216,7 @@ impl<F: PrimeField> FieldElement<F> {
         let bytes = self.to_be_bytes();
         let mut bits = Vec::with_capacity(bytes.len() * 8);
         for byte in bytes {
-            let _bits = byte_to_bit(byte);
-            bits.extend(_bits);
+            bits.extend(byte_to_bit(byte));
         }
         bits
     }
