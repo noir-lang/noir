@@ -1153,7 +1153,7 @@ impl<'context> Elaborator<'context> {
         span: Span,
     ) -> Type {
         self.run_lint(|elaborator| {
-            lint_deprecated_function(&elaborator.interner, call.func).map(Into::into)
+            lint_deprecated_function(elaborator.interner, call.func).map(Into::into)
         });
 
         let func_mod = self.current_function.map(|func| self.interner.function_modifiers(&func));
