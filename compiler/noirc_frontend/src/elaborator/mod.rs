@@ -626,6 +626,8 @@ impl<'context> Elaborator<'context> {
                 has_inline_attribute,
                 type_span,
             );
+            self.check_type_is_not_numeric_generic(&typ, type_span);
+
             let pattern = self.elaborate_pattern_and_store_ids(
                 pattern,
                 typ.clone(),
@@ -637,7 +639,12 @@ impl<'context> Elaborator<'context> {
             parameter_types.push(typ);
         }
 
-        let return_type = Box::new(self.resolve_type(func.return_type()));
+        let unresolved_return_type = func.return_type();
+        let return_type_span = unresolved_return_type.span;
+        let return_type = Box::new(self.resolve_type(unresolved_return_type));
+        if let Some(return_type_span) = return_type_span {
+            self.check_type_is_not_numeric_generic(return_type.as_ref(), return_type_span);
+        }
 
         let mut typ = Type::Function(parameter_types, return_type, Box::new(Type::Unit));
 
@@ -1254,7 +1261,15 @@ impl<'context> Elaborator<'context> {
             this.current_item = Some(DependencyId::Struct(struct_id));
 
             this.resolving_ids.insert(struct_id);
-            let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, this.resolve_type(typ)));
+            let fields = vecmap(unresolved.fields, |(ident, typ)| {
+                let type_span = typ.span;
+                let typ = this.resolve_type(typ);
+                if let Some(type_span) = type_span {
+                    this.check_type_is_not_numeric_generic(&typ, type_span);
+                }
+                (ident, typ)
+            });
+
             this.resolving_ids.remove(&struct_id);
 
             (generics, fields)

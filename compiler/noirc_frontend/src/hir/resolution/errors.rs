@@ -99,7 +99,7 @@ pub enum ResolverError {
     #[error("Numeric generics should be explicit")]
     UseExplicitNumericGeneric { ident: Ident },
     #[error("expected type, found numeric generic parameter")]
-    NumericGenericUsedForType { ident: Ident },
+    NumericGenericUsedForType { name: String, span: Span },
 }
 
 impl ResolverError {
@@ -410,13 +410,11 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 ident.0.span(),
                 )
             }
-            ResolverError::NumericGenericUsedForType { ident } => {
-                let name = &ident.0.contents;
-
+            ResolverError::NumericGenericUsedForType { name, span } => {
                 Diagnostic::simple_error(
                     format!("expected type, found numeric generic parameter {name}"),
                     String::from("not a type"),
-                    ident.0.span(),
+                    *span,
                 )
             }
         }

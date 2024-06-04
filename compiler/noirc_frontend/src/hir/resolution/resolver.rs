@@ -742,16 +742,14 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// This method is used for looking up generics used as named types
+    /// as well as generics used in type expressions.
+    /// The `resolving_type` flag makes indicates the compiler should error out
+    /// when a generic is found.
     fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
             if let Some(generic) = self.find_generic(name) {
-                if generic.is_numeric_generic {
-                    self.errors.push(ResolverError::NumericGenericUsedForType {
-                        ident: path.last_segment(),
-                    });
-                    return Some(Type::Error);
-                }
                 return Some(Type::NamedGeneric(generic.type_var.clone(), generic.name.clone()));
             };
         }
@@ -985,7 +983,14 @@ impl<'a> Resolver<'a> {
         self.current_item = Some(DependencyId::Struct(struct_id));
 
         self.resolving_ids.insert(struct_id);
-        let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
+        let fields = vecmap(unresolved.fields, |(ident, typ)| {
+            let type_span = typ.span;
+            let typ = self.resolve_type(typ);
+            if let Some(type_span) = type_span {
+                self.check_type_is_not_numeric_generic(&typ, type_span);
+            }
+            (ident, typ)
+        });
         self.resolving_ids.remove(&struct_id);
 
         (generics, fields, self.errors)
@@ -1055,15 +1060,23 @@ impl<'a> Resolver<'a> {
                     position: PubPosition::Parameter,
                 });
             }
+            let type_span = typ.span.unwrap_or_else(|| pattern.span());
 
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
             let typ = self.resolve_type_inner(typ);
+
+            self.check_type_is_not_numeric_generic(&typ, type_span);
 
             parameters.push((pattern, typ.clone(), visibility));
             parameter_types.push(typ);
         }
 
-        let return_type = Box::new(self.resolve_type(func.return_type()));
+        let unresolved_return_type = func.return_type();
+        let return_type_span = unresolved_return_type.span;
+        let return_type = Box::new(self.resolve_type(unresolved_return_type));
+        if let Some(return_type_span) = return_type_span {
+            self.check_type_is_not_numeric_generic(return_type.as_ref(), return_type_span);
+        }
 
         self.declare_numeric_generics(&parameter_types, &return_type);
 
@@ -2181,6 +2194,18 @@ impl<'a> Resolver<'a> {
         }
         if self.nested_loops == 0 {
             self.push_err(ResolverError::JumpOutsideLoop { is_break, span });
+        }
+    }
+
+    pub fn check_type_is_not_numeric_generic(&mut self, typ: &Type, span: Span) {
+        if let Type::NamedGeneric(_, name) = &typ {
+            if let Some(generic) = self.find_generic(name.as_ref()) {
+                if generic.is_numeric_generic {
+                    let expected_typ_err =
+                        ResolverError::NumericGenericUsedForType { name: name.to_string(), span };
+                    self.errors.push(expected_typ_err);
+                }
+            }
         }
     }
 }

@@ -249,18 +249,14 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    /// This method is used for looking up generics used as named types
+    /// as well as generics used in type expressions.
+    /// The `resolving_type` flag makes indicates the compiler should error out
+    /// when a generic is found.
     pub fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
             if let Some(generic) = self.find_generic(name) {
-                if generic.is_numeric_generic {
-                    let expected_typ_err =
-                        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType {
-                            ident: path.last_segment(),
-                        });
-                    self.errors.push((expected_typ_err, self.file));
-                    return Some(Type::Error);
-                }
                 return Some(Type::NamedGeneric(generic.type_var.clone(), generic.name.clone()));
             }
         }
@@ -1393,6 +1389,21 @@ impl<'context> Elaborator<'context> {
                 span,
             };
             self.generics.push(resolved_generic);
+        }
+    }
+
+    pub fn check_type_is_not_numeric_generic(&mut self, typ: &Type, span: Span) {
+        if let Type::NamedGeneric(_, name) = &typ {
+            if let Some(generic) = self.find_generic(name.as_ref()) {
+                if generic.is_numeric_generic {
+                    let expected_typ_err =
+                        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType {
+                            name: name.to_string(),
+                            span,
+                        });
+                    self.errors.push((expected_typ_err, self.file));
+                }
+            }
         }
     }
 }

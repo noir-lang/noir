@@ -32,7 +32,15 @@ fn main() {
     assert(new_arr[0] == 5);
 }
 
-// TODO: getting unused variable warnings
+struct Trash<let N: u64> {
+    a: Field,
+    b: N,
+}
+
+fn id_two<let I: Field>(x: I) -> I {
+    x
+}
+
 fn id<let I: Field>(x: [Field; I]) -> [Field; I] {
     x
 }
@@ -101,7 +109,7 @@ trait Deserialize<let N: u64> {
 struct PublicStorage {}
 
 impl PublicStorage {
-    fn read<Tlet, N: u64>() -> T where T: Deserialize<N> {
+    fn read<T,let N: u64>() -> T where T: Deserialize<N> {
         // Used as a type within a function body
         let mut fields: [Field; N] = [0; N];
         // Used a loop bound
