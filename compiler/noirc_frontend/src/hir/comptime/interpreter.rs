@@ -290,7 +290,7 @@ impl<'a> Interpreter<'a> {
             HirExpression::MemberAccess(access) => self.evaluate_access(access, id),
             HirExpression::Call(call) => self.evaluate_call(call, id),
             HirExpression::MethodCall(call) => self.evaluate_method_call(call, id),
-            HirExpression::Cast(cast) => self.evaluate_cast(cast, id),
+            HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_, id),
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
@@ -929,7 +929,18 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_cast(&mut self, cast: HirCastExpression, id: ExprId) -> IResult<Value> {
+    fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
+        let evaluated_lhs = self.evaluate(cast.lhs)?;
+        Self::evaluate_cast_one_step(cast, id, evaluated_lhs, self.interner)
+    }
+
+    /// evaluate_cast without recursion
+    pub fn evaluate_cast_one_step(
+        cast: &HirCastExpression,
+        id: ExprId,
+        evaluated_lhs: Value,
+        interner: &NodeInterner,
+    ) -> IResult<Value> {
         macro_rules! signed_int_to_field {
             ($x:expr) => {{
                 // Need to convert the signed integer to an i128 before
@@ -943,7 +954,7 @@ impl<'a> Interpreter<'a> {
             }};
         }
 
-        let (mut lhs, lhs_is_negative) = match self.evaluate(cast.lhs)? {
+        let (mut lhs, lhs_is_negative) = match evaluated_lhs {
             Value::Field(value) => (value, false),
             Value::U8(value) => ((value as u128).into(), false),
             Value::U16(value) => ((value as u128).into(), false),
@@ -957,7 +968,7 @@ impl<'a> Interpreter<'a> {
                 (if value { FieldElement::one() } else { FieldElement::zero() }, false)
             }
             value => {
-                let location = self.interner.expr_location(&id);
+                let location = interner.expr_location(&id);
                 return Err(InterpreterError::NonNumericCasted { value, location });
             }
         };
@@ -982,8 +993,8 @@ impl<'a> Interpreter<'a> {
             }
             Type::Integer(sign, bit_size) => match (sign, bit_size) {
                 (Signedness::Unsigned, IntegerBitSize::One) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type, location })
+                    let location = interner.expr_location(&id);
+                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type.clone(), location })
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => cast_to_int!(lhs, to_u128, u8, U8),
                 (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
@@ -996,8 +1007,8 @@ impl<'a> Interpreter<'a> {
                     cast_to_int!(lhs, to_u128, u64, U64)
                 }
                 (Signedness::Signed, IntegerBitSize::One) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type, location })
+                    let location = interner.expr_location(&id);
+                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type.clone(), location })
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => cast_to_int!(lhs, to_i128, i8, I8),
                 (Signedness::Signed, IntegerBitSize::Sixteen) => {
@@ -1012,7 +1023,7 @@ impl<'a> Interpreter<'a> {
             },
             Type::Bool => Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
             typ => {
-                let location = self.interner.expr_location(&id);
+                let location = interner.expr_location(&id);
                 Err(InterpreterError::CastToNonNumericType { typ, location })
             }
         }
