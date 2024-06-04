@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 
 import type { AvmContext } from '../avm_context.js';
-import { getBaseGasCost, getMemoryGasCost, sumGas } from '../avm_gas.js';
+import { getBaseGasCost, sumGas } from '../avm_gas.js';
 import { type MemoryOperations } from '../avm_memory_types.js';
 import { type BufferCursor } from '../serialization/buffer_cursor.js';
 import { Opcode, type OperandType, deserialize, serialize } from '../serialization/instruction_serialization.js';
@@ -67,9 +67,11 @@ export abstract class Instruction {
    * @param memoryOps Memory operations performed by the instruction.
    * @returns Gas cost.
    */
-  protected gasCost(memoryOps: Partial<MemoryOperations & { indirect: number }> = {}) {
+  protected gasCost(_memoryOps: Partial<MemoryOperations & { indirect: number }> = {}) {
     const baseGasCost = getBaseGasCost(this.opcode);
-    const memoryGasCost = getMemoryGasCost(memoryOps);
+    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6861): reconsider.
+    // const memoryGasCost = getMemoryGasCost(memoryOps);
+    const memoryGasCost = { l2Gas: 0, daGas: 0 };
     return sumGas(baseGasCost, memoryGasCost);
   }
 

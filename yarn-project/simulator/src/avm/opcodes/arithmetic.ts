@@ -1,6 +1,5 @@
 import type { AvmContext } from '../avm_context.js';
-import { getBaseGasCost, getGasCostForTypeTag, getMemoryGasCost, sumGas } from '../avm_gas.js';
-import { type Field, type MemoryOperations, type MemoryValue, TypeTag } from '../avm_memory_types.js';
+import { type Field, type MemoryValue, TypeTag } from '../avm_memory_types.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Instruction } from './instruction.js';
 import { ThreeOperandInstruction } from './instruction_impl.js';
@@ -21,12 +20,6 @@ export abstract class ThreeOperandArithmeticInstruction extends ThreeOperandInst
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();
-  }
-
-  protected override gasCost(memoryOps: Partial<MemoryOperations & { indirect: number }>) {
-    const baseGasCost = getGasCostForTypeTag(this.inTag, getBaseGasCost(this.opcode));
-    const memoryGasCost = getMemoryGasCost(memoryOps);
-    return sumGas(baseGasCost, memoryGasCost);
   }
 
   protected abstract compute(a: MemoryValue, b: MemoryValue): MemoryValue;
@@ -100,11 +93,5 @@ export class FieldDiv extends Instruction {
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();
-  }
-
-  protected override gasCost(memoryOps: Partial<MemoryOperations & { indirect: number }>) {
-    const baseGasCost = getGasCostForTypeTag(TypeTag.FIELD, getBaseGasCost(this.opcode));
-    const memoryGasCost = getMemoryGasCost(memoryOps);
-    return sumGas(baseGasCost, memoryGasCost);
   }
 }

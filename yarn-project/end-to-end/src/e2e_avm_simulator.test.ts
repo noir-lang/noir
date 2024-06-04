@@ -61,7 +61,7 @@ describe('e2e_avm_simulator', () => {
         const l2GasUsed = simulation.publicOutput!.end.gasUsed.l2Gas! - l2TeardownAllocation;
         // L2 gas used will vary a lot depending on codegen and other factors,
         // so we just set a wide range for it, and check it's not a suspiciously round number.
-        expect(l2GasUsed).toBeGreaterThan(1e3);
+        expect(l2GasUsed).toBeGreaterThan(150);
         expect(l2GasUsed).toBeLessThan(1e6);
         expect(l2GasUsed! % 1000).not.toEqual(0);
       });

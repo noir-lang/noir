@@ -49,93 +49,86 @@ export const EmptyGas: Gas = {
 /** Dimensions of gas usage: L1, L2, and DA. */
 export const GasDimensions = ['l2Gas', 'daGas'] as const;
 
-/** Null object to represent a gas cost that's dynamic instead of fixed for a given instruction. */
-export const DynamicGasCost = Symbol('DynamicGasCost');
-
-/** Temporary default gas cost. We should eventually remove all usage of this variable in favor of actual gas for each opcode. */
-const TemporaryDefaultGasCost = { l2Gas: 10, daGas: 0 };
+/** Default gas cost for an opcode. */
+const DefaultBaseGasCost: Gas = { l2Gas: 10, daGas: 0 };
 
 /** Base gas costs for each instruction. Additional gas cost may be added on top due to memory or storage accesses, etc. */
-export const GasCosts: Record<Opcode, Gas | typeof DynamicGasCost> = {
-  [Opcode.ADD]: TemporaryDefaultGasCost,
-  [Opcode.SUB]: TemporaryDefaultGasCost,
-  [Opcode.MUL]: TemporaryDefaultGasCost,
-  [Opcode.DIV]: TemporaryDefaultGasCost,
-  [Opcode.FDIV]: TemporaryDefaultGasCost,
-  [Opcode.EQ]: TemporaryDefaultGasCost,
-  [Opcode.LT]: TemporaryDefaultGasCost,
-  [Opcode.LTE]: TemporaryDefaultGasCost,
-  [Opcode.AND]: TemporaryDefaultGasCost,
-  [Opcode.OR]: TemporaryDefaultGasCost,
-  [Opcode.XOR]: TemporaryDefaultGasCost,
-  [Opcode.NOT]: TemporaryDefaultGasCost,
-  [Opcode.SHL]: TemporaryDefaultGasCost,
-  [Opcode.SHR]: TemporaryDefaultGasCost,
-  [Opcode.CAST]: TemporaryDefaultGasCost,
+const BaseGasCosts: Record<Opcode, Gas> = {
+  [Opcode.ADD]: DefaultBaseGasCost,
+  [Opcode.SUB]: DefaultBaseGasCost,
+  [Opcode.MUL]: DefaultBaseGasCost,
+  [Opcode.DIV]: DefaultBaseGasCost,
+  [Opcode.FDIV]: DefaultBaseGasCost,
+  [Opcode.EQ]: DefaultBaseGasCost,
+  [Opcode.LT]: DefaultBaseGasCost,
+  [Opcode.LTE]: DefaultBaseGasCost,
+  [Opcode.AND]: DefaultBaseGasCost,
+  [Opcode.OR]: DefaultBaseGasCost,
+  [Opcode.XOR]: DefaultBaseGasCost,
+  [Opcode.NOT]: DefaultBaseGasCost,
+  [Opcode.SHL]: DefaultBaseGasCost,
+  [Opcode.SHR]: DefaultBaseGasCost,
+  [Opcode.CAST]: DefaultBaseGasCost,
   // Execution environment
-  [Opcode.ADDRESS]: TemporaryDefaultGasCost,
-  [Opcode.STORAGEADDRESS]: TemporaryDefaultGasCost,
-  [Opcode.SENDER]: TemporaryDefaultGasCost,
-  [Opcode.FEEPERL2GAS]: TemporaryDefaultGasCost,
-  [Opcode.FEEPERDAGAS]: TemporaryDefaultGasCost,
-  [Opcode.TRANSACTIONFEE]: TemporaryDefaultGasCost,
-  [Opcode.CONTRACTCALLDEPTH]: TemporaryDefaultGasCost,
-  [Opcode.CHAINID]: TemporaryDefaultGasCost,
-  [Opcode.VERSION]: TemporaryDefaultGasCost,
-  [Opcode.BLOCKNUMBER]: TemporaryDefaultGasCost,
-  [Opcode.TIMESTAMP]: TemporaryDefaultGasCost,
-  [Opcode.COINBASE]: TemporaryDefaultGasCost,
-  [Opcode.BLOCKL2GASLIMIT]: TemporaryDefaultGasCost,
-  [Opcode.BLOCKDAGASLIMIT]: TemporaryDefaultGasCost,
-  [Opcode.CALLDATACOPY]: TemporaryDefaultGasCost,
+  [Opcode.ADDRESS]: DefaultBaseGasCost,
+  [Opcode.STORAGEADDRESS]: DefaultBaseGasCost,
+  [Opcode.SENDER]: DefaultBaseGasCost,
+  [Opcode.FEEPERL2GAS]: DefaultBaseGasCost,
+  [Opcode.FEEPERDAGAS]: DefaultBaseGasCost,
+  [Opcode.TRANSACTIONFEE]: DefaultBaseGasCost,
+  [Opcode.CONTRACTCALLDEPTH]: DefaultBaseGasCost,
+  [Opcode.CHAINID]: DefaultBaseGasCost,
+  [Opcode.VERSION]: DefaultBaseGasCost,
+  [Opcode.BLOCKNUMBER]: DefaultBaseGasCost,
+  [Opcode.TIMESTAMP]: DefaultBaseGasCost,
+  [Opcode.COINBASE]: DefaultBaseGasCost,
+  [Opcode.BLOCKL2GASLIMIT]: DefaultBaseGasCost,
+  [Opcode.BLOCKDAGASLIMIT]: DefaultBaseGasCost,
+  [Opcode.CALLDATACOPY]: DefaultBaseGasCost,
   // Gas
-  [Opcode.L2GASLEFT]: TemporaryDefaultGasCost,
-  [Opcode.DAGASLEFT]: TemporaryDefaultGasCost,
+  [Opcode.L2GASLEFT]: DefaultBaseGasCost,
+  [Opcode.DAGASLEFT]: DefaultBaseGasCost,
   // Control flow
-  [Opcode.JUMP]: TemporaryDefaultGasCost,
-  [Opcode.JUMPI]: TemporaryDefaultGasCost,
-  [Opcode.INTERNALCALL]: TemporaryDefaultGasCost,
-  [Opcode.INTERNALRETURN]: TemporaryDefaultGasCost,
+  [Opcode.JUMP]: DefaultBaseGasCost,
+  [Opcode.JUMPI]: DefaultBaseGasCost,
+  [Opcode.INTERNALCALL]: DefaultBaseGasCost,
+  [Opcode.INTERNALRETURN]: DefaultBaseGasCost,
   // Memory
-  [Opcode.SET]: TemporaryDefaultGasCost,
-  [Opcode.MOV]: TemporaryDefaultGasCost,
-  [Opcode.CMOV]: TemporaryDefaultGasCost,
+  [Opcode.SET]: DefaultBaseGasCost,
+  [Opcode.MOV]: DefaultBaseGasCost,
+  [Opcode.CMOV]: DefaultBaseGasCost,
   // World state
-  [Opcode.SLOAD]: TemporaryDefaultGasCost,
-  [Opcode.SSTORE]: TemporaryDefaultGasCost,
-  [Opcode.NOTEHASHEXISTS]: TemporaryDefaultGasCost,
-  [Opcode.EMITNOTEHASH]: TemporaryDefaultGasCost,
-  [Opcode.NULLIFIEREXISTS]: TemporaryDefaultGasCost,
-  [Opcode.EMITNULLIFIER]: TemporaryDefaultGasCost,
-  [Opcode.L1TOL2MSGEXISTS]: TemporaryDefaultGasCost,
-  [Opcode.HEADERMEMBER]: TemporaryDefaultGasCost,
-  [Opcode.EMITUNENCRYPTEDLOG]: TemporaryDefaultGasCost,
-  [Opcode.SENDL2TOL1MSG]: TemporaryDefaultGasCost,
-  [Opcode.GETCONTRACTINSTANCE]: TemporaryDefaultGasCost,
+  [Opcode.SLOAD]: DefaultBaseGasCost,
+  [Opcode.SSTORE]: DefaultBaseGasCost,
+  [Opcode.NOTEHASHEXISTS]: DefaultBaseGasCost,
+  [Opcode.EMITNOTEHASH]: DefaultBaseGasCost,
+  [Opcode.NULLIFIEREXISTS]: DefaultBaseGasCost,
+  [Opcode.EMITNULLIFIER]: DefaultBaseGasCost,
+  [Opcode.L1TOL2MSGEXISTS]: DefaultBaseGasCost,
+  [Opcode.HEADERMEMBER]: DefaultBaseGasCost,
+  [Opcode.EMITUNENCRYPTEDLOG]: DefaultBaseGasCost,
+  [Opcode.SENDL2TOL1MSG]: DefaultBaseGasCost,
+  [Opcode.GETCONTRACTINSTANCE]: DefaultBaseGasCost,
   // External calls
-  [Opcode.CALL]: TemporaryDefaultGasCost,
-  [Opcode.STATICCALL]: TemporaryDefaultGasCost,
-  [Opcode.DELEGATECALL]: TemporaryDefaultGasCost,
-  [Opcode.RETURN]: TemporaryDefaultGasCost,
-  [Opcode.REVERT]: TemporaryDefaultGasCost,
+  [Opcode.CALL]: DefaultBaseGasCost,
+  [Opcode.STATICCALL]: DefaultBaseGasCost,
+  [Opcode.DELEGATECALL]: DefaultBaseGasCost,
+  [Opcode.RETURN]: DefaultBaseGasCost,
+  [Opcode.REVERT]: DefaultBaseGasCost,
   // Misc
-  [Opcode.DEBUGLOG]: TemporaryDefaultGasCost,
+  [Opcode.DEBUGLOG]: DefaultBaseGasCost,
   // Gadgets
-  [Opcode.KECCAK]: TemporaryDefaultGasCost,
-  [Opcode.POSEIDON2]: TemporaryDefaultGasCost,
-  [Opcode.SHA256]: TemporaryDefaultGasCost, // temp - may be removed, but alot of contracts rely on i: TemporaryDefaultGasCost,
-  [Opcode.PEDERSEN]: TemporaryDefaultGasCost, // temp - may be removed, but alot of contracts rely on i: TemporaryDefaultGasCost,t
+  [Opcode.KECCAK]: DefaultBaseGasCost,
+  [Opcode.POSEIDON2]: DefaultBaseGasCost,
+  [Opcode.SHA256]: DefaultBaseGasCost,
+  [Opcode.PEDERSEN]: DefaultBaseGasCost,
   // Conversions
-  [Opcode.TORADIXLE]: TemporaryDefaultGasCost,
+  [Opcode.TORADIXLE]: DefaultBaseGasCost,
 };
 
-/** Returns the fixed base gas cost for a given opcode, or throws if set to dynamic. */
+/** Returns the fixed base gas cost for a given opcode. */
 export function getBaseGasCost(opcode: Opcode): Gas {
-  const cost = GasCosts[opcode];
-  if (cost === DynamicGasCost) {
-    throw new Error(`Opcode ${Opcode[opcode]} has dynamic gas cost`);
-  }
-  return cost;
+  return BaseGasCosts[opcode];
 }
 
 /** Returns the gas cost associated with the memory operations performed. */

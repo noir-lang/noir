@@ -25,7 +25,7 @@ describe.each([
     await instruction.execute(context);
 
     const actual = context.machineState.memory.get(0).toNumber();
-    const expected = key === 'l2GasLeft' ? value - 110 : value; // l2gascost decreases when it's executed
+    const expected = key === 'l2GasLeft' ? value - 10 : value; // l2gascost decreases when it's executed
     expect(actual).toEqual(expected);
   });
 });

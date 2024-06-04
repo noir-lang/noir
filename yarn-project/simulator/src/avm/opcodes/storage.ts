@@ -1,8 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
 
 import type { AvmContext } from '../avm_context.js';
-import { type Gas, getBaseGasCost, getMemoryGasCost, mulGas, sumGas } from '../avm_gas.js';
-import { Field, type MemoryOperations } from '../avm_memory_types.js';
+import { Field } from '../avm_memory_types.js';
 import { StaticCallAlterationError } from '../errors.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Addressing } from './addressing_mode.js';
@@ -25,12 +24,6 @@ abstract class BaseStorageInstruction extends Instruction {
     protected bOffset: number,
   ) {
     super();
-  }
-
-  protected override gasCost(memoryOps: Partial<MemoryOperations & { indirect: number }>): Gas {
-    const baseGasCost = mulGas(getBaseGasCost(this.opcode), this.size);
-    const memoryGasCost = getMemoryGasCost(memoryOps);
-    return sumGas(baseGasCost, memoryGasCost);
   }
 }
 

@@ -1,6 +1,5 @@
 import type { AvmContext } from '../avm_context.js';
-import { getBaseGasCost, getMemoryGasCost, sumGas } from '../avm_gas.js';
-import { Field, type MemoryOperations, TaggedMemory, TypeTag } from '../avm_memory_types.js';
+import { Field, TaggedMemory, TypeTag } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
 import { BufferCursor } from '../serialization/buffer_cursor.js';
 import { Opcode, OperandType, deserialize, serialize } from '../serialization/instruction_serialization.js';
@@ -215,11 +214,5 @@ export class CalldataCopy extends Instruction {
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();
-  }
-
-  protected override gasCost(memoryOps: Partial<MemoryOperations & { indirect: number }> = {}) {
-    const baseGasCost = getBaseGasCost(this.opcode);
-    const memoryGasCost = getMemoryGasCost(memoryOps);
-    return sumGas(baseGasCost, memoryGasCost);
   }
 }
