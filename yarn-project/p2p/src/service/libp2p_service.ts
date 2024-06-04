@@ -1,7 +1,6 @@
 import { type Tx, type TxHash } from '@aztec/circuit-types';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { type AztecKVStore } from '@aztec/kv-store';
 
 import { ENR } from '@chainsafe/enr';
 import { type GossipsubEvents, gossipsub } from '@chainsafe/libp2p-gossipsub';
@@ -18,7 +17,6 @@ import { type Libp2p, createLibp2p } from 'libp2p';
 
 import { type P2PConfig } from '../config.js';
 import { type TxPool } from '../tx_pool/index.js';
-import { AztecDatastore } from './data_store.js';
 import { KnownTxLookup } from './known_txs.js';
 import { PeerManager } from './peer_manager.js';
 import type { P2PService, PeerDiscoveryService } from './service.js';
@@ -99,7 +97,7 @@ export class LibP2PService implements P2PService {
       if (this.isBootstrapPeer(peerId)) {
         this.logger.verbose(`Disconnect from bootstrap peer ${peerId.toString()}`);
       } else {
-        this.logger.verbose(`Disconnected from transaction peer ${peerId.toString()}`);
+        this.logger.info(`Disconnected from transaction peer ${peerId.toString()}`);
         await this.peerManager.updateDiscoveryService();
       }
     });
@@ -144,7 +142,6 @@ export class LibP2PService implements P2PService {
     peerDiscoveryService: PeerDiscoveryService,
     peerId: PeerId,
     txPool: TxPool,
-    store: AztecKVStore,
   ) {
     const { tcpListenIp, tcpListenPort, minPeerCount, maxPeerCount, transactionProtocol: protocolId } = config;
     const bindAddrTcp = `/ip4/${tcpListenIp}/tcp/${tcpListenPort}`;
@@ -163,8 +160,6 @@ export class LibP2PService implements P2PService {
     //   services.uPnPNAT = uPnPNATService();
     // }
 
-    const datastore = new AztecDatastore(store);
-
     const node = await createLibp2p({
       start: false,
       peerId,
@@ -176,7 +171,6 @@ export class LibP2PService implements P2PService {
           maxConnections: config.maxPeerCount,
         }),
       ],
-      datastore,
       streamMuxers: [yamux(), mplex()],
       connectionEncryption: [noise()],
       connectionManager: {
@@ -304,7 +298,7 @@ export class LibP2PService implements P2PService {
     if (this.isBootstrapPeer(peerId)) {
       this.logger.verbose(`Connected to bootstrap peer ${peerId.toString()}`);
     } else {
-      this.logger.verbose(`Connected to transaction peer ${peerId.toString()}`);
+      this.logger.info(`Connected to transaction peer ${peerId.toString()}`);
       await this.peerManager.updateDiscoveryService();
     }
   }
