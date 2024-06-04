@@ -1357,8 +1357,11 @@ impl<'context> Elaborator<'context> {
         assert_eq!(unresolved_generics.len(), generics.len());
 
         for (unresolved_generic, typevar) in unresolved_generics.iter().zip(generics) {
-            let name = Ident::from(unresolved_generic);
-            self.add_existing_generic(unresolved_generic, name.0.span(), typevar.clone());
+            self.add_existing_generic(
+                unresolved_generic,
+                unresolved_generic.span(),
+                typevar.clone(),
+            );
         }
     }
 

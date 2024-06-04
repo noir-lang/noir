@@ -934,8 +934,11 @@ impl<'a> Resolver<'a> {
         assert_eq!(unresolved_generics.len(), generics.len());
 
         for (unresolved_generic, typevar) in unresolved_generics.iter().zip(generics) {
-            let name = Ident::from(unresolved_generic);
-            self.add_existing_generic(unresolved_generic, name.0.span(), typevar.clone());
+            self.add_existing_generic(
+                unresolved_generic,
+                unresolved_generic.span(),
+                typevar.clone(),
+            );
         }
     }
 
@@ -947,6 +950,7 @@ impl<'a> Resolver<'a> {
     ) {
         let ident = Ident::from(unresolved_generic);
         let name = ident.0.contents;
+
         // Check for name collisions of this generic
         let rc_name = Rc::new(name.clone());
 

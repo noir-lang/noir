@@ -46,6 +46,16 @@ pub enum UnresolvedGeneric {
     Numeric { ident: Ident, typ: UnresolvedType },
 }
 
+impl UnresolvedGeneric {
+    pub(crate) fn span(&self) -> Span {
+        match self {
+            UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } => {
+                ident.0.span()
+            }
+        }
+    }
+}
+
 impl Display for UnresolvedGeneric {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

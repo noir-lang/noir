@@ -98,7 +98,7 @@ pub struct Elaborator<'context> {
     /// were declared in.
     generics: Vec<ResolvedGeneric>,
 
-    /// The idents for each numeric generic on a function
+    /// The idents for each numeric generic on a function.
     /// These definitions are generated when creating function metas
     /// and need to be brought into scope later when elaborating the function body.
     generic_idents: Vec<HirIdent>,
@@ -275,9 +275,7 @@ impl<'context> Elaborator<'context> {
             self.local_module = local_module;
             self.recover_generics(|this| this.elaborate_function(func, id));
         }
-        // if !self.generic_idents.is_empty() {
-        //     dbg!(self.generic_idents.clone());
-        // }
+
         self.self_type = None;
         self.trait_id = None;
     }
@@ -715,6 +713,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    // TODO(https://github.com/noir-lang/noir/issues/5156): Remove implicit numeric generics
     fn declare_numeric_generics(&mut self, params: &Parameters, return_type: &Type) {
         if self.generics.is_empty() {
             return;
@@ -744,13 +743,8 @@ impl<'context> Elaborator<'context> {
                 }
                 let ident = Ident::new(name.to_string(), *span);
                 let definition = DefinitionKind::GenericType(type_variable);
-                // if name.to_string() == "N".to_string() {
-                //     dbg!(ident.clone());
-                //     dbg!(self.generic_idents.clone());
-                // }
-                let x =
-                    self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
-                self.generic_idents.push(x);
+                self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
+
                 self.errors.push((
                     CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric {
                         ident,
@@ -899,7 +893,6 @@ impl<'context> Elaborator<'context> {
         self.self_type = None;
         self.current_trait_impl = None;
         self.generics.clear();
-        // dbg!(self.generic_idents.clone());
         self.generic_idents.clear();
     }
 
