@@ -23,6 +23,17 @@ export async function createAccount(
   const account = getSchnorrAccount(client, privateKey, deriveSigningKey(privateKey), salt);
   const { address, publicKeys, partialAddress } = account.getCompleteAddress();
 
+  log(`\nNew account:\n`);
+  log(`Address:         ${address.toString()}`);
+  log(`Public key:      0x${publicKeys.toString()}`);
+  if (printPK) {
+    log(`Private key:     ${privateKey.toString()}`);
+  }
+  log(`Partial address: ${partialAddress.toString()}`);
+  log(`Salt:            ${salt.toString()}`);
+  log(`Init hash:       ${account.getInstance().initializationHash.toString()}`);
+  log(`Deployer:        ${account.getInstance().deployer.toString()}`);
+
   let tx;
   let txReceipt;
   if (registerOnly) {
@@ -44,16 +55,6 @@ export async function createAccount(
     }
   }
 
-  log(`\nNew account:\n`);
-  log(`Address:         ${address.toString()}`);
-  log(`Public key:      0x${publicKeys.toString()}`);
-  if (printPK) {
-    log(`Private key:     ${privateKey.toString()}`);
-  }
-  log(`Partial address: ${partialAddress.toString()}`);
-  log(`Salt:            ${salt.toString()}`);
-  log(`Init hash:       ${account.getInstance().initializationHash.toString()}`);
-  log(`Deployer:        ${account.getInstance().deployer.toString()}`);
   if (tx) {
     log(`Deploy tx hash:  ${await tx.getTxHash()}`);
   }
