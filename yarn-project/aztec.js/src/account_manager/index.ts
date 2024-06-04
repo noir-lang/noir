@@ -104,11 +104,12 @@ export class AccountManager {
    * @returns A Wallet instance.
    */
   public async register(opts: WaitOpts = DefaultWaitOpts): Promise<AccountWalletWithSecretKey> {
-    await this.#register();
     await this.pxe.registerContract({
       artifact: this.accountContract.getContractArtifact(),
       instance: this.getInstance(),
     });
+
+    await this.pxe.registerAccount(this.secretKey, this.getCompleteAddress().partialAddress);
 
     await waitForAccountSynch(this.pxe, this.getCompleteAddress(), opts);
     return this.getWallet();
@@ -127,7 +128,9 @@ export class AccountManager {
           `Account contract ${this.accountContract.getContractArtifact().name} does not require deployment.`,
         );
       }
-      await this.#register();
+
+      await this.pxe.registerAccount(this.secretKey, this.getCompleteAddress().partialAddress);
+
       const { chainId, protocolVersion } = await this.pxe.getNodeInfo();
       const deployWallet = new SignerlessWallet(this.pxe, new DefaultMultiCallEntrypoint(chainId, protocolVersion));
 
@@ -190,10 +193,5 @@ export class AccountManager {
    */
   public isDeployable() {
     return this.accountContract.getDeploymentArgs() !== undefined;
-  }
-
-  async #register(): Promise<void> {
-    const completeAddress = this.getCompleteAddress();
-    await this.pxe.registerAccount(this.secretKey, completeAddress.partialAddress);
   }
 }
