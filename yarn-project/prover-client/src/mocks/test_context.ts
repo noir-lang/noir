@@ -127,6 +127,7 @@ export class TestContext {
     const orchestrator = new ProvingOrchestrator(actualDb, queue);
     const agent = new ProverAgent(localProver, proverCount);
 
+    queue.start();
     agent.start(queue);
 
     return new this(

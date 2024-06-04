@@ -48,7 +48,7 @@ import {
 } from '@aztec/circuits.js';
 import { makeTuple } from '@aztec/foundation/array';
 import { padArrayEnd } from '@aztec/foundation/collection';
-import { AbortedError } from '@aztec/foundation/error';
+import { AbortError } from '@aztec/foundation/error';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { promiseWithResolvers } from '@aztec/foundation/promise';
 import { BufferReader, type Tuple } from '@aztec/foundation/serialize';
@@ -475,7 +475,7 @@ export class ProvingOrchestrator {
 
         await callback(result);
       } catch (err) {
-        if (err instanceof AbortedError) {
+        if (err instanceof AbortError) {
           // operation was cancelled, probably because the block was cancelled
           // drop this result
           return;

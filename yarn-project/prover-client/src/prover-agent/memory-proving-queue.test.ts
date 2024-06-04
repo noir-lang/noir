@@ -6,14 +6,25 @@ import {
   makeRecursiveProof,
 } from '@aztec/circuits.js';
 import { makeBaseParityInputs, makeBaseRollupInputs, makeParityPublicInputs } from '@aztec/circuits.js/testing';
+import { AbortError } from '@aztec/foundation/error';
+import { sleep } from '@aztec/foundation/sleep';
 
 import { MemoryProvingQueue } from './memory-proving-queue.js';
 
 describe('MemoryProvingQueue', () => {
   let queue: MemoryProvingQueue;
+  let jobTimeoutMs: number;
+  let pollingIntervalMs: number;
 
   beforeEach(() => {
-    queue = new MemoryProvingQueue();
+    jobTimeoutMs = 100;
+    pollingIntervalMs = 10;
+    queue = new MemoryProvingQueue(jobTimeoutMs, pollingIntervalMs);
+    queue.start();
+  });
+
+  afterEach(async () => {
+    await queue.stop();
   });
 
   it('returns jobs in order', async () => {
@@ -67,5 +78,40 @@ describe('MemoryProvingQueue', () => {
     await queue.rejectProvingJob((await queue.getProvingJob())!.id, error);
 
     await expect(promise).rejects.toEqual(error);
+  });
+
+  it('reaps timed out jobs', async () => {
+    const controller = new AbortController();
+    const promise = queue.getBaseParityProof(makeBaseParityInputs(), controller.signal);
+    const job = await queue.getProvingJob();
+
+    expect(queue.isJobRunning(job!.id)).toBe(true);
+    await sleep(jobTimeoutMs + 2 * pollingIntervalMs);
+    expect(queue.isJobRunning(job!.id)).toBe(false);
+
+    controller.abort();
+    await expect(promise).rejects.toThrow(AbortError);
+  });
+
+  it('keeps jobs running while heartbeat is called', async () => {
+    const promise = queue.getBaseParityProof(makeBaseParityInputs());
+    const job = await queue.getProvingJob();
+
+    expect(queue.isJobRunning(job!.id)).toBe(true);
+    await sleep(pollingIntervalMs);
+    expect(queue.isJobRunning(job!.id)).toBe(true);
+
+    await queue.heartbeat(job!.id);
+    expect(queue.isJobRunning(job!.id)).toBe(true);
+    await sleep(pollingIntervalMs);
+    expect(queue.isJobRunning(job!.id)).toBe(true);
+
+    const output = new RootParityInput(
+      makeRecursiveProof(RECURSIVE_PROOF_LENGTH),
+      VerificationKeyAsFields.makeFake(),
+      makeParityPublicInputs(),
+    );
+    await queue.resolveProvingJob(job!.id, output);
+    await expect(promise).resolves.toEqual(output);
   });
 });

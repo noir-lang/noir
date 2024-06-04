@@ -24,11 +24,13 @@ describe('ProverAgent', () => {
   });
 
   beforeEach(() => {
+    queue.start();
     agent.start(queue);
   });
 
   afterEach(async () => {
     await agent.stop();
+    await queue.stop();
   });
 
   it('takes jobs from the queue', async () => {

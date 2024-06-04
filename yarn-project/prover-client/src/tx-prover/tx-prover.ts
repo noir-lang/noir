@@ -21,7 +21,7 @@ import { ProverAgent } from '../prover-agent/prover-agent.js';
  */
 export class TxProver implements ProverClient {
   private orchestrator: ProvingOrchestrator;
-  private queue = new MemoryProvingQueue();
+  private queue: MemoryProvingQueue;
   private running = false;
 
   private constructor(
@@ -31,6 +31,7 @@ export class TxProver implements ProverClient {
     private agent?: ProverAgent,
     initialHeader?: Header,
   ) {
+    this.queue = new MemoryProvingQueue(config.proverJobTimeoutMs, config.proverJobPollIntervalMs);
     this.orchestrator = new ProvingOrchestrator(worldStateSynchronizer.getLatest(), this.queue, initialHeader);
   }
 
@@ -66,6 +67,7 @@ export class TxProver implements ProverClient {
     }
 
     this.running = true;
+    this.queue.start();
     this.agent?.start(this.queue);
     return Promise.resolve();
   }
@@ -79,6 +81,7 @@ export class TxProver implements ProverClient {
     }
     this.running = false;
     await this.agent?.stop();
+    await this.queue.stop();
   }
 
   /**

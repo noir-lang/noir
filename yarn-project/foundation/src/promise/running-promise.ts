@@ -10,7 +10,7 @@ export class RunningPromise {
   private runningPromise = Promise.resolve();
   private interruptibleSleep = new InterruptibleSleep();
 
-  constructor(private fn: () => Promise<void>, private pollingIntervalMS = 10000) {}
+  constructor(private fn: () => void | Promise<void>, private pollingIntervalMS = 10000) {}
 
   /**
    * Starts the running promise.

@@ -122,9 +122,30 @@ export type ProvingRequestPublicInputs = {
 export type ProvingRequestResult<T extends ProvingRequestType> = ProvingRequestPublicInputs[T];
 
 export interface ProvingJobSource {
+  /**
+   * Gets the next proving job. `heartbeat` must be called periodically to keep the job alive.
+   * @returns The proving job, or undefined if there are no jobs available.
+   */
   getProvingJob(): Promise<ProvingJob<ProvingRequest> | undefined>;
 
+  /**
+   * Keeps the job alive. If this isn't called regularly then the job will be
+   * considered abandoned and re-queued for another consumer to pick up
+   * @param jobId The ID of the job to heartbeat.
+   */
+  heartbeat(jobId: string): Promise<void>;
+
+  /**
+   * Resolves a proving job.
+   * @param jobId - The ID of the job to resolve.
+   * @param result - The result of the proving job.
+   */
   resolveProvingJob<T extends ProvingRequestType>(jobId: string, result: ProvingRequestResult<T>): Promise<void>;
 
+  /**
+   * Rejects a proving job.
+   * @param jobId - The ID of the job to reject.
+   * @param reason - The reason for rejecting the job.
+   */
   rejectProvingJob(jobId: string, reason: Error): Promise<void>;
 }

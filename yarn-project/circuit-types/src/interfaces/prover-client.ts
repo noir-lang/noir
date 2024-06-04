@@ -18,6 +18,10 @@ export type ProverConfig = {
   proverAgentPollInterval: number;
   /** The maximum number of proving jobs to be run in parallel */
   proverAgentConcurrency: number;
+  /** Jobs are retried if not kept alive for this long */
+  proverJobTimeoutMs: number;
+  /** The interval to check job health status */
+  proverJobPollIntervalMs: number;
 };
 
 /**

@@ -16,7 +16,7 @@ import { ProvingError } from './proving-error.js';
  * A helper class that encapsulates a circuit prover and connects it to a job source.
  */
 export class ProverAgent {
-  private inFlightPromises = new Set<Promise<any>>();
+  private inFlightPromises = new Map<string, Promise<any>>();
   private runningPromise?: RunningPromise;
 
   constructor(
@@ -50,20 +50,28 @@ export class ProverAgent {
     }
 
     this.runningPromise = new RunningPromise(async () => {
-      while (this.inFlightPromises.size < this.maxConcurrency) {
-        const job = await jobSource.getProvingJob();
-        if (!job) {
-          // job source is fully drained, sleep for a bit and try again
-          return;
-        }
+      for (const jobId of this.inFlightPromises.keys()) {
+        await jobSource.heartbeat(jobId);
+      }
 
-        const promise = this.work(jobSource, job).finally(() => this.inFlightPromises.delete(promise));
-        this.inFlightPromises.add(promise);
+      while (this.inFlightPromises.size < this.maxConcurrency) {
+        try {
+          const job = await jobSource.getProvingJob();
+          if (!job) {
+            // job source is fully drained, sleep for a bit and try again
+            return;
+          }
+
+          const promise = this.work(jobSource, job).finally(() => this.inFlightPromises.delete(job.id));
+          this.inFlightPromises.set(job.id, promise);
+        } catch (err) {
+          this.log.warn(`Error processing job: ${err}`);
+        }
       }
     }, this.pollIntervalMs);
 
     this.runningPromise.start();
-    this.log.info('Agent started');
+    this.log.info(`Agent started with concurrency=${this.maxConcurrency}`);
   }
 
   async stop(): Promise<void> {
@@ -79,14 +87,31 @@ export class ProverAgent {
 
   private async work(jobSource: ProvingJobSource, job: ProvingJob<ProvingRequest>): Promise<void> {
     try {
+      this.log.debug(`Picked up proving job id=${job.id} type=${ProvingRequestType[job.request.type]}`);
       const [time, result] = await elapsed(this.getProof(job.request));
-      await jobSource.resolveProvingJob(job.id, result);
-      this.log.debug(
-        `Processed proving job id=${job.id} type=${ProvingRequestType[job.request.type]} duration=${time}ms`,
-      );
+      if (this.isRunning()) {
+        this.log.debug(
+          `Processed proving job id=${job.id} type=${ProvingRequestType[job.request.type]} duration=${time}ms`,
+        );
+        await jobSource.resolveProvingJob(job.id, result);
+      } else {
+        this.log.debug(
+          `Dropping proving job id=${job.id} type=${
+            ProvingRequestType[job.request.type]
+          } duration=${time}ms: agent stopped`,
+        );
+      }
     } catch (err) {
-      this.log.error(`Error processing proving job id=${job.id} type=${ProvingRequestType[job.request.type]}: ${err}`);
-      await jobSource.rejectProvingJob(job.id, new ProvingError((err as any)?.message ?? String(err)));
+      if (this.isRunning()) {
+        this.log.error(
+          `Error processing proving job id=${job.id} type=${ProvingRequestType[job.request.type]}: ${err}`,
+        );
+        await jobSource.rejectProvingJob(job.id, new ProvingError((err as any)?.message ?? String(err)));
+      } else {
+        this.log.debug(
+          `Dropping proving job id=${job.id} type=${ProvingRequestType[job.request.type]}: agent stopped: ${err}`,
+        );
+      }
     }
   }
 
