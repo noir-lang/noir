@@ -38,15 +38,12 @@ use crate::{
     hir::{
         def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
         def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
-        resolution::{
-            errors::PubPosition, import::PathResolution, path_resolver::StandardPathResolver,
-        },
+        resolution::{import::PathResolution, path_resolver::StandardPathResolver},
         Context,
     },
     hir_def::function::{FuncMeta, HirFunction},
-    macros_api::{Param, Path, UnresolvedType, UnresolvedTypeData, Visibility},
+    macros_api::{Param, Path, UnresolvedType, UnresolvedTypeData},
     node_interner::TraitImplId,
-    token::FunctionAttribute,
     Generics,
 };
 use crate::{
@@ -59,6 +56,7 @@ use crate::{
 };
 
 mod expressions;
+mod lints;
 mod patterns;
 mod scope;
 mod statements;
@@ -460,6 +458,12 @@ impl<'context> Elaborator<'context> {
         self.errors.push((error.into(), self.file));
     }
 
+    fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
+        if let Some(error) = lint(self) {
+            self.push_err(error);
+        }
+    }
+
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
         let path_resolver = StandardPathResolver::new(self.module_id());
 
@@ -544,26 +548,28 @@ impl<'context> Elaborator<'context> {
         let id = self.interner.function_definition_id(func_id);
         let name_ident = HirIdent::non_trait_method(id, location);
 
-        let attributes = func.attributes().clone();
-        let has_no_predicates_attribute = attributes.is_no_predicates();
-        let should_fold = attributes.is_foldable();
-        if !self.inline_attribute_allowed(func) {
-            if has_no_predicates_attribute {
-                self.push_err(ResolverError::NoPredicatesAttributeOnUnconstrained {
-                    ident: func.name_ident().clone(),
-                });
-            } else if should_fold {
-                self.push_err(ResolverError::FoldAttributeOnUnconstrained {
-                    ident: func.name_ident().clone(),
-                });
-            }
-        }
+        let is_entry_point = self.is_entry_point_function(func);
+
+        self.run_lint(|_| lints::inlining_attributes(func).map(Into::into));
+        self.run_lint(|_| lints::missing_pub(func, is_entry_point).map(Into::into));
+        self.run_lint(|elaborator| {
+            lints::unnecessary_pub_return(func, elaborator.pub_allowed(func)).map(Into::into)
+        });
+        self.run_lint(|elaborator| {
+            lints::low_level_function_outside_stdlib(func, elaborator.crate_id).map(Into::into)
+        });
+        self.run_lint(|_| lints::test_function_with_args(func).map(Into::into));
+        self.run_lint(|_| {
+            lints::recursive_non_entrypoint_function(func, is_entry_point).map(Into::into)
+        });
+
         // Both the #[fold] and #[no_predicates] alter a function's inline type and code generation in similar ways.
         // In certain cases such as type checking (for which the following flag will be used) both attributes
         // indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
+        let has_no_predicates_attribute = func.attributes().is_no_predicates();
+        let should_fold = func.attributes().is_foldable();
         let has_inline_attribute = has_no_predicates_attribute || should_fold;
-        let is_entry_point = self.is_entry_point_function(func);
-
+        let is_pub_allowed = self.pub_allowed(func);
         self.add_generics(&func.def.generics);
 
         let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
@@ -574,12 +580,9 @@ impl<'context> Elaborator<'context> {
         let mut parameter_idents = Vec::new();
 
         for Param { visibility, pattern, typ, span: _ } in func.parameters().iter().cloned() {
-            if visibility == Visibility::Public && !self.pub_allowed(func) {
-                self.push_err(ResolverError::UnnecessaryPub {
-                    ident: func.name_ident().clone(),
-                    position: PubPosition::Parameter,
-                });
-            }
+            self.run_lint(|_| {
+                lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
+            });
 
             let type_span = typ.span.unwrap_or_else(|| pattern.span());
 
@@ -609,44 +612,6 @@ impl<'context> Elaborator<'context> {
         }
 
         let return_type = Box::new(self.resolve_type(func.return_type()));
-
-        if !self.pub_allowed(func) && func.def.return_visibility == Visibility::Public {
-            self.push_err(ResolverError::UnnecessaryPub {
-                ident: func.name_ident().clone(),
-                position: PubPosition::ReturnType,
-            });
-        }
-
-        let is_low_level_function =
-            attributes.function.as_ref().map_or(false, |func| func.is_low_level());
-
-        if !self.crate_id.is_stdlib() && is_low_level_function {
-            let error =
-                ResolverError::LowLevelFunctionOutsideOfStdlib { ident: func.name_ident().clone() };
-            self.push_err(error);
-        }
-
-        // 'pub' is required on return types for entry point functions
-        if is_entry_point
-            && return_type.as_ref() != &Type::Unit
-            && func.def.return_visibility == Visibility::Private
-        {
-            self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() });
-        }
-        // '#[recursive]' attribute is only allowed for entry point functions
-        if !is_entry_point && func.kind == FunctionKind::Recursive {
-            self.push_err(ResolverError::MisplacedRecursiveAttribute {
-                ident: func.name_ident().clone(),
-            });
-        }
-
-        if matches!(attributes.function, Some(FunctionAttribute::Test { .. }))
-            && !parameters.is_empty()
-        {
-            self.push_err(ResolverError::TestFunctionHasParameters {
-                span: func.name_ident().span(),
-            });
-        }
 
         let mut typ = Type::Function(parameter_types, return_type, Box::new(Type::Unit));
 
@@ -708,14 +673,8 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn inline_attribute_allowed(&self, func: &NoirFunction) -> bool {
-        // Inline attributes are only relevant for constrained functions
-        // as all unconstrained functions are not inlined
-        !func.def.is_unconstrained
-    }
-
-    /// True if the 'pub' keyword is allowed on parameters in this function
-    /// 'pub' on function parameters is only allowed for entry point functions
+    /// True if the `pub` keyword is allowed on parameters in this function
+    /// `pub` on function parameters is only allowed for entry point functions
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
         self.is_entry_point_function(func) || func.attributes().is_foldable()
     }
