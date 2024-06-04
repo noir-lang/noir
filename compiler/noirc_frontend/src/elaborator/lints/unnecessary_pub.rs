@@ -20,6 +20,9 @@ pub(crate) fn lint_unnecessary_pub_return(
     }
 }
 
+/// Only arguments to entrypoint functions may have a non-private visibility modifier applied to them.
+///
+/// Other functions are disallowed from declaring the visibility of their arguments.
 pub(crate) fn lint_unnecessary_pub_argument(
     func: &NoirFunction,
     arg_visibility: Visibility,
