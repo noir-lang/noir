@@ -306,10 +306,19 @@ namespace avm_main(256);
     ind_op_c * (1 - ind_op_c) = 0;
     ind_op_d * (1 - ind_op_d) = 0;
 
-    // TODO - Constraints:
-    // - mem_idx_a, mem_idx_b, mem_idx_c, mem_idx_d to u32 type
-    // - ind_a, ind_b, ind_c, ind_d to u32 type
-    // - 0 <= r_in_tag, w_in_tag <= 6 // Maybe not needed as probably derived by the operation decomposition.
+    // TODO - Potential constraints to be implemented:
+    // - mem_idx_a, mem_idx_b, mem_idx_c, mem_idx_d to u32 type:
+    //    - For direct memory accesses, this should be enforced by bytecode validation
+    //      and instruction decomposition. Namely, in this case, only 32-bit immediate
+    //      values should be written into these memory indices.
+    //    - For indirect memory accesses, the memory trace constraints ensure that
+    //      loaded values come from memory addresses with tag u32. This is enforced in the memory trace
+    //      where each memory entry with flag ind_op_x (for x = a,b,c,d) constrains r_int_tag == 3 (u32).
+    //
+    // - ind_a, ind_b, ind_c, ind_d to u32 type: Should be guaranteed by bytecode validation and
+    // instruction decomposition as only immediate 32-bit values should be written into the indirect registers.
+    //
+    // - 0 <= r_in_tag, w_in_tag <= 6 // This should be constrained by the operation decomposition.
 
     //====== COMPARATOR OPCODES CONSTRAINTS =====================================
     // Enforce that the tag for the ouput of EQ opcode is u8 (i.e. equal to 1).
