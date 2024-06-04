@@ -278,6 +278,7 @@ template <typename FF> struct AvmFullRow {
     FF avm_main_sel_op_cast{};
     FF avm_main_sel_op_chain_id{};
     FF avm_main_sel_op_coinbase{};
+    FF avm_main_sel_op_dagasleft{};
     FF avm_main_sel_op_div{};
     FF avm_main_sel_op_emit_l2_to_l1_msg{};
     FF avm_main_sel_op_emit_note_hash{};
@@ -290,6 +291,7 @@ template <typename FF> struct AvmFullRow {
     FF avm_main_sel_op_get_contract_instance{};
     FF avm_main_sel_op_keccak{};
     FF avm_main_sel_op_l1_to_l2_msg_exists{};
+    FF avm_main_sel_op_l2gasleft{};
     FF avm_main_sel_op_lt{};
     FF avm_main_sel_op_lte{};
     FF avm_main_sel_op_mul{};
@@ -525,8 +527,8 @@ class AvmCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 432;
-    static constexpr size_t num_polys = 368;
+    static constexpr size_t num_fixed_columns = 434;
+    static constexpr size_t num_polys = 370;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -743,6 +745,7 @@ class AvmCircuitBuilder {
             polys.avm_main_sel_op_cast[i] = rows[i].avm_main_sel_op_cast;
             polys.avm_main_sel_op_chain_id[i] = rows[i].avm_main_sel_op_chain_id;
             polys.avm_main_sel_op_coinbase[i] = rows[i].avm_main_sel_op_coinbase;
+            polys.avm_main_sel_op_dagasleft[i] = rows[i].avm_main_sel_op_dagasleft;
             polys.avm_main_sel_op_div[i] = rows[i].avm_main_sel_op_div;
             polys.avm_main_sel_op_emit_l2_to_l1_msg[i] = rows[i].avm_main_sel_op_emit_l2_to_l1_msg;
             polys.avm_main_sel_op_emit_note_hash[i] = rows[i].avm_main_sel_op_emit_note_hash;
@@ -755,6 +758,7 @@ class AvmCircuitBuilder {
             polys.avm_main_sel_op_get_contract_instance[i] = rows[i].avm_main_sel_op_get_contract_instance;
             polys.avm_main_sel_op_keccak[i] = rows[i].avm_main_sel_op_keccak;
             polys.avm_main_sel_op_l1_to_l2_msg_exists[i] = rows[i].avm_main_sel_op_l1_to_l2_msg_exists;
+            polys.avm_main_sel_op_l2gasleft[i] = rows[i].avm_main_sel_op_l2gasleft;
             polys.avm_main_sel_op_lt[i] = rows[i].avm_main_sel_op_lt;
             polys.avm_main_sel_op_lte[i] = rows[i].avm_main_sel_op_lte;
             polys.avm_main_sel_op_mul[i] = rows[i].avm_main_sel_op_mul;

@@ -409,7 +409,13 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
                                         std::get<uint32_t>(inst.operands.at(3)),
                                         calldata);
             break;
-
+        // Machine State - Gas
+        case OpCode::L2GASLEFT:
+            trace_builder.op_l2gasleft(std::get<uint8_t>(inst.operands.at(0)), std::get<uint32_t>(inst.operands.at(1)));
+            break;
+        case OpCode::DAGASLEFT:
+            trace_builder.op_dagasleft(std::get<uint8_t>(inst.operands.at(0)), std::get<uint32_t>(inst.operands.at(1)));
+            break;
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6284): support indirect for below
         case OpCode::SENDER:
             trace_builder.op_sender(std::get<uint32_t>(inst.operands.at(1)));

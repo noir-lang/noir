@@ -25,6 +25,16 @@ void AvmGasTraceBuilder::set_initial_gas(uint32_t l2_gas, uint32_t da_gas)
     remaining_da_gas = da_gas;
 }
 
+uint32_t AvmGasTraceBuilder::get_l2_gas_left()
+{
+    return gas_trace.back().remaining_l2_gas;
+}
+
+uint32_t AvmGasTraceBuilder::get_da_gas_left()
+{
+    return gas_trace.back().remaining_da_gas;
+}
+
 void AvmGasTraceBuilder::constrain_gas_lookup(uint32_t clk, OpCode opcode)
 {
     // TODO: increase lookup counter for the opcode we are looking up into

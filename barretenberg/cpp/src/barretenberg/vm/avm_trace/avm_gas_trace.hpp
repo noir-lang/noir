@@ -133,6 +133,9 @@ class AvmGasTraceBuilder {
     void constrain_gas_for_external_call(uint32_t clk);
     void set_initial_gas(uint32_t l2_gas, uint32_t da_gas);
 
+    uint32_t get_l2_gas_left();
+    uint32_t get_da_gas_left();
+
     std::vector<GasTraceEntry> gas_trace;
 
     uint32_t initial_l2_gas = 0;

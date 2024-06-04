@@ -268,6 +268,7 @@ void AvmProver::execute_wire_commitments_round()
     witness_commitments.avm_main_sel_op_cast = commitment_key->commit(key->avm_main_sel_op_cast);
     witness_commitments.avm_main_sel_op_chain_id = commitment_key->commit(key->avm_main_sel_op_chain_id);
     witness_commitments.avm_main_sel_op_coinbase = commitment_key->commit(key->avm_main_sel_op_coinbase);
+    witness_commitments.avm_main_sel_op_dagasleft = commitment_key->commit(key->avm_main_sel_op_dagasleft);
     witness_commitments.avm_main_sel_op_div = commitment_key->commit(key->avm_main_sel_op_div);
     witness_commitments.avm_main_sel_op_emit_l2_to_l1_msg =
         commitment_key->commit(key->avm_main_sel_op_emit_l2_to_l1_msg);
@@ -284,6 +285,7 @@ void AvmProver::execute_wire_commitments_round()
     witness_commitments.avm_main_sel_op_keccak = commitment_key->commit(key->avm_main_sel_op_keccak);
     witness_commitments.avm_main_sel_op_l1_to_l2_msg_exists =
         commitment_key->commit(key->avm_main_sel_op_l1_to_l2_msg_exists);
+    witness_commitments.avm_main_sel_op_l2gasleft = commitment_key->commit(key->avm_main_sel_op_l2gasleft);
     witness_commitments.avm_main_sel_op_lt = commitment_key->commit(key->avm_main_sel_op_lt);
     witness_commitments.avm_main_sel_op_lte = commitment_key->commit(key->avm_main_sel_op_lte);
     witness_commitments.avm_main_sel_op_mul = commitment_key->commit(key->avm_main_sel_op_mul);
@@ -644,6 +646,8 @@ void AvmProver::execute_wire_commitments_round()
                                  witness_commitments.avm_main_sel_op_chain_id);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_coinbase,
                                  witness_commitments.avm_main_sel_op_coinbase);
+    transcript->send_to_verifier(commitment_labels.avm_main_sel_op_dagasleft,
+                                 witness_commitments.avm_main_sel_op_dagasleft);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_div, witness_commitments.avm_main_sel_op_div);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_emit_l2_to_l1_msg,
                                  witness_commitments.avm_main_sel_op_emit_l2_to_l1_msg);
@@ -664,6 +668,8 @@ void AvmProver::execute_wire_commitments_round()
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_keccak, witness_commitments.avm_main_sel_op_keccak);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_l1_to_l2_msg_exists,
                                  witness_commitments.avm_main_sel_op_l1_to_l2_msg_exists);
+    transcript->send_to_verifier(commitment_labels.avm_main_sel_op_l2gasleft,
+                                 witness_commitments.avm_main_sel_op_l2gasleft);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_lt, witness_commitments.avm_main_sel_op_lt);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_lte, witness_commitments.avm_main_sel_op_lte);
     transcript->send_to_verifier(commitment_labels.avm_main_sel_op_mul, witness_commitments.avm_main_sel_op_mul);

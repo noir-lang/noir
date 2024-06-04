@@ -408,6 +408,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_chain_id);
     commitments.avm_main_sel_op_coinbase =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_coinbase);
+    commitments.avm_main_sel_op_dagasleft =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_dagasleft);
     commitments.avm_main_sel_op_div =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_div);
     commitments.avm_main_sel_op_emit_l2_to_l1_msg =
@@ -432,6 +434,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_keccak);
     commitments.avm_main_sel_op_l1_to_l2_msg_exists =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_l1_to_l2_msg_exists);
+    commitments.avm_main_sel_op_l2gasleft =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_l2gasleft);
     commitments.avm_main_sel_op_lt =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_lt);
     commitments.avm_main_sel_op_lte =

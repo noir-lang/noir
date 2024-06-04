@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "barretenberg/common/throw_or_abort.hpp"
+#include "barretenberg/vm/avm_trace/avm_common.hpp"
 #include "barretenberg/vm/avm_trace/avm_helper.hpp"
 #include "barretenberg/vm/avm_trace/avm_opcode.hpp"
 #include "barretenberg/vm/avm_trace/avm_trace.hpp"
@@ -142,9 +143,7 @@ void AvmTraceBuilder::op_add(
     gas_trace_builder.constrain_gas_lookup(clk, OpCode::ADD);
 
     main_trace.push_back(Row{
-
         .avm_main_clk = clk,
-
         .avm_main_alu_in_tag = FF(static_cast<uint32_t>(in_tag)),
         .avm_main_call_ptr = call_ptr,
         .avm_main_ia = a,
@@ -1172,6 +1171,7 @@ Row AvmTraceBuilder::create_kernel_lookup_opcode(uint32_t dst_offset, uint32_t s
         .avm_main_w_in_tag = static_cast<uint32_t>(w_tag),
     };
 }
+
 void AvmTraceBuilder::op_storage_address(uint32_t dst_offset)
 {
     FF ia_value = kernel_trace_builder.op_storage_address();
@@ -2014,6 +2014,68 @@ void AvmTraceBuilder::halt()
     });
 
     pc = UINT32_MAX; // This ensures that no subsequent opcode will be executed.
+}
+
+void AvmTraceBuilder::execute_gasleft(OpCode opcode, uint8_t indirect, uint32_t dst_offset)
+{
+    assert(opcode == OpCode::L2GASLEFT || opcode == OpCode::DAGASLEFT);
+
+    auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
+    bool tag_match = true;
+
+    uint32_t direct_dst_offset = dst_offset;
+
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+
+    if (indirect_dst_flag) {
+        auto read_ind_dst =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, dst_offset);
+        direct_dst_offset = uint32_t(read_ind_dst.val);
+        tag_match = tag_match && read_ind_dst.tag_match;
+    }
+
+    // Constrain gas cost
+    gas_trace_builder.constrain_gas_lookup(clk, opcode);
+
+    uint32_t gas_remaining = 0;
+
+    if (opcode == OpCode::L2GASLEFT) {
+        gas_remaining = gas_trace_builder.get_l2_gas_left();
+    } else {
+        gas_remaining = gas_trace_builder.get_da_gas_left();
+    }
+
+    // Write into memory from intermediate register ia.
+    mem_trace_builder.write_into_memory(
+        call_ptr, clk, IntermRegister::IA, direct_dst_offset, gas_remaining, AvmMemoryTag::U0, AvmMemoryTag::U32);
+
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_call_ptr = call_ptr,
+        .avm_main_ia = gas_remaining,
+        .avm_main_ind_a = indirect_dst_flag ? FF(dst_offset) : FF(0),
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(indirect_dst_flag)),
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_a = FF(direct_dst_offset),
+        .avm_main_mem_op_a = FF(1),
+        .avm_main_pc = FF(pc++),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U0)),
+        .avm_main_rwa = FF(1),
+        .avm_main_sel_op_dagasleft = (opcode == OpCode::DAGASLEFT) ? FF(1) : FF(0),
+        .avm_main_sel_op_l2gasleft = (opcode == OpCode::L2GASLEFT) ? FF(1) : FF(0),
+        .avm_main_tag_err = FF(static_cast<uint32_t>(!tag_match)),
+        .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
+    });
+}
+
+void AvmTraceBuilder::op_l2gasleft(uint8_t indirect, uint32_t dst_offset)
+{
+    execute_gasleft(OpCode::L2GASLEFT, indirect, dst_offset);
+}
+
+void AvmTraceBuilder::op_dagasleft(uint8_t indirect, uint32_t dst_offset)
+{
+    execute_gasleft(OpCode::DAGASLEFT, indirect, dst_offset);
 }
 
 /**

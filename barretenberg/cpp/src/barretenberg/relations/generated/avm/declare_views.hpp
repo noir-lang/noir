@@ -211,6 +211,7 @@
     [[maybe_unused]] auto avm_main_sel_op_cast = View(new_term.avm_main_sel_op_cast);                                  \
     [[maybe_unused]] auto avm_main_sel_op_chain_id = View(new_term.avm_main_sel_op_chain_id);                          \
     [[maybe_unused]] auto avm_main_sel_op_coinbase = View(new_term.avm_main_sel_op_coinbase);                          \
+    [[maybe_unused]] auto avm_main_sel_op_dagasleft = View(new_term.avm_main_sel_op_dagasleft);                        \
     [[maybe_unused]] auto avm_main_sel_op_div = View(new_term.avm_main_sel_op_div);                                    \
     [[maybe_unused]] auto avm_main_sel_op_emit_l2_to_l1_msg = View(new_term.avm_main_sel_op_emit_l2_to_l1_msg);        \
     [[maybe_unused]] auto avm_main_sel_op_emit_note_hash = View(new_term.avm_main_sel_op_emit_note_hash);              \
@@ -224,6 +225,7 @@
         View(new_term.avm_main_sel_op_get_contract_instance);                                                          \
     [[maybe_unused]] auto avm_main_sel_op_keccak = View(new_term.avm_main_sel_op_keccak);                              \
     [[maybe_unused]] auto avm_main_sel_op_l1_to_l2_msg_exists = View(new_term.avm_main_sel_op_l1_to_l2_msg_exists);    \
+    [[maybe_unused]] auto avm_main_sel_op_l2gasleft = View(new_term.avm_main_sel_op_l2gasleft);                        \
     [[maybe_unused]] auto avm_main_sel_op_lt = View(new_term.avm_main_sel_op_lt);                                      \
     [[maybe_unused]] auto avm_main_sel_op_lte = View(new_term.avm_main_sel_op_lte);                                    \
     [[maybe_unused]] auto avm_main_sel_op_mul = View(new_term.avm_main_sel_op_mul);                                    \

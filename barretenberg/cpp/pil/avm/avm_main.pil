@@ -38,6 +38,10 @@ namespace avm_main(256);
     pol commit sel_op_coinbase;
     pol commit sel_op_timestamp;
 
+    // MACHINE STATE - GAS
+    pol commit sel_op_l2gasleft;
+    pol commit sel_op_dagasleft;
+
     //===== KERNEL OUTPUTS ========================================================
     pol commit q_kernel_output_lookup;
 
@@ -242,6 +246,10 @@ namespace avm_main(256);
     sel_op_fee_per_da_gas * (1 - sel_op_fee_per_da_gas) = 0;
     sel_op_transaction_fee * (1 - sel_op_transaction_fee) = 0;
 
+    // MACHINE STATE - GAS
+    sel_op_l2gasleft * (1 - sel_op_l2gasleft) = 0;
+    sel_op_dagasleft * (1 - sel_op_dagasleft) = 0;
+
     sel_op_note_hash_exists * (1 - sel_op_note_hash_exists) = 0;
     sel_op_emit_note_hash * (1 - sel_op_emit_note_hash) = 0;
     sel_op_nullifier_exists * (1 - sel_op_nullifier_exists) = 0;
@@ -430,10 +438,12 @@ namespace avm_main(256);
     pol INTERNAL_CALL_STACK_SELECTORS = (first + sel_internal_call + sel_internal_return + sel_halt);
     pol ALL_CTRL_FLOW_SEL = sel_jump + sel_jumpi + sel_internal_call + sel_internal_return;
 
+    pol ALL_LEFTGAS_SEL = sel_op_dagasleft + sel_op_l2gasleft;
     pol ALL_BINARY_SEL = sel_op_and + sel_op_or + sel_op_xor;
     pol ALL_GADGET_SEL = sel_op_radix_le + sel_op_sha256 + sel_op_poseidon2 + sel_op_keccak + sel_op_pedersen;
     pol ALL_MEMORY_SEL = sel_cmov + sel_mov;
-    pol OPCODE_SELECTORS = sel_op_fdiv + ALU_ALL_SEL + ALL_BINARY_SEL + ALL_MEMORY_SEL + ALL_GADGET_SEL + KERNEL_INPUT_SELECTORS + KERNEL_OUTPUT_SELECTORS;
+    pol OPCODE_SELECTORS = sel_op_fdiv + ALU_ALL_SEL + ALL_BINARY_SEL + ALL_MEMORY_SEL + ALL_GADGET_SEL
+                         + KERNEL_INPUT_SELECTORS + KERNEL_OUTPUT_SELECTORS + ALL_LEFTGAS_SEL;
 
     // TODO: gas_cost_active is activating gas accounting on a given row. All opcode with selectors
     //       are activated through the relation below. The other opcodes which are implemented purely
@@ -510,6 +520,11 @@ namespace avm_main(256);
     ALU_R_TAG_SEL * (alu_in_tag - r_in_tag) = 0;
     ALU_W_TAG_SEL * (alu_in_tag - w_in_tag) = 0;
 
+    //===== GASLEFT OPCODES =====================================================
+    #[L2GASLEFT]
+    sel_op_l2gasleft * (ia - l2_gas_remaining') = 0;
+    #[DAGASLEFT]
+    sel_op_dagasleft * (ia - da_gas_remaining') = 0;
 
     //===== KERNEL INPUTS CONSTRAINTS ===========================================
     // The general pattern for environment lookups is as follows:
