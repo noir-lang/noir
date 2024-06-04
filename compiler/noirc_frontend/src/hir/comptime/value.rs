@@ -163,12 +163,12 @@ impl Value {
             }
             Value::Array(elements, _) => {
                 let elements =
-                    try_vecmap(elements, |elements| elements.into_expression(interner, location))?;
+                    try_vecmap(elements, |element| element.into_expression(interner, location))?;
                 ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(elements)))
             }
             Value::Slice(elements, _) => {
                 let elements =
-                    try_vecmap(elements, |elements| elements.into_expression(interner, location))?;
+                    try_vecmap(elements, |element| element.into_expression(interner, location))?;
                 ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(elements)))
             }
             Value::Code(block) => ExpressionKind::Block(unwrap_rc(block)),
@@ -261,14 +261,14 @@ impl Value {
                 })
             }
             Value::Array(elements, _) => {
-                let elements = try_vecmap(elements, |elements| {
-                    elements.into_hir_expression(interner, location)
+                let elements = try_vecmap(elements, |element| {
+                    element.into_hir_expression(interner, location)
                 })?;
                 HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(elements)))
             }
             Value::Slice(elements, _) => {
-                let elements = try_vecmap(elements, |elements| {
-                    elements.into_hir_expression(interner, location)
+                let elements = try_vecmap(elements, |element| {
+                    element.into_hir_expression(interner, location)
                 })?;
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }

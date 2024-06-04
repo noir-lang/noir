@@ -37,7 +37,7 @@ pub enum ExpressionKind {
     Comptime(BlockExpression),
 
     // This variant is only emitted when inlining the result of comptime
-    // code. It is used to translate function values back into the ast while
+    // code. It is used to translate function values back into the AST while
     // guaranteeing they have the same instantiated type and definition id without resolving again.
     Resolved(ExprId),
     Error,

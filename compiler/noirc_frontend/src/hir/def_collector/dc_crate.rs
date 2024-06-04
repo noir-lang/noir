@@ -548,7 +548,7 @@ impl ResolvedModule {
     /// Evaluate all `comptime` expressions in this module
     fn evaluate_comptime(&mut self, interner: &mut NodeInterner) {
         if self.count_errors() == 0 {
-            let mut scopes = vec![Default::default()];
+            let mut scopes = vec![HashMap::default()];
             let mut interpreter = Interpreter::new(interner, &mut scopes);
 
             for (_file, global) in &self.globals {
