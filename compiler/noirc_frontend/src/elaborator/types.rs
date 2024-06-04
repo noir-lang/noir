@@ -1,4 +1,4 @@
-use std::{rc::Rc, collections::BTreeMap};
+use std::{collections::BTreeMap, rc::Rc};
 
 use acvm::acir::AcirField;
 use iter_extended::vecmap;

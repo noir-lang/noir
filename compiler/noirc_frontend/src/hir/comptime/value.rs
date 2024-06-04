@@ -9,9 +9,11 @@ use crate::{
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Ident, IntegerBitSize, Signedness,
     },
-    hir_def::expr::{HirIdent, HirLambda, ImplKind, HirConstructorExpression, HirArrayLiteral},
-    macros_api::{Expression, ExpressionKind, HirExpression, Literal, NodeInterner, Path, HirLiteral},
-    node_interner::{FuncId, ExprId},
+    hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
+    macros_api::{
+        Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
+    },
+    node_interner::{ExprId, FuncId},
     Shared, Type,
 };
 use rustc_hash::FxHashMap as HashMap;
@@ -237,7 +239,8 @@ impl Value {
                 return Err(InterpreterError::Unimplemented { item, location });
             }
             Value::Tuple(fields) => {
-                let fields = try_vecmap(fields, |field| field.into_hir_expression(interner, location))?;
+                let fields =
+                    try_vecmap(fields, |field| field.into_hir_expression(interner, location))?;
                 HirExpression::Tuple(fields)
             }
             Value::Struct(fields, typ) => {
@@ -258,13 +261,15 @@ impl Value {
                 })
             }
             Value::Array(elements, _) => {
-                let elements =
-                    try_vecmap(elements, |elements| elements.into_hir_expression(interner, location))?;
+                let elements = try_vecmap(elements, |elements| {
+                    elements.into_hir_expression(interner, location)
+                })?;
                 HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(elements)))
             }
             Value::Slice(elements, _) => {
-                let elements =
-                    try_vecmap(elements, |elements| elements.into_hir_expression(interner, location))?;
+                let elements = try_vecmap(elements, |elements| {
+                    elements.into_hir_expression(interner, location)
+                })?;
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
             Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),

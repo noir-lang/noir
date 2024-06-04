@@ -1151,11 +1151,13 @@ impl<'context> Elaborator<'context> {
         self.elaborate_global_let(let_stmt, global_id);
 
         if comptime {
-            let let_statement = self.interner.get_global_let_statement(global_id)
+            let let_statement = self
+                .interner
+                .get_global_let_statement(global_id)
                 .expect("Let statement of global should be set by elaborate_global_let");
 
             let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
-            
+
             if let Err(error) = interpreter.evaluate_let(let_statement) {
                 self.errors.push(error.into_compilation_error_pair());
             }
