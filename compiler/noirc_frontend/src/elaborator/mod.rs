@@ -18,12 +18,17 @@ use crate::{
         scope::ScopeForest as GenericScopeForest,
         type_check::{check_trait_impl_method_matches_declaration, TypeCheckError},
     },
-    hir_def::{expr::HirIdent, function::{Parameters, FunctionBody}, traits::TraitConstraint},
+    hir_def::{
+        expr::HirIdent,
+        function::{FunctionBody, Parameters},
+        traits::TraitConstraint,
+    },
     macros_api::{
-        Ident, NodeInterner, NoirFunction, NoirStruct, Pattern, SecondaryAttribute, StructId, BlockExpression,
+        BlockExpression, Ident, NodeInterner, NoirFunction, NoirStruct, Pattern,
+        SecondaryAttribute, StructId,
     },
     node_interner::{
-        DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, TraitId, TypeAliasId,
+        DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, TraitId, TypeAliasId,
     },
     Shared, Type, TypeVariable,
 };
@@ -285,8 +290,8 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_function(&mut self, id: FuncId) {
         let func_meta = self.interner.func_meta.get_mut(&id);
-        let func_meta = func_meta
-            .expect("FuncMetas should be declared before a function is elaborated");
+        let func_meta =
+            func_meta.expect("FuncMetas should be declared before a function is elaborated");
 
         let (kind, body, body_span) = match func_meta.take_body() {
             FunctionBody::Unresolved(kind, body, span) => (kind, body, span),
@@ -296,7 +301,7 @@ impl<'context> Elaborator<'context> {
             FunctionBody::Resolving => return,
         };
 
-        self.current_function = Some(id);
+        let old_function = std::mem::replace(&mut self.current_function, Some(id));
 
         // Without this, impl methods can accidentally be placed in contracts. See #3254
         if self.self_type.is_some() {
@@ -304,7 +309,7 @@ impl<'context> Elaborator<'context> {
         }
 
         self.scopes.start_function();
-        self.current_item = Some(DependencyId::Function(id));
+        let old_item = std::mem::replace(&mut self.current_item, Some(DependencyId::Function(id)));
 
         let func_meta = func_meta.clone();
 
@@ -383,14 +388,18 @@ impl<'context> Elaborator<'context> {
             self.check_for_unused_variables_in_scope_tree(func_scope_tree);
         }
 
-        let meta = self.interner.func_meta.get_mut(&id)
+        let meta = self
+            .interner
+            .func_meta
+            .get_mut(&id)
             .expect("FuncMetas should be declared before a function is elaborated");
 
         meta.function_body = FunctionBody::Resolved;
 
         self.trait_bounds.clear();
         self.interner.update_fn(id, hir_func);
-        self.current_function = None;
+        self.current_function = old_function;
+        self.current_item = old_item;
     }
 
     /// This turns function parameters of the form:
@@ -592,6 +601,7 @@ impl<'context> Elaborator<'context> {
                 typ.clone(),
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
+                None,
             );
 
             parameters.push((pattern, typ.clone(), visibility));
@@ -1155,25 +1165,41 @@ impl<'context> Elaborator<'context> {
 
         let comptime = let_stmt.comptime;
 
-        self.elaborate_global_let(let_stmt, global_id);
+        let (let_statement, _typ) = self.elaborate_let(let_stmt, Some(global_id));
+        let statement_id = self.interner.get_global(global_id).let_statement;
+        self.interner.replace_statement(statement_id, let_statement);
 
         if comptime {
-            let let_statement = self
-                .interner
-                .get_global_let_statement(global_id)
-                .expect("Let statement of global should be set by elaborate_global_let");
-
-            let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
-
-            if let Err(error) = interpreter.evaluate_let(let_statement) {
-                self.errors.push(error.into_compilation_error_pair());
-            }
+            self.elaborate_comptime_global(global_id);
         }
 
         // Avoid defaulting the types of globals here since they may be used in any function.
         // Otherwise we may prematurely default to a Field inside the next function if this
         // global was unused there, even if it is consistently used as a u8 everywhere else.
         self.type_variables.clear();
+    }
+
+    fn elaborate_comptime_global(&mut self, global_id: GlobalId) {
+        let let_statement = self
+            .interner
+            .get_global_let_statement(global_id)
+            .expect("Let statement of global should be set by elaborate_global_let");
+
+        let global = self.interner.get_global(global_id);
+        let definition_id = global.definition_id;
+        let location = global.location;
+
+        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+
+        if let Err(error) = interpreter.evaluate_let(let_statement) {
+            self.errors.push(error.into_compilation_error_pair());
+        } else {
+            let value = interpreter
+                .lookup_id(definition_id, location)
+                .expect("The global should be defined since evaluate_let did not error");
+
+            self.interner.get_global_mut(global_id).value = Some(value);
+        }
     }
 
     fn define_function_metas(

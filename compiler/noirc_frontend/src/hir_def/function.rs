@@ -193,7 +193,7 @@ impl FuncMeta {
                 let (kind, span) = (*kind, *span);
                 self.function_body = FunctionBody::Resolving;
                 FunctionBody::Unresolved(kind, BlockExpression { statements }, span)
-            },
+            }
             FunctionBody::Resolving => FunctionBody::Resolving,
             FunctionBody::Resolved => FunctionBody::Resolved,
         }

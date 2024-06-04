@@ -5,10 +5,7 @@ use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
-    ast::{
-        BinaryOpKind, IntegerBitSize, UnresolvedGenerics,
-        UnresolvedTypeExpression,
-    },
+    ast::{BinaryOpKind, IntegerBitSize, UnresolvedGenerics, UnresolvedTypeExpression},
     hir::{
         def_map::ModuleDefId,
         resolution::{
