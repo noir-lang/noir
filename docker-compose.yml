@@ -1,7 +1,7 @@
 name: aztec-devnet
 services:
   pxe:
-    image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:e101ddc5ec24fc2c52af0e13b9005329d388481d9ccbf07289bdd62faba44615}
+    image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:afe0263560a82f2c84b9d76451ec4585a3ed389251fb90e916faaa85d9eb9a0d}
     # need to run bb for proofs and bb is only built for x86
     platform: linux/amd64
     environment:
@@ -25,8 +25,10 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - aztec-pxe:/var/lib/aztec/pxe
+    expose:
+      - 8080:8080
   cli:
-    image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:e101ddc5ec24fc2c52af0e13b9005329d388481d9ccbf07289bdd62faba44615}
+    image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:afe0263560a82f2c84b9d76451ec4585a3ed389251fb90e916faaa85d9eb9a0d}
     # run the same image as pxe
     platform: linux/amd64
     environment:
@@ -37,6 +39,9 @@ services:
     entrypoint: ["node", "/usr/src/yarn-project/cli/dest/bin/index.js"]
     profiles:
       - cli
+
+volumes:
+  aztec-pxe:
 
 secrets:
   aztec-node-url:
