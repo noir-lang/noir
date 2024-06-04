@@ -20,6 +20,9 @@ use chumsky::prelude::*;
 /// function_definition: attribute function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 ///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
+    // TODO cleanup
+    dbg!("function_definition");
+
     attributes()
         .then(function_modifiers())
         .then_ignore(keyword(Keyword::Fn))

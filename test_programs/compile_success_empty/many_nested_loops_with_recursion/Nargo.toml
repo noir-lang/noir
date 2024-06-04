@@ -1,0 +1,7 @@
+[package]
+name = "many_nested_loops_with_recursion"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.30.0"
+
+[dependencies]
