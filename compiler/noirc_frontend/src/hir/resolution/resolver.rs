@@ -36,7 +36,11 @@ use crate::ast::{
 };
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
-use crate::hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver};
+use crate::hir::{
+    comptime::{Interpreter, Value},
+    def_map::CrateDefMap,
+    resolution::path_resolver::PathResolver,
+};
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
@@ -1637,6 +1641,9 @@ impl<'a> Resolver<'a> {
             // The quoted expression isn't resolved since we don't want errors if variables aren't defined
             ExpressionKind::Quote(block) => HirExpression::Quote(block),
             ExpressionKind::Comptime(block) => HirExpression::Comptime(self.resolve_block(block)),
+            ExpressionKind::Resolved(_) => unreachable!(
+                "ExpressionKind::Resolved should only be emitted by the comptime interpreter"
+            ),
         };
 
         // If these lines are ever changed, make sure to change the early return
@@ -2063,6 +2070,17 @@ impl<'a> Resolver<'a> {
                     BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
                     BinaryOpKind::Modulo => Ok(lhs % rhs),
                 }
+            }
+            HirExpression::Cast(cast) => {
+                let lhs = self.try_eval_array_length_id_with_fuel(cast.lhs, span, fuel - 1)?;
+                let lhs_value = Value::Field(lhs.into());
+                let evaluated_value =
+                    Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, self.interner)
+                        .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
+
+                evaluated_value
+                    .to_u128()
+                    .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
             }
             _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }

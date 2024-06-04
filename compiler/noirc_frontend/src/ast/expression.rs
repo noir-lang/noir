@@ -5,6 +5,8 @@ use crate::ast::{
     Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
+use crate::macros_api::StructId;
+use crate::node_interner::ExprId;
 use crate::token::{Attributes, Token};
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -33,6 +35,11 @@ pub enum ExpressionKind {
     Parenthesized(Box<Expression>),
     Quote(BlockExpression),
     Comptime(BlockExpression),
+
+    // This variant is only emitted when inlining the result of comptime
+    // code. It is used to translate function values back into the AST while
+    // guaranteeing they have the same instantiated type and definition id without resolving again.
+    Resolved(ExprId),
     Error,
 }
 
@@ -108,7 +115,11 @@ impl ExpressionKind {
     }
 
     pub fn constructor((type_name, fields): (Path, Vec<(Ident, Expression)>)) -> ExpressionKind {
-        ExpressionKind::Constructor(Box::new(ConstructorExpression { type_name, fields }))
+        ExpressionKind::Constructor(Box::new(ConstructorExpression {
+            type_name,
+            fields,
+            struct_type: None,
+        }))
     }
 
     /// Returns true if the expression is a literal integer
@@ -451,6 +462,11 @@ pub struct MethodCallExpression {
 pub struct ConstructorExpression {
     pub type_name: Path,
     pub fields: Vec<(Ident, Expression)>,
+
+    /// This may be filled out during macro expansion
+    /// so that we can skip re-resolving the type name since it
+    /// would be lost at that point.
+    pub struct_type: Option<StructId>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -522,6 +538,7 @@ impl Display for ExpressionKind {
             Quote(block) => write!(f, "quote {block}"),
             Comptime(block) => write!(f, "comptime {block}"),
             Error => write!(f, "Error"),
+            Resolved(_) => write!(f, "?Resolved"),
         }
     }
 }
