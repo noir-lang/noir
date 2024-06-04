@@ -58,6 +58,10 @@ FF AvmKernelTraceBuilder::op_address()
 {
     return perform_kernel_input_lookup(ADDRESS_SELECTOR);
 }
+FF AvmKernelTraceBuilder::op_storage_address()
+{
+    return perform_kernel_input_lookup(STORAGE_ADDRESS_SELECTOR);
+}
 
 FF AvmKernelTraceBuilder::op_fee_per_da_gas()
 {

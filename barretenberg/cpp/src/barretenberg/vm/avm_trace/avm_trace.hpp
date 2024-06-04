@@ -84,6 +84,7 @@ class AvmTraceBuilder {
     void op_cmov(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t cond_offset, uint32_t dst_offset);
 
     // Call Context
+    void op_storage_address(uint32_t dst_offset);
     void op_sender(uint32_t dst_offset);
     void op_address(uint32_t dst_offset);
 

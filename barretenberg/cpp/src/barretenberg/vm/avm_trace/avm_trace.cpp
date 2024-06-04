@@ -1165,6 +1165,17 @@ Row AvmTraceBuilder::create_kernel_lookup_opcode(uint32_t dst_offset, uint32_t s
         .avm_main_w_in_tag = static_cast<uint32_t>(w_tag),
     };
 }
+void AvmTraceBuilder::op_storage_address(uint32_t dst_offset)
+{
+    FF ia_value = kernel_trace_builder.op_storage_address();
+    Row row = create_kernel_lookup_opcode(dst_offset, STORAGE_ADDRESS_SELECTOR, ia_value, AvmMemoryTag::FF);
+    row.avm_main_sel_op_storage_address = FF(1);
+
+    // Constrain gas cost
+    gas_trace_builder.constrain_gas_lookup(static_cast<uint32_t>(row.avm_main_clk), OpCode::STORAGEADDRESS);
+
+    main_trace.push_back(row);
+}
 
 void AvmTraceBuilder::op_sender(uint32_t dst_offset)
 {

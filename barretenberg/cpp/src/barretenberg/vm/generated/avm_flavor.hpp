@@ -94,11 +94,11 @@ class AvmFlavor {
     using RelationSeparator = FF;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 2;
-    static constexpr size_t NUM_WITNESS_ENTITIES = 364;
+    static constexpr size_t NUM_WITNESS_ENTITIES = 365;
     static constexpr size_t NUM_WIRES = NUM_WITNESS_ENTITIES + NUM_PRECOMPUTED_ENTITIES;
     // We have two copies of the witness entities, so we subtract the number of fixed ones (they have no shift), one for
     // the unshifted and one for the shifted
-    static constexpr size_t NUM_ALL_ENTITIES = 430;
+    static constexpr size_t NUM_ALL_ENTITIES = 431;
 
     using GrandProductRelations = std::tuple<perm_main_alu_relation<FF>,
                                              perm_main_bin_relation<FF>,
@@ -466,6 +466,7 @@ class AvmFlavor {
                               avm_main_sel_op_shr,
                               avm_main_sel_op_sload,
                               avm_main_sel_op_sstore,
+                              avm_main_sel_op_storage_address,
                               avm_main_sel_op_sub,
                               avm_main_sel_op_timestamp,
                               avm_main_sel_op_transaction_fee,
@@ -833,6 +834,7 @@ class AvmFlavor {
                      avm_main_sel_op_shr,
                      avm_main_sel_op_sload,
                      avm_main_sel_op_sstore,
+                     avm_main_sel_op_storage_address,
                      avm_main_sel_op_sub,
                      avm_main_sel_op_timestamp,
                      avm_main_sel_op_transaction_fee,
@@ -1205,6 +1207,7 @@ class AvmFlavor {
                               avm_main_sel_op_shr,
                               avm_main_sel_op_sload,
                               avm_main_sel_op_sstore,
+                              avm_main_sel_op_storage_address,
                               avm_main_sel_op_sub,
                               avm_main_sel_op_timestamp,
                               avm_main_sel_op_transaction_fee,
@@ -1638,6 +1641,7 @@ class AvmFlavor {
                      avm_main_sel_op_shr,
                      avm_main_sel_op_sload,
                      avm_main_sel_op_sstore,
+                     avm_main_sel_op_storage_address,
                      avm_main_sel_op_sub,
                      avm_main_sel_op_timestamp,
                      avm_main_sel_op_transaction_fee,
@@ -2071,6 +2075,7 @@ class AvmFlavor {
                      avm_main_sel_op_shr,
                      avm_main_sel_op_sload,
                      avm_main_sel_op_sstore,
+                     avm_main_sel_op_storage_address,
                      avm_main_sel_op_sub,
                      avm_main_sel_op_timestamp,
                      avm_main_sel_op_transaction_fee,
@@ -2851,6 +2856,7 @@ class AvmFlavor {
             Base::avm_main_sel_op_shr = "AVM_MAIN_SEL_OP_SHR";
             Base::avm_main_sel_op_sload = "AVM_MAIN_SEL_OP_SLOAD";
             Base::avm_main_sel_op_sstore = "AVM_MAIN_SEL_OP_SSTORE";
+            Base::avm_main_sel_op_storage_address = "AVM_MAIN_SEL_OP_STORAGE_ADDRESS";
             Base::avm_main_sel_op_sub = "AVM_MAIN_SEL_OP_SUB";
             Base::avm_main_sel_op_timestamp = "AVM_MAIN_SEL_OP_TIMESTAMP";
             Base::avm_main_sel_op_transaction_fee = "AVM_MAIN_SEL_OP_TRANSACTION_FEE";
@@ -3234,6 +3240,7 @@ class AvmFlavor {
         Commitment avm_main_sel_op_shr;
         Commitment avm_main_sel_op_sload;
         Commitment avm_main_sel_op_sstore;
+        Commitment avm_main_sel_op_storage_address;
         Commitment avm_main_sel_op_sub;
         Commitment avm_main_sel_op_timestamp;
         Commitment avm_main_sel_op_transaction_fee;
@@ -3636,6 +3643,7 @@ class AvmFlavor {
             avm_main_sel_op_shr = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_sload = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_sstore = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_sel_op_storage_address = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_sub = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_timestamp = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_transaction_fee = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -4024,6 +4032,7 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_main_sel_op_shr, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_sload, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_sstore, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_sel_op_storage_address, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_sub, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_timestamp, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_transaction_fee, Transcript::proof_data);

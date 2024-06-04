@@ -305,6 +305,7 @@ template <typename FF> struct AvmFullRow {
     FF avm_main_sel_op_shr{};
     FF avm_main_sel_op_sload{};
     FF avm_main_sel_op_sstore{};
+    FF avm_main_sel_op_storage_address{};
     FF avm_main_sel_op_sub{};
     FF avm_main_sel_op_timestamp{};
     FF avm_main_sel_op_transaction_fee{};
@@ -523,8 +524,8 @@ class AvmCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 430;
-    static constexpr size_t num_polys = 366;
+    static constexpr size_t num_fixed_columns = 431;
+    static constexpr size_t num_polys = 367;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -768,6 +769,7 @@ class AvmCircuitBuilder {
             polys.avm_main_sel_op_shr[i] = rows[i].avm_main_sel_op_shr;
             polys.avm_main_sel_op_sload[i] = rows[i].avm_main_sel_op_sload;
             polys.avm_main_sel_op_sstore[i] = rows[i].avm_main_sel_op_sstore;
+            polys.avm_main_sel_op_storage_address[i] = rows[i].avm_main_sel_op_storage_address;
             polys.avm_main_sel_op_sub[i] = rows[i].avm_main_sel_op_sub;
             polys.avm_main_sel_op_timestamp[i] = rows[i].avm_main_sel_op_timestamp;
             polys.avm_main_sel_op_transaction_fee[i] = rows[i].avm_main_sel_op_transaction_fee;

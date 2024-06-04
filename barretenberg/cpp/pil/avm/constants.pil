@@ -5,6 +5,7 @@ namespace constants(256);
     // From Public Context Inputs
     pol SENDER_SELECTOR = 0;
     pol ADDRESS_SELECTOR = 1;
+    pol STORAGE_ADDRESS_SELECTOR = 2;
 
     // NOTE: constant expression evaluation does not seem to be supported yet in pil
     // pol START_GLOBAL_VARIABLES = CALL_CONTEXT_LENGTH + HEADER_LENGTH = 6 + 23 = 29

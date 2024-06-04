@@ -24,6 +24,7 @@ namespace avm_main(256);
     // CALL CONTEXT
     pol commit sel_op_sender;
     pol commit sel_op_address;
+    pol commit sel_op_storage_address;
 
     // FEES
     pol commit sel_op_fee_per_l2_gas;
@@ -230,6 +231,7 @@ namespace avm_main(256);
     // opcode decomposition.
     sel_op_sender * (1 - sel_op_sender) = 0;
     sel_op_address * (1 - sel_op_address) = 0;
+    sel_op_storage_address * (1 - sel_op_storage_address) = 0;
     sel_op_chain_id * (1 - sel_op_chain_id) = 0;
     sel_op_version * (1 - sel_op_version) = 0;
     sel_op_block_number * (1 - sel_op_block_number) = 0;
@@ -361,7 +363,7 @@ namespace avm_main(256);
     
     //===== KERNEL LOOKUPS =======================================================
     pol KERNEL_INPUT_SELECTORS = (
-        sel_op_sender + sel_op_address + sel_op_chain_id + sel_op_version + sel_op_block_number + sel_op_coinbase + 
+        sel_op_sender + sel_op_address + sel_op_storage_address + sel_op_chain_id + sel_op_version + sel_op_block_number + sel_op_coinbase + 
         sel_op_timestamp + sel_op_fee_per_l2_gas + sel_op_fee_per_da_gas + sel_op_transaction_fee
     );
     // Ensure that only one kernel lookup is active when the kernel_in_offset is active
@@ -509,6 +511,9 @@ namespace avm_main(256);
 
     #[ADDRESS_KERNEL]
     sel_op_address * (avm_kernel.kernel_in_offset - constants.ADDRESS_SELECTOR) = 0;
+
+    #[STORAGE_ADDRESS_KERNEL]
+    sel_op_storage_address * (avm_kernel.kernel_in_offset - constants.STORAGE_ADDRESS_SELECTOR) = 0;
 
     // FEES
     #[FEE_DA_GAS_KERNEL]

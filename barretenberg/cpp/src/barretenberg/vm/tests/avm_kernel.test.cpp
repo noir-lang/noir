@@ -185,6 +185,25 @@ TEST_F(AvmKernelPositiveTests, kernelAddress)
     test_kernel_lookup(apply_opcodes, checks);
 }
 
+TEST_F(AvmKernelPositiveTests, kernelStorageAddress)
+{
+    uint32_t dst_offset = 42;
+    auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) { trace_builder.op_storage_address(dst_offset); };
+    auto checks = [=](const std::vector<Row>& trace) {
+        std::vector<Row>::const_iterator storage_address_row = std::ranges::find_if(
+            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_storage_address == FF(1); });
+        EXPECT_TRUE(storage_address_row != trace.end());
+
+        expect_row(storage_address_row,
+                   /*kernel_in_offset=*/STORAGE_ADDRESS_SELECTOR,
+                   /*ia=*/STORAGE_ADDRESS_SELECTOR +
+                       1, // Note the value generated above for public inputs is the same as the index read + 1
+                   /*mem_idx_a=*/dst_offset,
+                   /*w_in_tag=*/AvmMemoryTag::FF);
+    };
+    test_kernel_lookup(apply_opcodes, checks);
+}
+
 TEST_F(AvmKernelPositiveTests, kernelFeePerDa)
 {
     uint32_t dst_offset = 42;
@@ -407,6 +426,29 @@ TEST_F(AvmKernelNegativeTests, incorrectIaAddress)
         expect_row(
             row,
             /*kernel_in_offset=*/ADDRESS_SELECTOR,
+            /*ia=*/incorrect_ia, // Note the value generated above for public inputs is the same as the index read + 1
+            /*mem_idx_a=*/dst_offset,
+            /*w_in_tag=*/AvmMemoryTag::FF);
+    };
+
+    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, "PERM_MAIN_MEM_A");
+}
+
+TEST_F(AvmKernelNegativeTests, incorrectIaStorageAddress)
+{
+    uint32_t dst_offset = 42;
+    FF incorrect_ia = FF(69);
+
+    // We test that the sender opcode is inlcuded at index x in the public inputs
+    auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) { trace_builder.op_storage_address(dst_offset); };
+    auto checks = [=](const std::vector<Row>& trace) {
+        std::vector<Row>::const_iterator row = std::ranges::find_if(
+            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_storage_address == FF(1); });
+        EXPECT_TRUE(row != trace.end());
+
+        expect_row(
+            row,
+            /*kernel_in_offset=*/STORAGE_ADDRESS_SELECTOR,
             /*ia=*/incorrect_ia, // Note the value generated above for public inputs is the same as the index read + 1
             /*mem_idx_a=*/dst_offset,
             /*w_in_tag=*/AvmMemoryTag::FF);
