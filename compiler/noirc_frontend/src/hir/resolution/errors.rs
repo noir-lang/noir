@@ -94,7 +94,7 @@ pub enum ResolverError {
     NoPredicatesAttributeOnUnconstrained { ident: Ident },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident },
-    #[error("Interpreting array-length failed")]
+    #[error("Invalid array length construction")]
     ArrayLengthInterpreter { error: InterpreterError, span: Span },
 }
 
@@ -388,11 +388,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());
                 diag
             }
-            ResolverError::ArrayLengthInterpreter { error, span } => Diagnostic::simple_error(
-                "Interpreting array length failed".into(),
-                format!("with error: {}", Diagnostic::from(error)),
-                *span,
-            ),
+            ResolverError::ArrayLengthInterpreter { error, span } => Diagnostic::from(error),
         }
     }
 }

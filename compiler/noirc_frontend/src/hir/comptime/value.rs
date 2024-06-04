@@ -184,25 +184,13 @@ impl Value {
                 (*value >= 0).then(|| *value as u128)
             }
             Self::I16(value) => {
-                if value < &0 {
-                    None
-                } else {
-                    Some(*value as u128)
-                }
+                (*value >= 0).then(|| *value as u128)
             }
             Self::I32(value) => {
-                if value < &0 {
-                    None
-                } else {
-                    Some(*value as u128)
-                }
+                (*value >= 0).then(|| *value as u128)
             }
             Self::I64(value) => {
-                if value < &0 {
-                    None
-                } else {
-                    Some(*value as u128)
-                }
+                (*value >= 0).then(|| *value as u128)
             }
             Self::U8(value) => Some(*value as u128),
             Self::U16(value) => Some(*value as u128),
