@@ -1,9 +1,0 @@
-pub(super) mod deprecated_function;
-pub(super) mod inlining_attributes;
-pub(super) mod low_level_function_outside_stdlib;
-pub(super) mod missing_pub;
-pub(super) mod overflowing_uint;
-pub(super) mod recursive_non_entrypoint_function;
-pub(super) mod test_function_with_args;
-pub(super) mod unconstrained_function_interface;
-pub(super) mod unnecessary_pub;

@@ -57,14 +57,6 @@ mod types;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use lints::{
-    inlining_attributes::lint_inlining_attributes,
-    low_level_function_outside_stdlib::lint_low_level_function_outside_stdlib,
-    missing_pub::lint_missing_pub,
-    recursive_non_entrypoint_function::lint_recursive_non_entrypoint_function,
-    test_function_with_args::lint_test_function_with_args,
-    unnecessary_pub::{lint_unnecessary_pub_argument, lint_unnecessary_pub_return},
-};
 use noirc_errors::{Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
@@ -539,17 +531,17 @@ impl<'context> Elaborator<'context> {
 
         let is_entry_point = self.is_entry_point_function(func);
 
-        self.run_lint(|_| lint_inlining_attributes(func).map(Into::into));
-        self.run_lint(|_| lint_missing_pub(func, is_entry_point).map(Into::into));
+        self.run_lint(|_| lints::inlining_attributes(func).map(Into::into));
+        self.run_lint(|_| lints::missing_pub(func, is_entry_point).map(Into::into));
         self.run_lint(|elaborator| {
-            lint_unnecessary_pub_return(func, elaborator.pub_allowed(func)).map(Into::into)
+            lints::unnecessary_pub_return(func, elaborator.pub_allowed(func)).map(Into::into)
         });
         self.run_lint(|elaborator| {
-            lint_low_level_function_outside_stdlib(func, elaborator.crate_id).map(Into::into)
+            lints::low_level_function_outside_stdlib(func, elaborator.crate_id).map(Into::into)
         });
-        self.run_lint(|_| lint_test_function_with_args(func).map(Into::into));
+        self.run_lint(|_| lints::test_function_with_args(func).map(Into::into));
         self.run_lint(|_| {
-            lint_recursive_non_entrypoint_function(func, is_entry_point).map(Into::into)
+            lints::recursive_non_entrypoint_function(func, is_entry_point).map(Into::into)
         });
 
         // Both the #[fold] and #[no_predicates] alter a function's inline type and code generation in similar ways.
@@ -570,7 +562,7 @@ impl<'context> Elaborator<'context> {
 
         for Param { visibility, pattern, typ, span: _ } in func.parameters().iter().cloned() {
             self.run_lint(|_| {
-                lint_unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
+                lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
             });
 
             let type_span = typ.span.unwrap_or_else(|| pattern.span());
