@@ -163,7 +163,7 @@ impl Value {
             }
             Value::Array(elements, _) => {
                 let elements =
-                    try_vecmap(elements, |elements| elements.into_expression(interner, location))?;
+                    try_vecmap(elements, |element| element.into_expression(interner, location))?;
                 ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(elements)))
             }
             Value::Slice(elements, _) => {
