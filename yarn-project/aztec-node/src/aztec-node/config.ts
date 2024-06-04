@@ -4,6 +4,10 @@ import { type ProverClientConfig, getProverEnvVars } from '@aztec/prover-client'
 import { type SequencerClientConfig, getConfigEnvVars as getSequencerVars } from '@aztec/sequencer-client';
 import { getConfigEnvVars as getWorldStateVars } from '@aztec/world-state';
 
+import { readFileSync } from 'fs';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
+
 /**
  * The configuration the aztec node.
  */
@@ -40,4 +44,13 @@ export function getConfigEnvVars(): AztecNodeConfig {
   };
 
   return allEnvVars;
+}
+
+/**
+ * Returns package name and version.
+ */
+export function getPackageInfo() {
+  const packageJsonPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../package.json');
+  const { version, name } = JSON.parse(readFileSync(packageJsonPath).toString());
+  return { version, name };
 }

@@ -35,6 +35,13 @@ describe('Contract Class', () => {
     chainId: 1,
     protocolVersion: 2,
     l1ContractAddresses: l1Addresses,
+    protocolContractAddresses: {
+      classRegisterer: AztecAddress.random(),
+      gasToken: AztecAddress.random(),
+      instanceDeployer: AztecAddress.random(),
+      keyRegistry: AztecAddress.random(),
+      multiCallEntrypoint: AztecAddress.random(),
+    },
   };
 
   const defaultArtifact: ContractArtifact = {

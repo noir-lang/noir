@@ -11,6 +11,7 @@ import {
   MerkleTreeId,
   type NoteFilter,
   type PXE,
+  type PXEInfo,
   type ProofCreator,
   SimulatedTx,
   SimulationError,
@@ -35,6 +36,11 @@ import { type Fq, Fr } from '@aztec/foundation/fields';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { type KeyStore } from '@aztec/key-store';
+import { getCanonicalClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
+import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
+import { getCanonicalInstanceDeployer } from '@aztec/protocol-contracts/instance-deployer';
+import { getCanonicalKeyRegistryAddress } from '@aztec/protocol-contracts/key-registry';
+import { getCanonicalMultiCallEntrypointAddress } from '@aztec/protocol-contracts/multi-call-entrypoint';
 import {
   type AcirSimulator,
   type ExecutionResult,
@@ -66,7 +72,7 @@ export class PXEService implements PXE {
   private contractDataOracle: ContractDataOracle;
   private simulator: AcirSimulator;
   private log: DebugLogger;
-  private nodeVersion: string;
+  private packageVersion: string;
   // serialize synchronizer and calls to proveTx.
   // ensures that state is not changed while simulating
   private jobQueue = new SerialQueue();
@@ -83,7 +89,7 @@ export class PXEService implements PXE {
     this.synchronizer = new Synchronizer(node, db, this.jobQueue, logSuffix);
     this.contractDataOracle = new ContractDataOracle(db);
     this.simulator = getAcirSimulator(db, node, keyStore, this.contractDataOracle);
-    this.nodeVersion = getPackageInfo().version;
+    this.packageVersion = getPackageInfo().version;
 
     this.jobQueue.start();
   }
@@ -510,19 +516,36 @@ export class PXEService implements PXE {
   }
 
   public async getNodeInfo(): Promise<NodeInfo> {
-    const [version, chainId, contractAddresses] = await Promise.all([
+    const [nodeVersion, protocolVersion, chainId, contractAddresses, protocolContractAddresses] = await Promise.all([
+      this.node.getNodeVersion(),
       this.node.getVersion(),
       this.node.getChainId(),
       this.node.getL1ContractAddresses(),
+      this.node.getProtocolContractAddresses(),
     ]);
 
     const nodeInfo: NodeInfo = {
-      nodeVersion: this.nodeVersion,
+      nodeVersion,
       chainId,
-      protocolVersion: version,
+      protocolVersion,
       l1ContractAddresses: contractAddresses,
+      protocolContractAddresses: protocolContractAddresses,
     };
+
     return nodeInfo;
+  }
+
+  public getPXEInfo(): Promise<PXEInfo> {
+    return Promise.resolve({
+      pxeVersion: this.packageVersion,
+      protocolContractAddresses: {
+        classRegisterer: getCanonicalClassRegistererAddress(),
+        gasToken: getCanonicalGasToken().address,
+        instanceDeployer: getCanonicalInstanceDeployer().address,
+        keyRegistry: getCanonicalKeyRegistryAddress(),
+        multiCallEntrypoint: getCanonicalMultiCallEntrypointAddress(),
+      },
+    });
   }
 
   /**

@@ -7,6 +7,7 @@ import {
   type LogFilter,
   type NoteFilter,
   type PXE,
+  type PXEInfo,
   type SimulatedTx,
   type SyncStatus,
   type Tx,
@@ -173,5 +174,8 @@ export abstract class BaseWallet implements Wallet {
   }
   isContractPubliclyDeployed(address: AztecAddress): Promise<boolean> {
     return this.pxe.isContractPubliclyDeployed(address);
+  }
+  getPXEInfo(): Promise<PXEInfo> {
+    return this.pxe.getPXEInfo();
   }
 }

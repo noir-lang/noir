@@ -9,7 +9,11 @@ import {
 import { type L1ContractAddresses } from '@aztec/ethereum';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { type Fr } from '@aztec/foundation/fields';
-import { type ContractClassPublic, type ContractInstanceWithAddress } from '@aztec/types/contracts';
+import {
+  type ContractClassPublic,
+  type ContractInstanceWithAddress,
+  type ProtocolContractAddresses,
+} from '@aztec/types/contracts';
 
 import { type L2Block } from '../l2_block.js';
 import {
@@ -186,6 +190,12 @@ export interface AztecNode {
   getBlocks(from: number, limit: number): Promise<L2Block[]>;
 
   /**
+   * Method to fetch the version of the package.
+   * @returns The node package version
+   */
+  getNodeVersion(): Promise<string>;
+
+  /**
    * Method to fetch the version of the rollup the node is connected to.
    * @returns The rollup version.
    */
@@ -202,6 +212,11 @@ export interface AztecNode {
    * @returns The deployed contract addresses.
    */
   getL1ContractAddresses(): Promise<L1ContractAddresses>;
+
+  /**
+   * Method to fetch the protocol contract addresses.
+   */
+  getProtocolContractAddresses(): Promise<ProtocolContractAddresses>;
 
   /**
    * Gets up to `limit` amount of logs starting from `from`.

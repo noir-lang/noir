@@ -1,6 +1,10 @@
 import { type AztecAddress, type CompleteAddress, type Fq, type Fr, type PartialAddress } from '@aztec/circuits.js';
 import { type ContractArtifact } from '@aztec/foundation/abi';
-import { type ContractClassWithId, type ContractInstanceWithAddress } from '@aztec/types/contracts';
+import {
+  type ContractClassWithId,
+  type ContractInstanceWithAddress,
+  type ProtocolContractAddresses,
+} from '@aztec/types/contracts';
 import { type NodeInfo } from '@aztec/types/interfaces';
 
 import { type AuthWitness } from '../auth_witness.js';
@@ -277,6 +281,11 @@ export interface PXE {
   getNodeInfo(): Promise<NodeInfo>;
 
   /**
+   * Returns information about this PXE.
+   */
+  getPXEInfo(): Promise<PXEInfo>;
+
+  /**
    * Checks whether all the blocks were processed (tree roots updated, txs updated with block info, etc.).
    * @returns True if there are no outstanding blocks to be synched.
    * @remarks This indicates that blocks and transactions are synched even if notes are not. Compares local block number with the block number from aztec node.
@@ -342,3 +351,17 @@ export interface PXE {
   isContractPubliclyDeployed(address: AztecAddress): Promise<boolean>;
 }
 // docs:end:pxe-interface
+
+/**
+ * Provides basic information about the running PXE.
+ */
+export interface PXEInfo {
+  /**
+   * Version as tracked in the aztec-packages repository.
+   */
+  pxeVersion: string;
+  /**
+   * Protocol contract addresses
+   */
+  protocolContractAddresses: ProtocolContractAddresses;
+}

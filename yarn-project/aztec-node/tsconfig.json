@@ -50,6 +50,9 @@
     },
     {
       "path": "../world-state"
+    },
+    {
+      "path": "../protocol-contracts"
     }
   ],
   "include": ["src"]

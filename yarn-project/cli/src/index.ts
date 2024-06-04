@@ -630,6 +630,15 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     });
 
   program
+    .command('get-pxe-info')
+    .description('Gets the information of a PXE at a URL.')
+    .addOption(pxeOption)
+    .action(async options => {
+      const { getPXEInfo } = await import('./cmds/get_pxe_info.js');
+      await getPXEInfo(options.rpcUrl, debugLogger, log);
+    });
+
+  program
     .command('inspect-contract')
     .description('Shows list of external callable functions for a contract')
     .argument(
