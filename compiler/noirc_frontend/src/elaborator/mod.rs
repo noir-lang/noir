@@ -18,9 +18,9 @@ use crate::{
         scope::ScopeForest as GenericScopeForest,
         type_check::{check_trait_impl_method_matches_declaration, TypeCheckError},
     },
-    hir_def::{expr::HirIdent, function::Parameters, traits::TraitConstraint},
+    hir_def::{expr::HirIdent, function::{Parameters, FunctionBody}, traits::TraitConstraint},
     macros_api::{
-        Ident, NodeInterner, NoirFunction, NoirStruct, Pattern, SecondaryAttribute, StructId,
+        Ident, NodeInterner, NoirFunction, NoirStruct, Pattern, SecondaryAttribute, StructId, BlockExpression,
     },
     node_interner::{
         DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, TraitId, TypeAliasId,
@@ -136,7 +136,8 @@ pub struct Elaborator<'context> {
     /// ```
     resolving_ids: BTreeSet<StructId>,
 
-    trait_bounds: Vec<UnresolvedTraitConstraint>,
+    /// Each constraint in the `where` clause of the function currently being resolved.
+    trait_bounds: Vec<TraitConstraint>,
 
     current_function: Option<FuncId>,
 
@@ -273,16 +274,28 @@ impl<'context> Elaborator<'context> {
         self.trait_id = functions.trait_id; // TODO: Resolve?
         self.self_type = functions.self_type;
 
-        for (local_module, id, func) in functions.functions {
+        for (local_module, id, _) in functions.functions {
             self.local_module = local_module;
-            self.recover_generics(|this| this.elaborate_function(func, id));
+            self.recover_generics(|this| this.elaborate_function(id));
         }
 
         self.self_type = None;
         self.trait_id = None;
     }
 
-    fn elaborate_function(&mut self, function: NoirFunction, id: FuncId) {
+    fn elaborate_function(&mut self, id: FuncId) {
+        let func_meta = self.interner.func_meta.get_mut(&id);
+        let func_meta = func_meta
+            .expect("FuncMetas should be declared before a function is elaborated");
+
+        let (kind, body, body_span) = match func_meta.take_body() {
+            FunctionBody::Unresolved(kind, body, span) => (kind, body, span),
+            FunctionBody::Resolved => return,
+            // Do not error for the still-resolving case. If there is a dependency cycle,
+            // the dependency cycle check will find it later on.
+            FunctionBody::Resolving => return,
+        };
+
         self.current_function = Some(id);
 
         // Without this, impl methods can accidentally be placed in contracts. See #3254
@@ -293,16 +306,13 @@ impl<'context> Elaborator<'context> {
         self.scopes.start_function();
         self.current_item = Some(DependencyId::Function(id));
 
-        self.trait_bounds = function.def.where_clause.clone();
+        let func_meta = func_meta.clone();
 
-        if function.def.is_unconstrained {
+        self.trait_bounds = func_meta.trait_constraints.clone();
+
+        if self.interner.function_modifiers(&id).is_unconstrained {
             self.in_unconstrained_fn = true;
         }
-
-        let func_meta = self.interner.func_meta.get(&id);
-        let func_meta = func_meta
-            .expect("FuncMetas should be declared before a function is elaborated")
-            .clone();
 
         // The DefinitionIds for each parameter were already created in define_function_meta
         // so we need to reintroduce the same IDs into scope here.
@@ -315,14 +325,13 @@ impl<'context> Elaborator<'context> {
         self.declare_numeric_generics(&func_meta.parameters, func_meta.return_type());
         self.add_trait_constraints_to_scope(&func_meta);
 
-        let (hir_func, body_type) = match function.kind {
+        let (hir_func, body_type) = match kind {
             FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
                 (HirFunction::empty(), Type::Error)
             }
             FunctionKind::Normal | FunctionKind::Recursive => {
-                let block_span = function.def.span;
-                let (block, body_type) = self.elaborate_block(function.def.body);
-                let expr_id = self.intern_expr(block, block_span);
+                let (block, body_type) = self.elaborate_block(body);
+                let expr_id = self.intern_expr(block, body_span);
                 self.interner.push_expr_type(expr_id, body_type.clone());
                 (HirFunction::unchecked_from_expr(expr_id), body_type)
             }
@@ -374,8 +383,12 @@ impl<'context> Elaborator<'context> {
             self.check_for_unused_variables_in_scope_tree(func_scope_tree);
         }
 
-        self.trait_bounds.clear();
+        let meta = self.interner.func_meta.get_mut(&id)
+            .expect("FuncMetas should be declared before a function is elaborated");
 
+        meta.function_body = FunctionBody::Resolved;
+
+        self.trait_bounds.clear();
         self.interner.update_fn(id, hir_func);
         self.current_function = None;
     }
@@ -436,15 +449,6 @@ impl<'context> Elaborator<'context> {
 
     fn push_err(&mut self, error: impl Into<CompilationError>) {
         self.errors.push((error.into(), self.file));
-    }
-
-    fn resolve_where_clause(&mut self, clause: &mut [UnresolvedTraitConstraint]) {
-        for bound in clause {
-            if let Some(trait_id) = self.resolve_trait_by_path(bound.trait_bound.trait_path.clone())
-            {
-                bound.trait_bound.trait_id = Some(trait_id);
-            }
-        }
     }
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
@@ -518,7 +522,6 @@ impl<'context> Elaborator<'context> {
         is_trait_function: bool,
     ) {
         self.current_function = Some(func_id);
-        self.resolve_where_clause(&mut func.def.where_clause);
 
         // Without this, impl methods can accidentally be placed in contracts. See #3254
         if self.self_type.is_some() {
@@ -649,6 +652,9 @@ impl<'context> Elaborator<'context> {
             .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
             .collect();
 
+        let statements = std::mem::take(&mut func.def.body.statements);
+        let body = BlockExpression { statements };
+
         let meta = FuncMeta {
             name: name_ident,
             kind: func.kind,
@@ -666,6 +672,7 @@ impl<'context> Elaborator<'context> {
             is_entry_point,
             is_trait_function,
             has_inline_attribute,
+            function_body: FunctionBody::Unresolved(func.kind, body, func.def.span),
         };
 
         self.interner.push_fn_meta(meta, func_id);
