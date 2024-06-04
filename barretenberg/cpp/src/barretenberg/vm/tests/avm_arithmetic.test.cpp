@@ -1,6 +1,7 @@
 #include "avm_common.test.hpp"
 #include "barretenberg/numeric/uint128/uint128.hpp"
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
+#include "barretenberg/vm/avm_trace/avm_helper.hpp"
 #include "barretenberg/vm/avm_trace/avm_trace.hpp"
 #include "barretenberg/vm/tests/helpers.test.hpp"
 #include <array>
@@ -1893,7 +1894,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, operationWithErrorFlag)
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "SUBOP_ERROR_RELEVANT_OP");
 
-    trace_builder.reset();
+    trace_builder = AvmTraceBuilder(public_inputs);
 
     trace_builder.calldata_copy(0, 0, 3, 0, std::vector<FF>{ 8, 4, 17 });
 
@@ -1910,7 +1911,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, operationWithErrorFlag)
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "SUBOP_ERROR_RELEVANT_OP");
 
-    trace_builder.reset();
+    trace_builder = AvmTraceBuilder(public_inputs);
 
     trace_builder.calldata_copy(0, 0, 3, 0, std::vector<FF>{ 5, 0, 20 });
 

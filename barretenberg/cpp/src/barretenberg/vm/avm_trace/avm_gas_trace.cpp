@@ -1,4 +1,5 @@
 #include "barretenberg/vm/avm_trace/avm_gas_trace.hpp"
+#include "barretenberg/vm/avm_trace/avm_opcode.hpp"
 
 namespace bb::avm_trace {
 
@@ -43,6 +44,31 @@ void AvmGasTraceBuilder::constrain_gas_lookup(uint32_t clk, OpCode opcode)
         .opcode = opcode,
         .l2_gas_cost = l2_gas_cost,
         .da_gas_cost = da_gas_cost,
+        .remaining_l2_gas = remaining_l2_gas,
+        .remaining_da_gas = remaining_da_gas,
+    };
+
+    gas_trace.push_back(entry);
+}
+
+void AvmGasTraceBuilder::constrain_gas_for_external_call(uint32_t clk)
+{
+    // Arbitrary constants for the moment
+    uint32_t l2_gas_cost = 6;  // This will be hinted
+    uint32_t da_gas_cost = 23; // This will be hinted
+
+    remaining_l2_gas -= l2_gas_cost;
+    remaining_da_gas -= da_gas_cost;
+
+    // Decrease the gas left
+    // Create a gas trace entry
+    GasTraceEntry entry = {
+        .clk = clk,
+        .opcode = OpCode::CALL,
+        .l2_gas_cost = 0, // We need 0 in this case because we do not activate the gas_cost_active selector to satisfy
+                          // #[L2_GAS_INACTIVE].
+        .da_gas_cost = 0, // We need 0 in this case because we do not activate the gas_cost_active selector to satisfy
+                          // #[DA_GAS_INACTIVE].
         .remaining_l2_gas = remaining_l2_gas,
         .remaining_da_gas = remaining_da_gas,
     };

@@ -1060,9 +1060,8 @@ template <typename FF_> class avm_mainImpl {
                        avm_main_sel_op_emit_l2_to_l1_msg) +
                       avm_main_sel_op_sload) +
                      avm_main_sel_op_sstore))) -
-                  ((((avm_main_sel_jump + avm_main_sel_jumpi) + avm_main_sel_internal_call) +
-                    avm_main_sel_internal_return) +
-                   avm_main_sel_external_call)) -
+                  (((avm_main_sel_jump + avm_main_sel_jumpi) + avm_main_sel_internal_call) +
+                   avm_main_sel_internal_return)) -
                  avm_main_mem_op_activate_gas);
             tmp *= scaling_factor;
             std::get<89>(evals) += tmp;

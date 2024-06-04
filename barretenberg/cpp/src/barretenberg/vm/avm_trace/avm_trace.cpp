@@ -47,6 +47,13 @@ void AvmTraceBuilder::reset()
     alu_trace_builder.reset();
     bin_trace_builder.reset();
     kernel_trace_builder.reset();
+    gas_trace_builder.reset();
+    conversion_trace_builder.reset();
+    sha256_trace_builder.reset();
+    poseidon2_trace_builder.reset();
+    keccak_trace_builder.reset();
+    pedersen_trace_builder.reset();
+
     return_data_counter = 0;
 }
 
@@ -1822,8 +1829,10 @@ void AvmTraceBuilder::calldata_copy(
                 call_ptr, clk, IntermRegister::IC, mem_idx_c, ic, AvmMemoryTag::U0, AvmMemoryTag::FF);
         }
 
-        // Constrain gas cost
-        gas_trace_builder.constrain_gas_lookup(clk, OpCode::CALLDATACOPY);
+        // Constrain gas cost on the first row
+        if (pos == 0) {
+            gas_trace_builder.constrain_gas_lookup(clk, OpCode::CALLDATACOPY);
+        }
 
         main_trace.push_back(Row{
             .avm_main_clk = clk,
@@ -1838,7 +1847,8 @@ void AvmTraceBuilder::calldata_copy(
             .avm_main_mem_idx_b = FF(mem_idx_b),
             .avm_main_mem_idx_c = FF(mem_idx_c),
             .avm_main_mem_op_a = FF(mem_op_a),
-            .avm_main_mem_op_activate_gas = FF(1), // TODO: remove in the long term
+            .avm_main_mem_op_activate_gas = FF(static_cast<uint32_t>(
+                pos == 0)), // TODO: remove in the long term. This activate gas only for the first row.
             .avm_main_mem_op_b = FF(mem_op_b),
             .avm_main_mem_op_c = FF(mem_op_c),
             .avm_main_pc = FF(pc++),
@@ -1946,8 +1956,10 @@ std::vector<FF> AvmTraceBuilder::return_op(uint8_t indirect, uint32_t ret_offset
             returnMem.push_back(ic);
         }
 
-        // Constrain gas cost
-        gas_trace_builder.constrain_gas_lookup(clk, OpCode::RETURN);
+        // Constrain gas cost on the first row
+        if (pos == 0) {
+            gas_trace_builder.constrain_gas_lookup(clk, OpCode::RETURN);
+        }
 
         main_trace.push_back(Row{
             .avm_main_clk = clk,
@@ -1962,7 +1974,8 @@ std::vector<FF> AvmTraceBuilder::return_op(uint8_t indirect, uint32_t ret_offset
             .avm_main_mem_idx_b = FF(mem_idx_b),
             .avm_main_mem_idx_c = FF(mem_idx_c),
             .avm_main_mem_op_a = FF(mem_op_a),
-            .avm_main_mem_op_activate_gas = FF(1), // TODO: remove in the long term
+            .avm_main_mem_op_activate_gas = FF(static_cast<uint32_t>(
+                pos == 0)), // TODO: remove in the long term. This activate gas only for the first row.
             .avm_main_mem_op_b = FF(mem_op_b),
             .avm_main_mem_op_c = FF(mem_op_c),
             .avm_main_pc = FF(pc),
@@ -2339,7 +2352,7 @@ void AvmTraceBuilder::op_call([[maybe_unused]] uint8_t indirect,
     // We can load up to 4 things per row
     auto register_order = std::array{ IntermRegister::IA, IntermRegister::IB, IntermRegister::IC, IntermRegister::ID };
     // Constrain gas cost
-    gas_trace_builder.constrain_gas_lookup(clk, OpCode::CALL);
+    gas_trace_builder.constrain_gas_for_external_call(clk);
     // Indirect is ZEROTH, SECOND and FOURTH bit  COME BACK TO MAKING THIS ALL SUPPORTED
     auto read_ind_gas_offset =
         mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, gas_offset);
@@ -3921,15 +3934,19 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
 
         auto& dest = main_trace.at(gas_entry.clk);
         auto& next = main_trace.at(gas_entry.clk + 1);
-        dest.avm_main_gas_cost_active = FF(1);
+
+        // TODO: gas is not constrained for external call at this time
+        if (gas_entry.opcode != OpCode::CALL) {
+            dest.avm_main_gas_cost_active = FF(1);
+        }
 
         // Write each of the relevant gas accounting values
         dest.avm_main_opcode_val = static_cast<uint8_t>(gas_entry.opcode);
         dest.avm_main_l2_gas_op = gas_entry.l2_gas_cost;
         dest.avm_main_da_gas_op = gas_entry.da_gas_cost;
 
-        current_l2_gas_remaining -= gas_entry.l2_gas_cost;
-        current_da_gas_remaining -= gas_entry.da_gas_cost;
+        current_l2_gas_remaining = gas_entry.remaining_l2_gas;
+        current_da_gas_remaining = gas_entry.remaining_da_gas;
         next.avm_main_l2_gas_remaining = current_l2_gas_remaining;
         next.avm_main_da_gas_remaining = current_da_gas_remaining;
 

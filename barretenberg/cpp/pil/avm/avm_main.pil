@@ -426,7 +426,7 @@ namespace avm_main(256);
 
     //===== CONTROL_FLOW_CONSISTENCY ============================================
     pol INTERNAL_CALL_STACK_SELECTORS = (first + sel_internal_call + sel_internal_return + sel_halt);
-    pol ALL_CTRL_FLOW_SEL = sel_jump + sel_jumpi + sel_internal_call + sel_internal_return + sel_external_call;
+    pol ALL_CTRL_FLOW_SEL = sel_jump + sel_jumpi + sel_internal_call + sel_internal_return;
 
     pol ALL_BINARY_SEL = sel_op_and + sel_op_or + sel_op_xor;
     pol ALL_GADGET_SEL = sel_op_radix_le + sel_op_sha256 + sel_op_poseidon2 + sel_op_keccak + sel_op_pedersen;
@@ -439,6 +439,7 @@ namespace avm_main(256);
     //       setting a newly introduced boolean mem_op_activate_gas which is set in witness generation.
     //       We should remove this shortcut and constrain this activation through bytecode decomposition.
     //       Alternatively, we introduce a boolean selector for the three opcodes mentioned above.
+    //       Note: External call gas cost is not constrained
     pol commit gas_cost_active;
     pol commit mem_op_activate_gas; // TODO: remove this one
     gas_cost_active - OPCODE_SELECTORS - ALL_CTRL_FLOW_SEL - mem_op_activate_gas = 0;
