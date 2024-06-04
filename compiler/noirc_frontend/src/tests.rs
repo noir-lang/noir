@@ -1316,7 +1316,7 @@ fn break_and_continue_outside_loop() {
 #[test]
 fn for_loop_over_array() {
     let src = r#"
-        fn hello<N>(_array: [u1; N]) {
+        fn hello<let N: u64>(_array: [u1; N]) {
             for _ in 0..N {}
         }
 
