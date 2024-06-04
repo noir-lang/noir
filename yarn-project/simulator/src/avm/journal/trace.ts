@@ -1,3 +1,4 @@
+import { AvmExecutionHints, AvmHint, Vector } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 
 import {
@@ -131,6 +132,7 @@ export class WorldStateAccessTrace {
       leafIndex: msgLeafIndex,
       msgHash: msgHash,
       exists: exists,
+      counter: new Fr(this.accessCounter),
       //endLifetime: Fr.ZERO, // FIXME
     };
     this.l1ToL2MessageChecks.push(traced);
@@ -168,5 +170,15 @@ export class WorldStateAccessTrace {
     this.newLogsHashes.push(...incomingTrace.newLogsHashes);
     // it is assumed that the incoming trace was initialized with this as parent, so accept counter
     this.accessCounter = incomingTrace.accessCounter;
+  }
+
+  // TODO(dbanks12): should only return hints for one call.... shouldn't include nested calls (merged in traces)
+  public toHints(): AvmExecutionHints {
+    return new AvmExecutionHints(
+      new Vector(this.publicStorageReads.map(read => new AvmHint(read.counter, read.value))),
+      new Vector(this.noteHashChecks.map(check => new AvmHint(check.counter, new Fr(check.exists ? 1 : 0)))),
+      new Vector(this.nullifierChecks.map(check => new AvmHint(check.counter, new Fr(check.exists ? 1 : 0)))),
+      new Vector(this.l1ToL2MessageChecks.map(check => new AvmHint(check.counter, new Fr(check.exists ? 1 : 0)))),
+    );
   }
 }

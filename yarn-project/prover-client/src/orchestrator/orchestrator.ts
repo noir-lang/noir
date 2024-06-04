@@ -774,6 +774,8 @@ export class ProvingOrchestrator {
         const inputs: AvmCircuitInputs = new AvmCircuitInputs(
           publicFunction.vmRequest!.bytecode,
           publicFunction.vmRequest!.calldata,
+          publicFunction.vmRequest!.kernelRequest.inputs.publicCall.callStackItem.publicInputs,
+          publicFunction.vmRequest!.avmHints,
         );
         try {
           return await this.prover.getAvmProof(inputs, signal);

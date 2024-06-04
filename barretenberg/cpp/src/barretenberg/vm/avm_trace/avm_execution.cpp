@@ -32,8 +32,8 @@ namespace bb::avm_trace {
 std::vector<FF> Execution::getDefaultPublicInputs()
 {
     std::vector<FF> public_inputs_vec(PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH);
-    public_inputs_vec.at(DA_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = 1000000000;
-    public_inputs_vec.at(L2_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = 1000000000;
+    public_inputs_vec.at(DA_START_GAS_LEFT_PCPI_OFFSET) = 1000000000;
+    public_inputs_vec.at(L2_START_GAS_LEFT_PCPI_OFFSET) = 1000000000;
     return public_inputs_vec;
 }
 
@@ -51,19 +51,25 @@ std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<u
                                                                    std::vector<FF> const& public_inputs_vec,
                                                                    ExecutionHints const& execution_hints)
 {
-    // TODO: temp
-    info("logging to silence warning for now: ", public_inputs_vec.size());
+    if (public_inputs_vec.size() != PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH) {
+        throw_or_abort("Public inputs vector is not of PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH");
+    }
 
     auto instructions = Deserialization::parse(bytecode);
     std::vector<FF> returndata{};
-    auto trace = gen_trace(instructions, returndata, calldata, getDefaultPublicInputs(), execution_hints);
+    auto trace = gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
     auto circuit_builder = bb::AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
 
     auto composer = AvmComposer();
     auto prover = composer.create_prover(circuit_builder);
     auto verifier = composer.create_verifier(circuit_builder);
-    auto proof = prover.construct_proof();
+
+    // The proof starts with the serialized public inputs
+    HonkProof proof(public_inputs_vec);
+    auto raw_proof = prover.construct_proof();
+    // append the raw proof after the public inputs
+    proof.insert(proof.end(), raw_proof.begin(), raw_proof.end());
     // TODO(#4887): Might need to return PCS vk when full verify is supported
     return std::make_tuple(*verifier.key, proof);
 }
@@ -130,8 +136,8 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
     // Transaction fee
     kernel_inputs[TRANSACTION_FEE_SELECTOR] = public_inputs_vec[TRANSACTION_FEE_OFFSET];
 
-    kernel_inputs[DA_GAS_LEFT_CONTEXT_INPUTS_OFFSET] = public_inputs_vec[DA_GAS_LEFT_CONTEXT_INPUTS_OFFSET];
-    kernel_inputs[L2_GAS_LEFT_CONTEXT_INPUTS_OFFSET] = public_inputs_vec[L2_GAS_LEFT_CONTEXT_INPUTS_OFFSET];
+    kernel_inputs[DA_GAS_LEFT_CONTEXT_INPUTS_OFFSET] = public_inputs_vec[DA_START_GAS_LEFT_PCPI_OFFSET];
+    kernel_inputs[L2_GAS_LEFT_CONTEXT_INPUTS_OFFSET] = public_inputs_vec[L2_START_GAS_LEFT_PCPI_OFFSET];
 
     return public_inputs;
 }
@@ -146,10 +152,15 @@ bool Execution::verify(AvmFlavor::VerificationKey vk, HonkProof const& proof)
     // crs_factory_);
     // output_state.pcs_verification_key = std::move(pcs_verification_key);
 
-    // TODO: We hardcode public inputs for now
-    VmPublicInputs public_inputs = convert_public_inputs(getDefaultPublicInputs());
-    std::vector<std::vector<FF>> public_inputs_vec = copy_public_inputs_columns(public_inputs);
-    return verifier.verify_proof(proof, public_inputs_vec);
+    std::vector<FF> public_inputs_vec;
+    std::vector<FF> raw_proof;
+    std::copy(
+        proof.begin(), proof.begin() + PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH, std::back_inserter(public_inputs_vec));
+    std::copy(proof.begin() + PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH, proof.end(), std::back_inserter(raw_proof));
+
+    VmPublicInputs public_inputs = convert_public_inputs(public_inputs_vec);
+    std::vector<std::vector<FF>> public_inputs_columns = copy_public_inputs_columns(public_inputs);
+    return verifier.verify_proof(raw_proof, public_inputs_columns);
 }
 
 /**

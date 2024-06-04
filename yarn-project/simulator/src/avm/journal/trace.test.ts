@@ -86,6 +86,7 @@ describe('world state access trace', () => {
         leafIndex: leafIndex,
         msgHash: utxo,
         exists: exists,
+        counter: new Fr(0),
       };
       expect(trace.l1ToL2MessageChecks).toEqual([expectedCheck]);
       expect(trace.getAccessCounter()).toEqual(1);

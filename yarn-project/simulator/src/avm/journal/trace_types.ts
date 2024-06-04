@@ -71,6 +71,7 @@ export type TracedL1toL2MessageCheck = {
   leafIndex: Fr;
   msgHash: Fr;
   exists: boolean;
+  counter: Fr;
   //endLifetime: Fr;
 };
 

@@ -11,6 +11,7 @@ import {
   type UnencryptedFunctionL2Logs,
 } from '@aztec/circuit-types';
 import {
+  type AvmExecutionHints,
   AztecAddress,
   CallRequest,
   ContractStorageRead,
@@ -100,6 +101,7 @@ export type PublicProvingInformation = {
   calldata: Fr[];
   bytecode: Buffer;
   inputs: PublicKernelCircuitPrivateInputs;
+  avmHints: AvmExecutionHints;
 };
 
 export function makeAvmProvingRequest(
@@ -110,6 +112,7 @@ export function makeAvmProvingRequest(
     type: AVM_REQUEST,
     bytecode: info.bytecode,
     calldata: info.calldata,
+    avmHints: info.avmHints,
     kernelRequest: {
       type: kernelType,
       inputs: info.inputs,
@@ -330,6 +333,7 @@ export abstract class AbstractPhaseManager {
           calldata: result.calldata,
           bytecode: result.bytecode!,
           inputs: privateInputs,
+          avmHints: result.avmHints,
         };
         provingInformationList.push(publicProvingInformation);
 

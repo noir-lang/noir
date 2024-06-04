@@ -1,5 +1,6 @@
 import { type SimulationError, type UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
 import {
+  type AvmExecutionHints,
   type ContractStorageRead,
   type ContractStorageUpdateRequest,
   type Fr,
@@ -77,6 +78,8 @@ export interface PublicExecutionResult {
   bytecode?: Buffer;
   /** Calldata used for this execution. */
   calldata: Fr[];
+  /** Hints for proving AVM execution. */
+  avmHints: AvmExecutionHints;
 }
 
 /**

@@ -10,6 +10,7 @@ import {
   UnencryptedTxL2Logs,
 } from '@aztec/circuit-types';
 import {
+  type AvmExecutionHints,
   Fr,
   type Gas,
   type GasFees,
@@ -55,6 +56,7 @@ export type AvmProvingRequest = {
   type: typeof AVM_REQUEST;
   bytecode: Buffer;
   calldata: Fr[];
+  avmHints: AvmExecutionHints;
   kernelRequest: PublicKernelNonTailRequest;
 };
 

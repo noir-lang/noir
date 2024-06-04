@@ -95,6 +95,7 @@ export function convertAvmResultsToPxResult(
     transactionFee: endAvmContext.environment.transactionFee,
     bytecode: bytecode,
     calldata: endAvmContext.environment.calldata,
+    avmHints: endPersistableState.trace.toHints(),
   };
 }
 
