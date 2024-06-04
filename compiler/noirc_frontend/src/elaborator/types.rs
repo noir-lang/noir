@@ -1164,7 +1164,7 @@ impl<'context> Elaborator<'context> {
         if crossing_runtime_boundary {
             let errors = lint_unconstrained_function_args(&args);
             for error in errors {
-                self.push_err(error)
+                self.push_err(error);
             }
         }
 

@@ -9,8 +9,8 @@ pub(crate) fn lint_unconstrained_function_args(
     function_args
         .iter()
         .filter_map(|(typ, _, span)| {
-            if type_contains_mutable_reference(&typ) {
-                Some(TypeCheckError::ConstrainedReferenceToUnconstrained { span: span.clone() })
+            if type_contains_mutable_reference(typ) {
+                Some(TypeCheckError::ConstrainedReferenceToUnconstrained { span: *span })
             } else {
                 None
             }
@@ -25,7 +25,7 @@ pub(crate) fn lint_unconstrained_function_return(
 ) -> Option<TypeCheckError> {
     if return_type.contains_slice() {
         Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { span })
-    } else if type_contains_mutable_reference(&return_type) {
+    } else if type_contains_mutable_reference(return_type) {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { span })
     } else {
         None

@@ -436,7 +436,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
-        if let Some(error) = lint(&self) {
+        if let Some(error) = lint(self) {
             self.push_err(error);
         }
     }

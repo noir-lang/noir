@@ -98,7 +98,7 @@ impl<'context> Elaborator<'context> {
                 }
             });
             if annotated_type.is_unsigned() {
-                lint_overflowing_uint(&self.interner, &expression, &annotated_type);
+                lint_overflowing_uint(self.interner, &expression, &annotated_type);
             }
             annotated_type
         } else {
