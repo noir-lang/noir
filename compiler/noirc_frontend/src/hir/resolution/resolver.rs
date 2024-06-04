@@ -626,7 +626,6 @@ impl<'a> Resolver<'a> {
     fn resolve_named_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
         if args.is_empty() {
             if let Some(typ) = self.lookup_generic_or_global_type(&path) {
-                dbg!(self.errors.len());
                 return typ;
             }
         }

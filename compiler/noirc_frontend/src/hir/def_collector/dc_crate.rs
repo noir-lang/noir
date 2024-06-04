@@ -378,7 +378,6 @@ impl DefCollector {
             def_collector.items.traits,
             crate_id,
         ));
-        dbg!(resolved_module.errors.len());
 
         // Must resolve structs before we resolve globals.
         resolved_module.errors.extend(resolve_structs(
@@ -386,7 +385,7 @@ impl DefCollector {
             def_collector.items.types,
             crate_id,
         ));
-        dbg!(resolved_module.errors.len());
+
         // Bind trait impls to their trait. Collect trait functions, that have a
         // default implementation, which hasn't been overridden.
         resolved_module.errors.extend(collect_trait_impls(

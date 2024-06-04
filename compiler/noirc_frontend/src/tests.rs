@@ -81,7 +81,7 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            true,
+            false,
             &[], // No macro processors
         ));
     }
@@ -1492,7 +1492,6 @@ fn numeric_generic_binary_operation_type_mismatch() {
     }
     "#;
     let errors = get_program_errors(src);
-    dbg!(errors.clone());
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
