@@ -14,8 +14,7 @@ use crate::{
         },
     },
     macros_api::{
-        ForLoopStatement, ForRange, HirExpression, HirLiteral, HirStatement, LetStatement,
-        Statement, StatementKind,
+        ForLoopStatement, ForRange, HirStatement, LetStatement, Statement, StatementKind,
     },
     node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
     Type,
@@ -32,7 +31,7 @@ impl<'context> Elaborator<'context> {
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
             StatementKind::Break => self.elaborate_jump(true, statement.span),
             StatementKind::Continue => self.elaborate_jump(false, statement.span),
-            StatementKind::Comptime(statement) => self.elaborate_comptime(*statement),
+            StatementKind::Comptime(statement) => self.elaborate_comptime_statement(*statement),
             StatementKind::Expression(expr) => {
                 let (expr, typ) = self.elaborate_expression(expr);
                 (HirStatement::Expression(expr), typ)
@@ -437,19 +436,12 @@ impl<'context> Elaborator<'context> {
         None
     }
 
-    pub(super) fn elaborate_comptime(&mut self, statement: Statement) -> (HirStatement, Type) {
+    fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
         let span = statement.span;
-        let (hir_statement, typ) = self.elaborate_statement(statement);
+        let (hir_statement, _typ) = self.elaborate_statement(statement);
         let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
-
-        if let Err(error) = interpreter.evaluate_statement(hir_statement) {
-            self.errors.push(error.into_compilation_error_pair());
-        }
-
-        let unit = HirExpression::Literal(HirLiteral::Unit);
-        let unit = self.interner.push_expr(unit);
-        self.interner.push_expr_type(unit, Type::Unit);
-        self.interner.push_expr_location(unit, span, self.file);
-        (HirStatement::Expression(unit), typ)
+        let value = interpreter.evaluate_statement(hir_statement);
+        let (expr, typ) = self.inline_comptime_value(value, span);
+        (HirStatement::Expression(expr), typ)
     }
 }

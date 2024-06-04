@@ -9,7 +9,7 @@ use crate::{
         UnresolvedTypeExpression,
     },
     hir::{
-        comptime::{Interpreter, InterpreterError},
+        comptime::{self, Interpreter, InterpreterError},
         resolution::{errors::ResolverError, resolver::LambdaContext},
         type_check::TypeCheckError,
     },
@@ -634,7 +634,15 @@ impl<'context> Elaborator<'context> {
     fn elaborate_comptime_block(&mut self, block: BlockExpression, span: Span) -> (ExprId, Type) {
         let (block, _typ) = self.elaborate_block_expression(block);
         let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        let value = interpreter.evaluate_block(block);
+        self.inline_comptime_value(value, span)
+    }
 
+    pub(super) fn inline_comptime_value(
+        &mut self,
+        value: Result<comptime::Value, InterpreterError>,
+        span: Span,
+    ) -> (ExprId, Type) {
         let make_error = |this: &mut Self, error: InterpreterError| {
             this.errors.push(error.into_compilation_error_pair());
             let error = this.interner.push_expr(HirExpression::Error);
@@ -642,7 +650,7 @@ impl<'context> Elaborator<'context> {
             (error, Type::Error)
         };
 
-        let value = match interpreter.evaluate_block(block) {
+        let value = match value {
             Ok(value) => value,
             Err(error) => return make_error(self, error),
         };
