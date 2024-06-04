@@ -42,7 +42,7 @@ Note that while the `secret` and the `content` are both hashed, they are actuall
 
 ### Token bridge example
 
-Computing the `content` must currently be done manually, as we are still adding a number of bytes utilities. A good example exists within the [Token bridge example](../../../../tutorials/contract_tutorials/advanced/token_bridge/minting_on_aztec.md#consume-the-l1-message).
+Computing the `content` must currently be done manually, as we are still adding a number of bytes utilities. A good example exists within the [Token bridge example](../../../../tutorials/contract_tutorials/advanced/token_bridge/2_minting_on_aztec.md#consume-the-l1-message).
 
 #include_code claim_public /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
