@@ -4,7 +4,8 @@ use std::{
 };
 
 use crate::{
-    ast::{FunctionKind, UnresolvedGeneric, UnresolvedTraitConstraint}, hir::{
+    ast::{FunctionKind, UnresolvedGeneric, UnresolvedTraitConstraint},
+    hir::{
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
@@ -15,9 +16,13 @@ use crate::{
         resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext},
         scope::ScopeForest as GenericScopeForest,
         type_check::TypeCheckError,
-    }, hir_def::{expr::HirIdent, function::Parameters, traits::TraitConstraint}, macros_api::{
+    },
+    hir_def::{expr::HirIdent, function::Parameters, traits::TraitConstraint},
+    macros_api::{
         Ident, NodeInterner, NoirFunction, NoirStruct, Pattern, SecondaryAttribute, StructId,
-    }, node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, TraitId, TypeAliasId}, ResolvedGeneric, Shared, Type, TypeVariable
+    },
+    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, TraitId, TypeAliasId},
+    ResolvedGeneric, Shared, Type, TypeVariable,
 };
 use crate::{
     ast::{TraitBound, UnresolvedGenerics},
@@ -96,7 +101,7 @@ pub struct Elaborator<'context> {
     generics: Vec<ResolvedGeneric>,
 
     /// The idents for each numeric generic on a function
-    /// These definitions are generated when creating function metas 
+    /// These definitions are generated when creating function metas
     /// and need to be brought into scope later when elaborating the function body.
     generic_idents: Vec<HirIdent>,
 
@@ -426,10 +431,12 @@ impl<'context> Elaborator<'context> {
             if let UnresolvedGeneric::Numeric { ident, typ } = generic {
                 let typ = self.resolve_type(typ.clone());
                 if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
-                    let unsupported_typ_err = CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType {
-                        ident: ident.clone(),
-                        typ: typ.clone(),
-                    });
+                    let unsupported_typ_err = CompilationError::ResolverError(
+                        ResolverError::UnsupportedNumericGenericType {
+                            ident: ident.clone(),
+                            typ: typ.clone(),
+                        },
+                    );
                     self.errors.push((unsupported_typ_err, self.file));
                 }
                 let definition = DefinitionKind::GenericType(typevar.clone());
@@ -441,7 +448,7 @@ impl<'context> Elaborator<'context> {
                 // We do not yet fully support bool generics but this will be a foot-gun once we look to add support
                 // and can lead to confusing errors.
                 self.interner.push_definition_type(hir_ident.id, typ);
-                // Store the ident of the numeric generic to set up the function meta so that 
+                // Store the ident of the numeric generic to set up the function meta so that
                 // any numeric generics are accurately brought into scope.
                 self.generic_idents.push(hir_ident);
                 is_numeric_generic = true;
@@ -457,12 +464,8 @@ impl<'context> Elaborator<'context> {
                     second_span: span,
                 });
             } else {
-                let resolved_generic = ResolvedGeneric {
-                    name,
-                    type_var: typevar.clone(),
-                    is_numeric_generic,
-                    span,
-                };
+                let resolved_generic =
+                    ResolvedGeneric { name, type_var: typevar.clone(), is_numeric_generic, span };
                 self.generics.push(resolved_generic);
             }
 
@@ -763,14 +766,12 @@ impl<'context> Elaborator<'context> {
             // We can fail to find the generic in self.generics if it is an implicit one created
             // by the compiler. This can happen when, e.g. eliding array lengths using the slice
             // syntax [T].
-            if let Some(ResolvedGeneric { name, span, .. }) = 
-            self.generics.iter().find(|generic| generic.name.as_ref() == &name_to_find)
+            if let Some(ResolvedGeneric { name, span, .. }) =
+                self.generics.iter().find(|generic| generic.name.as_ref() == &name_to_find)
             {
                 let scope = self.scopes.get_mut_scope();
                 let value = scope.find(&name_to_find);
                 if value.is_some() {
-                    let value = value.unwrap();
-                    // dbg!(value.ident.clone());
                     // With the addition of explicit numeric generics we do not want to introduce numeric generics in this manner
                     // However, this is going to be a big breaking change so for now we simply issue a warning while users have time
                     // to transition to the new syntax
@@ -786,7 +787,8 @@ impl<'context> Elaborator<'context> {
                 //     dbg!(ident.clone());
                 //     dbg!(self.generic_idents.clone());
                 // }
-                let x = self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
+                let x =
+                    self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
                 self.generic_idents.push(x);
                 self.errors.push((
                     CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric {
@@ -1339,7 +1341,6 @@ impl<'context> Elaborator<'context> {
             self.local_module = *local_module;
 
             for (generics, _, function_set) in function_sets {
-
                 self.add_generics(generics);
                 let self_type = self.resolve_type(self_type.clone());
                 function_set.self_type = Some(self_type.clone());

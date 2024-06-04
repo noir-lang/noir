@@ -4,7 +4,9 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    ast::{FunctionKind, TraitItem, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint},
+    ast::{
+        FunctionKind, TraitItem, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
+    },
     hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::{TraitConstant, TraitFunction, TraitType},
     macros_api::{
@@ -89,7 +91,11 @@ impl<'context> Elaborator<'context> {
                         Type::TypeVariable(self_typevar.clone(), TypeVariableKind::Normal);
                     let name_span = the_trait.name.span();
 
-                    this.add_existing_generic(&UnresolvedGeneric::Variable(Ident::from("Self")), name_span, self_typevar);
+                    this.add_existing_generic(
+                        &UnresolvedGeneric::Variable(Ident::from("Self")),
+                        name_span,
+                        self_typevar,
+                    );
                     this.self_type = Some(self_type.clone());
 
                     let func_id = unresolved_trait.method_ids[&name.0.contents];

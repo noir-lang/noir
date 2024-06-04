@@ -6,23 +6,32 @@ use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{
-        BinaryOpKind, Ident, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedTypeExpression
-    }, hir::{
-        def_collector::dc_crate::CompilationError, def_map::ModuleDefId, resolution::{
+        BinaryOpKind, Ident, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics,
+        UnresolvedTraitConstraint, UnresolvedTypeExpression,
+    },
+    hir::{
+        def_collector::dc_crate::CompilationError,
+        def_map::ModuleDefId,
+        resolution::{
             errors::ResolverError,
             resolver::{verify_mutable_reference, SELF_TYPE_NAME},
-        }, type_check::{Source, TypeCheckError}
-    }, hir_def::{
+        },
+        type_check::{Source, TypeCheckError},
+    },
+    hir_def::{
         expr::{
             HirBinaryOp, HirCallExpression, HirIdent, HirMemberAccess, HirMethodReference,
             HirPrefixExpression,
         },
         function::FuncMeta,
         traits::TraitConstraint,
-    }, macros_api::{
+    },
+    macros_api::{
         HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
         UnaryOp, UnresolvedType, UnresolvedTypeData,
-    }, node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId}, Generics, ResolvedGeneric, Type, TypeBinding, TypeVariable, TypeVariableKind
+    },
+    node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
+    Generics, ResolvedGeneric, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
 use super::Elaborator;
@@ -262,10 +271,13 @@ impl<'context> Elaborator<'context> {
             let name = &path.last_segment().0.contents;
             if let Some(generic) = self.find_generic(name) {
                 if generic.is_numeric_generic {
-                    let expected_typ_err = CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { ident: path.last_segment() });
+                    let expected_typ_err =
+                        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType {
+                            ident: path.last_segment(),
+                        });
                     self.errors.push((expected_typ_err, self.file));
                     return Some(Type::Error);
-                } 
+                }
                 return Some(Type::NamedGeneric(generic.type_var.clone(), generic.name.clone()));
             }
         }
@@ -1436,7 +1448,11 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub fn add_existing_generics(&mut self, unresolved_generics: &UnresolvedGenerics, generics: &Generics) {
+    pub fn add_existing_generics(
+        &mut self,
+        unresolved_generics: &UnresolvedGenerics,
+        generics: &Generics,
+    ) {
         assert_eq!(unresolved_generics.len(), generics.len());
 
         for (unresolved_generic, typevar) in unresolved_generics.iter().zip(generics) {
@@ -1445,7 +1461,12 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub fn add_existing_generic(&mut self, unresolved_generic: &UnresolvedGeneric, span: Span, typevar: TypeVariable) {
+    pub fn add_existing_generic(
+        &mut self,
+        unresolved_generic: &UnresolvedGeneric,
+        span: Span,
+        typevar: TypeVariable,
+    ) {
         let ident = Ident::from(unresolved_generic);
         let name = ident.0.contents;
 
@@ -1454,12 +1475,13 @@ impl<'context> Elaborator<'context> {
 
         if let Some(generic) = self.find_generic(&rc_name) {
             self.push_err(ResolverError::DuplicateDefinition {
-                name: name,
+                name,
                 first_span: generic.span,
                 second_span: span,
             });
         } else {
-            let is_numeric_generic = matches!(unresolved_generic, UnresolvedGeneric::Numeric { .. });
+            let is_numeric_generic =
+                matches!(unresolved_generic, UnresolvedGeneric::Numeric { .. });
             let resolved_generic = ResolvedGeneric {
                 name: rc_name,
                 type_var: typevar.clone(),

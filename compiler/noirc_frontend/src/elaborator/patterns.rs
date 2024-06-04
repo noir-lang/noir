@@ -275,7 +275,12 @@ impl<'context> Elaborator<'context> {
         ident
     }
 
-    pub fn add_existing_variable_to_scope(&mut self, name: String, ident: HirIdent, warn_if_unused: bool) {
+    pub fn add_existing_variable_to_scope(
+        &mut self,
+        name: String,
+        ident: HirIdent,
+        warn_if_unused: bool,
+    ) {
         let second_span = ident.location.span;
         let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused };
 

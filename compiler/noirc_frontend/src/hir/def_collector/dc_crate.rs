@@ -5,7 +5,7 @@ use crate::graph::CrateId;
 use crate::hir::comptime::{Interpreter, InterpreterError};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
-use crate::{ResolvedGeneric, Type, TypeVariable};
+use crate::{ResolvedGeneric, Type};
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::resolution::{
@@ -33,7 +33,6 @@ use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Span};
 use std::collections::{BTreeMap, HashMap};
 
-use std::rc::Rc;
 use std::vec;
 
 #[derive(Default)]

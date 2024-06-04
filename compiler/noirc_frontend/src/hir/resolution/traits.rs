@@ -4,7 +4,7 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
-use crate::ast::{ItemVisibility, Path, TraitItem, UnresolvedGeneric, Ident};
+use crate::ast::{Ident, ItemVisibility, Path, TraitItem, UnresolvedGeneric};
 use crate::{
     graph::CrateId,
     hir::{
@@ -126,7 +126,11 @@ fn resolve_trait_methods(
             resolver.add_generics(generics);
 
             resolver.add_existing_generics(&unresolved_trait.trait_def.generics, trait_generics);
-            resolver.add_existing_generic(&UnresolvedGeneric::Variable(Ident::from("Self")), name_span, self_typevar);
+            resolver.add_existing_generic(
+                &UnresolvedGeneric::Variable(Ident::from("Self")),
+                name_span,
+                self_typevar,
+            );
             resolver.set_self_type(Some(self_type.clone()));
 
             let func_id = unresolved_trait.method_ids[&name.0.contents];

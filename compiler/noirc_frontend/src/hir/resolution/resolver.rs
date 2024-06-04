@@ -43,7 +43,9 @@ use crate::node_interner::{
     DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
     StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
 };
-use crate::{Generics, ResolvedGeneric, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind};
+use crate::{
+    Generics, ResolvedGeneric, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind,
+};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
@@ -758,9 +760,11 @@ impl<'a> Resolver<'a> {
             let name = &path.last_segment().0.contents;
             if let Some(generic) = self.find_generic(name) {
                 if generic.is_numeric_generic {
-                    self.errors.push(ResolverError::NumericGenericUsedForType { ident: path.last_segment() });
+                    self.errors.push(ResolverError::NumericGenericUsedForType {
+                        ident: path.last_segment(),
+                    });
                     return Some(Type::Error);
-                } 
+                }
                 return Some(Type::NamedGeneric(generic.type_var.clone(), generic.name.clone()));
             };
         }
@@ -943,12 +947,8 @@ impl<'a> Resolver<'a> {
                     second_span: span,
                 });
             } else {
-                let resolved_generic = ResolvedGeneric {
-                    name,
-                    type_var: typevar.clone(),
-                    is_numeric_generic,
-                    span,
-                };
+                let resolved_generic =
+                    ResolvedGeneric { name, type_var: typevar.clone(), is_numeric_generic, span };
                 self.generics.push(resolved_generic);
             }
 
@@ -959,16 +959,25 @@ impl<'a> Resolver<'a> {
     /// Add the given existing generics to scope.
     /// This is useful for adding the same generics to many items. E.g. apply impl generics
     /// to each function in the impl or trait generics to each item in the trait.
-    pub fn add_existing_generics(&mut self, unresolved_generics: &UnresolvedGenerics, generics: &Generics) {
+    pub fn add_existing_generics(
+        &mut self,
+        unresolved_generics: &UnresolvedGenerics,
+        generics: &Generics,
+    ) {
         assert_eq!(unresolved_generics.len(), generics.len());
 
         for (unresolved_generic, typevar) in unresolved_generics.iter().zip(generics) {
             let name = Ident::from(unresolved_generic);
-            self.add_existing_generic(&unresolved_generic, name.0.span(), typevar.clone());
+            self.add_existing_generic(unresolved_generic, name.0.span(), typevar.clone());
         }
     }
 
-    pub fn add_existing_generic(&mut self, unresolved_generic: &UnresolvedGeneric, span: Span, typevar: TypeVariable) {
+    pub fn add_existing_generic(
+        &mut self,
+        unresolved_generic: &UnresolvedGeneric,
+        span: Span,
+        typevar: TypeVariable,
+    ) {
         let ident = Ident::from(unresolved_generic);
         let name = ident.0.contents;
         // Check for name collisions of this generic
@@ -976,12 +985,13 @@ impl<'a> Resolver<'a> {
 
         if let Some(generic) = self.find_generic(&rc_name) {
             self.errors.push(ResolverError::DuplicateDefinition {
-                name: name,
+                name,
                 first_span: generic.span,
                 second_span: span,
             });
         } else {
-            let is_numeric_generic = matches!(unresolved_generic, UnresolvedGeneric::Numeric { .. });
+            let is_numeric_generic =
+                matches!(unresolved_generic, UnresolvedGeneric::Numeric { .. });
             let resolved_generic = ResolvedGeneric {
                 name: rc_name,
                 type_var: typevar.clone(),
@@ -1007,7 +1017,7 @@ impl<'a> Resolver<'a> {
         self.resolving_ids.insert(struct_id);
         let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
         self.resolving_ids.remove(&struct_id);
- 
+
         (generics, fields, self.errors)
     }
 

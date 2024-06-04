@@ -1,14 +1,16 @@
-use std::{collections::BTreeMap, rc::Rc};
+use std::collections::BTreeMap;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::Span;
 
 use crate::{
-    graph::CrateId, hir::{
+    graph::CrateId,
+    hir::{
         def_collector::dc_crate::{CompilationError, UnresolvedFunctions},
         def_map::{CrateDefMap, ModuleId},
-    }, node_interner::{FuncId, NodeInterner, TraitImplId}, ResolvedGeneric, Type, TypeVariable
+    },
+    node_interner::{FuncId, NodeInterner, TraitImplId},
+    ResolvedGeneric, Type,
 };
 
 use super::{path_resolver::StandardPathResolver, Resolver};

@@ -99,7 +99,7 @@ pub struct FuncMeta {
     /// Note that this includes separate entries for each identifier in e.g. tuple patterns.
     pub parameter_idents: Vec<HirIdent>,
 
-    /// The HirIdent of each numeric generic identifier 
+    /// The HirIdent of each numeric generic identifier
     pub generic_idents: Vec<HirIdent>,
 
     pub return_type: FunctionReturnType,
