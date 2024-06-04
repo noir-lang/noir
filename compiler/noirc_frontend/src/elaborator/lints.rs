@@ -7,7 +7,7 @@ use crate::{
     },
     hir_def::expr::HirIdent,
     macros_api::{
-        HirExpression, HirLiteral, NodeInterner, NoirFunction, UnresolvedTypeData, Visibility,
+        HirExpression, HirLiteral, NodeInterner, NoirFunction, UnaryOp, UnresolvedTypeData, Visibility
     },
     node_interner::{DefinitionKind, ExprId},
     Type,

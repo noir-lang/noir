@@ -34,12 +34,7 @@ use crate::{
 };
 
 use super::{
-    lints::{
-        deprecated_function::lint_deprecated_function,
-        unconstrained_function_interface::{
-            lint_unconstrained_function_args, lint_unconstrained_function_return,
-        },
-    },
+    lints,
     Elaborator,
 };
 
@@ -1153,7 +1148,7 @@ impl<'context> Elaborator<'context> {
         span: Span,
     ) -> Type {
         self.run_lint(|elaborator| {
-            lint_deprecated_function(elaborator.interner, call.func).map(Into::into)
+            lints::deprecated_function(elaborator.interner, call.func).map(Into::into)
         });
 
         let func_mod = self.current_function.map(|func| self.interner.function_modifiers(&func));
@@ -1162,7 +1157,7 @@ impl<'context> Elaborator<'context> {
         let is_unconstrained_call = self.is_unconstrained_call(call.func);
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
         if crossing_runtime_boundary {
-            let errors = lint_unconstrained_function_args(&args);
+            let errors = lints::unconstrained_function_args(&args);
             for error in errors {
                 self.push_err(error);
             }
@@ -1172,7 +1167,7 @@ impl<'context> Elaborator<'context> {
 
         if crossing_runtime_boundary {
             self.run_lint(|_| {
-                lint_unconstrained_function_return(&return_type, span).map(Into::into)
+                lints::unconstrained_function_return(&return_type, span).map(Into::into)
             });
         }
 
