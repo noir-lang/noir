@@ -4,7 +4,7 @@ use acvm::{acir::AcirField, FieldElement};
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::{
@@ -36,34 +36,18 @@ pub struct Interpreter<'interner> {
     /// Each value currently in scope in the interpreter.
     /// Each element of the Vec represents a scope with every scope together making
     /// up all currently visible definitions.
-    scopes: Vec<HashMap<DefinitionId, Value>>,
-
-    /// True if we've expanded any macros into any functions and will need
-    /// to redo name resolution & type checking for that function.
-    changed_functions: HashSet<FuncId>,
-
-    /// True if we've expanded any macros into global scope and will need
-    /// to redo name resolution & type checking for everything.
-    changed_globally: bool,
+    scopes: &'interner mut Vec<HashMap<DefinitionId, Value>>,
 
     in_loop: bool,
-
-    /// True if we're currently in a compile-time context.
-    /// If this is false code is skipped over instead of executed.
-    in_comptime_context: bool,
 }
 
 #[allow(unused)]
 impl<'a> Interpreter<'a> {
-    pub(crate) fn new(interner: &'a mut NodeInterner) -> Self {
-        Self {
-            interner,
-            scopes: vec![HashMap::default()],
-            changed_functions: HashSet::default(),
-            changed_globally: false,
-            in_loop: false,
-            in_comptime_context: false,
-        }
+    pub(crate) fn new(
+        interner: &'a mut NodeInterner,
+        scopes: &'a mut Vec<HashMap<DefinitionId, Value>>,
+    ) -> Self {
+        Self { interner, scopes, in_loop: false }
     }
 
     pub(crate) fn call_function(
@@ -468,7 +452,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub(super) fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
+    pub fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
         let last_statement = block.statements.pop();
         self.push_scope();
 
@@ -1077,7 +1061,7 @@ impl<'a> Interpreter<'a> {
         Ok(Value::Closure(lambda, environment, typ))
     }
 
-    fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
+    pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
         match self.interner.statement(&statement) {
             HirStatement::Let(let_) => self.evaluate_let(let_),
             HirStatement::Constrain(constrain) => self.evaluate_constrain(constrain),
@@ -1098,7 +1082,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub(super) fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
+    pub fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
         let rhs = self.evaluate(let_.expression)?;
         let location = self.interner.expr_location(&let_.expression);
         self.define_pattern(&let_.pattern, &let_.r#type, rhs, location)?;
@@ -1265,9 +1249,6 @@ impl<'a> Interpreter<'a> {
     }
 
     pub(super) fn evaluate_comptime(&mut self, statement: StmtId) -> IResult<Value> {
-        let was_in_comptime = std::mem::replace(&mut self.in_comptime_context, true);
-        let result = self.evaluate_statement(statement);
-        self.in_comptime_context = was_in_comptime;
-        result
+        self.evaluate_statement(statement)
     }
 }
