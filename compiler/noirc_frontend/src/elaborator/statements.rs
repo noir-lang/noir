@@ -83,7 +83,16 @@ impl<'context> Elaborator<'context> {
         let expr_span = let_stmt.expression.span;
         let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
         let definition = DefinitionKind::Local(Some(expression));
-        let annotated_type = self.resolve_type(let_stmt.r#type);
+
+        let annotated_type_span = let_stmt.r#type.span;
+        let mut annotated_type = self.resolve_type(let_stmt.r#type);
+        if let Some(span) = annotated_type_span {
+            let is_numeric_generic = self.check_type_is_not_numeric_generic(&annotated_type, span);
+            // Make sure that we do not get a unification error in case of a misused numeric generic
+            if is_numeric_generic {
+                annotated_type = Type::Error;
+            }
+        }
 
         // First check if the LHS is unspecified
         // If so, then we give it the same type as the expression

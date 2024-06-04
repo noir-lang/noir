@@ -1392,10 +1392,13 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub fn check_type_is_not_numeric_generic(&mut self, typ: &Type, span: Span) {
+    pub fn check_type_is_not_numeric_generic(&mut self, typ: &Type, span: Span) -> bool {
+        let mut is_numeric_generic = false;
         if let Type::NamedGeneric(_, name) = &typ {
             if let Some(generic) = self.find_generic(name.as_ref()) {
                 if generic.is_numeric_generic {
+                    is_numeric_generic = true;
+
                     let expected_typ_err =
                         CompilationError::ResolverError(ResolverError::NumericGenericUsedForType {
                             name: name.to_string(),
@@ -1405,5 +1408,6 @@ impl<'context> Elaborator<'context> {
                 }
             }
         }
+        is_numeric_generic
     }
 }

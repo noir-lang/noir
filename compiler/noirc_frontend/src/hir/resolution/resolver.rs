@@ -1346,9 +1346,18 @@ impl<'a> Resolver<'a> {
             StatementKind::Let(let_stmt) => {
                 let expression = self.resolve_expression(let_stmt.expression);
                 let definition = DefinitionKind::Local(Some(expression));
+                let type_span = let_stmt.r#type.span;
+                let mut r#type = self.resolve_type(let_stmt.r#type);
+                if let Some(span) = type_span {
+                    let is_numeric_generic = self.check_type_is_not_numeric_generic(&r#type, span);
+                    // Make sure that we do not get a unification error in case of a misused numeric generic
+                    if is_numeric_generic {
+                        r#type = Type::Error;
+                    }
+                }
                 HirStatement::Let(HirLetStatement {
                     pattern: self.resolve_pattern(let_stmt.pattern, definition),
-                    r#type: self.resolve_type(let_stmt.r#type),
+                    r#type,
                     expression,
                     attributes: let_stmt.attributes,
                     comptime: let_stmt.comptime,
@@ -2197,16 +2206,20 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    pub fn check_type_is_not_numeric_generic(&mut self, typ: &Type, span: Span) {
+    pub fn check_type_is_not_numeric_generic(&mut self, typ: &Type, span: Span) -> bool {
+        let mut is_numeric_generic = false;
         if let Type::NamedGeneric(_, name) = &typ {
             if let Some(generic) = self.find_generic(name.as_ref()) {
                 if generic.is_numeric_generic {
+                    is_numeric_generic = true;
+
                     let expected_typ_err =
                         ResolverError::NumericGenericUsedForType { name: name.to_string(), span };
                     self.errors.push(expected_typ_err);
                 }
             }
         }
+        is_numeric_generic
     }
 }
 

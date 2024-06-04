@@ -1558,19 +1558,25 @@ fn numeric_generic_as_struct_field_type() {
 fn numeric_generic_as_param_type() {
     let src = r#"
     fn foo<let I: Field>(x: I) -> I {
+        let q: I = 5;
         x
     }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
-    // Error for the parameter type
+    assert_eq!(errors.len(), 3);
+    // Error from the parameter type
     assert!(matches!(
         errors[0].0,
         CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
     ));
-    // Error for the return type
+    // Error from the let statement annotated type
     assert!(matches!(
-        errors[1].0,
+        errors[2].0,
+        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
+    ));
+    // Error from the return type
+    assert!(matches!(
+        errors[3].0,
         CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
     ));
 }
