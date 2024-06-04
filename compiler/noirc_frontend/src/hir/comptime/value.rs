@@ -261,8 +261,8 @@ impl Value {
                 })
             }
             Value::Array(elements, _) => {
-                let elements = try_vecmap(elements, |elements| {
-                    elements.into_hir_expression(interner, location)
+                let elements = try_vecmap(elements, |element| {
+                    element.into_hir_expression(interner, location)
                 })?;
                 HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(elements)))
             }
