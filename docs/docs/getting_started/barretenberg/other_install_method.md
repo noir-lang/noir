@@ -6,11 +6,8 @@ keywords: [
   bb
   bbup
   Installation
-  Nightlies
   Specific Versions
-  Branches
   Binaries
-  Compiling from Source
   WSL for Windows
   Linux
   Uninstalling bb
@@ -20,7 +17,7 @@ sidebar_position: 1
 
 ## Encouraged Installation Method: bbup
 
-bbup is the recommended tool for installing Barretenberg, simplifying the process of obtaining binaries or compiling from source. It offers versatile options for installing specific versions, nightly builds, or custom source compilations.
+bbup is the recommended tool for installing Barretenberg, simplifying the process of obtaining binaries. It offers versatile options for installing specific versions.
 
 ### Installing bbup
 
@@ -33,11 +30,6 @@ curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/ba
 ### Fetching Binaries
 
 With `bbup`, you can easily manage different `bb` versions:
-
-- **Nightly Version**: Install the latest nightly build.
-  ```sh
-  bbup --version nightly
-  ```
   
 - **Specific Version**: Install a specific version of `bb`.
   ```sh
@@ -46,43 +38,9 @@ With `bbup`, you can easily manage different `bb` versions:
 
 ### Compiling from Source
 
-`bbup` also enables compiling `bb` from various sources:
+`bbup` is made to fetch pre-compiled binaries of Barretenberg, some users might prefer or require building `bb` from source to meet specific needs or for development purposes. However, building `bb` from source is a more involved process and is not supported directly through `bbup` due to the complex environment setup and potential compatibility issues with serialization code in other components like Nargo.
 
-- **From a Specific Branch**: Install from the latest commit on a branch.
-
-  ```sh
-  bbup --branch <branch-name>
-  ```
-  
-- **From a Fork**: Install from the main branch of a fork.
-
-  ```sh
-  bbup --repo <username/repo>
-  ```
-  
-- **From a Specific Branch in a Fork**: Install from a specific branch in a fork.
-
-  ```sh
-  bbup --repo <username/repo> --branch <branch-name>
-  ```
-  
-- **From a Specific Pull Request**: Install from a specific PR.
-
-  ```sh
-  bbup --pr <pr-number>
-  ```
-  
-- **From a Specific Commit**: Install from a specific commit.
-
-  ```sh
-  bbup -C <commit-hash>
-  ```
-  
-- **From Local Source**: Compile and install from a local directory.
-
-  ```sh
-  bbup --path ./path/to/local/source
-  ```
+If you choose to manually compile `bb` from source, refer to the detailed build instructions available in the [Barretenberg repository on GitHub](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg).
 
 ## Installation on Windows
 
@@ -99,5 +57,3 @@ To uninstall `bb` installed via bbup:
 ```bash
 rm -r ~/.bb 
 ```
-
-This ensures that all installed binaries, configurations, and cache related to `bb` are fully removed from your system.
