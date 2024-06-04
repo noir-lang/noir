@@ -1881,6 +1881,44 @@ TEST_F(AvmExecutionTests, opCallOpcodes)
     validate_trace(std::move(trace));
 }
 
+TEST_F(AvmExecutionTests, opGetContractInstanceOpcodes)
+{
+    std::string bytecode_hex = to_hex(OpCode::CALLDATACOPY) +        // opcode CALLDATACOPY for addr
+                               "00"                                  // Indirect flag
+                               "00000000"                            // cd_offset
+                               "00000001"                            // copy_size
+                               "00000001"                            // dst_offset, (i.e. where we store the addr)
+                               + to_hex(OpCode::SET) +               // opcode SET for the indirect dst offset
+                               "00"                                  // Indirect flag
+                               "03"                                  // U32
+                               "00000003"                            // val i
+                               "00000002" +                          // dst_offset 2
+                               to_hex(OpCode::GETCONTRACTINSTANCE) + // opcode CALL
+                               "02"                                  // Indirect flag
+                               "00000001"                            // address offset
+                               "00000002"                            // dst offset
+                               + to_hex(OpCode::RETURN) +            // opcode RETURN
+                               "00"                                  // Indirect flag
+                               "00000003"                            // ret offset 3
+                               "00000006";                           // ret size 6
+
+    auto bytecode = hex_to_bytes(bytecode_hex);
+    auto instructions = Deserialization::parse(bytecode);
+
+    FF address = 10;
+    std::vector<FF> calldata = { address };
+    std::vector<FF> returndata = {};
+
+    // Generate Hint for call operation
+    ExecutionHints execution_hints = {};
+    ContractInstanceHint contract_instance_hint = { 1, 1, 2, 3, 4, 5 }; // The first one represents true
+    execution_hints.contract_instance_hints.insert({ address, contract_instance_hint });
+
+    auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
+    EXPECT_EQ(returndata, std::vector<FF>({ 1, 1, 2, 3, 4, 5 })); // The first one represents true
+
+    validate_trace(std::move(trace));
+}
 // Negative test detecting an invalid opcode byte.
 TEST_F(AvmExecutionTests, invalidOpcode)
 {

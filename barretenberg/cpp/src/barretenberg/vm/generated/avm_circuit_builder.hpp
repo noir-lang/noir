@@ -287,6 +287,7 @@ template <typename FF> struct AvmFullRow {
     FF avm_main_sel_op_fdiv{};
     FF avm_main_sel_op_fee_per_da_gas{};
     FF avm_main_sel_op_fee_per_l2_gas{};
+    FF avm_main_sel_op_get_contract_instance{};
     FF avm_main_sel_op_keccak{};
     FF avm_main_sel_op_l1_to_l2_msg_exists{};
     FF avm_main_sel_op_lt{};
@@ -524,8 +525,8 @@ class AvmCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 431;
-    static constexpr size_t num_polys = 367;
+    static constexpr size_t num_fixed_columns = 432;
+    static constexpr size_t num_polys = 368;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -751,6 +752,7 @@ class AvmCircuitBuilder {
             polys.avm_main_sel_op_fdiv[i] = rows[i].avm_main_sel_op_fdiv;
             polys.avm_main_sel_op_fee_per_da_gas[i] = rows[i].avm_main_sel_op_fee_per_da_gas;
             polys.avm_main_sel_op_fee_per_l2_gas[i] = rows[i].avm_main_sel_op_fee_per_l2_gas;
+            polys.avm_main_sel_op_get_contract_instance[i] = rows[i].avm_main_sel_op_get_contract_instance;
             polys.avm_main_sel_op_keccak[i] = rows[i].avm_main_sel_op_keccak;
             polys.avm_main_sel_op_l1_to_l2_msg_exists[i] = rows[i].avm_main_sel_op_l1_to_l2_msg_exists;
             polys.avm_main_sel_op_lt[i] = rows[i].avm_main_sel_op_lt;

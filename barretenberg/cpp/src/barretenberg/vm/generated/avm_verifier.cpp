@@ -426,6 +426,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_fee_per_da_gas);
     commitments.avm_main_sel_op_fee_per_l2_gas =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_fee_per_l2_gas);
+    commitments.avm_main_sel_op_get_contract_instance =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_get_contract_instance);
     commitments.avm_main_sel_op_keccak =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_keccak);
     commitments.avm_main_sel_op_l1_to_l2_msg_exists =

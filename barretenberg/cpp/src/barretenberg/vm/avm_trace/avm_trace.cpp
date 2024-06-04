@@ -2450,6 +2450,75 @@ void AvmTraceBuilder::op_call([[maybe_unused]] uint8_t indirect,
         call_ptr, clk, success_offset, AvmMemoryTag::U0, AvmMemoryTag::U8, internal_return_ptr, { FF(1) });
 }
 
+void AvmTraceBuilder::op_get_contract_instance(uint8_t indirect, uint32_t address_offset, uint32_t dst_offset)
+{
+    auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
+    bool tag_match = true;
+    uint32_t direct_address_offset = address_offset;
+    uint32_t direct_dst_offset = dst_offset;
+
+    bool indirect_address_flag = is_operand_indirect(indirect, 0);
+    bool indirect_dst_flag = is_operand_indirect(indirect, 1);
+
+    if (indirect_address_flag) {
+        auto read_ind_address = mem_trace_builder.indirect_read_and_load_from_memory(
+            call_ptr, clk, IndirectRegister::IND_A, address_offset);
+        direct_address_offset = uint32_t(read_ind_address.val);
+        tag_match = tag_match && read_ind_address.tag_match;
+    }
+
+    if (indirect_dst_flag) {
+        auto read_ind_dst =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_B, dst_offset);
+        direct_dst_offset = uint32_t(read_ind_dst.val);
+        tag_match = tag_match && read_ind_dst.tag_match;
+    }
+
+    auto read_address = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IA, direct_address_offset, AvmMemoryTag::FF, AvmMemoryTag::U0);
+    auto read_dst = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IB, direct_dst_offset, AvmMemoryTag::FF, AvmMemoryTag::U0);
+
+    // Constrain gas cost
+    gas_trace_builder.constrain_gas_lookup(clk, OpCode::GETCONTRACTINSTANCE);
+
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_ia = read_address.val,
+        .avm_main_ib = read_dst.val,
+        .avm_main_ind_a = indirect_address_flag ? address_offset : 0,
+        .avm_main_ind_b = indirect_dst_flag ? dst_offset : 0,
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(indirect_address_flag)),
+        .avm_main_ind_op_b = FF(static_cast<uint32_t>(indirect_dst_flag)),
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_a = FF(direct_address_offset),
+        .avm_main_mem_idx_b = FF(direct_dst_offset),
+        .avm_main_mem_op_a = FF(1),
+        .avm_main_mem_op_activate_gas = FF(1), // TODO: remove in the long term
+        .avm_main_mem_op_b = FF(1),
+        .avm_main_pc = FF(pc++),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
+        .avm_main_sel_op_get_contract_instance = FF(1),
+    });
+    clk++;
+    // Read the contract instance
+    ContractInstanceHint contract_instance = execution_hints.contract_instance_hints.at(read_address.val);
+
+    std::vector<FF> contract_instance_vec = { contract_instance.instance_found_in_address,
+                                              contract_instance.salt,
+                                              contract_instance.deployer_addr,
+                                              contract_instance.contract_class_id,
+                                              contract_instance.initialisation_hash,
+                                              contract_instance.public_key_hash };
+    write_slice_to_memory(call_ptr,
+                          clk,
+                          direct_dst_offset,
+                          AvmMemoryTag::U0,
+                          AvmMemoryTag::FF,
+                          internal_return_ptr,
+                          contract_instance_vec);
+}
+
 /**
  * @brief To_Radix_LE with direct or indirect memory access.
  *
@@ -2486,7 +2555,8 @@ void AvmTraceBuilder::op_to_radix_le(
 
     auto read_src = mem_trace_builder.read_and_load_from_memory(
         call_ptr, clk, IntermRegister::IA, direct_src_offset, AvmMemoryTag::FF, AvmMemoryTag::U8);
-    // Read in the memory address of where the first limb should be stored (the read_tag must be U32 and write tag U8)
+    // Read in the memory address of where the first limb should be stored (the read_tag must be U32 and write tag
+    // U8)
     auto read_dst = mem_trace_builder.read_and_load_from_memory(
         call_ptr, clk, IntermRegister::IB, direct_dst_offset, AvmMemoryTag::FF, AvmMemoryTag::U8);
 
@@ -2553,7 +2623,6 @@ void AvmTraceBuilder::op_sha256_compression(uint8_t indirect,
                                             uint32_t h_init_offset,
                                             uint32_t input_offset)
 {
-
     // The clk plays a crucial role in this function as we attempt to write across multiple lines in the main trace.
     auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
@@ -2572,14 +2641,14 @@ void AvmTraceBuilder::op_sha256_compression(uint8_t indirect,
     // Constrain gas cost
     gas_trace_builder.constrain_gas_lookup(clk, OpCode::SHA256COMPRESSION);
 
-    // Since the above adds mem_reads in the mem_trace_builder at clk, we need to follow up resolving the reads in the
-    // main trace at the same clk cycle to preserve the cross-table permutation
+    // Since the above adds mem_reads in the mem_trace_builder at clk, we need to follow up resolving the reads in
+    // the main trace at the same clk cycle to preserve the cross-table permutation
     //
     // TODO<#6383>: We put the first value of each of the input, output (which is 0 at this point) and h_init arrays
     // into the main trace at the intermediate registers simply for the permutation check, in the future this will
     // change.
-    // Note: we could avoid output being zero if we loaded the input and state beforehand (with a new function that did
-    // not lay down constraints), but this is a simplification
+    // Note: we could avoid output being zero if we loaded the input and state beforehand (with a new function that
+    // did not lay down constraints), but this is a simplification
     main_trace.push_back(Row{
         .avm_main_clk = clk,
         .avm_main_ia = read_a.val, // First element of output (trivially 0)
@@ -2603,8 +2672,8 @@ void AvmTraceBuilder::op_sha256_compression(uint8_t indirect,
         .avm_main_sel_op_sha256 = FF(1),
         .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
     });
-    // We store the current clk this main trace row occurred so that we can line up the sha256 gadget operation at the
-    // same clk later.
+    // We store the current clk this main trace row occurred so that we can line up the sha256 gadget operation at
+    // the same clk later.
     auto sha_op_clk = clk;
     // We need to increment the clk
     clk++;
@@ -2637,8 +2706,8 @@ void AvmTraceBuilder::op_sha256_compression(uint8_t indirect,
     clk += 4;
 
     // Now that we have read all the values, we can perform the operation to get the resulting witness.
-    // Note: We use the sha_op_clk to ensure that the sha256 operation is performed at the same clock cycle as the main
-    // trace that has the selector
+    // Note: We use the sha_op_clk to ensure that the sha256 operation is performed at the same clock cycle as the
+    // main trace that has the selector
     std::array<uint32_t, 8> h_init = vec_to_arr<uint32_t, 8>(h_init_vec);
     std::array<uint32_t, 16> input = vec_to_arr<uint32_t, 16>(input_vec);
 
@@ -2737,8 +2806,8 @@ void AvmTraceBuilder::op_sha256(uint8_t indirect,
     std::vector<uint8_t> input;
     input.reserve(uint32_t(input_length_read.val));
 
-    // We unroll this loop because the function typically expects arrays and for this temporary sha256 function we have
-    // a dynamic amount of input so we will use a vector.
+    // We unroll this loop because the function typically expects arrays and for this temporary sha256 function we
+    // have a dynamic amount of input so we will use a vector.
     auto register_order = std::array{ IntermRegister::IA, IntermRegister::IB, IntermRegister::IC, IntermRegister::ID };
     // If the slice size isnt a multiple of 4, we still need an extra row to write the remainder
     uint32_t const num_main_rows = static_cast<uint32_t>(input_length_read.val) / 4 +
@@ -2863,8 +2932,8 @@ void AvmTraceBuilder::op_poseidon2_permutation(uint8_t indirect, uint32_t input_
         .avm_main_sel_op_poseidon2 = FF(1),
         .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
     });
-    // We store the current clk this main trace row occurred so that we can line up the poseidon2 gadget operation at
-    // the same clk later.
+    // We store the current clk this main trace row occurred so that we can line up the poseidon2 gadget operation
+    // at the same clk later.
     auto poseidon_op_clk = clk;
 
     // We need to increment the clk
@@ -2982,8 +3051,8 @@ void AvmTraceBuilder::op_keccakf1600(uint8_t indirect,
     clk += 7;
 
     // Now that we have read all the values, we can perform the operation to get the resulting witness.
-    // Note: We use the keccak_op_clk to ensure that the keccakf1600 operation is performed at the same clock cycle as
-    // the main trace that has the selector
+    // Note: We use the keccak_op_clk to ensure that the keccakf1600 operation is performed at the same clock cycle
+    // as the main trace that has the selector
     std::array<uint64_t, 25> result = keccak_trace_builder.keccakf1600(keccak_op_clk, input);
     // We convert the results to field elements here
     std::vector<FF> ff_result;
@@ -3792,10 +3861,12 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
     }
 
     // Write the kernel trace into the main trace
-    // 1. The write offsets are constrained to be non changing over the entire trace, so we fill in the values until we
+    // 1. The write offsets are constrained to be non changing over the entire trace, so we fill in the values until
+    // we
     //    hit an operation that changes one of the write_offsets (a relevant opcode)
     // 2. Upon hitting the clk of each kernel operation we copy the values into the main trace
-    // 3. When an increment is required, we increment the value in the next row, then continue the process until the end
+    // 3. When an increment is required, we increment the value in the next row, then continue the process until the
+    // end
     // 4. Whenever we hit the last row, we zero all write_offsets such that the shift relation will succeed
     std::vector<AvmKernelTraceBuilder::KernelTraceEntry> kernel_trace = kernel_trace_builder.finalize();
     size_t kernel_padding_main_trace_bottom = 1;
@@ -3905,8 +3976,9 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
     /////////// GAS ACCOUNTING //////////////////////////
 
     // Add the gas cost table to the main trace
-    // TODO: do i need a way to produce an interupt that will stop the execution of the trace when the gas left becomes
-    // zero in the gas_trace_builder Does all of the gas trace information need to be added to this main machine?????
+    // TODO: do i need a way to produce an interupt that will stop the execution of the trace when the gas left
+    // becomes zero in the gas_trace_builder Does all of the gas trace information need to be added to this main
+    // machine?????
 
     // Add the gas accounting for each row
     // We can assume that the gas trace will never be larger than the main trace

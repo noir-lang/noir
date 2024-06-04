@@ -220,6 +220,8 @@
     [[maybe_unused]] auto avm_main_sel_op_fdiv = View(new_term.avm_main_sel_op_fdiv);                                  \
     [[maybe_unused]] auto avm_main_sel_op_fee_per_da_gas = View(new_term.avm_main_sel_op_fee_per_da_gas);              \
     [[maybe_unused]] auto avm_main_sel_op_fee_per_l2_gas = View(new_term.avm_main_sel_op_fee_per_l2_gas);              \
+    [[maybe_unused]] auto avm_main_sel_op_get_contract_instance =                                                      \
+        View(new_term.avm_main_sel_op_get_contract_instance);                                                          \
     [[maybe_unused]] auto avm_main_sel_op_keccak = View(new_term.avm_main_sel_op_keccak);                              \
     [[maybe_unused]] auto avm_main_sel_op_l1_to_l2_msg_exists = View(new_term.avm_main_sel_op_l1_to_l2_msg_exists);    \
     [[maybe_unused]] auto avm_main_sel_op_lt = View(new_term.avm_main_sel_op_lt);                                      \

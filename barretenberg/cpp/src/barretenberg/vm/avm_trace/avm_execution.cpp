@@ -474,6 +474,11 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
                                                  // std::get<uint32_t>(inst.operands.at(2))
                                                  std::get<uint32_t>(inst.operands.at(3)));
             break;
+        case OpCode::GETCONTRACTINSTANCE:
+            trace_builder.op_get_contract_instance(std::get<uint8_t>(inst.operands.at(0)),
+                                                   std::get<uint32_t>(inst.operands.at(1)),
+                                                   std::get<uint32_t>(inst.operands.at(2)));
+            break;
         case OpCode::EMITUNENCRYPTEDLOG:
             trace_builder.op_emit_unencrypted_log(std::get<uint32_t>(inst.operands.at(1)));
             break;

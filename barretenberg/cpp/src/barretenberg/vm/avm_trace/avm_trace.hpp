@@ -106,6 +106,7 @@ class AvmTraceBuilder {
     void op_emit_nullifier(uint32_t nullifier_offset);
     void op_emit_unencrypted_log(uint32_t log_offset);
     void op_emit_l2_to_l1_msg(uint32_t msg_offset);
+    void op_get_contract_instance(uint8_t indirect, uint32_t address_offset, uint32_t dst_offset);
 
     // With additional metadata output
     void op_l1_to_l2_msg_exists(uint32_t msg_offset, uint32_t dest_offset);

@@ -48,6 +48,7 @@ namespace avm_main(256);
     pol commit sel_op_l1_to_l2_msg_exists;
     pol commit sel_op_emit_unencrypted_log;
     pol commit sel_op_emit_l2_to_l1_msg;
+    pol commit sel_op_get_contract_instance;
 
     pol commit sel_op_sload;
     pol commit sel_op_sstore;
@@ -248,6 +249,7 @@ namespace avm_main(256);
     sel_op_l1_to_l2_msg_exists * (1 - sel_op_l1_to_l2_msg_exists) = 0;
     sel_op_emit_unencrypted_log * (1 - sel_op_emit_unencrypted_log) = 0;
     sel_op_emit_l2_to_l1_msg * (1 - sel_op_emit_l2_to_l1_msg) = 0;
+    sel_op_get_contract_instance * (1 - sel_op_get_contract_instance) = 0;
 
     sel_op_sload * (1 - sel_op_sload) = 0;
     sel_op_sstore * (1 - sel_op_sstore) = 0;
@@ -577,6 +579,8 @@ namespace avm_main(256);
     #[EMIT_UNENCRYPTED_LOG_KERNEL_OUTPUT]
     sel_op_emit_unencrypted_log * (avm_kernel.kernel_out_offset - (avm_kernel.START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET + avm_kernel.emit_unencrypted_log_write_offset)) = 0;
     first * avm_kernel.emit_unencrypted_log_write_offset = 0;
+
+    // TODO: Add the equivalent for GETCONTRACTINSTANCE?
 
     #[EMIT_L2_TO_L1_MSGS_KERNEL_OUTPUT]
     sel_op_emit_l2_to_l1_msg * (avm_kernel.kernel_out_offset - (avm_kernel.START_EMIT_L2_TO_l1_MSG + avm_kernel.emit_l2_to_l1_msg_write_offset)) = 0;

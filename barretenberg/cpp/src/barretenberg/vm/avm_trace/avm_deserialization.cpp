@@ -65,6 +65,7 @@ const std::unordered_map<OpCode, std::vector<OperandType>> OPCODE_WIRE_FORMAT = 
     { OpCode::FEEPERDAGAS, getter_format },
     { OpCode::TRANSACTIONFEE, getter_format },
 
+    { OpCode::GETCONTRACTINSTANCE, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32 } },
     // TODO: ordering inline with spec
     { OpCode::EMITNOTEHASH, getter_format },  // TODO: new format for these
     { OpCode::EMITNULLIFIER, getter_format }, // TODO: new format for these
