@@ -14,7 +14,7 @@ pub enum PubPosition {
     ReturnType,
 }
 
-#[derive(Error, Debug, Clone, PartialEq, Eq)]
+#[derive(Error, Debug, Clone)]
 pub enum ResolverError {
     #[error("Duplicate definition")]
     DuplicateDefinition { name: String, first_span: Span, second_span: Span },
