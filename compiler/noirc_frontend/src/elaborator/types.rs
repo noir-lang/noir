@@ -33,10 +33,7 @@ use crate::{
     Generics, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
-use super::{
-    lints,
-    Elaborator,
-};
+use super::{lints, Elaborator};
 
 impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type

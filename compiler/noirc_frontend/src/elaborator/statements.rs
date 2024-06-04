@@ -101,7 +101,7 @@ impl<'context> Elaborator<'context> {
                 let errors = lints::overflowing_uint(self.interner, &expression, &annotated_type);
                 for error in errors {
                     self.push_err(error);
-                };
+                }
             }
             annotated_type
         } else {
