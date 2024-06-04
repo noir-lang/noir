@@ -180,18 +180,10 @@ impl Value {
     pub(crate) fn to_u128(&self) -> Option<u128> {
         match self {
             Self::Field(value) => Some(value.to_u128()),
-            Self::I8(value) => {
-                (*value >= 0).then(|| *value as u128)
-            }
-            Self::I16(value) => {
-                (*value >= 0).then(|| *value as u128)
-            }
-            Self::I32(value) => {
-                (*value >= 0).then(|| *value as u128)
-            }
-            Self::I64(value) => {
-                (*value >= 0).then(|| *value as u128)
-            }
+            Self::I8(value) => (*value >= 0).then_some(*value as u128),
+            Self::I16(value) => (*value >= 0).then_some(*value as u128),
+            Self::I32(value) => (*value >= 0).then_some(*value as u128),
+            Self::I64(value) => (*value >= 0).then_some(*value as u128),
             Self::U8(value) => Some(*value as u128),
             Self::U16(value) => Some(*value as u128),
             Self::U32(value) => Some(*value as u128),

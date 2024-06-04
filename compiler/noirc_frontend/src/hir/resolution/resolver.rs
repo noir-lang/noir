@@ -2073,11 +2073,11 @@ impl<'a> Resolver<'a> {
                 let lhs_value = Value::Field(lhs.into());
                 let evaluated_value =
                     Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, self.interner)
-                        .map_err(|error| {
-                            Some(ResolverError::ArrayLengthInterpreter { error, span })
-                        })?;
+                        .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
 
-                evaluated_value.to_u128().ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
+                evaluated_value
+                    .to_u128()
+                    .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
             }
             _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }
