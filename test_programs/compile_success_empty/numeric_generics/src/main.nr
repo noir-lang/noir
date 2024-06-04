@@ -1,4 +1,7 @@
-global N = 1000;
+// TODO: A global of the same name with the const generic does not work 
+// at the moment. This will work once we switch over to the "elaborator"
+// in the noirc_frontend
+// global N = 1000;
 
 fn main() {
     let a = id([1, 2]);
@@ -29,18 +32,19 @@ fn main() {
     assert(new_arr[0] == 5);
 }
 
-fn id<I>(x: [Field; I]) -> [Field; I] {
+// TODO: getting unused variable warnings
+fn id<let I: Field>(x: [Field; I]) -> [Field; I] {
     x
 }
 
-struct MyStruct<S> {
+struct MyStruct<let S: u64> {
     data: [Field; S],
 }
 
-impl<S> MyStruct<S> {
+impl<let S: u64> MyStruct<S> {
     fn insert(mut self: Self, index: Field, elem: Field) -> Self {
         // Regression test for numeric generics on impls
-        assert(index as u64 < S as u64);
+        assert(index as u64 < S);
 
         self.data[index] = elem;
         self
@@ -64,14 +68,26 @@ fn double_numeric_generics_test() {
     assert(double::<7 + 8>() == 30);
 }
 
+// Used as a field of a struct
+struct Foo<let N: u64> {
+    inner: [u64; N],
+}
+fn baz<let N: u64>() -> Foo<N> {
+    Foo { inner: [1; N] }
+}
+// Used in an impl
+impl<let N: u64> Foo<N> {
+    fn bar(self) -> u64 {
+        N * self.inner[0]
+    }
+}
+
 struct MyType {
     a: Field,
     b: Field,
     c: Field,
 }
 
-// TODO 1: getting some duplicate definition errors here
-// TODO 2: Ban in the trait constraint specifying a numeric generic
 impl<let N: u64> Deserialize<N> for MyType {
     fn deserialize(fields: [Field; N]) -> Self {
         MyType { a: fields[0], b: fields[1], c: fields[2] }
@@ -85,7 +101,7 @@ trait Deserialize<let N: u64> {
 struct PublicStorage {}
 
 impl PublicStorage {
-    fn read<T, let N: u64>() -> T where T: Deserialize<N> {
+    fn read<Tlet, N: u64>() -> T where T: Deserialize<N> {
         // Used as a type within a function body
         let mut fields: [Field; N] = [0; N];
         // Used a loop bound
@@ -100,18 +116,4 @@ impl PublicStorage {
 fn update_arr<let N: u8>(mut arr: [Field; N]) -> [Field; N] {
     arr[0] = 5;
     arr
-}
-
-// Used as a field of a struct
-struct Foo<let N: u64> {
-    inner: [u64; N],
-}
-fn baz<let N: u64>() -> Foo<N> {
-    Foo { inner: [1; N] }
-}
-
-impl<let N: u64> Foo<N> {
-    fn bar(self) -> u64 {
-        N * self.inner[0]
-    }
 }

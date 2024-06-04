@@ -98,6 +98,8 @@ pub enum ResolverError {
     UnsupportedNumericGenericType { ident: Ident, typ: Type },
     #[error("Numeric generics should be explicit")]
     UseExplicitNumericGeneric { ident: Ident },
+    #[error("expected type, found numeric generic parameter")]
+    NumericGenericUsedForType { ident: Ident },
 }
 
 impl ResolverError {
@@ -406,6 +408,15 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     String::from("Noir now supports explicit numeric generics. Support for implicit numeric generics will be removed in the following release."), 
                 format!("Numeric generic `{name}` should now be specified with `let {name}: <annotated type>`"), 
                 ident.0.span(),
+                )
+            }
+            ResolverError::NumericGenericUsedForType { ident } => {
+                let name = &ident.0.contents;
+
+                Diagnostic::simple_error(
+                    format!("expected type, found numeric generic parameter {name}"),
+                    String::from("not a type"),
+                    ident.0.span(),
                 )
             }
         }

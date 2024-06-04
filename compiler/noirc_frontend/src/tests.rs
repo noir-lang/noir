@@ -81,7 +81,7 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            false,
+            true,
             &[], // No macro processors
         ));
     }
@@ -1491,6 +1491,7 @@ fn numeric_generic_binary_operation_type_mismatch() {
     }
     "#;
     let errors = get_program_errors(src);
+    dbg!(errors.clone());
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
@@ -1537,5 +1538,18 @@ fn numeric_generic_in_function_signature() {
     assert!(errors.is_empty());
 }
 
-// #[test]
-// fn generic
+#[test]
+fn numeric_generic_as_struct_field_type() {
+    let src = r#"
+    struct Foo<let N: u64> {
+        a: Field,
+        b: N,
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
+    ));
+}

@@ -218,6 +218,14 @@ pub struct StructType {
 /// Corresponds to generic lists such as `<T, U>` in the source program.
 pub type Generics = Vec<TypeVariable>;
 
+#[derive(Clone, Debug)]
+pub struct ResolvedGeneric {
+    pub name: Rc<String>,
+    pub type_var: TypeVariable,
+    pub is_numeric_generic: bool,
+    pub span: Span,
+}
+
 impl std::hash::Hash for StructType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);

@@ -4,7 +4,7 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
-use crate::ast::{ItemVisibility, Path, TraitItem};
+use crate::ast::{ItemVisibility, Path, TraitItem, UnresolvedGeneric, Ident};
 use crate::{
     graph::CrateId,
     hir::{
@@ -126,7 +126,7 @@ fn resolve_trait_methods(
             resolver.add_generics(generics);
 
             resolver.add_existing_generics(&unresolved_trait.trait_def.generics, trait_generics);
-            resolver.add_existing_generic("Self", name_span, self_typevar);
+            resolver.add_existing_generic(&UnresolvedGeneric::Variable(Ident::from("Self")), name_span, self_typevar);
             resolver.set_self_type(Some(self_type.clone()));
 
             let func_id = unresolved_trait.method_ids[&name.0.contents];
@@ -143,7 +143,7 @@ fn resolve_trait_methods(
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
             let return_type = resolver.resolve_type(return_type.get_type().into_owned());
 
-            let generics = vecmap(resolver.get_generics(), |(_, type_var, _)| type_var.clone());
+            let generics = vecmap(resolver.get_generics(), |generic| generic.type_var.clone());
 
             let default_impl_list: Vec<_> = unresolved_trait
                 .fns_with_default_impl
@@ -463,7 +463,7 @@ pub(crate) fn resolve_trait_impls(
                 methods: vecmap(&impl_methods, |(_, func_id)| *func_id),
             });
 
-            let impl_generics = vecmap(impl_generics, |(_, type_variable, _)| type_variable);
+            let impl_generics = vecmap(impl_generics, |generic| generic.type_var);
 
             if let Err((prev_span, prev_file)) = interner.add_trait_implementation(
                 self_type.clone(),

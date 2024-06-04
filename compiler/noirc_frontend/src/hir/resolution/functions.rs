@@ -5,16 +5,13 @@ use iter_extended::vecmap;
 use noirc_errors::Span;
 
 use crate::{
-    graph::CrateId,
-    hir::{
+    graph::CrateId, hir::{
         def_collector::dc_crate::{CompilationError, UnresolvedFunctions},
         def_map::{CrateDefMap, ModuleId},
-    },
-    node_interner::{FuncId, NodeInterner, TraitImplId},
-    Type, TypeVariable,
+    }, node_interner::{FuncId, NodeInterner, TraitImplId}, ResolvedGeneric, Type, TypeVariable
 };
 
-use super::{path_resolver::StandardPathResolver, resolver::Resolver};
+use super::{path_resolver::StandardPathResolver, Resolver};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn resolve_function_set(
@@ -24,7 +21,7 @@ pub(crate) fn resolve_function_set(
     mut unresolved_functions: UnresolvedFunctions,
     self_type: Option<Type>,
     trait_impl_id: Option<TraitImplId>,
-    impl_generics: Vec<(Rc<String>, TypeVariable, Span)>,
+    impl_generics: Vec<ResolvedGeneric>,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Vec<(FileId, FuncId)> {
     let file_id = unresolved_functions.file_id;

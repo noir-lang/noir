@@ -41,7 +41,7 @@ pub(crate) fn resolve_structs(
             struct_def.generics = generics;
         });
     }
-
+    dbg!(errors.len());
     // Check whether the struct fields have nested slices
     // We need to check after all structs are resolved to
     // make sure every struct's fields is accurately set.
@@ -78,6 +78,6 @@ fn resolve_struct_fields(
     let (generics, fields, errors) =
         Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file_id)
             .resolve_struct_fields(unresolved.struct_def, type_id);
-
+    dbg!(errors.len());
     (generics, fields, errors)
 }

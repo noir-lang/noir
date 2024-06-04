@@ -6,31 +6,23 @@ use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{
-        BinaryOpKind, Ident, IntegerBitSize, UnresolvedGenerics, UnresolvedTraitConstraint,
-        UnresolvedTypeExpression,
-    },
-    hir::{
-        def_map::ModuleDefId,
-        resolution::{
+        BinaryOpKind, Ident, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedTypeExpression
+    }, hir::{
+        def_collector::dc_crate::CompilationError, def_map::ModuleDefId, resolution::{
             errors::ResolverError,
             resolver::{verify_mutable_reference, SELF_TYPE_NAME},
-        },
-        type_check::{Source, TypeCheckError},
-    },
-    hir_def::{
+        }, type_check::{Source, TypeCheckError}
+    }, hir_def::{
         expr::{
             HirBinaryOp, HirCallExpression, HirIdent, HirMemberAccess, HirMethodReference,
             HirPrefixExpression,
         },
         function::FuncMeta,
         traits::TraitConstraint,
-    },
-    macros_api::{
+    }, macros_api::{
         HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
         UnaryOp, UnresolvedType, UnresolvedTypeData,
-    },
-    node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
-    Generics, Type, TypeBinding, TypeVariable, TypeVariableKind,
+    }, node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId}, Generics, ResolvedGeneric, Type, TypeBinding, TypeVariable, TypeVariableKind
 };
 
 use super::Elaborator;
@@ -132,8 +124,8 @@ impl<'context> Elaborator<'context> {
         resolved_type
     }
 
-    pub fn find_generic(&self, target_name: &str) -> Option<&(Rc<String>, TypeVariable, Span)> {
-        self.generics.iter().find(|(name, _, _)| name.as_ref() == target_name)
+    pub fn find_generic(&self, target_name: &str) -> Option<&ResolvedGeneric> {
+        self.generics.iter().find(|generic| generic.name.as_ref() == target_name)
     }
 
     fn resolve_named_type(
@@ -268,8 +260,13 @@ impl<'context> Elaborator<'context> {
     pub fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
-            if let Some((name, var, _)) = self.find_generic(name) {
-                return Some(Type::NamedGeneric(var.clone(), name.clone()));
+            if let Some(generic) = self.find_generic(name) {
+                if generic.is_numeric_generic {
+                    let expected_typ_err = CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { ident: path.last_segment() });
+                    self.errors.push((expected_typ_err, self.file));
+                    return Some(Type::Error);
+                } 
+                return Some(Type::NamedGeneric(generic.type_var.clone(), generic.name.clone()));
             }
         }
 
@@ -1439,27 +1436,37 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub fn add_existing_generics(&mut self, names: &UnresolvedGenerics, generics: &Generics) {
-        assert_eq!(names.len(), generics.len());
+    pub fn add_existing_generics(&mut self, unresolved_generics: &UnresolvedGenerics, generics: &Generics) {
+        assert_eq!(unresolved_generics.len(), generics.len());
 
-        for (name, typevar) in names.iter().zip(generics) {
-            let name = Ident::from(name);
-            self.add_existing_generic(&name.0.contents, name.0.span(), typevar.clone());
+        for (unresolved_generic, typevar) in unresolved_generics.iter().zip(generics) {
+            let name = Ident::from(unresolved_generic);
+            self.add_existing_generic(unresolved_generic, name.0.span(), typevar.clone());
         }
     }
 
-    pub fn add_existing_generic(&mut self, name: &str, span: Span, typevar: TypeVariable) {
-        // Check for name collisions of this generic
-        let rc_name = Rc::new(name.to_owned());
+    pub fn add_existing_generic(&mut self, unresolved_generic: &UnresolvedGeneric, span: Span, typevar: TypeVariable) {
+        let ident = Ident::from(unresolved_generic);
+        let name = ident.0.contents;
 
-        if let Some((_, _, first_span)) = self.find_generic(&rc_name) {
+        // Check for name collisions of this generic
+        let rc_name = Rc::new(name.clone());
+
+        if let Some(generic) = self.find_generic(&rc_name) {
             self.push_err(ResolverError::DuplicateDefinition {
-                name: name.to_owned(),
-                first_span: *first_span,
+                name: name,
+                first_span: generic.span,
                 second_span: span,
             });
         } else {
-            self.generics.push((rc_name, typevar, span));
+            let is_numeric_generic = matches!(unresolved_generic, UnresolvedGeneric::Numeric { .. });
+            let resolved_generic = ResolvedGeneric {
+                name: rc_name,
+                type_var: typevar.clone(),
+                is_numeric_generic,
+                span,
+            };
+            self.generics.push(resolved_generic);
         }
     }
 }

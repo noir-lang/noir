@@ -4,8 +4,7 @@ use std::{
 };
 
 use crate::{
-    ast::{FunctionKind, UnresolvedGeneric, UnresolvedTraitConstraint},
-    hir::{
+    ast::{FunctionKind, UnresolvedGeneric, UnresolvedTraitConstraint}, hir::{
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
@@ -16,13 +15,9 @@ use crate::{
         resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext},
         scope::ScopeForest as GenericScopeForest,
         type_check::TypeCheckError,
-    },
-    hir_def::{expr::HirIdent, function::Parameters, traits::TraitConstraint},
-    macros_api::{
+    }, hir_def::{expr::HirIdent, function::Parameters, traits::TraitConstraint}, macros_api::{
         Ident, NodeInterner, NoirFunction, NoirStruct, Pattern, SecondaryAttribute, StructId,
-    },
-    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, TraitId, TypeAliasId},
-    Shared, Type, TypeVariable,
+    }, node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, TraitId, TypeAliasId}, ResolvedGeneric, Shared, Type, TypeVariable
 };
 use crate::{
     ast::{TraitBound, UnresolvedGenerics},
@@ -98,7 +93,7 @@ pub struct Elaborator<'context> {
     /// unique type variables if we're resolving a struct. Empty otherwise.
     /// This is a Vec rather than a map to preserve the order a functions generics
     /// were declared in.
-    generics: Vec<(Rc<String>, TypeVariable, Span)>,
+    generics: Vec<ResolvedGeneric>,
 
     /// The idents for each numeric generic on a function
     /// These definitions are generated when creating function metas 
@@ -205,72 +200,24 @@ impl<'context> Elaborator<'context> {
         for global in literal_globals {
             this.elaborate_global(global);
         }
-        if !this.errors.is_empty() {
-            dbg!(this.errors.clone());
-            for e in this.errors.iter() {
-                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
-                    dbg!("GOT DUP DEF");
-                }
-            }
-        }
+
         for (alias_id, alias) in items.type_aliases {
             this.define_type_alias(alias_id, alias);
         }
-        if !this.errors.is_empty() {
-            dbg!(this.errors.clone());
-            for e in this.errors.iter() {
-                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
-                    dbg!("GOT DUP DEF");
-                }
-            }
-        }
+
         this.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
-        if !this.errors.is_empty() {
-            dbg!(this.errors.clone());
-            for e in this.errors.iter() {
-                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
-                    dbg!("GOT DUP DEF");
-                }
-            }
-        }
+
         this.collect_traits(items.traits);
-        // if !this.errors.is_empty() {
-        //     dbg!(this.errors.clone());
-        // }
-        if !this.errors.is_empty() {
-            dbg!(this.errors.clone());
-            for e in this.errors.iter() {
-                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
-                    dbg!("GOT DUP DEF");
-                }
-            }
-        }
-        dbg!("COLLECTED TRAITS");
-        dbg!(this.generic_idents.clone());
+
         // Must resolve structs before we resolve globals.
         this.collect_struct_definitions(items.types);
 
-        if !this.errors.is_empty() {
-            for e in this.errors.iter() {
-                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
-                    dbg!("GOT DUP DEF");
-                    dbg!(this.generic_idents.clone());
-                }
-            }
-        }
         // Bind trait impls to their trait. Collect trait functions, that have a
         // default implementation, which hasn't been overridden.
         for trait_impl in &mut items.trait_impls {
             this.collect_trait_impl(trait_impl);
         }
 
-        if !this.errors.is_empty() {
-            for e in this.errors.iter() {
-                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
-                    dbg!("GOT DUP DEF");
-                }
-            }
-        }
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
         // done during def collection since we need to be able to resolve the type of
@@ -281,59 +228,25 @@ impl<'context> Elaborator<'context> {
         for ((_self_type, module), impls) in &mut items.impls {
             this.collect_impls(*module, impls);
         }
-        if !this.errors.is_empty() {
-            for e in this.errors.iter() {
-                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
-                    dbg!("GOT DUP DEF");
-                }
-            }
-        }
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to to ensure they are valid.
         for global in non_literal_globals {
             this.elaborate_global(global);
         }
-        if !this.errors.is_empty() {
-            for e in this.errors.iter() {
-                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
-                    dbg!("GOT DUP DEF");
-                }
-            }
-        }
 
         for functions in items.functions {
             this.elaborate_functions(functions);
-        }
-        if !this.errors.is_empty() {
-            for e in this.errors.iter() {
-                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
-                    dbg!("GOT DUP DEF");
-                }
-            }
         }
 
         for impls in items.impls.into_values() {
             this.elaborate_impls(impls);
         }
-        if !this.errors.is_empty() {
-            for e in this.errors.iter() {
-                if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
-                    dbg!("GOT DUP DEF");
-                }
-            }
-        }
+
         for trait_impl in items.trait_impls {
             this.elaborate_trait_impl(trait_impl);
         }
-        // if !this.errors.is_empty() {
-        //     dbg!(this.errors.clone());
-        //     for e in this.errors.iter() {
-        //         if matches!(e.0, CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })) {
-        //             dbg!("GOT DUP DEF");
-        //         }
-        //     }
-        // }
+
         let cycle_errors = this.interner.check_for_dependency_cycles();
         this.errors.extend(cycle_errors);
         this.errors
@@ -392,12 +305,12 @@ impl<'context> Elaborator<'context> {
         // so we need to reintroduce the same IDs into scope here.
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
-            self.add_existing_variable_to_scope(name, parameter.clone());
+            self.add_existing_variable_to_scope(name, parameter.clone(), true);
         }
         // We should introduce the IDs for numeric generic into scope as we do with parameters
         for numeric_generic in &func_meta.generic_idents {
             let name = self.interner.definition_name(numeric_generic.id).to_owned();
-            self.add_existing_variable_to_scope(name, numeric_generic.clone());
+            self.add_existing_variable_to_scope(name, numeric_generic.clone(), false);
         }
 
         self.generics = func_meta.all_generics.clone();
@@ -508,6 +421,7 @@ impl<'context> Elaborator<'context> {
             let ident = Ident::from(generic);
             let span = ident.0.span();
 
+            let mut is_numeric_generic = false;
             // Declare numeric generics
             if let UnresolvedGeneric::Numeric { ident, typ } = generic {
                 let typ = self.resolve_type(typ.clone());
@@ -519,30 +433,37 @@ impl<'context> Elaborator<'context> {
                     self.errors.push((unsupported_typ_err, self.file));
                 }
                 let definition = DefinitionKind::GenericType(typevar.clone());
-                // dbg!(ident.clone());
                 let hir_ident =
                     self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
-                // dbg!(hir_ident.clone());
+
                 // Push the definition type because if one is missing, when the numeric generic is used in an expression
                 // its definition type will be resolved to a polymorphic integer or field.
                 // We do not yet fully support bool generics but this will be a foot-gun once we look to add support
-                // and is can lead to confusing errors.
+                // and can lead to confusing errors.
                 self.interner.push_definition_type(hir_ident.id, typ);
-                self.generic_idents.push(hir_ident)
+                // Store the ident of the numeric generic to set up the function meta so that 
+                // any numeric generics are accurately brought into scope.
+                self.generic_idents.push(hir_ident);
+                is_numeric_generic = true;
             }
 
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
 
-            if let Some((_, _, first_span)) = self.find_generic(&name) {
-                dbg!(name.clone());
+            if let Some(generic) = self.find_generic(&name) {
                 self.push_err(ResolverError::DuplicateDefinition {
                     name: ident.0.contents.clone(),
-                    first_span: *first_span,
+                    first_span: generic.span,
                     second_span: span,
                 });
             } else {
-                self.generics.push((name, typevar.clone(), span));
+                let resolved_generic = ResolvedGeneric {
+                    name,
+                    type_var: typevar.clone(),
+                    is_numeric_generic,
+                    span,
+                };
+                self.generics.push(resolved_generic);
             }
 
             typevar
@@ -671,7 +592,7 @@ impl<'context> Elaborator<'context> {
 
         let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
 
-        let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
+        let mut generics = vecmap(&self.generics, |generic| generic.type_var.clone());
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
@@ -764,7 +685,7 @@ impl<'context> Elaborator<'context> {
                 let generic = Ident::from(generic);
                 self.find_generic(&generic.0.contents)
             })
-            .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
+            .map(|ResolvedGeneric { name, type_var, .. }| (name.clone(), type_var.clone()))
             .collect();
 
         let meta = FuncMeta {
@@ -842,8 +763,8 @@ impl<'context> Elaborator<'context> {
             // We can fail to find the generic in self.generics if it is an implicit one created
             // by the compiler. This can happen when, e.g. eliding array lengths using the slice
             // syntax [T].
-            if let Some((name, _, span)) =
-                self.generics.iter().find(|(name, _, _)| name.as_ref() == &name_to_find)
+            if let Some(ResolvedGeneric { name, span, .. }) = 
+            self.generics.iter().find(|generic| generic.name.as_ref() == &name_to_find)
             {
                 let scope = self.scopes.get_mut_scope();
                 let value = scope.find(&name_to_find);
@@ -1085,7 +1006,7 @@ impl<'context> Elaborator<'context> {
                 methods,
             });
 
-            let generics = vecmap(&self.generics, |(_, type_variable, _)| type_variable.clone());
+            let generics = vecmap(&self.generics, |generic| generic.type_var.clone());
 
             if let Err((prev_span, prev_file)) = self.interner.add_trait_implementation(
                 self_type.clone(),

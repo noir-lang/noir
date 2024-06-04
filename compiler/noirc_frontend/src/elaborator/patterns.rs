@@ -264,7 +264,6 @@ impl<'context> Elaborator<'context> {
 
         if !allow_shadowing {
             if let Some(old_value) = old_value {
-                dbg!(old_value.ident.clone());
                 self.push_err(ResolverError::DuplicateDefinition {
                     name: name.0.contents,
                     first_span: old_value.ident.location.span,
@@ -276,9 +275,9 @@ impl<'context> Elaborator<'context> {
         ident
     }
 
-    pub fn add_existing_variable_to_scope(&mut self, name: String, ident: HirIdent) {
+    pub fn add_existing_variable_to_scope(&mut self, name: String, ident: HirIdent, warn_if_unused: bool) {
         let second_span = ident.location.span;
-        let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
+        let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused };
 
         let old_value = self.scopes.get_mut_scope().add_key_value(name.clone(), resolver_meta);
 

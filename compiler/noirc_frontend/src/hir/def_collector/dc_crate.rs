@@ -5,7 +5,7 @@ use crate::graph::CrateId;
 use crate::hir::comptime::{Interpreter, InterpreterError};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
-use crate::{Type, TypeVariable};
+use crate::{ResolvedGeneric, Type, TypeVariable};
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::resolution::{
@@ -125,7 +125,7 @@ pub struct UnresolvedTraitImpl {
     pub trait_id: Option<TraitId>,
     pub impl_id: Option<TraitImplId>,
     pub resolved_object_type: Option<Type>,
-    pub resolved_generics: Vec<(Rc<String>, TypeVariable, Span)>,
+    pub resolved_generics: Vec<ResolvedGeneric>,
 
     // The resolved generic on the trait itself. E.g. it is the `<C, D>` in
     // `impl<A, B> Foo<C, D> for Bar<E, F> { ... }`
@@ -379,13 +379,15 @@ impl DefCollector {
             def_collector.items.traits,
             crate_id,
         ));
+        dbg!(resolved_module.errors.len());
+
         // Must resolve structs before we resolve globals.
         resolved_module.errors.extend(resolve_structs(
             context,
             def_collector.items.types,
             crate_id,
         ));
-
+        dbg!(resolved_module.errors.len());
         // Bind trait impls to their trait. Collect trait functions, that have a
         // default implementation, which hasn't been overridden.
         resolved_module.errors.extend(collect_trait_impls(

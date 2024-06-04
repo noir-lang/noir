@@ -43,7 +43,7 @@ use crate::node_interner::{
     DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
     StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
 };
-use crate::{Generics, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind};
+use crate::{Generics, ResolvedGeneric, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
@@ -126,7 +126,7 @@ pub struct Resolver<'a> {
     /// unique type variables if we're resolving a struct. Empty otherwise.
     /// This is a Vec rather than a map to preserve the order a functions generics
     /// were declared in.
-    generics: Vec<(Rc<String>, TypeVariable, Span)>,
+    generics: Vec<ResolvedGeneric>,
 
     /// When resolving lambda expressions, we need to keep track of the variables
     /// that are captured. We do this in order to create the hidden environment
@@ -619,8 +619,8 @@ impl<'a> Resolver<'a> {
         resolved_type
     }
 
-    fn find_generic(&self, target_name: &str) -> Option<&(Rc<String>, TypeVariable, Span)> {
-        self.generics.iter().find(|(name, _, _)| name.as_ref() == target_name)
+    fn find_generic(&self, target_name: &str) -> Option<&ResolvedGeneric> {
+        self.generics.iter().find(|generic| generic.name.as_ref() == target_name)
     }
 
     fn resolve_named_type(
@@ -631,6 +631,7 @@ impl<'a> Resolver<'a> {
     ) -> Type {
         if args.is_empty() {
             if let Some(typ) = self.lookup_generic_or_global_type(&path) {
+                dbg!(self.errors.len());
                 return typ;
             }
         }
@@ -755,9 +756,13 @@ impl<'a> Resolver<'a> {
     fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
-            if let Some((name, var, _)) = self.find_generic(name) {
-                return Some(Type::NamedGeneric(var.clone(), name.clone()));
-            }
+            if let Some(generic) = self.find_generic(name) {
+                if generic.is_numeric_generic {
+                    self.errors.push(ResolverError::NumericGenericUsedForType { ident: path.last_segment() });
+                    return Some(Type::Error);
+                } 
+                return Some(Type::NamedGeneric(generic.type_var.clone(), generic.name.clone()));
+            };
         }
 
         // If we cannot find a local generic of the same name, try to look up a global
@@ -877,14 +882,14 @@ impl<'a> Resolver<'a> {
     /// Return the current generics.
     /// Needed to keep referring to the same type variables across many
     /// methods in a single impl.
-    pub fn get_generics(&self) -> &[(Rc<String>, TypeVariable, Span)] {
+    pub fn get_generics(&self) -> &[ResolvedGeneric] {
         &self.generics
     }
 
     /// Set the current generics that are in scope.
     /// Unlike add_generics, this function will not create any new type variables,
     /// opting to reuse the existing ones it is directly given.
-    pub fn set_generics(&mut self, generics: Vec<(Rc<String>, TypeVariable, Span)>) {
+    pub fn set_generics(&mut self, generics: Vec<ResolvedGeneric>) {
         self.generics = generics;
     }
 
@@ -907,6 +912,7 @@ impl<'a> Resolver<'a> {
             let ident = Ident::from(generic);
             let span = ident.0.span();
 
+            let mut is_numeric_generic = false;
             // Declare numeric generics
             if let UnresolvedGeneric::Numeric { ident, typ } = generic {
                 let typ = self.resolve_type(typ.clone());
@@ -924,19 +930,26 @@ impl<'a> Resolver<'a> {
                 // We do not yet fully support bool generics but this will be a foot-gun once we look to add support
                 // and is can lead to confusing errors.
                 self.interner.push_definition_type(hir_ident.id, typ);
+                is_numeric_generic = true;
             }
 
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
 
-            if let Some((_, _, first_span)) = self.find_generic(&name) {
+            if let Some(generic) = self.find_generic(&name) {
                 self.errors.push(ResolverError::DuplicateDefinition {
-                    name: ident.0.contents.clone(),
-                    first_span: *first_span,
+                    name: ident.0.contents,
+                    first_span: generic.span,
                     second_span: span,
                 });
             } else {
-                self.generics.push((name, typevar.clone(), span));
+                let resolved_generic = ResolvedGeneric {
+                    name,
+                    type_var: typevar.clone(),
+                    is_numeric_generic,
+                    span,
+                };
+                self.generics.push(resolved_generic);
             }
 
             typevar
@@ -946,27 +959,36 @@ impl<'a> Resolver<'a> {
     /// Add the given existing generics to scope.
     /// This is useful for adding the same generics to many items. E.g. apply impl generics
     /// to each function in the impl or trait generics to each item in the trait.
-    pub fn add_existing_generics(&mut self, names: &UnresolvedGenerics, generics: &Generics) {
-        assert_eq!(names.len(), generics.len());
+    pub fn add_existing_generics(&mut self, unresolved_generics: &UnresolvedGenerics, generics: &Generics) {
+        assert_eq!(unresolved_generics.len(), generics.len());
 
-        for (name, typevar) in names.iter().zip(generics) {
-            let name = Ident::from(name);
-            self.add_existing_generic(&name.0.contents, name.0.span(), typevar.clone());
+        for (unresolved_generic, typevar) in unresolved_generics.iter().zip(generics) {
+            let name = Ident::from(unresolved_generic);
+            self.add_existing_generic(&unresolved_generic, name.0.span(), typevar.clone());
         }
     }
 
-    pub fn add_existing_generic(&mut self, name: &str, span: Span, typevar: TypeVariable) {
+    pub fn add_existing_generic(&mut self, unresolved_generic: &UnresolvedGeneric, span: Span, typevar: TypeVariable) {
+        let ident = Ident::from(unresolved_generic);
+        let name = ident.0.contents;
         // Check for name collisions of this generic
-        let rc_name = Rc::new(name.to_owned());
+        let rc_name = Rc::new(name.clone());
 
-        if let Some((_, _, first_span)) = self.find_generic(&rc_name) {
+        if let Some(generic) = self.find_generic(&rc_name) {
             self.errors.push(ResolverError::DuplicateDefinition {
-                name: name.to_owned(),
-                first_span: *first_span,
+                name: name,
+                first_span: generic.span,
                 second_span: span,
             });
         } else {
-            self.generics.push((rc_name, typevar, span));
+            let is_numeric_generic = matches!(unresolved_generic, UnresolvedGeneric::Numeric { .. });
+            let resolved_generic = ResolvedGeneric {
+                name: rc_name,
+                type_var: typevar.clone(),
+                is_numeric_generic,
+                span,
+            };
+            self.generics.push(resolved_generic);
         }
     }
 
@@ -985,7 +1007,7 @@ impl<'a> Resolver<'a> {
         self.resolving_ids.insert(struct_id);
         let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
         self.resolving_ids.remove(&struct_id);
-
+ 
         (generics, fields, self.errors)
     }
 
@@ -1042,7 +1064,7 @@ impl<'a> Resolver<'a> {
         // indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
         let has_inline_attribute = has_no_predicates_attribute || should_fold;
 
-        let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
+        let mut generics = vecmap(&self.generics, |generic| generic.type_var.clone());
         let mut parameters = vec![];
         let mut parameter_types = vec![];
 
@@ -1115,7 +1137,7 @@ impl<'a> Resolver<'a> {
                 let generic = Ident::from(generic);
                 self.find_generic(&generic.0.contents)
             })
-            .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
+            .map(|ResolvedGeneric { name, type_var, .. }| (name.clone(), type_var.clone()))
             .collect();
 
         FuncMeta {
@@ -1181,8 +1203,8 @@ impl<'a> Resolver<'a> {
             // We can fail to find the generic in self.generics if it is an implicit one created
             // by the compiler. This can happen when, e.g. eliding array lengths using the slice
             // syntax [T].
-            if let Some((name, _, span)) =
-                self.generics.iter().find(|(name, _, _)| name.as_ref() == &name_to_find)
+            if let Some(ResolvedGeneric { name, span, .. }) =
+                self.generics.iter().find(|generic| generic.name.as_ref() == &name_to_find)
             {
                 let scope = self.scopes.get_mut_scope();
                 let value = scope.find(&name_to_find);

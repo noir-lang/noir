@@ -4,7 +4,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    ast::{FunctionKind, TraitItem, UnresolvedGenerics, UnresolvedTraitConstraint},
+    ast::{FunctionKind, TraitItem, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint},
     hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::{TraitConstant, TraitFunction, TraitType},
     macros_api::{
@@ -35,7 +35,7 @@ impl<'context> Elaborator<'context> {
 
                 this.interner.update_trait(trait_id, |trait_def| {
                     trait_def.set_methods(methods);
-                    trait_def.generics = vecmap(&this.generics, |(_, generic, _)| generic.clone());
+                    trait_def.generics = vecmap(&this.generics, |generic| generic.type_var.clone());
                 });
             });
 
@@ -89,7 +89,7 @@ impl<'context> Elaborator<'context> {
                         Type::TypeVariable(self_typevar.clone(), TypeVariableKind::Normal);
                     let name_span = the_trait.name.span();
 
-                    this.add_existing_generic("Self", name_span, self_typevar);
+                    this.add_existing_generic(&UnresolvedGeneric::Variable(Ident::from("Self")), name_span, self_typevar);
                     this.self_type = Some(self_type.clone());
 
                     let func_id = unresolved_trait.method_ids[&name.0.contents];
@@ -107,7 +107,7 @@ impl<'context> Elaborator<'context> {
                     let arguments = vecmap(&func_meta.parameters.0, |(_, typ, _)| typ.clone());
                     let return_type = func_meta.return_type().clone();
 
-                    let generics = vecmap(&this.generics, |(_, type_var, _)| type_var.clone());
+                    let generics = vecmap(&this.generics, |generic| generic.type_var.clone());
 
                     let default_impl_list: Vec<_> = unresolved_trait
                         .fns_with_default_impl
