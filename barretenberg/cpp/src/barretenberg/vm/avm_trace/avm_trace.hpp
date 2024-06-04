@@ -151,6 +151,17 @@ class AvmTraceBuilder {
     // indirect: return(M[M[ret_offset]:M[ret_offset]+ret_size])
     std::vector<FF> return_op(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size);
 
+    // Calls
+    void op_call(uint8_t indirect,
+                 uint32_t gas_offset,
+                 uint32_t addr_offset,
+                 uint32_t args_offset,
+                 uint32_t args_size,
+                 uint32_t ret_offset,
+                 uint32_t ret_size,
+                 uint32_t success_offset,
+                 uint32_t function_selector_offset);
+
     // Gadgets
     // --- Conversions
     // To Radix LE conversion operation.
@@ -283,6 +294,7 @@ class AvmTraceBuilder {
     // Side effect counter will incremenent when any state writing values are
     // encountered
     uint32_t side_effect_counter = 0;
+    uint32_t return_data_counter = 0;
 
     // Execution hints aid witness solving for instructions that require auxiliary information to construct
     // Mapping of side effect counter -> value

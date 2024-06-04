@@ -116,6 +116,7 @@ namespace avm_main(256);
     pol commit sel_internal_return;
     pol commit sel_jump;
     pol commit sel_jumpi;
+    pol commit sel_external_call;
     
     // Halt program execution
     pol commit sel_halt;
@@ -276,6 +277,7 @@ namespace avm_main(256);
     sel_jump * (1 - sel_jump) = 0;
     sel_jumpi * (1 - sel_jumpi) = 0;
     sel_halt * (1 - sel_halt) = 0;
+    sel_external_call * (1 - sel_external_call) = 0;
 
     // Might be removed if derived from opcode based on a lookup of constants
     sel_mov * ( 1 - sel_mov) = 0;
@@ -413,7 +415,7 @@ namespace avm_main(256);
 
     //===== CONTROL_FLOW_CONSISTENCY ============================================
     pol INTERNAL_CALL_STACK_SELECTORS = (first + sel_internal_call + sel_internal_return + sel_halt);
-    pol ALL_CTRL_FLOW_SEL = sel_jump + sel_jumpi + sel_internal_call + sel_internal_return;
+    pol ALL_CTRL_FLOW_SEL = sel_jump + sel_jumpi + sel_internal_call + sel_internal_return + sel_external_call;
 
     pol ALL_BINARY_SEL = sel_op_and + sel_op_or + sel_op_xor;
     pol ALL_GADGET_SEL = sel_op_radix_le + sel_op_sha256 + sel_op_poseidon2 + sel_op_keccak + sel_op_pedersen;

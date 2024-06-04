@@ -24,6 +24,16 @@ const std::vector<OperandType> getter_format = {
     OperandType::UINT32,
 };
 
+const std::vector<OperandType> external_call_format = { OperandType::INDIRECT,
+                                                        /*gasOffset=*/OperandType::UINT32,
+                                                        /*addrOffset=*/OperandType::UINT32,
+                                                        /*argsOffset=*/OperandType::UINT32,
+                                                        /*argsSize=*/OperandType::UINT32,
+                                                        /*retOffset=*/OperandType::UINT32,
+                                                        /*retSize*/ OperandType::UINT32,
+                                                        /*successOffset=*/OperandType::UINT32,
+                                                        /*functionSelector=*/OperandType::UINT32 };
+
 // Contrary to TS, the format does not contain the opcode byte which prefixes any instruction.
 // The format for OpCode::SET has to be handled separately as it is variable based on the tag.
 const std::unordered_map<OpCode, std::vector<OperandType>> OPCODE_WIRE_FORMAT = {
@@ -102,7 +112,7 @@ const std::unordered_map<OpCode, std::vector<OperandType>> OPCODE_WIRE_FORMAT = 
     // EMITUNENCRYPTEDLOG,
     // SENDL2TOL1MSG,
     // Control Flow - Contract Calls
-    // CALL,
+    { OpCode::CALL, external_call_format },
     // STATICCALL,
     // DELEGATECALL, -- not in simulator
     { OpCode::RETURN, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32 } },

@@ -94,11 +94,11 @@ class AvmFlavor {
     using RelationSeparator = FF;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 2;
-    static constexpr size_t NUM_WITNESS_ENTITIES = 363;
+    static constexpr size_t NUM_WITNESS_ENTITIES = 364;
     static constexpr size_t NUM_WIRES = NUM_WITNESS_ENTITIES + NUM_PRECOMPUTED_ENTITIES;
     // We have two copies of the witness entities, so we subtract the number of fixed ones (they have no shift), one for
     // the unshifted and one for the shifted
-    static constexpr size_t NUM_ALL_ENTITIES = 429;
+    static constexpr size_t NUM_ALL_ENTITIES = 430;
 
     using GrandProductRelations = std::tuple<perm_main_alu_relation<FF>,
                                              perm_main_bin_relation<FF>,
@@ -423,6 +423,7 @@ class AvmFlavor {
                               avm_main_rwc,
                               avm_main_rwd,
                               avm_main_sel_cmov,
+                              avm_main_sel_external_call,
                               avm_main_sel_halt,
                               avm_main_sel_internal_call,
                               avm_main_sel_internal_return,
@@ -789,6 +790,7 @@ class AvmFlavor {
                      avm_main_rwc,
                      avm_main_rwd,
                      avm_main_sel_cmov,
+                     avm_main_sel_external_call,
                      avm_main_sel_halt,
                      avm_main_sel_internal_call,
                      avm_main_sel_internal_return,
@@ -1160,6 +1162,7 @@ class AvmFlavor {
                               avm_main_rwc,
                               avm_main_rwd,
                               avm_main_sel_cmov,
+                              avm_main_sel_external_call,
                               avm_main_sel_halt,
                               avm_main_sel_internal_call,
                               avm_main_sel_internal_return,
@@ -1592,6 +1595,7 @@ class AvmFlavor {
                      avm_main_rwc,
                      avm_main_rwd,
                      avm_main_sel_cmov,
+                     avm_main_sel_external_call,
                      avm_main_sel_halt,
                      avm_main_sel_internal_call,
                      avm_main_sel_internal_return,
@@ -2024,6 +2028,7 @@ class AvmFlavor {
                      avm_main_rwc,
                      avm_main_rwd,
                      avm_main_sel_cmov,
+                     avm_main_sel_external_call,
                      avm_main_sel_halt,
                      avm_main_sel_internal_call,
                      avm_main_sel_internal_return,
@@ -2803,6 +2808,7 @@ class AvmFlavor {
             Base::avm_main_rwc = "AVM_MAIN_RWC";
             Base::avm_main_rwd = "AVM_MAIN_RWD";
             Base::avm_main_sel_cmov = "AVM_MAIN_SEL_CMOV";
+            Base::avm_main_sel_external_call = "AVM_MAIN_SEL_EXTERNAL_CALL";
             Base::avm_main_sel_halt = "AVM_MAIN_SEL_HALT";
             Base::avm_main_sel_internal_call = "AVM_MAIN_SEL_INTERNAL_CALL";
             Base::avm_main_sel_internal_return = "AVM_MAIN_SEL_INTERNAL_RETURN";
@@ -3185,6 +3191,7 @@ class AvmFlavor {
         Commitment avm_main_rwc;
         Commitment avm_main_rwd;
         Commitment avm_main_sel_cmov;
+        Commitment avm_main_sel_external_call;
         Commitment avm_main_sel_halt;
         Commitment avm_main_sel_internal_call;
         Commitment avm_main_sel_internal_return;
@@ -3581,6 +3588,7 @@ class AvmFlavor {
             avm_main_rwc = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_rwd = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_cmov = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_sel_external_call = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_halt = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_internal_call = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_internal_return = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -3973,6 +3981,7 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_main_rwc, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_rwd, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_cmov, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_sel_external_call, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_halt, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_internal_call, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_internal_return, Transcript::proof_data);

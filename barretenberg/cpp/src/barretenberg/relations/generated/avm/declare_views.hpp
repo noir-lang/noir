@@ -195,6 +195,7 @@
     [[maybe_unused]] auto avm_main_rwc = View(new_term.avm_main_rwc);                                                  \
     [[maybe_unused]] auto avm_main_rwd = View(new_term.avm_main_rwd);                                                  \
     [[maybe_unused]] auto avm_main_sel_cmov = View(new_term.avm_main_sel_cmov);                                        \
+    [[maybe_unused]] auto avm_main_sel_external_call = View(new_term.avm_main_sel_external_call);                      \
     [[maybe_unused]] auto avm_main_sel_halt = View(new_term.avm_main_sel_halt);                                        \
     [[maybe_unused]] auto avm_main_sel_internal_call = View(new_term.avm_main_sel_internal_call);                      \
     [[maybe_unused]] auto avm_main_sel_internal_return = View(new_term.avm_main_sel_internal_return);                  \

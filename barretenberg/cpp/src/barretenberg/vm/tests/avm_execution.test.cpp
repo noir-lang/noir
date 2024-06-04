@@ -1667,7 +1667,7 @@ TEST_F(AvmExecutionTests, kernelOutputStorageOpcodes)
 
     // Generate Hint for Sload operation
     ExecutionHints execution_hints = {};
-    execution_hints[0] = FF(42); // side effect counter 0 = value 42
+    execution_hints.side_effect_hints[0] = FF(42); // side effect counter 0 = value 42
 
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
 
@@ -1746,9 +1746,9 @@ TEST_F(AvmExecutionTests, kernelOutputHashExistsOpcodes)
 
     // Generate Hint for Sload operation
     ExecutionHints execution_hints = {};
-    execution_hints[0] = 1; // Side effect counter 0 = true
-    execution_hints[1] = 1; // Side effect counter 1 = true
-    execution_hints[2] = 1; // Side effect counter 2 = true
+    execution_hints.side_effect_hints[0] = 1; // Side effect counter 0 = true
+    execution_hints.side_effect_hints[1] = 1; // Side effect counter 1 = true
+    execution_hints.side_effect_hints[2] = 1; // Side effect counter 2 = true
 
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
 
@@ -1793,6 +1793,74 @@ TEST_F(AvmExecutionTests, kernelOutputHashExistsOpcodes)
     EXPECT_EQ(msg_out_row->avm_kernel_kernel_value_out__is_public, 1); // value
     EXPECT_EQ(msg_out_row->avm_kernel_kernel_side_effect_out__is_public, 2);
     EXPECT_EQ(msg_out_row->avm_kernel_kernel_metadata_out__is_public, 1); // exists
+
+    validate_trace(std::move(trace));
+}
+
+TEST_F(AvmExecutionTests, opCallOpcodes)
+{
+    std::string bytecode_preamble;
+    // Gas offset preamble
+    bytecode_preamble += to_hex(OpCode::SET) + // opcode SET for gas offset indirect
+                         "00"                  // Indirect flag
+                         "03"                  // U32
+                         "00000010"            // val 16 (address where gas offset is located)
+                         "00000011" +          // dst_offset 17
+                         to_hex(OpCode::SET) + // opcode SET for value stored in gas offset
+                         "00"                  // Indirect flag
+                         "03"                  // U32
+                         "00000011"            // val i
+                         "00000000";
+    // args offset preamble
+    bytecode_preamble += to_hex(OpCode::SET) + // opcode SET for args offset indirect
+                         "00"                  // Indirect flag
+                         "03"                  // U32
+                         "00000100"            // val i
+                         "00000012" +          // dst_offset 0
+                         to_hex(OpCode::SET) + // opcode SET for value stored in args offset
+                         "00"                  // Indirect flag
+                         "03"                  // U32
+                         "00000012"            // val i
+                         "00000001";
+    // ret offset preamble
+    bytecode_preamble += to_hex(OpCode::SET) + // opcode SET for ret offset indirect
+                         "00"                  // Indirect flag
+                         "03"                  // U32
+                         "00000008"            // val i
+                         "00000004" +          // dst_offset 0
+                         to_hex(OpCode::SET) + // opcode SET for value stored in ret offset
+                         "00"                  // Indirect flag
+                         "03"                  // U32
+                         "00000002"            // val i
+                         "00000007";
+    std::string bytecode_hex = bytecode_preamble // SET gas, addr, args size, ret offset, success, function selector
+                               + to_hex(OpCode::CALL) +   // opcode CALL
+                               "15"                       // Indirect flag
+                               "00000000"                 // gas offset
+                               "00000001"                 // addr offset
+                               "00000002"                 // args offset
+                               "00000003"                 // args size offset
+                               "00000004"                 // ret offset
+                               "00000007"                 // ret size
+                               "0000000a"                 // success offset
+                               "00000006"                 // function_selector_offset
+                               + to_hex(OpCode::RETURN) + // opcode RETURN
+                               "00"                       // Indirect flag
+                               "00000008"                 // ret offset 8
+                               "00000003";                // ret size 3
+
+    auto bytecode = hex_to_bytes(bytecode_hex);
+    auto instructions = Deserialization::parse(bytecode);
+
+    std::vector<FF> calldata = {};
+    std::vector<FF> returndata = {};
+
+    // Generate Hint for call operation
+    ExecutionHints execution_hints = {};
+    execution_hints.returndata_hints.push_back({ 9, 8 }); // Return data
+
+    auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
+    EXPECT_EQ(returndata, std::vector<FF>({ 9, 8, 1 })); // The 1 represents the success
 
     validate_trace(std::move(trace));
 }

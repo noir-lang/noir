@@ -41,6 +41,9 @@ static const uint8_t INTERNAL_CALL_SPACE_ID = 255;
 static const uint32_t MAX_SIZE_INTERNAL_STACK = 1 << 16;
 
 // Side effect counter -> value
-using ExecutionHints = std::unordered_map<uint32_t, FF>;
+struct ExecutionHints {
+    std::unordered_map<uint32_t, FF> side_effect_hints;
+    std::vector<std::vector<FF>> returndata_hints;
+};
 
 } // namespace bb::avm_trace

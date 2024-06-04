@@ -438,12 +438,24 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
                                                std::get<uint32_t>(inst.operands.at(1)),
                                                std::get<uint32_t>(inst.operands.at(2)));
             returndata.insert(returndata.end(), ret.begin(), ret.end());
+
             break;
         }
         case OpCode::DEBUGLOG:
             // We want a noop, but we need to execute something that both advances the PC,
             // and adds a valid row to the trace.
             trace_builder.jump(pc + 1);
+            break;
+        case OpCode::CALL:
+            trace_builder.op_call(std::get<uint8_t>(inst.operands.at(0)),
+                                  std::get<uint32_t>(inst.operands.at(1)),
+                                  std::get<uint32_t>(inst.operands.at(2)),
+                                  std::get<uint32_t>(inst.operands.at(3)),
+                                  std::get<uint32_t>(inst.operands.at(4)),
+                                  std::get<uint32_t>(inst.operands.at(5)),
+                                  std::get<uint32_t>(inst.operands.at(6)),
+                                  std::get<uint32_t>(inst.operands.at(7)),
+                                  std::get<uint32_t>(inst.operands.at(8)));
             break;
         case OpCode::TORADIXLE:
             trace_builder.op_to_radix_le(std::get<uint8_t>(inst.operands.at(0)),
