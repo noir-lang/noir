@@ -133,4 +133,6 @@ std::string to_hex(T value)
 }
 std::string to_hex(OpCode opcode);
 
+std::string to_string(OpCode opcode);
+
 } // namespace bb::avm_trace

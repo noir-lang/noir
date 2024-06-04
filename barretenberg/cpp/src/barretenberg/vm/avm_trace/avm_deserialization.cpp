@@ -71,9 +71,23 @@ const std::unordered_map<OpCode, std::vector<OperandType>> OPCODE_WIRE_FORMAT = 
     { OpCode::EMITUNENCRYPTEDLOG, getter_format },
     { OpCode::SLOAD, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32 } },
     { OpCode::SSTORE, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32 } },
-    { OpCode::NOTEHASHEXISTS, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32 } },
-    { OpCode::NULLIFIEREXISTS, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32 } },
-    { OpCode::L1TOL2MSGEXISTS, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32 } },
+    /*TODO: leafIndexOffset is not constrained*/
+    { OpCode::NOTEHASHEXISTS,
+      { OperandType::INDIRECT,
+        OperandType::UINT32,
+        /*TODO: leafIndexOffset is not constrained*/ OperandType::UINT32,
+        OperandType::UINT32 } },
+
+    { OpCode::NULLIFIEREXISTS,
+      { OperandType::INDIRECT,
+        OperandType::UINT32,
+        /*TODO: Address is not constrained*/ OperandType::UINT32,
+        OperandType::UINT32 } },
+    { OpCode::L1TOL2MSGEXISTS,
+      { OperandType::INDIRECT,
+        OperandType::UINT32,
+        /*TODO: leafIndexOffset is not constrained*/ OperandType::UINT32,
+        OperandType::UINT32 } },
     // CONTRACTCALLDEPTH, -- not in simulator
     // Execution Environment - Globals
     { OpCode::CHAINID, getter_format },

@@ -208,6 +208,10 @@ export class AvmPersistableStateManager {
     const gotLeafIndex = await this.hostStorage.commitmentsDb.getCommitmentIndex(noteHash);
     const exists = gotLeafIndex === leafIndex.toBigInt();
     this.log.debug(`noteHashes(${storageAddress})@${noteHash} ?? leafIndex: ${leafIndex}, exists: ${exists}.`);
+
+    // TODO: include exists here also - This can for sure come from the trace???
+    this.transitionalExecutionResult.noteHashReadRequests.push(new ReadRequest(noteHash, this.trace.accessCounter));
+
     this.trace.traceNoteHashCheck(storageAddress, noteHash, exists, leafIndex);
     return Promise.resolve(exists);
   }
@@ -279,6 +283,9 @@ export class AvmPersistableStateManager {
     this.log.debug(
       `l1ToL2Messages(@${msgLeafIndex}) ?? exists: ${exists}, expected: ${msgHash}, found: ${valueAtIndex}.`,
     );
+
+    this.transitionalExecutionResult.l1ToL2MsgReadRequests.push(new ReadRequest(msgHash, this.trace.accessCounter));
+
     this.trace.traceL1ToL2MessageCheck(msgHash, msgLeafIndex, exists);
     return Promise.resolve(exists);
   }

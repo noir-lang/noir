@@ -86,6 +86,10 @@ export class AvmExecutionHints {
     return serializeToBuffer(...AvmExecutionHints.getFields(this));
   }
 
+  toBufferVM() {
+    return serializeToBuffer(this.flat());
+  }
+
   /**
    * Serializes the inputs to a hex string.
    * @returns The instance serialized to a hex string.
@@ -123,6 +127,15 @@ export class AvmExecutionHints {
    */
   static getFields(fields: FieldsOf<AvmExecutionHints>) {
     return [fields.storageValues, fields.noteHashExists, fields.nullifierExists, fields.l1ToL2MessageExists] as const;
+  }
+
+  flat() {
+    return [
+      ...this.storageValues.items,
+      ...this.noteHashExists.items,
+      ...this.nullifierExists.items,
+      ...this.l1ToL2MessageExists.items,
+    ];
   }
 
   /**

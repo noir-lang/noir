@@ -1735,15 +1735,18 @@ TEST_F(AvmExecutionTests, kernelOutputHashExistsOpcodes)
                                + to_hex(OpCode::NOTEHASHEXISTS) +  // opcode NOTEHASHEXISTS
                                "00"                                // Indirect flag
                                "00000001"                          // slot offset 1
-                               "00000002"                          // write storage value to offset 2 (exists value)
+                               "00000002"                          // Leaf index offset 2
+                               "00000003"                          // write storage value to offset 2 (exists value)
                                + to_hex(OpCode::NULLIFIEREXISTS) + // opcode NULLIFIEREXISTS
                                "00"                                // Indirect flag
                                "00000001"                          // slot offset 1
-                               "00000002"                          // value write offset 2 (exists value)
+                               "00000002"                          // Contract offset 2
+                               "00000003"                          // value write offset 2 (exists value)
                                + to_hex(OpCode::L1TOL2MSGEXISTS) + // opcode L1TOL2MSGEXISTS
                                "00"                                // Indirect flag
                                "00000001"                          // slot offset 1
-                               "00000002"                          // value write offset 2 (exists value)
+                               "00000002"                          // Lead offset 2
+                               "00000003"                          // value write offset 2 (exists value)
                                + to_hex(OpCode::RETURN) +          // opcode RETURN
                                "00"                                // Indirect flag
                                "00000000"                          // ret offset 0
