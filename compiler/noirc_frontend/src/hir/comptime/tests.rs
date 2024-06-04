@@ -1,5 +1,7 @@
 #![cfg(test)]
 
+use std::collections::HashMap;
+
 use noirc_errors::Location;
 
 use super::errors::InterpreterError;
