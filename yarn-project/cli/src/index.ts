@@ -237,24 +237,6 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     });
 
   program
-    .command('register-account')
-    .description(
-      'Registers an aztec account that can be used for sending transactions. Registers the account on the PXE. Uses a Schnorr single-key account which uses the same key for encryption and authentication (not secure for production usage).',
-    )
-    .summary('Registers an aztec account that can be used for sending transactions.')
-    .addOption(createPrivateKeyOption('Private key for account.', true))
-    .requiredOption(
-      '-pa, --partial-address <partialAddress>',
-      'The partially computed address of the account contract.',
-      parsePartialAddress,
-    )
-    .addOption(pxeOption)
-    .action(async ({ rpcUrl, privateKey, partialAddress }) => {
-      const { registerAccount } = await import('./cmds/register_account.js');
-      await registerAccount(rpcUrl, privateKey, partialAddress, debugLogger, log);
-    });
-
-  program
     .command('bootstrap')
     .description('Bootstrap the blockchain')
     .addOption(pxeOption)
