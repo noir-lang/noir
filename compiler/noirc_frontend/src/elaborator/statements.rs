@@ -3,6 +3,7 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{AssignStatement, ConstrainStatement, LValue},
     hir::{
+        comptime::Interpreter,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
@@ -30,7 +31,7 @@ impl<'context> Elaborator<'context> {
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
             StatementKind::Break => self.elaborate_jump(true, statement.span),
             StatementKind::Continue => self.elaborate_jump(false, statement.span),
-            StatementKind::Comptime(statement) => self.elaborate_comptime(*statement),
+            StatementKind::Comptime(statement) => self.elaborate_comptime_statement(*statement),
             StatementKind::Expression(expr) => {
                 let (expr, typ) = self.elaborate_expression(expr);
                 (HirStatement::Expression(expr), typ)
@@ -438,7 +439,12 @@ impl<'context> Elaborator<'context> {
         None
     }
 
-    pub(super) fn elaborate_comptime(&self, _statement: Statement) -> (HirStatement, Type) {
-        todo!("Comptime scanning")
+    fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
+        let span = statement.span;
+        let (hir_statement, _typ) = self.elaborate_statement(statement);
+        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        let value = interpreter.evaluate_statement(hir_statement);
+        let (expr, typ) = self.inline_comptime_value(value, span);
+        (HirStatement::Expression(expr), typ)
     }
 }
