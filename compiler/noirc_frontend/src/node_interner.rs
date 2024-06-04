@@ -13,6 +13,7 @@ use petgraph::prelude::NodeIndex as PetGraphIndex;
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
+use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
@@ -28,6 +29,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
+use crate::macros_api::Expression;
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
     Generics, Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
@@ -466,6 +468,17 @@ pub struct GlobalInfo {
     pub local_id: LocalModuleId,
     pub location: Location,
     pub let_statement: StmtId,
+    pub value: GlobalValue,
+}
+
+#[derive(Debug, Clone)]
+pub enum GlobalValue {
+    Evaluated(comptime::Value),
+    Evaluating,
+    Unevaluated(Expression),
+
+    /// This variant is used for associated constants of traits
+    NoValue,
 }
 
 impl Default for NodeInterner {
@@ -667,12 +680,18 @@ impl NodeInterner {
         file: FileId,
         attributes: Vec<SecondaryAttribute>,
         mutable: bool,
+        expression: Option<Expression>,
     ) -> GlobalId {
         let id = GlobalId(self.globals.len());
         let location = Location::new(ident.span(), file);
         let name = ident.to_string();
         let definition_id =
             self.push_definition(name, mutable, DefinitionKind::Global(id), location);
+
+        let value = match expression {
+            Some(value) => GlobalValue::Unevaluated(value),
+            None => GlobalValue::NoValue,
+        };
 
         self.globals.push(GlobalInfo {
             id,
@@ -681,6 +700,7 @@ impl NodeInterner {
             local_id,
             let_statement,
             location,
+            value,
         });
         self.global_attributes.insert(id, attributes);
         id
@@ -698,10 +718,11 @@ impl NodeInterner {
         file: FileId,
         attributes: Vec<SecondaryAttribute>,
         mutable: bool,
+        expression: Option<Expression>,
     ) -> GlobalId {
         let statement = self.push_stmt(HirStatement::Error);
         let span = name.span();
-        let id = self.push_global(name, local_id, statement, file, attributes, mutable);
+        let id = self.push_global(name, local_id, statement, file, attributes, mutable, expression);
         self.push_stmt_location(statement, span, file);
         id
     }
@@ -1000,6 +1021,10 @@ impl NodeInterner {
 
     pub fn get_global(&self, global_id: GlobalId) -> &GlobalInfo {
         &self.globals[global_id.0]
+    }
+
+    pub fn get_global_mut(&mut self, global_id: GlobalId) -> &mut GlobalInfo {
+        &mut self.globals[global_id.0]
     }
 
     pub fn get_global_definition(&self, global_id: GlobalId) -> &DefinitionInfo {

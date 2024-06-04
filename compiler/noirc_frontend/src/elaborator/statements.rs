@@ -3,6 +3,7 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{AssignStatement, ConstrainStatement, LValue},
     hir::{
+        comptime::Interpreter,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
@@ -15,7 +16,7 @@ use crate::{
     macros_api::{
         ForLoopStatement, ForRange, HirStatement, LetStatement, Statement, StatementKind,
     },
-    node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
+    node_interner::{DefinitionId, DefinitionKind, GlobalId, GlobalValue, StmtId},
     Type,
 };
 
@@ -69,6 +70,15 @@ impl<'context> Elaborator<'context> {
         let new_id = new_ids[0].id;
 
         self.interner.definition_mut(new_id).kind = DefinitionKind::Global(global_id);
+
+        let global = self.interner.get_global_mut(global_id);
+
+        if let GlobalValue::Unevaluated(expression) = &global.value {
+            let expression = expression.clone();
+            global.value = GlobalValue::Evaluating;
+            let interpreter = Interpreter::new(self.interner);
+            interpreter.evaluate(expression);
+        }
 
         let definition_id = self.interner.get_global(global_id).definition_id;
         let definition_type = self.interner.definition_type(new_id);

@@ -11,7 +11,7 @@ type K = Field;
 type V = Field;
 
 // It is more convenient and readable to use structs as input.
-struct Entry{
+struct Entry {
     key: Field,
     value: Field
 }

@@ -113,6 +113,7 @@ impl<'a> ModCollector<'a> {
                 self.file_id,
                 global.attributes.clone(),
                 matches!(global.pattern, Pattern::Mutable { .. }),
+                Some(global.expression.clone()),
             );
 
             // Add the statement to the scope so its path can be looked up later
@@ -478,13 +479,14 @@ impl<'a> ModCollector<'a> {
                             }
                         }
                     }
-                    TraitItem::Constant { name, .. } => {
+                    TraitItem::Constant { name, default_value, typ: _ } => {
                         let global_id = context.def_interner.push_empty_global(
                             name.clone(),
                             trait_id.0.local_id,
                             self.file_id,
                             vec![],
                             false,
+                            default_value.clone(),
                         );
 
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules
