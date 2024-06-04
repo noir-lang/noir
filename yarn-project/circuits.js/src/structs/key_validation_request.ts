@@ -58,4 +58,8 @@ export class KeyValidationRequest {
   static empty() {
     return new KeyValidationRequest(Point.ZERO, Fr.ZERO);
   }
+
+  static random() {
+    return new KeyValidationRequest(Point.random(), Fr.random());
+  }
 }

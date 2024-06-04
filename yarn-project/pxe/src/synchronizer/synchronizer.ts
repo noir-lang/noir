@@ -110,6 +110,7 @@ export class Synchronizer {
         `Forwarding ${logCount} encrypted logs and blocks to ${this.noteProcessors.length} note processors`,
       );
       for (const noteProcessor of this.noteProcessors) {
+        // TODO(#6830): pass in only the blocks
         await noteProcessor.process(blocks, noteEncryptedLogs);
       }
       return true;
