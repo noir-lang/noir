@@ -57,4 +57,32 @@ To keep docs consistent and easily-searchable, follow these grammar guidelines:
 * Use numbered bullets when the order is important, such as steps in a guide or hierarchies of dependencies
 * Write with [active voice](https://www.grammarly.com/blog/active-vs-passive-voice/) in tutorials and how-tos, and passive voice in explanations
 * Use the [Oxford comma](https://www.grammarly.com/blog/what-is-the-oxford-comma-and-why-do-people-care-so-much-about-it/)
-* Avoid exclamation points 
+* Avoid exclamation points
+
+# Docusaurus and discoverability
+
+## URLs
+
+Markdown links by file (with extension).
+Can be relative to current path (`./`, `../`), eg within a section, or absolute (relative to docs).
+[link1](https://docusaurus.io/docs/markdown-features/links), [link2](https://docusaurus.io/docs/versioning#link-docs-by-file-paths)
+
+If you spot a broken url, ping us in discord or create an issue :)
+
+## Keywords
+
+"Used by search engines" - [link](https://docusaurus.io/docs/api/plugins/@docusaurus/plugin-content-pages#keywords)
+Used to help devs better find specific content via search.
+
+## Tags
+
+"Another dimension of categorization" - [link](https://docusaurus.io/docs/create-doc#doc-tags)
+Used sparingly to help devs see related contact across docs.
+
+## Sidebar
+
+The Aztec docs use a sidebar - https://docusaurus.io/docs/sidebar/items
+
+## Indexing and Search
+
+Algolia docs search - https://docusaurus.io/docs/search#algolia-index-configuration
