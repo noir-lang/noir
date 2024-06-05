@@ -1,9 +1,4 @@
-import {
-  type AztecAddress,
-  type GrumpkinPrivateKey,
-  type KeyValidationRequest,
-  type PublicKey,
-} from '@aztec/circuits.js';
+import { AztecAddress, type GrumpkinPrivateKey, type KeyValidationRequest, type PublicKey } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -43,8 +38,13 @@ export class TaggedNote {
     return serializeToBuffer(this.incomingTag, this.outgoingTag, this.notePayload);
   }
 
-  static random(): TaggedNote {
-    return new TaggedNote(L1NotePayload.random());
+  /**
+   * Create a random TaggedNote (useful for testing purposes).
+   * @param contract - The address of a contract the note was emitted from.
+   * @returns A random TaggedNote object.
+   */
+  static random(contract = AztecAddress.random()): TaggedNote {
+    return new TaggedNote(L1NotePayload.random(contract));
   }
 
   public encrypt(

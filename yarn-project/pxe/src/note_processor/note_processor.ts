@@ -6,31 +6,35 @@ import {
   TaggedNote,
 } from '@aztec/circuit-types';
 import { type NoteProcessorStats } from '@aztec/circuit-types/stats';
-import { INITIAL_L2_BLOCK_NUM, MAX_NEW_NOTE_HASHES_PER_TX, type PublicKey } from '@aztec/circuits.js';
+import {
+  type AztecAddress,
+  INITIAL_L2_BLOCK_NUM,
+  MAX_NEW_NOTE_HASHES_PER_TX,
+  type PublicKey,
+} from '@aztec/circuits.js';
 import { type Fr } from '@aztec/foundation/fields';
-import { createDebugLogger } from '@aztec/foundation/log';
+import { type Logger, createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
 import { type KeyStore } from '@aztec/key-store';
-import { ContractNotFoundError } from '@aztec/simulator';
+import { type AcirSimulator } from '@aztec/simulator';
 
-import { DeferredNoteDao } from '../database/deferred_note_dao.js';
+import { type DeferredNoteDao } from '../database/deferred_note_dao.js';
+import { type IncomingNoteDao } from '../database/incoming_note_dao.js';
 import { type PxeDatabase } from '../database/index.js';
-import { type NoteDao } from '../database/note_dao.js';
+import { type OutgoingNoteDao } from '../database/outgoing_note_dao.js';
 import { getAcirSimulator } from '../simulator/index.js';
-import { produceNoteDao } from './produce_note_dao.js';
+import { produceNoteDaos } from './produce_note_dao.js';
 
 /**
  * Contains all the decrypted data in this array so that we can later batch insert it all into the database.
  */
 interface ProcessedData {
-  /**
-   * Holds L2 block.
-   */
+  /** Holds L2 block. */
   block: L2Block;
-  /**
-   * DAOs of processed notes.
-   */
-  noteDaos: NoteDao[];
+  /** DAOs of processed incoming notes. */
+  incomingNotes: IncomingNoteDao[];
+  /** DAOs of processed outgoing notes. */
+  outgoingNotes: OutgoingNoteDao[];
 }
 
 /**
@@ -42,20 +46,44 @@ export class NoteProcessor {
   public readonly timer: Timer = new Timer();
 
   /** Stats accumulated for this processor. */
-  public readonly stats: NoteProcessorStats = { seen: 0, decrypted: 0, deferred: 0, failed: 0, blocks: 0, txs: 0 };
+  public readonly stats: NoteProcessorStats = {
+    seen: 0,
+    decryptedIncoming: 0,
+    decryptedOutgoing: 0,
+    deferred: 0,
+    failed: 0,
+    blocks: 0,
+    txs: 0,
+  };
 
-  constructor(
-    /**
-     * The public counterpart to the private key to be used in note decryption.
-     */
-    public readonly masterIncomingViewingPublicKey: PublicKey,
+  private constructor(
+    public readonly account: AztecAddress,
+    /** The public counterpart to the secret key to be used in the decryption of incoming note logs. */
+    private readonly ivpkM: PublicKey,
+    /** The public counterpart to the secret key to be used in the decryption of outgoing note logs. */
+    private readonly ovpkM: PublicKey,
     private keyStore: KeyStore,
     private db: PxeDatabase,
     private node: AztecNode,
-    private startingBlock: number = INITIAL_L2_BLOCK_NUM,
-    private simulator = getAcirSimulator(db, node, keyStore),
-    private log = createDebugLogger('aztec:note_processor'),
+    private startingBlock: number,
+    private simulator: AcirSimulator,
+    private log: Logger,
   ) {}
+
+  public static async create(
+    account: AztecAddress,
+    keyStore: KeyStore,
+    db: PxeDatabase,
+    node: AztecNode,
+    startingBlock: number = INITIAL_L2_BLOCK_NUM,
+    simulator = getAcirSimulator(db, node, keyStore),
+    log = createDebugLogger('aztec:note_processor'),
+  ) {
+    const ivpkM = await keyStore.getMasterIncomingViewingPublicKey(account);
+    const ovpkM = await keyStore.getMasterOutgoingViewingPublicKey(account);
+
+    return new NoteProcessor(account, ivpkM, ovpkM, keyStore, db, node, startingBlock, simulator, log);
+  }
 
   /**
    * Check if the NoteProcessor is synchronized with the remote block number.
@@ -77,7 +105,7 @@ export class NoteProcessor {
   }
 
   private getSyncedToBlock(): number {
-    return this.db.getSynchedBlockNumberForPublicKey(this.masterIncomingViewingPublicKey) ?? this.startingBlock - 1;
+    return this.db.getSynchedBlockNumberForPublicKey(this.ivpkM) ?? this.startingBlock - 1;
   }
 
   /**
@@ -100,7 +128,12 @@ export class NoteProcessor {
 
     const blocksAndNotes: ProcessedData[] = [];
     // Keep track of notes that we couldn't process because the contract was not found.
-    const deferredNoteDaos: DeferredNoteDao[] = [];
+    // Note that there are no deferred outgoing notes because we don't need the contract there for anything since we
+    // are not attempting to derive a nullifier.
+    const deferredNoteDaosIncoming: DeferredNoteDao[] = [];
+
+    const ivskM = await this.keyStore.getMasterSecretKey(this.ivpkM);
+    const ovskM = await this.keyStore.getMasterSecretKey(this.ovpkM);
 
     // Iterate over both blocks and encrypted logs.
     for (let blockIndex = 0; blockIndex < encryptedL2BlockLogs.length; ++blockIndex) {
@@ -113,10 +146,8 @@ export class NoteProcessor {
 
       // We are using set for `userPertainingTxIndices` to avoid duplicates. This would happen in case there were
       // multiple encrypted logs in a tx pertaining to a user.
-      const noteDaos: NoteDao[] = [];
-      const secretKey = await this.keyStore.getMasterIncomingViewingSecretKeyForPublicKey(
-        this.masterIncomingViewingPublicKey,
-      );
+      const incomingNotes: IncomingNoteDao[] = [];
+      const outgoingNotes: OutgoingNoteDao[] = [];
 
       // Iterate over all the encrypted logs and try decrypting them. If successful, store the note.
       for (let indexOfTxInABlock = 0; indexOfTxInABlock < txLogs.length; ++indexOfTxInABlock) {
@@ -130,43 +161,48 @@ export class NoteProcessor {
         for (const functionLogs of txFunctionLogs) {
           for (const log of functionLogs.logs) {
             this.stats.seen++;
-            // @todo Issue(#6410) We should also try decrypting as outgoing if this fails.
-            const taggedNote = TaggedNote.decryptAsIncoming(log.data, secretKey);
-            if (taggedNote?.notePayload) {
-              const { notePayload: payload } = taggedNote;
-              // We have successfully decrypted the data.
+            const incomingTaggedNote = TaggedNote.decryptAsIncoming(log.data, ivskM)!;
+            const outgoingTaggedNote = TaggedNote.decryptAsOutgoing(log.data, ovskM)!;
+
+            if (incomingTaggedNote || outgoingTaggedNote) {
+              if (
+                incomingTaggedNote &&
+                outgoingTaggedNote &&
+                !incomingTaggedNote.notePayload.equals(outgoingTaggedNote.notePayload)
+              ) {
+                throw new Error('Incoming and outgoing note payloads do not match.');
+              }
+
+              const payload = incomingTaggedNote?.notePayload || outgoingTaggedNote?.notePayload;
+
               const txHash = block.body.txEffects[indexOfTxInABlock].txHash;
-              try {
-                const noteDao = await produceNoteDao(
-                  this.simulator,
-                  this.masterIncomingViewingPublicKey,
-                  payload,
-                  txHash,
-                  newNoteHashes,
-                  dataStartIndexForTx,
-                  excludedIndices,
-                );
-                noteDaos.push(noteDao);
-                this.stats.decrypted++;
-              } catch (e) {
-                if (e instanceof ContractNotFoundError) {
-                  this.stats.deferred++;
-                  this.log.warn(e.message);
-                  const deferredNoteDao = new DeferredNoteDao(
-                    this.masterIncomingViewingPublicKey,
-                    payload.note,
-                    payload.contractAddress,
-                    payload.storageSlot,
-                    payload.noteTypeId,
-                    txHash,
-                    newNoteHashes,
-                    dataStartIndexForTx,
-                  );
-                  deferredNoteDaos.push(deferredNoteDao);
-                } else {
-                  this.stats.failed++;
-                  this.log.error(`Could not process note because of "${e}". Discarding note...`);
-                }
+              const { incomingNote, outgoingNote, incomingDeferredNote } = await produceNoteDaos(
+                this.simulator,
+                incomingTaggedNote ? this.ivpkM : undefined,
+                outgoingTaggedNote ? this.ovpkM : undefined,
+                payload,
+                txHash,
+                newNoteHashes,
+                dataStartIndexForTx,
+                excludedIndices,
+                this.log,
+              );
+
+              if (incomingNote) {
+                incomingNotes.push(incomingNote);
+                this.stats.decryptedIncoming++;
+              }
+              if (outgoingNote) {
+                outgoingNotes.push(outgoingNote);
+                this.stats.decryptedOutgoing++;
+              }
+              if (incomingDeferredNote) {
+                deferredNoteDaosIncoming.push(incomingDeferredNote);
+                this.stats.deferred++;
+              }
+
+              if (incomingNote == undefined && outgoingNote == undefined && incomingDeferredNote == undefined) {
+                this.stats.failed++;
               }
             }
           }
@@ -175,15 +211,16 @@ export class NoteProcessor {
 
       blocksAndNotes.push({
         block: l2Blocks[blockIndex],
-        noteDaos,
+        incomingNotes,
+        outgoingNotes,
       });
     }
 
     await this.processBlocksAndNotes(blocksAndNotes);
-    await this.processDeferredNotes(deferredNoteDaos);
+    await this.processDeferredNotes(deferredNoteDaosIncoming);
 
     const syncedToBlock = l2Blocks[l2Blocks.length - 1].number;
-    await this.db.setSynchedBlockNumberForPublicKey(this.masterIncomingViewingPublicKey, syncedToBlock);
+    await this.db.setSynchedBlockNumberForPublicKey(this.ivpkM, syncedToBlock);
 
     this.log.debug(`Synched block ${syncedToBlock}`);
   }
@@ -198,22 +235,26 @@ export class NoteProcessor {
    * @param blocksAndNotes - Array of objects containing L2 blocks, user-pertaining transaction indices, and NoteDaos.
    */
   private async processBlocksAndNotes(blocksAndNotes: ProcessedData[]) {
-    const noteDaos = blocksAndNotes.flatMap(b => b.noteDaos);
-    if (noteDaos.length) {
-      await this.db.addNotes(noteDaos);
-      noteDaos.forEach(noteDao => {
+    const incomingNotes = blocksAndNotes.flatMap(b => b.incomingNotes);
+    const outgoingNotes = blocksAndNotes.flatMap(b => b.outgoingNotes);
+    if (incomingNotes.length || outgoingNotes.length) {
+      await this.db.addNotes(incomingNotes, outgoingNotes);
+      incomingNotes.forEach(noteDao => {
         this.log.verbose(
-          `Added note for contract ${noteDao.contractAddress} at slot ${
+          `Added incoming note for contract ${noteDao.contractAddress} at slot ${
             noteDao.storageSlot
           } with nullifier ${noteDao.siloedNullifier.toString()}`,
         );
+      });
+      outgoingNotes.forEach(noteDao => {
+        this.log.verbose(`Added outgoing note for contract ${noteDao.contractAddress} at slot ${noteDao.storageSlot}`);
       });
     }
 
     const newNullifiers: Fr[] = blocksAndNotes.flatMap(b =>
       b.block.body.txEffects.flatMap(txEffect => txEffect.nullifiers),
     );
-    const removedNotes = await this.db.removeNullifiedNotes(newNullifiers, this.masterIncomingViewingPublicKey);
+    const removedNotes = await this.db.removeNullifiedNotes(newNullifiers, this.ivpkM);
     removedNotes.forEach(noteDao => {
       this.log.verbose(
         `Removed note for contract ${noteDao.contractAddress} at slot ${
@@ -245,37 +286,45 @@ export class NoteProcessor {
    * Retry decoding the given deferred notes because we now have the contract code.
    *
    * @param deferredNoteDaos - notes that we have previously deferred because the contract was not found
-   * @returns An array of NoteDaos that were successfully decoded.
+   * @returns An array of incoming notes that were successfully decoded.
    *
    * @remarks Caller is responsible for making sure that we have the contract for the
    * deferred notes provided: we will not retry notes that fail again.
    */
-  public async decodeDeferredNotes(deferredNoteDaos: DeferredNoteDao[]): Promise<NoteDao[]> {
+  public async decodeDeferredNotes(deferredNoteDaos: DeferredNoteDao[]): Promise<IncomingNoteDao[]> {
     const excludedIndices: Set<number> = new Set();
-    const noteDaos: NoteDao[] = [];
+    const incomingNotes: IncomingNoteDao[] = [];
+
     for (const deferredNote of deferredNoteDaos) {
-      const { note, contractAddress, storageSlot, noteTypeId, txHash, newNoteHashes, dataStartIndexForTx } =
+      const { ivpkM, note, contractAddress, storageSlot, noteTypeId, txHash, newNoteHashes, dataStartIndexForTx } =
         deferredNote;
       const payload = new L1NotePayload(note, contractAddress, storageSlot, noteTypeId);
 
-      try {
-        const noteDao = await produceNoteDao(
-          this.simulator,
-          this.masterIncomingViewingPublicKey,
-          payload,
-          txHash,
-          newNoteHashes,
-          dataStartIndexForTx,
-          excludedIndices,
-        );
-        noteDaos.push(noteDao);
-        this.stats.decrypted++;
-      } catch (e) {
-        this.stats.failed++;
-        this.log.warn(`Could not process deferred note because of "${e}". Discarding note...`);
+      if (!ivpkM.equals(this.ivpkM)) {
+        // The note is not for this account, so we skip it.
+        continue;
       }
+
+      const { incomingNote } = await produceNoteDaos(
+        this.simulator,
+        this.ivpkM,
+        undefined,
+        payload,
+        txHash,
+        newNoteHashes,
+        dataStartIndexForTx,
+        excludedIndices,
+        this.log,
+      );
+
+      if (!incomingNote) {
+        throw new Error('Deferred note could not be decoded.');
+      }
+
+      incomingNotes.push(incomingNote);
+      this.stats.decryptedIncoming++;
     }
 
-    return noteDaos;
+    return incomingNotes;
   }
 }

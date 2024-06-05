@@ -57,8 +57,8 @@ import { type NodeInfo } from '@aztec/types/interfaces';
 
 import { type PXEServiceConfig, getPackageInfo } from '../config/index.js';
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
+import { IncomingNoteDao } from '../database/incoming_note_dao.js';
 import { type PxeDatabase } from '../database/index.js';
-import { NoteDao } from '../database/note_dao.js';
 import { KernelOracle } from '../kernel_oracle/index.js';
 import { KernelProver } from '../kernel_prover/kernel_prover.js';
 import { getAcirSimulator } from '../simulator/index.js';
@@ -121,11 +121,7 @@ export class PXEService implements PXE {
       }
 
       count++;
-      this.synchronizer.addAccount(
-        address.publicKeys.masterIncomingViewingPublicKey,
-        this.keyStore,
-        this.config.l2StartingBlock,
-      );
+      await this.synchronizer.addAccount(address.address, this.keyStore, this.config.l2StartingBlock);
     }
 
     if (count > 0) {
@@ -184,10 +180,7 @@ export class PXEService implements PXE {
       this.log.info(`Account:\n "${accountCompleteAddress.address.toString()}"\n already registered.`);
       return accountCompleteAddress;
     } else {
-      const masterIncomingViewingPublicKey = await this.keyStore.getMasterIncomingViewingPublicKey(
-        accountCompleteAddress.address,
-      );
-      this.synchronizer.addAccount(masterIncomingViewingPublicKey, this.keyStore, this.config.l2StartingBlock);
+      await this.synchronizer.addAccount(accountCompleteAddress.address, this.keyStore, this.config.l2StartingBlock);
       this.log.info(`Registered account ${accountCompleteAddress.address.toString()}`);
       this.log.debug(`Registered account\n ${accountCompleteAddress.toReadableString()}`);
     }
@@ -293,10 +286,10 @@ export class PXEService implements PXE {
       let owner = filter.owner;
       if (owner === undefined) {
         const completeAddresses = (await this.db.getCompleteAddresses()).find(address =>
-          address.publicKeys.masterIncomingViewingPublicKey.equals(dao.publicKey),
+          address.publicKeys.masterIncomingViewingPublicKey.equals(dao.ivpkM),
         );
         if (completeAddresses === undefined) {
-          throw new Error(`Cannot find complete address for public key ${dao.publicKey.toString()}`);
+          throw new Error(`Cannot find complete address for IvpkM ${dao.ivpkM.toString()}`);
         }
         owner = completeAddresses.address;
       }
@@ -337,7 +330,7 @@ export class PXEService implements PXE {
       }
 
       await this.db.addNote(
-        new NoteDao(
+        new IncomingNoteDao(
           note.note,
           note.contractAddress,
           note.storageSlot,

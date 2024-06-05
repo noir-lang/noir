@@ -1,9 +1,9 @@
 import { Note, randomTxHash } from '@aztec/circuit-types';
 import { AztecAddress, Fr, Point } from '@aztec/circuits.js';
 
-import { NoteDao } from './note_dao.js';
+import { IncomingNoteDao } from './incoming_note_dao.js';
 
-export const randomNoteDao = ({
+export const randomIncomingNoteDao = ({
   note = Note.random(),
   contractAddress = AztecAddress.random(),
   txHash = randomTxHash(),
@@ -13,9 +13,9 @@ export const randomNoteDao = ({
   innerNoteHash = Fr.random(),
   siloedNullifier = Fr.random(),
   index = Fr.random().toBigInt(),
-  publicKey = Point.random(),
-}: Partial<NoteDao> = {}) => {
-  return new NoteDao(
+  ivpkM = Point.random(),
+}: Partial<IncomingNoteDao> = {}) => {
+  return new IncomingNoteDao(
     note,
     contractAddress,
     storageSlot,
@@ -25,14 +25,14 @@ export const randomNoteDao = ({
     innerNoteHash,
     siloedNullifier,
     index,
-    publicKey,
+    ivpkM,
   );
 };
 
-describe('Note DAO', () => {
+describe('Incoming Note DAO', () => {
   it('convert to and from buffer', () => {
-    const note = randomNoteDao();
+    const note = randomIncomingNoteDao();
     const buf = note.toBuffer();
-    expect(NoteDao.fromBuffer(buf)).toEqual(note);
+    expect(IncomingNoteDao.fromBuffer(buf)).toEqual(note);
   });
 });

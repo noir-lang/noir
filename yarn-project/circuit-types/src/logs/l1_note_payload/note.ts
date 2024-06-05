@@ -56,4 +56,8 @@ export class Note extends Vector<Fr> {
   get length() {
     return this.items.length;
   }
+
+  equals(other: Note) {
+    return this.items.every((item, index) => item.equals(other.items[index]));
+  }
 }

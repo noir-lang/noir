@@ -171,8 +171,8 @@ function processCircuitWitnessGeneration(entry: CircuitWitnessGenerationStats, r
  * Processes an entry with event name 'note-processor-caught-up' and updates results
  */
 function processNoteProcessorCaughtUp(entry: NoteProcessorCaughtUpStats, results: BenchmarkCollectedResults) {
-  const { decrypted, blocks, dbSize } = entry;
-  if (BENCHMARK_HISTORY_CHAIN_LENGTHS.includes(blocks) && decrypted > 0) {
+  const { decryptedIncoming, decryptedOutgoing, blocks, dbSize } = entry;
+  if (BENCHMARK_HISTORY_CHAIN_LENGTHS.includes(blocks) && (decryptedIncoming > 0 || decryptedOutgoing > 0)) {
     append(results, 'pxe_database_size_in_bytes', blocks, dbSize);
   }
 }

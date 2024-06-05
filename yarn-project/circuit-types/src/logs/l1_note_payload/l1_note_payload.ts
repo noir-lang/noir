@@ -73,10 +73,11 @@ export class L1NotePayload {
 
   /**
    * Create a random L1NotePayload object (useful for testing purposes).
+   * @param contract - The address of a contract the note was emitted from.
    * @returns A random L1NotePayload object.
    */
-  static random() {
-    return new L1NotePayload(Note.random(), AztecAddress.random(), Fr.random(), Fr.random());
+  static random(contract = AztecAddress.random()) {
+    return new L1NotePayload(Note.random(), contract, Fr.random(), Fr.random());
   }
 
   /**
@@ -206,6 +207,15 @@ export class L1NotePayload {
       outgoingHeader.address,
       incomingBody.storageSlot,
       incomingBody.noteTypeId,
+    );
+  }
+
+  public equals(other: L1NotePayload) {
+    return (
+      this.note.equals(other.note) &&
+      this.contractAddress.equals(other.contractAddress) &&
+      this.storageSlot.equals(other.storageSlot) &&
+      this.noteTypeId.equals(other.noteTypeId)
     );
   }
 }

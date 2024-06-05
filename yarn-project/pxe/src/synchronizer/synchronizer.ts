@@ -7,8 +7,8 @@ import { RunningPromise } from '@aztec/foundation/running-promise';
 import { type KeyStore } from '@aztec/key-store';
 
 import { type DeferredNoteDao } from '../database/deferred_note_dao.js';
+import { type IncomingNoteDao } from '../database/incoming_note_dao.js';
 import { type PxeDatabase } from '../database/index.js';
-import { type NoteDao } from '../database/note_dao.js';
 import { NoteProcessor } from '../note_processor/index.js';
 
 /**
@@ -193,7 +193,7 @@ export class Synchronizer {
         }
 
         this.log.debug(
-          `Catching up note processor ${noteProcessor.masterIncomingViewingPublicKey.toString()} by processing ${
+          `Catching up note processor ${noteProcessor.account.toString()} by processing ${
             blocks.length - index
           } blocks`,
         );
@@ -201,19 +201,16 @@ export class Synchronizer {
 
         if (noteProcessor.status.syncedToBlock === toBlockNumber) {
           // Note processor caught up, move it to `noteProcessors` from `noteProcessorsToCatchUp`.
-          this.log.debug(
-            `Note processor for ${noteProcessor.masterIncomingViewingPublicKey.toString()} has caught up`,
-            {
-              eventName: 'note-processor-caught-up',
-              publicKey: noteProcessor.masterIncomingViewingPublicKey.toString(),
-              duration: noteProcessor.timer.ms(),
-              dbSize: this.db.estimateSize(),
-              ...noteProcessor.stats,
-            } satisfies NoteProcessorCaughtUpStats,
-          );
+          this.log.debug(`Note processor for ${noteProcessor.account.toString()} has caught up`, {
+            eventName: 'note-processor-caught-up',
+            account: noteProcessor.account.toString(),
+            duration: noteProcessor.timer.ms(),
+            dbSize: this.db.estimateSize(),
+            ...noteProcessor.stats,
+          } satisfies NoteProcessorCaughtUpStats);
 
           this.noteProcessorsToCatchUp = this.noteProcessorsToCatchUp.filter(
-            np => !np.masterIncomingViewingPublicKey.equals(noteProcessor.masterIncomingViewingPublicKey),
+            np => !np.account.equals(noteProcessor.account),
           );
           this.noteProcessors.push(noteProcessor);
         }
@@ -257,14 +254,14 @@ export class Synchronizer {
    * @param startingBlock - The block where to start scanning for notes for this accounts.
    * @returns A promise that resolves once the account is added to the Synchronizer.
    */
-  public addAccount(publicKey: PublicKey, keyStore: KeyStore, startingBlock: number) {
-    const predicate = (x: NoteProcessor) => x.masterIncomingViewingPublicKey.equals(publicKey);
+  public async addAccount(account: AztecAddress, keyStore: KeyStore, startingBlock: number) {
+    const predicate = (x: NoteProcessor) => x.account.equals(account);
     const processor = this.noteProcessors.find(predicate) ?? this.noteProcessorsToCatchUp.find(predicate);
     if (processor) {
       return;
     }
 
-    this.noteProcessorsToCatchUp.push(new NoteProcessor(publicKey, keyStore, this.db, this.node, startingBlock));
+    this.noteProcessorsToCatchUp.push(await NoteProcessor.create(account, keyStore, this.db, this.node, startingBlock));
   }
 
   /**
@@ -280,9 +277,9 @@ export class Synchronizer {
     if (!completeAddress) {
       throw new Error(`Checking if account is synched is not possible for ${account} because it is not registered.`);
     }
-    const findByPublicKey = (x: NoteProcessor) =>
-      x.masterIncomingViewingPublicKey.equals(completeAddress.publicKeys.masterIncomingViewingPublicKey);
-    const processor = this.noteProcessors.find(findByPublicKey) ?? this.noteProcessorsToCatchUp.find(findByPublicKey);
+    const findByAccountAddress = (x: NoteProcessor) => x.account.equals(completeAddress.address);
+    const processor =
+      this.noteProcessors.find(findByAccountAddress) ?? this.noteProcessorsToCatchUp.find(findByAccountAddress);
     if (!processor) {
       throw new Error(
         `Checking if account is synched is not possible for ${account} because it is only registered as a recipient.`,
@@ -314,9 +311,7 @@ export class Synchronizer {
     const lastBlockNumber = this.getSynchedBlockNumber();
     return {
       blocks: lastBlockNumber,
-      notes: Object.fromEntries(
-        this.noteProcessors.map(n => [n.masterIncomingViewingPublicKey.toString(), n.status.syncedToBlock]),
-      ),
+      notes: Object.fromEntries(this.noteProcessors.map(n => [n.account.toString(), n.status.syncedToBlock])),
     };
   }
 
@@ -325,7 +320,7 @@ export class Synchronizer {
    * @returns The note processor stats for notes for each public key being tracked.
    */
   public getSyncStats() {
-    return Object.fromEntries(this.noteProcessors.map(n => [n.masterIncomingViewingPublicKey.toString(), n.stats]));
+    return Object.fromEntries(this.noteProcessors.map(n => [n.account.toString(), n.stats]));
   }
 
   /**
@@ -348,23 +343,21 @@ export class Synchronizer {
     }
 
     // keep track of decoded notes
-    const newNotes: NoteDao[] = [];
+    const incomingNotes: IncomingNoteDao[] = [];
     // now process each txHash
     for (const deferredNotes of txHashToDeferredNotes.values()) {
       // to be safe, try each note processor in case the deferred notes are for different accounts.
       for (const processor of this.noteProcessors) {
-        const decodedNotes = await processor.decodeDeferredNotes(
-          deferredNotes.filter(n => n.publicKey.equals(processor.masterIncomingViewingPublicKey)),
-        );
-        newNotes.push(...decodedNotes);
+        const notes = await processor.decodeDeferredNotes(deferredNotes);
+        incomingNotes.push(...notes);
       }
     }
 
     // now drop the deferred notes, and add the decoded notes
     await this.db.removeDeferredNotesByContract(contractAddress);
-    await this.db.addNotes(newNotes);
+    await this.db.addNotes(incomingNotes, []);
 
-    newNotes.forEach(noteDao => {
+    incomingNotes.forEach(noteDao => {
       this.log.debug(
         `Decoded deferred note for contract ${noteDao.contractAddress} at slot ${
           noteDao.storageSlot
@@ -372,12 +365,12 @@ export class Synchronizer {
       );
     });
 
-    // now group the decoded notes by public key
-    const publicKeyToNotes: Map<PublicKey, NoteDao[]> = new Map();
-    for (const noteDao of newNotes) {
-      const notesForPublicKey = publicKeyToNotes.get(noteDao.publicKey) ?? [];
+    // now group the decoded incoming notes by public key
+    const publicKeyToNotes: Map<PublicKey, IncomingNoteDao[]> = new Map();
+    for (const noteDao of incomingNotes) {
+      const notesForPublicKey = publicKeyToNotes.get(noteDao.ivpkM) ?? [];
       notesForPublicKey.push(noteDao);
-      publicKeyToNotes.set(noteDao.publicKey, notesForPublicKey);
+      publicKeyToNotes.set(noteDao.ivpkM, notesForPublicKey);
     }
 
     // now for each group, look for the nullifiers in the nullifier tree

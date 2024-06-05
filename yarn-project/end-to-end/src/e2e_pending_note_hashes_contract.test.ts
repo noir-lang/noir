@@ -306,11 +306,10 @@ describe('e2e_pending_note_hashes_contract', () => {
     // Then emit another note log with the same counter as the one above, but with value 5
     await deployedContract.methods.test_emit_bad_note_log(owner, outgoingViewer).send().wait();
 
-    const mIVPK = wallet.getCompleteAddress().publicKeys.masterIncomingViewingPublicKey.toString();
     const syncStats = await wallet.getSyncStats();
-    // Expect two decryptable note logs to be emitted
-    expect(syncStats[mIVPK].decrypted).toEqual(2);
+    // Expect two incoming decryptable note logs to be emitted
+    expect(syncStats[owner.toString()].decryptedIncoming).toEqual(2);
     // Expect one note log to be dropped
-    expect(syncStats[mIVPK].failed).toEqual(1);
+    expect(syncStats[owner.toString()].failed).toEqual(1);
   });
 });

@@ -14,11 +14,11 @@ export async function waitForAccountSynch(
   address: CompleteAddress,
   { interval, timeout }: WaitOpts = DefaultWaitOpts,
 ): Promise<void> {
-  const publicKey = address.publicKeys.masterIncomingViewingPublicKey.toString();
+  const accountAddress = address.address.toString();
   await retryUntil(
     async () => {
       const status = await pxe.getSyncStatus();
-      const accountSynchedToBlock = status.notes[publicKey];
+      const accountSynchedToBlock = status.notes[accountAddress];
       if (typeof accountSynchedToBlock === 'undefined') {
         return false;
       } else {

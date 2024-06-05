@@ -132,7 +132,7 @@ describe('Synchronizer', () => {
       const partialAddress = Fr.random();
       const completeAddress = await keyStore.addAccount(secretKey, partialAddress);
       await database.addCompleteAddress(completeAddress);
-      synchronizer.addAccount(completeAddress.publicKeys.masterIncomingViewingPublicKey, keyStore, startingBlockNum);
+      await synchronizer.addAccount(completeAddress.address, keyStore, startingBlockNum);
       return completeAddress;
     };
 

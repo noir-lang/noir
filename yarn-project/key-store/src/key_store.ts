@@ -307,36 +307,6 @@ export class KeyStore {
   }
 
   /**
-   * Retrieves the master incoming viewing secret key (ivsk_m) corresponding to the specified master incoming viewing
-   * public key (Ivpk_m).
-   * @throws If the provided public key is not associated with any of the registered accounts.
-   * @param masterIncomingViewingPublicKey - The master nullifier public key to get secret key for.
-   * @returns A Promise that resolves to the master nullifier secret key.
-   * @dev Used when feeding the master nullifier secret key to the kernel circuit for nullifier keys verification.
-   */
-  public getMasterIncomingViewingSecretKeyForPublicKey(
-    masterIncomingViewingPublicKey: PublicKey,
-  ): Promise<GrumpkinPrivateKey> {
-    // We iterate over the map keys to find the account address that corresponds to the provided public key
-    for (const [key, value] of this.#keys.entries()) {
-      if (value.equals(masterIncomingViewingPublicKey.toBuffer())) {
-        // We extract the account address from the map key
-        const account = key.split('-')[0];
-        // We fetch the secret key and return it
-        const masterIncomingViewingSecretKeyBuffer = this.#keys.get(`${account.toString()}-ivsk_m`);
-        if (!masterIncomingViewingSecretKeyBuffer) {
-          throw new Error(`Could not find master incoming viewing secret key for account ${account.toString()}`);
-        }
-        return Promise.resolve(GrumpkinScalar.fromBuffer(masterIncomingViewingSecretKeyBuffer));
-      }
-    }
-
-    throw new Error(
-      `Could not find master incoming viewing secret key for public key ${masterIncomingViewingPublicKey.toString()}`,
-    );
-  }
-
-  /**
    * Rotates the master nullifier key for the specified account.
    *
    * @dev This function updates the secret and public keys associated with the account.
