@@ -479,7 +479,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         }
         let flatten_values_vec = values.iter().map(|value| value.fields()).collect::<Vec<_>>();
         let mut flatten_values_idx = 0; //index of values read from flatten_values
-        let values = values.clone();
 
         for (((destination, value_type), output), flatten_values) in
             destinations.iter().zip(destination_value_types).zip(&values).zip(flatten_values_vec)
