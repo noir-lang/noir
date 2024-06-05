@@ -153,6 +153,8 @@ class AvmTraceBuilder {
                        uint32_t dst_offset,
                        std::vector<FF> const& call_data_mem);
 
+    // REVERT Opcode (that just call return under the hood for now)
+    std::vector<FF> op_revert(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size);
     // RETURN opcode with direct and indirect memory access, i.e.,
     // direct:   return(M[ret_offset:ret_offset+ret_size])
     // indirect: return(M[M[ret_offset]:M[ret_offset]+ret_size])

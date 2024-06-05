@@ -1843,6 +1843,12 @@ void AvmTraceBuilder::calldata_copy(
     pc++;
 }
 
+// Credit to SEAN for coming up with this revert opcode
+std::vector<FF> AvmTraceBuilder::op_revert(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size)
+{
+    return return_op(indirect, ret_offset, ret_size);
+}
+
 /**
  * @brief RETURN opcode with direct and indirect memory access, i.e.,
  *        direct:   return(M[ret_offset:ret_offset+ret_size])
