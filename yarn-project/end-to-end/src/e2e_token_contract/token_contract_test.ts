@@ -24,8 +24,8 @@ import { TokenSimulator } from '../simulators/token_simulator.js';
 const { E2E_DATA_PATH: dataPath } = process.env;
 
 export class TokenContractTest {
-  static TOKEN_NAME = 'Aztec Token';
-  static TOKEN_SYMBOL = 'AZT';
+  static TOKEN_NAME = 'USDC';
+  static TOKEN_SYMBOL = 'USD';
   static TOKEN_DECIMALS = 18n;
   private snapshotManager: ISnapshotManager;
   logger: DebugLogger;

@@ -1,7 +1,7 @@
 name: aztec-devnet
 services:
   pxe:
-    image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:afe0263560a82f2c84b9d76451ec4585a3ed389251fb90e916faaa85d9eb9a0d}
+    image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:edc36351a531c2d76c2a96e2a67dc1f4020d5dcb9c7132d7df8e75a8518ed1b3}
     # need to run bb for proofs and bb is only built for x86
     platform: linux/amd64
     environment:
@@ -28,7 +28,7 @@ services:
     expose:
       - 8080:8080
   cli:
-    image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:afe0263560a82f2c84b9d76451ec4585a3ed389251fb90e916faaa85d9eb9a0d}
+    image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:edc36351a531c2d76c2a96e2a67dc1f4020d5dcb9c7132d7df8e75a8518ed1b3}
     # run the same image as pxe
     platform: linux/amd64
     environment:

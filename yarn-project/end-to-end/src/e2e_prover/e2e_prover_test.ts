@@ -53,8 +53,8 @@ type ProvenSetup = {
  */
 
 export class FullProverTest {
-  static TOKEN_NAME = 'Aztec Token';
-  static TOKEN_SYMBOL = 'AZT';
+  static TOKEN_NAME = 'USDC';
+  static TOKEN_SYMBOL = 'USD';
   static TOKEN_DECIMALS = 18n;
   private snapshotManager: ISnapshotManager;
   logger: DebugLogger;
