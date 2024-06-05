@@ -135,7 +135,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
     }
 
     fn display_opcodes(&self) {
-        for i in 0..(self.circuits.len()) {
+        for i in 0..self.circuits.len() {
             self.display_opcodes_of_circuit(i as u32);
         }
     }
