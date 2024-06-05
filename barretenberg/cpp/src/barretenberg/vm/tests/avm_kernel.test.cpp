@@ -927,8 +927,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNullifierNonExists)
     uint32_t metadata_offset = 420;
     auto exists = 0;
 
-    ExecutionHints execution_hints = {};
-    execution_hints.side_effect_hints[0] = exists; // side effect counter -> value
+    ExecutionHints execution_hints({}, { { 0, exists } }, {}, {}, {}, {});
 
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, static_cast<uint128_t>(value), value_offset, AvmMemoryTag::FF);
