@@ -477,11 +477,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 destinations.len()
             ));
         }
-        let flatten_values_vec = values.iter().map(|value| value.fields()).collect::<Vec<_>>();
-        let mut flatten_values_idx = 0; //index of values read from flatten_values
 
-        for (((destination, value_type), output), flatten_values) in
-            destinations.iter().zip(destination_value_types).zip(&values).zip(flatten_values_vec)
+        for ((destination, value_type), output) in
+            destinations.iter().zip(destination_value_types).zip(&values)
         {
             match (destination, value_type) {
             (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(bit_size)) => {
@@ -514,7 +512,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     // foreign call returning flatten values into a nested type, so the sizes do not match
                     let destination = self.memory.read_ref(*pointer_index);
                     let return_type = value_type;
-                    self.write_slice_of_values_to_memory(destination, &flatten_values, &mut flatten_values_idx, return_type)?;
+                    let mut flatten_values_idx = 0; //index of values read from flatten_values
+                    self.write_slice_of_values_to_memory(destination, &output.fields(), &mut flatten_values_idx, return_type)?;
             }
         }
             (
