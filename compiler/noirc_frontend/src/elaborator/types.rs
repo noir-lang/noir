@@ -415,7 +415,7 @@ impl<'context> Elaborator<'context> {
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
     }
 
-    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u64 {
+    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u32 {
         let Some(stmt) = self.interner.get_global_let_statement(global) else {
             let path = path.clone();
             self.push_err(ResolverError::NoSuchNumericTypeVariable { path });

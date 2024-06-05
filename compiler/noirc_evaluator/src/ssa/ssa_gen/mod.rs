@@ -244,7 +244,7 @@ impl<'a> FunctionContext<'a> {
         let elements = vecmap(string.as_bytes(), |byte| {
             self.builder.numeric_constant(*byte as u128, Type::unsigned(8)).into()
         });
-        let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u64));
+        let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
         self.codegen_array(elements, typ)
     }
 
@@ -400,7 +400,7 @@ impl<'a> FunctionContext<'a> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
         let type_size = Self::convert_type(element_type).size_of_type();
-        let type_size = self.builder.numeric_constant(type_size as u128, Type::unsigned(64));
+        let type_size = self.builder.numeric_constant(type_size as u128, Type::unsigned(32));
         let base_index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
 

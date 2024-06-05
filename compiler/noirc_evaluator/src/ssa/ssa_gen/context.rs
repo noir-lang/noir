@@ -587,9 +587,9 @@ impl<'a> FunctionContext<'a> {
         address
     }
 
-    /// Array indexes are u64s. This function casts values used as indexes to u64.
+    /// Array indexes are u632. This function casts values used as indexes to u32.
     pub(super) fn make_array_index(&mut self, index: ValueId) -> ValueId {
-        self.builder.insert_cast(index, Type::unsigned(64))
+        self.builder.insert_cast(index, Type::unsigned(32))
     }
 
     /// Define a local variable to be some Values that can later be retrieved

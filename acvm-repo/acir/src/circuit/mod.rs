@@ -115,8 +115,8 @@ impl<'de> Deserialize<'de> for ErrorSelector {
         D: serde::Deserializer<'de>,
     {
         let s: String = Deserialize::deserialize(deserializer)?;
-        let as_u32 = s.parse().map_err(serde::de::Error::custom)?;
-        Ok(ErrorSelector(as_u32))
+        let as_u64 = s.parse().map_err(serde::de::Error::custom)?;
+        Ok(ErrorSelector(as_u64))
     }
 }
 

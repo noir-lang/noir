@@ -60,6 +60,8 @@ pub trait AcirField:
 
     fn try_to_u64(&self) -> Option<u64>;
 
+    fn try_to_u32(&self) -> Option<u32>;
+
     /// Computes the inverse or returns zero if the inverse does not exist
     /// Before using this FieldElement, please ensure that this behavior is necessary
     fn inverse(&self) -> Self;

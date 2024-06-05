@@ -92,7 +92,7 @@ impl Type {
 
     /// Creates the type of an array's length.
     pub(crate) fn length_type() -> Type {
-        Type::unsigned(64)
+        Type::unsigned(32)
     }
 
     /// Returns the bit size of the provided numeric type.
