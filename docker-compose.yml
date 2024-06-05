@@ -24,9 +24,59 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - aztec-pxe:/var/lib/aztec/pxe
-    expose:
+      - aztec:/var/lib/aztec
+    ports:
       - 8080:8080
+
+  node:
+    image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:edc36351a531c2d76c2a96e2a67dc1f4020d5dcb9c7132d7df8e75a8518ed1b3}
+    # need to run bb for proofs and bb is only built for x86
+    platform: linux/amd64
+    environment:
+      LOG_LEVEL: info
+      DEBUG: aztec:*
+      DEBUG_COLORS: 1
+      CHAIN_ID: 31337
+      VERSION: 1
+      NODE_NO_WARNINGS: 1
+      PROVER_REAL_PROOFS: ${PROVER_REAL_PROOFS:-1}
+      DATA_DIRECTORY: /var/lib/aztec
+      PROVER_AGENT_ENABLED: 0
+      ROLLUP_CONTRACT_ADDRESS: "0xb217416e24de236ebf51bdda0e22ed942f566fe6"
+      REGISTRY_CONTRACT_ADDRESS: "0xea84d2b4be8e13d8c1ad719ef420ade7077dbd92"
+      INBOX_CONTRACT_ADDRESS: "0x4988f52fe61c369f9178564173970178fb3e7a7c"
+      OUTBOX_CONTRACT_ADDRESS: "0x633083beff629db6b1461107b4cc717f00472afc"
+      AVAILABILITY_ORACLE_CONTRACT_ADDRESS: "0xa50048c760a1ce797a8ded07de2cc4b479392c1d"
+      GAS_TOKEN_CONTRACT_ADDRESS: "0xafb812ed2d6617f0e2128dbec769af45262ae59b"
+      GAS_PORTAL_CONTRACT_ADDRESS: "0x22644d8249ca9a4704ae76c0aa50f9513132c2e2"
+      ETHEREUM_HOST: 
+      P2P_TCP_LISTEN_PORT: 9000
+      P2P_UDP_LISTEN_PORT: 9001
+      P2P_ANNOUNCE_PORT: 9000
+      P2P_QUERY_FOR_IP: true
+      P2P_ENABLED: true
+      PEER_ID_PRIVATE_KEY:
+    secrets:
+      - ethereum-host
+      - p2p-private-key
+      - p2p-boot-node
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "export ETHEREUM_HOST=$$(cat /var/run/secrets/ethereum-host);\
+         export PEER_ID_PRIVATE_KEY=$$(cat /var/run/secrets/p2p-private-key);\
+         export BOOTSTRAP_NODES=$$(cat /var/run/secrets/p2p-boot-node);\
+         node /usr/src/yarn-project/aztec/dest/bin/index.js start --node --archiver",
+      ]
+    volumes:
+      - aztec:/var/lib/aztec
+    profiles:
+      - node
+    ports:
+      - 9000:9000/tcp
+      - 9001:9001/udp
+
   cli:
     image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:edc36351a531c2d76c2a96e2a67dc1f4020d5dcb9c7132d7df8e75a8518ed1b3}
     # run the same image as pxe
@@ -41,8 +91,14 @@ services:
       - cli
 
 volumes:
-  aztec-pxe:
+  aztec:
 
 secrets:
   aztec-node-url:
     environment: AZTEC_NODE_URL
+  ethereum-host:
+    environment: ETHEREUM_HOST
+  p2p-boot-node:
+    environment: BOOTSTRAP_NODES
+  p2p-private-key:
+    environment: PEER_ID_PRIVATE_KEY
