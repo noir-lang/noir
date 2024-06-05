@@ -56,6 +56,7 @@ services:
       P2P_QUERY_FOR_IP: true
       P2P_ENABLED: true
       PEER_ID_PRIVATE_KEY:
+      AZTEC_NODE_PORT: 8999
     secrets:
       - ethereum-host
       - p2p-boot-node
@@ -74,6 +75,8 @@ services:
     profiles:
       - node
     ports:
+      # the RPC endpoint - expose it on a different port to avoid conflicting with PXE
+      - 8999:8999/tcp 
       - 9000:9000/tcp
       - 9001:9001/udp
 
