@@ -96,10 +96,10 @@ impl DebugVars {
                     PrintableType::Array { length, typ },
                 ) => {
                     assert!(!*is_slice, "slice has array type");
-                    if *index as u64 >= *length {
+                    if *index >= *length {
                         panic!("unexpected field index past array length")
                     }
-                    if *length != array_elements.len() as u64 {
+                    if *length != array_elements.len() as u32 {
                         panic!("type/array length mismatch")
                     }
                     (array_elements.get_mut(*index as usize).unwrap(), &*Box::leak(typ.clone()))

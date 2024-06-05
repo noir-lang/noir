@@ -1987,7 +1987,7 @@ impl<'a> Resolver<'a> {
         self.interner.push_expr(hir_block)
     }
 
-    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u64 {
+    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u32 {
         let Some(stmt) = self.interner.get_global_let_statement(global) else {
             let path = path.clone();
             self.push_err(ResolverError::NoSuchNumericTypeVariable { path });

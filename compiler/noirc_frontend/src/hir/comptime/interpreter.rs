@@ -332,7 +332,7 @@ impl<'a> Interpreter<'a> {
             DefinitionKind::GenericType(type_variable) => {
                 let value = match &*type_variable.borrow() {
                     TypeBinding::Unbound(_) => None,
-                    TypeBinding::Bound(binding) => binding.evaluate_to_u64(),
+                    TypeBinding::Bound(binding) => binding.evaluate_to_u32(),
                 };
 
                 if let Some(value) = value {
@@ -395,9 +395,11 @@ impl<'a> Interpreter<'a> {
                 }
                 (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
                     let value: u32 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
+                        value.try_to_u32().ok_or(InterpreterError::IntegerOutOfRangeForType {
+                            value,
+                            typ,
+                            location,
+                        })?;
                     let value = if is_negative { 0u32.wrapping_sub(value) } else { value };
                     Ok(Value::U32(value))
                 }
@@ -485,7 +487,7 @@ impl<'a> Interpreter<'a> {
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let element = self.evaluate(repeated_element)?;
 
-                if let Some(length) = length.evaluate_to_u64() {
+                if let Some(length) = length.evaluate_to_u32() {
                     let elements = (0..length).map(|_| element.clone()).collect();
                     Ok(Value::Array(elements, typ))
                 } else {
