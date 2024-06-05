@@ -58,6 +58,13 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     &"is_unconstrained",
 ];
 
+/// Some tests are explicit ignored when not working with the elaborator.
+/// These should be fixed and removed from this list.
+const IGNORED_NON_ELABORATOR_TESTS: [&str; 1] = [
+    // Explicit numeric generics are only supported in the elaborator.
+    &"numeric_generics_explicit",
+];
+
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_sub_dir = "execution_success";
     let test_data_dir = test_data_dir.join(test_sub_dir);
@@ -237,10 +244,16 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
         };
         let test_dir = &test_dir.path();
 
+        let non_elaborator_ignored = if IGNORED_NON_ELABORATOR_TESTS.contains(&test_name.as_str()) {
+            "\n#[ignore]"
+        } else {
+            ""
+        };
+
         write!(
             test_file,
             r#"
-#[test]
+#[test]{non_elaborator_ignored}
 fn compile_success_empty_{test_name}() {{
 
     // We use a mocked backend for this test as we do not rely on the returned circuit size

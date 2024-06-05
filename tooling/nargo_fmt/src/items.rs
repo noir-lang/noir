@@ -5,7 +5,7 @@ use crate::{
     visitor::{FmtVisitor, Shape},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Item {
     pub(crate) leading: String,
     pub(crate) value: String,

@@ -172,16 +172,25 @@ impl HasItem for Ident {
 
 impl HasItem for UnresolvedGeneric {
     fn span(&self) -> Span {
-        match self {
-            UnresolvedGeneric::Variable(ident) => ident.span(),
-            UnresolvedGeneric::Numeric { ident, typ } => {
-                ident.span().merge(typ.span.expect("Should have a span for numeric generic type"))
-            }
-        }
+        self.span()
     }
 
     fn format(self, visitor: &FmtVisitor, _shape: Shape) -> String {
         visitor.slice(self.span()).into()
+    }
+
+    fn start(&self) -> u32 {
+        let start_offset = match self {
+            UnresolvedGeneric::Variable(_) => 0,
+            // We offset by 4 here to account for the `let` identifier
+            // and the extra space before the actual generic numeric type
+            UnresolvedGeneric::Numeric { .. } => 4,
+        };
+        self.span().start() - start_offset
+    }
+
+    fn end(&self) -> u32 {
+        self.span().end()
     }
 }
 

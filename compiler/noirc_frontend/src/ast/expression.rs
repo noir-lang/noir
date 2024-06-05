@@ -54,10 +54,11 @@ pub enum UnresolvedGeneric {
 }
 
 impl UnresolvedGeneric {
-    pub(crate) fn span(&self) -> Span {
+    pub fn span(&self) -> Span {
         match self {
-            UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } => {
-                ident.0.span()
+            UnresolvedGeneric::Variable(ident) => ident.0.span(),
+            UnresolvedGeneric::Numeric { ident, typ } => {
+                ident.0.span().merge(typ.span.unwrap_or_default())
             }
         }
     }
