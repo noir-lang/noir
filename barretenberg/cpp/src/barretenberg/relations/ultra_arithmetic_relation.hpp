@@ -57,7 +57,7 @@ template <typename FF_> class UltraArithmeticRelationImpl {
      * at the next gate. Then we can treat (q_arith - 1) as a simulated q_6 selector and scale q_m to handle (q_arith -
      * 3) at product.
      *
-     * The The relation is
+     * The relation is
      * defined as C(in(X)...) = q_arith * [ -1/2(q_arith - 3)(q_m * w_r * w_l) + (q_l * w_l) + (q_r * w_r) +
      * (q_o * w_o) + (q_4 * w_4) + q_c + (q_arith - 1)w_4_shift ]
      *

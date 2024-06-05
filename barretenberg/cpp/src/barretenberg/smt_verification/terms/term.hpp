@@ -163,7 +163,7 @@ class STerm {
         return out << static_cast<std::string>(term);
     };
 
-    friend STerm batch_add(const std::vector<STerm>& children)
+    static STerm batch_add(const std::vector<STerm>& children)
     {
         Solver* slv = children[0].solver;
         std::vector<cvc5::Term> terms(children.begin(), children.end());
@@ -171,12 +171,26 @@ class STerm {
         return { res, slv };
     }
 
-    friend STerm batch_mul(const std::vector<STerm>& children)
+    static STerm batch_mul(const std::vector<STerm>& children)
     {
         Solver* slv = children[0].solver;
         std::vector<cvc5::Term> terms(children.begin(), children.end());
         cvc5::Term res = slv->term_manager.mkTerm(children[0].operations.at(OpType::MUL), terms);
         return { res, slv };
+    }
+
+    /**
+     * @brief Create an inclusion constraint
+     *
+     * @param entry the tuple entry to be checked
+     * @param table lookup table that consists of tuples of lenght 3
+     */
+    static void in_table(std::vector<STerm>& entry, cvc5::Term& table)
+    {
+        Solver* slv = entry[0].solver;
+        cvc5::Term sym_entry = slv->term_manager.mkTuple({ entry[0], entry[1], entry[2] });
+        cvc5::Term inc = slv->term_manager.mkTerm(cvc5::Kind::SET_MEMBER, { sym_entry, table });
+        slv->assertFormula(inc);
     }
 
     // arithmetic compatibility with Fr
@@ -187,8 +201,8 @@ class STerm {
     void operator-=(const bb::fr& other) { *this -= STerm(other, this->solver, this->type); }
     STerm operator*(const bb::fr& other) const { return *this * STerm(other, this->solver, this->type); }
     void operator*=(const bb::fr& other) { *this *= STerm(other, this->solver, this->type); }
-    STerm operator/(const bb::fr& other) const { return *this / STerm(other, this->solver, this->type); }
-    void operator/=(const bb::fr& other) { *this /= STerm(other, this->solver, this->type); }
+    STerm operator/(const bb::fr& other) const { return *this * STerm(other.invert(), this->solver, this->type); }
+    void operator/=(const bb::fr& other) { *this *= STerm(other.invert(), this->solver, this->type); }
 
     void operator==(const bb::fr& other) const { *this == STerm(other, this->solver, this->type); }
     void operator!=(const bb::fr& other) const { *this != STerm(other, this->solver, this->type); }

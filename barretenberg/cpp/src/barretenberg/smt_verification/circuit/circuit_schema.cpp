@@ -32,6 +32,20 @@ CircuitSchema unpack_from_file(const std::string& filename)
 }
 
 /**
+ * @brief Get the CircuitSchema object
+ * @details Initialize the CircuitSchema from the msgpack compatible buffer.
+ *
+ * @param buf
+ * @return CircuitSchema
+ */
+CircuitSchema unpack_from_buffer(const msgpack::sbuffer& buf)
+{
+    CircuitSchema cir;
+    msgpack::unpack(buf.data(), buf.size()).get().convert(cir);
+    return cir;
+}
+
+/**
  * @brief Translates the schema to python format
  * @details Returns the contents of the .py file
  * that can be further imported by python script
@@ -42,6 +56,7 @@ CircuitSchema unpack_from_file(const std::string& filename)
  * gates = [
  *  [[0x000...0, 0x000...1, 0x000...0, 0x000...0, 0x000...0], [0, 0, 0]], ...
  * ]
+ * @todo UltraCircuitSchema output
  */
 void print_schema_for_use_in_python(CircuitSchema& cir)
 {
@@ -64,37 +79,23 @@ void print_schema_for_use_in_python(CircuitSchema& cir)
     for (size_t i = 0; i < cir.selectors.size(); i++) {
         info("[",
              "[",
-             cir.selectors[i][0],
+             cir.selectors[0][i][0],
              ", ",
-             cir.selectors[i][1],
+             cir.selectors[0][i][1],
              ", ",
-             cir.selectors[i][2],
+             cir.selectors[0][i][2],
              ", ",
-             cir.selectors[i][3],
+             cir.selectors[0][i][3],
              ", ",
-             cir.selectors[i][4],
+             cir.selectors[0][i][4],
              "], [",
-             cir.wires[i][0],
+             cir.wires[0][i][0],
              ", ",
-             cir.wires[i][1],
+             cir.wires[0][i][1],
              ", ",
-             cir.wires[i][2],
+             cir.wires[0][i][2],
              "]],");
     }
     info("]");
-}
-
-/**
- * @brief Get the CircuitSchema object
- * @details Initialize the CircuitSchema from the msgpack compatible buffer.
- *
- * @param buf
- * @return CircuitSchema
- */
-CircuitSchema unpack_from_buffer(const msgpack::sbuffer& buf)
-{
-    CircuitSchema cir;
-    msgpack::unpack(buf.data(), buf.size()).get().convert(cir);
-    return cir;
 }
 } // namespace smt_circuit_schema

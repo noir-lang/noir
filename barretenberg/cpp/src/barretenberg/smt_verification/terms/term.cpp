@@ -313,8 +313,8 @@ STerm STerm::operator<<(const uint32_t& n) const
         info("SHIFT LEFT is not compatible with ", this->type);
         return *this;
     }
-    cvc5::Op lsh = solver->term_manager.mkOp(this->operations.at(OpType::LSH), { n });
-    cvc5::Term res = solver->term_manager.mkTerm(lsh, { this->term });
+    cvc5::Term shift = this->solver->term_manager.mkBitVector(this->solver->bv_sort.getBitVectorSize(), n);
+    cvc5::Term res = this->solver->term_manager.mkTerm(this->operations.at(OpType::LSH), { this->term, shift });
     return { res, this->solver, this->type };
 }
 
@@ -324,29 +324,29 @@ void STerm::operator<<=(const uint32_t& n)
         info("SHIFT LEFT is not compatible with ", this->type);
         return;
     }
-    cvc5::Op lsh = solver->term_manager.mkOp(this->operations.at(OpType::LSH), { n });
-    this->term = solver->term_manager.mkTerm(lsh, { this->term });
+    cvc5::Term shift = solver->term_manager.mkBitVector(this->solver->bv_sort.getBitVectorSize(), n);
+    this->term = this->solver->term_manager.mkTerm(this->operations.at(OpType::LSH), { this->term, shift });
 }
 
 STerm STerm::operator>>(const uint32_t& n) const
 {
     if (!this->operations.contains(OpType::RSH)) {
-        info("RIGHT LEFT is not compatible with ", this->type);
+        info("SHIFT RIGHT is not compatible with ", this->type);
         return *this;
     }
-    cvc5::Op rsh = solver->term_manager.mkOp(this->operations.at(OpType::RSH), { n });
-    cvc5::Term res = solver->term_manager.mkTerm(rsh, { this->term });
+    cvc5::Term shift = this->solver->term_manager.mkBitVector(this->solver->bv_sort.getBitVectorSize(), n);
+    cvc5::Term res = this->solver->term_manager.mkTerm(this->operations.at(OpType::RSH), { this->term, shift });
     return { res, this->solver, this->type };
 }
 
 void STerm::operator>>=(const uint32_t& n)
 {
     if (!this->operations.contains(OpType::RSH)) {
-        info("RIGHT LEFT is not compatible with ", this->type);
+        info("SHIFT RIGHT is not compatible with ", this->type);
         return;
     }
-    cvc5::Op rsh = solver->term_manager.mkOp(this->operations.at(OpType::RSH), { n });
-    this->term = solver->term_manager.mkTerm(rsh, { this->term });
+    cvc5::Term shift = this->solver->term_manager.mkBitVector(this->solver->bv_sort.getBitVectorSize(), n);
+    this->term = this->solver->term_manager.mkTerm(this->operations.at(OpType::RSH), { this->term, shift });
 }
 
 STerm STerm::rotr(const uint32_t& n) const

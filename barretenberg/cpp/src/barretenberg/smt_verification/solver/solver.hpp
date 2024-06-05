@@ -22,7 +22,7 @@ struct SolverConfiguration {
     uint64_t timeout;
     uint32_t debug;
 
-    bool ff_disjunctive_bit;
+    bool ff_elim_disjunctive_bit;
     std::string ff_solver;
 };
 
@@ -76,8 +76,8 @@ class Solver {
         // Cause bit constraints are part of the split-gb optimization
         // and without them it will probably perform less efficient
         // TODO(alex): test this `probably` after finishing the pr sequence
-        if (config.ff_disjunctive_bit) {
-            solver.setOption("ff-disjunctive-bit", "true");
+        if (!config.ff_elim_disjunctive_bit) {
+            solver.setOption("ff-elim-disjunctive-bit", "false");
         }
         // split-gb is an updated version of gb ff-solver
         // It basically SPLITS the polynomials in the system into subsets
@@ -95,6 +95,10 @@ class Solver {
     Solver(Solver&& other) = delete;
     Solver& operator=(const Solver& other) = delete;
     Solver& operator=(Solver&& other) = delete;
+
+    bool lookup_enabled = false;
+
+    cvc5::Term create_lookup_table(std::vector<std::vector<cvc5::Term>>& table);
 
     void assertFormula(const cvc5::Term& term) const { this->solver.assertFormula(term); }
 

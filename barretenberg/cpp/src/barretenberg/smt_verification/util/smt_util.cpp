@@ -15,23 +15,22 @@
  * @param fname file to store the resulting witness if succeded
  */
 void default_model(const std::vector<std::string>& special,
-                   smt_circuit::Circuit& c1,
-                   smt_circuit::Circuit& c2,
-                   smt_solver::Solver* s,
+                   smt_circuit::CircuitBase& c1,
+                   smt_circuit::CircuitBase& c2,
                    const std::string& fname)
 {
     std::vector<cvc5::Term> vterms1;
     std::vector<cvc5::Term> vterms2;
-    vterms1.reserve(c1.get_num_real_vars());
-    vterms2.reserve(c1.get_num_real_vars());
+    vterms1.reserve(c1.get_num_vars());
+    vterms2.reserve(c1.get_num_vars());
 
     for (uint32_t i = 0; i < c1.get_num_vars(); i++) {
         vterms1.push_back(c1.symbolic_vars[c1.real_variable_index[i]]);
         vterms2.push_back(c2.symbolic_vars[c2.real_variable_index[i]]);
     }
 
-    std::unordered_map<std::string, std::string> mmap1 = s->model(vterms1);
-    std::unordered_map<std::string, std::string> mmap2 = s->model(vterms2);
+    std::unordered_map<std::string, std::string> mmap1 = c1.solver->model(vterms1);
+    std::unordered_map<std::string, std::string> mmap2 = c1.solver->model(vterms2);
 
     std::fstream myfile;
     myfile.open(fname, std::ios::out | std::ios::trunc | std::ios::binary);
@@ -42,9 +41,25 @@ void default_model(const std::vector<std::string>& special,
         if (c1.real_variable_index[i] == i) {
             myfile << "{" << mmap1[vname1] << ", " << mmap2[vname2] << "}";
             myfile << ",           // " << vname1 << ", " << vname2 << std::endl;
+            if (mmap1[vname1] != mmap2[vname2]) {
+                info("{", mmap1[vname1], ", ", mmap2[vname2], "}", ",           // ", vname1, ", ", vname2);
+            }
         } else {
             myfile << "{" << mmap1[vname1] << ", " + mmap2[vname2] << "}";
             myfile << ",           // " << vname1 << " ," << vname2 << " -> " << c1.real_variable_index[i] << std::endl;
+            if (mmap1[vname1] != mmap2[vname2]) {
+                info("{",
+                     mmap1[vname1],
+                     ", ",
+                     mmap2[vname2],
+                     "}",
+                     ",           // ",
+                     vname1,
+                     ", ",
+                     vname2,
+                     " -> ",
+                     c1.real_variable_index[i]);
+            }
         }
     }
     myfile << "};";
@@ -56,7 +71,7 @@ void default_model(const std::vector<std::string>& special,
         vterms.insert({ vname + "_2", c2[vname] });
     }
 
-    std::unordered_map<std::string, std::string> mmap = s->model(vterms);
+    std::unordered_map<std::string, std::string> mmap = c1.solver->model(vterms);
     for (const auto& vname : special) {
         info(vname, "_1, ", vname, "_2 = ", mmap[vname + "_1"], ", ", mmap[vname + "_2"]);
     }
@@ -76,18 +91,17 @@ void default_model(const std::vector<std::string>& special,
  * @param fname file to store the resulting witness if succeded
  */
 void default_model_single(const std::vector<std::string>& special,
-                          smt_circuit::Circuit& c,
-                          smt_solver::Solver* s,
+                          smt_circuit::CircuitBase& c,
                           const std::string& fname)
 {
     std::vector<cvc5::Term> vterms;
-    vterms.reserve(c.get_num_real_vars());
+    vterms.reserve(c.get_num_vars());
 
     for (uint32_t i = 0; i < c.get_num_vars(); i++) {
-        vterms.push_back(c.symbolic_vars[i]);
+        vterms.push_back(c.symbolic_vars[c.real_variable_index[i]]);
     }
 
-    std::unordered_map<std::string, std::string> mmap = s->model(vterms);
+    std::unordered_map<std::string, std::string> mmap = c.solver->model(vterms);
 
     std::fstream myfile;
     myfile.open(fname, std::ios::out | std::ios::trunc | std::ios::binary);
@@ -108,7 +122,7 @@ void default_model_single(const std::vector<std::string>& special,
         vterms1.insert({ vname, c[vname] });
     }
 
-    std::unordered_map<std::string, std::string> mmap1 = s->model(vterms1);
+    std::unordered_map<std::string, std::string> mmap1 = c.solver->model(vterms1);
     for (const auto& vname : special) {
         info(vname, " = ", mmap1[vname]);
     }
@@ -121,19 +135,13 @@ void default_model_single(const std::vector<std::string>& special,
  * @param s
  * @return bool is system satisfiable?
  */
-bool smt_timer(smt_solver::Solver* s, bool mins)
+bool smt_timer(smt_solver::Solver* s)
 {
     auto start = std::chrono::high_resolution_clock::now();
     bool res = s->check();
     auto stop = std::chrono::high_resolution_clock::now();
-    double duration = 0.0;
-    if (mins) {
-        duration = static_cast<double>(duration_cast<std::chrono::minutes>(stop - start).count());
-        info("Time elapsed: ", duration, " min");
-    } else {
-        duration = static_cast<double>(duration_cast<std::chrono::seconds>(stop - start).count());
-        info("Time elapsed: ", duration, " sec");
-    }
+    uint32_t duration_secs = static_cast<uint32_t>(duration_cast<std::chrono::seconds>(stop - start).count());
+    info("Time elapsed: ", duration_secs / 60, " min ", duration_secs % 60, " sec");
 
     info(s->cvc_result);
     return res;

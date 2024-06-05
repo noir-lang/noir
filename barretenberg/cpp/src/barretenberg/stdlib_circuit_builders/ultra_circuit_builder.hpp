@@ -11,6 +11,9 @@
 #include <optional>
 #include <unordered_set>
 
+#include "barretenberg/serialize/cbind.hpp"
+#include "barretenberg/serialize/msgpack.hpp"
+
 namespace bb {
 
 template <typename FF> struct non_native_field_witnesses {
@@ -811,6 +814,8 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization_
     void process_RAM_arrays();
 
     uint256_t hash_circuit();
+
+    msgpack::sbuffer export_circuit() override;
 };
 using UltraCircuitBuilder = UltraCircuitBuilder_<UltraArith<bb::fr>>;
 } // namespace bb

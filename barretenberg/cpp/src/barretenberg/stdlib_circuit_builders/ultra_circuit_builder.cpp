@@ -2716,6 +2716,107 @@ template <typename Arithmetization> uint256_t UltraCircuitBuilder_<Arithmetizati
     return from_buffer<uint256_t>(crypto::sha256(to_hash));
 }
 
+/**
+ * Export the existing circuit as msgpack compatible buffer.
+ *
+ * @return msgpack compatible buffer
+ */
+template <typename Arithmetization> msgpack::sbuffer UltraCircuitBuilder_<Arithmetization>::export_circuit()
+{
+    using base = CircuitBuilderBase<FF>;
+    CircuitSchema<FF> cir;
+
+    uint64_t modulus[4] = {
+        FF::Params::modulus_0, FF::Params::modulus_1, FF::Params::modulus_2, FF::Params::modulus_3
+    };
+    std::stringstream buf;
+    buf << std::hex << std::setfill('0') << std::setw(16) << modulus[3] << std::setw(16) << modulus[2] << std::setw(16)
+        << modulus[1] << std::setw(16) << modulus[0];
+
+    cir.modulus = buf.str();
+
+    for (uint32_t i = 0; i < this->get_num_public_inputs(); i++) {
+        cir.public_inps.push_back(this->real_variable_index[this->public_inputs[i]]);
+    }
+
+    for (auto& tup : base::variable_names) {
+        cir.vars_of_interest.insert({ this->real_variable_index[tup.first], tup.second });
+    }
+
+    for (auto var : this->variables) {
+        cir.variables.push_back(var);
+    }
+    // TODO(alex): manage non native gates
+
+    FF curve_b;
+    if constexpr (FF::modulus == bb::fq::modulus) {
+        curve_b = bb::g1::curve_b;
+    } else if constexpr (FF::modulus == grumpkin::fq::modulus) {
+        curve_b = grumpkin::g1::curve_b;
+    } else {
+        curve_b = 0;
+    }
+
+    for (auto& block : blocks.get()) {
+        std::vector<std::vector<FF>> block_selectors;
+        std::vector<std::vector<uint32_t>> block_wires;
+        for (size_t idx = 0; idx < block.size(); ++idx) {
+            std::vector<FF> tmp_sel = { block.q_m()[idx],
+                                        block.q_1()[idx],
+                                        block.q_2()[idx],
+                                        block.q_3()[idx],
+                                        block.q_4()[idx],
+                                        block.q_c()[idx],
+                                        block.q_arith()[idx],
+                                        block.q_lookup_type()[idx],
+                                        block.q_elliptic()[idx],
+                                        block.q_aux()[idx],
+                                        curve_b };
+
+            std::vector<uint32_t> tmp_w = {
+                this->real_variable_index[block.w_l()[idx]],
+                this->real_variable_index[block.w_r()[idx]],
+                this->real_variable_index[block.w_o()[idx]],
+                this->real_variable_index[block.w_4()[idx]],
+            };
+
+            if (idx < block.size() - 1) {
+                // TODO(alex): don't forget to handle memory_data later
+                tmp_w.push_back(block.w_l()[idx + 1]);
+                tmp_w.push_back(block.w_r()[idx + 1]);
+                tmp_w.push_back(block.w_o()[idx + 1]);
+                tmp_w.push_back(block.w_4()[idx + 1]);
+            } else {
+                tmp_w.push_back(0);
+                tmp_w.push_back(0);
+                tmp_w.push_back(0);
+                tmp_w.push_back(0);
+            }
+
+            block_selectors.push_back(tmp_sel);
+            block_wires.push_back(tmp_w);
+        }
+        cir.selectors.push_back(block_selectors);
+        cir.wires.push_back(block_wires);
+    }
+
+    cir.real_variable_index = this->real_variable_index;
+
+    for (const auto& table : this->lookup_tables) {
+        const FF table_index(table.table_index);
+        info("Table no: ", table.table_index);
+        std::vector<std::vector<FF>> tmp_table;
+        for (size_t i = 0; i < table.size; ++i) {
+            tmp_table.push_back({ table.column_1[i], table.column_2[i], table.column_3[i] });
+        }
+        cir.lookup_tables.push_back(tmp_table);
+    }
+
+    msgpack::sbuffer buffer;
+    msgpack::pack(buffer, cir);
+    return buffer;
+}
+
 template class UltraCircuitBuilder_<UltraArith<bb::fr>>;
 template class UltraCircuitBuilder_<UltraHonkArith<bb::fr>>;
 // To enable this we need to template plookup

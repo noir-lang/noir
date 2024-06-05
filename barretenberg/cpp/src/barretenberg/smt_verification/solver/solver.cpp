@@ -1,5 +1,5 @@
 #include "solver.hpp"
-#include <iostream>
+#include "barretenberg/common/log.hpp"
 
 namespace smt_solver {
 
@@ -47,6 +47,8 @@ std::unordered_map<std::string, std::string> Solver::model(std::unordered_map<st
             str_val = val.getIntegerValue();
         } else if (val.isFiniteFieldValue()) {
             str_val = val.getFiniteFieldValue();
+        } else if (val.isBitVectorValue()) {
+            str_val = "0b" + val.getBitVectorValue();
         } else {
             throw std::invalid_argument("Expected Integer or FiniteField sorts. Got: " + val.getSort().toString());
         }
@@ -82,6 +84,8 @@ std::unordered_map<std::string, std::string> Solver::model(std::vector<cvc5::Ter
             str_val = val.getIntegerValue();
         } else if (val.isFiniteFieldValue()) {
             str_val = val.getFiniteFieldValue();
+        } else if (val.isBitVectorValue()) {
+            str_val = "0b" + val.getBitVectorValue();
         } else {
             throw std::invalid_argument("Expected Integer or FiniteField sorts. Got: " + val.getSort().toString());
         }
@@ -181,11 +185,11 @@ std::string stringify_term(const cvc5::Term& term, bool parenthesis)
         break;
     case cvc5::Kind::BITVECTOR_SHL:
         back = true;
-        op = " << " + term.getOp()[0].toString();
+        op = " << ";
         break;
     case cvc5::Kind::BITVECTOR_LSHR:
         back = true;
-        op = " >> " + term.getOp()[0].toString();
+        op = " >> ";
         break;
     case cvc5::Kind::BITVECTOR_ROTATE_LEFT:
         back = true;
@@ -237,8 +241,31 @@ std::string stringify_term(const cvc5::Term& term, bool parenthesis)
  * */
 void Solver::print_assertions() const
 {
-    for (auto& t : this->solver.getAssertions()) {
+    for (const auto& t : this->solver.getAssertions()) {
         info(stringify_term(t));
     }
+}
+
+cvc5::Term Solver::create_lookup_table(std::vector<std::vector<cvc5::Term>>& table)
+{
+    if (!lookup_enabled) {
+        this->solver.setLogic("ALL");
+        this->solver.setOption("finite-model-find", "true");
+        this->solver.setOption("sets-ext", "true");
+        lookup_enabled = true;
+    }
+
+    cvc5::Term tmp = table[0][0];
+    cvc5::Sort tuple_sort = this->term_manager.mkTupleSort({ tmp.getSort(), tmp.getSort(), tmp.getSort() });
+    cvc5::Sort relation = this->term_manager.mkSetSort(tuple_sort);
+    cvc5::Term resulting_table = this->term_manager.mkEmptySet(relation);
+
+    std::vector<cvc5::Term> children;
+    for (auto& table_entry : table) {
+        cvc5::Term entry = this->term_manager.mkTuple(table_entry);
+        children.push_back(entry);
+    }
+    children.push_back(resulting_table);
+    return this->term_manager.mkTerm(cvc5::Kind::SET_INSERT, children);
 }
 }; // namespace smt_solver

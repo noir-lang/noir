@@ -98,6 +98,31 @@ TEST(FFTerm, division)
     ASSERT_EQ(bvals, yvals);
 }
 
+TEST(FFTerm, set_inclusion)
+{
+    Solver s("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001");
+
+    std::vector<std::vector<cvc5::Term>> table = { { FFConst("1", &s), FFConst("2", &s), FFConst("3", &s) },
+                                                   { FFConst("4", &s), FFConst("5", &s), FFConst("6", &s) } };
+    cvc5::Term symbolic_table = s.create_lookup_table(table);
+
+    STerm x = FFVar("x", &s);
+    STerm y = FFVar("y", &s);
+    STerm z = FFVar("z", &s);
+    std::vector<STerm> tmp_vec = { x, y, z };
+    STerm::in_table(tmp_vec, symbolic_table);
+    x != 4;
+
+    ASSERT_TRUE(s.check());
+
+    std::string xval = s.getValue(x).getFiniteFieldValue();
+    ASSERT_EQ(xval, "1");
+    std::string yval = s.getValue(y).getFiniteFieldValue();
+    ASSERT_EQ(yval, "2");
+    std::string zval = s.getValue(z).getFiniteFieldValue();
+    ASSERT_EQ(zval, "3");
+}
+
 // This test aims to check for the absence of unintended
 // behavior. If an unsupported operator is called, an info message appears in stderr
 // and the value is supposed to remain unchanged.

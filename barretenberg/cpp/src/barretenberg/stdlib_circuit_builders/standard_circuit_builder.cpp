@@ -521,7 +521,7 @@ void StandardCircuitBuilder_<FF>::assert_equal_constant(uint32_t const a_idx, FF
 template <typename FF> msgpack::sbuffer StandardCircuitBuilder_<FF>::export_circuit()
 {
     using base = CircuitBuilderBase<FF>;
-    CircuitSchema cir;
+    CircuitSchema<FF> cir;
 
     uint64_t modulus[4] = {
         FF::Params::modulus_0, FF::Params::modulus_1, FF::Params::modulus_2, FF::Params::modulus_3
@@ -544,6 +544,8 @@ template <typename FF> msgpack::sbuffer StandardCircuitBuilder_<FF>::export_circ
         cir.variables.push_back(var);
     }
 
+    std::vector<std::vector<FF>> arith_selectors;
+    std::vector<std::vector<uint32_t>> arith_wires;
     for (size_t i = 0; i < this->num_gates; i++) {
         std::vector<FF> tmp_sel = { blocks.arithmetic.q_m()[i],
                                     blocks.arithmetic.q_1()[i],
@@ -555,9 +557,11 @@ template <typename FF> msgpack::sbuffer StandardCircuitBuilder_<FF>::export_circ
             this->real_variable_index[blocks.arithmetic.w_r()[i]],
             this->real_variable_index[blocks.arithmetic.w_o()[i]],
         };
-        cir.selectors.push_back(tmp_sel);
-        cir.wires.push_back(tmp_w);
+        arith_selectors.push_back(tmp_sel);
+        arith_wires.push_back(tmp_w);
     }
+    cir.selectors.push_back(arith_selectors);
+    cir.wires.push_back(arith_wires);
 
     cir.real_variable_index = this->real_variable_index;
 
