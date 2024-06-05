@@ -105,6 +105,36 @@ TYPED_TEST(CycleGroupTest, TestValidateOnCurveFail)
     EXPECT_FALSE(CircuitChecker::check(builder));
 }
 
+TYPED_TEST(CycleGroupTest, TestStandardForm)
+{
+    STDLIB_TYPE_ALIASES;
+    auto builder = Builder();
+
+    size_t num_repetitions = 5;
+    for (size_t i = 0; i < num_repetitions; ++i) {
+        cycle_group_ct input_a(Element::random_element());
+        cycle_group_ct input_b(Element::random_element());
+        input_b.set_point_at_infinity(true);
+        auto standard_a = input_a.get_standard_form();
+        auto standard_b = input_b.get_standard_form();
+        EXPECT_EQ(standard_a.is_point_at_infinity().get_value(), false);
+        EXPECT_EQ(standard_b.is_point_at_infinity().get_value(), true);
+        auto input_a_x = input_a.x.get_value();
+        auto input_a_y = input_a.y.get_value();
+
+        auto standard_a_x = standard_a.x.get_value();
+        auto standard_a_y = standard_a.y.get_value();
+
+        auto standard_b_x = standard_b.x.get_value();
+        auto standard_b_y = standard_b.y.get_value();
+
+        EXPECT_EQ(input_a_x, standard_a_x);
+        EXPECT_EQ(input_a_y, standard_a_y);
+        EXPECT_EQ(standard_b_x, 0);
+        EXPECT_EQ(standard_b_y, 0);
+    }
+    EXPECT_TRUE(CircuitChecker::check(builder));
+}
 TYPED_TEST(CycleGroupTest, TestDbl)
 {
     STDLIB_TYPE_ALIASES;

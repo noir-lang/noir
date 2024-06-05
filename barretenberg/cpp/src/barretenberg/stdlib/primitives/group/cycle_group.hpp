@@ -184,6 +184,7 @@ template <typename Builder> class cycle_group {
     [[nodiscard]] bool is_constant() const { return _is_constant; }
     bool_t is_point_at_infinity() const { return _is_infinity; }
     void set_point_at_infinity(const bool_t& is_infinity) { _is_infinity = is_infinity; }
+    cycle_group get_standard_form() const;
     void validate_is_on_curve() const;
     cycle_group dbl() const
         requires IsUltraArithmetic<Builder>;

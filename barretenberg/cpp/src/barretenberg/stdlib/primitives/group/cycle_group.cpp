@@ -181,7 +181,16 @@ template <typename Builder> void cycle_group<Builder>::validate_is_on_curve() co
     res *= !is_point_at_infinity();
     res.assert_is_zero();
 }
-
+/**
+ * @brief  Get point in standard form. If the point is a point at infinity, ensure the coordinates are (0,0)
+ *
+ */
+template <typename Builder> cycle_group<Builder> cycle_group<Builder>::get_standard_form() const
+{
+    return cycle_group(field_t::conditional_assign(_is_infinity, 0, x),
+                       field_t::conditional_assign(_is_infinity, 0, y),
+                       is_point_at_infinity());
+}
 /**
  * @brief Evaluates a doubling. Does not use Ultra double gate
  *
