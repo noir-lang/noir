@@ -49,7 +49,10 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, F
     });
 }
 
-pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
+pub(crate) fn get_program(
+    src: &str,
+    use_elaborator: bool,
+) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
     let root = std::path::Path::new("/");
     let fm = FileManager::new(root);
 
@@ -81,7 +84,7 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            false,
+            use_elaborator,
             &[], // No macro processors
         ));
     }
@@ -89,7 +92,11 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
 }
 
 pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
-    get_program(src).2
+    get_program(src, false).2
+}
+
+pub(crate) fn get_program_errors_elaborator(src: &str) -> Vec<(CompilationError, FileId)> {
+    get_program(src, true).2
 }
 
 #[test]
@@ -832,7 +839,7 @@ fn check_trait_as_type_as_two_fn_parameters() {
 }
 
 fn get_program_captures(src: &str) -> Vec<Vec<String>> {
-    let (program, context, _errors) = get_program(src);
+    let (program, context, _errors) = get_program(src, false);
     let interner = context.def_interner;
     let mut all_captures: Vec<Vec<String>> = Vec::new();
     for func in program.into_sorted().functions {
@@ -1194,7 +1201,7 @@ fn resolve_fmt_strings() {
 }
 
 fn check_rewrite(src: &str, expected: &str) {
-    let (_program, mut context, _errors) = get_program(src);
+    let (_program, mut context, _errors) = get_program(src, false);
     let main_func_id = context.def_interner.find_function("main").unwrap();
     let program = monomorphize(main_func_id, &mut context.def_interner).unwrap();
     assert!(format!("{}", program) == expected);
@@ -1454,7 +1461,7 @@ fn struct_numeric_generic() {
 
     fn bar<let N: Foo>() { }
     "#;
-    let errors = get_program_errors(src);
+    let errors = get_program_errors_elaborator(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
@@ -1473,7 +1480,7 @@ fn bool_numeric_generic() {
         }
     }
     "#;
-    let errors = get_program_errors(src);
+    let errors = get_program_errors_elaborator(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
@@ -1489,7 +1496,7 @@ fn numeric_generic_binary_operation_type_mismatch() {
         assert(N == check);
     }
     "#;
-    let errors = get_program_errors(src);
+    let errors = get_program_errors_elaborator(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
@@ -1508,7 +1515,7 @@ fn bool_generic_as_loop_bound() {
         assert(fields[0] == 1);
     }
     "#;
-    let errors = get_program_errors(src);
+    let errors = get_program_errors_elaborator(src);
     assert_eq!(errors.len(), 2);
 
     assert!(matches!(
@@ -1532,7 +1539,7 @@ fn numeric_generic_in_function_signature() {
     let src = r#"
     fn foo<let N: u8>(arr: [Field; N]) -> [Field; N] { arr }
     "#;
-    let errors = get_program_errors(src);
+    let errors = get_program_errors_elaborator(src);
     assert!(errors.is_empty());
 }
 
@@ -1544,7 +1551,7 @@ fn numeric_generic_as_struct_field_type() {
         b: N,
     }
     "#;
-    let errors = get_program_errors(src);
+    let errors = get_program_errors_elaborator(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
@@ -1560,7 +1567,7 @@ fn numeric_generic_as_param_type() {
         x
     }
     "#;
-    let errors = get_program_errors(src);
+    let errors = get_program_errors_elaborator(src);
     assert_eq!(errors.len(), 3);
     // Error from the parameter type
     assert!(matches!(
@@ -1577,4 +1584,19 @@ fn numeric_generic_as_param_type() {
         errors[3].0,
         CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
     ));
+}
+
+#[test]
+fn numeric_generic_used_in_nested_type() {
+    let src = r#"
+    struct Foo<let N: u64> {
+        a: Field,
+        b: Bar<N>,
+    }
+    struct Bar<N> {
+        inner: N
+    }
+    "#;
+    let errors = get_program_errors_elaborator(src);
+    assert_eq!(errors.len(), 1);
 }

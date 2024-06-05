@@ -1037,7 +1037,6 @@ impl<'a> Resolver<'a> {
                     position: PubPosition::Parameter,
                 });
             }
-            let type_span = typ.span.unwrap_or_else(|| pattern.span());
 
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
             let typ = self.resolve_type_inner(typ);
@@ -1303,7 +1302,6 @@ impl<'a> Resolver<'a> {
             StatementKind::Let(let_stmt) => {
                 let expression = self.resolve_expression(let_stmt.expression);
                 let definition = DefinitionKind::Local(Some(expression));
-                let type_span = let_stmt.r#type.span;
                 HirStatement::Let(HirLetStatement {
                     pattern: self.resolve_pattern(let_stmt.pattern, definition),
                     r#type: self.resolve_type(let_stmt.r#type),
