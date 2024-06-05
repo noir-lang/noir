@@ -1,5 +1,5 @@
 use dep::protocol_types::{
-    address::AztecAddress, hash::{silo_nullifier, pedersen_hash},
+    address::AztecAddress, hash::{compute_siloed_nullifier, pedersen_hash},
     constants::GENERATOR_INDEX__CONSTRUCTOR, abis::function_selector::FunctionSelector
 };
 
@@ -30,7 +30,7 @@ pub fn assert_is_initialized_private(context: &mut PrivateContext) {
 }
 
 fn compute_contract_initialization_nullifier(address: AztecAddress) -> Field {
-    silo_nullifier(
+    compute_siloed_nullifier(
         address,
         compute_unsiloed_contract_initialization_nullifier(address)
     )

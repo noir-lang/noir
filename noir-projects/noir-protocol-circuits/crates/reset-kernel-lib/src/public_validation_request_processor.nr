@@ -14,7 +14,7 @@ use dep::types::{
 },
     data::public_data_hint::PublicDataHint,
     constants::{MAX_NEW_NULLIFIERS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX},
-    hash::silo_nullifier, traits::is_empty,
+    hash::compute_siloed_nullifier, traits::is_empty,
     utils::arrays::{array_merge, array_to_bounded_vec, assert_sorted_array}
 };
 
@@ -89,7 +89,7 @@ impl<N> PublicValidationRequestProcessor<N> {
         for i in 0..read_requests.len() {
             let read_request = read_requests[i];
             if !is_empty(read_request) {
-                read_requests[i].read_request.value = silo_nullifier(read_request.contract_address, read_request.value());
+                read_requests[i].read_request.value = compute_siloed_nullifier(read_request.contract_address, read_request.value());
             }
         }
 

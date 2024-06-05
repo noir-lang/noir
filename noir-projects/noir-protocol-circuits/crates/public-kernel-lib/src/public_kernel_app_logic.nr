@@ -107,7 +107,10 @@ mod tests {
         read_request::ReadRequest
     },
         address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
-        hash::{compute_l2_to_l1_hash, silo_note_hash, silo_nullifier, silo_unencrypted_log},
+        hash::{
+        compute_l2_to_l1_hash, compute_siloed_note_hash, compute_siloed_nullifier,
+        compute_siloed_unencrypted_log_hash
+    },
         messaging::l2_to_l1_message::L2ToL1Message,
         tests::{fixture_builder::FixtureBuilder, public_call_data_builder::PublicCallDataBuilder},
         utils::arrays::{array_eq, array_length}, traits::is_empty
@@ -219,7 +222,7 @@ mod tests {
         ];
         let note_logs = builder.previous_kernel.note_encrypted_logs_hashes.storage;
         builder.public_call.public_inputs.new_note_hashes.extend_from_array(current);
-        let siloed = current.map(|c: NoteHash| silo_note_hash(contract_address, c.value));
+        let siloed = current.map(|c: NoteHash| compute_siloed_note_hash(contract_address, c.value));
         let new_note_hashes = [
             previous[0], previous[1], NoteHash { value: siloed[0], counter: 5 }, NoteHash { value: siloed[1], counter: 6 }
         ];
@@ -289,7 +292,7 @@ mod tests {
 
         let siloed = current.map(
             |current: Nullifier| 
-        Nullifier { value: silo_nullifier(contract_address, current.value), note_hash: current.note_hash, counter: current.counter }
+        Nullifier { value: compute_siloed_nullifier(contract_address, current.value), note_hash: current.note_hash, counter: current.counter }
         );
 
         // There are 2 revertible nullifiers in the previous kernel.
@@ -317,7 +320,9 @@ mod tests {
         let tx_context = builder.previous_kernel.tx_context;
         let version = tx_context.version;
         let chain_id = tx_context.chain_id;
-        let siloed = current.map(|c| compute_l2_to_l1_hash(contract_address, version, chain_id, c));
+        let siloed = current.map(
+            |c: L2ToL1Message| compute_l2_to_l1_hash(contract_address, c.recipient, c.content, version, chain_id)
+        );
         let new_l2_to_l1_msgs = [previous[0], siloed[0]];
 
         let public_inputs = builder.execute();
@@ -347,7 +352,7 @@ mod tests {
             builder.previous_kernel.unencrypted_logs_hashes.storage[0].log_hash, builder.public_call.public_inputs.unencrypted_logs_hashes.storage[0]
         ];
         // silo the new log hash
-        expected_unencrypted_logs[1].value = silo_unencrypted_log(builder.public_call.contract_address, expected_unencrypted_logs[1].value);
+        expected_unencrypted_logs[1].value = compute_siloed_unencrypted_log_hash(builder.public_call.contract_address, expected_unencrypted_logs[1].value);
         // we assume the encrypted log is already siloed from private kernels
         let expected_encrypted_logs = [builder.previous_kernel.encrypted_logs_hashes.storage[0].expose_to_public()];
 

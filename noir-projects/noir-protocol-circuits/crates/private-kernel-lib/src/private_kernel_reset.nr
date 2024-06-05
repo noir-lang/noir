@@ -100,7 +100,6 @@ mod tests {
         nullifier::{Nullifier, ScopedNullifier}, log_hash::NoteLogHash, read_request::ScopedReadRequest
     },
         address::AztecAddress, grumpkin_private_key::GrumpkinPrivateKey,
-        hash::{compute_note_hash_nonce, compute_unique_note_hash, sha256_to_field, silo_note_hash, silo_nullifier},
         tests::{fixture_builder::FixtureBuilder}, utils::{arrays::{array_eq, array_length}},
         traits::{Empty, is_empty, is_empty_array}, grumpkin_point::GrumpkinPoint
     };

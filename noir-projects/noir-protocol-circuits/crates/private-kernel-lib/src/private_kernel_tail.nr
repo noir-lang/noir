@@ -1,4 +1,9 @@
-use crate::components::kernel_circuit_public_inputs_composer::KernelCircuitPublicInputsComposer;
+use crate::components::{
+    kernel_circuit_public_inputs_composer::KernelCircuitPublicInputsComposer,
+    kernel_circuit_output_hints::generate_hints,
+    kernel_circuit_output_validator::KernelCircuitOutputValidator,
+    previous_kernel_validator::PreviousKernelValidator
+};
 use dep::types::{
     abis::{
     private_kernel_data::PrivateKernelData, kernel_circuit_public_inputs::KernelCircuitPublicInputs,
@@ -9,10 +14,10 @@ use dep::types::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
     MAX_KEY_VALIDATION_REQUESTS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX,
     MAX_NOTE_ENCRYPTED_LOGS_PER_TX
-},
-    grumpkin_private_key::GrumpkinPrivateKey, utils::arrays::array_length, traits::is_empty
+}
 };
 
+// TODO: Build hints in noir.
 struct PrivateKernelTailHints {
     sorted_new_note_hashes: [ScopedNoteHash; MAX_NEW_NOTE_HASHES_PER_TX],
     sorted_new_note_hashes_indexes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
@@ -32,18 +37,7 @@ struct PrivateKernelTailCircuitPrivateInputs {
 }
 
 impl PrivateKernelTailCircuitPrivateInputs {
-    pub fn execute(self) -> KernelCircuitPublicInputs {
-        let previous_public_inputs = self.previous_kernel.public_inputs;
-        assert_eq(
-            array_length(previous_public_inputs.end.public_call_stack), 0, "Public call stack must be empty when executing the tail circuit"
-        );
-        assert(
-            is_empty(previous_public_inputs.public_teardown_call_request) == true, "Public teardown call request must be empty when executing the tail circuit"
-        );
-
-        // verify/aggregate the previous kernel
-        self.previous_kernel.verify();
-
+    unconstrained fn generate_output(self) -> KernelCircuitPublicInputs {
         KernelCircuitPublicInputsComposer::new(
             self.previous_kernel,
             self.hints.sorted_new_note_hashes,
@@ -57,6 +51,25 @@ impl PrivateKernelTailCircuitPrivateInputs {
             self.hints.sorted_unencrypted_log_hashes,
             self.hints.sorted_unencrypted_log_hashes_indexes
         ).compose().finish()
+    }
+
+    pub fn execute(self) -> KernelCircuitPublicInputs {
+        // Generate output.
+        let output = self.generate_output();
+
+        // Validate inputs.
+        PreviousKernelValidator::new(self.previous_kernel.public_inputs).validate_for_private_tail();
+        if !dep::std::runtime::is_unconstrained() {
+            // verify/aggregate the previous kernel
+            self.previous_kernel.verify();
+        }
+
+        // Validate output.
+        if !dep::std::runtime::is_unconstrained() {
+            let hints = generate_hints(self.previous_kernel.public_inputs);
+            KernelCircuitOutputValidator::new(output, self.previous_kernel.public_inputs).validate(hints);
+        }
+        output
     }
 }
 
@@ -84,8 +97,8 @@ mod tests {
     },
         address::AztecAddress, grumpkin_private_key::GrumpkinPrivateKey,
         hash::{
-        compute_note_hash_nonce, compute_unique_note_hash, sha256_to_field, silo_note_hash,
-        silo_nullifier, silo_unencrypted_log, silo_encrypted_log
+        sha256_to_field, silo_note_hash, silo_nullifier, compute_siloed_encrypted_log_hash,
+        compute_siloed_unencrypted_log_hash
     },
         tests::{fixture_builder::FixtureBuilder, sort::sort_get_sorted_hints},
         utils::{arrays::array_length}, traits::{Empty, is_empty, is_empty_array},
@@ -110,15 +123,10 @@ mod tests {
         // A helper function that uses the first nullifer in the previous kernel to compute the unique siloed
         // note_hashes for the given note_hashes.
         pub fn compute_output_note_hashes<N>(self, note_hashes: [ScopedNoteHash; N]) -> [Field; N] {
-            let first_nullifier = self.previous_kernel.new_nullifiers.get_unchecked(0);
+            let first_nullifier = self.previous_kernel.new_nullifiers.get_unchecked(0).value();
             let mut output = [0; N];
             for i in 0..N {
-                let note_hash = note_hashes[i];
-                if note_hash.value() != 0 {
-                    let nonce = compute_note_hash_nonce(first_nullifier.value(), i);
-                    let unique_note_hash = compute_unique_note_hash(nonce, note_hash.value());
-                    output[i] = silo_note_hash(note_hash.contract_address, unique_note_hash);
-                }
+                output[i] = silo_note_hash(note_hashes[i], first_nullifier, i);
             }
             output
         }
@@ -127,7 +135,7 @@ mod tests {
             let mut output = [0; N];
             output[0] = nullifiers[0].value();
             for i in 1..N {
-                output[i] = silo_nullifier(nullifiers[i].contract_address, nullifiers[i].value());
+                output[i] = silo_nullifier(nullifiers[i]);
             }
             output
         }
@@ -236,7 +244,7 @@ mod tests {
             public_inputs.end.unencrypted_log_preimages_length, unencrypted_log_preimages_length + prev_unencrypted_log_preimages_length
         );
 
-        let siloed_encrypted_logs_hash = silo_encrypted_log(
+        let siloed_encrypted_logs_hash = compute_siloed_encrypted_log_hash(
             builder.previous_kernel.storage_contract_address,
             builder.previous_kernel.encrypted_logs_hashes.storage[0].log_hash.randomness,
             prev_encrypted_logs_hash
@@ -251,10 +259,10 @@ mod tests {
         assert_eq(public_inputs.end.encrypted_logs_hash, expected_encrypted_logs_hash);
 
         let siloed_unencrypted_logs_hashes = [
-            silo_unencrypted_log(
+            compute_siloed_unencrypted_log_hash(
                 builder.previous_kernel.storage_contract_address,
                 prev_unencrypted_logs_hash
-            ), silo_unencrypted_log(
+            ), compute_siloed_unencrypted_log_hash(
                 builder.previous_kernel.storage_contract_address,
                 unencrypted_logs_hash
             )
@@ -290,7 +298,7 @@ mod tests {
             public_inputs.end.encrypted_log_preimages_length, prev_encrypted_log_preimages_length + new_encrypted_log_preimages_length
         );
 
-        let siloed_encrypted_logs_hash = silo_encrypted_log(
+        let siloed_encrypted_logs_hash = compute_siloed_encrypted_log_hash(
             builder.previous_kernel.storage_contract_address,
             builder.previous_kernel.encrypted_logs_hashes.storage[0].log_hash.randomness,
             prev_encrypted_logs_hash
@@ -299,7 +307,7 @@ mod tests {
         let siloed_hash_bytes: [u8; 64] = builder.previous_kernel.storage_contract_address.to_field().to_be_bytes(32).append(prev_encrypted_logs_hash.to_be_bytes(32)).as_array();
         assert_eq(siloed_encrypted_logs_hash, sha256_to_field(siloed_hash_bytes));
 
-        let new_siloed_encrypted_logs_hash = silo_encrypted_log(
+        let new_siloed_encrypted_logs_hash = compute_siloed_encrypted_log_hash(
             builder.previous_kernel.storage_contract_address,
             builder.previous_kernel.encrypted_logs_hashes.storage[1].log_hash.randomness,
             new_encrypted_logs_hash

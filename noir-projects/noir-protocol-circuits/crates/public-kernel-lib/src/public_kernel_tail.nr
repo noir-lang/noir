@@ -15,8 +15,7 @@ use dep::types::{
 },
     data::public_data_hint::PublicDataHint,
     merkle_tree::{conditionally_assert_check_membership, MembershipWitness},
-    partial_state_reference::PartialStateReference,
-    utils::{arrays::{array_length, assert_sorted_array}}, address::AztecAddress
+    partial_state_reference::PartialStateReference, utils::{arrays::array_length}, address::AztecAddress
 };
 
 struct PublicKernelTailCircuitPrivateInputs {
@@ -116,7 +115,7 @@ mod tests {
         PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_TREE_HEIGHT, MAX_ENCRYPTED_LOGS_PER_TX,
         MAX_UNENCRYPTED_LOGS_PER_TX, MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
     },
-        hash::{silo_nullifier, sha256_to_field},
+        hash::{compute_siloed_nullifier, sha256_to_field},
         public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
         tests::{fixture_builder::FixtureBuilder, merkle_tree_utils::NonEmptyMerkleTree, sort::sort_get_sorted_hints},
         traits::is_empty, partial_state_reference::PartialStateReference,
@@ -248,7 +247,7 @@ mod tests {
         pub fn read_non_existent_nullifier(&mut self, unsiloed_nullifier: Field) {
             self.previous_kernel.add_non_existent_read_request_for_nullifier(unsiloed_nullifier);
             self.sync_counters();
-            let siloed_nullifier = silo_nullifier(
+            let siloed_nullifier = compute_siloed_nullifier(
                 self.previous_kernel.storage_contract_address,
                 unsiloed_nullifier
             );

@@ -1,4 +1,7 @@
-use dep::protocol_types::{header::Header, address::AztecAddress, hash::silo_nullifier, constants::DEPLOYER_CONTRACT_ADDRESS};
+use dep::protocol_types::{
+    header::Header, address::AztecAddress, hash::compute_siloed_nullifier,
+    constants::DEPLOYER_CONTRACT_ADDRESS
+};
 
 trait ProveContractDeployment {
     fn prove_contract_deployment(header: Header, contract_address: AztecAddress);
@@ -7,7 +10,7 @@ trait ProveContractDeployment {
 impl ProveContractDeployment for Header {
     fn prove_contract_deployment(self, contract_address: AztecAddress) {
         // Compute deployment nullifier
-        let nullifier = silo_nullifier(
+        let nullifier = compute_siloed_nullifier(
             AztecAddress::from_field(DEPLOYER_CONTRACT_ADDRESS),
             contract_address.to_field()
         );
@@ -23,7 +26,7 @@ trait ProveContractNonDeployment {
 impl ProveContractNonDeployment for Header {
     fn prove_contract_non_deployment(self, contract_address: AztecAddress) {
         // Compute deployment nullifier
-        let nullifier = silo_nullifier(
+        let nullifier = compute_siloed_nullifier(
             AztecAddress::from_field(DEPLOYER_CONTRACT_ADDRESS),
             contract_address.to_field()
         );
@@ -39,7 +42,7 @@ trait ProveContractInitialization {
 impl ProveContractInitialization for Header {
     fn prove_contract_initialization(self, contract_address: AztecAddress) {
         // Compute initialization nullifier
-        let nullifier = silo_nullifier(contract_address, contract_address.to_field());
+        let nullifier = compute_siloed_nullifier(contract_address, contract_address.to_field());
 
         self.prove_nullifier_inclusion(nullifier);
     }
@@ -52,7 +55,7 @@ trait ProveContractNonInitialization {
 impl ProveContractNonInitialization for Header {
     fn prove_contract_non_initialization(self, contract_address: AztecAddress) {
         // Compute initialization nullifier
-        let nullifier = silo_nullifier(contract_address, contract_address.to_field());
+        let nullifier = compute_siloed_nullifier(contract_address, contract_address.to_field());
 
         self.prove_nullifier_non_inclusion(nullifier);
     }

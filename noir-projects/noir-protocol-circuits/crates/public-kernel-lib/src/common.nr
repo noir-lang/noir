@@ -15,7 +15,10 @@ use dep::types::{
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
     MAX_PUBLIC_DATA_READS_PER_CALL, MAX_UNENCRYPTED_LOGS_PER_CALL
 },
-    hash::{silo_note_hash, silo_nullifier, compute_l2_to_l1_hash, silo_unencrypted_log},
+    hash::{
+    compute_siloed_note_hash, compute_siloed_nullifier, compute_l2_to_l1_hash,
+    compute_siloed_unencrypted_log_hash
+},
     utils::{arrays::{array_length, array_to_bounded_vec}}, traits::{is_empty, is_empty_array}
 };
 
@@ -396,7 +399,7 @@ fn propagate_new_note_hashes_non_revertible(
     for i in 0..MAX_NEW_NOTE_HASHES_PER_CALL {
         let new_note_hash = new_note_hashes[i].value;
         if new_note_hash != 0 {
-            let siloed_new_note_hash = silo_note_hash(storage_contract_address, new_note_hash);
+            let siloed_new_note_hash = compute_siloed_note_hash(storage_contract_address, new_note_hash);
             siloed_new_note_hashes.push(NoteHash { value: siloed_new_note_hash, counter: new_note_hashes[i].counter });
         }
     }
@@ -416,7 +419,7 @@ fn propagate_new_note_hashes(
     for i in 0..MAX_NEW_NOTE_HASHES_PER_CALL {
         let new_note_hash = new_note_hashes[i].value;
         if new_note_hash != 0 {
-            let siloed_new_note_hash = silo_note_hash(storage_contract_address, new_note_hash);
+            let siloed_new_note_hash = compute_siloed_note_hash(storage_contract_address, new_note_hash);
             siloed_new_note_hashes.push(NoteHash { value: siloed_new_note_hash, counter: new_note_hashes[i].counter });
         }
     }
@@ -435,7 +438,7 @@ fn propagate_new_nullifiers_non_revertible(
     for i in 0..MAX_NEW_NULLIFIERS_PER_CALL {
         let new_nullifier = new_nullifiers[i].value;
         if new_nullifier != 0 {
-            let siloed_new_nullifier = silo_nullifier(storage_contract_address, new_nullifier);
+            let siloed_new_nullifier = compute_siloed_nullifier(storage_contract_address, new_nullifier);
             siloed_new_nullifiers.push(
                 Nullifier {
                 value: siloed_new_nullifier,
@@ -461,7 +464,7 @@ fn propagate_new_nullifiers(
     for i in 0..MAX_NEW_NULLIFIERS_PER_CALL {
         let new_nullifier = new_nullifiers[i].value;
         if new_nullifier != 0 {
-            let siloed_new_nullifier = silo_nullifier(storage_contract_address, new_nullifier);
+            let siloed_new_nullifier = compute_siloed_nullifier(storage_contract_address, new_nullifier);
             siloed_new_nullifiers.push(
                 Nullifier {
                 value: siloed_new_nullifier,
@@ -490,9 +493,10 @@ fn propagate_new_l2_to_l1_messages_non_revertible(
         if !is_empty(msg) {
             let new_l2_to_l1_msgs = compute_l2_to_l1_hash(
                 storage_contract_address,
+                msg.recipient,
+                msg.content,
                 public_inputs.constants.tx_context.version,
-                public_inputs.constants.tx_context.chain_id,
-                msg
+                public_inputs.constants.tx_context.chain_id
             );
             new_l2_to_l1_msgs_to_insert.push(new_l2_to_l1_msgs)
         }
@@ -512,9 +516,10 @@ fn propagate_new_l2_to_l1_messages(public_call: PublicCallData, public_inputs: &
         if !is_empty(msg) {
             let new_l2_to_l1_msgs = compute_l2_to_l1_hash(
                 storage_contract_address,
+                msg.recipient,
+                msg.content,
                 public_inputs.constants.tx_context.version,
-                public_inputs.constants.tx_context.chain_id,
-                msg
+                public_inputs.constants.tx_context.chain_id
             );
             new_l2_to_l1_msgs_to_insert.push(new_l2_to_l1_msgs)
         }
@@ -530,7 +535,7 @@ pub fn propagate_new_unencrypted_logs(public_call: PublicCallData, public_inputs
     for i in 0..MAX_UNENCRYPTED_LOGS_PER_CALL {
         let new_log = new_logs[i];
         if new_log.value != 0 {
-            let siloed_new_log = silo_unencrypted_log(storage_contract_address, new_log.value);
+            let siloed_new_log = compute_siloed_unencrypted_log_hash(storage_contract_address, new_log.value);
             new_logs_to_insert.push(LogHash { value: siloed_new_log, counter: new_log.counter, length: new_log.length });
         }
     }
@@ -548,7 +553,7 @@ pub fn propagate_new_unencrypted_logs_non_revertible(
     for i in 0..MAX_UNENCRYPTED_LOGS_PER_CALL {
         let new_log = new_logs[i];
         if new_log.value != 0 {
-            let siloed_new_log = silo_unencrypted_log(storage_contract_address, new_log.value);
+            let siloed_new_log = compute_siloed_unencrypted_log_hash(storage_contract_address, new_log.value);
             new_logs_to_insert.push(LogHash { value: siloed_new_log, counter: new_log.counter, length: new_log.length });
         }
     }

@@ -29,7 +29,11 @@ use crate::{
     MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, MAX_KEY_VALIDATION_REQUESTS_PER_TX, VK_TREE_HEIGHT,
     MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX, MAX_NOTE_ENCRYPTED_LOGS_PER_TX
 },
-    hash::silo_nullifier, header::Header, merkle_tree::membership::MembershipWitness,
+    hash::{
+    compute_l2_to_l1_hash, compute_tx_logs_hash, compute_tx_note_logs_hash, compute_siloed_nullifier,
+    silo_encrypted_log_hash, silo_note_hash, silo_unencrypted_log_hash
+},
+    header::Header, merkle_tree::membership::MembershipWitness,
     messaging::l2_to_l1_message::{L2ToL1Message, ScopedL2ToL1Message},
     partial_state_reference::PartialStateReference, tests::fixtures,
     transaction::{tx_context::TxContext, tx_request::TxRequest}, traits::Empty,
@@ -425,12 +429,30 @@ impl FixtureBuilder {
         );
     }
 
+    pub fn add_siloed_note_hash(&mut self, value: Field) {
+        let first_nullifier = self.new_nullifiers.get(0).value();
+        let index = self.new_note_hashes.len();
+        let note_hash = NoteHash { value, counter: 0 }.scope(0, self.storage_contract_address);
+        let siloed_value = silo_note_hash(note_hash, first_nullifier, index);
+        self.add_new_note_hash(siloed_value, 0);
+    }
+
     pub fn append_new_note_hashes(&mut self, num_new_note_hashes: u64) {
         let index_offset = self.new_note_hashes.len();
         for i in 0..self.new_note_hashes.max_len() {
             if i < num_new_note_hashes {
                 let value = self.mock_note_hash_value(index_offset + i);
                 self.add_new_note_hash(value, 0);
+            }
+        }
+    }
+
+    pub fn append_siloed_note_hashes(&mut self, num_new_note_hashes: u64) {
+        let index_offset = self.new_note_hashes.len();
+        for i in 0..self.new_note_hashes.max_len() {
+            if i < num_new_note_hashes {
+                let value = self.mock_note_hash_value(index_offset + i);
+                self.add_siloed_note_hash(value);
             }
         }
     }
@@ -454,7 +476,7 @@ impl FixtureBuilder {
     }
 
     pub fn add_siloed_nullifier(&mut self, value: Field) {
-        let siloed_value = silo_nullifier(self.storage_contract_address, value);
+        let siloed_value = compute_siloed_nullifier(self.storage_contract_address, value);
         self.add_nullifier(siloed_value);
     }
 
@@ -484,12 +506,33 @@ impl FixtureBuilder {
         );
     }
 
+    pub fn add_siloed_l2_to_l1_message(&mut self, content: Field, recipient: EthAddress) {
+        let siloed_content = compute_l2_to_l1_hash(
+            self.storage_contract_address,
+            recipient,
+            content,
+            self.tx_context.version,
+            self.tx_context.chain_id
+        );
+        self.add_l2_to_l1_message(siloed_content, recipient);
+    }
+
     pub fn append_new_l2_to_l1_msgs(&mut self, num: u64) {
         let index_offset = self.new_l2_to_l1_msgs.len();
         for i in 0..self.new_l2_to_l1_msgs.max_len() {
             if i < num {
                 let (content, recipient) = self.mock_l2_to_l1_msg(index_offset + i);
                 self.add_l2_to_l1_message(content, recipient);
+            }
+        }
+    }
+
+    pub fn append_siloed_l2_to_l1_msgs(&mut self, num: u64) {
+        let index_offset = self.new_l2_to_l1_msgs.len();
+        for i in 0..self.new_l2_to_l1_msgs.max_len() {
+            if i < num {
+                let (content, recipient) = self.mock_l2_to_l1_msg(index_offset + i);
+                self.add_siloed_l2_to_l1_message(content, recipient);
             }
         }
     }
@@ -606,6 +649,11 @@ impl FixtureBuilder {
         }
     }
 
+    pub fn hash_note_encrypted_log_hashes(&mut self) {
+        let log_hashes = self.note_encrypted_logs_hashes.storage.map(|l: NoteLogHash| l.expose_to_public());
+        self.note_encrypted_logs_hash = compute_tx_note_logs_hash(log_hashes);
+    }
+
     pub fn add_encrypted_log_hash(&mut self, hash: Field, length: Field) {
         let log_hash = EncryptedLogHash { value: hash, counter: self.next_counter(), length, randomness: 2 };
         self.encrypted_logs_hashes.push(log_hash.scope(self.storage_contract_address));
@@ -622,6 +670,17 @@ impl FixtureBuilder {
         }
     }
 
+    pub fn hash_encrypted_log_hashes(&mut self) {
+        let mut log_hashes = self.encrypted_logs_hashes.storage.map(|l: ScopedEncryptedLogHash| l.expose_to_public());
+        for i in 0..self.encrypted_logs_hashes.max_len() {
+            let log_hash = self.encrypted_logs_hashes.storage[i];
+            if !log_hash.contract_address.is_zero() {
+                log_hashes[i].value = silo_encrypted_log_hash(log_hash);
+            }
+        }
+        self.encrypted_logs_hash = compute_tx_logs_hash(log_hashes);
+    }
+
     pub fn add_unencrypted_log_hash(&mut self, hash: Field, length: Field) {
         let log_hash = LogHash { value: hash, counter: self.next_counter(), length };
         self.unencrypted_logs_hashes.push(log_hash.scope(self.storage_contract_address));
@@ -636,6 +695,17 @@ impl FixtureBuilder {
                 self.add_unencrypted_log_hash(log_hash, length);
             }
         }
+    }
+
+    pub fn hash_unencrypted_log_hashes(&mut self) {
+        let mut log_hashes = self.unencrypted_logs_hashes.storage.map(|l: ScopedLogHash| l.inner());
+        for i in 0..self.unencrypted_logs_hashes.max_len() {
+            let log_hash = self.unencrypted_logs_hashes.storage[i];
+            if !log_hash.contract_address.is_zero() {
+                log_hashes[i].value = silo_unencrypted_log_hash(log_hash);
+            }
+        }
+        self.unencrypted_logs_hash = compute_tx_logs_hash(log_hashes);
     }
 
     pub fn set_encrypted_logs_hash(&mut self, hash: Field, preimages_length: Field) {

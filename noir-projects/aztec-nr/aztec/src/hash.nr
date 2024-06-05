@@ -4,7 +4,7 @@ use dep::protocol_types::{
     GENERATOR_INDEX__SECRET_HASH, GENERATOR_INDEX__MESSAGE_NULLIFIER, ARGS_HASH_CHUNK_COUNT,
     GENERATOR_INDEX__FUNCTION_ARGS, ARGS_HASH_CHUNK_LENGTH
 },
-    traits::Hash, hash::{pedersen_hash, silo_nullifier, sha256_to_field}
+    traits::Hash, hash::{pedersen_hash, compute_siloed_nullifier, sha256_to_field}
 };
 use crate::oracle::logs_traits::{LensForEncryptedLog, ToBytesForUnencryptedLog};
 
@@ -76,10 +76,6 @@ pub fn compute_message_nullifier(message_hash: Field, secret: Field, leaf_index:
         [message_hash, secret, leaf_index],
         GENERATOR_INDEX__MESSAGE_NULLIFIER
     )
-}
-
-pub fn compute_siloed_nullifier(address: AztecAddress, nullifier: Field) -> Field {
-    silo_nullifier(address, nullifier)
 }
 
 struct ArgsHasher {
