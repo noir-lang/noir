@@ -4,7 +4,7 @@ use acvm::{acir::AcirField, FieldElement};
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::{
@@ -36,34 +36,18 @@ pub struct Interpreter<'interner> {
     /// Each value currently in scope in the interpreter.
     /// Each element of the Vec represents a scope with every scope together making
     /// up all currently visible definitions.
-    scopes: Vec<HashMap<DefinitionId, Value>>,
-
-    /// True if we've expanded any macros into any functions and will need
-    /// to redo name resolution & type checking for that function.
-    changed_functions: HashSet<FuncId>,
-
-    /// True if we've expanded any macros into global scope and will need
-    /// to redo name resolution & type checking for everything.
-    changed_globally: bool,
+    scopes: &'interner mut Vec<HashMap<DefinitionId, Value>>,
 
     in_loop: bool,
-
-    /// True if we're currently in a compile-time context.
-    /// If this is false code is skipped over instead of executed.
-    in_comptime_context: bool,
 }
 
 #[allow(unused)]
 impl<'a> Interpreter<'a> {
-    pub(crate) fn new(interner: &'a mut NodeInterner) -> Self {
-        Self {
-            interner,
-            scopes: vec![HashMap::default()],
-            changed_functions: HashSet::default(),
-            changed_globally: false,
-            in_loop: false,
-            in_comptime_context: false,
-        }
+    pub(crate) fn new(
+        interner: &'a mut NodeInterner,
+        scopes: &'a mut Vec<HashMap<DefinitionId, Value>>,
+    ) -> Self {
+        Self { interner, scopes, in_loop: false }
     }
 
     pub(crate) fn call_function(
@@ -306,7 +290,7 @@ impl<'a> Interpreter<'a> {
             HirExpression::MemberAccess(access) => self.evaluate_access(access, id),
             HirExpression::Call(call) => self.evaluate_call(call, id),
             HirExpression::MethodCall(call) => self.evaluate_method_call(call, id),
-            HirExpression::Cast(cast) => self.evaluate_cast(cast, id),
+            HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_, id),
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
@@ -468,7 +452,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub(super) fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
+    pub fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
         let last_statement = block.statements.pop();
         self.push_scope();
 
@@ -945,7 +929,18 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_cast(&mut self, cast: HirCastExpression, id: ExprId) -> IResult<Value> {
+    fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
+        let evaluated_lhs = self.evaluate(cast.lhs)?;
+        Self::evaluate_cast_one_step(cast, id, evaluated_lhs, self.interner)
+    }
+
+    /// evaluate_cast without recursion
+    pub fn evaluate_cast_one_step(
+        cast: &HirCastExpression,
+        id: ExprId,
+        evaluated_lhs: Value,
+        interner: &NodeInterner,
+    ) -> IResult<Value> {
         macro_rules! signed_int_to_field {
             ($x:expr) => {{
                 // Need to convert the signed integer to an i128 before
@@ -959,7 +954,7 @@ impl<'a> Interpreter<'a> {
             }};
         }
 
-        let (mut lhs, lhs_is_negative) = match self.evaluate(cast.lhs)? {
+        let (mut lhs, lhs_is_negative) = match evaluated_lhs {
             Value::Field(value) => (value, false),
             Value::U8(value) => ((value as u128).into(), false),
             Value::U16(value) => ((value as u128).into(), false),
@@ -973,7 +968,7 @@ impl<'a> Interpreter<'a> {
                 (if value { FieldElement::one() } else { FieldElement::zero() }, false)
             }
             value => {
-                let location = self.interner.expr_location(&id);
+                let location = interner.expr_location(&id);
                 return Err(InterpreterError::NonNumericCasted { value, location });
             }
         };
@@ -998,8 +993,8 @@ impl<'a> Interpreter<'a> {
             }
             Type::Integer(sign, bit_size) => match (sign, bit_size) {
                 (Signedness::Unsigned, IntegerBitSize::One) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type, location })
+                    let location = interner.expr_location(&id);
+                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type.clone(), location })
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => cast_to_int!(lhs, to_u128, u8, U8),
                 (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
@@ -1012,8 +1007,8 @@ impl<'a> Interpreter<'a> {
                     cast_to_int!(lhs, to_u128, u64, U64)
                 }
                 (Signedness::Signed, IntegerBitSize::One) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type, location })
+                    let location = interner.expr_location(&id);
+                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type.clone(), location })
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => cast_to_int!(lhs, to_i128, i8, I8),
                 (Signedness::Signed, IntegerBitSize::Sixteen) => {
@@ -1028,7 +1023,7 @@ impl<'a> Interpreter<'a> {
             },
             Type::Bool => Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
             typ => {
-                let location = self.interner.expr_location(&id);
+                let location = interner.expr_location(&id);
                 Err(InterpreterError::CastToNonNumericType { typ, location })
             }
         }
@@ -1077,7 +1072,7 @@ impl<'a> Interpreter<'a> {
         Ok(Value::Closure(lambda, environment, typ))
     }
 
-    fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
+    pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
         match self.interner.statement(&statement) {
             HirStatement::Let(let_) => self.evaluate_let(let_),
             HirStatement::Constrain(constrain) => self.evaluate_constrain(constrain),
@@ -1098,7 +1093,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub(super) fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
+    pub fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
         let rhs = self.evaluate(let_.expression)?;
         let location = self.interner.expr_location(&let_.expression);
         self.define_pattern(&let_.pattern, &let_.r#type, rhs, location)?;
@@ -1265,9 +1260,6 @@ impl<'a> Interpreter<'a> {
     }
 
     pub(super) fn evaluate_comptime(&mut self, statement: StmtId) -> IResult<Value> {
-        let was_in_comptime = std::mem::replace(&mut self.in_comptime_context, true);
-        let result = self.evaluate_statement(statement);
-        self.in_comptime_context = was_in_comptime;
-        result
+        self.evaluate_statement(statement)
     }
 }
