@@ -477,7 +477,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         let mut current_pointer = destination;
         match value_type {
             HeapValueType::Simple(bit_size) => {
-                self.write_value_to_memory(destination, values, values_idx, *bit_size)?;
+                self.write_value_to_memory(destination, &values[*values_idx], *bit_size)?;
+                *values_idx += 1;
                 Ok(MemoryAddress(destination.to_usize() + 1))
             }
             HeapValueType::Array { value_types, size } => {
@@ -487,10 +488,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                             HeapValueType::Simple(len) => {
                                 self.write_value_to_memory(
                                     current_pointer,
-                                    values,
-                                    values_idx,
+                                    &values[*values_idx],
                                     *len,
                                 )?;
+                                *values_idx += 1;
                                 current_pointer = MemoryAddress(current_pointer.to_usize() + 1);
                             }
                             HeapValueType::Array { .. } => {
@@ -521,29 +522,58 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         }
     }
 
+    fn write_values_to_memory_slice(
+        &mut self,
+        pointer_index: MemoryAddress,
+        values: &[F],
+        value_types: &[HeapValueType],
+    ) -> Result<(), String> {
+        let bit_sizes_iterator = value_types
+            .iter()
+            .map(|typ| match typ {
+                HeapValueType::Simple(bit_size) => *bit_size,
+                _ => unreachable!("Expected simple value type"),
+            })
+            .cycle();
+
+        // Convert the destination pointer to a usize
+        let destination = self.memory.read_ref(pointer_index);
+        // Write to our destination memory
+        let memory_values: Option<Vec<_>> = values
+            .iter()
+            .zip(bit_sizes_iterator)
+            .map(|(value, bit_size)| MemoryValue::new_checked(*value, bit_size))
+            .collect();
+        if let Some(memory_values) = memory_values {
+            self.memory.write_slice(destination, &memory_values);
+        } else {
+            return Err(format!(
+                "Foreign call result values {:?} do not match expected bit sizes",
+                values,
+            ));
+        }
+        Ok(())
+    }
+
     fn write_value_to_memory(
         &mut self,
         destination: MemoryAddress,
-        values: &Vec<F>,
-        values_idx: &mut usize,
+        value: &F,
         value_bit_size: u32,
     ) -> Result<(), String> {
-        if *values_idx >= values.len() {
-            return Err("Missing returned values, you should make sure the foreign call returns a list of flattened values".to_string());
-        }
-        let memory_value = MemoryValue::new_checked(values[*values_idx], value_bit_size);
+        let memory_value = MemoryValue::new_checked(*value, value_bit_size);
 
         if let Some(memory_value) = memory_value {
             self.memory.write(destination, memory_value);
         } else {
             return Err(format!(
                 "Foreign call result value {} does not fit in bit size {}",
-                values[*values_idx], value_bit_size
+                value, value_bit_size
             ));
         }
-        *values_idx += 1;
         Ok(())
     }
+
 
     fn write_foreign_call_result(
         &mut self,
@@ -551,7 +581,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         destination_value_types: &[HeapValueType],
         foreign_call_index: usize,
     ) -> Result<(), String> {
-        let values = &self.foreign_call_results[foreign_call_index].values;
+        let values = std::mem::take(&mut self.foreign_call_results[foreign_call_index].values);
+
         if destinations.len() != values.len() {
             return Err(format!(
                 "{} output values were provided as a foreign call result for {} destination slots",
@@ -570,16 +601,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(bit_size)) => {
                 match output {
                     ForeignCallParam::Single(value) => {
-                        let memory_value = MemoryValue::new_checked(*value, *bit_size);
-                        if let Some(memory_value) = memory_value {
-                            self.memory.write(*value_index, memory_value);
-                        } else {
-                            return Err(format!(
-                                "Foreign call result value {} does not fit in bit size {}",
-                                value,
-                                bit_size
-                            ));
-                        }
+                        self.write_value_to_memory(*value_index, value, *bit_size)?;
                     }
                     _ => return Err(format!(
                         "Function result size does not match brillig bytecode. Expected 1 result but got {output:?}")
@@ -591,28 +613,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 HeapValueType::Array { value_types, size: type_size },
             ) if size == type_size => {
                 if HeapValueType::all_simple(value_types) {
-                    let bit_sizes_iterator = value_types.iter().map(|typ| match typ {
-                        HeapValueType::Simple(bit_size) => *bit_size,
-                        _ => unreachable!("Expected simple value type"),
-                    }).cycle();
                     match output {
                         ForeignCallParam::Array(values) => {
                             if values.len() != *size {
                                 return Err("Foreign call result array doesn't match expected size".to_string());
                             }
-                            // Convert the destination pointer to a usize
-                            let destination = self.memory.read_ref(*pointer_index);
-                            // Write to our destination memory
-                            let memory_values: Option<Vec<_>> = values.iter().zip(bit_sizes_iterator).map(
-                                |(value, bit_size)| MemoryValue::new_checked(*value, bit_size)).collect();
-                            if let Some(memory_values) = memory_values {
-                                self.memory.write_slice(destination, &memory_values);
-                            } else {
-                                return Err(format!(
-                                    "Foreign call result values {:?} do not match expected bit sizes",
-                                    values,
-                                ));
-                            }
+                            self.write_values_to_memory_slice(*pointer_index, values, value_types)?;
                         }
                         _ => {
                             return Err("Function result size does not match brillig bytecode size".to_string());
@@ -630,26 +636,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 HeapValueType::Vector { value_types },
             ) => {
                 if HeapValueType::all_simple(value_types) {
-                    let bit_sizes_iterator = value_types.iter().map(|typ| match typ {
-                        HeapValueType::Simple(bit_size) => *bit_size,
-                        _ => unreachable!("Expected simple value type"),
-                    }).cycle();
                     match output {
                         ForeignCallParam::Array(values) => {
                             // Set our size in the size address
                             self.memory.write(*size_index, values.len().into());
-                            // Convert the destination pointer to a usize
-                            let destination = self.memory.read_ref(*pointer_index);
-                            // Write to our destination memory
-                            let memory_values: Option<Vec<_>> = values.iter().zip(bit_sizes_iterator).map(|(value, bit_size)| MemoryValue::new_checked(*value, bit_size)).collect();
-                            if let Some(memory_values) = memory_values {
-                                self.memory.write_slice(destination, &memory_values);
-                            }else{
-                                return Err(format!(
-                                    "Foreign call result values {:?} do not match expected bit sizes",
-                                    values,
-                                ));
-                            }
+                            self.write_values_to_memory_slice(*pointer_index, values, value_types)?;
+
                         }
                         _ => {
                             return Err("Function result size does not match brillig bytecode size".to_string());
@@ -665,8 +657,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         }
         }
 
+        let _ =
+            std::mem::replace(&mut self.foreign_call_results[foreign_call_index].values, values);
+
         Ok(())
     }
+
     /// Process a binary operation.
     /// This method will not modify the program counter.
     fn process_binary_field_op(

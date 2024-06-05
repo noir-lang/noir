@@ -6,6 +6,7 @@ use std::{
 use crate::{
     ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
+        comptime::{self, Interpreter},
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
@@ -21,7 +22,9 @@ use crate::{
     macros_api::{
         Ident, NodeInterner, NoirFunction, NoirStruct, Pattern, SecondaryAttribute, StructId,
     },
-    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId, TraitId, TypeAliasId},
+    node_interner::{
+        DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, TraitId, TypeAliasId,
+    },
     Shared, Type, TypeVariable,
 };
 use crate::{
@@ -30,15 +33,12 @@ use crate::{
     hir::{
         def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
         def_map::{LocalModuleId, ModuleDefId, ModuleId, MAIN_FUNCTION},
-        resolution::{
-            errors::PubPosition, import::PathResolution, path_resolver::StandardPathResolver,
-        },
+        resolution::{import::PathResolution, path_resolver::StandardPathResolver},
         Context,
     },
     hir_def::function::{FuncMeta, HirFunction},
-    macros_api::{Param, Path, UnresolvedType, UnresolvedTypeData, Visibility},
+    macros_api::{Param, Path, UnresolvedType, UnresolvedTypeData},
     node_interner::TraitImplId,
-    token::FunctionAttribute,
     Generics,
 };
 use crate::{
@@ -51,6 +51,7 @@ use crate::{
 };
 
 mod expressions;
+mod lints;
 mod patterns;
 mod scope;
 mod statements;
@@ -60,7 +61,7 @@ mod types;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
-use rustc_hash::FxHashSet as HashSet;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
@@ -153,6 +154,11 @@ pub struct Elaborator<'context> {
     local_module: LocalModuleId,
 
     crate_id: CrateId,
+
+    /// Each value currently in scope in the comptime interpreter.
+    /// Each element of the Vec represents a scope with every scope together making
+    /// up all currently visible definitions. The first scope is always the global scope.
+    comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 }
 
 impl<'context> Elaborator<'context> {
@@ -179,6 +185,7 @@ impl<'context> Elaborator<'context> {
             type_variables: Vec::new(),
             trait_constraints: Vec::new(),
             current_trait_impl: None,
+            comptime_scopes: vec![HashMap::default()],
         }
     }
 
@@ -295,7 +302,7 @@ impl<'context> Elaborator<'context> {
             .expect("FuncMetas should be declared before a function is elaborated")
             .clone();
 
-        // The DefinitionIds for each parameter were already created in define_function_meta
+        // The `DefinitionId`s for each parameter were already created in `define_function_meta`
         // so we need to reintroduce the same IDs into scope here.
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
@@ -429,6 +436,12 @@ impl<'context> Elaborator<'context> {
         self.errors.push((error.into(), self.file));
     }
 
+    fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
+        if let Some(error) = lint(self) {
+            self.push_err(error);
+        }
+    }
+
     fn resolve_where_clause(&mut self, clause: &mut [UnresolvedTraitConstraint]) {
         for bound in clause {
             if let Some(trait_id) = self.resolve_trait_by_path(bound.trait_bound.trait_path.clone())
@@ -510,6 +523,8 @@ impl<'context> Elaborator<'context> {
     ) {
         self.current_function = Some(func_id);
         self.resolve_where_clause(&mut func.def.where_clause);
+        // `func` is no longer mutated.
+        let func = &*func;
 
         // Without this, impl methods can accidentally be placed in contracts. See #3254
         if self.self_type.is_some() {
@@ -523,26 +538,28 @@ impl<'context> Elaborator<'context> {
         let id = self.interner.function_definition_id(func_id);
         let name_ident = HirIdent::non_trait_method(id, location);
 
-        let attributes = func.attributes().clone();
-        let has_no_predicates_attribute = attributes.is_no_predicates();
-        let should_fold = attributes.is_foldable();
-        if !self.inline_attribute_allowed(func) {
-            if has_no_predicates_attribute {
-                self.push_err(ResolverError::NoPredicatesAttributeOnUnconstrained {
-                    ident: func.name_ident().clone(),
-                });
-            } else if should_fold {
-                self.push_err(ResolverError::FoldAttributeOnUnconstrained {
-                    ident: func.name_ident().clone(),
-                });
-            }
-        }
+        let is_entry_point = self.is_entry_point_function(func);
+
+        self.run_lint(|_| lints::inlining_attributes(func).map(Into::into));
+        self.run_lint(|_| lints::missing_pub(func, is_entry_point).map(Into::into));
+        self.run_lint(|elaborator| {
+            lints::unnecessary_pub_return(func, elaborator.pub_allowed(func)).map(Into::into)
+        });
+        self.run_lint(|elaborator| {
+            lints::low_level_function_outside_stdlib(func, elaborator.crate_id).map(Into::into)
+        });
+        self.run_lint(|_| lints::test_function_with_args(func).map(Into::into));
+        self.run_lint(|_| {
+            lints::recursive_non_entrypoint_function(func, is_entry_point).map(Into::into)
+        });
+
         // Both the #[fold] and #[no_predicates] alter a function's inline type and code generation in similar ways.
         // In certain cases such as type checking (for which the following flag will be used) both attributes
         // indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
+        let has_no_predicates_attribute = func.attributes().is_no_predicates();
+        let should_fold = func.attributes().is_foldable();
         let has_inline_attribute = has_no_predicates_attribute || should_fold;
-        let is_entry_point = self.is_entry_point_function(func);
-
+        let is_pub_allowed = self.pub_allowed(func);
         self.add_generics(&func.def.generics);
 
         let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
@@ -553,12 +570,9 @@ impl<'context> Elaborator<'context> {
         let mut parameter_idents = Vec::new();
 
         for Param { visibility, pattern, typ, span: _ } in func.parameters().iter().cloned() {
-            if visibility == Visibility::Public && !self.pub_allowed(func) {
-                self.push_err(ResolverError::UnnecessaryPub {
-                    ident: func.name_ident().clone(),
-                    position: PubPosition::Parameter,
-                });
-            }
+            self.run_lint(|_| {
+                lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
+            });
 
             let type_span = typ.span.unwrap_or_else(|| pattern.span());
 
@@ -587,44 +601,6 @@ impl<'context> Elaborator<'context> {
         }
 
         let return_type = Box::new(self.resolve_type(func.return_type()));
-
-        if !self.pub_allowed(func) && func.def.return_visibility == Visibility::Public {
-            self.push_err(ResolverError::UnnecessaryPub {
-                ident: func.name_ident().clone(),
-                position: PubPosition::ReturnType,
-            });
-        }
-
-        let is_low_level_function =
-            attributes.function.as_ref().map_or(false, |func| func.is_low_level());
-
-        if !self.crate_id.is_stdlib() && is_low_level_function {
-            let error =
-                ResolverError::LowLevelFunctionOutsideOfStdlib { ident: func.name_ident().clone() };
-            self.push_err(error);
-        }
-
-        // 'pub' is required on return types for entry point functions
-        if is_entry_point
-            && return_type.as_ref() != &Type::Unit
-            && func.def.return_visibility == Visibility::Private
-        {
-            self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() });
-        }
-        // '#[recursive]' attribute is only allowed for entry point functions
-        if !is_entry_point && func.kind == FunctionKind::Recursive {
-            self.push_err(ResolverError::MisplacedRecursiveAttribute {
-                ident: func.name_ident().clone(),
-            });
-        }
-
-        if matches!(attributes.function, Some(FunctionAttribute::Test { .. }))
-            && !parameters.is_empty()
-        {
-            self.push_err(ResolverError::TestFunctionHasParameters {
-                span: func.name_ident().span(),
-            });
-        }
 
         let mut typ = Type::Function(parameter_types, return_type, Box::new(Type::Unit));
 
@@ -682,14 +658,8 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn inline_attribute_allowed(&self, func: &NoirFunction) -> bool {
-        // Inline attributes are only relevant for constrained functions
-        // as all unconstrained functions are not inlined
-        !func.def.is_unconstrained
-    }
-
-    /// True if the 'pub' keyword is allowed on parameters in this function
-    /// 'pub' on function parameters is only allowed for entry point functions
+    /// True if the `pub` keyword is allowed on parameters in this function
+    /// `pub` on function parameters is only allowed for entry point functions
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
         self.is_entry_point_function(func) || func.attributes().is_foldable()
     }
@@ -720,98 +690,6 @@ impl<'context> Elaborator<'context> {
                 let ident = Ident::new(name.to_string(), *span);
                 let definition = DefinitionKind::GenericType(type_variable);
                 self.add_variable_decl_inner(ident, false, false, false, definition);
-            }
-        }
-    }
-
-    fn find_numeric_generics(
-        parameters: &Parameters,
-        return_type: &Type,
-    ) -> Vec<(String, TypeVariable)> {
-        let mut found = BTreeMap::new();
-        for (_, parameter, _) in &parameters.0 {
-            Self::find_numeric_generics_in_type(parameter, &mut found);
-        }
-        Self::find_numeric_generics_in_type(return_type, &mut found);
-        found.into_iter().collect()
-    }
-
-    fn find_numeric_generics_in_type(typ: &Type, found: &mut BTreeMap<String, TypeVariable>) {
-        match typ {
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::Error
-            | Type::TypeVariable(_, _)
-            | Type::Constant(_)
-            | Type::NamedGeneric(_, _)
-            | Type::Code
-            | Type::Forall(_, _) => (),
-
-            Type::TraitAsType(_, _, args) => {
-                for arg in args {
-                    Self::find_numeric_generics_in_type(arg, found);
-                }
-            }
-
-            Type::Array(length, element_type) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
-                    found.insert(name.to_string(), type_variable.clone());
-                }
-                Self::find_numeric_generics_in_type(element_type, found);
-            }
-
-            Type::Slice(element_type) => {
-                Self::find_numeric_generics_in_type(element_type, found);
-            }
-
-            Type::Tuple(fields) => {
-                for field in fields {
-                    Self::find_numeric_generics_in_type(field, found);
-                }
-            }
-
-            Type::Function(parameters, return_type, _env) => {
-                for parameter in parameters {
-                    Self::find_numeric_generics_in_type(parameter, found);
-                }
-                Self::find_numeric_generics_in_type(return_type, found);
-            }
-
-            Type::Struct(struct_type, generics) => {
-                for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
-                        if struct_type.borrow().generic_is_numeric(i) {
-                            found.insert(name.to_string(), type_variable.clone());
-                        }
-                    } else {
-                        Self::find_numeric_generics_in_type(generic, found);
-                    }
-                }
-            }
-            Type::Alias(alias, generics) => {
-                for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
-                        if alias.borrow().generic_is_numeric(i) {
-                            found.insert(name.to_string(), type_variable.clone());
-                        }
-                    } else {
-                        Self::find_numeric_generics_in_type(generic, found);
-                    }
-                }
-            }
-            Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
-            Type::String(length) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
-                    found.insert(name.to_string(), type_variable.clone());
-                }
-            }
-            Type::FmtString(length, fields) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
-                    found.insert(name.to_string(), type_variable.clone());
-                }
-                Self::find_numeric_generics_in_type(fields, found);
             }
         }
     }
@@ -1229,7 +1107,22 @@ impl<'context> Elaborator<'context> {
             self.push_err(ResolverError::MutableGlobal { span });
         }
 
+        let comptime = let_stmt.comptime;
+
         self.elaborate_global_let(let_stmt, global_id);
+
+        if comptime {
+            let let_statement = self
+                .interner
+                .get_global_let_statement(global_id)
+                .expect("Let statement of global should be set by elaborate_global_let");
+
+            let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+
+            if let Err(error) = interpreter.evaluate_let(let_statement) {
+                self.errors.push(error.into_compilation_error_pair());
+            }
+        }
 
         // Avoid defaulting the types of globals here since they may be used in any function.
         // Otherwise we may prematurely default to a Field inside the next function if this
