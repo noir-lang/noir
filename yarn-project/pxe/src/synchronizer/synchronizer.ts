@@ -1,4 +1,4 @@
-import { type AztecNode, type L2Block, L2BlockL2Logs, MerkleTreeId, type TxHash } from '@aztec/circuit-types';
+import { type AztecNode, type L2Block, MerkleTreeId, type TxHash } from '@aztec/circuit-types';
 import { type NoteProcessorCaughtUpStats } from '@aztec/circuit-types/stats';
 import { type AztecAddress, type Fr, INITIAL_L2_BLOCK_NUM, type PublicKey } from '@aztec/circuits.js';
 import { type SerialQueue } from '@aztec/foundation/fifo';
@@ -99,19 +99,13 @@ export class Synchronizer {
         return false;
       }
 
-      const noteEncryptedLogs = blocks.flatMap(block => block.body.noteEncryptedLogs);
-
       // Update latest tree roots from the most recent block
       const latestBlock = blocks[blocks.length - 1];
       await this.setHeaderFromBlock(latestBlock);
 
-      const logCount = L2BlockL2Logs.getTotalLogCount(noteEncryptedLogs);
-      this.log.debug(
-        `Forwarding ${logCount} encrypted logs and blocks to ${this.noteProcessors.length} note processors`,
-      );
+      this.log.debug(`Forwarding ${blocks.length} blocks to ${this.noteProcessors.length} note processors`);
       for (const noteProcessor of this.noteProcessors) {
-        // TODO(#6830): pass in only the blocks
-        await noteProcessor.process(blocks, noteEncryptedLogs);
+        await noteProcessor.process(blocks);
       }
       return true;
     } catch (err) {
@@ -177,11 +171,6 @@ export class Synchronizer {
         throw new Error('No blocks in processor catch up mode');
       }
 
-      const noteEncryptedLogs = blocks.flatMap(block => block.body.noteEncryptedLogs);
-
-      const logCount = L2BlockL2Logs.getTotalLogCount(noteEncryptedLogs);
-      this.log.debug(`Forwarding ${logCount} encrypted logs and blocks to note processors in catch up mode`);
-
       for (const noteProcessor of catchUpGroup) {
         // find the index of the first block that the note processor is not yet synced to
         const index = blocks.findIndex(block => block.number > noteProcessor.status.syncedToBlock);
@@ -197,7 +186,7 @@ export class Synchronizer {
             blocks.length - index
           } blocks`,
         );
-        await noteProcessor.process(blocks.slice(index), noteEncryptedLogs.slice(index));
+        await noteProcessor.process(blocks.slice(index));
 
         if (noteProcessor.status.syncedToBlock === toBlockNumber) {
           // Note processor caught up, move it to `noteProcessors` from `noteProcessorsToCatchUp`.

@@ -1,10 +1,4 @@
-import {
-  type AztecNode,
-  type EncryptedNoteL2BlockL2Logs,
-  L1NotePayload,
-  type L2Block,
-  TaggedNote,
-} from '@aztec/circuit-types';
+import { type AztecNode, L1NotePayload, type L2Block, TaggedNote } from '@aztec/circuit-types';
 import { type NoteProcessorStats } from '@aztec/circuit-types/stats';
 import {
   type AztecAddress,
@@ -111,18 +105,11 @@ export class NoteProcessor {
   /**
    * Extracts new user-relevant notes from the information contained in the provided L2 blocks and encrypted logs.
    *
-   * @throws If the number of blocks and encrypted logs do not match.
-   * @param l2Blocks - L2 blocks to be processed.
-   * @param encryptedL2BlockLogs - Encrypted logs associated with the L2 blocks.
+   * @param blocks - L2 blocks to be processed.
    * @returns A promise that resolves once the processing is completed.
    */
-  public async process(l2Blocks: L2Block[], encryptedL2BlockLogs: EncryptedNoteL2BlockL2Logs[]): Promise<void> {
-    if (l2Blocks.length !== encryptedL2BlockLogs.length) {
-      throw new Error(
-        `Number of blocks and EncryptedLogs is not equal. Received ${l2Blocks.length} blocks, ${encryptedL2BlockLogs.length} encrypted logs.`,
-      );
-    }
-    if (l2Blocks.length === 0) {
+  public async process(blocks: L2Block[]): Promise<void> {
+    if (blocks.length === 0) {
       return;
     }
 
@@ -136,10 +123,9 @@ export class NoteProcessor {
     const ovskM = await this.keyStore.getMasterSecretKey(this.ovpkM);
 
     // Iterate over both blocks and encrypted logs.
-    for (let blockIndex = 0; blockIndex < encryptedL2BlockLogs.length; ++blockIndex) {
+    for (const block of blocks) {
       this.stats.blocks++;
-      const { txLogs } = encryptedL2BlockLogs[blockIndex];
-      const block = l2Blocks[blockIndex];
+      const { txLogs } = block.body.noteEncryptedLogs;
       const dataStartIndexForBlock =
         block.header.state.partial.noteHashTree.nextAvailableLeafIndex -
         block.body.numberOfTxsIncludingPadded * MAX_NEW_NOTE_HASHES_PER_TX;
@@ -210,7 +196,7 @@ export class NoteProcessor {
       }
 
       blocksAndNotes.push({
-        block: l2Blocks[blockIndex],
+        block,
         incomingNotes,
         outgoingNotes,
       });
@@ -219,7 +205,7 @@ export class NoteProcessor {
     await this.processBlocksAndNotes(blocksAndNotes);
     await this.processDeferredNotes(deferredNoteDaosIncoming);
 
-    const syncedToBlock = l2Blocks[l2Blocks.length - 1].number;
+    const syncedToBlock = blocks[blocks.length - 1].number;
     await this.db.setSynchedBlockNumberForPublicKey(this.ivpkM, syncedToBlock);
 
     this.log.debug(`Synched block ${syncedToBlock}`);

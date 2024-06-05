@@ -185,10 +185,7 @@ describe('Note Processor', () => {
     const request = new MockNoteRequest(TaggedNote.random(app), 4, 0, 2, ownerIvpkM, KeyValidationRequest.random());
 
     const blocks = mockBlocks([request]);
-
-    // TODO(#6830): pass in only the blocks
-    const encryptedLogs = blocks.flatMap(block => block.body.noteEncryptedLogs);
-    await noteProcessor.process(blocks, encryptedLogs);
+    await noteProcessor.process(blocks);
 
     expect(addNotesSpy).toHaveBeenCalledTimes(1);
     expect(addNotesSpy).toHaveBeenCalledWith(
@@ -206,10 +203,7 @@ describe('Note Processor', () => {
     const request = new MockNoteRequest(TaggedNote.random(app), 4, 0, 2, Point.random(), ownerOvKeys);
 
     const blocks = mockBlocks([request]);
-
-    // TODO(#6830): pass in only the blocks
-    const encryptedLogs = blocks.flatMap(block => block.body.noteEncryptedLogs);
-    await noteProcessor.process(blocks, encryptedLogs);
+    await noteProcessor.process(blocks);
 
     expect(addNotesSpy).toHaveBeenCalledTimes(1);
     // For outgoing notes, the resulting DAO does not contain index.
@@ -226,10 +220,7 @@ describe('Note Processor', () => {
     ];
 
     const blocks = mockBlocks(requests);
-
-    // TODO(#6830): pass in only the blocks
-    const encryptedLogs = blocks.flatMap(block => block.body.noteEncryptedLogs);
-    await noteProcessor.process(blocks, encryptedLogs);
+    await noteProcessor.process(blocks);
 
     expect(addNotesSpy).toHaveBeenCalledTimes(1);
     expect(addNotesSpy).toHaveBeenCalledWith(
@@ -263,10 +254,7 @@ describe('Note Processor', () => {
       new MockNoteRequest(TaggedNote.random(), 2, 1, 1, Point.random(), KeyValidationRequest.random()),
       new MockNoteRequest(TaggedNote.random(), 2, 3, 0, Point.random(), KeyValidationRequest.random()),
     ]);
-
-    // TODO(#6830): pass in only the blocks
-    const encryptedLogs = blocks.flatMap(block => block.body.noteEncryptedLogs);
-    await noteProcessor.process(blocks, encryptedLogs);
+    await noteProcessor.process(blocks);
 
     expect(addNotesSpy).toHaveBeenCalledTimes(0);
   });
@@ -284,10 +272,7 @@ describe('Note Processor', () => {
     ];
 
     const blocks = mockBlocks(requests);
-
-    // TODO(#6830): pass in only the blocks
-    const encryptedLogs = blocks.flatMap(block => block.body.noteEncryptedLogs);
-    await noteProcessor.process(blocks, encryptedLogs);
+    await noteProcessor.process(blocks);
 
     // First we check incoming
     {
@@ -325,10 +310,7 @@ describe('Note Processor', () => {
     const request = new MockNoteRequest(TaggedNote.random(), 6, 0, 2, ownerIvpkM, ownerOvKeys);
 
     const blocks = mockBlocks([request]);
-
-    // TODO(#6830): pass in only the blocks
-    const encryptedLogs = blocks.flatMap(block => block.body.noteEncryptedLogs);
-    await noteProcessor.process(blocks, encryptedLogs);
+    await noteProcessor.process(blocks);
 
     expect(noteProcessor.status.syncedToBlock).toEqual(blocks.at(-1)?.number);
   });
@@ -337,10 +319,7 @@ describe('Note Processor', () => {
     const request = new MockNoteRequest(TaggedNote.random(), 6, 0, 2, Point.random(), KeyValidationRequest.random());
 
     const blocks = mockBlocks([request]);
-
-    // TODO(#6830): pass in only the blocks
-    const encryptedLogs = blocks.flatMap(block => block.body.noteEncryptedLogs);
-    await noteProcessor.process(blocks, encryptedLogs);
+    await noteProcessor.process(blocks);
 
     const newNoteProcessor = await NoteProcessor.create(
       account.address,
