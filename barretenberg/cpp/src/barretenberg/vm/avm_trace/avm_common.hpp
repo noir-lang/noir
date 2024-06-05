@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cstdint>
+#include <map>
 #include <unordered_map>
 
 namespace bb::avm_trace {
@@ -33,13 +34,31 @@ static const size_t AVM_TRACE_SIZE = 1 << 18;
 enum class IntermRegister : uint32_t { IA = 0, IB = 1, IC = 2, ID = 3 };
 enum class IndirectRegister : uint32_t { IND_A = 0, IND_B = 1, IND_C = 2, IND_D = 3 };
 
-// Keep following enum in sync with MAX_NEM_TAG below
+// Keep following enum in sync with MAX_MEM_TAG below
 enum class AvmMemoryTag : uint32_t { U0 = 0, U8 = 1, U16 = 2, U32 = 3, U64 = 4, U128 = 5, FF = 6 };
 static const uint32_t MAX_MEM_TAG = 6;
 
 static const size_t NUM_MEM_SPACES = 256;
 static const uint8_t INTERNAL_CALL_SPACE_ID = 255;
 static const uint32_t MAX_SIZE_INTERNAL_STACK = 1 << 16;
+
+struct ExternalCallHint {
+    FF success;
+    std::vector<FF> return_data;
+    FF l2_gas_used;
+    FF da_gas_used;
+};
+
+// Add support for deserialization of ExternalCallHint. This is implicitly used by serialize::read
+// when trying to read std::vector<ExternalCallHint>.
+inline void read(uint8_t const*& it, ExternalCallHint& hint)
+{
+    using serialize::read;
+    read(it, hint.success);
+    read(it, hint.return_data);
+    read(it, hint.l2_gas_used);
+    read(it, hint.da_gas_used);
+}
 
 struct ContractInstanceHint {
     FF instance_found_in_address;
@@ -49,11 +68,86 @@ struct ContractInstanceHint {
     FF initialisation_hash;
     FF public_key_hash;
 };
-struct ExecutionHints {
-    std::unordered_map<uint32_t, FF> side_effect_hints;
 
-    std::vector<std::vector<FF>> returndata_hints;
+// Add support for deserialization of ContractInstanceHint.
+inline void read(uint8_t const*& it, ContractInstanceHint& hint)
+{
+    using serialize::read;
+    read(it, hint.instance_found_in_address);
+    read(it, hint.salt);
+    read(it, hint.deployer_addr);
+    read(it, hint.contract_class_id);
+    read(it, hint.initialisation_hash);
+    read(it, hint.public_key_hash);
+}
+
+struct ExecutionHints {
+    ExecutionHints() = default;
+    ExecutionHints(std::vector<std::pair<FF, FF>> storage_value_hints,
+                   std::vector<std::pair<FF, FF>> note_hash_exists_hints,
+                   std::vector<std::pair<FF, FF>> nullifier_exists_hints,
+                   std::vector<std::pair<FF, FF>> l1_to_l2_message_exists_hints,
+                   std::vector<ExternalCallHint> externalcall_hints,
+                   std::map<FF, ContractInstanceHint> contract_instance_hints)
+        : storage_value_hints(std::move(storage_value_hints))
+        , note_hash_exists_hints(std::move(note_hash_exists_hints))
+        , nullifier_exists_hints(std::move(nullifier_exists_hints))
+        , l1_to_l2_message_exists_hints(std::move(l1_to_l2_message_exists_hints))
+        , externalcall_hints(std::move(externalcall_hints))
+        , contract_instance_hints(std::move(contract_instance_hints))
+    {}
+
+    std::vector<std::pair<FF, FF>> storage_value_hints;
+    std::vector<std::pair<FF, FF>> note_hash_exists_hints;
+    std::vector<std::pair<FF, FF>> nullifier_exists_hints;
+    std::vector<std::pair<FF, FF>> l1_to_l2_message_exists_hints;
+    std::vector<ExternalCallHint> externalcall_hints;
+    // TODO(dbanks): not read yet.
     std::map<FF, ContractInstanceHint> contract_instance_hints;
+
+    static void push_vec_into_map(std::unordered_map<uint32_t, FF>& into_map,
+                                  const std::vector<std::pair<FF, FF>>& from_pair_vec)
+    {
+        for (const auto& pair : from_pair_vec) {
+            into_map[static_cast<uint32_t>(pair.first)] = pair.second;
+        }
+    }
+
+    // TODO: Cache.
+    // Side effect counter -> value
+    std::unordered_map<uint32_t, FF> get_side_effect_hints() const
+    {
+        std::unordered_map<uint32_t, FF> hints_map;
+        push_vec_into_map(hints_map, storage_value_hints);
+        push_vec_into_map(hints_map, note_hash_exists_hints);
+        push_vec_into_map(hints_map, nullifier_exists_hints);
+        push_vec_into_map(hints_map, l1_to_l2_message_exists_hints);
+        return hints_map;
+    }
+
+    static ExecutionHints from(const std::vector<uint8_t>& data)
+    {
+        std::vector<std::pair<FF, FF>> storage_value_hints;
+        std::vector<std::pair<FF, FF>> note_hash_exists_hints;
+        std::vector<std::pair<FF, FF>> nullifier_exists_hints;
+        std::vector<std::pair<FF, FF>> l1_to_l2_message_exists_hints;
+        // TODO(dbanks): not read yet.
+        std::map<FF, ContractInstanceHint> contract_instance_hints;
+
+        using serialize::read;
+        const auto* it = data.data();
+        read(it, storage_value_hints);
+        read(it, note_hash_exists_hints);
+        read(it, nullifier_exists_hints);
+        read(it, l1_to_l2_message_exists_hints);
+
+        std::vector<ExternalCallHint> externalcall_hints;
+        read(it, externalcall_hints);
+
+        return { std::move(storage_value_hints),    std::move(note_hash_exists_hints),
+                 std::move(nullifier_exists_hints), std::move(l1_to_l2_message_exists_hints),
+                 std::move(externalcall_hints),     std::move(contract_instance_hints) };
+    }
 };
 
 } // namespace bb::avm_trace

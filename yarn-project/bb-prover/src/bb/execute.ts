@@ -319,7 +319,7 @@ export async function generateAvmProof(
       return { status: BB_RESULT.FAILURE, reason: `Could not write publicInputs at ${publicInputsPath}` };
     }
 
-    await fs.writeFile(avmHintsPath, input.avmHints.toBufferVM());
+    await fs.writeFile(avmHintsPath, input.avmHints.toBuffer());
     if (!filePresent(avmHintsPath)) {
       return { status: BB_RESULT.FAILURE, reason: `Could not write avmHints at ${avmHintsPath}` };
     }

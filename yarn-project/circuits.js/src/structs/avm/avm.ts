@@ -2,10 +2,12 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
+import { Gas } from '../gas.js';
 import { PublicCircuitPublicInputs } from '../public_circuit_public_inputs.js';
 import { Vector } from '../shared.js';
 
-export class AvmHint {
+// TODO: Consider just using Tuple.
+export class AvmKeyValueHint {
   constructor(public readonly key: Fr, public readonly value: Fr) {}
 
   /**
@@ -13,7 +15,7 @@ export class AvmHint {
    * @returns - The inputs serialized to a buffer.
    */
   toBuffer() {
-    return serializeToBuffer(...AvmHint.getFields(this));
+    return serializeToBuffer(...AvmKeyValueHint.getFields(this));
   }
 
   /**
@@ -37,8 +39,8 @@ export class AvmHint {
    * @param fields - Fields to create the instance from.
    * @returns A new AvmHint instance.
    */
-  static from(fields: FieldsOf<AvmHint>): AvmHint {
-    return new AvmHint(...AvmHint.getFields(fields));
+  static from(fields: FieldsOf<AvmKeyValueHint>): AvmKeyValueHint {
+    return new AvmKeyValueHint(...AvmKeyValueHint.getFields(fields));
   }
 
   /**
@@ -46,7 +48,7 @@ export class AvmHint {
    * @param fields - Fields to create the instance from.
    * @returns An array of fields.
    */
-  static getFields(fields: FieldsOf<AvmHint>) {
+  static getFields(fields: FieldsOf<AvmKeyValueHint>) {
     return [fields.key, fields.value] as const;
   }
 
@@ -55,9 +57,9 @@ export class AvmHint {
    * @param buffer - Buffer or reader to read from.
    * @returns The deserialized instance.
    */
-  static fromBuffer(buff: Buffer | BufferReader): AvmHint {
+  static fromBuffer(buff: Buffer | BufferReader): AvmKeyValueHint {
     const reader = BufferReader.asReader(buff);
-    return new AvmHint(Fr.fromBuffer(reader), Fr.fromBuffer(reader));
+    return new AvmKeyValueHint(Fr.fromBuffer(reader), Fr.fromBuffer(reader));
   }
 
   /**
@@ -65,18 +67,102 @@ export class AvmHint {
    * @param str - Hex string to read from.
    * @returns The deserialized instance.
    */
-  static fromString(str: string): AvmHint {
-    return AvmHint.fromBuffer(Buffer.from(str, 'hex'));
+  static fromString(str: string): AvmKeyValueHint {
+    return AvmKeyValueHint.fromBuffer(Buffer.from(str, 'hex'));
+  }
+}
+
+export class AvmExternalCallHint {
+  /**
+   * Creates a new instance.
+   * @param success whether the external call was successful (= did NOT revert).
+   * @param returnData the data returned by the external call.
+   * @param gasUsed gas used by the external call (not including the cost of the CALL opcode itself).
+   */
+  constructor(public readonly success: Fr, public readonly returnData: Fr[], public readonly gasUsed: Gas) {}
+
+  /**
+   * Serializes the inputs to a buffer.
+   * @returns - The inputs serialized to a buffer.
+   */
+  toBuffer() {
+    return serializeToBuffer(...AvmExternalCallHint.getFields(this));
+  }
+
+  /**
+   * Serializes the inputs to a hex string.
+   * @returns The instance serialized to a hex string.
+   */
+  toString() {
+    return this.toBuffer().toString('hex');
+  }
+
+  /**
+   * Is the struct empty?
+   * @returns whether all members are empty.
+   */
+  isEmpty(): boolean {
+    return this.success.isZero() && this.returnData.length == 0 && this.gasUsed.isEmpty();
+  }
+
+  /**
+   * Creates a new instance from fields.
+   * @param fields - Fields to create the instance from.
+   * @returns A new AvmHint instance.
+   */
+  static from(fields: FieldsOf<AvmExternalCallHint>): AvmExternalCallHint {
+    return new AvmExternalCallHint(...AvmExternalCallHint.getFields(fields));
+  }
+
+  /**
+   * Extracts fields from an instance.
+   * @param fields - Fields to create the instance from.
+   * @returns An array of fields.
+   */
+  static getFields(fields: FieldsOf<AvmExternalCallHint>) {
+    return [fields.success, fields.returnData, fields.gasUsed] as const;
+  }
+
+  /**
+   * Deserializes from a buffer or reader.
+   * @param buffer - Buffer or reader to read from.
+   * @returns The deserialized instance.
+   */
+  static fromBuffer(buff: Buffer | BufferReader): AvmExternalCallHint {
+    const reader = BufferReader.asReader(buff);
+    return new AvmExternalCallHint(Fr.fromBuffer(reader), reader.readVector(Fr), reader.readObject<Gas>(Gas));
+  }
+
+  /**
+   * Deserializes from a hex string.
+   * @param str - Hex string to read from.
+   * @returns The deserialized instance.
+   */
+  static fromString(str: string): AvmExternalCallHint {
+    return AvmExternalCallHint.fromBuffer(Buffer.from(str, 'hex'));
   }
 }
 
 export class AvmExecutionHints {
+  public readonly storageValues: Vector<AvmKeyValueHint>;
+  public readonly noteHashExists: Vector<AvmKeyValueHint>;
+  public readonly nullifierExists: Vector<AvmKeyValueHint>;
+  public readonly l1ToL2MessageExists: Vector<AvmKeyValueHint>;
+  public readonly externalCalls: Vector<AvmExternalCallHint>;
+
   constructor(
-    public readonly storageValues: Vector<AvmHint>,
-    public readonly noteHashExists: Vector<AvmHint>,
-    public readonly nullifierExists: Vector<AvmHint>,
-    public readonly l1ToL2MessageExists: Vector<AvmHint>,
-  ) {}
+    storageValues: AvmKeyValueHint[],
+    noteHashExists: AvmKeyValueHint[],
+    nullifierExists: AvmKeyValueHint[],
+    l1ToL2MessageExists: AvmKeyValueHint[],
+    externalCalls: AvmExternalCallHint[],
+  ) {
+    this.storageValues = new Vector(storageValues);
+    this.noteHashExists = new Vector(noteHashExists);
+    this.nullifierExists = new Vector(nullifierExists);
+    this.l1ToL2MessageExists = new Vector(l1ToL2MessageExists);
+    this.externalCalls = new Vector(externalCalls);
+  }
 
   /**
    * Serializes the inputs to a buffer.
@@ -84,10 +170,6 @@ export class AvmExecutionHints {
    */
   toBuffer() {
     return serializeToBuffer(...AvmExecutionHints.getFields(this));
-  }
-
-  toBufferVM() {
-    return serializeToBuffer(this.flat());
   }
 
   /**
@@ -107,7 +189,8 @@ export class AvmExecutionHints {
       this.storageValues.items.length == 0 &&
       this.noteHashExists.items.length == 0 &&
       this.nullifierExists.items.length == 0 &&
-      this.l1ToL2MessageExists.items.length == 0
+      this.l1ToL2MessageExists.items.length == 0 &&
+      this.externalCalls.items.length == 0
     );
   }
 
@@ -117,7 +200,13 @@ export class AvmExecutionHints {
    * @returns A new AvmExecutionHints instance.
    */
   static from(fields: FieldsOf<AvmExecutionHints>): AvmExecutionHints {
-    return new AvmExecutionHints(...AvmExecutionHints.getFields(fields));
+    return new AvmExecutionHints(
+      fields.storageValues.items,
+      fields.noteHashExists.items,
+      fields.nullifierExists.items,
+      fields.l1ToL2MessageExists.items,
+      fields.externalCalls.items,
+    );
   }
 
   /**
@@ -126,7 +215,13 @@ export class AvmExecutionHints {
    * @returns An array of fields.
    */
   static getFields(fields: FieldsOf<AvmExecutionHints>) {
-    return [fields.storageValues, fields.noteHashExists, fields.nullifierExists, fields.l1ToL2MessageExists] as const;
+    return [
+      fields.storageValues,
+      fields.noteHashExists,
+      fields.nullifierExists,
+      fields.l1ToL2MessageExists,
+      fields.externalCalls,
+    ] as const;
   }
 
   flat() {
@@ -146,10 +241,11 @@ export class AvmExecutionHints {
   static fromBuffer(buff: Buffer | BufferReader): AvmExecutionHints {
     const reader = BufferReader.asReader(buff);
     return new AvmExecutionHints(
-      new Vector(reader.readVector(AvmHint)),
-      new Vector(reader.readVector(AvmHint)),
-      new Vector(reader.readVector(AvmHint)),
-      new Vector(reader.readVector(AvmHint)),
+      reader.readVector(AvmKeyValueHint),
+      reader.readVector(AvmKeyValueHint),
+      reader.readVector(AvmKeyValueHint),
+      reader.readVector(AvmKeyValueHint),
+      reader.readVector(AvmExternalCallHint),
     );
   }
 
@@ -167,7 +263,7 @@ export class AvmExecutionHints {
    * @returns The empty instance.
    */
   static empty() {
-    return new AvmExecutionHints(new Vector([]), new Vector([]), new Vector([]), new Vector([]));
+    return new AvmExecutionHints([], [], [], [], []);
   }
 }
 

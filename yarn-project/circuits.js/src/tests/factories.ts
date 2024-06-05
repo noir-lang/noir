@@ -18,7 +18,8 @@ import {
   AppendOnlyTreeSnapshot,
   AvmCircuitInputs,
   AvmExecutionHints,
-  AvmHint,
+  AvmExternalCallHint,
+  AvmKeyValueHint,
   BaseOrMergeRollupPublicInputs,
   BaseParityInputs,
   BaseRollupInputs,
@@ -1265,12 +1266,25 @@ export function makeVector<T extends Bufferable>(length: number, fn: (i: number)
 }
 
 /**
- * Makes arbitrary AvmHint.
+ * Makes arbitrary AvmKeyValueHint.
  * @param seed - The seed to use for generating the state reference.
- * @returns Avm Hint.
+ * @returns AvmKeyValueHint.
  */
-export function makeAvmHint(seed = 0): AvmHint {
-  return new AvmHint(new Fr(seed), new Fr(seed + 1));
+export function makeAvmKeyValueHint(seed = 0): AvmKeyValueHint {
+  return new AvmKeyValueHint(new Fr(seed), new Fr(seed + 1));
+}
+
+/**
+ * Makes arbitrary AvmExternalCallHint.
+ * @param seed - The seed to use for generating the state reference.
+ * @returns AvmKeyValueHint.
+ */
+export function makeAvmExternalCallHint(seed = 0): AvmExternalCallHint {
+  return new AvmExternalCallHint(
+    new Fr(seed % 2),
+    makeArray(seed + 10, i => new Fr(i), seed + 0x1000),
+    new Gas(seed + 0x200, seed),
+  );
 }
 
 /**
@@ -1287,10 +1301,11 @@ export function makeAvmExecutionHints(
   const baseLength = lengthOffset + (seed % lengthSeedMod);
 
   return AvmExecutionHints.from({
-    storageValues: makeVector(baseLength, makeAvmHint, seed + 0x4200),
-    noteHashExists: makeVector(baseLength + 1, makeAvmHint, seed + 0x4300),
-    nullifierExists: makeVector(baseLength + 2, makeAvmHint, seed + 0x4400),
-    l1ToL2MessageExists: makeVector(baseLength + 3, makeAvmHint, seed + 0x4500),
+    storageValues: makeVector(baseLength, makeAvmKeyValueHint, seed + 0x4200),
+    noteHashExists: makeVector(baseLength + 1, makeAvmKeyValueHint, seed + 0x4300),
+    nullifierExists: makeVector(baseLength + 2, makeAvmKeyValueHint, seed + 0x4400),
+    l1ToL2MessageExists: makeVector(baseLength + 3, makeAvmKeyValueHint, seed + 0x4500),
+    externalCalls: makeVector(baseLength + 4, makeAvmExternalCallHint, seed + 0x4600),
     ...overrides,
   });
 }

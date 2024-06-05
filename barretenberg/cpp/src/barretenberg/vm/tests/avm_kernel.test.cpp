@@ -774,8 +774,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelSload)
     auto slot = 12345;
 
     // Provide a hint for sload value slot
-    ExecutionHints execution_hints;
-    execution_hints.side_effect_hints[0] = FF(value); // side effect counter -> value
+    ExecutionHints execution_hints({ { 0, value } }, {}, {}, {}, {}, {});
 
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, static_cast<uint128_t>(slot), slot_offset, AvmMemoryTag::FF);
@@ -849,8 +848,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNoteHashExists)
     uint32_t metadata_offset = 420;
     auto exists = 1;
 
-    ExecutionHints execution_hints = {};
-    execution_hints.side_effect_hints[0] = exists; // side effect counter -> value
+    ExecutionHints execution_hints({ { 0, exists } }, {}, {}, {}, {}, {});
 
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, static_cast<uint128_t>(value), value_offset, AvmMemoryTag::FF);
@@ -888,8 +886,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNullifierExists)
     uint32_t metadata_offset = 420;
     auto exists = 1;
 
-    ExecutionHints execution_hints = {};
-    execution_hints.side_effect_hints[0] = exists; // side effect counter -> value
+    ExecutionHints execution_hints({ { 0, exists } }, {}, {}, {}, {}, {});
 
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, static_cast<uint128_t>(value), value_offset, AvmMemoryTag::FF);
@@ -967,8 +964,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelL1ToL2MsgExists)
     auto exists = 1;
 
     // Create an execution hints object with the result of the operation
-    ExecutionHints execution_hints = {};
-    execution_hints.side_effect_hints[0] = exists;
+    ExecutionHints execution_hints({ { 0, exists } }, {}, {}, {}, {}, {});
 
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, static_cast<uint128_t>(value), value_offset, AvmMemoryTag::FF);

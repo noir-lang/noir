@@ -1760,8 +1760,8 @@ TEST_F(AvmExecutionTests, kernelOutputStorageOpcodes)
     std::vector<FF> returndata = {};
 
     // Generate Hint for Sload operation
-    ExecutionHints execution_hints = {};
-    execution_hints.side_effect_hints[0] = FF(42); // side effect counter 0 = value 42
+    // side effect counter 0 = value 42
+    ExecutionHints execution_hints({ { 0, 42 } }, {}, {}, {}, {}, {});
 
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
 
@@ -1842,10 +1842,7 @@ TEST_F(AvmExecutionTests, kernelOutputHashExistsOpcodes)
     std::vector<FF> returndata = {};
 
     // Generate Hint for Sload operation
-    ExecutionHints execution_hints = {};
-    execution_hints.side_effect_hints[0] = 1; // Side effect counter 0 = true
-    execution_hints.side_effect_hints[1] = 1; // Side effect counter 1 = true
-    execution_hints.side_effect_hints[2] = 1; // Side effect counter 2 = true
+    ExecutionHints execution_hints({ { 0, 1 }, { 1, 1 }, { 2, 1 } }, {}, {}, {}, {}, {});
 
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
 
@@ -1953,8 +1950,9 @@ TEST_F(AvmExecutionTests, opCallOpcodes)
     std::vector<FF> returndata = {};
 
     // Generate Hint for call operation
-    ExecutionHints execution_hints = {};
-    execution_hints.returndata_hints.push_back({ 9, 8 }); // Return data
+    ExecutionHints execution_hints;
+    execution_hints.externalcall_hints.push_back(
+        { .success = 1, .return_data = { 9, 8 }, .l2_gas_used = 0, .da_gas_used = 0 });
 
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
     EXPECT_EQ(returndata, std::vector<FF>({ 9, 8, 1 })); // The 1 represents the success

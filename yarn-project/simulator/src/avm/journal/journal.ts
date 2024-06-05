@@ -55,7 +55,7 @@ export type JournalData = {
 };
 
 // TRANSITIONAL: This should be removed once the kernel handles and entire enqueued call per circuit
-type PartialPublicExecutionResult = {
+export type PartialPublicExecutionResult = {
   noteHashReadRequests: ReadRequest[];
   nullifierReadRequests: ReadRequest[];
   nullifierNonExistentReadRequests: ReadRequest[];

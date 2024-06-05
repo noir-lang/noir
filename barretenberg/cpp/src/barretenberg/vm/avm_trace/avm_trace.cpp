@@ -1387,7 +1387,7 @@ Row AvmTraceBuilder::create_kernel_output_opcode_with_set_metadata_output_from_h
     AvmMemTraceBuilder::MemRead read_a = mem_trace_builder.read_and_load_from_memory(
         call_ptr, clk, IntermRegister::IA, data_offset, AvmMemoryTag::FF, AvmMemoryTag::U8);
 
-    FF exists = execution_hints.side_effect_hints.at(side_effect_counter);
+    FF exists = execution_hints.get_side_effect_hints().at(side_effect_counter);
     // TODO: throw error if incorrect
 
     mem_trace_builder.write_into_memory(
@@ -1417,7 +1417,7 @@ Row AvmTraceBuilder::create_kernel_output_opcode_with_set_value_from_hint(uint32
                                                                           uint32_t data_offset,
                                                                           uint32_t metadata_offset)
 {
-    FF value = execution_hints.side_effect_hints.at(side_effect_counter);
+    FF value = execution_hints.get_side_effect_hints().at(side_effect_counter);
     // TODO: throw error if incorrect
 
     mem_trace_builder.write_into_memory(
@@ -2513,7 +2513,7 @@ void AvmTraceBuilder::op_call([[maybe_unused]] uint8_t indirect,
                           AvmMemoryTag::U0,
                           AvmMemoryTag::FF,
                           internal_return_ptr,
-                          execution_hints.returndata_hints.at(return_data_counter));
+                          execution_hints.externalcall_hints.at(return_data_counter).return_data);
     return_data_counter++;
     clk++;
     write_slice_to_memory(

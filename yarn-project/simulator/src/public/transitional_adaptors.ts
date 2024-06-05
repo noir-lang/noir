@@ -1,6 +1,15 @@
 // All code in this file needs to die once the public executor is phased out in favor of the AVM.
 import { UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
-import { CallContext, type Gas, type GasSettings, type GlobalVariables, type Header } from '@aztec/circuits.js';
+import {
+  AvmExecutionHints,
+  AvmExternalCallHint,
+  AvmKeyValueHint,
+  CallContext,
+  Gas,
+  type GasSettings,
+  type GlobalVariables,
+  type Header,
+} from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 
 import { promisify } from 'util';
@@ -9,6 +18,8 @@ import { gunzip } from 'zlib';
 import { type AvmContext } from '../avm/avm_context.js';
 import { AvmExecutionEnvironment } from '../avm/avm_execution_environment.js';
 import { type AvmContractCallResults } from '../avm/avm_message_call_result.js';
+import { type PartialPublicExecutionResult } from '../avm/journal/journal.js';
+import { type WorldStateAccessTrace } from '../avm/journal/trace.js';
 import { Mov } from '../avm/opcodes/memory.js';
 import { createSimulationError } from '../common/errors.js';
 import { type PublicExecution, type PublicExecutionResult } from './execution.js';
@@ -67,6 +78,22 @@ export function createPublicExecution(
   return execution;
 }
 
+function computeHints(trace: WorldStateAccessTrace, executionResult: PartialPublicExecutionResult): AvmExecutionHints {
+  return new AvmExecutionHints(
+    trace.publicStorageReads.map(read => new AvmKeyValueHint(read.counter, read.value)),
+    trace.noteHashChecks.map(check => new AvmKeyValueHint(check.counter, new Fr(check.exists ? 1 : 0))),
+    trace.nullifierChecks.map(check => new AvmKeyValueHint(check.counter, new Fr(check.exists ? 1 : 0))),
+    trace.l1ToL2MessageChecks.map(check => new AvmKeyValueHint(check.counter, new Fr(check.exists ? 1 : 0))),
+    executionResult.nestedExecutions.map(nested => {
+      const gasUsed = new Gas(
+        nested.startGasLeft.daGas - nested.endGasLeft.daGas,
+        nested.startGasLeft.l2Gas - nested.endGasLeft.l2Gas,
+      );
+      return new AvmExternalCallHint(/*success=*/ new Fr(nested.reverted ? 0 : 1), nested.returnValues, gasUsed);
+    }),
+  );
+}
+
 export function convertAvmResultsToPxResult(
   avmResult: AvmContractCallResults,
   startSideEffectCounter: number,
@@ -95,7 +122,7 @@ export function convertAvmResultsToPxResult(
     transactionFee: endAvmContext.environment.transactionFee,
     bytecode: bytecode,
     calldata: endAvmContext.environment.calldata,
-    avmHints: endPersistableState.trace.toHints(),
+    avmHints: computeHints(endPersistableState.trace, endPersistableState.transitionalExecutionResult),
   };
 }
 

@@ -514,22 +514,6 @@ void vk_as_fields(const std::string& vk_path, const std::string& output_path)
     }
 }
 
-avm_trace::ExecutionHints deserialize_execution_hints(const std::vector<uint8_t>& hints)
-{
-    avm_trace::ExecutionHints execution_hints;
-    if (hints.size() == 0) {
-        vinfo("no hints provided");
-    } else {
-        // Hints arrive serialised as a vector of <side effect counter, hint> pairs
-        using FF = avm_trace::FF;
-        std::vector<std::pair<FF, FF>> deser_hints = many_from_buffer<std::pair<FF, FF>>(hints);
-        for (auto& hint : deser_hints) {
-            execution_hints.side_effect_hints[static_cast<uint32_t>(hint.first)] = hint.second;
-        }
-    }
-    return execution_hints;
-}
-
 /**
  * @brief Writes an avm proof and corresponding (incomplete) verification key to files.
  *
@@ -553,13 +537,7 @@ void avm_prove(const std::filesystem::path& bytecode_path,
         bytecode_path.extension() == ".gz" ? gunzip(bytecode_path) : read_file(bytecode_path);
     std::vector<fr> const calldata = many_from_buffer<fr>(read_file(calldata_path));
     std::vector<fr> const public_inputs_vec = many_from_buffer<fr>(read_file(public_inputs_path));
-
-    avm_trace::ExecutionHints avm_hints;
-    try {
-        avm_hints = deserialize_execution_hints(read_file(hints_path));
-    } catch (std::runtime_error const& err) {
-        vinfo("No hints were provided for avm proving.... Might be fine!");
-    }
+    auto const avm_hints = bb::avm_trace::ExecutionHints::from(read_file(hints_path));
 
     // Hardcoded circuit size for now, with enough to support 16-bit range checks
     init_bn254_crs(1 << 17);
