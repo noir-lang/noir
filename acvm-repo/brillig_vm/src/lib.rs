@@ -550,6 +550,25 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         Ok(())
     }
 
+    fn write_value_to_memory(
+        &mut self,
+        destination: MemoryAddress,
+        value: &F,
+        value_bit_size: u32,
+    ) -> Result<(), String> {
+        let memory_value = MemoryValue::new_checked(*value, value_bit_size);
+
+        if let Some(memory_value) = memory_value {
+            self.memory.write(destination, memory_value);
+        } else {
+            return Err(format!(
+                "Foreign call result value {} does not fit in bit size {}",
+                value, value_bit_size
+            ));
+        }
+        Ok(())
+    }
+
     fn write_values_to_memory_slice(
         &mut self,
         pointer_index: MemoryAddress,
@@ -583,24 +602,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         Ok(())
     }
 
-    fn write_value_to_memory(
-        &mut self,
-        destination: MemoryAddress,
-        value: &F,
-        value_bit_size: u32,
-    ) -> Result<(), String> {
-        let memory_value = MemoryValue::new_checked(*value, value_bit_size);
-
-        if let Some(memory_value) = memory_value {
-            self.memory.write(destination, memory_value);
-        } else {
-            return Err(format!(
-                "Foreign call result value {} does not fit in bit size {}",
-                value, value_bit_size
-            ));
-        }
-        Ok(())
-    }
 
 
     /// Writes flatten values to memory, using the provided type
