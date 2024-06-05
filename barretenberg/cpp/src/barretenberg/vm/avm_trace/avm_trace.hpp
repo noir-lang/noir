@@ -303,7 +303,7 @@ class AvmTraceBuilder {
     // Side effect counter will incremenent when any state writing values are
     // encountered
     uint32_t side_effect_counter = 0;
-    uint32_t return_data_counter = 0;
+    uint32_t external_call_counter = 0;
 
     // Execution hints aid witness solving for instructions that require auxiliary information to construct
     // Mapping of side effect counter -> value

@@ -55,7 +55,7 @@ void AvmTraceBuilder::reset()
     keccak_trace_builder.reset();
     pedersen_trace_builder.reset();
 
-    return_data_counter = 0;
+    external_call_counter = 0;
 }
 
 AvmTraceBuilder::IndirectThreeResolution AvmTraceBuilder::resolve_ind_three(
@@ -2393,10 +2393,12 @@ void AvmTraceBuilder::op_call([[maybe_unused]] uint8_t indirect,
                               uint32_t function_selector_offset)
 {
     auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
+    const ExternalCallHint& hint = execution_hints.externalcall_hints.at(external_call_counter);
     // We can load up to 4 things per row
     auto register_order = std::array{ IntermRegister::IA, IntermRegister::IB, IntermRegister::IC, IntermRegister::ID };
     // Constrain gas cost
-    gas_trace_builder.constrain_gas_for_external_call(clk);
+    gas_trace_builder.constrain_gas_for_external_call(
+        clk, static_cast<uint32_t>(hint.l2_gas_used), static_cast<uint32_t>(hint.da_gas_used));
     // Indirect is ZEROTH, SECOND and FOURTH bit  COME BACK TO MAKING THIS ALL SUPPORTED
     auto read_ind_gas_offset =
         mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, gas_offset);
@@ -2487,11 +2489,11 @@ void AvmTraceBuilder::op_call([[maybe_unused]] uint8_t indirect,
                           AvmMemoryTag::U0,
                           AvmMemoryTag::FF,
                           internal_return_ptr,
-                          execution_hints.externalcall_hints.at(return_data_counter).return_data);
-    return_data_counter++;
+                          hint.return_data);
     clk++;
     write_slice_to_memory(
-        call_ptr, clk, success_offset, AvmMemoryTag::U0, AvmMemoryTag::U8, internal_return_ptr, { FF(1) });
+        call_ptr, clk, success_offset, AvmMemoryTag::U0, AvmMemoryTag::U8, internal_return_ptr, { hint.success });
+    external_call_counter++;
 }
 
 void AvmTraceBuilder::op_get_contract_instance(uint8_t indirect, uint32_t address_offset, uint32_t dst_offset)

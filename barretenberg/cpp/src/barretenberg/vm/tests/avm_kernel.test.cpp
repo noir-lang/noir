@@ -778,7 +778,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelSload)
     auto slot = 12345;
 
     // Provide a hint for sload value slot
-    ExecutionHints execution_hints({ { 0, value } }, {}, {}, {}, {}, {});
+    auto execution_hints = ExecutionHints().with_storage_value_hints({ { 0, value } });
 
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, static_cast<uint128_t>(slot), slot_offset, AvmMemoryTag::FF);
@@ -852,7 +852,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNoteHashExists)
     uint32_t metadata_offset = 420;
     auto exists = 1;
 
-    ExecutionHints execution_hints({ { 0, exists } }, {}, {}, {}, {}, {});
+    auto execution_hints = ExecutionHints().with_note_hash_exists_hints({ { 0, exists } });
 
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, static_cast<uint128_t>(value), value_offset, AvmMemoryTag::FF);
@@ -890,7 +890,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNullifierExists)
     uint32_t metadata_offset = 420;
     auto exists = 1;
 
-    ExecutionHints execution_hints({ { 0, exists } }, {}, {}, {}, {}, {});
+    auto execution_hints = ExecutionHints().with_nullifier_exists_hints({ { 0, exists } });
 
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, static_cast<uint128_t>(value), value_offset, AvmMemoryTag::FF);
@@ -927,7 +927,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNullifierNonExists)
     uint32_t metadata_offset = 420;
     auto exists = 0;
 
-    ExecutionHints execution_hints({}, { { 0, exists } }, {}, {}, {}, {});
+    auto execution_hints = ExecutionHints().with_nullifier_exists_hints({ { 0, exists } });
 
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, static_cast<uint128_t>(value), value_offset, AvmMemoryTag::FF);
@@ -965,7 +965,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelL1ToL2MsgExists)
     auto exists = 1;
 
     // Create an execution hints object with the result of the operation
-    ExecutionHints execution_hints({ { 0, exists } }, {}, {}, {}, {}, {});
+    auto execution_hints = ExecutionHints().with_l1_to_l2_message_exists_hints({ { 0, exists } });
 
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, static_cast<uint128_t>(value), value_offset, AvmMemoryTag::FF);

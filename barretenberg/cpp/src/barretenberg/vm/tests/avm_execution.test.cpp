@@ -1773,7 +1773,7 @@ TEST_F(AvmExecutionTests, kernelOutputStorageOpcodes)
 
     // Generate Hint for Sload operation
     // side effect counter 0 = value 42
-    ExecutionHints execution_hints({ { 0, 42 } }, {}, {}, {}, {}, {});
+    auto execution_hints = ExecutionHints().with_storage_value_hints({ { 0, 42 } });
 
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
 
@@ -1854,7 +1854,7 @@ TEST_F(AvmExecutionTests, kernelOutputHashExistsOpcodes)
     std::vector<FF> returndata = {};
 
     // Generate Hint for Sload operation
-    ExecutionHints execution_hints({ { 0, 1 }, { 1, 1 }, { 2, 1 } }, {}, {}, {}, {}, {});
+    auto execution_hints = ExecutionHints().with_storage_value_hints({ { 0, 1 }, { 1, 1 }, { 2, 1 } });
 
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
 
@@ -1962,9 +1962,8 @@ TEST_F(AvmExecutionTests, opCallOpcodes)
     std::vector<FF> returndata = {};
 
     // Generate Hint for call operation
-    ExecutionHints execution_hints;
-    execution_hints.externalcall_hints.push_back(
-        { .success = 1, .return_data = { 9, 8 }, .l2_gas_used = 0, .da_gas_used = 0 });
+    auto execution_hints = ExecutionHints().with_externalcall_hints(
+        { { .success = 1, .return_data = { 9, 8 }, .l2_gas_used = 0, .da_gas_used = 0 } });
 
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
     EXPECT_EQ(returndata, std::vector<FF>({ 9, 8, 1 })); // The 1 represents the success
@@ -2001,9 +2000,7 @@ TEST_F(AvmExecutionTests, opGetContractInstanceOpcodes)
     std::vector<FF> returndata = {};
 
     // Generate Hint for call operation
-    ExecutionHints execution_hints = {};
-    ContractInstanceHint contract_instance_hint = { 1, 1, 2, 3, 4, 5 }; // The first one represents true
-    execution_hints.contract_instance_hints.insert({ address, contract_instance_hint });
+    auto execution_hints = ExecutionHints().with_contract_instance_hints({ { address, { 1, 1, 2, 3, 4, 5 } } });
 
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
     EXPECT_EQ(returndata, std::vector<FF>({ 1, 1, 2, 3, 4, 5 })); // The first one represents true
