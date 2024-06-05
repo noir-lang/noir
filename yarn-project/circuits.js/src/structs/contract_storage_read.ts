@@ -21,6 +21,7 @@ export class ContractStorageRead {
      */
     public readonly currentValue: Fr,
     /**
+     * TODO: WILL NEED THIS for vm? why are these not serialised?
      * Optional side effect counter tracking position of this event in tx execution.
      * Note: Not serialized
      */

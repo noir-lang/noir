@@ -199,6 +199,8 @@ void AvmProver::execute_wire_commitments_round()
         commitment_key->commit(key->avm_kernel_note_hash_exist_write_offset);
     witness_commitments.avm_kernel_nullifier_exists_write_offset =
         commitment_key->commit(key->avm_kernel_nullifier_exists_write_offset);
+    witness_commitments.avm_kernel_nullifier_non_exists_write_offset =
+        commitment_key->commit(key->avm_kernel_nullifier_non_exists_write_offset);
     witness_commitments.avm_kernel_q_public_input_kernel_add_to_table =
         commitment_key->commit(key->avm_kernel_q_public_input_kernel_add_to_table);
     witness_commitments.avm_kernel_q_public_input_kernel_out_add_to_table =
@@ -560,6 +562,8 @@ void AvmProver::execute_wire_commitments_round()
                                  witness_commitments.avm_kernel_note_hash_exist_write_offset);
     transcript->send_to_verifier(commitment_labels.avm_kernel_nullifier_exists_write_offset,
                                  witness_commitments.avm_kernel_nullifier_exists_write_offset);
+    transcript->send_to_verifier(commitment_labels.avm_kernel_nullifier_non_exists_write_offset,
+                                 witness_commitments.avm_kernel_nullifier_non_exists_write_offset);
     transcript->send_to_verifier(commitment_labels.avm_kernel_q_public_input_kernel_add_to_table,
                                  witness_commitments.avm_kernel_q_public_input_kernel_add_to_table);
     transcript->send_to_verifier(commitment_labels.avm_kernel_q_public_input_kernel_out_add_to_table,

@@ -2,6 +2,7 @@
 
 #include "barretenberg/numeric/uint128/uint128.hpp"
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
+#include "barretenberg/vm/avm_trace/aztec_constants.hpp"
 #include "constants.hpp"
 
 #include <cstdint>
@@ -107,16 +108,17 @@ class AvmKernelTraceBuilder {
     static const uint32_t START_NOTE_HASH_EXISTS_WRITE_OFFSET = 0;
     static const uint32_t START_NULLIFIER_EXISTS_OFFSET =
         START_NOTE_HASH_EXISTS_WRITE_OFFSET + MAX_NOTE_HASH_READ_REQUESTS_PER_CALL;
+    static const uint32_t START_NULLIFIER_NON_EXISTS_OFFSET =
+        START_NULLIFIER_EXISTS_OFFSET + MAX_NULLIFIER_READ_REQUESTS_PER_CALL;
     static const uint32_t START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET =
-        START_NULLIFIER_EXISTS_OFFSET + (2 * MAX_NULLIFIER_READ_REQUESTS_PER_CALL);
+        START_NULLIFIER_NON_EXISTS_OFFSET + MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL;
 
-    static const uint32_t START_SLOAD_WRITE_OFFSET =
-        START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET + MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL;
     static const uint32_t START_SSTORE_WRITE_OFFSET =
-        START_SLOAD_WRITE_OFFSET + MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL;
+        START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET + MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL;
+    static const uint32_t START_SLOAD_WRITE_OFFSET =
+        START_SSTORE_WRITE_OFFSET + MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL;
 
-    static const uint32_t START_EMIT_NOTE_HASH_WRITE_OFFSET =
-        START_SSTORE_WRITE_OFFSET + MAX_PUBLIC_DATA_READS_PER_CALL;
+    static const uint32_t START_EMIT_NOTE_HASH_WRITE_OFFSET = START_SLOAD_WRITE_OFFSET + MAX_PUBLIC_DATA_READS_PER_CALL;
     static const uint32_t START_EMIT_NULLIFIER_WRITE_OFFSET =
         START_EMIT_NOTE_HASH_WRITE_OFFSET + MAX_NEW_NOTE_HASHES_PER_CALL;
     static const uint32_t START_L2_TO_L1_MSG_WRITE_OFFSET =
@@ -131,6 +133,7 @@ class AvmKernelTraceBuilder {
     uint32_t note_hash_exists_offset = 0;
     uint32_t emit_note_hash_offset = 0;
     uint32_t nullifier_exists_offset = 0;
+    uint32_t nullifier_non_exists_offset = 0;
     uint32_t emit_nullifier_offset = 0;
     uint32_t l1_to_l2_msg_exists_offset = 0;
     uint32_t emit_unencrypted_log_offset = 0;

@@ -146,9 +146,17 @@ void AvmKernelTraceBuilder::op_nullifier_exists(uint32_t clk,
                                                 const FF& nullifier,
                                                 uint32_t result)
 {
-    uint32_t offset = START_NULLIFIER_EXISTS_OFFSET + nullifier_exists_offset;
+    info("nullifier exists result ", result);
+    uint32_t offset = 0;
+    if (result == 1) {
+        offset = START_NULLIFIER_EXISTS_OFFSET + nullifier_exists_offset;
+        nullifier_exists_offset++;
+    } else {
+        offset = START_NULLIFIER_NON_EXISTS_OFFSET + nullifier_non_exists_offset;
+        nullifier_non_exists_offset++;
+    }
+    info("nullifier exists offset ", offset);
     perform_kernel_output_lookup(offset, side_effect_counter, nullifier, FF(result));
-    nullifier_exists_offset++;
 
     KernelTraceEntry entry = {
         .clk = clk,

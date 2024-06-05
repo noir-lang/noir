@@ -142,6 +142,8 @@
         View(new_term.avm_kernel_note_hash_exist_write_offset);                                                        \
     [[maybe_unused]] auto avm_kernel_nullifier_exists_write_offset =                                                   \
         View(new_term.avm_kernel_nullifier_exists_write_offset);                                                       \
+    [[maybe_unused]] auto avm_kernel_nullifier_non_exists_write_offset =                                               \
+        View(new_term.avm_kernel_nullifier_non_exists_write_offset);                                                   \
     [[maybe_unused]] auto avm_kernel_q_public_input_kernel_add_to_table =                                              \
         View(new_term.avm_kernel_q_public_input_kernel_add_to_table);                                                  \
     [[maybe_unused]] auto avm_kernel_q_public_input_kernel_out_add_to_table =                                          \
@@ -444,6 +446,8 @@
         View(new_term.avm_kernel_note_hash_exist_write_offset_shift);                                                  \
     [[maybe_unused]] auto avm_kernel_nullifier_exists_write_offset_shift =                                             \
         View(new_term.avm_kernel_nullifier_exists_write_offset_shift);                                                 \
+    [[maybe_unused]] auto avm_kernel_nullifier_non_exists_write_offset_shift =                                         \
+        View(new_term.avm_kernel_nullifier_non_exists_write_offset_shift);                                             \
     [[maybe_unused]] auto avm_kernel_side_effect_counter_shift = View(new_term.avm_kernel_side_effect_counter_shift);  \
     [[maybe_unused]] auto avm_kernel_sload_write_offset_shift = View(new_term.avm_kernel_sload_write_offset_shift);    \
     [[maybe_unused]] auto avm_kernel_sstore_write_offset_shift = View(new_term.avm_kernel_sstore_write_offset_shift);  \

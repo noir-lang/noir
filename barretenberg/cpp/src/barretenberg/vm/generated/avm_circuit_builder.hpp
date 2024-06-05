@@ -211,6 +211,7 @@ template <typename FF> struct AvmFullRow {
     FF avm_kernel_l1_to_l2_msg_exists_write_offset{};
     FF avm_kernel_note_hash_exist_write_offset{};
     FF avm_kernel_nullifier_exists_write_offset{};
+    FF avm_kernel_nullifier_non_exists_write_offset{};
     FF avm_kernel_q_public_input_kernel_add_to_table{};
     FF avm_kernel_q_public_input_kernel_out_add_to_table{};
     FF avm_kernel_side_effect_counter{};
@@ -502,6 +503,7 @@ template <typename FF> struct AvmFullRow {
     FF avm_kernel_l1_to_l2_msg_exists_write_offset_shift{};
     FF avm_kernel_note_hash_exist_write_offset_shift{};
     FF avm_kernel_nullifier_exists_write_offset_shift{};
+    FF avm_kernel_nullifier_non_exists_write_offset_shift{};
     FF avm_kernel_side_effect_counter_shift{};
     FF avm_kernel_sload_write_offset_shift{};
     FF avm_kernel_sstore_write_offset_shift{};
@@ -527,8 +529,8 @@ class AvmCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 434;
-    static constexpr size_t num_polys = 370;
+    static constexpr size_t num_fixed_columns = 436;
+    static constexpr size_t num_polys = 371;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -676,6 +678,8 @@ class AvmCircuitBuilder {
             polys.avm_kernel_l1_to_l2_msg_exists_write_offset[i] = rows[i].avm_kernel_l1_to_l2_msg_exists_write_offset;
             polys.avm_kernel_note_hash_exist_write_offset[i] = rows[i].avm_kernel_note_hash_exist_write_offset;
             polys.avm_kernel_nullifier_exists_write_offset[i] = rows[i].avm_kernel_nullifier_exists_write_offset;
+            polys.avm_kernel_nullifier_non_exists_write_offset[i] =
+                rows[i].avm_kernel_nullifier_non_exists_write_offset;
             polys.avm_kernel_q_public_input_kernel_add_to_table[i] =
                 rows[i].avm_kernel_q_public_input_kernel_add_to_table;
             polys.avm_kernel_q_public_input_kernel_out_add_to_table[i] =
@@ -928,6 +932,8 @@ class AvmCircuitBuilder {
             Polynomial(polys.avm_kernel_note_hash_exist_write_offset.shifted());
         polys.avm_kernel_nullifier_exists_write_offset_shift =
             Polynomial(polys.avm_kernel_nullifier_exists_write_offset.shifted());
+        polys.avm_kernel_nullifier_non_exists_write_offset_shift =
+            Polynomial(polys.avm_kernel_nullifier_non_exists_write_offset.shifted());
         polys.avm_kernel_side_effect_counter_shift = Polynomial(polys.avm_kernel_side_effect_counter.shifted());
         polys.avm_kernel_sload_write_offset_shift = Polynomial(polys.avm_kernel_sload_write_offset.shifted());
         polys.avm_kernel_sstore_write_offset_shift = Polynomial(polys.avm_kernel_sstore_write_offset.shifted());

@@ -580,8 +580,9 @@ namespace avm_main(256);
     first * avm_kernel.emit_note_hash_write_offset = 0;
 
     #[NULLIFIER_EXISTS_KERNEL_OUTPUT]
-    sel_op_nullifier_exists * (avm_kernel.kernel_out_offset - (avm_kernel.START_NULLIFIER_EXISTS_OFFSET + avm_kernel.nullifier_exists_write_offset)) = 0;
+    sel_op_nullifier_exists * (avm_kernel.kernel_out_offset - ((ib * (avm_kernel.START_NULLIFIER_EXISTS_OFFSET + avm_kernel.nullifier_exists_write_offset)) + ((1 - ib) * (avm_kernel.START_NULLIFIER_NON_EXISTS_OFFSET + avm_kernel.nullifier_non_exists_write_offset)))) = 0;
     first * avm_kernel.nullifier_exists_write_offset = 0;
+    first * avm_kernel.nullifier_non_exists_write_offset = 0;
 
     #[EMIT_NULLIFIER_KERNEL_OUTPUT]
     sel_op_emit_nullifier * (avm_kernel.kernel_out_offset - (avm_kernel.START_EMIT_NULLIFIER_WRITE_OFFSET + avm_kernel.emit_nullifier_write_offset)) = 0;

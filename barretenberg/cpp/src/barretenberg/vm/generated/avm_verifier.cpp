@@ -288,6 +288,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_kernel_note_hash_exist_write_offset);
     commitments.avm_kernel_nullifier_exists_write_offset = transcript->template receive_from_prover<Commitment>(
         commitment_labels.avm_kernel_nullifier_exists_write_offset);
+    commitments.avm_kernel_nullifier_non_exists_write_offset = transcript->template receive_from_prover<Commitment>(
+        commitment_labels.avm_kernel_nullifier_non_exists_write_offset);
     commitments.avm_kernel_q_public_input_kernel_add_to_table = transcript->template receive_from_prover<Commitment>(
         commitment_labels.avm_kernel_q_public_input_kernel_add_to_table);
     commitments.avm_kernel_q_public_input_kernel_out_add_to_table =

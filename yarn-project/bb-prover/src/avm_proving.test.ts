@@ -70,9 +70,57 @@ describe('AVM WitGen, proof generation and verification', () => {
     TIMEOUT,
   );
 
-  // it.only("Should new note hash",
+  it(
+    'Should prove new note hash',
+    async () => {
+      await proveAndVerifyAvmTestContract('new_note_hash', [new Fr(1)]);
+    },
+    TIMEOUT,
+  );
+
+  it(
+    'Should prove new note hash',
+    async () => {
+      await proveAndVerifyAvmTestContract('new_note_hash', [new Fr(1)]);
+    },
+    TIMEOUT,
+  );
+
+  it(
+    'Should prove new nullifier',
+    async () => {
+      await proveAndVerifyAvmTestContract('new_nullifier', [new Fr(1)]);
+    },
+    TIMEOUT,
+  );
+
+  it(
+    'Should prove nullifier exists',
+    async () => {
+      await proveAndVerifyAvmTestContract('nullifier_exists', [new Fr(1)]);
+    },
+    TIMEOUT,
+  );
+
+  it(
+    'Should prove l1 to l2 msg exists',
+    async () => {
+      await proveAndVerifyAvmTestContract('l1_to_l2_msg_exists', [new Fr(1), new Fr(2)]);
+    },
+    TIMEOUT,
+  );
+
+  // TODO: requires revert
+  // it("Should prove to radix",
   //   async () => {
-  //     await proveAndVerifyAvmTestContract('new_note_hash', [new Fr(1)]);
+  //     await proveAndVerifyAvmTestContract('to_radix_le', [new Fr(10)]);
+  //   },
+  //   TIMEOUT
+  // )
+
+  // it("Should prove send l2 to l1 msg",
+  //   async () => {
+  //     await proveAndVerifyAvmTestContract('send_l2_to_l1_msg', [new Fr(1), new Fr(2)]);
   //   },
   //   TIMEOUT
   // )

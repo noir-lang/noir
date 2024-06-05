@@ -919,6 +919,46 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNullifierExists)
     test_kernel_lookup(apply_opcodes, checks, execution_hints);
 }
 
+TEST_F(AvmKernelOutputPositiveTests, kernelNullifierNonExists)
+{
+    uint32_t value_offset = 42;
+    auto value = 1234;
+    uint32_t metadata_offset = 420;
+    auto exists = 0;
+
+    ExecutionHints execution_hints = {};
+    execution_hints.side_effect_hints[0] = exists; // side effect counter -> value
+
+    auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
+        trace_builder.op_set(0, static_cast<uint128_t>(value), value_offset, AvmMemoryTag::FF);
+        trace_builder.op_nullifier_exists(value_offset, metadata_offset);
+    };
+    auto checks = [=](const std::vector<Row>& trace) {
+        std::vector<Row>::const_iterator row = std::ranges::find_if(
+            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_nullifier_exists == FF(1); });
+        EXPECT_TRUE(row != trace.end());
+
+        // Check the outputs of the trace
+        uint32_t output_offset = AvmKernelTraceBuilder::START_NULLIFIER_NON_EXISTS_OFFSET;
+
+        expect_output_table_row_with_exists_metadata(
+            row,
+            /*kernel_in_offset=*/output_offset,
+            /*ia=*/value, // Note the value generated above for public inputs is the same as the index read + 1
+            /*mem_idx_a=*/value_offset,
+            /*ib=*/exists,
+            /*mem_idx_b=*/metadata_offset,
+            /*w_in_tag=*/AvmMemoryTag::FF,
+            /*side_effect_counter=*/0);
+
+        log_avm_trace(trace, 2, 4);
+
+        check_kernel_outputs(trace.at(output_offset), value, /*side_effect_counter=*/0, exists);
+    };
+
+    test_kernel_lookup(apply_opcodes, checks, execution_hints);
+}
+
 TEST_F(AvmKernelOutputPositiveTests, kernelL1ToL2MsgExists)
 {
     uint32_t value_offset = 42;

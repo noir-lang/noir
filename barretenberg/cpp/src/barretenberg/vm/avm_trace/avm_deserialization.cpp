@@ -233,7 +233,8 @@ std::vector<Instruction> Deserialization::parse(std::vector<uint8_t> const& byte
         } else {
             auto const iter = OPCODE_WIRE_FORMAT.find(opcode);
             if (iter == OPCODE_WIRE_FORMAT.end()) {
-                throw_or_abort("Opcode not found in OPCODE_WIRE_FORMAT: " + to_hex(opcode));
+                throw_or_abort("Opcode not found in OPCODE_WIRE_FORMAT: " + to_hex(opcode) + " name " +
+                               to_string(opcode));
             }
             inst_format = iter->second;
         }

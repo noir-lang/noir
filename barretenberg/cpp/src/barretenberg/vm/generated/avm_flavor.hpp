@@ -94,11 +94,11 @@ class AvmFlavor {
     using RelationSeparator = FF;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 2;
-    static constexpr size_t NUM_WITNESS_ENTITIES = 368;
+    static constexpr size_t NUM_WITNESS_ENTITIES = 369;
     static constexpr size_t NUM_WIRES = NUM_WITNESS_ENTITIES + NUM_PRECOMPUTED_ENTITIES;
     // We have two copies of the witness entities, so we subtract the number of fixed ones (they have no shift), one for
     // the unshifted and one for the shifted
-    static constexpr size_t NUM_ALL_ENTITIES = 434;
+    static constexpr size_t NUM_ALL_ENTITIES = 436;
 
     using GrandProductRelations = std::tuple<perm_main_alu_relation<FF>,
                                              perm_main_bin_relation<FF>,
@@ -372,6 +372,7 @@ class AvmFlavor {
                               avm_kernel_l1_to_l2_msg_exists_write_offset,
                               avm_kernel_note_hash_exist_write_offset,
                               avm_kernel_nullifier_exists_write_offset,
+                              avm_kernel_nullifier_non_exists_write_offset,
                               avm_kernel_q_public_input_kernel_add_to_table,
                               avm_kernel_q_public_input_kernel_out_add_to_table,
                               avm_kernel_side_effect_counter,
@@ -743,6 +744,7 @@ class AvmFlavor {
                      avm_kernel_l1_to_l2_msg_exists_write_offset,
                      avm_kernel_note_hash_exist_write_offset,
                      avm_kernel_nullifier_exists_write_offset,
+                     avm_kernel_nullifier_non_exists_write_offset,
                      avm_kernel_q_public_input_kernel_add_to_table,
                      avm_kernel_q_public_input_kernel_out_add_to_table,
                      avm_kernel_side_effect_counter,
@@ -1119,6 +1121,7 @@ class AvmFlavor {
                               avm_kernel_l1_to_l2_msg_exists_write_offset,
                               avm_kernel_note_hash_exist_write_offset,
                               avm_kernel_nullifier_exists_write_offset,
+                              avm_kernel_nullifier_non_exists_write_offset,
                               avm_kernel_q_public_input_kernel_add_to_table,
                               avm_kernel_q_public_input_kernel_out_add_to_table,
                               avm_kernel_side_effect_counter,
@@ -1410,6 +1413,7 @@ class AvmFlavor {
                               avm_kernel_l1_to_l2_msg_exists_write_offset_shift,
                               avm_kernel_note_hash_exist_write_offset_shift,
                               avm_kernel_nullifier_exists_write_offset_shift,
+                              avm_kernel_nullifier_non_exists_write_offset_shift,
                               avm_kernel_side_effect_counter_shift,
                               avm_kernel_sload_write_offset_shift,
                               avm_kernel_sstore_write_offset_shift,
@@ -1556,6 +1560,7 @@ class AvmFlavor {
                      avm_kernel_l1_to_l2_msg_exists_write_offset,
                      avm_kernel_note_hash_exist_write_offset,
                      avm_kernel_nullifier_exists_write_offset,
+                     avm_kernel_nullifier_non_exists_write_offset,
                      avm_kernel_q_public_input_kernel_add_to_table,
                      avm_kernel_q_public_input_kernel_out_add_to_table,
                      avm_kernel_side_effect_counter,
@@ -1847,6 +1852,7 @@ class AvmFlavor {
                      avm_kernel_l1_to_l2_msg_exists_write_offset_shift,
                      avm_kernel_note_hash_exist_write_offset_shift,
                      avm_kernel_nullifier_exists_write_offset_shift,
+                     avm_kernel_nullifier_non_exists_write_offset_shift,
                      avm_kernel_side_effect_counter_shift,
                      avm_kernel_sload_write_offset_shift,
                      avm_kernel_sstore_write_offset_shift,
@@ -1993,6 +1999,7 @@ class AvmFlavor {
                      avm_kernel_l1_to_l2_msg_exists_write_offset,
                      avm_kernel_note_hash_exist_write_offset,
                      avm_kernel_nullifier_exists_write_offset,
+                     avm_kernel_nullifier_non_exists_write_offset,
                      avm_kernel_q_public_input_kernel_add_to_table,
                      avm_kernel_q_public_input_kernel_out_add_to_table,
                      avm_kernel_side_effect_counter,
@@ -2287,6 +2294,7 @@ class AvmFlavor {
                      avm_kernel_l1_to_l2_msg_exists_write_offset,
                      avm_kernel_note_hash_exist_write_offset,
                      avm_kernel_nullifier_exists_write_offset,
+                     avm_kernel_nullifier_non_exists_write_offset,
                      avm_kernel_side_effect_counter,
                      avm_kernel_sload_write_offset,
                      avm_kernel_sstore_write_offset,
@@ -2354,6 +2362,7 @@ class AvmFlavor {
                      avm_kernel_l1_to_l2_msg_exists_write_offset_shift,
                      avm_kernel_note_hash_exist_write_offset_shift,
                      avm_kernel_nullifier_exists_write_offset_shift,
+                     avm_kernel_nullifier_non_exists_write_offset_shift,
                      avm_kernel_side_effect_counter_shift,
                      avm_kernel_sload_write_offset_shift,
                      avm_kernel_sstore_write_offset_shift,
@@ -2431,6 +2440,7 @@ class AvmFlavor {
                      avm_kernel_l1_to_l2_msg_exists_write_offset,
                      avm_kernel_note_hash_exist_write_offset,
                      avm_kernel_nullifier_exists_write_offset,
+                     avm_kernel_nullifier_non_exists_write_offset,
                      avm_kernel_side_effect_counter,
                      avm_kernel_sload_write_offset,
                      avm_kernel_sstore_write_offset,
@@ -2776,6 +2786,7 @@ class AvmFlavor {
             Base::avm_kernel_l1_to_l2_msg_exists_write_offset = "AVM_KERNEL_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET";
             Base::avm_kernel_note_hash_exist_write_offset = "AVM_KERNEL_NOTE_HASH_EXIST_WRITE_OFFSET";
             Base::avm_kernel_nullifier_exists_write_offset = "AVM_KERNEL_NULLIFIER_EXISTS_WRITE_OFFSET";
+            Base::avm_kernel_nullifier_non_exists_write_offset = "AVM_KERNEL_NULLIFIER_NON_EXISTS_WRITE_OFFSET";
             Base::avm_kernel_q_public_input_kernel_add_to_table = "AVM_KERNEL_Q_PUBLIC_INPUT_KERNEL_ADD_TO_TABLE";
             Base::avm_kernel_q_public_input_kernel_out_add_to_table =
                 "AVM_KERNEL_Q_PUBLIC_INPUT_KERNEL_OUT_ADD_TO_TABLE";
@@ -3164,6 +3175,7 @@ class AvmFlavor {
         Commitment avm_kernel_l1_to_l2_msg_exists_write_offset;
         Commitment avm_kernel_note_hash_exist_write_offset;
         Commitment avm_kernel_nullifier_exists_write_offset;
+        Commitment avm_kernel_nullifier_non_exists_write_offset;
         Commitment avm_kernel_q_public_input_kernel_add_to_table;
         Commitment avm_kernel_q_public_input_kernel_out_add_to_table;
         Commitment avm_kernel_side_effect_counter;
@@ -3562,6 +3574,8 @@ class AvmFlavor {
             avm_kernel_note_hash_exist_write_offset =
                 deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_kernel_nullifier_exists_write_offset =
+                deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_kernel_nullifier_non_exists_write_offset =
                 deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_kernel_q_public_input_kernel_add_to_table =
                 deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -3963,6 +3977,7 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_kernel_l1_to_l2_msg_exists_write_offset, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_kernel_note_hash_exist_write_offset, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_kernel_nullifier_exists_write_offset, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_kernel_nullifier_non_exists_write_offset, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_kernel_q_public_input_kernel_add_to_table, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_kernel_q_public_input_kernel_out_add_to_table, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_kernel_side_effect_counter, Transcript::proof_data);
