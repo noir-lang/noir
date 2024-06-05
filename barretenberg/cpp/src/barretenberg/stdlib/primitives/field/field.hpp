@@ -11,6 +11,7 @@ template <typename Builder> class field_t {
   public:
     using View = field_t;
 
+    using native = bb::fr;
     field_t(Builder* parent_context = nullptr);
     field_t(Builder* parent_context, const bb::fr& value);
 

@@ -449,20 +449,58 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
         EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
 
-    static void test_batch_mul_edge_cases()
+    static void test_batch_mul_edgecase_equivalence()
     {
-        {
-            // batch P + P = 2P
+        const size_t num_points = 5;
+        Builder builder;
+        std::vector<affine_element> points;
+        std::vector<fr> scalars;
+        for (size_t i = 0; i < num_points; ++i) {
+            points.push_back(affine_element(element::random_element()));
+            scalars.push_back(fr::random_element());
+        }
+
+        std::vector<element_ct> circuit_points;
+        std::vector<scalar_ct> circuit_scalars;
+        for (size_t i = 0; i < num_points; ++i) {
+            circuit_points.push_back(element_ct::from_witness(&builder, points[i]));
+            circuit_scalars.push_back(scalar_ct::from_witness(&builder, scalars[i]));
+        }
+
+        element_ct result_point2 =
+            element_ct::batch_mul(circuit_points, circuit_scalars, /*max_num_bits=*/0, /*with_edgecases=*/true);
+
+        element expected_point = g1::one;
+        expected_point.self_set_infinity();
+        for (size_t i = 0; i < num_points; ++i) {
+            expected_point += (element(points[i]) * scalars[i]);
+        }
+
+        expected_point = expected_point.normalize();
+
+        fq result2_x(result_point2.x.get_value().lo);
+        fq result2_y(result_point2.y.get_value().lo);
+
+        EXPECT_EQ(result2_x, expected_point.x);
+        EXPECT_EQ(result2_y, expected_point.y);
+
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
+    }
+
+    static void test_batch_mul_edge_case_set1()
+    {
+        const auto test_repeated_points = [](const uint32_t num_points) {
+            // batch P + ... + P = m*P
+            info("num points: ", num_points);
             std::vector<affine_element> points;
-            points.push_back(affine_element::one());
-            points.push_back(affine_element::one());
             std::vector<fr> scalars;
-            scalars.push_back(1);
-            scalars.push_back(1);
+            for (size_t idx = 0; idx < num_points; idx++) {
+                points.push_back(affine_element::one());
+                scalars.push_back(1);
+            }
 
             Builder builder;
             ASSERT(points.size() == scalars.size());
-            const size_t num_points = points.size();
 
             std::vector<element_ct> circuit_points;
             std::vector<scalar_ct> circuit_scalars;
@@ -470,9 +508,13 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
                 circuit_points.push_back(element_ct::from_witness(&builder, points[i]));
                 circuit_scalars.push_back(scalar_ct::from_witness(&builder, scalars[i]));
             }
-            element_ct result_point = element_ct::batch_mul(circuit_points, circuit_scalars);
+            element_ct result_point =
+                element_ct::batch_mul(circuit_points, circuit_scalars, /*max_num_bits=*/0, /*with_edgecases=*/true);
 
-            element expected_point = points[0] + points[1];
+            auto expected_point = element::infinity();
+            for (const auto& point : points) {
+                expected_point += point;
+            }
             expected_point = expected_point.normalize();
 
             fq result_x(result_point.x.get_value().lo);
@@ -482,7 +524,16 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
             EXPECT_EQ(result_y, expected_point.y);
 
             EXPECT_CIRCUIT_CORRECTNESS(builder);
-        }
+        };
+        test_repeated_points(2);
+        test_repeated_points(3);
+        test_repeated_points(4);
+        test_repeated_points(5);
+        test_repeated_points(6);
+        test_repeated_points(7);
+    }
+    static void test_batch_mul_edge_case_set2()
+    {
         {
             // batch oo + P = P
             std::vector<affine_element> points;
@@ -502,7 +553,8 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
                 circuit_points.push_back(element_ct::from_witness(&builder, points[i]));
                 circuit_scalars.push_back(scalar_ct::from_witness(&builder, scalars[i]));
             }
-            element_ct result_point = element_ct::batch_mul(circuit_points, circuit_scalars);
+            element_ct result_point =
+                element_ct::batch_mul(circuit_points, circuit_scalars, /*max_num_bits=*/0, /*with_edgecases=*/true);
 
             element expected_point = points[1];
             expected_point = expected_point.normalize();
@@ -535,7 +587,8 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
                 circuit_scalars.push_back(scalar_ct::from_witness(&builder, scalars[i]));
             }
 
-            element_ct result_point = element_ct::batch_mul(circuit_points, circuit_scalars);
+            element_ct result_point =
+                element_ct::batch_mul(circuit_points, circuit_scalars, /*max_num_bits=*/0, /*with_edgecases=*/true);
 
             element expected_point = points[1];
             expected_point = expected_point.normalize();
@@ -1177,10 +1230,24 @@ HEAVY_TYPED_TEST(stdlib_biggroup, batch_mul)
 {
     TestFixture::test_batch_mul();
 }
-HEAVY_TYPED_TEST(stdlib_biggroup, batch_mul_edge_cases)
+
+HEAVY_TYPED_TEST(stdlib_biggroup, batch_mul_edgecase_equivalence)
 {
     if constexpr (HasGoblinBuilder<TypeParam>) {
-        TestFixture::test_batch_mul_edge_cases();
+        GTEST_SKIP();
+    } else {
+        TestFixture::test_batch_mul_edgecase_equivalence();
+    }
+}
+HEAVY_TYPED_TEST(stdlib_biggroup, batch_mul_edge_case_set1)
+{
+    TestFixture::test_batch_mul_edge_case_set1();
+}
+
+HEAVY_TYPED_TEST(stdlib_biggroup, batch_mul_edge_case_set2)
+{
+    if constexpr (HasGoblinBuilder<TypeParam>) {
+        TestFixture::test_batch_mul_edge_case_set2();
     } else {
         GTEST_SKIP() << "https://github.com/AztecProtocol/barretenberg/issues/1000";
     };

@@ -119,7 +119,7 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
         *this = *this - other;
         return *this;
     }
-    std::array<element, 2> checked_unconditional_add_sub(const element& other) const;
+    std::array<element, 2> checked_unconditional_add_sub(const element&) const;
 
     element operator*(const Fr& other) const;
 
@@ -204,6 +204,9 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
         return result;
     }
 
+    static std::pair<std::vector<element>, std::vector<Fr>> mask_points(const std::vector<element>& _points,
+                                                                        const std::vector<Fr>& _scalars);
+
     static std::pair<std::vector<element>, std::vector<Fr>> handle_points_at_infinity(
         const std::vector<element>& _points, const std::vector<Fr>& _scalars);
 
@@ -215,7 +218,8 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
     static element wnaf_batch_mul(const std::vector<element>& points, const std::vector<Fr>& scalars);
     static element batch_mul(const std::vector<element>& points,
                              const std::vector<Fr>& scalars,
-                             const size_t max_num_bits = 0);
+                             const size_t max_num_bits = 0,
+                             const bool with_edgecases = false);
 
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/707) max_num_bits is unused; could implement and use
     // this to optimize other operations.
@@ -310,6 +314,7 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
                                                  const std::array<uint256_t, 8>& limb_max);
 
     static std::pair<element, element> compute_offset_generators(const size_t num_rounds);
+    static typename NativeGroup::affine_element compute_table_offset_generator();
 
     template <typename = typename std::enable_if<HasPlookup<Builder>>> struct four_bit_table_plookup {
         four_bit_table_plookup(){};

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "barretenberg/stdlib/primitives/biggroup/handle_points_at_infinity.hpp"
+#include "barretenberg/stdlib/primitives/biggroup/biggroup_edgecase_handling.hpp"
 #include <cstddef>
 namespace bb::stdlib {
 
