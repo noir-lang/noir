@@ -9,7 +9,7 @@ on:
         required: false
         type: string
       prune_flags:
-        default: "--age 8h"
+        default: "--reset"
         type: string
 
 concurrency:
