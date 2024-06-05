@@ -1851,7 +1851,7 @@ void AvmTraceBuilder::calldata_copy(
                 pos == 0)), // TODO: remove in the long term. This activate gas only for the first row.
             .avm_main_mem_op_b = FF(mem_op_b),
             .avm_main_mem_op_c = FF(mem_op_c),
-            .avm_main_pc = FF(pc++),
+            .avm_main_pc = FF(pc),
             .avm_main_rwa = FF(rwa),
             .avm_main_rwb = FF(rwb),
             .avm_main_rwc = FF(rwc),
@@ -1865,6 +1865,8 @@ void AvmTraceBuilder::calldata_copy(
             pos = copy_size;
         }
     }
+
+    pc++;
 }
 
 /**
