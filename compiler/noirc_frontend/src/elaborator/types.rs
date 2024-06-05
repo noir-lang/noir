@@ -250,10 +250,6 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    /// This method is used for looking up generics used as named types
-    /// as well as generics used in type expressions.
-    /// The `resolving_type` flag makes indicates the compiler should error out
-    /// when a generic is found.
     pub fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
