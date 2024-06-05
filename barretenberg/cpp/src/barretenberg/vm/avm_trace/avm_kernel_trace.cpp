@@ -146,7 +146,6 @@ void AvmKernelTraceBuilder::op_nullifier_exists(uint32_t clk,
                                                 const FF& nullifier,
                                                 uint32_t result)
 {
-    info("nullifier exists result ", result);
     uint32_t offset = 0;
     if (result == 1) {
         offset = START_NULLIFIER_EXISTS_OFFSET + nullifier_exists_offset;
@@ -155,7 +154,6 @@ void AvmKernelTraceBuilder::op_nullifier_exists(uint32_t clk,
         offset = START_NULLIFIER_NON_EXISTS_OFFSET + nullifier_non_exists_offset;
         nullifier_non_exists_offset++;
     }
-    info("nullifier exists offset ", offset);
     perform_kernel_output_lookup(offset, side_effect_counter, nullifier, FF(result));
 
     KernelTraceEntry entry = {
@@ -217,10 +215,13 @@ void AvmKernelTraceBuilder::op_emit_unencrypted_log(uint32_t clk, uint32_t side_
     kernel_trace.push_back(entry);
 }
 
-void AvmKernelTraceBuilder::op_emit_l2_to_l1_msg(uint32_t clk, uint32_t side_effect_counter, const FF& l2_to_l1_msg)
+void AvmKernelTraceBuilder::op_emit_l2_to_l1_msg(uint32_t clk,
+                                                 uint32_t side_effect_counter,
+                                                 const FF& l2_to_l1_msg,
+                                                 const FF& recipient)
 {
     uint32_t offset = START_L2_TO_L1_MSG_WRITE_OFFSET + emit_l2_to_l1_msg_offset;
-    perform_kernel_output_lookup(offset, side_effect_counter, l2_to_l1_msg, FF(0));
+    perform_kernel_output_lookup(offset, side_effect_counter, l2_to_l1_msg, recipient);
     emit_l2_to_l1_msg_offset++;
 
     KernelTraceEntry entry = {

@@ -164,8 +164,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
 
         ko_values[dest_offset] = public_inputs_vec[pcpi_offset];
         ko_side_effect[dest_offset] = public_inputs_vec[pcpi_offset + 1];
-        // TEMP: hardcode written non existent to 1
-        // ko_metadata[dest_offset] = FF(1);
+        ko_metadata[dest_offset] = FF(1);
     }
     // For NULLIFIEREXISTS - non existent
     for (size_t i = 0; i < MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL; i++) {
@@ -174,8 +173,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
 
         ko_values[dest_offset] = public_inputs_vec[pcpi_offset];
         ko_side_effect[dest_offset] = public_inputs_vec[pcpi_offset + 1];
-        // TEMP: hardcode written non_existent to 0
-        // ko_metadata[dest_offset] = FF(0);
+        ko_metadata[dest_offset] = FF(0);
     }
     // For L1TOL2MSGEXISTS
     for (size_t i = 0; i < MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL; i++) {
@@ -227,8 +225,10 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
         size_t dest_offset = AvmKernelTraceBuilder::START_L2_TO_L1_MSG_WRITE_OFFSET + i;
         size_t pcpi_offset = PCPI_NEW_L2_TO_L1_MSGS_OFFSET + (i * L2_TO_L1_MESSAGE_LENGTH);
 
-        ko_values[dest_offset] = public_inputs_vec[pcpi_offset];
-        ko_side_effect[dest_offset] = public_inputs_vec[pcpi_offset + 1];
+        // Note: unorthadox order
+        ko_metadata[dest_offset] = public_inputs_vec[pcpi_offset];
+        ko_values[dest_offset] = public_inputs_vec[pcpi_offset + 1];
+        ko_side_effect[dest_offset] = public_inputs_vec[pcpi_offset + 2];
     }
     // For EMITUNENCRYPTEDLOG
     for (size_t i = 0; i < MAX_UNENCRYPTED_LOGS_PER_CALL; i++) {
@@ -505,7 +505,8 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
             trace_builder.op_emit_unencrypted_log(std::get<uint32_t>(inst.operands.at(1)));
             break;
         case OpCode::SENDL2TOL1MSG:
-            trace_builder.op_emit_l2_to_l1_msg(std::get<uint32_t>(inst.operands.at(1)));
+            trace_builder.op_emit_l2_to_l1_msg(std::get<uint32_t>(inst.operands.at(1)),
+                                               std::get<uint32_t>(inst.operands.at(2)));
             break;
             // Machine State - Internal Control Flow
         case OpCode::JUMP:

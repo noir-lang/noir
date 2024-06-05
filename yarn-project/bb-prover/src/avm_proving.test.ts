@@ -110,17 +110,18 @@ describe('AVM WitGen, proof generation and verification', () => {
     TIMEOUT,
   );
 
+  it(
+    'Should prove send l2 to l1 msg',
+    async () => {
+      await proveAndVerifyAvmTestContract('send_l2_to_l1_msg', [new Fr(1), new Fr(2)]);
+    },
+    TIMEOUT,
+  );
+
   // TODO: requires revert
   // it("Should prove to radix",
   //   async () => {
   //     await proveAndVerifyAvmTestContract('to_radix_le', [new Fr(10)]);
-  //   },
-  //   TIMEOUT
-  // )
-
-  // it("Should prove send l2 to l1 msg",
-  //   async () => {
-  //     await proveAndVerifyAvmTestContract('send_l2_to_l1_msg', [new Fr(1), new Fr(2)]);
   //   },
   //   TIMEOUT
   // )

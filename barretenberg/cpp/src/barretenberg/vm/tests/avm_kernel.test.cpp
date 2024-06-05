@@ -708,10 +708,12 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitNullifier)
 
 TEST_F(AvmKernelOutputPositiveTests, kernelEmitL2ToL1Msg)
 {
-    uint32_t offset = 42;
+    uint32_t msg_offset = 42;
+    uint32_t recipient_offset = 69;
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
-        trace_builder.op_set(0, 1234, offset, AvmMemoryTag::FF);
-        trace_builder.op_emit_l2_to_l1_msg(offset);
+        trace_builder.op_set(0, 1234, msg_offset, AvmMemoryTag::FF);
+        trace_builder.op_set(0, 420, recipient_offset, AvmMemoryTag::FF);
+        trace_builder.op_emit_l2_to_l1_msg(recipient_offset, msg_offset);
     };
     auto checks = [=](const std::vector<Row>& trace) {
         std::vector<Row>::const_iterator row = std::ranges::find_if(
@@ -721,17 +723,19 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitL2ToL1Msg)
         // Check the outputs of the trace
         uint32_t output_offset = AvmKernelTraceBuilder::START_L2_TO_L1_MSG_WRITE_OFFSET;
 
-        expect_output_table_row(
+        expect_output_table_row_with_metadata(
             row,
             /*kernel_in_offset=*/output_offset,
             /*ia=*/1234, // Note the value generated above for public inputs is the same as the index read + 1
-            /*mem_idx_a=*/offset,
+            /*mem_idx_a=*/msg_offset,
+            /*ib=*/420,
+            /*mem_idx_b=*/recipient_offset,
             /*w_in_tag=*/AvmMemoryTag::FF,
             /*side_effect_counter=*/0
 
         );
 
-        check_kernel_outputs(trace.at(output_offset), 1234, /*side_effect_counter=*/0, /*metadata=*/0);
+        check_kernel_outputs(trace.at(output_offset), 1234, /*side_effect_counter=*/0, /*metadata=*/420);
     };
 
     test_kernel_lookup(apply_opcodes, checks);
@@ -947,8 +951,6 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNullifierNonExists)
             /*mem_idx_b=*/metadata_offset,
             /*w_in_tag=*/AvmMemoryTag::FF,
             /*side_effect_counter=*/0);
-
-        log_avm_trace(trace, 2, 4);
 
         check_kernel_outputs(trace.at(output_offset), value, /*side_effect_counter=*/0, exists);
     };

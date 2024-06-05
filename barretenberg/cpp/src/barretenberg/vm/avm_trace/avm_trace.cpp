@@ -1352,34 +1352,6 @@ Row AvmTraceBuilder::create_kernel_output_opcode_with_metadata(
     };
 }
 
-// TODO: fix the naming here - we need it to be different as we are writing a hint
-// Row AvmTraceBuilder::create_sload(
-//     uint32_t clk, uint32_t data_offset, FF const& data_value, FF const& slot_value, uint32_t slot_offset)
-// {
-//     // We write the sload into memory, where the sload is an injected value that is mapped to the public inputs
-//     mem_trace_builder.write_into_memory(
-//         call_ptr, clk, IntermRegister::IA, data_offset, data_value, AvmMemoryTag::FF, AvmMemoryTag::FF);
-
-//     return Row{
-//         .avm_main_clk = clk,
-//         .avm_main_ia = data_value,
-//         .avm_main_ib = slot_value,
-//         .avm_main_ind_a = 0,
-//         .avm_main_ind_b = 0,
-//         .avm_main_internal_return_ptr = internal_return_ptr,
-//         .avm_main_mem_idx_a = data_offset,
-//         .avm_main_mem_idx_b = slot_offset,
-//         .avm_main_mem_op_a = 1,
-//         .avm_main_mem_op_b = 1,
-//         .avm_main_pc = pc++,
-//         .avm_main_q_kernel_output_lookup = 1,
-//         .avm_main_r_in_tag = static_cast<uint32_t>(AvmMemoryTag::FF),
-//         .avm_main_rwa = 1,
-//         .avm_main_rwb = 0,
-//         .avm_main_w_in_tag = static_cast<uint32_t>(AvmMemoryTag::FF),
-//     };
-// }
-
 Row AvmTraceBuilder::create_kernel_output_opcode_with_set_metadata_output_from_hint(uint32_t clk,
                                                                                     uint32_t data_offset,
                                                                                     uint32_t metadata_offset)
@@ -1476,12 +1448,14 @@ void AvmTraceBuilder::op_emit_nullifier(uint32_t nullifier_offset)
     side_effect_counter++;
 }
 
-void AvmTraceBuilder::op_emit_l2_to_l1_msg(uint32_t msg_offset)
+void AvmTraceBuilder::op_emit_l2_to_l1_msg(uint32_t recipient_offset, uint32_t msg_offset)
 {
     auto const clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
-    Row row = create_kernel_output_opcode(clk, msg_offset);
-    kernel_trace_builder.op_emit_l2_to_l1_msg(clk, side_effect_counter, row.avm_main_ia);
+    // Note: unorthadox order - as seen in L2ToL1Message struct in TS
+    Row row = create_kernel_output_opcode_with_metadata(
+        clk, msg_offset, AvmMemoryTag::FF, recipient_offset, AvmMemoryTag::FF);
+    kernel_trace_builder.op_emit_l2_to_l1_msg(clk, side_effect_counter, row.avm_main_ia, row.avm_main_ib);
     row.avm_main_sel_op_emit_l2_to_l1_msg = FF(1);
 
     // Constrain gas cost
@@ -1530,7 +1504,7 @@ void AvmTraceBuilder::op_note_hash_exists(uint32_t note_offset, uint32_t dest_of
     Row row = create_kernel_output_opcode_with_set_metadata_output_from_hint(clk, note_offset, dest_offset);
     kernel_trace_builder.op_note_hash_exists(
         clk, side_effect_counter, row.avm_main_ia, /*safe*/ static_cast<uint32_t>(row.avm_main_ib));
-    row.avm_main_sel_op_l1_to_l2_msg_exists = FF(1);
+    row.avm_main_sel_op_note_hash_exists = FF(1);
 
     // Constrain gas cost
     gas_trace_builder.constrain_gas_lookup(clk, OpCode::NOTEHASHEXISTS);
@@ -4012,17 +3986,7 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
 
             // The side effect counter will increment regardless of the offset value
             next.avm_kernel_side_effect_counter = curr.avm_kernel_side_effect_counter + 1;
-
-            info("non exists curr: ", curr.avm_kernel_nullifier_non_exists_write_offset);
-            info("non exists next: ", next.avm_kernel_nullifier_non_exists_write_offset);
         }
-
-        info("for kernel output", curr.avm_main_sel_op_nullifier_exists);
-        info(curr.avm_main_sel_op_nullifier_exists *
-             (curr.avm_kernel_kernel_out_offset -
-              ((curr.avm_main_ib * (FF(32) + curr.avm_kernel_nullifier_exists_write_offset)) +
-               ((FF(1) - curr.avm_main_ib) * (FF(64) + curr.avm_kernel_nullifier_non_exists_write_offset)))));
-        info("kernel out offset:", curr.avm_kernel_kernel_out_offset);
 
         kernel_padding_main_trace_bottom = clk + 1;
     }

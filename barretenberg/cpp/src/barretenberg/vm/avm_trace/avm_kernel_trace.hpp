@@ -99,7 +99,7 @@ class AvmKernelTraceBuilder {
     void op_emit_nullifier(uint32_t clk, uint32_t side_effect_counter, const FF& nullifier);
     void op_l1_to_l2_msg_exists(uint32_t clk, uint32_t side_effect_counter, const FF& message, uint32_t result);
     void op_emit_unencrypted_log(uint32_t clk, uint32_t side_effect_counter, const FF& log_hash);
-    void op_emit_l2_to_l1_msg(uint32_t clk, uint32_t side_effect_counter, const FF& message);
+    void op_emit_l2_to_l1_msg(uint32_t clk, uint32_t side_effect_counter, const FF& message, const FF& recipient);
 
     void op_sload(uint32_t clk, uint32_t side_effect_counter, const FF& slot, const FF& value);
     void op_sstore(uint32_t clk, uint32_t side_effect_counter, const FF& slot, const FF& value);

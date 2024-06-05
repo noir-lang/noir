@@ -1662,6 +1662,10 @@ TEST_F(AvmExecutionTests, kernelOutputEmitOpcodes)
                                + to_hex(OpCode::EMITUNENCRYPTEDLOG) + // opcode EMITNOTEHASH
                                "00"                                   // Indirect flag
                                "00000001"                             // src offset 1
+                               + to_hex(OpCode::SENDL2TOL1MSG) +      // opcode EMITNOTEHASH
+                               "00"                                   // Indirect flag
+                               "00000001"                             // src offset 1
+                               "00000001"                             // src offset 1
                                + to_hex(OpCode::RETURN) +             // opcode RETURN
                                "00"                                   // Indirect flag
                                "00000000"                             // ret offset 0
@@ -1670,7 +1674,7 @@ TEST_F(AvmExecutionTests, kernelOutputEmitOpcodes)
     auto bytecode = hex_to_bytes(bytecode_hex);
     auto instructions = Deserialization::parse(bytecode);
 
-    ASSERT_THAT(instructions, SizeIs(6));
+    ASSERT_THAT(instructions, SizeIs(7));
 
     std::vector<FF> calldata = {};
     std::vector<FF> returndata = {};
@@ -1713,6 +1717,20 @@ TEST_F(AvmExecutionTests, kernelOutputEmitOpcodes)
         std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) { return r.avm_main_clk == emit_log_out_offset; });
     EXPECT_EQ(emit_log_kernel_out_row->avm_kernel_kernel_value_out__is_public, 1);
     EXPECT_EQ(emit_log_kernel_out_row->avm_kernel_kernel_side_effect_out__is_public, 2);
+
+    // CHECK SEND L2 TO L1 MSG
+    auto send_row = std::ranges::find_if(
+        trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_emit_l2_to_l1_msg == 1; });
+    EXPECT_EQ(send_row->avm_main_ia, 1);
+    EXPECT_EQ(send_row->avm_main_ib, 1);
+    EXPECT_EQ(send_row->avm_kernel_side_effect_counter, 3);
+
+    auto msg_out_row = std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) {
+        return r.avm_main_clk == AvmKernelTraceBuilder::START_L2_TO_L1_MSG_WRITE_OFFSET;
+    });
+    EXPECT_EQ(msg_out_row->avm_kernel_kernel_value_out__is_public, 1);
+    EXPECT_EQ(msg_out_row->avm_kernel_kernel_side_effect_out__is_public, 3);
+    EXPECT_EQ(msg_out_row->avm_kernel_kernel_metadata_out__is_public, 1);
 
     validate_trace(std::move(trace));
 }
