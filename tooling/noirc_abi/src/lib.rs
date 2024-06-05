@@ -620,10 +620,10 @@ impl AbiErrorType {
     }
 }
 
-pub fn display_abi_error(
-    fields: &[FieldElement],
+pub fn display_abi_error<F: AcirField>(
+    fields: &[F],
     error_type: AbiErrorType,
-) -> PrintableValueDisplay {
+) -> PrintableValueDisplay<F> {
     match error_type {
         AbiErrorType::FmtString { length, item_types } => {
             let mut fields_iter = fields.iter().copied();
