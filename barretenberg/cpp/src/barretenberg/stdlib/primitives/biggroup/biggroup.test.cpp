@@ -122,7 +122,35 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
 
         EXPECT_CIRCUIT_CORRECTNESS(builder);
     }
+    static void test_standard_form_of_point_at_infinity()
+    {
+        Builder builder;
+        size_t num_repetitions = 5;
+        for (size_t i = 0; i < num_repetitions; ++i) {
+            element_ct input_a(element::random_element());
+            element_ct input_b(element::random_element());
+            input_b.set_point_at_infinity(true);
+            auto standard_a = input_a.get_standard_form();
+            auto standard_b = input_b.get_standard_form();
+            EXPECT_EQ(standard_a.is_point_at_infinity().get_value(), false);
+            EXPECT_EQ(standard_b.is_point_at_infinity().get_value(), true);
+            fq input_a_x = input_a.x.get_value().lo;
+            fq input_a_y = input_a.y.get_value().lo;
 
+            fq standard_a_x = standard_a.x.get_value().lo;
+            fq standard_a_y = standard_a.y.get_value().lo;
+
+            fq standard_b_x = standard_b.x.get_value().lo;
+            fq standard_b_y = standard_b.y.get_value().lo;
+
+            EXPECT_EQ(input_a_x, standard_a_x);
+            EXPECT_EQ(input_a_y, standard_a_y);
+            EXPECT_EQ(standard_b_x, 0);
+            EXPECT_EQ(standard_b_y, 0);
+        }
+
+        EXPECT_CIRCUIT_CORRECTNESS(builder);
+    }
     static void test_sub()
     {
         Builder builder;
@@ -1172,6 +1200,10 @@ TYPED_TEST(stdlib_biggroup, add)
 TYPED_TEST(stdlib_biggroup, add_points_at_infinity)
 {
     TestFixture::test_add_points_at_infinity();
+}
+TYPED_TEST(stdlib_biggroup, standard_form_of_point_at_infinity)
+{
+    TestFixture::test_standard_form_of_point_at_infinity();
 }
 TYPED_TEST(stdlib_biggroup, sub)
 {

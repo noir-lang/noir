@@ -297,6 +297,7 @@ template <class Builder, class Fq, class Fr, class NativeGroup> class element {
 
     bool_ct is_point_at_infinity() const { return _is_infinity; }
     void set_point_at_infinity(const bool_ct& is_infinity) { _is_infinity = is_infinity; }
+    element get_standard_form() const;
 
     Fq x;
     Fq y;

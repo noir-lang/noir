@@ -127,6 +127,25 @@ element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator+(const element& other) con
     return result;
 }
 
+/**
+ * @brief Enforce x and y coordinates of a point to be (0,0) in the case of point at infinity
+ *
+ * @details We need to have a standard witness in Noir and the point at infinity can have non-zero random coefficients
+ * when we get it as output from our optimised algorithms. This function returns a (0,0) point, if it is a point at
+ * infinity
+ */
+template <typename C, class Fq, class Fr, class G>
+element<C, Fq, Fr, G> element<C, Fq, Fr, G>::get_standard_form() const
+{
+
+    const bool_ct is_infinity = is_point_at_infinity();
+    element result(*this);
+    const Fq zero = Fq::zero();
+    result.x = Fq::conditional_assign(is_infinity, zero, this->x);
+    result.y = Fq::conditional_assign(is_infinity, zero, this->y);
+    return result;
+}
+
 template <typename C, class Fq, class Fr, class G>
 element<C, Fq, Fr, G> element<C, Fq, Fr, G>::operator-(const element& other) const
 {
