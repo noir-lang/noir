@@ -462,6 +462,94 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         }
     }
 
+    fn write_foreign_call_result(
+        &mut self,
+        destinations: &[ValueOrArray],
+        destination_value_types: &[HeapValueType],
+        foreign_call_index: usize,
+    ) -> Result<(), String> {
+        let values = std::mem::take(&mut self.foreign_call_results[foreign_call_index].values);
+
+        if destinations.len() != values.len() {
+            return Err(format!(
+                "{} output values were provided as a foreign call result for {} destination slots",
+                values.len(),
+                destinations.len()
+            ));
+        }
+        let flatten_values_vec = values.iter().map(|value| value.fields()).collect::<Vec<_>>();
+        let mut flatten_values_idx = 0; //index of values read from flatten_values
+        let values = values.clone();
+
+        for (((destination, value_type), output), flatten_values) in
+            destinations.iter().zip(destination_value_types).zip(&values).zip(flatten_values_vec)
+        {
+            match (destination, value_type) {
+            (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(bit_size)) => {
+                match output {
+                    ForeignCallParam::Single(value) => {
+                        self.write_value_to_memory(*value_index, value, *bit_size)?;
+                    }
+                    _ => return Err(format!(
+                        "Function result size does not match brillig bytecode. Expected 1 result but got {output:?}")
+                    ),
+                }
+            }
+            (
+                ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }),
+                HeapValueType::Array { value_types, size: type_size },
+            ) if size == type_size => {
+                if HeapValueType::all_simple(value_types) {
+                    match output {
+                        ForeignCallParam::Array(values) => {
+                            if values.len() != *size {
+                                return Err("Foreign call result array doesn't match expected size".to_string());
+                            }
+                            self.write_values_to_memory_slice(*pointer_index, values, value_types)?;
+                        }
+                        _ => {
+                            return Err("Function result size does not match brillig bytecode size".to_string());
+                        }
+                    }
+                } else {
+                    // foreign call returning flatten values into a nested type, so the sizes do not match
+                    let destination = self.memory.read_ref(*pointer_index);
+                    let return_type = value_type;
+                    self.write_slice_of_values_to_memory(destination, &flatten_values, &mut flatten_values_idx, return_type)?;
+            }
+        }
+            (
+                ValueOrArray::HeapVector(HeapVector {pointer: pointer_index, size: size_index }),
+                HeapValueType::Vector { value_types },
+            ) => {
+                if HeapValueType::all_simple(value_types) {
+                    match output {
+                        ForeignCallParam::Array(values) => {
+                            // Set our size in the size address
+                            self.memory.write(*size_index, values.len().into());
+                            self.write_values_to_memory_slice(*pointer_index, values, value_types)?;
+
+                        }
+                        _ => {
+                            return Err("Function result size does not match brillig bytecode size".to_string());
+                        }
+                    }
+                } else {
+                    unimplemented!("deflattening heap vectors from foreign calls");
+                }
+            }
+            _ => {
+                return Err(format!("Unexpected value type {value_type:?} for destination {destination:?}"));
+            }
+        }
+        }
+
+        let _ =
+            std::mem::replace(&mut self.foreign_call_results[foreign_call_index].values, values);
+
+        Ok(())
+    }
+
     /// Writes flatten values to memory, using the provided type
     /// Function calls itself recursively in order to work with recursive types (nested arrays)
     /// values_idx is the current index in the values vector and is incremented every time
@@ -571,95 +659,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 value, value_bit_size
             ));
         }
-        Ok(())
-    }
-
-
-    fn write_foreign_call_result(
-        &mut self,
-        destinations: &[ValueOrArray],
-        destination_value_types: &[HeapValueType],
-        foreign_call_index: usize,
-    ) -> Result<(), String> {
-        let values = std::mem::take(&mut self.foreign_call_results[foreign_call_index].values);
-
-        if destinations.len() != values.len() {
-            return Err(format!(
-                "{} output values were provided as a foreign call result for {} destination slots",
-                values.len(),
-                destinations.len()
-            ));
-        }
-        let flatten_values_vec = values.iter().map(|value| value.fields()).collect::<Vec<_>>();
-        let mut flatten_values_idx = 0; //index of values read from flatten_values
-        let values = values.clone();
-
-        for (((destination, value_type), output), flatten_values) in
-            destinations.iter().zip(destination_value_types).zip(&values).zip(flatten_values_vec)
-        {
-            match (destination, value_type) {
-            (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(bit_size)) => {
-                match output {
-                    ForeignCallParam::Single(value) => {
-                        self.write_value_to_memory(*value_index, value, *bit_size)?;
-                    }
-                    _ => return Err(format!(
-                        "Function result size does not match brillig bytecode. Expected 1 result but got {output:?}")
-                    ),
-                }
-            }
-            (
-                ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }),
-                HeapValueType::Array { value_types, size: type_size },
-            ) if size == type_size => {
-                if HeapValueType::all_simple(value_types) {
-                    match output {
-                        ForeignCallParam::Array(values) => {
-                            if values.len() != *size {
-                                return Err("Foreign call result array doesn't match expected size".to_string());
-                            }
-                            self.write_values_to_memory_slice(*pointer_index, values, value_types)?;
-                        }
-                        _ => {
-                            return Err("Function result size does not match brillig bytecode size".to_string());
-                        }
-                    }
-                } else {
-                    // foreign call returning flatten values into a nested type, so the sizes do not match
-                    let destination = self.memory.read_ref(*pointer_index);
-                    let return_type = value_type;
-                    self.write_slice_of_values_to_memory(destination, &flatten_values, &mut flatten_values_idx, return_type)?;
-            }
-        }
-            (
-                ValueOrArray::HeapVector(HeapVector {pointer: pointer_index, size: size_index }),
-                HeapValueType::Vector { value_types },
-            ) => {
-                if HeapValueType::all_simple(value_types) {
-                    match output {
-                        ForeignCallParam::Array(values) => {
-                            // Set our size in the size address
-                            self.memory.write(*size_index, values.len().into());
-                            self.write_values_to_memory_slice(*pointer_index, values, value_types)?;
-
-                        }
-                        _ => {
-                            return Err("Function result size does not match brillig bytecode size".to_string());
-                        }
-                    }
-                } else {
-                    unimplemented!("deflattening heap vectors from foreign calls");
-                }
-            }
-            _ => {
-                return Err(format!("Unexpected value type {value_type:?} for destination {destination:?}"));
-            }
-        }
-        }
-
-        let _ =
-            std::mem::replace(&mut self.foreign_call_results[foreign_call_index].values, values);
-
         Ok(())
     }
 
