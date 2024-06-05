@@ -550,7 +550,7 @@ impl Type {
     }
 
     pub fn default_int_type() -> Type {
-        Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour)
+        Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
     }
 
     pub fn type_variable(id: TypeVariableId) -> Type {

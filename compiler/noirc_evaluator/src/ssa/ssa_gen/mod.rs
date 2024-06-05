@@ -32,6 +32,8 @@ use super::{
     },
 };
 
+pub(crate) const SSA_WORD_SIZE: u32 = 32;
+
 /// Generates SSA for the given monomorphized program.
 ///
 /// This function will generate the SSA but does not perform any optimizations on it.

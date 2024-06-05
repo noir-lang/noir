@@ -171,7 +171,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let typ = value.get_type();
                 let msg = format!("Non-integer type `{typ}` used in for loop");
                 let secondary = if matches!(typ.as_ref(), &Type::FieldElement) {
-                    "`field` is not an integer type, try `u64` instead".to_string()
+                    "`field` is not an integer type, try `u32` instead".to_string()
                 } else {
                     String::new()
                 };

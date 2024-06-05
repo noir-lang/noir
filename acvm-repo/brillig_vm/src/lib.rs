@@ -629,6 +629,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 mod tests {
     use acir::{AcirField, FieldElement};
     use acvm_blackbox_solver::StubbedBlackBoxSolver;
+    const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
 
     use super::*;
 
@@ -911,7 +912,7 @@ mod tests {
 
     #[test]
     fn cmp_binary_ops() {
-        let bit_size = 32;
+        let bit_size = BRILLIG_MEMORY_ADDRESSING_BIT_SIZE;
         let calldata: Vec<FieldElement> =
             vec![(2u128).into(), (2u128).into(), (0u128).into(), (5u128).into(), (6u128).into()];
         let calldata_size = calldata.len();
@@ -1013,7 +1014,7 @@ mod tests {
         ///         i += 1;
         ///     }
         fn brillig_write_memory(item_count: usize) -> Vec<MemoryValue<FieldElement>> {
-            let bit_size = 32;
+            let bit_size = BRILLIG_MEMORY_ADDRESSING_BIT_SIZE;
             let r_i = MemoryAddress::from(0);
             let r_len = MemoryAddress::from(1);
             let r_tmp = MemoryAddress::from(2);
@@ -1182,7 +1183,7 @@ mod tests {
         ///     }
         /// Note we represent a 100% in-stack optimized form in brillig
         fn brillig_recursive_write_memory<F: AcirField>(size: usize) -> Vec<MemoryValue<F>> {
-            let bit_size = 32;
+            let bit_size = BRILLIG_MEMORY_ADDRESSING_BIT_SIZE;
             let r_i = MemoryAddress::from(0);
             let r_len = MemoryAddress::from(1);
             let r_tmp = MemoryAddress::from(2);
@@ -1285,7 +1286,7 @@ mod tests {
 
         let double_program = vec![
             // Load input address with value 5
-            Opcode::Const { destination: r_input, value: (5u128).into(), bit_size: 32 },
+            Opcode::Const { destination: r_input, value: (5u128).into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
             // Call foreign function "double" with the input address
             Opcode::ForeignCall {
                 function: "double".into(),
@@ -1346,9 +1347,9 @@ mod tests {
                 offset: 0,
             },
             // input = 0
-            Opcode::Const { destination: r_input, value: 2_usize.into(), bit_size: 32 },
+            Opcode::Const { destination: r_input, value: 2_usize.into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
             // output = 0
-            Opcode::Const { destination: r_output, value: 2_usize.into(), bit_size: 32 },
+            Opcode::Const { destination: r_output, value: 2_usize.into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
             // *output = matrix_2x2_transpose(*input)
             Opcode::ForeignCall {
                 function: "matrix_2x2_transpose".into(),
@@ -1428,24 +1429,24 @@ mod tests {
                 offset: 0,
             },
             // input_pointer = 4
-            Opcode::Const { destination: r_input_pointer, value: (4u128).into(), bit_size: 32 },
+            Opcode::Const { destination: r_input_pointer, value: (4u128).into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
             // input_size = input_string.len() (constant here)
             Opcode::Const {
                 destination: r_input_size,
                 value: input_string.len().into(),
-                bit_size: 32,
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             },
             // output_pointer = 4 + input_size
             Opcode::Const {
                 destination: r_output_pointer,
                 value: (4 + input_string.len()).into(),
-                bit_size: 32,
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             },
             // output_size = input_size * 2
             Opcode::Const {
                 destination: r_output_size,
                 value: (input_string.len() * 2).into(),
-                bit_size: 32,
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
             },
             // output_pointer[0..output_size] = string_double(input_pointer[0...input_size])
             Opcode::ForeignCall {
@@ -1522,9 +1523,9 @@ mod tests {
                 offset: 0,
             },
             // input = 0
-            Opcode::Const { destination: r_input, value: (2u128).into(), bit_size: 32 },
+            Opcode::Const { destination: r_input, value: (2u128).into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
             // output = 0
-            Opcode::Const { destination: r_output, value: (6u128).into(), bit_size: 32 },
+            Opcode::Const { destination: r_output, value: (6u128).into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
             // *output = matrix_2x2_transpose(*input)
             Opcode::ForeignCall {
                 function: "matrix_2x2_transpose".into(),
@@ -1613,11 +1614,11 @@ mod tests {
                 offset: 0,
             },
             // input = 3
-            Opcode::Const { destination: r_input_a, value: (3u128).into(), bit_size: 32 },
+            Opcode::Const { destination: r_input_a, value: (3u128).into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
             // input = 7
-            Opcode::Const { destination: r_input_b, value: (7u128).into(), bit_size: 32 },
+            Opcode::Const { destination: r_input_b, value: (7u128).into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
             // output = 0
-            Opcode::Const { destination: r_output, value: (0u128).into(), bit_size: 32 },
+            Opcode::Const { destination: r_output, value: (0u128).into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
             // *output = matrix_2x2_transpose(*input)
             Opcode::ForeignCall {
                 function: "matrix_2x2_transpose".into(),
