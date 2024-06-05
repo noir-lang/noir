@@ -601,8 +601,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         Ok(())
     }
 
-
-
     /// Writes flatten values to memory, using the provided type
     /// Function calls itself recursively in order to work with recursive types (nested arrays)
     /// values_idx is the current index in the values vector and is incremented every time
