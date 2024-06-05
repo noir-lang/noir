@@ -2,7 +2,7 @@ pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::{ast::Ident, parser::ParserError, Type};
+use crate::{ast::Ident, hir::comptime::InterpreterError, parser::ParserError, Type};
 
 use super::import::PathResolutionError;
 
@@ -100,6 +100,8 @@ pub enum ResolverError {
     UseExplicitNumericGeneric { ident: Ident },
     #[error("expected type, found numeric generic parameter")]
     NumericGenericUsedForType { name: String, span: Span },
+    #[error("Invalid array length construction")]
+    ArrayLengthInterpreter { error: InterpreterError },
 }
 
 impl ResolverError {
@@ -417,6 +419,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             }
+            ResolverError::ArrayLengthInterpreter { error } => Diagnostic::from(error),
         }
     }
 }

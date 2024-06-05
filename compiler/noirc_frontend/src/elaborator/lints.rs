@@ -41,7 +41,7 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
 /// as all unconstrained functions are not inlined and so
 /// associated attributes are disallowed.
 pub(super) fn inlining_attributes(func: &NoirFunction) -> Option<ResolverError> {
-    if !func.def.is_unconstrained {
+    if func.def.is_unconstrained {
         let attributes = func.attributes().clone();
 
         if attributes.is_no_predicates() {

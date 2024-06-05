@@ -1,6 +1,6 @@
 use std::{borrow::Cow, rc::Rc};
 
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -282,6 +282,23 @@ impl Value {
         interner.push_expr_location(id, location.span, location.file);
         interner.push_expr_type(id, typ);
         Ok(id)
+    }
+
+    /// Converts any unsigned `Value` into a `u128`.
+    /// Returns `None` for negative integers.
+    pub(crate) fn to_u128(&self) -> Option<u128> {
+        match self {
+            Self::Field(value) => Some(value.to_u128()),
+            Self::I8(value) => (*value >= 0).then_some(*value as u128),
+            Self::I16(value) => (*value >= 0).then_some(*value as u128),
+            Self::I32(value) => (*value >= 0).then_some(*value as u128),
+            Self::I64(value) => (*value >= 0).then_some(*value as u128),
+            Self::U8(value) => Some(*value as u128),
+            Self::U16(value) => Some(*value as u128),
+            Self::U32(value) => Some(*value as u128),
+            Self::U64(value) => Some(*value as u128),
+            _ => None,
+        }
     }
 }
 
