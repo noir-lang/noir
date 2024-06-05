@@ -73,13 +73,17 @@ export class AvmKeyValueHint {
 }
 
 export class AvmExternalCallHint {
+  public readonly returnData: Vector<Fr>;
+
   /**
    * Creates a new instance.
    * @param success whether the external call was successful (= did NOT revert).
    * @param returnData the data returned by the external call.
    * @param gasUsed gas used by the external call (not including the cost of the CALL opcode itself).
    */
-  constructor(public readonly success: Fr, public readonly returnData: Fr[], public readonly gasUsed: Gas) {}
+  constructor(public readonly success: Fr, returnData: Fr[], public readonly gasUsed: Gas) {
+    this.returnData = new Vector(returnData);
+  }
 
   /**
    * Serializes the inputs to a buffer.
@@ -102,7 +106,7 @@ export class AvmExternalCallHint {
    * @returns whether all members are empty.
    */
   isEmpty(): boolean {
-    return this.success.isZero() && this.returnData.length == 0 && this.gasUsed.isEmpty();
+    return this.success.isZero() && this.returnData.items.length == 0 && this.gasUsed.isEmpty();
   }
 
   /**
@@ -111,7 +115,7 @@ export class AvmExternalCallHint {
    * @returns A new AvmHint instance.
    */
   static from(fields: FieldsOf<AvmExternalCallHint>): AvmExternalCallHint {
-    return new AvmExternalCallHint(...AvmExternalCallHint.getFields(fields));
+    return new AvmExternalCallHint(fields.success, fields.returnData.items, fields.gasUsed);
   }
 
   /**

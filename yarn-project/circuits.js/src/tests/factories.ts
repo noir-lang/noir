@@ -1282,7 +1282,7 @@ export function makeAvmKeyValueHint(seed = 0): AvmKeyValueHint {
 export function makeAvmExternalCallHint(seed = 0): AvmExternalCallHint {
   return new AvmExternalCallHint(
     new Fr(seed % 2),
-    makeArray(seed + 10, i => new Fr(i), seed + 0x1000),
+    makeArray((seed % 100) + 10, i => new Fr(i), seed + 0x1000),
     new Gas(seed + 0x200, seed),
   );
 }
@@ -1317,8 +1317,8 @@ export function makeAvmExecutionHints(
  */
 export function makeAvmCircuitInputs(seed = 0, overrides: Partial<FieldsOf<AvmCircuitInputs>> = {}): AvmCircuitInputs {
   return AvmCircuitInputs.from({
-    bytecode: makeBytes(seed + 100, seed),
-    calldata: makeArray(seed + 10, i => new Fr(i), seed + 0x1000),
+    bytecode: makeBytes((seed % 100) + 100, seed),
+    calldata: makeArray((seed % 100) + 10, i => new Fr(i), seed + 0x1000),
     publicInputs: makePublicCircuitPublicInputs(seed + 0x2000),
     avmHints: makeAvmExecutionHints(seed + 0x3000),
     ...overrides,
