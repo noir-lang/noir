@@ -485,7 +485,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(bit_size)) => {
                     match output {
                         ForeignCallParam::Single(value) => {
-                            self.write_value_to_memory(*value_index, &value, *bit_size)?;
+                            self.write_value_to_memory(*value_index, value, *bit_size)?;
                         }
                         _ => return Err(format!(
                             "Function result size does not match brillig bytecode. Expected 1 result but got {output:?}")
@@ -522,7 +522,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                                 // Set our size in the size address
                                 self.memory.write(*size_index, values.len().into());
 
-                                self.write_values_to_memory_slice(*pointer_index, &values, value_types)?;
+                                self.write_values_to_memory_slice(*pointer_index, values, value_types)?;
                             }
                             _ => {
                                 return Err("Function result size does not match brillig bytecode size".to_string());
