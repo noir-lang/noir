@@ -550,6 +550,59 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         Ok(())
     }
 
+    fn write_values_to_memory_slice(
+        &mut self,
+        pointer_index: MemoryAddress,
+        values: &[F],
+        value_types: &[HeapValueType],
+    ) -> Result<(), String> {
+        let bit_sizes_iterator = value_types
+            .iter()
+            .map(|typ| match typ {
+                HeapValueType::Simple(bit_size) => *bit_size,
+                _ => unreachable!("Expected simple value type"),
+            })
+            .cycle();
+
+        // Convert the destination pointer to a usize
+        let destination = self.memory.read_ref(pointer_index);
+        // Write to our destination memory
+        let memory_values: Option<Vec<_>> = values
+            .iter()
+            .zip(bit_sizes_iterator)
+            .map(|(value, bit_size)| MemoryValue::new_checked(*value, bit_size))
+            .collect();
+        if let Some(memory_values) = memory_values {
+            self.memory.write_slice(destination, &memory_values);
+        } else {
+            return Err(format!(
+                "Foreign call result values {:?} do not match expected bit sizes",
+                values,
+            ));
+        }
+        Ok(())
+    }
+
+    fn write_value_to_memory(
+        &mut self,
+        destination: MemoryAddress,
+        value: &F,
+        value_bit_size: u32,
+    ) -> Result<(), String> {
+        let memory_value = MemoryValue::new_checked(*value, value_bit_size);
+
+        if let Some(memory_value) = memory_value {
+            self.memory.write(destination, memory_value);
+        } else {
+            return Err(format!(
+                "Foreign call result value {} does not fit in bit size {}",
+                value, value_bit_size
+            ));
+        }
+        Ok(())
+    }
+
+
     /// Writes flatten values to memory, using the provided type
     /// Function calls itself recursively in order to work with recursive types (nested arrays)
     /// values_idx is the current index in the values vector and is incremented every time
@@ -608,58 +661,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 Err(format!("Unsupported returned type in foreign calls {:?}", value_type))
             }
         }
-    }
-
-    fn write_values_to_memory_slice(
-        &mut self,
-        pointer_index: MemoryAddress,
-        values: &[F],
-        value_types: &[HeapValueType],
-    ) -> Result<(), String> {
-        let bit_sizes_iterator = value_types
-            .iter()
-            .map(|typ| match typ {
-                HeapValueType::Simple(bit_size) => *bit_size,
-                _ => unreachable!("Expected simple value type"),
-            })
-            .cycle();
-
-        // Convert the destination pointer to a usize
-        let destination = self.memory.read_ref(pointer_index);
-        // Write to our destination memory
-        let memory_values: Option<Vec<_>> = values
-            .iter()
-            .zip(bit_sizes_iterator)
-            .map(|(value, bit_size)| MemoryValue::new_checked(*value, bit_size))
-            .collect();
-        if let Some(memory_values) = memory_values {
-            self.memory.write_slice(destination, &memory_values);
-        } else {
-            return Err(format!(
-                "Foreign call result values {:?} do not match expected bit sizes",
-                values,
-            ));
-        }
-        Ok(())
-    }
-
-    fn write_value_to_memory(
-        &mut self,
-        destination: MemoryAddress,
-        value: &F,
-        value_bit_size: u32,
-    ) -> Result<(), String> {
-        let memory_value = MemoryValue::new_checked(*value, value_bit_size);
-
-        if let Some(memory_value) = memory_value {
-            self.memory.write(destination, memory_value);
-        } else {
-            return Err(format!(
-                "Foreign call result value {} does not fit in bit size {}",
-                value, value_bit_size
-            ));
-        }
-        Ok(())
     }
 
     /// Process a binary operation.
