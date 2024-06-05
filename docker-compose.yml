@@ -58,15 +58,15 @@ services:
       PEER_ID_PRIVATE_KEY:
     secrets:
       - ethereum-host
-      - p2p-private-key
       - p2p-boot-node
     entrypoint:
       [
         "/bin/sh",
         "-c",
         "export ETHEREUM_HOST=$$(cat /var/run/secrets/ethereum-host);\
-         export PEER_ID_PRIVATE_KEY=$$(cat /var/run/secrets/p2p-private-key);\
          export BOOTSTRAP_NODES=$$(cat /var/run/secrets/p2p-boot-node);\
+         test -z \"$PEER_ID_PRIVATE_KEY\" -a ! -f /var/lib/aztec/p2p-private-key && node /usr/src/yarn-project/cli/dest/bin/index.js generate-p2p-private-key | head -1 | cut -d' ' -f 3 | tee /var/lib/aztec/p2p-private-key || echo 'Re-using existing P2P private key';\
+         test -z \"$PEER_ID_PRIVATE_KEY\" && export PEER_ID_PRIVATE_KEY=$$(cat /var/lib/aztec/p2p-private-key);\
          node /usr/src/yarn-project/aztec/dest/bin/index.js start --node --archiver",
       ]
     volumes:
@@ -100,5 +100,3 @@ secrets:
     environment: ETHEREUM_HOST
   p2p-boot-node:
     environment: BOOTSTRAP_NODES
-  p2p-private-key:
-    environment: PEER_ID_PRIVATE_KEY
