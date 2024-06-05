@@ -1286,7 +1286,11 @@ mod tests {
 
         let double_program = vec![
             // Load input address with value 5
-            Opcode::Const { destination: r_input, value: (5u128).into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
+            Opcode::Const {
+                destination: r_input,
+                value: (5u128).into(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            },
             // Call foreign function "double" with the input address
             Opcode::ForeignCall {
                 function: "double".into(),
@@ -1347,9 +1351,17 @@ mod tests {
                 offset: 0,
             },
             // input = 0
-            Opcode::Const { destination: r_input, value: 2_usize.into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
+            Opcode::Const {
+                destination: r_input,
+                value: 2_usize.into(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            },
             // output = 0
-            Opcode::Const { destination: r_output, value: 2_usize.into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
+            Opcode::Const {
+                destination: r_output,
+                value: 2_usize.into(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            },
             // *output = matrix_2x2_transpose(*input)
             Opcode::ForeignCall {
                 function: "matrix_2x2_transpose".into(),
@@ -1429,7 +1441,11 @@ mod tests {
                 offset: 0,
             },
             // input_pointer = 4
-            Opcode::Const { destination: r_input_pointer, value: (4u128).into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
+            Opcode::Const {
+                destination: r_input_pointer,
+                value: (4u128).into(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            },
             // input_size = input_string.len() (constant here)
             Opcode::Const {
                 destination: r_input_size,
@@ -1523,9 +1539,17 @@ mod tests {
                 offset: 0,
             },
             // input = 0
-            Opcode::Const { destination: r_input, value: (2u128).into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
+            Opcode::Const {
+                destination: r_input,
+                value: (2u128).into(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            },
             // output = 0
-            Opcode::Const { destination: r_output, value: (6u128).into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
+            Opcode::Const {
+                destination: r_output,
+                value: (6u128).into(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            },
             // *output = matrix_2x2_transpose(*input)
             Opcode::ForeignCall {
                 function: "matrix_2x2_transpose".into(),
@@ -1614,11 +1638,23 @@ mod tests {
                 offset: 0,
             },
             // input = 3
-            Opcode::Const { destination: r_input_a, value: (3u128).into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
+            Opcode::Const {
+                destination: r_input_a,
+                value: (3u128).into(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            },
             // input = 7
-            Opcode::Const { destination: r_input_b, value: (7u128).into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
+            Opcode::Const {
+                destination: r_input_b,
+                value: (7u128).into(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            },
             // output = 0
-            Opcode::Const { destination: r_output, value: (0u128).into(), bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
+            Opcode::Const {
+                destination: r_output,
+                value: (0u128).into(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            },
             // *output = matrix_2x2_transpose(*input)
             Opcode::ForeignCall {
                 function: "matrix_2x2_transpose".into(),

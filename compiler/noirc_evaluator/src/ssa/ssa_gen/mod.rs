@@ -402,7 +402,8 @@ impl<'a> FunctionContext<'a> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
         let type_size = Self::convert_type(element_type).size_of_type();
-        let type_size = self.builder.numeric_constant(type_size as u128, Type::unsigned(SSA_WORD_SIZE));
+        let type_size =
+            self.builder.numeric_constant(type_size as u128, Type::unsigned(SSA_WORD_SIZE));
         let base_index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
 

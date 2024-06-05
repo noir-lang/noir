@@ -395,9 +395,11 @@ impl<'a> Interpreter<'a> {
                 }
                 (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
                     let value: u32 =
-                        value.try_to_u32().ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
+                        value.try_to_u32().ok_or(InterpreterError::IntegerOutOfRangeForType {
+                            value,
+                            typ,
+                            location,
+                        })?;
                     let value = if is_negative { 0u32.wrapping_sub(value) } else { value };
                     Ok(Value::U32(value))
                 }

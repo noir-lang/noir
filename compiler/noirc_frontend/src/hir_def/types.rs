@@ -135,11 +135,9 @@ impl Type {
             Type::Tuple(fields) => {
                 fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
             }
-            Type::String(size) => {
-                size
-                    .evaluate_to_u32()
-                    .expect("Cannot have variable sized strings as a parameter to main")
-            }
+            Type::String(size) => size
+                .evaluate_to_u32()
+                .expect("Cannot have variable sized strings as a parameter to main"),
             Type::FmtString(_, _)
             | Type::Unit
             | Type::TypeVariable(_, _)

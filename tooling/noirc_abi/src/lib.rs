@@ -198,14 +198,14 @@ impl AbiType {
     pub fn field_count(&self) -> u32 {
         match self {
             AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => 1,
-            AbiType::Array { length, typ } => typ.field_count() * (*length as u32),
+            AbiType::Array { length, typ } => typ.field_count() * *length,
             AbiType::Struct { fields, .. } => {
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
             }
             AbiType::Tuple { fields } => {
                 fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
             }
-            AbiType::String { length } => *length as u32,
+            AbiType::String { length } => *length,
         }
     }
 }
