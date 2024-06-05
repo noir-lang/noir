@@ -5,10 +5,7 @@ use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
-    ast::{
-        BinaryOpKind, IntegerBitSize, UnresolvedGenerics, UnresolvedTraitConstraint,
-        UnresolvedTypeExpression,
-    },
+    ast::{BinaryOpKind, IntegerBitSize, UnresolvedGenerics, UnresolvedTypeExpression},
     hir::{
         comptime::{Interpreter, Value},
         def_map::ModuleDefId,
@@ -371,31 +368,18 @@ impl<'context> Elaborator<'context> {
             return None;
         }
 
-        for UnresolvedTraitConstraint { typ, trait_bound } in self.trait_bounds.clone() {
-            if let UnresolvedTypeData::Named(constraint_path, _, _) = &typ.typ {
+        for constraint in self.trait_bounds.clone() {
+            if let Type::NamedGeneric(_, name) = &constraint.typ {
                 // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
-                if constraint_path.segments.len() == 1
-                    && path.segments[0] != constraint_path.last_segment()
-                {
+                if path.segments[0].0.contents != name.as_str() {
                     continue;
                 }
 
-                if let Ok(ModuleDefId::TraitId(trait_id)) =
-                    self.resolve_path(trait_bound.trait_path.clone())
+                let the_trait = self.interner.get_trait(constraint.trait_id);
+                if let Some(method) =
+                    the_trait.find_method(path.segments.last().unwrap().0.contents.as_str())
                 {
-                    let the_trait = self.interner.get_trait(trait_id);
-                    if let Some(method) =
-                        the_trait.find_method(path.segments.last().unwrap().0.contents.as_str())
-                    {
-                        let constraint = TraitConstraint {
-                            trait_id,
-                            typ: self.resolve_type(typ.clone()),
-                            trait_generics: vecmap(trait_bound.trait_generics, |typ| {
-                                self.resolve_type(typ)
-                            }),
-                        };
-                        return Some((method, constraint, true));
-                    }
+                    return Some((method, constraint, true));
                 }
             }
         }

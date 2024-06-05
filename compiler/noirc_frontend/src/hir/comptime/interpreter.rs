@@ -239,6 +239,11 @@ impl<'a> Interpreter<'a> {
 
     /// Mutate an existing variable, potentially from a prior scope
     fn mutate(&mut self, id: DefinitionId, argument: Value, location: Location) -> IResult<()> {
+        // If the id is a dummy, assume the error was already issued elsewhere
+        if id == DefinitionId::dummy_id() {
+            return Ok(());
+        }
+
         for scope in self.scopes.iter_mut().rev() {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
                 entry.insert(argument);
@@ -253,7 +258,7 @@ impl<'a> Interpreter<'a> {
         self.lookup_id(ident.id, ident.location)
     }
 
-    fn lookup_id(&self, id: DefinitionId, location: Location) -> IResult<Value> {
+    pub fn lookup_id(&self, id: DefinitionId, location: Location) -> IResult<Value> {
         for scope in self.scopes.iter().rev() {
             if let Some(value) = scope.get(&id) {
                 return Ok(value.clone());

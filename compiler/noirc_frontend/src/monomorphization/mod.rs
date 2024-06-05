@@ -877,12 +877,19 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
             DefinitionKind::Global(global_id) => {
-                let Some(let_) = self.interner.get_global_let_statement(*global_id) else {
-                    unreachable!(
-                        "Globals should have a corresponding let statement by monomorphization"
-                    )
+                let global = self.interner.get_global(*global_id);
+
+                let expr = if let Some(value) = global.value.clone() {
+                    value
+                        .into_hir_expression(self.interner, global.location)
+                        .map_err(MonomorphizationError::InterpreterError)?
+                } else {
+                    let let_ = self.interner.get_global_let_statement(*global_id).expect(
+                        "Globals should have a corresponding let statement by monomorphization",
+                    );
+                    let_.expression
                 };
-                self.expr(let_.expression)?
+                self.expr(expr)?
             }
             DefinitionKind::Local(_) => match self.lookup_captured_expr(ident.id) {
                 Some(expr) => expr,
