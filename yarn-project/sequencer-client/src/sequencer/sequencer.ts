@@ -162,6 +162,18 @@ export class Sequencer {
         return;
       }
 
+      const historicalHeader = (await this.l2BlockSource.getBlock(-1))?.header;
+      const newBlockNumber =
+        (historicalHeader === undefined
+          ? await this.l2BlockSource.getBlockNumber()
+          : Number(historicalHeader.globalVariables.blockNumber.toBigInt())) + 1;
+
+      // Do not go forward with new block if not my turn
+      if (!(await this.publisher.isItMyTurnToSubmit(newBlockNumber))) {
+        this.log.verbose('Not my turn to submit block');
+        return;
+      }
+
       const workTimer = new Timer();
       this.state = SequencerState.WAITING_FOR_TXS;
 
@@ -172,12 +184,6 @@ export class Sequencer {
       }
       this.log.debug(`Retrieved ${pendingTxs.length} txs from P2P pool`);
 
-      const historicalHeader = (await this.l2BlockSource.getBlock(-1))?.header;
-      const newBlockNumber =
-        (historicalHeader === undefined
-          ? await this.l2BlockSource.getBlockNumber()
-          : Number(historicalHeader.globalVariables.blockNumber.toBigInt())) + 1;
-
       /**
        * We'll call this function before running expensive operations to avoid wasted work.
        */
@@ -185,6 +191,9 @@ export class Sequencer {
         const currentBlockNumber = await this.l2BlockSource.getBlockNumber();
         if (currentBlockNumber + 1 !== newBlockNumber) {
           throw new Error('New block was emitted while building block');
+        }
+        if (!(await this.publisher.isItMyTurnToSubmit(newBlockNumber))) {
+          throw new Error(`Not this sequencer turn to submit block`);
         }
       };
 

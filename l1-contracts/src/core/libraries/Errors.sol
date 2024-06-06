@@ -46,6 +46,7 @@ library Errors {
   error Rollup__TimestampInFuture(); // 0xbc1ce916
   error Rollup__TimestampTooOld(); // 0x72ed9c81
   error Rollup__UnavailableTxs(bytes32 txsHash); // 0x414906c3
+  error Rollup__InvalidSequencer(address sequencer);
 
   // Registry
   error Registry__RollupNotRegistered(address rollup); // 0xa1fee4cf

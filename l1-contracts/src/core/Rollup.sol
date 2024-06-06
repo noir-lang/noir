@@ -16,6 +16,7 @@ import {HeaderLib} from "./libraries/HeaderLib.sol";
 import {Hash} from "./libraries/Hash.sol";
 import {Errors} from "./libraries/Errors.sol";
 import {Constants} from "./libraries/ConstantsGen.sol";
+import {EnumerableSet} from "@oz/utils/structs/EnumerableSet.sol";
 
 // Contracts
 import {MockVerifier} from "../mock/MockVerifier.sol";
@@ -43,6 +44,10 @@ contract Rollup is IRollup {
   // See https://github.com/AztecProtocol/aztec-packages/issues/1614
   uint256 public lastWarpedBlockTs;
 
+  using EnumerableSet for EnumerableSet.AddressSet;
+
+  EnumerableSet.AddressSet private sequencers;
+
   constructor(IRegistry _registry, IAvailabilityOracle _availabilityOracle, IERC20 _gasToken) {
     verifier = new MockVerifier();
     REGISTRY = _registry;
@@ -51,6 +56,27 @@ contract Rollup is IRollup {
     INBOX = new Inbox(address(this), Constants.L1_TO_L2_MSG_SUBTREE_HEIGHT);
     OUTBOX = new Outbox(address(this));
     VERSION = 1;
+  }
+
+  // HACK: Add a sequencer to set of potential sequencers
+  function addSequencer(address sequencer) external {
+    sequencers.add(sequencer);
+  }
+
+  // HACK: Remove a sequencer from the set of potential sequencers
+  function removeSequencer(address sequencer) external {
+    sequencers.remove(sequencer);
+  }
+
+  // HACK: Return whose turn it is to submit a block
+  function whoseTurnIsIt(uint256 blockNumber) public view returns (address) {
+    return
+      sequencers.length() == 0 ? address(0x0) : sequencers.at(blockNumber % sequencers.length());
+  }
+
+  // HACK: Return all the registered sequencers
+  function getSequencers() external view returns (address[] memory) {
+    return sequencers.values();
   }
 
   function setVerifier(address _verifier) external override(IRollup) {
@@ -77,6 +103,12 @@ contract Rollup is IRollup {
     // Check if the data is available using availability oracle (change availability oracle if you want a different DA layer)
     if (!AVAILABILITY_ORACLE.isAvailable(header.contentCommitment.txsEffectsHash)) {
       revert Errors.Rollup__UnavailableTxs(header.contentCommitment.txsEffectsHash);
+    }
+
+    // Check that this is the current sequencer's turn
+    address sequencer = whoseTurnIsIt(header.globalVariables.blockNumber);
+    if (sequencer != address(0x0) && sequencer != msg.sender) {
+      revert Errors.Rollup__InvalidSequencer(msg.sender);
     }
 
     bytes32[] memory publicInputs =

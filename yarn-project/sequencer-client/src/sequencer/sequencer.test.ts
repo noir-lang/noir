@@ -63,6 +63,8 @@ describe('sequencer', () => {
     lastBlockNumber = 0;
 
     publisher = mock<L1Publisher>();
+    publisher.isItMyTurnToSubmit.mockResolvedValue(true);
+
     globalVariableBuilder = mock<GlobalVariableBuilder>();
     merkleTreeOps = mock<MerkleTreeOperations>();
     proverClient = mock<ProverClient>();
@@ -139,6 +141,44 @@ describe('sequencer', () => {
     await sequencer.initialSync();
     await sequencer.work();
 
+    expect(proverClient.startNewBlock).toHaveBeenCalledWith(
+      2,
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient, gasFees),
+      Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n)),
+    );
+    expect(publisher.processL2Block).toHaveBeenCalledWith(block, [], proof);
+    expect(proverClient.cancelBlock).toHaveBeenCalledTimes(0);
+  });
+
+  it('builds a block when it is their turn', async () => {
+    const tx = mockTxForRollup();
+    tx.data.constants.txContext.chainId = chainId;
+    const block = L2Block.random(lastBlockNumber + 1);
+    const proof = makeEmptyProof();
+    const result: ProvingSuccess = {
+      status: PROVING_STATUS.SUCCESS,
+    };
+    const ticket: ProvingTicket = {
+      provingPromise: Promise.resolve(result),
+    };
+
+    p2p.getTxs.mockResolvedValueOnce([tx]);
+    proverClient.startNewBlock.mockResolvedValueOnce(ticket);
+    proverClient.finaliseBlock.mockResolvedValue({ block, aggregationObject: [], proof });
+    publisher.processL2Block.mockResolvedValueOnce(true);
+    globalVariableBuilder.buildGlobalVariables.mockResolvedValueOnce(
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient, gasFees),
+    );
+
+    // Not your turn!
+    publisher.isItMyTurnToSubmit.mockClear().mockResolvedValue(false);
+    await sequencer.initialSync();
+    await sequencer.work();
+    expect(proverClient.startNewBlock).not.toHaveBeenCalled();
+
+    // Now it is!
+    publisher.isItMyTurnToSubmit.mockClear().mockResolvedValue(true);
+    await sequencer.work();
     expect(proverClient.startNewBlock).toHaveBeenCalledWith(
       2,
       new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient, gasFees),

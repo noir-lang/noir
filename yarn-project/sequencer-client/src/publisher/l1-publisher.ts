@@ -1,6 +1,6 @@
 import { type L2Block } from '@aztec/circuit-types';
 import { type L1PublishStats } from '@aztec/circuit-types/stats';
-import { type Fr, type Proof } from '@aztec/circuits.js';
+import { type EthAddress, type Fr, type Proof } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { serializeToBuffer } from '@aztec/foundation/serialize';
 import { InterruptibleSleep } from '@aztec/foundation/sleep';
@@ -42,6 +42,10 @@ export type MinimalTransactionReceipt = {
  * Pushes txs to the L1 chain and waits for their completion.
  */
 export interface L1PublisherTxSender {
+  getSenderAddress(): Promise<EthAddress>;
+
+  getSubmitterAddressForBlock(blockNumber: number): Promise<EthAddress>;
+
   /**
    * Publishes tx effects to Availability Oracle.
    * @param encodedBody - Encoded block body.
@@ -115,6 +119,12 @@ export class L1Publisher implements L2BlockReceiver {
 
   constructor(private txSender: L1PublisherTxSender, config?: PublisherConfig) {
     this.sleepTimeMs = config?.l1BlockPublishRetryIntervalMS ?? 60_000;
+  }
+
+  public async isItMyTurnToSubmit(blockNumber: number): Promise<boolean> {
+    const submitter = await this.txSender.getSubmitterAddressForBlock(blockNumber);
+    const sender = await this.txSender.getSenderAddress();
+    return submitter.isZero() || submitter.equals(sender);
   }
 
   /**
