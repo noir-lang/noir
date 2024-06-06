@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, VecDeque},
     rc::Rc,
 };
 
@@ -165,6 +165,8 @@ pub struct Elaborator<'context> {
     /// Each element of the Vec represents a scope with every scope together making
     /// up all currently visible definitions. The first scope is always the global scope.
     comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
+
+    unresolved_globals: VecDeque<UnresolvedGlobal>,
 }
 
 impl<'context> Elaborator<'context> {
@@ -192,6 +194,7 @@ impl<'context> Elaborator<'context> {
             trait_constraints: Vec::new(),
             current_trait_impl: None,
             comptime_scopes: vec![HashMap::default()],
+            unresolved_globals: VecDeque::default(),
         }
     }
 
@@ -208,6 +211,8 @@ impl<'context> Elaborator<'context> {
         // Additionally, we must resolve integer globals before structs since structs may refer to
         // the values of integer globals as numeric generics.
         let (literal_globals, non_literal_globals) = filter_literal_globals(items.globals);
+        this.unresolved_globals
+            .extend(non_literal_globals.into_iter());
 
         for global in literal_globals {
             this.elaborate_global(global);
@@ -242,7 +247,7 @@ impl<'context> Elaborator<'context> {
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to to ensure they are valid.
-        for global in non_literal_globals {
+        while let Some(global) = this.unresolved_globals.pop_front() {
             this.elaborate_global(global);
         }
 
@@ -1222,5 +1227,10 @@ impl<'context> Elaborator<'context> {
                 this.define_function_meta(func, *id, false);
             });
         }
+    }
+
+    fn remove_unresolved_global(&mut self, global: GlobalId) -> Option<UnresolvedGlobal> {
+        let position = self.unresolved_globals.iter().position(|item| item.global_id == global)?;
+        self.unresolved_globals.remove(position)
     }
 }
