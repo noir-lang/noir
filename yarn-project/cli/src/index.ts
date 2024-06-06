@@ -359,13 +359,24 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     });
 
   program
-    .command('get-tx-receipt')
+    .command('get-tx')
     .description('Gets the receipt for the specified transaction hash.')
     .argument('<txHash>', 'A transaction hash to get the receipt for.', parseTxHash)
     .addOption(pxeOption)
     .action(async (txHash, options) => {
-      const { getTxReceipt } = await import('./cmds/get_tx_receipt.js');
-      await getTxReceipt(options.rpcUrl, txHash, debugLogger, log);
+      const { getTx } = await import('./cmds/get_tx.js');
+      await getTx(options.rpcUrl, txHash, debugLogger, log);
+    });
+
+  program
+    .command('get-block')
+    .description('Gets info for a given block or latest.')
+    .argument('[blockNumber]', 'Block height', parseOptionalInteger)
+    .option('-f, --follow', 'Keep polling for new blocks')
+    .addOption(pxeOption)
+    .action(async (blockNumber, options) => {
+      const { getBlock } = await import('./cmds/get_block.js');
+      await getBlock(options.rpcUrl, blockNumber, options.follow, debugLogger, log);
     });
 
   program

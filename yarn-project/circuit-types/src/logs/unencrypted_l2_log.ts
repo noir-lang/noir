@@ -1,7 +1,7 @@
 import { AztecAddress } from '@aztec/circuits.js';
 import { EventSelector } from '@aztec/foundation/abi';
 import { randomBytes, sha256Trunc } from '@aztec/foundation/crypto';
-import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
+import { BufferReader, prefixBufferWithLength, toHumanReadable } from '@aztec/foundation/serialize';
 
 /**
  * Represents an individual unencrypted log entry.
@@ -46,9 +46,7 @@ export class UnencryptedL2Log {
    * @returns A human readable representation of the log.
    */
   public toHumanReadable(): string {
-    const payload = this.data.every(byte => byte >= 32 && byte <= 126)
-      ? this.data.toString('ascii')
-      : `0x` + this.data.toString('hex');
+    const payload = toHumanReadable(this.data);
     return `UnencryptedL2Log(contractAddress: ${this.contractAddress.toString()}, selector: ${this.selector.toString()}, data: ${payload})`;
   }
 

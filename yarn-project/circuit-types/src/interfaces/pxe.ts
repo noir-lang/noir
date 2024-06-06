@@ -335,6 +335,12 @@ export interface PXE {
   getContractClass(id: Fr): Promise<ContractClassWithId | undefined>;
 
   /**
+   * Returns the contract artifact associated to a contract class.
+   * @param id - Identifier of the class.
+   */
+  getContractArtifact(id: Fr): Promise<ContractArtifact | undefined>;
+
+  /**
    * Queries the node to check whether the contract class with the given id has been publicly registered.
    * TODO(@spalladino): This method is strictly needed to decide whether to publicly register a class or not
    * during a public deployment. We probably want a nicer and more general API for this, but it'll have to

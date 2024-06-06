@@ -176,6 +176,10 @@ export class PXEService implements PXE {
     return artifact && getContractClassFromArtifact(artifact);
   }
 
+  public getContractArtifact(id: Fr): Promise<ContractArtifact | undefined> {
+    return this.db.getContractArtifact(id);
+  }
+
   public async registerAccount(secretKey: Fr, partialAddress: PartialAddress): Promise<CompleteAddress> {
     const accounts = await this.keyStore.getAccounts();
     const accountCompleteAddress = await this.keyStore.addAccount(secretKey, partialAddress);

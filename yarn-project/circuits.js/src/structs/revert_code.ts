@@ -40,6 +40,21 @@ export class RevertCode {
     return this.equals(RevertCode.OK);
   }
 
+  public getDescription() {
+    switch (this.code) {
+      case RevertCodeEnum.OK:
+        return 'OK';
+      case RevertCodeEnum.APP_LOGIC_REVERTED:
+        return 'Application logic reverted';
+      case RevertCodeEnum.TEARDOWN_REVERTED:
+        return 'Teardown reverted';
+      case RevertCodeEnum.BOTH_REVERTED:
+        return 'Both reverted';
+      default:
+        return `Unknown RevertCode: ${this.code}`;
+    }
+  }
+
   /**
    * Having different serialization methods allows for
    * decoupling the serialization for producing the content commitment hash

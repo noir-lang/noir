@@ -67,6 +67,9 @@ export abstract class BaseWallet implements Wallet {
   getContractClass(id: Fr): Promise<ContractClassWithId | undefined> {
     return this.pxe.getContractClass(id);
   }
+  getContractArtifact(id: Fr): Promise<ContractArtifact | undefined> {
+    return this.pxe.getContractArtifact(id);
+  }
   addCapsule(capsule: Fr[]): Promise<void> {
     return this.pxe.addCapsule(capsule);
   }

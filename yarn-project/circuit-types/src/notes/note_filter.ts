@@ -26,6 +26,8 @@ export type NoteFilter = {
   owner?: AztecAddress;
   /** The status of the note. Defaults to 'ACTIVE'. */
   status?: NoteStatus;
+  /** The siloed nullifier for the note. */
+  siloedNullifier?: Fr;
 };
 
 /**

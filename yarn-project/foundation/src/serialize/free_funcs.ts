@@ -194,3 +194,11 @@ export function fromTruncField(field: Fr): Buffer {
 export function fromFieldsTuple(fields: Tuple<Fr, 2>): Buffer {
   return from2Fields(fields[0], fields[1]);
 }
+
+export function toHumanReadable(buf: Buffer, maxLen?: number): string {
+  const result = buf.every(byte => byte >= 32 && byte <= 126) ? buf.toString('ascii') : `0x${buf.toString('hex')}`;
+  if (maxLen && result.length > maxLen) {
+    return result.slice(0, maxLen) + '...';
+  }
+  return result;
+}

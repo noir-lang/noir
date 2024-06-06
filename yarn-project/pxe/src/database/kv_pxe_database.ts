@@ -271,6 +271,10 @@ export class KVPxeDatabase implements PxeDatabase {
           continue;
         }
 
+        if (filter.siloedNullifier && !note.siloedNullifier.equals(filter.siloedNullifier)) {
+          continue;
+        }
+
         result.push(note);
       }
     }
