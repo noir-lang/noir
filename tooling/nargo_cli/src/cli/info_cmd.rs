@@ -102,8 +102,7 @@ pub(crate) fn run(args: InfoCommand, config: NargoConfig) -> Result<(), CliError
     } else {
         // Otherwise print human-readable table.
         if !info_report.programs.is_empty() {
-            let mut program_table =
-                table!([Fm->"Package", Fm->"Function", Fm->"Expression Width", Fm->"ACIR Opcodes"]);
+            let mut program_table = table!([Fm->"Package", Fm->"Function", Fm->"Expression Width", Fm->"ACIR Opcodes", Fm->"Brillig Opcodes"]);
 
             for program_info in info_report.programs {
                 let program_rows: Vec<Row> = program_info.into();
@@ -178,6 +177,7 @@ struct ProgramInfo {
     #[serde(skip)]
     expression_width: ExpressionWidth,
     functions: Vec<FunctionInfo>,
+    unconstrained_functions_opcodes: usize,
 }
 
 impl From<ProgramInfo> for Vec<Row> {
@@ -188,6 +188,7 @@ impl From<ProgramInfo> for Vec<Row> {
                 Fc->format!("{}", function.name),
                 format!("{:?}", program_info.expression_width),
                 Fc->format!("{}", function.acir_opcodes),
+                Fc->format!("{}", program_info.unconstrained_functions_opcodes),
             ]
         })
     }
@@ -236,6 +237,16 @@ fn count_opcodes_and_gates_in_program(
             acir_opcodes: function.opcodes.len(),
         })
         .collect();
-
-    ProgramInfo { package_name: package.name.to_string(), expression_width, functions }
+    let unconstrained_functions_opcodes = compiled_program
+        .bytecode
+        .unconstrained_functions
+        .into_par_iter()
+        .map(|function| function.bytecode.len())
+        .sum();
+    ProgramInfo {
+        package_name: package.name.to_string(),
+        expression_width,
+        functions,
+        unconstrained_functions_opcodes,
+    }
 }
