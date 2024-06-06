@@ -20,7 +20,7 @@ describe('GasTxValidator', () => {
       storageRead: mockFn().mockImplementation((_address: AztecAddress, _slot: Fr) => Fr.ZERO),
     });
 
-    validator = new GasTxValidator(publicStateSource, gasTokenAddress);
+    validator = new GasTxValidator(publicStateSource, gasTokenAddress, false);
   });
 
   let tx: Tx;
@@ -94,7 +94,13 @@ describe('GasTxValidator', () => {
     await expectValidateFail(tx);
   });
 
-  it.skip('rejects txs with no fee payer', async () => {
+  it('allows txs with no fee payer if fees are not enforced', async () => {
+    tx.data.feePayer = AztecAddress.ZERO;
+    await expectValidateSuccess(tx);
+  });
+
+  it('rejects txs with no fee payer if fees are enforced', async () => {
+    validator.enforceFees = true;
     tx.data.feePayer = AztecAddress.ZERO;
     await expectValidateFail(tx);
   });

@@ -39,4 +39,6 @@ export interface SequencerConfig {
   allowedFunctionsInTeardown?: AllowedFunction[];
   /** Max block size */
   maxBlockSizeInBytes?: number;
+  /** Whether to require every tx to have a fee payer */
+  enforceFees?: boolean;
 }

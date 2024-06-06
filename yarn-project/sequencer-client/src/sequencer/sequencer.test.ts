@@ -114,7 +114,7 @@ describe('sequencer', () => {
       l2BlockSource,
       l1ToL2MessageSource,
       publicProcessorFactory,
-      new TxValidatorFactory(merkleTreeOps, contractSource),
+      new TxValidatorFactory(merkleTreeOps, contractSource, false),
     );
   });
 

@@ -62,6 +62,7 @@ export function getConfigEnvVars(): SequencerClientConfig {
     FEE_RECIPIENT,
     ACVM_WORKING_DIRECTORY,
     ACVM_BINARY_PATH,
+    ENFORCE_FEES = '',
   } = process.env;
 
   const publisherPrivateKey: Hex = SEQ_PUBLISHER_PRIVATE_KEY
@@ -83,6 +84,7 @@ export function getConfigEnvVars(): SequencerClientConfig {
   };
 
   return {
+    enforceFees: ['1', 'true'].includes(ENFORCE_FEES),
     rpcUrl: ETHEREUM_HOST ? ETHEREUM_HOST : '',
     chainId: CHAIN_ID ? +CHAIN_ID : 31337, // 31337 is the default chain id for anvil
     version: VERSION ? +VERSION : 1, // 1 is our default version

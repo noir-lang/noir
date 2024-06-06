@@ -14,7 +14,7 @@ export class GasTxValidator implements TxValidator<Tx> {
   #publicDataSource: PublicStateSource;
   #gasTokenAddress: AztecAddress;
 
-  constructor(publicDataSource: PublicStateSource, gasTokenAddress: AztecAddress) {
+  constructor(publicDataSource: PublicStateSource, gasTokenAddress: AztecAddress, public enforceFees: boolean) {
     this.#publicDataSource = publicDataSource;
     this.#gasTokenAddress = gasTokenAddress;
   }
@@ -38,7 +38,11 @@ export class GasTxValidator implements TxValidator<Tx> {
     const feePayer = tx.data.feePayer;
     // TODO(@spalladino) Eventually remove the is_zero condition as we should always charge fees to every tx
     if (feePayer.isZero()) {
-      return true;
+      if (this.enforceFees) {
+        this.#log.warn(`Rejecting transaction ${tx.getTxHash()} due to missing fee payer`);
+      } else {
+        return true;
+      }
     }
 
     // Compute the maximum fee that this tx may pay, based on its gasLimits and maxFeePerGas
