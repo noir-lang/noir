@@ -4,7 +4,9 @@ use acvm::{
     acir::circuit::{
         ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
         ResolvedOpcodeLocation,
-    }, pwg::{ErrorLocation, OpcodeResolutionError}, AcirField, FieldElement
+    },
+    pwg::{ErrorLocation, OpcodeResolutionError},
+    AcirField, FieldElement,
 };
 use noirc_abi::{display_abi_error, Abi, AbiErrorType};
 use noirc_errors::{

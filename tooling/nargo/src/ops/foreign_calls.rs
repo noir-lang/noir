@@ -179,7 +179,9 @@ impl<F: AcirField> DefaultForeignCallExecutor<F> {
     }
 }
 
-impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F> for DefaultForeignCallExecutor<F> {
+impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
+    for DefaultForeignCallExecutor<F>
+{
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo<F>,
