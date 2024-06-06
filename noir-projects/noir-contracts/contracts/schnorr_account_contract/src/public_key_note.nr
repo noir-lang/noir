@@ -44,7 +44,6 @@ impl NoteInterface<PUBLIC_KEY_NOTE_LEN, PUBLIC_KEY_NOTE_BYTES_LEN> for PublicKey
         context.encrypt_and_emit_note(
             (*context).this_address(),
             slot,
-            Self::get_note_type_id(),
             ovpk_m,
             ivpk_m,
             self,

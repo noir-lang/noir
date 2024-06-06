@@ -51,7 +51,6 @@ impl NoteInterface<VALUE_NOTE_LEN, VALUE_NOTE_BYTES_LEN> for ValueNote {
         context.encrypt_and_emit_note(
             (*context).this_address(),
             slot,
-            Self::get_note_type_id(),
             ovpk_m,
             ivpk_m,
             self,

@@ -383,6 +383,9 @@ export class ClientExecutionContext extends ViewDataOracle {
 
     const ephSk = GrumpkinScalar.random();
 
+    // @todo This should be populated properly.
+    // Note that this encryption function SHOULD not be used, but is currently used
+    // as oracle for encrypted event logs.
     const recipient = AztecAddress.random();
 
     return taggedNote.encrypt(ephSk, recipient, ivpkM, ovKeys);

@@ -55,7 +55,10 @@ describe('e2e_block_building', () => {
 
       const ownerAddress = owner.getCompleteAddress().address;
       const outgoingViewer = ownerAddress;
-      const methods = times(TX_COUNT, i => deployer.deploy(ownerAddress, outgoingViewer, i));
+      // Need to have value > 0, so adding + 1
+      // We need to do so, because noir currently will fail if the multiscalarmul is in an `if`
+      // that we DO NOT enter. This should be fixed by https://github.com/noir-lang/noir/issues/5045.
+      const methods = times(TX_COUNT, i => deployer.deploy(ownerAddress, outgoingViewer, i + 1));
       for (let i = 0; i < TX_COUNT; i++) {
         await methods[i].create({
           contractAddressSalt: new Fr(BigInt(i + 1)),

@@ -22,11 +22,17 @@ export function computeAppSecretKey(skM: GrumpkinPrivateKey, app: AztecAddress, 
 }
 
 export function computeIvpkApp(ivpk: PublicKey, address: AztecAddress) {
+  return ivpk;
+  // Computing the siloed key is actually useless because we can derive the master key from it
+  // Issue(#6955)
   const I = Fq.fromBuffer(poseidon2Hash([address.toField(), ivpk.x, ivpk.y, GeneratorIndex.IVSK_M]).toBuffer());
   return curve.add(curve.mul(Grumpkin.generator, I), ivpk);
 }
 
 export function computeIvskApp(ivsk: GrumpkinPrivateKey, address: AztecAddress) {
+  return ivsk;
+  // Computing the siloed key is actually useless because we can derive the master key from it
+  // Issue(#6955)
   const ivpk = curve.mul(Grumpkin.generator, ivsk);
   // Here we are intentionally converting Fr (output of poseidon) to Fq. This is fine even though a distribution of
   // P = s * G will not be uniform because 2 * (q - r) / q is small.

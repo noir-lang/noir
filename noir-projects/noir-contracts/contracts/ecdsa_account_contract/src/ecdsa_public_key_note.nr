@@ -90,7 +90,6 @@ impl NoteInterface<ECDSA_PUBLIC_KEY_NOTE_LEN, ECDSA_PUBLIC_KEY_NOTE_BYTES_LEN> f
         context.encrypt_and_emit_note(
             (*context).this_address(),
             slot,
-            Self::get_note_type_id(),
             ovpk_m,
             ivpk_m,
             self,

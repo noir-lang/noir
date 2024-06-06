@@ -13,7 +13,6 @@ impl EncryptedLogHeader {
         EncryptedLogHeader { address }
     }
 
-    // @todo Issue(#5901) Figure out if we return the bytes or fields for the log
     fn compute_ciphertext(self, secret: GrumpkinPrivateKey, point: GrumpkinPoint) -> [u8; 48] {
         let full_key = point_to_symmetric_key(secret, point);
         let mut sym_key = [0; 16];
