@@ -19,7 +19,7 @@ import { DeployAccountSentTx } from './deploy_account_sent_tx.js';
  */
 export type DeployAccountOptions = Pick<
   DeployOptions,
-  'fee' | 'skipClassRegistration' | 'skipPublicDeployment' | 'estimateGas'
+  'fee' | 'skipClassRegistration' | 'skipPublicDeployment' | 'estimateGas' | 'skipInitialization'
 >;
 
 /**
@@ -166,7 +166,7 @@ export class AccountManager {
           contractAddressSalt: this.salt,
           skipClassRegistration: opts?.skipClassRegistration ?? true,
           skipPublicDeployment: opts?.skipPublicDeployment ?? true,
-          skipInitialization: false,
+          skipInitialization: opts?.skipInitialization ?? false,
           universalDeploy: true,
           fee: opts?.fee,
           estimateGas: opts?.estimateGas,

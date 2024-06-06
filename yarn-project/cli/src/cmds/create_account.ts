@@ -1,4 +1,5 @@
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
+import { type DeployAccountOptions } from '@aztec/aztec.js';
 import { deriveSigningKey } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
@@ -10,6 +11,8 @@ export async function createAccount(
   rpcUrl: string,
   privateKey: Fr | undefined,
   registerOnly: boolean,
+  publicDeploy: boolean,
+  skipInitialization: boolean,
   wait: boolean,
   feeOpts: IFeeOpts,
   debugLogger: DebugLogger,
@@ -40,7 +43,12 @@ export async function createAccount(
     await account.register();
   } else {
     const wallet = await account.getWallet();
-    const sendOpts = feeOpts.toSendOpts(wallet);
+    const sendOpts: DeployAccountOptions = {
+      ...feeOpts.toSendOpts(wallet),
+      skipClassRegistration: !publicDeploy,
+      skipPublicDeployment: !publicDeploy,
+      skipInitialization: skipInitialization,
+    };
     if (feeOpts.estimateOnly) {
       const gas = await (await account.getDeployMethod()).estimateGas({ ...sendOpts });
       printGasEstimates(feeOpts, gas, log);

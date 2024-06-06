@@ -57,7 +57,7 @@ export { createPXEClient } from './rpc_clients/index.js';
 export { AuthWitnessProvider } from './account/index.js';
 
 export { AccountContract } from './account/index.js';
-export { AccountManager } from './account_manager/index.js';
+export { AccountManager, DeployAccountOptions } from './account_manager/index.js';
 
 export { AccountWallet, AccountWalletWithSecretKey, SignerlessWallet, Wallet } from './wallet/index.js';
 
