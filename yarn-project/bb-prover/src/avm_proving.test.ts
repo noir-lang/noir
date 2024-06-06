@@ -127,6 +127,51 @@ describe('AVM WitGen, proof generation and verification', () => {
   // )
 });
 
+it.skip(
+  'Should prove a keccak hash evaluation',
+  async () => {
+    await proveAndVerifyAvmTestContract('keccak_hash', [
+      new Fr(0),
+      new Fr(1),
+      new Fr(2),
+      new Fr(3),
+      new Fr(4),
+      new Fr(5),
+      new Fr(6),
+      new Fr(7),
+      new Fr(8),
+      new Fr(9),
+    ]);
+  },
+  TIMEOUT,
+);
+
+/************************************************************************
+ * AvmContext functions
+ ************************************************************************/
+const avmContextFunctions = [
+  'get_address',
+  'get_storage_address',
+  'get_sender',
+  'get_fee_per_l2_gas',
+  'get_fee_per_da_gas',
+  'get_transaction_fee',
+  'get_chain_id',
+  'get_version',
+  'get_block_number',
+  'get_timestamp',
+  'get_l2_gas_left',
+  'get_da_gas_left',
+];
+
+it.each(avmContextFunctions)(
+  'Should prove an avm context function %s',
+  async contextFunction => {
+    await proveAndVerifyAvmTestContract(contextFunction);
+  },
+  TIMEOUT,
+);
+
 const proveAndVerifyAvmTestContract = async (functionName: string, calldata: Fr[] = []) => {
   const startSideEffectCounter = 0;
   const environment = initExecutionEnvironment({ calldata });

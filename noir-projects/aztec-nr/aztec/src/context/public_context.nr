@@ -29,7 +29,7 @@ impl PublicContext {
     * @param event_selector The event selector for the log.
     * @param message The message to emit in the log.
     */
-    pub fn emit_unencrypted_log_with_selector<T,N>(
+    pub fn emit_unencrypted_log_with_selector<T, N>(
         &mut self,
         event_selector: Field,
         log: T
@@ -37,7 +37,7 @@ impl PublicContext {
         emit_unencrypted_log(event_selector, Serialize::serialize(log).as_slice());
     }
     // For compatibility with the selector-less API. We'll probably rename the above one.
-    pub fn emit_unencrypted_log<T,N>(&mut self, log: T) where T: Serialize<N> {
+    pub fn emit_unencrypted_log<T, N>(&mut self, log: T) where T: Serialize<N> {
         self.emit_unencrypted_log_with_selector(/*event_selector=*/ 5, log);
     }
     pub fn note_hash_exists(self, note_hash: Field, leaf_index: Field) -> bool {
@@ -168,6 +168,12 @@ impl PublicContext {
     }
     fn get_args_hash(self) -> Field {
         self.inputs.args_hash
+    }
+    fn l2_gas_left(self) -> Field {
+        l2_gas_left()
+    }
+    fn da_gas_left(self) -> Field {
+        da_gas_left()
     }
 }
 

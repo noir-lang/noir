@@ -281,6 +281,16 @@ contract AvmTest {
         context.timestamp()
     }
 
+    #[aztec(public)]
+    fn get_l2_gas_left() -> Field {
+        context.l2_gas_left()
+    }
+
+    #[aztec(public)]
+    fn get_da_gas_left() -> Field {
+        context.da_gas_left()
+    }
+
     // #[aztec(public)]
     // fn get_contract_call_depth() -> Field {
     //     context.contract_call_depth()
