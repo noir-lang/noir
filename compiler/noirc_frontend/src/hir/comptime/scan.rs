@@ -254,4 +254,13 @@ impl<'interner> Interpreter<'interner> {
         self.interner.replace_expr(&expr, new_expr);
         Ok(())
     }
+
+    // TODO: put the diagnostic into &mut errors
+    //
+    // /// NodeInterner::replace_expr with debugging
+    // fn replace_expr(&mut self, id: &ExprId, new: HirExpression) -> __ {
+    //     self.interner.replace_expr(id, new);
+    // }
+
+
 }

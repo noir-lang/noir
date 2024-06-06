@@ -2,11 +2,12 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 use std::ops::Deref;
+use std::marker::Copy;
 
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_arena::{Arena, Index};
-use noirc_errors::{Location, Span, Spanned};
+use noirc_errors::{CustomDiagnostic, Location, Span, Spanned};
 use petgraph::algo::tarjan_scc;
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
@@ -944,6 +945,10 @@ impl NodeInterner {
         self.id_location(expr_id).span
     }
 
+    pub fn try_expr_span(&self, expr_id: &ExprId) -> Option<Span> {
+        self.try_id_location(expr_id).map(|location| location.span)
+    }
+
     pub fn expr_location(&self, expr_id: &ExprId) -> Location {
         self.id_location(expr_id)
     }
@@ -1044,18 +1049,56 @@ impl NodeInterner {
     }
 
     /// Returns the span of an item stored in the Interner
-    pub fn id_location(&self, index: impl Into<Index>) -> Location {
-        self.id_to_location.get(&index.into()).copied().unwrap()
+    pub fn id_location(&self, index: impl Into<Index> + Copy) -> Location {
+        self.try_id_location(index).expect(&format!("ID is missing a source location: {:?}", index.into()))
+    }
+
+    /// Returns the span of an item stored in the Interner, if present
+    pub fn try_id_location(&self, index: impl Into<Index>) -> Option<Location> {
+        self.id_to_location.get(&index.into()).copied()
     }
 
     /// Replaces the HirExpression at the given ExprId with a new HirExpression
     pub fn replace_expr(&mut self, id: &ExprId, new: HirExpression) {
+        // TODO: move this logic into the Interpreter
+        //
+        // let expr = self.expression(id);
+        let location = self.id_location(id);
+        let original_ast = (*id).to_display_ast(self);
+
+        // begin original
         let old = self.nodes.get_mut(id.into()).unwrap();
         *old = Node::Expression(new);
+        // end original
+
+        // TODO
+        // println!("{}", (*id).to_display_ast(self));
+
+        let new_ast = (*id).to_display_ast(self);
+
+        let diagnostic = CustomDiagnostic::simple_warning(
+            "`comptime` expression ran:".to_string(),
+            format!("Before evaluation:\n{}\n\nAfter evaluation:\n{}", original_ast, new_ast),
+            location.span,
+        );
+        println!();
+        println!("{}", diagnostic);
+        println!();
+
+        let file_diagnostic = diagnostic.in_file(location.file);
+        println!("{}", file_diagnostic);
+        println!();
+        dbg!("replace_expr", &id, location);
+
+
     }
 
     /// Replaces the HirStatement at the given StmtId with a new HirStatement
     pub fn replace_statement(&mut self, stmt_id: StmtId, hir_stmt: HirStatement) {
+        // // TODO
+        // let stmt = self.statement(&stmt_id);
+        // dbg!("replace_statement", stmt, &hir_stmt);
+
         let old = self.nodes.get_mut(stmt_id.0).unwrap();
         *old = Node::Statement(hir_stmt);
     }

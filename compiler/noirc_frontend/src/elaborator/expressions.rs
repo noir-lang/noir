@@ -621,6 +621,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_comptime_block(&mut self, _comptime: BlockExpression) -> (HirExpression, Type) {
+        // TODO: also add debugging if --debug-comptime=module_path flag is set
         todo!("Elaborate comptime block")
     }
 }
