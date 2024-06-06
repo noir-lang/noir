@@ -1156,7 +1156,7 @@ impl<'context> Elaborator<'context> {
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
         if crossing_runtime_boundary {
             if !self.in_unsafe_block {
-                self.push_err(TypeCheckError::Unsafe {span});
+                self.push_err(TypeCheckError::Unsafe { span });
                 return Type::Error;
             }
 
