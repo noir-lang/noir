@@ -7,7 +7,7 @@
 
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 
-#include "barretenberg/smt_verification/circuit/circuit.hpp"
+#include "barretenberg/smt_verification/circuit/standard_circuit.hpp"
 
 using namespace bb;
 
