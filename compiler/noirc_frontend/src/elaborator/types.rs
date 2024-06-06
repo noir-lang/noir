@@ -1158,6 +1158,7 @@ impl<'context> Elaborator<'context> {
                 lints::oracle_called_from_constrained_function(
                     elaborator.interner,
                     &called_func_id,
+                    is_current_func_constrained,
                     span,
                 )
                 .map(Into::into)

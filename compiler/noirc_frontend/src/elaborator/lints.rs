@@ -89,8 +89,13 @@ pub(super) fn oracle_not_marked_unconstrained(func: &NoirFunction) -> Option<Res
 pub(super) fn oracle_called_from_constrained_function(
     interner: &NodeInterner,
     called_func: &FuncId,
+    calling_from_constrained_runtime: bool,
     span: Span,
 ) -> Option<ResolverError> {
+    if !calling_from_constrained_runtime {
+        return None;
+    }
+
     let function_attributes = interner.function_attributes(called_func);
     let is_oracle_call =
         function_attributes.function.as_ref().map_or(false, |func| func.is_oracle());
