@@ -766,11 +766,13 @@ impl<'context> Elaborator<'context> {
         self.local_module = module;
 
         for (generics, span, unresolved) in impls {
+            self.push_scope();
             self.file = unresolved.file_id;
             let old_generic_count = self.generics.len();
             self.add_generics(generics);
             self.declare_methods_on_struct(false, unresolved, *span);
             self.generics.truncate(old_generic_count);
+            self.pop_scope();
         }
     }
 
@@ -778,6 +780,7 @@ impl<'context> Elaborator<'context> {
         self.local_module = trait_impl.module_id;
         self.file = trait_impl.file_id;
         self.current_trait_impl = trait_impl.impl_id;
+        self.push_scope();
         trait_impl.trait_id = self.resolve_trait_by_path(trait_impl.trait_path.clone());
 
         let self_type = trait_impl.methods.self_type.clone();
@@ -848,6 +851,7 @@ impl<'context> Elaborator<'context> {
         self.generics.clear();
         self.current_trait_impl = None;
         self.self_type = None;
+        self.pop_scope();
     }
 
     fn get_module_mut(&mut self, module: ModuleId) -> &mut ModuleData {
@@ -1037,6 +1041,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
+        self.push_scope();
         self.file = alias.file_id;
         self.local_module = alias.module_id;
 
@@ -1045,6 +1050,7 @@ impl<'context> Elaborator<'context> {
         let typ = self.resolve_type(alias.type_alias_def.typ);
         self.interner.set_type_alias(alias_id, typ, generics);
         self.generics.clear();
+        self.pop_scope();
     }
 
     fn collect_struct_definitions(&mut self, structs: BTreeMap<StructId, UnresolvedStruct>) {
@@ -1055,6 +1061,7 @@ impl<'context> Elaborator<'context> {
         // Resolve each field in each struct.
         // Each struct should already be present in the NodeInterner after def collection.
         for (type_id, typ) in structs {
+            self.push_scope();
             self.file = typ.file_id;
             self.local_module = typ.module_id;
             let (generics, fields) = self.resolve_struct_fields(typ.struct_def, type_id);
@@ -1063,6 +1070,7 @@ impl<'context> Elaborator<'context> {
                 struct_def.set_fields(fields);
                 struct_def.generics = generics;
             });
+            self.pop_scope();
         }
 
         // Check whether the struct fields have nested slices
@@ -1173,6 +1181,7 @@ impl<'context> Elaborator<'context> {
         }
 
         for ((self_type, local_module), function_sets) in impls {
+            self.push_scope();
             self.local_module = *local_module;
 
             for (generics, _, function_set) in function_sets {
@@ -1183,9 +1192,11 @@ impl<'context> Elaborator<'context> {
                 self.define_function_metas_for_functions(function_set);
                 self.generics.clear();
             }
+            self.pop_scope();
         }
 
         for trait_impl in trait_impls {
+            self.push_scope();
             self.file = trait_impl.file_id;
             self.local_module = trait_impl.module_id;
 
@@ -1210,6 +1221,7 @@ impl<'context> Elaborator<'context> {
             trait_impl.resolved_object_type = self.self_type.take();
             trait_impl.impl_id = self.current_trait_impl.take();
             self.generics.clear();
+            self.pop_scope();
         }
     }
 
