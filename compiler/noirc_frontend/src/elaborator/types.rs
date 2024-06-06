@@ -27,7 +27,9 @@ use crate::{
         HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
         UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
-    node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
+    node_interner::{
+        DefinitionKind, ExprId, FuncId, GlobalId, TraitId, TraitImplKind, TraitMethodId,
+    },
     Generics, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
@@ -1150,6 +1152,16 @@ impl<'context> Elaborator<'context> {
         let is_unconstrained_call = self.is_unconstrained_call(call.func);
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
         if crossing_runtime_boundary {
+            let called_func_id =
+                self.func_id_from_expr_id(call.func).expect("Called function should exist");
+            self.run_lint(|elaborator| {
+                lints::oracle_called_from_constrained_function(
+                    elaborator.interner,
+                    &called_func_id,
+                    span,
+                )
+                .map(Into::into)
+            });
             let errors = lints::unconstrained_function_args(&args);
             for error in errors {
                 self.push_err(error);
@@ -1167,16 +1179,27 @@ impl<'context> Elaborator<'context> {
         return_type
     }
 
-    fn is_unconstrained_call(&self, expr: ExprId) -> bool {
+    fn func_id_from_expr_id(&self, expr: ExprId) -> Option<FuncId> {
         if let HirExpression::Ident(HirIdent { id, .. }, _) = self.interner.expression(&expr) {
             if let Some(DefinitionKind::Function(func_id)) =
                 self.interner.try_definition(id).map(|def| &def.kind)
             {
-                let modifiers = self.interner.function_modifiers(func_id);
-                return modifiers.is_unconstrained;
+                Some(*func_id)
+            } else {
+                None
             }
+        } else {
+            None
         }
-        false
+    }
+
+    fn is_unconstrained_call(&self, expr: ExprId) -> bool {
+        if let Some(func_id) = self.func_id_from_expr_id(expr) {
+            let modifiers = self.interner.function_modifiers(&func_id);
+            modifiers.is_unconstrained
+        } else {
+            false
+        }
     }
 
     /// Check if the given method type requires a mutable reference to the object type, and check
