@@ -7,12 +7,13 @@ use crate::ast::{
 };
 use crate::macros_api::StructId;
 use crate::node_interner::ExprId;
+use crate::parser::TopLevelStatement;
 use crate::token::{Attributes, Token};
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
-use super::UnaryRhsMemberAccess;
+use super::{NoirStruct, UnaryRhsMemberAccess};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
@@ -33,7 +34,7 @@ pub enum ExpressionKind {
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
-    Quote(BlockExpression),
+    Quote(Box<Quoted>),
     Comptime(BlockExpression),
 
     // This variant is only emitted when inlining the result of comptime
@@ -394,6 +395,24 @@ pub struct Lambda {
     pub return_type: UnresolvedType,
     pub body: Expression,
 }
+
+#[derive(Debug, Clone)]
+pub enum Quoted {
+    Block(BlockExpression),
+    Decl(TopLevelStatement),
+    Type(UnresolvedType),
+    Function(FunctionDefinition),
+    Struct(NoirStruct),
+}
+
+// Eq for expressions is only used for testing so we can ignore this
+impl PartialEq for Quoted {
+    fn eq(&self, other: &Self) -> bool {
+        false
+    }
+}
+
+impl Eq for Quoted {}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FunctionDefinition {
@@ -777,6 +796,18 @@ impl Display for FunctionReturnType {
         match self {
             FunctionReturnType::Default(_) => f.write_str(""),
             FunctionReturnType::Ty(ty) => write!(f, "{ty}"),
+        }
+    }
+}
+
+impl Display for Quoted {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Quoted::Block(block) => write!(f, "quote {block}"),
+            Quoted::Decl(item) => write!(f, "quote Decl {item}"),
+            Quoted::Type(typ) => write!(f, "quote Type {typ}"),
+            Quoted::Function(func) => write!(f, "quote Fn {func}"),
+            Quoted::Struct(typ) => write!(f, "quote Struct {typ}"),
         }
     }
 }

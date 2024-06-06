@@ -35,8 +35,8 @@ use super::{spanned, Item, ItemKind};
 use crate::ast::{
     BinaryOp, BinaryOpKind, BlockExpression, ForLoopStatement, ForRange, Ident, IfExpression,
     InfixExpression, LValue, Literal, ModuleDeclaration, NoirTypeAlias, Param, Path, Pattern,
-    Recoverable, Statement, TraitBound, TypeImpl, UnaryRhsMemberAccess, UnresolvedTraitConstraint,
-    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    Quoted, Recoverable, Statement, TraitBound, TypeImpl, UnaryRhsMemberAccess,
+    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 use crate::ast::{
     Expression, ExpressionKind, LetStatement, StatementKind, UnresolvedType, UnresolvedTypeData,
@@ -197,23 +197,25 @@ fn module() -> impl NoirParser<ParsedModule> {
 ///                    | module_declaration
 ///                    | use_statement
 ///                    | global_declaration
-fn top_level_statement(
-    module_parser: impl NoirParser<ParsedModule>,
-) -> impl NoirParser<TopLevelStatement> {
-    choice((
-        function::function_definition(false).map(TopLevelStatement::Function),
-        structs::struct_definition(),
-        traits::trait_definition(),
-        traits::trait_implementation(),
-        implementation(),
-        type_alias_definition().then_ignore(force(just(Token::Semicolon))),
-        submodule(module_parser.clone()),
-        contract(module_parser),
-        module_declaration().then_ignore(force(just(Token::Semicolon))),
-        use_statement().then_ignore(force(just(Token::Semicolon))),
-        global_declaration().then_ignore(force(just(Token::Semicolon))),
-    ))
-    .recover_via(top_level_statement_recovery())
+fn top_level_statement<'a>(
+    module_parser: impl NoirParser<ParsedModule> + 'a,
+) -> impl NoirParser<TopLevelStatement> + 'a {
+    recursive(|top_level_statement| {
+        choice((
+            function::function_definition(false).map(TopLevelStatement::Function),
+            structs::struct_definition(),
+            traits::trait_definition(),
+            traits::trait_implementation(),
+            implementation(),
+            type_alias_definition().then_ignore(force(just(Token::Semicolon))),
+            submodule(module_parser.clone()),
+            contract(module_parser),
+            module_declaration().then_ignore(force(just(Token::Semicolon))),
+            use_statement().then_ignore(force(just(Token::Semicolon))),
+            global_declaration(top_level_statement).then_ignore(force(just(Token::Semicolon))),
+        ))
+        .recover_via(top_level_statement_recovery())
+    })
 }
 
 /// Parses a non-trait implementation, adding a set of methods to a type.
@@ -232,7 +234,10 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
 }
 
 /// global_declaration: 'global' ident global_type_annotation '=' literal
-fn global_declaration() -> impl NoirParser<TopLevelStatement> {
+fn global_declaration<'a, D>(top_level_statement: D) -> impl NoirParser<TopLevelStatement> + 'a
+where
+    D: NoirParser<TopLevelStatement> + 'a,
+{
     let p = attributes::attributes()
         .then(maybe_comp_time())
         .then(spanned(keyword(Keyword::Mut)).or_not())
@@ -241,7 +246,7 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
 
     let p = then_commit(p, optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
-    let p = then_commit(p, expression());
+    let p = then_commit(p, expression(top_level_statement));
     p.validate(
         |(((((attributes, comptime), mutable), mut pattern), r#type), expression), span, emit| {
             let global_attributes =
@@ -504,10 +509,6 @@ where
             expr_parser.map(StatementKind::Expression),
         ))
     })
-}
-
-fn fresh_statement() -> impl NoirParser<StatementKind> {
-    statement(expression(), expression_no_constructors(expression()))
 }
 
 fn break_statement() -> impl NoirParser<StatementKind> {
@@ -845,6 +846,7 @@ fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
             expr,
             nothing(),
             nothing(),
+            nothing(),
             true,
             false,
         )
@@ -903,13 +905,17 @@ where
         })
 }
 
-fn expression() -> impl ExprParser {
+fn expression<'a, D>(top_level_statement: D) -> impl ExprParser + 'a
+where
+    D: NoirParser<TopLevelStatement> + 'a,
+{
     recursive(|expr| {
         expression_with_precedence(
             Precedence::Lowest,
             expr.clone(),
-            expression_no_constructors(expr.clone()),
-            statement(expr.clone(), expression_no_constructors(expr)),
+            expression_no_constructors(expr.clone(), top_level_statement.clone()),
+            statement(expr.clone(), expression_no_constructors(expr, top_level_statement.clone())),
+            top_level_statement,
             false,
             true,
         )
@@ -917,9 +923,13 @@ fn expression() -> impl ExprParser {
     .labelled(ParsingRuleLabel::Expression)
 }
 
-fn expression_no_constructors<'a, P>(expr_parser: P) -> impl ExprParser + 'a
+fn expression_no_constructors<'a, P, D>(
+    expr_parser: P,
+    top_level_statement: D,
+) -> impl ExprParser + 'a
 where
     P: ExprParser + 'a,
+    D: NoirParser<TopLevelStatement> + 'a,
 {
     recursive(|expr_no_constructors| {
         expression_with_precedence(
@@ -927,6 +937,7 @@ where
             expr_parser.clone(),
             expr_no_constructors.clone(),
             statement(expr_parser, expr_no_constructors),
+            top_level_statement,
             false,
             false,
         )
@@ -949,11 +960,12 @@ where
 // An expression is a single term followed by 0 or more (OP subexpression)*
 // where OP is an operator at the given precedence level and subexpression
 // is an expression at the current precedence level plus one.
-fn expression_with_precedence<'a, P, P2, S>(
+fn expression_with_precedence<'a, P, P2, S, D>(
     precedence: Precedence,
     expr_parser: P,
     expr_no_constructors: P2,
     statement: S,
+    top_level_statement: D,
     // True if we should only parse the restricted subset of operators valid within type expressions
     is_type_expression: bool,
     // True if we should also parse constructors `Foo { field1: value1, ... }` as an expression.
@@ -965,14 +977,21 @@ where
     P: ExprParser + 'a,
     P2: ExprParser + 'a,
     S: NoirParser<StatementKind> + 'a,
+    D: NoirParser<TopLevelStatement> + 'a,
 {
     if precedence == Precedence::Highest {
         if is_type_expression {
             type_expression_term(expr_parser).boxed().labelled(ParsingRuleLabel::Term)
         } else {
-            term(expr_parser, expr_no_constructors, statement, allow_constructors)
-                .boxed()
-                .labelled(ParsingRuleLabel::Term)
+            term(
+                expr_parser,
+                expr_no_constructors,
+                statement,
+                allow_constructors,
+                top_level_statement,
+            )
+            .boxed()
+            .labelled(ParsingRuleLabel::Term)
         }
     } else {
         let next_precedence =
@@ -983,6 +1002,7 @@ where
             expr_parser,
             expr_no_constructors,
             statement,
+            top_level_statement,
             is_type_expression,
             allow_constructors,
         );
@@ -1015,16 +1035,18 @@ fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<B
         })
 }
 
-fn term<'a, P, P2, S>(
+fn term<'a, P, P2, S, D>(
     expr_parser: P,
     expr_no_constructors: P2,
     statement: S,
     allow_constructors: bool,
+    top_level_statement: D,
 ) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
     P2: ExprParser + 'a,
     S: NoirParser<StatementKind> + 'a,
+    D: NoirParser<TopLevelStatement> + 'a,
 {
     recursive(move |term_parser| {
         choice((
@@ -1043,6 +1065,7 @@ where
             statement,
             allow_constructors,
             parse_type(),
+            top_level_statement,
         ))
     })
 }
@@ -1058,17 +1081,19 @@ where
     })
 }
 
-fn atom_or_right_unary<'a, P, P2, S>(
+fn atom_or_right_unary<'a, P, P2, S, D>(
     expr_parser: P,
     expr_no_constructors: P2,
     statement: S,
     allow_constructors: bool,
     type_parser: impl NoirParser<UnresolvedType> + 'a,
+    top_level_statement: D,
 ) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
     P2: ExprParser + 'a,
     S: NoirParser<StatementKind> + 'a,
+    D: NoirParser<TopLevelStatement> + 'a,
 {
     enum UnaryRhs {
         Call(Vec<Expression>),
@@ -1105,7 +1130,7 @@ where
     let rhs = choice((call_rhs, array_rhs, cast_rhs, member_rhs));
 
     foldl_with_span(
-        atom(expr_parser, expr_no_constructors, statement, allow_constructors),
+        atom(expr_parser, expr_no_constructors, statement, top_level_statement, allow_constructors),
         rhs,
         |lhs, rhs, span| match rhs {
             UnaryRhs::Call(args) => Expression::call(lhs, args, span),
@@ -1246,16 +1271,18 @@ where
 /// Atoms are parameterized on whether constructor expressions are allowed or not.
 /// Certain constructs like `if` and `for` disallow constructor expressions when a
 /// block may be expected.
-fn atom<'a, P, P2, S>(
+fn atom<'a, P, P2, S, D>(
     expr_parser: P,
     expr_no_constructors: P2,
     statement: S,
+    top_level_statement: D,
     allow_constructors: bool,
 ) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
     P2: ExprParser + 'a,
     S: NoirParser<StatementKind> + 'a,
+    D: NoirParser<TopLevelStatement> + 'a,
 {
     choice((
         if_expr(expr_no_constructors, statement.clone()),
@@ -1269,7 +1296,7 @@ where
         lambdas::lambda(expr_parser.clone()),
         block(statement.clone()).map(ExpressionKind::Block),
         comptime_expr(statement.clone()),
-        quote(statement),
+        quote(statement, top_level_statement),
         variable(),
         literal(),
     ))
@@ -1294,17 +1321,39 @@ where
         .labelled(ParsingRuleLabel::Atom)
 }
 
-fn quote<'a, P>(statement: P) -> impl NoirParser<ExpressionKind> + 'a
+fn quote<'a, P, S>(statement: P, top_level_statement: S) -> impl NoirParser<ExpressionKind> + 'a
 where
     P: NoirParser<StatementKind> + 'a,
+    S: NoirParser<TopLevelStatement> + 'a,
 {
-    keyword(Keyword::Quote).ignore_then(block(statement)).validate(|block, span, emit| {
-        emit(ParserError::with_reason(
-            ParserErrorReason::ExperimentalFeature("quoted expressions"),
-            span,
-        ));
-        ExpressionKind::Quote(block)
-    })
+    let expr =
+        keyword(Keyword::Quote).ignore_then(block(statement)).validate(|item, span, emit| {
+            emit(ParserError::with_reason(
+                ParserErrorReason::ExperimentalFeature("quoted expressions"),
+                span,
+            ));
+            ExpressionKind::Quote(Box::new(Quoted::Block(item)))
+        });
+
+    let decl = keyword(Keyword::Quote)
+        .ignore_then(ident())
+        .try_map(|ident, span| {
+            if ident.0.contents == "Decl" {
+                Ok(())
+            } else {
+                Err(ParserError::empty(Token::Ident(ident.0.contents), span))
+            }
+        })
+        .ignore_then(top_level_statement)
+        .validate(|item, span, emit| {
+            emit(ParserError::with_reason(
+                ParserErrorReason::ExperimentalFeature("quoted expressions"),
+                span,
+            ));
+            ExpressionKind::Quote(Box::new(Quoted::Decl(item)))
+        });
+
+    expr.or(decl)
 }
 
 fn tuple<P>(expr_parser: P) -> impl NoirParser<Expression>
@@ -1355,11 +1404,23 @@ mod test {
     use super::*;
     use crate::ast::ArrayLiteral;
 
+    fn fresh_expression() -> impl ExprParser {
+        expression(top_level_statement(module()))
+    }
+
+    fn fresh_expression_no_constructors() -> impl ExprParser {
+        expression_no_constructors(fresh_expression(), top_level_statement(module()))
+    }
+
+    fn fresh_statement() -> impl NoirParser<StatementKind> {
+        statement(fresh_expression(), fresh_expression_no_constructors())
+    }
+
     #[test]
     fn parse_infix() {
         let valid = vec!["x + 6", "x - k", "x + (x + a)", " x * (x + a) + (x - 4)"];
-        parse_all(expression(), valid);
-        parse_all_failing(expression(), vec!["y ! x"]);
+        parse_all(fresh_expression(), valid);
+        parse_all_failing(fresh_expression(), vec!["y ! x"]);
     }
 
     #[test]
@@ -1372,24 +1433,32 @@ mod test {
             "(foo + bar)()",
             "(bar)()()()",
         ];
-        parse_all(expression(), valid);
+        parse_all(fresh_expression(), valid);
     }
 
     #[test]
     fn parse_cast() {
-        let expression_nc = expression_no_constructors(expression());
+        let expression_nc = fresh_expression_no_constructors();
         parse_all(
             atom_or_right_unary(
-                expression(),
-                expression_no_constructors(expression()),
+                fresh_expression(),
+                fresh_expression_no_constructors(),
                 fresh_statement(),
                 true,
                 parse_type(),
+                top_level_statement(module()),
             ),
             vec!["x as u8", "x as u16", "0 as Field", "(x + 3) as [Field; 8]"],
         );
         parse_all_failing(
-            atom_or_right_unary(expression(), expression_nc, fresh_statement(), true, parse_type()),
+            atom_or_right_unary(
+                fresh_expression(),
+                expression_nc,
+                fresh_statement(),
+                true,
+                parse_type(),
+                top_level_statement(module()),
+            ),
             vec!["x as pub u8"],
         );
     }
@@ -1405,11 +1474,12 @@ mod test {
         ];
         parse_all(
             atom_or_right_unary(
-                expression(),
-                expression_no_constructors(expression()),
+                fresh_expression(),
+                fresh_expression_no_constructors(),
                 fresh_statement(),
                 true,
                 parse_type(),
+                top_level_statement(module()),
             ),
             valid,
         );
@@ -1435,7 +1505,7 @@ mod test {
             "[0;5]",
         ];
 
-        for expr in parse_all(array_expr(expression()), valid) {
+        for expr in parse_all(array_expr(fresh_expression()), valid) {
             match expr_to_array(expr) {
                 ArrayLiteral::Standard(elements) => assert_eq!(elements.len(), 5),
                 ArrayLiteral::Repeated { length, .. } => {
@@ -1445,7 +1515,7 @@ mod test {
         }
 
         parse_all_failing(
-            array_expr(expression()),
+            array_expr(fresh_expression()),
             vec!["0,1,2,3,4]", "[[0,1,2,3,4]", "[0,1,2,,]", "[0,1,2,3,4"],
         );
     }
@@ -1458,10 +1528,10 @@ mod test {
     #[test]
     fn parse_array_sugar() {
         let valid = vec!["[0;7]", "[(1, 2); 4]", "[0;Four]", "[2;1+3-a]"];
-        parse_all(array_expr(expression()), valid);
+        parse_all(array_expr(fresh_expression()), valid);
 
         let invalid = vec!["[0;;4]", "[1, 2; 3]"];
-        parse_all_failing(array_expr(expression()), invalid);
+        parse_all_failing(array_expr(fresh_expression()), invalid);
     }
 
     fn expr_to_slice(expr: ExpressionKind) -> ArrayLiteral {
@@ -1484,7 +1554,7 @@ mod test {
             "&[0;5]",
         ];
 
-        for expr in parse_all(slice_expr(expression()), valid) {
+        for expr in parse_all(slice_expr(fresh_expression()), valid) {
             match expr_to_slice(expr) {
                 ArrayLiteral::Standard(elements) => assert_eq!(elements.len(), 5),
                 ArrayLiteral::Repeated { length, .. } => {
@@ -1494,7 +1564,7 @@ mod test {
         }
 
         parse_all_failing(
-            slice_expr(expression()),
+            slice_expr(fresh_expression()),
             vec!["0,1,2,3,4]", "&[[0,1,2,3,4]", "&[0,1,2,,]", "&[0,1,2,3,4"],
         );
     }
@@ -1502,10 +1572,10 @@ mod test {
     #[test]
     fn parse_slice_sugar() {
         let valid = vec!["&[0;7]", "&[(1, 2); 4]", "&[0;Four]", "&[2;1+3-a]"];
-        parse_all(slice_expr(expression()), valid);
+        parse_all(slice_expr(fresh_expression()), valid);
 
         let invalid = vec!["&[0;;4]", "&[1, 2; 3]"];
-        parse_all_failing(slice_expr(expression()), invalid);
+        parse_all_failing(slice_expr(fresh_expression()), invalid);
     }
 
     #[test]
@@ -1555,7 +1625,7 @@ mod test {
         // long as it is a type. Other statements such as Public are type checked
         // Because for now, they can only have one type
         parse_all(
-            declaration(expression()),
+            declaration(fresh_expression()),
             vec!["let _ = 42", "let x = y", "let x : u8 = y", "let x: u16 = y"],
         );
     }
@@ -1569,12 +1639,12 @@ mod test {
     #[test]
     fn parse_for_loop() {
         parse_all(
-            for_loop(expression_no_constructors(expression()), fresh_statement()),
+            for_loop(fresh_expression_no_constructors(), fresh_statement()),
             vec!["for i in x+y..z {}", "for i in 0..100 { foo; bar }"],
         );
 
         parse_all_failing(
-            for_loop(expression_no_constructors(expression()), fresh_statement()),
+            for_loop(fresh_expression_no_constructors(), fresh_statement()),
             vec![
                 "for 1 in x+y..z {}",  // Cannot have a literal as the loop identifier
                 "for i in 0...100 {}", // Only '..' is supported, there are no inclusive ranges yet
@@ -1586,29 +1656,41 @@ mod test {
     #[test]
     fn parse_parenthesized_expression() {
         parse_all(
-            atom(expression(), expression_no_constructors(expression()), fresh_statement(), true),
+            atom(
+                fresh_expression(),
+                fresh_expression_no_constructors(),
+                fresh_statement(),
+                top_level_statement(module()),
+                true,
+            ),
             vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"],
         );
         parse_all_failing(
-            atom(expression(), expression_no_constructors(expression()), fresh_statement(), true),
+            atom(
+                fresh_expression(),
+                fresh_expression_no_constructors(),
+                fresh_statement(),
+                top_level_statement(module()),
+                true,
+            ),
             vec!["(x+a", "((x+a)", "(,)"],
         );
     }
 
     #[test]
     fn parse_tuple() {
-        parse_all(tuple(expression()), vec!["()", "(x,)", "(a,b+2)", "(a,(b,c,),d,)"]);
+        parse_all(tuple(fresh_expression()), vec!["()", "(x,)", "(a,b+2)", "(a,(b,c,),d,)"]);
     }
 
     #[test]
     fn parse_if_expr() {
         parse_all(
-            if_expr(expression_no_constructors(expression()), fresh_statement()),
+            if_expr(fresh_expression_no_constructors(), fresh_statement()),
             vec!["if x + a {  } else {  }", "if x {}", "if x {} else if y {} else {}"],
         );
 
         parse_all_failing(
-            if_expr(expression_no_constructors(expression()), fresh_statement()),
+            if_expr(fresh_expression_no_constructors(), fresh_statement()),
             vec!["if (x / a) + 1 {} else", "if foo then 1 else 2", "if true { 1 }else 3"],
         );
     }
@@ -1682,7 +1764,7 @@ mod test {
     #[test]
     fn parse_member_access() {
         let cases = vec!["a.b", "a + b.c", "foo.bar as u32"];
-        parse_all(expression(), cases);
+        parse_all(fresh_expression(), cases);
     }
 
     #[test]
@@ -1694,8 +1776,8 @@ mod test {
             "Baz { other, ident: foo() + 1, foo }",
         ];
 
-        parse_all(expression(), cases);
-        parse_with(expression(), "Foo { a + b }").unwrap_err();
+        parse_all(fresh_expression(), cases);
+        parse_with(fresh_expression(), "Foo { a + b }").unwrap_err();
     }
 
     // Semicolons are:
