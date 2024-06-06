@@ -1,4 +1,5 @@
 import { makeTuple } from '@aztec/foundation/array';
+import { arraySerializedSizeOfNonEmpty } from '@aztec/foundation/collection';
 import { type Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -53,6 +54,17 @@ export class ValidationRequests {
      */
     public publicDataReads: Tuple<PublicDataRead, typeof MAX_PUBLIC_DATA_READS_PER_TX>,
   ) {}
+
+  getSize() {
+    return (
+      this.forRollup.getSize() +
+      arraySerializedSizeOfNonEmpty(this.noteHashReadRequests) +
+      arraySerializedSizeOfNonEmpty(this.nullifierReadRequests) +
+      arraySerializedSizeOfNonEmpty(this.nullifierNonExistentReadRequests) +
+      arraySerializedSizeOfNonEmpty(this.scopedKeyValidationRequestsAndGenerators) +
+      arraySerializedSizeOfNonEmpty(this.publicDataReads)
+    );
+  }
 
   toBuffer() {
     return serializeToBuffer(

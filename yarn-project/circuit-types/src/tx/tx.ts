@@ -4,6 +4,7 @@ import {
   Proof,
   PublicCallRequest,
 } from '@aztec/circuits.js';
+import { arraySerializedSizeOfNonEmpty } from '@aztec/foundation/collection';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { type GetUnencryptedLogsResponse } from '../logs/get_unencrypted_logs_response.js';
@@ -191,6 +192,18 @@ export class Tx {
         .unrollLogs()
         .filter(log => ContractClassRegisteredEvent.isContractClassRegisteredEvent(log.data)).length,
     };
+  }
+
+  getSize() {
+    return (
+      this.data.getSize() +
+      this.proof.buffer.length +
+      this.noteEncryptedLogs.getSerializedLength() +
+      this.encryptedLogs.getSerializedLength() +
+      this.unencryptedLogs.getSerializedLength() +
+      arraySerializedSizeOfNonEmpty(this.enqueuedPublicFunctionCalls) +
+      arraySerializedSizeOfNonEmpty([this.publicTeardownFunctionCall])
+    );
   }
 
   /**

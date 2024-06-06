@@ -14,6 +14,10 @@ export class RollupValidationRequests {
     public maxBlockNumber: MaxBlockNumber,
   ) {}
 
+  getSize() {
+    return this.toBuffer().length;
+  }
+
   toBuffer() {
     return serializeToBuffer(this.maxBlockNumber);
   }

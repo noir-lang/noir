@@ -31,6 +31,10 @@ export class CombinedConstantData {
     return serializeToBuffer(this.historicalHeader, this.txContext, this.globalVariables);
   }
 
+  getSize() {
+    return this.historicalHeader.getSize() + this.txContext.getSize() + this.globalVariables.getSize();
+  }
+
   static from({ historicalHeader, txContext, globalVariables }: FieldsOf<CombinedConstantData>): CombinedConstantData {
     return new CombinedConstantData(historicalHeader, txContext, globalVariables);
   }

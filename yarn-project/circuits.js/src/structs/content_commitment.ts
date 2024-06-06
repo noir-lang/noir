@@ -27,6 +27,10 @@ export class ContentCommitment {
     }
   }
 
+  getSize() {
+    return this.toBuffer().length;
+  }
+
   toBuffer() {
     return serializeToBuffer(this.txTreeHeight, this.txsEffectsHash, this.inHash, this.outHash);
   }

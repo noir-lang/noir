@@ -26,6 +26,10 @@ export class AppendOnlyTreeSnapshot {
     public nextAvailableLeafIndex: UInt32,
   ) {}
 
+  getSize() {
+    return this.root.size + 4;
+  }
+
   toBuffer() {
     return serializeToBuffer(this.root, this.nextAvailableLeafIndex);
   }

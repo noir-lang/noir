@@ -42,6 +42,11 @@ abstract class BaseField {
     return this.toBigInt();
   }
 
+  /** Returns the size in bytes. */
+  get size(): number {
+    return BaseField.SIZE_IN_BYTES;
+  }
+
   protected constructor(value: number | bigint | boolean | BaseField | Buffer) {
     if (value instanceof Buffer) {
       if (value.length > BaseField.SIZE_IN_BYTES) {

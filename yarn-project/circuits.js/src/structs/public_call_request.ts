@@ -44,6 +44,10 @@ export class PublicCallRequest {
     public args: Fr[],
   ) {}
 
+  getSize() {
+    return this.isEmpty() ? 0 : this.toBuffer().length;
+  }
+
   /**
    * Serialize this as a buffer.
    * @returns The buffer.

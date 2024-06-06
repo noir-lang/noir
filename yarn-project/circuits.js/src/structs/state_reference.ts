@@ -16,6 +16,10 @@ export class StateReference {
     public partial: PartialStateReference,
   ) {}
 
+  getSize() {
+    return this.l1ToL2MessageTree.getSize() + this.partial.getSize();
+  }
+
   toBuffer() {
     // Note: The order here must match the order in the HeaderLib solidity library.
     return serializeToBuffer(this.l1ToL2MessageTree, this.partial);

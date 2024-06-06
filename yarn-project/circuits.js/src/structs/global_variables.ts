@@ -28,6 +28,10 @@ export class GlobalVariables {
     public gasFees: GasFees,
   ) {}
 
+  getSize(): number {
+    return this.toBuffer().length;
+  }
+
   static from(fields: FieldsOf<GlobalVariables>): GlobalVariables {
     return new GlobalVariables(...GlobalVariables.getFields(fields));
   }

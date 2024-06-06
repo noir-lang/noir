@@ -35,6 +35,16 @@ export class Header {
     ] as const;
   }
 
+  getSize() {
+    return (
+      this.lastArchive.getSize() +
+      this.contentCommitment.getSize() +
+      this.state.getSize() +
+      this.globalVariables.getSize() +
+      this.totalFees.size
+    );
+  }
+
   toBuffer() {
     return serializeToBuffer(...Header.getFields(this));
   }

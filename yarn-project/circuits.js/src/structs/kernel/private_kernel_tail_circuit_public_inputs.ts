@@ -1,5 +1,6 @@
 import { makeTuple } from '@aztec/foundation/array';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { arraySerializedSizeOfNonEmpty } from '@aztec/foundation/collection';
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX } from '../../constants.gen.js';
@@ -34,6 +35,15 @@ export class PartialPrivateTailPublicInputsForPublic {
      */
     public publicTeardownCallStack: Tuple<CallRequest, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
   ) {}
+
+  getSize() {
+    return (
+      this.validationRequests.getSize() +
+      this.endNonRevertibleData.getSize() +
+      this.end.getSize() +
+      arraySerializedSizeOfNonEmpty(this.publicTeardownCallStack)
+    );
+  }
 
   get needsSetup() {
     return !this.endNonRevertibleData.publicCallStack[0].isEmpty();
@@ -87,6 +97,10 @@ export class PartialPrivateTailPublicInputsForRollup {
     );
   }
 
+  getSize() {
+    return this.rollupValidationRequests.getSize() + this.end.getSize();
+  }
+
   toBuffer() {
     return serializeToBuffer(this.rollupValidationRequests, this.end);
   }
@@ -129,6 +143,16 @@ export class PrivateKernelTailCircuitPublicInputs {
 
   get publicInputs(): PartialPrivateTailPublicInputsForPublic | PartialPrivateTailPublicInputsForRollup {
     return (this.forPublic ?? this.forRollup)!;
+  }
+
+  getSize() {
+    return (
+      (this.forPublic?.getSize() ?? 0) +
+      (this.forRollup?.getSize() ?? 0) +
+      this.constants.getSize() +
+      this.revertCode.getSerializedLength() +
+      this.feePayer.size
+    );
   }
 
   toPublicKernelCircuitPublicInputs() {

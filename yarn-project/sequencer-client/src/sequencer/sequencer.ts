@@ -330,10 +330,10 @@ export class Sequencer {
 
     const toReturn: Tx[] = [];
     for (const tx of txs) {
-      const txSize = tx.getStats().size - tx.proof.toBuffer().length;
+      const txSize = tx.getSize() - tx.proof.toBuffer().length;
       if (totalSize + txSize > maxSize) {
         this.log.warn(
-          `Dropping tx ${tx.getTxHash()} with size ${txSize} due to exceeding ${maxSize} block size limit (currently at ${totalSize})`,
+          `Dropping tx ${tx.getTxHash()} with estimated size ${txSize} due to exceeding ${maxSize} block size limit (currently at ${totalSize})`,
         );
         continue;
       }

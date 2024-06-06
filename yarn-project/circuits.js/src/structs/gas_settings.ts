@@ -21,6 +21,10 @@ export class GasSettings {
     public readonly inclusionFee: Fr,
   ) {}
 
+  getSize(): number {
+    return this.toBuffer().length;
+  }
+
   static from(args: {
     gasLimits: FieldsOf<Gas>;
     teardownGasLimits: FieldsOf<Gas>;

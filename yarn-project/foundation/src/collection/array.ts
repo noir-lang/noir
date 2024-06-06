@@ -68,3 +68,17 @@ export function arrayNonEmptyLength<T>(arr: T[], isEmpty: (item: T) => boolean):
 export function times<T>(n: number, fn: (i: number) => T): T[] {
   return [...Array(n).keys()].map(i => fn(i));
 }
+
+/**
+ * Returns the serialized size of all non-empty items in an array.
+ * @param arr - Array
+ * @returns The serialized size in bytes.
+ */
+export function arraySerializedSizeOfNonEmpty(
+  arr: (({ isZero: () => boolean } | { isEmpty: () => boolean }) & { toBuffer: () => Buffer })[],
+) {
+  return arr
+    .filter(x => x && ('isZero' in x ? !x.isZero() : !x.isEmpty()))
+    .map(x => x!.toBuffer().length)
+    .reduce((a, b) => a + b, 0);
+}

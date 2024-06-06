@@ -17,6 +17,10 @@ export class PartialStateReference {
     public readonly publicDataTree: AppendOnlyTreeSnapshot,
   ) {}
 
+  getSize() {
+    return this.noteHashTree.getSize() + this.nullifierTree.getSize() + this.publicDataTree.getSize();
+  }
+
   static fromBuffer(buffer: Buffer | BufferReader): PartialStateReference {
     const reader = BufferReader.asReader(buffer);
     return new PartialStateReference(

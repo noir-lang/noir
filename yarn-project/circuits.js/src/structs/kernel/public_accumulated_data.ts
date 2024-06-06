@@ -1,4 +1,5 @@
 import { makeTuple } from '@aztec/foundation/array';
+import { arraySerializedSizeOfNonEmpty } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -66,6 +67,20 @@ export class PublicAccumulatedData {
     /** Gas used so far by the transaction. */
     public readonly gasUsed: Gas,
   ) {}
+
+  getSize() {
+    return (
+      arraySerializedSizeOfNonEmpty(this.newNoteHashes) +
+      arraySerializedSizeOfNonEmpty(this.newNullifiers) +
+      arraySerializedSizeOfNonEmpty(this.newL2ToL1Msgs) +
+      arraySerializedSizeOfNonEmpty(this.noteEncryptedLogsHashes) +
+      arraySerializedSizeOfNonEmpty(this.encryptedLogsHashes) +
+      arraySerializedSizeOfNonEmpty(this.unencryptedLogsHashes) +
+      arraySerializedSizeOfNonEmpty(this.publicDataUpdateRequests) +
+      arraySerializedSizeOfNonEmpty(this.publicCallStack) +
+      this.gasUsed.toBuffer().length
+    );
+  }
 
   toBuffer() {
     return serializeToBuffer(

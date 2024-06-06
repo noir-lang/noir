@@ -25,6 +25,10 @@ export class TxContext {
     this.version = new Fr(version);
   }
 
+  getSize() {
+    return this.chainId.size + this.version.size + this.gasSettings.getSize();
+  }
+
   clone() {
     return new TxContext(this.chainId, this.version, this.gasSettings.clone());
   }
