@@ -14,9 +14,8 @@ There are currently two ways of debugging Noir programs:
 
 In order to use either version of the debugger, you will need to install recent enough versions of Noir, [Nargo](../getting_started/installation) and vscode-noir:
 
-- Noir 0.xx 
-- Nargo 0.xx
-- vscode-noir 0.xx
+- Noir & Nargo ≥0.28.0
+- Noir's VS Code extension ≥0.0.11
 
 :::info
 At the moment, the debugger supports debugging binary projects, but not contracts.
