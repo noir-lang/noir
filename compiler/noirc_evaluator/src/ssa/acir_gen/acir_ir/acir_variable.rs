@@ -261,7 +261,7 @@ impl AcirContext {
             // Check if a witness has been assigned this value already, if so reuse it.
             *self
                 .constant_witnesses
-                .entry(constant)
+                .entry(*constant)
                 .or_insert_with(|| self.acir_ir.get_or_create_witness(&expression))
         } else {
             self.acir_ir.get_or_create_witness(&expression)
@@ -724,7 +724,7 @@ impl AcirContext {
 
             // If `lhs` and `rhs` are known constants then we can calculate the result at compile time.
             // `rhs` must be non-zero.
-            (Some(lhs_const), Some(rhs_const), _) if rhs_const != FieldElement::zero() => {
+            (Some(lhs_const), Some(rhs_const), _) if !rhs_const.is_zero() => {
                 let quotient = lhs_const.to_u128() / rhs_const.to_u128();
                 let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
 
@@ -734,7 +734,7 @@ impl AcirContext {
             }
 
             // If `rhs` is one then the division is a noop.
-            (_, Some(rhs_const), _) if rhs_const == FieldElement::one() => {
+            (_, Some(rhs_const), _) if rhs_const.is_one() => {
                 return Ok((lhs, zero));
             }
 
@@ -1952,7 +1952,7 @@ impl From<Expression<FieldElement>> for AcirVarData {
     fn from(expr: Expression<FieldElement>) -> Self {
         // Prefer simpler variants if possible.
         if let Some(constant) = expr.to_const() {
-            AcirVarData::from(constant)
+            AcirVarData::from(*constant)
         } else if let Some(witness) = expr.to_witness() {
             AcirVarData::from(witness)
         } else {
@@ -1982,12 +1982,12 @@ fn execute_brillig(
     for input in inputs {
         match input {
             BrilligInputs::Single(expr) => {
-                calldata.push(expr.to_const()?);
+                calldata.push(*expr.to_const()?);
             }
             BrilligInputs::Array(expr_arr) => {
                 // Attempt to fetch all array input values
                 for expr in expr_arr.iter() {
-                    calldata.push(expr.to_const()?);
+                    calldata.push(*expr.to_const()?);
                 }
             }
             BrilligInputs::MemoryArray(_) => {

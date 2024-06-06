@@ -637,7 +637,7 @@ pub fn get_value<F: AcirField>(
 ) -> Result<F, OpcodeResolutionError<F>> {
     let expr = ExpressionSolver::evaluate(expr, initial_witness);
     match expr.to_const() {
-        Some(value) => Ok(value),
+        Some(value) => Ok(*value),
         None => Err(OpcodeResolutionError::OpcodeNotSolvable(
             OpcodeNotSolvable::MissingAssignment(any_witness_from_expression(&expr).unwrap().0),
         )),

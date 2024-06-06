@@ -1,15 +1,13 @@
-use std::rc::Rc;
+use std::{collections::BTreeMap, rc::Rc};
 
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
-    ast::{
-        BinaryOpKind, IntegerBitSize, UnresolvedGenerics, UnresolvedTraitConstraint,
-        UnresolvedTypeExpression,
-    },
+    ast::{BinaryOpKind, IntegerBitSize, UnresolvedGenerics, UnresolvedTypeExpression},
     hir::{
+        comptime::{Interpreter, Value},
         def_map::ModuleDefId,
         resolution::{
             errors::ResolverError,
@@ -22,7 +20,7 @@ use crate::{
             HirBinaryOp, HirCallExpression, HirIdent, HirMemberAccess, HirMethodReference,
             HirPrefixExpression,
         },
-        function::FuncMeta,
+        function::{FuncMeta, Parameters},
         traits::TraitConstraint,
     },
     macros_api::{
@@ -370,31 +368,18 @@ impl<'context> Elaborator<'context> {
             return None;
         }
 
-        for UnresolvedTraitConstraint { typ, trait_bound } in self.trait_bounds.clone() {
-            if let UnresolvedTypeData::Named(constraint_path, _, _) = &typ.typ {
+        for constraint in self.trait_bounds.clone() {
+            if let Type::NamedGeneric(_, name) = &constraint.typ {
                 // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
-                if constraint_path.segments.len() == 1
-                    && path.segments[0] != constraint_path.last_segment()
-                {
+                if path.segments[0].0.contents != name.as_str() {
                     continue;
                 }
 
-                if let Ok(ModuleDefId::TraitId(trait_id)) =
-                    self.resolve_path(trait_bound.trait_path.clone())
+                let the_trait = self.interner.get_trait(constraint.trait_id);
+                if let Some(method) =
+                    the_trait.find_method(path.segments.last().unwrap().0.contents.as_str())
                 {
-                    let the_trait = self.interner.get_trait(trait_id);
-                    if let Some(method) =
-                        the_trait.find_method(path.segments.last().unwrap().0.contents.as_str())
-                    {
-                        let constraint = TraitConstraint {
-                            trait_id,
-                            typ: self.resolve_type(typ.clone()),
-                            trait_generics: vecmap(trait_bound.trait_generics, |typ| {
-                                self.resolve_type(typ)
-                            }),
-                        };
-                        return Some((method, constraint, true));
-                    }
+                    return Some((method, constraint, true));
                 }
             }
         }
@@ -414,7 +399,7 @@ impl<'context> Elaborator<'context> {
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
     }
 
-    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u64 {
+    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u32 {
         let Some(stmt) = self.interner.get_global_let_statement(global) else {
             let path = path.clone();
             self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
@@ -497,6 +482,17 @@ impl<'context> Elaborator<'context> {
                     BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
                     BinaryOpKind::Modulo => Ok(lhs % rhs),
                 }
+            }
+            HirExpression::Cast(cast) => {
+                let lhs = self.try_eval_array_length_id_with_fuel(cast.lhs, span, fuel - 1)?;
+                let lhs_value = Value::Field(lhs.into());
+                let evaluated_value =
+                    Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, self.interner)
+                        .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
+
+                evaluated_value
+                    .to_u128()
+                    .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
             }
             _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }
@@ -1360,6 +1356,98 @@ impl<'context> Elaborator<'context> {
             });
         } else {
             self.generics.push((rc_name, typevar, span));
+        }
+    }
+
+    pub fn find_numeric_generics(
+        parameters: &Parameters,
+        return_type: &Type,
+    ) -> Vec<(String, TypeVariable)> {
+        let mut found = BTreeMap::new();
+        for (_, parameter, _) in &parameters.0 {
+            Self::find_numeric_generics_in_type(parameter, &mut found);
+        }
+        Self::find_numeric_generics_in_type(return_type, &mut found);
+        found.into_iter().collect()
+    }
+
+    fn find_numeric_generics_in_type(typ: &Type, found: &mut BTreeMap<String, TypeVariable>) {
+        match typ {
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Error
+            | Type::TypeVariable(_, _)
+            | Type::Constant(_)
+            | Type::NamedGeneric(_, _)
+            | Type::Code
+            | Type::Forall(_, _) => (),
+
+            Type::TraitAsType(_, _, args) => {
+                for arg in args {
+                    Self::find_numeric_generics_in_type(arg, found);
+                }
+            }
+
+            Type::Array(length, element_type) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
+                }
+                Self::find_numeric_generics_in_type(element_type, found);
+            }
+
+            Type::Slice(element_type) => {
+                Self::find_numeric_generics_in_type(element_type, found);
+            }
+
+            Type::Tuple(fields) => {
+                for field in fields {
+                    Self::find_numeric_generics_in_type(field, found);
+                }
+            }
+
+            Type::Function(parameters, return_type, _env) => {
+                for parameter in parameters {
+                    Self::find_numeric_generics_in_type(parameter, found);
+                }
+                Self::find_numeric_generics_in_type(return_type, found);
+            }
+
+            Type::Struct(struct_type, generics) => {
+                for (i, generic) in generics.iter().enumerate() {
+                    if let Type::NamedGeneric(type_variable, name) = generic {
+                        if struct_type.borrow().generic_is_numeric(i) {
+                            found.insert(name.to_string(), type_variable.clone());
+                        }
+                    } else {
+                        Self::find_numeric_generics_in_type(generic, found);
+                    }
+                }
+            }
+            Type::Alias(alias, generics) => {
+                for (i, generic) in generics.iter().enumerate() {
+                    if let Type::NamedGeneric(type_variable, name) = generic {
+                        if alias.borrow().generic_is_numeric(i) {
+                            found.insert(name.to_string(), type_variable.clone());
+                        }
+                    } else {
+                        Self::find_numeric_generics_in_type(generic, found);
+                    }
+                }
+            }
+            Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
+            Type::String(length) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
+                }
+            }
+            Type::FmtString(length, fields) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
+                }
+                Self::find_numeric_generics_in_type(fields, found);
+            }
         }
     }
 }

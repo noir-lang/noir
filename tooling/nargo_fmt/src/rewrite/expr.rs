@@ -171,6 +171,9 @@ pub(crate) fn rewrite(
             format!("comptime {}", rewrite_block(visitor, block, span))
         }
         ExpressionKind::Error => unreachable!(),
+        ExpressionKind::Resolved(_) => {
+            unreachable!("ExpressionKind::Resolved should only emitted by the comptime interpreter")
+        }
     }
 }
 
