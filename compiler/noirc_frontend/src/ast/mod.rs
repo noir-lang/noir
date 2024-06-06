@@ -143,7 +143,7 @@ pub(crate) type UnaryRhsMemberAccess =
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(u64, Span),
+    Constant(u32, Span),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
@@ -307,7 +307,7 @@ impl UnresolvedTypeExpression {
         match expr.kind {
             ExpressionKind::Literal(Literal::Integer(int, sign)) => {
                 assert!(!sign, "Negative literal is not allowed here");
-                match int.try_to_u64() {
+                match int.try_to_u32() {
                     Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
                     None => Err(expr),
                 }
