@@ -12,4 +12,16 @@ if (NOT(FUZZING))
         barretenberg
         env
     )
+    if(CHECK_CIRCUIT_STACKTRACES)
+        target_link_libraries(
+            bb
+            PUBLIC
+            Backward::Interface
+        )
+        target_link_options(
+            bb
+            PRIVATE
+            -ldw -lelf
+        )
+    endif()
 endif()

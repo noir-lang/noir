@@ -56,6 +56,19 @@ function(barretenberg_module MODULE_NAME)
             ${TBB_IMPORTED_TARGETS}
         )
 
+        if(CHECK_CIRCUIT_STACKTRACES)
+            target_link_libraries(
+                ${MODULE_NAME}_objects
+                PUBLIC
+                Backward::Interface
+            )
+            target_link_options(
+                ${MODULE_NAME}
+                PRIVATE
+                -ldw -lelf
+            )
+        endif()
+
         # enable msgpack downloading via dependency (solves race condition)
         add_dependencies(${MODULE_NAME} msgpack-c)
         add_dependencies(${MODULE_NAME}_objects msgpack-c)
@@ -87,6 +100,19 @@ function(barretenberg_module MODULE_NAME)
             $<TARGET_OBJECTS:${MODULE_NAME}_test_objects>
         )
         list(APPEND exe_targets ${MODULE_NAME}_tests)
+
+        if(CHECK_CIRCUIT_STACKTRACES)
+            target_link_libraries(
+                ${MODULE_NAME}_test_objects
+                PUBLIC
+                Backward::Interface
+            )
+            target_link_options(
+                ${MODULE_NAME}_tests
+                PRIVATE
+                -ldw -lelf
+            )
+        endif()
 
         if(WASM)
             target_link_options(
@@ -229,6 +255,18 @@ function(barretenberg_module MODULE_NAME)
                 benchmark::benchmark
                 ${TBB_IMPORTED_TARGETS}
             )
+            if(CHECK_CIRCUIT_STACKTRACES)
+                target_link_libraries(
+                    ${BENCHMARK_NAME}_bench_objects
+                    PUBLIC
+                    Backward::Interface
+                )
+                target_link_options(
+                    ${BENCHMARK_NAME}_bench
+                    PRIVATE
+                    -ldw -lelf
+                )
+            endif()
 
             # enable msgpack downloading via dependency (solves race condition)
             add_dependencies(${BENCHMARK_NAME}_bench_objects msgpack-c)

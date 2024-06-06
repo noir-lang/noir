@@ -279,7 +279,6 @@ std::vector<uint32_t> StandardCircuitBuilder_<FF>::decompose_into_base4_accumula
             accumulator_idx = new_accumulator_idx;
         }
     }
-
     this->assert_equal(witness_index, accumulator_idx, msg);
     return accumulators;
 }

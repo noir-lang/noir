@@ -19,7 +19,7 @@ configure_file(
 # Add doxygen build command
 find_package(Doxygen)
 if (DOXYGEN_FOUND)
-add_custom_target(build_docs 
+add_custom_target(build_docs
 COMMAND ${DOXYGEN_EXECUTABLE} ${PROJECT_SOURCE_DIR}/docs/Doxyfile
 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 COMMENT "Generate documentation with Doxygen")
@@ -34,6 +34,8 @@ option(DISABLE_TBB "Intel Thread Building Blocks" ON)
 option(COVERAGE "Enable collecting coverage from tests" OFF)
 option(ENABLE_ASAN "Address sanitizer for debugging tricky memory corruption" OFF)
 option(ENABLE_HEAVY_TESTS "Enable heavy tests when collecting coverage" OFF)
+# Note: Must do 'sudo apt-get install libdw-dev' or equivalent
+option(CHECK_CIRCUIT_STACKTRACES "Enable (slow) stack traces for check circuit" OFF)
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
     message(STATUS "Compiling for ARM.")
@@ -43,6 +45,10 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "a
     set(RUN_HAVE_STD_REGEX 0)
     set(RUN_HAVE_POSIX_REGEX 0)
     set(DISABLE_TBB 0)
+endif()
+
+if(CHECK_CIRCUIT_STACKTRACES)
+    add_compile_options(-DCHECK_CIRCUIT_STACKTRACES)
 endif()
 
 if(ENABLE_ASAN)
@@ -136,6 +142,8 @@ include(cmake/gtest.cmake)
 include(cmake/benchmark.cmake)
 include(cmake/module.cmake)
 include(cmake/msgpack.cmake)
+include(cmake/backward-cpp.cmake)
+
 add_subdirectory(src)
 if (ENABLE_ASAN AND NOT(FUZZING))
     find_program(LLVM_SYMBOLIZER_PATH NAMES llvm-symbolizer-16)

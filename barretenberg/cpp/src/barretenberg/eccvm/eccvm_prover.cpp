@@ -33,7 +33,6 @@ ECCVMProver::ECCVMProver(CircuitBuilder& builder, const std::shared_ptr<Transcri
 void ECCVMProver::execute_preamble_round()
 {
     const auto circuit_size = static_cast<uint32_t>(key->circuit_size);
-    info("circuit_size");
     transcript->send_to_verifier("circuit_size", circuit_size);
 }
 

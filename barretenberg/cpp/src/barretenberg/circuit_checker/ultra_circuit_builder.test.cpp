@@ -323,7 +323,7 @@ TEST(ultra_circuit_constructor, sort_with_edges_gate)
     fr h = fr(8);
 
     {
-        UltraCircuitBuilder circuit_constructor = UltraCircuitBuilder();
+        UltraCircuitBuilder circuit_constructor;
         auto a_idx = circuit_constructor.add_variable(a);
         auto b_idx = circuit_constructor.add_variable(b);
         auto c_idx = circuit_constructor.add_variable(c);
@@ -339,7 +339,7 @@ TEST(ultra_circuit_constructor, sort_with_edges_gate)
     }
 
     {
-        UltraCircuitBuilder circuit_constructor = UltraCircuitBuilder();
+        UltraCircuitBuilder circuit_constructor;
         auto a_idx = circuit_constructor.add_variable(a);
         auto b_idx = circuit_constructor.add_variable(b);
         auto c_idx = circuit_constructor.add_variable(c);
@@ -355,7 +355,7 @@ TEST(ultra_circuit_constructor, sort_with_edges_gate)
         EXPECT_EQ(result, false);
     }
     {
-        UltraCircuitBuilder circuit_constructor = UltraCircuitBuilder();
+        UltraCircuitBuilder circuit_constructor;
         auto a_idx = circuit_constructor.add_variable(a);
         auto b_idx = circuit_constructor.add_variable(b);
         auto c_idx = circuit_constructor.add_variable(c);
@@ -371,7 +371,7 @@ TEST(ultra_circuit_constructor, sort_with_edges_gate)
         EXPECT_EQ(result, false);
     }
     {
-        UltraCircuitBuilder circuit_constructor = UltraCircuitBuilder();
+        UltraCircuitBuilder circuit_constructor;
         auto a_idx = circuit_constructor.add_variable(a);
         auto c_idx = circuit_constructor.add_variable(c);
         auto d_idx = circuit_constructor.add_variable(d);

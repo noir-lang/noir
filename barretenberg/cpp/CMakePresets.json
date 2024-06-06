@@ -97,6 +97,16 @@
       }
     },
     {
+      "name": "clang16-dbg-fast-circuit-check-traces",
+      "displayName": "Optimized debug build with Clang-16 with stack traces for failing circuit checks",
+      "description": "Build with globally installed Clang-16 in optimized debug mode with stack traces for failing circuit checks",
+      "inherits": "clang16-dbg-fast",
+      "binaryDir": "build-debug-fast-circuit-check-traces",
+      "cacheVariables": {
+        "CHECK_CIRCUIT_STACKTRACES": "ON"
+      }
+    },
+    {
       "name": "clang16-assert",
       "binaryDir": "build-assert",
       "displayName": "Build with Clang-16 using RelWithAssert",
@@ -406,6 +416,11 @@
       "configurePreset": "clang16-dbg-fast"
     },
     {
+      "name": "clang16-dbg-fast-circuit-check-traces",
+      "inherits": "clang16-dbg-fast",
+      "configurePreset": "clang16-dbg-fast-circuit-check-traces"
+    },
+    {
       "name": "clang16-assert",
       "inherits": "default",
       "configurePreset": "clang16-assert"
@@ -480,12 +495,7 @@
       "configurePreset": "wasm",
       "inheritConfigureEnvironment": true,
       "jobs": 0,
-      "targets": [
-        "barretenberg.wasm",
-        "barretenberg",
-        "wasi",
-        "env"
-      ]
+      "targets": ["barretenberg.wasm", "barretenberg", "wasi", "env"]
     },
     {
       "name": "wasm-dbg",

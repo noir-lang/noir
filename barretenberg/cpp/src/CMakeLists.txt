@@ -188,4 +188,16 @@ if(WASM)
         -nostartfiles -Wl,--no-entry,--export-dynamic
     )
 
+    if(CHECK_CIRCUIT_STACKTRACES)
+        target_link_libraries(
+            barretenberg.wasm
+            PUBLIC
+            Backward::Interface
+        )
+        target_link_options(
+            barretenberg.wasm
+            PRIVATE
+            -ldw -lelf
+        )
+    endif()
 endif()

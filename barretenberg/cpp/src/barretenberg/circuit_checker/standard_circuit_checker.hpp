@@ -25,6 +25,9 @@ class StandardCircuitChecker {
             FF gate_sum = block.q_m()[i] * left * right + block.q_1()[i] * left + block.q_2()[i] * right +
                           block.q_3()[i] * output + block.q_c()[i];
             if (!gate_sum.is_zero()) {
+#ifdef CHECK_CIRCUIT_STACKTRACES
+                block.stack_traces.print(i);
+#endif
                 info("gate number", i);
                 return false;
             }

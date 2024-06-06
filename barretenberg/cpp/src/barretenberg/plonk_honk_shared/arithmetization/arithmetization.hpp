@@ -6,6 +6,9 @@
 #include <barretenberg/common/slab_allocator.hpp>
 #include <cstddef>
 #include <vector>
+#ifdef CHECK_CIRCUIT_STACKTRACES
+#include <backward.hpp>
+#endif
 
 namespace bb {
 
@@ -32,6 +35,23 @@ namespace bb {
  * We should only do this if it becomes necessary or convenient.
  */
 
+#ifdef CHECK_CIRCUIT_STACKTRACES
+struct BbStackTrace : backward::StackTrace {
+    BbStackTrace() { load_here(32); }
+};
+struct StackTraces {
+    std::vector<BbStackTrace> stack_traces;
+    void populate() { stack_traces.emplace_back(); }
+    void print(size_t gate_idx) const { backward::Printer{}.print(stack_traces.at(gate_idx)); }
+    // Don't interfere with equality semantics of structs that include this in debug builds
+    bool operator==(const StackTraces& other) const
+    {
+        static_cast<void>(other);
+        return true;
+    }
+};
+#endif
+
 /**
  * @brief Basic structure for storing gate data in a builder
  *
@@ -45,6 +65,11 @@ template <typename FF, size_t NUM_WIRES, size_t NUM_SELECTORS> class ExecutionTr
     using WireType = std::vector<uint32_t, bb::ContainerSlabAllocator<uint32_t>>;
     using Selectors = std::array<SelectorType, NUM_SELECTORS>;
     using Wires = std::array<WireType, NUM_WIRES>;
+
+#ifdef CHECK_CIRCUIT_STACKTRACES
+    // If enabled, we keep slow stack traces to be able to correlate gates with code locations where they were added
+    StackTraces stack_traces;
+#endif
 
     Wires wires; // vectors of indices into a witness variables array
     Selectors selectors;
@@ -65,6 +90,9 @@ template <typename FF, size_t NUM_WIRES, size_t NUM_SELECTORS> class ExecutionTr
         for (auto& p : selectors) {
             p.reserve(size_hint);
         }
+#ifdef CHECK_CIRCUIT_STACKTRACES
+        stack_traces.stack_traces.reserve(size_hint);
+#endif
     }
 
     uint32_t get_fixed_size() const { return fixed_size; }
@@ -83,6 +111,9 @@ template <typename FF_> class StandardArith {
       public:
         void populate_wires(const uint32_t& idx_1, const uint32_t& idx_2, const uint32_t& idx_3)
         {
+#ifdef CHECK_CIRCUIT_STACKTRACES
+            this->stack_traces.populate();
+#endif
             this->wires[0].emplace_back(idx_1);
             this->wires[1].emplace_back(idx_2);
             this->wires[2].emplace_back(idx_3);
@@ -130,6 +161,9 @@ template <typename FF_> class UltraArith {
       public:
         void populate_wires(const uint32_t& idx_1, const uint32_t& idx_2, const uint32_t& idx_3, const uint32_t& idx_4)
         {
+#ifdef CHECK_CIRCUIT_STACKTRACES
+            this->stack_traces.populate();
+#endif
             this->wires[0].emplace_back(idx_1);
             this->wires[1].emplace_back(idx_2);
             this->wires[2].emplace_back(idx_3);
@@ -246,6 +280,9 @@ template <typename FF_> class UltraHonkArith {
       public:
         void populate_wires(const uint32_t& idx_1, const uint32_t& idx_2, const uint32_t& idx_3, const uint32_t& idx_4)
         {
+#ifdef CHECK_CIRCUIT_STACKTRACES
+            this->stack_traces.populate();
+#endif
             this->wires[0].emplace_back(idx_1);
             this->wires[1].emplace_back(idx_2);
             this->wires[2].emplace_back(idx_3);
