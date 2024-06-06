@@ -7,3 +7,5 @@ type = "contract"
 [dependencies]
 aztec = { path = "../../../aztec-nr/aztec" }
 authwit = { path = "../../../aztec-nr/authwit" }
+deployer = { path = "../contract_instance_deployer_contract" }
+registerer = { path = "../contract_class_registerer_contract" }

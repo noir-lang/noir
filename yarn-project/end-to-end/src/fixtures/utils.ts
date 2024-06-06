@@ -14,6 +14,7 @@ import {
   EthCheatCodes,
   type L1ContractArtifactsForDeployment,
   LogType,
+  NoFeePaymentMethod,
   type PXE,
   type SentTx,
   SignerlessWallet,
@@ -30,9 +31,12 @@ import { DefaultMultiCallEntrypoint } from '@aztec/aztec.js/entrypoint';
 import { type BBNativeProofCreator } from '@aztec/bb-prover';
 import {
   CANONICAL_KEY_REGISTRY_ADDRESS,
+  GasSettings,
+  MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS,
   computeContractAddressFromInstance,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
+import { bufferAsFields } from '@aztec/foundation/abi';
 import { makeBackoff, retry } from '@aztec/foundation/retry';
 import {
   AvailabilityOracleAbi,
@@ -591,27 +595,41 @@ export async function expectMappingDelta<K, V extends number | bigint>(
 /**
  * Deploy the protocol contracts to a running instance.
  */
-export async function deployCanonicalGasToken(deployer: Wallet) {
+export async function deployCanonicalGasToken(pxe: PXE) {
   // "deploy" the Gas token as it contains public functions
-  const gasPortalAddress = (await deployer.getNodeInfo()).l1ContractAddresses.gasPortalAddress;
+  const gasPortalAddress = (await pxe.getNodeInfo()).l1ContractAddresses.gasPortalAddress;
   const canonicalGasToken = getCanonicalGasToken();
 
-  if (await deployer.isContractClassPubliclyRegistered(canonicalGasToken.contractClass.id)) {
+  if (await pxe.isContractClassPubliclyRegistered(canonicalGasToken.contractClass.id)) {
     getLogger().debug('Gas token already deployed');
-    await expect(deployer.isContractPubliclyDeployed(canonicalGasToken.address)).resolves.toBe(true);
+    await expect(pxe.isContractPubliclyDeployed(canonicalGasToken.address)).resolves.toBe(true);
     return;
   }
 
-  const gasToken = await GasTokenContract.deploy(deployer)
-    .send({ contractAddressSalt: canonicalGasToken.instance.salt, universalDeploy: true })
-    .deployed();
-  await gasToken.methods.set_portal(gasPortalAddress).send().wait();
+  // Capsules will die soon, patience!
+  const publicBytecode = canonicalGasToken.contractClass.packedBytecode;
+  const encodedBytecode = bufferAsFields(publicBytecode, MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS);
+  await pxe.addCapsule(encodedBytecode);
+
+  await pxe.registerContract(canonicalGasToken);
+  const wallet = new SignerlessWallet(pxe);
+  const gasToken = await GasTokenContract.at(canonicalGasToken.address, wallet);
+
+  await gasToken.methods
+    .deploy(
+      canonicalGasToken.contractClass.artifactHash,
+      canonicalGasToken.contractClass.privateFunctionsRoot,
+      canonicalGasToken.contractClass.publicBytecodeCommitment,
+      gasPortalAddress,
+    )
+    .send({ fee: { paymentMethod: new NoFeePaymentMethod(), gasSettings: GasSettings.teardownless() } })
+    .wait();
 
   getLogger().info(`Gas token publicly deployed at ${gasToken.address}`);
 
-  await expect(deployer.isContractClassPubliclyRegistered(gasToken.instance.contractClassId)).resolves.toBe(true);
-  await expect(deployer.getContractInstance(gasToken.address)).resolves.toBeDefined();
-  await expect(deployer.isContractPubliclyDeployed(gasToken.address)).resolves.toBe(true);
+  await expect(pxe.isContractClassPubliclyRegistered(gasToken.instance.contractClassId)).resolves.toBe(true);
+  await expect(pxe.getContractInstance(gasToken.address)).resolves.toBeDefined();
+  await expect(pxe.isContractPubliclyDeployed(gasToken.address)).resolves.toBe(true);
 }
 
 export async function deployCanonicalKeyRegistry(deployer: Wallet) {

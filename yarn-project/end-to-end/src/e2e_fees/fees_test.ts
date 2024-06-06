@@ -136,9 +136,9 @@ export class FeesTest {
   }
 
   public async applyBaseSnapshots() {
+    await this.applyDeployGasTokenSnapshot();
     await this.applyInitialAccountsSnapshot();
     await this.applyPublicDeployAccountsSnapshot();
-    await this.applyDeployGasTokenSnapshot();
     await this.applyDeployBananaTokenSnapshot();
   }
 
@@ -146,7 +146,7 @@ export class FeesTest {
     await this.snapshotManager.snapshot(
       'initial_accounts',
       addAccounts(3, this.logger),
-      async ({ accountKeys }, { pxe, aztecNode }) => {
+      async ({ accountKeys }, { pxe, aztecNode, aztecNodeConfig }) => {
         this.pxe = pxe;
         this.aztecNode = aztecNode;
         const accountManagers = accountKeys.map(ak => getSchnorrAccount(pxe, ak[0], ak[1], 1));
@@ -155,7 +155,19 @@ export class FeesTest {
         this.wallets.forEach((w, i) => this.logger.verbose(`Wallet ${i} address: ${w.getAddress()}`));
         [this.aliceWallet, this.bobWallet] = this.wallets.slice(0, 2);
         [this.aliceAddress, this.bobAddress, this.sequencerAddress] = this.wallets.map(w => w.getAddress());
+        this.gasTokenContract = await GasTokenContract.at(getCanonicalGasToken().address, this.aliceWallet);
         this.coinbase = EthAddress.random();
+
+        const { publicClient, walletClient } = createL1Clients(aztecNodeConfig.rpcUrl, MNEMONIC);
+        this.gasBridgeTestHarness = await GasPortalTestingHarnessFactory.create({
+          aztecNode: aztecNode,
+          pxeService: pxe,
+          publicClient: publicClient,
+          walletClient: walletClient,
+          wallet: this.aliceWallet,
+          logger: this.logger,
+          mockL1: false,
+        });
       },
     );
   }
@@ -167,31 +179,14 @@ export class FeesTest {
   }
 
   private async applyDeployGasTokenSnapshot() {
-    await this.snapshotManager.snapshot(
-      'deploy_gas_token',
-      async context => {
-        await deployCanonicalGasToken(
-          new SignerlessWallet(
-            context.pxe,
-            new DefaultMultiCallEntrypoint(context.aztecNodeConfig.chainId, context.aztecNodeConfig.version),
-          ),
-        );
-      },
-      async (_data, context) => {
-        this.gasTokenContract = await GasTokenContract.at(getCanonicalGasToken().address, this.aliceWallet);
-
-        const { publicClient, walletClient } = createL1Clients(context.aztecNodeConfig.rpcUrl, MNEMONIC);
-        this.gasBridgeTestHarness = await GasPortalTestingHarnessFactory.create({
-          aztecNode: context.aztecNode,
-          pxeService: context.pxe,
-          publicClient: publicClient,
-          walletClient: walletClient,
-          wallet: this.aliceWallet,
-          logger: this.logger,
-          mockL1: false,
-        });
-      },
-    );
+    await this.snapshotManager.snapshot('deploy_gas_token', async context => {
+      await deployCanonicalGasToken(
+        new SignerlessWallet(
+          context.pxe,
+          new DefaultMultiCallEntrypoint(context.aztecNodeConfig.chainId, context.aztecNodeConfig.version),
+        ),
+      );
+    });
   }
 
   private async applyDeployBananaTokenSnapshot() {

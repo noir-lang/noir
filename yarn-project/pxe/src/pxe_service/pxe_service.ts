@@ -36,7 +36,7 @@ import { type Fq, Fr } from '@aztec/foundation/fields';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { type KeyStore } from '@aztec/key-store';
-import { getCanonicalClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
+import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
 import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
 import { getCanonicalInstanceDeployer } from '@aztec/protocol-contracts/instance-deployer';
 import { getCanonicalKeyRegistryAddress } from '@aztec/protocol-contracts/key-registry';
@@ -544,7 +544,7 @@ export class PXEService implements PXE {
     return Promise.resolve({
       pxeVersion: this.packageVersion,
       protocolContractAddresses: {
-        classRegisterer: getCanonicalClassRegistererAddress(),
+        classRegisterer: ClassRegistererAddress,
         gasToken: getCanonicalGasToken().address,
         instanceDeployer: getCanonicalInstanceDeployer().address,
         keyRegistry: getCanonicalKeyRegistryAddress(),

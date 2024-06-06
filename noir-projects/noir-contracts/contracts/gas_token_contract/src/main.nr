@@ -1,8 +1,18 @@
 mod lib;
 
 contract GasToken {
-    use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::{AztecAddress, EthAddress}};
-    use dep::aztec::state_vars::{SharedImmutable, PublicMutable, Map};
+    use dep::aztec::{
+        protocol_types::{
+        contract_class_id::ContractClassId, abis::function_selector::FunctionSelector,
+        address::{AztecAddress, EthAddress},
+        constants::{DEPLOYER_CONTRACT_ADDRESS, REGISTERER_CONTRACT_ADDRESS}
+    },
+        state_vars::{SharedImmutable, PublicMutable, Map},
+        oracle::get_contract_instance::get_contract_instance, deploy::deploy_contract
+    };
+
+    use dep::deployer::ContractInstanceDeployer;
+    use dep::registerer::ContractClassRegisterer;
 
     use crate::lib::{calculate_fee, get_bridge_gas_msg_hash};
 
@@ -12,6 +22,51 @@ contract GasToken {
         // Do not change this storage layout unless you also update the base rollup circuits.
         balances: Map<AztecAddress, PublicMutable<U128>>,
         portal_address: SharedImmutable<EthAddress>,
+    }
+
+    // Not flagged as initializer to reduce cost of checking init nullifier in all functions.
+    // This function should be called as entrypoint to initialize the contract by minting itself funds.
+    #[aztec(private)]
+    fn deploy(
+        artifact_hash: Field,
+        private_functions_root: Field,
+        public_bytecode_commitment: Field,
+        portal_address: EthAddress
+    ) {
+        // Validate contract class parameters are correct
+        let self = context.this_address();
+        let instance = get_contract_instance(self);
+        let contract_class_id = ContractClassId::compute(
+            artifact_hash,
+            private_functions_root,
+            public_bytecode_commitment
+        );
+        assert(
+            instance.contract_class_id == contract_class_id, "Invalid contract class id computed for gas token"
+        );
+
+        // Increase self balance and set as fee payer, and end setup
+        let deploy_fees = 20000000000;
+        GasToken::at(self)._increase_public_balance(self, deploy_fees).enqueue(&mut context);
+        context.set_as_fee_payer();
+        context.end_setup();
+
+        // Register class and publicly deploy contract
+        let _register = ContractClassRegisterer::at(AztecAddress::from_field(REGISTERER_CONTRACT_ADDRESS)).register(
+            artifact_hash,
+            private_functions_root,
+            public_bytecode_commitment
+        ).call(&mut context);
+        let _deploy = ContractInstanceDeployer::at(AztecAddress::from_field(DEPLOYER_CONTRACT_ADDRESS)).deploy(
+            instance.salt,
+            instance.contract_class_id,
+            instance.initialization_hash,
+            instance.public_keys_hash,
+            true
+        ).call(&mut context);
+
+        // Enqueue call to set the portal address
+        GasToken::at(self).set_portal(portal_address).enqueue(&mut context);
     }
 
     // We purposefully not set this function as an initializer so we do not bind

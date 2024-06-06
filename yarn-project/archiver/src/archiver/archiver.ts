@@ -27,7 +27,7 @@ import { type EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
-import { getCanonicalClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
+import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
 import {
   type ContractClassPublic,
   type ContractDataSource,
@@ -292,8 +292,8 @@ export class Archiver implements ArchiveSource {
    * @param allLogs - All logs emitted in a bunch of blocks.
    */
   private async storeRegisteredContractClasses(allLogs: UnencryptedL2Log[], blockNum: number) {
-    const contractClasses = ContractClassRegisteredEvent.fromLogs(allLogs, getCanonicalClassRegistererAddress()).map(
-      e => e.toContractClassPublic(),
+    const contractClasses = ContractClassRegisteredEvent.fromLogs(allLogs, ClassRegistererAddress).map(e =>
+      e.toContractClassPublic(),
     );
     if (contractClasses.length > 0) {
       contractClasses.forEach(c => this.log.verbose(`Registering contract class ${c.id.toString()}`));
@@ -315,11 +315,8 @@ export class Archiver implements ArchiveSource {
 
   private async storeBroadcastedIndividualFunctions(allLogs: UnencryptedL2Log[], _blockNum: number) {
     // Filter out private and unconstrained function broadcast events
-    const privateFnEvents = PrivateFunctionBroadcastedEvent.fromLogs(allLogs, getCanonicalClassRegistererAddress());
-    const unconstrainedFnEvents = UnconstrainedFunctionBroadcastedEvent.fromLogs(
-      allLogs,
-      getCanonicalClassRegistererAddress(),
-    );
+    const privateFnEvents = PrivateFunctionBroadcastedEvent.fromLogs(allLogs, ClassRegistererAddress);
+    const unconstrainedFnEvents = UnconstrainedFunctionBroadcastedEvent.fromLogs(allLogs, ClassRegistererAddress);
 
     // Group all events by contract class id
     for (const [classIdString, classEvents] of Object.entries(

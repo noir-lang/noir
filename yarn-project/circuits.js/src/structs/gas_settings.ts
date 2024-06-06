@@ -76,6 +76,11 @@ export class GasSettings {
     });
   }
 
+  /** Default gas settings with no teardown */
+  static teardownless() {
+    return GasSettings.default({ teardownGasLimits: Gas.from({ l2Gas: 0, daGas: 0 }) });
+  }
+
   /** Gas settings to use for simulating a contract call. */
   static simulation() {
     return GasSettings.default();
