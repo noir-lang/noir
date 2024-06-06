@@ -8,13 +8,14 @@ import { type Multiaddr, multiaddr } from '@multiformats/multiaddr';
 import { type P2PConfig } from '../config.js';
 import { AZTEC_ENR_KEY, AZTEC_NET } from '../service/discV5_service.js';
 import { createLibP2PPeerId } from '../service/index.js';
+import { convertToMultiaddr } from '../util.js';
 
 /**
  * Required P2P config values for a bootstrap node.
  */
 export type BootNodeConfig = Partial<P2PConfig> &
-  Pick<P2PConfig, 'announceUdpHostname' | 'announcePort'> &
-  Required<Pick<P2PConfig, 'udpListenIp' | 'udpListenPort'>>;
+  Pick<P2PConfig, 'udpAnnounceAddress'> &
+  Required<Pick<P2PConfig, 'udpListenAddress'>>;
 
 /**
  * Encapsulates a 'Bootstrap' node, used for the purpose of assisting new joiners in acquiring peers.
@@ -31,13 +32,18 @@ export class BootstrapNode {
    * @returns An empty promise.
    */
   public async start(config: BootNodeConfig) {
-    const { peerIdPrivateKey, udpListenIp, udpListenPort, announceUdpHostname, announcePort } = config;
+    const { peerIdPrivateKey, udpListenAddress, udpAnnounceAddress } = config;
     const peerId = await createLibP2PPeerId(peerIdPrivateKey);
     this.peerId = peerId;
     const enr = SignableENR.createFromPeerId(peerId);
 
-    const listenAddrUdp = multiaddr(`/ip4/${udpListenIp}/udp/${udpListenPort}`);
-    const publicAddr = multiaddr(`${announceUdpHostname}/udp/${announcePort}`);
+    const listenAddrUdp = multiaddr(convertToMultiaddr(udpListenAddress, 'udp'));
+
+    if (!udpAnnounceAddress) {
+      throw new Error('You need to provide a UDP announce address.');
+    }
+
+    const publicAddr = multiaddr(convertToMultiaddr(udpAnnounceAddress, 'udp'));
     enr.setLocationMultiaddr(publicAddr);
     enr.set(AZTEC_ENR_KEY, Uint8Array.from([AZTEC_NET]));
 

@@ -269,20 +269,20 @@ resource "aws_ecs_task_definition" "aztec-node" {
         "value": "/${var.DEPLOY_TAG}/aztec-node-${count.index + 1}"
       },
       {
-        "name": "P2P_TCP_LISTEN_PORT",
-        "value": "${var.NODE_P2P_TCP_PORT + count.index}"
+        "name": "P2P_TCP_LISTEN_ADDR",
+        "value": "0.0.0.0:${var.NODE_P2P_TCP_PORT + count.index}"
       },
       {
-        "name": "P2P_UDP_LISTEN_PORT",
-        "value": "${var.NODE_P2P_UDP_PORT + count.index}"
+        "name": "P2P_UDP_LISTEN_ADDR",
+        "value": "0.0.0.0:${var.NODE_P2P_UDP_PORT + count.index}"
       },
       {
-        "name": "P2P_TCP_LISTEN_IP",
-        "value": "0.0.0.0"
+        "name": "P2P_TCP_ANNOUNCE_ADDR",
+        "value": ":${var.NODE_P2P_TCP_PORT + count.index}"
       },
       {
-        "name": "P2P_ANNOUNCE_PORT",
-        "value": "${var.NODE_P2P_TCP_PORT + count.index}"
+        "name": "P2P_UDP_ANNOUNCE_ADDR",
+        "value": ":${var.NODE_P2P_UDP_PORT + count.index}"
       },
       {
         "name": "P2P_QUERY_FOR_IP",

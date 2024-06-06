@@ -1,6 +1,7 @@
 import { type Tx, type TxHash } from '@aztec/circuit-types';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { AztecLmdbStore } from '@aztec/kv-store/lmdb';
 
 import { ENR } from '@chainsafe/enr';
 import { type GossipsubEvents, gossipsub } from '@chainsafe/libp2p-gossipsub';
@@ -17,6 +18,8 @@ import { type Libp2p, createLibp2p } from 'libp2p';
 
 import { type P2PConfig } from '../config.js';
 import { type TxPool } from '../tx_pool/index.js';
+import { convertToMultiaddr } from '../util.js';
+import { AztecDatastore } from './data_store.js';
 import { KnownTxLookup } from './known_txs.js';
 import { PeerManager } from './peer_manager.js';
 import type { P2PService, PeerDiscoveryService } from './service.js';
@@ -73,15 +76,16 @@ export class LibP2PService implements P2PService {
     if (this.node.status === 'started') {
       throw new Error('P2P service already started');
     }
-    const { enableNat, tcpListenIp, tcpListenPort, announceTcpHostname, announcePort } = this.config;
-    this.logger.info(`Starting P2P node on ${tcpListenIp}:${tcpListenPort}`);
-    if (announceTcpHostname) {
-      this.logger.info(`Announcing at ${announceTcpHostname}/tcp/${announcePort ?? tcpListenPort}`);
-    }
-    if (enableNat) {
-      this.logger.info(`Enabling NAT in libp2p module`);
+    const { tcpListenAddress, tcpAnnounceAddress } = this.config;
+    this.logger.info(`Starting P2P node on ${tcpListenAddress}`);
+
+    if (!tcpAnnounceAddress) {
+      throw new Error('Announce address not provided.');
     }
 
+    const announceTcpMultiaddr = convertToMultiaddr(tcpAnnounceAddress, 'tcp');
+
+    this.logger.info(`Announcing at ${announceTcpMultiaddr}`);
     // handle discovered peers from external discovery service
     this.peerDiscoveryService.on('peer:discovered', async (enr: ENR) => {
       await this.addPeer(enr);
@@ -95,7 +99,7 @@ export class LibP2PService implements P2PService {
     this.node.addEventListener('peer:disconnect', async evt => {
       const peerId = evt.detail;
       if (this.isBootstrapPeer(peerId)) {
-        this.logger.verbose(`Disconnect from bootstrap peer ${peerId.toString()}`);
+        this.logger.info(`Disconnect from bootstrap peer ${peerId.toString()}`);
       } else {
         this.logger.info(`Disconnected from transaction peer ${peerId.toString()}`);
         await this.peerManager.updateDiscoveryService();
@@ -143,8 +147,10 @@ export class LibP2PService implements P2PService {
     peerId: PeerId,
     txPool: TxPool,
   ) {
-    const { tcpListenIp, tcpListenPort, minPeerCount, maxPeerCount, transactionProtocol: protocolId } = config;
-    const bindAddrTcp = `/ip4/${tcpListenIp}/tcp/${tcpListenPort}`;
+    const { tcpListenAddress, minPeerCount, maxPeerCount, transactionProtocol: protocolId } = config;
+    const bindAddrTcp = convertToMultiaddr(tcpListenAddress, 'tcp');
+
+    const datastore = new AztecDatastore(AztecLmdbStore.open());
 
     // The autonat service seems quite problematic in that using it seems to cause a lot of attempts
     // to dial ephemeral ports. I suspect that it works better if you can get the uPNPnat service to
@@ -171,6 +177,7 @@ export class LibP2PService implements P2PService {
           maxConnections: config.maxPeerCount,
         }),
       ],
+      datastore,
       streamMuxers: [yamux(), mplex()],
       connectionEncryption: [noise()],
       connectionManager: {
@@ -285,7 +292,7 @@ export class LibP2PService implements P2PService {
       try {
         stream = await this.node.dialProtocol(peerMultiAddr, this.protocolId);
       } catch (err) {
-        this.logger.error(`Failed to dial peer ${peerIdStr}`, err);
+        this.logger.debug(`Failed to dial peer ${peerIdStr}: ${err}`);
       } finally {
         if (stream) {
           await stream.close();
@@ -296,7 +303,7 @@ export class LibP2PService implements P2PService {
 
   private async handleNewConnection(peerId: PeerId) {
     if (this.isBootstrapPeer(peerId)) {
-      this.logger.verbose(`Connected to bootstrap peer ${peerId.toString()}`);
+      this.logger.info(`Connected to bootstrap peer ${peerId.toString()}`);
     } else {
       this.logger.info(`Connected to transaction peer ${peerId.toString()}`);
       await this.peerManager.updateDiscoveryService();

@@ -21,7 +21,7 @@ import { setup } from './fixtures/utils.js';
 const NUM_NODES = 4;
 const NUM_TXS_PER_BLOCK = 4;
 const NUM_TXS_PER_NODE = 2;
-const BOOT_NODE_TCP_PORT = 40400;
+const BOOT_NODE_UDP_PORT = 40400;
 
 interface NodeContext {
   node: AztecNodeService;
@@ -54,7 +54,7 @@ describe('e2e_p2p_network', () => {
     // is if the txs are successfully gossiped around the nodes.
     const contexts: NodeContext[] = [];
     for (let i = 0; i < NUM_NODES; i++) {
-      const node = await createNode(i + 1 + BOOT_NODE_TCP_PORT, bootstrapNodeEnr?.encodeTxt(), i);
+      const node = await createNode(i + 1 + BOOT_NODE_UDP_PORT, bootstrapNodeEnr?.encodeTxt(), i);
       const context = await createPXEServiceAndSubmitTransactions(node, NUM_TXS_PER_NODE);
       contexts.push(context);
     }
@@ -74,10 +74,8 @@ describe('e2e_p2p_network', () => {
     const peerId = await createLibP2PPeerId();
     const bootstrapNode = new BootstrapNode();
     const config: BootNodeConfig = {
-      udpListenPort: BOOT_NODE_TCP_PORT,
-      udpListenIp: '0.0.0.0',
-      announceUdpHostname: '/ip4/127.0.0.1',
-      announcePort: BOOT_NODE_TCP_PORT,
+      udpListenAddress: `0.0.0.0:${BOOT_NODE_UDP_PORT}`,
+      udpAnnounceAddress: `127.0.0.1:${BOOT_NODE_UDP_PORT}`,
       peerIdPrivateKey: Buffer.from(peerId.privateKey!).toString('hex'),
       minPeerCount: 10,
       maxPeerCount: 100,
@@ -98,12 +96,10 @@ describe('e2e_p2p_network', () => {
 
     const newConfig: AztecNodeConfig = {
       ...config,
-      tcpListenPort,
-      udpListenPort: tcpListenPort,
-      tcpListenIp: '0.0.0.0',
-      udpListenIp: '0.0.0.0',
-      announceTcpHostname: '/ip4/127.0.0.1',
-      announceUdpHostname: '/ip4/127.0.0.1',
+      udpListenAddress: `0.0.0.0:${tcpListenPort}`,
+      tcpListenAddress: `0.0.0.0:${tcpListenPort}`,
+      tcpAnnounceAddress: `127.0.0.1:${tcpListenPort}`,
+      udpAnnounceAddress: `127.0.0.1:${tcpListenPort}`,
       bootstrapNodes: [bootstrapNode],
       minTxsPerBlock: NUM_TXS_PER_BLOCK,
       maxTxsPerBlock: NUM_TXS_PER_BLOCK,

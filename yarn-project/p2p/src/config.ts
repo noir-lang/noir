@@ -25,24 +25,24 @@ export interface P2PConfig {
   p2pL2QueueSize: number;
 
   /**
-   * The tcp port on which the P2P service should listen for connections.
+   * The announce address for TCP.
    */
-  tcpListenPort: number;
+  tcpAnnounceAddress?: string;
 
   /**
-   * The tcp IP on which the P2P service should listen for connections.
+   * The announce address for UDP.
    */
-  tcpListenIp: string;
+  udpAnnounceAddress?: string;
 
   /**
-   * The udp port on which the P2P service should listen for connections. Used for Discv5 peer discovery.
+   * The listen address for TCP.
    */
-  udpListenPort: number;
+  tcpListenAddress: string;
 
   /**
-   * The udp IP on which the P2P service should listen for connections. Used for Discv5 peer discovery.
+   * The listen address for UDP.
    */
-  udpListenIp: string;
+  udpListenAddress: string;
 
   /**
    * An optional peer id private key. If blank, will generate a random key.
@@ -58,22 +58,6 @@ export interface P2PConfig {
    * Protocol identifier for transaction gossiping.
    */
   transactionProtocol: string;
-
-  /**
-   * TCP Hostname to announce.
-   */
-  announceTcpHostname?: string;
-
-  /**
-   * UDP Hostname to announce.
-   * If not provided, will use the same hostname as TCP.
-   */
-  announceUdpHostname?: string;
-
-  /**
-   * Port to announce.
-   */
-  announcePort?: number;
 
   /**
    * Whether to enable NAT from libp2p (ignored for bootstrap node).
@@ -101,7 +85,7 @@ export interface P2PConfig {
   txGossipVersion: SemVer;
 
   /**
-   * If announceUdpHostname or announceTcpHostname are not provided, query for the IP address of the machine. Default is false.
+   * If announceUdpAddress or announceTcpAddress are not provided, query for the IP address of the machine. Default is false.
    */
   queryForIp: boolean;
 }
@@ -116,15 +100,12 @@ export function getP2PConfigEnvVars(): P2PConfig {
     P2P_BLOCK_CHECK_INTERVAL_MS,
     P2P_PEER_CHECK_INTERVAL_MS,
     P2P_L2_BLOCK_QUEUE_SIZE,
-    P2P_TCP_LISTEN_PORT,
-    P2P_TCP_LISTEN_IP,
-    P2P_UDP_LISTEN_PORT,
-    P2P_UDP_LISTEN_IP,
+    P2P_TCP_LISTEN_ADDR,
+    P2P_UDP_LISTEN_ADDR,
+    P2P_TCP_ANNOUNCE_ADDR,
+    P2P_UDP_ANNOUNCE_ADDR,
     PEER_ID_PRIVATE_KEY,
     BOOTSTRAP_NODES,
-    P2P_ANNOUNCE_TCP_HOSTNAME,
-    P2P_ANNOUNCE_UDP_HOSTNAME,
-    P2P_ANNOUNCE_PORT,
     P2P_NAT_ENABLED,
     P2P_MIN_PEERS,
     P2P_MAX_PEERS,
@@ -133,21 +114,20 @@ export function getP2PConfigEnvVars(): P2PConfig {
     P2P_TX_PROTOCOL,
     P2P_QUERY_FOR_IP,
   } = process.env;
+  // P2P listen & announce addresses passed in format: <IP_ADDRESS>:<PORT>
+  // P2P announce multiaddrs passed in format: /ip4/<IP_ADDRESS>/<protocol>/<PORT>
   const envVars: P2PConfig = {
+    tcpAnnounceAddress: P2P_TCP_ANNOUNCE_ADDR,
+    udpAnnounceAddress: P2P_UDP_ANNOUNCE_ADDR,
+    tcpListenAddress: P2P_TCP_LISTEN_ADDR || '0.0.0.0:40400',
+    udpListenAddress: P2P_UDP_LISTEN_ADDR || '0.0.0.0:40400',
     p2pEnabled: P2P_ENABLED === 'true',
     p2pBlockCheckIntervalMS: P2P_BLOCK_CHECK_INTERVAL_MS ? +P2P_BLOCK_CHECK_INTERVAL_MS : 100,
     p2pPeerCheckIntervalMS: P2P_PEER_CHECK_INTERVAL_MS ? +P2P_PEER_CHECK_INTERVAL_MS : 1000,
     p2pL2QueueSize: P2P_L2_BLOCK_QUEUE_SIZE ? +P2P_L2_BLOCK_QUEUE_SIZE : 1000,
-    tcpListenPort: P2P_TCP_LISTEN_PORT ? +P2P_TCP_LISTEN_PORT : 40400,
-    tcpListenIp: P2P_TCP_LISTEN_IP ? P2P_TCP_LISTEN_IP : '0.0.0.0',
-    udpListenPort: P2P_UDP_LISTEN_PORT ? +P2P_UDP_LISTEN_PORT : 40400,
-    udpListenIp: P2P_UDP_LISTEN_IP ? P2P_UDP_LISTEN_IP : '0.0.0.0',
     peerIdPrivateKey: PEER_ID_PRIVATE_KEY,
     bootstrapNodes: BOOTSTRAP_NODES ? BOOTSTRAP_NODES.split(',') : [],
     transactionProtocol: P2P_TX_PROTOCOL ? P2P_TX_PROTOCOL : '/aztec/0.1.0',
-    announceTcpHostname: P2P_ANNOUNCE_TCP_HOSTNAME,
-    announceUdpHostname: P2P_ANNOUNCE_UDP_HOSTNAME,
-    announcePort: P2P_ANNOUNCE_PORT ? +P2P_ANNOUNCE_PORT : undefined,
     enableNat: P2P_NAT_ENABLED === 'true',
     minPeerCount: P2P_MIN_PEERS ? +P2P_MIN_PEERS : 10,
     maxPeerCount: P2P_MAX_PEERS ? +P2P_MAX_PEERS : 100,

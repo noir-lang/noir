@@ -112,12 +112,12 @@ P2P_ENABLED='false' # A flag to enable P2P networking for this node. (default: f
 P2P_BLOCK_CHECK_INTERVAL_MS=100 # The frequency in which to check for new L2 blocks.
 P2P_PEER_CHECK_INTERVAL_MS=1000 # The frequency in which to check for peers.
 P2P_L2_BLOCK_QUEUE_SIZE=1000 # Size of queue of L2 blocks to store.
-P2P_TCP_LISTEN_PORT=40400 # The tcp port on which the P2P service should listen for connections.
-P2P_TCP_LISTEN_IP= #The tcp IP on which the P2P service should listen for connections.
+P2P_TCP_LISTEN_ADDR=0.0.0.0:40400 # The tcp address on which the P2P service should listen for connections.(default: 0.0.0.0:40400)
+P2P_UDP_LISTEN_ADDR=0.0.0.0:40400 # The udp address on which the P2P service should listen for peer discovery requests.(default: 0.0.0.0:40400)
 PEER_ID_PRIVATE_KEY='' # An optional peer id private key. If blank, will generate a random key.
 BOOTSTRAP_NODES='' # A list of bootstrap peers to connect to, separated by commas
-P2P_ANNOUNCE_TCP_HOSTNAME='' # TCP Hostname to announce to the p2p network
-P2P_ANNOUNCE_UDP_HOSTNAME='' # UDP Hostname to announce to the p2p network (used for peer discovery)
+P2P_TCP_ANNOUNCE_ADDR='' # TCP Address to announce to the p2p network. Format: <address>:<port>
+P2P_UDP_ANNOUNCE_ADDR='' # UDP Hostname to announce to the p2p network (used for peer discovery). Uses TCP announce addr if not provided
 P2P_ANNOUNCE_PORT='' # Port to announce to the p2p network
 P2P_NAT_ENABLED='false' # Whether to enable NAT from libp2p
 P2P_MIN_PEERS=10 # The minimum number of peers (a peer count below this will cause the node to look for more peers)
@@ -153,11 +153,10 @@ PXE_L2_STARTING_BLOCK=1 # L2 Block to start synching the PXE from (default: 1)
 The P2P Bootstrap node is a standalone app whose purpose is to assist new P2P network participants in acquiring peers.
 
 ```sh
-P2P_TCP_LISTEN_IP='0.0.0.0' # The IP Address on which to listen for connections.
-P2P_TCP_LISTEN_PORT=40400 # The port on which to listen for connections.
+P2P_UDP_LISTEN_ADDR=0.0.0.0:40400 # The udp address on which the P2P service should listen for peer discovery requests. (default: 0.0.0.0:40400)
 PEER_ID_PRIVATE_KEY='' # The private key to be used by the peer for secure communications with other peers. This key will also be used to derive the Peer ID.
-P2P_ANNOUNCE_UDP_HOSTNAME='' # The IPAddress/Hostname that other peers should use to connect to this node, this may be different to P2P_TCP_LISTEN_IP if e.g. the node is behind a NAT.
-P2P_ANNOUNCE_PORT='' # The port that other peers should use to connect to this node, this may be different to P2P_TCP_LISTEN_PORT if e.g. the node is behind a NAT.
+P2P_UDP_ANNOUNCE_ADDR='' # The IPAddress/Hostname that other peers should use to connect to this node, this may be different to P2P_TCP_LISTEN_ADDR if e.g. the node is behind a NAT.
+P2P_ANNOUNCE_PORT='' # The port that other peers should use to connect to this node, this may be different to P2P_UDP_LISTEN_ADDR if e.g. the node is behind a NAT.
 ```
 
 ## Cheat Codes

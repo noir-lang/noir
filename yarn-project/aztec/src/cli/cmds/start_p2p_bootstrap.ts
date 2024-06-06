@@ -11,5 +11,5 @@ export const startP2PBootstrap = async (options: any, userLog: LogFn, debugLogge
   const cliOptions = parseModuleOptions(options.p2pBootstrap);
   const config = mergeEnvVarsAndCliOptions<P2PConfig>(envVars, cliOptions);
   await runBootstrapNode(config, debugLogger);
-  userLog(`P2P bootstrap node started on ${config.udpListenIp}:${config.udpListenPort}`);
+  userLog(`P2P bootstrap node started on ${config.udpListenAddress}`);
 };
