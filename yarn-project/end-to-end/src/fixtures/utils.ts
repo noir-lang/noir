@@ -69,7 +69,6 @@ import {
   type PrivateKeyAccount,
   createPublicClient,
   createWalletClient,
-  getContract,
   http,
 } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
@@ -124,28 +123,12 @@ export const setupL1Contracts = async (
     },
   };
 
-  const l1Data = await deployL1Contracts(l1RpcUrl, account, foundry, logger, l1Artifacts);
-  await initGasBridge(l1Data);
+  const l1Data = await deployL1Contracts(l1RpcUrl, account, foundry, logger, l1Artifacts, {
+    l2GasTokenAddress: GasTokenAddress,
+  });
 
   return l1Data;
 };
-
-async function initGasBridge({ walletClient, l1ContractAddresses }: DeployL1Contracts) {
-  const gasPortal = getContract({
-    address: l1ContractAddresses.gasPortalAddress.toString(),
-    abi: GasPortalAbi,
-    client: walletClient,
-  });
-
-  await gasPortal.write.initialize(
-    [
-      l1ContractAddresses.registryAddress.toString(),
-      l1ContractAddresses.gasTokenAddress.toString(),
-      GasTokenAddress.toString(),
-    ],
-    {} as any,
-  );
-}
 
 /**
  * Sets up Private eXecution Environment (PXE).

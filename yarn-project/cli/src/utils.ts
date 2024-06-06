@@ -12,6 +12,7 @@ import {
   PortalERC20Abi,
   PortalERC20Bytecode,
 } from '@aztec/l1-artifacts';
+import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 
 import TOML from '@iarna/toml';
 import { CommanderError, InvalidArgumentError } from 'commander';
@@ -101,7 +102,9 @@ export async function deployAztecContracts(
       contractBytecode: GasPortalBytecode,
     },
   };
-  return await deployL1Contracts(chain.rpcUrl, account, chain.chainInfo, debugLogger, l1Artifacts);
+  return await deployL1Contracts(chain.rpcUrl, account, chain.chainInfo, debugLogger, l1Artifacts, {
+    l2GasTokenAddress: GasTokenAddress,
+  });
 }
 
 /**

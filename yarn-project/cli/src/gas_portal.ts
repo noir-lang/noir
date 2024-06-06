@@ -112,7 +112,9 @@ class GasPortalManager {
   }
 
   async mintTokensOnL1(amount: bigint) {
-    this.logger.info('Minting tokens on L1');
+    this.logger.info(
+      `Minting tokens on L1 for ${this.ethAccount.toString()} in contract ${this.underlyingERC20.address}`,
+    );
     await this.publicClient.waitForTransactionReceipt({
       hash: await this.underlyingERC20.write.mint([this.ethAccount.toString(), amount]),
     });
@@ -123,16 +125,20 @@ class GasPortalManager {
   }
 
   async sendTokensToPortalPublic(bridgeAmount: bigint, l2Address: AztecAddress, secretHash: Fr) {
+    this.logger.info(
+      `Approving erc20 tokens for the TokenPortal at ${this.tokenPortalAddress.toString()} ${this.tokenPortal.address}`,
+    );
     await this.publicClient.waitForTransactionReceipt({
       hash: await this.underlyingERC20.write.approve([this.tokenPortalAddress.toString(), bridgeAmount]),
     });
 
     // Deposit tokens to the TokenPortal
-    this.logger.info('Sending messages to L1 portal to be consumed publicly');
+    this.logger.info(
+      `Simulating token portal deposit configured for token ${await this.tokenPortal.read.l2TokenAddress()} with registry ${await this.tokenPortal.read.registry()} to retrieve message hash`,
+    );
     const args = [l2Address.toString(), bridgeAmount, secretHash.toString()] as const;
-    const { result: messageHash } = await this.tokenPortal.simulate.depositToAztecPublic(args, {
-      account: this.ethAccount.toString(),
-    } as any);
+    const { result: messageHash } = await this.tokenPortal.simulate.depositToAztecPublic(args);
+    this.logger.info('Sending messages to L1 portal to be consumed publicly');
     await this.publicClient.waitForTransactionReceipt({
       hash: await this.tokenPortal.write.depositToAztecPublic(args),
     });
