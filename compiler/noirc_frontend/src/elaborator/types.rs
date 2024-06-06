@@ -399,11 +399,16 @@ impl<'context> Elaborator<'context> {
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
     }
 
-    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u32 {
-        let Some(stmt) = self.interner.get_global_let_statement(global) else {
-            let path = path.clone();
-            self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
-            return 0;
+    fn eval_global_as_array_length(&mut self, global_id: GlobalId, path: &Path) -> u32 {
+        let Some(stmt) = self.interner.get_global_let_statement(global_id) else {
+            if let Some(global) = self.unresolved_globals.remove(&global_id) {
+                self.elaborate_global(global);
+                return self.eval_global_as_array_length(global_id, path);
+            } else {
+                let path = path.clone();
+                self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
+                return 0;
+            }
         };
 
         let length = stmt.expression;
