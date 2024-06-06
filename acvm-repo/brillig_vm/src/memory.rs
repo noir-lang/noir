@@ -300,6 +300,7 @@ impl<F: AcirField> Memory<F> {
         if len == 0 {
             return &[];
         }
+
         &self.inner[addr.to_usize()..(addr.to_usize() + len)]
     }
 
