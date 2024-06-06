@@ -665,7 +665,7 @@ impl ForRange {
                 });
                 Statement {
                     kind: StatementKind::Expression(Expression::new(block, for_loop_span)),
-                    span: for_loop_span
+                    span: for_loop_span,
                 }
             }
         }

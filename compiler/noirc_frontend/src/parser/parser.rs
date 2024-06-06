@@ -430,7 +430,7 @@ fn block<'a>(
                     |span| vec![Statement { kind: StatementKind::Error, span }],
                 )),
         )
-        .map(|(is_unsafe, statements)|BlockExpression { is_unsafe, statements })
+        .map(|(is_unsafe, statements)| BlockExpression { is_unsafe, statements })
 }
 
 fn check_statements_require_semicolon(

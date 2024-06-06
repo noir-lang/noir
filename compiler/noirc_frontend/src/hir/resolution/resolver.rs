@@ -1979,8 +1979,8 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirBlockExpression {
-        let statements = self
-            .in_new_scope(|this| vecmap(block_expr.statements, |stmt| this.intern_stmt(stmt)));
+        let statements =
+            self.in_new_scope(|this| vecmap(block_expr.statements, |stmt| this.intern_stmt(stmt)));
         HirBlockExpression { is_unsafe: block_expr.is_unsafe, statements }
     }
 

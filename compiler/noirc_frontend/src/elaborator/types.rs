@@ -1155,6 +1155,11 @@ impl<'context> Elaborator<'context> {
         let is_unconstrained_call = self.is_unconstrained_call(call.func);
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
         if crossing_runtime_boundary {
+            if !self.in_unsafe_block {
+                self.push_err(TypeCheckError::Unsafe {span});
+                return Type::Error;
+            }
+
             let called_func_id = self
                 .interner
                 .lookup_function_from_expr(&call.func)

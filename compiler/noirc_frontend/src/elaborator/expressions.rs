@@ -81,6 +81,13 @@ impl<'context> Elaborator<'context> {
         let mut block_type = Type::Unit;
         let mut statements = Vec::with_capacity(block.statements.len());
 
+        // Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
+        let old_in_unsafe_block = self.in_unsafe_block;
+
+        // If we're already in an unsafe block then entering a new block should preserve this even if
+        // the inner block isn't marked as unsafe.
+        self.in_unsafe_block |= block.is_unsafe;
+
         for (i, statement) in block.statements.into_iter().enumerate() {
             let (id, stmt_type) = self.elaborate_statement(statement);
             statements.push(id);
@@ -100,8 +107,11 @@ impl<'context> Elaborator<'context> {
             }
         }
 
+        // Finally, we restore the original value of `self.in_unsafe_block`.
+        self.in_unsafe_block = old_in_unsafe_block;
+
         self.pop_scope();
-        (HirBlockExpression {  is_unsafe: false,  statements }, block_type)
+        (HirBlockExpression { is_unsafe: block.is_unsafe, statements }, block_type)
     }
 
     fn elaborate_literal(&mut self, literal: Literal, span: Span) -> (HirExpression, Type) {

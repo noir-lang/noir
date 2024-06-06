@@ -89,6 +89,7 @@ pub struct Elaborator<'context> {
 
     file: FileId,
 
+    in_unsafe_block: bool,
     in_unconstrained_fn: bool,
     nested_loops: usize,
 
@@ -180,6 +181,7 @@ impl<'context> Elaborator<'context> {
             interner: &mut context.def_interner,
             def_maps: &mut context.def_maps,
             file: FileId::dummy(),
+            in_unsafe_block: false,
             in_unconstrained_fn: false,
             nested_loops: 0,
             in_contract: false,
@@ -639,7 +641,7 @@ impl<'context> Elaborator<'context> {
             .collect();
 
         let statements = std::mem::take(&mut func.def.body.statements);
-        let body = BlockExpression {  is_unsafe: false,  statements };
+        let body = BlockExpression { is_unsafe: false, statements };
 
         let meta = FuncMeta {
             name: name_ident,

@@ -193,11 +193,7 @@ impl FuncMeta {
                 let is_unsafe = block.is_unsafe;
                 let (kind, span) = (*kind, *span);
                 self.function_body = FunctionBody::Resolving;
-                FunctionBody::Unresolved(
-                    kind,
-                    BlockExpression { is_unsafe, statements },
-                    span,
-                )
+                FunctionBody::Unresolved(kind, BlockExpression { is_unsafe, statements }, span)
             }
             FunctionBody::Resolving => FunctionBody::Resolving,
             FunctionBody::Resolved => FunctionBody::Resolved,

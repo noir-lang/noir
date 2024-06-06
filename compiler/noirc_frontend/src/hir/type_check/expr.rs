@@ -340,7 +340,7 @@ impl<'interner> TypeChecker<'interner> {
         // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
         if is_current_func_constrained && is_unconstrained_call {
             if !self.allow_unsafe {
-                self.errors.push(TypeCheckError::Unsafe {span});
+                self.errors.push(TypeCheckError::Unsafe { span });
                 return Type::Error;
             }
             for (typ, _, _) in args.iter() {
