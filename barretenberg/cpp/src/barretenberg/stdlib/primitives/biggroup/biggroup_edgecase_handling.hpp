@@ -55,6 +55,9 @@ std::pair<std::vector<element<C, Fq, Fr, G>>, std::vector<Fr>> element<C, Fq, Fr
 
     // Add a scalar -(<(1,2,4,...,2ⁿ⁻¹ ),(scalar₀,...,scalarₙ₋₁)> / 2ⁿ)
     scalars.push_back(-last_scalar);
+    if constexpr (Fr::is_composite) {
+        scalars.back().self_reduce();
+    }
     // Add in-circuit G_offset to points
     points.push_back(element(native_offset_generator * generator_coefficient));
 
@@ -91,8 +94,8 @@ std::pair<std::vector<element<C, Fq, Fr, G>>, std::vector<Fr>> element<C, Fq, Fr
 
         points.push_back(point);
         scalars.push_back(scalar);
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/1002): if both point and scalar are constant, don't
-        // bother adding constraints
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/1002): if both point and scalar are constant,
+        // don't bother adding constraints
     }
 
     return { points, scalars };

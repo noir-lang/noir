@@ -1943,8 +1943,9 @@ template <typename Builder, typename T> void bigfield<Builder, T>::assert_equal(
             const uint512_t modulus(target_basis.modulus);
 
             const auto [quotient_512, remainder_512] = (diff_val).divmod(modulus);
-            if (remainder_512 != 0)
+            if (remainder_512 != 0) {
                 std::cerr << "bigfield: remainder not zero!" << std::endl;
+            }
             ASSERT(remainder_512 == 0);
             bigfield quotient;
 
