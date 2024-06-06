@@ -70,6 +70,12 @@ impl From<Plonky2GenError> for RuntimeError {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Error)]
+pub enum Plonky2VerifyError {
+    #[error("PLONKY2 backend verification error: {}", .message)]
+    VerificationFailed { message: String },
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SsaReport {
     Warning(InternalWarning),

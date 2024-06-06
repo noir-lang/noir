@@ -1,6 +1,6 @@
 use super::config::{P2CircuitData, P2Field, P2ProofWithPublicInputs};
 use super::noir_to_plonky2_field;
-use crate::errors::Plonky2GenError;
+use crate::errors::{Plonky2GenError, Plonky2VerifyError};
 use acvm::acir::native_types::WitnessMap;
 use acvm::FieldElement;
 use noirc_abi::{input_parser::InputValue, InputMap};
@@ -114,16 +114,16 @@ impl Plonky2Circuit {
         &self,
         proof: &[u8],
         public_inputs: WitnessMap<FieldElement>,
-    ) -> Result<bool, Plonky2GenError> {
+    ) -> Result<bool, Plonky2VerifyError> {
         let deserialized_proof: P2ProofWithPublicInputs = match serde_json::from_slice(proof) {
             Ok(deserialized_proof) => deserialized_proof,
             Err(error) => {
                 let error_message = format!("Unexpected deserialization error: {:?}", error);
-                return Err(Plonky2GenError::ICE { message: error_message });
+                return Err(Plonky2VerifyError::VerificationFailed { message: error_message });
             }
         };
         if !Self::verify_public_inputs_in_proof(public_inputs, &deserialized_proof) {
-            return Err(Plonky2GenError::ICE {
+            return Err(Plonky2VerifyError::VerificationFailed {
                 message: "Public inputs don't match proof".to_string(),
             });
         }
@@ -131,7 +131,7 @@ impl Plonky2Circuit {
             Ok(_) => Ok(true),
             Err(error) => {
                 let error_message = format!("Unexpected proof verification failure: {:?}", error);
-                Err(Plonky2GenError::ICE { message: error_message })
+                Err(Plonky2VerifyError::VerificationFailed { message: error_message })
             }
         }
     }
