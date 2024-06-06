@@ -13,6 +13,7 @@ services:
       PXE_PROVER_ENABLED: ${PXE_PROVER_ENABLED:-1}
       PXE_DATA_DIRECTORY: /var/lib/aztec/pxe
       NODE_NO_WARNINGS: 1
+      AZTEC_PORT: 8080
     entrypoint:
       [
         "/bin/sh",
@@ -26,7 +27,7 @@ services:
     volumes:
       - aztec:/var/lib/aztec
     ports:
-      - 8080:8080
+      - 8080:8080/tcp
 
   node:
     image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:edc36351a531c2d76c2a96e2a67dc1f4020d5dcb9c7132d7df8e75a8518ed1b3}
@@ -56,7 +57,7 @@ services:
       P2P_QUERY_FOR_IP: true
       P2P_ENABLED: true
       PEER_ID_PRIVATE_KEY:
-      AZTEC_NODE_PORT: 8999
+      AZTEC_PORT: 8999
     secrets:
       - ethereum-host
       - p2p-boot-node
@@ -66,8 +67,8 @@ services:
         "-c",
         "export ETHEREUM_HOST=$$(cat /var/run/secrets/ethereum-host);\
          export BOOTSTRAP_NODES=$$(cat /var/run/secrets/p2p-boot-node);\
-         test -z \"$PEER_ID_PRIVATE_KEY\" -a ! -f /var/lib/aztec/p2p-private-key && node /usr/src/yarn-project/cli/dest/bin/index.js generate-p2p-private-key | head -1 | cut -d' ' -f 3 | tee /var/lib/aztec/p2p-private-key || echo 'Re-using existing P2P private key';\
-         test -z \"$PEER_ID_PRIVATE_KEY\" && export PEER_ID_PRIVATE_KEY=$$(cat /var/lib/aztec/p2p-private-key);\
+         test -z \"$$PEER_ID_PRIVATE_KEY\" -a ! -f /var/lib/aztec/p2p-private-key && node /usr/src/yarn-project/cli/dest/bin/index.js generate-p2p-private-key | head -1 | cut -d' ' -f 3 | tee /var/lib/aztec/p2p-private-key || echo 'Re-using existing P2P private key';\
+         test -z \"$$PEER_ID_PRIVATE_KEY\" && export PEER_ID_PRIVATE_KEY=$$(cat /var/lib/aztec/p2p-private-key);\
          node /usr/src/yarn-project/aztec/dest/bin/index.js start --node --archiver",
       ]
     volumes:
@@ -76,7 +77,7 @@ services:
       - node
     ports:
       # the RPC endpoint - expose it on a different port to avoid conflicting with PXE
-      - 8999:8999/tcp 
+      - 8999:8999/tcp
       - 9000:9000/tcp
       - 9001:9001/udp
 
