@@ -77,8 +77,13 @@ export class ViemTxSender implements L1PublisherTxSender {
   }
 
   async getSubmitterAddressForBlock(blockNumber: number): Promise<EthAddress> {
-    const submitter = await this.rollupContract.read.whoseTurnIsIt([BigInt(blockNumber)]);
-    return EthAddress.fromString(submitter);
+    try {
+      const submitter = await this.rollupContract.read.whoseTurnIsIt([BigInt(blockNumber)]);
+      return EthAddress.fromString(submitter);
+    } catch (err) {
+      this.log.warn(`Failed to get submitter for block ${blockNumber}: ${err}`);
+      return EthAddress.ZERO;
+    }
   }
 
   async getCurrentArchive(): Promise<Buffer> {
