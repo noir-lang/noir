@@ -1,7 +1,7 @@
 import { keccak256, pedersenHash, poseidon2Permutation, sha256 } from '@aztec/foundation/crypto';
 
 import { type AvmContext } from '../avm_context.js';
-import { Field, Uint8 } from '../avm_memory_types.js';
+import { Field, TypeTag, Uint8 } from '../avm_memory_types.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Addressing } from './addressing_mode.js';
 import { Instruction } from './instruction.js';
@@ -32,6 +32,7 @@ export class Poseidon2 extends Instruction {
       [this.inputStateOffset, this.outputStateOffset],
       memory,
     );
+    memory.checkTagsRange(TypeTag.FIELD, inputOffset, Poseidon2.stateSize);
 
     const inputState = memory.getSlice(inputOffset, Poseidon2.stateSize);
     const outputState = poseidon2Permutation(inputState);
@@ -74,9 +75,13 @@ export class Keccak extends Instruction {
       [this.dstOffset, this.messageOffset, this.messageSizeOffset],
       memory,
     );
+    // TODO: Enable when Noir uses UINT32
+    // memory.checkTag(TypeTag.UINT32, messageSizeOffset);
     const messageSize = memory.get(messageSizeOffset).toNumber();
     const memoryOperations = { reads: messageSize + 1, writes: 32, indirect: this.indirect };
     context.machineState.consumeGas(this.gasCost(memoryOperations));
+
+    memory.checkTagsRange(TypeTag.UINT8, messageOffset, messageSize);
 
     const messageData = Buffer.concat(memory.getSlice(messageOffset, messageSize).map(word => word.toBuffer()));
     const hashBuffer = keccak256(messageData);
@@ -119,9 +124,12 @@ export class Sha256 extends Instruction {
       [this.dstOffset, this.messageOffset, this.messageSizeOffset],
       memory,
     );
+    // TODO: Enable when Noir uses UINT32
+    // memory.checkTag(TypeTag.UINT32, messageSizeOffset);
     const messageSize = memory.get(messageSizeOffset).toNumber();
     const memoryOperations = { reads: messageSize + 1, writes: 32, indirect: this.indirect };
     context.machineState.consumeGas(this.gasCost(memoryOperations));
+    memory.checkTagsRange(TypeTag.UINT8, messageOffset, messageSize);
 
     const messageData = Buffer.concat(memory.getSlice(messageOffset, messageSize).map(word => word.toBuffer()));
     const hashBuffer = sha256(messageData);
@@ -168,11 +176,16 @@ export class Pedersen extends Instruction {
 
     // We hash a set of field elements
     const genIndex = Number(memory.get(genIndexOffset).toBigInt());
+    memory.checkTag(TypeTag.UINT32, genIndexOffset);
     const messageSize = Number(memory.get(messageSizeOffset).toBigInt());
+    // TODO: Enable when Noir uses UINT32
+    // memory.checkTag(TypeTag.UINT32, messageSizeOffset);
     const hashData = memory.getSlice(messageOffset, messageSize);
 
     const memoryOperations = { reads: messageSize + 2, writes: 1, indirect: this.indirect };
     context.machineState.consumeGas(this.gasCost(memoryOperations));
+
+    memory.checkTagsRange(TypeTag.FIELD, messageOffset, messageSize);
 
     // No domain sep for now
     const hash = pedersenHash(hashData, genIndex);

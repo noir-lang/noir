@@ -1,6 +1,7 @@
 import type { AvmContext } from '../avm_context.js';
 import { type MemoryValue, Uint8 } from '../avm_memory_types.js';
 import { Opcode } from '../serialization/instruction_serialization.js';
+import { Addressing } from './addressing_mode.js';
 import { ThreeOperandInstruction } from './instruction_impl.js';
 
 abstract class ComparatorInstruction extends ThreeOperandInstruction {
@@ -9,13 +10,17 @@ abstract class ComparatorInstruction extends ThreeOperandInstruction {
     const memory = context.machineState.memory.track(this.type);
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    memory.checkTags(this.inTag, this.aOffset, this.bOffset);
+    const [aOffset, bOffset, dstOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.aOffset, this.bOffset, this.dstOffset],
+      memory,
+    );
+    memory.checkTags(this.inTag, aOffset, bOffset);
 
-    const a = memory.get(this.aOffset);
-    const b = memory.get(this.bOffset);
+    const a = memory.get(aOffset);
+    const b = memory.get(bOffset);
 
     const dest = new Uint8(this.compare(a, b) ? 1 : 0);
-    memory.set(this.dstOffset, dest);
+    memory.set(dstOffset, dest);
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();

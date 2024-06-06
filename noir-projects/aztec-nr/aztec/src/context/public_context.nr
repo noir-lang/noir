@@ -1,6 +1,6 @@
 use crate::hash::{compute_secret_hash, compute_message_hash, compute_message_nullifier};
 use dep::protocol_types::address::{AztecAddress, EthAddress};
-use dep::protocol_types::traits::{Deserialize, Empty};
+use dep::protocol_types::traits::{Serialize, Deserialize, Empty};
 use dep::protocol_types::abis::function_selector::FunctionSelector;
 use crate::context::inputs::public_context_inputs::PublicContextInputs;
 use crate::context::gas::GasOpts;
@@ -28,11 +28,17 @@ impl PublicContext {
     *
     * @param event_selector The event selector for the log.
     * @param message The message to emit in the log.
-    * Should be automatically convertible to [Field; N]. For example str<N> works with
-    * one char per field. Otherwise you can use CompressedString.
     */
-    pub fn emit_unencrypted_log_with_selector<T>(&mut self, event_selector: Field, log: T) {
-        emit_unencrypted_log(event_selector, log);
+    pub fn emit_unencrypted_log_with_selector<T,N>(
+        &mut self,
+        event_selector: Field,
+        log: T
+    ) where T: Serialize<N> {
+        emit_unencrypted_log(event_selector, Serialize::serialize(log).as_slice());
+    }
+    // For compatibility with the selector-less API. We'll probably rename the above one.
+    pub fn emit_unencrypted_log<T,N>(&mut self, log: T) where T: Serialize<N> {
+        self.emit_unencrypted_log_with_selector(/*event_selector=*/ 5, log);
     }
     pub fn note_hash_exists(self, note_hash: Field, leaf_index: Field) -> bool {
         note_hash_exists(note_hash, leaf_index) == 1
@@ -55,11 +61,6 @@ impl PublicContext {
 
     fn nullifier_exists(self, unsiloed_nullifier: Field, address: AztecAddress) -> bool {
         nullifier_exists(unsiloed_nullifier, address.to_field()) == 1
-    }
-
-    fn emit_unencrypted_log<T, N, M>(&mut self, log: T) {
-        let event_selector = 5; // Matches current PublicContext.
-        self.emit_unencrypted_log_with_selector(event_selector, log);
     }
 
     fn consume_l1_to_l2_message(
@@ -234,7 +235,7 @@ unconstrained fn nullifier_exists(nullifier: Field, address: Field) -> u8 {
 unconstrained fn emit_nullifier(nullifier: Field) {
     emit_nullifier_opcode(nullifier)
 }
-unconstrained fn emit_unencrypted_log<T>(event_selector: Field, message: T) {
+unconstrained fn emit_unencrypted_log(event_selector: Field, message: [Field]) {
     emit_unencrypted_log_opcode(event_selector, message)
 }
 unconstrained fn l1_to_l2_msg_exists(msg_hash: Field, msg_leaf_index: Field) -> u8 {
@@ -319,7 +320,7 @@ fn nullifier_exists_opcode(nullifier: Field, address: Field) -> u8 {}
 fn emit_nullifier_opcode(nullifier: Field) {}
 
 #[oracle(amvOpcodeEmitUnencryptedLog)]
-fn emit_unencrypted_log_opcode<T>(event_selector: Field, message: T) {}
+fn emit_unencrypted_log_opcode(event_selector: Field, message: [Field]) {}
 
 #[oracle(avmOpcodeL1ToL2MsgExists)]
 fn l1_to_l2_msg_exists_opcode(msg_hash: Field, msg_leaf_index: Field) -> u8 {}

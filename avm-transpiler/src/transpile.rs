@@ -435,7 +435,7 @@ fn handle_emit_unencrypted_log(
     destinations: &Vec<ValueOrArray>,
     inputs: &Vec<ValueOrArray>,
 ) {
-    if !destinations.is_empty() || inputs.len() != 2 {
+    if !destinations.is_empty() || inputs.len() != 3 {
         panic!(
             "Transpiler expects ForeignCall::EMITUNENCRYPTEDLOG to have 0 destinations and 3 inputs, got {} and {}",
             destinations.len(),
@@ -449,23 +449,20 @@ fn handle_emit_unencrypted_log(
             inputs[0]
         ),
     };
-    let (message_offset, message_size, message_offset_indirect) = match &inputs[1] {
-        ValueOrArray::HeapArray(array) => {
-            // Heap array, so offset to array is an indirect memory offset
-            (array.pointer.to_usize() as u32, array.size as u32, true)
-        }
-        ValueOrArray::MemoryAddress(single_val) => (single_val.to_usize() as u32, 1, false),
+    // The fields are a slice, and this is represented as a (length: Field, slice: HeapVector).
+    // The length field is redundant and we skipt it.
+    let (message_offset, message_size_offset) = match &inputs[2] {
+        ValueOrArray::HeapVector(vec) => (vec.pointer.to_usize() as u32, vec.size.0 as u32),
         _ => panic!("Unexpected inputs for ForeignCall::EMITUNENCRYPTEDLOG: {:?}", inputs),
     };
-    let indirect_flag = if message_offset_indirect { FIRST_OPERAND_INDIRECT } else { 0 };
     avm_instrs.push(AvmInstruction {
         opcode: AvmOpcode::EMITUNENCRYPTEDLOG,
         // The message array from Brillig is indirect.
-        indirect: Some(indirect_flag),
+        indirect: Some(FIRST_OPERAND_INDIRECT),
         operands: vec![
             AvmOperand::U32 { value: event_offset },
             AvmOperand::U32 { value: message_offset },
-            AvmOperand::U32 { value: message_size },
+            AvmOperand::U32 { value: message_size_offset },
         ],
         ..Default::default()
     });
@@ -971,7 +968,7 @@ fn handle_storage_read(
 
     avm_instrs.push(AvmInstruction {
         opcode: AvmOpcode::SLOAD,
-        indirect: Some(SECOND_OPERAND_INDIRECT),
+        indirect: Some(FIRST_OPERAND_INDIRECT),
         operands: vec![
             AvmOperand::U32 { value: slot_offset as u32 },
             AvmOperand::U32 { value: src_size as u32 },

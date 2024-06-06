@@ -1,7 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
 
 import type { AvmContext } from '../avm_context.js';
-import { Field } from '../avm_memory_types.js';
+import { Field, TypeTag } from '../avm_memory_types.js';
 import { StaticCallAlterationError } from '../errors.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Addressing } from './addressing_mode.js';
@@ -45,6 +45,8 @@ export class SStore extends BaseStorageInstruction {
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
     const [srcOffset, slotOffset] = Addressing.fromWire(this.indirect).resolve([this.aOffset, this.bOffset], memory);
+    memory.checkTag(TypeTag.FIELD, slotOffset);
+    memory.checkTagsRange(TypeTag.FIELD, srcOffset, this.size);
 
     const slot = memory.get(slotOffset).toFr();
     const data = memory.getSlice(srcOffset, this.size).map(field => field.toFr());
@@ -72,21 +74,19 @@ export class SLoad extends BaseStorageInstruction {
     const memory = context.machineState.memory.track(this.type);
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    const [aOffset, size, bOffset] = Addressing.fromWire(this.indirect).resolve(
-      [this.aOffset, this.size, this.bOffset],
-      memory,
-    );
+    const [slotOffset, dstOffset] = Addressing.fromWire(this.indirect).resolve([this.aOffset, this.bOffset], memory);
+    memory.checkTag(TypeTag.FIELD, slotOffset);
 
-    const slot = memory.get(aOffset);
+    const slot = memory.get(slotOffset);
 
     // Write each read value from storage into memory
-    for (let i = 0; i < size; i++) {
+    for (let i = 0; i < this.size; i++) {
       const data: Fr = await context.persistableState.readStorage(
         context.environment.storageAddress,
         new Fr(slot.toBigInt() + BigInt(i)),
       );
 
-      memory.set(bOffset + i, new Field(data));
+      memory.set(dstOffset + i, new Field(data));
     }
 
     context.machineState.incrementPc();

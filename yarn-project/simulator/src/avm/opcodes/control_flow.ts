@@ -2,6 +2,7 @@ import type { AvmContext } from '../avm_context.js';
 import { type IntegralValue } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
+import { Addressing } from './addressing_mode.js';
 import { Instruction } from './instruction.js';
 
 export class Jump extends Instruction {
@@ -44,7 +45,8 @@ export class JumpI extends Instruction {
     const memory = context.machineState.memory.track(this.type);
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    const condition = memory.getAs<IntegralValue>(this.condOffset);
+    const [condOffset] = Addressing.fromWire(this.indirect).resolve([this.condOffset], memory);
+    const condition = memory.getAs<IntegralValue>(condOffset);
 
     // TODO: reconsider this casting
     if (condition.toBigInt() == 0n) {

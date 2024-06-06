@@ -1,6 +1,7 @@
 import { type AvmContext } from '../avm_context.js';
 import { type MemoryValue } from '../avm_memory_types.js';
 import { OperandType } from '../serialization/instruction_serialization.js';
+import { Addressing } from './addressing_mode.js';
 import { Instruction } from './instruction.js';
 
 /** Wire format that informs deserialization for instructions with two operands. */
@@ -72,7 +73,9 @@ export abstract class GetterInstruction extends Instruction {
     const memory = context.machineState.memory.track(this.type);
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    memory.set(this.dstOffset, this.getValue(context));
+    const [dstOffset] = Addressing.fromWire(this.indirect).resolve([this.dstOffset], memory);
+
+    memory.set(dstOffset, this.getValue(context));
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();

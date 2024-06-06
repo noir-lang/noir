@@ -1,7 +1,7 @@
 import { AztecAddress, Fr } from '@aztec/circuits.js';
 
 import type { AvmContext } from '../avm_context.js';
-import { Field } from '../avm_memory_types.js';
+import { Field, TypeTag } from '../avm_memory_types.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Addressing } from './addressing_mode.js';
 import { Instruction } from './instruction.js';
@@ -22,12 +22,17 @@ export class GetContractInstance extends Instruction {
   }
 
   async execute(context: AvmContext): Promise<void> {
+    const memoryOperations = { reads: 1, writes: 6, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
+
     const [addressOffset, dstOffset] = Addressing.fromWire(this.indirect).resolve(
       [this.addressOffset, this.dstOffset],
-      context.machineState.memory,
+      memory,
     );
+    memory.checkTag(TypeTag.FIELD, addressOffset);
 
-    const address = AztecAddress.fromField(context.machineState.memory.get(addressOffset).toFr());
+    const address = AztecAddress.fromField(memory.get(addressOffset).toFr());
     const instance = await context.persistableState.hostStorage.contractsDb.getContractInstance(address);
 
     const data =
@@ -49,8 +54,9 @@ export class GetContractInstance extends Instruction {
             instance.publicKeysHash,
           ].map(f => new Field(f));
 
-    context.machineState.memory.setSlice(dstOffset, data);
+    memory.setSlice(dstOffset, data);
 
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
   }
 }

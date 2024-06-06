@@ -347,10 +347,10 @@ describe('AVM simulator: transpiled Noir contracts', () => {
         ),
         new UnencryptedL2Log(
           context.environment.address,
-          new EventSelector(8),
+          new EventSelector(5),
           Buffer.concat(expectedString.map(f => f.toBuffer())),
         ),
-        new UnencryptedL2Log(context.environment.address, new EventSelector(10), expectedCompressedString),
+        new UnencryptedL2Log(context.environment.address, new EventSelector(5), expectedCompressedString),
       ]);
     });
 

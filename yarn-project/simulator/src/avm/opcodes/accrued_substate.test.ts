@@ -6,7 +6,7 @@ import { mock } from 'jest-mock-extended';
 
 import { type CommitmentsDB } from '../../index.js';
 import { type AvmContext } from '../avm_context.js';
-import { Field, Uint8 } from '../avm_memory_types.js';
+import { Field, Uint8, Uint32 } from '../avm_memory_types.js';
 import { InstructionExecutionError, StaticCallAlterationError } from '../errors.js';
 import { initContext, initExecutionEnvironment, initHostStorage } from '../fixtures/index.js';
 import { AvmPersistableStateManager } from '../journal/journal.js';
@@ -392,14 +392,14 @@ describe('Accrued Substate', () => {
         EmitUnencryptedLog.opcode, // opcode
         0x01, // indirect
         ...Buffer.from('02345678', 'hex'), // event selector offset
-        ...Buffer.from('12345678', 'hex'), // offset
-        ...Buffer.from('a2345678', 'hex'), // length
+        ...Buffer.from('12345678', 'hex'), // log offset
+        ...Buffer.from('a2345678', 'hex'), // length offset
       ]);
       const inst = new EmitUnencryptedLog(
         /*indirect=*/ 0x01,
         /*eventSelectorOffset=*/ 0x02345678,
         /*offset=*/ 0x12345678,
-        /*length=*/ 0xa2345678,
+        /*lengthOffset=*/ 0xa2345678,
       );
 
       expect(EmitUnencryptedLog.deserialize(buf)).toEqual(inst);
@@ -410,16 +410,18 @@ describe('Accrued Substate', () => {
       const startOffset = 0;
       const eventSelector = 5;
       const eventSelectorOffset = 10;
+      const logSizeOffset = 20;
 
       const values = [new Field(69n), new Field(420n), new Field(Field.MODULUS - 1n)];
       context.machineState.memory.setSlice(startOffset, values);
       context.machineState.memory.set(eventSelectorOffset, new Field(eventSelector));
+      context.machineState.memory.set(logSizeOffset, new Uint32(values.length));
 
       await new EmitUnencryptedLog(
         /*indirect=*/ 0,
         eventSelectorOffset,
         /*offset=*/ startOffset,
-        values.length,
+        logSizeOffset,
       ).execute(context);
 
       const journalState = context.persistableState.flush();
@@ -472,11 +474,12 @@ describe('Accrued Substate', () => {
 
   it('All substate emission instructions should fail within a static call', async () => {
     context = initContext({ env: initExecutionEnvironment({ isStaticCall: true }) });
+    context.machineState.memory.set(0, new Field(2020n));
 
     const instructions = [
       new EmitNoteHash(/*indirect=*/ 0, /*offset=*/ 0),
       new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0),
-      new EmitUnencryptedLog(/*indirect=*/ 0, /*eventSelector=*/ 0, /*offset=*/ 0, /*logSize=*/ 1),
+      new EmitUnencryptedLog(/*indirect=*/ 0, /*eventSelector=*/ 0, /*offset=*/ 0, /*logSizeOffset=*/ 0),
       new SendL2ToL1Message(/*indirect=*/ 0, /*recipientOffset=*/ 0, /*contentOffset=*/ 1),
     ];
 

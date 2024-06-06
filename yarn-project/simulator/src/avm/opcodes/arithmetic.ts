@@ -1,6 +1,7 @@
 import type { AvmContext } from '../avm_context.js';
 import { type Field, type MemoryValue, TypeTag } from '../avm_memory_types.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
+import { Addressing } from './addressing_mode.js';
 import { Instruction } from './instruction.js';
 import { ThreeOperandInstruction } from './instruction_impl.js';
 
@@ -10,13 +11,17 @@ export abstract class ThreeOperandArithmeticInstruction extends ThreeOperandInst
     const memory = context.machineState.memory.track(this.type);
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    memory.checkTags(this.inTag, this.aOffset, this.bOffset);
+    const [aOffset, bOffset, dstOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.aOffset, this.bOffset, this.dstOffset],
+      memory,
+    );
+    memory.checkTags(this.inTag, aOffset, bOffset);
 
-    const a = memory.get(this.aOffset);
-    const b = memory.get(this.bOffset);
+    const a = memory.get(aOffset);
+    const b = memory.get(bOffset);
 
     const dest = this.compute(a, b);
-    memory.set(this.dstOffset, dest);
+    memory.set(dstOffset, dest);
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();
@@ -83,13 +88,17 @@ export class FieldDiv extends Instruction {
     const memory = context.machineState.memory.track(this.type);
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    memory.checkTags(TypeTag.FIELD, this.aOffset, this.bOffset);
+    const [aOffset, bOffset, dstOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.aOffset, this.bOffset, this.dstOffset],
+      memory,
+    );
+    memory.checkTags(TypeTag.FIELD, aOffset, bOffset);
 
-    const a = memory.getAs<Field>(this.aOffset);
-    const b = memory.getAs<Field>(this.bOffset);
+    const a = memory.getAs<Field>(aOffset);
+    const b = memory.getAs<Field>(bOffset);
 
     const dest = a.fdiv(b);
-    memory.set(this.dstOffset, dest);
+    memory.set(dstOffset, dest);
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();

@@ -1,5 +1,5 @@
 import type { AvmContext } from '../avm_context.js';
-import { Uint8 } from '../avm_memory_types.js';
+import { TypeTag, Uint8 } from '../avm_memory_types.js';
 import { InstructionExecutionError, StaticCallAlterationError } from '../errors.js';
 import { NullifierCollisionError } from '../journal/nullifiers.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
@@ -31,17 +31,22 @@ export class NoteHashExists extends Instruction {
     const memoryOperations = { reads: 2, writes: 1, indirect: this.indirect };
     const memory = context.machineState.memory.track(this.type);
     context.machineState.consumeGas(this.gasCost(memoryOperations));
+    const [noteHashOffset, leafIndexOffset, existsOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.noteHashOffset, this.leafIndexOffset, this.existsOffset],
+      memory,
+    );
+    memory.checkTags(TypeTag.FIELD, noteHashOffset, leafIndexOffset);
 
     // Note that this instruction accepts any type in memory, and converts to Field.
-    const noteHash = memory.get(this.noteHashOffset).toFr();
-    const leafIndex = memory.get(this.leafIndexOffset).toFr();
+    const noteHash = memory.get(noteHashOffset).toFr();
+    const leafIndex = memory.get(leafIndexOffset).toFr();
 
     const exists = await context.persistableState.checkNoteHashExists(
       context.environment.storageAddress,
       noteHash,
       leafIndex,
     );
-    memory.set(this.existsOffset, exists ? new Uint8(1) : new Uint8(0));
+    memory.set(existsOffset, exists ? new Uint8(1) : new Uint8(0));
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();
@@ -63,11 +68,14 @@ export class EmitNoteHash extends Instruction {
     const memory = context.machineState.memory.track(this.type);
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
+    const [noteHashOffset] = Addressing.fromWire(this.indirect).resolve([this.noteHashOffset], memory);
+    memory.checkTag(TypeTag.FIELD, noteHashOffset);
+
     if (context.environment.isStaticCall) {
       throw new StaticCallAlterationError();
     }
 
-    const noteHash = memory.get(this.noteHashOffset).toFr();
+    const noteHash = memory.get(noteHashOffset).toFr();
     context.persistableState.writeNoteHash(context.environment.storageAddress, noteHash);
 
     memory.assert(memoryOperations);
@@ -101,11 +109,17 @@ export class NullifierExists extends Instruction {
     const memory = context.machineState.memory.track(this.type);
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    const nullifier = memory.get(this.nullifierOffset).toFr();
-    const address = memory.get(this.addressOffset).toFr();
+    const [nullifierOffset, addressOffset, existsOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.nullifierOffset, this.addressOffset, this.existsOffset],
+      memory,
+    );
+    memory.checkTags(TypeTag.FIELD, nullifierOffset, addressOffset);
+
+    const nullifier = memory.get(nullifierOffset).toFr();
+    const address = memory.get(addressOffset).toFr();
     const exists = await context.persistableState.checkNullifierExists(address, nullifier);
 
-    memory.set(this.existsOffset, exists ? new Uint8(1) : new Uint8(0));
+    memory.set(existsOffset, exists ? new Uint8(1) : new Uint8(0));
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();
@@ -131,7 +145,10 @@ export class EmitNullifier extends Instruction {
     const memory = context.machineState.memory.track(this.type);
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    const nullifier = memory.get(this.nullifierOffset).toFr();
+    const [nullifierOffset] = Addressing.fromWire(this.indirect).resolve([this.nullifierOffset], memory);
+    memory.checkTag(TypeTag.FIELD, nullifierOffset);
+
+    const nullifier = memory.get(nullifierOffset).toFr();
     try {
       await context.persistableState.writeNullifier(context.environment.storageAddress, nullifier);
     } catch (e) {
@@ -176,10 +193,16 @@ export class L1ToL2MessageExists extends Instruction {
     const memory = context.machineState.memory.track(this.type);
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    const msgHash = memory.get(this.msgHashOffset).toFr();
-    const msgLeafIndex = memory.get(this.msgLeafIndexOffset).toFr();
+    const [msgHashOffset, msgLeafIndexOffset, existsOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.msgHashOffset, this.msgLeafIndexOffset, this.existsOffset],
+      memory,
+    );
+    memory.checkTags(TypeTag.FIELD, msgHashOffset, msgLeafIndexOffset);
+
+    const msgHash = memory.get(msgHashOffset).toFr();
+    const msgLeafIndex = memory.get(msgLeafIndexOffset).toFr();
     const exists = await context.persistableState.checkL1ToL2MessageExists(msgHash, msgLeafIndex);
-    memory.set(this.existsOffset, exists ? new Uint8(1) : new Uint8(0));
+    memory.set(existsOffset, exists ? new Uint8(1) : new Uint8(0));
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();
@@ -202,7 +225,7 @@ export class EmitUnencryptedLog extends Instruction {
     private indirect: number,
     private eventSelectorOffset: number,
     private logOffset: number,
-    private logSize: number,
+    private logSizeOffset: number,
   ) {
     super();
   }
@@ -212,18 +235,24 @@ export class EmitUnencryptedLog extends Instruction {
       throw new StaticCallAlterationError();
     }
 
-    const memoryOperations = { reads: 1 + this.logSize, indirect: this.indirect };
     const memory = context.machineState.memory.track(this.type);
-    context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    const [eventSelectorOffset, logOffset] = Addressing.fromWire(this.indirect).resolve(
-      [this.eventSelectorOffset, this.logOffset],
+    const [eventSelectorOffset, logOffset, logSizeOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.eventSelectorOffset, this.logOffset, this.logSizeOffset],
       memory,
     );
+    memory.checkTag(TypeTag.FIELD, eventSelectorOffset);
+    // TODO: enable once Noir generates UINT32
+    // memory.checkTag(TypeTag.UINT32, logSize);
+    const logSize = memory.get(logSizeOffset).toNumber();
+    memory.checkTagsRange(TypeTag.FIELD, logOffset, logSize);
 
     const contractAddress = context.environment.address;
     const event = memory.get(eventSelectorOffset).toFr();
-    const log = memory.getSlice(logOffset, this.logSize).map(f => f.toFr());
+
+    const memoryOperations = { reads: 2 + logSize, indirect: this.indirect };
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
+    const log = memory.getSlice(logOffset, logSize).map(f => f.toFr());
     context.persistableState.writeLog(contractAddress, event, log);
 
     memory.assert(memoryOperations);
@@ -250,8 +279,13 @@ export class SendL2ToL1Message extends Instruction {
     const memory = context.machineState.memory.track(this.type);
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    const recipient = memory.get(this.recipientOffset).toFr();
-    const content = memory.get(this.contentOffset).toFr();
+    const [recipientOffset, contentOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.recipientOffset, this.contentOffset],
+      memory,
+    );
+
+    const recipient = memory.get(recipientOffset).toFr();
+    const content = memory.get(contentOffset).toFr();
     context.persistableState.writeL1Message(recipient, content);
 
     memory.assert(memoryOperations);

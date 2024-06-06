@@ -32,7 +32,6 @@ contract StaticChild {
     fn pub_set_value(new_value: Field) -> Field {
         storage.current_value.write(new_value);
         context.emit_unencrypted_log(new_value);
-
         new_value
     }
 
@@ -86,7 +85,6 @@ contract StaticChild {
         let old_value = storage.current_value.read();
         storage.current_value.write(old_value + new_value);
         context.emit_unencrypted_log(new_value);
-
         new_value
     }
 
@@ -97,7 +95,6 @@ contract StaticChild {
         let old_value = storage.current_value.read();
         storage.current_value.write(old_value + new_value);
         context.emit_unencrypted_log(new_value);
-
         new_value
     }
 }

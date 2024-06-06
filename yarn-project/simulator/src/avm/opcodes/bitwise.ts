@@ -1,6 +1,7 @@
 import type { AvmContext } from '../avm_context.js';
 import { type IntegralValue, type TaggedMemoryInterface, TypeTag } from '../avm_memory_types.js';
 import { Opcode } from '../serialization/instruction_serialization.js';
+import { Addressing } from './addressing_mode.js';
 import { ThreeOperandInstruction, TwoOperandInstruction } from './instruction_impl.js';
 
 abstract class ThreeOperandBitwiseInstruction extends ThreeOperandInstruction {
@@ -9,13 +10,17 @@ abstract class ThreeOperandBitwiseInstruction extends ThreeOperandInstruction {
     const memory = context.machineState.memory.track(this.type);
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    this.checkTags(memory, this.inTag, this.aOffset, this.bOffset);
+    const [aOffset, bOffset, dstOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.aOffset, this.bOffset, this.dstOffset],
+      memory,
+    );
+    this.checkTags(memory, this.inTag, aOffset, bOffset);
 
-    const a = memory.getAs<IntegralValue>(this.aOffset);
-    const b = memory.getAs<IntegralValue>(this.bOffset);
+    const a = memory.getAs<IntegralValue>(aOffset);
+    const b = memory.getAs<IntegralValue>(bOffset);
 
     const res = this.compute(a, b);
-    memory.set(this.dstOffset, res);
+    memory.set(dstOffset, res);
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();
@@ -93,12 +98,12 @@ export class Not extends TwoOperandInstruction {
     const memory = context.machineState.memory.track(this.type);
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    memory.checkTags(this.inTag, this.aOffset);
-
-    const a = memory.getAs<IntegralValue>(this.aOffset);
+    const [aOffset, dstOffset] = Addressing.fromWire(this.indirect).resolve([this.aOffset, this.dstOffset], memory);
+    memory.checkTags(this.inTag, aOffset);
+    const a = memory.getAs<IntegralValue>(aOffset);
 
     const res = a.not();
-    memory.set(this.dstOffset, res);
+    memory.set(dstOffset, res);
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();
