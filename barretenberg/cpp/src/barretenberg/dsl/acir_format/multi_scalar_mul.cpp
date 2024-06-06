@@ -36,7 +36,7 @@ template <typename Builder> void create_multi_scalar_mul_constraint(Builder& bui
     }
 
     // Call batch_mul to multiply the points and scalars and sum the results
-    auto output_point = cycle_group_ct::batch_mul(points, scalars);
+    auto output_point = cycle_group_ct::batch_mul(points, scalars).get_standard_form();
 
     // Add the constraints
     builder.assert_equal(output_point.x.get_witness_index(), input.out_point_x);

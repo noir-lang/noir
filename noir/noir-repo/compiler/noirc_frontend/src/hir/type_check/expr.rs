@@ -2,6 +2,7 @@ use iter_extended::vecmap;
 use noirc_errors::Span;
 
 use crate::ast::{BinaryOpKind, IntegerBitSize, UnaryOp};
+use crate::hir_def::expr::HirCallExpression;
 use crate::macros_api::Signedness;
 use crate::{
     hir::{resolution::resolver::verify_mutable_reference, type_check::errors::Source},
@@ -176,16 +177,6 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirExpression::Index(index_expr) => self.check_index_expression(expr_id, index_expr),
             HirExpression::Call(call_expr) => {
-                // Need to setup these flags here as `self` is borrowed mutably to type check the rest of the call expression
-                // These flags are later used to type check calls to unconstrained functions from constrained functions
-                let current_func = self.current_function;
-                let func_mod = current_func.map(|func| self.interner.function_modifiers(&func));
-                let is_current_func_constrained =
-                    func_mod.map_or(true, |func_mod| !func_mod.is_unconstrained);
-                let is_unconstrained_call = self.is_unconstrained_call(&call_expr.func);
-
-                self.check_if_deprecated(&call_expr.func);
-
                 let function = self.check_expression(&call_expr.func);
 
                 let args = vecmap(&call_expr.arguments, |arg| {
@@ -193,39 +184,13 @@ impl<'interner> TypeChecker<'interner> {
                     (typ, *arg, self.interner.expr_span(arg))
                 });
 
-                // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
-                if is_current_func_constrained && is_unconstrained_call {
-                    for (typ, _, _) in args.iter() {
-                        if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
-                            self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained {
-                                span: self.interner.expr_span(expr_id),
-                            });
-                            return Type::Error;
-                        }
-                    }
-                }
-
                 let span = self.interner.expr_span(expr_id);
-                let return_type = self.bind_function_type(function, args, span);
-
-                // Check that we are not passing a slice from an unconstrained runtime to a constrained runtime
-                if is_current_func_constrained && is_unconstrained_call {
-                    if return_type.contains_slice() {
-                        self.errors.push(TypeCheckError::UnconstrainedSliceReturnToConstrained {
-                            span: self.interner.expr_span(expr_id),
-                        });
-                        return Type::Error;
-                    } else if matches!(&return_type.follow_bindings(), Type::MutableReference(_)) {
-                        self.errors.push(TypeCheckError::UnconstrainedReferenceToConstrained {
-                            span: self.interner.expr_span(expr_id),
-                        });
-                        return Type::Error;
-                    }
-                };
-
-                return_type
+                self.check_call(&call_expr, function, args, span)
             }
             HirExpression::MethodCall(mut method_call) => {
+                let method_call_span = self.interner.expr_span(expr_id);
+                let object = method_call.object;
+                let object_span = self.interner.expr_span(&method_call.object);
                 let mut object_type = self.check_expression(&method_call.object).follow_bindings();
                 let method_name = method_call.method.0.contents.as_str();
                 match self.lookup_method(&object_type, method_name, expr_id) {
@@ -259,19 +224,42 @@ impl<'interner> TypeChecker<'interner> {
                             );
                         }
 
+                        // These arguments will be given to the desugared function call.
+                        // Compared to the method arguments, they also contain the object.
+                        let mut function_args = Vec::with_capacity(method_call.arguments.len() + 1);
+
+                        function_args.push((object_type.clone(), object, object_span));
+
+                        for arg in method_call.arguments.iter() {
+                            let span = self.interner.expr_span(arg);
+                            let typ = self.check_expression(arg);
+                            function_args.push((typ, *arg, span));
+                        }
+
                         // TODO: update object_type here?
-                        let (_, function_call) = method_call.into_function_call(
+                        let ((function_id, _), function_call) = method_call.into_function_call(
                             &method_ref,
                             object_type,
                             location,
                             self.interner,
                         );
 
-                        self.interner.replace_expr(expr_id, HirExpression::Call(function_call));
+                        let func_type = self.check_expression(&function_id);
 
                         // Type check the new call now that it has been changed from a method call
                         // to a function call. This way we avoid duplicating code.
-                        self.check_expression(expr_id)
+                        // We call `check_call` rather than `check_expression` directly as we want to avoid
+                        // resolving the object type again once it is part of the arguments.
+                        let typ = self.check_call(
+                            &function_call,
+                            func_type,
+                            function_args,
+                            method_call_span,
+                        );
+
+                        self.interner.replace_expr(expr_id, HirExpression::Call(function_call));
+
+                        typ
                     }
                     None => Type::Error,
                 }
@@ -331,6 +319,45 @@ impl<'interner> TypeChecker<'interner> {
 
         self.interner.push_expr_type(*expr_id, typ.clone());
         typ
+    }
+
+    fn check_call(
+        &mut self,
+        call: &HirCallExpression,
+        func_type: Type,
+        args: Vec<(Type, ExprId, Span)>,
+        span: Span,
+    ) -> Type {
+        // Need to setup these flags here as `self` is borrowed mutably to type check the rest of the call expression
+        // These flags are later used to type check calls to unconstrained functions from constrained functions
+        let func_mod = self.current_function.map(|func| self.interner.function_modifiers(&func));
+        let is_current_func_constrained =
+            func_mod.map_or(true, |func_mod| !func_mod.is_unconstrained);
+
+        let is_unconstrained_call = self.is_unconstrained_call(&call.func);
+        self.check_if_deprecated(&call.func);
+
+        // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
+        if is_current_func_constrained && is_unconstrained_call {
+            for (typ, _, _) in args.iter() {
+                if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
+                    self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained { span });
+                }
+            }
+        }
+
+        let return_type = self.bind_function_type(func_type, args, span);
+
+        // Check that we are not passing a slice from an unconstrained runtime to a constrained runtime
+        if is_current_func_constrained && is_unconstrained_call {
+            if return_type.contains_slice() {
+                self.errors.push(TypeCheckError::UnconstrainedSliceReturnToConstrained { span });
+            } else if matches!(&return_type.follow_bindings(), Type::MutableReference(_)) {
+                self.errors.push(TypeCheckError::UnconstrainedReferenceToConstrained { span });
+            }
+        };
+
+        return_type
     }
 
     fn check_block(&mut self, block: HirBlockExpression) -> Type {
@@ -416,9 +443,8 @@ impl<'interner> TypeChecker<'interner> {
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
         if let Some(definition) = self.interner.try_definition(ident.id) {
-            if let DefinitionKind::Function(function) = definition.kind {
-                let function = self.interner.function_meta(&function);
-
+            if let DefinitionKind::Function(func_id) = definition.kind {
+                let function = self.interner.function_meta(&func_id);
                 for mut constraint in function.trait_constraints.clone() {
                     constraint.apply_bindings(&bindings);
                     self.trait_constraints.push((constraint, *expr_id));

@@ -72,7 +72,7 @@ describe('benchmarks/tx_size_fees', () => {
       // non-rev: 1 nullifiers, overhead; rev: 2 note hashes, 1 nullifier, 1168 B enc note logs, 0 B enc logs,0 B unenc logs, teardown
       // L2:
       // non-rev: 0; rev: 0
-      200072320n,
+      200062330n,
     ],
     [
       'private fee',
@@ -81,7 +81,7 @@ describe('benchmarks/tx_size_fees', () => {
       // non-rev: 3 nullifiers, overhead; rev: 2 note hashes, 1168 B enc note logs, 0 B enc logs, 0 B unenc logs, teardown
       // L2:
       // non-rev: 0; rev: 0
-      200036352n,
+      200032492n,
     ],
   ] as const)(
     'sends a tx with a fee with %s payment method',

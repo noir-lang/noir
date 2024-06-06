@@ -35,10 +35,10 @@ void create_ec_add_constraint(Builder& builder, const EcAdd& input, bool has_val
     cycle_group_ct input2_point(x2, y2, infinite2);
     // Addition
     cycle_group_ct result = input1_point + input2_point;
-
-    auto x_normalized = result.x.normalize();
-    auto y_normalized = result.y.normalize();
-    auto infinite = result.is_point_at_infinity().normalize();
+    cycle_group_ct standard_result = result.get_standard_form();
+    auto x_normalized = standard_result.x.normalize();
+    auto y_normalized = standard_result.y.normalize();
+    auto infinite = standard_result.is_point_at_infinity().normalize();
     builder.assert_equal(x_normalized.witness_index, input.result_x);
     builder.assert_equal(y_normalized.witness_index, input.result_y);
     builder.assert_equal(infinite.witness_index, input.result_infinite);

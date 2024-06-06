@@ -1,6 +1,0 @@
-[package]
-name = "brillig_signed_div"
-type = "bin"
-authors = [""]
-
-[dependencies]

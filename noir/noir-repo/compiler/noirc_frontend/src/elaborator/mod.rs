@@ -15,7 +15,7 @@ use crate::{
         },
         resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext},
         scope::ScopeForest as GenericScopeForest,
-        type_check::TypeCheckError,
+        type_check::{check_trait_impl_method_matches_declaration, TypeCheckError},
     },
     hir_def::{expr::HirIdent, function::Parameters, traits::TraitConstraint},
     macros_api::{
@@ -273,7 +273,7 @@ impl<'context> Elaborator<'context> {
         self.trait_id = None;
     }
 
-    fn elaborate_function(&mut self, mut function: NoirFunction, id: FuncId) {
+    fn elaborate_function(&mut self, function: NoirFunction, id: FuncId) {
         self.current_function = Some(id);
 
         // Without this, impl methods can accidentally be placed in contracts. See #3254
@@ -303,7 +303,6 @@ impl<'context> Elaborator<'context> {
         }
 
         self.generics = func_meta.all_generics.clone();
-        self.desugar_impl_trait_args(&mut function, id);
         self.declare_numeric_generics(&func_meta.parameters, func_meta.return_type());
         self.add_trait_constraints_to_scope(&func_meta);
 
@@ -373,49 +372,31 @@ impl<'context> Elaborator<'context> {
     }
 
     /// This turns function parameters of the form:
-    /// fn foo(x: impl Bar)
+    /// `fn foo(x: impl Bar)`
     ///
     /// into
-    /// fn foo<T0_impl_Bar>(x: T0_impl_Bar) where T0_impl_Bar: Bar
-    fn desugar_impl_trait_args(&mut self, func: &mut NoirFunction, func_id: FuncId) {
-        let mut impl_trait_generics = HashSet::default();
-        let mut counter: usize = 0;
-        for parameter in func.def.parameters.iter_mut() {
-            if let UnresolvedTypeData::TraitAsType(path, args) = &parameter.typ.typ {
-                let mut new_generic_ident: Ident =
-                    format!("T{}_impl_{}", func_id, path.as_string()).into();
-                let mut new_generic_path = Path::from_ident(new_generic_ident.clone());
-                while impl_trait_generics.contains(&new_generic_ident)
-                    || self.lookup_generic_or_global_type(&new_generic_path).is_some()
-                {
-                    new_generic_ident =
-                        format!("T{}_impl_{}_{}", func_id, path.as_string(), counter).into();
-                    new_generic_path = Path::from_ident(new_generic_ident.clone());
-                    counter += 1;
-                }
-                impl_trait_generics.insert(new_generic_ident.clone());
+    /// `fn foo<T0_impl_Bar>(x: T0_impl_Bar) where T0_impl_Bar: Bar`
+    /// although the fresh type variable is not named internally.
+    fn desugar_impl_trait_arg(
+        &mut self,
+        trait_path: Path,
+        trait_generics: Vec<UnresolvedType>,
+        generics: &mut Vec<TypeVariable>,
+        trait_constraints: &mut Vec<TraitConstraint>,
+    ) -> Type {
+        let new_generic_id = self.interner.next_type_variable_id();
+        let new_generic = TypeVariable::unbound(new_generic_id);
+        generics.push(new_generic.clone());
 
-                let is_synthesized = true;
-                let new_generic_type_data =
-                    UnresolvedTypeData::Named(new_generic_path, vec![], is_synthesized);
-                let new_generic_type =
-                    UnresolvedType { typ: new_generic_type_data.clone(), span: None };
-                let new_trait_bound = TraitBound {
-                    trait_path: path.clone(),
-                    trait_id: None,
-                    trait_generics: args.to_vec(),
-                };
-                let new_trait_constraint = UnresolvedTraitConstraint {
-                    typ: new_generic_type,
-                    trait_bound: new_trait_bound,
-                };
+        let name = format!("impl {trait_path}");
+        let generic_type = Type::NamedGeneric(new_generic, Rc::new(name));
+        let trait_bound = TraitBound { trait_path, trait_id: None, trait_generics };
 
-                parameter.typ.typ = new_generic_type_data;
-                func.def.generics.push(new_generic_ident);
-                func.def.where_clause.push(new_trait_constraint);
-            }
+        if let Some(new_constraint) = self.resolve_trait_bound(&trait_bound, generic_type.clone()) {
+            trait_constraints.push(new_constraint);
         }
-        self.add_generics(&impl_trait_generics.into_iter().collect());
+
+        generic_type
     }
 
     /// Add the given generics to scope.
@@ -491,11 +472,14 @@ impl<'context> Elaborator<'context> {
         constraint: &UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {
         let typ = self.resolve_type(constraint.typ.clone());
-        let trait_generics =
-            vecmap(&constraint.trait_bound.trait_generics, |typ| self.resolve_type(typ.clone()));
+        self.resolve_trait_bound(&constraint.trait_bound, typ)
+    }
 
-        let span = constraint.trait_bound.trait_path.span();
-        let the_trait = self.lookup_trait_or_error(constraint.trait_bound.trait_path.clone())?;
+    fn resolve_trait_bound(&mut self, bound: &TraitBound, typ: Type) -> Option<TraitConstraint> {
+        let trait_generics = vecmap(&bound.trait_generics, |typ| self.resolve_type(typ.clone()));
+
+        let span = bound.trait_path.span();
+        let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
         let trait_id = the_trait.id;
 
         let expected_generics = the_trait.generics.len();
@@ -561,6 +545,8 @@ impl<'context> Elaborator<'context> {
 
         self.add_generics(&func.def.generics);
 
+        let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
+
         let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
@@ -575,7 +561,14 @@ impl<'context> Elaborator<'context> {
             }
 
             let type_span = typ.span.unwrap_or_else(|| pattern.span());
-            let typ = self.resolve_type_inner(typ, &mut generics);
+
+            let typ = match typ.typ {
+                UnresolvedTypeData::TraitAsType(path, args) => {
+                    self.desugar_impl_trait_arg(path, args, &mut generics, &mut trait_constraints)
+                }
+                _ => self.resolve_type_inner(typ),
+            };
+
             self.check_if_type_is_valid_for_program_input(
                 &typ,
                 is_entry_point,
@@ -660,7 +653,7 @@ impl<'context> Elaborator<'context> {
             return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
             has_body: !func.def.body.is_empty(),
-            trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
+            trait_constraints,
             is_entry_point,
             is_trait_function,
             has_inline_attribute,
@@ -858,6 +851,12 @@ impl<'context> Elaborator<'context> {
         self.generics = trait_impl.resolved_generics;
         self.current_trait_impl = trait_impl.impl_id;
 
+        for (module, function, _) in &trait_impl.methods.functions {
+            self.local_module = *module;
+            let errors = check_trait_impl_method_matches_declaration(self.interner, *function);
+            self.errors.extend(errors.into_iter().map(|error| (error.into(), self.file)));
+        }
+
         self.elaborate_functions(trait_impl.methods);
 
         self.self_type = None;
@@ -884,12 +883,15 @@ impl<'context> Elaborator<'context> {
     fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
         self.local_module = trait_impl.module_id;
         self.file = trait_impl.file_id;
+        self.current_trait_impl = trait_impl.impl_id;
+
         trait_impl.trait_id = self.resolve_trait_by_path(trait_impl.trait_path.clone());
 
         let self_type = trait_impl.methods.self_type.clone();
         let self_type =
             self_type.expect("Expected struct type to be set before collect_trait_impl");
 
+        self.self_type = Some(self_type.clone());
         let self_type_span = trait_impl.object_type.span;
 
         if matches!(self_type, Type::MutableReference(_)) {
@@ -899,10 +901,10 @@ impl<'context> Elaborator<'context> {
 
         assert!(trait_impl.trait_id.is_some());
         if let Some(trait_id) = trait_impl.trait_id {
+            self.generics = trait_impl.resolved_generics.clone();
             self.collect_trait_impl_methods(trait_id, trait_impl);
 
             let span = trait_impl.object_type.span.expect("All trait self types should have spans");
-            self.generics = trait_impl.resolved_generics.clone();
             self.declare_methods_on_struct(true, &mut trait_impl.methods, span);
 
             let methods = trait_impl.methods.function_ids();
@@ -952,6 +954,8 @@ impl<'context> Elaborator<'context> {
         }
 
         self.generics.clear();
+        self.current_trait_impl = None;
+        self.self_type = None;
     }
 
     fn get_module_mut(&mut self, module: ModuleId) -> &mut ModuleData {
@@ -1066,6 +1070,7 @@ impl<'context> Elaborator<'context> {
                     let module = self.module_id();
                     let location = Location::new(default_impl.def.span, trait_impl.file_id);
                     self.interner.push_function(func_id, &default_impl.def, module, location);
+                    self.define_function_meta(&mut default_impl_clone, func_id, false);
                     func_ids_in_trait.insert(func_id);
                     ordered_methods.push((
                         method.default_impl_module_id,
@@ -1147,6 +1152,7 @@ impl<'context> Elaborator<'context> {
         self.current_item = Some(DependencyId::Alias(alias_id));
         let typ = self.resolve_type(alias.type_alias_def.typ);
         self.interner.set_type_alias(alias_id, typ, generics);
+        self.generics.clear();
     }
 
     fn collect_struct_definitions(&mut self, structs: BTreeMap<StructId, UnresolvedStruct>) {
@@ -1211,8 +1217,6 @@ impl<'context> Elaborator<'context> {
 
         let global_id = global.global_id;
         self.current_item = Some(DependencyId::Global(global_id));
-
-        let definition_kind = DefinitionKind::Global(global_id);
         let let_stmt = global.stmt_def;
 
         if !self.in_contract
@@ -1227,11 +1231,12 @@ impl<'context> Elaborator<'context> {
             self.push_err(ResolverError::MutableGlobal { span });
         }
 
-        let (let_statement, _typ) = self.elaborate_let(let_stmt);
+        self.elaborate_global_let(let_stmt, global_id);
 
-        let statement_id = self.interner.get_global(global_id).let_statement;
-        self.interner.get_global_definition_mut(global_id).kind = definition_kind.clone();
-        self.interner.replace_statement(statement_id, let_statement);
+        // Avoid defaulting the types of globals here since they may be used in any function.
+        // Otherwise we may prematurely default to a Field inside the next function if this
+        // global was unused there, even if it is consistently used as a u8 everywhere else.
+        self.type_variables.clear();
     }
 
     fn define_function_metas(
