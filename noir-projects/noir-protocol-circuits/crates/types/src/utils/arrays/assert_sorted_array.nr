@@ -3,7 +3,7 @@ use crate::{abis::side_effect::Ordered, traits::{Empty, is_empty}};
 pub fn assert_sorted_array<T, N, Env>(
     original_array: [T; N],
     sorted_array: [T; N],
-    sorted_indexes: [u64; N],
+    sorted_indexes: [u32; N],
     ordering: fn[Env](T, T) -> bool
 ) where T: Eq + Empty {
     let mut seen_empty = false;

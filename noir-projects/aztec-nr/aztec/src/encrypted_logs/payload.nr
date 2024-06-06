@@ -83,7 +83,6 @@ fn compute_ivpk_app(ivpk: GrumpkinPoint, contract_address: AztecAddress) -> Grum
     // It is useless to compute this, it brings no value to derive fully.
     // Issue(#6955)
     ivpk
-
     /*
     // @todo Just setting infinite to false, but it should be checked.
     // for example user could define ivpk = infinity using the registry

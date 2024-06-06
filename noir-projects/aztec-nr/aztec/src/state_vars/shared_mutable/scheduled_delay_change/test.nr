@@ -26,7 +26,7 @@ fn test_serde() {
 
 #[test]
 fn test_serde_large_values() {
-    let max_u32 = (1 << 32) - 1;
+    let max_u32: u64 = (1 << 32) - 1;
 
     let pre = max_u32 as u32;
     let post = (max_u32 - 1) as u32;

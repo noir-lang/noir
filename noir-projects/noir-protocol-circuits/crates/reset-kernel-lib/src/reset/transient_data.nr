@@ -10,9 +10,9 @@ pub fn verify_squashed_transient_note_hashes_and_nullifiers<NUM_NOTE_HASHES, NUM
     expected_note_hashes: [ScopedNoteHash; NUM_NOTE_HASHES],
     expected_nullifiers: [ScopedNullifier; NUM_NULLIFIERS],
     expected_note_logs: [NoteLogHash; NUM_LOGS],
-    transient_nullifier_indexes_for_note_hashes: [u64; NUM_NOTE_HASHES],
-    transient_note_hash_indexes_for_nullifiers: [u64; NUM_NULLIFIERS],
-    transient_note_hash_indexes_for_logs: [u64; NUM_LOGS]
+    transient_nullifier_indexes_for_note_hashes: [u32; NUM_NOTE_HASHES],
+    transient_note_hash_indexes_for_nullifiers: [u32; NUM_NULLIFIERS],
+    transient_note_hash_indexes_for_logs: [u32; NUM_LOGS]
 ) {
     let mut note_hashes_kept = 0;
     let mut note_hashes_removed = 0;
@@ -111,17 +111,17 @@ mod tests {
     };
 
     struct TestDataBuilder<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS> {
-        num_note_hashes: u64,
-        num_nullifiers: u64,
+        num_note_hashes: u32,
+        num_nullifiers: u32,
         note_hashes: [ScopedNoteHash; NUM_NOTE_HASHES],
         nullifiers: [ScopedNullifier; NUM_NULLIFIERS],
         note_logs: [NoteLogHash; NUM_LOGS],
         expected_note_hashes: [ScopedNoteHash; NUM_NOTE_HASHES],
         expected_nullifiers: [ScopedNullifier; NUM_NULLIFIERS],
         expected_note_logs: [NoteLogHash; NUM_LOGS],
-        transient_nullifier_indexes_for_note_hashes: [u64; NUM_NOTE_HASHES],
-        transient_note_hash_indexes_for_nullifiers: [u64; NUM_NULLIFIERS],
-        transient_note_hash_indexes_for_logs: [u64; NUM_LOGS]
+        transient_nullifier_indexes_for_note_hashes: [u32; NUM_NOTE_HASHES],
+        transient_note_hash_indexes_for_nullifiers: [u32; NUM_NULLIFIERS],
+        transient_note_hash_indexes_for_logs: [u32; NUM_LOGS]
     }
 
     impl<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS> TestDataBuilder<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS> {

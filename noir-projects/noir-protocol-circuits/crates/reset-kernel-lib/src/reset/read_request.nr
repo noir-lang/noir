@@ -19,7 +19,7 @@ global ReadRequestState = ReadRequestStateEnum {
 
 struct ReadRequestStatus {
     state: u8,
-    hint_index: u64,
+    hint_index: u32,
 }
 
 impl Empty for ReadRequestStatus {
@@ -29,22 +29,22 @@ impl Empty for ReadRequestStatus {
 }
 
 trait ReadValueHint {
-    fn read_request_index(self) -> u64;
+    fn read_request_index(self) -> u32;
 }
 
 struct PendingReadHint {
-    read_request_index: u64,
-    pending_value_index: u64,
+    read_request_index: u32,
+    pending_value_index: u32,
 }
 
 impl ReadValueHint for PendingReadHint {
-    fn read_request_index(self) -> u64 {
+    fn read_request_index(self) -> u32 {
         self.read_request_index
     }
 }
 
 impl PendingReadHint {
-    pub fn nada(read_request_len: u64) -> Self {
+    pub fn nada(read_request_len: u32) -> Self {
         PendingReadHint { read_request_index: read_request_len, pending_value_index: 0 }
     }
 }
@@ -52,7 +52,7 @@ impl PendingReadHint {
 trait SettledReadHint<TREE_HEIGHT, LEAF_PREIMAGE> where LEAF_PREIMAGE: LeafPreimage {
     fn membership_witness(self) -> MembershipWitness<TREE_HEIGHT>;
     fn leaf_preimage(self) -> LEAF_PREIMAGE;
-    fn nada(read_request_len: u64) -> Self;
+    fn nada(read_request_len: u32) -> Self;
 }
 
 // Validate the values being read were emitted in the same transaction before the read request were made.
@@ -206,13 +206,13 @@ mod tests {
     }
 
     struct TestSettledReadHint {
-        read_request_index: u64,
+        read_request_index: u32,
         membership_witness: MembershipWitness<3>,
         leaf_preimage: TestLeafPreimage,
     }
 
     impl ReadValueHint for TestSettledReadHint {
-        fn read_request_index(self) -> u64 {
+        fn read_request_index(self) -> u32 {
             self.read_request_index
         }
     }
@@ -226,7 +226,7 @@ mod tests {
             self.leaf_preimage
         }
 
-        fn nada(read_request_len: u64) -> Self {
+        fn nada(read_request_len: u32) -> Self {
             TestSettledReadHint {
                 read_request_index: read_request_len,
                 membership_witness: MembershipWitness::empty(),

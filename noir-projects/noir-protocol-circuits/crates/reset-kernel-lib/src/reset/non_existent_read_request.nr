@@ -12,7 +12,7 @@ trait NonMembershipHint<TREE_HEIGHT, LEAF_PREIMAGE> where LEAF_PREIMAGE: Indexed
 fn check_no_matching_pending_value<T, N>(
     read_request: ScopedReadRequest,
     sorted_pending_values: BoundedVec<T, N>,
-    next_value_index: u64
+    next_value_index: u32
 ) -> bool where T: OrderedValue<Field> {
     if next_value_index == sorted_pending_values.len() {
         let highest_value = sorted_pending_values.get_unchecked(sorted_pending_values.len() - 1).value();
@@ -33,7 +33,7 @@ fn check_no_matching_pending_value<T, N>(
 fn check_is_read_before_pending_value<T, N>(
     read_request: ScopedReadRequest,
     sorted_pending_values: BoundedVec<T, N>,
-    next_value_index: u64
+    next_value_index: u32
 ) -> bool where T: OrderedValue<Field> {
     if next_value_index == sorted_pending_values.len() {
         false
@@ -56,7 +56,7 @@ pub fn reset_non_existent_read_requests<T, N, M, NON_MEMBERSHIP_HINT, TREE_HEIGH
     non_membership_hints: [NON_MEMBERSHIP_HINT; N],
     tree_root: Field,
     sorted_pending_values: BoundedVec<T, M>,
-    next_pending_value_indices: [u64; N]
+    next_pending_value_indices: [u32; N]
 ) where 
     T: OrderedValue<Field>, 
     NON_MEMBERSHIP_HINT: NonMembershipHint<TREE_HEIGHT, LEAF_PREIMAGE>,
@@ -181,7 +181,7 @@ mod tests {
         let hints = leaf_indices.map(
             |leaf_index| TestNonMembershipHint {
                 low_leaf_preimage: leaf_preimages[leaf_index],
-                membership_witness: MembershipWitness { leaf_index, sibling_path: tree.get_sibling_path(leaf_index as u64) }
+                membership_witness: MembershipWitness { leaf_index, sibling_path: tree.get_sibling_path(leaf_index as u32) }
             }
         );
         let tree_root = tree.get_root();

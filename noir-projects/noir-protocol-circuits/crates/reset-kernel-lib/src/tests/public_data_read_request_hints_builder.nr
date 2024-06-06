@@ -11,7 +11,7 @@ struct PublicDataReadRequestHintsBuilder {
 }
 
 impl PublicDataReadRequestHintsBuilder {
-    pub fn new(read_request_len: u64) -> Self {
+    pub fn new(read_request_len: u32) -> Self {
         PublicDataReadRequestHintsBuilder {
             read_request_statuses: [ReadRequestStatus::empty(); MAX_PUBLIC_DATA_READS_PER_TX],
             pending_read_hints: BoundedVec { storage: [PendingReadHint::nada(read_request_len); MAX_PUBLIC_DATA_READS_PER_TX], len: 0 },

@@ -10,7 +10,7 @@ use dep::types::{
     address::AztecAddress, traits::{Empty, is_empty}, transaction::tx_request::TxRequest
 };
 
-fn validate_array_prepended<T, N>(dest: [T; N], source: [T; N], num_source_items: u64) where T: Eq {
+fn validate_array_prepended<T, N>(dest: [T; N], source: [T; N], num_source_items: u32) where T: Eq {
     let mut proceed = true;
     for i in 0..source.len() {
         proceed &= i != num_source_items;
@@ -23,8 +23,8 @@ fn validate_array_prepended<T, N>(dest: [T; N], source: [T; N], num_source_items
 fn validate_array_appended<T, N, M>(
     dest: [T; N],
     source: [T; M],
-    num_source_items: u64,
-    num_prepended_items: u64
+    num_source_items: u32,
+    num_prepended_items: u32
 ) where T: Empty + Eq {
     let items_propagated = num_prepended_items + num_source_items;
     assert(items_propagated <= N, "number of total items exceeds limit");
@@ -47,8 +47,8 @@ fn validate_array_appended<T, N, M>(
 fn validate_array_appended_scoped<ST, T, N, M>(
     dest: [ST; N],
     source: [T; M],
-    num_source_items: u64,
-    num_prepended_items: u64,
+    num_source_items: u32,
+    num_prepended_items: u32,
     contract_address: AztecAddress
 ) where ST: Scoped<T> + Empty + Eq, T: Eq {
     let items_propagated = num_prepended_items + num_source_items;
@@ -77,8 +77,8 @@ fn validate_array_appended_scoped<ST, T, N, M>(
 fn validate_array_appended_reversed_scoped<ST, T, N, M>(
     dest: [ST; N],
     source: [T; M],
-    num_source_items: u64,
-    num_prepended_items: u64,
+    num_source_items: u32,
+    num_prepended_items: u32,
     contract_address: AztecAddress
 ) where ST: Scoped<T> + Empty + Eq, T: Eq {
     let items_propagated = num_prepended_items + num_source_items;
@@ -106,8 +106,8 @@ fn validate_array_appended_reversed_scoped<ST, T, N, M>(
 fn validate_note_hash_nullifier_counters<N, M>(
     dest: [ScopedNoteHash; N],
     note_hash_nullifier_counters: [u32; M],
-    num_source_items: u64,
-    num_prepended_items: u64
+    num_source_items: u32,
+    num_prepended_items: u32
 ) {
     let mut is_non_empty_item = true;
     for i in 0..M {
@@ -341,7 +341,7 @@ impl PrivateKernelCircuitOutputValidator {
         private_call: PrivateCircuitPublicInputs,
         array_lengths: PrivateCircuitPublicInputsArrayLengths,
         offsets: PrivateKernelCircuitPublicInputsArrayLengths,
-        num_popped_call: u64,
+        num_popped_call: u32,
         contract_address: AztecAddress,
         note_hash_nullifier_counters: [u32; NOTE_HASH_NULLIFIER_COUNTERS_LEN],
         public_call_requests: [CallRequest; PUBLIC_CALL_REQUESTS_LEN]

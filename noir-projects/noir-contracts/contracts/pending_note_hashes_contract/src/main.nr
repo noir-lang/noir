@@ -408,7 +408,7 @@ contract PendingNoteHashes {
     }
 
     #[contract_library_method]
-    fn max_notes_per_call() -> u64 {
+    fn max_notes_per_call() -> u32 {
         if MAX_NEW_NOTE_HASHES_PER_CALL > MAX_NOTE_HASH_READ_REQUESTS_PER_CALL {
             MAX_NOTE_HASH_READ_REQUESTS_PER_CALL
         } else {

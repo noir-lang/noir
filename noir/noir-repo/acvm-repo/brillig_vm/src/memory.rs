@@ -2,7 +2,7 @@ use acir::{brillig::MemoryAddress, AcirField};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
-pub const MEMORY_ADDRESSING_BIT_SIZE: u32 = 64;
+pub const MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MemoryValue<F> {
@@ -14,6 +14,29 @@ pub enum MemoryValue<F> {
 pub enum MemoryTypeError {
     #[error("Bit size for value {value_bit_size} does not match the expected bit size {expected_bit_size}")]
     MismatchedBitSize { value_bit_size: u32, expected_bit_size: u32 },
+}
+
+impl<F> MemoryValue<F> {
+    /// Builds a field-typed memory value.
+    pub fn new_field(value: F) -> Self {
+        MemoryValue::Field(value)
+    }
+
+    /// Extracts the field element from the memory value, if it is typed as field element.
+    pub fn extract_field(&self) -> Option<&F> {
+        match self {
+            MemoryValue::Field(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Extracts the integer from the memory value, if it is typed as integer.
+    pub fn extract_integer(&self) -> Option<(&BigUint, u32)> {
+        match self {
+            MemoryValue::Integer(value, bit_size) => Some((value, *bit_size)),
+            _ => None,
+        }
+    }
 }
 
 impl<F: AcirField> MemoryValue<F> {
@@ -44,11 +67,6 @@ impl<F: AcirField> MemoryValue<F> {
         Some(MemoryValue::new_from_field(value, bit_size))
     }
 
-    /// Builds a field-typed memory value.
-    pub fn new_field(value: F) -> Self {
-        MemoryValue::Field(value)
-    }
-
     /// Builds an integer-typed memory value.
     pub fn new_integer(value: BigUint, bit_size: u32) -> Self {
         assert!(
@@ -56,22 +74,6 @@ impl<F: AcirField> MemoryValue<F> {
             "Tried to build a field memory value via new_integer"
         );
         MemoryValue::Integer(value, bit_size)
-    }
-
-    /// Extracts the field element from the memory value, if it is typed as field element.
-    pub fn extract_field(&self) -> Option<&F> {
-        match self {
-            MemoryValue::Field(value) => Some(value),
-            _ => None,
-        }
-    }
-
-    /// Extracts the integer from the memory value, if it is typed as integer.
-    pub fn extract_integer(&self) -> Option<(&BigUint, u32)> {
-        match self {
-            MemoryValue::Integer(value, bit_size) => Some((value, *bit_size)),
-            _ => None,
-        }
     }
 
     /// Converts the memory value to a field element, independent of its type.
@@ -165,15 +167,15 @@ impl<F: AcirField> From<usize> for MemoryValue<F> {
     }
 }
 
-impl<F: AcirField> From<u64> for MemoryValue<F> {
-    fn from(value: u64) -> Self {
-        MemoryValue::new_integer(value.into(), 64)
-    }
-}
-
 impl<F: AcirField> From<u32> for MemoryValue<F> {
     fn from(value: u32) -> Self {
         MemoryValue::new_integer(value.into(), 32)
+    }
+}
+
+impl<F: AcirField> From<u64> for MemoryValue<F> {
+    fn from(value: u64) -> Self {
+        MemoryValue::new_integer(value.into(), 64)
     }
 }
 
@@ -300,7 +302,6 @@ impl<F: AcirField> Memory<F> {
         if len == 0 {
             return &[];
         }
-
         &self.inner[addr.to_usize()..(addr.to_usize() + len)]
     }
 

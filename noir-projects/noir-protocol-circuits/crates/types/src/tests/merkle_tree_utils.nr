@@ -11,7 +11,7 @@ pub fn compute_zero_hashes<N>(mut hashes: [Field; N]) -> [Field; N] {
 }
 
 impl<N> MerkleTree<N> {
-    fn update_leaf<K>(&mut self, index: u64, value: Field, _tree_height: [Field; K]) {
+    fn update_leaf<K>(&mut self, index: u32, value: Field, _tree_height: [Field; K]) {
         self.leaves[index] = value;
 
         let mut sibling_index = MerkleTree::sibling_index(index);
@@ -21,9 +21,9 @@ impl<N> MerkleTree<N> {
             (self.leaves[sibling_index], value)
         };
 
-        let mut current_width: u64 = N / 2;
-        let mut layer_offset: u64 = 0;
-        let mut node_index: u64 = index / 2 + layer_offset;
+        let mut current_width: u32 = N / 2;
+        let mut layer_offset: u32 = 0;
+        let mut node_index: u32 = index / 2 + layer_offset;
         for _ in 0..K {
             self.nodes[node_index] = dep::std::hash::pedersen_hash([left_node, right_node]);
             sibling_index = MerkleTree::sibling_index(node_index);
@@ -43,7 +43,7 @@ impl<N> MerkleTree<N> {
         }
     }
 
-    pub fn sibling_index(index: u64) -> u64 {
+    pub fn sibling_index(index: u32) -> u32 {
         if index % 2 == 0 { index + 1 } else { index - 1 }
     }
 }
@@ -114,7 +114,7 @@ impl<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_HEIGHT> NonEmptyMerkl
         NonEmptyMerkleTree { subtree, zero_hashes, left_supertree_branch, _phantom_subtree_height: _subtree_height }
     }
 
-    pub fn get_sibling_path(self, leaf_index: u64) -> [Field; TREE_HEIGHT] {
+    pub fn get_sibling_path(self, leaf_index: u32) -> [Field; TREE_HEIGHT] {
         let mut path = [0; TREE_HEIGHT];
         let mut current_index = leaf_index;
         let mut subtree_width = SUBTREE_ITEMS;
@@ -127,7 +127,7 @@ impl<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_HEIGHT> NonEmptyMerkl
             0
         };
 
-        let mut subtree_offset: u64 = 0;
+        let mut subtree_offset: u32 = 0;
 
         for i in 1..TREE_HEIGHT {
             current_index = current_index / 2;
@@ -149,7 +149,7 @@ impl<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_HEIGHT> NonEmptyMerkl
         path
     }
 
-    pub fn update_leaf(&mut self, index: u64, value: Field) {
+    pub fn update_leaf(&mut self, index: u32, value: Field) {
         assert(index < SUBTREE_ITEMS, "index must be less than the number of leaves in the subtree");
 
         self.subtree.update_leaf(index, value, [0; SUBTREE_HEIGHT]);

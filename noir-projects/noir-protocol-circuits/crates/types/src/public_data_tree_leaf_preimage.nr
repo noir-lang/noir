@@ -4,7 +4,7 @@ struct PublicDataTreeLeafPreimage {
     slot : Field,
     value: Field,
     next_slot :Field,
-    next_index : u64,
+    next_index : u32,
 }
 
 impl Empty for PublicDataTreeLeafPreimage {

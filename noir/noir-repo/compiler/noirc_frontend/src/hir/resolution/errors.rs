@@ -2,7 +2,7 @@ pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::{ast::Ident, parser::ParserError, Type};
+use crate::{ast::Ident, hir::comptime::InterpreterError, parser::ParserError, Type};
 
 use super::import::PathResolutionError;
 
@@ -94,6 +94,8 @@ pub enum ResolverError {
     NoPredicatesAttributeOnUnconstrained { ident: Ident },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident },
+    #[error("Invalid array length construction")]
+    ArrayLengthInterpreter { error: InterpreterError },
 }
 
 impl ResolverError {
@@ -386,6 +388,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());
                 diag
             }
+            ResolverError::ArrayLengthInterpreter { error } => Diagnostic::from(error),
         }
     }
 }

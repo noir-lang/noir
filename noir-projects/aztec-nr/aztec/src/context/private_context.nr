@@ -354,7 +354,7 @@ impl PrivateContext {
             |n: NoteHash| n.counter == note_hash_counter
         );
         assert(
-            note_exists_index != MAX_NEW_NOTE_HASHES_PER_CALL, "Can only emit a note log for an existing note."
+            note_exists_index as u32 != MAX_NEW_NOTE_HASHES_PER_CALL, "Can only emit a note log for an existing note."
         );
 
         let counter = self.next_counter();

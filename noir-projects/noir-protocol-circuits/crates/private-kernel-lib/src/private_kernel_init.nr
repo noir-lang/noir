@@ -16,7 +16,7 @@ use dep::types::{
 struct PrivateKernelInitHints {
     note_hash_nullifier_counters: [u32; MAX_NEW_NOTE_HASHES_PER_CALL],
     // TODO: Build the following hint in noir.
-    first_revertible_private_call_request_index: u64,
+    first_revertible_private_call_request_index: u32,
 }
 
 // Initialization struct for private inputs to the private kernel

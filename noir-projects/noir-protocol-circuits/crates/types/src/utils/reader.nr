@@ -1,6 +1,6 @@
 struct Reader<N> {
     data: [Field; N],
-    offset: u64,
+    offset: u32,
 }
 
 impl<N> Reader<N> {

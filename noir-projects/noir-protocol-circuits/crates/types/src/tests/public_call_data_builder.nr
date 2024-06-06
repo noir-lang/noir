@@ -61,15 +61,15 @@ impl PublicCallDataBuilder {
         *self
     }
 
-    pub fn append_public_call_requests_for_regular_calls(&mut self, num_requests: u64) {
+    pub fn append_public_call_requests_for_regular_calls(&mut self, num_requests: u32) {
         self.append_public_call_requests(num_requests, false);
     }
 
-    pub fn append_public_call_requests_for_delegate_calls(&mut self, num_requests: u64) {
+    pub fn append_public_call_requests_for_delegate_calls(&mut self, num_requests: u32) {
         self.append_public_call_requests(num_requests, true);
     }
 
-    pub fn append_public_call_requests(&mut self, num_requests: u64, is_delegate_call: bool) {
+    pub fn append_public_call_requests(&mut self, num_requests: u32, is_delegate_call: bool) {
         let value_offset = self.public_inputs.public_call_stack_hashes.len();
         let mut caller_context = CallerContext::empty();
         if is_delegate_call {
@@ -97,7 +97,7 @@ impl PublicCallDataBuilder {
         }
     }
 
-    pub fn append_public_data_read_requests(&mut self, num_reads: u64) {
+    pub fn append_public_data_read_requests(&mut self, num_reads: u32) {
         let value_offset = self.public_inputs.contract_storage_reads.len();
         for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {
             if i < num_reads {
@@ -112,7 +112,7 @@ impl PublicCallDataBuilder {
         }
     }
 
-    pub fn append_empty_public_data_read_requests(&mut self, num_reads: u64) {
+    pub fn append_empty_public_data_read_requests(&mut self, num_reads: u32) {
         for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {
             if i < num_reads {
                 self.public_inputs.contract_storage_reads.push(StorageRead::empty());
@@ -120,7 +120,7 @@ impl PublicCallDataBuilder {
         }
     }
 
-    pub fn append_update_requests(&mut self, num_updates: u64) {
+    pub fn append_update_requests(&mut self, num_updates: u32) {
         let value_offset = self.public_inputs.contract_storage_update_requests.len();
         for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {
             if i < num_updates {
@@ -136,7 +136,7 @@ impl PublicCallDataBuilder {
         }
     }
 
-    pub fn append_empty_update_requests(&mut self, num_updates: u64) {
+    pub fn append_empty_update_requests(&mut self, num_updates: u32) {
         for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {
             if i < num_updates {
                 self.public_inputs.contract_storage_update_requests.push(StorageUpdateRequest::empty());

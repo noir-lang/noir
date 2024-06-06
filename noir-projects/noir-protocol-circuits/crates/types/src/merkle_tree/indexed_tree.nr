@@ -13,12 +13,12 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
     start_snapshot: AppendOnlyTreeSnapshot,
     values_to_insert: [Value; SubtreeWidth],
     sorted_values: [Value; SubtreeWidth],
-    sorted_values_indexes: [u64; SubtreeWidth],
+    sorted_values_indexes: [u32; SubtreeWidth],
     new_subtree_sibling_path: [Field; SiblingPathLength],
     low_leaf_preimages: [Leaf; SubtreeWidth],
     low_leaf_membership_witnesses: [MembershipWitness<TreeHeight>; SubtreeWidth],
     is_valid_low_leaf: fn(Leaf, Value) -> bool,
-    update_low_leaf: fn(Leaf, Value, u64) -> Leaf,
+    update_low_leaf: fn(Leaf, Value, u32) -> Leaf,
     build_insertion_leaf: fn(Value, Leaf) -> Leaf,
     _subtree_height: [Field; SubtreeHeight],
     _tree_height: [Field; TreeHeight]
@@ -53,7 +53,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
             let updated_low_leaf = update_low_leaf(
                 low_leaf_preimage,
                 value,
-                start_insertion_index as u64 + value_index
+                start_insertion_index as u32 + value_index
             );
 
             current_tree_root = root_from_sibling_path(

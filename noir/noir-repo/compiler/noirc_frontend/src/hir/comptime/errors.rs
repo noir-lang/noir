@@ -5,7 +5,7 @@ use noirc_errors::{CustomDiagnostic, Location};
 use super::value::Value;
 
 /// The possible errors that can halt the interpreter.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InterpreterError {
     ArgumentCountMismatch { expected: usize, actual: usize, location: Location },
     TypeMismatch { expected: Type, value: Value, location: Location },
@@ -51,6 +51,12 @@ pub enum InterpreterError {
 
 #[allow(unused)]
 pub(super) type IResult<T> = std::result::Result<T, InterpreterError>;
+
+impl From<InterpreterError> for CompilationError {
+    fn from(error: InterpreterError) -> Self {
+        CompilationError::InterpreterError(error)
+    }
+}
 
 impl InterpreterError {
     pub fn into_compilation_error_pair(self) -> (CompilationError, fm::FileId) {
@@ -165,7 +171,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let typ = value.get_type();
                 let msg = format!("Non-integer type `{typ}` used in for loop");
                 let secondary = if matches!(typ.as_ref(), &Type::FieldElement) {
-                    "`field` is not an integer type, try `u64` instead".to_string()
+                    "`field` is not an integer type, try `u32` instead".to_string()
                 } else {
                     String::new()
                 };

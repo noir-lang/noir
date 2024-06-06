@@ -8,17 +8,17 @@ use crate::utils::{arrays::array_length, reader::Reader};
 use crate::address::AztecAddress;
 
 struct PrivateKernelCircuitPublicInputsArrayLengths {
-    note_hash_read_requests: u64,
-    nullifier_read_requests: u64,
-    scoped_key_validation_requests_and_generators: u64,
-    new_note_hashes: u64,
-    new_nullifiers: u64,
-    new_l2_to_l1_msgs: u64,
-    note_encrypted_logs_hashes: u64,
-    encrypted_logs_hashes: u64,
-    unencrypted_logs_hashes: u64,
-    private_call_stack: u64,
-    public_call_stack: u64,
+    note_hash_read_requests: u32,
+    nullifier_read_requests: u32,
+    scoped_key_validation_requests_and_generators: u32,
+    new_note_hashes: u32,
+    new_nullifiers: u32,
+    new_l2_to_l1_msgs: u32,
+    note_encrypted_logs_hashes: u32,
+    encrypted_logs_hashes: u32,
+    unencrypted_logs_hashes: u32,
+    private_call_stack: u32,
+    public_call_stack: u32,
 }
 
 impl PrivateKernelCircuitPublicInputsArrayLengths {

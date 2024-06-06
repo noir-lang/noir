@@ -18,7 +18,7 @@ use dep::types::{
 
 struct PrivateCallDataValidatorBuilder {
     private_call: FixtureBuilder,
-    first_revertible_private_call_request_index: u64,
+    first_revertible_private_call_request_index: u32,
     previous_note_hashes: BoundedVec<ScopedNoteHash, 4>,
 }
 

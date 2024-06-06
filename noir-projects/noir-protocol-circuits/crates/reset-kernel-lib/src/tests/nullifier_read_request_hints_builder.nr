@@ -11,7 +11,7 @@ struct NullifierReadRequestHintsBuilder {
 }
 
 impl NullifierReadRequestHintsBuilder {
-    pub fn new(read_request_len: u64) -> Self {
+    pub fn new(read_request_len: u32) -> Self {
         NullifierReadRequestHintsBuilder {
             read_request_statuses: [ReadRequestStatus::empty(); MAX_NULLIFIER_READ_REQUESTS_PER_TX],
             pending_read_hints: BoundedVec { storage: [PendingReadHint::nada(read_request_len); MAX_NULLIFIER_READ_REQUESTS_PER_TX], len: 0 },

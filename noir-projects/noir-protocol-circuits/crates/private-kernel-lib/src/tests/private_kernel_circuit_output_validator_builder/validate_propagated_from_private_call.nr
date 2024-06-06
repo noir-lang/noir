@@ -87,7 +87,7 @@ fn validate_propagated_from_private_call_note_hash_read_requests_output_extra_no
 
 fn append_note_hash_read_requests_to_previous_kernel(
     builder: &mut PrivateKernelCircuitOutputValidatorBuilder,
-    num_requests: u64
+    num_requests: u32
 ) {
     builder.previous_kernel.append_note_hash_read_requests(num_requests);
     builder.output.append_note_hash_read_requests(num_requests);

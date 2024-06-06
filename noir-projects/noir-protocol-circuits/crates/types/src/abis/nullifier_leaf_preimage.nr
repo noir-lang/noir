@@ -1,4 +1,4 @@
-global NULLIFIER_LEAF_PREIMAGE_LENGTH: u64 = 3;
+global NULLIFIER_LEAF_PREIMAGE_LENGTH: u32 = 3;
 
 use crate::{
     abis::{read_request::ScopedReadRequest, side_effect::Readable}, hash::compute_siloed_nullifier,
@@ -8,7 +8,7 @@ use crate::{
 struct NullifierLeafPreimage {
     nullifier : Field,
     next_nullifier :Field,
-    next_index : u64,
+    next_index : u32,
 }
 
 impl Empty for NullifierLeafPreimage {
@@ -72,7 +72,7 @@ impl NullifierLeafPreimage {
     }
 
     pub fn deserialize(fields: [Field; NULLIFIER_LEAF_PREIMAGE_LENGTH]) -> Self {
-        Self { nullifier: fields[0], next_nullifier: fields[1], next_index: fields[2] as u64 }
+        Self { nullifier: fields[0], next_nullifier: fields[1], next_index: fields[2] as u32 }
     }
 }
 

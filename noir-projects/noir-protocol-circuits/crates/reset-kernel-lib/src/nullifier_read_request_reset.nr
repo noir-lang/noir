@@ -7,13 +7,13 @@ use dep::types::{
 };
 
 struct NullifierSettledReadHint {
-    read_request_index: u64,
+    read_request_index: u32,
     membership_witness: MembershipWitness<NULLIFIER_TREE_HEIGHT>,
     leaf_preimage: NullifierLeafPreimage,
 }
 
 impl ReadValueHint for NullifierSettledReadHint {
-    fn read_request_index(self) -> u64 {
+    fn read_request_index(self) -> u32 {
         self.read_request_index
     }
 }
@@ -27,7 +27,7 @@ impl SettledReadHint<NULLIFIER_TREE_HEIGHT, NullifierLeafPreimage> for Nullifier
         self.leaf_preimage
     }
 
-    fn nada(read_request_len: u64) -> Self {
+    fn nada(read_request_len: u32) -> Self {
         NullifierSettledReadHint {
             read_request_index: read_request_len,
             membership_witness: MembershipWitness::empty(),

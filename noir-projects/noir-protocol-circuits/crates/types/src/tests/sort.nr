@@ -2,7 +2,7 @@ use crate::traits::{Empty, is_empty};
 
 struct SortedTuple<T> {
     value: T,
-    original_index: u64,
+    original_index: u32,
 }
 
 pub fn sort_high_to_low<N, T>(
@@ -23,7 +23,7 @@ pub fn sort_high_to_low<N, T>(
 
 struct SortedResult<T, N> {
     sorted_array: [T; N],
-    sorted_index_hints: [u64; N],
+    sorted_index_hints: [u32; N],
 }
 
 pub fn sort_get_sorted_hints<N, T>(

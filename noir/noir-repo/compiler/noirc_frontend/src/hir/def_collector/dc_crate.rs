@@ -139,7 +139,7 @@ pub struct UnresolvedTypeAlias {
     pub type_alias_def: NoirTypeAlias,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct UnresolvedGlobal {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
@@ -548,7 +548,8 @@ impl ResolvedModule {
     /// Evaluate all `comptime` expressions in this module
     fn evaluate_comptime(&mut self, interner: &mut NodeInterner) {
         if self.count_errors() == 0 {
-            let mut interpreter = Interpreter::new(interner);
+            let mut scopes = vec![HashMap::default()];
+            let mut interpreter = Interpreter::new(interner, &mut scopes);
 
             for (_file, global) in &self.globals {
                 if let Err(error) = interpreter.scan_global(*global) {

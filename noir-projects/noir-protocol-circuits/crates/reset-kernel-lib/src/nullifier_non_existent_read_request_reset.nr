@@ -23,6 +23,6 @@ impl NonMembershipHint<NULLIFIER_TREE_HEIGHT, NullifierLeafPreimage> for Nullifi
 struct NullifierNonExistentReadRequestHints {
     non_membership_hints: [NullifierNonMembershipHint; MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX],
     sorted_pending_values: [Nullifier; MAX_NEW_NULLIFIERS_PER_TX],
-    sorted_pending_value_index_hints: [u64; MAX_NEW_NULLIFIERS_PER_TX],
-    next_pending_value_indices: [u64; MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX],
+    sorted_pending_value_index_hints: [u32; MAX_NEW_NULLIFIERS_PER_TX],
+    next_pending_value_indices: [u32; MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX],
 }

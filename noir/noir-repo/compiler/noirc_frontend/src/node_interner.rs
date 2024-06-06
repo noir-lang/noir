@@ -13,6 +13,7 @@ use petgraph::prelude::NodeIndex as PetGraphIndex;
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
+use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
@@ -278,7 +279,7 @@ impl DefinitionId {
 }
 
 /// An ID for a global value
-#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
 pub struct GlobalId(usize);
 
 impl GlobalId {
@@ -466,6 +467,7 @@ pub struct GlobalInfo {
     pub local_id: LocalModuleId,
     pub location: Location,
     pub let_statement: StmtId,
+    pub value: Option<comptime::Value>,
 }
 
 impl Default for NodeInterner {
@@ -681,6 +683,7 @@ impl NodeInterner {
             local_id,
             let_statement,
             location,
+            value: None,
         });
         self.global_attributes.insert(id, attributes);
         id
@@ -891,8 +894,9 @@ impl NodeInterner {
         match def {
             Node::Statement(hir_stmt) => match hir_stmt {
                 HirStatement::Let(let_stmt) => Some(let_stmt.clone()),
-                _ => {
-                    panic!("ice: all globals should correspond to a let statement in the interner")
+                HirStatement::Error => None,
+                other => {
+                    panic!("ice: all globals should correspond to a let statement in the interner: {other:?}")
                 }
             },
             _ => panic!("ice: all globals should correspond to a statement in the interner"),
@@ -1000,6 +1004,10 @@ impl NodeInterner {
 
     pub fn get_global(&self, global_id: GlobalId) -> &GlobalInfo {
         &self.globals[global_id.0]
+    }
+
+    pub fn get_global_mut(&mut self, global_id: GlobalId) -> &mut GlobalInfo {
+        &mut self.globals[global_id.0]
     }
 
     pub fn get_global_definition(&self, global_id: GlobalId) -> &DefinitionInfo {

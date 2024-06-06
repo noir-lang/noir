@@ -16,15 +16,15 @@ use crate::{
 
 struct CombineHints {
     sorted_note_hashes: [NoteHash; MAX_NEW_NOTE_HASHES_PER_TX],
-    sorted_note_hashes_indexes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
+    sorted_note_hashes_indexes: [u32; MAX_NEW_NOTE_HASHES_PER_TX],
     sorted_unencrypted_logs_hashes: [LogHash; MAX_UNENCRYPTED_LOGS_PER_TX],
-    sorted_unencrypted_logs_hashes_indexes: [u64; MAX_UNENCRYPTED_LOGS_PER_TX],
+    sorted_unencrypted_logs_hashes_indexes: [u32; MAX_UNENCRYPTED_LOGS_PER_TX],
     // the public data update requests are sorted by their leaf index AND counter
     sorted_public_data_update_requests: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-    sorted_public_data_update_requests_indexes: [u64; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+    sorted_public_data_update_requests_indexes: [u32; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     // THEN deduplicated based on their leaf slot
     deduped_public_data_update_requests: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-    deduped_public_data_update_requests_runs: [u64; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+    deduped_public_data_update_requests_runs: [u32; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
 }
 
 struct CombinedAccumulatedData {

@@ -580,7 +580,7 @@ impl Instruction {
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, _)), Some(index)) = (array, index) {
                     let index =
-                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                        index.try_to_u32().expect("Expected array index to fit in u32") as usize;
                     if index < array.len() {
                         return SimplifiedTo(array[index]);
                     }
@@ -592,7 +592,7 @@ impl Instruction {
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, element_type)), Some(index)) = (array, index) {
                     let index =
-                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                        index.try_to_u32().expect("Expected array index to fit in u32") as usize;
 
                     if index < array.len() {
                         let new_array = dfg.make_array(array.update(index, *value), element_type);

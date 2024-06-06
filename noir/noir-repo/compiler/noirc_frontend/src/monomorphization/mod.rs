@@ -573,7 +573,7 @@ impl<'interner> Monomorphizer<'interner> {
         let location = self.interner.expr_location(&array);
         let typ = Self::convert_type(&self.interner.id_type(array), location)?;
 
-        let length = length.evaluate_to_u64().ok_or_else(|| {
+        let length = length.evaluate_to_u32().ok_or_else(|| {
             let location = self.interner.expr_location(&array);
             MonomorphizationError::UnknownArrayLength { location }
         })?;
@@ -877,12 +877,19 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
             DefinitionKind::Global(global_id) => {
-                let Some(let_) = self.interner.get_global_let_statement(*global_id) else {
-                    unreachable!(
-                        "Globals should have a corresponding let statement by monomorphization"
-                    )
+                let global = self.interner.get_global(*global_id);
+
+                let expr = if let Some(value) = global.value.clone() {
+                    value
+                        .into_hir_expression(self.interner, global.location)
+                        .map_err(MonomorphizationError::InterpreterError)?
+                } else {
+                    let let_ = self.interner.get_global_let_statement(*global_id).expect(
+                        "Globals should have a corresponding let statement by monomorphization",
+                    );
+                    let_.expression
                 };
-                self.expr(let_.expression)?
+                self.expr(expr)?
             }
             DefinitionKind::Local(_) => match self.lookup_captured_expr(ident.id) {
                 Some(expr) => expr,
@@ -896,7 +903,7 @@ impl<'interner> Monomorphizer<'interner> {
                     TypeBinding::Unbound(_) => {
                         unreachable!("Unbound type variable used in expression")
                     }
-                    TypeBinding::Bound(binding) => binding.evaluate_to_u64().unwrap_or_else(|| {
+                    TypeBinding::Bound(binding) => binding.evaluate_to_u32().unwrap_or_else(|| {
                         panic!("Non-numeric type variable used in expression expecting a value")
                     }),
                 };
@@ -917,16 +924,16 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::FieldElement => ast::Type::Field,
             HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool => ast::Type::Bool,
-            HirType::String(size) => ast::Type::String(size.evaluate_to_u64().unwrap_or(0)),
+            HirType::String(size) => ast::Type::String(size.evaluate_to_u32().unwrap_or(0)),
             HirType::FmtString(size, fields) => {
-                let size = size.evaluate_to_u64().unwrap_or(0);
+                let size = size.evaluate_to_u32().unwrap_or(0);
                 let fields = Box::new(Self::convert_type(fields.as_ref(), location)?);
                 ast::Type::FmtString(size, fields)
             }
             HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
                 let element = Box::new(Self::convert_type(element.as_ref(), location)?);
-                let length = match length.evaluate_to_u64() {
+                let length = match length.evaluate_to_u32() {
                     Some(length) => length,
                     None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
                 };
@@ -1304,7 +1311,7 @@ impl<'interner> Monomorphizer<'interner> {
             Expression::Literal(Literal::Integer((byte as u128).into(), int_type.clone(), location))
         });
 
-        let typ = Type::Array(bytes_as_expr.len() as u64, Box::new(int_type));
+        let typ = Type::Array(bytes_as_expr.len() as u32, Box::new(int_type));
 
         let arr_literal = ArrayLiteral { typ, contents: bytes_as_expr };
         Expression::Literal(Literal::Array(arr_literal))

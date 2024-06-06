@@ -46,7 +46,7 @@ struct BaseRollupInputs {
     // TODO: The following 6 values are eventually going to be nuked from here. See discussion:
     // https://aztecprotocol.slack.com/archives/C060PU5R327/p1701965354071269
     sorted_public_data_writes: [PublicDataTreeLeaf; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-    sorted_public_data_writes_indexes: [u64; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+    sorted_public_data_writes_indexes: [u32; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     low_public_data_writes_preimages: [PublicDataTreeLeafPreimage; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     low_public_data_writes_witnesses: [MembershipWitness<PUBLIC_DATA_TREE_HEIGHT>; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
 
@@ -173,7 +173,7 @@ impl BaseRollupInputs {
                     ((low_leaf.next_index == 0) & (low_leaf.next_nullifier == 0))
                 )
             },
-            |low_leaf: NullifierLeafPreimage, nullifier: Field, nullifier_index: u64| { // Update low leaf
+            |low_leaf: NullifierLeafPreimage, nullifier: Field, nullifier_index: u32| { // Update low leaf
                 NullifierLeafPreimage{
                     nullifier : low_leaf.nullifier,
                     next_nullifier : nullifier,
@@ -252,7 +252,7 @@ impl BaseRollupInputs {
     // from the balance of the fee_payer, using the fee_payer_gas_token_balance_read_hint to read the current balance.
     // Returns the data update request that subtracts the tx_fee from the fee_payer's balance, and the index where it
     // should be inserted in the public data update requests array.
-    fn build_or_patch_payment_update_request(self, tx_fee: Field) -> (PublicDataUpdateRequest, u64) {
+    fn build_or_patch_payment_update_request(self, tx_fee: Field) -> (PublicDataUpdateRequest, u32) {
         let fee_payer = self.kernel_data.public_inputs.fee_payer;
 
         // TODO(@spalladino) Eventually remove the is_zero condition as we should always charge fees to every tx
@@ -273,7 +273,7 @@ impl BaseRollupInputs {
 
                 let new_value = compute_public_data_tree_value(existing_update.new_value - tx_fee);
                 let protocol_update_request = PublicDataUpdateRequest { leaf_slot, new_value, counter: 0 };
-                (protocol_update_request, existing_update_index as u64)
+                (protocol_update_request, existing_update_index as u32)
             } else {
                 // Otherwise, build a new one to be inserted into the protocol update requests at the end of the array.
                 read_hint.validate(self.start.public_data_tree.root);
@@ -314,7 +314,7 @@ impl BaseRollupInputs {
         );
     }
 
-    unconstrained fn find_fee_payer_gas_token_update_index(self, leaf_slot: Field) -> u64 {
+    unconstrained fn find_fee_payer_gas_token_update_index(self, leaf_slot: Field) -> u32 {
         let mut update_index = MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX + 1;
         for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
             if self.kernel_data.public_inputs.end.public_data_update_requests[i].leaf_slot == leaf_slot {
@@ -332,7 +332,7 @@ fn insert_public_data_update_requests(
     prev_snapshot: AppendOnlyTreeSnapshot,
     public_data_writes: [PublicDataTreeLeaf; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     sorted_public_data_writes: [PublicDataTreeLeaf; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-    sorted_public_data_writes_indexes: [u64; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+    sorted_public_data_writes_indexes: [u32; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     low_public_data_writes_preimages: [PublicDataTreeLeafPreimage; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     low_public_data_writes_witnesses: [MembershipWitness<PUBLIC_DATA_TREE_HEIGHT>; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     public_data_writes_subtree_sibling_path: [Field; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH]
@@ -364,7 +364,7 @@ fn insert_public_data_update_requests(
 
             (!is_low_empty) & (is_update | is_in_range)
         },
-        |low_preimage: PublicDataTreeLeafPreimage, write: PublicDataTreeLeaf, write_index: u64| { // Update low leaf
+        |low_preimage: PublicDataTreeLeafPreimage, write: PublicDataTreeLeaf, write_index: u32| { // Update low leaf
             let is_update = low_preimage.slot == write.slot;
             if is_update {
                 PublicDataTreeLeafPreimage{
@@ -474,7 +474,7 @@ mod tests {
     };
 
     struct NullifierInsertion {
-        existing_index: u64,
+        existing_index: u32,
         value: Field,
     }
 
@@ -485,14 +485,14 @@ mod tests {
         public_data_tree: &mut NonEmptyMerkleTree<EXISTING_LEAVES, PUBLIC_DATA_TREE_HEIGHT, SUBTREE_SIBLING_PATH_LENGTH, SUBTREE_HEIGHT>,
         kernel_data: &mut KernelData,
         snapshot: AppendOnlyTreeSnapshot,
-        user_public_data_writes: BoundedVec<(u64, PublicDataTreeLeaf), MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
-        protocol_public_data_writes: BoundedVec<(u64, PublicDataTreeLeaf), PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
-        mut final_public_data_writes: BoundedVec<(u64, PublicDataTreeLeaf), MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
+        user_public_data_writes: BoundedVec<(u32, PublicDataTreeLeaf), MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
+        protocol_public_data_writes: BoundedVec<(u32, PublicDataTreeLeaf), PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
+        mut final_public_data_writes: BoundedVec<(u32, PublicDataTreeLeaf), MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
         mut pre_existing_public_data: [PublicDataTreeLeafPreimage; EXISTING_LEAVES]
-    ) -> ([Field; 35], [PublicDataTreeLeaf; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [u64; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [PublicDataTreeLeafPreimage; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [MembershipWitness<PUBLIC_DATA_TREE_HEIGHT>; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [PublicDataTreeLeafPreimage; EXISTING_LEAVES]) {
+    ) -> ([Field; 35], [PublicDataTreeLeaf; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [u32; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [PublicDataTreeLeafPreimage; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [MembershipWitness<PUBLIC_DATA_TREE_HEIGHT>; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [PublicDataTreeLeafPreimage; EXISTING_LEAVES]) {
         let mut subtree_path = [0; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH];
         let mut sorted_public_data_writes = [PublicDataTreeLeaf::empty(); MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
-        let mut sorted_public_data_writes_indexes = [0 as u64; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
+        let mut sorted_public_data_writes_indexes = [0 as u32; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
         let mut low_public_data_writes_preimages = [PublicDataTreeLeafPreimage::empty(); MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
         let mut low_public_data_writes_witnesses = [MembershipWitness::empty(); MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
         let mut new_subtree = [PublicDataTreeLeafPreimage::empty(); MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
@@ -517,12 +517,12 @@ mod tests {
 
         let mut sorted_write_tuples = sort_high_to_low(
             final_public_data_writes.storage,
-            |(_, leaf_a): (u64, PublicDataTreeLeaf),(_,leaf_b):(u64, PublicDataTreeLeaf)| full_field_less_than(leaf_a.slot, leaf_b.slot)
+            |(_, leaf_a): (u32, PublicDataTreeLeaf),(_,leaf_b):(u32, PublicDataTreeLeaf)| full_field_less_than(leaf_a.slot, leaf_b.slot)
         );
 
         for i in 0..MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
             if i < final_public_data_writes.len() {
-                let (low_leaf_index, leaf): (u64, PublicDataTreeLeaf) = sorted_write_tuples[i].value;
+                let (low_leaf_index, leaf): (u32, PublicDataTreeLeaf) = sorted_write_tuples[i].value;
 
                 sorted_public_data_writes[i] = leaf;
                 sorted_public_data_writes_indexes[i] = sorted_write_tuples[i].original_index;
@@ -562,7 +562,7 @@ mod tests {
             }
         }
 
-        subtree_path = BaseRollupInputsBuilder::extract_subtree_sibling_path(public_data_tree.get_sibling_path(snapshot.next_available_leaf_index as u64), [0; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH]);
+        subtree_path = BaseRollupInputsBuilder::extract_subtree_sibling_path(public_data_tree.get_sibling_path(snapshot.next_available_leaf_index as u32), [0; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH]);
 
         (
             subtree_path, sorted_public_data_writes, sorted_public_data_writes_indexes, low_public_data_writes_preimages, low_public_data_writes_witnesses, pre_existing_public_data
@@ -576,18 +576,18 @@ mod tests {
         pre_existing_contracts: [Field; 2],
         pre_existing_public_data: [PublicDataTreeLeafPreimage; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
         pre_existing_blocks: [Field; 2],
-        public_data_reads: BoundedVec<u64, MAX_PUBLIC_DATA_READS_PER_TEST>,
+        public_data_reads: BoundedVec<u32, MAX_PUBLIC_DATA_READS_PER_TEST>,
         // Public data writes as returned from the last public kernel (ie all data writes generated by app code)
-        public_data_writes: BoundedVec<(u64, PublicDataTreeLeaf), MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
+        public_data_writes: BoundedVec<(u32, PublicDataTreeLeaf), MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
         // New public data writes to be created by the protocol (eg a data update request for updating fee payer balance)
-        protocol_public_data_writes: BoundedVec<(u64, PublicDataTreeLeaf), PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
+        protocol_public_data_writes: BoundedVec<(u32, PublicDataTreeLeaf), PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
         // Public data writes after processing by the base rollup circuit (defaults to public_data_writes ++ protocol_public_data_writes if empty)
-        final_public_data_writes: BoundedVec<(u64, PublicDataTreeLeaf), MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
+        final_public_data_writes: BoundedVec<(u32, PublicDataTreeLeaf), MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
         new_nullifiers: BoundedVec<NullifierInsertion, MAX_NEW_NULLIFIERS_PER_TEST>,
         constants: ConstantRollupData,
         // Index of the item in the pre_existing_public_data array that contains the fee payer's gas token balance.
         // Used for building the public data hint read for the payment update request. If set to none, no hint is built.
-        fee_payer_gas_token_balance_pre_existing_public_data_index: Option<u64>
+        fee_payer_gas_token_balance_pre_existing_public_data_index: Option<u32>
     }
 
     fn test_compute_empty_root<N>(size: [Field; N]) -> Field {
@@ -612,10 +612,10 @@ mod tests {
         ) -> PublicDataHint {
             self.fee_payer_gas_token_balance_pre_existing_public_data_index.map_or(
                 PublicDataHint::empty(),
-                |leaf_index_u64: u64| {
-                    let leaf_index = leaf_index_u64 as Field;
+                |leaf_index_u32: u32| {
+                    let leaf_index = leaf_index_u32 as Field;
                     let leaf_preimage = self.pre_existing_public_data[leaf_index];
-                    let membership_witness = MembershipWitness { leaf_index, sibling_path: start_public_data_tree.get_sibling_path(leaf_index_u64) };
+                    let membership_witness = MembershipWitness { leaf_index, sibling_path: start_public_data_tree.get_sibling_path(leaf_index_u32) };
                     PublicDataHint {
                         leaf_slot: leaf_preimage.slot,
                         value: leaf_preimage.value,
@@ -643,7 +643,7 @@ mod tests {
             nullifier_tree: &mut NonEmptyMerkleTree<MAX_NEW_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT>,
             kernel_data: &mut KernelData,
             start_nullifier_tree_snapshot: AppendOnlyTreeSnapshot
-        ) -> ([NullifierLeafPreimage; MAX_NEW_NULLIFIERS_PER_TX], [MembershipWitness<NULLIFIER_TREE_HEIGHT>; MAX_NEW_NULLIFIERS_PER_TX], [Field; MAX_NEW_NULLIFIERS_PER_TX], [u64; MAX_NEW_NULLIFIERS_PER_TX]) {
+        ) -> ([NullifierLeafPreimage; MAX_NEW_NULLIFIERS_PER_TX], [MembershipWitness<NULLIFIER_TREE_HEIGHT>; MAX_NEW_NULLIFIERS_PER_TX], [Field; MAX_NEW_NULLIFIERS_PER_TX], [u32; MAX_NEW_NULLIFIERS_PER_TX]) {
             let mut nullifier_predecessor_preimages = [NullifierLeafPreimage::empty(); MAX_NEW_NULLIFIERS_PER_TX];
             let mut low_nullifier_membership_witness = [MembershipWitness::empty(); MAX_NEW_NULLIFIERS_PER_TX];
 
@@ -685,7 +685,7 @@ mod tests {
                     };
 
                     low_preimage.next_nullifier = new_nullifier;
-                    low_preimage.next_index = start_nullifier_tree_snapshot.next_available_leaf_index as u64 + original_index;
+                    low_preimage.next_index = start_nullifier_tree_snapshot.next_available_leaf_index as u32 + original_index;
                     pre_existing_nullifiers[low_index] = low_preimage;
 
                     nullifier_tree.update_leaf(low_index, low_preimage.hash());

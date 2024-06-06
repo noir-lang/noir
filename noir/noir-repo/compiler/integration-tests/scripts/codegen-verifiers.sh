@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 NARGO_BACKEND_PATH=${NARGO_BACKEND_PATH:-bb}
 

@@ -12,7 +12,7 @@ use dep::types::{
     traits::is_empty, transaction::tx_request::TxRequest, utils::arrays::find_index
 };
 
-unconstrained fn match_log_to_note<N>(note_log: NoteLogHash, accumulated_note_hashes: [ScopedNoteHash; N]) -> u64 {
+unconstrained fn match_log_to_note<N>(note_log: NoteLogHash, accumulated_note_hashes: [ScopedNoteHash; N]) -> u32 {
     find_index(
         accumulated_note_hashes,
         |n: ScopedNoteHash| n.counter() == note_log.note_hash_counter
@@ -42,7 +42,7 @@ fn validate_incrementing_counters_within_range<T, N>(
     counter_start: u32,
     counter_end: u32,
     items: [T; N],
-    num_items: u64
+    num_items: u32
 ) where T: Ordered {
     let mut prev_counter = counter_start;
     let mut should_check = true;
@@ -63,7 +63,7 @@ fn validate_incrementing_counter_ranges_within_range<T, N>(
     counter_start: u32,
     counter_end: u32,
     items: [T; N],
-    num_items: u64
+    num_items: u32
 ) where T: RangeOrdered {
     let mut prev_counter = counter_start;
     let mut should_check = true;
@@ -85,9 +85,9 @@ fn validate_incrementing_counter_ranges_within_range<T, N>(
 
 fn validate_clean_split_ranges<T, N>(
     min_revertible_side_effect_counter: u32,
-    first_revertible_item_index: u64,
+    first_revertible_item_index: u32,
     items: [T; N],
-    num_items: u64
+    num_items: u32
 ) where T: RangeOrdered {
     if first_revertible_item_index != 0 {
         let last_non_revertible_item_index = first_revertible_item_index - 1;
@@ -125,7 +125,7 @@ impl PrivateCallDataValidator {
         self.validate_note_logs(accumulated_note_hashes);
     }
 
-    pub fn validate_as_first_call(self, first_revertible_private_call_request_index: u64) {
+    pub fn validate_as_first_call(self, first_revertible_private_call_request_index: u32) {
         let public_inputs = self.data.call_stack_item.public_inputs;
         let call_context = public_inputs.call_context;
         assert(call_context.is_delegate_call == false, "Users cannot make a delegatecall");
