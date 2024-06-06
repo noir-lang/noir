@@ -842,7 +842,7 @@ impl<'a> Context<'a> {
                         // TODO: Remove this once elaborator is default frontend. This is now caught by a lint inside the frontend.
                         return Err(RuntimeError::UnconstrainedOracleReturnToConstrained {
                             call_stack: self.acir_context.get_call_stack(),
-                        })
+                        });
                     }
                     _ => unreachable!("expected calling a function but got {function_value:?}"),
                 }

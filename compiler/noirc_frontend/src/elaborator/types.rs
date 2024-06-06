@@ -17,7 +17,7 @@ use crate::{
     },
     hir_def::{
         expr::{
-            HirBinaryOp, HirCallExpression, HirIdent, HirMemberAccess, HirMethodReference,
+            HirBinaryOp, HirCallExpression, HirMemberAccess, HirMethodReference,
             HirPrefixExpression,
         },
         function::{FuncMeta, Parameters},
@@ -27,9 +27,7 @@ use crate::{
         HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
         UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
-    node_interner::{
-        DefinitionKind, ExprId, FuncId, GlobalId, TraitId, TraitImplKind, TraitMethodId,
-    },
+    node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
     Generics, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
@@ -1152,8 +1150,10 @@ impl<'context> Elaborator<'context> {
         let is_unconstrained_call = self.is_unconstrained_call(call.func);
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
         if crossing_runtime_boundary {
-            let called_func_id =
-                self.func_id_from_expr_id(call.func).expect("Called function should exist");
+            let called_func_id = self
+                .interner
+                .lookup_function_from_expr(&call.func)
+                .expect("Called function should exist");
             self.run_lint(|elaborator| {
                 lints::oracle_called_from_constrained_function(
                     elaborator.interner,
@@ -1179,22 +1179,8 @@ impl<'context> Elaborator<'context> {
         return_type
     }
 
-    fn func_id_from_expr_id(&self, expr: ExprId) -> Option<FuncId> {
-        if let HirExpression::Ident(HirIdent { id, .. }, _) = self.interner.expression(&expr) {
-            if let Some(DefinitionKind::Function(func_id)) =
-                self.interner.try_definition(id).map(|def| &def.kind)
-            {
-                Some(*func_id)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
     fn is_unconstrained_call(&self, expr: ExprId) -> bool {
-        if let Some(func_id) = self.func_id_from_expr_id(expr) {
+        if let Some(func_id) = self.interner.lookup_function_from_expr(&expr) {
             let modifiers = self.interner.function_modifiers(&func_id);
             modifiers.is_unconstrained
         } else {
