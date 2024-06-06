@@ -401,7 +401,7 @@ impl<'context> Elaborator<'context> {
 
     fn eval_global_as_array_length(&mut self, global_id: GlobalId, path: &Path) -> u32 {
         let Some(stmt) = self.interner.get_global_let_statement(global_id) else {
-            if let Some(global) = self.remove_unresolved_global(global_id) {
+            if let Some(global) = self.unresolved_globals.remove(&global_id) {
                 self.elaborate_global(global);
                 return self.eval_global_as_array_length(global_id, path);
             } else {

@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet, VecDeque},
+    collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
 
@@ -166,7 +166,10 @@ pub struct Elaborator<'context> {
     /// up all currently visible definitions. The first scope is always the global scope.
     comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
-    unresolved_globals: VecDeque<UnresolvedGlobal>,
+    /// These are the globals that have yet to be elaborated.
+    /// This map is used to lazily evaluate these globals if they're encountered before
+    /// they are elaborated (e.g. in a function's type or another global's RHS).
+    unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 }
 
 impl<'context> Elaborator<'context> {
@@ -194,7 +197,7 @@ impl<'context> Elaborator<'context> {
             trait_constraints: Vec::new(),
             current_trait_impl: None,
             comptime_scopes: vec![HashMap::default()],
-            unresolved_globals: VecDeque::default(),
+            unresolved_globals: BTreeMap::new(),
         }
     }
 
@@ -211,8 +214,9 @@ impl<'context> Elaborator<'context> {
         // Additionally, we must resolve integer globals before structs since structs may refer to
         // the values of integer globals as numeric generics.
         let (literal_globals, non_literal_globals) = filter_literal_globals(items.globals);
-        this.unresolved_globals
-            .extend(non_literal_globals.into_iter());
+        for global in non_literal_globals {
+            this.unresolved_globals.insert(global.global_id, global);
+        }
 
         for global in literal_globals {
             this.elaborate_global(global);
@@ -247,7 +251,7 @@ impl<'context> Elaborator<'context> {
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to to ensure they are valid.
-        while let Some(global) = this.unresolved_globals.pop_front() {
+        while let Some((_, global)) = this.unresolved_globals.pop_first() {
             this.elaborate_global(global);
         }
 
@@ -1227,10 +1231,5 @@ impl<'context> Elaborator<'context> {
                 this.define_function_meta(func, *id, false);
             });
         }
-    }
-
-    fn remove_unresolved_global(&mut self, global: GlobalId) -> Option<UnresolvedGlobal> {
-        let position = self.unresolved_globals.iter().position(|item| item.global_id == global)?;
-        self.unresolved_globals.remove(position)
     }
 }

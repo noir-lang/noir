@@ -429,7 +429,7 @@ impl<'context> Elaborator<'context> {
                         }
                     }
                     DefinitionKind::Global(global_id) => {
-                        if let Some(global) = self.remove_unresolved_global(global_id) {
+                        if let Some(global) = self.unresolved_globals.remove(&global_id) {
                             self.elaborate_global(global);
                         }
                         if let Some(current_item) = self.current_item {
