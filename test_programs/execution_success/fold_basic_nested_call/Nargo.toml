@@ -1,0 +1,7 @@
+[package]
+name = "fold_basic_nested_call"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.25.0"
+
+[dependencies]

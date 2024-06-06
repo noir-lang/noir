@@ -1,5 +1,18 @@
-use acvm::{acir::BlackBoxFunc, FieldElement};
+use std::hash::{Hash, Hasher};
+
+use acvm::{
+    acir::AcirField,
+    acir::{
+        circuit::{ErrorSelector, STRING_ERROR_SELECTOR},
+        BlackBoxFunc,
+    },
+    FieldElement,
+};
+use fxhash::FxHasher;
 use iter_extended::vecmap;
+use noirc_frontend::hir_def::types::Type as HirType;
+
+use crate::ssa::opt::flatten_cfg::value_merger::ValueMerger;
 
 use super::{
     basic_block::BasicBlockId,
@@ -37,6 +50,7 @@ pub(crate) type InstructionId = Id<Instruction>;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Intrinsic {
     ArrayLen,
+    AsSlice,
     AssertConstant,
     SlicePushBack,
     SlicePushFront,
@@ -51,12 +65,15 @@ pub(crate) enum Intrinsic {
     BlackBox(BlackBoxFunc),
     FromField,
     AsField,
+    AsWitness,
+    IsUnconstrained,
 }
 
 impl std::fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Intrinsic::ArrayLen => write!(f, "array_len"),
+            Intrinsic::AsSlice => write!(f, "as_slice"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
             Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
             Intrinsic::SlicePushFront => write!(f, "slice_push_front"),
@@ -73,6 +90,8 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::BlackBox(function) => write!(f, "{function}"),
             Intrinsic::FromField => write!(f, "from_field"),
             Intrinsic::AsField => write!(f, "as_field"),
+            Intrinsic::AsWitness => write!(f, "as_witness"),
+            Intrinsic::IsUnconstrained => write!(f, "is_unconstrained"),
         }
     }
 }
@@ -83,12 +102,15 @@ impl Intrinsic {
     /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
     pub(crate) fn has_side_effects(&self) -> bool {
         match self {
-            Intrinsic::AssertConstant | Intrinsic::ApplyRangeConstraint => true,
+            Intrinsic::AssertConstant | Intrinsic::ApplyRangeConstraint | Intrinsic::AsWitness => {
+                true
+            }
 
             // These apply a constraint that the input must fit into a specified number of limbs.
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
             Intrinsic::ArrayLen
+            | Intrinsic::AsSlice
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
             | Intrinsic::SlicePopBack
@@ -97,10 +119,16 @@ impl Intrinsic {
             | Intrinsic::SliceRemove
             | Intrinsic::StrAsBytes
             | Intrinsic::FromField
-            | Intrinsic::AsField => false,
+            | Intrinsic::AsField
+            | Intrinsic::IsUnconstrained => false,
 
             // Some black box functions have side-effects
-            Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
+            Intrinsic::BlackBox(func) => matches!(
+                func,
+                BlackBoxFunc::RecursiveAggregation
+                    | BlackBoxFunc::MultiScalarMul
+                    | BlackBoxFunc::EmbeddedCurveAdd
+            ),
         }
     }
 
@@ -109,6 +137,7 @@ impl Intrinsic {
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
             "array_len" => Some(Intrinsic::ArrayLen),
+            "as_slice" => Some(Intrinsic::AsSlice),
             "assert_constant" => Some(Intrinsic::AssertConstant),
             "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
             "slice_push_back" => Some(Intrinsic::SlicePushBack),
@@ -124,6 +153,8 @@ impl Intrinsic {
             "to_be_bits" => Some(Intrinsic::ToBits(Endian::Big)),
             "from_field" => Some(Intrinsic::FromField),
             "as_field" => Some(Intrinsic::AsField),
+            "as_witness" => Some(Intrinsic::AsWitness),
+            "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }
@@ -153,7 +184,7 @@ pub(crate) enum Instruction {
     Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains two values to be equal to one another.
-    Constrain(ValueId, ValueId, Option<Box<ConstrainError>>),
+    Constrain(ValueId, ValueId, Option<ConstrainError>),
 
     /// Range constrain `value` to `max_bit_size`
     RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
@@ -185,8 +216,9 @@ pub(crate) enum Instruction {
     ArrayGet { array: ValueId, index: ValueId },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
-    /// to those in the given array. This will not modify the original array.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId },
+    /// to those in the given array. This will not modify the original array unless `mutable` is
+    /// set. This flag is off by default and only enabled when optimizations determine it is safe.
+    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
     ///
@@ -194,6 +226,21 @@ pub(crate) enum Instruction {
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// IncrementRc instructions are ignored.
     IncrementRc { value: ValueId },
+
+    /// An instruction to decrement the reference count of a value.
+    ///
+    /// This currently only has an effect in Brillig code where array sharing and copy on write is
+    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
+    /// DecrementRc instructions are ignored.
+    DecrementRc { value: ValueId },
+
+    /// Merge two values returned from opposite branches of a conditional into one.
+    IfElse {
+        then_condition: ValueId,
+        then_value: ValueId,
+        else_condition: ValueId,
+        else_value: ValueId,
+    },
 }
 
 impl Instruction {
@@ -207,13 +254,16 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
             Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
-            Instruction::Not(value) | Instruction::Truncate { value, .. } => {
+            Instruction::Not(value)
+            | Instruction::Truncate { value, .. }
+            | Instruction::ArraySet { array: value, .. }
+            | Instruction::IfElse { then_value: value, .. } => {
                 InstructionResultType::Operand(*value)
             }
-            Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
             Instruction::Constrain(..)
             | Instruction::Store { .. }
             | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. }
             | Instruction::RangeCheck { .. }
             | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
             Instruction::Allocate { .. }
@@ -229,20 +279,11 @@ impl Instruction {
         matches!(self.result_type(), InstructionResultType::Unknown)
     }
 
-    /// Pure `Instructions` are instructions which have no side-effects and results are a function of the inputs only,
-    /// i.e. there are no interactions with memory.
-    ///
-    /// Pure instructions can be replaced with the results of another pure instruction with the same inputs.
-    pub(crate) fn is_pure(&self, dfg: &DataFlowGraph) -> bool {
+    /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
+    pub(crate) fn can_be_deduplicated(&self, dfg: &DataFlowGraph) -> bool {
         use Instruction::*;
 
         match self {
-            Binary(bin) => {
-                // In ACIR, a division with a false predicate outputs (0,0), so it cannot replace another instruction unless they have the same predicate
-                bin.operator != BinaryOp::Div
-            }
-            Cast(_, _) | Truncate { .. } | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
-
             // These either have side-effects or interact with memory
             Constrain(..)
             | EnableSideEffects { .. }
@@ -250,27 +291,40 @@ impl Instruction {
             | Load { .. }
             | Store { .. }
             | IncrementRc { .. }
+            | DecrementRc { .. }
             | RangeCheck { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
                 _ => false,
             },
+
+            // These can have different behavior depending on the EnableSideEffectsIf context.
+            // Replacing them with a similar instruction potentially enables replacing an instruction
+            // with one that was disabled. See
+            // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | IfElse { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => !self.requires_acir_gen_predicate(dfg),
         }
     }
 
-    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn can_eliminate_if_unused(&self, dfg: &DataFlowGraph) -> bool {
         use Instruction::*;
         match self {
             Binary(binary) => {
                 if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
                     if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
-                        rhs == FieldElement::zero()
+                        rhs != FieldElement::zero()
                     } else {
-                        true
+                        false
                     }
                 } else {
-                    false
+                    true
                 }
             }
             Cast(_, _)
@@ -279,28 +333,67 @@ impl Instruction {
             | Allocate
             | Load { .. }
             | ArrayGet { .. }
-            | ArraySet { .. } => false,
+            | IfElse { .. }
+            | ArraySet { .. } => true,
 
             Constrain(..)
             | Store { .. }
             | EnableSideEffects { .. }
             | IncrementRc { .. }
-            | RangeCheck { .. } => true,
+            | DecrementRc { .. }
+            | RangeCheck { .. } => false,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
-                Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+                // Explicitly allows removal of unused ec operations, even if they can fail
+                Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
+                | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
+                Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
 
                 // All foreign functions are treated as having side effects.
                 // This is because they can be used to pass information
                 // from the ACVM to the external world during execution.
-                Value::ForeignFunction(_) => true,
+                Value::ForeignFunction(_) => false,
 
                 // We must assume that functions contain a side effect as we cannot inspect more deeply.
-                Value::Function(_) => true,
+                Value::Function(_) => false,
 
                 _ => false,
             },
+        }
+    }
+
+    /// If true the instruction will depends on enable_side_effects context during acir-gen
+    fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
+        match self {
+            Instruction::Binary(binary)
+                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) =>
+            {
+                true
+            }
+            Instruction::EnableSideEffects { .. }
+            | Instruction::ArrayGet { .. }
+            | Instruction::ArraySet { .. } => true,
+
+            Instruction::Call { func, .. } => match dfg[*func] {
+                Value::Function(_) => true,
+                Value::Intrinsic(intrinsic) => {
+                    matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
+                }
+                _ => false,
+            },
+            Instruction::Cast(_, _)
+            | Instruction::Binary(_)
+            | Instruction::Not(_)
+            | Instruction::Truncate { .. }
+            | Instruction::Constrain(_, _, _)
+            | Instruction::RangeCheck { .. }
+            | Instruction::Allocate
+            | Instruction::Load { .. }
+            | Instruction::Store { .. }
+            | Instruction::IfElse { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. } => false,
         }
     }
 
@@ -325,10 +418,12 @@ impl Instruction {
                 // Must map the `lhs` and `rhs` first as the value `f` is moved with the closure
                 let lhs = f(*lhs);
                 let rhs = f(*rhs);
-                let assert_message = assert_message.as_ref().map(|error| match error.as_ref() {
-                    ConstrainError::Dynamic(call_instr) => {
-                        let new_instr = call_instr.map_values(f);
-                        Box::new(ConstrainError::Dynamic(new_instr))
+                let assert_message = assert_message.as_ref().map(|error| match error {
+                    ConstrainError::UserDefined(selector, payload_values) => {
+                        ConstrainError::UserDefined(
+                            *selector,
+                            payload_values.iter().map(|&value| f(value)).collect(),
+                        )
                     }
                     _ => error.clone(),
                 });
@@ -349,15 +444,27 @@ impl Instruction {
             Instruction::ArrayGet { array, index } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
             }
-            Instruction::ArraySet { array, index, value } => {
-                Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
-            }
+            Instruction::ArraySet { array, index, value, mutable } => Instruction::ArraySet {
+                array: f(*array),
+                index: f(*index),
+                value: f(*value),
+                mutable: *mutable,
+            },
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
+            Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 Instruction::RangeCheck {
                     value: f(*value),
                     max_bit_size: *max_bit_size,
                     assert_message: assert_message.clone(),
+                }
+            }
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                Instruction::IfElse {
+                    then_condition: f(*then_condition),
+                    then_value: f(*then_value),
+                    else_condition: f(*else_condition),
+                    else_value: f(*else_value),
                 }
             }
         }
@@ -385,10 +492,10 @@ impl Instruction {
             Instruction::Constrain(lhs, rhs, assert_error) => {
                 f(*lhs);
                 f(*rhs);
-                if let Some(error) = assert_error.as_ref() {
-                    if let ConstrainError::Dynamic(call_instr) = error.as_ref() {
-                        call_instr.for_each_value(f);
-                    }
+                if let Some(ConstrainError::UserDefined(_, values)) = assert_error.as_ref() {
+                    values.iter().for_each(|&val| {
+                        f(val);
+                    });
                 }
             }
 
@@ -401,7 +508,7 @@ impl Instruction {
                 f(*array);
                 f(*index);
             }
-            Instruction::ArraySet { array, index, value } => {
+            Instruction::ArraySet { array, index, value, mutable: _ } => {
                 f(*array);
                 f(*index);
                 f(*value);
@@ -409,8 +516,16 @@ impl Instruction {
             Instruction::EnableSideEffects { condition } => {
                 f(*condition);
             }
-            Instruction::IncrementRc { value } | Instruction::RangeCheck { value, .. } => {
+            Instruction::IncrementRc { value }
+            | Instruction::DecrementRc { value }
+            | Instruction::RangeCheck { value, .. } => {
                 f(*value);
+            }
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                f(*then_condition);
+                f(*then_value);
+                f(*else_condition);
+                f(*else_value);
             }
         }
     }
@@ -465,7 +580,7 @@ impl Instruction {
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, _)), Some(index)) = (array, index) {
                     let index =
-                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                        index.try_to_u32().expect("Expected array index to fit in u32") as usize;
                     if index < array.len() {
                         return SimplifiedTo(array[index]);
                     }
@@ -477,7 +592,7 @@ impl Instruction {
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, element_type)), Some(index)) = (array, index) {
                     let index =
-                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                        index.try_to_u32().expect("Expected array index to fit in u32") as usize;
 
                     if index < array.len() {
                         let new_array = dfg.make_array(array.update(index, *value), element_type);
@@ -554,14 +669,60 @@ impl Instruction {
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
             Instruction::IncrementRc { .. } => None,
+            Instruction::DecrementRc { .. } => None,
             Instruction::RangeCheck { value, max_bit_size, .. } => {
-                if let Some(numeric_constant) = dfg.get_numeric_constant(*value) {
-                    if numeric_constant.num_bits() < *max_bit_size {
-                        return Remove;
+                let max_potential_bits = dfg.get_value_max_num_bits(*value);
+                if max_potential_bits < *max_bit_size {
+                    Remove
+                } else {
+                    None
+                }
+            }
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                let typ = dfg.type_of_value(*then_value);
+
+                if let Some(constant) = dfg.get_numeric_constant(*then_condition) {
+                    if constant.is_one() {
+                        return SimplifiedTo(*then_value);
+                    } else if constant.is_zero() {
+                        return SimplifiedTo(*else_value);
                     }
                 }
-                None
+
+                if matches!(&typ, Type::Numeric(_)) {
+                    let then_condition = *then_condition;
+                    let then_value = *then_value;
+                    let else_condition = *else_condition;
+                    let else_value = *else_value;
+
+                    let result = ValueMerger::merge_numeric_values(
+                        dfg,
+                        block,
+                        then_condition,
+                        else_condition,
+                        then_value,
+                        else_value,
+                    );
+                    SimplifiedTo(result)
+                } else {
+                    None
+                }
             }
+        }
+    }
+}
+
+pub(crate) type ErrorType = HirType;
+
+pub(crate) fn error_selector_from_type(typ: &ErrorType) -> ErrorSelector {
+    match typ {
+        ErrorType::String(_) => STRING_ERROR_SELECTOR,
+        _ => {
+            let mut hasher = FxHasher::default();
+            typ.hash(&mut hasher);
+            let hash = hasher.finish();
+            assert!(hash != 0, "ICE: Error type {} collides with the string error type", typ);
+            ErrorSelector::new(hash)
         }
     }
 }
@@ -569,16 +730,14 @@ impl Instruction {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum ConstrainError {
     // These are errors which have been hardcoded during SSA gen
-    Static(String),
-    // These are errors which come from runtime expressions specified by a Noir program
-    // We store an `Instruction` as we want this Instruction to be atomic in SSA with
-    // a constrain instruction, and leave codegen of this instruction to lower level passes.
-    Dynamic(Instruction),
+    Intrinsic(String),
+    // These are errors issued by the user
+    UserDefined(ErrorSelector, Vec<ValueId>),
 }
 
 impl From<String> for ConstrainError {
     fn from(value: String) -> Self {
-        ConstrainError::Static(value)
+        ConstrainError::Intrinsic(value)
     }
 }
 

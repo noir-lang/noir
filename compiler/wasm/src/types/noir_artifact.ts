@@ -1,6 +1,44 @@
 import { Abi, AbiType } from '@noir-lang/types';
 
 /**
+ * A basic value.
+ */
+export interface BasicValue<T extends string, V> {
+  /**
+   * The kind of the value.
+   */
+  kind: T;
+  value: V;
+}
+
+/**
+ * An exported value.
+ */
+export type AbiValue =
+  | BasicValue<'boolean', boolean>
+  | BasicValue<'string', string>
+  | BasicValue<'array', AbiValue[]>
+  | TupleValue
+  | IntegerValue
+  | StructValue;
+
+export type TypedStructFieldValue<T> = { name: string; value: T };
+
+export interface StructValue {
+  kind: 'struct';
+  fields: TypedStructFieldValue<AbiValue>[];
+}
+
+export interface TupleValue {
+  kind: 'tuple';
+  fields: AbiValue[];
+}
+
+export interface IntegerValue extends BasicValue<'integer', string> {
+  sign: boolean;
+}
+
+/**
  * A named type.
  */
 export interface ABIVariable {
@@ -15,36 +53,15 @@ export interface ABIVariable {
 }
 
 /**
- * A contract event.
- */
-export interface EventAbi {
-  /**
-   * The event name.
-   */
-  name: string;
-  /**
-   * Fully qualified name of the event.
-   */
-  path: string;
-  /**
-   * The fields of the event.
-   */
-  fields: ABIVariable[];
-}
-
-/** The Noir function types. */
-export type NoirFunctionType = 'Open' | 'Secret' | 'Unconstrained';
-
-/**
  * The compilation result of an Noir function.
  */
 export interface NoirFunctionEntry {
   /** The name of the function. */
   name: string;
-  /** The type of the function. */
-  function_type: NoirFunctionType;
-  /** Whether the function is internal. */
-  is_internal: boolean;
+  /** Whether the function is unconstrained. */
+  is_unconstrained: boolean;
+  /** The custom attributes applied to the function. */
+  custom_attributes: string[];
   /** The ABI of the function. */
   abi: Abi;
   /** The bytecode of the function in base64. */
@@ -63,8 +80,11 @@ export interface ContractArtifact {
   noir_version: string;
   /** The functions of the contract. */
   functions: NoirFunctionEntry[];
-  /** The events of the contract */
-  events: EventAbi[];
+
+  outputs: {
+    structs: Record<string, AbiType[]>;
+    globals: Record<string, AbiValue[]>;
+  };
   /** The map of file ID to the source code and path of the file. */
   file_map: DebugFileMap;
 }
@@ -129,6 +149,16 @@ export interface DebugInfo {
    * A map of the opcode location to the source code location.
    */
   locations: Record<OpcodeLocation, SourceCodeLocation[]>;
+}
+
+/**
+ * The debug information for a given program.
+ */
+export interface ProgramDebugInfo {
+  /**
+   * An array that maps to each function of a program.
+   */
+  debug_infos: Array<DebugInfo>;
 }
 
 /**

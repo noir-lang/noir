@@ -4,17 +4,23 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 use acvm::{
-    acir::native_types::{Witness, WitnessMap},
-    FieldElement,
+    acir::{
+        circuit::ErrorSelector,
+        native_types::{Witness, WitnessMap},
+    },
+    AcirField, FieldElement,
 };
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
-use noirc_frontend::{
-    hir::Context, Signedness, StructType, Type, TypeBinding, TypeVariableKind, Visibility,
+use noirc_frontend::ast::{Signedness, Visibility};
+use noirc_frontend::{hir::Context, Type, TypeBinding, TypeVariableKind};
+use noirc_printable_type::{
+    decode_value as printable_type_decode_value, PrintableType, PrintableValue,
+    PrintableValueDisplay,
 };
 use serde::{Deserialize, Serialize};
-use std::ops::Range;
+use std::{borrow::Borrow, ops::Range};
 use std::{collections::BTreeMap, str};
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
@@ -45,7 +51,7 @@ pub const MAIN_RETURN_NAME: &str = "return";
 pub enum AbiType {
     Field,
     Array {
-        length: u64,
+        length: u32,
         #[serde(rename = "type")]
         typ: Box<AbiType>,
     },
@@ -66,7 +72,7 @@ pub enum AbiType {
         fields: Vec<AbiType>,
     },
     String {
-        length: u64,
+        length: u32,
     },
 }
 
@@ -131,7 +137,7 @@ impl AbiType {
             Type::FieldElement => Self::Field,
             Type::Array(size, typ) => {
                 let length = size
-                    .evaluate_to_u64()
+                    .evaluate_to_u32()
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
                 Self::Array { length, typ: Box::new(Self::from_type(context, typ)) }
@@ -147,12 +153,14 @@ impl AbiType {
             Type::TypeVariable(binding, TypeVariableKind::IntegerOrField)
             | Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => Self::from_type(context, typ),
-                TypeBinding::Unbound(_) => Self::from_type(context, &Type::default_int_type()),
+                TypeBinding::Unbound(_) => {
+                    Self::from_type(context, &Type::default_int_or_field_type())
+                }
             },
             Type::Bool => Self::Boolean,
             Type::String(size) => {
                 let size = size
-                    .evaluate_to_u64()
+                    .evaluate_to_u32()
                     .expect("Cannot have variable sized strings as a parameter to main");
                 Self::String { length: size }
             }
@@ -178,8 +186,9 @@ impl AbiType {
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(..)
             | Type::Forall(..)
-            | Type::NotConstant
-            | Type::Function(_, _, _) => unreachable!("Type cannot be used in the abi"),
+            | Type::Code
+            | Type::Slice(_)
+            | Type::Function(_, _, _) => unreachable!("{typ} cannot be used in the abi"),
             Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
             Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
         }
@@ -189,14 +198,46 @@ impl AbiType {
     pub fn field_count(&self) -> u32 {
         match self {
             AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => 1,
-            AbiType::Array { length, typ } => typ.field_count() * (*length as u32),
+            AbiType::Array { length, typ } => typ.field_count() * *length,
             AbiType::Struct { fields, .. } => {
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
             }
             AbiType::Tuple { fields } => {
                 fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
             }
-            AbiType::String { length } => *length as u32,
+            AbiType::String { length } => *length,
+        }
+    }
+}
+
+impl From<&AbiType> for PrintableType {
+    fn from(value: &AbiType) -> Self {
+        match value {
+            AbiType::Field => PrintableType::Field,
+            AbiType::String { length } => PrintableType::String { length: *length },
+            AbiType::Tuple { fields } => {
+                let fields = fields.iter().map(|field| field.into()).collect();
+                PrintableType::Tuple { types: fields }
+            }
+            AbiType::Array { length, typ } => {
+                let borrowed: &AbiType = typ.borrow();
+                PrintableType::Array { length: *length, typ: Box::new(borrowed.into()) }
+            }
+            AbiType::Boolean => PrintableType::Boolean,
+            AbiType::Struct { path, fields } => {
+                let fields =
+                    fields.iter().map(|(name, field)| (name.clone(), field.into())).collect();
+                PrintableType::Struct {
+                    name: path.split("::").last().unwrap_or_default().to_string(),
+                    fields,
+                }
+            }
+            AbiType::Integer { sign: Sign::Unsigned, width } => {
+                PrintableType::UnsignedInteger { width: *width }
+            }
+            AbiType::Integer { sign: Sign::Signed, width } => {
+                PrintableType::SignedInteger { width: *width }
+            }
         }
     }
 }
@@ -221,6 +262,7 @@ pub struct AbiReturnType {
     pub abi_type: AbiType,
     pub visibility: AbiVisibility,
 }
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Abi {
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
@@ -230,6 +272,7 @@ pub struct Abi {
     pub param_witnesses: BTreeMap<String, Vec<Range<Witness>>>,
     pub return_type: Option<AbiReturnType>,
     pub return_witnesses: Vec<Witness>,
+    pub error_types: BTreeMap<ErrorSelector, AbiErrorType>,
 }
 
 impl Abi {
@@ -279,6 +322,7 @@ impl Abi {
             param_witnesses,
             return_type: self.return_type,
             return_witnesses: self.return_witnesses,
+            error_types: self.error_types,
         }
     }
 
@@ -287,7 +331,7 @@ impl Abi {
         &self,
         input_map: &InputMap,
         return_value: Option<InputValue>,
-    ) -> Result<WitnessMap, AbiError> {
+    ) -> Result<WitnessMap<FieldElement>, AbiError> {
         // Check that no extra witness values have been provided.
         let param_names = self.parameter_names();
         if param_names.len() < input_map.len() {
@@ -306,15 +350,7 @@ impl Abi {
                     .ok_or_else(|| AbiError::MissingParam(param_name.clone()))?
                     .clone();
 
-                if !value.matches_abi(&expected_type) {
-                    let param = self
-                        .parameters
-                        .iter()
-                        .find(|param| param.name == param_name)
-                        .unwrap()
-                        .clone();
-                    return Err(AbiError::TypeMismatch { param, value });
-                }
+                value.find_type_mismatch(&expected_type, param_name.clone())?;
 
                 Self::encode_value(value, &expected_type).map(|v| (param_name, v))
             })
@@ -403,7 +439,7 @@ impl Abi {
     /// Decode a `WitnessMap` into the types specified in the ABI.
     pub fn decode(
         &self,
-        witness_map: &WitnessMap,
+        witness_map: &WitnessMap<FieldElement>,
     ) -> Result<(InputMap, Option<InputValue>), AbiError> {
         let public_inputs_map =
             try_btree_map(self.parameters.clone(), |AbiParameter { name, typ, .. }| {
@@ -435,7 +471,15 @@ impl Abi {
                         .copied()
                 })
             {
-                Some(decode_value(&mut return_witness_values.into_iter(), &return_type.abi_type)?)
+                // We do not return value for the data bus.
+                if return_type.visibility == AbiVisibility::DataBus {
+                    None
+                } else {
+                    Some(decode_value(
+                        &mut return_witness_values.into_iter(),
+                        &return_type.abi_type,
+                    )?)
+                }
             } else {
                 // Unlike for the circuit inputs, we tolerate not being able to find the witness values for the return value.
                 // This is because the user may be decoding a partial witness map for which is hasn't been calculated yet.
@@ -450,7 +494,7 @@ impl Abi {
     }
 }
 
-fn decode_value(
+pub fn decode_value(
     field_iterator: &mut impl Iterator<Item = FieldElement>,
     value_type: &AbiType,
 ) -> Result<InputValue, AbiError> {
@@ -512,31 +556,35 @@ fn decode_string_value(field_elements: &[FieldElement]) -> String {
     final_string.to_owned()
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ContractEvent {
-    /// Event name
-    name: String,
-    /// The fully qualified path to the event definition
-    path: String,
-
-    /// Fields of the event
-    #[serde(
-        serialize_with = "serialization::serialize_struct_fields",
-        deserialize_with = "serialization::deserialize_struct_fields"
-    )]
-    fields: Vec<(String, AbiType)>,
-}
-
-impl ContractEvent {
-    pub fn from_struct_type(context: &Context, struct_type: &StructType) -> Self {
-        let fields = vecmap(struct_type.get_fields(&[]), |(name, typ)| {
-            (name, AbiType::from_type(context, &typ))
-        });
-        // For the ABI, we always want to resolve the struct paths from the root crate
-        let path = context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
-
-        Self { name: struct_type.name.0.contents.clone(), path, fields }
-    }
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum AbiValue {
+    Field {
+        value: FieldElement,
+    },
+    Integer {
+        sign: bool,
+        value: String,
+    },
+    Boolean {
+        value: bool,
+    },
+    String {
+        value: String,
+    },
+    Array {
+        value: Vec<AbiValue>,
+    },
+    Struct {
+        #[serde(
+            serialize_with = "serialization::serialize_struct_field_values",
+            deserialize_with = "serialization::deserialize_struct_field_values"
+        )]
+        fields: Vec<(String, AbiValue)>,
+    },
+    Tuple {
+        fields: Vec<AbiValue>,
+    },
 }
 
 fn range_to_vec(ranges: &[Range<Witness>]) -> Vec<Witness> {
@@ -549,11 +597,62 @@ fn range_to_vec(ranges: &[Range<Witness>]) -> Vec<Witness> {
     result
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "error_kind", rename_all = "lowercase")]
+pub enum AbiErrorType {
+    FmtString { length: u32, item_types: Vec<AbiType> },
+    Custom(AbiType),
+}
+impl AbiErrorType {
+    pub fn from_type(context: &Context, typ: &Type) -> Self {
+        match typ {
+            Type::FmtString(len, item_types) => {
+                let length = len.evaluate_to_u32().expect("Cannot evaluate fmt length");
+                let Type::Tuple(item_types) = item_types.as_ref() else {
+                    unreachable!("FmtString items must be a tuple")
+                };
+                let item_types =
+                    item_types.iter().map(|typ| AbiType::from_type(context, typ)).collect();
+                Self::FmtString { length, item_types }
+            }
+            _ => Self::Custom(AbiType::from_type(context, typ)),
+        }
+    }
+}
+
+pub fn display_abi_error(
+    fields: &[FieldElement],
+    error_type: AbiErrorType,
+) -> PrintableValueDisplay {
+    match error_type {
+        AbiErrorType::FmtString { length, item_types } => {
+            let mut fields_iter = fields.iter().copied();
+            let PrintableValue::String(string) =
+                printable_type_decode_value(&mut fields_iter, &PrintableType::String { length })
+            else {
+                unreachable!("Got non-string from string decoding");
+            };
+            let _length_of_items = fields_iter.next();
+            let items = item_types.into_iter().map(|abi_type| {
+                let printable_typ = (&abi_type).into();
+                let decoded = printable_type_decode_value(&mut fields_iter, &printable_typ);
+                (decoded, printable_typ)
+            });
+            PrintableValueDisplay::FmtString(string, items.collect())
+        }
+        AbiErrorType::Custom(abi_typ) => {
+            let printable_type = (&abi_typ).into();
+            let decoded = printable_type_decode_value(&mut fields.iter().copied(), &printable_type);
+            PrintableValueDisplay::Plain(decoded, printable_type)
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::collections::BTreeMap;
 
-    use acvm::{acir::native_types::Witness, FieldElement};
+    use acvm::{acir::native_types::Witness, AcirField, FieldElement};
 
     use crate::{
         input_parser::InputValue, Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility,
@@ -585,6 +684,7 @@ mod test {
                 visibility: AbiVisibility::Public,
             }),
             return_witnesses: vec![Witness(3)],
+            error_types: BTreeMap::default(),
         };
 
         // Note we omit return value from inputs

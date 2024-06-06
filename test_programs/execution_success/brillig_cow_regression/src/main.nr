@@ -8,9 +8,9 @@ global MAX_NEW_CONTRACTS_PER_TX: u64 = 1;
 global NUM_ENCRYPTED_LOGS_HASHES_PER_TX: u64 = 1;
 global NUM_UNENCRYPTED_LOGS_HASHES_PER_TX: u64 = 1;
 global NUM_FIELDS_PER_SHA256 = 2;
-global CALLDATA_HASH_INPUT_SIZE = 169;
-global CALL_DATA_HASH_LOG_FIELDS = 4;
-global CALL_DATA_HASH_FULL_FIELDS = 165;
+global TX_EFFECT_HASH_INPUT_SIZE = 169;
+global TX_EFFECT_HASH_LOG_FIELDS = 4;
+global TX_EFFECT_HASH_FULL_FIELDS = 165;
 
 struct PublicDataUpdateRequest {
     leaf_slot : Field,
@@ -99,7 +99,7 @@ impl U256 {
 }
 
 unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA256] {
-    let mut calldata_hash_inputs = [0; CALLDATA_HASH_INPUT_SIZE];
+    let mut tx_effects_hash_inputs = [0; TX_EFFECT_HASH_INPUT_SIZE];
 
     let new_note_hashes = kernel_data.new_note_hashes;
     let new_nullifiers = kernel_data.new_nullifiers;
@@ -111,65 +111,65 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA
     let mut offset = 0;
 
     for j in 0..MAX_NEW_NOTE_HASHES_PER_TX {
-        calldata_hash_inputs[offset + j] = new_note_hashes[j];
+        tx_effects_hash_inputs[offset + j] = new_note_hashes[j];
     }
     offset += MAX_NEW_NOTE_HASHES_PER_TX ;
 
     for j in 0..MAX_NEW_NULLIFIERS_PER_TX {
-        calldata_hash_inputs[offset + j] = new_nullifiers[j];
+        tx_effects_hash_inputs[offset + j] = new_nullifiers[j];
     }
     offset += MAX_NEW_NULLIFIERS_PER_TX ;
 
     for j in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
-        calldata_hash_inputs[offset + j * 2] =
+        tx_effects_hash_inputs[offset + j * 2] =
                 public_data_update_requests[j].leaf_slot;
-        calldata_hash_inputs[offset + j * 2 + 1] =
+        tx_effects_hash_inputs[offset + j * 2 + 1] =
                 public_data_update_requests[j].new_value;
     }
     offset += MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2;
 
     for j in 0..MAX_NEW_L2_TO_L1_MSGS_PER_TX {
-        calldata_hash_inputs[offset + j] = newL2ToL1msgs[j];
+        tx_effects_hash_inputs[offset + j] = newL2ToL1msgs[j];
     }
     offset += MAX_NEW_L2_TO_L1_MSGS_PER_TX;
 
     let contract_leaf = kernel_data.new_contracts[0];
-    calldata_hash_inputs[offset] = contract_leaf.hash();
+    tx_effects_hash_inputs[offset] = contract_leaf.hash();
 
     offset += MAX_NEW_CONTRACTS_PER_TX;
 
     let new_contracts = kernel_data.new_contracts;
-    calldata_hash_inputs[offset] = new_contracts[0].contract_address;
+    tx_effects_hash_inputs[offset] = new_contracts[0].contract_address;
 
-    calldata_hash_inputs[offset + 1] = new_contracts[0].portal_contract_address;
+    tx_effects_hash_inputs[offset + 1] = new_contracts[0].portal_contract_address;
 
     offset += MAX_NEW_CONTRACTS_PER_TX * 2;
 
     for j in 0..NUM_FIELDS_PER_SHA256 {
-        calldata_hash_inputs[offset + j] = encryptedLogsHash[j];
+        tx_effects_hash_inputs[offset + j] = encryptedLogsHash[j];
     }
 
     offset += NUM_ENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256;
 
     for j in 0..NUM_FIELDS_PER_SHA256 {
-        calldata_hash_inputs[offset + j] = unencryptedLogsHash[j];
+        tx_effects_hash_inputs[offset + j] = unencryptedLogsHash[j];
     }
 
     offset += NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256;
-    assert_eq(offset, CALLDATA_HASH_INPUT_SIZE); // Sanity check
+    assert_eq(offset, TX_EFFECT_HASH_INPUT_SIZE); // Sanity check
 
-    let mut hash_input_flattened = [0; CALL_DATA_HASH_FULL_FIELDS * 32 + CALL_DATA_HASH_LOG_FIELDS * 16];
-    for offset in 0..CALL_DATA_HASH_FULL_FIELDS {
-        let input_as_bytes = calldata_hash_inputs[offset].to_be_bytes(32);
+    let mut hash_input_flattened = [0; TX_EFFECT_HASH_FULL_FIELDS * 32 + TX_EFFECT_HASH_LOG_FIELDS * 16];
+    for offset in 0..TX_EFFECT_HASH_FULL_FIELDS {
+        let input_as_bytes = tx_effects_hash_inputs[offset].to_be_bytes(32);
         for byte_index in 0..32 {
             hash_input_flattened[offset * 32 + byte_index] = input_as_bytes[byte_index];
         }
     }
 
-    for log_field_index in 0..CALL_DATA_HASH_LOG_FIELDS {
-        let input_as_bytes = calldata_hash_inputs[CALL_DATA_HASH_FULL_FIELDS + log_field_index].to_be_bytes(16);
+    for log_field_index in 0..TX_EFFECT_HASH_LOG_FIELDS {
+        let input_as_bytes = tx_effects_hash_inputs[TX_EFFECT_HASH_FULL_FIELDS + log_field_index].to_be_bytes(16);
         for byte_index in 0..16 {
-            hash_input_flattened[CALL_DATA_HASH_FULL_FIELDS * 32 + log_field_index * 16 + byte_index] = input_as_bytes[byte_index];
+            hash_input_flattened[TX_EFFECT_HASH_FULL_FIELDS * 32 + log_field_index * 16 + byte_index] = input_as_bytes[byte_index];
         }
     }
 

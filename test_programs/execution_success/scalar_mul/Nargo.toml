@@ -1,6 +1,0 @@
-[package]
-name = "scalar_mul"
-type = "bin"
-authors = [""]
-
-[dependencies]

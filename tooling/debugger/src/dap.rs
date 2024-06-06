@@ -1,11 +1,10 @@
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
-use std::str::FromStr;
 
+use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{Circuit, OpcodeLocation};
 use acvm::acir::native_types::WitnessMap;
-use acvm::BlackBoxFunctionSolver;
-use codespan_reporting::files::{Files, SimpleFile};
+use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use crate::context::DebugCommandResult;
 use crate::context::DebugContext;
@@ -30,15 +29,16 @@ use nargo::artifacts::debug::DebugArtifact;
 use fm::FileId;
 use noirc_driver::CompiledProgram;
 
-pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> {
+type BreakpointId = i64;
+
+pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> {
     server: Server<R, W>,
     context: DebugContext<'a, B>,
     debug_artifact: &'a DebugArtifact,
     running: bool,
-    source_to_opcodes: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>>,
-    next_breakpoint_id: i64,
-    instruction_breakpoints: Vec<(OpcodeLocation, i64)>,
-    source_breakpoints: BTreeMap<FileId, Vec<(OpcodeLocation, i64)>>,
+    next_breakpoint_id: BreakpointId,
+    instruction_breakpoints: Vec<(OpcodeLocation, BreakpointId)>,
+    source_breakpoints: BTreeMap<FileId, Vec<(OpcodeLocation, BreakpointId)>>,
 }
 
 enum ScopeReferences {
@@ -57,74 +57,32 @@ impl From<i64> for ScopeReferences {
     }
 }
 
-// BTreeMap<FileId, Vec<(usize, OpcodeLocation)>
-
-impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
+impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<'a, R, W, B> {
     pub fn new(
         server: Server<R, W>,
         solver: &'a B,
-        circuit: &'a Circuit,
+        circuit: &'a Circuit<FieldElement>,
         debug_artifact: &'a DebugArtifact,
-        initial_witness: WitnessMap,
+        initial_witness: WitnessMap<FieldElement>,
+        unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
     ) -> Self {
-        let source_to_opcodes = Self::build_source_to_opcode_debug_mappings(debug_artifact);
         let context = DebugContext::new(
             solver,
             circuit,
             debug_artifact,
             initial_witness,
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact)),
+            unconstrained_functions,
         );
         Self {
             server,
             context,
             debug_artifact,
-            source_to_opcodes,
             running: false,
             next_breakpoint_id: 1,
             instruction_breakpoints: vec![],
             source_breakpoints: BTreeMap::new(),
         }
-    }
-
-    /// Builds a map from FileId to an ordered vector of tuples with line
-    /// numbers and opcode locations corresponding to those line numbers
-    fn build_source_to_opcode_debug_mappings(
-        debug_artifact: &'a DebugArtifact,
-    ) -> BTreeMap<FileId, Vec<(usize, OpcodeLocation)>> {
-        if debug_artifact.debug_symbols.is_empty() {
-            return BTreeMap::new();
-        }
-        let locations = &debug_artifact.debug_symbols[0].locations;
-        let simple_files: BTreeMap<_, _> = debug_artifact
-            .file_map
-            .iter()
-            .map(|(file_id, debug_file)| {
-                (
-                    file_id,
-                    SimpleFile::new(debug_file.path.to_str().unwrap(), debug_file.source.as_str()),
-                )
-            })
-            .collect();
-
-        let mut result: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>> = BTreeMap::new();
-        locations.iter().for_each(|(opcode_location, source_locations)| {
-            if source_locations.is_empty() {
-                return;
-            }
-            let source_location = source_locations[0];
-            let span = source_location.span;
-            let file_id = source_location.file;
-            let Ok(line_index) = &simple_files[&file_id].line_index((), span.start() as usize)
-            else {
-                return;
-            };
-            let line_number = line_index + 1;
-
-            result.entry(file_id).or_default().push((line_number, *opcode_location));
-        });
-        result.iter_mut().for_each(|(_, file_locations)| file_locations.sort_by_key(|x| x.0));
-        result
     }
 
     fn send_stopped_event(&mut self, reason: StoppedEventReason) -> Result<(), ServerError> {
@@ -230,6 +188,8 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     }
 
     fn build_stack_trace(&self) -> Vec<StackFrame> {
+        let stack_frames = self.context.get_variables();
+
         self.context
             .get_source_call_stack()
             .iter()
@@ -239,9 +199,16 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                     self.debug_artifact.location_line_number(*source_location).unwrap();
                 let column_number =
                     self.debug_artifact.location_column_number(*source_location).unwrap();
+
+                let name = match stack_frames.get(index) {
+                    Some(frame) => format!("{} {}", frame.function_name, index),
+                    None => format!("frame #{index}"),
+                };
+                let address = self.context.opcode_location_to_address(opcode_location);
+
                 StackFrame {
                     id: index as i64,
-                    name: format!("frame #{index}"),
+                    name,
                     source: Some(Source {
                         path: self.debug_artifact.file_map[&source_location.file]
                             .path
@@ -251,7 +218,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                     }),
                     line: line_number as i64,
                     column: column_number as i64,
-                    instruction_pointer_reference: Some(opcode_location.to_string()),
+                    instruction_pointer_reference: Some(address.to_string()),
                     ..StackFrame::default()
                 }
             })
@@ -273,50 +240,41 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         let Command::Disassemble(ref args) = req.command else {
             unreachable!("handle_disassemble called on a non disassemble request");
         };
-        let starting_ip = OpcodeLocation::from_str(args.memory_reference.as_str()).ok();
+
+        // we assume memory references are unsigned integers
+        let starting_address = args.memory_reference.parse::<i64>().unwrap_or(0);
         let instruction_offset = args.instruction_offset.unwrap_or(0);
-        let (mut opcode_location, mut invalid_count) =
-            self.context.offset_opcode_location(&starting_ip, instruction_offset);
+
+        let mut address = starting_address + instruction_offset;
         let mut count = args.instruction_count;
 
         let mut instructions: Vec<DisassembledInstruction> = vec![];
 
-        // leading invalid locations (when the request goes back
-        // beyond the start of the program)
-        if invalid_count < 0 {
-            while invalid_count < 0 {
+        while count > 0 {
+            let opcode_location = if address >= 0 {
+                self.context.address_to_opcode_location(address as usize)
+            } else {
+                None
+            };
+
+            if let Some(opcode_location) = opcode_location {
                 instructions.push(DisassembledInstruction {
-                    address: String::from("---"),
-                    instruction: String::from("---"),
+                    address: address.to_string(),
+                    // we'll use the instruction_bytes field to render the OpcodeLocation
+                    instruction_bytes: Some(opcode_location.to_string()),
+                    instruction: self.context.render_opcode_at_location(&opcode_location),
                     ..DisassembledInstruction::default()
                 });
-                invalid_count += 1;
-                count -= 1;
+            } else {
+                // entry for invalid location to fill up the request
+                instructions.push(DisassembledInstruction {
+                    address: "---".to_owned(),
+                    instruction: "---".to_owned(),
+                    ..DisassembledInstruction::default()
+                });
             }
-            if count > 0 {
-                opcode_location = Some(OpcodeLocation::Acir(0));
-            }
-        }
-        // the actual opcodes
-        while count > 0 && opcode_location.is_some() {
-            instructions.push(DisassembledInstruction {
-                address: format!("{}", opcode_location.unwrap()),
-                instruction: self.context.render_opcode_at_location(&opcode_location),
-                ..DisassembledInstruction::default()
-            });
-            (opcode_location, _) = self.context.offset_opcode_location(&opcode_location, 1);
             count -= 1;
-        }
-        // any remaining instruction count is beyond the valid opcode
-        // vector so return invalid placeholders
-        while count > 0 {
-            instructions.push(DisassembledInstruction {
-                address: String::from("---"),
-                instruction: String::from("---"),
-                ..DisassembledInstruction::default()
-            });
-            invalid_count -= 1;
-            count -= 1;
+            address += 1;
         }
 
         self.server.respond(
@@ -422,7 +380,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         Ok(())
     }
 
-    fn get_next_breakpoint_id(&mut self) -> i64 {
+    fn get_next_breakpoint_id(&mut self) -> BreakpointId {
         let id = self.next_breakpoint_id;
         self.next_breakpoint_id += 1;
         id
@@ -451,25 +409,35 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             .breakpoints
             .iter()
             .map(|breakpoint| {
-                let Ok(location) =
-                    OpcodeLocation::from_str(breakpoint.instruction_reference.as_str())
-                else {
+                let offset = breakpoint.offset.unwrap_or(0);
+                let address = breakpoint.instruction_reference.parse::<i64>().unwrap_or(0) + offset;
+                let Ok(address): Result<usize, _> = address.try_into() else {
                     return Breakpoint {
                         verified: false,
-                        message: Some(String::from("Missing instruction reference")),
+                        message: Some(String::from("Invalid instruction reference/offset")),
                         ..Breakpoint::default()
                     };
                 };
-                if !self.context.is_valid_opcode_location(&location) {
+                let Some(location) = self
+                    .context
+                    .address_to_opcode_location(address)
+                    .filter(|location| self.context.is_valid_opcode_location(location))
+                else {
                     return Breakpoint {
                         verified: false,
                         message: Some(String::from("Invalid opcode location")),
                         ..Breakpoint::default()
                     };
-                }
+                };
                 let id = self.get_next_breakpoint_id();
                 breakpoints_to_set.push((location, id));
-                Breakpoint { id: Some(id), verified: true, ..Breakpoint::default() }
+                Breakpoint {
+                    id: Some(id),
+                    verified: true,
+                    offset: Some(0),
+                    instruction_reference: Some(address.to_string()),
+                    ..Breakpoint::default()
+                }
             })
             .collect();
 
@@ -493,36 +461,6 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         found.map(|iter| *iter.0)
     }
 
-    // TODO: there are four possibilities for the return value of this function:
-    // 1. the source location is not found -> None
-    // 2. an exact unique location is found -> Some(opcode_location)
-    // 3. an exact but not unique location is found (ie. a source location may
-    //    be mapped to multiple opcodes, and those may be disjoint, for example for
-    //    functions called multiple times throughout the program)
-    // 4. exact location is not found, so an opcode for a nearby source location
-    //    is returned (this again could actually be more than one opcodes)
-    // Case 3 is not supported yet, and 4 is not correctly handled.
-    fn find_opcode_for_source_location(
-        &self,
-        file_id: &FileId,
-        line: i64,
-    ) -> Option<OpcodeLocation> {
-        let line = line as usize;
-        let Some(line_to_opcodes) = self.source_to_opcodes.get(file_id) else {
-            return None;
-        };
-        let found_index = match line_to_opcodes.binary_search_by(|x| x.0.cmp(&line)) {
-            Ok(index) => line_to_opcodes[index].1,
-            Err(index) => {
-                if index >= line_to_opcodes.len() {
-                    return None;
-                }
-                line_to_opcodes[index].1
-            }
-        };
-        Some(found_index)
-    }
-
     fn map_source_breakpoints(&mut self, args: &SetBreakpointsArguments) -> Vec<Breakpoint> {
         let Some(ref source) = &args.source.path else {
             return vec![];
@@ -539,7 +477,8 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             .iter()
             .map(|breakpoint| {
                 let line = breakpoint.line;
-                let Some(location) = self.find_opcode_for_source_location(&file_id, line) else {
+                let Some(location) = self.context.find_opcode_for_source_location(&file_id, line)
+                else {
                     return Breakpoint {
                         verified: false,
                         message: Some(String::from(
@@ -558,15 +497,17 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                         ..Breakpoint::default()
                     };
                 }
-                let instruction_reference = format!("{}", location);
+                let breakpoint_address = self.context.opcode_location_to_address(&location);
+                let instruction_reference = format!("{}", breakpoint_address);
                 let breakpoint_id = self.get_next_breakpoint_id();
                 breakpoints_to_set.push((location, breakpoint_id));
                 Breakpoint {
                     id: Some(breakpoint_id),
                     verified: true,
                     source: Some(args.source.clone()),
-                    instruction_reference: Some(instruction_reference),
                     line: Some(line),
+                    instruction_reference: Some(instruction_reference),
+                    offset: Some(0),
                     ..Breakpoint::default()
                 }
             })
@@ -608,16 +549,20 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     }
 
     fn build_local_variables(&self) -> Vec<Variable> {
-        let mut variables: Vec<_> = self
-            .context
-            .get_variables()
+        let Some(current_stack_frame) = self.context.current_stack_frame() else {
+            return vec![];
+        };
+
+        let mut variables = current_stack_frame
+            .variables
             .iter()
             .map(|(name, value, _var_type)| Variable {
                 name: String::from(*name),
                 value: format!("{:?}", *value),
                 ..Variable::default()
             })
-            .collect();
+            .collect::<Vec<Variable>>();
+
         variables.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
         variables
     }
@@ -657,19 +602,21 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     }
 }
 
-pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver>(
+pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>>(
     server: Server<R, W>,
     solver: &B,
     program: CompiledProgram,
-    initial_witness: WitnessMap,
+    initial_witness: WitnessMap<FieldElement>,
 ) -> Result<(), ServerError> {
-    let debug_artifact = DebugArtifact {
-        debug_symbols: vec![program.debug],
-        file_map: program.file_map,
-        warnings: program.warnings,
-    };
-    let mut session =
-        DapSession::new(server, solver, &program.circuit, &debug_artifact, initial_witness);
+    let debug_artifact = DebugArtifact { debug_symbols: program.debug, file_map: program.file_map };
+    let mut session = DapSession::new(
+        server,
+        solver,
+        &program.program.functions[0],
+        &debug_artifact,
+        initial_witness,
+        &program.program.unconstrained_functions,
+    );
 
     session.run_loop()
 }

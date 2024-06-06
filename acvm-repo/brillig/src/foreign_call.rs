@@ -1,34 +1,34 @@
-use crate::value::Value;
+use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 
 /// Single output of a [foreign call][crate::Opcode::ForeignCall].
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
-pub enum ForeignCallParam {
-    Single(Value),
-    Array(Vec<Value>),
+pub enum ForeignCallParam<F> {
+    Single(F),
+    Array(Vec<F>),
 }
 
-impl From<Value> for ForeignCallParam {
-    fn from(value: Value) -> Self {
+impl<F> From<F> for ForeignCallParam<F> {
+    fn from(value: F) -> Self {
         ForeignCallParam::Single(value)
     }
 }
 
-impl From<Vec<Value>> for ForeignCallParam {
-    fn from(values: Vec<Value>) -> Self {
+impl<F> From<Vec<F>> for ForeignCallParam<F> {
+    fn from(values: Vec<F>) -> Self {
         ForeignCallParam::Array(values)
     }
 }
 
-impl ForeignCallParam {
-    pub fn values(&self) -> Vec<Value> {
+impl<F: AcirField> ForeignCallParam<F> {
+    pub fn fields(&self) -> Vec<F> {
         match self {
             ForeignCallParam::Single(value) => vec![*value],
-            ForeignCallParam::Array(values) => values.clone(),
+            ForeignCallParam::Array(values) => values.to_vec(),
         }
     }
 
-    pub fn unwrap_value(&self) -> Value {
+    pub fn unwrap_field(&self) -> F {
         match self {
             ForeignCallParam::Single(value) => *value,
             ForeignCallParam::Array(_) => panic!("Expected single value, found array"),
@@ -38,25 +38,25 @@ impl ForeignCallParam {
 
 /// Represents the full output of a [foreign call][crate::Opcode::ForeignCall].
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Default)]
-pub struct ForeignCallResult {
+pub struct ForeignCallResult<F> {
     /// Resolved output values of the foreign call.
-    pub values: Vec<ForeignCallParam>,
+    pub values: Vec<ForeignCallParam<F>>,
 }
 
-impl From<Value> for ForeignCallResult {
-    fn from(value: Value) -> Self {
+impl<F> From<F> for ForeignCallResult<F> {
+    fn from(value: F) -> Self {
         ForeignCallResult { values: vec![value.into()] }
     }
 }
 
-impl From<Vec<Value>> for ForeignCallResult {
-    fn from(values: Vec<Value>) -> Self {
+impl<F> From<Vec<F>> for ForeignCallResult<F> {
+    fn from(values: Vec<F>) -> Self {
         ForeignCallResult { values: vec![values.into()] }
     }
 }
 
-impl From<Vec<ForeignCallParam>> for ForeignCallResult {
-    fn from(values: Vec<ForeignCallParam>) -> Self {
+impl<F> From<Vec<ForeignCallParam<F>>> for ForeignCallResult<F> {
+    fn from(values: Vec<ForeignCallParam<F>>) -> Self {
         ForeignCallResult { values }
     }
 }

@@ -1,5 +1,5 @@
 use crate::native_types::Witness;
-use acir_field::FieldElement;
+use acir_field::AcirField;
 use std::{
     cmp::Ordering,
     ops::{Add, Mul, Neg, Sub},
@@ -9,8 +9,8 @@ use super::Expression;
 
 // Negation
 
-impl Neg for &Expression {
-    type Output = Expression;
+impl<F: AcirField> Neg for &Expression<F> {
+    type Output = Expression<F>;
     fn neg(self) -> Self::Output {
         // XXX(med) : Implement an efficient way to do this
 
@@ -27,9 +27,9 @@ impl Neg for &Expression {
 
 // FieldElement
 
-impl Add<FieldElement> for Expression {
-    type Output = Expression;
-    fn add(self, rhs: FieldElement) -> Self::Output {
+impl<F: AcirField> Add<F> for Expression<F> {
+    type Output = Self;
+    fn add(self, rhs: F) -> Self::Output {
         // Increase the constant
         let q_c = self.q_c + rhs;
 
@@ -37,17 +37,9 @@ impl Add<FieldElement> for Expression {
     }
 }
 
-impl Add<Expression> for FieldElement {
-    type Output = Expression;
-    #[inline]
-    fn add(self, rhs: Expression) -> Self::Output {
-        rhs + self
-    }
-}
-
-impl Sub<FieldElement> for Expression {
-    type Output = Expression;
-    fn sub(self, rhs: FieldElement) -> Self::Output {
+impl<F: AcirField> Sub<F> for Expression<F> {
+    type Output = Self;
+    fn sub(self, rhs: F) -> Self::Output {
         // Increase the constant
         let q_c = self.q_c - rhs;
 
@@ -55,17 +47,9 @@ impl Sub<FieldElement> for Expression {
     }
 }
 
-impl Sub<Expression> for FieldElement {
-    type Output = Expression;
-    #[inline]
-    fn sub(self, rhs: Expression) -> Self::Output {
-        rhs - self
-    }
-}
-
-impl Mul<FieldElement> for &Expression {
-    type Output = Expression;
-    fn mul(self, rhs: FieldElement) -> Self::Output {
+impl<F: AcirField> Mul<F> for &Expression<F> {
+    type Output = Expression<F>;
+    fn mul(self, rhs: F) -> Self::Output {
         // Scale the mul terms
         let mul_terms: Vec<_> =
             self.mul_terms.iter().map(|(q_m, w_l, w_r)| (*q_m * rhs, *w_l, *w_r)).collect();
@@ -81,42 +65,34 @@ impl Mul<FieldElement> for &Expression {
     }
 }
 
-impl Mul<&Expression> for FieldElement {
-    type Output = Expression;
-    #[inline]
-    fn mul(self, rhs: &Expression) -> Self::Output {
-        rhs * self
-    }
-}
-
 // Witness
 
-impl Add<Witness> for &Expression {
-    type Output = Expression;
-    fn add(self, rhs: Witness) -> Expression {
+impl<F: AcirField> Add<Witness> for &Expression<F> {
+    type Output = Expression<F>;
+    fn add(self, rhs: Witness) -> Self::Output {
         self + &Expression::from(rhs)
     }
 }
 
-impl Add<&Expression> for Witness {
-    type Output = Expression;
+impl<F: AcirField> Add<&Expression<F>> for Witness {
+    type Output = Expression<F>;
     #[inline]
-    fn add(self, rhs: &Expression) -> Expression {
+    fn add(self, rhs: &Expression<F>) -> Self::Output {
         rhs + self
     }
 }
 
-impl Sub<Witness> for &Expression {
-    type Output = Expression;
-    fn sub(self, rhs: Witness) -> Expression {
+impl<F: AcirField> Sub<Witness> for &Expression<F> {
+    type Output = Expression<F>;
+    fn sub(self, rhs: Witness) -> Self::Output {
         self - &Expression::from(rhs)
     }
 }
 
-impl Sub<&Expression> for Witness {
-    type Output = Expression;
+impl<F: AcirField> Sub<&Expression<F>> for Witness {
+    type Output = Expression<F>;
     #[inline]
-    fn sub(self, rhs: &Expression) -> Expression {
+    fn sub(self, rhs: &Expression<F>) -> Self::Output {
         rhs - self
     }
 }
@@ -125,25 +101,25 @@ impl Sub<&Expression> for Witness {
 
 // Expression
 
-impl Add<&Expression> for &Expression {
-    type Output = Expression;
-    fn add(self, rhs: &Expression) -> Expression {
-        self.add_mul(FieldElement::one(), rhs)
+impl<F: AcirField> Add<&Expression<F>> for &Expression<F> {
+    type Output = Expression<F>;
+    fn add(self, rhs: &Expression<F>) -> Self::Output {
+        self.add_mul(F::one(), rhs)
     }
 }
 
-impl Sub<&Expression> for &Expression {
-    type Output = Expression;
-    fn sub(self, rhs: &Expression) -> Expression {
-        self.add_mul(-FieldElement::one(), rhs)
+impl<F: AcirField> Sub<&Expression<F>> for &Expression<F> {
+    type Output = Expression<F>;
+    fn sub(self, rhs: &Expression<F>) -> Self::Output {
+        self.add_mul(-F::one(), rhs)
     }
 }
 
-impl Mul<&Expression> for &Expression {
-    type Output = Option<Expression>;
-    fn mul(self, rhs: &Expression) -> Option<Expression> {
+impl<F: AcirField> Mul<&Expression<F>> for &Expression<F> {
+    type Output = Option<Expression<F>>;
+    fn mul(self, rhs: &Expression<F>) -> Self::Output {
         if self.is_const() {
-            return Some(self.q_c * rhs);
+            return Some(rhs * self.q_c);
         } else if rhs.is_const() {
             return Some(self * rhs.q_c);
         } else if !(self.is_linear() && rhs.is_linear()) {
@@ -215,7 +191,7 @@ impl Mul<&Expression> for &Expression {
 }
 
 /// Returns `w*b.linear_combinations`
-fn single_mul(w: Witness, b: &Expression) -> Expression {
+fn single_mul<F: AcirField>(w: Witness, b: &Expression<F>) -> Expression<F> {
     Expression {
         mul_terms: b
             .linear_combinations
@@ -229,62 +205,68 @@ fn single_mul(w: Witness, b: &Expression) -> Expression {
     }
 }
 
-#[test]
-fn add_smoke_test() {
-    let a = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![(FieldElement::from(2u128), Witness(2))],
-        q_c: FieldElement::from(2u128),
-    };
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acir_field::{AcirField, FieldElement};
 
-    let b = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
-        q_c: FieldElement::one(),
-    };
-
-    assert_eq!(
-        &a + &b,
-        Expression {
+    #[test]
+    fn add_smoke_test() {
+        let a = Expression {
             mul_terms: vec![],
-            linear_combinations: vec![
-                (FieldElement::from(2u128), Witness(2)),
-                (FieldElement::from(4u128), Witness(4))
-            ],
-            q_c: FieldElement::from(3u128)
-        }
-    );
+            linear_combinations: vec![(FieldElement::from(2u128), Witness(2))],
+            q_c: FieldElement::from(2u128),
+        };
 
-    // Enforce commutativity
-    assert_eq!(&a + &b, &b + &a);
-}
+        let b = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
+            q_c: FieldElement::one(),
+        };
 
-#[test]
-fn mul_smoke_test() {
-    let a = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![(FieldElement::from(2u128), Witness(2))],
-        q_c: FieldElement::from(2u128),
-    };
+        assert_eq!(
+            &a + &b,
+            Expression {
+                mul_terms: vec![],
+                linear_combinations: vec![
+                    (FieldElement::from(2u128), Witness(2)),
+                    (FieldElement::from(4u128), Witness(4))
+                ],
+                q_c: FieldElement::from(3u128)
+            }
+        );
 
-    let b = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
-        q_c: FieldElement::one(),
-    };
+        // Enforce commutativity
+        assert_eq!(&a + &b, &b + &a);
+    }
 
-    assert_eq!(
-        (&a * &b).unwrap(),
-        Expression {
-            mul_terms: vec![(FieldElement::from(8u128), Witness(2), Witness(4)),],
-            linear_combinations: vec![
-                (FieldElement::from(2u128), Witness(2)),
-                (FieldElement::from(8u128), Witness(4))
-            ],
-            q_c: FieldElement::from(2u128)
-        }
-    );
+    #[test]
+    fn mul_smoke_test() {
+        let a = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![(FieldElement::from(2u128), Witness(2))],
+            q_c: FieldElement::from(2u128),
+        };
 
-    // Enforce commutativity
-    assert_eq!(&a * &b, &b * &a);
+        let b = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
+            q_c: FieldElement::one(),
+        };
+
+        assert_eq!(
+            (&a * &b).unwrap(),
+            Expression {
+                mul_terms: vec![(FieldElement::from(8u128), Witness(2), Witness(4)),],
+                linear_combinations: vec![
+                    (FieldElement::from(2u128), Witness(2)),
+                    (FieldElement::from(8u128), Witness(4))
+                ],
+                q_c: FieldElement::from(2u128)
+            }
+        );
+
+        // Enforce commutativity
+        assert_eq!(&a * &b, &b * &a);
+    }
 }

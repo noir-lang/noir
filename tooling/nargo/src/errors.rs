@@ -1,7 +1,14 @@
+use std::collections::BTreeMap;
+
 use acvm::{
-    acir::circuit::OpcodeLocation,
+    acir::circuit::{
+        ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
+        ResolvedOpcodeLocation,
+    },
     pwg::{ErrorLocation, OpcodeResolutionError},
+    FieldElement,
 };
+use noirc_abi::{display_abi_error, Abi, AbiErrorType};
 use noirc_errors::{
     debug_info::DebugInfo, reporter::ReportedErrors, CustomDiagnostic, FileDiagnostic,
 };
@@ -53,20 +60,34 @@ impl NargoError {
     ///
     /// We want to extract the user defined error so that we can compare it
     /// in tests to expected failure messages
-    pub fn user_defined_failure_message(&self) -> Option<&str> {
+    pub fn user_defined_failure_message(
+        &self,
+        error_types: &BTreeMap<ErrorSelector, AbiErrorType>,
+    ) -> Option<String> {
         let execution_error = match self {
             NargoError::ExecutionError(error) => error,
             _ => return None,
         };
 
         match execution_error {
-            ExecutionError::AssertionFailed(message, _) => Some(message),
-            ExecutionError::SolvingError(error) => match error {
+            ExecutionError::AssertionFailed(payload, _) => match payload {
+                ResolvedAssertionPayload::String(message) => Some(message.to_string()),
+                ResolvedAssertionPayload::Raw(raw) => {
+                    let abi_type = error_types.get(&raw.selector)?;
+                    let decoded = display_abi_error(&raw.data, abi_type.clone());
+                    Some(decoded.to_string())
+                }
+            },
+            ExecutionError::SolvingError(error, _) => match error {
                 OpcodeResolutionError::IndexOutOfBounds { .. }
                 | OpcodeResolutionError::OpcodeNotSolvable(_)
-                | OpcodeResolutionError::UnsatisfiedConstrain { .. } => None,
-                OpcodeResolutionError::BrilligFunctionFailed { message, .. } => Some(message),
-                OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => Some(reason),
+                | OpcodeResolutionError::UnsatisfiedConstrain { .. }
+                | OpcodeResolutionError::AcirMainCallAttempted { .. }
+                | OpcodeResolutionError::BrilligFunctionFailed { .. }
+                | OpcodeResolutionError::AcirCallOutputsMismatch { .. } => None,
+                OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
+                    Some(reason.to_string())
+                }
             },
         }
     }
@@ -74,82 +95,123 @@ impl NargoError {
 
 #[derive(Debug, Error)]
 pub enum ExecutionError {
-    #[error("Failed assertion: '{}'", .0)]
-    AssertionFailed(String, Vec<OpcodeLocation>),
+    #[error("Failed assertion")]
+    AssertionFailed(ResolvedAssertionPayload<FieldElement>, Vec<ResolvedOpcodeLocation>),
 
-    #[error(transparent)]
-    SolvingError(#[from] OpcodeResolutionError),
+    #[error("Failed to solve program: '{}'", .0)]
+    SolvingError(OpcodeResolutionError<FieldElement>, Option<Vec<ResolvedOpcodeLocation>>),
 }
 
 /// Extracts the opcode locations from a nargo error.
 fn extract_locations_from_error(
     error: &ExecutionError,
-    debug: &DebugInfo,
+    debug: &[DebugInfo],
 ) -> Option<Vec<Location>> {
     let mut opcode_locations = match error {
-        ExecutionError::SolvingError(OpcodeResolutionError::BrilligFunctionFailed {
-            call_stack,
-            ..
-        })
-        | ExecutionError::AssertionFailed(_, call_stack) => Some(call_stack.clone()),
-        ExecutionError::SolvingError(OpcodeResolutionError::IndexOutOfBounds {
-            opcode_location: error_location,
-            ..
-        })
-        | ExecutionError::SolvingError(OpcodeResolutionError::UnsatisfiedConstrain {
-            opcode_location: error_location,
-        }) => match error_location {
+        ExecutionError::SolvingError(
+            OpcodeResolutionError::BrilligFunctionFailed { .. },
+            acir_call_stack,
+        ) => acir_call_stack.clone(),
+        ExecutionError::AssertionFailed(_, call_stack) => Some(call_stack.clone()),
+        ExecutionError::SolvingError(
+            OpcodeResolutionError::IndexOutOfBounds { opcode_location: error_location, .. },
+            acir_call_stack,
+        )
+        | ExecutionError::SolvingError(
+            OpcodeResolutionError::UnsatisfiedConstrain { opcode_location: error_location, .. },
+            acir_call_stack,
+        ) => match error_location {
             ErrorLocation::Unresolved => {
                 unreachable!("Cannot resolve index for unsatisfied constraint")
             }
-            ErrorLocation::Resolved(opcode_location) => Some(vec![*opcode_location]),
+            ErrorLocation::Resolved(_) => acir_call_stack.clone(),
         },
         _ => None,
     }?;
 
-    if let Some(OpcodeLocation::Brillig { acir_index, .. }) = opcode_locations.first() {
-        opcode_locations.insert(0, OpcodeLocation::Acir(*acir_index));
+    // Insert the top-level Acir location where the Brillig function failed
+    for (i, resolved_location) in opcode_locations.iter().enumerate() {
+        if let ResolvedOpcodeLocation {
+            acir_function_index,
+            opcode_location: OpcodeLocation::Brillig { acir_index, .. },
+        } = resolved_location
+        {
+            let acir_location = ResolvedOpcodeLocation {
+                acir_function_index: *acir_function_index,
+                opcode_location: OpcodeLocation::Acir(*acir_index),
+            };
+
+            opcode_locations.insert(i, acir_location);
+            // Go until the first brillig opcode as that means we have the start of a Brillig call stack.
+            // We have to loop through the opcode locations in case we had ACIR calls
+            // before the brillig function failure.
+            break;
+        }
     }
 
     Some(
         opcode_locations
             .iter()
-            .flat_map(|opcode_location| debug.opcode_location(opcode_location).unwrap_or_default())
+            .flat_map(|resolved_location| {
+                debug[resolved_location.acir_function_index]
+                    .opcode_location(&resolved_location.opcode_location)
+                    .unwrap_or_default()
+            })
             .collect(),
     )
 }
 
-/// Tries to generate a runtime diagnostic from a nargo error. It will successfully do so if it's a runtime error with a call stack.
-pub fn try_to_diagnose_runtime_error(
+fn extract_message_from_error(
+    error_types: &BTreeMap<ErrorSelector, AbiErrorType>,
     nargo_err: &NargoError,
-    debug: &DebugInfo,
-) -> Option<FileDiagnostic> {
-    let execution_error = match nargo_err {
-        NargoError::ExecutionError(execution_error) => execution_error,
-        _ => return None,
-    };
-
-    let source_locations = extract_locations_from_error(execution_error, debug)?;
-
-    // The location of the error itself will be the location at the top
-    // of the call stack (the last item in the Vec).
-    let location = source_locations.last()?;
-
-    let message = match nargo_err {
-        NargoError::ExecutionError(ExecutionError::AssertionFailed(message, _)) => {
+) -> String {
+    match nargo_err {
+        NargoError::ExecutionError(ExecutionError::AssertionFailed(
+            ResolvedAssertionPayload::String(message),
+            _,
+        )) => {
             format!("Assertion failed: '{message}'")
+        }
+        NargoError::ExecutionError(ExecutionError::AssertionFailed(
+            ResolvedAssertionPayload::Raw(RawAssertionPayload { selector, data }),
+            ..,
+        )) => {
+            if let Some(error_type) = error_types.get(selector) {
+                format!("Assertion failed: {}", display_abi_error(data, error_type.clone()))
+            } else {
+                "Assertion failed".to_string()
+            }
         }
         NargoError::ExecutionError(ExecutionError::SolvingError(
             OpcodeResolutionError::IndexOutOfBounds { index, array_size, .. },
+            _,
         )) => {
             format!("Index out of bounds, array has size {array_size:?}, but index was {index:?}")
         }
         NargoError::ExecutionError(ExecutionError::SolvingError(
             OpcodeResolutionError::UnsatisfiedConstrain { .. },
+            _,
         )) => "Failed constraint".into(),
         _ => nargo_err.to_string(),
-    };
+    }
+}
 
+/// Tries to generate a runtime diagnostic from a nargo error. It will successfully do so if it's a runtime error with a call stack.
+pub fn try_to_diagnose_runtime_error(
+    nargo_err: &NargoError,
+    abi: &Abi,
+    debug: &[DebugInfo],
+) -> Option<FileDiagnostic> {
+    let source_locations = match nargo_err {
+        NargoError::ExecutionError(execution_error) => {
+            extract_locations_from_error(execution_error, debug)?
+        }
+        _ => return None,
+    };
+    // The location of the error itself will be the location at the top
+    // of the call stack (the last item in the Vec).
+    let location = source_locations.last()?;
+    let message = extract_message_from_error(&abi.error_types, nargo_err);
     Some(
         CustomDiagnostic::simple_error(message, String::new(), location.span)
             .in_file(location.file)

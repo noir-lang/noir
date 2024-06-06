@@ -1,9 +1,11 @@
 [package]
 name = "nargo_cli"
 description = "Noir's package manager"
+default-run = "nargo"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -14,7 +16,6 @@ name = "nargo"
 path = "src/main.rs"
 
 [build-dependencies]
-rustc_version = "0.4.0"
 build-data.workspace = true
 toml.workspace = true
 
@@ -28,10 +29,10 @@ nargo_toml.workspace = true
 noir_lsp.workspace = true
 noir_debugger.workspace = true
 noirc_driver.workspace = true
-noirc_frontend.workspace = true
+noirc_frontend = { workspace = true, features = ["bn254"] }
 noirc_abi.workspace = true
 noirc_errors.workspace = true
-acvm.workspace = true
+acvm = { workspace = true, features = ["bn254"] }
 bn254_blackbox_solver.workspace = true
 toml.workspace = true
 serde.workspace = true
@@ -42,16 +43,16 @@ thiserror.workspace = true
 tower.workspace = true
 async-lsp = { workspace = true, features = ["client-monitor", "stdio", "tracing", "tokio"] }
 const_format.workspace = true
-hex.workspace = true
 similar-asserts.workspace = true
 termcolor = "1.1.2"
 color-eyre = "0.6.2"
-tokio = { version = "1.0", features = ["io-std"] }
+tokio = { version = "1.0", features = ["io-std", "rt"] }
 dap.workspace = true
 clap-markdown = { git = "https://github.com/noir-lang/clap-markdown", rev = "450d759532c88f0dba70891ceecdbc9ff8f25d2b", optional = true }
 
-# Backends
-backend-interface = { path = "../backend_interface" }
+notify = "6.1.1"
+notify-debouncer-full = "0.3.1"
+termion = "3.0.0"
 
 # Logs
 tracing-subscriber.workspace = true
@@ -67,13 +68,9 @@ assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
 predicates = "2.1.5"
 fm.workspace = true
-criterion = "0.5.0"
+criterion.workspace = true
+pprof.workspace = true
 paste = "1.0.14"
-pprof = { version = "0.12", features = [
-    "flamegraph",
-    "frame-pointer",
-    "criterion",
-] }
 iai = "0.1.1"
 test-binary = "3.0.2"
 

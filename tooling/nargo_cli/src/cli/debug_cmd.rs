@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use acvm::acir::native_types::WitnessMap;
+use acvm::acir::native_types::{WitnessMap, WitnessStack};
+use acvm::FieldElement;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
@@ -8,7 +9,7 @@ use fm::FileManager;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::CompileError;
-use nargo::ops::{compile_program, compile_program_with_debug_instrumenter};
+use nargo::ops::{compile_program, compile_program_with_debug_instrumenter, report_errors};
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
@@ -22,10 +23,8 @@ use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::ParsedFiles;
 
-use super::compile_cmd::report_errors;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
-use crate::backends::Backend;
 use crate::errors::CliError;
 
 /// Executes a circuit in debug mode
@@ -54,11 +53,7 @@ pub(crate) struct DebugCommand {
     skip_instrumentation: Option<bool>,
 }
 
-pub(crate) fn run(
-    backend: &Backend,
-    args: DebugCommand,
-    config: NargoConfig,
-) -> Result<(), CliError> {
+pub(crate) fn run(args: DebugCommand, config: NargoConfig) -> Result<(), CliError> {
     let acir_mode = args.acir_mode;
     let skip_instrumentation = args.skip_instrumentation.unwrap_or(acir_mode);
 
@@ -70,10 +65,6 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
     let target_dir = &workspace.target_directory_path();
-    let expression_width = args
-        .compile_options
-        .expression_width
-        .unwrap_or_else(|| backend.get_backend_info_or_default());
 
     let Some(package) = workspace.into_iter().find(|p| p.is_binary()) else {
         println!(
@@ -90,7 +81,8 @@ pub(crate) fn run(
         args.compile_options.clone(),
     )?;
 
-    let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
+    let compiled_program =
+        nargo::ops::transform_program(compiled_program, args.compile_options.expression_width);
 
     run_async(package, compiled_program, &args.prover_name, &args.witness_name, target_dir)
 }
@@ -188,7 +180,11 @@ fn run_async(
             }
 
             if let Some(witness_name) = witness_name {
-                let witness_path = save_witness_to_dir(solved_witness, witness_name, target_dir)?;
+                let witness_path = save_witness_to_dir(
+                    WitnessStack::from(solved_witness),
+                    witness_name,
+                    target_dir,
+                )?;
 
                 println!("[{}] Witness saved to {}", package.name, witness_path.display());
             }
@@ -204,7 +200,7 @@ fn debug_program_and_decode(
     program: CompiledProgram,
     package: &Package,
     prover_name: &str,
-) -> Result<(Option<InputValue>, Option<WitnessMap>), CliError> {
+) -> Result<(Option<InputValue>, Option<WitnessMap<FieldElement>>), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
@@ -223,22 +219,20 @@ fn debug_program_and_decode(
 pub(crate) fn debug_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
-) -> Result<Option<WitnessMap>, CliError> {
-    let blackbox_solver = Bn254BlackBoxSolver::new();
-
+) -> Result<Option<WitnessMap<FieldElement>>, CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let debug_artifact = DebugArtifact {
-        debug_symbols: vec![compiled_program.debug.clone()],
+        debug_symbols: compiled_program.debug.clone(),
         file_map: compiled_program.file_map.clone(),
-        warnings: compiled_program.warnings.clone(),
     };
 
     noir_debugger::debug_circuit(
-        &blackbox_solver,
-        &compiled_program.circuit,
+        &Bn254BlackBoxSolver,
+        &compiled_program.program.functions[0],
         debug_artifact,
         initial_witness,
+        &compiled_program.program.unconstrained_functions,
     )
     .map_err(CliError::from)
 }

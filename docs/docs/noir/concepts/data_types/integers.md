@@ -5,7 +5,9 @@ keywords: [noir, integer types, methods, examples, arithmetic]
 sidebar_position: 1
 ---
 
-An integer type is a range constrained field type. The Noir frontend supports both unsigned and signed integer types. The allowed sizes are 1, 8, 32 and 64 bits.
+An integer type is a range constrained field type.
+The Noir frontend supports both unsigned and signed integer types.
+The allowed sizes are 1, 8, 16, 32 and 64 bits.
 
 :::info
 
@@ -51,7 +53,7 @@ The built-in structure `U128` allows you to use 128-bit unsigned integers almost
 - You cannot cast between a native integer and `U128`
 - There is a higher performance cost when using `U128`, compared to a native type.
 
-Conversion between unsigned integer types and U128 are done through the use of `from_integer` and `to_integer` functions.
+Conversion between unsigned integer types and U128 are done through the use of `from_integer` and `to_integer` functions. `from_integer` also accepts the `Field` type as input.
 
 ```rust
 fn main() {
@@ -113,7 +115,7 @@ y = "1"
 Would result in:
 
 ```
-$ nargo prove
+$ nargo execute
 error: Assertion failed: 'attempt to add with overflow'
 ┌─ ~/src/main.nr:9:13
 │

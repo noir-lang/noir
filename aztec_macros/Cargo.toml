@@ -10,7 +10,10 @@ repository.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+acvm.workspace = true
 noirc_frontend.workspace = true
 noirc_errors.workspace = true
 iter-extended.workspace = true
 convert_case = "0.6.0"
+regex = "1.10"
+

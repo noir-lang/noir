@@ -1,18 +1,18 @@
 use chumsky::prelude::*;
 
-use super::{
-    block, expression, fresh_statement, function, function_declaration_parameters,
-    function_return_type,
-};
+use super::function::function_return_type;
+use super::{block, expression, fresh_statement, function, function_declaration_parameters};
 
+use crate::ast::{
+    Expression, ItemVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem, TraitItem,
+    UnresolvedTraitConstraint, UnresolvedType,
+};
 use crate::{
     parser::{
         ignore_then_commit, parenthesized, parser::primitives::keyword, NoirParser, ParserError,
         ParserErrorReason, TopLevelStatement,
     },
     token::{Keyword, Token},
-    Expression, FunctionVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem, TraitItem,
-    UnresolvedTraitConstraint, UnresolvedType,
 };
 
 use super::{generic_type_args, parse_type, path, primitives::ident};
@@ -120,15 +120,11 @@ pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
 
 fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
     let function = function::function_definition(true).validate(|mut f, span, emit| {
-        if f.def().is_internal
-            || f.def().is_unconstrained
-            || f.def().is_open
-            || f.def().visibility != FunctionVisibility::Private
-        {
+        if f.def().is_unconstrained || f.def().visibility != ItemVisibility::Private {
             emit(ParserError::with_reason(ParserErrorReason::TraitImplFunctionModifiers, span));
         }
         // Trait impl functions are always public
-        f.def_mut().visibility = FunctionVisibility::Public;
+        f.def_mut().visibility = ItemVisibility::Public;
         TraitImplItem::Function(f)
     });
 

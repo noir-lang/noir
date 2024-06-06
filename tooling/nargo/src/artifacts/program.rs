@@ -1,14 +1,15 @@
 use std::collections::BTreeMap;
 
-use acvm::acir::circuit::Circuit;
+use acvm::acir::circuit::Program;
+use acvm::FieldElement;
 use fm::FileId;
 use noirc_abi::Abi;
 use noirc_driver::CompiledProgram;
 use noirc_driver::DebugFile;
-use noirc_errors::debug_info::DebugInfo;
+use noirc_errors::debug_info::ProgramDebugInfo;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ProgramArtifact {
     pub noir_version: String,
 
@@ -21,30 +22,33 @@ pub struct ProgramArtifact {
     pub abi: Abi,
 
     #[serde(
-        serialize_with = "Circuit::serialize_circuit_base64",
-        deserialize_with = "Circuit::deserialize_circuit_base64"
+        serialize_with = "Program::serialize_program_base64",
+        deserialize_with = "Program::deserialize_program_base64"
     )]
-    pub bytecode: Circuit,
+    pub bytecode: Program<FieldElement>,
 
     #[serde(
-        serialize_with = "DebugInfo::serialize_compressed_base64_json",
-        deserialize_with = "DebugInfo::deserialize_compressed_base64_json"
+        serialize_with = "ProgramDebugInfo::serialize_compressed_base64_json",
+        deserialize_with = "ProgramDebugInfo::deserialize_compressed_base64_json"
     )]
-    pub debug_symbols: DebugInfo,
+    pub debug_symbols: ProgramDebugInfo,
 
     /// Map of file Id to the source code so locations in debug info can be mapped to source code they point to.
     pub file_map: BTreeMap<FileId, DebugFile>,
+
+    pub names: Vec<String>,
 }
 
 impl From<CompiledProgram> for ProgramArtifact {
-    fn from(program: CompiledProgram) -> Self {
+    fn from(compiled_program: CompiledProgram) -> Self {
         ProgramArtifact {
-            hash: program.hash,
-            abi: program.abi,
-            noir_version: program.noir_version,
-            bytecode: program.circuit,
-            debug_symbols: program.debug,
-            file_map: program.file_map,
+            hash: compiled_program.hash,
+            abi: compiled_program.abi,
+            noir_version: compiled_program.noir_version,
+            bytecode: compiled_program.program,
+            debug_symbols: ProgramDebugInfo { debug_infos: compiled_program.debug },
+            file_map: compiled_program.file_map,
+            names: compiled_program.names,
         }
     }
 }
@@ -55,10 +59,11 @@ impl From<ProgramArtifact> for CompiledProgram {
             hash: program.hash,
             abi: program.abi,
             noir_version: program.noir_version,
-            circuit: program.bytecode,
-            debug: program.debug_symbols,
+            program: program.bytecode,
+            debug: program.debug_symbols.debug_infos,
             file_map: program.file_map,
             warnings: vec![],
+            names: program.names,
         }
     }
 }

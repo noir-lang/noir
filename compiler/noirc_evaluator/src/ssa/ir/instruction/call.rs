@@ -1,7 +1,7 @@
 use fxhash::FxHashMap as HashMap;
 use std::{collections::VecDeque, rc::Rc};
 
-use acvm::{acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
+use acvm::{acir::AcirField, acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
@@ -80,6 +80,27 @@ pub(super) fn simplify_call(
                 SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::length_type()))
             } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
                 SimplifyResult::SimplifiedTo(arguments[0])
+            } else {
+                SimplifyResult::None
+            }
+        }
+        Intrinsic::AsSlice => {
+            let array = dfg.get_array_constant(arguments[0]);
+            if let Some((array, array_type)) = array {
+                // Compute the resulting slice length by dividing the flattened
+                // array length by the size of each array element
+                let elements_size = array_type.element_size();
+                let inner_element_types = array_type.element_types();
+                assert_eq!(
+                    0,
+                    array.len() % elements_size,
+                    "expected array length to be multiple of its elements size"
+                );
+                let slice_length_value = array.len() / elements_size;
+                let slice_length =
+                    dfg.make_constant(slice_length_value.into(), Type::length_type());
+                let new_slice = dfg.make_array(array, Type::Slice(inner_element_types));
+                SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice])
             } else {
                 SimplifyResult::None
             }
@@ -229,11 +250,16 @@ pub(super) fn simplify_call(
             let max_bit_size = dfg.get_numeric_constant(arguments[1]);
             if let Some(max_bit_size) = max_bit_size {
                 let max_bit_size = max_bit_size.to_u128() as u32;
-                SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
-                    value,
-                    max_bit_size,
-                    assert_message: Some("call to assert_max_bit_size".to_owned()),
-                })
+                let max_potential_bits = dfg.get_value_max_num_bits(value);
+                if max_potential_bits < max_bit_size {
+                    SimplifyResult::Remove
+                } else {
+                    SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
+                        value,
+                        max_bit_size,
+                        assert_message: Some("call to assert_max_bit_size".to_owned()),
+                    })
+                }
             } else {
                 SimplifyResult::None
             }
@@ -267,6 +293,8 @@ pub(super) fn simplify_call(
             let instruction = Instruction::Cast(truncated_value, target_type);
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
+        Intrinsic::AsWitness => SimplifyResult::None,
+        Intrinsic::IsUnconstrained => SimplifyResult::None,
     }
 }
 
@@ -323,8 +351,13 @@ fn simplify_slice_push_back(
     let element_size = element_type.element_size();
     let new_slice = dfg.make_array(slice, element_type);
 
-    let set_last_slice_value_instr =
-        Instruction::ArraySet { array: new_slice, index: arguments[0], value: arguments[2] };
+    let set_last_slice_value_instr = Instruction::ArraySet {
+        array: new_slice,
+        index: arguments[0],
+        value: arguments[2],
+        mutable: false,
+    };
+
     let set_last_slice_value = dfg
         .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack)
         .first();
@@ -333,7 +366,9 @@ fn simplify_slice_push_back(
     slice_sizes.insert(set_last_slice_value, slice_size / element_size);
     slice_sizes.insert(new_slice, slice_size / element_size);
 
-    let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes);
+    let unknown = &mut HashMap::default();
+    let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes, unknown, None);
+
     let new_slice = value_merger.merge_values(
         len_not_equals_capacity,
         len_equals_capacity,
@@ -431,7 +466,7 @@ fn simplify_black_box_func(
             simplify_signature(dfg, arguments, acvm::blackbox_solver::ecdsa_secp256r1_verify)
         }
 
-        BlackBoxFunc::FixedBaseScalarMul
+        BlackBoxFunc::MultiScalarMul
         | BlackBoxFunc::SchnorrVerify
         | BlackBoxFunc::PedersenCommitment
         | BlackBoxFunc::PedersenHash
@@ -459,6 +494,7 @@ fn simplify_black_box_func(
             )
         }
         BlackBoxFunc::Sha256Compression => SimplifyResult::None, //TODO(Guillaume)
+        BlackBoxFunc::AES128Encrypt => SimplifyResult::None,
     }
 }
 

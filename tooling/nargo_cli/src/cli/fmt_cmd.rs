@@ -1,7 +1,7 @@
 use std::{fs::DirEntry, path::Path};
 
 use clap::Args;
-use nargo::insert_all_files_for_workspace_into_file_manager;
+use nargo::{insert_all_files_for_workspace_into_file_manager, ops::report_errors};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::CustomDiagnostic;
@@ -48,12 +48,12 @@ pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliErr
                 let errors = errors
                     .into_iter()
                     .map(|error| {
-                        let error: CustomDiagnostic = error.into();
+                        let error = CustomDiagnostic::from(&error);
                         error.in_file(file_id)
                     })
                     .collect();
 
-                let _ = super::compile_cmd::report_errors::<()>(
+                let _ = report_errors::<()>(
                     Err(errors),
                     &workspace_file_manager,
                     false,

@@ -1,24 +1,27 @@
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
+use crate::ast::{BinaryOpKind, IntegerBitSize, UnaryOp};
+use crate::hir_def::expr::HirCallExpression;
+use crate::macros_api::Signedness;
 use crate::{
     hir::{resolution::resolver::verify_mutable_reference, type_check::errors::Source},
     hir_def::{
         expr::{
-            self, HirArrayLiteral, HirBinaryOp, HirExpression, HirIdent, HirLiteral,
-            HirMethodCallExpression, HirMethodReference, HirPrefixExpression, ImplKind,
+            self, HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirExpression, HirIdent,
+            HirLiteral, HirMethodCallExpression, HirMethodReference, HirPrefixExpression, ImplKind,
         },
         types::Type,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, TraitId, TraitImplKind, TraitMethodId},
-    BinaryOpKind, TypeBinding, TypeBindings, TypeVariableKind, UnaryOp,
+    TypeBinding, TypeBindings, TypeVariableKind,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
 
 impl<'interner> TypeChecker<'interner> {
     fn check_if_deprecated(&mut self, expr: &ExprId) {
-        if let HirExpression::Ident(expr::HirIdent { location, id, impl_kind: _ }) =
+        if let HirExpression::Ident(expr::HirIdent { location, id, impl_kind: _ }, _) =
             self.interner.expression(expr)
         {
             if let Some(DefinitionKind::Function(func_id)) =
@@ -37,7 +40,7 @@ impl<'interner> TypeChecker<'interner> {
     }
 
     fn is_unconstrained_call(&self, expr: &ExprId) -> bool {
-        if let HirExpression::Ident(expr::HirIdent { id, .. }) = self.interner.expression(expr) {
+        if let HirExpression::Ident(expr::HirIdent { id, .. }, _) = self.interner.expression(expr) {
             if let Some(DefinitionKind::Function(func_id)) =
                 self.interner.try_definition(id).map(|def| &def.kind)
             {
@@ -46,6 +49,49 @@ impl<'interner> TypeChecker<'interner> {
             }
         }
         false
+    }
+
+    fn check_hir_array_literal(
+        &mut self,
+        hir_array_literal: HirArrayLiteral,
+    ) -> (Result<u32, Box<Type>>, Box<Type>) {
+        match hir_array_literal {
+            HirArrayLiteral::Standard(arr) => {
+                let elem_types = vecmap(&arr, |arg| self.check_expression(arg));
+
+                let first_elem_type = elem_types
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| self.interner.next_type_variable());
+
+                // Check if the array is homogeneous
+                for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
+                    let location = self.interner.expr_location(&arr[index]);
+
+                    elem_type.unify(&first_elem_type, &mut self.errors, || {
+                        TypeCheckError::NonHomogeneousArray {
+                            first_span: self.interner.expr_location(&arr[0]).span,
+                            first_type: first_elem_type.to_string(),
+                            first_index: index,
+                            second_span: location.span,
+                            second_type: elem_type.to_string(),
+                            second_index: index + 1,
+                        }
+                        .add_context("elements in an array must have the same type")
+                    });
+                }
+
+                (Ok(arr.len() as u32), Box::new(first_elem_type.clone()))
+            }
+            HirArrayLiteral::Repeated { repeated_element, length } => {
+                let elem_type = self.check_expression(&repeated_element);
+                let length = match length {
+                    Type::Constant(length) => Ok(length),
+                    other => Err(Box::new(other)),
+                };
+                (length, Box::new(elem_type))
+            }
+        }
     }
 
     /// Infers a type for a given expression, and return this type.
@@ -58,65 +104,43 @@ impl<'interner> TypeChecker<'interner> {
     /// function `foo` to refer to.
     pub(crate) fn check_expression(&mut self, expr_id: &ExprId) -> Type {
         let typ = match self.interner.expression(expr_id) {
-            HirExpression::Ident(ident) => self.check_ident(ident, expr_id),
-            HirExpression::Literal(literal) => {
-                match literal {
-                    HirLiteral::Array(HirArrayLiteral::Standard(arr)) => {
-                        let elem_types = vecmap(&arr, |arg| self.check_expression(arg));
-
-                        let first_elem_type = elem_types
-                            .first()
-                            .cloned()
-                            .unwrap_or_else(|| self.interner.next_type_variable());
-
-                        let arr_type = Type::Array(
-                            Box::new(Type::constant_variable(arr.len() as u64, self.interner)),
-                            Box::new(first_elem_type.clone()),
-                        );
-
-                        // Check if the array is homogeneous
-                        for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
-                            let location = self.interner.expr_location(&arr[index]);
-
-                            elem_type.unify(&first_elem_type, &mut self.errors, || {
-                                TypeCheckError::NonHomogeneousArray {
-                                    first_span: self.interner.expr_location(&arr[0]).span,
-                                    first_type: first_elem_type.to_string(),
-                                    first_index: index,
-                                    second_span: location.span,
-                                    second_type: elem_type.to_string(),
-                                    second_index: index + 1,
-                                }
-                                .add_context("elements in an array must have the same type")
-                            });
-                        }
-
-                        arr_type
-                    }
-                    HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length }) => {
-                        let elem_type = self.check_expression(&repeated_element);
-                        let length = match length {
-                            Type::Constant(length) => {
-                                Type::constant_variable(length, self.interner)
-                            }
-                            other => other,
-                        };
-                        Type::Array(Box::new(length), Box::new(elem_type))
-                    }
-                    HirLiteral::Bool(_) => Type::Bool,
-                    HirLiteral::Integer(_, _) => Type::polymorphic_integer_or_field(self.interner),
-                    HirLiteral::Str(string) => {
-                        let len = Type::Constant(string.len() as u64);
-                        Type::String(Box::new(len))
-                    }
-                    HirLiteral::FmtStr(string, idents) => {
-                        let len = Type::Constant(string.len() as u64);
-                        let types = vecmap(&idents, |elem| self.check_expression(elem));
-                        Type::FmtString(Box::new(len), Box::new(Type::Tuple(types)))
-                    }
-                    HirLiteral::Unit => Type::Unit,
+            HirExpression::Ident(ident, generics) => self.check_ident(ident, expr_id, generics),
+            HirExpression::Literal(literal) => match literal {
+                HirLiteral::Array(hir_array_literal) => {
+                    let (length, elem_type) = self.check_hir_array_literal(hir_array_literal);
+                    Type::Array(
+                        length.map_or_else(
+                            |typ| typ,
+                            |constant| Box::new(Type::constant_variable(constant, self.interner)),
+                        ),
+                        elem_type,
+                    )
                 }
-            }
+                HirLiteral::Slice(hir_array_literal) => {
+                    let (length_type, elem_type) = self.check_hir_array_literal(hir_array_literal);
+                    match length_type {
+                        Ok(_length) => Type::Slice(elem_type),
+                        Err(_non_constant) => {
+                            self.errors.push(TypeCheckError::NonConstantSliceLength {
+                                span: self.interner.expr_span(expr_id),
+                            });
+                            Type::Error
+                        }
+                    }
+                }
+                HirLiteral::Bool(_) => Type::Bool,
+                HirLiteral::Integer(_, _) => self.polymorphic_integer_or_field(),
+                HirLiteral::Str(string) => {
+                    let len = Type::Constant(string.len() as u32);
+                    Type::String(Box::new(len))
+                }
+                HirLiteral::FmtStr(string, idents) => {
+                    let len = Type::Constant(string.len() as u32);
+                    let types = vecmap(&idents, |elem| self.check_expression(elem));
+                    Type::FmtString(Box::new(len), Box::new(Type::Tuple(types)))
+                }
+                HirLiteral::Unit => Type::Unit,
+            },
             HirExpression::Infix(infix_expr) => {
                 // The type of the infix expression must be looked up from a type table
                 let lhs_type = self.check_expression(&infix_expr.lhs);
@@ -131,14 +155,16 @@ impl<'interner> TypeChecker<'interner> {
                     Ok((typ, use_impl)) => {
                         if use_impl {
                             let id = infix_expr.trait_method_id;
-                            // Assume operators have no trait generics
-                            self.verify_trait_constraint(
-                                &lhs_type,
-                                id.trait_id,
-                                &[],
-                                *expr_id,
-                                span,
-                            );
+
+                            // Delay checking the trait constraint until the end of the function.
+                            // Checking it now could bind an unbound type variable to any type
+                            // that implements the trait.
+                            let constraint = crate::hir_def::traits::TraitConstraint {
+                                typ: lhs_type.clone(),
+                                trait_id: id.trait_id,
+                                trait_generics: Vec::new(),
+                            };
+                            self.trait_constraints.push((constraint, *expr_id));
                             self.typecheck_operator_method(*expr_id, id, &lhs_type, span);
                         }
                         typ
@@ -151,16 +177,6 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirExpression::Index(index_expr) => self.check_index_expression(expr_id, index_expr),
             HirExpression::Call(call_expr) => {
-                // Need to setup these flags here as `self` is borrowed mutably to type check the rest of the call expression
-                // These flags are later used to type check calls to unconstrained functions from constrained functions
-                let current_func = self.current_function;
-                let func_mod = current_func.map(|func| self.interner.function_modifiers(&func));
-                let is_current_func_constrained =
-                    func_mod.map_or(true, |func_mod| !func_mod.is_unconstrained);
-                let is_unconstrained_call = self.is_unconstrained_call(&call_expr.func);
-
-                self.check_if_deprecated(&call_expr.func);
-
                 let function = self.check_expression(&call_expr.func);
 
                 let args = vecmap(&call_expr.arguments, |arg| {
@@ -168,42 +184,13 @@ impl<'interner> TypeChecker<'interner> {
                     (typ, *arg, self.interner.expr_span(arg))
                 });
 
-                if is_current_func_constrained && is_unconstrained_call {
-                    if !self.allow_unsafe {
-                        self.errors.push(TypeCheckError::Unsafe {
-                            span: self.interner.expr_span(expr_id),
-                        });
-                        return Type::Error;
-                    }
-
-                    // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
-                    for (typ, _, _) in args.iter() {
-                        if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
-                            self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained {
-                                span: self.interner.expr_span(expr_id),
-                            });
-                            return Type::Error;
-                        }
-                    }
-                }
-
                 let span = self.interner.expr_span(expr_id);
-                let return_type = self.bind_function_type(function, args, span);
-
-                // Check that we are not passing a slice from an unconstrained runtime to a constrained runtime
-                if is_current_func_constrained
-                    && is_unconstrained_call
-                    && return_type.contains_slice()
-                {
-                    self.errors.push(TypeCheckError::UnconstrainedSliceReturnToConstrained {
-                        span: self.interner.expr_span(expr_id),
-                    });
-                    return Type::Error;
-                }
-
-                return_type
+                self.check_call(&call_expr, function, args, span)
             }
             HirExpression::MethodCall(mut method_call) => {
+                let method_call_span = self.interner.expr_span(expr_id);
+                let object = method_call.object;
+                let object_span = self.interner.expr_span(&method_call.object);
                 let mut object_type = self.check_expression(&method_call.object).follow_bindings();
                 let method_name = method_call.method.0.contents.as_str();
                 match self.lookup_method(&object_type, method_name, expr_id) {
@@ -214,32 +201,65 @@ impl<'interner> TypeChecker<'interner> {
 
                         // Automatically add `&mut` if the method expects a mutable reference and
                         // the object is not already one.
-                        if let HirMethodReference::FuncId(func_id) = &method_ref {
-                            if *func_id != FuncId::dummy_id() {
-                                let function_type =
-                                    self.interner.function_meta(func_id).typ.clone();
-
-                                self.try_add_mutable_reference_to_object(
-                                    &mut method_call,
-                                    &function_type,
-                                    &mut object_type,
-                                );
+                        let func_id = match &method_ref {
+                            HirMethodReference::FuncId(func_id) => *func_id,
+                            HirMethodReference::TraitMethodId(method_id, _) => {
+                                let id = self.interner.trait_method_id(*method_id);
+                                let definition = self.interner.definition(id);
+                                let DefinitionKind::Function(func_id) = definition.kind else {
+                                    unreachable!(
+                                        "Expected trait function to be a DefinitionKind::Function"
+                                    )
+                                };
+                                func_id
                             }
+                        };
+
+                        if func_id != FuncId::dummy_id() {
+                            let function_type = self.interner.function_meta(&func_id).typ.clone();
+                            self.try_add_mutable_reference_to_object(
+                                &mut method_call,
+                                &function_type,
+                                &mut object_type,
+                            );
+                        }
+
+                        // These arguments will be given to the desugared function call.
+                        // Compared to the method arguments, they also contain the object.
+                        let mut function_args = Vec::with_capacity(method_call.arguments.len() + 1);
+
+                        function_args.push((object_type.clone(), object, object_span));
+
+                        for arg in method_call.arguments.iter() {
+                            let span = self.interner.expr_span(arg);
+                            let typ = self.check_expression(arg);
+                            function_args.push((typ, *arg, span));
                         }
 
                         // TODO: update object_type here?
-                        let function_call = method_call.into_function_call(
+                        let ((function_id, _), function_call) = method_call.into_function_call(
                             &method_ref,
                             object_type,
                             location,
                             self.interner,
                         );
 
-                        self.interner.replace_expr(expr_id, function_call);
+                        let func_type = self.check_expression(&function_id);
 
                         // Type check the new call now that it has been changed from a method call
                         // to a function call. This way we avoid duplicating code.
-                        self.check_expression(expr_id)
+                        // We call `check_call` rather than `check_expression` directly as we want to avoid
+                        // resolving the object type again once it is part of the arguments.
+                        let typ = self.check_call(
+                            &function_call,
+                            func_type,
+                            function_args,
+                            method_call_span,
+                        );
+
+                        self.interner.replace_expr(expr_id, HirExpression::Call(function_call));
+
+                        typ
                     }
                     None => Type::Error,
                 }
@@ -250,44 +270,7 @@ impl<'interner> TypeChecker<'interner> {
                 let span = self.interner.expr_span(expr_id);
                 self.check_cast(lhs_type, cast_expr.r#type, span)
             }
-            HirExpression::Block(block_expr) => {
-                let mut block_type = Type::Unit;
-
-                // Before entering the block we cache the old value of `allow_unsafe` so it can be restored.
-                let old_allow_unsafe = self.allow_unsafe;
-
-                // If we're already in an unsafe block then entering a new block should preserve this even if
-                // the inner block isn't marked as unsafe.
-                self.allow_unsafe |= block_expr.is_unsafe;
-
-                let statements = block_expr.statements();
-                for (i, stmt) in statements.iter().enumerate() {
-                    let expr_type = self.check_statement(stmt);
-
-                    if let crate::hir_def::stmt::HirStatement::Semi(expr) =
-                        self.interner.statement(stmt)
-                    {
-                        let inner_expr_type = self.interner.id_type(expr);
-                        let span = self.interner.expr_span(&expr);
-
-                        self.unify(&inner_expr_type, &Type::Unit, || {
-                            TypeCheckError::UnusedResultError {
-                                expr_type: inner_expr_type.clone(),
-                                expr_span: span,
-                            }
-                        });
-                    }
-
-                    if i + 1 == statements.len() {
-                        block_type = expr_type;
-                    }
-                }
-
-                // Finally, we restore the original value of `self.allow_unsafe`.
-                self.allow_unsafe = old_allow_unsafe;
-
-                block_type
-            }
+            HirExpression::Block(block_expr) => self.check_block(block_expr),
             HirExpression::Prefix(prefix_expr) => {
                 let rhs_type = self.check_expression(&prefix_expr.rhs);
                 let span = self.interner.expr_span(&prefix_expr.rhs);
@@ -324,26 +307,130 @@ impl<'interner> TypeChecker<'interner> {
 
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
+            HirExpression::Quote(_) => Type::Code,
+            HirExpression::Comptime(block) => self.check_block(block),
+
+            // Unquote should be inserted & removed by the comptime interpreter.
+            // Even if we allowed it here, we wouldn't know what type to give to the result.
+            HirExpression::Unquote(block) => {
+                unreachable!("Unquote remaining during type checking {block}")
+            }
         };
 
         self.interner.push_expr_type(*expr_id, typ.clone());
         typ
     }
 
+    fn check_call(
+        &mut self,
+        call: &HirCallExpression,
+        func_type: Type,
+        args: Vec<(Type, ExprId, Span)>,
+        span: Span,
+    ) -> Type {
+        // Need to setup these flags here as `self` is borrowed mutably to type check the rest of the call expression
+        // These flags are later used to type check calls to unconstrained functions from constrained functions
+        let func_mod = self.current_function.map(|func| self.interner.function_modifiers(&func));
+        let is_current_func_constrained =
+            func_mod.map_or(true, |func_mod| !func_mod.is_unconstrained);
+
+        let is_unconstrained_call = self.is_unconstrained_call(&call.func);
+        self.check_if_deprecated(&call.func);
+
+        // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
+        if is_current_func_constrained && is_unconstrained_call {
+            if !self.allow_unsafe {
+                self.errors.push(TypeCheckError::Unsafe {span});
+                return Type::Error;
+            }
+            for (typ, _, _) in args.iter() {
+                if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
+                    self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained { span });
+                }
+            }
+        }
+
+        let return_type = self.bind_function_type(func_type, args, span);
+
+        // Check that we are not passing a slice from an unconstrained runtime to a constrained runtime
+        if is_current_func_constrained && is_unconstrained_call {
+            if return_type.contains_slice() {
+                self.errors.push(TypeCheckError::UnconstrainedSliceReturnToConstrained { span });
+            } else if matches!(&return_type.follow_bindings(), Type::MutableReference(_)) {
+                self.errors.push(TypeCheckError::UnconstrainedReferenceToConstrained { span });
+            }
+        };
+
+        return_type
+    }
+
+    fn check_block(&mut self, block: HirBlockExpression) -> Type {
+        let mut block_type = Type::Unit;
+
+        // Before entering the block we cache the old value of `allow_unsafe` so it can be restored.
+        let old_allow_unsafe = self.allow_unsafe;
+
+        // If we're already in an unsafe block then entering a new block should preserve this even if
+        // the inner block isn't marked as unsafe.
+        self.allow_unsafe |= block.is_unsafe;
+
+        let statements = block.statements();
+        for (i, stmt) in statements.iter().enumerate() {
+            let expr_type = self.check_statement(stmt);
+
+            if let crate::hir_def::stmt::HirStatement::Semi(expr) = self.interner.statement(stmt) {
+                let inner_expr_type = self.interner.id_type(expr);
+                let span = self.interner.expr_span(&expr);
+
+                self.unify(&inner_expr_type, &Type::Unit, || TypeCheckError::UnusedResultError {
+                    expr_type: inner_expr_type.clone(),
+                    expr_span: span,
+                });
+            }
+
+            if i + 1 == statements.len() {
+                block_type = expr_type;
+            }
+        }
+
+        // Finally, we restore the original value of `self.allow_unsafe`.
+        self.allow_unsafe = old_allow_unsafe;
+
+        block_type
+    }
+
     /// Returns the type of the given identifier
-    fn check_ident(&mut self, ident: HirIdent, expr_id: &ExprId) -> Type {
+    fn check_ident(
+        &mut self,
+        ident: HirIdent,
+        expr_id: &ExprId,
+        generics: Option<Vec<Type>>,
+    ) -> Type {
         let mut bindings = TypeBindings::new();
 
         // Add type bindings from any constraints that were used.
         // We need to do this first since otherwise instantiating the type below
         // will replace each trait generic with a fresh type variable, rather than
         // the type used in the trait constraint (if it exists). See #4088.
-        if let ImplKind::TraitMethod(_, constraint, _) = &ident.impl_kind {
+        if let ImplKind::TraitMethod(_, constraint, assumed) = &ident.impl_kind {
             let the_trait = self.interner.get_trait(constraint.trait_id);
             assert_eq!(the_trait.generics.len(), constraint.trait_generics.len());
 
             for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
-                bindings.insert(param.id(), (param.clone(), arg.clone()));
+                // Avoid binding t = t
+                if !arg.occurs(param.id()) {
+                    bindings.insert(param.id(), (param.clone(), arg.clone()));
+                }
+            }
+
+            // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
+            // Otherwise `self` will be replaced with a fresh type variable, which will require the user
+            // to specify a redundant type annotation.
+            if *assumed {
+                bindings.insert(
+                    the_trait.self_type_typevar_id,
+                    (the_trait.self_type_typevar.clone(), constraint.typ.clone()),
+                );
             }
         }
 
@@ -353,17 +440,25 @@ impl<'interner> TypeChecker<'interner> {
         // variable to handle generic functions.
         let t = self.interner.id_type_substitute_trait_as_type(ident.id);
 
+        let definition = self.interner.try_definition(ident.id);
+        let function_generic_count = definition.map_or(0, |definition| match &definition.kind {
+            DefinitionKind::Function(function) => {
+                self.interner.function_modifiers(function).generic_count
+            }
+            _ => 0,
+        });
+
+        let span = self.interner.expr_span(expr_id);
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
-        let (typ, bindings) = t.instantiate_with_bindings(bindings, self.interner);
+        let (typ, bindings) = self.instantiate(t, bindings, generics, function_generic_count, span);
 
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
         if let Some(definition) = self.interner.try_definition(ident.id) {
-            if let DefinitionKind::Function(function) = definition.kind {
-                let function = self.interner.function_meta(&function);
-
+            if let DefinitionKind::Function(func_id) = definition.kind {
+                let function = self.interner.function_meta(&func_id);
                 for mut constraint in function.trait_constraints.clone() {
                     constraint.apply_bindings(&bindings);
                     self.trait_constraints.push((constraint, *expr_id));
@@ -391,6 +486,37 @@ impl<'interner> TypeChecker<'interner> {
         typ
     }
 
+    fn instantiate(
+        &mut self,
+        typ: Type,
+        bindings: TypeBindings,
+        turbofish_generics: Option<Vec<Type>>,
+        function_generic_count: usize,
+        span: Span,
+    ) -> (Type, TypeBindings) {
+        match turbofish_generics {
+            Some(turbofish_generics) => {
+                if turbofish_generics.len() != function_generic_count {
+                    self.errors.push(TypeCheckError::IncorrectTurbofishGenericCount {
+                        expected_count: function_generic_count,
+                        actual_count: turbofish_generics.len(),
+                        span,
+                    });
+                    typ.instantiate_with_bindings(bindings, self.interner)
+                } else {
+                    // Fetch the count of any implicit generics on the function, such as
+                    // for a method within a generic impl.
+                    let implicit_generic_count = match &typ {
+                        Type::Forall(generics, _) => generics.len() - function_generic_count,
+                        _ => 0,
+                    };
+                    typ.instantiate_with(turbofish_generics, self.interner, implicit_generic_count)
+                }
+            }
+            None => typ.instantiate_with_bindings(bindings, self.interner),
+        }
+    }
+
     pub fn verify_trait_constraint(
         &mut self,
         object_type: &Type,
@@ -404,23 +530,28 @@ impl<'interner> TypeChecker<'interner> {
                 self.interner.select_impl_for_expression(function_ident_id, impl_kind);
             }
             Err(erroring_constraints) => {
-                // Don't show any errors where try_get_trait returns None.
-                // This can happen if a trait is used that was never declared.
-                let constraints = erroring_constraints
-                    .into_iter()
-                    .map(|constraint| {
-                        let r#trait = self.interner.try_get_trait(constraint.trait_id)?;
-                        let mut name = r#trait.name.to_string();
-                        if !constraint.trait_generics.is_empty() {
-                            let generics = vecmap(&constraint.trait_generics, ToString::to_string);
-                            name += &format!("<{}>", generics.join(", "));
-                        }
-                        Some((constraint.typ, name))
-                    })
-                    .collect::<Option<Vec<_>>>();
+                if erroring_constraints.is_empty() {
+                    self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
+                } else {
+                    // Don't show any errors where try_get_trait returns None.
+                    // This can happen if a trait is used that was never declared.
+                    let constraints = erroring_constraints
+                        .into_iter()
+                        .map(|constraint| {
+                            let r#trait = self.interner.try_get_trait(constraint.trait_id)?;
+                            let mut name = r#trait.name.to_string();
+                            if !constraint.trait_generics.is_empty() {
+                                let generics =
+                                    vecmap(&constraint.trait_generics, ToString::to_string);
+                                name += &format!("<{}>", generics.join(", "));
+                            }
+                            Some((constraint.typ, name))
+                        })
+                        .collect::<Option<Vec<_>>>();
 
-                if let Some(constraints) = constraints {
-                    self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
+                    if let Some(constraints) = constraints {
+                        self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
+                    }
                 }
             }
         }
@@ -495,7 +626,7 @@ impl<'interner> TypeChecker<'interner> {
 
     /// Insert as many dereference operations as necessary to automatically dereference a method
     /// call object to its base value type T.
-    fn insert_auto_dereferences(&mut self, object: ExprId, typ: Type) -> (ExprId, Type) {
+    pub(crate) fn insert_auto_dereferences(&mut self, object: ExprId, typ: Type) -> (ExprId, Type) {
         if let Type::MutableReference(element) = typ {
             let location = self.interner.id_location(object);
 
@@ -546,15 +677,13 @@ impl<'interner> TypeChecker<'interner> {
         let index_type = self.check_expression(&index_expr.index);
         let span = self.interner.expr_span(&index_expr.index);
 
-        index_type.unify(
-            &Type::polymorphic_integer_or_field(self.interner),
-            &mut self.errors,
-            || TypeCheckError::TypeMismatch {
+        index_type.unify(&self.polymorphic_integer_or_field(), &mut self.errors, || {
+            TypeCheckError::TypeMismatch {
                 expected_typ: "an integer".to_owned(),
                 expr_typ: index_type.to_string(),
                 expr_span: span,
-            },
-        );
+            }
+        });
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
         // times as needed to get the underlying array.
@@ -567,6 +696,7 @@ impl<'interner> TypeChecker<'interner> {
             // XXX: We can check the array bounds here also, but it may be better to constant fold first
             // and have ConstId instead of ExprId for constants
             Type::Array(_, base_type) => *base_type,
+            Type::Slice(base_type) => *base_type,
             Type::Error => Type::Error,
             typ => {
                 let span = self.interner.expr_span(&new_lhs);
@@ -699,7 +829,7 @@ impl<'interner> TypeChecker<'interner> {
         let dereference_lhs = |this: &mut Self, lhs_type, element| {
             let old_lhs = *access_lhs;
             *access_lhs = this.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
-                operator: crate::UnaryOp::Dereference { implicitly_added: true },
+                operator: crate::ast::UnaryOp::Dereference { implicitly_added: true },
                 rhs: old_lhs,
             }));
             this.interner.push_expr_type(old_lhs, lhs_type);
@@ -823,6 +953,10 @@ impl<'interner> TypeChecker<'interner> {
         match (lhs_type, rhs_type) {
             // Avoid reporting errors multiple times
             (Error, _) | (_, Error) => Ok((Bool, false)),
+            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
+                let alias = alias.borrow().get_type(args);
+                self.comparator_operand_type_rules(&alias, other, op, span)
+            }
 
             // Matches on TypeVariable must be first to follow any type
             // bindings.
@@ -831,12 +965,8 @@ impl<'interner> TypeChecker<'interner> {
                     return self.comparator_operand_type_rules(other, binding, op, span);
                 }
 
-                self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
-                Ok((Bool, false))
-            }
-            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
-                let alias = alias.borrow().get_type(args);
-                self.comparator_operand_type_rules(&alias, other, op, span)
+                let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
+                Ok((Bool, use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 if sign_x != sign_y {
@@ -866,30 +996,6 @@ impl<'interner> TypeChecker<'interner> {
             // <= and friends are technically valid for booleans, just not very useful
             (Bool, Bool) => Ok((Bool, false)),
 
-            // Special-case == and != for arrays
-            (Array(x_size, x_type), Array(y_size, y_type))
-                if matches!(op.kind, BinaryOpKind::Equal | BinaryOpKind::NotEqual) =>
-            {
-                self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    expected: lhs_type.clone(),
-                    actual: rhs_type.clone(),
-                    source: Source::ArrayLen,
-                    span: op.location.span,
-                });
-
-                self.comparator_operand_type_rules(x_type, y_type, op, span)
-            }
-
-            (String(x_size), String(y_size)) => {
-                self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    expected: *x_size.clone(),
-                    actual: *y_size.clone(),
-                    span: op.location.span,
-                    source: Source::StringLen,
-                });
-
-                Ok((Bool, false))
-            }
             (lhs, rhs) => {
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
@@ -1048,9 +1154,9 @@ impl<'interner> TypeChecker<'interner> {
                 }
                 ret
             }
+            // ignoring env for subtype on purpose
             Type::Function(parameters, ret, _env) => {
-                // ignoring env for subtype on purpose
-                self.bind_function_type_impl(parameters.as_ref(), ret.as_ref(), args.as_ref(), span)
+                self.bind_function_type_impl(&parameters, &ret, &args, span)
             }
             Type::Error => Type::Error,
             found => {
@@ -1060,13 +1166,16 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
+    /// Handles the TypeVariable case for checking binary operators.
+    /// Returns true if we should use the impl for the operator instead of the primitive
+    /// version of it.
     fn bind_type_variables_for_infix(
         &mut self,
         lhs_type: &Type,
         op: &HirBinaryOp,
         rhs_type: &Type,
         span: Span,
-    ) {
+    ) -> bool {
         self.unify(lhs_type, rhs_type, || TypeCheckError::TypeMismatchWithSource {
             expected: lhs_type.clone(),
             actual: rhs_type.clone(),
@@ -1074,22 +1183,26 @@ impl<'interner> TypeChecker<'interner> {
             span,
         });
 
-        // In addition to unifying both types, we also have to bind either
-        // the lhs or rhs to an integer type variable. This ensures if both lhs
-        // and rhs are type variables, that they will have the correct integer
-        // type variable kind instead of TypeVariableKind::Normal.
-        let target = if op.kind.is_valid_for_field_type() {
-            Type::polymorphic_integer_or_field(self.interner)
-        } else {
-            Type::polymorphic_integer(self.interner)
-        };
+        let use_impl = !lhs_type.is_numeric();
 
-        self.unify(lhs_type, &target, || TypeCheckError::TypeMismatchWithSource {
-            expected: lhs_type.clone(),
-            actual: rhs_type.clone(),
-            source: Source::Binary,
-            span,
-        });
+        // If this operator isn't valid for fields we have to possibly narrow
+        // TypeVariableKind::IntegerOrField to TypeVariableKind::Integer.
+        // Doing so also ensures a type error if Field is used.
+        // The is_numeric check is to allow impls for custom types to bypass this.
+        if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric() {
+            let target = Type::polymorphic_integer(self.interner);
+
+            use crate::ast::BinaryOpKind::*;
+            use TypeCheckError::*;
+            self.unify(lhs_type, &target, || match op.kind {
+                Less | LessEqual | Greater | GreaterEqual => FieldComparison { span },
+                And | Or | Xor | ShiftRight | ShiftLeft => FieldBitwiseOp { span },
+                Modulo => FieldModulo { span },
+                other => unreachable!("Operator {other:?} should be valid for Field"),
+            });
+        }
+
+        use_impl
     }
 
     // Given a binary operator and another type. This method will produce the output type
@@ -1111,6 +1224,10 @@ impl<'interner> TypeChecker<'interner> {
         match (lhs_type, rhs_type) {
             // An error type on either side will always return an error
             (Error, _) | (_, Error) => Ok((Error, false)),
+            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
+                let alias = alias.borrow().get_type(args);
+                self.infix_operand_type_rules(&alias, op, other, span)
+            }
 
             // Matches on TypeVariable must be first so that we follow any type
             // bindings.
@@ -1118,17 +1235,30 @@ impl<'interner> TypeChecker<'interner> {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
-
-                self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
-
-                // Both types are unified so the choice of which to return is arbitrary
-                Ok((other.clone(), false))
-            }
-            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
-                let alias = alias.borrow().get_type(args);
-                self.infix_operand_type_rules(&alias, op, other, span)
+                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
+                    self.unify(
+                        rhs_type,
+                        &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
+                        || TypeCheckError::InvalidShiftSize { span },
+                    );
+                    let use_impl = if lhs_type.is_numeric() {
+                        let integer_type = Type::polymorphic_integer(self.interner);
+                        self.bind_type_variables_for_infix(lhs_type, op, &integer_type, span)
+                    } else {
+                        true
+                    };
+                    return Ok((lhs_type.clone(), use_impl));
+                }
+                let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
+                Ok((other.clone(), use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
+                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
+                    if *sign_y != Signedness::Unsigned || *bit_width_y != IntegerBitSize::Eight {
+                        return Err(TypeCheckError::InvalidShiftSize { span });
+                    }
+                    return Ok((Integer(*sign_x, *bit_width_x), false));
+                }
                 if sign_x != sign_y {
                     return Err(TypeCheckError::IntegerSignedness {
                         sign_x: *sign_x,
@@ -1151,7 +1281,7 @@ impl<'interner> TypeChecker<'interner> {
                     if op.kind == BinaryOpKind::Modulo {
                         return Err(TypeCheckError::FieldModulo { span });
                     } else {
-                        return Err(TypeCheckError::InvalidBitwiseOperationOnField { span });
+                        return Err(TypeCheckError::FieldBitwiseOp { span });
                     }
                 }
                 Ok((FieldElement, false))
@@ -1160,6 +1290,12 @@ impl<'interner> TypeChecker<'interner> {
             (Bool, Bool) => Ok((Bool, false)),
 
             (lhs, rhs) => {
+                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
+                    if rhs == &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight) {
+                        return Ok((lhs.clone(), true));
+                    }
+                    return Err(TypeCheckError::InvalidShiftSize { span });
+                }
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
                     actual: rhs.clone(),
@@ -1173,7 +1309,7 @@ impl<'interner> TypeChecker<'interner> {
 
     fn type_check_prefix_operand(
         &mut self,
-        op: &crate::UnaryOp,
+        op: &crate::ast::UnaryOp,
         rhs_type: &Type,
         span: Span,
     ) -> Type {
@@ -1187,19 +1323,19 @@ impl<'interner> TypeChecker<'interner> {
         };
 
         match op {
-            crate::UnaryOp::Minus => {
+            crate::ast::UnaryOp::Minus => {
                 if rhs_type.is_unsigned() {
                     self.errors
                         .push(TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span });
                 }
-                let expected = Type::polymorphic_integer_or_field(self.interner);
+                let expected = self.polymorphic_integer_or_field();
                 rhs_type.unify(&expected, &mut self.errors, || TypeCheckError::InvalidUnaryOp {
                     kind: rhs_type.to_string(),
                     span,
                 });
                 expected
             }
-            crate::UnaryOp::Not => {
+            crate::ast::UnaryOp::Not => {
                 let rhs_type = rhs_type.follow_bindings();
 
                 // `!` can work on booleans or integers
@@ -1209,10 +1345,10 @@ impl<'interner> TypeChecker<'interner> {
 
                 unify(Type::Bool)
             }
-            crate::UnaryOp::MutableReference => {
+            crate::ast::UnaryOp::MutableReference => {
                 Type::MutableReference(Box::new(rhs_type.follow_bindings()))
             }
-            crate::UnaryOp::Dereference { implicitly_added: _ } => {
+            crate::ast::UnaryOp::Dereference { implicitly_added: _ } => {
                 let element_type = self.interner.next_type_variable();
                 unify(Type::MutableReference(Box::new(element_type.clone())));
                 element_type

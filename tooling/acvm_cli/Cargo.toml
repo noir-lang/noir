@@ -1,0 +1,38 @@
+[package]
+name = "acvm_cli"
+description = "The entrypoint for executing the ACVM"
+# x-release-please-start-version
+version = "0.40.0"
+# x-release-please-end
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+# Rename binary from `acvm_cli` to `acvm`
+[[bin]]
+name = "acvm"
+path = "src/main.rs"
+
+[dependencies]
+thiserror.workspace = true
+toml.workspace = true
+color-eyre = "0.6.2"
+clap.workspace = true
+acvm.workspace = true
+nargo.workspace = true
+const_format.workspace = true
+bn254_blackbox_solver.workspace = true
+acir.workspace = true
+
+# Logs
+tracing-subscriber.workspace = true
+tracing-appender = "0.2.3"
+
+[dev-dependencies]
+rand = "0.8.5"
+proptest = "1.2.0"
+paste = "1.0.14"

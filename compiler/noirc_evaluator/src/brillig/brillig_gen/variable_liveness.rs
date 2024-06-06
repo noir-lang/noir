@@ -93,6 +93,9 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Vec<Value
         })
         .collect();
 
+    // We consider block parameters used, so they live up to the block that owns them.
+    used.extend(block.parameters().iter());
+
     if let Some(terminator) = block.terminator() {
         terminator.for_each_value(|value_id| {
             used.extend(collect_variables_of_value(value_id, dfg));
@@ -103,23 +106,6 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Vec<Value
 }
 
 type Variables = HashSet<ValueId>;
-
-fn compute_defined_variables(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables {
-    let mut defined_vars = HashSet::default();
-
-    for parameter in block.parameters() {
-        defined_vars.insert(dfg.resolve(*parameter));
-    }
-
-    for instruction_id in block.instructions() {
-        let result_values = dfg.instruction_results(*instruction_id);
-        for result_value in result_values {
-            defined_vars.insert(dfg.resolve(*result_value));
-        }
-    }
-
-    defined_vars
-}
 
 fn compute_used_before_def(
     block: &BasicBlock,
@@ -142,6 +128,8 @@ pub(crate) struct VariableLiveness {
     live_in: HashMap<BasicBlockId, Variables>,
     /// The variables that stop being alive after each specific instruction
     last_uses: HashMap<BasicBlockId, LastUses>,
+    /// The list of block params the given block is defining. The order matters for the entry block, so it's a vec.
+    param_definitions: HashMap<BasicBlockId, Vec<ValueId>>,
 }
 
 impl VariableLiveness {
@@ -150,8 +138,15 @@ impl VariableLiveness {
         let cfg = ControlFlowGraph::with_function(func);
         let post_order = PostOrder::with_function(func);
 
-        let mut instance =
-            Self { cfg, post_order, live_in: HashMap::default(), last_uses: HashMap::default() };
+        let mut instance = Self {
+            cfg,
+            post_order,
+            live_in: HashMap::default(),
+            last_uses: HashMap::default(),
+            param_definitions: HashMap::default(),
+        };
+
+        instance.compute_block_param_definitions(func);
 
         instance.compute_live_in_of_blocks(func);
 
@@ -179,6 +174,30 @@ impl VariableLiveness {
         self.last_uses.get(block_id).expect("Last uses should have been calculated")
     }
 
+    /// Retrieves the list of block params the given block is defining.
+    /// Block params are defined before the block that owns them (since they are used by the predecessor blocks). They must be defined in the immediate dominator.
+    /// This is the last point where the block param can be allocated without it being allocated in different places in different branches.
+    pub(crate) fn defined_block_params(&self, block_id: &BasicBlockId) -> Vec<ValueId> {
+        self.param_definitions.get(block_id).cloned().unwrap_or_default()
+    }
+
+    fn compute_block_param_definitions(&mut self, func: &Function) {
+        let tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &self.post_order);
+
+        // Going in reverse post order to process the entry block first
+        let mut reverse_post_order = Vec::new();
+        reverse_post_order.extend_from_slice(self.post_order.as_slice());
+        reverse_post_order.reverse();
+        for block in reverse_post_order {
+            let params = func.dfg[block].parameters();
+            // If it has no dominator, it's the entry block
+            let dominator_block = tree.immediate_dominator(block).unwrap_or(func.entry_block());
+            let definitions_for_the_dominator =
+                self.param_definitions.entry(dominator_block).or_default();
+            definitions_for_the_dominator.extend(params.iter());
+        }
+    }
+
     fn compute_live_in_of_blocks(&mut self, func: &Function) {
         let back_edges = find_back_edges(func, &self.cfg, &self.post_order);
 
@@ -197,9 +216,10 @@ impl VariableLiveness {
         block_id: BasicBlockId,
         back_edges: &HashSet<BackEdge>,
     ) {
-        let block = &func.dfg[block_id];
+        let defined = self.compute_defined_variables(block_id, &func.dfg);
 
-        let defined = compute_defined_variables(block, &func.dfg);
+        let block: &BasicBlock = &func.dfg[block_id];
+
         let used_before_def = compute_used_before_def(block, &func.dfg, &defined);
 
         let mut live_out = HashSet::default();
@@ -220,6 +240,24 @@ impl VariableLiveness {
         // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
         let passthrough_vars = live_out.difference(&defined).cloned().collect();
         self.live_in.insert(block_id, used_before_def.union(&passthrough_vars).cloned().collect());
+    }
+
+    fn compute_defined_variables(&self, block_id: BasicBlockId, dfg: &DataFlowGraph) -> Variables {
+        let block: &BasicBlock = &dfg[block_id];
+        let mut defined_vars = HashSet::default();
+
+        for parameter in self.defined_block_params(&block_id) {
+            defined_vars.insert(dfg.resolve(parameter));
+        }
+
+        for instruction_id in block.instructions() {
+            let result_values = dfg.instruction_results(*instruction_id);
+            for result_value in result_values {
+                defined_vars.insert(dfg.resolve(*result_value));
+            }
+        }
+
+        defined_vars
     }
 
     fn update_live_ins_within_loop(&mut self, back_edge: BackEdge) {
@@ -323,7 +361,8 @@ mod test {
         //   }
 
         let main_id = Id::test_new(1);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Brillig);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        builder.set_runtime(RuntimeType::Brillig);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -425,7 +464,8 @@ mod test {
         //   }
 
         let main_id = Id::test_new(1);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Brillig);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        builder.set_runtime(RuntimeType::Brillig);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -511,12 +551,12 @@ mod test {
         let liveness = VariableLiveness::from_function(func);
 
         assert!(liveness.get_live_in(&func.entry_block()).is_empty());
-        assert_eq!(liveness.get_live_in(&b1), &FxHashSet::from_iter([v0, v1, v3].into_iter()));
+        assert_eq!(liveness.get_live_in(&b1), &FxHashSet::from_iter([v0, v1, v3, v4].into_iter()));
         assert_eq!(liveness.get_live_in(&b3), &FxHashSet::from_iter([v3].into_iter()));
         assert_eq!(liveness.get_live_in(&b2), &FxHashSet::from_iter([v0, v1, v3, v4].into_iter()));
         assert_eq!(
             liveness.get_live_in(&b4),
-            &FxHashSet::from_iter([v0, v1, v3, v4, v6].into_iter())
+            &FxHashSet::from_iter([v0, v1, v3, v4, v6, v7].into_iter())
         );
         assert_eq!(liveness.get_live_in(&b6), &FxHashSet::from_iter([v0, v1, v3, v4].into_iter()));
         assert_eq!(
@@ -537,5 +577,59 @@ mod test {
             liveness.get_last_uses(&b3).get(&block_3.instructions()[0]),
             Some(&FxHashSet::from_iter([v3].into_iter()))
         );
+    }
+
+    #[test]
+    fn block_params() {
+        // brillig fn main f0 {
+        //     b0(v0: u1):
+        //       jmpif v0 then: b1, else: b2
+        //     b1():
+        //       jmp b3(Field 27, Field 29)
+        //     b3(v1: Field, v2: Field):
+        //       return v1
+        //     b2():
+        //       jmp b3(Field 28, Field 40)
+        //   }
+
+        let main_id = Id::test_new(1);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        builder.set_runtime(RuntimeType::Brillig);
+
+        let v0 = builder.add_parameter(Type::bool());
+
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+
+        builder.terminate_with_jmpif(v0, b1, b2);
+
+        builder.switch_to_block(b1);
+        let twenty_seven = builder.field_constant(27_u128);
+        let twenty_nine = builder.field_constant(29_u128);
+        builder.terminate_with_jmp(b3, vec![twenty_seven, twenty_nine]);
+
+        builder.switch_to_block(b3);
+        let v1 = builder.add_block_parameter(b3, Type::field());
+        let v2 = builder.add_block_parameter(b3, Type::field());
+        builder.terminate_with_return(vec![v1]);
+
+        builder.switch_to_block(b2);
+        let twenty_eight = builder.field_constant(28_u128);
+        let forty = builder.field_constant(40_u128);
+        builder.terminate_with_jmp(b3, vec![twenty_eight, forty]);
+
+        let ssa = builder.finish();
+        let func = ssa.main();
+        let liveness = VariableLiveness::from_function(func);
+
+        // Entry point defines its own params and also b3's params.
+        assert_eq!(liveness.defined_block_params(&func.entry_block()), vec![v0, v1, v2]);
+        assert_eq!(liveness.defined_block_params(&b1), vec![]);
+        assert_eq!(liveness.defined_block_params(&b2), vec![]);
+        assert_eq!(liveness.defined_block_params(&b3), vec![]);
+
+        assert_eq!(liveness.get_live_in(&b1), &FxHashSet::from_iter([v1, v2].into_iter()));
+        assert_eq!(liveness.get_live_in(&b2), &FxHashSet::from_iter([v1, v2].into_iter()));
     }
 }

@@ -1,4 +1,4 @@
-use noirc_frontend::{UnresolvedType, UnresolvedTypeData};
+use noirc_frontend::ast::{UnresolvedType, UnresolvedTypeData};
 
 use crate::{
     utils::span_is_empty,
@@ -9,12 +9,12 @@ pub(crate) fn rewrite(visitor: &FmtVisitor, _shape: Shape, typ: UnresolvedType) 
     match typ.typ {
         UnresolvedTypeData::Array(length, element) => {
             let typ = rewrite(visitor, _shape, *element);
-            if let Some(length) = length {
-                let length = visitor.slice(length.span());
-                format!("[{typ}; {length}]")
-            } else {
-                format!("[{typ}]")
-            }
+            let length = visitor.slice(length.span());
+            format!("[{typ}; {length}]")
+        }
+        UnresolvedTypeData::Slice(element) => {
+            let typ = rewrite(visitor, _shape, *element);
+            format!("[{typ}]")
         }
         UnresolvedTypeData::Parenthesized(typ) => {
             let typ = rewrite(visitor, _shape, *typ);
@@ -64,6 +64,7 @@ pub(crate) fn rewrite(visitor: &FmtVisitor, _shape: Shape, typ: UnresolvedType) 
         | UnresolvedTypeData::Expression(_)
         | UnresolvedTypeData::String(_)
         | UnresolvedTypeData::FormatString(_, _)
+        | UnresolvedTypeData::Code
         | UnresolvedTypeData::TraitAsType(_, _) => visitor.slice(typ.span.unwrap()).into(),
         UnresolvedTypeData::Error => unreachable!(),
     }

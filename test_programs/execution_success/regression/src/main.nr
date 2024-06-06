@@ -1,4 +1,4 @@
-global NIBBLE_LENGTH: u64 = 16;
+global NIBBLE_LENGTH: u32 = 16;
 
 struct U4 {
     inner: u8,
@@ -22,7 +22,7 @@ impl Eq for U4 {
 
 fn compact_decode<N>(input: [u8; N], length: Field) -> ([U4; NIBBLE_LENGTH], Field) {
     assert(2 * input.len() <= NIBBLE_LENGTH);
-    assert(length as u64 <= input.len());
+    assert(length as u32 <= input.len());
 
     let mut nibble = [U4::zero(); NIBBLE_LENGTH];
 
@@ -32,7 +32,7 @@ fn compact_decode<N>(input: [u8; N], length: Field) -> ([U4; NIBBLE_LENGTH], Fie
     if parity == 1 {
         nibble[0] = U4::from_u8(input[0] & 0x0f);
         for i in 1..input.len() {
-            if i as u64 < length as u64 {
+            if i as u32 < length as u32 {
                 let x = input[i];
                 nibble[2*i - 1] = U4::from_u8(x >> 4);
                 nibble[2*i] = U4::from_u8(x & 0x0f);
@@ -40,7 +40,7 @@ fn compact_decode<N>(input: [u8; N], length: Field) -> ([U4; NIBBLE_LENGTH], Fie
         }
     } else {
         for i in 0..2 {
-            if (i as u64) < length as u64 - 1 {
+            if (i as u32) < length as u32 - 1 {
                 let x = input[i + 1];
                 nibble[2*i] = U4::from_u8(x >> 4);
                 nibble[2*i + 1] = U4::from_u8(x & 0x0f);
@@ -87,7 +87,7 @@ fn bitshift_literal_4() -> u64 {
 
     bits
 }
-fn bitshift_variable(idx: u64) -> u64 {
+fn bitshift_variable(idx: u8) -> u64 {
     let mut bits: u64 = 0;
     bits |= 1 << idx;
 

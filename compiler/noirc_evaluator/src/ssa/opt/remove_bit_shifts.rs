@@ -1,6 +1,6 @@
 use std::{borrow::Cow, rc::Rc};
 
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 
 use crate::ssa::{
     ir::{
@@ -20,7 +20,9 @@ impl Ssa {
     /// See [`constant_folding`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_bit_shifts(mut self) -> Ssa {
-        remove_bit_shifts(self.main_mut());
+        for function in self.functions.values_mut() {
+            remove_bit_shifts(function);
+        }
         self
     }
 }
@@ -95,7 +97,7 @@ impl Context<'_> {
         let typ = self.function.dfg.type_of_value(lhs);
         let (max_bit, pow) = if let Some(rhs_constant) = self.function.dfg.get_numeric_constant(rhs)
         {
-            // Happy case is that we know precisely by how many bits the the integer will
+            // Happy case is that we know precisely by how many bits the integer will
             // increase: lhs_bit_size + rhs
             let bit_shift_size = rhs_constant.to_u128() as u32;
 
@@ -107,7 +109,7 @@ impl Context<'_> {
                     return InsertInstructionResult::SimplifiedTo(zero).first();
                 }
             }
-            let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2), typ);
+            let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2), typ.clone());
 
             let max_lhs_bits = self.function.dfg.get_value_max_num_bits(lhs);
 
@@ -115,21 +117,24 @@ impl Context<'_> {
         } else {
             // we use a predicate to nullify the result in case of overflow
             let bit_size_var =
-                self.numeric_constant(FieldElement::from(bit_size as u128), typ.clone());
+                self.numeric_constant(FieldElement::from(bit_size as u128), Type::unsigned(8));
             let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
             let predicate = self.insert_cast(overflow, typ.clone());
             // we can safely cast to unsigned because overflow_checks prevent bit-shift with a negative value
             let rhs_unsigned = self.insert_cast(rhs, Type::unsigned(bit_size));
             let pow = self.pow(base, rhs_unsigned);
-            let pow = self.insert_cast(pow, typ);
+            let pow = self.insert_cast(pow, typ.clone());
             (FieldElement::max_num_bits(), self.insert_binary(predicate, BinaryOp::Mul, pow))
         };
 
         if max_bit <= bit_size {
             self.insert_binary(lhs, BinaryOp::Mul, pow)
         } else {
-            let result = self.insert_binary(lhs, BinaryOp::Mul, pow);
-            self.insert_truncate(result, bit_size, max_bit)
+            let lhs_field = self.insert_cast(lhs, Type::field());
+            let pow_field = self.insert_cast(pow, Type::field());
+            let result = self.insert_binary(lhs_field, BinaryOp::Mul, pow_field);
+            let result = self.insert_truncate(result, bit_size, max_bit);
+            self.insert_cast(result, typ)
         }
     }
 

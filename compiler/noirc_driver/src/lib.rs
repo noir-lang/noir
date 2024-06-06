@@ -3,23 +3,27 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
+use abi_gen::value_from_hir_expression;
 use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
-use noirc_abi::{AbiParameter, AbiType, ContractEvent};
+use noirc_abi::{AbiParameter, AbiType, AbiValue};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
-use noirc_evaluator::create_circuit;
+use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
+use noirc_evaluator::ssa::SsaProgramArtifact;
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
 use noirc_frontend::macros_api::MacroProcessor;
-use noirc_frontend::monomorphization::{monomorphize, monomorphize_debug, MonomorphizationError};
+use noirc_frontend::monomorphization::{
+    errors::MonomorphizationError, monomorphize, monomorphize_debug,
+};
 use noirc_frontend::node_interner::FuncId;
+use noirc_frontend::token::SecondaryAttribute;
 use std::path::Path;
-use thiserror::Error;
 use tracing::info;
 
 mod abi_gen;
@@ -30,7 +34,7 @@ mod stdlib;
 
 use debug::filter_relevant_files;
 
-pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
+pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 pub use debug::DebugFile;
 pub use program::CompiledProgram;
 
@@ -49,8 +53,8 @@ pub const NOIR_ARTIFACT_VERSION_STRING: &str =
 #[derive(Args, Clone, Debug, Default)]
 pub struct CompileOptions {
     /// Override the expression width requested by the backend.
-    #[arg(long, value_parser = parse_expression_width)]
-    pub expression_width: Option<ExpressionWidth>,
+    #[arg(long, value_parser = parse_expression_width, default_value = "4")]
+    pub expression_width: ExpressionWidth,
 
     /// Force a full recompilation.
     #[arg(long = "force")]
@@ -67,6 +71,10 @@ pub struct CompileOptions {
     #[arg(long)]
     pub print_acir: bool,
 
+    /// Pretty print benchmark times of each code generation pass
+    #[arg(long, hide = true)]
+    pub benchmark_codegen: bool,
+
     /// Treat all warnings as errors
     #[arg(long, conflicts_with = "silence_warnings")]
     pub deny_warnings: bool,
@@ -74,10 +82,6 @@ pub struct CompileOptions {
     /// Suppress warnings
     #[arg(long, conflicts_with = "deny_warnings")]
     pub silence_warnings: bool,
-
-    /// Output ACIR gzipped bytecode instead of the JSON artefact
-    #[arg(long, hide = true)]
-    pub only_acir: bool,
 
     /// Disables the builtin Aztec macros being used in the compiler
     #[arg(long, hide = true)]
@@ -94,6 +98,10 @@ pub struct CompileOptions {
     /// Force Brillig output (for step debugging)
     #[arg(long, hide = true)]
     pub force_brillig: bool,
+
+    /// Enable the experimental elaborator pass
+    #[arg(long, hide = true)]
+    pub use_elaborator: bool,
 }
 
 fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -108,13 +116,22 @@ fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug)]
 pub enum CompileError {
-    #[error(transparent)]
-    MonomorphizationError(#[from] MonomorphizationError),
+    MonomorphizationError(MonomorphizationError),
+    RuntimeError(RuntimeError),
+}
 
-    #[error(transparent)]
-    RuntimeError(#[from] RuntimeError),
+impl From<MonomorphizationError> for CompileError {
+    fn from(error: MonomorphizationError) -> Self {
+        Self::MonomorphizationError(error)
+    }
+}
+
+impl From<RuntimeError> for CompileError {
+    fn from(error: RuntimeError) -> Self {
+        Self::RuntimeError(error)
+    }
 }
 
 impl From<CompileError> for FileDiagnostic {
@@ -236,20 +253,15 @@ pub fn check_crate(
     crate_id: CrateId,
     deny_warnings: bool,
     disable_macros: bool,
+    use_elaborator: bool,
 ) -> CompilationResult<()> {
-    let macros: Vec<&dyn MacroProcessor> = if disable_macros {
-        vec![&noirc_macros::AssertMessageMacro as &dyn MacroProcessor]
-    } else {
-        vec![
-            &aztec_macros::AztecMacro as &dyn MacroProcessor,
-            &noirc_macros::AssertMessageMacro as &dyn MacroProcessor,
-        ]
-    };
+    let macros: &[&dyn MacroProcessor] =
+        if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
 
     let mut errors = vec![];
-    let diagnostics = CrateDefMap::collect_defs(crate_id, context, macros);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, use_elaborator, macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
-        let diagnostic: CustomDiagnostic = error.into();
+        let diagnostic = CustomDiagnostic::from(&error);
         diagnostic.in_file(file_id)
     }));
 
@@ -279,8 +291,13 @@ pub fn compile_main(
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
-    let (_, mut warnings) =
-        check_crate(context, crate_id, options.deny_warnings, options.disable_macros)?;
+    let (_, mut warnings) = check_crate(
+        context,
+        crate_id,
+        options.deny_warnings,
+        options.disable_macros,
+        options.use_elaborator,
+    )?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
         // TODO(#2155): This error might be a better to exist in Nargo
@@ -303,7 +320,7 @@ pub fn compile_main(
 
     if options.print_acir {
         println!("Compiled ACIR for main (unoptimized):");
-        println!("{}", compiled_program.circuit);
+        println!("{}", compiled_program.program);
     }
 
     Ok((compiled_program, warnings))
@@ -315,8 +332,13 @@ pub fn compile_contract(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
-    let (_, warnings) =
-        check_crate(context, crate_id, options.deny_warnings, options.disable_macros)?;
+    let (_, warnings) = check_crate(
+        context,
+        crate_id,
+        options.deny_warnings,
+        options.disable_macros,
+        options.use_elaborator,
+    )?;
 
     // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);
@@ -404,38 +426,78 @@ fn compile_contract_inner(
         };
         warnings.extend(function.warnings);
         let modifiers = context.def_interner.function_modifiers(&function_id);
-        let func_type = modifiers
-            .contract_function_type
-            .expect("Expected contract function to have a contract visibility");
 
-        let function_type = ContractFunctionType::new(func_type, modifiers.is_unconstrained);
+        let custom_attributes = modifiers
+            .attributes
+            .secondary
+            .iter()
+            .filter_map(
+                |attr| if let SecondaryAttribute::Custom(tag) = attr { Some(tag) } else { None },
+            )
+            .cloned()
+            .collect();
 
         functions.push(ContractFunction {
             name,
-            function_type,
-            is_internal: modifiers.is_internal.unwrap_or(false),
+            custom_attributes,
             abi: function.abi,
-            bytecode: function.circuit,
+            bytecode: function.program,
             debug: function.debug,
+            is_unconstrained: modifiers.is_unconstrained,
+            names: function.names,
         });
     }
 
     if errors.is_empty() {
-        let debug_infos: Vec<_> = functions.iter().map(|function| function.debug.clone()).collect();
+        let debug_infos: Vec<_> =
+            functions.iter().flat_map(|function| function.debug.clone()).collect();
         let file_map = filter_relevant_files(&debug_infos, &context.file_manager);
+
+        let out_structs = contract
+            .outputs
+            .structs
+            .into_iter()
+            .map(|(tag, structs)| {
+                let structs = structs
+                    .into_iter()
+                    .map(|struct_id| {
+                        let typ = context.def_interner.get_struct(struct_id);
+                        let typ = typ.borrow();
+                        let fields = vecmap(typ.get_fields(&[]), |(name, typ)| {
+                            (name, AbiType::from_type(context, &typ))
+                        });
+                        let path =
+                            context.fully_qualified_struct_path(context.root_crate_id(), typ.id);
+                        AbiType::Struct { path, fields }
+                    })
+                    .collect();
+                (tag.to_string(), structs)
+            })
+            .collect();
+
+        let out_globals = contract
+            .outputs
+            .globals
+            .iter()
+            .map(|(tag, globals)| {
+                let globals: Vec<AbiValue> = globals
+                    .iter()
+                    .map(|global_id| {
+                        let let_statement =
+                            context.def_interner.get_global_let_statement(*global_id).unwrap();
+                        let hir_expression =
+                            context.def_interner.expression(&let_statement.expression);
+                        value_from_hir_expression(context, hir_expression)
+                    })
+                    .collect();
+                (tag.to_string(), globals)
+            })
+            .collect();
 
         Ok(CompiledContract {
             name: contract.name,
-            events: contract
-                .events
-                .iter()
-                .map(|event_id| {
-                    let typ = context.def_interner.get_struct(*event_id);
-                    let typ = typ.borrow();
-                    ContractEvent::from_struct_type(context, &typ)
-                })
-                .collect(),
             functions,
+            outputs: CompiledContractOutputs { structs: out_structs, globals: out_globals },
             file_map,
             noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
             warnings,
@@ -478,20 +540,41 @@ pub fn compile_no_check(
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
     let visibility = program.return_visibility;
-    let (circuit, debug, input_witnesses, return_witnesses, warnings) =
-        create_circuit(program, options.show_ssa, options.show_brillig, options.force_brillig)?;
 
-    let abi =
-        abi_gen::gen_abi(context, &main_function, input_witnesses, return_witnesses, visibility);
-    let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
+    let SsaProgramArtifact {
+        program,
+        debug,
+        warnings,
+        main_input_witnesses,
+        main_return_witnesses,
+        names,
+        error_types,
+    } = create_program(
+        program,
+        options.show_ssa,
+        options.show_brillig,
+        options.force_brillig,
+        options.benchmark_codegen,
+    )?;
+
+    let abi = abi_gen::gen_abi(
+        context,
+        &main_function,
+        main_input_witnesses,
+        main_return_witnesses,
+        visibility,
+        error_types,
+    );
+    let file_map = filter_relevant_files(&debug, &context.file_manager);
 
     Ok(CompiledProgram {
         hash,
-        circuit,
+        program,
         debug,
         abi,
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
+        names,
     })
 }

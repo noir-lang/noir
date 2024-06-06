@@ -1,6 +1,6 @@
 use dep::std::slice;
 unconstrained fn main(x: Field, y: Field) {
-    let mut slice: [Field] = [y, x];
+    let mut slice: [Field] = &[y, x];
     assert(slice.len() == 2);
 
     slice = slice.push_back(7);
@@ -108,7 +108,7 @@ unconstrained fn merge_slices_else(x: Field) {
 }
 // Test returning a merged slice without a mutation
 unconstrained fn merge_slices_return(x: Field, y: Field) -> [Field] {
-    let slice = [0; 2];
+    let slice = &[0; 2];
     if x != y {
         if x != 20 { slice.push_back(y) } else { slice }
     } else {
@@ -117,7 +117,7 @@ unconstrained fn merge_slices_return(x: Field, y: Field) -> [Field] {
 }
 // Test mutating a slice inside of an if statement
 unconstrained fn merge_slices_mutate(x: Field, y: Field) -> [Field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
         slice = slice.push_back(x);
@@ -128,7 +128,7 @@ unconstrained fn merge_slices_mutate(x: Field, y: Field) -> [Field] {
 }
 // Test mutating a slice inside of a loop in an if statement
 unconstrained fn merge_slices_mutate_in_loop(x: Field, y: Field) -> [Field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         for i in 0..5 {
             slice = slice.push_back(i as Field);

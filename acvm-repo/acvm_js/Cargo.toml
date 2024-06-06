@@ -2,7 +2,7 @@
 name = "acvm_js"
 description = "Typescript wrapper around the ACVM allowing execution of ACIR code"
 # x-release-please-start-version
-version = "0.40.0"
+version = "0.46.0"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -16,21 +16,22 @@ repository.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-cfg-if = "1.0.0"
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
 acvm.workspace = true
 bn254_blackbox_solver = { workspace = true, optional = true }
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 console_error_panic_hook.workspace = true
 gloo-utils.workspace = true
-js-sys.workspace = true 
+js-sys.workspace = true
+serde.workspace = true
 tracing-subscriber.workspace = true
 tracing-web.workspace = true
 
-serde = { version = "1.0.136", features = ["derive"] }
 const-str = "0.5.5"
+
+# This is an unused dependency, we are adding it
+# so that we can enable the js feature in getrandom.
+getrandom = { workspace = true, features = ["js"] }
 
 [build-dependencies]
 build-data.workspace = true

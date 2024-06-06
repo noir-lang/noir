@@ -1,13 +1,5 @@
 import { expect } from '@esm-bundle/chai';
-import initACVM, {
-  createBlackBoxSolver,
-  executeCircuit,
-  executeCircuitWithBlackBoxSolver,
-  WasmBlackBoxFunctionSolver,
-  WitnessMap,
-  initLogLevel,
-  ForeignCallHandler,
-} from '@noir-lang/acvm_js';
+import initACVM, { executeCircuit, WitnessMap, initLogLevel, ForeignCallHandler } from '@noir-lang/acvm_js';
 
 beforeEach(async () => {
   await initACVM();
@@ -93,8 +85,8 @@ it('successfully executes a Pedersen opcode', async function () {
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
 });
 
-it('successfully executes a FixedBaseScalarMul opcode', async () => {
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/fixed_base_scalar_mul');
+it('successfully executes a MultiScalarMul opcode', async () => {
+  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/multi_scalar_mul');
 
   const solvedWitness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, () => {
     throw Error('unexpected oracle');
@@ -121,24 +113,4 @@ it('successfully executes a MemoryOp opcode', async () => {
   });
 
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
-});
-
-it('successfully executes two circuits with same backend', async function () {
-  // chose pedersen op here because it is the one with slow initialization
-  // that led to the decision to pull backend initialization into a separate
-  // function/wasmbind
-  const solver: WasmBlackBoxFunctionSolver = await createBlackBoxSolver();
-
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/pedersen');
-
-  const solvedWitness0: WitnessMap = await executeCircuitWithBlackBoxSolver(solver, bytecode, initialWitnessMap, () => {
-    throw Error('unexpected oracle');
-  });
-
-  expect(solvedWitness0).to.be.deep.eq(expectedWitnessMap);
-
-  const solvedWitness1: WitnessMap = await executeCircuitWithBlackBoxSolver(solver, bytecode, initialWitnessMap, () => {
-    throw Error('unexpected oracle');
-  });
-  expect(solvedWitness1).to.be.deep.eq(expectedWitnessMap);
 });

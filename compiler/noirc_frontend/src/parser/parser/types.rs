@@ -12,7 +12,7 @@ use chumsky::prelude::*;
 use noirc_errors::Span;
 
 fn maybe_comp_time() -> impl NoirParser<()> {
-    keyword(Keyword::CompTime).or_not().validate(|opt, span, emit| {
+    keyword(Keyword::Comptime).or_not().validate(|opt, span, emit| {
         if opt.is_some() {
             emit(ParserError::with_reason(ParserErrorReason::ComptimeDeprecated, span));
         }
@@ -88,10 +88,21 @@ pub(super) fn array_type(
 ) -> impl NoirParser<UnresolvedType> {
     just(Token::LeftBracket)
         .ignore_then(type_parser)
-        .then(just(Token::Semicolon).ignore_then(type_expression()).or_not())
+        .then(just(Token::Semicolon).ignore_then(type_expression()))
         .then_ignore(just(Token::RightBracket))
         .map_with_span(|(element_type, size), span| {
             UnresolvedTypeData::Array(size, Box::new(element_type)).with_span(span)
+        })
+}
+
+pub(super) fn slice_type(
+    type_parser: impl NoirParser<UnresolvedType>,
+) -> impl NoirParser<UnresolvedType> {
+    just(Token::LeftBracket)
+        .ignore_then(type_parser)
+        .then_ignore(just(Token::RightBracket))
+        .map_with_span(|element_type, span| {
+            UnresolvedTypeData::Slice(Box::new(element_type)).with_span(span)
         })
 }
 

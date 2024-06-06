@@ -7,25 +7,31 @@ use crate::{
     errors::{InternalError, RuntimeError, SsaReport},
     ssa::ir::dfg::CallStack,
 };
-
 use acvm::acir::{
     circuit::{
-        brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
+        brillig::{BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-        OpcodeLocation,
+        AssertionPayload, OpcodeLocation,
     },
     native_types::Witness,
     BlackBoxFunc,
 };
 use acvm::{
+    acir::AcirField,
     acir::{circuit::directives::Directive, native_types::Expression},
     FieldElement,
 };
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
+/// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
+/// This index should be used when adding a Brillig call during code generation.
+/// Code generation should then keep track of that unresolved call opcode which will be resolved with the
+/// correct function index after code generation.
+pub(crate) const PLACEHOLDER_BRILLIG_INDEX: u32 = 0;
+
 #[derive(Debug, Default)]
-/// The output of the Acir-gen pass
+/// The output of the Acir-gen pass, which should only be produced for entry point Acir functions
 pub(crate) struct GeneratedAcir {
     /// The next witness index that may be declared.
     /// If witness index is `None` then we have not yet created a witness
@@ -36,12 +42,9 @@ pub(crate) struct GeneratedAcir {
     current_witness_index: Option<u32>,
 
     /// The opcodes of which the compiled ACIR will comprise.
-    opcodes: Vec<AcirOpcode>,
+    opcodes: Vec<AcirOpcode<FieldElement>>,
 
     /// All witness indices that comprise the final return value of the program
-    ///
-    /// Note: This may contain repeated indices, which is necessary for later mapping into the
-    /// abi's return type.
     pub(crate) return_witnesses: Vec<Witness>,
 
     /// All witness indices which are inputs to the main function
@@ -55,9 +58,36 @@ pub(crate) struct GeneratedAcir {
     pub(crate) call_stack: CallStack,
 
     /// Correspondence between an opcode index and the error message associated with it.
-    pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
+    pub(crate) assertion_payloads: BTreeMap<OpcodeLocation, AssertionPayload<FieldElement>>,
 
     pub(crate) warnings: Vec<SsaReport>,
+
+    /// Name for the corresponding entry point represented by this Acir-gen output.
+    /// Only used for debugging and benchmarking purposes
+    pub(crate) name: String,
+
+    /// Maps the opcode index to a Brillig std library function call.
+    /// As to avoid passing the ACIR gen shared context into each individual ACIR
+    /// we can instead keep this map and resolve the Brillig calls at the end of code generation.
+    pub(crate) brillig_stdlib_func_locations: BTreeMap<OpcodeLocation, BrilligStdlibFunc>,
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub(crate) enum BrilligStdlibFunc {
+    Inverse,
+    // The Brillig quotient code is different depending upon the bit size.
+    Quotient(u32),
+}
+
+impl BrilligStdlibFunc {
+    pub(crate) fn get_generated_brillig(&self) -> GeneratedBrillig {
+        match self {
+            BrilligStdlibFunc::Inverse => brillig_directive::directive_invert(),
+            BrilligStdlibFunc::Quotient(bit_size) => {
+                brillig_directive::directive_quotient(*bit_size)
+            }
+        }
+    }
 }
 
 impl GeneratedAcir {
@@ -67,18 +97,18 @@ impl GeneratedAcir {
     }
 
     /// Adds a new opcode into ACIR.
-    pub(crate) fn push_opcode(&mut self, opcode: AcirOpcode) {
+    pub(crate) fn push_opcode(&mut self, opcode: AcirOpcode<FieldElement>) {
         self.opcodes.push(opcode);
         if !self.call_stack.is_empty() {
             self.locations.insert(self.last_acir_opcode_location(), self.call_stack.clone());
         }
     }
 
-    pub(crate) fn opcodes(&self) -> &[AcirOpcode] {
+    pub(crate) fn opcodes(&self) -> &[AcirOpcode<FieldElement>] {
         &self.opcodes
     }
 
-    pub(crate) fn take_opcodes(&mut self) -> Vec<AcirOpcode> {
+    pub(crate) fn take_opcodes(&mut self) -> Vec<AcirOpcode<FieldElement>> {
         std::mem::take(&mut self.opcodes)
     }
 
@@ -97,7 +127,7 @@ impl GeneratedAcir {
     ///
     /// If `expr` can be represented as a `Witness` then this function will return it,
     /// else a new opcode will be added to create a `Witness` that is equal to `expr`.
-    pub(crate) fn get_or_create_witness(&mut self, expr: &Expression) -> Witness {
+    pub(crate) fn get_or_create_witness(&mut self, expr: &Expression<FieldElement>) -> Witness {
         match expr.to_witness() {
             Some(witness) => witness,
             None => self.create_witness_for_expression(expr),
@@ -110,7 +140,10 @@ impl GeneratedAcir {
     /// This means you cannot multiply an infinite amount of `Expression`s together.
     /// Once the `Expression` goes over degree-2, then it needs to be reduced to a `Witness`
     /// which has degree-1 in order to be able to continue the multiplication chain.
-    pub(crate) fn create_witness_for_expression(&mut self, expression: &Expression) -> Witness {
+    pub(crate) fn create_witness_for_expression(
+        &mut self,
+        expression: &Expression<FieldElement>,
+    ) -> Witness {
         let fresh_witness = self.next_witness_index();
 
         // Create a constraint that sets them to be equal to each other
@@ -127,11 +160,6 @@ impl GeneratedAcir {
         self.assert_is_zero(constraint);
 
         fresh_witness
-    }
-
-    /// Adds a witness index to the program's return witnesses.
-    pub(crate) fn push_return_witness(&mut self, witness: Witness) {
-        self.return_witnesses.push(witness);
     }
 }
 
@@ -156,6 +184,18 @@ impl GeneratedAcir {
         let outputs_clone = outputs.clone();
 
         let black_box_func_call = match func_name {
+            BlackBoxFunc::AES128Encrypt => BlackBoxFuncCall::AES128Encrypt {
+                inputs: inputs[0].clone(),
+                iv: inputs[1]
+                    .clone()
+                    .try_into()
+                    .expect("Compiler should generate correct size inputs"),
+                key: inputs[2]
+                    .clone()
+                    .try_into()
+                    .expect("Compiler should generate correct size inputs"),
+                outputs,
+            },
             BlackBoxFunc::AND => {
                 BlackBoxFuncCall::AND { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
             }
@@ -163,17 +203,27 @@ impl GeneratedAcir {
                 BlackBoxFuncCall::XOR { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
             }
             BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE { input: inputs[0][0] },
-            BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 { inputs: inputs[0].clone(), outputs },
-            BlackBoxFunc::Blake2s => {
-                BlackBoxFuncCall::Blake2s { inputs: inputs[0].clone(), outputs }
-            }
-            BlackBoxFunc::Blake3 => BlackBoxFuncCall::Blake3 { inputs: inputs[0].clone(), outputs },
+            BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 {
+                inputs: inputs[0].clone(),
+                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
+            },
+            BlackBoxFunc::Blake2s => BlackBoxFuncCall::Blake2s {
+                inputs: inputs[0].clone(),
+                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
+            },
+            BlackBoxFunc::Blake3 => BlackBoxFuncCall::Blake3 {
+                inputs: inputs[0].clone(),
+                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
+            },
             BlackBoxFunc::SchnorrVerify => {
                 BlackBoxFuncCall::SchnorrVerify {
                     public_key_x: inputs[0][0],
                     public_key_y: inputs[1][0],
                     // Schnorr signature is an r & s, 32 bytes each
-                    signature: inputs[2].clone(),
+                    signature: inputs[2]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
                     message: inputs[3].clone(),
                     output: outputs[0],
                 }
@@ -191,38 +241,61 @@ impl GeneratedAcir {
             BlackBoxFunc::EcdsaSecp256k1 => {
                 BlackBoxFuncCall::EcdsaSecp256k1 {
                     // 32 bytes for each public key co-ordinate
-                    public_key_x: inputs[0].clone(),
-                    public_key_y: inputs[1].clone(),
+                    public_key_x: inputs[0]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
+                    public_key_y: inputs[1]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
                     // (r,s) are both 32 bytes each, so signature
                     // takes up 64 bytes
-                    signature: inputs[2].clone(),
-                    hashed_message: inputs[3].clone(),
+                    signature: inputs[2]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
+                    hashed_message: inputs[3]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
                     output: outputs[0],
                 }
             }
             BlackBoxFunc::EcdsaSecp256r1 => {
                 BlackBoxFuncCall::EcdsaSecp256r1 {
                     // 32 bytes for each public key co-ordinate
-                    public_key_x: inputs[0].clone(),
-                    public_key_y: inputs[1].clone(),
+                    public_key_x: inputs[0]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
+                    public_key_y: inputs[1]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
                     // (r,s) are both 32 bytes each, so signature
                     // takes up 64 bytes
-                    signature: inputs[2].clone(),
-                    hashed_message: inputs[3].clone(),
+                    signature: inputs[2]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
+                    hashed_message: inputs[3]
+                        .clone()
+                        .try_into()
+                        .expect("Compiler should generate correct size inputs"),
                     output: outputs[0],
                 }
             }
-            BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
-                low: inputs[0][0],
-                high: inputs[1][0],
-                outputs: (outputs[0], outputs[1]),
+            BlackBoxFunc::MultiScalarMul => BlackBoxFuncCall::MultiScalarMul {
+                points: inputs[0].clone(),
+                scalars: inputs[1].clone(),
+                outputs: (outputs[0], outputs[1], outputs[2]),
             },
+
             BlackBoxFunc::EmbeddedCurveAdd => BlackBoxFuncCall::EmbeddedCurveAdd {
-                input1_x: inputs[0][0],
-                input1_y: inputs[1][0],
-                input2_x: inputs[2][0],
-                input2_y: inputs[3][0],
-                outputs: (outputs[0], outputs[1]),
+                input1: Box::new([inputs[0][0], inputs[1][0], inputs[2][0]]),
+                input2: Box::new([inputs[3][0], inputs[4][0], inputs[5][0]]),
+                outputs: (outputs[0], outputs[1], outputs[2]),
             },
             BlackBoxFunc::Keccak256 => {
                 let var_message_size = match inputs.to_vec().pop() {
@@ -236,15 +309,21 @@ impl GeneratedAcir {
                     }
                 };
 
-                BlackBoxFuncCall::Keccak256VariableLength {
+                BlackBoxFuncCall::Keccak256 {
                     inputs: inputs[0].clone(),
                     var_message_size,
-                    outputs,
+                    outputs: outputs
+                        .try_into()
+                        .expect("Compiler should generate correct size outputs"),
                 }
             }
-            BlackBoxFunc::Keccakf1600 => {
-                BlackBoxFuncCall::Keccakf1600 { inputs: inputs[0].clone(), outputs }
-            }
+            BlackBoxFunc::Keccakf1600 => BlackBoxFuncCall::Keccakf1600 {
+                inputs: inputs[0]
+                    .clone()
+                    .try_into()
+                    .expect("Compiler should generate correct size inputs"),
+                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
+            },
             BlackBoxFunc::RecursiveAggregation => BlackBoxFuncCall::RecursiveAggregation {
                 verification_key: inputs[0].clone(),
                 proof: inputs[1].clone(),
@@ -286,9 +365,15 @@ impl GeneratedAcir {
                 len: constant_inputs[0].to_u128() as u32,
             },
             BlackBoxFunc::Sha256Compression => BlackBoxFuncCall::Sha256Compression {
-                inputs: inputs[0].clone(),
-                hash_values: inputs[1].clone(),
-                outputs,
+                inputs: inputs[0]
+                    .clone()
+                    .try_into()
+                    .expect("Compiler should generate correct size inputs"),
+                hash_values: inputs[1]
+                    .clone()
+                    .try_into()
+                    .expect("Compiler should generate correct size inputs"),
+                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
             },
         };
 
@@ -303,7 +388,7 @@ impl GeneratedAcir {
     /// Only radix that are a power of two are supported
     pub(crate) fn radix_le_decompose(
         &mut self,
-        input_expr: &Expression,
+        input_expr: &Expression<FieldElement>,
         radix: u32,
         limb_count: u32,
         bit_size: u32,
@@ -341,55 +426,6 @@ impl GeneratedAcir {
         Ok(limb_witnesses)
     }
 
-    /// Returns an expression which represents `lhs * rhs`
-    ///
-    /// If one has multiplicative term and the other is of degree one or more,
-    /// the function creates [intermediate variables][`Witness`] accordingly.
-    /// There are two cases where we can optimize the multiplication between two expressions:
-    /// 1. If the sum of the degrees of both expressions is at most 2, then we can just multiply them
-    /// as each term in the result will be degree-2.
-    /// 2. If one expression is a constant, then we can just multiply the constant with the other expression
-    ///
-    /// (1) is because an [`Expression`] can hold at most a degree-2 univariate polynomial
-    /// which is what you get when you multiply two degree-1 univariate polynomials.
-    pub(crate) fn mul_with_witness(&mut self, lhs: &Expression, rhs: &Expression) -> Expression {
-        use std::borrow::Cow;
-        let lhs_is_linear = lhs.is_linear();
-        let rhs_is_linear = rhs.is_linear();
-
-        // Case 1: The sum of the degrees of both expressions is at most 2.
-        //
-        // If one of the expressions is constant then it does not increase the degree when multiplying by another expression.
-        // If both of the expressions are linear (degree <=1) then the product will be at most degree 2.
-        let both_are_linear = lhs_is_linear && rhs_is_linear;
-        let either_is_const = lhs.is_const() || rhs.is_const();
-        if both_are_linear || either_is_const {
-            return (lhs * rhs).expect("Both expressions are degree <= 1");
-        }
-
-        // Case 2: One or both of the sides needs to be reduced to a degree-1 univariate polynomial
-        let lhs_reduced = if lhs_is_linear {
-            Cow::Borrowed(lhs)
-        } else {
-            Cow::Owned(self.get_or_create_witness(lhs).into())
-        };
-
-        // If the lhs and rhs are the same, then we do not need to reduce
-        // rhs, we only need to square the lhs.
-        if lhs == rhs {
-            return (&*lhs_reduced * &*lhs_reduced)
-                .expect("Both expressions are reduced to be degree <= 1");
-        };
-
-        let rhs_reduced = if rhs_is_linear {
-            Cow::Borrowed(rhs)
-        } else {
-            Cow::Owned(self.get_or_create_witness(rhs).into())
-        };
-
-        (&*lhs_reduced * &*rhs_reduced).expect("Both expressions are reduced to be degree <= 1")
-    }
-
     /// Adds an inversion brillig opcode.
     ///
     /// This code will invert `expr` without applying constraints
@@ -398,7 +434,7 @@ impl GeneratedAcir {
     ///
     /// Safety: It is the callers responsibility to ensure that the
     /// resulting `Witness` is constrained to be the inverse.
-    pub(crate) fn brillig_inverse(&mut self, expr: Expression) -> Witness {
+    pub(crate) fn brillig_inverse(&mut self, expr: Expression<FieldElement>) -> Witness {
         // Create the witness for the result
         let inverted_witness = self.next_witness_index();
 
@@ -406,7 +442,14 @@ impl GeneratedAcir {
         let inverse_code = brillig_directive::directive_invert();
         let inputs = vec![BrilligInputs::Single(expr)];
         let outputs = vec![BrilligOutputs::Simple(inverted_witness)];
-        self.brillig(Some(Expression::one()), inverse_code, inputs, outputs);
+        self.brillig_call(
+            Some(Expression::one()),
+            &inverse_code,
+            inputs,
+            outputs,
+            PLACEHOLDER_BRILLIG_INDEX,
+            Some(BrilligStdlibFunc::Inverse),
+        );
 
         inverted_witness
     }
@@ -415,14 +458,18 @@ impl GeneratedAcir {
     ///
     /// If `expr` is not zero, then the constraint system will
     /// fail upon verification.
-    pub(crate) fn assert_is_zero(&mut self, expr: Expression) {
+    pub(crate) fn assert_is_zero(&mut self, expr: Expression<FieldElement>) {
         self.push_opcode(AcirOpcode::AssertZero(expr));
     }
 
     /// Returns a `Witness` that is constrained to be:
     /// - `1` if `lhs == rhs`
     /// - `0` otherwise
-    pub(crate) fn is_equal(&mut self, lhs: &Expression, rhs: &Expression) -> Witness {
+    pub(crate) fn is_equal(
+        &mut self,
+        lhs: &Expression<FieldElement>,
+        rhs: &Expression<FieldElement>,
+    ) -> Witness {
         let t = lhs - rhs;
 
         self.is_zero(&t)
@@ -480,7 +527,7 @@ impl GeneratedAcir {
     /// By setting `z` to be `0`, we can make `y` equal to `1`.
     /// This is easily observed: `y = 1 - t * 0`
     /// Now since `y` is one, this means that `t` needs to be zero, or else `y * t == 0` will fail.
-    fn is_zero(&mut self, t_expr: &Expression) -> Witness {
+    fn is_zero(&mut self, t_expr: &Expression<FieldElement>) -> Witness {
         // We're checking for equality with zero so we can negate the expression without changing the result.
         // This is useful as it will sometimes allow us to simplify an expression down to a witness.
         let t_witness = if let Some(witness) = t_expr.to_witness() {
@@ -539,31 +586,56 @@ impl GeneratedAcir {
         Ok(())
     }
 
-    pub(crate) fn brillig(
+    pub(crate) fn brillig_call(
         &mut self,
-        predicate: Option<Expression>,
-        generated_brillig: GeneratedBrillig,
-        inputs: Vec<BrilligInputs>,
+        predicate: Option<Expression<FieldElement>>,
+        generated_brillig: &GeneratedBrillig,
+        inputs: Vec<BrilligInputs<FieldElement>>,
         outputs: Vec<BrilligOutputs>,
+        brillig_function_index: u32,
+        stdlib_func: Option<BrilligStdlibFunc>,
     ) {
-        let opcode = AcirOpcode::Brillig(AcvmBrillig {
-            inputs,
-            outputs,
-            bytecode: generated_brillig.byte_code,
-            predicate,
-        });
+        let opcode =
+            AcirOpcode::BrilligCall { id: brillig_function_index, inputs, outputs, predicate };
         self.push_opcode(opcode);
-        for (brillig_index, call_stack) in generated_brillig.locations {
+        if let Some(stdlib_func) = stdlib_func {
+            self.brillig_stdlib_func_locations
+                .insert(self.last_acir_opcode_location(), stdlib_func);
+        }
+
+        for (brillig_index, call_stack) in generated_brillig.locations.iter() {
             self.locations.insert(
-                OpcodeLocation::Brillig { acir_index: self.opcodes.len() - 1, brillig_index },
-                call_stack,
+                OpcodeLocation::Brillig {
+                    acir_index: self.opcodes.len() - 1,
+                    brillig_index: *brillig_index,
+                },
+                call_stack.clone(),
             );
         }
-        for (brillig_index, message) in generated_brillig.assert_messages {
-            self.assert_messages.insert(
-                OpcodeLocation::Brillig { acir_index: self.opcodes.len() - 1, brillig_index },
-                message,
+        for (brillig_index, message) in generated_brillig.assert_messages.iter() {
+            self.assertion_payloads.insert(
+                OpcodeLocation::Brillig {
+                    acir_index: self.opcodes.len() - 1,
+                    brillig_index: *brillig_index,
+                },
+                AssertionPayload::StaticString(message.clone()),
             );
+        }
+    }
+
+    // We can only resolve the Brillig stdlib after having processed the entire ACIR
+    pub(crate) fn resolve_brillig_stdlib_call(
+        &mut self,
+        opcode_location: OpcodeLocation,
+        brillig_function_index: u32,
+    ) {
+        let acir_index = match opcode_location {
+            OpcodeLocation::Acir(index) => index,
+            _ => panic!("should not have brillig index"),
+        };
+        match &mut self.opcodes[acir_index] {
+            AcirOpcode::BrilligCall { id, .. } => *id = brillig_function_index,
+            _ => panic!("expected brillig call opcode"),
         }
     }
 
@@ -581,7 +653,8 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
 
         // All of the hash/cipher methods will take in a
         // variable number of inputs.
-        BlackBoxFunc::Keccak256
+        BlackBoxFunc::AES128Encrypt
+        | BlackBoxFunc::Keccak256
         | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
         | BlackBoxFunc::Blake3
@@ -604,15 +677,14 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         | BlackBoxFunc::EcdsaSecp256k1
         | BlackBoxFunc::EcdsaSecp256r1 => None,
 
-        // Inputs for fixed based scalar multiplication
-        // is the low and high limbs of the scalar
-        BlackBoxFunc::FixedBaseScalarMul => Some(2),
+        // Inputs for multi scalar multiplication is an arbitrary number of [point, scalar] pairs.
+        BlackBoxFunc::MultiScalarMul => None,
 
         // Recursive aggregation has a variable number of inputs
         BlackBoxFunc::RecursiveAggregation => None,
 
-        // Addition over the embedded curve: input are coordinates (x1,y1) and (x2,y2) of the Grumpkin points
-        BlackBoxFunc::EmbeddedCurveAdd => Some(4),
+        // Addition over the embedded curve: input are coordinates (x1,y1,infinite1) and (x2,y2,infinite2) of the Grumpkin points
+        BlackBoxFunc::EmbeddedCurveAdd => Some(6),
 
         // Big integer operations take in 0 inputs. They use constants for their inputs.
         BlackBoxFunc::BigIntAdd
@@ -662,7 +734,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Output of operations over the embedded curve
         // will be 2 field elements representing the point.
-        BlackBoxFunc::FixedBaseScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
+        BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(3),
 
         // Big integer operations return a big integer
         BlackBoxFunc::BigIntAdd
@@ -676,6 +748,9 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Recursive aggregation has a variable number of outputs
         BlackBoxFunc::RecursiveAggregation => None,
+
+        // AES encryption returns a variable number of outputs
+        BlackBoxFunc::AES128Encrypt => None,
     }
 }
 

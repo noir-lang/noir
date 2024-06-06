@@ -2,11 +2,13 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
     brillig::brillig_ir::{
-        brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
-        BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+        brillig_variable::{
+            get_bit_size_from_ssa_type, BrilligArray, BrilligVariable, BrilligVector,
+            SingleAddrVariable,
+        },
+        BrilligContext,
     },
     ssa::ir::{
-        basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         types::{CompositeType, Type},
         value::ValueId,
@@ -18,18 +20,13 @@ use super::brillig_fn::FunctionContext;
 #[derive(Debug, Default)]
 pub(crate) struct BlockVariables {
     available_variables: HashSet<ValueId>,
-    block_parameters: HashSet<ValueId>,
     available_constants: HashMap<ValueId, BrilligVariable>,
 }
 
 impl BlockVariables {
     /// Creates a BlockVariables instance. It uses the variables that are live in to the block and the global available variables (block parameters)
-    pub(crate) fn new(live_in: HashSet<ValueId>, all_block_parameters: HashSet<ValueId>) -> Self {
-        BlockVariables {
-            available_variables: live_in.into_iter().chain(all_block_parameters.clone()).collect(),
-            block_parameters: all_block_parameters,
-            ..Default::default()
-        }
+    pub(crate) fn new(live_in: HashSet<ValueId>) -> Self {
+        BlockVariables { available_variables: live_in, ..Default::default() }
     }
 
     /// Returns all non-constant variables that have not been removed at this point.
@@ -89,16 +86,13 @@ impl BlockVariables {
         brillig_context: &mut BrilligContext,
     ) {
         assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
-        // Block parameters should not be deallocated
-        if !self.block_parameters.contains(value_id) {
-            let variable = function_context
-                .ssa_value_allocations
-                .get(value_id)
-                .expect("ICE: Variable allocation not found");
-            variable.extract_registers().iter().for_each(|register| {
-                brillig_context.deallocate_register(*register);
-            });
-        }
+        let variable = function_context
+            .ssa_value_allocations
+            .get(value_id)
+            .expect("ICE: Variable allocation not found");
+        variable.extract_registers().iter().for_each(|register| {
+            brillig_context.deallocate_register(*register);
+        });
     }
 
     /// For a given SSA value id, return the corresponding cached allocation.
@@ -152,27 +146,6 @@ impl BlockVariables {
     pub(crate) fn dump_constants(&mut self) {
         self.available_constants.clear();
     }
-
-    /// For a given block parameter, return the allocation that was done globally to the function.
-    pub(crate) fn get_block_param(
-        &mut self,
-        function_context: &FunctionContext,
-        block_id: BasicBlockId,
-        value_id: ValueId,
-        dfg: &DataFlowGraph,
-    ) -> BrilligVariable {
-        let value_id = dfg.resolve(value_id);
-        assert!(
-            function_context
-                .block_parameters
-                .get(&block_id)
-                .expect("Block not found")
-                .contains(&value_id),
-            "Value is not a block parameter"
-        );
-
-        *function_context.ssa_value_allocations.get(&value_id).expect("Block param not found")
-    }
 }
 
 /// Computes the length of an array. This will match with the indexes that SSA will issue
@@ -189,21 +162,10 @@ pub(crate) fn allocate_value(
     let typ = dfg.type_of_value(value_id);
 
     match typ {
-        Type::Numeric(numeric_type) => BrilligVariable::SingleAddr(SingleAddrVariable {
-            address: brillig_context.allocate_register(),
-            bit_size: numeric_type.bit_size(),
-        }),
-        Type::Reference(_) => BrilligVariable::SingleAddr(SingleAddrVariable {
-            address: brillig_context.allocate_register(),
-            bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-        }),
-        Type::Function => {
-            // NB. function references are converted to a constant when
-            // translating from SSA to Brillig (to allow for debugger
-            // instrumentation to work properly)
+        Type::Numeric(_) | Type::Reference(_) | Type::Function => {
             BrilligVariable::SingleAddr(SingleAddrVariable {
                 address: brillig_context.allocate_register(),
-                bit_size: 32,
+                bit_size: get_bit_size_from_ssa_type(&typ),
             })
         }
         Type::Array(item_typ, elem_count) => {

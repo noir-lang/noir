@@ -3,10 +3,11 @@ use std::fmt::Display;
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
-use crate::{
-    node_interner::TraitId, BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction,
-    Path, UnresolvedGenerics, UnresolvedType,
+use crate::ast::{
+    BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
+    UnresolvedType,
 };
+use crate::node_interner::TraitId;
 
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`

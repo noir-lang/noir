@@ -1,3 +1,7 @@
+use crate::hash::{Hash, Hasher};
+use crate::cmp::{Ordering, Ord, Eq};
+use crate::default::Default;
+
 struct Option<T> {
     _is_some: bool,
     _value: T,
@@ -149,6 +153,54 @@ impl<T> Option<T> {
             option._value
         } else {
             Option::none()
+        }
+    }
+}
+
+impl<T> Default for Option<T> {
+    fn default() -> Self {
+        Option::none()
+    }
+}
+
+impl<T> Eq for Option<T> where T: Eq {
+    fn eq(self, other: Self) -> bool {
+        if self._is_some == other._is_some {
+            if self._is_some {
+                self._value == other._value
+            } else {
+                true
+            }
+        } else {
+            false
+        }
+    }
+}
+
+impl<T> Hash for Option<T> where T: Hash {
+    fn hash<H>(self, state: &mut H) where H: Hasher {
+        self._is_some.hash(state);
+        if self._is_some {
+            self._value.hash(state);
+        }
+    }
+}
+
+// For this impl we're declaring Option::none < Option::some
+impl<T> Ord for Option<T> where T: Ord {
+    fn cmp(self, other: Self) -> Ordering {
+        if self._is_some {
+            if other._is_some {
+                self._value.cmp(other._value)
+            } else {
+                Ordering::greater()
+            }
+        } else {
+            if other._is_some {
+                Ordering::less()
+            } else {
+                Ordering::equal()
+            }
         }
     }
 }

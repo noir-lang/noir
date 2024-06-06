@@ -1,24 +1,25 @@
-use acvm::acir::brillig::Opcode as BrilligOpcode;
+use acvm::{acir::brillig::Opcode as BrilligOpcode, FieldElement};
 use std::collections::{BTreeMap, HashMap};
 
 use crate::ssa::ir::dfg::CallStack;
 
-/// Represents a parameter or a return value of a function.
-#[derive(Debug, Clone)]
+/// Represents a parameter or a return value of an entry point function.
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub(crate) enum BrilligParameter {
     /// A single address parameter or return value. Holds the bit size of the parameter.
     SingleAddr(u32),
     /// An array parameter or return value. Holds the type of an array item and its size.
     Array(Vec<BrilligParameter>, usize),
     /// A slice parameter or return value. Holds the type of a slice item.
-    Slice(Vec<BrilligParameter>),
+    /// Only known-length slices can be passed to brillig entry points, so the size is available as well.
+    Slice(Vec<BrilligParameter>, usize),
 }
 
 /// The result of compiling and linking brillig artifacts.
 /// This is ready to run bytecode with attached metadata.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct GeneratedBrillig {
-    pub(crate) byte_code: Vec<BrilligOpcode>,
+    pub(crate) byte_code: Vec<BrilligOpcode<FieldElement>>,
     pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
     pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
 }
@@ -27,8 +28,10 @@ pub(crate) struct GeneratedBrillig {
 /// Artifacts resulting from the compilation of a function into brillig byte code.
 /// It includes the bytecode of the function and all the metadata that allows linking with other functions.
 pub(crate) struct BrilligArtifact {
-    pub(crate) byte_code: Vec<BrilligOpcode>,
-    /// A map of bytecode positions to assertion messages
+    pub(crate) byte_code: Vec<BrilligOpcode<FieldElement>>,
+    /// A map of bytecode positions to assertion messages.
+    /// Some error messages (compiler intrinsics) are not emitted via revert data,
+    /// instead, they are handled externally so they don't add size to user programs.
     pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
     /// The set of jumps that need to have their locations
     /// resolved.
@@ -108,7 +111,7 @@ impl BrilligArtifact {
         self.byte_code.append(&mut byte_code);
 
         // Remove all resolved external calls and transform them to jumps
-        let is_resolved = |label: &Label| self.labels.get(label).is_some();
+        let is_resolved = |label: &Label| self.labels.contains_key(label);
 
         let resolved_external_calls = self
             .unresolved_external_call_labels
@@ -151,7 +154,7 @@ impl BrilligArtifact {
     }
 
     /// Adds a brillig instruction to the brillig byte code
-    pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode) {
+    pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode<FieldElement>) {
         if !self.call_stack.is_empty() {
             self.locations.insert(self.index_of_next_opcode(), self.call_stack.clone());
         }
@@ -161,7 +164,7 @@ impl BrilligArtifact {
     /// Adds a unresolved jump to be fixed at the end of bytecode processing.
     pub(crate) fn add_unresolved_jump(
         &mut self,
-        jmp_instruction: BrilligOpcode,
+        jmp_instruction: BrilligOpcode<FieldElement>,
         destination: UnresolvedJumpLocation,
     ) {
         assert!(
@@ -175,7 +178,7 @@ impl BrilligArtifact {
     /// Adds a unresolved external call that will be fixed once linking has been done.
     pub(crate) fn add_unresolved_external_call(
         &mut self,
-        call_instruction: BrilligOpcode,
+        call_instruction: BrilligOpcode<FieldElement>,
         destination: UnresolvedJumpLocation,
     ) {
         // TODO: Add a check to ensure that the opcode is a call instruction
@@ -185,7 +188,7 @@ impl BrilligArtifact {
     }
 
     /// Returns true if the opcode is a jump instruction
-    fn is_jmp_instruction(instruction: &BrilligOpcode) -> bool {
+    fn is_jmp_instruction(instruction: &BrilligOpcode<FieldElement>) -> bool {
         matches!(
             instruction,
             BrilligOpcode::JumpIfNot { .. }

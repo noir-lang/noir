@@ -21,7 +21,7 @@ pub fn compile_workspace(
     parsed_files: &ParsedFiles,
     workspace: &Workspace,
     compile_options: &CompileOptions,
-) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CompileError> {
+) -> CompilationResult<(Vec<CompiledProgram>, Vec<CompiledContract>)> {
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .into_iter()
         .filter(|package| !package.is_library())
@@ -38,31 +38,20 @@ pub fn compile_workspace(
         .map(|package| compile_contract(file_manager, parsed_files, package, compile_options))
         .collect();
 
-    // Report any warnings/errors which were encountered during compilation.
-    let compiled_programs: Vec<CompiledProgram> = program_results
-        .into_iter()
-        .map(|compilation_result| {
-            report_errors(
-                compilation_result,
-                file_manager,
-                compile_options.deny_warnings,
-                compile_options.silence_warnings,
-            )
-        })
-        .collect::<Result<_, _>>()?;
-    let compiled_contracts: Vec<CompiledContract> = contract_results
-        .into_iter()
-        .map(|compilation_result| {
-            report_errors(
-                compilation_result,
-                file_manager,
-                compile_options.deny_warnings,
-                compile_options.silence_warnings,
-            )
-        })
-        .collect::<Result<_, _>>()?;
+    // Collate any warnings/errors which were encountered during compilation.
+    let compiled_programs = collect_errors(program_results);
+    let compiled_contracts = collect_errors(contract_results);
 
-    Ok((compiled_programs, compiled_contracts))
+    match (compiled_programs, compiled_contracts) {
+        (Ok((programs, program_warnings)), Ok((contracts, contract_warnings))) => {
+            let warnings = [program_warnings, contract_warnings].concat();
+            Ok(((programs, contracts), warnings))
+        }
+        (Err(program_errors), Err(contract_errors)) => {
+            Err([program_errors, contract_errors].concat())
+        }
+        (Err(errors), _) | (_, Err(errors)) => Err(errors),
+    }
 }
 
 pub fn compile_program(
@@ -107,7 +96,30 @@ pub fn compile_contract(
     noirc_driver::compile_contract(&mut context, crate_id, compile_options)
 }
 
-pub(crate) fn report_errors<T>(
+/// Constructs a single `CompilationResult` for a collection of `CompilationResult`s, merging the set of warnings/errors.
+pub fn collect_errors<T>(results: Vec<CompilationResult<T>>) -> CompilationResult<Vec<T>> {
+    let mut artifacts = Vec::new();
+    let mut warnings = Vec::new();
+    let mut errors = Vec::new();
+
+    for result in results {
+        match result {
+            Ok((new_artifact, new_warnings)) => {
+                artifacts.push(new_artifact);
+                warnings.extend(new_warnings);
+            }
+            Err(new_errors) => errors.extend(new_errors),
+        }
+    }
+
+    if errors.is_empty() {
+        Ok((artifacts, warnings))
+    } else {
+        Err(errors)
+    }
+}
+
+pub fn report_errors<T>(
     result: CompilationResult<T>,
     file_manager: &FileManager,
     deny_warnings: bool,

@@ -1,10 +1,10 @@
 [workspace]
 
 members = [
-    # Macros crates for metaprogramming
+    # Aztec Macro crate for metaprogramming
     "aztec_macros",
-    "noirc_macros",
     # Compiler crates
+    "compiler/noirc_arena",
     "compiler/noirc_evaluator",
     "compiler/noirc_frontend",
     "compiler/noirc_errors",
@@ -12,12 +12,7 @@ members = [
     "compiler/noirc_printable_type",
     "compiler/fm",
     "compiler/wasm",
-    # Utility crates used by the Noir compiler
-    "compiler/utils/arena",
-    "compiler/utils/iter-extended",
-    # Crates related to tooling built ontop of the Noir compiler
-    "tooling/backend_interface",
-    "tooling/bb_abstraction_leaks",
+    # Crates related to tooling built on top of the Noir compiler
     "tooling/lsp",
     "tooling/debugger",
     "tooling/nargo",
@@ -26,6 +21,7 @@ members = [
     "tooling/nargo_toml",
     "tooling/noirc_abi",
     "tooling/noirc_abi_wasm",
+    "tooling/acvm_cli",
     # ACVM
     "acvm-repo/acir_field",
     "acvm-repo/acir",
@@ -35,35 +31,36 @@ members = [
     "acvm-repo/brillig_vm",
     "acvm-repo/blackbox_solver",
     "acvm-repo/bn254_blackbox_solver",
+    # Utility crates
+    "utils/iter-extended",
 ]
-default-members = ["tooling/nargo_cli"]
+default-members = ["tooling/nargo_cli", "tooling/acvm_cli"]
 resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.24.0"
+version = "0.30.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
-rust-version = "1.73.0"
+rust-version = "1.74.1"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/noir-lang/noir/"
 
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "0.40.0", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "0.40.0", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "0.40.0", path = "acvm-repo/acvm" }
-brillig = { version = "0.40.0", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "0.40.0", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "0.40.0", path = "acvm-repo/blackbox_solver", default-features = false }
-bn254_blackbox_solver = { version = "0.39.0", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+acir_field = { version = "0.46.0", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "0.46.0", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "0.46.0", path = "acvm-repo/acvm" }
+brillig = { version = "0.46.0", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "0.46.0", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "0.46.0", path = "acvm-repo/blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "0.46.0", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
-arena = { path = "compiler/utils/arena" }
 fm = { path = "compiler/fm" }
-iter-extended = { path = "compiler/utils/iter-extended" }
+noirc_arena = { path = "compiler/noirc_arena" }
 noirc_driver = { path = "compiler/noirc_driver" }
 noirc_errors = { path = "compiler/noirc_errors" }
 noirc_evaluator = { path = "compiler/noirc_evaluator" }
@@ -78,6 +75,10 @@ noir_lsp = { path = "tooling/lsp" }
 noir_debugger = { path = "tooling/debugger" }
 noirc_abi = { path = "tooling/noirc_abi" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
+acvm_cli = { path = "tooling/acvm_cli" }
+
+# Misc utils crates
+iter-extended = { path = "utils/iter-extended" }
 
 # LSP
 async-lsp = { version = "0.1.0", default-features = false }
@@ -103,6 +104,14 @@ chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312", default
     "ahash",
     "std",
 ] }
+
+# Benchmarking
+criterion = "0.5.0"
+# Note that using the "frame-pointer" feature breaks framegraphs on linux
+# https://github.com/tikv/pprof-rs/pull/172
+pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
+
+
 dirs = "4"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0"
@@ -123,6 +132,7 @@ tempfile = "3.6.0"
 jsonrpc = { version = "0.16.0", features = ["minreq_http"] }
 flate2 = "1.0.24"
 
+im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"
 tracing-web = "0.1.3"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }

@@ -1,0 +1,7 @@
+[package]
+name = "fold_nested_brillig_assert_fail"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.26.0"
+
+[dependencies]

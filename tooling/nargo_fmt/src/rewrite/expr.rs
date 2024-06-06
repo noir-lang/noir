@@ -1,5 +1,9 @@
-use noirc_frontend::{token::Token, ArrayLiteral, Expression, ExpressionKind, Literal, UnaryOp};
+use noirc_frontend::ast::{
+    ArrayLiteral, BlockExpression, Expression, ExpressionKind, Literal, UnaryOp, UnresolvedType,
+};
+use noirc_frontend::{macros_api::Span, token::Token};
 
+use crate::rewrite;
 use crate::visitor::{
     expr::{format_brackets, format_parens, NewlineMode},
     ExpressionType, FmtVisitor, Indent, Shape,
@@ -20,11 +24,7 @@ pub(crate) fn rewrite(
     shape: Shape,
 ) -> String {
     match kind {
-        ExpressionKind::Block(block) => {
-            let mut visitor = visitor.fork();
-            visitor.visit_block(block, span);
-            visitor.finish()
-        }
+        ExpressionKind::Block(block) => rewrite_block(visitor, block, span),
         ExpressionKind::Prefix(prefix) => {
             let op = match prefix.operator {
                 UnaryOp::Minus => "-",
@@ -73,6 +73,7 @@ pub(crate) fn rewrite(
 
             let object = rewrite_sub_expr(visitor, shape, method_call_expr.object);
             let method = method_call_expr.method_name.to_string();
+            let turbofish = rewrite_turbofish(visitor, shape, method_call_expr.generics);
             let args = format_parens(
                 visitor.config.fn_call_width.into(),
                 visitor.fork(),
@@ -84,7 +85,7 @@ pub(crate) fn rewrite(
                 NewlineMode::IfContainsNewLineAndWidth,
             );
 
-            format!("{object}.{method}{args}")
+            format!("{object}.{method}{turbofish}{args}")
         }
         ExpressionKind::MemberAccess(member_access_expr) => {
             let lhs_str = rewrite_sub_expr(visitor, shape, member_access_expr.lhs);
@@ -122,7 +123,16 @@ pub(crate) fn rewrite(
                 format!("[{repeated}; {length}]")
             }
             Literal::Array(ArrayLiteral::Standard(exprs)) => {
-                super::array(visitor.fork(), exprs, span)
+                super::array(visitor.fork(), exprs, span, false)
+            }
+            Literal::Slice(ArrayLiteral::Repeated { repeated_element, length }) => {
+                let repeated = rewrite_sub_expr(visitor, shape, *repeated_element);
+                let length = rewrite_sub_expr(visitor, shape, *length);
+
+                format!("&[{repeated}; {length}]")
+            }
+            Literal::Slice(ArrayLiteral::Standard(exprs)) => {
+                super::array(visitor.fork(), exprs, span, true)
             }
             Literal::Unit => "()".to_string(),
         },
@@ -149,7 +159,47 @@ pub(crate) fn rewrite(
 
             visitor.format_if(*if_expr)
         }
-        ExpressionKind::Lambda(_) | ExpressionKind::Variable(_) => visitor.slice(span).to_string(),
+        ExpressionKind::Variable(path, generics) => {
+            let path_string = visitor.slice(path.span);
+
+            let turbofish = rewrite_turbofish(visitor, shape, generics);
+            format!("{path_string}{turbofish}")
+        }
+        ExpressionKind::Lambda(_) => visitor.slice(span).to_string(),
+        ExpressionKind::Quote(block) => format!("quote {}", rewrite_block(visitor, block, span)),
+        ExpressionKind::Comptime(block) => {
+            format!("comptime {}", rewrite_block(visitor, block, span))
+        }
         ExpressionKind::Error => unreachable!(),
+        ExpressionKind::Resolved(_) => {
+            unreachable!("ExpressionKind::Resolved should only emitted by the comptime interpreter")
+        }
+    }
+}
+
+fn rewrite_block(visitor: &FmtVisitor, block: BlockExpression, span: Span) -> String {
+    let mut visitor = visitor.fork();
+    visitor.visit_block(block, span);
+    visitor.finish()
+}
+
+fn rewrite_turbofish(
+    visitor: &FmtVisitor,
+    shape: Shape,
+    generics: Option<Vec<UnresolvedType>>,
+) -> String {
+    if let Some(generics) = generics {
+        let mut turbofish = "".to_owned();
+        for (i, generic) in generics.into_iter().enumerate() {
+            let generic = rewrite::typ(visitor, shape, generic);
+            turbofish = if i == 0 {
+                format!("::<{}", generic)
+            } else {
+                format!("{turbofish}, {}", generic)
+            };
+        }
+        format!("{turbofish}>")
+    } else {
+        "".to_owned()
     }
 }
