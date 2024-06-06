@@ -1149,21 +1149,32 @@ void AvmTraceBuilder::op_cmov(
 }
 
 // Helper function to add kernel lookup operations into the main trace
-Row AvmTraceBuilder::create_kernel_lookup_opcode(uint32_t dst_offset, uint32_t selector, FF value, AvmMemoryTag w_tag)
+Row AvmTraceBuilder::create_kernel_lookup_opcode(
+    bool indirect, uint32_t dst_offset, uint32_t selector, FF value, AvmMemoryTag w_tag)
 {
     auto const clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
+    bool tag_match = true;
+    uint32_t direct_dst_offset = dst_offset;
+    if (indirect) {
+        auto read_ind_dst =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, dst_offset);
+        direct_dst_offset = uint32_t(read_ind_dst.val);
+        tag_match = tag_match && read_ind_dst.tag_match;
+    }
+
     AvmMemoryTag r_tag = AvmMemoryTag::U0;
-    mem_trace_builder.write_into_memory(call_ptr, clk, IntermRegister::IA, dst_offset, value, r_tag, w_tag);
+    mem_trace_builder.write_into_memory(call_ptr, clk, IntermRegister::IA, direct_dst_offset, value, r_tag, w_tag);
 
     return Row{
         .avm_main_clk = clk,
         .avm_kernel_kernel_in_offset = selector,
         .avm_main_call_ptr = call_ptr,
         .avm_main_ia = value,
-        .avm_main_ind_a = 0,
+        .avm_main_ind_a = indirect ? FF(dst_offset) : FF(0),
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(indirect)),
         .avm_main_internal_return_ptr = internal_return_ptr,
-        .avm_main_mem_idx_a = dst_offset,
+        .avm_main_mem_idx_a = direct_dst_offset,
         .avm_main_mem_op_a = 1,
         .avm_main_pc = pc++,
         .avm_main_q_kernel_lookup = 1,
@@ -1172,10 +1183,13 @@ Row AvmTraceBuilder::create_kernel_lookup_opcode(uint32_t dst_offset, uint32_t s
     };
 }
 
-void AvmTraceBuilder::op_storage_address(uint32_t dst_offset)
+void AvmTraceBuilder::op_storage_address(uint8_t indirect, uint32_t dst_offset)
 {
     FF ia_value = kernel_trace_builder.op_storage_address();
-    Row row = create_kernel_lookup_opcode(dst_offset, STORAGE_ADDRESS_SELECTOR, ia_value, AvmMemoryTag::FF);
+
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+    Row row = create_kernel_lookup_opcode(
+        indirect_dst_flag, dst_offset, STORAGE_ADDRESS_SELECTOR, ia_value, AvmMemoryTag::FF);
     row.avm_main_sel_op_storage_address = FF(1);
 
     // Constrain gas cost
@@ -1184,10 +1198,12 @@ void AvmTraceBuilder::op_storage_address(uint32_t dst_offset)
     main_trace.push_back(row);
 }
 
-void AvmTraceBuilder::op_sender(uint32_t dst_offset)
+void AvmTraceBuilder::op_sender(uint8_t indirect, uint32_t dst_offset)
 {
     FF ia_value = kernel_trace_builder.op_sender();
-    Row row = create_kernel_lookup_opcode(dst_offset, SENDER_SELECTOR, ia_value, AvmMemoryTag::FF);
+
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+    Row row = create_kernel_lookup_opcode(indirect_dst_flag, dst_offset, SENDER_SELECTOR, ia_value, AvmMemoryTag::FF);
     row.avm_main_sel_op_sender = FF(1);
 
     // Constrain gas cost
@@ -1196,10 +1212,12 @@ void AvmTraceBuilder::op_sender(uint32_t dst_offset)
     main_trace.push_back(row);
 }
 
-void AvmTraceBuilder::op_address(uint32_t dst_offset)
+void AvmTraceBuilder::op_address(uint8_t indirect, uint32_t dst_offset)
 {
     FF ia_value = kernel_trace_builder.op_address();
-    Row row = create_kernel_lookup_opcode(dst_offset, ADDRESS_SELECTOR, ia_value, AvmMemoryTag::FF);
+
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+    Row row = create_kernel_lookup_opcode(indirect_dst_flag, dst_offset, ADDRESS_SELECTOR, ia_value, AvmMemoryTag::FF);
     row.avm_main_sel_op_address = FF(1);
 
     // Constrain gas cost
@@ -1208,10 +1226,13 @@ void AvmTraceBuilder::op_address(uint32_t dst_offset)
     main_trace.push_back(row);
 }
 
-void AvmTraceBuilder::op_fee_per_da_gas(uint32_t dst_offset)
+void AvmTraceBuilder::op_fee_per_da_gas(uint8_t indirect, uint32_t dst_offset)
 {
     FF ia_value = kernel_trace_builder.op_fee_per_da_gas();
-    Row row = create_kernel_lookup_opcode(dst_offset, FEE_PER_DA_GAS_SELECTOR, ia_value, AvmMemoryTag::FF);
+
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+    Row row =
+        create_kernel_lookup_opcode(indirect_dst_flag, dst_offset, FEE_PER_DA_GAS_SELECTOR, ia_value, AvmMemoryTag::FF);
     row.avm_main_sel_op_fee_per_da_gas = FF(1);
 
     // Constrain gas cost
@@ -1220,10 +1241,13 @@ void AvmTraceBuilder::op_fee_per_da_gas(uint32_t dst_offset)
     main_trace.push_back(row);
 }
 
-void AvmTraceBuilder::op_fee_per_l2_gas(uint32_t dst_offset)
+void AvmTraceBuilder::op_fee_per_l2_gas(uint8_t indirect, uint32_t dst_offset)
 {
     FF ia_value = kernel_trace_builder.op_fee_per_l2_gas();
-    Row row = create_kernel_lookup_opcode(dst_offset, FEE_PER_L2_GAS_SELECTOR, ia_value, AvmMemoryTag::FF);
+
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+    Row row =
+        create_kernel_lookup_opcode(indirect_dst_flag, dst_offset, FEE_PER_L2_GAS_SELECTOR, ia_value, AvmMemoryTag::FF);
     row.avm_main_sel_op_fee_per_l2_gas = FF(1);
 
     // Constrain gas cost
@@ -1232,10 +1256,13 @@ void AvmTraceBuilder::op_fee_per_l2_gas(uint32_t dst_offset)
     main_trace.push_back(row);
 }
 
-void AvmTraceBuilder::op_transaction_fee(uint32_t dst_offset)
+void AvmTraceBuilder::op_transaction_fee(uint8_t indirect, uint32_t dst_offset)
 {
     FF ia_value = kernel_trace_builder.op_transaction_fee();
-    Row row = create_kernel_lookup_opcode(dst_offset, TRANSACTION_FEE_SELECTOR, ia_value, AvmMemoryTag::FF);
+
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+    Row row = create_kernel_lookup_opcode(
+        indirect_dst_flag, dst_offset, TRANSACTION_FEE_SELECTOR, ia_value, AvmMemoryTag::FF);
     row.avm_main_sel_op_transaction_fee = FF(1);
 
     // Constrain gas cost
@@ -1244,10 +1271,12 @@ void AvmTraceBuilder::op_transaction_fee(uint32_t dst_offset)
     main_trace.push_back(row);
 }
 
-void AvmTraceBuilder::op_chain_id(uint32_t dst_offset)
+void AvmTraceBuilder::op_chain_id(uint8_t indirect, uint32_t dst_offset)
 {
     FF ia_value = kernel_trace_builder.op_chain_id();
-    Row row = create_kernel_lookup_opcode(dst_offset, CHAIN_ID_SELECTOR, ia_value, AvmMemoryTag::FF);
+
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+    Row row = create_kernel_lookup_opcode(indirect_dst_flag, dst_offset, CHAIN_ID_SELECTOR, ia_value, AvmMemoryTag::FF);
     row.avm_main_sel_op_chain_id = FF(1);
 
     // Constrain gas cost
@@ -1256,10 +1285,12 @@ void AvmTraceBuilder::op_chain_id(uint32_t dst_offset)
     main_trace.push_back(row);
 }
 
-void AvmTraceBuilder::op_version(uint32_t dst_offset)
+void AvmTraceBuilder::op_version(uint8_t indirect, uint32_t dst_offset)
 {
     FF ia_value = kernel_trace_builder.op_version();
-    Row row = create_kernel_lookup_opcode(dst_offset, VERSION_SELECTOR, ia_value, AvmMemoryTag::FF);
+
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+    Row row = create_kernel_lookup_opcode(indirect_dst_flag, dst_offset, VERSION_SELECTOR, ia_value, AvmMemoryTag::FF);
     row.avm_main_sel_op_version = FF(1);
 
     // Constrain gas cost
@@ -1268,10 +1299,13 @@ void AvmTraceBuilder::op_version(uint32_t dst_offset)
     main_trace.push_back(row);
 }
 
-void AvmTraceBuilder::op_block_number(uint32_t dst_offset)
+void AvmTraceBuilder::op_block_number(uint8_t indirect, uint32_t dst_offset)
 {
     FF ia_value = kernel_trace_builder.op_block_number();
-    Row row = create_kernel_lookup_opcode(dst_offset, BLOCK_NUMBER_SELECTOR, ia_value, AvmMemoryTag::FF);
+
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+    Row row =
+        create_kernel_lookup_opcode(indirect_dst_flag, dst_offset, BLOCK_NUMBER_SELECTOR, ia_value, AvmMemoryTag::FF);
     row.avm_main_sel_op_block_number = FF(1);
 
     // Constrain gas cost
@@ -1280,10 +1314,12 @@ void AvmTraceBuilder::op_block_number(uint32_t dst_offset)
     main_trace.push_back(row);
 }
 
-void AvmTraceBuilder::op_coinbase(uint32_t dst_offset)
+void AvmTraceBuilder::op_coinbase(uint8_t indirect, uint32_t dst_offset)
 {
     FF ia_value = kernel_trace_builder.op_coinbase();
-    Row row = create_kernel_lookup_opcode(dst_offset, COINBASE_SELECTOR, ia_value, AvmMemoryTag::FF);
+
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+    Row row = create_kernel_lookup_opcode(indirect_dst_flag, dst_offset, COINBASE_SELECTOR, ia_value, AvmMemoryTag::FF);
     row.avm_main_sel_op_coinbase = FF(1);
 
     // Constrain gas cost
@@ -1292,10 +1328,13 @@ void AvmTraceBuilder::op_coinbase(uint32_t dst_offset)
     main_trace.push_back(row);
 }
 
-void AvmTraceBuilder::op_timestamp(uint32_t dst_offset)
+void AvmTraceBuilder::op_timestamp(uint8_t indirect, uint32_t dst_offset)
 {
     FF ia_value = kernel_trace_builder.op_timestamp();
-    Row row = create_kernel_lookup_opcode(dst_offset, TIMESTAMP_SELECTOR, ia_value, AvmMemoryTag::U64);
+
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+    Row row =
+        create_kernel_lookup_opcode(indirect_dst_flag, dst_offset, TIMESTAMP_SELECTOR, ia_value, AvmMemoryTag::U64);
     row.avm_main_sel_op_timestamp = FF(1);
 
     // Constrain gas cost

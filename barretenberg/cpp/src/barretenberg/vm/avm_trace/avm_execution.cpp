@@ -434,37 +434,42 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
             break;
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6284): support indirect for below
         case OpCode::SENDER:
-            trace_builder.op_sender(std::get<uint32_t>(inst.operands.at(1)));
+            trace_builder.op_sender(std::get<uint8_t>(inst.operands.at(0)), std::get<uint32_t>(inst.operands.at(1)));
             break;
         case OpCode::ADDRESS:
-            trace_builder.op_address(std::get<uint32_t>(inst.operands.at(1)));
+            trace_builder.op_address(std::get<uint8_t>(inst.operands.at(0)), std::get<uint32_t>(inst.operands.at(1)));
             break;
         case OpCode::STORAGEADDRESS:
-            trace_builder.op_storage_address(std::get<uint32_t>(inst.operands.at(1)));
+            trace_builder.op_storage_address(std::get<uint8_t>(inst.operands.at(0)),
+                                             std::get<uint32_t>(inst.operands.at(1)));
             break;
         case OpCode::FEEPERL2GAS:
-            trace_builder.op_fee_per_l2_gas(std::get<uint32_t>(inst.operands.at(1)));
+            trace_builder.op_fee_per_l2_gas(std::get<uint8_t>(inst.operands.at(0)),
+                                            std::get<uint32_t>(inst.operands.at(1)));
             break;
         case OpCode::FEEPERDAGAS:
-            trace_builder.op_fee_per_da_gas(std::get<uint32_t>(inst.operands.at(1)));
+            trace_builder.op_fee_per_da_gas(std::get<uint8_t>(inst.operands.at(0)),
+                                            std::get<uint32_t>(inst.operands.at(1)));
             break;
         case OpCode::TRANSACTIONFEE:
-            trace_builder.op_transaction_fee(std::get<uint32_t>(inst.operands.at(1)));
+            trace_builder.op_transaction_fee(std::get<uint8_t>(inst.operands.at(0)),
+                                             std::get<uint32_t>(inst.operands.at(1)));
             break;
         case OpCode::CHAINID:
-            trace_builder.op_chain_id(std::get<uint32_t>(inst.operands.at(1)));
+            trace_builder.op_chain_id(std::get<uint8_t>(inst.operands.at(0)), std::get<uint32_t>(inst.operands.at(1)));
             break;
         case OpCode::VERSION:
-            trace_builder.op_version(std::get<uint32_t>(inst.operands.at(1)));
+            trace_builder.op_version(std::get<uint8_t>(inst.operands.at(0)), std::get<uint32_t>(inst.operands.at(1)));
             break;
         case OpCode::BLOCKNUMBER:
-            trace_builder.op_block_number(std::get<uint32_t>(inst.operands.at(1)));
+            trace_builder.op_block_number(std::get<uint8_t>(inst.operands.at(0)),
+                                          std::get<uint32_t>(inst.operands.at(1)));
             break;
         case OpCode::COINBASE:
-            trace_builder.op_coinbase(std::get<uint32_t>(inst.operands.at(1)));
+            trace_builder.op_coinbase(std::get<uint8_t>(inst.operands.at(0)), std::get<uint32_t>(inst.operands.at(1)));
             break;
         case OpCode::TIMESTAMP:
-            trace_builder.op_timestamp(std::get<uint32_t>(inst.operands.at(1)));
+            trace_builder.op_timestamp(std::get<uint8_t>(inst.operands.at(0)), std::get<uint32_t>(inst.operands.at(1)));
             break;
         case OpCode::NOTEHASHEXISTS:
             trace_builder.op_note_hash_exists(std::get<uint32_t>(inst.operands.at(1)),

@@ -85,21 +85,21 @@ class AvmTraceBuilder {
     void op_cmov(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t cond_offset, uint32_t dst_offset);
 
     // Call Context
-    void op_storage_address(uint32_t dst_offset);
-    void op_sender(uint32_t dst_offset);
-    void op_address(uint32_t dst_offset);
+    void op_storage_address(uint8_t indirect, uint32_t dst_offset);
+    void op_sender(uint8_t indirect, uint32_t dst_offset);
+    void op_address(uint8_t indirect, uint32_t dst_offset);
 
     // Fees
-    void op_fee_per_da_gas(uint32_t dst_offset);
-    void op_fee_per_l2_gas(uint32_t dst_offset);
-    void op_transaction_fee(uint32_t dst_offset);
+    void op_fee_per_da_gas(uint8_t indirect, uint32_t dst_offset);
+    void op_fee_per_l2_gas(uint8_t indirect, uint32_t dst_offset);
+    void op_transaction_fee(uint8_t indirect, uint32_t dst_offset);
 
     // Globals
-    void op_chain_id(uint32_t dst_offset);
-    void op_version(uint32_t dst_offset);
-    void op_block_number(uint32_t dst_offset);
-    void op_coinbase(uint32_t dst_offset);
-    void op_timestamp(uint32_t dst_offset);
+    void op_chain_id(uint8_t indirect, uint32_t dst_offset);
+    void op_version(uint8_t indirect, uint32_t dst_offset);
+    void op_block_number(uint8_t indirect, uint32_t dst_offset);
+    void op_coinbase(uint8_t indirect, uint32_t dst_offset);
+    void op_timestamp(uint8_t indirect, uint32_t dst_offset);
 
     // Outputs
     // With single output values
@@ -223,13 +223,15 @@ class AvmTraceBuilder {
      *
      * Used for looking up into the kernel inputs (context) - {caller, address, etc.}
      *
+     * @param indirect - Perform indirect memory resolution
      * @param dst_offset - Memory address to write the lookup result to
      * @param selector - The index of the kernel input lookup column
      * @param value - The value read from the memory address
      * @param w_tag - The memory tag of the value read
      * @return Row
      */
-    Row create_kernel_lookup_opcode(uint32_t dst_offset, uint32_t selector, FF value, AvmMemoryTag w_tag);
+    Row create_kernel_lookup_opcode(
+        bool indirect, uint32_t dst_offset, uint32_t selector, FF value, AvmMemoryTag w_tag);
 
     /**
      * @brief Create a kernel output opcode object
