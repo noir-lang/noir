@@ -294,6 +294,13 @@ impl<F: AcirField> Memory<F> {
     }
 
     pub fn read_slice(&self, addr: MemoryAddress, len: usize) -> &[MemoryValue<F>] {
+        // Allows to read a slice of uninitialized memory if the length is zero.
+        // Ideally we'd be able to read uninitialized memory in general (as read does)
+        // but that's not possible if we want to return a slice instead of owned data.
+        if len == 0 {
+            return &[];
+        }
+
         &self.inner[addr.to_usize()..(addr.to_usize() + len)]
     }
 

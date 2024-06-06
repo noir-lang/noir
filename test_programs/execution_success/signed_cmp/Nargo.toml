@@ -1,0 +1,6 @@
+[package]
+name = "signed_cmp"
+type = "bin"
+authors = [""]
+
+[dependencies]
