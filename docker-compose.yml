@@ -14,12 +14,12 @@ services:
       PXE_DATA_DIRECTORY: /var/lib/aztec/pxe
       NODE_NO_WARNINGS: 1
       AZTEC_PORT: 8080
-    entrypoint:
-      [
-        "/bin/sh",
-        "-c",
-        "export AZTEC_NODE_URL=$$(cat /var/run/secrets/aztec-node-url); node /usr/src/yarn-project/aztec/dest/bin/index.js start --pxe",
-      ]
+    entrypoint: >
+      sh -c '
+        export AZTEC_NODE_URL=$$(cat /var/run/secrets/aztec-node-url);
+        while ! curl --head --silent $AZTEC_NODE_URL > /dev/null; do echo "Node $$AZTEC_NODE_URL not up. Retrying after 1s"; sleep 1; done;
+        node /usr/src/yarn-project/aztec/dest/bin/index.js start --pxe
+      '
     secrets:
       - aztec-node-url
     extra_hosts:
