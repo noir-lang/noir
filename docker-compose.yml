@@ -1,7 +1,7 @@
 name: aztec-devnet
 services:
   pxe:
-    image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:edc36351a531c2d76c2a96e2a67dc1f4020d5dcb9c7132d7df8e75a8518ed1b3}
+    image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:03feac60e91f1aabf678cecbcd13271dda229120ec6007f2c1bac718ff550c70}
     # need to run bb for proofs and bb is only built for x86
     platform: linux/amd64
     environment:
@@ -30,7 +30,7 @@ services:
       - 8080:8080/tcp
 
   node:
-    image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:edc36351a531c2d76c2a96e2a67dc1f4020d5dcb9c7132d7df8e75a8518ed1b3}
+    image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:03feac60e91f1aabf678cecbcd13271dda229120ec6007f2c1bac718ff550c70}
     # need to run bb for proofs and bb is only built for x86
     platform: linux/amd64
     environment:
@@ -50,7 +50,7 @@ services:
       AVAILABILITY_ORACLE_CONTRACT_ADDRESS: "0xa50048c760a1ce797a8ded07de2cc4b479392c1d"
       GAS_TOKEN_CONTRACT_ADDRESS: "0xafb812ed2d6617f0e2128dbec769af45262ae59b"
       GAS_PORTAL_CONTRACT_ADDRESS: "0x22644d8249ca9a4704ae76c0aa50f9513132c2e2"
-      ETHEREUM_HOST: 
+      ETHEREUM_HOST:
       P2P_TCP_LISTEN_PORT: 9000
       P2P_UDP_LISTEN_PORT: 9001
       P2P_ANNOUNCE_PORT: 9000
@@ -61,15 +61,14 @@ services:
     secrets:
       - ethereum-host
       - p2p-boot-node
-    entrypoint:
-      [
+    entrypoint: [
         "/bin/sh",
         "-c",
         "export ETHEREUM_HOST=$$(cat /var/run/secrets/ethereum-host);\
-         export BOOTSTRAP_NODES=$$(cat /var/run/secrets/p2p-boot-node);\
-         test -z \"$$PEER_ID_PRIVATE_KEY\" -a ! -f /var/lib/aztec/p2p-private-key && node /usr/src/yarn-project/cli/dest/bin/index.js generate-p2p-private-key | head -1 | cut -d' ' -f 3 | tee /var/lib/aztec/p2p-private-key || echo 'Re-using existing P2P private key';\
-         test -z \"$$PEER_ID_PRIVATE_KEY\" && export PEER_ID_PRIVATE_KEY=$$(cat /var/lib/aztec/p2p-private-key);\
-         node /usr/src/yarn-project/aztec/dest/bin/index.js start --node --archiver",
+        export BOOTSTRAP_NODES=$$(cat /var/run/secrets/p2p-boot-node);\
+        test -z \"$$PEER_ID_PRIVATE_KEY\" -a ! -f /var/lib/aztec/p2p-private-key && node /usr/src/yarn-project/cli/dest/bin/index.js generate-p2p-private-key | head -1 | cut -d' ' -f 3 | tee /var/lib/aztec/p2p-private-key || echo 'Re-using existing P2P private key';\
+        test -z \"$$PEER_ID_PRIVATE_KEY\" && export PEER_ID_PRIVATE_KEY=$$(cat /var/lib/aztec/p2p-private-key);\
+        node /usr/src/yarn-project/aztec/dest/bin/index.js start --node --archiver",
       ]
     volumes:
       - aztec:/var/lib/aztec
@@ -82,7 +81,7 @@ services:
       - 9001:9001/udp
 
   cli:
-    image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:edc36351a531c2d76c2a96e2a67dc1f4020d5dcb9c7132d7df8e75a8518ed1b3}
+    image: aztecprotocol/aztec${AZTEC_DOCKER_TAG:-@sha256:03feac60e91f1aabf678cecbcd13271dda229120ec6007f2c1bac718ff550c70}
     # run the same image as pxe
     platform: linux/amd64
     environment:
