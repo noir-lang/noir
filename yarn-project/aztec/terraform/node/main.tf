@@ -56,8 +56,8 @@ data "terraform_remote_state" "l1_contracts" {
 locals {
   publisher_private_keys = [var.SEQ_1_PUBLISHER_PRIVATE_KEY, var.SEQ_2_PUBLISHER_PRIVATE_KEY]
   node_p2p_private_keys  = [var.NODE_1_PRIVATE_KEY, var.NODE_2_PRIVATE_KEY]
-  #node_count             = length(local.publisher_private_keys)
-  node_count           = 1
+  node_count             = length(local.publisher_private_keys)
+  #node_count           = 1
   data_dir             = "/usr/src/yarn-project/aztec/data"
   agents_per_sequencer = var.AGENTS_PER_SEQUENCER
 }
@@ -201,7 +201,7 @@ resource "aws_ecs_task_definition" "aztec-node" {
       },
       {
         "name": "DEBUG",
-        "value": "aztec:*,-json-rpc:json_proxy:*,-aztec:avm_simulator:*,libp2p:*,discv5:*"
+        "value": "aztec:*,-json-rpc:json_proxy:*,-aztec:avm_simulator:*"
       },
       {
         "name": "ETHEREUM_HOST",
@@ -279,10 +279,6 @@ resource "aws_ecs_task_definition" "aztec-node" {
       {
         "name": "P2P_TCP_LISTEN_IP",
         "value": "0.0.0.0"
-      },
-      {
-        "name": "P2P_ANNOUNCE_TCP_HOSTNAME",
-        "value": "/ip4/${data.terraform_remote_state.aztec-network_iac.outputs.p2p_eip}"
       },
       {
         "name": "P2P_ANNOUNCE_PORT",
@@ -440,22 +436,22 @@ resource "aws_lb_listener_rule" "api" {
   }
 }
 
-resource "aws_lb_target_group" "aztec-node-tcp" {
-  count       = local.node_count
-  name        = "${var.DEPLOY_TAG}-node-${count.index + 1}-p2p-tcp-target"
-  port        = var.NODE_P2P_TCP_PORT + count.index
-  protocol    = "TCP"
-  target_type = "ip"
-  vpc_id      = data.terraform_remote_state.setup_iac.outputs.vpc_id
+# resource "aws_lb_target_group" "aztec-node-tcp" {
+#   count       = local.node_count
+#   name        = "${var.DEPLOY_TAG}-node-${count.index + 1}-p2p-tcp-target"
+#   port        = var.NODE_P2P_TCP_PORT + count.index
+#   protocol    = "TCP"
+#   target_type = "ip"
+#   vpc_id      = data.terraform_remote_state.setup_iac.outputs.vpc_id
 
-  health_check {
-    protocol            = "TCP"
-    interval            = 10
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-    port                = var.NODE_P2P_TCP_PORT + count.index
-  }
-}
+#   health_check {
+#     protocol            = "TCP"
+#     interval            = 10
+#     healthy_threshold   = 2
+#     unhealthy_threshold = 2
+#     port                = var.NODE_P2P_TCP_PORT + count.index
+#   }
+# }
 
 resource "aws_security_group_rule" "allow-node-tcp-in" {
   count             = local.node_count
@@ -477,21 +473,21 @@ resource "aws_security_group_rule" "allow-node-tcp-out" {
   security_group_id = data.terraform_remote_state.aztec-network_iac.outputs.p2p_security_group_id
 }
 
-resource "aws_lb_listener" "aztec-node-tcp-listener" {
-  count             = local.node_count
-  load_balancer_arn = data.terraform_remote_state.aztec-network_iac.outputs.nlb_arn
-  port              = var.NODE_P2P_TCP_PORT + count.index
-  protocol          = "TCP"
+# resource "aws_lb_listener" "aztec-node-tcp-listener" {
+#   count             = local.node_count
+#   load_balancer_arn = data.terraform_remote_state.aztec-network_iac.outputs.nlb_arn
+#   port              = var.NODE_P2P_TCP_PORT + count.index
+#   protocol          = "TCP"
 
-  tags = {
-    name = "aztec-node-${count.index}-tcp-listener"
-  }
+#   tags = {
+#     name = "aztec-node-${count.index}-tcp-listener"
+#   }
 
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.aztec-node-tcp[count.index].arn
-  }
-}
+#   default_action {
+#     type             = "forward"
+#     target_group_arn = aws_lb_target_group.aztec-node-tcp[count.index].arn
+#   }
+# }
 
 
 # resource "aws_lb_target_group" "aztec-node-udp" {
@@ -544,9 +540,6 @@ resource "aws_security_group_rule" "allow-node-udp-out" {
 #     target_group_arn = aws_lb_target_group.aztec-node-udp[count.index].arn
 #   }
 # }
-
-
-
 
 
 
