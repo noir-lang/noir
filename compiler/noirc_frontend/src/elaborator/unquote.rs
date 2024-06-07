@@ -75,7 +75,7 @@ impl<'a> Elaborator<'a> {
         assign: &mut AssignStatement,
         unquoted_exprs: &mut Vec<ExprId>,
     ) {
-        todo!()
+        self.find_unquoted_exprs_in_expr(&mut assign.expression, unquoted_exprs);
     }
 
     fn find_unquoted_exprs_in_for(
@@ -135,14 +135,14 @@ impl<'a> Elaborator<'a> {
             ExpressionKind::Lambda(lambda) => {
                 self.find_unquoted_exprs_in_lambda(lambda, unquoted_exprs)
             }
-            ExpressionKind::Parenthesized(parenthesized) => {
-                self.find_unquoted_exprs_in_parenthesized(parenthesized, unquoted_exprs)
+            ExpressionKind::Parenthesized(expr) => {
+                self.find_unquoted_exprs_in_expr(expr, unquoted_exprs)
             }
             ExpressionKind::Quote(quote) => {
                 self.find_unquoted_exprs_in_block(quote, unquoted_exprs)
             }
-            ExpressionKind::Comptime(comptime) => {
-                self.find_unquoted_exprs_in_comptime(comptime, unquoted_exprs)
+            ExpressionKind::Comptime(block) => {
+                self.find_unquoted_exprs_in_block(block, unquoted_exprs)
             }
             ExpressionKind::Resolved(_) => (),
             ExpressionKind::Error => (),
@@ -189,7 +189,7 @@ impl<'a> Elaborator<'a> {
         prefix: &mut PrefixExpression,
         unquoted_exprs: &mut Vec<ExprId>,
     ) {
-        todo!()
+        self.find_unquoted_exprs_in_expr(&mut prefix.rhs, unquoted_exprs);
     }
 
     fn find_unquoted_exprs_in_index(
@@ -197,7 +197,8 @@ impl<'a> Elaborator<'a> {
         index: &mut IndexExpression,
         unquoted_exprs: &mut Vec<ExprId>,
     ) {
-        todo!()
+        self.find_unquoted_exprs_in_expr(&mut index.collection, unquoted_exprs);
+        self.find_unquoted_exprs_in_expr(&mut index.index, unquoted_exprs);
     }
 
     fn find_unquoted_exprs_in_call(
@@ -205,7 +206,11 @@ impl<'a> Elaborator<'a> {
         call: &mut CallExpression,
         unquoted_exprs: &mut Vec<ExprId>,
     ) {
-        todo!()
+        self.find_unquoted_exprs_in_expr(&mut call.func, unquoted_exprs);
+
+        for arg in &mut call.arguments {
+            self.find_unquoted_exprs_in_expr(arg, unquoted_exprs);
+        }
     }
 
     fn find_unquoted_exprs_in_method_call(
@@ -213,7 +218,11 @@ impl<'a> Elaborator<'a> {
         call: &mut MethodCallExpression,
         unquoted_exprs: &mut Vec<ExprId>,
     ) {
-        todo!()
+        self.find_unquoted_exprs_in_expr(&mut call.object, unquoted_exprs);
+
+        for arg in &mut call.arguments {
+            self.find_unquoted_exprs_in_expr(arg, unquoted_exprs);
+        }
     }
 
     fn find_unquoted_exprs_in_constructor(
@@ -221,7 +230,9 @@ impl<'a> Elaborator<'a> {
         constructor: &mut ConstructorExpression,
         unquoted_exprs: &mut Vec<ExprId>,
     ) {
-        todo!()
+        for (_, field) in &mut constructor.fields {
+            self.find_unquoted_exprs_in_expr(field, unquoted_exprs);
+        }
     }
 
     fn find_unquoted_exprs_in_access(
@@ -229,7 +240,7 @@ impl<'a> Elaborator<'a> {
         member_access: &mut MemberAccessExpression,
         unquoted_exprs: &mut Vec<ExprId>,
     ) {
-        todo!()
+        self.find_unquoted_exprs_in_expr(&mut member_access.lhs, unquoted_exprs);
     }
 
     fn find_unquoted_exprs_in_cast(
@@ -237,7 +248,7 @@ impl<'a> Elaborator<'a> {
         cast: &mut CastExpression,
         unquoted_exprs: &mut Vec<ExprId>,
     ) {
-        todo!()
+        self.find_unquoted_exprs_in_expr(&mut cast.lhs, unquoted_exprs);
     }
 
     fn find_unquoted_exprs_in_infix(
@@ -246,15 +257,20 @@ impl<'a> Elaborator<'a> {
         unquoted_exprs: &mut Vec<ExprId>,
     ) {
         self.find_unquoted_exprs_in_expr(&mut infix.lhs, unquoted_exprs);
-        self.find_unquoted_exprs_in_expr(&mut infix.rhs, unquoted_exprs)
+        self.find_unquoted_exprs_in_expr(&mut infix.rhs, unquoted_exprs);
     }
 
     fn find_unquoted_exprs_in_if(
         &mut self,
-        r#if: &mut IfExpression,
+        if_: &mut IfExpression,
         unquoted_exprs: &mut Vec<ExprId>,
     ) {
-        todo!()
+        self.find_unquoted_exprs_in_expr(&mut if_.condition, unquoted_exprs);
+        self.find_unquoted_exprs_in_expr(&mut if_.consequence, unquoted_exprs);
+
+        if let Some(alternate) = if_.alternative.as_mut() {
+            self.find_unquoted_exprs_in_expr(alternate, unquoted_exprs);
+        }
     }
 
     fn find_unquoted_exprs_in_tuple(
@@ -262,7 +278,9 @@ impl<'a> Elaborator<'a> {
         tuple: &mut [Expression],
         unquoted_exprs: &mut Vec<ExprId>,
     ) {
-        todo!()
+        for field in tuple {
+            self.find_unquoted_exprs_in_expr(field, unquoted_exprs);
+        }
     }
 
     fn find_unquoted_exprs_in_lambda(
@@ -270,15 +288,7 @@ impl<'a> Elaborator<'a> {
         lambda: &mut Lambda,
         unquoted_exprs: &mut Vec<ExprId>,
     ) {
-        todo!()
-    }
-
-    fn find_unquoted_exprs_in_parenthesized(
-        &mut self,
-        parenthesized: &mut Expression,
-        unquoted_exprs: &mut Vec<ExprId>,
-    ) {
-        todo!()
+        self.find_unquoted_exprs_in_expr(&mut lambda.body, unquoted_exprs);
     }
 
     /// Elaborate & store the unquoted expression in the given vector, then
@@ -294,13 +304,5 @@ impl<'a> Elaborator<'a> {
         let unquote_marker_id = unquoted_exprs.len();
         unquoted_exprs.push(expr_id);
         expr.kind = ExpressionKind::UnquoteMarker(unquote_marker_id);
-    }
-
-    fn find_unquoted_exprs_in_comptime(
-        &mut self,
-        comptime: &mut BlockExpression,
-        unquoted_exprs: &mut Vec<ExprId>,
-    ) {
-        todo!()
     }
 }

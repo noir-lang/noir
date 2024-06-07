@@ -81,7 +81,7 @@ impl<'a> Interpreter<'a> {
         assign: &mut AssignStatement,
         args: &UnquoteArgs,
     ) -> IResult<()> {
-        todo!()
+        self.substitute_unquoted_into_expr(&mut assign.expression, args)
     }
 
     fn substitute_unquoted_into_for(
@@ -129,17 +129,13 @@ impl<'a> Interpreter<'a> {
             ExpressionKind::Variable(_, _) => Ok(()),
             ExpressionKind::Tuple(tuple) => self.substitute_unquoted_into_tuple(tuple, args),
             ExpressionKind::Lambda(lambda) => self.substitute_unquoted_into_lambda(lambda, args),
-            ExpressionKind::Parenthesized(parenthesized) => {
-                self.substitute_unquoted_into_parenthesized(parenthesized, args)
-            }
+            ExpressionKind::Parenthesized(expr) => self.substitute_unquoted_into_expr(expr, args),
             ExpressionKind::Quote(quote) => self.substitute_unquoted_values_into_block(quote, args),
-            ExpressionKind::Unquote(unquote) => {
-                self.substitute_unquoted_into_unquote(unquote, args)
-            }
+            ExpressionKind::Unquote(unquote) => self.substitute_unquoted_into_expr(unquote, args),
             ExpressionKind::Comptime(comptime) => {
-                self.substitute_unquoted_into_comptime(comptime, args)
+                self.substitute_unquoted_values_into_block(comptime, args)
             }
-            ExpressionKind::Resolved(resolved) => Ok(()),
+            ExpressionKind::Resolved(_) => Ok(()),
             ExpressionKind::Error => Ok(()),
             ExpressionKind::UnquoteMarker(index) => {
                 let location = Location::new(expr.span, args.file);
@@ -182,7 +178,7 @@ impl<'a> Interpreter<'a> {
         prefix: &mut PrefixExpression,
         args: &UnquoteArgs,
     ) -> IResult<()> {
-        todo!()
+        self.substitute_unquoted_into_expr(&mut prefix.rhs, args)
     }
 
     fn substitute_unquoted_into_index(
@@ -190,7 +186,8 @@ impl<'a> Interpreter<'a> {
         index: &mut IndexExpression,
         args: &UnquoteArgs,
     ) -> IResult<()> {
-        todo!()
+        self.substitute_unquoted_into_expr(&mut index.collection, args)?;
+        self.substitute_unquoted_into_expr(&mut index.index, args)
     }
 
     fn substitute_unquoted_into_call(
@@ -198,7 +195,11 @@ impl<'a> Interpreter<'a> {
         call: &mut CallExpression,
         args: &UnquoteArgs,
     ) -> IResult<()> {
-        todo!()
+        self.substitute_unquoted_into_expr(&mut call.func, args)?;
+        for arg in &mut call.arguments {
+            self.substitute_unquoted_into_expr(arg, args)?;
+        }
+        Ok(())
     }
 
     fn substitute_unquoted_into_method_call(
@@ -206,7 +207,11 @@ impl<'a> Interpreter<'a> {
         call: &mut MethodCallExpression,
         args: &UnquoteArgs,
     ) -> IResult<()> {
-        todo!()
+        self.substitute_unquoted_into_expr(&mut call.object, args)?;
+        for arg in &mut call.arguments {
+            self.substitute_unquoted_into_expr(arg, args)?;
+        }
+        Ok(())
     }
 
     fn substitute_unquoted_into_constructor(
@@ -214,15 +219,18 @@ impl<'a> Interpreter<'a> {
         constructor: &mut ConstructorExpression,
         args: &UnquoteArgs,
     ) -> IResult<()> {
-        todo!()
+        for (_, field) in &mut constructor.fields {
+            self.substitute_unquoted_into_expr(field, args)?;
+        }
+        Ok(())
     }
 
     fn substitute_unquoted_into_access(
         &mut self,
-        member_access: &mut MemberAccessExpression,
+        access: &mut MemberAccessExpression,
         args: &UnquoteArgs,
     ) -> IResult<()> {
-        todo!()
+        self.substitute_unquoted_into_expr(&mut access.lhs, args)
     }
 
     fn substitute_unquoted_into_cast(
@@ -230,7 +238,7 @@ impl<'a> Interpreter<'a> {
         cast: &mut CastExpression,
         args: &UnquoteArgs,
     ) -> IResult<()> {
-        todo!()
+        self.substitute_unquoted_into_expr(&mut cast.lhs, args)
     }
 
     fn substitute_unquoted_into_infix(
@@ -244,10 +252,16 @@ impl<'a> Interpreter<'a> {
 
     fn substitute_unquoted_into_if(
         &mut self,
-        r#if: &mut IfExpression,
+        if_: &mut IfExpression,
         args: &UnquoteArgs,
     ) -> IResult<()> {
-        todo!()
+        self.substitute_unquoted_into_expr(&mut if_.condition, args)?;
+        self.substitute_unquoted_into_expr(&mut if_.consequence, args)?;
+
+        if let Some(alternative) = if_.alternative.as_mut() {
+            self.substitute_unquoted_into_expr(alternative, args)?;
+        }
+        Ok(())
     }
 
     fn substitute_unquoted_into_tuple(
@@ -255,7 +269,10 @@ impl<'a> Interpreter<'a> {
         tuple: &mut [Expression],
         args: &UnquoteArgs,
     ) -> IResult<()> {
-        todo!()
+        for field in tuple {
+            self.substitute_unquoted_into_expr(field, args)?;
+        }
+        Ok(())
     }
 
     fn substitute_unquoted_into_lambda(
@@ -263,30 +280,6 @@ impl<'a> Interpreter<'a> {
         lambda: &mut Lambda,
         args: &UnquoteArgs,
     ) -> IResult<()> {
-        todo!()
-    }
-
-    fn substitute_unquoted_into_parenthesized(
-        &mut self,
-        parenthesized: &mut Expression,
-        args: &UnquoteArgs,
-    ) -> IResult<()> {
-        todo!()
-    }
-
-    fn substitute_unquoted_into_unquote(
-        &mut self,
-        unquote: &mut Expression,
-        args: &UnquoteArgs,
-    ) -> IResult<()> {
-        todo!()
-    }
-
-    fn substitute_unquoted_into_comptime(
-        &mut self,
-        comptime: &mut BlockExpression,
-        args: &UnquoteArgs,
-    ) -> IResult<()> {
-        todo!()
+        self.substitute_unquoted_into_expr(&mut lambda.body, args)
     }
 }
