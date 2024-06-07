@@ -114,8 +114,8 @@ class AvmTraceBuilder {
     void op_note_hash_exists(uint8_t indirect, uint32_t note_hash_offset, uint32_t dest_offset);
     void op_nullifier_exists(uint8_t indirect, uint32_t nullifier_offset, uint32_t dest_offset);
 
-    void op_sload(uint32_t slot_offset, uint32_t value_offset);
-    void op_sstore(uint32_t slot_offset, uint32_t value_offset);
+    void op_sload(uint8_t indirect, uint32_t slot_offset, uint32_t size, uint32_t dest_offset);
+    void op_sstore(uint8_t indirect, uint32_t src_offset, uint32_t size, uint32_t slot_offset);
 
     // Cast an element pointed by the address a_offset into type specified by dst_tag and
     // store the result in address given by dst_offset.

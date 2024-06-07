@@ -29,7 +29,7 @@ import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { AvmSimulator, type PublicContractsDB, type PublicExecutionResult } from '@aztec/simulator';
+import { AvmSimulator, type PublicContractsDB, type PublicExecutionResult, type PublicStateDB } from '@aztec/simulator';
 import {
   getAvmTestContractBytecode,
   initContext,
@@ -59,6 +59,10 @@ describe('AVM WitGen, proof generation and verification', () => {
     ['get_address', []],
     ['note_hash_exists', [new Fr(1), new Fr(2)]],
     ['test_get_contract_instance', []],
+    ['set_storage_single', [new Fr(1)]],
+    ['set_storage_list', [new Fr(1), new Fr(2)]],
+    ['read_storage_single', [new Fr(1)]],
+    ['read_storage_list', [new Fr(1)]],
     ['new_note_hash', [new Fr(1)]],
     ['new_nullifier', [new Fr(1)]],
     ['nullifier_exists', [new Fr(1)]],
@@ -141,6 +145,10 @@ const proveAndVerifyAvmTestContract = async (functionName: string, calldata: Fr[
     publicKeysHash: new Fr(0x161718),
   }).withAddress(environment.address);
   contractsDb.getContractInstance.mockResolvedValue(Promise.resolve(contractInstance));
+
+  const storageDb = mock<PublicStateDB>();
+  const storageValue = new Fr(5);
+  storageDb.storageRead.mockResolvedValue(Promise.resolve(storageValue));
 
   const hostStorage = initHostStorage({ contractsDb });
   const persistableState = new AvmPersistableStateManager(hostStorage);

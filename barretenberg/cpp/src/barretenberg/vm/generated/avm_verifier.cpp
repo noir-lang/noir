@@ -745,7 +745,6 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
 
     // If Sumcheck did not verify, return false
     if (sumcheck_verified.has_value() && !sumcheck_verified.value()) {
-        info("failed sumcheck");
         return false;
     }
 
@@ -754,23 +753,6 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
     FF avm_kernel_kernel_inputs__is_public_evaluation =
         evaluate_public_input_column(public_inputs[0], circuit_size, multivariate_challenge);
     if (avm_kernel_kernel_inputs__is_public_evaluation != claimed_evaluations.avm_kernel_kernel_inputs__is_public) {
-        info("failed kernel inputs public inputs");
-        return false;
-    }
-
-    FF avm_kernel_kernel_value_out__is_public_evaluation =
-        evaluate_public_input_column(public_inputs[1], circuit_size, multivariate_challenge);
-    if (avm_kernel_kernel_value_out__is_public_evaluation !=
-        claimed_evaluations.avm_kernel_kernel_value_out__is_public) {
-        info("failed value out inputs");
-        return false;
-    }
-
-    FF avm_kernel_kernel_side_effect_out__is_public_evaluation =
-        evaluate_public_input_column(public_inputs[2], circuit_size, multivariate_challenge);
-    if (avm_kernel_kernel_side_effect_out__is_public_evaluation !=
-        claimed_evaluations.avm_kernel_kernel_side_effect_out__is_public) {
-        info("failed side effect inputs");
         return false;
     }
 
@@ -778,7 +760,20 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
         evaluate_public_input_column(public_inputs[3], circuit_size, multivariate_challenge);
     if (avm_kernel_kernel_metadata_out__is_public_evaluation !=
         claimed_evaluations.avm_kernel_kernel_metadata_out__is_public) {
-        info("failed kernel metadata inputs");
+        return false;
+    }
+
+    FF avm_kernel_kernel_side_effect_out__is_public_evaluation =
+        evaluate_public_input_column(public_inputs[2], circuit_size, multivariate_challenge);
+    if (avm_kernel_kernel_side_effect_out__is_public_evaluation !=
+        claimed_evaluations.avm_kernel_kernel_side_effect_out__is_public) {
+        return false;
+    }
+
+    FF avm_kernel_kernel_value_out__is_public_evaluation =
+        evaluate_public_input_column(public_inputs[1], circuit_size, multivariate_challenge);
+    if (avm_kernel_kernel_value_out__is_public_evaluation !=
+        claimed_evaluations.avm_kernel_kernel_value_out__is_public) {
         return false;
     }
 

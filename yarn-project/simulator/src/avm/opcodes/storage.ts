@@ -31,8 +31,8 @@ export class SStore extends BaseStorageInstruction {
   static readonly type: string = 'SSTORE';
   static readonly opcode = Opcode.SSTORE;
 
-  constructor(indirect: number, srcOffset: number, /*temporary*/ srcSize: number, slotOffset: number) {
-    super(indirect, srcOffset, srcSize, slotOffset);
+  constructor(indirect: number, srcOffset: number, /*temporary*/ size: number, slotOffset: number) {
+    super(indirect, srcOffset, size, slotOffset);
   }
 
   public async execute(context: AvmContext): Promise<void> {

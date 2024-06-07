@@ -61,7 +61,6 @@ std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<u
     auto circuit_builder = bb::AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
 
-    info("Checking circuit");
     circuit_builder.check_circuit();
 
     auto composer = AvmComposer();
@@ -493,10 +492,16 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
                                             std::get<uint32_t>(inst.operands.at(1)));
             break;
         case OpCode::SLOAD:
-            trace_builder.op_sload(std::get<uint32_t>(inst.operands.at(1)), std::get<uint32_t>(inst.operands.at(2)));
+            trace_builder.op_sload(std::get<uint8_t>(inst.operands.at(0)),
+                                   std::get<uint32_t>(inst.operands.at(1)),
+                                   std::get<uint32_t>(inst.operands.at(2)),
+                                   std::get<uint32_t>(inst.operands.at(3)));
             break;
         case OpCode::SSTORE:
-            trace_builder.op_sstore(std::get<uint32_t>(inst.operands.at(1)), std::get<uint32_t>(inst.operands.at(2)));
+            trace_builder.op_sstore(std::get<uint8_t>(inst.operands.at(0)),
+                                    std::get<uint32_t>(inst.operands.at(1)),
+                                    std::get<uint32_t>(inst.operands.at(2)),
+                                    std::get<uint32_t>(inst.operands.at(3)));
             break;
         case OpCode::L1TOL2MSGEXISTS:
             trace_builder.op_l1_to_l2_msg_exists(std::get<uint8_t>(inst.operands.at(0)),

@@ -1536,7 +1536,7 @@ Row AvmTraceBuilder::create_kernel_output_opcode_with_set_value_from_hint(uint8_
         .avm_main_mem_idx_b = direct_metadata_offset,
         .avm_main_mem_op_a = 1,
         .avm_main_mem_op_b = 1,
-        .avm_main_pc = pc++,
+        .avm_main_pc = pc, // No PC increment here since we do it in the specific ops
         .avm_main_q_kernel_output_lookup = 1,
         .avm_main_r_in_tag = static_cast<uint32_t>(AvmMemoryTag::FF),
         .avm_main_rwa = 1,
@@ -1656,38 +1656,141 @@ void AvmTraceBuilder::op_nullifier_exists(uint8_t indirect, uint32_t note_offset
     side_effect_counter++;
 }
 
-void AvmTraceBuilder::op_sload(uint32_t slot_offset, uint32_t write_offset)
+void AvmTraceBuilder::op_sload(uint8_t indirect, uint32_t slot_offset, uint32_t size, uint32_t dest_offset)
 {
-    auto const clk = static_cast<uint32_t>(main_trace.size()) + 1;
+    auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
-    // Read the slot
-    Row row = create_kernel_output_opcode_with_set_value_from_hint(0, clk, write_offset, slot_offset);
-    // Row row = create_sload(clk, write_offset, value, slot_read.val, slot_offset);
-    kernel_trace_builder.op_sload(clk, side_effect_counter, row.avm_main_ib, row.avm_main_ia);
+    // TODO: align usage of indirect with simulator
+    // TODO: support indirect slot offset
+    bool dest_offset_is_indirect = is_operand_indirect(indirect, 1);
 
-    row.avm_main_sel_op_sload = FF(1);
+    auto direct_dest_offset = dest_offset;
+    if (dest_offset_is_indirect) {
+        auto read_ind_dest_offset =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, dest_offset);
+        direct_dest_offset = uint32_t(read_ind_dest_offset.val);
+    }
+    auto read_dest_value = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IA, direct_dest_offset, AvmMemoryTag::FF, AvmMemoryTag::FF);
 
-    // Constrain gas cost
-    gas_trace_builder.constrain_gas_lookup(clk, OpCode::SLOAD);
+    AvmMemTraceBuilder::MemRead read_slot = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IB, slot_offset, AvmMemoryTag::FF, AvmMemoryTag::FF);
 
-    main_trace.push_back(row);
-    side_effect_counter++;
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_ia = read_dest_value.val,
+        .avm_main_ib = read_slot.val,
+        .avm_main_ind_a = dest_offset_is_indirect ? dest_offset : 0,
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(dest_offset_is_indirect)),
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_a = FF(direct_dest_offset),
+        .avm_main_mem_idx_b = FF(slot_offset),
+        .avm_main_mem_op_a = FF(1),
+        .avm_main_mem_op_b = FF(1),
+        .avm_main_pc = pc, // No PC increment here since this is the same opcode as the rows created below
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
+        .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
+    });
+    clk++;
+
+    for (uint32_t i = 0; i < size; i++) {
+        FF value = execution_hints.get_side_effect_hints().at(side_effect_counter);
+
+        mem_trace_builder.write_into_memory(
+            call_ptr, clk, IntermRegister::IA, direct_dest_offset + i, value, AvmMemoryTag::FF, AvmMemoryTag::FF);
+
+        auto row = Row{
+            .avm_main_clk = clk,
+            .avm_main_ia = value,
+            .avm_main_ib = read_slot.val + i, // slot increments each time
+            .avm_main_internal_return_ptr = internal_return_ptr,
+            .avm_main_mem_idx_a = direct_dest_offset + i,
+            .avm_main_mem_op_a = 1,
+            .avm_main_pc = pc, // No PC increment here since this is the same opcode for all loop iterations
+            .avm_main_q_kernel_output_lookup = 1,
+            .avm_main_r_in_tag = static_cast<uint32_t>(AvmMemoryTag::FF),
+            .avm_main_rwa = 1,
+            .avm_main_sel_op_sload = FF(1),
+            .avm_main_w_in_tag = static_cast<uint32_t>(AvmMemoryTag::FF),
+        };
+
+        // Output storage read to kernel outputs (performs lookup)
+        kernel_trace_builder.op_sload(clk, side_effect_counter, row.avm_main_ib, row.avm_main_ia);
+
+        // Constrain gas cost
+        gas_trace_builder.constrain_gas_lookup(clk, OpCode::SLOAD);
+
+        main_trace.push_back(row);
+        side_effect_counter++;
+        clk++;
+    }
+    pc++;
 }
 
-void AvmTraceBuilder::op_sstore(uint32_t slot_offset, uint32_t value_offset)
+void AvmTraceBuilder::op_sstore(uint8_t indirect, uint32_t src_offset, uint32_t size, uint32_t slot_offset)
 {
-    auto const clk = static_cast<uint32_t>(main_trace.size()) + 1;
+    auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
-    Row row = create_kernel_output_opcode_with_metadata(
-        0, clk, value_offset, AvmMemoryTag::FF, slot_offset, AvmMemoryTag::FF);
-    kernel_trace_builder.op_sstore(clk, side_effect_counter, row.avm_main_ib, row.avm_main_ia);
-    row.avm_main_sel_op_sstore = FF(1);
+    // TODO: align usage of indirect with simulator
+    // TODO: support indirect slot offset
+    bool src_offset_is_indirect = is_operand_indirect(indirect, 0);
 
-    // Constrain gas cost
-    gas_trace_builder.constrain_gas_lookup(clk, OpCode::SSTORE);
+    // Resolve loads and indirect
+    auto direct_src_offset = src_offset;
+    if (src_offset_is_indirect) {
+        auto read_ind_src_offset =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, src_offset);
+        direct_src_offset = uint32_t(read_ind_src_offset.val);
+    }
+    auto read_src_value = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IA, direct_src_offset, AvmMemoryTag::FF, AvmMemoryTag::FF);
 
-    main_trace.push_back(row);
-    side_effect_counter++;
+    auto read_slot = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IB, slot_offset, AvmMemoryTag::FF, AvmMemoryTag::FF);
+
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_ia = read_src_value.val,
+        .avm_main_ib = read_slot.val,
+        .avm_main_ind_a = src_offset_is_indirect ? src_offset : 0,
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(src_offset_is_indirect)),
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_a = FF(direct_src_offset),
+        .avm_main_mem_idx_b = FF(slot_offset),
+        .avm_main_mem_op_a = FF(1),
+        .avm_main_mem_op_b = FF(1),
+        .avm_main_pc = pc, // No PC increment here since this is the same opcode as the rows created below
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
+        .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
+    });
+    clk++;
+
+    for (uint32_t i = 0; i < size; i++) {
+        auto read_a = mem_trace_builder.read_and_load_from_memory(
+            call_ptr, clk, IntermRegister::IA, direct_src_offset + i, AvmMemoryTag::FF, AvmMemoryTag::U0);
+
+        Row row = Row{
+            .avm_main_clk = clk,
+            .avm_main_ia = read_a.val,
+            .avm_main_ib = read_slot.val + i, // slot increments each time
+            .avm_main_internal_return_ptr = internal_return_ptr,
+            .avm_main_mem_idx_a = direct_src_offset + i,
+            .avm_main_mem_op_a = 1,
+            .avm_main_pc = pc,
+            .avm_main_q_kernel_output_lookup = 1,
+            .avm_main_r_in_tag = static_cast<uint32_t>(AvmMemoryTag::FF),
+        };
+        row.avm_main_sel_op_sstore = FF(1);
+        kernel_trace_builder.op_sstore(clk, side_effect_counter, row.avm_main_ib, row.avm_main_ia);
+
+        // Constrain gas cost
+        gas_trace_builder.constrain_gas_lookup(clk, OpCode::SSTORE);
+
+        main_trace.push_back(row);
+        side_effect_counter++;
+        clk++;
+    }
+    pc++;
 }
 
 /**
@@ -4059,8 +4162,8 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
         // to be the same as the previous row This satisfies the `offset' - (offset + operation_selector) = 0`
         // constraints
         for (size_t j = kernel_padding_main_trace_bottom; j < clk; j++) {
-            auto const& prev = main_trace.at(j - 1);
-            auto& dest = main_trace.at(j);
+            auto const& prev = main_trace.at(j);
+            auto& dest = main_trace.at(j + 1);
 
             dest.avm_kernel_note_hash_exist_write_offset = prev.avm_kernel_note_hash_exist_write_offset;
             dest.avm_kernel_emit_note_hash_write_offset = prev.avm_kernel_emit_note_hash_write_offset;

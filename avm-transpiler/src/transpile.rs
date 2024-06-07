@@ -894,7 +894,7 @@ fn handle_storage_write(
     };
 
     let src_offset_maybe = inputs[1];
-    let (src_offset, src_size) = match src_offset_maybe {
+    let (src_offset, size) = match src_offset_maybe {
         ValueOrArray::HeapArray(HeapArray { pointer, size }) => (pointer.0, size),
         _ => panic!("Storage write address inputs should be an array of values"),
     };
@@ -904,7 +904,7 @@ fn handle_storage_write(
         indirect: Some(ZEROTH_OPERAND_INDIRECT),
         operands: vec![
             AvmOperand::U32 { value: src_offset as u32 },
-            AvmOperand::U32 { value: src_size as u32 },
+            AvmOperand::U32 { value: size as u32 },
             AvmOperand::U32 { value: slot_offset as u32 },
         ],
         ..Default::default()
@@ -961,7 +961,7 @@ fn handle_storage_read(
     };
 
     let dest_offset_maybe = destinations[0];
-    let (dest_offset, src_size) = match dest_offset_maybe {
+    let (dest_offset, size) = match dest_offset_maybe {
         ValueOrArray::HeapArray(HeapArray { pointer, size }) => (pointer.0, size),
         _ => panic!("Storage write address inputs should be an array of values"),
     };
@@ -971,7 +971,7 @@ fn handle_storage_read(
         indirect: Some(FIRST_OPERAND_INDIRECT),
         operands: vec![
             AvmOperand::U32 { value: slot_offset as u32 },
-            AvmOperand::U32 { value: src_size as u32 },
+            AvmOperand::U32 { value: size as u32 },
             AvmOperand::U32 { value: dest_offset as u32 },
         ],
         ..Default::default()

@@ -937,14 +937,12 @@ template <typename FF_> class avm_mainImpl {
         {
             Avm_DECLARE_VIEWS(78);
 
-            auto tmp = (((((((((avm_main_sel_op_note_hash_exists + avm_main_sel_op_emit_note_hash) +
-                               avm_main_sel_op_nullifier_exists) +
-                              avm_main_sel_op_emit_nullifier) +
-                             avm_main_sel_op_l1_to_l2_msg_exists) +
-                            avm_main_sel_op_emit_unencrypted_log) +
-                           avm_main_sel_op_emit_l2_to_l1_msg) +
-                          avm_main_sel_op_sload) +
-                         avm_main_sel_op_sstore) *
+            auto tmp = (((((((avm_main_sel_op_note_hash_exists + avm_main_sel_op_emit_note_hash) +
+                             avm_main_sel_op_nullifier_exists) +
+                            avm_main_sel_op_emit_nullifier) +
+                           avm_main_sel_op_l1_to_l2_msg_exists) +
+                          avm_main_sel_op_emit_unencrypted_log) +
+                         avm_main_sel_op_emit_l2_to_l1_msg) *
                         (-avm_main_q_kernel_output_lookup + FF(1)));
             tmp *= scaling_factor;
             std::get<78>(evals) += tmp;
@@ -1061,42 +1059,42 @@ template <typename FF_> class avm_mainImpl {
             Avm_DECLARE_VIEWS(92);
 
             auto tmp =
-                (((avm_main_gas_cost_active -
-                   (((((((avm_main_sel_op_fdiv +
-                          ((((((((((avm_main_sel_op_add + avm_main_sel_op_sub) + avm_main_sel_op_mul) +
-                                  avm_main_sel_op_div) +
-                                 avm_main_sel_op_not) +
-                                avm_main_sel_op_eq) +
-                               avm_main_sel_op_lt) +
-                              avm_main_sel_op_lte) +
-                             avm_main_sel_op_shr) +
-                            avm_main_sel_op_shl) +
-                           avm_main_sel_op_cast)) +
-                         ((avm_main_sel_op_and + avm_main_sel_op_or) + avm_main_sel_op_xor)) +
-                        (avm_main_sel_cmov + avm_main_sel_mov)) +
-                       ((((avm_main_sel_op_radix_le + avm_main_sel_op_sha256) + avm_main_sel_op_poseidon2) +
-                         avm_main_sel_op_keccak) +
-                        avm_main_sel_op_pedersen)) +
-                      ((((((((((avm_main_sel_op_sender + avm_main_sel_op_address) + avm_main_sel_op_storage_address) +
-                              avm_main_sel_op_chain_id) +
-                             avm_main_sel_op_version) +
-                            avm_main_sel_op_block_number) +
-                           avm_main_sel_op_coinbase) +
-                          avm_main_sel_op_timestamp) +
-                         avm_main_sel_op_fee_per_l2_gas) +
-                        avm_main_sel_op_fee_per_da_gas) +
-                       avm_main_sel_op_transaction_fee)) +
-                     ((((((((avm_main_sel_op_note_hash_exists + avm_main_sel_op_emit_note_hash) +
+                (((((avm_main_gas_cost_active -
+                     (((((((avm_main_sel_op_fdiv +
+                            ((((((((((avm_main_sel_op_add + avm_main_sel_op_sub) + avm_main_sel_op_mul) +
+                                    avm_main_sel_op_div) +
+                                   avm_main_sel_op_not) +
+                                  avm_main_sel_op_eq) +
+                                 avm_main_sel_op_lt) +
+                                avm_main_sel_op_lte) +
+                               avm_main_sel_op_shr) +
+                              avm_main_sel_op_shl) +
+                             avm_main_sel_op_cast)) +
+                           ((avm_main_sel_op_and + avm_main_sel_op_or) + avm_main_sel_op_xor)) +
+                          (avm_main_sel_cmov + avm_main_sel_mov)) +
+                         ((((avm_main_sel_op_radix_le + avm_main_sel_op_sha256) + avm_main_sel_op_poseidon2) +
+                           avm_main_sel_op_keccak) +
+                          avm_main_sel_op_pedersen)) +
+                        ((((((((((avm_main_sel_op_sender + avm_main_sel_op_address) + avm_main_sel_op_storage_address) +
+                                avm_main_sel_op_chain_id) +
+                               avm_main_sel_op_version) +
+                              avm_main_sel_op_block_number) +
+                             avm_main_sel_op_coinbase) +
+                            avm_main_sel_op_timestamp) +
+                           avm_main_sel_op_fee_per_l2_gas) +
+                          avm_main_sel_op_fee_per_da_gas) +
+                         avm_main_sel_op_transaction_fee)) +
+                       ((((((avm_main_sel_op_note_hash_exists + avm_main_sel_op_emit_note_hash) +
                             avm_main_sel_op_nullifier_exists) +
                            avm_main_sel_op_emit_nullifier) +
                           avm_main_sel_op_l1_to_l2_msg_exists) +
                          avm_main_sel_op_emit_unencrypted_log) +
-                        avm_main_sel_op_emit_l2_to_l1_msg) +
-                       avm_main_sel_op_sload) +
-                      avm_main_sel_op_sstore)) +
-                    (avm_main_sel_op_dagasleft + avm_main_sel_op_l2gasleft))) -
-                  (((avm_main_sel_jump + avm_main_sel_jumpi) + avm_main_sel_internal_call) +
-                   avm_main_sel_internal_return)) -
+                        avm_main_sel_op_emit_l2_to_l1_msg)) +
+                      (avm_main_sel_op_dagasleft + avm_main_sel_op_l2gasleft))) -
+                    (((avm_main_sel_jump + avm_main_sel_jumpi) + avm_main_sel_internal_call) +
+                     avm_main_sel_internal_return)) -
+                   avm_main_sel_op_sload) -
+                  avm_main_sel_op_sstore) -
                  avm_main_mem_op_activate_gas);
             tmp *= scaling_factor;
             std::get<92>(evals) += tmp;
@@ -1131,14 +1129,12 @@ template <typename FF_> class avm_mainImpl {
                         avm_main_sel_op_fee_per_l2_gas) +
                        avm_main_sel_op_fee_per_da_gas) +
                       avm_main_sel_op_transaction_fee)) +
-                    ((((((((avm_main_sel_op_note_hash_exists + avm_main_sel_op_emit_note_hash) +
-                           avm_main_sel_op_nullifier_exists) +
-                          avm_main_sel_op_emit_nullifier) +
-                         avm_main_sel_op_l1_to_l2_msg_exists) +
-                        avm_main_sel_op_emit_unencrypted_log) +
-                       avm_main_sel_op_emit_l2_to_l1_msg) +
-                      avm_main_sel_op_sload) +
-                     avm_main_sel_op_sstore)) +
+                    ((((((avm_main_sel_op_note_hash_exists + avm_main_sel_op_emit_note_hash) +
+                         avm_main_sel_op_nullifier_exists) +
+                        avm_main_sel_op_emit_nullifier) +
+                       avm_main_sel_op_l1_to_l2_msg_exists) +
+                      avm_main_sel_op_emit_unencrypted_log) +
+                     avm_main_sel_op_emit_l2_to_l1_msg)) +
                    (avm_main_sel_op_dagasleft + avm_main_sel_op_l2gasleft))) *
                  (avm_main_pc_shift - (avm_main_pc + FF(1))));
             tmp *= scaling_factor;
@@ -1192,14 +1188,12 @@ template <typename FF_> class avm_mainImpl {
                        avm_main_sel_op_fee_per_l2_gas) +
                       avm_main_sel_op_fee_per_da_gas) +
                      avm_main_sel_op_transaction_fee)) +
-                   ((((((((avm_main_sel_op_note_hash_exists + avm_main_sel_op_emit_note_hash) +
-                          avm_main_sel_op_nullifier_exists) +
-                         avm_main_sel_op_emit_nullifier) +
-                        avm_main_sel_op_l1_to_l2_msg_exists) +
-                       avm_main_sel_op_emit_unencrypted_log) +
-                      avm_main_sel_op_emit_l2_to_l1_msg) +
-                     avm_main_sel_op_sload) +
-                    avm_main_sel_op_sstore)) +
+                   ((((((avm_main_sel_op_note_hash_exists + avm_main_sel_op_emit_note_hash) +
+                        avm_main_sel_op_nullifier_exists) +
+                       avm_main_sel_op_emit_nullifier) +
+                      avm_main_sel_op_l1_to_l2_msg_exists) +
+                     avm_main_sel_op_emit_unencrypted_log) +
+                    avm_main_sel_op_emit_l2_to_l1_msg)) +
                   (avm_main_sel_op_dagasleft + avm_main_sel_op_l2gasleft)) *
                  (avm_main_call_ptr - avm_main_space_id));
             tmp *= scaling_factor;
@@ -1576,14 +1570,12 @@ template <typename FF_> class avm_mainImpl {
         {
             Avm_DECLARE_VIEWS(139);
 
-            auto tmp = (((((((((avm_main_sel_op_note_hash_exists + avm_main_sel_op_emit_note_hash) +
-                               avm_main_sel_op_nullifier_exists) +
-                              avm_main_sel_op_emit_nullifier) +
-                             avm_main_sel_op_l1_to_l2_msg_exists) +
-                            avm_main_sel_op_emit_unencrypted_log) +
-                           avm_main_sel_op_emit_l2_to_l1_msg) +
-                          avm_main_sel_op_sload) +
-                         avm_main_sel_op_sstore) *
+            auto tmp = (((((((avm_main_sel_op_note_hash_exists + avm_main_sel_op_emit_note_hash) +
+                             avm_main_sel_op_nullifier_exists) +
+                            avm_main_sel_op_emit_nullifier) +
+                           avm_main_sel_op_l1_to_l2_msg_exists) +
+                          avm_main_sel_op_emit_unencrypted_log) +
+                         avm_main_sel_op_emit_l2_to_l1_msg) *
                         (avm_kernel_side_effect_counter_shift - (avm_kernel_side_effect_counter + FF(1))));
             tmp *= scaling_factor;
             std::get<139>(evals) += tmp;

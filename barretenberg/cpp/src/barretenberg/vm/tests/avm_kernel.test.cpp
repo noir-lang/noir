@@ -118,7 +118,8 @@ void expect_output_table_row_with_metadata(std::vector<Row>::const_iterator row,
                                            FF ind_b,
                                            AvmMemoryTag r_in_tag,
                                            uint32_t side_effect_counter,
-                                           uint32_t rwa = 0)
+                                           uint32_t rwa = 0,
+                                           bool no_b = false)
 {
     expect_output_table_row(row, selector, ia, mem_idx_a, ind_a, r_in_tag, side_effect_counter, rwa);
 
@@ -127,9 +128,12 @@ void expect_output_table_row_with_metadata(std::vector<Row>::const_iterator row,
 
     // Checks that are fixed for kernel inputs
     EXPECT_EQ(row->avm_main_rwb, FF(0));
-    EXPECT_EQ(row->avm_main_ind_b, ind_b);
-    EXPECT_EQ(row->avm_main_ind_op_b, FF(ind_b != 0));
-    EXPECT_EQ(row->avm_main_mem_op_b, FF(1));
+
+    if (!no_b) {
+        EXPECT_EQ(row->avm_main_ind_b, ind_b);
+        EXPECT_EQ(row->avm_main_ind_op_b, FF(ind_b != 0));
+        EXPECT_EQ(row->avm_main_mem_op_b, FF(1));
+    }
 }
 
 void expect_output_table_row_with_exists_metadata(std::vector<Row>::const_iterator row,
@@ -980,9 +984,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitL2ToL1Msg)
             /*mem_idx_b=*/recipient_offset,
             /*ind_a*/ indirect ? indirect_recipient_offset : 0,
             /*w_in_tag=*/AvmMemoryTag::FF,
-            /*side_effect_counter=*/0
-
-        );
+            /*side_effect_counter=*/0);
 
         check_kernel_outputs(trace.at(output_offset), 1234, /*side_effect_counter=*/0, /*metadata=*/420);
     };
@@ -1033,8 +1035,10 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitUnencryptedLog)
 
 TEST_F(AvmKernelOutputPositiveTests, kernelSload)
 {
-    uint32_t value_offset = 42;
+    uint8_t indirect = 0;
+    uint32_t dest_offset = 42;
     auto value = 1234;
+    uint32_t size = 1;
     uint32_t slot_offset = 420;
     auto slot = 12345;
 
@@ -1043,12 +1047,12 @@ TEST_F(AvmKernelOutputPositiveTests, kernelSload)
 
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, static_cast<uint128_t>(slot), slot_offset, AvmMemoryTag::FF);
-        trace_builder.op_sload(slot_offset, value_offset);
+        trace_builder.op_sload(indirect, slot_offset, size, dest_offset);
     };
     auto checks = [=]([[maybe_unused]] bool indirect, const std::vector<Row>& trace) {
         std::vector<Row>::const_iterator row =
             std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_sload == FF(1); });
-        EXPECT_TRUE(row != trace.end());
+        ASSERT_TRUE(row != trace.end());
 
         // Check the outputs of the trace
         uint32_t output_offset = AvmKernelTraceBuilder::START_SLOAD_WRITE_OFFSET;
@@ -1058,14 +1062,15 @@ TEST_F(AvmKernelOutputPositiveTests, kernelSload)
             row,
             /*kernel_in_offset=*/output_offset,
             /*ia=*/value, // Note the value generated above for public inputs is the same as the index read + 1
-            /*mem_idx_a=*/value_offset,
+            /*mem_idx_a=*/dest_offset,
             /*ind_a=*/false,
             /*ib=*/slot,
-            /*mem_idx_b=*/slot_offset,
+            /*mem_idx_b=*/0,
             /*ind_b=*/false,
-            /*w_in_tag=*/AvmMemoryTag::FF,
+            /*r_in_tag=*/AvmMemoryTag::FF,
             /*side_effect_counter=*/0,
-            /*rwa=*/1);
+            /*rwa=*/1,
+            /*no_b=*/true);
 
         check_kernel_outputs(trace.at(output_offset), value, /*side_effect_counter=*/0, slot);
     };
@@ -1079,11 +1084,13 @@ TEST_F(AvmKernelOutputPositiveTests, kernelSstore)
     auto value = 1234;
     uint32_t metadata_offset = 420;
     auto slot = 12345;
+    uint8_t indirect = 0;
+    uint32_t size = 1;
 
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, static_cast<uint128_t>(value), value_offset, AvmMemoryTag::FF);
         trace_builder.op_set(0, static_cast<uint128_t>(slot), metadata_offset, AvmMemoryTag::FF);
-        trace_builder.op_sstore(metadata_offset, value_offset);
+        trace_builder.op_sstore(indirect, value_offset, size, metadata_offset);
     };
     auto checks = [=]([[maybe_unused]] bool indirect, const std::vector<Row>& trace) {
         std::vector<Row>::const_iterator row =
@@ -1101,10 +1108,12 @@ TEST_F(AvmKernelOutputPositiveTests, kernelSstore)
             /*mem_idx_a=*/value_offset,
             /*ind_a*/ false,
             /*ib=*/slot,
-            /*mem_idx_b=*/metadata_offset,
+            /*mem_idx_b=*/0,
             /*ind_b*/ false,
             /*w_in_tag=*/AvmMemoryTag::FF,
-            /*side_effect_counter=*/0);
+            /*side_effect_counter=*/0,
+            /*rwa=*/0,
+            /*no_b=*/true);
 
         check_kernel_outputs(trace.at(output_offset), value, /*side_effect_counter=*/0, slot);
     };
@@ -1150,9 +1159,8 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNoteHashExists)
             /*ind_a*/ indirect ? FF(indirect_value_offset) : FF(0),
             /*ib=*/exists,
             /*mem_idx_b=*/metadata_offset,
-            /*ind_a*/ indirect ? FF(indirect_metadata_offset) : FF(0),
+            /*ind_b*/ indirect ? FF(indirect_metadata_offset) : FF(0),
             /*w_in_tag=*/AvmMemoryTag::FF,
-
             /*side_effect_counter=*/0);
 
         check_kernel_outputs(trace.at(output_offset), value, /*side_effect_counter=*/0, exists);

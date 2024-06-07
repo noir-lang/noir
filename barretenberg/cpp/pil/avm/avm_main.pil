@@ -391,7 +391,7 @@ namespace avm_main(256);
 
     pol KERNEL_OUTPUT_SELECTORS = (
         sel_op_note_hash_exists + sel_op_emit_note_hash + sel_op_nullifier_exists + sel_op_emit_nullifier + sel_op_l1_to_l2_msg_exists +
-        sel_op_emit_unencrypted_log + sel_op_emit_l2_to_l1_msg + sel_op_sload + sel_op_sstore
+        sel_op_emit_unencrypted_log + sel_op_emit_l2_to_l1_msg
     );
     #[KERNEL_OUTPUT_ACTIVE_CHECK]
     KERNEL_OUTPUT_SELECTORS * (1 - q_kernel_output_lookup) = 0;
@@ -454,7 +454,10 @@ namespace avm_main(256);
     //       Note: External call gas cost is not constrained
     pol commit gas_cost_active;
     pol commit mem_op_activate_gas; // TODO: remove this one
-    gas_cost_active - OPCODE_SELECTORS - ALL_CTRL_FLOW_SEL - mem_op_activate_gas = 0;
+    // TODO: remove sload and sstore from here
+    // This temporarily disables gas tracking for sload and sstore because our gas
+    // tracking doesn't work properly for instructions that span multiple rows
+    gas_cost_active - OPCODE_SELECTORS - ALL_CTRL_FLOW_SEL - sel_op_sload - sel_op_sstore - mem_op_activate_gas = 0;
 
     // Program counter must increment if not jumping or returning
     #[PC_INCREMENT]
