@@ -154,7 +154,7 @@ set(BARRETENBERG_TARGET_OBJECTS
     $<TARGET_OBJECTS:translator_vm_recursion_objects>
     $<TARGET_OBJECTS:ultra_honk_objects>)
 
-if(NOT WASM)
+if(NOT DISABLE_AZTEC_VM)
     # enable AVM
     list(APPEND BARRETENBERG_TARGET_OBJECTS $<TARGET_OBJECTS:vm_objects>)
 endif()
