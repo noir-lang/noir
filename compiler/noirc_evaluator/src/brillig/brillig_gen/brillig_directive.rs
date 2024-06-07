@@ -56,6 +56,7 @@ pub(crate) fn directive_invert() -> GeneratedBrillig {
         ],
         assert_messages: Default::default(),
         locations: Default::default(),
+        name: "directive_invert".to_string(),
     }
 }
 
@@ -114,6 +115,7 @@ pub(crate) fn directive_quotient(bit_size: u32) -> GeneratedBrillig {
             ],
             assert_messages: Default::default(),
             locations: Default::default(),
+            name: "directive_field_quotient".to_string(),
         }
     } else {
         // Integer version
@@ -167,6 +169,7 @@ pub(crate) fn directive_quotient(bit_size: u32) -> GeneratedBrillig {
             ],
             assert_messages: Default::default(),
             locations: Default::default(),
+            name: "directive_integer_quotient".to_string(),
         }
     }
 }

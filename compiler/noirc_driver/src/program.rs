@@ -29,4 +29,6 @@ pub struct CompiledProgram {
     pub warnings: Vec<SsaReport>,
     /// Names of the functions in the program. These are used for more informative debugging and benchmarking.
     pub names: Vec<String>,
+    /// Names of the unconstrained functions in the program.
+    pub brillig_names: Vec<String>,
 }
