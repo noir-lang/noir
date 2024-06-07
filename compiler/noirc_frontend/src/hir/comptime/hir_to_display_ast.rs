@@ -192,7 +192,7 @@ impl HirExpression {
             }
             HirExpression::Error => ExpressionKind::Error,
             HirExpression::Comptime(block) => {
-                ExpressionKind::Comptime(block.to_display_ast(interner))
+                ExpressionKind::Comptime(block.to_display_ast(interner), span)
             }
             HirExpression::Quote(block) => ExpressionKind::Quote(block.clone()),
 
