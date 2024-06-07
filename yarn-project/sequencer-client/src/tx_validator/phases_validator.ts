@@ -1,7 +1,7 @@
-import { type AllowedFunction, Tx, type TxValidator } from '@aztec/circuit-types';
+import { type AllowedFunction, PublicKernelType, Tx, type TxValidator } from '@aztec/circuit-types';
 import { type PublicCallRequest } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { AbstractPhaseManager, ContractsDataSourcePublicDB, PublicKernelPhase } from '@aztec/simulator';
+import { AbstractPhaseManager, ContractsDataSourcePublicDB } from '@aztec/simulator';
 import { type ContractDataSource } from '@aztec/types/contracts';
 
 export class PhasesTxValidator implements TxValidator<Tx> {
@@ -40,7 +40,7 @@ export class PhasesTxValidator implements TxValidator<Tx> {
       return true;
     }
 
-    const { [PublicKernelPhase.SETUP]: setupFns } = AbstractPhaseManager.extractEnqueuedPublicCallsByPhase(tx);
+    const { [PublicKernelType.SETUP]: setupFns } = AbstractPhaseManager.extractEnqueuedPublicCallsByPhase(tx);
 
     for (const setupFn of setupFns) {
       if (!(await this.isOnAllowList(setupFn, this.setupAllowList))) {

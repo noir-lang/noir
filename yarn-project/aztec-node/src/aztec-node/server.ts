@@ -45,6 +45,7 @@ import {
 } from '@aztec/circuits.js';
 import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/hash';
 import { type L1ContractAddresses, createEthereumChain } from '@aztec/ethereum';
+import { type ContractArtifact } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type AztecKVStore } from '@aztec/kv-store';
@@ -762,6 +763,10 @@ export class AztecNodeService implements AztecNode {
       keyRegistry: getCanonicalKeyRegistryAddress(),
       multiCallEntrypoint: getCanonicalMultiCallEntrypointAddress(),
     });
+  }
+
+  public addContractArtifact(address: AztecAddress, artifact: ContractArtifact): Promise<void> {
+    return this.contractDataSource.addContractArtifact(address, artifact);
   }
 
   /**

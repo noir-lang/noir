@@ -15,6 +15,7 @@ import {
   type UnencryptedL2BlockL2Logs,
 } from '@aztec/circuit-types';
 import { type Fr } from '@aztec/circuits.js';
+import { type ContractArtifact } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import {
   type ContractClassPublic,
@@ -191,4 +192,7 @@ export interface ArchiverDataStore {
 
   /** Returns the list of all class ids known by the archiver. */
   getContractClassIds(): Promise<Fr[]>;
+
+  addContractArtifact(address: AztecAddress, contract: ContractArtifact): Promise<void>;
+  getContractArtifact(address: AztecAddress): Promise<ContractArtifact | undefined>;
 }

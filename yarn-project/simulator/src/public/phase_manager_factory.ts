@@ -1,9 +1,9 @@
-import { type Tx } from '@aztec/circuit-types';
+import { PublicKernelType, type Tx } from '@aztec/circuit-types';
 import { type GlobalVariables, type Header, type PublicKernelCircuitPublicInputs } from '@aztec/circuits.js';
 import { type PublicExecutor, type PublicStateDB } from '@aztec/simulator';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
-import { type AbstractPhaseManager, PublicKernelPhase } from './abstract_phase_manager.js';
+import { type AbstractPhaseManager } from './abstract_phase_manager.js';
 import { AppLogicPhaseManager } from './app_logic_phase_manager.js';
 import { type ContractsDataSourcePublicDB } from './public_db_sources.js';
 import { type PublicKernelCircuitSimulator } from './public_kernel_circuit_simulator.js';
@@ -12,7 +12,7 @@ import { TailPhaseManager } from './tail_phase_manager.js';
 import { TeardownPhaseManager } from './teardown_phase_manager.js';
 
 export class PhaseDidNotChangeError extends Error {
-  constructor(phase: PublicKernelPhase) {
+  constructor(phase: PublicKernelType) {
     super(`Tried to advance the phase from [${phase}] when the circuit still needs [${phase}]`);
   }
 }
@@ -84,7 +84,7 @@ export class PhaseManagerFactory {
     if (output.needsSetup) {
       throw new CannotTransitionToSetupError();
     } else if (output.needsAppLogic) {
-      if (currentPhaseManager.phase === PublicKernelPhase.APP_LOGIC) {
+      if (currentPhaseManager.phase === PublicKernelType.APP_LOGIC) {
         throw new PhaseDidNotChangeError(currentPhaseManager.phase);
       }
       return new AppLogicPhaseManager(
@@ -97,7 +97,7 @@ export class PhaseManagerFactory {
         publicStateDB,
       );
     } else if (output.needsTeardown) {
-      if (currentPhaseManager.phase === PublicKernelPhase.TEARDOWN) {
+      if (currentPhaseManager.phase === PublicKernelType.TEARDOWN) {
         throw new PhaseDidNotChangeError(currentPhaseManager.phase);
       }
       return new TeardownPhaseManager(
@@ -109,7 +109,7 @@ export class PhaseManagerFactory {
         publicContractsDB,
         publicStateDB,
       );
-    } else if (currentPhaseManager.phase !== PublicKernelPhase.TAIL) {
+    } else if (currentPhaseManager.phase !== PublicKernelType.TAIL) {
       return new TailPhaseManager(
         db,
         publicExecutor,

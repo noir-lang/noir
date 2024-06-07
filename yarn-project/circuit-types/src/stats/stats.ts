@@ -99,6 +99,21 @@ export type CircuitSimulationStats = {
   outputSize: number;
 };
 
+export type PublicDBAccessStats = {
+  eventName: 'public-db-access';
+  duration: number;
+  operation: string;
+};
+
+export type AvmSimulationStats = {
+  /** name of the event. */
+  eventName: 'avm-simulation';
+  /** Name of the circuit. */
+  appCircuitName: string;
+  /** Duration in ms. */
+  duration: number;
+};
+
 /** Stats for witness generation. */
 export type CircuitWitnessGenerationStats = {
   /** name of the event. */
@@ -247,17 +262,19 @@ export type TxAddedToPoolStats = {
 
 /** Stats emitted in structured logs with an `eventName` for tracking. */
 export type Stats =
-  | ProofConstructed
-  | L1PublishStats
-  | NodeSyncedChainHistoryStats
-  | CircuitSimulationStats
+  | AvmSimulationStats
   | CircuitProvingStats
+  | CircuitSimulationStats
   | CircuitWitnessGenerationStats
+  | PublicDBAccessStats
+  | L1PublishStats
   | L2BlockBuiltStats
   | L2BlockHandledStats
+  | NodeSyncedChainHistoryStats
   | NoteProcessorCaughtUpStats
-  | TxAddedToPoolStats
-  | TreeInsertionStats;
+  | ProofConstructed
+  | TreeInsertionStats
+  | TxAddedToPoolStats;
 
 /** Set of event names across emitted stats. */
 export type StatsEventName = Stats['eventName'];

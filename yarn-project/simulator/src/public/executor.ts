@@ -1,5 +1,7 @@
+import { type AvmSimulationStats } from '@aztec/circuit-types/stats';
 import { Fr, type Gas, type GlobalVariables, type Header, type Nullifier, type TxContext } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { Timer } from '@aztec/foundation/timer';
 
 import { AvmContext } from '../avm/avm_context.js';
 import { AvmMachineState } from '../avm/avm_machine_state.js';
@@ -41,8 +43,10 @@ export class PublicExecutor {
     const address = execution.contractAddress;
     const selector = execution.functionSelector;
     const startGas = availableGas;
+    const fnName = await this.contractsDb.getDebugFunctionName(address, selector);
 
-    PublicExecutor.log.verbose(`[AVM] Executing public external function ${address.toString()}:${selector}.`);
+    PublicExecutor.log.verbose(`[AVM] Executing public external function ${fnName}.`);
+    const timer = new Timer();
 
     // Temporary code to construct the AVM context
     // These data structures will permeate across the simulator when the public executor is phased out
@@ -75,9 +79,12 @@ export class PublicExecutor {
     await avmContext.persistableState.publicStorage.commitToDB();
 
     PublicExecutor.log.verbose(
-      `[AVM] ${address.toString()}:${selector} returned, reverted: ${avmResult.reverted}, reason: ${
-        avmResult.revertReason
-      }.`,
+      `[AVM] ${fnName} returned, reverted: ${avmResult.reverted}, reason: ${avmResult.revertReason}.`,
+      {
+        eventName: 'avm-simulation',
+        appCircuitName: fnName ?? 'unknown',
+        duration: timer.ms(),
+      } satisfies AvmSimulationStats,
     );
 
     const executionResult = convertAvmResultsToPxResult(

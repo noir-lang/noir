@@ -26,6 +26,18 @@ export interface Metric {
 /** Metric definitions to track from benchmarks. */
 export const Metrics = [
   {
+    name: 'public_db_access_time_ms',
+    groupBy: 'chain-length',
+    description: 'Time to access a database.',
+    events: ['public-db-access'],
+  },
+  {
+    name: 'avm_simulation_time_ms',
+    groupBy: 'app-circuit-name',
+    description: 'Time to simulate an AVM circuit.',
+    events: ['avm-simulation'],
+  },
+  {
     name: 'proof_construction_time_sha256_ms',
     groupBy: 'threads',
     description: 'Time needed to generate a proof of an ACIR program.',

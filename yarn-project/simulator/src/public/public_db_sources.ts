@@ -1,10 +1,11 @@
 import { MerkleTreeId, NullifierMembershipWitness, type Tx } from '@aztec/circuit-types';
+import { type PublicDBAccessStats } from '@aztec/circuit-types/stats';
 import {
   type AztecAddress,
   ContractClassRegisteredEvent,
   ContractInstanceDeployedEvent,
   Fr,
-  type FunctionSelector,
+  FunctionSelector,
   type L1_TO_L2_MSG_TREE_HEIGHT,
   type NULLIFIER_TREE_HEIGHT,
   type NullifierLeafPreimage,
@@ -12,6 +13,7 @@ import {
 } from '@aztec/circuits.js';
 import { computeL1ToL2MessageNullifier, computePublicDataTreeLeafSlot } from '@aztec/circuits.js/hash';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { Timer } from '@aztec/foundation/timer';
 import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
 import {
   type CommitmentsDB,
@@ -93,6 +95,22 @@ export class ContractsDataSourcePublicDB implements PublicContractsDB {
       throw new Error(`Contract class ${instance.contractClassId.toString()} for ${address.toString()} not found`);
     }
     return contractClass.publicFunctions.find(f => f.selector.equals(selector))?.bytecode;
+  }
+
+  public async getDebugFunctionName(address: AztecAddress, selector: FunctionSelector): Promise<string | undefined> {
+    const artifact = await this.db.getContractArtifact(address);
+    if (!artifact) {
+      return Promise.resolve(undefined);
+    }
+
+    const f = artifact.functions.find(f =>
+      FunctionSelector.fromNameAndParameters(f.name, f.parameters).equals(selector),
+    );
+    if (!f) {
+      return Promise.resolve(undefined);
+    }
+
+    return Promise.resolve(`${artifact.name}:${f.name}`);
   }
 }
 
@@ -196,11 +214,14 @@ export class WorldStatePublicDB implements PublicStateDB {
  * Implements WorldState db using a world state database.
  */
 export class WorldStateDB implements CommitmentsDB {
+  private log = createDebugLogger('aztec:sequencer:world-state-db');
+
   constructor(private db: MerkleTreeOperations) {}
 
   public async getNullifierMembershipWitnessAtLatestBlock(
     nullifier: Fr,
   ): Promise<NullifierMembershipWitness | undefined> {
+    const timer = new Timer();
     const index = await this.db.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
     if (!index) {
       return undefined;
@@ -218,6 +239,12 @@ export class WorldStateDB implements CommitmentsDB {
       return undefined;
     }
 
+    this.log.verbose(`[DB] Fetched nullifier membership`, {
+      eventName: 'public-db-access',
+      duration: timer.ms(),
+      operation: 'get-nullifier-membership-witness-at-latest-block',
+    } satisfies PublicDBAccessStats);
+
     return new NullifierMembershipWitness(BigInt(index), leafPreimage as NullifierLeafPreimage, siblingPath);
   }
 
@@ -232,6 +259,7 @@ export class WorldStateDB implements CommitmentsDB {
 
     // We iterate over messages until we find one whose nullifier is not in the nullifier tree --> we need to check
     // for nullifiers because messages can have duplicates.
+    const timer = new Timer();
     do {
       messageIndex = (await this.db.findLeafIndexAfter(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, messageHash, startIndex))!;
       if (messageIndex === undefined) {
@@ -249,18 +277,45 @@ export class WorldStateDB implements CommitmentsDB {
       messageIndex,
     );
 
+    this.log.verbose(`[DB] Fetched L1 to L2 message membership`, {
+      eventName: 'public-db-access',
+      duration: timer.ms(),
+      operation: 'get-l1-to-l2-message-membership-witness',
+    } satisfies PublicDBAccessStats);
+
     return new MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>(messageIndex, siblingPath);
   }
 
   public async getL1ToL2LeafValue(leafIndex: bigint): Promise<Fr | undefined> {
-    return await this.db.getLeafValue(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, leafIndex);
+    const timer = new Timer();
+    const leafValue = await this.db.getLeafValue(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, leafIndex);
+    this.log.verbose(`[DB] Fetched L1 to L2 message leaf value`, {
+      eventName: 'public-db-access',
+      duration: timer.ms(),
+      operation: 'get-l1-to-l2-message-leaf-value',
+    } satisfies PublicDBAccessStats);
+    return leafValue;
   }
 
   public async getCommitmentIndex(commitment: Fr): Promise<bigint | undefined> {
-    return await this.db.findLeafIndex(MerkleTreeId.NOTE_HASH_TREE, commitment);
+    const timer = new Timer();
+    const index = await this.db.findLeafIndex(MerkleTreeId.NOTE_HASH_TREE, commitment);
+    this.log.verbose(`[DB] Fetched commitment index`, {
+      eventName: 'public-db-access',
+      duration: timer.ms(),
+      operation: 'get-commitment-index',
+    } satisfies PublicDBAccessStats);
+    return index;
   }
 
   public async getNullifierIndex(nullifier: Fr): Promise<bigint | undefined> {
-    return await this.db.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
+    const timer = new Timer();
+    const index = await this.db.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
+    this.log.verbose(`[DB] Fetched nullifier index`, {
+      eventName: 'public-db-access',
+      duration: timer.ms(),
+      operation: 'get-nullifier-index',
+    } satisfies PublicDBAccessStats);
+    return index;
   }
 }

@@ -67,6 +67,7 @@
     "ws": "^8.13.0"
   },
   "devDependencies": {
+    "@aztec/noir-contracts.js": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@types/debug": "^4.1.7",
     "@types/jest": "^29.5.0",

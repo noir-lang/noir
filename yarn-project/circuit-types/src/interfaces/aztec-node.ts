@@ -7,6 +7,7 @@ import {
   type PUBLIC_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
 import { type L1ContractAddresses } from '@aztec/ethereum';
+import { type ContractArtifact } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { type Fr } from '@aztec/foundation/fields';
 import {
@@ -217,6 +218,13 @@ export interface AztecNode {
    * Method to fetch the protocol contract addresses.
    */
   getProtocolContractAddresses(): Promise<ProtocolContractAddresses>;
+
+  /**
+   * Method to add a contract artifact to the database.
+   * @param aztecAddress
+   * @param artifact
+   */
+  addContractArtifact(address: AztecAddress, artifact: ContractArtifact): Promise<void>;
 
   /**
    * Gets up to `limit` amount of logs starting from `from`.

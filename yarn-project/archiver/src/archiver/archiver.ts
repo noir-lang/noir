@@ -22,6 +22,7 @@ import {
   isValidUnconstrainedFunctionMembershipProof,
 } from '@aztec/circuits.js/contract';
 import { createEthereumChain } from '@aztec/ethereum';
+import { type ContractArtifact } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { type EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -488,5 +489,13 @@ export class Archiver implements ArchiveSource {
 
   getContractClassIds(): Promise<Fr[]> {
     return this.store.getContractClassIds();
+  }
+
+  addContractArtifact(address: AztecAddress, artifact: ContractArtifact): Promise<void> {
+    return this.store.addContractArtifact(address, artifact);
+  }
+
+  getContractArtifact(address: AztecAddress): Promise<ContractArtifact | undefined> {
+    return this.store.getContractArtifact(address);
   }
 }

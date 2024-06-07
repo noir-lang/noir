@@ -186,9 +186,13 @@ export function getMarkdown(prNumber: number) {
 
   const metricsByThreads = Metrics.filter(m => m.groupBy === 'threads').map(m => m.name);
   const metricsByBlockSize = Metrics.filter(m => m.groupBy === 'block-size').map(m => m.name);
-  const metricsByChainLength = Metrics.filter(m => m.groupBy === 'chain-length').map(m => m.name);
+  const metricsByChainLength = Metrics.filter(m => m.groupBy === 'chain-length')
+    .filter(m => m.name !== 'public_db_access_time_ms')
+    .map(m => m.name);
   const kernelCircuitMetrics = Metrics.filter(m => m.groupBy === 'protocol-circuit-name').map(m => m.name);
-  const appCircuitMetrics = Metrics.filter(m => m.groupBy === 'app-circuit-name').map(m => m.name);
+  const appCircuitMetrics = Metrics.filter(m => m.groupBy === 'app-circuit-name')
+    .filter(m => m.name !== 'avm_simulation_time_ms')
+    .map(m => m.name);
   const metricsByClassesRegistered = Metrics.filter(m => m.groupBy === 'classes-registered').map(m => m.name);
   const metricsByFeePaymentMethod = Metrics.filter(m => m.groupBy === 'fee-payment-method').map(m => m.name);
   const metricsByLeafCount = Metrics.filter(m => m.groupBy === 'leaf-count').map(m => m.name);
@@ -250,6 +254,28 @@ ${getTableContent(
   '',
   'Function',
   'app_circuit_',
+)}
+
+### AVM Simulation
+
+Time to simulate various public functions in the AVM.
+${getTableContent(
+  transpose(pick(benchmark, ['avm_simulation_time_ms'])),
+  transpose(baseBenchmark),
+  '',
+  'Function',
+  'avm_simulation_',
+)}
+
+### Public DB Access
+
+Time to access various public DBs.
+${getTableContent(
+  transpose(pick(benchmark, ['public_db_access_time_ms'])),
+  transpose(baseBenchmark),
+  '',
+  'Function',
+  'public_db_access_',
 )}
 
 ### Tree insertion stats

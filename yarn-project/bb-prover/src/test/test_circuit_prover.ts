@@ -3,7 +3,6 @@ import {
   type PublicInputsAndRecursiveProof,
   type PublicKernelNonTailRequest,
   type PublicKernelTailRequest,
-  PublicKernelType,
   type ServerCircuitProver,
   makePublicInputsAndRecursiveProof,
 } from '@aztec/circuit-types';
@@ -265,7 +264,7 @@ export class TestCircuitProver implements ServerCircuitProver {
     const timer = new Timer();
     const kernelOps = SimulatedPublicKernelArtifactMapping[kernelRequest.type];
     if (kernelOps === undefined) {
-      throw new Error(`Unable to prove for kernel type ${PublicKernelType[kernelRequest.type]}`);
+      throw new Error(`Unable to prove for kernel type ${kernelRequest.type}`);
     }
     const witnessMap = kernelOps.convertInputs(kernelRequest.inputs);
 

@@ -1,4 +1,4 @@
-import { type FunctionSelector } from '@aztec/foundation/abi';
+import { type ContractArtifact, type FunctionSelector } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { type Fr } from '@aztec/foundation/fields';
 
@@ -36,4 +36,7 @@ export interface ContractDataSource {
    * Returns the list of all class ids known.
    */
   getContractClassIds(): Promise<Fr[]>;
+
+  getContractArtifact(address: AztecAddress): Promise<ContractArtifact | undefined>;
+  addContractArtifact(address: AztecAddress, contract: ContractArtifact): Promise<void>;
 }

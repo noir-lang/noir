@@ -4,7 +4,6 @@ import {
   type PublicInputsAndRecursiveProof,
   type PublicKernelNonTailRequest,
   type PublicKernelTailRequest,
-  PublicKernelType,
   type ServerCircuitProver,
   makePublicInputsAndRecursiveProof,
 } from '@aztec/circuit-types';
@@ -181,7 +180,7 @@ export class BBNativeRollupProver implements ServerCircuitProver {
   ): Promise<PublicInputsAndRecursiveProof<PublicKernelCircuitPublicInputs>> {
     const kernelOps = PublicKernelArtifactMapping[kernelRequest.type];
     if (kernelOps === undefined) {
-      throw new Error(`Unable to prove kernel type ${PublicKernelType[kernelRequest.type]}`);
+      throw new Error(`Unable to prove kernel type ${kernelRequest.type}`);
     }
 
     // We may need to convert the recursive proof into fields format

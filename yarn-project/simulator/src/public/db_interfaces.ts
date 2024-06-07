@@ -67,6 +67,8 @@ export interface PublicContractsDB {
    * @returns The contract instance or undefined if not found.
    */
   getContractInstance(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined>;
+
+  getDebugFunctionName(contractAddress: AztecAddress, selector: FunctionSelector): Promise<string | undefined>;
 }
 
 /** Database interface for providing access to commitment tree, l1 to l2 message tree, and nullifier tree. */

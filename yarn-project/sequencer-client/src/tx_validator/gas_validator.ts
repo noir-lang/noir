@@ -1,8 +1,8 @@
-import { type Tx, type TxValidator } from '@aztec/circuit-types';
+import { PublicKernelType, type Tx, type TxValidator } from '@aztec/circuit-types';
 import { type AztecAddress, type Fr } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { GasTokenArtifact } from '@aztec/protocol-contracts/gas-token';
-import { AbstractPhaseManager, PublicKernelPhase, computeFeePayerBalanceStorageSlot } from '@aztec/simulator';
+import { AbstractPhaseManager, computeFeePayerBalanceStorageSlot } from '@aztec/simulator';
 
 /** Provides a view into public contract state */
 export interface PublicStateSource {
@@ -55,7 +55,7 @@ export class GasTxValidator implements TxValidator<Tx> {
     );
 
     // If there is a claim in this tx that increases the fee payer balance in gas token, add it to balance
-    const { [PublicKernelPhase.SETUP]: setupFns } = AbstractPhaseManager.extractEnqueuedPublicCallsByPhase(tx);
+    const { [PublicKernelType.SETUP]: setupFns } = AbstractPhaseManager.extractEnqueuedPublicCallsByPhase(tx);
     const claimFunctionCall = setupFns.find(
       fn =>
         fn.contractAddress.equals(this.#gasTokenAddress) &&

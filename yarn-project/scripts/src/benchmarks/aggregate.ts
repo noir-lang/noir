@@ -9,6 +9,7 @@
 // And then run this script from the yarn-project/scripts folder
 // LOG_FOLDER=../end-to-end/log yarn bench-aggregate
 import {
+  type AvmSimulationStats,
   BENCHMARK_BLOCK_SIZES,
   BENCHMARK_HISTORY_BLOCK_SIZE,
   BENCHMARK_HISTORY_CHAIN_LENGTHS,
@@ -25,6 +26,7 @@ import {
   type NodeSyncedChainHistoryStats,
   type NoteProcessorCaughtUpStats,
   type ProofConstructed,
+  type PublicDBAccessStats,
   type Stats,
   type TreeInsertionStats,
   type TxAddedToPoolStats,
@@ -149,6 +151,14 @@ function processCircuitProving(entry: CircuitProvingStats, results: BenchmarkCol
   }
 }
 
+function processAvmSimulation(entry: AvmSimulationStats, results: BenchmarkCollectedResults) {
+  append(results, 'avm_simulation_time_ms', entry.appCircuitName, entry.duration);
+}
+
+function processDbAccess(entry: PublicDBAccessStats, results: BenchmarkCollectedResults) {
+  append(results, 'public_db_access_time_ms', entry.operation, entry.duration);
+}
+
 /**
  * Processes an entry with event name 'circuit-proving' and updates results
  * Buckets are circuit names
@@ -258,6 +268,10 @@ function processEntry(entry: Stats, results: BenchmarkCollectedResults) {
       return processTxAddedToPool(entry, results);
     case 'tree-insertion':
       return processTreeInsertion(entry, results);
+    case 'avm-simulation':
+      return processAvmSimulation(entry, results);
+    case 'public-db-access':
+      return processDbAccess(entry, results);
     default:
       return;
   }

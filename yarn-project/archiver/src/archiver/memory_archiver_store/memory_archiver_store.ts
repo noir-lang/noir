@@ -17,6 +17,7 @@ import {
   type UnencryptedL2BlockL2Logs,
 } from '@aztec/circuit-types';
 import { Fr, INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js';
+import { type ContractArtifact } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import {
   type ContractClassPublic,
@@ -70,6 +71,8 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * Contains all L1 to L2 messages.
    */
   private l1ToL2Messages = new L1ToL2MessageStore();
+
+  private contractArtifacts: Map<string, ContractArtifact> = new Map();
 
   private contractClasses: Map<string, ContractClassPublic> = new Map();
 
@@ -437,5 +440,14 @@ export class MemoryArchiverStore implements ArchiverDataStore {
       blocksSynchedTo: this.lastL1BlockNewBlocks,
       messagesSynchedTo: this.lastL1BlockNewMessages,
     });
+  }
+
+  public addContractArtifact(address: AztecAddress, contract: ContractArtifact): Promise<void> {
+    this.contractArtifacts.set(address.toString(), contract);
+    return Promise.resolve();
+  }
+
+  public getContractArtifact(address: AztecAddress): Promise<ContractArtifact | undefined> {
+    return Promise.resolve(this.contractArtifacts.get(address.toString()));
   }
 }

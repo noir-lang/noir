@@ -3,6 +3,7 @@ import {
   type FailedTx,
   NestedProcessReturnValues,
   type ProcessedTx,
+  PublicKernelType,
   type PublicProvingRequest,
   type SimulationError,
   Tx,
@@ -32,11 +33,7 @@ import {
 import { type ContractDataSource } from '@aztec/types/contracts';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
-import {
-  type AbstractPhaseManager,
-  PublicKernelPhase,
-  publicKernelPhaseToKernelType,
-} from './abstract_phase_manager.js';
+import { type AbstractPhaseManager } from './abstract_phase_manager.js';
 import { PhaseManagerFactory } from './phase_manager_factory.js';
 import { ContractsDataSourcePublicDB, WorldStateDB, WorldStatePublicDB } from './public_db_sources.js';
 import { RealPublicKernelCircuitSimulator } from './public_kernel.js';
@@ -231,8 +228,8 @@ export class PublicProcessor {
     const gasUsed: ProcessedTx['gasUsed'] = {};
     while (phase) {
       const output = await phase.handle(tx, publicKernelPublicInput);
-      gasUsed[publicKernelPhaseToKernelType(phase.phase)] = output.gasUsed;
-      if (phase.phase === PublicKernelPhase.APP_LOGIC) {
+      gasUsed[phase.phase] = output.gasUsed;
+      if (phase.phase === PublicKernelType.APP_LOGIC) {
         returnValues = output.returnValues;
       }
       publicProvingRequests.push(...output.publicProvingRequests);
