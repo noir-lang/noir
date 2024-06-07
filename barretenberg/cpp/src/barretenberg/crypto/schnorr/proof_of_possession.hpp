@@ -106,14 +106,14 @@ template <typename G1, typename Hash> struct SchnorrProofOfPossession {
         std::copy(domain_separator_pop.begin(), domain_separator_pop.end(), std::back_inserter(challenge_buf));
 
         // write the group generator
-        serialize::write(challenge_buf, G1::affine_one);
+        write(challenge_buf, G1::affine_one);
 
         // write X twice as per the spec
-        serialize::write(challenge_buf, public_key);
-        serialize::write(challenge_buf, public_key);
+        write(challenge_buf, public_key);
+        write(challenge_buf, public_key);
 
         // write R
-        serialize::write(challenge_buf, R);
+        write(challenge_buf, R);
 
         // generate the raw bits of H_reg(X,X,R)
         return Hash::hash(challenge_buf);

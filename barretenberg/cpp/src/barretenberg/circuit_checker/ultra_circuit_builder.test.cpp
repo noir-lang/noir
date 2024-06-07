@@ -65,7 +65,7 @@ TEST(ultra_circuit_constructor, create_gates_from_plookup_accumulators)
 
         grumpkin::g1::affine_element base_point = plookup::fixed_base::table::LHS_GENERATOR_POINT;
         std::vector<uint8_t> input_buf;
-        serialize::write(input_buf, base_point);
+        write(input_buf, base_point);
         const auto offset_generators =
             grumpkin::g1::derive_generators(input_buf, plookup::fixed_base::table::NUM_TABLES_PER_LO_MULTITABLE);
 

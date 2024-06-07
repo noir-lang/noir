@@ -11,5 +11,5 @@ WASM_EXPORT void pedersen_commit(fr::vec_in_buf inputs_buffer, grumpkin::g1::aff
     read(inputs_buffer, to_commit);
     grumpkin::g1::affine_element pedersen_commitment = crypto::pedersen_commitment::commit_native(to_commit);
 
-    serialize::write(output, pedersen_commitment);
+    write(output, pedersen_commitment);
 }

@@ -56,7 +56,7 @@ template <size_t num_bits> table::fixed_base_scalar_mul_tables table::generate_t
     result.reserve(NUM_TABLES);
 
     std::vector<uint8_t> input_buf;
-    serialize::write(input_buf, input);
+    write(input_buf, input);
     const auto offset_generators = grumpkin::g1::derive_generators(input_buf, NUM_TABLES);
 
     grumpkin::g1::element accumulator = input;
@@ -87,7 +87,7 @@ grumpkin::g1::affine_element table::generate_generator_offset(const grumpkin::g1
     constexpr size_t NUM_TABLES = get_num_tables_per_multi_table<num_table_bits>();
 
     std::vector<uint8_t> input_buf;
-    serialize::write(input_buf, input);
+    write(input_buf, input);
     const auto offset_generators = grumpkin::g1::derive_generators(input_buf, NUM_TABLES);
     grumpkin::g1::element acc = grumpkin::g1::point_at_infinity;
     for (const auto& gen : offset_generators) {

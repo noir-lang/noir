@@ -166,10 +166,10 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
             domain_separator_nonce.begin(), domain_separator_nonce.end(), std::back_inserter(nonce_challenge_buffer));
 
         // write the group generator
-        serialize::write(nonce_challenge_buffer, G1::affine_one);
+        write(nonce_challenge_buffer, G1::affine_one);
 
         // write X
-        serialize::write(nonce_challenge_buffer, aggregate_pubkey);
+        write(nonce_challenge_buffer, aggregate_pubkey);
 
         // we slightly deviate from the protocol when including 'm', since the length of 'm' is variable
         // by writing a prefix and a suffix, we prevent the message from being interpreted as coming from a different
@@ -188,8 +188,8 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
 
         // write  {(R1, S1), ..., (Rn, Sn)}
         for (const auto& nonce : round_1_nonces) {
-            serialize::write(nonce_challenge_buffer, nonce.R);
-            serialize::write(nonce_challenge_buffer, nonce.S);
+            write(nonce_challenge_buffer, nonce.R);
+            write(nonce_challenge_buffer, nonce.S);
         }
 
         // uses the different hash function for proper domain separation
