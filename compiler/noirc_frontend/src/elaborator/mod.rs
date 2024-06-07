@@ -19,9 +19,8 @@ use crate::{
         type_check::{check_trait_impl_method_matches_declaration, TypeCheckError},
     },
     hir_def::{
-        expr::{HirExpression, HirIdent},
+        expr::HirIdent,
         function::{FunctionBody, Parameters},
-        stmt::HirStatement,
         traits::TraitConstraint,
     },
     macros_api::{
@@ -66,7 +65,7 @@ mod types;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic, Location, Span};
+use noirc_errors::{Location, Span};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
@@ -172,10 +171,7 @@ pub struct Elaborator<'context> {
 }
 
 impl<'context> Elaborator<'context> {
-    pub fn new(context: &'context mut Context, crate_id: CrateId) -> Self {
-        // TODO
-        let debug_comptime_scope = None;
-
+    pub fn new(context: &'context mut Context, crate_id: CrateId, debug_comptime_scope: Option<FileId>) -> Self {
         Self {
             scopes: ScopeForest::default(),
             errors: Vec::new(),
@@ -207,8 +203,9 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         mut items: CollectedItems,
+        debug_comptime_scope: Option<FileId>
     ) -> Vec<(CompilationError, FileId)> {
-        let mut this = Self::new(context, crate_id);
+        let mut this = Self::new(context, crate_id, debug_comptime_scope);
 
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
@@ -1156,11 +1153,6 @@ impl<'context> Elaborator<'context> {
         let global = self.interner.get_global(global_id);
         let definition_id = global.definition_id;
         let location = global.location;
-
-        // TODO
-        // let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes, self.debug_comptime_scope);
-        // NOTE: this is split off from "main block"
-        let previous_stmt = global.let_statement.to_display_ast(self.interner).kind;
         let mut interpreter_errors = vec![];
         let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes, self.debug_comptime_scope, &mut interpreter_errors);
 
@@ -1171,26 +1163,14 @@ impl<'context> Elaborator<'context> {
                 .lookup_id(definition_id, location)
                 .expect("The global should be defined since evaluate_let did not error");
 
-            // TODO
-            // NOTE: see above split off from "main block"
-            // let previous_stmt = self.interner.get_global(global_id).let_statement.to_display_ast(self.interner).kind;
-            // let new_stmt = global.let_statement.to_display_ast(self.interner).kind;
-            let new_stmt = self.interner.get_global(global_id).let_statement.to_display_ast(self.interner).kind;
-            let diagnostic = CustomDiagnostic::simple_debug(
-                "`comptime` expression ran:".to_string(),
-                format!("Before evaluation:\n{}\n\nAfter evaluation:\n{}", previous_stmt, new_stmt),
-                location.span,
-            );
-            println!();
-            println!("{}", diagnostic);
-            self.errors.push((InterpreterError::DebugEvaluateComptime { diagnostic, location }.into(), location.file));
+            if Some(location.file) == self.debug_comptime_scope {
+                let new_stmt = self.interner.get_global(global_id).let_statement.to_display_ast(self.interner).kind;
+                self.errors.push((InterpreterError::debug_evaluate_comptime(new_stmt, location).into(), location.file));
+            }
 
             self.interner.get_global_mut(global_id).value = Some(value);
         }
-        self.errors.extend(interpreter_errors.into_iter().map(|error| {
-            let file_id = error.get_location().file;
-            (error.into(), file_id)
-        }));
+        self.include_interpreter_errors(interpreter_errors);
     }
 
     fn define_function_metas(
@@ -1253,5 +1233,12 @@ impl<'context> Elaborator<'context> {
                 this.define_function_meta(func, *id, false);
             });
         }
+    }
+
+    fn include_interpreter_errors(&mut self, errors: Vec<InterpreterError>) {
+        self.errors.extend(errors.into_iter().map(|error| {
+            let file_id = error.get_location().file;
+            (error.into(), file_id)
+        }));
     }
 }

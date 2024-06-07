@@ -29,8 +29,6 @@ use super::{
     Value,
 };
 
-use noirc_errors::CustomDiagnostic;
-
 #[allow(dead_code)]
 impl<'interner> Interpreter<'interner> {
     /// Scan through a function, evaluating any Comptime nodes found.
@@ -87,17 +85,10 @@ impl<'interner> Interpreter<'interner> {
                     self.evaluate_block(block)?.into_hir_expression(self.interner, location)?;
                 let new_expr = self.interner.expression(&new_expr);
 
-                // TODO
-                let previous_expr = expr.to_display_ast(self.interner);
-                let new_expr_for_display = new_expr.to_display_ast(self.interner, location.span).kind; // TODO: correct span?
-                let diagnostic = CustomDiagnostic::simple_debug(
-                    "`comptime` expression ran:".to_string(),
-                    format!("Before evaluation:\n{}\n\nAfter evaluation:\n{}", previous_expr, new_expr_for_display),
-                    location.span,
-                );
-                println!();
-                println!("{}", diagnostic);
-                self.debug_comptime_evaluations.push(InterpreterError::DebugEvaluateComptime { diagnostic, location });
+                if Some(location.file) == self.debug_comptime_scope {
+                    let new_expr_for_display = new_expr.to_display_ast(self.interner, location.span).kind;
+                    self.debug_comptime_evaluations.push(InterpreterError::debug_evaluate_comptime(new_expr_for_display, location));
+                }
 
                 self.interner.replace_expr(&expr, new_expr);
                 Ok(())
@@ -134,23 +125,12 @@ impl<'interner> Interpreter<'interner> {
                 if let Ok(value) = self.evaluate_ident(ident, id) {
                     // TODO(#4922): Inlining closures is currently unimplemented
                     if !matches!(value, Value::Closure(..)) {
-
-
                         let new_expr = self.inline_expression(value, id)?;
-
-                        // TODO
                         let location = self.interner.id_location(id);
-                        let previous_expr = id.to_display_ast(self.interner);
-                        let new_expr = new_expr.to_display_ast(self.interner);
-                        let diagnostic = CustomDiagnostic::simple_debug(
-                            "`comptime` expression ran:".to_string(),
-                            format!("Before evaluation:\n{}\n\nAfter evaluation:\n{}", previous_expr, new_expr),
-                            location.span,
-                        );
-                        println!();
-                        println!("{}", diagnostic);
-                        self.debug_comptime_evaluations.push(InterpreterError::DebugEvaluateComptime { diagnostic, location });
-
+                        if Some(location.file) == self.debug_comptime_scope {
+                            let new_expr = new_expr.to_display_ast(self.interner);
+                            self.debug_comptime_evaluations.push(InterpreterError::debug_evaluate_comptime(new_expr, location));
+                        }
                     }
                 }
                 Ok(())
@@ -264,17 +244,10 @@ impl<'interner> Interpreter<'interner> {
                     .evaluate_comptime(comptime)?
                     .into_hir_expression(self.interner, location)?;
 
-                // TODO
-                let previous_expr = HirStatement::Comptime(comptime).to_display_ast(self.interner, location.span).kind;
-                let new_expr_for_display = new_expr.to_display_ast(self.interner);
-                let diagnostic = CustomDiagnostic::simple_debug(
-                    "`comptime` expression ran:".to_string(),
-                    format!("Before evaluation:\n{}\n\nAfter evaluation:\n{}", previous_expr, new_expr_for_display),
-                    location.span,
-                );
-                println!();
-                println!("{}", diagnostic);
-                self.debug_comptime_evaluations.push(InterpreterError::DebugEvaluateComptime { diagnostic, location });
+                if Some(location.file) == self.debug_comptime_scope {
+                    let new_expr_for_display = new_expr.to_display_ast(self.interner);
+                    self.debug_comptime_evaluations.push(InterpreterError::debug_evaluate_comptime(new_expr_for_display, location));
+                }
 
                 self.interner.replace_statement(statement, HirStatement::Expression(new_expr));
                 Ok(())
@@ -299,13 +272,4 @@ impl<'interner> Interpreter<'interner> {
         self.interner.replace_expr(&expr, new_expr);
         Ok(new_expr_id)
     }
-
-    // TODO: put the diagnostic into &mut errors
-    //
-    // /// NodeInterner::replace_expr with debugging
-    // fn replace_expr(&mut self, id: &ExprId, new: HirExpression) -> __ {
-    //     self.interner.replace_expr(id, new);
-    // }
-
-
 }

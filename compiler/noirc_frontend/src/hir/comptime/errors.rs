@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{hir::def_collector::dc_crate::CompilationError, Type};
 use acvm::{acir::AcirField, FieldElement};
 use noirc_errors::{CustomDiagnostic, Location};
@@ -103,6 +105,16 @@ impl InterpreterError {
                 panic!("Tried to get the location of Break/Continue error!")
             }
         }
+    }
+
+    pub(crate) fn debug_evaluate_comptime(expr: impl Display, location: Location) -> Self {
+        let displayed_expr: String = format!("{}", expr);
+        let diagnostic = CustomDiagnostic::simple_debug(
+            "`comptime` expression ran:".to_string(),
+            format!("After evaluation:\n{}", displayed_expr),
+            location.span,
+        );
+        InterpreterError::DebugEvaluateComptime { diagnostic, location }
     }
 }
 

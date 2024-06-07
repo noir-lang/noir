@@ -31,8 +31,9 @@ use crate::parser::{ParserError, SortedModule};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Span};
-use std::collections::{BTreeMap, HashMap};
 
+use std::collections::{BTreeMap, HashMap};
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::vec;
 
@@ -182,6 +183,7 @@ pub enum CompilationError {
     ResolverError(ResolverError),
     TypeError(TypeCheckError),
     InterpreterError(InterpreterError),
+    DebugComptimeScopeNotFound(Vec<PathBuf>),
 }
 
 impl CompilationError {
@@ -199,6 +201,11 @@ impl<'a> From<&'a CompilationError> for CustomDiagnostic {
             CompilationError::ResolverError(error) => error.into(),
             CompilationError::TypeError(error) => error.into(),
             CompilationError::InterpreterError(error) => error.into(),
+            CompilationError::DebugComptimeScopeNotFound(error) => {
+                let msg = "multiple files found matching --debug-comptime path".into();
+                let secondary: String = error.into_iter().map(|path| format!("    {}\n", path.display())).collect();
+                CustomDiagnostic::simple_error(msg, secondary, Span::empty(0)) // TODO: empty span
+            },
         }
     }
 }
@@ -258,6 +265,7 @@ impl DefCollector {
         ast: SortedModule,
         root_file_id: FileId,
         use_elaborator: bool,
+        debug_comptime_scope: Option<String>,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -275,6 +283,7 @@ impl DefCollector {
                 dep.crate_id,
                 context,
                 use_elaborator,
+                debug_comptime_scope.clone(),
                 macro_processors,
             ));
 
@@ -352,13 +361,20 @@ impl DefCollector {
             }
         }
 
+        let debug_comptime_scope: Option<FileId> = debug_comptime_scope.as_ref().and_then(|debug_comptime_scope| {
+            context.file_manager.find_by_path_suffix(debug_comptime_scope).unwrap_or_else(|err| {
+                errors.push((CompilationError::DebugComptimeScopeNotFound(err), root_file_id));
+                None
+            })
+        });
+
         if use_elaborator {
-            let mut more_errors = Elaborator::elaborate(context, crate_id, def_collector.items);
+            let mut more_errors = Elaborator::elaborate(context, crate_id, def_collector.items, debug_comptime_scope);
             errors.append(&mut more_errors);
             return errors;
         }
 
-        let mut resolved_module = ResolvedModule { errors, ..Default::default() };
+        let mut resolved_module = ResolvedModule { errors, debug_comptime_scope, ..Default::default() };
 
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope

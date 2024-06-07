@@ -40,7 +40,7 @@ pub struct Interpreter<'interner> {
     scopes: &'interner mut Vec<HashMap<DefinitionId, Value>>,
 
     /// The scope of --debug-comptime, or None if unset
-    debug_comptime_scope: Option<FileId>,
+    pub(super) debug_comptime_scope: Option<FileId>,
     pub(super) debug_comptime_evaluations: &'interner mut Vec<InterpreterError>,
 
     in_loop: bool,

@@ -102,6 +102,11 @@ pub struct CompileOptions {
     /// Enable the experimental elaborator pass
     #[arg(long, hide = true)]
     pub use_elaborator: bool,
+
+    /// Enable printing results of comptime evaluation: provide a path suffix
+    /// for the module to debug, e.g. "package_name/src/main.nr"
+    #[arg(long)]
+    pub debug_comptime_scope: Option<String>,
 }
 
 fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -254,12 +259,13 @@ pub fn check_crate(
     deny_warnings: bool,
     disable_macros: bool,
     use_elaborator: bool,
+    debug_comptime_scope: Option<String>,
 ) -> CompilationResult<()> {
     let macros: &[&dyn MacroProcessor] =
         if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
 
     let mut errors = vec![];
-    let diagnostics = CrateDefMap::collect_defs(crate_id, context, use_elaborator, macros);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, use_elaborator, debug_comptime_scope, macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic = CustomDiagnostic::from(&error);
         diagnostic.in_file(file_id)
@@ -297,6 +303,7 @@ pub fn compile_main(
         options.deny_warnings,
         options.disable_macros,
         options.use_elaborator,
+        options.debug_comptime_scope.clone(),
     )?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
@@ -338,6 +345,7 @@ pub fn compile_contract(
         options.deny_warnings,
         options.disable_macros,
         options.use_elaborator,
+        options.debug_comptime_scope.clone(),
     )?;
 
     // TODO: We probably want to error if contracts is empty
