@@ -1,4 +1,3 @@
-
 fn main() {
     let x = comptime {
         println("hello from compile-time!");
