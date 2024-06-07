@@ -1149,6 +1149,7 @@ void AvmTraceBuilder::op_cmov(
 }
 
 // Helper function to add kernel lookup operations into the main trace
+// TODO: add tag match to kernel_input_lookup opcodes to - it isnt written to - -ve test would catch
 Row AvmTraceBuilder::create_kernel_lookup_opcode(
     bool indirect, uint32_t dst_offset, uint32_t selector, FF value, AvmMemoryTag w_tag)
 {
@@ -1344,17 +1345,29 @@ void AvmTraceBuilder::op_timestamp(uint8_t indirect, uint32_t dst_offset)
 }
 
 // Helper function to add kernel lookup operations into the main trace
-Row AvmTraceBuilder::create_kernel_output_opcode(uint32_t clk, uint32_t data_offset)
+Row AvmTraceBuilder::create_kernel_output_opcode(uint8_t indirect, uint32_t clk, uint32_t data_offset)
 {
+    bool indirect_data_flag = is_operand_indirect(indirect, 0);
+
+    bool tag_match = true;
+    uint32_t direct_data_offset = data_offset;
+    if (indirect) {
+        auto read_ind_dst =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, data_offset);
+        direct_data_offset = uint32_t(read_ind_dst.val);
+        tag_match = tag_match && read_ind_dst.tag_match;
+    }
+
     AvmMemTraceBuilder::MemRead read_a = mem_trace_builder.read_and_load_from_memory(
-        call_ptr, clk, IntermRegister::IA, data_offset, AvmMemoryTag::FF, AvmMemoryTag::U0);
+        call_ptr, clk, IntermRegister::IA, direct_data_offset, AvmMemoryTag::FF, AvmMemoryTag::U0);
 
     return Row{
         .avm_main_clk = clk,
         .avm_main_ia = read_a.val,
-        .avm_main_ind_a = 0,
+        .avm_main_ind_a = indirect_data_flag ? FF(data_offset) : FF(0),
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(indirect)),
         .avm_main_internal_return_ptr = internal_return_ptr,
-        .avm_main_mem_idx_a = data_offset,
+        .avm_main_mem_idx_a = direct_data_offset,
         .avm_main_mem_op_a = 1,
         .avm_main_pc = pc++,
         .avm_main_q_kernel_output_lookup = 1,
@@ -1363,24 +1376,52 @@ Row AvmTraceBuilder::create_kernel_output_opcode(uint32_t clk, uint32_t data_off
     };
 }
 
-Row AvmTraceBuilder::create_kernel_output_opcode_with_metadata(
-    uint32_t clk, uint32_t data_offset, AvmMemoryTag data_r_tag, uint32_t metadata_offset, AvmMemoryTag metadata_r_tag)
+Row AvmTraceBuilder::create_kernel_output_opcode_with_metadata(uint8_t indirect,
+                                                               uint32_t clk,
+                                                               uint32_t data_offset,
+                                                               AvmMemoryTag data_r_tag,
+                                                               uint32_t metadata_offset,
+                                                               AvmMemoryTag metadata_r_tag)
 {
+
+    bool indirect_a_flag = is_operand_indirect(indirect, 0);
+    bool indirect_b_flag = is_operand_indirect(indirect, 1);
+
+    bool tag_match = true;
+    uint32_t direct_data_offset = data_offset;
+    uint32_t direct_metadata_offset = metadata_offset;
+    if (indirect_a_flag) {
+        auto read_a_ind_dst =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, data_offset);
+        direct_data_offset = static_cast<uint32_t>(read_a_ind_dst.val);
+
+        tag_match = tag_match && read_a_ind_dst.tag_match;
+    }
+    if (indirect_b_flag) {
+        auto read_b_ind_dst = mem_trace_builder.indirect_read_and_load_from_memory(
+            call_ptr, clk, IndirectRegister::IND_B, metadata_offset);
+        direct_metadata_offset = static_cast<uint32_t>(read_b_ind_dst.val);
+
+        tag_match = tag_match && read_b_ind_dst.tag_match;
+    }
+
     AvmMemTraceBuilder::MemRead read_a = mem_trace_builder.read_and_load_from_memory(
-        call_ptr, clk, IntermRegister::IA, data_offset, data_r_tag, AvmMemoryTag::U0);
+        call_ptr, clk, IntermRegister::IA, direct_data_offset, data_r_tag, AvmMemoryTag::U0);
 
     AvmMemTraceBuilder::MemRead read_b = mem_trace_builder.read_and_load_from_memory(
-        call_ptr, clk, IntermRegister::IB, metadata_offset, metadata_r_tag, AvmMemoryTag::U0);
+        call_ptr, clk, IntermRegister::IB, direct_metadata_offset, metadata_r_tag, AvmMemoryTag::U0);
 
     return Row{
         .avm_main_clk = clk,
         .avm_main_ia = read_a.val,
         .avm_main_ib = read_b.val,
-        .avm_main_ind_a = 0,
-        .avm_main_ind_b = 0,
+        .avm_main_ind_a = indirect_a_flag ? data_offset : FF(0),
+        .avm_main_ind_b = indirect_b_flag ? metadata_offset : FF(0),
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(indirect_a_flag)),
+        .avm_main_ind_op_b = FF(static_cast<uint32_t>(indirect_b_flag)),
         .avm_main_internal_return_ptr = internal_return_ptr,
-        .avm_main_mem_idx_a = data_offset,
-        .avm_main_mem_idx_b = metadata_offset,
+        .avm_main_mem_idx_a = direct_data_offset,
+        .avm_main_mem_idx_b = direct_metadata_offset,
         .avm_main_mem_op_a = 1,
         .avm_main_mem_op_b = 1,
         .avm_main_pc = pc++,
@@ -1391,28 +1432,54 @@ Row AvmTraceBuilder::create_kernel_output_opcode_with_metadata(
     };
 }
 
-Row AvmTraceBuilder::create_kernel_output_opcode_with_set_metadata_output_from_hint(uint32_t clk,
+Row AvmTraceBuilder::create_kernel_output_opcode_with_set_metadata_output_from_hint(uint8_t indirect,
+                                                                                    uint32_t clk,
                                                                                     uint32_t data_offset,
                                                                                     uint32_t metadata_offset)
 {
-    AvmMemTraceBuilder::MemRead read_a = mem_trace_builder.read_and_load_from_memory(
-        call_ptr, clk, IntermRegister::IA, data_offset, AvmMemoryTag::FF, AvmMemoryTag::U8);
 
     FF exists = execution_hints.get_side_effect_hints().at(side_effect_counter);
     // TODO: throw error if incorrect
 
+    bool indirect_a_flag = is_operand_indirect(indirect, 0);
+    bool indirect_b_flag = is_operand_indirect(indirect, 1);
+
+    bool tag_match = true;
+    uint32_t direct_data_offset = data_offset;
+    uint32_t direct_metadata_offset = metadata_offset;
+    if (indirect_a_flag) {
+        auto read_a_ind_dst =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, data_offset);
+        direct_data_offset = uint32_t(read_a_ind_dst.val);
+
+        tag_match = tag_match && read_a_ind_dst.tag_match;
+    }
+
+    if (indirect_b_flag) {
+        auto read_b_ind_dst = mem_trace_builder.indirect_read_and_load_from_memory(
+            call_ptr, clk, IndirectRegister::IND_B, metadata_offset);
+        direct_metadata_offset = uint32_t(read_b_ind_dst.val);
+
+        tag_match = tag_match && read_b_ind_dst.tag_match;
+    }
+
+    AvmMemTraceBuilder::MemRead read_a = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IA, direct_data_offset, AvmMemoryTag::FF, AvmMemoryTag::U8);
+
     mem_trace_builder.write_into_memory(
-        call_ptr, clk, IntermRegister::IB, metadata_offset, exists, AvmMemoryTag::FF, AvmMemoryTag::U8);
+        call_ptr, clk, IntermRegister::IB, direct_metadata_offset, exists, AvmMemoryTag::FF, AvmMemoryTag::U8);
 
     return Row{
         .avm_main_clk = clk,
         .avm_main_ia = read_a.val,
         .avm_main_ib = exists,
-        .avm_main_ind_a = 0,
-        .avm_main_ind_b = 0,
+        .avm_main_ind_a = indirect_a_flag ? data_offset : FF(0),
+        .avm_main_ind_b = indirect_b_flag ? metadata_offset : FF(0),
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(indirect_a_flag)),
+        .avm_main_ind_op_b = FF(static_cast<uint32_t>(indirect_b_flag)),
         .avm_main_internal_return_ptr = internal_return_ptr,
-        .avm_main_mem_idx_a = data_offset,
-        .avm_main_mem_idx_b = metadata_offset,
+        .avm_main_mem_idx_a = direct_data_offset,
+        .avm_main_mem_idx_b = direct_metadata_offset,
         .avm_main_mem_op_a = 1,
         .avm_main_mem_op_b = 1,
         .avm_main_pc = pc++,
@@ -1424,28 +1491,49 @@ Row AvmTraceBuilder::create_kernel_output_opcode_with_set_metadata_output_from_h
     };
 }
 
-Row AvmTraceBuilder::create_kernel_output_opcode_with_set_value_from_hint(uint32_t clk,
+Row AvmTraceBuilder::create_kernel_output_opcode_with_set_value_from_hint(uint8_t indirect,
+                                                                          uint32_t clk,
                                                                           uint32_t data_offset,
                                                                           uint32_t metadata_offset)
 {
     FF value = execution_hints.get_side_effect_hints().at(side_effect_counter);
     // TODO: throw error if incorrect
 
+    bool indirect_a_flag = is_operand_indirect(indirect, 0);
+    bool indirect_b_flag = is_operand_indirect(indirect, 1);
+
+    bool tag_match = true;
+    uint32_t direct_data_offset = data_offset;
+    uint32_t direct_metadata_offset = metadata_offset;
+    if (indirect) {
+        auto read_a_ind_dst =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, data_offset);
+        auto read_b_ind_dst = mem_trace_builder.indirect_read_and_load_from_memory(
+            call_ptr, clk, IndirectRegister::IND_B, metadata_offset);
+
+        direct_data_offset = uint32_t(read_a_ind_dst.val);
+        direct_metadata_offset = uint32_t(read_b_ind_dst.val);
+
+        tag_match = tag_match && read_a_ind_dst.tag_match && read_b_ind_dst.tag_match;
+    }
+
     mem_trace_builder.write_into_memory(
-        call_ptr, clk, IntermRegister::IA, data_offset, value, AvmMemoryTag::FF, AvmMemoryTag::FF);
+        call_ptr, clk, IntermRegister::IA, direct_data_offset, value, AvmMemoryTag::FF, AvmMemoryTag::FF);
 
     AvmMemTraceBuilder::MemRead read_b = mem_trace_builder.read_and_load_from_memory(
-        call_ptr, clk, IntermRegister::IB, metadata_offset, AvmMemoryTag::FF, AvmMemoryTag::FF);
+        call_ptr, clk, IntermRegister::IB, direct_metadata_offset, AvmMemoryTag::FF, AvmMemoryTag::FF);
 
     return Row{
         .avm_main_clk = clk,
         .avm_main_ia = value,
         .avm_main_ib = read_b.val,
-        .avm_main_ind_a = 0,
-        .avm_main_ind_b = 0,
+        .avm_main_ind_a = indirect_a_flag ? data_offset : FF(0),
+        .avm_main_ind_b = indirect_b_flag ? metadata_offset : FF(0),
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(indirect_a_flag)),
+        .avm_main_ind_op_b = FF(static_cast<uint32_t>(indirect_b_flag)),
         .avm_main_internal_return_ptr = internal_return_ptr,
-        .avm_main_mem_idx_a = data_offset,
-        .avm_main_mem_idx_b = metadata_offset,
+        .avm_main_mem_idx_a = direct_data_offset,
+        .avm_main_mem_idx_b = direct_metadata_offset,
         .avm_main_mem_op_a = 1,
         .avm_main_mem_op_b = 1,
         .avm_main_pc = pc++,
@@ -1457,11 +1545,11 @@ Row AvmTraceBuilder::create_kernel_output_opcode_with_set_value_from_hint(uint32
     };
 }
 
-void AvmTraceBuilder::op_emit_note_hash(uint32_t note_hash_offset)
+void AvmTraceBuilder::op_emit_note_hash(uint8_t indirect, uint32_t note_hash_offset)
 {
     auto const clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
-    Row row = create_kernel_output_opcode(clk, note_hash_offset);
+    Row row = create_kernel_output_opcode(indirect, clk, note_hash_offset);
     kernel_trace_builder.op_emit_note_hash(clk, side_effect_counter, row.avm_main_ia);
     row.avm_main_sel_op_emit_note_hash = FF(1);
 
@@ -1472,11 +1560,11 @@ void AvmTraceBuilder::op_emit_note_hash(uint32_t note_hash_offset)
     side_effect_counter++;
 }
 
-void AvmTraceBuilder::op_emit_nullifier(uint32_t nullifier_offset)
+void AvmTraceBuilder::op_emit_nullifier(uint8_t indirect, uint32_t nullifier_offset)
 {
     auto const clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
-    Row row = create_kernel_output_opcode(clk, nullifier_offset);
+    Row row = create_kernel_output_opcode(indirect, clk, nullifier_offset);
     kernel_trace_builder.op_emit_nullifier(clk, side_effect_counter, row.avm_main_ia);
     row.avm_main_sel_op_emit_nullifier = FF(1);
 
@@ -1487,13 +1575,13 @@ void AvmTraceBuilder::op_emit_nullifier(uint32_t nullifier_offset)
     side_effect_counter++;
 }
 
-void AvmTraceBuilder::op_emit_l2_to_l1_msg(uint32_t recipient_offset, uint32_t msg_offset)
+void AvmTraceBuilder::op_emit_l2_to_l1_msg(uint8_t indirect, uint32_t recipient_offset, uint32_t msg_offset)
 {
     auto const clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
     // Note: unorthadox order - as seen in L2ToL1Message struct in TS
     Row row = create_kernel_output_opcode_with_metadata(
-        clk, msg_offset, AvmMemoryTag::FF, recipient_offset, AvmMemoryTag::FF);
+        indirect, clk, msg_offset, AvmMemoryTag::FF, recipient_offset, AvmMemoryTag::FF);
     kernel_trace_builder.op_emit_l2_to_l1_msg(clk, side_effect_counter, row.avm_main_ia, row.avm_main_ib);
     row.avm_main_sel_op_emit_l2_to_l1_msg = FF(1);
 
@@ -1504,11 +1592,11 @@ void AvmTraceBuilder::op_emit_l2_to_l1_msg(uint32_t recipient_offset, uint32_t m
     side_effect_counter++;
 }
 
-void AvmTraceBuilder::op_emit_unencrypted_log(uint32_t log_offset)
+void AvmTraceBuilder::op_emit_unencrypted_log(uint8_t indirect, uint32_t log_offset)
 {
     auto const clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
-    Row row = create_kernel_output_opcode(clk, log_offset);
+    Row row = create_kernel_output_opcode(indirect, clk, log_offset);
     kernel_trace_builder.op_emit_unencrypted_log(clk, side_effect_counter, row.avm_main_ia);
     row.avm_main_sel_op_emit_unencrypted_log = FF(1);
 
@@ -1520,11 +1608,11 @@ void AvmTraceBuilder::op_emit_unencrypted_log(uint32_t log_offset)
 }
 
 // State output opcodes that include metadata
-void AvmTraceBuilder::op_l1_to_l2_msg_exists(uint32_t log_offset, uint32_t dest_offset)
+void AvmTraceBuilder::op_l1_to_l2_msg_exists(uint8_t indirect, uint32_t log_offset, uint32_t dest_offset)
 {
     auto const clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
-    Row row = create_kernel_output_opcode_with_set_metadata_output_from_hint(clk, log_offset, dest_offset);
+    Row row = create_kernel_output_opcode_with_set_metadata_output_from_hint(indirect, clk, log_offset, dest_offset);
     kernel_trace_builder.op_l1_to_l2_msg_exists(
         clk, side_effect_counter, row.avm_main_ia, /*safe*/ static_cast<uint32_t>(row.avm_main_ib));
     row.avm_main_sel_op_l1_to_l2_msg_exists = FF(1);
@@ -1536,11 +1624,11 @@ void AvmTraceBuilder::op_l1_to_l2_msg_exists(uint32_t log_offset, uint32_t dest_
     side_effect_counter++;
 }
 
-void AvmTraceBuilder::op_note_hash_exists(uint32_t note_offset, uint32_t dest_offset)
+void AvmTraceBuilder::op_note_hash_exists(uint8_t indirect, uint32_t note_offset, uint32_t dest_offset)
 {
     auto const clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
-    Row row = create_kernel_output_opcode_with_set_metadata_output_from_hint(clk, note_offset, dest_offset);
+    Row row = create_kernel_output_opcode_with_set_metadata_output_from_hint(indirect, clk, note_offset, dest_offset);
     kernel_trace_builder.op_note_hash_exists(
         clk, side_effect_counter, row.avm_main_ia, /*safe*/ static_cast<uint32_t>(row.avm_main_ib));
     row.avm_main_sel_op_note_hash_exists = FF(1);
@@ -1552,11 +1640,11 @@ void AvmTraceBuilder::op_note_hash_exists(uint32_t note_offset, uint32_t dest_of
     side_effect_counter++;
 }
 
-void AvmTraceBuilder::op_nullifier_exists(uint32_t note_offset, uint32_t dest_offset)
+void AvmTraceBuilder::op_nullifier_exists(uint8_t indirect, uint32_t note_offset, uint32_t dest_offset)
 {
     auto const clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
-    Row row = create_kernel_output_opcode_with_set_metadata_output_from_hint(clk, note_offset, dest_offset);
+    Row row = create_kernel_output_opcode_with_set_metadata_output_from_hint(indirect, clk, note_offset, dest_offset);
     kernel_trace_builder.op_nullifier_exists(
         clk, side_effect_counter, row.avm_main_ia, /*safe*/ static_cast<uint32_t>(row.avm_main_ib));
     row.avm_main_sel_op_nullifier_exists = FF(1);
@@ -1573,7 +1661,7 @@ void AvmTraceBuilder::op_sload(uint32_t slot_offset, uint32_t write_offset)
     auto const clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
     // Read the slot
-    Row row = create_kernel_output_opcode_with_set_value_from_hint(clk, write_offset, slot_offset);
+    Row row = create_kernel_output_opcode_with_set_value_from_hint(0, clk, write_offset, slot_offset);
     // Row row = create_sload(clk, write_offset, value, slot_read.val, slot_offset);
     kernel_trace_builder.op_sload(clk, side_effect_counter, row.avm_main_ib, row.avm_main_ia);
 
@@ -1590,8 +1678,8 @@ void AvmTraceBuilder::op_sstore(uint32_t slot_offset, uint32_t value_offset)
 {
     auto const clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
-    Row row =
-        create_kernel_output_opcode_with_metadata(clk, value_offset, AvmMemoryTag::FF, slot_offset, AvmMemoryTag::FF);
+    Row row = create_kernel_output_opcode_with_metadata(
+        0, clk, value_offset, AvmMemoryTag::FF, slot_offset, AvmMemoryTag::FF);
     kernel_trace_builder.op_sstore(clk, side_effect_counter, row.avm_main_ib, row.avm_main_ia);
     row.avm_main_sel_op_sstore = FF(1);
 

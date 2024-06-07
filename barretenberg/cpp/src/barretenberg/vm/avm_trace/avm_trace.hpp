@@ -103,16 +103,16 @@ class AvmTraceBuilder {
 
     // Outputs
     // With single output values
-    void op_emit_note_hash(uint32_t note_hash_offset);
-    void op_emit_nullifier(uint32_t nullifier_offset);
-    void op_emit_unencrypted_log(uint32_t log_offset);
-    void op_emit_l2_to_l1_msg(uint32_t msg_offset, uint32_t recipient_offset);
+    void op_emit_note_hash(uint8_t indirect, uint32_t note_hash_offset);
+    void op_emit_nullifier(uint8_t indirect, uint32_t nullifier_offset);
+    void op_emit_unencrypted_log(uint8_t indirect, uint32_t log_offset);
+    void op_emit_l2_to_l1_msg(uint8_t indirect, uint32_t msg_offset, uint32_t recipient_offset);
     void op_get_contract_instance(uint8_t indirect, uint32_t address_offset, uint32_t dst_offset);
 
     // With additional metadata output
-    void op_l1_to_l2_msg_exists(uint32_t msg_offset, uint32_t dest_offset);
-    void op_note_hash_exists(uint32_t note_hash_offset, uint32_t dest_offset);
-    void op_nullifier_exists(uint32_t nullifier_offset, uint32_t dest_offset);
+    void op_l1_to_l2_msg_exists(uint8_t indirect, uint32_t msg_offset, uint32_t dest_offset);
+    void op_note_hash_exists(uint8_t indirect, uint32_t note_hash_offset, uint32_t dest_offset);
+    void op_nullifier_exists(uint8_t indirect, uint32_t nullifier_offset, uint32_t dest_offset);
 
     void op_sload(uint32_t slot_offset, uint32_t value_offset);
     void op_sstore(uint32_t slot_offset, uint32_t value_offset);
@@ -238,17 +238,19 @@ class AvmTraceBuilder {
      *
      * Used for writing to the kernel app outputs - {new_note_hash, new_nullifier, etc.}
      *
+     * @param indirect - Perform indirect memory resolution
      * @param clk - The trace clk
      * @param data_offset - The memory address to read the output from
      * @return Row
      */
-    Row create_kernel_output_opcode(uint32_t clk, uint32_t data_offset);
+    Row create_kernel_output_opcode(uint8_t indirect, uint32_t clk, uint32_t data_offset);
 
     /**
      * @brief Create a kernel output opcode with metadata object
      *
      * Used for writing to the kernel app outputs with extra metadata - {sload, sstore} (value, slot)
      *
+     * @param indirect - Perform indirect memory resolution
      * @param clk - The trace clk
      * @param data_offset - The offset of the main value to output
      * @param data_r_tag - The data type of the value
@@ -256,7 +258,8 @@ class AvmTraceBuilder {
      * @param metadata_r_tag - The data type of the metadata
      * @return Row
      */
-    Row create_kernel_output_opcode_with_metadata(uint32_t clk,
+    Row create_kernel_output_opcode_with_metadata(uint8_t indirect,
+                                                  uint32_t clk,
                                                   uint32_t data_offset,
                                                   AvmMemoryTag data_r_tag,
                                                   uint32_t metadata_offset,
@@ -268,12 +271,14 @@ class AvmTraceBuilder {
      * Used for writing output opcode where one metadata value is written and comes from a hint
      * {note_hash_exists, nullifier_exists, etc. } Where a boolean output if it exists must also be written
      *
+     * @param indirect - Perform indirect memory resolution
      * @param clk - The trace clk
      * @param data_offset - The offset of the main value to output
      * @param metadata_offset - The offset of the metadata (slot in the sload example)
      * @return Row
      */
-    Row create_kernel_output_opcode_with_set_metadata_output_from_hint(uint32_t clk,
+    Row create_kernel_output_opcode_with_set_metadata_output_from_hint(uint8_t indirect,
+                                                                       uint32_t clk,
                                                                        uint32_t data_offset,
                                                                        uint32_t metadata_offset);
 
@@ -283,12 +288,14 @@ class AvmTraceBuilder {
      * Used for writing output opcode where one value is written and comes from a hint
      * {sload}
      *
+     * @param indirect - Perform indirect memory resolution
      * @param clk - The trace clk
      * @param data_offset - The offset of the main value to output
      * @param metadata_offset - The offset of the metadata (slot in the sload example)
      * @return Row
      */
-    Row create_kernel_output_opcode_with_set_value_from_hint(uint32_t clk,
+    Row create_kernel_output_opcode_with_set_value_from_hint(uint8_t indirect,
+                                                             uint32_t clk,
                                                              uint32_t data_offset,
                                                              uint32_t metadata_offset);
 
