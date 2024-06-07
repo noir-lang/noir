@@ -1,5 +1,7 @@
 ---
 title: Understanding Function Context
+sidebar_position: 1
+tags: [functions, context]
 ---
 
 ## What is the context

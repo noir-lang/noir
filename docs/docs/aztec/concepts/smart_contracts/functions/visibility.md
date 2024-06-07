@@ -1,5 +1,7 @@
 ---
 title: Visibility
+sidebar_position: 0
+tags: [functions]
 ---
 
 In Aztec there are multiple different types of visibility that can be applied to functions. Namely we have `data visibility` and `function visibility`. This page explains these types of visibility.

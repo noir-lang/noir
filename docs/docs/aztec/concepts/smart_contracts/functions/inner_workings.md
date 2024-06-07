@@ -1,5 +1,7 @@
 ---
 title: Inner Workings of Functions
+sidebar_position: 3
+tags: [functions]
 ---
 
 Below, we go more into depth of what is happening under the hood when you create a function in an Aztec contract and what the attributes are really doing.

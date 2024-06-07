@@ -1,8 +1,29 @@
 ---
-title: Public, Private, and Unconstrained Functions
+title: Function Macros
+sidebar_position: 2
+tags: [functions, macros]
 ---
 
-This page explains the three types of functions that exist on Aztec - public, private, and unconstrained. For a deeper dive into how these functions work under the hood, check out the [Inner Workings](./inner_workings.md) page.
+This page explains three types of functions that exist on Aztec - public, private, and unconstrained; as well as all macros.
+
+## All Aztec macros
+
+In addition to the function macros in Noir, Aztec also has its own macros for specific functions. An Aztec contract function can be annotated with more than 1 macro.
+It is also worth mentioning Noir's `unconstrained` function type [here](https://noir-lang.org/docs/noir/concepts/unconstrained/).
+
+- `#[aztec(public)]` or `#[aztec(private)]` - Whether the function is public or private (more in next section)
+- `#[aztec(initializer)]` - If one or more functions are marked as an initializer, then one of them must be called before any non-initilizer functions
+- `#[aztec(noinitcheck)]` - The function is able to be called before an initializer (if one exists)
+- `#[aztec(view)]` - Makes calls to the function static (see also [Static calls](../../../../protocol-specs/calls/static-calls))
+- `#[aztec(internal)]` - Function can only be called from within the contract
+
+## Example
+
+See [Private token contract](./../../../../tutorials/contract_tutorials/token_contract.md).
+
+# Public, Private, and unconstrained types
+
+For a deeper dive into how some of these functions work under the hood, check out the [Inner Workings](./inner_workings.md) page.
 
 ## `Public` Functions
 
