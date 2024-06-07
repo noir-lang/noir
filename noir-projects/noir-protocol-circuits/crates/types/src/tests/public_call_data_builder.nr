@@ -105,7 +105,8 @@ impl PublicCallDataBuilder {
                     // The default storage slot is its index + 1.
                     storage_slot: (value_offset + i + 1) as Field,
                     // The default value is its index + 999.
-                    current_value: (value_offset + i + 999) as Field
+                    current_value: (value_offset + i + 999) as Field,
+                    counter: i as u32
                 };
                 self.public_inputs.contract_storage_reads.push(read_request);
             }

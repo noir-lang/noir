@@ -201,8 +201,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
         // slot, value, side effect
         ko_metadata[dest_offset] = public_inputs_vec[pcpi_offset];
         ko_values[dest_offset] = public_inputs_vec[pcpi_offset + 1];
-        // TODO(md): serialize side effect in ts
-        // ko_side_effect[dest_offset] = public_inputs_vec[pcpi_offset + 2];
+        ko_side_effect[dest_offset] = public_inputs_vec[pcpi_offset + 2];
     }
     // For EMITNOTEHASH
     for (size_t i = 0; i < MAX_NEW_NOTE_HASHES_PER_CALL; i++) {

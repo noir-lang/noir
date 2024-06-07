@@ -6,11 +6,13 @@ use crate::{
 struct StorageRead {
     storage_slot: Field,
     current_value: Field,
+    // TODO(dbanks12): use side effects properly in kernel checks
+    counter: u32,
 }
 
 impl Eq for StorageRead {
     fn eq(self, other: Self) -> bool {
-        (self.storage_slot == other.storage_slot) & (self.current_value == other.current_value)
+        (self.storage_slot == other.storage_slot) & (self.current_value == other.current_value) & (self.current_value == other.current_value)
     }
 }
 
@@ -19,6 +21,7 @@ impl Empty for StorageRead {
         Self {
             storage_slot: 0,
             current_value: 0,
+            counter: 0,
         }
     }
 }
@@ -31,7 +34,7 @@ impl Hash for StorageRead {
 
 impl Serialize<CONTRACT_STORAGE_READ_LENGTH> for StorageRead {
     fn serialize(self) -> [Field; CONTRACT_STORAGE_READ_LENGTH] {
-        [self.storage_slot, self.current_value]
+        [self.storage_slot, self.current_value, self.counter as Field]
     }
 }
 
@@ -40,13 +43,14 @@ impl Deserialize<CONTRACT_STORAGE_READ_LENGTH> for StorageRead {
         Self {
             storage_slot: serialized[0],
             current_value: serialized[1],
+            counter: serialized[2] as u32,
         }
     }
 }
 
 impl StorageRead {
     pub fn is_empty(self) -> bool {
-        self.storage_slot == 0
+        (self.storage_slot == 0) & (self.current_value == 0) & (self.counter == 0)
     }
 }
 

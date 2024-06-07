@@ -113,7 +113,7 @@ library Constants {
   uint256 internal constant CALL_CONTEXT_LENGTH = 6;
   uint256 internal constant CONTENT_COMMITMENT_LENGTH = 4;
   uint256 internal constant CONTRACT_INSTANCE_LENGTH = 5;
-  uint256 internal constant CONTRACT_STORAGE_READ_LENGTH = 2;
+  uint256 internal constant CONTRACT_STORAGE_READ_LENGTH = 3;
   uint256 internal constant CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH = 3;
   uint256 internal constant ETH_ADDRESS_LENGTH = 1;
   uint256 internal constant FUNCTION_DATA_LENGTH = 2;
@@ -148,7 +148,7 @@ library Constants {
   uint256 internal constant TOTAL_FEES_LENGTH = 1;
   uint256 internal constant HEADER_LENGTH = 23;
   uint256 internal constant PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH = 457;
-  uint256 internal constant PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH = 514;
+  uint256 internal constant PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH = 530;
   uint256 internal constant PRIVATE_CALL_STACK_ITEM_LENGTH = 460;
   uint256 internal constant PUBLIC_CONTEXT_INPUTS_LENGTH = 41;
   uint256 internal constant AGGREGATION_OBJECT_LENGTH = 16;

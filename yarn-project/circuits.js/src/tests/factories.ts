@@ -301,7 +301,7 @@ export function makeContractStorageUpdateRequest(seed = 1): ContractStorageUpdat
  * @returns A contract storage read.
  */
 export function makeContractStorageRead(seed = 1): ContractStorageRead {
-  return new ContractStorageRead(fr(seed), fr(seed + 1));
+  return new ContractStorageRead(fr(seed), fr(seed + 1), seed + 2);
 }
 
 export function makeValidationRequests(seed = 1) {
