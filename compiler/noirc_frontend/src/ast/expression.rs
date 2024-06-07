@@ -34,7 +34,7 @@ pub enum ExpressionKind {
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
     Quote(BlockExpression),
-    Comptime(BlockExpression),
+    Comptime(BlockExpression, Span),
 
     // This variant is only emitted when inlining the result of comptime
     // code. It is used to translate function values back into the AST while
@@ -536,7 +536,7 @@ impl Display for ExpressionKind {
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
             Quote(block) => write!(f, "quote {block}"),
-            Comptime(block) => write!(f, "comptime {block}"),
+            Comptime(block, _) => write!(f, "comptime {block}"),
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),
         }

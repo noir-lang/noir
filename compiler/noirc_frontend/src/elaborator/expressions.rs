@@ -59,7 +59,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda),
             ExpressionKind::Parenthesized(expr) => return self.elaborate_expression(*expr),
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote),
-            ExpressionKind::Comptime(comptime) => {
+            ExpressionKind::Comptime(comptime, _) => {
                 return self.elaborate_comptime_block(comptime, expr.span)
             }
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),

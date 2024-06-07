@@ -1642,7 +1642,9 @@ impl<'a> Resolver<'a> {
 
             // The quoted expression isn't resolved since we don't want errors if variables aren't defined
             ExpressionKind::Quote(block) => HirExpression::Quote(block),
-            ExpressionKind::Comptime(block) => HirExpression::Comptime(self.resolve_block(block)),
+            ExpressionKind::Comptime(block, _) => {
+                HirExpression::Comptime(self.resolve_block(block))
+            }
             ExpressionKind::Resolved(_) => unreachable!(
                 "ExpressionKind::Resolved should only be emitted by the comptime interpreter"
             ),
