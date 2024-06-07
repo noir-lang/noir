@@ -2896,7 +2896,7 @@ mod test {
 
         let ssa = builder.finish();
 
-        let (acir_functions, _, _) = ssa
+        let (acir_functions, _, _, _) = ssa
             .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
         // Expected result:
@@ -2991,7 +2991,7 @@ mod test {
 
         let ssa = builder.finish();
 
-        let (acir_functions, _, _) = ssa
+        let (acir_functions, _, _, _) = ssa
             .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
         // The expected result should look very similar to the above test expect that the input witnesses of the `Call`
@@ -3081,7 +3081,7 @@ mod test {
 
         let ssa = builder.finish();
 
-        let (acir_functions, _, _) = ssa
+        let (acir_functions, _, _, _) = ssa
             .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
 
@@ -3195,7 +3195,7 @@ mod test {
         let ssa = builder.finish();
         let brillig = ssa.to_brillig(false);
 
-        let (acir_functions, brillig_functions, _) =
+        let (acir_functions, brillig_functions, _, _) =
             ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3251,7 +3251,7 @@ mod test {
 
         // The Brillig bytecode we insert for the stdlib is hardcoded so we do not need to provide any
         // Brillig artifacts to the ACIR gen pass.
-        let (acir_functions, brillig_functions, _) = ssa
+        let (acir_functions, brillig_functions, _, _) = ssa
             .into_acir(&Brillig::default())
             .expect("Should compile manually written SSA into ACIR");
 
@@ -3323,7 +3323,7 @@ mod test {
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
 
-        let (acir_functions, brillig_functions, _) =
+        let (acir_functions, brillig_functions, _, _) =
             ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3411,7 +3411,7 @@ mod test {
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
 
-        let (acir_functions, brillig_functions, _) =
+        let (acir_functions, brillig_functions, _, _) =
             ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 2, "Should only have two ACIR functions");
