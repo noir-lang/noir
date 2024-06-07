@@ -54,139 +54,78 @@ import { extractVkData } from './verification_key/verification_key_data.js';
 const TIMEOUT = 30_000;
 
 describe('AVM WitGen, proof generation and verification', () => {
-  it(
-    'Should prove valid execution contract function that performs addition',
-    async () => {
-      await proveAndVerifyAvmTestContract('add_args_return', [new Fr(1), new Fr(2)]);
+  const avmFunctionsAndCalldata: [string, Fr[]][] = [
+    ['add_args_return', [new Fr(1), new Fr(2)]],
+    ['get_address', []],
+    ['note_hash_exists', [new Fr(1), new Fr(2)]],
+    ['test_get_contract_instance', []],
+    ['new_note_hash', [new Fr(1)]],
+    ['new_nullifier', [new Fr(1)]],
+    ['nullifier_exists', [new Fr(1)]],
+    ['l1_to_l2_msg_exists', [new Fr(1), new Fr(2)]],
+    ['send_l2_to_l1_msg', [new Fr(1), new Fr(2)]],
+    ['to_radix_le', [new Fr(10)]],
+  ];
+
+  it.each(avmFunctionsAndCalldata)(
+    'Should prove %s',
+    async (name, calldata) => {
+      await proveAndVerifyAvmTestContract(name, calldata);
     },
     TIMEOUT,
   );
 
-  it(
-    'Should prove kernel get environment opcode',
+  it.skip(
+    'Should prove a keccak hash evaluation',
     async () => {
-      await proveAndVerifyAvmTestContract('get_address');
+      await proveAndVerifyAvmTestContract('keccak_hash', [
+        new Fr(0),
+        new Fr(1),
+        new Fr(2),
+        new Fr(3),
+        new Fr(4),
+        new Fr(5),
+        new Fr(6),
+        new Fr(7),
+        new Fr(8),
+        new Fr(9),
+      ]);
     },
     TIMEOUT,
   );
 
-  it(
-    'Should prove with note hash exists with hints',
-    async () => {
-      await proveAndVerifyAvmTestContract('note_hash_exists', [new Fr(1), new Fr(2)]);
-    },
-    TIMEOUT,
-  );
+  /************************************************************************
+   * AvmContext functions
+   ************************************************************************/
+  describe('AVM Context functions', () => {
+    const avmContextFunctions = [
+      'get_address',
+      'get_storage_address',
+      'get_sender',
+      'get_fee_per_l2_gas',
+      'get_fee_per_da_gas',
+      'get_transaction_fee',
+      'get_chain_id',
+      'get_version',
+      'get_block_number',
+      'get_timestamp',
+      'get_l2_gas_left',
+      'get_da_gas_left',
+    ];
 
-  it(
-    'Should prove get contract instance opcode with hints',
-    async () => {
-      await proveAndVerifyAvmTestContract('test_get_contract_instance');
-    },
-    TIMEOUT,
-  );
-
-  it(
-    'Should prove new note hash',
-    async () => {
-      await proveAndVerifyAvmTestContract('new_note_hash', [new Fr(1)]);
-    },
-    TIMEOUT,
-  );
-
-  it(
-    'Should prove new note hash',
-    async () => {
-      await proveAndVerifyAvmTestContract('new_note_hash', [new Fr(1)]);
-    },
-    TIMEOUT,
-  );
-
-  it(
-    'Should prove new nullifier',
-    async () => {
-      await proveAndVerifyAvmTestContract('new_nullifier', [new Fr(1)]);
-    },
-    TIMEOUT,
-  );
-
-  it(
-    'Should prove nullifier exists',
-    async () => {
-      await proveAndVerifyAvmTestContract('nullifier_exists', [new Fr(1)]);
-    },
-    TIMEOUT,
-  );
-
-  it(
-    'Should prove l1 to l2 msg exists',
-    async () => {
-      await proveAndVerifyAvmTestContract('l1_to_l2_msg_exists', [new Fr(1), new Fr(2)]);
-    },
-    TIMEOUT,
-  );
-
-  it(
-    'Should prove send l2 to l1 msg',
-    async () => {
-      await proveAndVerifyAvmTestContract('send_l2_to_l1_msg', [new Fr(1), new Fr(2)]);
-    },
-    TIMEOUT,
-  );
-
-  // TODO: requires revert
-  // it("Should prove to radix",
-  //   async () => {
-  //     await proveAndVerifyAvmTestContract('to_radix_le', [new Fr(10)]);
-  //   },
-  //   TIMEOUT
-  // )
+    it.each(avmContextFunctions)(
+      'Should prove %s',
+      async contextFunction => {
+        await proveAndVerifyAvmTestContract(contextFunction);
+      },
+      TIMEOUT,
+    );
+  });
 });
 
-it.skip(
-  'Should prove a keccak hash evaluation',
-  async () => {
-    await proveAndVerifyAvmTestContract('keccak_hash', [
-      new Fr(0),
-      new Fr(1),
-      new Fr(2),
-      new Fr(3),
-      new Fr(4),
-      new Fr(5),
-      new Fr(6),
-      new Fr(7),
-      new Fr(8),
-      new Fr(9),
-    ]);
-  },
-  TIMEOUT,
-);
-
 /************************************************************************
- * AvmContext functions
+ * Helpers
  ************************************************************************/
-const avmContextFunctions = [
-  'get_address',
-  'get_storage_address',
-  'get_sender',
-  'get_fee_per_l2_gas',
-  'get_fee_per_da_gas',
-  'get_transaction_fee',
-  'get_chain_id',
-  'get_version',
-  'get_block_number',
-  'get_timestamp',
-  'get_l2_gas_left',
-  'get_da_gas_left',
-];
-
-it.each(avmContextFunctions)(
-  'Should prove an avm context function %s',
-  async contextFunction => {
-    await proveAndVerifyAvmTestContract(contextFunction);
-  },
-  TIMEOUT,
-);
 
 const proveAndVerifyAvmTestContract = async (functionName: string, calldata: Fr[] = []) => {
   const startSideEffectCounter = 0;

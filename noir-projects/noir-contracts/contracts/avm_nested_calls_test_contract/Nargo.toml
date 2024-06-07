@@ -1,8 +1,0 @@
-[package]
-name = "avm_nested_calls_test_contract"
-authors = [""]
-compiler_version = ">=0.25.0"
-type = "contract"
-
-[dependencies]
-aztec = { path = "../../../aztec-nr/aztec" }

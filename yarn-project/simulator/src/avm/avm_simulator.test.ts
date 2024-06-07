@@ -14,7 +14,6 @@ import { type MemoryValue, TypeTag, type Uint8 } from './avm_memory_types.js';
 import { AvmSimulator } from './avm_simulator.js';
 import {
   adjustCalldataIndex,
-  getAvmNestedCallsTestContractBytecode,
   getAvmTestContractBytecode,
   initContext,
   initExecutionEnvironment,
@@ -126,9 +125,9 @@ describe('AVM simulator: transpiled Noir contracts', () => {
       const bytecode = getAvmTestContractBytecode('u128_from_integer_overflow');
       const results = await new AvmSimulator(initContext()).executeBytecode(bytecode);
       expect(results.reverted).toBe(true);
-      expect(results.revertReason?.message).toEqual('Assertion failed.');
-      // Note: compiler intrinsic messages (like below) are not known to the AVM
-      //expect(results.revertReason?.message).toEqual("Assertion failed: call to assert_max_bit_size 'self.__assert_max_bit_size(bit_size)'");
+      expect(results.revertReason?.message).toMatch('Assertion failed.');
+      // Note: compiler intrinsic messages (like below) are not known to the AVM, they are recovered by the PXE.
+      // "Assertion failed: call to assert_max_bit_size 'self.__assert_max_bit_size(bit_size)'"
     });
   });
 
@@ -820,29 +819,30 @@ describe('AVM simulator: transpiled Noir contracts', () => {
   });
 
   describe('Nested external calls', () => {
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/5625): gas not plumbed through correctly in nested calls.
-    // it(`Nested call with not enough gas`, async () => {
-    //   const gas = [/*l1=*/ 10000, /*l2=*/ 20, /*da=*/ 10000].map(g => new Fr(g));
-    //   const calldata: Fr[] = [new Fr(1), new Fr(2), ...gas];
-    //   const callBytecode = getAvmNestedCallsTestContractBytecode('nested_call_to_add_with_gas');
-    //   const addBytecode = getAvmNestedCallsTestContractBytecode('add_args_return');
-    //   const context = initContext({ env: initExecutionEnvironment({ calldata }) });
-    //   jest
-    //     .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
-    //     .mockReturnValue(Promise.resolve(addBytecode));
+    it(`Nested call with not enough gas`, async () => {
+      const gas = [/*l2=*/ 5, /*da=*/ 10000].map(g => new Fr(g));
+      const calldata: Fr[] = [new Fr(1), new Fr(2), ...gas];
+      const callBytecode = getAvmTestContractBytecode('nested_call_to_add_with_gas');
+      const addBytecode = getAvmTestContractBytecode('add_args_return');
+      const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+      jest
+        .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+        .mockReturnValue(Promise.resolve(addBytecode));
 
-    //   const results = await new AvmSimulator(context).executeBytecode(callBytecode);
+      const results = await new AvmSimulator(context).executeBytecode(callBytecode);
 
-    //   // Outer frame should not revert, but inner should, so the forwarded return value is 0
-    //   expect(results.revertReason).toBeUndefined();
-    //   expect(results.reverted).toBe(false);
-    //   expect(results.output).toEqual([new Fr(0)]);
-    // });
+      // TODO: change this once we don't force rethrowing of exceptions.
+      // Outer frame should not revert, but inner should, so the forwarded return value is 0
+      // expect(results.revertReason).toBeUndefined();
+      // expect(results.reverted).toBe(false);
+      expect(results.reverted).toBe(true);
+      expect(results.revertReason?.message).toEqual('Not enough L2GAS gas left');
+    });
 
     it(`Nested call`, async () => {
       const calldata: Fr[] = [new Fr(1), new Fr(2)];
-      const callBytecode = getAvmNestedCallsTestContractBytecode('nested_call_to_add');
-      const addBytecode = getAvmNestedCallsTestContractBytecode('add_args_return');
+      const callBytecode = getAvmTestContractBytecode('nested_call_to_add');
+      const addBytecode = getAvmTestContractBytecode('add_args_return');
       const context = initContext({ env: initExecutionEnvironment({ calldata }) });
       jest
         .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
@@ -856,8 +856,8 @@ describe('AVM simulator: transpiled Noir contracts', () => {
 
     it(`Nested static call`, async () => {
       const calldata: Fr[] = [new Fr(1), new Fr(2)];
-      const callBytecode = getAvmNestedCallsTestContractBytecode('nested_static_call_to_add');
-      const addBytecode = getAvmNestedCallsTestContractBytecode('add_args_return');
+      const callBytecode = getAvmTestContractBytecode('nested_static_call_to_add');
+      const addBytecode = getAvmTestContractBytecode('add_args_return');
       const context = initContext({ env: initExecutionEnvironment({ calldata }) });
       jest
         .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
@@ -870,8 +870,8 @@ describe('AVM simulator: transpiled Noir contracts', () => {
     });
 
     it(`Nested static call which modifies storage`, async () => {
-      const callBytecode = getAvmNestedCallsTestContractBytecode('nested_static_call_to_set_storage');
-      const nestedBytecode = getAvmNestedCallsTestContractBytecode('set_storage_single');
+      const callBytecode = getAvmTestContractBytecode('nested_static_call_to_set_storage');
+      const nestedBytecode = getAvmTestContractBytecode('set_storage_single');
       const context = initContext();
       jest
         .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
@@ -887,9 +887,9 @@ describe('AVM simulator: transpiled Noir contracts', () => {
 
     it(`Nested calls rethrow exceptions`, async () => {
       const calldata: Fr[] = [new Fr(1), new Fr(2)];
-      const callBytecode = getAvmNestedCallsTestContractBytecode('nested_call_to_add');
+      const callBytecode = getAvmTestContractBytecode('nested_call_to_add');
       // We actually don't pass the function ADD, but it's ok because the signature is the same.
-      const nestedBytecode = getAvmNestedCallsTestContractBytecode('assert_same');
+      const nestedBytecode = getAvmTestContractBytecode('assert_same');
       const context = initContext({ env: initExecutionEnvironment({ calldata }) });
       jest
         .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')

@@ -55,8 +55,7 @@ abstract class ExternalCall extends Instruction {
     );
     memory.checkTags(TypeTag.FIELD, gasOffset, gasOffset + 1);
     memory.checkTag(TypeTag.FIELD, addrOffset);
-    // TODO: Enable when Noir uses UINT32
-    // memory.checkTag(TypeTag.UINT32, argsSizeOffset);
+    memory.checkTag(TypeTag.UINT32, argsSizeOffset);
     memory.checkTag(TypeTag.FIELD, this.functionSelectorOffset);
 
     const calldataSize = memory.get(argsSizeOffset).toNumber();

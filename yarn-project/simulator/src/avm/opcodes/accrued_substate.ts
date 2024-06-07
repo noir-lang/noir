@@ -242,8 +242,7 @@ export class EmitUnencryptedLog extends Instruction {
       memory,
     );
     memory.checkTag(TypeTag.FIELD, eventSelectorOffset);
-    // TODO: enable once Noir generates UINT32
-    // memory.checkTag(TypeTag.UINT32, logSize);
+    memory.checkTag(TypeTag.UINT32, logSizeOffset);
     const logSize = memory.get(logSizeOffset).toNumber();
     memory.checkTagsRange(TypeTag.FIELD, logOffset, logSize);
 

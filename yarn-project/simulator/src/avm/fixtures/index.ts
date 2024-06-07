@@ -3,7 +3,7 @@ import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
-import { AvmNestedCallsTestContractArtifact, AvmTestContractArtifact } from '@aztec/noir-contracts.js';
+import { AvmTestContractArtifact } from '@aztec/noir-contracts.js';
 import { SerializableContractInstance } from '@aztec/types/contracts';
 
 import { strict as assert } from 'assert';
@@ -132,15 +132,6 @@ export function randomMemoryFields(length: number): Field[] {
 
 export function getAvmTestContractBytecode(functionName: string): Buffer {
   const artifact = AvmTestContractArtifact.functions.find(f => f.name === functionName)!;
-  assert(
-    !!artifact?.bytecode,
-    `No bytecode found for function ${functionName}. Try re-running bootstrap.sh on the repository root.`,
-  );
-  return artifact.bytecode;
-}
-
-export function getAvmNestedCallsTestContractBytecode(functionName: string): Buffer {
-  const artifact = AvmNestedCallsTestContractArtifact.functions.find(f => f.name === functionName)!;
   assert(
     !!artifact?.bytecode,
     `No bytecode found for function ${functionName}. Try re-running bootstrap.sh on the repository root.`,

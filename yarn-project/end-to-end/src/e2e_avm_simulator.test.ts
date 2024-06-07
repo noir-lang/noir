@@ -1,11 +1,6 @@
-import { type AccountWallet, AztecAddress, BatchCall, Fr, FunctionSelector, TxStatus } from '@aztec/aztec.js';
+import { type AccountWallet, AztecAddress, BatchCall, Fr, TxStatus } from '@aztec/aztec.js';
 import { GasSettings } from '@aztec/circuits.js';
-import {
-  AvmAcvmInteropTestContract,
-  AvmInitializerTestContract,
-  AvmNestedCallsTestContract,
-  AvmTestContract,
-} from '@aztec/noir-contracts.js';
+import { AvmInitializerTestContract, AvmTestContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
 
@@ -28,9 +23,11 @@ describe('e2e_avm_simulator', () => {
 
   describe('AvmTestContract', () => {
     let avmContract: AvmTestContract;
+    let secondAvmContract: AvmTestContract;
 
     beforeEach(async () => {
       avmContract = await AvmTestContract.deploy(wallet).send().deployed();
+      secondAvmContract = await AvmTestContract.deploy(wallet).send().deployed();
     });
 
     describe('Assertions', () => {
@@ -130,131 +127,55 @@ describe('e2e_avm_simulator', () => {
           .wait();
       });
     });
-  });
 
-  describe.skip('ACVM interoperability', () => {
-    let avmContract: AvmAcvmInteropTestContract;
-
-    beforeEach(async () => {
-      avmContract = await AvmAcvmInteropTestContract.deploy(wallet).send().deployed();
-    });
-
-    it('Can execute ACVM function among AVM functions', async () => {
-      expect(await avmContract.methods.constant_field_acvm().simulate()).toEqual(123456n);
-    });
-
-    it('Can call AVM function from ACVM', async () => {
-      expect(await avmContract.methods.call_avm_from_acvm().simulate()).toEqual(123456n);
-    });
-
-    it('Can call ACVM function from AVM', async () => {
-      expect(await avmContract.methods.call_acvm_from_avm().simulate()).toEqual(123456n);
-    });
-
-    it('AVM sees settled nullifiers by ACVM', async () => {
-      const nullifier = new Fr(123456);
-      await avmContract.methods.new_nullifier(nullifier).send().wait();
-      await avmContract.methods.assert_unsiloed_nullifier_acvm(nullifier).send().wait();
-    });
-
-    it('AVM nested call to ACVM sees settled nullifiers', async () => {
-      const nullifier = new Fr(123456);
-      await avmContract.methods.new_nullifier(nullifier).send().wait();
-      await avmContract.methods
-        .avm_to_acvm_call(FunctionSelector.fromSignature('assert_unsiloed_nullifier_acvm(Field)'), nullifier)
-        .send()
-        .wait();
-    });
-
-    // TODO: Enable (or delete) authwit tests once the AVM is fully functional.
-    describe.skip('Authwit', () => {
-      it('Works if authwit provided', async () => {
-        const recipient = AztecAddress.random();
-        const action = avmContract.methods.test_authwit_send_money(
-          /*from=*/ wallet.getCompleteAddress(),
-          recipient,
-          100,
-        );
-        let tx = await wallet
-          .setPublicAuthWit({ caller: wallet.getCompleteAddress().address, action }, /*authorized=*/ true)
-          .send()
-          .wait();
-        expect(tx.status).toEqual(TxStatus.SUCCESS);
-
-        tx = await avmContract.methods
-          .test_authwit_send_money(/*from=*/ wallet.getCompleteAddress(), recipient, 100)
-          .send()
-          .wait();
-        expect(tx.status).toEqual(TxStatus.SUCCESS);
-      });
-
-      it('Fails if authwit not provided', async () => {
+    describe('Nested calls', () => {
+      it('Should NOT be able to emit the same unsiloed nullifier from the same contract', async () => {
+        const nullifier = new Fr(1);
         await expect(
-          async () =>
-            await avmContract.methods
-              .test_authwit_send_money(/*from=*/ wallet.getCompleteAddress(), /*to=*/ AztecAddress.random(), 100)
-              .send()
-              .wait(),
-        ).rejects.toThrow(/Message not authorized by account/);
-      });
-    });
-
-    describe('AvmInitializerTestContract', () => {
-      let avmContract: AvmInitializerTestContract;
-
-      beforeEach(async () => {
-        avmContract = await AvmInitializerTestContract.deploy(wallet).send().deployed();
+          avmContract.methods.create_same_nullifier_in_nested_call(avmContract.address, nullifier).send().wait(),
+        ).rejects.toThrow();
       });
 
-      describe('Storage', () => {
-        it('Read immutable (initialized) storage (Field)', async () => {
-          expect(await avmContract.methods.read_storage_immutable().simulate()).toEqual(42n);
-        });
+      it('Should be able to emit different unsiloed nullifiers from the same contract', async () => {
+        const nullifier = new Fr(1);
+        const tx = await avmContract.methods
+          .create_different_nullifier_in_nested_call(avmContract.address, nullifier)
+          .send()
+          .wait();
+        expect(tx.status).toEqual(TxStatus.SUCCESS);
+      });
+
+      it('Should be able to emit the same unsiloed nullifier from two different contracts', async () => {
+        const nullifier = new Fr(1);
+        const tx = await avmContract.methods
+          .create_same_nullifier_in_nested_call(secondAvmContract.address, nullifier)
+          .send()
+          .wait();
+        expect(tx.status).toEqual(TxStatus.SUCCESS);
+      });
+
+      it('Should be able to emit different unsiloed nullifiers from two different contracts', async () => {
+        const nullifier = new Fr(1);
+        const tx = await avmContract.methods
+          .create_different_nullifier_in_nested_call(secondAvmContract.address, nullifier)
+          .send()
+          .wait();
+        expect(tx.status).toEqual(TxStatus.SUCCESS);
       });
     });
   });
 
-  describe('AvmNestedCallsTestContract', () => {
-    let avmContract: AvmNestedCallsTestContract;
-    let secondAvmContract: AvmNestedCallsTestContract;
+  describe('AvmInitializerTestContract', () => {
+    let avmContract: AvmInitializerTestContract;
 
     beforeEach(async () => {
-      avmContract = await AvmNestedCallsTestContract.deploy(wallet).send().deployed();
-      secondAvmContract = await AvmNestedCallsTestContract.deploy(wallet).send().deployed();
+      avmContract = await AvmInitializerTestContract.deploy(wallet).send().deployed();
     });
 
-    it('Should NOT be able to emit the same unsiloed nullifier from the same contract', async () => {
-      const nullifier = new Fr(1);
-      await expect(
-        avmContract.methods.create_same_nullifier_in_nested_call(avmContract.address, nullifier).send().wait(),
-      ).rejects.toThrow();
-    });
-
-    it('Should be able to emit different unsiloed nullifiers from the same contract', async () => {
-      const nullifier = new Fr(1);
-      const tx = await avmContract.methods
-        .create_different_nullifier_in_nested_call(avmContract.address, nullifier)
-        .send()
-        .wait();
-      expect(tx.status).toEqual(TxStatus.SUCCESS);
-    });
-
-    it('Should be able to emit the same unsiloed nullifier from two different contracts', async () => {
-      const nullifier = new Fr(1);
-      const tx = await avmContract.methods
-        .create_same_nullifier_in_nested_call(secondAvmContract.address, nullifier)
-        .send()
-        .wait();
-      expect(tx.status).toEqual(TxStatus.SUCCESS);
-    });
-
-    it('Should be able to emit different unsiloed nullifiers from two different contracts', async () => {
-      const nullifier = new Fr(1);
-      const tx = await avmContract.methods
-        .create_different_nullifier_in_nested_call(secondAvmContract.address, nullifier)
-        .send()
-        .wait();
-      expect(tx.status).toEqual(TxStatus.SUCCESS);
+    describe('Storage', () => {
+      it('Read immutable (initialized) storage (Field)', async () => {
+        expect(await avmContract.methods.read_storage_immutable().simulate()).toEqual(42n);
+      });
     });
   });
 });
