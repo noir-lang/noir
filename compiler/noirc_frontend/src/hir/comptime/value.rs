@@ -1,4 +1,4 @@
-use std::{borrow::Cow, rc::Rc};
+use std::{borrow::Cow, fmt::Display, rc::Rc};
 
 use acvm::{AcirField, FieldElement};
 use im::Vector;
@@ -135,7 +135,7 @@ impl Value {
             }
             Value::Closure(_lambda, _env, _typ) => {
                 // TODO: How should a closure's environment be inlined?
-                let item = "Returning closures from a comptime fn";
+                let item = "Returning closures from a comptime fn".into();
                 return Err(InterpreterError::Unimplemented { item, location });
             }
             Value::Tuple(fields) => {
@@ -235,7 +235,7 @@ impl Value {
             }
             Value::Closure(_lambda, _env, _typ) => {
                 // TODO: How should a closure's environment be inlined?
-                let item = "Returning closures from a comptime fn";
+                let item = "Returning closures from a comptime fn".into();
                 return Err(InterpreterError::Unimplemented { item, location });
             }
             Value::Tuple(fields) => {
@@ -305,4 +305,50 @@ impl Value {
 /// Unwraps an Rc value without cloning the inner value if the reference count is 1. Clones otherwise.
 fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
     Rc::try_unwrap(rc).unwrap_or_else(|rc| (*rc).clone())
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Unit => write!(f, "()"),
+            Value::Bool(value) => {
+                let msg = if *value { "true" } else { "false" };
+                write!(f, "{msg}")
+            }
+            Value::Field(value) => write!(f, "{value}"),
+            Value::I8(value) => write!(f, "{value}"),
+            Value::I16(value) => write!(f, "{value}"),
+            Value::I32(value) => write!(f, "{value}"),
+            Value::I64(value) => write!(f, "{value}"),
+            Value::U8(value) => write!(f, "{value}"),
+            Value::U16(value) => write!(f, "{value}"),
+            Value::U32(value) => write!(f, "{value}"),
+            Value::U64(value) => write!(f, "{value}"),
+            Value::String(value) => write!(f, "{value}"),
+            Value::Function(_, _) => write!(f, "(function)"),
+            Value::Closure(_, _, _) => write!(f, "(closure)"),
+            Value::Tuple(fields) => {
+                let fields = vecmap(fields, ToString::to_string);
+                write!(f, "({})", fields.join(", "))
+            }
+            Value::Struct(fields, typ) => {
+                let typename = match typ.follow_bindings() {
+                    Type::Struct(def, _) => def.borrow().name.to_string(),
+                    other => other.to_string(),
+                };
+                let fields = vecmap(fields, |(name, value)| format!("{}: {}", name, value));
+                write!(f, "{typename} {{ {} }}", fields.join(", "))
+            }
+            Value::Pointer(value) => write!(f, "&mut {}", value.borrow()),
+            Value::Array(values, _) => {
+                let values = vecmap(values, ToString::to_string);
+                write!(f, "[{}]", values.join(", "))
+            }
+            Value::Slice(values, _) => {
+                let values = vecmap(values, ToString::to_string);
+                write!(f, "&[{}]", values.join(", "))
+            }
+            Value::Code(_) => todo!(),
+        }
+    }
 }

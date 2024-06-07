@@ -1645,7 +1645,9 @@ impl<'a> Resolver<'a> {
                 let quoted = HirQuoted { quoted_block: block, unquoted_exprs: Vec::new() };
                 HirExpression::Quote(quoted)
             }
-            ExpressionKind::Comptime(block) => HirExpression::Comptime(self.resolve_block(block)),
+            ExpressionKind::Comptime(block, _) => {
+                HirExpression::Comptime(self.resolve_block(block))
+            }
             ExpressionKind::Resolved(_) => unreachable!(
                 "ExpressionKind::Resolved should only be emitted by the comptime interpreter"
             ),

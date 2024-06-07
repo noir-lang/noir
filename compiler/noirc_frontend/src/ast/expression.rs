@@ -35,7 +35,7 @@ pub enum ExpressionKind {
     Parenthesized(Box<Expression>),
     Quote(BlockExpression),
     Unquote(Box<Expression>),
-    Comptime(BlockExpression),
+    Comptime(BlockExpression, Span),
 
     /// Unquote expressions are replaced with UnquoteMarkers when Quoted
     /// expressions are resolved. Since the expression being quoted remains an
@@ -558,7 +558,7 @@ impl Display for ExpressionKind {
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
             Quote(block) => write!(f, "quote {block}"),
-            Comptime(block) => write!(f, "comptime {block}"),
+            Comptime(block, _) => write!(f, "comptime {block}"),
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),
             Unquote(expr) => write!(f, "$({expr})"),

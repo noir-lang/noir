@@ -141,7 +141,7 @@ impl<'a> Elaborator<'a> {
             ExpressionKind::Quote(quote) => {
                 self.find_unquoted_exprs_in_block(quote, unquoted_exprs)
             }
-            ExpressionKind::Comptime(block) => {
+            ExpressionKind::Comptime(block, _) => {
                 self.find_unquoted_exprs_in_block(block, unquoted_exprs)
             }
             ExpressionKind::Resolved(_) => (),

@@ -18,7 +18,6 @@ use crate::{
         types,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
-    token::FunctionAttribute,
     Type, TypeBinding, TypeBindings, TypeVariable, TypeVariableKind,
 };
 use acvm::{acir::AcirField, FieldElement};
@@ -216,18 +215,18 @@ impl<'interner> Monomorphizer<'interner> {
                 let attributes = self.interner.function_attributes(&id);
                 match self.interner.function_meta(&id).kind {
                     FunctionKind::LowLevel => {
-                        let attribute = attributes.function.clone().expect("all low level functions must contain a function attribute which contains the opcode which it links to");
+                        let attribute = attributes.function.as_ref().expect("all low level functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.foreign().expect(
                             "ice: function marked as foreign, but attribute kind does not match this",
                         );
-                        Definition::LowLevel(opcode)
+                        Definition::LowLevel(opcode.to_string())
                     }
                     FunctionKind::Builtin => {
-                        let attribute = attributes.function.clone().expect("all low level functions must contain a function  attribute which contains the opcode which it links to");
+                        let attribute = attributes.function.as_ref().expect("all builtin functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.builtin().expect(
                             "ice: function marked as builtin, but attribute kind does not match this",
                         );
-                        Definition::Builtin(opcode)
+                        Definition::Builtin(opcode.to_string())
                     }
                     FunctionKind::Normal => {
                         let id =
@@ -235,15 +234,11 @@ impl<'interner> Monomorphizer<'interner> {
                         Definition::Function(id)
                     }
                     FunctionKind::Oracle => {
-                        let attr = attributes
-                            .function
-                            .clone()
-                            .expect("Oracle function must have an oracle attribute");
-
-                        match attr {
-                            FunctionAttribute::Oracle(name) => Definition::Oracle(name),
-                            _ => unreachable!("Oracle function must have an oracle attribute"),
-                        }
+                        let attribute = attributes.function.as_ref().expect("all oracle functions must contain a function attribute which contains the opcode which it links to");
+                        let opcode = attribute.oracle().expect(
+                            "ice: function marked as builtin, but attribute kind does not match this",
+                        );
+                        Definition::Oracle(opcode.to_string())
                     }
                     FunctionKind::Recursive => {
                         unreachable!("Only main can be specified as recursive, which should already be checked");

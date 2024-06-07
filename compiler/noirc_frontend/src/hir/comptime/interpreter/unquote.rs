@@ -132,7 +132,7 @@ impl<'a> Interpreter<'a> {
             ExpressionKind::Parenthesized(expr) => self.substitute_unquoted_into_expr(expr, args),
             ExpressionKind::Quote(quote) => self.substitute_unquoted_values_into_block(quote, args),
             ExpressionKind::Unquote(unquote) => self.substitute_unquoted_into_expr(unquote, args),
-            ExpressionKind::Comptime(comptime) => {
+            ExpressionKind::Comptime(comptime, _) => {
                 self.substitute_unquoted_values_into_block(comptime, args)
             }
             ExpressionKind::Resolved(_) => Ok(()),
