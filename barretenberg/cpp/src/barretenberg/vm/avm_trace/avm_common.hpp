@@ -1,5 +1,6 @@
 #pragma once
 
+#include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
 #include "barretenberg/vm/avm_trace/constants.hpp"
 #include "barretenberg/vm/generated/avm_flavor.hpp"
@@ -45,8 +46,8 @@ static const uint32_t MAX_SIZE_INTERNAL_STACK = 1 << 16;
 struct ExternalCallHint {
     FF success;
     std::vector<FF> return_data;
-    FF l2_gas_used;
-    FF da_gas_used;
+    uint32_t l2_gas_used;
+    uint32_t da_gas_used;
 };
 
 // Add support for deserialization of ExternalCallHint. This is implicitly used by serialize::read
@@ -167,6 +168,11 @@ struct ExecutionHints {
         std::map<FF, ContractInstanceHint> contract_instance_hints;
         for (const auto& instance : contract_instance_hints_vec) {
             contract_instance_hints[instance.address] = instance;
+        }
+
+        if (it != data.data() + data.size()) {
+            throw_or_abort("Failed to deserialize ExecutionHints: only read" + std::to_string(it - data.data()) +
+                           " bytes out of " + std::to_string(data.size()) + " bytes");
         }
 
         return { std::move(storage_value_hints),    std::move(note_hash_exists_hints),

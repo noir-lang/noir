@@ -158,6 +158,14 @@ TEST_F(AvmCastTests, sameTagU128)
         uint256_t::from_uint128(a), FF(uint256_t::from_uint128(a)), 0, 1, AvmMemoryTag::U128, AvmMemoryTag::U128);
 }
 
+TEST_F(AvmCastTests, U128toFFWithBorrow)
+{
+    uint128_t const a = (uint128_t{ 0x30644E72E131A029LLU } << 64) + uint128_t{ 0xB85045B68181585DLLU };
+    gen_trace(a, 0, 1, AvmMemoryTag::U128, AvmMemoryTag::FF);
+    validate_cast_trace(
+        uint256_t::from_uint128(a), FF(uint256_t::from_uint128(a)), 0, 1, AvmMemoryTag::U128, AvmMemoryTag::FF);
+}
+
 TEST_F(AvmCastTests, noTruncationFFToU32)
 {
     gen_trace(UINT32_MAX, 4, 9, AvmMemoryTag::FF, AvmMemoryTag::U32);

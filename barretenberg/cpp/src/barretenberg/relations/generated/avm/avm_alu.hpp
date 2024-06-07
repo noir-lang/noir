@@ -903,7 +903,7 @@ template <typename FF_> class avm_aluImpl {
         {
             Avm_DECLARE_VIEWS(54);
 
-            auto tmp = (((avm_alu_op_mul * avm_alu_ff_tag) + avm_alu_op_cast) * avm_alu_alu_sel_shift);
+            auto tmp = (((avm_alu_op_mul * avm_alu_u128_tag) + avm_alu_op_cast) * avm_alu_alu_sel_shift);
             tmp *= scaling_factor;
             std::get<54>(evals) += tmp;
         }

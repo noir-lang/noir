@@ -37,6 +37,7 @@ import {
   initHostStorage,
 } from '@aztec/simulator/avm/fixtures';
 
+import { jest } from '@jest/globals';
 import { mock } from 'jest-mock-extended';
 import fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -70,6 +71,7 @@ describe('AVM WitGen, proof generation and verification', () => {
     ['l1_to_l2_msg_exists', [new Fr(1), new Fr(2)]],
     ['send_l2_to_l1_msg', [new Fr(1), new Fr(2)]],
     ['to_radix_le', [new Fr(10)]],
+    ['nested_call_to_add', [new Fr(1), new Fr(2)]],
   ];
 
   it.each(avmFunctionsAndCalldata)(
@@ -201,6 +203,10 @@ const proveAndVerifyAvmTestContract = async (functionName: string, calldata: Fr[
   const hostStorage = initHostStorage({ contractsDb });
   const persistableState = new AvmPersistableStateManager(hostStorage);
   const context = initContext({ env: environment, persistableState });
+  const nestedCallBytecode = getAvmTestContractBytecode('add_args_return');
+  jest
+    .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+    .mockReturnValue(Promise.resolve(nestedCallBytecode));
 
   const startGas = new Gas(context.machineState.gasLeft.daGas, context.machineState.gasLeft.l2Gas);
   const oldPublicExecution = createPublicExecution(startSideEffectCounter, environment, calldata);

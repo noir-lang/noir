@@ -514,7 +514,7 @@ namespace avm_alu(256);
     // 128-bit multiplication and CAST need two rows in ALU trace. We need to ensure
     // that another ALU operation does not start in the second row.
     #[TWO_LINE_OP_NO_OVERLAP]
-    (op_mul * ff_tag + op_cast) * alu_sel' = 0;
+    (op_mul * u128_tag + op_cast) * alu_sel' = 0;
 
     // ========= SHIFT LEFT/RIGHT OPERATIONS ===============================
     // Given (1) an input b, within the range [0, 2**128-1], 

@@ -9,6 +9,7 @@
 #include <set>
 #include <string>
 #include <sys/types.h>
+#include <unordered_map>
 #include <vector>
 
 #include "barretenberg/common/throw_or_abort.hpp"
@@ -2619,15 +2620,16 @@ uint32_t AvmTraceBuilder::read_slice_to_memory(uint8_t space_id,
  * @param function_selector_offset An index in memory pointing to the function selector of the external call (TEMP)
  */
 void AvmTraceBuilder::op_call([[maybe_unused]] uint8_t indirect,
-                              uint32_t gas_offset,
-                              uint32_t addr_offset,
-                              uint32_t args_offset,
-                              uint32_t args_size,
-                              uint32_t ret_offset,
-                              uint32_t ret_size,
-                              uint32_t success_offset,
-                              uint32_t function_selector_offset)
+                              [[maybe_unused]] uint32_t gas_offset,
+                              [[maybe_unused]] uint32_t addr_offset,
+                              [[maybe_unused]] uint32_t args_offset,
+                              [[maybe_unused]] uint32_t args_size,
+                              [[maybe_unused]] uint32_t ret_offset,
+                              [[maybe_unused]] uint32_t ret_size,
+                              [[maybe_unused]] uint32_t success_offset,
+                              [[maybe_unused]] uint32_t function_selector_offset)
 {
+    // pc++;
     auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
     const ExternalCallHint& hint = execution_hints.externalcall_hints.at(external_call_counter);
     // We can load up to 4 things per row
@@ -2642,17 +2644,16 @@ void AvmTraceBuilder::op_call([[maybe_unused]] uint8_t indirect,
         mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_C, args_offset);
 
     std::vector<uint32_t> first_row_load = {
-        uint32_t(read_ind_gas_offset.val), addr_offset, uint32_t(read_ind_args_offset.val), args_size
+        uint32_t(read_ind_gas_offset.val),
+        addr_offset,
+        uint32_t(read_ind_args_offset.val),
     };
-    std::vector<uint32_t> first_row_values = {};
+    std::vector<FF> first_row_values = {};
     for (uint32_t j = 0; j < first_row_load.size(); j++) {
         // We just read and load to set up the constraints, we dont actually use these values for now.
-        auto mem_read = mem_trace_builder.read_and_load_from_memory(call_ptr,
-                                                                    clk,
-                                                                    register_order[j % register_order.size()],
-                                                                    first_row_load[j],
-                                                                    AvmMemoryTag::U32,
-                                                                    AvmMemoryTag::U0);
+        // info("Register order ", register_order[j]);
+        auto mem_read = mem_trace_builder.read_and_load_from_memory(
+            call_ptr, clk, register_order[j], first_row_load[j], AvmMemoryTag::FF, AvmMemoryTag::U0);
         first_row_values.emplace_back(mem_read.val);
     }
 
@@ -2662,7 +2663,6 @@ void AvmTraceBuilder::op_call([[maybe_unused]] uint8_t indirect,
         .avm_main_ia = first_row_values[0], /* gas_offset */
         .avm_main_ib = first_row_values[1], /* addr_offset */
         .avm_main_ic = first_row_values[2], /* args_offset */
-        .avm_main_id = first_row_values[3], /* args_size */
         .avm_main_ind_a = gas_offset,
         .avm_main_ind_c = args_offset,
         .avm_main_ind_op_a = FF(1),
@@ -2671,50 +2671,40 @@ void AvmTraceBuilder::op_call([[maybe_unused]] uint8_t indirect,
         .avm_main_mem_idx_a = read_ind_gas_offset.val,
         .avm_main_mem_idx_b = addr_offset,
         .avm_main_mem_idx_c = read_ind_args_offset.val,
-        .avm_main_mem_idx_d = args_size,
         .avm_main_mem_op_a = FF(1),
         .avm_main_mem_op_b = FF(1),
         .avm_main_mem_op_c = FF(1),
-        .avm_main_mem_op_d = FF(1),
         .avm_main_pc = FF(pc++),
-        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
         .avm_main_sel_external_call = FF(1),
     });
     clk++;
     // Read the rest on a separate line, remember that the 4th operand is indirect
     auto read_ind_ret_offset =
         mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, ret_offset);
-    std::vector<uint32_t> second_row_values = {};
-    std::vector<uint32_t> second_row_load = {
-        uint32_t(read_ind_ret_offset.val), function_selector_offset, ret_size, success_offset
-    };
-    for (uint32_t j = 0; j < second_row_load.size(); j++) {
-        // We just read and load to set up the constraints, we dont actually use these values for now.
-        auto mem_read = mem_trace_builder.read_and_load_from_memory(call_ptr,
-                                                                    clk,
-                                                                    register_order[j % register_order.size()],
-                                                                    second_row_load[j],
-                                                                    AvmMemoryTag::U32,
-                                                                    AvmMemoryTag::U0);
-        second_row_values.emplace_back(mem_read.val);
-    }
+    // We just read and load to set up the constraints, we dont actually use these values for now.
+    auto mem_read_ret = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IA, uint32_t(read_ind_ret_offset.val), AvmMemoryTag::FF, AvmMemoryTag::U0);
     main_trace.push_back(Row{
         .avm_main_clk = clk,
-        .avm_main_ia = second_row_values[0], /* ret_offset */
-        .avm_main_ib = second_row_values[1], /* function_selector_offset */
-        .avm_main_ic = second_row_values[2], /* ret_size */
-        .avm_main_id = second_row_values[3], /* success_offset */
+        .avm_main_ia = mem_read_ret.val, /* ret_offset */
         .avm_main_ind_a = ret_offset,
         .avm_main_ind_op_a = FF(1),
         .avm_main_internal_return_ptr = FF(internal_return_ptr),
         .avm_main_mem_idx_a = read_ind_ret_offset.val,
-        .avm_main_mem_idx_b = function_selector_offset,
-        .avm_main_mem_idx_c = ret_size,
-        .avm_main_mem_idx_d = success_offset,
         .avm_main_mem_op_a = FF(1),
-        .avm_main_mem_op_b = FF(1),
-        .avm_main_mem_op_c = FF(1),
-        .avm_main_mem_op_d = FF(1),
+        .avm_main_pc = FF(pc),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
+    });
+    clk++;
+    auto mem_read_success = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IA, success_offset, AvmMemoryTag::U32, AvmMemoryTag::U0);
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_ia = mem_read_success.val, /* success_offset */
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_a = FF(success_offset),
+        .avm_main_mem_op_a = FF(1),
         .avm_main_pc = FF(pc),
         .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
     });
@@ -3867,7 +3857,7 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
         dest.avm_alu_op_eq_diff_inv = FF(src.alu_op_eq_diff_inv);
 
         // Not all rows in ALU are enabled with a selector. For instance,
-        // multiplication over u128 is taking two lines.
+        // multiplication over u128 and cast is taking two lines.
         if (AvmAluTraceBuilder::is_alu_row_enabled(src)) {
             dest.avm_alu_alu_sel = FF(1);
         }
@@ -3917,6 +3907,7 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
             dest.avm_alu_a_hi = FF(src.hi_lo_limbs.at(1));
             dest.avm_alu_p_sub_a_lo = FF(src.hi_lo_limbs.at(2));
             dest.avm_alu_p_sub_a_hi = FF(src.hi_lo_limbs.at(3));
+            dest.avm_alu_p_a_borrow = FF(static_cast<uint8_t>(src.p_a_borrow));
             dest.avm_alu_rng_chk_lookup_selector = FF(1);
         }
 
