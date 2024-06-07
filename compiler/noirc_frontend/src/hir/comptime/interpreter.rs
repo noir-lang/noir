@@ -100,7 +100,7 @@ impl<'a> Interpreter<'a> {
             let item = format!("Evaluation for foreign functions like {foreign}");
             Err(InterpreterError::Unimplemented { item, location })
         } else if let Some(oracle) = func_attrs.oracle() {
-            if oracle == "print_oracle" {
+            if oracle == "print" {
                 self.print_oracle(arguments)
             } else {
                 let item = format!("Evaluation for oracle functions like {oracle}");
