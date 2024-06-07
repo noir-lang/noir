@@ -17,6 +17,7 @@ import {
   ARGS_LENGTH,
   AppendOnlyTreeSnapshot,
   AvmCircuitInputs,
+  AvmContractInstanceHint,
   AvmExecutionHints,
   AvmExternalCallHint,
   AvmKeyValueHint,
@@ -1277,13 +1278,30 @@ export function makeAvmKeyValueHint(seed = 0): AvmKeyValueHint {
 /**
  * Makes arbitrary AvmExternalCallHint.
  * @param seed - The seed to use for generating the state reference.
- * @returns AvmKeyValueHint.
+ * @returns AvmExternalCallHint.
  */
 export function makeAvmExternalCallHint(seed = 0): AvmExternalCallHint {
   return new AvmExternalCallHint(
     new Fr(seed % 2),
     makeArray((seed % 100) + 10, i => new Fr(i), seed + 0x1000),
     new Gas(seed + 0x200, seed),
+  );
+}
+
+/**
+ * Makes arbitrary AvmContractInstanceHint.
+ * @param seed - The seed to use for generating the state reference.
+ * @returns AvmContractInstanceHint.
+ */
+export function makeAvmContractInstanceHint(seed = 0): AvmContractInstanceHint {
+  return new AvmContractInstanceHint(
+    new Fr(seed),
+    new Fr(seed + 0x1),
+    new Fr(seed + 0x2),
+    new Fr(seed + 0x3),
+    new Fr(seed + 0x4),
+    new Fr(seed + 0x5),
+    new Fr(seed + 0x6),
   );
 }
 
@@ -1306,6 +1324,7 @@ export function makeAvmExecutionHints(
     nullifierExists: makeVector(baseLength + 2, makeAvmKeyValueHint, seed + 0x4400),
     l1ToL2MessageExists: makeVector(baseLength + 3, makeAvmKeyValueHint, seed + 0x4500),
     externalCalls: makeVector(baseLength + 4, makeAvmExternalCallHint, seed + 0x4600),
+    contractInstances: makeVector(baseLength + 5, makeAvmContractInstanceHint, seed + 0x4700),
     ...overrides,
   });
 }

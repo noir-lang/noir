@@ -2000,10 +2000,12 @@ TEST_F(AvmExecutionTests, opGetContractInstanceOpcodes)
     std::vector<FF> returndata = {};
 
     // Generate Hint for call operation
-    auto execution_hints = ExecutionHints().with_contract_instance_hints({ { address, { 1, 1, 2, 3, 4, 5 } } });
+    // Note: opcode does not write 'address' into memory
+    auto execution_hints =
+        ExecutionHints().with_contract_instance_hints({ { address, { address, 1, 2, 3, 4, 5, 6 } } });
 
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
-    EXPECT_EQ(returndata, std::vector<FF>({ 1, 1, 2, 3, 4, 5 })); // The first one represents true
+    EXPECT_EQ(returndata, std::vector<FF>({ 1, 2, 3, 4, 5, 6 })); // The first one represents true
 
     validate_trace(std::move(trace));
 }

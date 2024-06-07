@@ -6,18 +6,20 @@ import { Fr } from '@aztec/foundation/fields';
 import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from '../../index.js';
+import { emptyTracedContractInstance, randomTracedContractInstance } from '../fixtures/index.js';
 import { HostStorage } from './host_storage.js';
 import { AvmPersistableStateManager, type JournalData } from './journal.js';
 
 describe('journal', () => {
   let publicDb: MockProxy<PublicStateDB>;
+  let contractsDb: MockProxy<PublicContractsDB>;
   let commitmentsDb: MockProxy<CommitmentsDB>;
   let journal: AvmPersistableStateManager;
 
   beforeEach(() => {
     publicDb = mock<PublicStateDB>();
     commitmentsDb = mock<CommitmentsDB>();
-    const contractsDb = mock<PublicContractsDB>();
+    contractsDb = mock<PublicContractsDB>();
 
     const hostStorage = new HostStorage(publicDb, contractsDb, commitmentsDb);
     journal = new AvmPersistableStateManager(hostStorage);
@@ -155,6 +157,23 @@ describe('journal', () => {
       const journalUpdates = journal.flush();
       expect(journalUpdates.newL1Messages).toEqual([expect.objectContaining({ recipient, content: msgHash })]);
     });
+
+    describe('Getting contract instances', () => {
+      it('Should get contract instance', async () => {
+        const contractAddress = AztecAddress.fromField(new Fr(2));
+        const instance = randomTracedContractInstance();
+        instance.exists = true;
+        contractsDb.getContractInstance.mockResolvedValue(Promise.resolve(instance));
+        await journal.getContractInstance(contractAddress);
+        expect(journal.trace.gotContractInstances).toEqual([instance]);
+      });
+      it('Can get undefined contract instance', async () => {
+        const contractAddress = AztecAddress.fromField(new Fr(2));
+        await journal.getContractInstance(contractAddress);
+        const emptyInstance = emptyTracedContractInstance(AztecAddress.fromField(contractAddress));
+        expect(journal.trace.gotContractInstances).toEqual([emptyInstance]);
+      });
+    });
   });
 
   it('Should merge two successful journals together', async () => {
@@ -166,6 +185,7 @@ describe('journal', () => {
     // t2 -> journal0 -> read  | 2
 
     const contractAddress = new Fr(1);
+    const aztecContractAddress = AztecAddress.fromField(contractAddress);
     const key = new Fr(2);
     const value = new Fr(1);
     const valueT1 = new Fr(2);
@@ -176,6 +196,7 @@ describe('journal', () => {
     const logT1 = { address: 20n, selector: 8, data: [new Fr(7), new Fr(8)] };
     const index = new Fr(42);
     const indexT1 = new Fr(24);
+    const instance = emptyTracedContractInstance(aztecContractAddress);
 
     journal.writeStorage(contractAddress, key, value);
     await journal.readStorage(contractAddress, key);
@@ -185,6 +206,7 @@ describe('journal', () => {
     await journal.writeNullifier(contractAddress, commitment);
     await journal.checkNullifierExists(contractAddress, commitment);
     await journal.checkL1ToL2MessageExists(commitment, index);
+    await journal.getContractInstance(aztecContractAddress);
 
     const childJournal = new AvmPersistableStateManager(journal.hostStorage, journal);
     childJournal.writeStorage(contractAddress, key, valueT1);
@@ -195,6 +217,7 @@ describe('journal', () => {
     await childJournal.writeNullifier(contractAddress, commitmentT1);
     await childJournal.checkNullifierExists(contractAddress, commitmentT1);
     await childJournal.checkL1ToL2MessageExists(commitmentT1, indexT1);
+    await childJournal.getContractInstance(aztecContractAddress);
 
     journal.acceptNestedCallState(childJournal);
 
@@ -281,6 +304,7 @@ describe('journal', () => {
       expect.objectContaining({ leafIndex: index, msgHash: commitment, exists: false }),
       expect.objectContaining({ leafIndex: indexT1, msgHash: commitmentT1, exists: false }),
     ]);
+    expect(journal.trace.gotContractInstances).toEqual([instance, instance]);
   });
 
   it('Should merge failed journals together', async () => {
@@ -294,6 +318,7 @@ describe('journal', () => {
     // t2 -> journal0 -> read  | 1
 
     const contractAddress = new Fr(1);
+    const aztecContractAddress = AztecAddress.fromField(contractAddress);
     const key = new Fr(2);
     const value = new Fr(1);
     const valueT1 = new Fr(2);
@@ -304,6 +329,7 @@ describe('journal', () => {
     const logT1 = { address: 20n, selector: 8, data: [new Fr(7), new Fr(8)] };
     const index = new Fr(42);
     const indexT1 = new Fr(24);
+    const instance = emptyTracedContractInstance(aztecContractAddress);
 
     journal.writeStorage(contractAddress, key, value);
     await journal.readStorage(contractAddress, key);
@@ -313,6 +339,7 @@ describe('journal', () => {
     await journal.checkL1ToL2MessageExists(commitment, index);
     journal.writeLog(new Fr(log.address), new Fr(log.selector), log.data);
     journal.writeL1Message(recipient, commitment);
+    await journal.getContractInstance(aztecContractAddress);
 
     const childJournal = new AvmPersistableStateManager(journal.hostStorage, journal);
     childJournal.writeStorage(contractAddress, key, valueT1);
@@ -323,6 +350,7 @@ describe('journal', () => {
     await journal.checkL1ToL2MessageExists(commitmentT1, indexT1);
     childJournal.writeLog(new Fr(logT1.address), new Fr(logT1.selector), logT1.data);
     childJournal.writeL1Message(recipient, commitmentT1);
+    await childJournal.getContractInstance(aztecContractAddress);
 
     journal.rejectNestedCallState(childJournal);
 
@@ -404,6 +432,7 @@ describe('journal', () => {
       ),
     ]);
     expect(journalUpdates.newL1Messages).toEqual([expect.objectContaining({ recipient, content: commitment })]);
+    expect(journal.trace.gotContractInstances).toEqual([instance, instance]);
   });
 
   it('Can fork and merge journals', () => {

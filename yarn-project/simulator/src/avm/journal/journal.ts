@@ -14,6 +14,7 @@ import {
 import { EventSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import { SerializableContractInstance } from '@aztec/types/contracts';
 
 import { type PublicExecutionResult } from '../../index.js';
 import { type HostStorage } from './host_storage.js';
@@ -21,6 +22,7 @@ import { Nullifiers } from './nullifiers.js';
 import { PublicStorage } from './public_storage.js';
 import { WorldStateAccessTrace } from './trace.js';
 import {
+  type TracedContractInstance,
   type TracedL1toL2MessageCheck,
   type TracedNoteHash,
   type TracedNoteHashCheck,
@@ -327,6 +329,19 @@ export class AvmPersistableStateManager {
     // TODO(6205): why are logs pushed here but logs hashes are traced?
     this.newLogs.push(ulog);
     this.trace.traceNewLog(logHash);
+  }
+
+  public async getContractInstance(contractAddress: Fr): Promise<TracedContractInstance> {
+    let exists = true;
+    const aztecAddress = AztecAddress.fromField(contractAddress);
+    let instance = await this.hostStorage.contractsDb.getContractInstance(aztecAddress);
+    if (instance === undefined) {
+      instance = SerializableContractInstance.empty().withAddress(aztecAddress);
+      exists = false;
+    }
+    const tracedInstance = { ...instance, exists };
+    this.trace.traceGetContractInstance(tracedInstance);
+    return Promise.resolve(tracedInstance);
   }
 
   /**

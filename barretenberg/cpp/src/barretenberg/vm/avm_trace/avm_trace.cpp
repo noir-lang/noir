@@ -2595,6 +2595,7 @@ void AvmTraceBuilder::op_get_contract_instance(uint8_t indirect, uint32_t addres
     // Read the contract instance
     ContractInstanceHint contract_instance = execution_hints.contract_instance_hints.at(read_address.val);
 
+    // NOTE: we don't write the first entry (the contract instance's address/key) to memory
     std::vector<FF> contract_instance_vec = { contract_instance.instance_found_in_address,
                                               contract_instance.salt,
                                               contract_instance.deployer_addr,

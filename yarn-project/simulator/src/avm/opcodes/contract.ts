@@ -1,4 +1,4 @@
-import { AztecAddress, Fr } from '@aztec/circuits.js';
+import { Fr } from '@aztec/circuits.js';
 
 import type { AvmContext } from '../avm_context.js';
 import { Field, TypeTag } from '../avm_memory_types.js';
@@ -32,27 +32,17 @@ export class GetContractInstance extends Instruction {
     );
     memory.checkTag(TypeTag.FIELD, addressOffset);
 
-    const address = AztecAddress.fromField(memory.get(addressOffset).toFr());
-    const instance = await context.persistableState.hostStorage.contractsDb.getContractInstance(address);
+    const address = memory.get(addressOffset).toFr();
+    const instance = await context.persistableState.getContractInstance(address);
 
-    const data =
-      instance === undefined
-        ? [
-            new Field(0), // not found
-            new Field(0),
-            new Field(0),
-            new Field(0),
-            new Field(0),
-            new Field(0),
-          ]
-        : [
-            new Fr(1), // found
-            instance.salt,
-            instance.deployer.toField(),
-            instance.contractClassId,
-            instance.initializationHash,
-            instance.publicKeysHash,
-          ].map(f => new Field(f));
+    const data = [
+      new Fr(instance.exists),
+      instance.salt,
+      instance.deployer.toField(),
+      instance.contractClassId,
+      instance.initializationHash,
+      instance.publicKeysHash,
+    ].map(f => new Field(f));
 
     memory.setSlice(dstOffset, data);
 

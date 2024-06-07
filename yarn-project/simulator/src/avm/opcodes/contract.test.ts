@@ -1,23 +1,21 @@
 import { AztecAddress, Fr } from '@aztec/circuits.js';
+import { type ContractInstanceWithAddress } from '@aztec/types/contracts';
 
-import { type DeepMockProxy, mockDeep } from 'jest-mock-extended';
+import { mock } from 'jest-mock-extended';
 
+import { type PublicContractsDB } from '../../public/db_interfaces.js';
 import { type AvmContext } from '../avm_context.js';
 import { Field } from '../avm_memory_types.js';
-import { initContext } from '../fixtures/index.js';
-import { type AvmPersistableStateManager } from '../journal/journal.js';
+import { initContext, initHostStorage } from '../fixtures/index.js';
+import { AvmPersistableStateManager } from '../journal/journal.js';
 import { GetContractInstance } from './contract.js';
 
 describe('Contract opcodes', () => {
   let context: AvmContext;
-  let journal: DeepMockProxy<AvmPersistableStateManager>;
   const address = AztecAddress.random();
 
   beforeEach(async () => {
-    journal = mockDeep<AvmPersistableStateManager>();
-    context = initContext({
-      persistableState: journal,
-    });
+    context = initContext();
   });
 
   describe('GETCONTRACTINSTANCE', () => {
@@ -49,9 +47,11 @@ describe('Contract opcodes', () => {
         initializationHash: new Fr(40),
         publicKeysHash: new Fr(50),
         deployer: AztecAddress.random(),
-      };
+      } as ContractInstanceWithAddress;
 
-      journal.hostStorage.contractsDb.getContractInstance.mockReturnValue(Promise.resolve(contractInstance));
+      const contractsDb = mock<PublicContractsDB>();
+      contractsDb.getContractInstance.mockResolvedValue(Promise.resolve(contractInstance));
+      context.persistableState = new AvmPersistableStateManager(initHostStorage({ contractsDb }));
 
       await new GetContractInstance(/*indirect=*/ 0, /*addressOffset=*/ 0, /*dstOffset=*/ 1).execute(context);
 
@@ -68,7 +68,6 @@ describe('Contract opcodes', () => {
 
     it('should return zeroes if not found', async () => {
       context.machineState.memory.set(0, new Field(address.toField()));
-      journal.hostStorage.contractsDb.getContractInstance.mockReturnValue(Promise.resolve(undefined));
 
       await new GetContractInstance(/*indirect=*/ 0, /*addressOffset=*/ 0, /*dstOffset=*/ 1).execute(context);
 

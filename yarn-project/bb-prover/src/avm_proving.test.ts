@@ -29,17 +29,25 @@ import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { AvmSimulator, type PublicExecutionResult } from '@aztec/simulator';
-import { getAvmTestContractBytecode, initContext, initExecutionEnvironment } from '@aztec/simulator/avm/fixtures';
+import { AvmSimulator, type PublicContractsDB, type PublicExecutionResult } from '@aztec/simulator';
+import {
+  getAvmTestContractBytecode,
+  initContext,
+  initExecutionEnvironment,
+  initHostStorage,
+} from '@aztec/simulator/avm/fixtures';
 
+import { mock } from 'jest-mock-extended';
 import fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'path';
 
+import { AvmPersistableStateManager } from '../../simulator/src/avm/journal/journal.js';
 import {
   convertAvmResultsToPxResult,
   createPublicExecution,
 } from '../../simulator/src/public/transitional_adaptors.js';
+import { SerializableContractInstance } from '../../types/src/contracts/contract_instance.js';
 import { type BBSuccess, BB_RESULT, generateAvmProof, verifyAvmProof } from './bb/execute.js';
 import { extractVkData } from './verification_key/verification_key_data.js';
 
@@ -66,6 +74,14 @@ describe('AVM WitGen, proof generation and verification', () => {
     'Should prove with note hash exists with hints',
     async () => {
       await proveAndVerifyAvmTestContract('note_hash_exists', [new Fr(1), new Fr(2)]);
+    },
+    TIMEOUT,
+  );
+
+  it(
+    'Should prove get contract instance opcode with hints',
+    async () => {
+      await proveAndVerifyAvmTestContract('test_get_contract_instance');
     },
     TIMEOUT,
   );
@@ -175,7 +191,21 @@ it.each(avmContextFunctions)(
 const proveAndVerifyAvmTestContract = async (functionName: string, calldata: Fr[] = []) => {
   const startSideEffectCounter = 0;
   const environment = initExecutionEnvironment({ calldata });
-  const context = initContext({ env: environment });
+
+  const contractsDb = mock<PublicContractsDB>();
+  const contractInstance = new SerializableContractInstance({
+    version: 1,
+    salt: new Fr(0x123),
+    deployer: new Fr(0x456),
+    contractClassId: new Fr(0x789),
+    initializationHash: new Fr(0x101112),
+    publicKeysHash: new Fr(0x161718),
+  }).withAddress(environment.address);
+  contractsDb.getContractInstance.mockResolvedValue(Promise.resolve(contractInstance));
+
+  const hostStorage = initHostStorage({ contractsDb });
+  const persistableState = new AvmPersistableStateManager(hostStorage);
+  const context = initContext({ env: environment, persistableState });
 
   const startGas = new Gas(context.machineState.gasLeft.daGas, context.machineState.gasLeft.l2Gas);
   const oldPublicExecution = createPublicExecution(startSideEffectCounter, environment, calldata);
