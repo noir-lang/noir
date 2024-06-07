@@ -5,6 +5,8 @@ use acvm::{
 };
 use jsonrpc::{arg as build_json_rpc_arg, minreq_http::Builder, Client};
 use noirc_printable_type::{decode_string_value, ForeignCallError, PrintableValueDisplay};
+use rand::Rng;
+use serde::{Deserialize, Serialize};
 
 pub trait ForeignCallExecutor {
     fn execute(
@@ -96,6 +98,12 @@ impl MockedCall {
 
 #[derive(Debug, Default)]
 pub struct DefaultForeignCallExecutor {
+    /// A randomly generated id for this `DefaultForeignCallExecutor`.
+    ///
+    /// This is used so that a single `external_resolver` can distinguish between requests from multiple
+    /// instantiations of `DefaultForeignCallExecutor`.
+    id: u64,
+
     /// Mocks have unique ids used to identify them in Noir, allowing to update or remove them.
     last_mock_id: usize,
     /// The registered mocks
@@ -104,6 +112,14 @@ pub struct DefaultForeignCallExecutor {
     show_output: bool,
     /// JSON RPC client to resolve foreign calls
     external_resolver: Option<Client>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ResolveForeignCallRequest<F> {
+    id: u64,
+
+    #[serde(flatten)]
+    function_call: ForeignCallWaitInfo<F>
 }
 
 impl DefaultForeignCallExecutor {
@@ -123,6 +139,7 @@ impl DefaultForeignCallExecutor {
         DefaultForeignCallExecutor {
             show_output,
             external_resolver: oracle_resolver,
+            id: rand::thread_rng().gen(),
             ..DefaultForeignCallExecutor::default()
         }
     }
@@ -275,10 +292,12 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                 } else if let Some(external_resolver) = &self.external_resolver {
                     // If the user has registered an external resolver then we forward any remaining oracle calls there.
 
-                    let encoded_params: Vec<_> =
-                        foreign_call.inputs.iter().map(build_json_rpc_arg).collect();
+                    let encoded_params = vec![build_json_rpc_arg(ResolveForeignCallRequest{id:self.id, function_call: foreign_call.clone() })];
 
-                    let req = external_resolver.build_request(foreign_call_name, &encoded_params);
+                    let req =
+                        external_resolver.build_request("resolve_foreign_call", &encoded_params);
+
+                    println!("{req:?}");
 
                     let response = external_resolver.send_request(req)?;
 
@@ -310,27 +329,24 @@ mod tests {
     use jsonrpc_derive::rpc;
     use jsonrpc_http_server::{Server, ServerBuilder};
 
-    use crate::ops::{DefaultForeignCallExecutor, ForeignCallExecutor};
+    use crate::ops::{ DefaultForeignCallExecutor, ForeignCallExecutor,
+    };
+
+    use super::ResolveForeignCallRequest;
 
     #[allow(unreachable_pub)]
     #[rpc]
     pub trait OracleResolver {
-        #[rpc(name = "echo")]
-        fn echo(
+        #[rpc(name = "resolve_foreign_call")]
+        fn resolve_foreign_call(
             &self,
-            param: ForeignCallParam<FieldElement>,
-        ) -> RpcResult<ForeignCallResult<FieldElement>>;
-
-        #[rpc(name = "sum")]
-        fn sum(
-            &self,
-            array: ForeignCallParam<FieldElement>,
+            req: ResolveForeignCallRequest<FieldElement>,
         ) -> RpcResult<ForeignCallResult<FieldElement>>;
     }
 
     struct OracleResolverImpl;
 
-    impl OracleResolver for OracleResolverImpl {
+    impl OracleResolverImpl {
         fn echo(
             &self,
             param: ForeignCallParam<FieldElement>,
@@ -349,6 +365,19 @@ mod tests {
             }
 
             Ok(res.into())
+        }
+    }
+
+    impl OracleResolver for OracleResolverImpl {
+        fn resolve_foreign_call(
+            &self,
+            req: ResolveForeignCallRequest<FieldElement>,
+        ) -> RpcResult<ForeignCallResult<FieldElement>> {
+            match req.function_call.function.as_str() {
+                "sum" => self.sum(req.function_call.inputs[0].clone()),
+                "echo" => self.echo(req.function_call.inputs[0].clone()),
+                _ => panic!("unexpected foreign call"),
+            }
         }
     }
 
