@@ -37,6 +37,8 @@ pub struct ProgramArtifact {
     pub file_map: BTreeMap<FileId, DebugFile>,
 
     pub names: Vec<String>,
+    /// Names of the unconstrained functions in the program.
+    pub brillig_names: Vec<String>,
 }
 
 impl From<CompiledProgram> for ProgramArtifact {
@@ -49,6 +51,7 @@ impl From<CompiledProgram> for ProgramArtifact {
             debug_symbols: ProgramDebugInfo { debug_infos: compiled_program.debug },
             file_map: compiled_program.file_map,
             names: compiled_program.names,
+            brillig_names: compiled_program.brillig_names,
         }
     }
 }
@@ -64,6 +67,7 @@ impl From<ProgramArtifact> for CompiledProgram {
             file_map: program.file_map,
             warnings: vec![],
             names: program.names,
+            brillig_names: program.brillig_names,
         }
     }
 }

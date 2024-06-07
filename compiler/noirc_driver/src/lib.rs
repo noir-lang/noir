@@ -548,6 +548,7 @@ pub fn compile_no_check(
         main_input_witnesses,
         main_return_witnesses,
         names,
+        brillig_names,
         error_types,
     } = create_program(
         program,
@@ -576,5 +577,6 @@ pub fn compile_no_check(
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
         names,
+        brillig_names,
     })
 }

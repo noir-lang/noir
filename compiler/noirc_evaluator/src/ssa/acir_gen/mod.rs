@@ -274,8 +274,12 @@ impl AcirValue {
     }
 }
 
-pub(crate) type Artifacts =
-    (Vec<GeneratedAcir>, Vec<BrilligBytecode<FieldElement>>, BTreeMap<ErrorSelector, ErrorType>);
+pub(crate) type Artifacts = (
+    Vec<GeneratedAcir>,
+    Vec<BrilligBytecode<FieldElement>>,
+    Vec<String>,
+    BTreeMap<ErrorSelector, ErrorType>,
+);
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
@@ -318,15 +322,16 @@ impl Ssa {
                 }
 
                 generated_acir.name = function.name().to_owned();
+                dbg!(&generated_acir.name);
                 acirs.push(generated_acir);
             }
         }
-
-        let brillig = vecmap(shared_context.generated_brillig, |brillig| BrilligBytecode {
+        let names = vecmap(&shared_context.generated_brillig, |brillig| brillig.name.clone());
+        let brillig_op = vecmap(shared_context.generated_brillig, |brillig| BrilligBytecode {
             bytecode: brillig.byte_code,
         });
 
-        Ok((acirs, brillig, self.error_selector_to_type))
+        Ok((acirs, brillig_op, names, self.error_selector_to_type))
     }
 }
 
@@ -791,8 +796,9 @@ impl<'a> Context<'a> {
                                         None,
                                     )?
                                 } else {
-                                    let code =
+                                    let mut code =
                                         self.gen_brillig_for(func, arguments.clone(), brillig)?;
+                                    code.name = func.name().to_string();
                                     let generated_pointer =
                                         self.shared_context.new_generated_pointer();
                                     let output_values = self.acir_context.brillig_call(

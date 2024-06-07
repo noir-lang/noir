@@ -178,11 +178,12 @@ struct ProgramInfo {
     expression_width: ExpressionWidth,
     functions: Vec<FunctionInfo>,
     unconstrained_functions_opcodes: usize,
+    unconstrained_function: Vec<FunctionInfo>,
 }
 
 impl From<ProgramInfo> for Vec<Row> {
     fn from(program_info: ProgramInfo) -> Self {
-        vecmap(program_info.functions, |function| {
+        let mut main = vecmap(program_info.functions, |function| {
             row![
                 Fm->format!("{}", program_info.package_name),
                 Fc->format!("{}", function.name),
@@ -190,7 +191,17 @@ impl From<ProgramInfo> for Vec<Row> {
                 Fc->format!("{}", function.acir_opcodes),
                 Fc->format!("{}", program_info.unconstrained_functions_opcodes),
             ]
-        })
+        });
+        main.extend(vecmap(program_info.unconstrained_function, |function| {
+            row![
+                Fm->format!("{}", program_info.package_name),
+                Fc->format!("{}", function.name),
+                format!("N/A", ),
+                Fc->format!("N/A"),
+                Fc->format!("{}", function.acir_opcodes),
+            ]
+        }));
+        main
     }
 }
 
@@ -237,16 +248,32 @@ fn count_opcodes_and_gates_in_program(
             acir_opcodes: function.opcodes.len(),
         })
         .collect();
+
+    let opcodes_len: Vec<usize> = compiled_program
+        .bytecode
+        .unconstrained_functions
+        .iter()
+        .map(|func| func.bytecode.len())
+        .collect();
     let unconstrained_functions_opcodes = compiled_program
         .bytecode
         .unconstrained_functions
         .into_par_iter()
         .map(|function| function.bytecode.len())
         .sum();
+    let unconstrained_info: Vec<FunctionInfo> = compiled_program
+        .brillig_names
+        .clone()
+        .iter()
+        .zip(opcodes_len)
+        .map(|(name, len)| FunctionInfo { name: name.clone(), acir_opcodes: len })
+        .collect();
+
     ProgramInfo {
         package_name: package.name.to_string(),
         expression_width,
         functions,
         unconstrained_functions_opcodes,
+        unconstrained_function: unconstrained_info,
     }
 }
