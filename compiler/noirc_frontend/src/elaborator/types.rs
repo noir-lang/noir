@@ -17,7 +17,7 @@ use crate::{
     },
     hir_def::{
         expr::{
-            HirBinaryOp, HirCallExpression, HirIdent, HirMemberAccess, HirMethodReference,
+            HirBinaryOp, HirCallExpression, HirMemberAccess, HirMethodReference,
             HirPrefixExpression,
         },
         function::{FuncMeta, Parameters},
@@ -399,11 +399,16 @@ impl<'context> Elaborator<'context> {
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
     }
 
-    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u32 {
-        let Some(stmt) = self.interner.get_global_let_statement(global) else {
-            let path = path.clone();
-            self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
-            return 0;
+    fn eval_global_as_array_length(&mut self, global_id: GlobalId, path: &Path) -> u32 {
+        let Some(stmt) = self.interner.get_global_let_statement(global_id) else {
+            if let Some(global) = self.unresolved_globals.remove(&global_id) {
+                self.elaborate_global(global);
+                return self.eval_global_as_array_length(global_id, path);
+            } else {
+                let path = path.clone();
+                self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
+                return 0;
+            }
         };
 
         let length = stmt.expression;
@@ -1150,6 +1155,19 @@ impl<'context> Elaborator<'context> {
         let is_unconstrained_call = self.is_unconstrained_call(call.func);
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
         if crossing_runtime_boundary {
+            let called_func_id = self
+                .interner
+                .lookup_function_from_expr(&call.func)
+                .expect("Called function should exist");
+            self.run_lint(|elaborator| {
+                lints::oracle_called_from_constrained_function(
+                    elaborator.interner,
+                    &called_func_id,
+                    is_current_func_constrained,
+                    span,
+                )
+                .map(Into::into)
+            });
             let errors = lints::unconstrained_function_args(&args);
             for error in errors {
                 self.push_err(error);
@@ -1168,15 +1186,12 @@ impl<'context> Elaborator<'context> {
     }
 
     fn is_unconstrained_call(&self, expr: ExprId) -> bool {
-        if let HirExpression::Ident(HirIdent { id, .. }, _) = self.interner.expression(&expr) {
-            if let Some(DefinitionKind::Function(func_id)) =
-                self.interner.try_definition(id).map(|def| &def.kind)
-            {
-                let modifiers = self.interner.function_modifiers(func_id);
-                return modifiers.is_unconstrained;
-            }
+        if let Some(func_id) = self.interner.lookup_function_from_expr(&expr) {
+            let modifiers = self.interner.function_modifiers(&func_id);
+            modifiers.is_unconstrained
+        } else {
+            false
         }
-        false
     }
 
     /// Check if the given method type requires a mutable reference to the object type, and check

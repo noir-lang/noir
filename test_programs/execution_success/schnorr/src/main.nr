@@ -30,7 +30,7 @@ fn main(
     let pub_key = embedded_curve_ops::EmbeddedCurvePoint { x: pub_key_x, y: pub_key_y, is_infinite: false };
     let valid_signature = verify_signature_noir(pub_key, signature, message2);
     assert(valid_signature);
-    assert_valid_signature(pub_key,signature,message2);
+    assert_valid_signature(pub_key, signature, message2);
 }
 
 // TODO: to put in the stdlib once we have numeric generics
