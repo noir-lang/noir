@@ -485,6 +485,10 @@ std::vector<bool_t<C>> element<C, Fq, Fr, G>::compute_naf(const Fr& scalar, cons
     C* ctx = scalar.context;
     uint512_t scalar_multiplier_512 = uint512_t(uint256_t(scalar.get_value()) % Fr::modulus);
     uint256_t scalar_multiplier = scalar_multiplier_512.lo;
+    // NAF can't handl 0
+    if (scalar_multiplier == 0) {
+        scalar_multiplier = Fr::modulus;
+    }
 
     const size_t num_rounds = (max_num_bits == 0) ? Fr::modulus.get_msb() + 1 : max_num_bits;
     std::vector<bool_ct> naf_entries(num_rounds + 1);

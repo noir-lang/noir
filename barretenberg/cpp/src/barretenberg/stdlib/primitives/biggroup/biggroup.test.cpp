@@ -1278,11 +1278,7 @@ HEAVY_TYPED_TEST(stdlib_biggroup, batch_mul_edge_case_set1)
 
 HEAVY_TYPED_TEST(stdlib_biggroup, batch_mul_edge_case_set2)
 {
-    if constexpr (HasGoblinBuilder<TypeParam>) {
-        TestFixture::test_batch_mul_edge_case_set2();
-    } else {
-        GTEST_SKIP() << "https://github.com/AztecProtocol/barretenberg/issues/1000";
-    };
+    TestFixture::test_batch_mul_edge_case_set2();
 }
 HEAVY_TYPED_TEST(stdlib_biggroup, chain_add)
 {
