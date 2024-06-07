@@ -1,10 +1,12 @@
 use std::collections::{BTreeMap, HashSet};
+use std::rc::Rc;
 
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::ast::{Ident, ItemVisibility, Path, TraitItem, UnresolvedGeneric};
+use crate::{GenericTypeVars, ResolvedGeneric};
 use crate::{
     graph::CrateId,
     hir::{
@@ -58,7 +60,11 @@ pub(crate) fn resolve_traits(
 
         context.def_interner.update_trait(trait_id, |trait_def| {
             trait_def.set_methods(methods);
-            trait_def.generics = generics;
+            trait_def.generics = vecmap(generics, |type_var| {
+                let mut new_resolved = ResolvedGeneric::dummy();
+                new_resolved.type_var = type_var;
+                new_resolved
+            });
         });
 
         // This check needs to be after the trait's methods are set since
@@ -93,7 +99,7 @@ fn resolve_trait_methods(
     trait_id: TraitId,
     crate_id: CrateId,
     unresolved_trait: &UnresolvedTrait,
-    trait_generics: &Generics,
+    trait_generics: &GenericTypeVars,
 ) -> (Vec<TraitFunction>, Vec<(CompilationError, FileId)>) {
     let interner = &mut context.def_interner;
     let def_maps = &mut context.def_maps;

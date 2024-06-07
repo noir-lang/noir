@@ -29,8 +29,11 @@ use crate::hir_def::{
     stmt::HirStatement,
 };
 use crate::token::{Attributes, SecondaryAttribute};
+use crate::GenericTypeVars;
+use crate::Generics;
+use crate::ResolvedGeneric;
 use crate::{
-    Generics, Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
+    Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -556,7 +559,7 @@ impl NodeInterner {
                 // This lets us record how many arguments the type expects so that other types
                 // can refer to it with generic arguments before the generic parameters themselves
                 // are resolved.
-                TypeVariable::unbound(TypeVariableId(0))
+                ResolvedGeneric::dummy()
             }),
             self_type_typevar_id,
             self_type_typevar: TypeVariable::unbound(self_type_typevar_id),
@@ -586,7 +589,7 @@ impl NodeInterner {
             // This lets us record how many arguments the type expects so that other types
             // can refer to it with generic arguments before the generic parameters themselves
             // are resolved.
-            TypeVariable::unbound(TypeVariableId(0))
+            ResolvedGeneric::dummy()
         });
 
         let location = Location::new(typ.struct_def.span, file_id);
@@ -604,7 +607,7 @@ impl NodeInterner {
             typ.type_alias_def.name.clone(),
             Location::new(typ.type_alias_def.span, typ.file_id),
             Type::Error,
-            vecmap(&typ.type_alias_def.generics, |_| TypeVariable::unbound(TypeVariableId(0))),
+            vecmap(&typ.type_alias_def.generics, |_| ResolvedGeneric::dummy()),
         )));
 
         type_id
@@ -1382,7 +1385,7 @@ impl NodeInterner {
         trait_id: TraitId,
         trait_generics: Vec<Type>,
         impl_id: TraitImplId,
-        impl_generics: Generics,
+        impl_generics: GenericTypeVars,
         trait_impl: Shared<TraitImpl>,
     ) -> Result<(), (Span, FileId)> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
@@ -1792,7 +1795,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _, _) => Some(Function),
-        Type::NamedGeneric(_, _) => Some(Generic),
+        Type::NamedGeneric(_, _, _) => Some(Generic),
         Type::Code => Some(Code),
         Type::MutableReference(element) => get_type_method_key(element),
         Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),

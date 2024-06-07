@@ -4,8 +4,7 @@ use std::{
 };
 
 use crate::{
-    ast::{FunctionKind, UnresolvedGeneric, UnresolvedTraitConstraint},
-    hir::{
+    ast::{FunctionKind, UnresolvedGeneric, UnresolvedTraitConstraint}, hir::{
         comptime::{self, Interpreter},
         def_collector::{
             dc_crate::{
@@ -17,15 +16,11 @@ use crate::{
         resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext},
         scope::ScopeForest as GenericScopeForest,
         type_check::{check_trait_impl_method_matches_declaration, TypeCheckError},
-    },
-    hir_def::{expr::HirIdent, function::Parameters, traits::TraitConstraint},
-    macros_api::{
+    }, hir_def::{expr::HirIdent, function::Parameters, traits::TraitConstraint}, macros_api::{
         Ident, NodeInterner, NoirFunction, NoirStruct, Pattern, SecondaryAttribute, StructId,
-    },
-    node_interner::{
+    }, node_interner::{
         DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, TraitId, TypeAliasId,
-    },
-    ResolvedGeneric, Shared, Type, TypeVariable,
+    }, ResolvedGeneric, Generics, Shared, Type, TypeKind, TypeVariable
 };
 use crate::{
     ast::{TraitBound, UnresolvedGenerics},
@@ -39,7 +34,6 @@ use crate::{
     hir_def::function::{FuncMeta, HirFunction},
     macros_api::{Param, Path, UnresolvedType, UnresolvedTypeData},
     node_interner::TraitImplId,
-    Generics,
 };
 use crate::{
     hir::{
@@ -217,12 +211,16 @@ impl<'context> Elaborator<'context> {
             this.define_type_alias(alias_id, alias);
         }
 
-        this.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
-
-        this.collect_traits(items.traits);
+        // Must collect traits before we define function metas as we need to have resolved generics 
+        // when we define trait impl function metas
+        this.collect_traits(items.traits.clone());
 
         // Must resolve structs before we resolve globals.
         this.collect_struct_definitions(items.types);
+
+        this.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
+
+        this.collect_traits(items.traits);
 
         // Bind trait impls to their trait. Collect trait functions, that have a
         // default implementation, which hasn't been overridden.
@@ -324,7 +322,9 @@ impl<'context> Elaborator<'context> {
         }
 
         self.generics = func_meta.all_generics.clone();
+        // dbg!(self.generics.clone());
 
+        // self.declare_numeric_generics();
         self.declare_numeric_generics(&func_meta.parameters, func_meta.return_type());
         self.add_trait_constraints_to_scope(&func_meta);
 
@@ -411,7 +411,7 @@ impl<'context> Elaborator<'context> {
         generics.push(new_generic.clone());
 
         let name = format!("impl {trait_path}");
-        let generic_type = Type::NamedGeneric(new_generic, Rc::new(name));
+        let generic_type = Type::NamedGeneric(new_generic, Rc::new(name), TypeKind::Normal);
         let trait_bound = TraitBound { trait_path, trait_id: None, trait_generics };
 
         if let Some(new_constraint) = self.resolve_trait_bound(&trait_bound, generic_type.clone()) {
@@ -471,11 +471,14 @@ impl<'context> Elaborator<'context> {
                 });
             } else {
                 let resolved_generic =
-                    ResolvedGeneric { name, type_var: typevar.clone(), is_numeric_generic, span };
-                self.generics.push(resolved_generic);
+                    ResolvedGeneric { name: name.clone(), type_var: typevar.clone(), is_numeric_generic, span };
+                self.generics.push(resolved_generic.clone());
             }
-
-            typevar
+            let resolved_generic =
+                ResolvedGeneric { name, type_var: typevar.clone(), is_numeric_generic, span };
+            resolved_generic
+            // Generic { typevar, is_numeric_generic }
+            // typevar
         })
     }
 
@@ -627,7 +630,7 @@ impl<'context> Elaborator<'context> {
                 UnresolvedTypeData::TraitAsType(path, args) => {
                     self.desugar_impl_trait_arg(path, args, &mut generics, &mut trait_constraints)
                 }
-                _ => self.resolve_type_inner(typ),
+                _ => self.resolve_type_inner(typ, TypeKind::Normal),
             };
 
             self.check_if_type_is_valid_for_program_input(
@@ -636,7 +639,6 @@ impl<'context> Elaborator<'context> {
                 has_inline_attribute,
                 type_span,
             );
-            self.check_type_is_not_numeric_generic(&typ, type_span);
 
             let pattern = self.elaborate_pattern_and_store_ids(
                 pattern,
@@ -649,12 +651,7 @@ impl<'context> Elaborator<'context> {
             parameter_types.push(typ);
         }
 
-        let unresolved_return_type = func.return_type();
-        let return_type_span = unresolved_return_type.span;
-        let return_type = Box::new(self.resolve_type(unresolved_return_type));
-        if let Some(return_type_span) = return_type_span {
-            self.check_type_is_not_numeric_generic(return_type.as_ref(), return_type_span);
-        }
+        let return_type = Box::new(self.resolve_type(func.return_type()));
 
         let mut typ = Type::Function(parameter_types, return_type, Box::new(Type::Unit));
 
@@ -735,17 +732,20 @@ impl<'context> Elaborator<'context> {
         if self.generics.is_empty() {
             return;
         }
-
+        // dbg!(self.generics.clone());
+        // dbg!(params.clone());
         for (name_to_find, type_variable) in Self::find_numeric_generics(params, return_type) {
+            dbg!(name_to_find.clone());
             // Declare any generics to let users use numeric generics in scope.
             // Don't issue a warning if these are unused
             //
             // We can fail to find the generic in self.generics if it is an implicit one created
             // by the compiler. This can happen when, e.g. eliding array lengths using the slice
             // syntax [T].
-            if let Some(ResolvedGeneric { name, span, .. }) =
-                self.generics.iter().find(|generic| generic.name.as_ref() == &name_to_find)
+            if let Some(ResolvedGeneric { name, span, is_numeric_generic, ..}) =
+                self.generics.iter_mut().find(|generic| generic.name.as_ref() == &name_to_find)
             {
+                dbg!(*is_numeric_generic);
                 let scope = self.scopes.get_mut_scope();
                 let value = scope.find(&name_to_find);
                 if value.is_some() {
@@ -758,6 +758,7 @@ impl<'context> Elaborator<'context> {
                     // ```
                     continue;
                 }
+                *is_numeric_generic = true;
                 let ident = Ident::new(name.to_string(), *span);
                 let definition = DefinitionKind::GenericType(type_variable);
                 self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
@@ -849,7 +850,6 @@ impl<'context> Elaborator<'context> {
         self.local_module = trait_impl.module_id;
         self.file = trait_impl.file_id;
         self.current_trait_impl = trait_impl.impl_id;
-        trait_impl.trait_id = self.resolve_trait_by_path(trait_impl.trait_path.clone());
 
         let self_type = trait_impl.methods.self_type.clone();
         let self_type =
@@ -1132,6 +1132,33 @@ impl<'context> Elaborator<'context> {
         // when adding checks after each struct field is resolved.
         let struct_ids = structs.keys().copied().collect::<Vec<_>>();
 
+        // First resolve each struct's generics as fields which contain other
+        // structs themselves may also contain generics.
+        // Without resolving all generics first we will not be able to distinguish
+        // between normal and numeric generics.
+        self.push_scope();
+        for (type_id, typ) in structs.iter() {
+            self.push_scope();
+
+            self.file = typ.file_id;
+            self.local_module = typ.module_id;
+
+            self.recover_generics(|this| {
+                this.current_item = Some(DependencyId::Struct(*type_id));
+
+                this.resolving_ids.insert(*type_id);
+
+                let generics = this.add_generics(&typ.struct_def.generics);
+                this.interner.update_struct(*type_id, |struct_def| {
+                    struct_def.generics = generics;
+                });
+
+                this.resolving_ids.remove(type_id);
+            });
+
+            self.pop_scope();
+        }
+
         // Resolve each field in each struct.
         // Each struct should already be present in the NodeInterner after def collection.
         for (type_id, typ) in structs {
@@ -1139,11 +1166,27 @@ impl<'context> Elaborator<'context> {
 
             self.file = typ.file_id;
             self.local_module = typ.module_id;
-            let (generics, fields) = self.resolve_struct_fields(typ.struct_def, type_id);
 
+            let fields = self.resolve_struct_fields(typ.struct_def, type_id);
+            dbg!(fields.clone());
+            // dbg!
             self.interner.update_struct(type_id, |struct_def| {
                 struct_def.set_fields(fields);
-                struct_def.generics = generics;
+
+                dbg!(struct_def.generics.clone());
+                // dbg!(struct_def.get_fields(.cl))
+                let mut found_names = Vec::new();
+                struct_def.find_numeric_generics_in_fields(&mut found_names);
+                dbg!(found_names.clone());
+                for generic in struct_def.generics.iter_mut() {
+                    for found_generic in found_names.iter() {
+                        if found_generic == generic.name.as_str() {
+                            generic.is_numeric_generic = true;
+                        }
+                    }
+                }
+                dbg!(struct_def.generics.clone());
+
             });
             self.pop_scope();
         }
@@ -1172,25 +1215,20 @@ impl<'context> Elaborator<'context> {
         &mut self,
         unresolved: NoirStruct,
         struct_id: StructId,
-    ) -> (Generics, Vec<(Ident, Type)>) {
+    ) -> Vec<(Ident, Type)> {
         self.recover_generics(|this| {
-            let generics = this.add_generics(&unresolved.generics);
+            this.add_generics(&unresolved.generics);
 
             this.current_item = Some(DependencyId::Struct(struct_id));
 
             this.resolving_ids.insert(struct_id);
             let fields = vecmap(unresolved.fields, |(ident, typ)| {
-                let type_span = typ.span;
-                let typ = this.resolve_type(typ);
-                if let Some(type_span) = type_span {
-                    this.check_type_is_not_numeric_generic(&typ, type_span);
-                }
-                (ident, typ)
+                (ident, this.resolve_type(typ))
             });
 
             this.resolving_ids.remove(&struct_id);
 
-            (generics, fields)
+            fields
         })
     }
 
@@ -1271,12 +1309,38 @@ impl<'context> Elaborator<'context> {
             self.file = trait_impl.file_id;
             self.local_module = trait_impl.module_id;
 
+            trait_impl.trait_id = self.resolve_trait_by_path(trait_impl.trait_path.clone());
+            // dbg!(trait_impl.trait_id);
             let unresolved_type = &trait_impl.object_type;
+            // dbg!(trait_impl.generics.clone());
+            // dbg!(trait_impl.trait_generics.clone());
+            // dbg!(trait_impl.trait_generics.len());
+            // dbg!(trait_impl.generics.len());
             self.add_generics(&trait_impl.generics);
             trait_impl.resolved_generics = self.generics.clone();
 
-            let trait_generics =
-                vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()));
+            // We can have generics on the struct that exist on the trait impl but are not necessarily on the trait
+            // assert!(trait_impl.resolved_generics.len() > trait_impl.trait_generics.len());
+
+            // Fetch trait constraints here 
+            let trait_generics = if let Some(trait_id) = trait_impl.trait_id {
+                let the_trait = self.interner.get_trait(trait_id);
+                let resolved_generics = the_trait.generics.clone();
+                assert_eq!(resolved_generics.len(), trait_impl.trait_generics.len());
+                trait_impl.trait_generics.iter().enumerate().map(|(i, generic)| {
+                    let generic = generic.clone();
+                    if resolved_generics[i].is_numeric_generic {
+                        self.resolve_numeric_type(generic)
+                    } else {
+                        self.resolve_type(generic)
+                    }
+                }).collect()
+            } else {
+                // We still resolve as to continue type checking
+                vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()))
+            };
+
+
             trait_impl.resolved_trait_generics = trait_generics;
 
             let self_type = self.resolve_type(unresolved_type.clone());

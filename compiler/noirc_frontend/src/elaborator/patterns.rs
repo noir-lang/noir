@@ -456,8 +456,8 @@ impl<'context> Elaborator<'context> {
 
             for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
                 // Avoid binding t = t
-                if !arg.occurs(param.id()) {
-                    bindings.insert(param.id(), (param.clone(), arg.clone()));
+                if !arg.occurs(param.type_var.id()) {
+                    bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.clone()));
                 }
             }
 

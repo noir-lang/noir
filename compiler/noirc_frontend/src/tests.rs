@@ -1563,7 +1563,7 @@ fn numeric_generic_as_struct_field_type() {
 fn numeric_generic_as_param_type() {
     let src = r#"
     fn foo<let I: Field>(x: I) -> I {
-        let q: I = 5;
+        let _q: I = 5;
         x
     }
     "#;
@@ -1576,18 +1576,18 @@ fn numeric_generic_as_param_type() {
     ));
     // Error from the let statement annotated type
     assert!(matches!(
-        errors[2].0,
+        errors[1].0,
         CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
     ));
     // Error from the return type
     assert!(matches!(
-        errors[3].0,
+        errors[2].0,
         CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
     ));
 }
 
 #[test]
-fn numeric_generic_used_in_nested_type() {
+fn numeric_generic_used_in_nested_type_fail() {
     let src = r#"
     struct Foo<let N: u64> {
         a: Field,
@@ -1599,4 +1599,119 @@ fn numeric_generic_used_in_nested_type() {
     "#;
     let errors = get_program_errors_elaborator(src);
     assert_eq!(errors.len(), 1);
+}
+
+#[test]
+fn numeric_generic_used_in_nested_type_pass() {
+    // The order of these structs should not be changed to make sure
+    // that we are accurately resolving all struct generics before struct fields
+    let src = r#"
+    struct NestedNumeric<let N: u64> {
+        a: Field,
+        b: InnerNumeric<N>
+    }
+    struct InnerNumeric<let N: u64> {
+        inner: [u64; N],
+    }    
+    "#;
+    let errors = get_program_errors_elaborator(src);
+    if !errors.is_empty() {
+        dbg!(errors.clone());
+    }
+    assert!(errors.is_empty());
+}
+
+#[test]
+fn numeric_generic_used_in_trait() {
+    let src = r#"
+    struct MyType<T> {
+        a: Field,
+        b: Field,
+        c: Field,
+        d: T,
+    }
+    
+    impl<let N: u64, T> Deserialize<N, T> for MyType<T> {
+        fn deserialize(fields: [Field; N], other: T) -> Self {
+            MyType { a: fields[0], b: fields[1], c: fields[2], d: other }
+        }
+    }
+    
+    trait Deserialize<let N: u64, T> {
+        fn deserialize(fields: [Field; N], other: T) -> Self;
+    }
+    "#;
+    let errors = get_program_errors_elaborator(src);
+    // We want to make sure that `N` in `impl<let N: u64, T> Deserialize<N, T>` does
+    // not trigger `expected type, found numeric generic parameter N` as the trait
+    // does in fact expect a numeric generic.
+    assert!(errors.is_empty());
+}
+
+#[test]
+fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
+    let src = r#"
+    trait Default {
+        fn default() -> Self;
+    }
+
+    struct MyType<T> {
+        a: Field,
+        b: Field,
+        c: Field,
+        d: T,
+    }
+    
+    // Make sure that `T` is placed before `N` as we want to test the order is correctly maintained
+    impl<T, let N: u64> Deserialize<N> for MyType<T> where T: Default {
+        fn deserialize(fields: [Field; N]) -> Self {
+            MyType { a: fields[0], b: fields[1], c: fields[2], d: T::default() }
+        }
+    }
+    
+    trait Deserialize<let N: u64> {
+        fn deserialize(fields: [Field; N]) -> Self;
+    }
+    "#;
+    let errors = get_program_errors_elaborator(src);
+    if !errors.is_empty() {
+        dbg!(errors.clone());
+    }
+    assert!(errors.is_empty());
+}
+
+#[test]
+fn implicit_numeric_generics_elaborator() {
+    let src = r#"
+    struct BoundedVec<T, MaxLen> {
+        storage: [T; MaxLen],
+        len: u64,
+    }
+    
+    impl<T, MaxLen> BoundedVec<T, MaxLen> {
+
+        // Test that we have an implicit numeric generic for "Len" as well as "MaxLen"
+        pub fn extend_from_bounded_vec<Len>(&mut self, _vec: BoundedVec<T, Len>) { 
+            // We do this to avoid an unused variable warning on `self`
+            let _ = self.len;
+            for _ in 0..Len { }
+        }
+
+        pub fn push(&mut self, elem: T) {
+            assert(self.len < MaxLen, "push out of bounds");
+            self.storage[self.len] = elem;
+            self.len += 1;
+        }
+    }
+
+    "#;
+    let errors = get_program_errors_elaborator(src);
+
+    for error in errors.iter() {
+        if let CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { ident }) = &errors[0].0 {
+            assert!(matches!(ident.0.contents.as_str(), "MaxLen" | "Len"));
+        } else {
+            panic!("Expected ResolverError::UseExplicitNumericGeneric but got {:?}", error);
+        }
+    }
 }

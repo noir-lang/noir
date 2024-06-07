@@ -151,7 +151,7 @@ impl TraitFunction {
     pub fn generics(&self) -> &[TypeVariable] {
         match &self.typ {
             Type::Function(..) => &[],
-            Type::Forall(generics, _) => generics,
+            Type::Forall(generics, _) => &generics,
             _ => unreachable!("Trait function does not have a function type"),
         }
     }

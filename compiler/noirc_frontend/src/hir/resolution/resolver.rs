@@ -48,7 +48,7 @@ use crate::node_interner::{
     StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
 };
 use crate::{
-    Generics, ResolvedGeneric, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind,
+    GenericTypeVars, Generics, ResolvedGeneric, Shared, StructType, Type, TypeAlias, TypeKind, TypeVariable, TypeVariableKind
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -593,7 +593,7 @@ impl<'a> Resolver<'a> {
                 let env = Box::new(self.resolve_type_inner(*env));
 
                 match *env {
-                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
+                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _, _) => {
                         Type::Function(args, ret, env)
                     }
                     _ => {
@@ -750,7 +750,9 @@ impl<'a> Resolver<'a> {
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
             if let Some(generic) = self.find_generic(name) {
-                return Some(Type::NamedGeneric(generic.type_var.clone(), generic.name.clone()));
+                // We always insert a `TypeKind::Normal` as we do not support explicit numeric generics
+                // in the resolver
+                return Some(Type::NamedGeneric(generic.type_var.clone(), generic.name.clone(), TypeKind::Normal));
             };
         }
 
@@ -891,7 +893,7 @@ impl<'a> Resolver<'a> {
                 });
             } else {
                 let resolved_generic = ResolvedGeneric {
-                    name,
+                    name: name.clone(),
                     type_var: typevar.clone(),
                     // We only support numeric generics in the elaborator
                     is_numeric_generic: false,
@@ -900,7 +902,14 @@ impl<'a> Resolver<'a> {
                 self.generics.push(resolved_generic);
             }
 
-            typevar
+            let resolved_generic = ResolvedGeneric {
+                name,
+                type_var: typevar,
+                // We only support numeric generics in the elaborator
+                is_numeric_generic: false,
+                span,
+            };
+            resolved_generic
         })
     }
 
@@ -910,7 +919,7 @@ impl<'a> Resolver<'a> {
     pub fn add_existing_generics(
         &mut self,
         unresolved_generics: &UnresolvedGenerics,
-        generics: &Generics,
+        generics: &GenericTypeVars,
     ) {
         assert_eq!(unresolved_generics.len(), generics.len());
 
@@ -1196,7 +1205,7 @@ impl<'a> Resolver<'a> {
             | Type::Error
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
-            | Type::NamedGeneric(_, _)
+            | Type::NamedGeneric(_, _, _)
             | Type::Code
             | Type::Forall(_, _) => (),
 
@@ -1207,7 +1216,7 @@ impl<'a> Resolver<'a> {
             }
 
             Type::Array(length, element_type) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                if let Type::NamedGeneric(type_variable, name, _) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
                 Self::find_numeric_generics_in_type(element_type, found);
@@ -1232,7 +1241,7 @@ impl<'a> Resolver<'a> {
 
             Type::Struct(struct_type, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
+                    if let Type::NamedGeneric(type_variable, name, _) = generic {
                         if struct_type.borrow().generic_is_numeric(i) {
                             found.insert(name.to_string(), type_variable.clone());
                         }
@@ -1243,7 +1252,7 @@ impl<'a> Resolver<'a> {
             }
             Type::Alias(alias, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
+                    if let Type::NamedGeneric(type_variable, name, _) = generic {
                         if alias.borrow().generic_is_numeric(i) {
                             found.insert(name.to_string(), type_variable.clone());
                         }
@@ -1254,12 +1263,12 @@ impl<'a> Resolver<'a> {
             }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
             Type::String(length) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                if let Type::NamedGeneric(type_variable, name, _) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
             }
             Type::FmtString(length, fields) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                if let Type::NamedGeneric(type_variable, name, _) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
                 Self::find_numeric_generics_in_type(fields, found);
@@ -1914,7 +1923,7 @@ impl<'a> Resolver<'a> {
 
                 let constraint = TraitConstraint {
                     typ: self.self_type.clone()?,
-                    trait_generics: Type::from_generics(&the_trait.generics),
+                    trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| generic.type_var.clone())),
                     trait_id,
                 };
                 return Some((method, constraint, false));
@@ -1942,7 +1951,7 @@ impl<'a> Resolver<'a> {
                     the_trait.self_type_typevar.clone(),
                     TypeVariableKind::Normal,
                 ),
-                trait_generics: Type::from_generics(&the_trait.generics),
+                trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| generic.type_var.clone())),
                 trait_id,
             };
             return Some((method, constraint, false));

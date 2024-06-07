@@ -8,8 +8,7 @@ use crate::{
     ast::{
         BinaryOpKind, Ident, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedTypeExpression,
-    },
-    hir::{
+    }, hir::{
         comptime::{Interpreter, Value},
         def_collector::dc_crate::CompilationError,
         def_map::ModuleDefId,
@@ -18,21 +17,17 @@ use crate::{
             resolver::{verify_mutable_reference, SELF_TYPE_NAME},
         },
         type_check::{Source, TypeCheckError},
-    },
-    hir_def::{
+    }, hir_def::{
         expr::{
             HirBinaryOp, HirCallExpression, HirIdent, HirMemberAccess, HirMethodReference,
             HirPrefixExpression,
         },
         function::{FuncMeta, Parameters},
         traits::TraitConstraint,
-    },
-    macros_api::{
+    }, macros_api::{
         HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
         UnaryOp, UnresolvedType, UnresolvedTypeData,
-    },
-    node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
-    Generics, ResolvedGeneric, Type, TypeBinding, TypeVariable, TypeVariableKind,
+    }, node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId}, Generics, ResolvedGeneric, Type, TypeBinding, TypeKind, TypeVariable, TypeVariableId, TypeVariableKind
 };
 
 use super::{lints, Elaborator};
@@ -40,53 +35,117 @@ use super::{lints, Elaborator};
 impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type
     pub(super) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
-        let span = typ.span;
-        let resolved_type = self.resolve_type_inner(typ);
-        if resolved_type.is_nested_slice() {
-            self.push_err(ResolverError::NestedSlices { span: span.unwrap() });
-        }
-        resolved_type
+        self.resolve_type_inner(typ, TypeKind::Normal)
+    }
+    // TODO: do not repeat the span and resolved_type is nested slice check
+    // probably could place it inside of `resolve_type_inner`
+    pub(super) fn resolve_numeric_type(&mut self, typ: UnresolvedType) -> Type {
+        self.resolve_type_inner(typ, TypeKind::Numeric)
     }
 
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
-    pub fn resolve_type_inner(&mut self, typ: UnresolvedType) -> Type {
+    pub fn resolve_type_inner(&mut self, typ: UnresolvedType, kind: TypeKind) -> Type {
         use crate::ast::UnresolvedTypeData::*;
+
+        let span = typ.span;
 
         let resolved_type = match typ.typ {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
-                let elem = Box::new(self.resolve_type_inner(*elem));
-                let size = self.convert_expression_type(size);
+                let elem = Box::new(self.resolve_type_inner(*elem, kind));
+                let mut size = self.convert_expression_type(size);
+                if let Type::NamedGeneric(type_var, name, _) = size {
+                    size = Type::NamedGeneric(type_var, name, TypeKind::Numeric);
+                }
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
-                let elem = Box::new(self.resolve_type_inner(*elem));
+                let elem = Box::new(self.resolve_type_inner(*elem, kind));
                 Type::Slice(elem)
             }
             Expression(expr) => self.convert_expression_type(expr),
             Integer(sign, bits) => Type::Integer(sign, bits),
             Bool => Type::Bool,
             String(size) => {
-                let resolved_size = self.convert_expression_type(size);
+                let mut resolved_size = self.convert_expression_type(size);
+                if let Type::NamedGeneric(type_var, name, _) = resolved_size {
+                    resolved_size = Type::NamedGeneric(type_var, name, TypeKind::Numeric);
+                }
                 Type::String(Box::new(resolved_size))
             }
             FormatString(size, fields) => {
-                let resolved_size = self.convert_expression_type(size);
-                let fields = self.resolve_type_inner(*fields);
+                let mut resolved_size = self.convert_expression_type(size);
+                if let Type::NamedGeneric(type_var, name, _) = resolved_size {
+                    resolved_size = Type::NamedGeneric(type_var, name, TypeKind::Numeric);
+                }
+                let fields = self.resolve_type_inner(*fields, kind);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
             Code => Type::Code,
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,
-            Named(path, args, _) => self.resolve_named_type(path, args),
-            TraitAsType(path, args) => self.resolve_trait_as_type(path, args),
+            Named(path, args, _) => {
+                let mut named_typ = self.resolve_named_type(path, args, kind);
+                // dbg!(named_typ.clone());
+                // if let Type::Struct(struct_typ, generics) = &mut named_typ {
+                //     let mut found_names = Vec::new();
+                //     struct_typ.borrow().find_numeric_generics_in_fields(&mut found_names);
+                //     dbg!(found_names.clone());
+                //     for generic in generics.iter_mut() {
+                //         if let Type::NamedGeneric(_, name, kind) = generic {
+                //             dbg!(kind.clone());
+                //             for found_generic in found_names.iter() {
+                //                 if found_generic == name.as_str() {
+                //                     *kind = TypeKind::Numeric;
+                //                 }
+                //             }
+                //         }
+                //     }
+                // }
+                // let mut found_names = Vec::new();
+                // match &mut named_typ {
+                //     Type::Struct(struct_typ, generics) => {
+                //         struct_typ.borrow().find_numeric_generics_in_fields(&mut found_names);
+                //         for generic in generics.iter_mut() {
+                //             if let Type::NamedGeneric(_, name, kind) = generic {
+                //                 dbg!(kind.clone());
+                //                 for found_generic in found_names.iter() {
+                //                     if found_generic == name.as_str() {
+                //                         *kind = TypeKind::Numeric;
+                //                     }
+                //                 }
+                //             }
+                //         }
+                //     }
+                //     Type::Alias(alias_typ, generics) => {
+                //         alias_typ.borrow().find_numeric_generics_in_type(&mut found_names);
+                //         for generic in generics.iter_mut() {
+                //             if let Type::NamedGeneric(_, name, kind) = generic {
+                //                 dbg!(kind.clone());
+                //                 for found_generic in found_names.iter() {
+                //                     if found_generic == name.as_str() {
+                //                         *kind = TypeKind::Numeric;
+                //                     }
+                //                 }
+                //             }
+                //         }
+                //     }
+                //     _ => {},
+                // }
 
-            Tuple(fields) => Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field))),
+                dbg!(named_typ.clone());
+                named_typ
+            }
+            TraitAsType(path, args) => self.resolve_trait_as_type(path, args, kind),
+
+            Tuple(fields) => {
+                Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, kind)))
+            }
             Function(args, ret, env) => {
-                let args = vecmap(args, |arg| self.resolve_type_inner(arg));
-                let ret = Box::new(self.resolve_type_inner(*ret));
+                let args = vecmap(args, |arg| self.resolve_type_inner(arg, kind));
+                let ret = Box::new(self.resolve_type_inner(*ret, kind));
 
                 // expect() here is valid, because the only places we don't have a span are omitted types
                 // e.g. a function without return type implicitly has a spanless UnresolvedType::Unit return type
@@ -94,10 +153,10 @@ impl<'context> Elaborator<'context> {
                 let env_span =
                     env.span.expect("Unexpected missing span for closure environment type");
 
-                let env = Box::new(self.resolve_type_inner(*env));
+                let env = Box::new(self.resolve_type_inner(*env, kind));
 
                 match *env {
-                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
+                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _, _) => {
                         Type::Function(args, ret, env)
                     }
                     _ => {
@@ -110,9 +169,9 @@ impl<'context> Elaborator<'context> {
                 }
             }
             MutableReference(element) => {
-                Type::MutableReference(Box::new(self.resolve_type_inner(*element)))
+                Type::MutableReference(Box::new(self.resolve_type_inner(*element, kind)))
             }
-            Parenthesized(typ) => self.resolve_type_inner(*typ),
+            Parenthesized(typ) => self.resolve_type_inner(*typ, kind),
         };
 
         if let Type::Struct(_, _) = resolved_type {
@@ -124,14 +183,65 @@ impl<'context> Elaborator<'context> {
                 );
             }
         }
+
+        if let Type::NamedGeneric(_, name, resolved_kind) = &resolved_type {
+            if matches!(resolved_kind, TypeKind::Numeric) && matches!(kind, TypeKind::Normal) {
+                let expected_typ_err =
+                CompilationError::ResolverError(ResolverError::NumericGenericUsedForType {
+                    name: name.to_string(),
+                    span: span.expect("Type should have span"),
+                });
+                self.errors.push((expected_typ_err, self.file));
+                return Type::Error;
+            }
+        }
+
+        if resolved_type.is_nested_slice() {
+            self.push_err(ResolverError::NestedSlices {
+                span: span.expect("Type should have span"),
+            });
+        }
+
         resolved_type
+    }
+
+    /// Resolve the accurate type kind
+    /// TODO(https://github.com/noir-lang/noir/issues/5156): This implicitly sets the type kind and is necessary for implicit numeric generics.
+    /// This can be removed with the removal of implicit numeric generics. 
+    pub fn resolve_type_kind(typ: Type) -> Type {
+        match typ {
+            Type::FieldElement => typ,
+            Type::Array(_, _) => todo!(),
+            Type::Slice(_) => todo!(),
+            Type::Integer(_, _) => todo!(),
+            Type::Bool => todo!(),
+            Type::String(_) => todo!(),
+            Type::FmtString(_, _) => todo!(),
+            Type::Unit => todo!(),
+            Type::Tuple(_) => todo!(),
+            Type::Struct(_, _) => todo!(),
+            Type::Alias(_, _) => todo!(),
+            Type::TypeVariable(_, _) => todo!(),
+            Type::TraitAsType(_, _, _) => todo!(),
+            Type::NamedGeneric(_, _, _) => todo!(),
+            Type::Function(_, _, _) => todo!(),
+            Type::MutableReference(_) => todo!(),
+            Type::Forall(_, _) => todo!(),
+            Type::Constant(_) => todo!(),
+            Type::Code => todo!(),
+            Type::Error => todo!(),
+        }
     }
 
     pub fn find_generic(&self, target_name: &str) -> Option<&ResolvedGeneric> {
         self.generics.iter().find(|generic| generic.name.as_ref() == target_name)
     }
 
-    fn resolve_named_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
+    pub fn find_generic_by_id(&self, target_var_id: TypeVariableId) -> Option<&ResolvedGeneric> {
+        self.generics.iter().find(|generic| generic.type_var.id() == target_var_id)
+    }
+
+    fn resolve_named_type(&mut self, path: Path, args: Vec<UnresolvedType>, kind: TypeKind) -> Type {
         if args.is_empty() {
             if let Some(typ) = self.lookup_generic_or_global_type(&path) {
                 return typ;
@@ -154,13 +264,22 @@ impl<'context> Elaborator<'context> {
         }
 
         let span = path.span();
-        let mut args = vecmap(args, |arg| self.resolve_type_inner(arg));
+        // dbg!(args.clone());
+        // let mut args = vecmap(args, |arg| {
+        //     self.resolve_type_inner(arg, kind)
+        // });
+        // dbg!(args.clone());
+        // dbg!(self.errors.is_empty());
 
         if let Some(type_alias) = self.lookup_type_alias(path.clone()) {
             let type_alias = type_alias.borrow();
             let expected_generic_count = type_alias.generics.len();
             let type_alias_string = type_alias.to_string();
             let id = type_alias.id;
+
+            let mut args = vecmap(args, |arg| {
+                self.resolve_type_inner(arg, kind)
+            });
 
             self.verify_generics_count(expected_generic_count, &mut args, span, || {
                 type_alias_string
@@ -194,6 +313,7 @@ impl<'context> Elaborator<'context> {
                 }
 
                 let expected_generic_count = struct_type.borrow().generics.len();
+
                 if !self.in_contract
                     && self
                         .interner
@@ -205,6 +325,19 @@ impl<'context> Elaborator<'context> {
                         span: struct_type.borrow().name.span(),
                     });
                 }
+                // dbg!(struct_type.clone());
+                // dbg!(struct_type.borrow().generics.clone());
+                // let generic_var_ids = struct_type.borrow().generics.iter().map(|generic| generic.id()).collect::<Vec<_>>();
+                let mut args = vecmap(struct_type.borrow().generics.iter().zip(args), |(generic, arg)| {
+                    // dbg!(generic.clone());
+                    // dbg!(arg.clone());
+                    if generic.is_numeric_generic {
+                        self.resolve_numeric_type(arg)
+                    } else {
+                        self.resolve_type(arg)
+                    }
+                });
+
                 self.verify_generics_count(expected_generic_count, &mut args, span, || {
                     struct_type.borrow().to_string()
                 });
@@ -220,8 +353,8 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn resolve_trait_as_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
-        let args = vecmap(args, |arg| self.resolve_type_inner(arg));
+    fn resolve_trait_as_type(&mut self, path: Path, args: Vec<UnresolvedType>, kind: TypeKind) -> Type {
+        let args = vecmap(args, |arg| self.resolve_type_inner(arg, kind));
 
         if let Some(t) = self.lookup_trait_or_error(path) {
             Type::TraitAsType(t.id, Rc::new(t.name.to_string()), args)
@@ -254,7 +387,8 @@ impl<'context> Elaborator<'context> {
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
             if let Some(generic) = self.find_generic(name) {
-                return Some(Type::NamedGeneric(generic.type_var.clone(), generic.name.clone()));
+                let kind = if generic.is_numeric_generic { TypeKind::Numeric } else { TypeKind::Normal };
+                return Some(Type::NamedGeneric(generic.type_var.clone(), generic.name.clone(), kind));
             }
         }
 
@@ -320,7 +454,7 @@ impl<'context> Elaborator<'context> {
 
                 let constraint = TraitConstraint {
                     typ: self.self_type.clone()?,
-                    trait_generics: Type::from_generics(&the_trait.generics),
+                    trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| generic.type_var.clone())),
                     trait_id,
                 };
                 return Some((method, constraint, false));
@@ -351,7 +485,7 @@ impl<'context> Elaborator<'context> {
                     the_trait.self_type_typevar.clone(),
                     TypeVariableKind::Normal,
                 ),
-                trait_generics: Type::from_generics(&the_trait.generics),
+                trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| generic.type_var.clone())),
                 trait_id,
             };
             return Some((method, constraint, false));
@@ -1087,7 +1221,7 @@ impl<'context> Elaborator<'context> {
                 });
                 None
             }
-            Type::NamedGeneric(_, _) => {
+            Type::NamedGeneric(_, _, _) => {
                 let func_meta = self.interner.function_meta(
                     &self.current_function.expect("unexpected method outside a function"),
                 );
@@ -1095,6 +1229,7 @@ impl<'context> Elaborator<'context> {
                 for constraint in &func_meta.trait_constraints {
                     if *object_type == constraint.typ {
                         if let Some(the_trait) = self.interner.try_get_trait(constraint.trait_id) {
+                            // dbg!(the_trait.name.0.contents);
                             for (method_index, method) in the_trait.methods.iter().enumerate() {
                                 if method.name.0.contents == method_name {
                                     let trait_method = TraitMethodId {
@@ -1353,6 +1488,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    // TODO: this method is not even used can delete
     pub fn add_existing_generics(
         &mut self,
         unresolved_generics: &UnresolvedGenerics,
@@ -1360,11 +1496,11 @@ impl<'context> Elaborator<'context> {
     ) {
         assert_eq!(unresolved_generics.len(), generics.len());
 
-        for (unresolved_generic, typevar) in unresolved_generics.iter().zip(generics) {
+        for (unresolved_generic, generic) in unresolved_generics.iter().zip(generics) {
             self.add_existing_generic(
                 unresolved_generic,
                 unresolved_generic.span(),
-                typevar.clone(),
+                generic.type_var.clone(),
             );
         }
     }
@@ -1400,25 +1536,6 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub fn check_type_is_not_numeric_generic(&mut self, typ: &Type, span: Span) -> bool {
-        let mut is_numeric_generic = false;
-        if let Type::NamedGeneric(_, name) = &typ {
-            if let Some(generic) = self.find_generic(name.as_ref()) {
-                if generic.is_numeric_generic {
-                    is_numeric_generic = true;
-
-                    let expected_typ_err =
-                        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType {
-                            name: name.to_string(),
-                            span,
-                        });
-                    self.errors.push((expected_typ_err, self.file));
-                }
-            }
-        }
-        is_numeric_generic
-    }
-
     pub fn find_numeric_generics(
         parameters: &Parameters,
         return_type: &Type,
@@ -1440,7 +1557,7 @@ impl<'context> Elaborator<'context> {
             | Type::Error
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
-            | Type::NamedGeneric(_, _)
+            | Type::NamedGeneric(_, _, _)
             | Type::Code
             | Type::Forall(_, _) => (),
 
@@ -1451,7 +1568,7 @@ impl<'context> Elaborator<'context> {
             }
 
             Type::Array(length, element_type) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                if let Type::NamedGeneric(type_variable, name, _) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
                 Self::find_numeric_generics_in_type(element_type, found);
@@ -1468,6 +1585,7 @@ impl<'context> Elaborator<'context> {
             }
 
             Type::Function(parameters, return_type, _env) => {
+                dbg!(parameters.clone());
                 for parameter in parameters {
                     Self::find_numeric_generics_in_type(parameter, found);
                 }
@@ -1475,35 +1593,61 @@ impl<'context> Elaborator<'context> {
             }
 
             Type::Struct(struct_type, generics) => {
-                for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
-                        if struct_type.borrow().generic_is_numeric(i) {
+                for (resolved_generic, generic) in struct_type.borrow().generics.iter().zip(generics) {
+                    if resolved_generic.is_numeric_generic {
+                        if let Type::NamedGeneric(type_variable, name, _) = generic {
                             found.insert(name.to_string(), type_variable.clone());
                         }
-                    } else {
-                        Self::find_numeric_generics_in_type(generic, found);
                     }
                 }
+                // let fields = struct_type.borrow().get_fields(generics);
+                // dbg!(fields.clone());
+                // let mut found_numeric_generics = Vec::new();
+                // struct_type.borrow().find_numeric_generics_in_fields(&mut found_numeric_generics);
+                // // dbg!(found_numeric_generics.clone());
+                // dbg!(generics.clone());
+                // for (i, generic) in generics.iter().enumerate() {
+                //     if let Type::NamedGeneric(type_variable, name, _) = generic {
+                //         // dbg!(name.clone());
+                //         for found_generic in found_numeric_generics.iter() {
+                //             if found_generic == name.as_str() {
+                //                 found.insert(name.to_string(), type_variable.clone());
+                //             }
+                //         }
+                //     }
+                // }
+                // dbg!(found_numeric_generics.clone());
             }
             Type::Alias(alias, generics) => {
-                for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
-                        if alias.borrow().generic_is_numeric(i) {
+                for (resolved_generic, generic) in alias.borrow().generics.iter().zip(generics) {
+                    if resolved_generic.is_numeric_generic {
+                        if let Type::NamedGeneric(type_variable, name, _) = generic {
                             found.insert(name.to_string(), type_variable.clone());
                         }
-                    } else {
-                        Self::find_numeric_generics_in_type(generic, found);
                     }
                 }
+
+                // let mut found_numeric_generics = Vec::new();
+                // alias.borrow().find_numeric_generics_in_type(&mut found_numeric_generics);
+                // for (i, generic) in generics.iter().enumerate() {
+                //     if let Type::NamedGeneric(type_variable, name, _) = generic {
+                //         for found_generic in found_numeric_generics.iter() {
+                //             if found_generic == name.as_str() {
+                //                 found.insert(name.to_string(), type_variable.clone());
+                //             }
+                //         }
+                //     }
+                // }
+
             }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
             Type::String(length) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                if let Type::NamedGeneric(type_variable, name, _) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
             }
             Type::FmtString(length, fields) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                if let Type::NamedGeneric(type_variable, name, _) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
                 Self::find_numeric_generics_in_type(fields, found);

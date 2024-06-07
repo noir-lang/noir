@@ -37,7 +37,8 @@ impl<'context> Elaborator<'context> {
 
                 this.interner.update_trait(trait_id, |trait_def| {
                     trait_def.set_methods(methods);
-                    trait_def.generics = vecmap(&this.generics, |generic| generic.type_var.clone());
+                    trait_def.generics = this.generics.clone();
+                    // trait_def.generics = vecmap(&this.generics, |generic| generic.type_var.clone());
                 });
             });
 
