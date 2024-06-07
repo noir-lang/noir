@@ -181,6 +181,7 @@ pub(crate) fn rewrite(
                 format!("$({})", rewrite_sub_expr(visitor, shape, *expr))
             }
         }
+        ExpressionKind::UnquoteMarker(_) => unreachable!("UnquoteMarker in runtime code"),
     }
 }
 

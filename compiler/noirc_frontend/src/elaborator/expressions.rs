@@ -18,7 +18,7 @@ use crate::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstructorExpression, HirIfExpression, HirIndexExpression, HirInfixExpression,
             HirLambda, HirMemberAccess, HirMethodCallExpression, HirMethodReference,
-            HirPrefixExpression,
+            HirPrefixExpression, HirQuoted,
         },
         traits::TraitConstraint,
     },
@@ -67,6 +67,9 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Unquote(_) => {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
                 (HirExpression::Literal(HirLiteral::Unit), Type::Error)
+            }
+            ExpressionKind::UnquoteMarker(index) => {
+                unreachable!("UnquoteMarker({index}) remaining in runtime code")
             }
         };
         let id = self.interner.push_expr(hir_expr);
@@ -643,8 +646,11 @@ impl<'context> Elaborator<'context> {
         (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type)))
     }
 
-    fn elaborate_quote(&mut self, block: BlockExpression) -> (HirExpression, Type) {
-        (HirExpression::Quote(block), Type::Expr)
+    fn elaborate_quote(&mut self, mut block: BlockExpression) -> (HirExpression, Type) {
+        let mut unquoted_exprs = Vec::new();
+        self.find_unquoted_exprs_in_block(&mut block, &mut unquoted_exprs);
+        let quoted = HirQuoted { quoted_block: block, unquoted_exprs };
+        (HirExpression::Quote(quoted), Type::Expr)
     }
 
     fn elaborate_comptime_block(&mut self, block: BlockExpression, span: Span) -> (ExprId, Type) {
@@ -745,6 +751,7 @@ impl<'context> Elaborator<'context> {
 
         let result = interpreter.call_function(function, comptime_args, location);
         let (expr_id, typ) = self.inline_comptime_value(result, location.span);
+        eprintln!("Inlined macro type is {typ:?}");
         Some((self.interner.expression(&expr_id), typ))
     }
 }

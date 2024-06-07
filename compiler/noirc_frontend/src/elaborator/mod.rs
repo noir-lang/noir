@@ -62,6 +62,7 @@ mod scope;
 mod statements;
 mod traits;
 mod types;
+mod unquote;
 
 use fm::FileId;
 use iter_extended::vecmap;

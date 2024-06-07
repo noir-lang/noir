@@ -7,6 +7,7 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
+use crate::hir_def::expr::HirQuoted;
 use crate::{
     hir_def::{
         expr::{
@@ -25,8 +26,12 @@ use crate::{
     Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
 
+use self::unquote::UnquoteArgs;
+
 use super::errors::{IResult, InterpreterError};
 use super::value::Value;
+
+mod unquote;
 
 #[allow(unused)]
 pub struct Interpreter<'interner> {
@@ -299,7 +304,7 @@ impl<'a> Interpreter<'a> {
             HirExpression::If(if_) => self.evaluate_if(if_, id),
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
-            HirExpression::Quote(block) => Ok(Value::Code(Rc::new(block))),
+            HirExpression::Quote(block) => self.evaluate_quote(block, id),
             HirExpression::Comptime(block) => self.evaluate_block(block),
             HirExpression::Unquote(block) => {
                 // An Unquote expression being found is indicative of a macro being
@@ -1077,6 +1082,15 @@ impl<'a> Interpreter<'a> {
 
         let typ = self.interner.id_type(id);
         Ok(Value::Closure(lambda, environment, typ))
+    }
+
+    fn evaluate_quote(&mut self, mut quoted: HirQuoted, expr_id: ExprId) -> IResult<Value> {
+        let file = self.interner.expr_location(&expr_id).file;
+        let values = try_vecmap(quoted.unquoted_exprs, |value| self.evaluate(value))?;
+        let args = UnquoteArgs { values, file };
+
+        self.substitute_unquoted_values_into_block(&mut quoted.quoted_block, &args);
+        Ok(Value::Code(Rc::new(quoted.quoted_block)))
     }
 
     pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {

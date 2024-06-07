@@ -37,6 +37,14 @@ pub enum ExpressionKind {
     Unquote(Box<Expression>),
     Comptime(BlockExpression),
 
+    /// Unquote expressions are replaced with UnquoteMarkers when Quoted
+    /// expressions are resolved. Since the expression being quoted remains an
+    /// ExpressionKind (rather than a resolved ExprId), the UnquoteMarker must be
+    /// here in the AST even though it is technically HIR-only.
+    /// Each usize in an UnquoteMarker is an index which corresponds to the index of the
+    /// expression in the Hir::Quote expression list to replace it with.
+    UnquoteMarker(usize),
+
     // This variant is only emitted when inlining the result of comptime
     // code. It is used to translate function values back into the AST while
     // guaranteeing they have the same instantiated type and definition id without resolving again.
@@ -554,6 +562,7 @@ impl Display for ExpressionKind {
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),
             Unquote(expr) => write!(f, "$({expr})"),
+            UnquoteMarker(index) => write!(f, "${index}"),
         }
     }
 }
