@@ -1017,7 +1017,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
-            HirType::Code => unreachable!("Tried to translate Code type into runtime code"),
+            HirType::Expr => unreachable!("Tried to translate Code type into runtime code"),
         })
     }
 

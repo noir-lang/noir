@@ -186,7 +186,7 @@ impl AbiType {
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(..)
             | Type::Forall(..)
-            | Type::Code
+            | Type::Expr
             | Type::Slice(_)
             | Type::Function(_, _, _) => unreachable!("{typ} cannot be used in the abi"),
             Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),

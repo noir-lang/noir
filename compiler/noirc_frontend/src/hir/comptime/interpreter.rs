@@ -31,7 +31,7 @@ use super::value::Value;
 #[allow(unused)]
 pub struct Interpreter<'interner> {
     /// To expand macros the Interpreter may mutate hir nodes within the NodeInterner
-    pub(super) interner: &'interner mut NodeInterner,
+    pub interner: &'interner mut NodeInterner,
 
     /// Each value currently in scope in the interpreter.
     /// Each element of the Vec represents a scope with every scope together making
@@ -283,7 +283,7 @@ impl<'a> Interpreter<'a> {
     }
 
     /// Evaluate an expression and return the result
-    pub(super) fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
+    pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
         match self.interner.expression(&id) {
             HirExpression::Ident(ident, _) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),

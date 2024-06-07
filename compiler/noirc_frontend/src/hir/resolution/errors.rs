@@ -104,6 +104,10 @@ pub enum ResolverError {
     ArrayLengthInterpreter { error: InterpreterError },
     #[error("The unquote operator '$' can only be used within a quote expression")]
     UnquoteUsedOutsideQuote { span: Span },
+    #[error("Invalid syntax in macro call")]
+    InvalidSyntaxInMacroCall { span: Span },
+    #[error("Macros must be comptime functions")]
+    MacroIsNotComptime { span: Span },
 }
 
 impl ResolverError {
@@ -411,6 +415,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "The unquote operator '$' can only be used within a quote expression".into(),
                     "".into(),
+                    *span,
+                )
+            },
+            ResolverError::InvalidSyntaxInMacroCall { span } => {
+                Diagnostic::simple_error(
+                    "Invalid syntax in macro call".into(),
+                    "Macro calls must call a comptime function directly, they cannot use higher-order functions".into(),
+                    *span,
+                )
+            },
+            ResolverError::MacroIsNotComptime{ span } => {
+                Diagnostic::simple_error(
+                    "This macro call is to a non-comptime function".into(),
+                    "Macro calls must be to comptime functions".into(),
                     *span,
                 )
             },
