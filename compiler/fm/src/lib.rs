@@ -23,8 +23,7 @@ pub struct FileManager {
     root: PathBuf,
     file_map: FileMap,
     id_to_path: HashMap<FileId, PathBuf>,
-    // TODO remove pub
-    pub path_to_id: HashMap<PathBuf, FileId>,
+    path_to_id: HashMap<PathBuf, FileId>,
 }
 
 impl std::fmt::Debug for FileManager {

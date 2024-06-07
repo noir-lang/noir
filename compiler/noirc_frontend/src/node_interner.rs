@@ -1091,10 +1091,6 @@ impl NodeInterner {
 
     /// Replaces the HirStatement at the given StmtId with a new HirStatement
     pub fn replace_statement(&mut self, stmt_id: StmtId, hir_stmt: HirStatement) {
-        // // TODO
-        // let stmt = self.statement(&stmt_id);
-        // dbg!("replace_statement", stmt, &hir_stmt);
-
         let old = self.nodes.get_mut(stmt_id.0).unwrap();
         *old = Node::Statement(hir_stmt);
     }
