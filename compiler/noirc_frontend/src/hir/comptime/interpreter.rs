@@ -91,21 +91,19 @@ impl<'a> Interpreter<'a> {
     ) -> IResult<Value> {
         let attributes = self.interner.function_attributes(&function);
         let func_attrs = attributes.function.as_ref()
-            .expect("all low level functions must contain a function  attribute which contains the opcode which it links to");
-
-        let name = self.interner.function_name(&function);
+            .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to");
 
         if let Some(builtin) = func_attrs.builtin() {
-            let item = format!("Evaluation for builtin functions like {name}");
+            let item = format!("Evaluation for builtin functions like {builtin}");
             Err(InterpreterError::Unimplemented { item, location })
-        } else if let Some(lowlevel) = func_attrs.foreign() {
-            let item = format!("Evaluation for foreign functions like {name}");
+        } else if let Some(foreign) = func_attrs.foreign() {
+            let item = format!("Evaluation for foreign functions like {foreign}");
             Err(InterpreterError::Unimplemented { item, location })
         } else if let Some(oracle) = func_attrs.oracle() {
-            if name == "print_oracle" {
+            if oracle == "print_oracle" {
                 self.print_oracle(arguments)
             } else {
-                let item = format!("Evaluation for oracle functions like {name}");
+                let item = format!("Evaluation for oracle functions like {oracle}");
                 Err(InterpreterError::Unimplemented { item, location })
             }
         } else {
@@ -249,6 +247,7 @@ impl<'a> Interpreter<'a> {
         argument: Value,
         location: Location,
     ) -> IResult<()> {
+        // Temporarily disabled since this fails on generic types
         // self.type_check(typ, &argument, location)?;
         self.current_scope_mut().insert(id, argument);
         Ok(())
