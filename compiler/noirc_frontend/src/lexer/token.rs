@@ -85,6 +85,8 @@ pub enum BorrowedToken<'input> {
     Semicolon,
     /// !
     Bang,
+    /// $
+    DollarSign,
     /// =
     Assign,
     #[allow(clippy::upper_case_acronyms)]
@@ -179,6 +181,8 @@ pub enum Token {
     Bang,
     /// =
     Assign,
+    /// $
+    DollarSign,
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
@@ -238,6 +242,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Semicolon => BorrowedToken::Semicolon,
         Token::Assign => BorrowedToken::Assign,
         Token::Bang => BorrowedToken::Bang,
+        Token::DollarSign => BorrowedToken::DollarSign,
         Token::EOF => BorrowedToken::EOF,
         Token::Invalid(c) => BorrowedToken::Invalid(*c),
         Token::Whitespace(ref s) => BorrowedToken::Whitespace(s),
@@ -349,6 +354,7 @@ impl fmt::Display for Token {
             Token::Semicolon => write!(f, ";"),
             Token::Assign => write!(f, "="),
             Token::Bang => write!(f, "!"),
+            Token::DollarSign => write!(f, "$"),
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
             Token::Whitespace(ref s) => write!(f, "{s}"),
@@ -834,6 +840,7 @@ pub enum Keyword {
     Dep,
     Distinct,
     Else,
+    Expr,
     Field,
     Fn,
     For,
@@ -879,6 +886,7 @@ impl fmt::Display for Keyword {
             Keyword::Dep => write!(f, "dep"),
             Keyword::Distinct => write!(f, "distinct"),
             Keyword::Else => write!(f, "else"),
+            Keyword::Expr => write!(f, "Expr"),
             Keyword::Field => write!(f, "Field"),
             Keyword::Fn => write!(f, "fn"),
             Keyword::For => write!(f, "for"),
@@ -927,6 +935,7 @@ impl Keyword {
             "dep" => Keyword::Dep,
             "distinct" => Keyword::Distinct,
             "else" => Keyword::Else,
+            "Expr" => Keyword::Expr,
             "Field" => Keyword::Field,
             "fn" => Keyword::Fn,
             "for" => Keyword::For,

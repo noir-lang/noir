@@ -64,6 +64,10 @@ impl<'context> Elaborator<'context> {
             }
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
             ExpressionKind::Error => (HirExpression::Error, Type::Error),
+            ExpressionKind::Unquote(_) => {
+                self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
+                (HirExpression::Literal(HirLiteral::Unit), Type::Error)
+            }
         };
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, expr.span, self.file);

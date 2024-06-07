@@ -72,7 +72,7 @@ impl<'context> Elaborator<'context> {
                 let fields = self.resolve_type_inner(*fields);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
-            Code => Type::Code,
+            Expr => Type::Code,
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,

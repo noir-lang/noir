@@ -569,7 +569,7 @@ impl<'a> Resolver<'a> {
                 let fields = self.resolve_type_inner(*fields);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
-            Code => Type::Code,
+            Expr => Type::Code,
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,
@@ -1646,6 +1646,10 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Resolved(_) => unreachable!(
                 "ExpressionKind::Resolved should only be emitted by the comptime interpreter"
             ),
+            ExpressionKind::Unquote(_) => {
+                self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
+                HirExpression::Literal(HirLiteral::Unit)
+            }
         };
 
         // If these lines are ever changed, make sure to change the early return

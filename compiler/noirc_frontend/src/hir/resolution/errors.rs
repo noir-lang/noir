@@ -102,6 +102,8 @@ pub enum ResolverError {
     FoldAttributeOnUnconstrained { ident: Ident },
     #[error("Invalid array length construction")]
     ArrayLengthInterpreter { error: InterpreterError },
+    #[error("The unquote operator '$' can only be used within a quote expression")]
+    UnquoteUsedOutsideQuote { span: Span },
 }
 
 impl ResolverError {
@@ -405,6 +407,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag
             }
             ResolverError::ArrayLengthInterpreter { error } => Diagnostic::from(error),
+            ResolverError::UnquoteUsedOutsideQuote { span } => {
+                Diagnostic::simple_error(
+                    "The unquote operator '$' can only be used within a quote expression".into(),
+                    "".into(),
+                    *span,
+                )
+            },
         }
     }
 }
