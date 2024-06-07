@@ -80,6 +80,12 @@ pub enum ResolverError {
     AbiAttributeOutsideContract { span: Span },
     #[error("Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library")]
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
+    #[error(
+        "Usage of the `#[oracle]` function attribute is only valid on unconstrained functions"
+    )]
+    OracleMarkedAsConstrained { ident: Ident },
+    #[error("Oracle functions cannot be called directly from constrained functions")]
+    UnconstrainedOracleReturnToConstrained { span: Span },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { span: Span, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -326,6 +332,16 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Definition of low-level function outside of standard library".into(),
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 ident.span(),
+            ),
+            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_error(
+                error.to_string(),
+                "Oracle functions must have the `unconstrained` keyword applied".into(),
+                ident.span(),
+            ),
+            ResolverError::UnconstrainedOracleReturnToConstrained { span } => Diagnostic::simple_error(
+                error.to_string(),
+                "This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime".into(),
+                *span,
             ),
             ResolverError::DependencyCycle { span, item, cycle } => {
                 Diagnostic::simple_error(

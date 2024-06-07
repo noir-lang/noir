@@ -20,6 +20,7 @@ use crate::hir_def::expr::{
     HirMethodCallExpression, HirPrefixExpression, ImplKind,
 };
 
+use crate::hir_def::function::FunctionBody;
 use crate::hir_def::traits::{Trait, TraitConstraint};
 use crate::macros_api::SecondaryAttribute;
 use crate::token::{Attributes, FunctionAttribute};
@@ -1078,10 +1079,11 @@ impl<'a> Resolver<'a> {
             is_entry_point: self.is_entry_point_function(func),
             has_inline_attribute,
 
-            // This is only used by the elaborator
+            // These fields are only used by the elaborator
             all_generics: Vec::new(),
             is_trait_function: false,
             parameter_idents: Vec::new(),
+            function_body: FunctionBody::Resolved,
         }
     }
 
@@ -1987,7 +1989,7 @@ impl<'a> Resolver<'a> {
         self.interner.push_expr(hir_block)
     }
 
-    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u64 {
+    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u32 {
         let Some(stmt) = self.interner.get_global_let_statement(global) else {
             let path = path.clone();
             self.push_err(ResolverError::NoSuchNumericTypeVariable { path });

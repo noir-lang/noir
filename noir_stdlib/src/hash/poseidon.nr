@@ -57,14 +57,14 @@ pub fn permute<T, N, X>(pos_conf: PoseidonConfig<T, N, X>, mut state: [Field; T]
     for _r in 0..rf / 2 - 1 {
         state = sigma(state);
         for i in 0..T {
-            state[i] += round_constants[T * (_r + 1) as u64 + i];
+            state[i] += round_constants[T * (_r + 1) as u32 + i];
         }
         state = apply_matrix(mds, state);
     }
 
     state = sigma(state);
     for i in 0..T {
-        state[i] += round_constants[T * (rf / 2) as u64 + i];
+        state[i] += round_constants[T * (rf / 2) as u32 + i];
     }
     state = apply_matrix(presparse_mds, state);
 
@@ -74,15 +74,15 @@ pub fn permute<T, N, X>(pos_conf: PoseidonConfig<T, N, X>, mut state: [Field; T]
 
     for _r in 0..rp {
         state[0] = state[0].pow_32(alpha);
-        state[0] += round_constants[(rf/2 + 1) as u64 * T + _r as u64];
+        state[0] += round_constants[(rf/2 + 1) as u32 * T + _r as u32];
         crate::as_witness(state[0]);
         {
             let mut newState0 = 0;
             for j in 0..T {
-                newState0 += sparse_mds[(T * 2 - 1) * _r as u64 + j as u64] * state[j];
+                newState0 += sparse_mds[(T * 2 - 1) * _r as u32 + j as u32] * state[j];
             }
             for k in 1..T {
-                state[k] += state[0] * sparse_mds[(t * 2 - 1) as u64 * _r as u64 + T + k - 1];
+                state[k] += state[0] * sparse_mds[(t * 2 - 1) as u32 * _r as u32 + T + k - 1];
             }
             state[0] = newState0;
 
@@ -97,7 +97,7 @@ pub fn permute<T, N, X>(pos_conf: PoseidonConfig<T, N, X>, mut state: [Field; T]
     for _r in 0..rf / 2 - 1 {
         state = sigma(state);
         for i in 0..state.len() {
-            state[i] += round_constants[(rf/2+1) as u64 * T + rp as u64 + (_r as u64) * T + i];
+            state[i] += round_constants[(rf/2+1) as u32 * T + rp as u32 + (_r as u32) * T + i];
         }
         state = apply_matrix(mds, state);
     }

@@ -11,7 +11,7 @@ use thiserror::Error;
 pub enum PrintableType {
     Field,
     Array {
-        length: u64,
+        length: u32,
         #[serde(rename = "type")]
         typ: Box<PrintableType>,
     },
@@ -34,7 +34,7 @@ pub enum PrintableType {
         fields: Vec<(String, PrintableType)>,
     },
     String {
-        length: u64,
+        length: u32,
     },
     Function {
         arguments: Vec<PrintableType>,
