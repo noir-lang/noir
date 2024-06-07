@@ -32,19 +32,19 @@ impl<'a> Elaborator<'a> {
         match &mut statement.kind {
             StatementKind::Let(let_) => self.find_unquoted_exprs_in_let(let_, unquoted_exprs),
             StatementKind::Constrain(constrain) => {
-                self.find_unquoted_exprs_in_constrain(constrain, unquoted_exprs)
+                self.find_unquoted_exprs_in_constrain(constrain, unquoted_exprs);
             }
             StatementKind::Expression(expr) => {
-                self.find_unquoted_exprs_in_expr(expr, unquoted_exprs)
+                self.find_unquoted_exprs_in_expr(expr, unquoted_exprs);
             }
             StatementKind::Assign(assign) => {
-                self.find_unquoted_exprs_in_assign(assign, unquoted_exprs)
+                self.find_unquoted_exprs_in_assign(assign, unquoted_exprs);
             }
             StatementKind::For(for_) => self.find_unquoted_exprs_in_for(for_, unquoted_exprs),
             StatementKind::Break => (),
             StatementKind::Continue => (),
             StatementKind::Comptime(comptime) => {
-                self.find_unquoted_exprs_in_statement(comptime, unquoted_exprs)
+                self.find_unquoted_exprs_in_statement(comptime, unquoted_exprs);
             }
             StatementKind::Semi(expr) => self.find_unquoted_exprs_in_expr(expr, unquoted_exprs),
             StatementKind::Error => (),
@@ -67,7 +67,7 @@ impl<'a> Elaborator<'a> {
         let_: &mut LetStatement,
         unquoted_exprs: &mut Vec<ExprId>,
     ) {
-        self.find_unquoted_exprs_in_expr(&mut let_.expression, unquoted_exprs)
+        self.find_unquoted_exprs_in_expr(&mut let_.expression, unquoted_exprs);
     }
 
     fn find_unquoted_exprs_in_assign(
@@ -92,7 +92,7 @@ impl<'a> Elaborator<'a> {
                 self.find_unquoted_exprs_in_expr(array, unquoted_exprs);
             }
         };
-        self.find_unquoted_exprs_in_expr(&mut for_.block, unquoted_exprs)
+        self.find_unquoted_exprs_in_expr(&mut for_.block, unquoted_exprs);
     }
 
     fn find_unquoted_exprs_in_expr(
@@ -102,47 +102,47 @@ impl<'a> Elaborator<'a> {
     ) {
         match &mut expr.kind {
             ExpressionKind::Literal(literal) => {
-                self.find_unquoted_exprs_in_literal(literal, unquoted_exprs)
+                self.find_unquoted_exprs_in_literal(literal, unquoted_exprs);
             }
             ExpressionKind::Block(block) => {
-                self.find_unquoted_exprs_in_block(block, unquoted_exprs)
+                self.find_unquoted_exprs_in_block(block, unquoted_exprs);
             }
             ExpressionKind::Prefix(prefix) => {
-                self.find_unquoted_exprs_in_prefix(prefix, unquoted_exprs)
+                self.find_unquoted_exprs_in_prefix(prefix, unquoted_exprs);
             }
             ExpressionKind::Index(index) => {
-                self.find_unquoted_exprs_in_index(index, unquoted_exprs)
+                self.find_unquoted_exprs_in_index(index, unquoted_exprs);
             }
             ExpressionKind::Call(call) => self.find_unquoted_exprs_in_call(call, unquoted_exprs),
             ExpressionKind::MethodCall(call) => {
-                self.find_unquoted_exprs_in_method_call(call, unquoted_exprs)
+                self.find_unquoted_exprs_in_method_call(call, unquoted_exprs);
             }
             ExpressionKind::Constructor(constructor) => {
-                self.find_unquoted_exprs_in_constructor(constructor, unquoted_exprs)
+                self.find_unquoted_exprs_in_constructor(constructor, unquoted_exprs);
             }
             ExpressionKind::MemberAccess(access) => {
-                self.find_unquoted_exprs_in_access(access, unquoted_exprs)
+                self.find_unquoted_exprs_in_access(access, unquoted_exprs);
             }
             ExpressionKind::Cast(cast) => self.find_unquoted_exprs_in_cast(cast, unquoted_exprs),
             ExpressionKind::Infix(infix) => {
-                self.find_unquoted_exprs_in_infix(infix, unquoted_exprs)
+                self.find_unquoted_exprs_in_infix(infix, unquoted_exprs);
             }
             ExpressionKind::If(if_) => self.find_unquoted_exprs_in_if(if_, unquoted_exprs),
             ExpressionKind::Variable(_, _) => (),
             ExpressionKind::Tuple(tuple) => {
-                self.find_unquoted_exprs_in_tuple(tuple, unquoted_exprs)
+                self.find_unquoted_exprs_in_tuple(tuple, unquoted_exprs);
             }
             ExpressionKind::Lambda(lambda) => {
-                self.find_unquoted_exprs_in_lambda(lambda, unquoted_exprs)
+                self.find_unquoted_exprs_in_lambda(lambda, unquoted_exprs);
             }
             ExpressionKind::Parenthesized(expr) => {
-                self.find_unquoted_exprs_in_expr(expr, unquoted_exprs)
+                self.find_unquoted_exprs_in_expr(expr, unquoted_exprs);
             }
             ExpressionKind::Quote(quote) => {
-                self.find_unquoted_exprs_in_block(quote, unquoted_exprs)
+                self.find_unquoted_exprs_in_block(quote, unquoted_exprs);
             }
             ExpressionKind::Comptime(block, _) => {
-                self.find_unquoted_exprs_in_block(block, unquoted_exprs)
+                self.find_unquoted_exprs_in_block(block, unquoted_exprs);
             }
             ExpressionKind::Resolved(_) => (),
             ExpressionKind::Error => (),
@@ -167,12 +167,10 @@ impl<'a> Elaborator<'a> {
                     for element in elements {
                         self.find_unquoted_exprs_in_expr(element, unquoted_exprs);
                     }
-                    ()
                 }
                 ArrayLiteral::Repeated { repeated_element, length } => {
                     self.find_unquoted_exprs_in_expr(repeated_element, unquoted_exprs);
                     self.find_unquoted_exprs_in_expr(length, unquoted_exprs);
-                    ()
                 }
             },
             Literal::Bool(_)
