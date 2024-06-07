@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
-use std::ops::Deref;
 use std::marker::Copy;
+use std::ops::Deref;
 
 use fm::FileId;
 use iter_extended::vecmap;
@@ -1074,7 +1074,8 @@ impl NodeInterner {
 
     /// Returns the span of an item stored in the Interner
     pub fn id_location(&self, index: impl Into<Index> + Copy) -> Location {
-        self.try_id_location(index).expect(&format!("ID is missing a source location: {:?}", index.into()))
+        self.try_id_location(index)
+            .unwrap_or_else(|| panic!("ID is missing a source location: {:?}", index.into()))
     }
 
     /// Returns the span of an item stored in the Interner, if present

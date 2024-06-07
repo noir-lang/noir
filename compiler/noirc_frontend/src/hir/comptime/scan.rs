@@ -86,8 +86,11 @@ impl<'interner> Interpreter<'interner> {
                 let new_expr = self.interner.expression(&new_expr);
 
                 if Some(location.file) == self.debug_comptime_scope {
-                    let new_expr_for_display = new_expr.to_display_ast(self.interner, location.span).kind;
-                    self.debug_comptime_evaluations.push(InterpreterError::debug_evaluate_comptime(new_expr_for_display, location));
+                    let new_expr_for_display =
+                        new_expr.to_display_ast(self.interner, location.span).kind;
+                    self.debug_comptime_evaluations.push(
+                        InterpreterError::debug_evaluate_comptime(new_expr_for_display, location),
+                    );
                 }
 
                 self.interner.replace_expr(&expr, new_expr);
@@ -129,7 +132,9 @@ impl<'interner> Interpreter<'interner> {
                         let location = self.interner.id_location(id);
                         if Some(location.file) == self.debug_comptime_scope {
                             let new_expr = new_expr.to_display_ast(self.interner);
-                            self.debug_comptime_evaluations.push(InterpreterError::debug_evaluate_comptime(new_expr, location));
+                            self.debug_comptime_evaluations.push(
+                                InterpreterError::debug_evaluate_comptime(new_expr, location),
+                            );
                         }
                     }
                 }
@@ -246,7 +251,9 @@ impl<'interner> Interpreter<'interner> {
 
                 if Some(location.file) == self.debug_comptime_scope {
                     let new_expr_for_display = new_expr.to_display_ast(self.interner);
-                    self.debug_comptime_evaluations.push(InterpreterError::debug_evaluate_comptime(new_expr_for_display, location));
+                    self.debug_comptime_evaluations.push(
+                        InterpreterError::debug_evaluate_comptime(new_expr_for_display, location),
+                    );
                 }
 
                 self.interner.replace_statement(statement, HirStatement::Expression(new_expr));

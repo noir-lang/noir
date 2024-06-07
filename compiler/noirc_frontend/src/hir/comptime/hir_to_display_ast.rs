@@ -26,7 +26,7 @@ impl HirStatement {
     pub fn to_display_ast(&self, interner: &NodeInterner, span: Span) -> Statement {
         let kind = match self {
             HirStatement::Let(let_stmt) => {
-                let pattern = let_stmt.pattern.into_display_ast(interner);
+                let pattern = let_stmt.pattern.to_display_ast(interner);
                 let r#type = interner.id_type(let_stmt.expression).to_display_ast();
                 let expression = let_stmt.expression.to_display_ast(interner);
                 StatementKind::Let(LetStatement {
@@ -45,7 +45,7 @@ impl HirStatement {
                 StatementKind::Constrain(ConstrainStatement(expr, message, ConstrainKind::Assert))
             }
             HirStatement::Assign(assign) => StatementKind::Assign(AssignStatement {
-                lvalue: assign.lvalue.into_display_ast(interner),
+                lvalue: assign.lvalue.to_display_ast(interner),
                 expression: assign.expression.to_display_ast(interner),
             }),
             HirStatement::For(for_stmt) => StatementKind::For(ForLoopStatement {
@@ -59,7 +59,9 @@ impl HirStatement {
             }),
             HirStatement::Break => StatementKind::Break,
             HirStatement::Continue => StatementKind::Continue,
-            HirStatement::Expression(expr) => StatementKind::Expression(expr.to_display_ast(interner)),
+            HirStatement::Expression(expr) => {
+                StatementKind::Expression(expr.to_display_ast(interner))
+            }
             HirStatement::Semi(expr) => StatementKind::Semi(expr.to_display_ast(interner)),
             HirStatement::Error => StatementKind::Error,
             HirStatement::Comptime(statement) => {
@@ -84,24 +86,22 @@ impl StmtId {
 impl HirExpression {
     /// Convert to AST for display (some details lost)
     pub fn to_display_ast(&self, interner: &NodeInterner, span: Span) -> Expression {
-        // let expression = interner.expression(&self);
-        // // TODO: empty 0 span
-        // let span = interner.try_expr_span(&self).unwrap_or_else(|| Span::empty(0));
-
         let kind = match self {
             HirExpression::Ident(ident, generics) => {
                 let path = Path::from_ident(ident.to_display_ast(interner));
                 ExpressionKind::Variable(
                     path,
-                    generics.as_ref().map(|option| option.iter().map(|generic| generic.to_display_ast()).collect()),
+                    generics.as_ref().map(|option| {
+                        option.iter().map(|generic| generic.to_display_ast()).collect()
+                    }),
                 )
             }
             HirExpression::Literal(HirLiteral::Array(array)) => {
-                let array = array.into_display_ast(interner, span);
+                let array = array.to_display_ast(interner, span);
                 ExpressionKind::Literal(Literal::Array(array))
             }
             HirExpression::Literal(HirLiteral::Slice(array)) => {
-                let array = array.into_display_ast(interner, span);
+                let array = array.to_display_ast(interner, span);
                 ExpressionKind::Literal(Literal::Slice(array))
             }
             HirExpression::Literal(HirLiteral::Bool(value)) => {
@@ -118,7 +118,7 @@ impl HirExpression {
                 ExpressionKind::Literal(Literal::FmtStr(string.clone()))
             }
             HirExpression::Literal(HirLiteral::Unit) => ExpressionKind::Literal(Literal::Unit),
-            HirExpression::Block(expr) => ExpressionKind::Block(expr.into_display_ast(interner)),
+            HirExpression::Block(expr) => ExpressionKind::Block(expr.to_display_ast(interner)),
             HirExpression::Prefix(prefix) => ExpressionKind::Prefix(Box::new(PrefixExpression {
                 operator: prefix.operator,
                 rhs: prefix.rhs.to_display_ast(interner),
@@ -135,11 +135,16 @@ impl HirExpression {
             HirExpression::Constructor(constructor) => {
                 let type_name = constructor.r#type.borrow().name.to_string();
                 let type_name = Path::from_single(type_name, span);
-                let fields =
-                    vecmap(constructor.fields.clone(), |(name, expr): (Ident, ExprId)| (name, expr.to_display_ast(interner)));
+                let fields = vecmap(constructor.fields.clone(), |(name, expr): (Ident, ExprId)| {
+                    (name, expr.to_display_ast(interner))
+                });
                 let struct_type = None;
 
-                ExpressionKind::Constructor(Box::new(ConstructorExpression { type_name, fields, struct_type }))
+                ExpressionKind::Constructor(Box::new(ConstructorExpression {
+                    type_name,
+                    fields,
+                    struct_type,
+                }))
             }
             HirExpression::MemberAccess(access) => {
                 ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
@@ -156,11 +161,12 @@ impl HirExpression {
                 ExpressionKind::MethodCall(Box::new(MethodCallExpression {
                     object: method_call.object.to_display_ast(interner),
                     method_name: method_call.method.clone(),
-                    arguments: vecmap(method_call.arguments.clone(), |arg| arg.to_display_ast(interner)),
-                    generics: method_call
-                        .generics
-                        .clone()
-                        .map(|option| option.iter().map(|generic| generic.to_display_ast()).collect()),
+                    arguments: vecmap(method_call.arguments.clone(), |arg| {
+                        arg.to_display_ast(interner)
+                    }),
+                    generics: method_call.generics.clone().map(|option| {
+                        option.iter().map(|generic| generic.to_display_ast()).collect()
+                    }),
                 }))
             }
             HirExpression::Cast(cast) => {
@@ -178,14 +184,16 @@ impl HirExpression {
             }
             HirExpression::Lambda(lambda) => {
                 let parameters = vecmap(lambda.parameters.clone(), |(pattern, typ)| {
-                    (pattern.into_display_ast(interner), typ.to_display_ast())
+                    (pattern.to_display_ast(interner), typ.to_display_ast())
                 });
                 let return_type = lambda.return_type.to_display_ast();
                 let body = lambda.body.to_display_ast(interner);
                 ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
             }
             HirExpression::Error => ExpressionKind::Error,
-            HirExpression::Comptime(block) => ExpressionKind::Comptime(block.into_display_ast(interner)),
+            HirExpression::Comptime(block) => {
+                ExpressionKind::Comptime(block.to_display_ast(interner))
+            }
             HirExpression::Quote(block) => ExpressionKind::Quote(block.clone()),
 
             // A macro was evaluated here!
@@ -208,20 +216,21 @@ impl ExprId {
 
 impl HirPattern {
     /// Convert to AST for display (some details lost)
-    fn into_display_ast(&self, interner: &NodeInterner) -> Pattern {
+    fn to_display_ast(&self, interner: &NodeInterner) -> Pattern {
         match self {
             HirPattern::Identifier(ident) => Pattern::Identifier(ident.to_display_ast(interner)),
             HirPattern::Mutable(pattern, location) => {
-                let pattern = Box::new(pattern.into_display_ast(interner));
+                let pattern = Box::new(pattern.to_display_ast(interner));
                 Pattern::Mutable(pattern, location.span, false)
             }
             HirPattern::Tuple(patterns, location) => {
-                let patterns = vecmap(patterns, |pattern| pattern.into_display_ast(interner));
+                let patterns = vecmap(patterns, |pattern| pattern.to_display_ast(interner));
                 Pattern::Tuple(patterns, location.span)
             }
             HirPattern::Struct(typ, patterns, location) => {
-                let patterns =
-                    vecmap(patterns, |(name, pattern)| (name.clone(), pattern.into_display_ast(interner)));
+                let patterns = vecmap(patterns, |(name, pattern)| {
+                    (name.clone(), pattern.to_display_ast(interner))
+                });
                 let name = match typ.follow_bindings() {
                     Type::Struct(struct_def, _) => {
                         let struct_def = struct_def.borrow();
@@ -298,7 +307,9 @@ impl Type {
                     TypeBinding::Unbound(id) => {
                         let expression = match kind {
                             // TODO: fix span or make Option<Span>
-                            TypeVariableKind::Constant(value) => UnresolvedTypeExpression::Constant(*value, Span::empty(0)),
+                            TypeVariableKind::Constant(value) => {
+                                UnresolvedTypeExpression::Constant(*value, Span::empty(0))
+                            }
                             other_kind => {
                                 let name = format!("var_{:?}_{}", other_kind, id);
 
@@ -311,7 +322,7 @@ impl Type {
                         UnresolvedTypeData::Expression(expression)
                     }
                 }
-            },
+            }
             Type::TraitAsType(_, name, generics) => {
                 let generics = vecmap(generics, |generic| generic.to_display_ast());
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
@@ -362,20 +373,20 @@ impl Type {
 
 impl HirLValue {
     /// Convert to AST for display (some details lost)
-    fn into_display_ast(&self, interner: &NodeInterner) -> LValue {
+    fn to_display_ast(&self, interner: &NodeInterner) -> LValue {
         match self {
             HirLValue::Ident(ident, _) => LValue::Ident(ident.to_display_ast(interner)),
             HirLValue::MemberAccess { object, field_name, field_index: _, typ: _, location } => {
-                let object = Box::new(object.into_display_ast(interner));
+                let object = Box::new(object.to_display_ast(interner));
                 LValue::MemberAccess { object, field_name: field_name.clone(), span: location.span }
             }
             HirLValue::Index { array, index, typ: _, location } => {
-                let array = Box::new(array.into_display_ast(interner));
+                let array = Box::new(array.to_display_ast(interner));
                 let index = index.to_display_ast(interner);
                 LValue::Index { array, index, span: location.span }
             }
             HirLValue::Dereference { lvalue, element_type: _, location } => {
-                let lvalue = Box::new(lvalue.into_display_ast(interner));
+                let lvalue = Box::new(lvalue.to_display_ast(interner));
                 LValue::Dereference(lvalue, location.span)
             }
         }
@@ -384,7 +395,7 @@ impl HirLValue {
 
 impl HirArrayLiteral {
     /// Convert to AST for display (some details lost)
-    fn into_display_ast(&self, interner: &NodeInterner, span: Span) -> ArrayLiteral {
+    fn to_display_ast(&self, interner: &NodeInterner, span: Span) -> ArrayLiteral {
         match self {
             HirArrayLiteral::Standard(elements) => {
                 ArrayLiteral::Standard(vecmap(elements, |element| element.to_display_ast(interner)))
@@ -407,8 +418,9 @@ impl HirArrayLiteral {
 
 impl HirBlockExpression {
     /// Convert to AST for display (some details lost)
-    fn into_display_ast(&self, interner: &NodeInterner) -> BlockExpression {
-        let statements = vecmap(self.statements.clone(), |statement| statement.to_display_ast(interner));
+    fn to_display_ast(&self, interner: &NodeInterner) -> BlockExpression {
+        let statements =
+            vecmap(self.statements.clone(), |statement| statement.to_display_ast(interner));
         BlockExpression { statements }
     }
 }

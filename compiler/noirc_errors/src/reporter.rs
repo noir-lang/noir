@@ -58,7 +58,8 @@ impl CustomDiagnostic {
             primary_message,
             secondary_message,
             secondary_span,
-            DiagnosticKind::Error)
+            DiagnosticKind::Error,
+        )
     }
 
     pub fn simple_warning(
@@ -70,7 +71,8 @@ impl CustomDiagnostic {
             primary_message,
             secondary_message,
             secondary_span,
-            DiagnosticKind::Warning)
+            DiagnosticKind::Warning,
+        )
     }
 
     pub fn simple_debug(
@@ -82,7 +84,8 @@ impl CustomDiagnostic {
             primary_message,
             secondary_message,
             secondary_span,
-            DiagnosticKind::Debug)
+            DiagnosticKind::Debug,
+        )
     }
 
     pub fn in_file(self, file_id: fm::FileId) -> FileDiagnostic {

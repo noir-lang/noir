@@ -176,7 +176,11 @@ pub struct Elaborator<'context> {
 }
 
 impl<'context> Elaborator<'context> {
-    pub fn new(context: &'context mut Context, crate_id: CrateId, debug_comptime_scope: Option<FileId>) -> Self {
+    pub fn new(
+        context: &'context mut Context,
+        crate_id: CrateId,
+        debug_comptime_scope: Option<FileId>,
+    ) -> Self {
         Self {
             scopes: ScopeForest::default(),
             errors: Vec::new(),
@@ -209,7 +213,7 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         mut items: CollectedItems,
-        debug_comptime_scope: Option<FileId>
+        debug_comptime_scope: Option<FileId>,
     ) -> Vec<(CompilationError, FileId)> {
         let mut this = Self::new(context, crate_id, debug_comptime_scope);
 
@@ -1164,7 +1168,12 @@ impl<'context> Elaborator<'context> {
         let definition_id = global.definition_id;
         let location = global.location;
         let mut interpreter_errors = vec![];
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes, self.debug_comptime_scope, &mut interpreter_errors);
+        let mut interpreter = Interpreter::new(
+            self.interner,
+            &mut self.comptime_scopes,
+            self.debug_comptime_scope,
+            &mut interpreter_errors,
+        );
 
         if let Err(error) = interpreter.evaluate_let(let_statement) {
             self.errors.push(error.into_compilation_error_pair());
@@ -1174,8 +1183,16 @@ impl<'context> Elaborator<'context> {
                 .expect("The global should be defined since evaluate_let did not error");
 
             if Some(location.file) == self.debug_comptime_scope {
-                let new_stmt = self.interner.get_global(global_id).let_statement.to_display_ast(self.interner).kind;
-                self.errors.push((InterpreterError::debug_evaluate_comptime(new_stmt, location).into(), location.file));
+                let new_stmt = self
+                    .interner
+                    .get_global(global_id)
+                    .let_statement
+                    .to_display_ast(self.interner)
+                    .kind;
+                self.errors.push((
+                    InterpreterError::debug_evaluate_comptime(new_stmt, location).into(),
+                    location.file,
+                ));
             }
 
             self.interner.get_global_mut(global_id).value = Some(value);

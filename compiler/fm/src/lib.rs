@@ -109,17 +109,24 @@ impl FileManager {
 
     /// Find a file by its path suffix, e.g. "src/main.nr" is a suffix of
     /// "some_dir/package_name/src/main.nr"`
-    pub fn find_by_path_suffix<S: AsRef<OsStr> + ?Sized>(&self, suffix: &S) -> Result<Option<FileId>, Vec<PathBuf>> {
+    pub fn find_by_path_suffix<S: AsRef<OsStr> + ?Sized>(
+        &self,
+        suffix: &S,
+    ) -> Result<Option<FileId>, Vec<PathBuf>> {
         let suffix_path: Vec<_> = Path::new(suffix).components().rev().collect();
-        let results: Vec<_> = self.path_to_id.iter().filter(|(path, _id)| {
-            path.components().rev().zip(suffix_path.iter()).all(|(x, y)| &x == y)
-        }).collect();
-        if results.len() == 0 {
-            return Ok(None);
+        let results: Vec<_> = self
+            .path_to_id
+            .iter()
+            .filter(|(path, _id)| {
+                path.components().rev().zip(suffix_path.iter()).all(|(x, y)| &x == y)
+            })
+            .collect();
+        if results.is_empty() {
+            Ok(None)
         } else if results.len() == 1 {
-            return Ok(Some(*results[0].1));
+            Ok(Some(*results[0].1))
         } else {
-            return Err(vecmap(results, |(path, _id)| path.clone()));
+            Err(vecmap(results, |(path, _id)| path.clone()))
         }
     }
 }
