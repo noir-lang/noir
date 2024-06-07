@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::{CustomDiagnostic, Location, Span};
 use regex::Regex;
 use rustc_hash::FxHashSet as HashSet;
 
@@ -16,14 +16,14 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirIfExpression, HirIndexExpression, HirInfixExpression,
+            HirConstructorExpression, HirExpression, HirIfExpression, HirIndexExpression, HirInfixExpression,
             HirLambda, HirMemberAccess, HirMethodCallExpression, HirMethodReference,
             HirPrefixExpression,
         },
         traits::TraitConstraint,
     },
     macros_api::{
-        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirExpression,
+        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind,
         HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
         MethodCallExpression, PrefixExpression,
     },
@@ -633,9 +633,35 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_comptime_block(&mut self, block: BlockExpression, span: Span) -> (ExprId, Type) {
         let (block, _typ) = self.elaborate_block_expression(block);
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+
+        // TODO
+        // let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes, self.debug_comptime_scope);
+        // NOTE: previous_expr outside of "main block"
+        let previous_expr = HirExpression::Block(block.clone()).to_display_ast(self.interner, span);
+        let mut interpreter_errors = vec![];
+        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes, self.debug_comptime_scope, &mut interpreter_errors);
         let value = interpreter.evaluate_block(block);
-        self.inline_comptime_value(value, span)
+        self.errors.extend(interpreter_errors.into_iter().map(|error| {
+            let file_id = error.get_location().file;
+            (error.into(), file_id)
+        }));
+        let (id, typ) = self.inline_comptime_value(value, span);
+
+        // TODO
+        // NOTE: previous_expr outside of "main block"
+        let location = self.interner.id_location(&id);
+        let result = self.interner.expression(&id);
+        let new_expr = result.to_display_ast(self.interner, location.span).kind;
+        let diagnostic = CustomDiagnostic::simple_debug(
+            "`comptime` expression ran:".to_string(),
+            format!("Before evaluation:\n{}\n\nAfter evaluation:\n{}", previous_expr, new_expr),
+            location.span,
+        );
+        println!();
+        println!("{}", diagnostic);
+        self.errors.push((InterpreterError::DebugEvaluateComptime { diagnostic, location }.into(), location.file));
+
+        (id, typ)
     }
 
     pub(super) fn inline_comptime_value(

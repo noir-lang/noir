@@ -1,6 +1,7 @@
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::{acir::AcirField, FieldElement};
+use fm::FileId;
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
@@ -11,7 +12,7 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirIdent, HirIfExpression, HirIndexExpression,
+            HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
             HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
             HirPrefixExpression,
         },
@@ -20,7 +21,7 @@ use crate::{
             HirPattern,
         },
     },
-    macros_api::{HirExpression, HirLiteral, HirStatement, NodeInterner},
+    macros_api::{HirLiteral, HirStatement, NodeInterner},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
     Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
@@ -38,6 +39,10 @@ pub struct Interpreter<'interner> {
     /// up all currently visible definitions.
     scopes: &'interner mut Vec<HashMap<DefinitionId, Value>>,
 
+    /// The scope of --debug-comptime, or None if unset
+    debug_comptime_scope: Option<FileId>,
+    pub(super) debug_comptime_evaluations: &'interner mut Vec<InterpreterError>,
+
     in_loop: bool,
 }
 
@@ -46,8 +51,10 @@ impl<'a> Interpreter<'a> {
     pub(crate) fn new(
         interner: &'a mut NodeInterner,
         scopes: &'a mut Vec<HashMap<DefinitionId, Value>>,
+        debug_comptime_scope: Option<FileId>,
+        debug_comptime_evaluations: &'a mut Vec<InterpreterError>,
     ) -> Self {
-        Self { interner, scopes, in_loop: false }
+        Self { interner, scopes, debug_comptime_scope, debug_comptime_evaluations, in_loop: false }
     }
 
     pub(crate) fn call_function(

@@ -1,14 +1,14 @@
-use noirc_errors::{Location, Span};
+use noirc_errors::{CustomDiagnostic, Location, Span};
 
 use crate::{
     ast::{AssignStatement, ConstrainStatement, LValue},
     hir::{
-        comptime::Interpreter,
+        comptime::{Interpreter, InterpreterError},
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::HirIdent,
+        expr::{HirExpression, HirIdent},
         stmt::{
             HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
         },
@@ -432,9 +432,30 @@ impl<'context> Elaborator<'context> {
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
         let span = statement.span;
         let (hir_statement, _typ) = self.elaborate_statement(statement);
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+
+        // TODO
+        let mut interpreter_errors = vec![];
+        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes, self.debug_comptime_scope, &mut interpreter_errors);
         let value = interpreter.evaluate_statement(hir_statement);
         let (expr, typ) = self.inline_comptime_value(value, span);
+        self.errors.extend(interpreter_errors.into_iter().map(|error| {
+            let file_id = error.get_location().file;
+            (error.into(), file_id)
+        }));
+
+        // TODO
+        let location = self.interner.id_location(&hir_statement);
+        let previous_expr = hir_statement.to_display_ast(self.interner).kind;
+        let new_expr = expr.to_display_ast(self.interner).kind;
+        let diagnostic = CustomDiagnostic::simple_debug(
+            "`comptime` expression ran:".to_string(),
+            format!("Before evaluation:\n{}\n\nAfter evaluation:\n{}", previous_expr, new_expr),
+            location.span,
+        );
+        println!();
+        println!("{}", diagnostic);
+        self.errors.push((InterpreterError::DebugEvaluateComptime { diagnostic, location }.into(), location.file));
+
         (HirStatement::Expression(expr), typ)
     }
 }

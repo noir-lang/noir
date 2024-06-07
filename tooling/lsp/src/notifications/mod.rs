@@ -190,6 +190,7 @@ fn process_noir_document(
                     let severity = match diagnostic.kind {
                         DiagnosticKind::Error => DiagnosticSeverity::ERROR,
                         DiagnosticKind::Warning => DiagnosticSeverity::WARNING,
+                        DiagnosticKind::Debug => DiagnosticSeverity::INFORMATION,
                     };
                     Some(Diagnostic {
                         range,

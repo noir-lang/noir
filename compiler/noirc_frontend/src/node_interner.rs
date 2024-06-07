@@ -1068,37 +1068,8 @@ impl NodeInterner {
 
     /// Replaces the HirExpression at the given ExprId with a new HirExpression
     pub fn replace_expr(&mut self, id: &ExprId, new: HirExpression) {
-        // TODO: move this logic into the Interpreter
-        //
-        // let expr = self.expression(id);
-        let location = self.id_location(id);
-        let original_ast = (*id).to_display_ast(self);
-
-        // begin original
         let old = self.nodes.get_mut(id.into()).unwrap();
         *old = Node::Expression(new);
-        // end original
-
-        // TODO
-        // println!("{}", (*id).to_display_ast(self));
-
-        let new_ast = (*id).to_display_ast(self);
-
-        let diagnostic = CustomDiagnostic::simple_warning(
-            "`comptime` expression ran:".to_string(),
-            format!("Before evaluation:\n{}\n\nAfter evaluation:\n{}", original_ast, new_ast),
-            location.span,
-        );
-        println!();
-        println!("{}", diagnostic);
-        println!();
-
-        let file_diagnostic = diagnostic.in_file(location.file);
-        println!("{}", file_diagnostic);
-        println!();
-        dbg!("replace_expr", &id, location);
-
-
     }
 
     /// Replaces the HirStatement at the given StmtId with a new HirStatement

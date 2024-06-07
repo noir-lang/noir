@@ -41,6 +41,7 @@ pub struct ResolvedModule {
     pub globals: Vec<(FileId, GlobalId)>,
     pub functions: Vec<(FileId, FuncId)>,
     pub trait_impl_functions: Vec<(FileId, FuncId)>,
+    pub debug_comptime_scope: Option<FileId>,
 
     pub errors: Vec<(CompilationError, FileId)>,
 }
@@ -549,7 +550,8 @@ impl ResolvedModule {
     fn evaluate_comptime(&mut self, interner: &mut NodeInterner) {
         if self.count_errors() == 0 {
             let mut scopes = vec![HashMap::default()];
-            let mut interpreter = Interpreter::new(interner, &mut scopes);
+            let mut interpreter_errors = vec![];
+            let mut interpreter = Interpreter::new(interner, &mut scopes, self.debug_comptime_scope, &mut interpreter_errors);
 
             for (_file, global) in &self.globals {
                 if let Err(error) = interpreter.scan_global(*global) {
@@ -564,6 +566,10 @@ impl ResolvedModule {
                     self.errors.push(error.into_compilation_error_pair());
                 }
             }
+            self.errors.extend(interpreter_errors.into_iter().map(|error| {
+                let file_id = error.get_location().file;
+                (error.into(), file_id)
+            }));
         }
     }
 

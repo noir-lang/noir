@@ -35,6 +35,7 @@ pub enum InterpreterError {
     NonStructInConstructor { typ: Type, location: Location },
     CannotInlineMacro { value: Value, location: Location },
     UnquoteFoundDuringEvaluation { location: Location },
+    DebugEvaluateComptime { diagnostic: CustomDiagnostic, location: Location },
 
     Unimplemented { item: &'static str, location: Location },
 
@@ -96,7 +97,8 @@ impl InterpreterError {
             | InterpreterError::UnquoteFoundDuringEvaluation { location, .. }
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::BreakNotInLoop { location, .. }
-            | InterpreterError::ContinueNotInLoop { location, .. } => *location,
+            | InterpreterError::ContinueNotInLoop { location, .. }
+            | InterpreterError::DebugEvaluateComptime { location, .. } => *location,
             InterpreterError::Break | InterpreterError::Continue => {
                 panic!("Tried to get the location of Break/Continue error!")
             }
@@ -258,6 +260,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "This is a bug".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
+            InterpreterError::DebugEvaluateComptime { diagnostic, .. } => diagnostic.clone(),
             InterpreterError::Unimplemented { item, location } => {
                 let msg = format!("{item} is currently unimplemented");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
