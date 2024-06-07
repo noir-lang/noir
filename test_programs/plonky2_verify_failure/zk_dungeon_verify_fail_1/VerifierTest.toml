@@ -1,0 +1,6 @@
+watcher_map = [[false, false, false, false, false, false, false, false], [false, false, false, false, false, false, false, false], [false, false, false, false, false, false, false, false], [false, false, false, false, false, false, false, false], [false, false, false, false, false, false, false, false], [false, false, false, true, false, false, false, false], [false, false, false, false, false, false, false, false], [false, true, false, false, true, true, false, false]]
+
+[dagger]
+x = "0x0000000000000000000000000000000000000000000000000000000000000005"
+# wrong value:
+y = "0x0000000000000000000000000000000000000000000000000000000000000003"

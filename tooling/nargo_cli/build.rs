@@ -43,6 +43,7 @@ fn main() {
     // generate_plonky2_prove_unsupported_tests(&mut test_file, &test_dir);
     // generate_plonky2_prove_crash_tests(&mut test_file, &test_dir);
     generate_plonky2_verify_success_tests(&mut test_file, &test_dir);
+    generate_plonky2_verify_failure_tests(&mut test_file, &test_dir);
 }
 
 /// Some tests are explicitly ignored in brillig due to them failing.
@@ -737,6 +738,74 @@ fn plonky2_verify_success_{test_name}() {{
 }}
             "#,
             test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+    }
+}
+
+/// Tests using the experimental PLONKY2 backend as a proving engine that are expected to fail verification.
+fn generate_plonky2_verify_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_sub_dir = "plonky2_verify_failure";
+    let test_data_dir = test_data_dir.join(test_sub_dir);
+
+    let test_case_dirs =
+        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+
+    let expected_messages = HashMap::from([("simple_add", vec!["Cannot satisfy constraint"])]);
+
+    for test_dir in test_case_dirs {
+        let test_name =
+            test_dir.file_name().into_string().expect("Directory can't be converted to string");
+        if test_name.contains('-') {
+            panic!(
+                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
+            );
+        };
+        let test_dir = &test_dir.path();
+
+        write!(
+            test_file,
+            r#"
+#[test]
+fn plonky2_verify_failure_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir.clone());
+    cmd.arg("prove");
+
+    cmd.assert().success();
+
+    let mut cmd2 = Command::cargo_bin("nargo").unwrap();
+    cmd2.arg("--program-dir").arg(test_program_dir);
+    cmd2.arg("verify");
+    cmd2.arg("--verifier-name").arg("VerifierTest");
+
+    cmd2.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
+            test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+
+        // Not all tests have expected messages, so match.
+        match expected_messages.get(test_name.as_str()) {
+            Some(messages) => {
+                for message in messages.iter() {
+                    write!(
+                        test_file,
+                        r#"
+    cmd.assert().failure().stderr(predicate::str::contains("{message}"));"#
+                    )
+                    .expect("Could not write templated test file.");
+                }
+            }
+            None => {}
+        }
+
+        write!(
+            test_file,
+            r#"
+}}
+"#
         )
         .expect("Could not write templated test file.");
     }

@@ -1,0 +1,10 @@
+{
+    "name": "zk-dungeon",
+    "version": "1.1.0",
+    "scripts": {
+        "test": "mocha --recursive --timeout 20000",
+        "test:hardhat": "npx hardhat test"
+    },
+    "author": "",
+    "license": "MIT"
+}
