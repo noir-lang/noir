@@ -119,7 +119,7 @@ struct ResolveForeignCallRequest<F> {
     id: u64,
 
     #[serde(flatten)]
-    function_call: ForeignCallWaitInfo<F>
+    function_call: ForeignCallWaitInfo<F>,
 }
 
 impl DefaultForeignCallExecutor {
@@ -292,7 +292,10 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                 } else if let Some(external_resolver) = &self.external_resolver {
                     // If the user has registered an external resolver then we forward any remaining oracle calls there.
 
-                    let encoded_params = vec![build_json_rpc_arg(ResolveForeignCallRequest{id:self.id, function_call: foreign_call.clone() })];
+                    let encoded_params = vec![build_json_rpc_arg(ResolveForeignCallRequest {
+                        id: self.id,
+                        function_call: foreign_call.clone(),
+                    })];
 
                     let req =
                         external_resolver.build_request("resolve_foreign_call", &encoded_params);
@@ -329,8 +332,7 @@ mod tests {
     use jsonrpc_derive::rpc;
     use jsonrpc_http_server::{Server, ServerBuilder};
 
-    use crate::ops::{ DefaultForeignCallExecutor, ForeignCallExecutor,
-    };
+    use crate::ops::{DefaultForeignCallExecutor, ForeignCallExecutor};
 
     use super::ResolveForeignCallRequest;
 
