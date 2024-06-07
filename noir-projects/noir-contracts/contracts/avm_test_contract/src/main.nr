@@ -299,6 +299,12 @@ contract AvmTest {
     }
 
     #[aztec(public)]
+    fn assert_timestamp(expected_timestamp: u64) {
+        let timestamp = context.timestamp();
+        assert(timestamp == expected_timestamp, "timestamp did not match");
+    }
+
+    #[aztec(public)]
     fn check_selector() {
         assert(
             context.selector() == FunctionSelector::from_signature("check_selector()"), "Unexpected selector!"

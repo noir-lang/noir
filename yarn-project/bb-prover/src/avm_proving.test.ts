@@ -52,6 +52,7 @@ import { type BBSuccess, BB_RESULT, generateAvmProof, verifyAvmProof } from './b
 import { extractVkData } from './verification_key/verification_key_data.js';
 
 const TIMEOUT = 30_000;
+const TIMESTAMP = new Fr(99833);
 
 describe('AVM WitGen, proof generation and verification', () => {
   const avmFunctionsAndCalldata: [string, Fr[]][] = [
@@ -79,21 +80,66 @@ describe('AVM WitGen, proof generation and verification', () => {
     TIMEOUT,
   );
 
-  it.skip(
-    'Should prove a keccak hash evaluation',
+  /************************************************************************
+   * Hashing functions
+   ************************************************************************/
+  describe('AVM hash functions', () => {
+    const avmHashFunctions: [string, Fr[]][] = [
+      [
+        'keccak_hash',
+        [
+          new Fr(189),
+          new Fr(0),
+          new Fr(0),
+          new Fr(0),
+          new Fr(0),
+          new Fr(0),
+          new Fr(0),
+          new Fr(0),
+          new Fr(0),
+          new Fr(0),
+        ],
+      ],
+      [
+        'poseidon2_hash',
+        [new Fr(0), new Fr(1), new Fr(2), new Fr(3), new Fr(4), new Fr(5), new Fr(6), new Fr(7), new Fr(8), new Fr(9)],
+      ],
+      [
+        'sha256_hash',
+        [new Fr(0), new Fr(1), new Fr(2), new Fr(3), new Fr(4), new Fr(5), new Fr(6), new Fr(7), new Fr(8), new Fr(9)],
+      ],
+      [
+        'pedersen_hash',
+        [new Fr(0), new Fr(1), new Fr(2), new Fr(3), new Fr(4), new Fr(5), new Fr(6), new Fr(7), new Fr(8), new Fr(9)],
+      ],
+      [
+        'pedersen_hash_with_index',
+        [new Fr(0), new Fr(1), new Fr(2), new Fr(3), new Fr(4), new Fr(5), new Fr(6), new Fr(7), new Fr(8), new Fr(9)],
+      ],
+    ];
+
+    it.each(avmHashFunctions)(
+      'Should prove %s',
+      async (name, calldata) => {
+        await proveAndVerifyAvmTestContract(name, calldata);
+      },
+      TIMEOUT,
+    );
+  });
+
+  it(
+    'Should prove that timestamp matches',
     async () => {
-      await proveAndVerifyAvmTestContract('keccak_hash', [
-        new Fr(0),
-        new Fr(1),
-        new Fr(2),
-        new Fr(3),
-        new Fr(4),
-        new Fr(5),
-        new Fr(6),
-        new Fr(7),
-        new Fr(8),
-        new Fr(9),
-      ]);
+      await proveAndVerifyAvmTestContract('assert_timestamp', [TIMESTAMP]);
+    },
+    TIMEOUT,
+  );
+
+  // TODO: Investigate why does the prover throws an out-of-range exception
+  it.skip(
+    'Should prove that mutated timestamp does not match',
+    async () => {
+      await proveAndVerifyAvmTestContract('assert_timestamp', [TIMESTAMP], [new Fr(231)]);
     },
     TIMEOUT,
   );
@@ -131,9 +177,11 @@ describe('AVM WitGen, proof generation and verification', () => {
  * Helpers
  ************************************************************************/
 
-const proveAndVerifyAvmTestContract = async (functionName: string, calldata: Fr[] = []) => {
+const proveAndVerifyAvmTestContract = async (functionName: string, calldata: Fr[] = [], mutatedCalldata: Fr[] = []) => {
   const startSideEffectCounter = 0;
-  const environment = initExecutionEnvironment({ calldata });
+  const globals = GlobalVariables.empty();
+  globals.timestamp = TIMESTAMP;
+  const environment = initExecutionEnvironment({ calldata, globals });
 
   const contractsDb = mock<PublicContractsDB>();
   const contractInstance = new SerializableContractInstance({
@@ -185,24 +233,29 @@ const proveAndVerifyAvmTestContract = async (functionName: string, calldata: Fr[
   const publicInputs = getPublicInputs(pxResult);
   const avmCircuitInputs = new AvmCircuitInputs(
     uncompressedBytecode,
-    context.environment.calldata,
+    mutatedCalldata.length === 0 ? context.environment.calldata : mutatedCalldata,
     publicInputs,
     pxResult.avmHints,
   );
 
   // Then we prove.
   const proofRes = await generateAvmProof(bbPath, bbWorkingDirectory, avmCircuitInputs, logger);
-  expect(proofRes.status).toEqual(BB_RESULT.SUCCESS);
 
-  // Then we test VK extraction.
-  const succeededRes = proofRes as BBSuccess;
-  const verificationKey = await extractVkData(succeededRes.vkPath!);
-  expect(verificationKey.keyAsBytes).toHaveLength(16);
+  if (mutatedCalldata.length !== 0) {
+    expect(proofRes.status).toEqual(BB_RESULT.FAILURE);
+  } else {
+    expect(proofRes.status).toEqual(BB_RESULT.SUCCESS);
 
-  // Then we verify.
-  const rawVkPath = path.join(succeededRes.vkPath!, 'vk');
-  const verificationRes = await verifyAvmProof(bbPath, succeededRes.proofPath!, rawVkPath, logger);
-  expect(verificationRes.status).toBe(BB_RESULT.SUCCESS);
+    // Then we test VK extraction.
+    const succeededRes = proofRes as BBSuccess;
+    const verificationKey = await extractVkData(succeededRes.vkPath!);
+    expect(verificationKey.keyAsBytes).toHaveLength(16);
+
+    // Then we verify.
+    const rawVkPath = path.join(succeededRes.vkPath!, 'vk');
+    const verificationRes = await verifyAvmProof(bbPath, succeededRes.proofPath!, rawVkPath, logger);
+    expect(verificationRes.status).toBe(BB_RESULT.SUCCESS);
+  }
 };
 
 // TODO: pub somewhere more usable - copied from abstract phase manager
