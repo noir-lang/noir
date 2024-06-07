@@ -112,6 +112,11 @@ impl FmtVisitor<'_> {
     }
 
     pub(crate) fn visit_block(&mut self, block: BlockExpression, block_span: Span) {
+        if block.is_unsafe {
+            self.push_str(self.slice(block_span));
+            return
+        }
+
         if block.is_empty() {
             self.visit_empty_block(block_span);
             return;
