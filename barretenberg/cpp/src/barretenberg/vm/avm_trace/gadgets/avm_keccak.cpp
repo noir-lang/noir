@@ -48,9 +48,14 @@ std::array<uint64_t, 25> AvmKeccakTraceBuilder::keccakf1600(uint32_t clk, std::a
 
 std::array<uint8_t, 32> AvmKeccakTraceBuilder::keccak(uint32_t clk, std::vector<uint8_t> input, uint32_t size)
 {
+    // Pad input to a multiple of 8 bytes
+    if (!input.empty()) {
+        input.resize(8 * ((input.size() - 1) / 8 + 1));
+    }
+
     // We treat the input vector as an array of 64-bit integers for the avm (even though keccak takes in bytes).
     std::vector<uint64_t> vector_input;
-    for (size_t i = 0; i < input.size(); i += 4) {
+    for (size_t i = 0; i < input.size(); i += 8) {
         auto uint64 = from_buffer<uint64_t>(input, i);
         vector_input.push_back(uint64);
     }
