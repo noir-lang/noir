@@ -50,6 +50,7 @@ dependencies = [
  "paste",
  "proptest",
  "rand 0.8.5",
+ "serde",
  "thiserror",
  "tracing",
 ]
@@ -2485,6 +2486,7 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "noirc_printable_type",
+ "rand 0.8.5",
  "rayon",
  "serde",
  "tempfile",
