@@ -584,9 +584,11 @@ fn simplify_pedersen_commitment(
                 })
                 .collect();
 
-            let (result_x, result_y) = solver
-                .pedersen_commitment(&input_fields, domain_separator.to_u128() as u32)
-                .expect("Rust solvable black box function should not fail");
+            let Ok((result_x, result_y)) =
+                solver.pedersen_commitment(&input_fields, domain_separator.to_u128() as u32)
+            else {
+                return SimplifyResult::None;
+            };
 
             let result_x = dfg.make_constant(result_x, Type::field());
             let result_y = dfg.make_constant(result_y, Type::field());
@@ -615,9 +617,10 @@ fn simplify_pedersen_hash(
                 })
                 .collect();
 
-            let hash = solver
-                .pedersen_hash(&input_fields, domain_separator.to_u128() as u32)
-                .expect("Rust solvable black box function should not fail");
+            let Ok(hash) = solver.pedersen_hash(&input_fields, domain_separator.to_u128() as u32)
+            else {
+                return SimplifyResult::None;
+            };
 
             let hash_value = dfg.make_constant(hash, Type::field());
             SimplifyResult::SimplifiedTo(hash_value)
