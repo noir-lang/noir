@@ -569,7 +569,7 @@ impl<'context> Elaborator<'context> {
         self.run_lint(|elaborator| {
             lints::unnecessary_pub_return(func, elaborator.pub_allowed(func)).map(Into::into)
         });
-        // self.run_lint(|_| lints::oracle_not_marked_unconstrained(func).map(Into::into));
+        self.run_lint(|_| lints::oracle_not_marked_unconstrained(func).map(Into::into));
         self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(func, elaborator.crate_id).map(Into::into)
         });
