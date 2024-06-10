@@ -195,15 +195,6 @@ impl<F: PrimeField> FieldElement<F> {
         Some(FieldElement(fr))
     }
 
-    // mask_to methods will not remove any bytes from the field
-    // they are simply zeroed out
-    // Whereas truncate_to will remove those bits and make the byte array smaller
-    fn mask_to_be_bytes(&self, num_bits: u32) -> Vec<u8> {
-        let mut bytes = self.to_be_bytes();
-        mask_vector_le(&mut bytes, num_bits as usize);
-        bytes
-    }
-
     fn bits(&self) -> Vec<bool> {
         fn byte_to_bit(byte: u8) -> Vec<bool> {
             let mut bits = Vec::with_capacity(8);
@@ -219,29 +210,6 @@ impl<F: PrimeField> FieldElement<F> {
             bits.extend(byte_to_bit(byte));
         }
         bits
-    }
-
-    fn and_xor(&self, rhs: &FieldElement<F>, num_bits: u32, is_xor: bool) -> FieldElement<F> {
-        // XXX: Gadgets like SHA256 need to have their input be a multiple of 8
-        // This is not a restriction caused by SHA256, as it works on bits
-        // but most backends assume bytes.
-        // We could implicitly pad, however this may not be intuitive for users.
-        // assert!(
-        //     num_bits % 8 == 0,
-        //     "num_bits is not a multiple of 8, it is {}",
-        //     num_bits
-        // );
-
-        let lhs_bytes = self.mask_to_be_bytes(num_bits);
-        let rhs_bytes = rhs.mask_to_be_bytes(num_bits);
-
-        let and_byte_arr: Vec<_> = lhs_bytes
-            .into_iter()
-            .zip(rhs_bytes)
-            .map(|(lhs, rhs)| if is_xor { lhs ^ rhs } else { lhs & rhs })
-            .collect();
-
-        FieldElement::from_be_bytes_reduce(&and_byte_arr)
     }
 }
 
@@ -376,13 +344,6 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
 
         bytes[0..num_elements].to_vec()
     }
-
-    fn and(&self, rhs: &FieldElement<F>, num_bits: u32) -> FieldElement<F> {
-        self.and_xor(rhs, num_bits, false)
-    }
-    fn xor(&self, rhs: &FieldElement<F>, num_bits: u32) -> FieldElement<F> {
-        self.and_xor(rhs, num_bits, true)
-    }
 }
 
 impl<F: PrimeField> Neg for FieldElement<F> {
@@ -431,35 +392,6 @@ impl<F: PrimeField> SubAssign for FieldElement<F> {
     fn sub_assign(&mut self, rhs: FieldElement<F>) {
         self.0.sub_assign(&rhs.0);
     }
-}
-
-fn mask_vector_le(bytes: &mut [u8], num_bits: usize) {
-    // reverse to big endian format
-    bytes.reverse();
-
-    let mask_power = num_bits % 8;
-    let array_mask_index = num_bits / 8;
-
-    for (index, byte) in bytes.iter_mut().enumerate() {
-        match index.cmp(&array_mask_index) {
-            std::cmp::Ordering::Less => {
-                // do nothing if the current index is less than
-                // the array index.
-            }
-            std::cmp::Ordering::Equal => {
-                let mask = 2u8.pow(mask_power as u32) - 1;
-                // mask the byte
-                *byte &= mask;
-            }
-            std::cmp::Ordering::Greater => {
-                // Anything greater than the array index
-                // will be set to zero
-                *byte = 0;
-            }
-        }
-    }
-    // reverse back to little endian
-    bytes.reverse();
 }
 
 // For pretty printing powers
