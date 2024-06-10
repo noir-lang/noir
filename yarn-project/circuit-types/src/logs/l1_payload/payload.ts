@@ -8,7 +8,7 @@ import { BufferReader } from '@aztec/foundation/serialize';
  * This data also represents a preimage to a note hash. This class extends the Vector class, which allows for
  * additional operations on the underlying field elements.
  */
-export class Note extends Vector<Fr> {
+export class Payload extends Vector<Fr> {
   /**
    * Create a Note instance from a Buffer or BufferReader.
    * The input 'buffer' can be either a Buffer containing the serialized Fr elements or a BufferReader instance.
@@ -19,7 +19,7 @@ export class Note extends Vector<Fr> {
    */
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new Note(reader.readVector(Fr));
+    return new Payload(reader.readVector(Fr));
   }
 
   /**
@@ -32,7 +32,7 @@ export class Note extends Vector<Fr> {
   static random() {
     const numItems = randomInt(10) + 1;
     const items = Array.from({ length: numItems }, () => Fr.random());
-    return new Note(items);
+    return new Payload(items);
   }
 
   /**
@@ -50,7 +50,7 @@ export class Note extends Vector<Fr> {
    */
   static fromString(str: string) {
     const hex = str.replace(/^0x/, '');
-    return Note.fromBuffer(Buffer.from(hex, 'hex'));
+    return Payload.fromBuffer(Buffer.from(hex, 'hex'));
   }
 
   get length() {
@@ -61,3 +61,7 @@ export class Note extends Vector<Fr> {
     return this.items.every((item, index) => item.equals(other.items[index]));
   }
 }
+
+export class Event extends Payload {}
+
+export class Note extends Payload {}

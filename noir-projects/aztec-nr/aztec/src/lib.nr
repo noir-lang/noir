@@ -6,6 +6,7 @@ mod initializer;
 mod keys;
 mod messaging;
 mod note;
+mod event;
 mod oracle;
 mod state_vars;
 mod prelude;

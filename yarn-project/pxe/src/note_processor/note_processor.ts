@@ -1,4 +1,4 @@
-import { type AztecNode, L1NotePayload, type L2Block, TaggedNote } from '@aztec/circuit-types';
+import { type AztecNode, L1NotePayload, type L2Block, TaggedLog } from '@aztec/circuit-types';
 import { type NoteProcessorStats } from '@aztec/circuit-types/stats';
 import {
   type AztecAddress,
@@ -147,19 +147,19 @@ export class NoteProcessor {
         for (const functionLogs of txFunctionLogs) {
           for (const log of functionLogs.logs) {
             this.stats.seen++;
-            const incomingTaggedNote = TaggedNote.decryptAsIncoming(log.data, ivskM)!;
-            const outgoingTaggedNote = TaggedNote.decryptAsOutgoing(log.data, ovskM)!;
+            const incomingTaggedNote = TaggedLog.decryptAsIncoming(log.data, ivskM)!;
+            const outgoingTaggedNote = TaggedLog.decryptAsOutgoing(log.data, ovskM)!;
 
             if (incomingTaggedNote || outgoingTaggedNote) {
               if (
                 incomingTaggedNote &&
                 outgoingTaggedNote &&
-                !incomingTaggedNote.notePayload.equals(outgoingTaggedNote.notePayload)
+                !incomingTaggedNote.payload.equals(outgoingTaggedNote.payload)
               ) {
                 throw new Error('Incoming and outgoing note payloads do not match.');
               }
 
-              const payload = incomingTaggedNote?.notePayload || outgoingTaggedNote?.notePayload;
+              const payload = incomingTaggedNote?.payload || outgoingTaggedNote?.payload;
 
               const txHash = block.body.txEffects[indexOfTxInABlock].txHash;
               const { incomingNote, outgoingNote, incomingDeferredNote } = await produceNoteDaos(

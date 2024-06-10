@@ -1,7 +1,7 @@
 import { AztecAddress, Fr } from '@aztec/circuits.js';
 import { BufferReader } from '@aztec/foundation/serialize';
 
-import { Note } from '../logs/l1_note_payload/note.js';
+import { Note } from '../logs/l1_payload/payload.js';
 import { TxHash } from '../tx/tx_hash.js';
 
 /**

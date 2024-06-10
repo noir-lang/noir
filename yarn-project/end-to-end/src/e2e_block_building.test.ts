@@ -6,6 +6,7 @@ import {
   ContractFunctionInteraction,
   type DebugLogger,
   Fr,
+  L1NotePayload,
   type PXE,
   type Wallet,
   deriveKeys,
@@ -18,7 +19,7 @@ import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
 import 'jest-extended';
 
-import { TaggedNote } from '../../circuit-types/src/logs/l1_note_payload/tagged_note.js';
+import { TaggedLog } from '../../circuit-types/src/logs/l1_payload/tagged_log.js';
 import { DUPLICATE_NULLIFIER_ERROR } from './fixtures/fixtures.js';
 import { setup } from './fixtures/utils.js';
 
@@ -281,8 +282,8 @@ describe('e2e_block_building', () => {
       expect(rct.status).toEqual('success');
       const decryptedLogs = tx.noteEncryptedLogs
         .unrollLogs()
-        .map(l => TaggedNote.decryptAsIncoming(l.data, keys.masterIncomingViewingSecretKey));
-      const notevalues = decryptedLogs.map(l => l?.notePayload.note.items[0]);
+        .map(l => TaggedLog.decryptAsIncoming(l.data, keys.masterIncomingViewingSecretKey, L1NotePayload));
+      const notevalues = decryptedLogs.map(l => l?.payload.note.items[0]);
       expect(notevalues[0]).toEqual(new Fr(10));
       expect(notevalues[1]).toEqual(new Fr(11));
       expect(notevalues[2]).toEqual(new Fr(12));

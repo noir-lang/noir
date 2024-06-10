@@ -1,8 +1,8 @@
 import {
   AztecAddress,
   EncryptedLogHeader,
-  EncryptedLogIncomingBody,
   EncryptedLogOutgoingBody,
+  EncryptedNoteLogIncomingBody,
   Fr,
   GrumpkinScalar,
   Note,
@@ -94,7 +94,7 @@ describe('e2e_encryption', () => {
     const value = Fr.random();
     const note = new Note([value]);
 
-    const body = new EncryptedLogIncomingBody(storageSlot, noteTypeId, note);
+    const body = new EncryptedNoteLogIncomingBody(storageSlot, noteTypeId, note);
 
     const encrypted = await contract.methods
       .compute_incoming_log_body_ciphertext(ephSecretKey, viewingPubKey, storageSlot, value)
@@ -104,7 +104,7 @@ describe('e2e_encryption', () => {
       body.computeCiphertext(ephSecretKey, viewingPubKey),
     );
 
-    const recreated = EncryptedLogIncomingBody.fromCiphertext(encrypted, viewingSecretKey, ephPubKey);
+    const recreated = EncryptedNoteLogIncomingBody.fromCiphertext(encrypted, viewingSecretKey, ephPubKey);
 
     expect(recreated.toBuffer()).toEqual(body.toBuffer());
   });

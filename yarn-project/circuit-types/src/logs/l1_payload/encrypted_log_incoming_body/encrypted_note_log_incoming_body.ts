@@ -1,12 +1,13 @@
 import { Fr, type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
-import { Aes128 } from '@aztec/circuits.js/barretenberg';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { deriveAESSecret } from './encryption_utils.js';
-import { Note } from './note.js';
+import { Note } from '../payload.js';
+import { EncryptedLogIncomingBody } from './encrypted_log_incoming_body.js';
 
-export class EncryptedLogIncomingBody {
-  constructor(public storageSlot: Fr, public noteTypeId: Fr, public note: Note) {}
+export class EncryptedNoteLogIncomingBody extends EncryptedLogIncomingBody {
+  constructor(public storageSlot: Fr, public noteTypeId: Fr, public note: Note) {
+    super();
+  }
 
   /**
    * Serializes the log body to a buffer WITHOUT the length of the note buffer
@@ -24,7 +25,7 @@ export class EncryptedLogIncomingBody {
    * @param buf - The buffer to deserialize
    * @returns The deserialized log body
    */
-  public static fromBuffer(buf: Buffer): EncryptedLogIncomingBody {
+  public static fromBuffer(buf: Buffer): EncryptedNoteLogIncomingBody {
     const reader = BufferReader.asReader(buf);
     const storageSlot = Fr.fromBuffer(reader);
     const noteTypeId = Fr.fromBuffer(reader);
@@ -33,26 +34,7 @@ export class EncryptedLogIncomingBody {
     const fieldsInNote = reader.getLength() / 32 - 2;
     const note = new Note(reader.readArray(fieldsInNote, Fr));
 
-    return new EncryptedLogIncomingBody(storageSlot, noteTypeId, note);
-  }
-
-  /**
-   * Encrypts a log body
-   *
-   * @param ephSk - The ephemeral secret key
-   * @param ivpkApp - The application scoped incoming viewing key for the recipient of this log
-   *
-   * @returns The ciphertext of the encrypted log body
-   */
-  public computeCiphertext(ephSk: GrumpkinPrivateKey, ivpkApp: PublicKey) {
-    const aesSecret = deriveAESSecret(ephSk, ivpkApp);
-    const key = aesSecret.subarray(0, 16);
-    const iv = aesSecret.subarray(16, 32);
-
-    const aes128 = new Aes128();
-    const buffer = this.toBuffer();
-
-    return aes128.encryptBufferCBC(buffer, iv, key);
+    return new EncryptedNoteLogIncomingBody(storageSlot, noteTypeId, note);
   }
 
   /**
@@ -71,15 +53,8 @@ export class EncryptedLogIncomingBody {
     ciphertext: Buffer | bigint[],
     ivskAppOrEphSk: GrumpkinPrivateKey,
     ephPkOrIvpkApp: PublicKey,
-  ): EncryptedLogIncomingBody {
-    const input = Buffer.isBuffer(ciphertext) ? ciphertext : Buffer.from(ciphertext.map((x: bigint) => Number(x)));
-
-    const aesSecret = deriveAESSecret(ivskAppOrEphSk, ephPkOrIvpkApp);
-    const key = aesSecret.subarray(0, 16);
-    const iv = aesSecret.subarray(16, 32);
-
-    const aes128 = new Aes128();
-    const buffer = aes128.decryptBufferCBC(input, iv, key);
-    return EncryptedLogIncomingBody.fromBuffer(buffer);
+  ): EncryptedNoteLogIncomingBody {
+    const buffer = super.fromCiphertextToBuffer(ciphertext, ivskAppOrEphSk, ephPkOrIvpkApp);
+    return EncryptedNoteLogIncomingBody.fromBuffer(buffer);
   }
 }

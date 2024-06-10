@@ -269,7 +269,7 @@ contract Test {
         let header = context.get_header();
         let outgoing_viewer_ovpk_m = header.get_ovpk_m(&mut context, outgoing_viewer);
         let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
-        context.encrypt_and_emit_log(
+        context.encrypt_and_emit_event(
             context.this_address(),
             5, // testing only - this should be a secret random value to salt the addr
             1,
@@ -281,7 +281,7 @@ contract Test {
         // to test nested and non nested encrypted logs
         if nest {
             Test::at(context.this_address()).emit_array_as_encrypted_log([0, 0, 0, 0, 0], owner, outgoing_viewer, false).call(&mut context);
-            context.encrypt_and_emit_log(
+            context.encrypt_and_emit_event(
                 context.this_address(),
                 0, // testing only - this signals to the kerels to not mask the address
                 1,

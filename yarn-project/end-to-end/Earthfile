@@ -163,6 +163,9 @@ e2e-public-to-private-messaging:
 e2e-state-vars:
   DO +E2E_TEST --test=./src/e2e_state_vars.test.ts
 
+e2e-logs:
+  DO +E2E_TEST --test=./src/e2e_event_logs.test.ts
+
 e2e-static-calls:
   DO +E2E_TEST --test=./src/e2e_static_calls.test.ts
 

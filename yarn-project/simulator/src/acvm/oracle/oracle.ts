@@ -289,15 +289,15 @@ export class Oracle {
     return newValues.map(toACVMField);
   }
 
-  emitEncryptedLog(
+  emitEncryptedEventLog(
     [contractAddress]: ACVMField[],
     [randomness]: ACVMField[],
-    encryptedLog: ACVMField[],
+    encryptedEvent: ACVMField[],
     [counter]: ACVMField[],
   ): void {
     // Convert each field to a number and then to a buffer (1 byte is stored in 1 field)
-    const processedInput = Buffer.from(encryptedLog.map(fromACVMField).map(f => f.toNumber()));
-    this.typedOracle.emitEncryptedLog(
+    const processedInput = Buffer.from(encryptedEvent.map(fromACVMField).map(f => f.toNumber()));
+    this.typedOracle.emitEncryptedEventLog(
       AztecAddress.fromString(contractAddress),
       Fr.fromString(randomness),
       processedInput,
@@ -311,7 +311,36 @@ export class Oracle {
     this.typedOracle.emitEncryptedNoteLog(+noteHashCounter, processedInput, +counter);
   }
 
-  computeEncryptedLog(
+  computeEncryptedEventLog(
+    [contractAddress]: ACVMField[],
+    [randomness]: ACVMField[],
+    [eventTypeId]: ACVMField[],
+    [ovskApp]: ACVMField[],
+    [ovpkMX]: ACVMField[],
+    [ovpkMY]: ACVMField[],
+    [ivpkMX]: ACVMField[],
+    [ivpkMY]: ACVMField[],
+    preimage: ACVMField[],
+  ): ACVMField[] {
+    const ovpkM = new Point(fromACVMField(ovpkMX), fromACVMField(ovpkMY));
+    const ovKeys = new KeyValidationRequest(ovpkM, Fr.fromString(ovskApp));
+    const ivpkM = new Point(fromACVMField(ivpkMX), fromACVMField(ivpkMY));
+    const encLog = this.typedOracle.computeEncryptedEventLog(
+      AztecAddress.fromString(contractAddress),
+      Fr.fromString(randomness),
+      Fr.fromString(eventTypeId),
+      ovKeys,
+      ivpkM,
+      preimage.map(fromACVMField),
+    );
+    const bytes: ACVMField[] = [];
+    encLog.forEach(v => {
+      bytes.push(toACVMField(v));
+    });
+    return bytes;
+  }
+
+  computeEncryptedNoteLog(
     [contractAddress]: ACVMField[],
     [storageSlot]: ACVMField[],
     [noteTypeId]: ACVMField[],
@@ -325,7 +354,7 @@ export class Oracle {
     const ovpkM = new Point(fromACVMField(ovpkMX), fromACVMField(ovpkMY));
     const ovKeys = new KeyValidationRequest(ovpkM, Fr.fromString(ovskApp));
     const ivpkM = new Point(fromACVMField(ivpkMX), fromACVMField(ivpkMY));
-    const encLog = this.typedOracle.computeEncryptedLog(
+    const encLog = this.typedOracle.computeEncryptedNoteLog(
       AztecAddress.fromString(contractAddress),
       Fr.fromString(storageSlot),
       Fr.fromString(noteTypeId),

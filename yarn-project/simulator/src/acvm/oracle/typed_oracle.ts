@@ -184,15 +184,31 @@ export abstract class TypedOracle {
     throw new OracleMethodNotAvailableError('storageWrite');
   }
 
-  emitEncryptedLog(_contractAddress: AztecAddress, _randomness: Fr, _encryptedNote: Buffer, _counter: number): void {
-    throw new OracleMethodNotAvailableError('emitEncryptedLog');
+  emitEncryptedEventLog(
+    _contractAddress: AztecAddress,
+    _randomness: Fr,
+    _encryptedEvent: Buffer,
+    _counter: number,
+  ): void {
+    throw new OracleMethodNotAvailableError('emitEncryptedEventLog');
   }
 
   emitEncryptedNoteLog(_noteHashCounter: number, _encryptedNote: Buffer, _counter: number): void {
     throw new OracleMethodNotAvailableError('emitEncryptedNoteLog');
   }
 
-  computeEncryptedLog(
+  computeEncryptedEventLog(
+    _contractAddress: AztecAddress,
+    _randomness: Fr,
+    _eventTypeId: Fr,
+    _ovKeys: KeyValidationRequest,
+    _ivpkM: PublicKey,
+    _preimage: Fr[],
+  ): Buffer {
+    throw new OracleMethodNotAvailableError('computeEncryptedEventLog');
+  }
+
+  computeEncryptedNoteLog(
     _contractAddress: AztecAddress,
     _storageSlot: Fr,
     _noteTypeId: Fr,
@@ -200,7 +216,7 @@ export abstract class TypedOracle {
     _ivpkM: PublicKey,
     _preimage: Fr[],
   ): Buffer {
-    throw new OracleMethodNotAvailableError('computeEncryptedLog');
+    throw new OracleMethodNotAvailableError('computeEncryptedNoteLog');
   }
 
   emitUnencryptedLog(_log: UnencryptedL2Log, _counter: number): void {

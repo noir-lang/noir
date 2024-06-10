@@ -95,7 +95,7 @@ export {
   CompleteAddress,
   EncryptedL2BlockL2Logs,
   EncryptedLogHeader,
-  EncryptedLogIncomingBody,
+  EncryptedNoteLogIncomingBody,
   EncryptedLogOutgoingBody,
   ExtendedNote,
   FunctionCall,
@@ -127,6 +127,9 @@ export {
   createAztecNodeClient,
   merkleTreeIds,
   mockTx,
+  TaggedLog,
+  L1NotePayload,
+  L1EventPayload,
 } from '@aztec/circuit-types';
 export { NodeInfo } from '@aztec/types/interfaces';
 

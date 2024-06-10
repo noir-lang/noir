@@ -10,7 +10,7 @@ use crate::{
     key_validation_request::get_key_validation_request, arguments, returns::pack_returns,
     call_private_function::call_private_function_internal, header::get_header_at,
     logs::{
-    emit_encrypted_log, emit_encrypted_note_log, compute_encrypted_log,
+    emit_encrypted_note_log, emit_encrypted_event_log, compute_encrypted_event_log,
     emit_contract_class_unencrypted_log_private_internal, emit_unencrypted_log_private_internal
 },
     logs_traits::{LensForEncryptedLog, ToBytesForUnencryptedLog},
@@ -311,7 +311,7 @@ impl PrivateContext {
 
     // NB: A randomness value of 0 signals that the kernels should not mask the contract address
     // used in siloing later on e.g. 'handshaking' contract w/ known address.
-    pub fn encrypt_and_emit_log<N, M>(
+    pub fn encrypt_and_emit_event<N, M>(
         &mut self,
         contract_address: AztecAddress,
         randomness: Field, // Secret random value used later for masked_contract_address
@@ -324,7 +324,7 @@ impl PrivateContext {
 
         // We are currently just encrypting it unconstrained, but otherwise the same way as if it was a note.
         let counter = self.next_counter();
-        let encrypted_log: [u8; M] = compute_encrypted_log(
+        let encrypted_log: [u8; M] = compute_encrypted_event_log(
             contract_address,
             randomness,
             event_type_id,
@@ -333,7 +333,7 @@ impl PrivateContext {
             ivpk_m,
             preimage
         );
-        emit_encrypted_log(contract_address, randomness, encrypted_log, counter);
+        emit_encrypted_event_log(contract_address, randomness, encrypted_log, counter);
         let len = 32 + 32 + 64 + 48 + 48 + 176 + 64 + (preimage.len() as Field * 32) + 16 + 4;
         let log_hash = sha256_to_field(encrypted_log);
         let side_effect = EncryptedLogHash { value: log_hash, counter, length: len, randomness };

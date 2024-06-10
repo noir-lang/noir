@@ -1,4 +1,4 @@
-import { type AztecNode, EncryptedL2NoteLog, L2Block, TaggedNote } from '@aztec/circuit-types';
+import { type AztecNode, EncryptedL2NoteLog, L1NotePayload, L2Block, TaggedLog } from '@aztec/circuit-types';
 import {
   AztecAddress,
   CompleteAddress,
@@ -33,7 +33,7 @@ const NUM_NOTE_HASHES_PER_BLOCK = TXS_PER_BLOCK * MAX_NEW_NOTE_HASHES_PER_TX;
 class MockNoteRequest {
   constructor(
     /** Note we want to insert into a block. */
-    public readonly note: TaggedNote,
+    public readonly note: TaggedLog<L1NotePayload>,
     /** Block number this note corresponds to. */
     public readonly blockNumber: number,
     /** Index of a tx within a block this note corresponds to. */
@@ -107,7 +107,7 @@ describe('Note Processor', () => {
       // Then we update the relevant note hashes to match the note requests
       for (const request of noteRequestsForBlock) {
         const note = request.note;
-        const noteHash = pedersenHash(note.notePayload.note.items);
+        const noteHash = pedersenHash(note.payload.note.items);
         block.body.txEffects[request.txIndex].noteHashes[request.noteHashIndex] = noteHash;
 
         // Now we populate the log - to simplify we say that there is only 1 function invocation in each tx
@@ -182,7 +182,14 @@ describe('Note Processor', () => {
   });
 
   it('should store an incoming note that belongs to us', async () => {
-    const request = new MockNoteRequest(TaggedNote.random(app), 4, 0, 2, ownerIvpkM, KeyValidationRequest.random());
+    const request = new MockNoteRequest(
+      TaggedLog.random(L1NotePayload, app),
+      4,
+      0,
+      2,
+      ownerIvpkM,
+      KeyValidationRequest.random(),
+    );
 
     const blocks = mockBlocks([request]);
     await noteProcessor.process(blocks);
@@ -191,7 +198,7 @@ describe('Note Processor', () => {
     expect(addNotesSpy).toHaveBeenCalledWith(
       [
         expect.objectContaining({
-          ...request.note.notePayload,
+          ...request.note.payload,
           index: request.indexWithinNoteHashTree,
         }),
       ],
@@ -200,23 +207,23 @@ describe('Note Processor', () => {
   }, 25_000);
 
   it('should store an outgoing note that belongs to us', async () => {
-    const request = new MockNoteRequest(TaggedNote.random(app), 4, 0, 2, Point.random(), ownerOvKeys);
+    const request = new MockNoteRequest(TaggedLog.random(L1NotePayload, app), 4, 0, 2, Point.random(), ownerOvKeys);
 
     const blocks = mockBlocks([request]);
     await noteProcessor.process(blocks);
 
     expect(addNotesSpy).toHaveBeenCalledTimes(1);
     // For outgoing notes, the resulting DAO does not contain index.
-    expect(addNotesSpy).toHaveBeenCalledWith([], [expect.objectContaining(request.note.notePayload)]);
+    expect(addNotesSpy).toHaveBeenCalledWith([], [expect.objectContaining(request.note.payload)]);
   }, 25_000);
 
   it('should store multiple notes that belong to us', async () => {
     const requests = [
-      new MockNoteRequest(TaggedNote.random(app), 1, 1, 1, ownerIvpkM, ownerOvKeys),
-      new MockNoteRequest(TaggedNote.random(app), 2, 3, 0, Point.random(), ownerOvKeys),
-      new MockNoteRequest(TaggedNote.random(app), 6, 3, 2, ownerIvpkM, KeyValidationRequest.random()),
-      new MockNoteRequest(TaggedNote.random(app), 9, 3, 2, Point.random(), KeyValidationRequest.random()),
-      new MockNoteRequest(TaggedNote.random(app), 12, 3, 2, ownerIvpkM, ownerOvKeys),
+      new MockNoteRequest(TaggedLog.random(L1NotePayload, app), 1, 1, 1, ownerIvpkM, ownerOvKeys),
+      new MockNoteRequest(TaggedLog.random(L1NotePayload, app), 2, 3, 0, Point.random(), ownerOvKeys),
+      new MockNoteRequest(TaggedLog.random(L1NotePayload, app), 6, 3, 2, ownerIvpkM, KeyValidationRequest.random()),
+      new MockNoteRequest(TaggedLog.random(L1NotePayload, app), 9, 3, 2, Point.random(), KeyValidationRequest.random()),
+      new MockNoteRequest(TaggedLog.random(L1NotePayload, app), 12, 3, 2, ownerIvpkM, ownerOvKeys),
     ];
 
     const blocks = mockBlocks(requests);
@@ -227,23 +234,23 @@ describe('Note Processor', () => {
       // Incoming should contain notes from requests 0, 2, 4 because in those requests we set owner ivpk.
       [
         expect.objectContaining({
-          ...requests[0].note.notePayload,
+          ...requests[0].note.payload,
           index: requests[0].indexWithinNoteHashTree,
         }),
         expect.objectContaining({
-          ...requests[2].note.notePayload,
+          ...requests[2].note.payload,
           index: requests[2].indexWithinNoteHashTree,
         }),
         expect.objectContaining({
-          ...requests[4].note.notePayload,
+          ...requests[4].note.payload,
           index: requests[4].indexWithinNoteHashTree,
         }),
       ],
       // Outgoing should contain notes from requests 0, 1, 4 because in those requests we set owner ovKeys.
       [
-        expect.objectContaining(requests[0].note.notePayload),
-        expect.objectContaining(requests[1].note.notePayload),
-        expect.objectContaining(requests[4].note.notePayload),
+        expect.objectContaining(requests[0].note.payload),
+        expect.objectContaining(requests[1].note.payload),
+        expect.objectContaining(requests[4].note.payload),
       ],
     );
   }, 30_000);
@@ -251,8 +258,8 @@ describe('Note Processor', () => {
   it('should not store notes that do not belong to us', async () => {
     // Both notes should be ignored because the encryption keys do not belong to owner (they are random).
     const blocks = mockBlocks([
-      new MockNoteRequest(TaggedNote.random(), 2, 1, 1, Point.random(), KeyValidationRequest.random()),
-      new MockNoteRequest(TaggedNote.random(), 2, 3, 0, Point.random(), KeyValidationRequest.random()),
+      new MockNoteRequest(TaggedLog.random(), 2, 1, 1, Point.random(), KeyValidationRequest.random()),
+      new MockNoteRequest(TaggedLog.random(), 2, 3, 0, Point.random(), KeyValidationRequest.random()),
     ]);
     await noteProcessor.process(blocks);
 
@@ -260,8 +267,8 @@ describe('Note Processor', () => {
   });
 
   it('should be able to recover two note payloads containing the same note', async () => {
-    const note = TaggedNote.random(app);
-    const note2 = TaggedNote.random(app);
+    const note = TaggedLog.random(L1NotePayload, app);
+    const note2 = TaggedLog.random(L1NotePayload, app);
     // All note payloads except one have the same contract address, storage slot, and the actual note.
     const requests = [
       new MockNoteRequest(note, 3, 0, 0, ownerIvpkM, ownerOvKeys),
@@ -278,11 +285,11 @@ describe('Note Processor', () => {
     {
       const addedIncoming: IncomingNoteDao[] = addNotesSpy.mock.calls[0][0];
       expect(addedIncoming.map(dao => dao)).toEqual([
-        expect.objectContaining({ ...requests[0].note.notePayload, index: requests[0].indexWithinNoteHashTree }),
-        expect.objectContaining({ ...requests[1].note.notePayload, index: requests[1].indexWithinNoteHashTree }),
-        expect.objectContaining({ ...requests[2].note.notePayload, index: requests[2].indexWithinNoteHashTree }),
-        expect.objectContaining({ ...requests[3].note.notePayload, index: requests[3].indexWithinNoteHashTree }),
-        expect.objectContaining({ ...requests[4].note.notePayload, index: requests[4].indexWithinNoteHashTree }),
+        expect.objectContaining({ ...requests[0].note.payload, index: requests[0].indexWithinNoteHashTree }),
+        expect.objectContaining({ ...requests[1].note.payload, index: requests[1].indexWithinNoteHashTree }),
+        expect.objectContaining({ ...requests[2].note.payload, index: requests[2].indexWithinNoteHashTree }),
+        expect.objectContaining({ ...requests[3].note.payload, index: requests[3].indexWithinNoteHashTree }),
+        expect.objectContaining({ ...requests[4].note.payload, index: requests[4].indexWithinNoteHashTree }),
       ]);
 
       // Check that every note has a different nonce.
@@ -295,11 +302,11 @@ describe('Note Processor', () => {
     {
       const addedOutgoing: OutgoingNoteDao[] = addNotesSpy.mock.calls[0][1];
       expect(addedOutgoing.map(dao => dao)).toEqual([
-        expect.objectContaining(requests[0].note.notePayload),
-        expect.objectContaining(requests[1].note.notePayload),
-        expect.objectContaining(requests[2].note.notePayload),
-        expect.objectContaining(requests[3].note.notePayload),
-        expect.objectContaining(requests[4].note.notePayload),
+        expect.objectContaining(requests[0].note.payload),
+        expect.objectContaining(requests[1].note.payload),
+        expect.objectContaining(requests[2].note.payload),
+        expect.objectContaining(requests[3].note.payload),
+        expect.objectContaining(requests[4].note.payload),
       ]);
 
       // Outgoing note daos do not have a nonce so we don't check it.
@@ -307,7 +314,7 @@ describe('Note Processor', () => {
   });
 
   it('advances the block number', async () => {
-    const request = new MockNoteRequest(TaggedNote.random(), 6, 0, 2, ownerIvpkM, ownerOvKeys);
+    const request = new MockNoteRequest(TaggedLog.random(), 6, 0, 2, ownerIvpkM, ownerOvKeys);
 
     const blocks = mockBlocks([request]);
     await noteProcessor.process(blocks);
@@ -316,7 +323,7 @@ describe('Note Processor', () => {
   });
 
   it('should restore the last block number processed and ignore the starting block', async () => {
-    const request = new MockNoteRequest(TaggedNote.random(), 6, 0, 2, Point.random(), KeyValidationRequest.random());
+    const request = new MockNoteRequest(TaggedLog.random(), 6, 0, 2, Point.random(), KeyValidationRequest.random());
 
     const blocks = mockBlocks([request]);
     await noteProcessor.process(blocks);

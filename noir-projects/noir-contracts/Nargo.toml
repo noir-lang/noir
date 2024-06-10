@@ -33,6 +33,7 @@ members = [
     "contracts/schnorr_single_key_account_contract",
     "contracts/stateful_test_contract",
     "contracts/test_contract",
+    "contracts/test_log_contract",
     "contracts/token_contract",
     "contracts/token_blacklist_contract",
     "contracts/token_bridge_contract",
