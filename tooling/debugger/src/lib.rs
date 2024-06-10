@@ -24,7 +24,7 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
     debug_artifact: DebugArtifact,
     initial_witness: WitnessMap<FieldElement>,
     unconstrained_functions: &[BrilligBytecode<FieldElement>],
-) -> Result<Option<WitnessMap<FieldElement>>, NargoError> {
+) -> Result<Option<WitnessMap<FieldElement>>, NargoError<FieldElement>> {
     repl::run(blackbox_solver, circuit, &debug_artifact, initial_witness, unconstrained_functions)
 }
 
