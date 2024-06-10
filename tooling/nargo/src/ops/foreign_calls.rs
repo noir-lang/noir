@@ -426,6 +426,21 @@ mod tests {
     }
 
     #[test]
+    fn foreign_call_executor_id_is_persistent() {
+        let (server, url) = build_oracle_server();
+
+        let mut executor = DefaultForeignCallExecutor::new(false, Some(&url));
+
+        let foreign_call = ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
+
+        let result_1 = executor.execute(&foreign_call).unwrap();
+        let result_2 = executor.execute(&foreign_call).unwrap();
+        assert_eq!(result_1, result_2);
+
+        server.close();
+    }
+
+    #[test]
     fn oracle_resolver_rpc_can_distinguish_executors() {
         let (server, url) = build_oracle_server();
 
