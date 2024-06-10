@@ -25,6 +25,7 @@ mod default;
 mod prelude;
 mod uint128;
 mod bigint;
+mod runtime;
 
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident
@@ -67,3 +68,7 @@ pub fn wrapping_sub<T>(x: T, y: T) -> T {
 pub fn wrapping_mul<T>(x: T, y: T) -> T {
     crate::from_field(crate::as_field(x) * crate::as_field(y))
 }
+
+#[builtin(as_witness)]
+pub fn as_witness(x: Field) {}
+

@@ -13,8 +13,6 @@ pub const EXPORT_DIR: &str = "export";
 // Files
 /// The file from which Nargo pulls prover inputs
 pub const PROVER_INPUT_FILE: &str = "Prover";
-/// The file from which Nargo pulls verifier inputs
-pub const VERIFIER_INPUT_FILE: &str = "Verifier";
 /// The package definition file for a Noir project.
 pub const PKG_FILE: &str = "Nargo.toml";
 

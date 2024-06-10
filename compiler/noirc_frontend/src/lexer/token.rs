@@ -1,4 +1,4 @@
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use noirc_errors::{Position, Span, Spanned};
 use std::{fmt, iter::Map, vec::IntoIter};
 
@@ -702,16 +702,23 @@ pub enum FunctionAttribute {
 }
 
 impl FunctionAttribute {
-    pub fn builtin(self) -> Option<String> {
+    pub fn builtin(&self) -> Option<&String> {
         match self {
             FunctionAttribute::Builtin(name) => Some(name),
             _ => None,
         }
     }
 
-    pub fn foreign(self) -> Option<String> {
+    pub fn foreign(&self) -> Option<&String> {
         match self {
             FunctionAttribute::Foreign(name) => Some(name),
+            _ => None,
+        }
+    }
+
+    pub fn oracle(&self) -> Option<&String> {
+        match self {
+            FunctionAttribute::Oracle(name) => Some(name),
             _ => None,
         }
     }

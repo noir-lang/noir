@@ -49,7 +49,7 @@ pub struct TypeChecker<'interner> {
 pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<TypeCheckError> {
     let meta = interner.function_meta(&func_id);
     let declared_return_type = meta.return_type().clone();
-    let can_ignore_ret = meta.can_ignore_return_type();
+    let can_ignore_ret = meta.is_stub();
 
     let function_body_id = &interner.function(&func_id).as_expr();
 
@@ -89,7 +89,6 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     }
 
     let function_last_type = type_checker.check_function_body(function_body_id);
-
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let (expr_span, empty_function) = function_info(type_checker.interner, function_body_id);
@@ -142,8 +141,15 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     }
 
     // Verify any remaining trait constraints arising from the function body
-    for (constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
+    for (mut constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
         let span = type_checker.interner.expr_span(&expr_id);
+
+        if matches!(&constraint.typ, Type::MutableReference(_)) {
+            let (_, dereferenced_typ) =
+                type_checker.insert_auto_dereferences(expr_id, constraint.typ.clone());
+            constraint.typ = dereferenced_typ;
+        }
+
         type_checker.verify_trait_constraint(
             &constraint.typ,
             constraint.trait_id,
@@ -231,7 +237,13 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 
     let impl_ =
         meta.trait_impl.expect("Trait impl function should have a corresponding trait impl");
-    let impl_ = interner.get_trait_implementation(impl_);
+
+    // If the trait implementation is not defined in the interner then there was a previous
+    // error in resolving the trait path and there is likely no trait for this impl.
+    let Some(impl_) = interner.try_get_trait_implementation(impl_) else {
+        return errors;
+    };
+
     let impl_ = impl_.borrow();
     let trait_info = interner.get_trait(impl_.trait_id);
 
@@ -440,6 +452,7 @@ pub mod test {
         PathResolution, PathResolutionError, PathResolutionResult,
     };
     use crate::hir_def::expr::HirIdent;
+    use crate::hir_def::function::FunctionBody;
     use crate::hir_def::stmt::HirLetStatement;
     use crate::hir_def::stmt::HirPattern::Identifier;
     use crate::hir_def::types::Type;
@@ -486,8 +499,8 @@ pub mod test {
         let z = HirIdent::non_trait_method(z_id, location);
 
         // Push x and y as expressions
-        let x_expr_id = interner.push_expr(HirExpression::Ident(x.clone()));
-        let y_expr_id = interner.push_expr(HirExpression::Ident(y.clone()));
+        let x_expr_id = interner.push_expr(HirExpression::Ident(x.clone(), None));
+        let y_expr_id = interner.push_expr(HirExpression::Ident(y.clone(), None));
 
         // Create Infix
         let operator = HirBinaryOp { location, kind: BinaryOpKind::Add };
@@ -543,7 +556,11 @@ pub mod test {
             trait_constraints: Vec::new(),
             direct_generics: Vec::new(),
             is_entry_point: true,
+            is_trait_function: false,
             has_inline_attribute: false,
+            all_generics: Vec::new(),
+            parameter_idents: Vec::new(),
+            function_body: FunctionBody::Resolved,
         };
         interner.push_fn_meta(func_meta, func_id);
 

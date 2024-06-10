@@ -13,7 +13,7 @@ use std::{
     task::{self, Poll},
 };
 
-use acvm::BlackBoxFunctionSolver;
+use acvm::{BlackBoxFunctionSolver, FieldElement};
 use async_lsp::{
     router::Router, AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService,
     ResponseError,
@@ -79,7 +79,10 @@ pub struct LspState {
 }
 
 impl LspState {
-    fn new(client: &ClientSocket, solver: impl BlackBoxFunctionSolver + 'static) -> Self {
+    fn new(
+        client: &ClientSocket,
+        solver: impl BlackBoxFunctionSolver<FieldElement> + 'static,
+    ) -> Self {
         Self {
             client: client.clone(),
             root_path: None,
@@ -99,7 +102,10 @@ pub struct NargoLspService {
 }
 
 impl NargoLspService {
-    pub fn new(client: &ClientSocket, solver: impl BlackBoxFunctionSolver + 'static) -> Self {
+    pub fn new(
+        client: &ClientSocket,
+        solver: impl BlackBoxFunctionSolver<FieldElement> + 'static,
+    ) -> Self {
         let state = LspState::new(client, solver);
         let mut router = Router::new(state);
         router

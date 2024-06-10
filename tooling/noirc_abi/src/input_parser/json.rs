@@ -1,6 +1,6 @@
 use super::{parse_str_to_field, InputValue};
 use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use iter_extended::{try_btree_map, try_vecmap};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

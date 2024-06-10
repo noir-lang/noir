@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 /// Inputs for the Brillig VM. These are the initial inputs
 /// that the Brillig VM will use to start.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug)]
-pub enum BrilligInputs {
-    Single(Expression),
-    Array(Vec<Expression>),
+pub enum BrilligInputs<F> {
+    Single(Expression<F>),
+    Array(Vec<Expression<F>>),
     MemoryArray(BlockId),
 }
 
@@ -24,6 +24,6 @@ pub enum BrilligOutputs {
 /// a full Brillig function to be executed by the Brillig VM.
 /// This is stored separately on a program and accessed through a [BrilligPointer].
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Debug)]
-pub struct BrilligBytecode {
-    pub bytecode: Vec<BrilligOpcode>,
+pub struct BrilligBytecode<F> {
+    pub bytecode: Vec<BrilligOpcode<F>>,
 }

@@ -1,6 +1,6 @@
 // Instantiations of Poseidon permutation for the prime field of the same order as BN254
 use crate::hash::poseidon::bn254::consts;
-use crate::hash::poseidon::bn254::permute;
+use crate::hash::poseidon::permute;
 use crate::hash::poseidon::PoseidonConfig;
 
 #[field(bn254)]

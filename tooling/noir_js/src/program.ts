@@ -1,14 +1,10 @@
-/* eslint-disable  @typescript-eslint/no-explicit-any */
-import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
+import { CompiledCircuit } from '@noir-lang/types';
 import { generateWitness } from './witness_generation.js';
 import initAbi, { abiDecode, InputMap, InputValue } from '@noir-lang/noirc_abi';
 import initACVM, { compressWitnessStack, ForeignCallHandler } from '@noir-lang/acvm_js';
 
 export class Noir {
-  constructor(
-    private circuit: CompiledCircuit,
-    private backend?: Backend,
-  ) {}
+  constructor(private circuit: CompiledCircuit) {}
 
   /** @ignore */
   async init(): Promise<void> {
@@ -20,27 +16,6 @@ export class Noir {
     }
   }
 
-  /**
-   *
-   * @description
-   * Destroys the underlying backend instance.
-   *
-   * @example
-   * ```typescript
-   * await noir.destroy();
-   * ```
-   *
-   */
-  async destroy(): Promise<void> {
-    await this.backend?.destroy();
-  }
-
-  private getBackend(): Backend {
-    if (this.backend === undefined) throw new Error('Operation requires a backend but none was provided');
-    return this.backend;
-  }
-
-  // Initial inputs to your program
   /**
    * @description
    * Allows to execute a circuit to get its witness and return value.
@@ -59,37 +34,5 @@ export class Noir {
     const main_witness = witness_stack[0].witness;
     const { return_value: returnValue } = abiDecode(this.circuit.abi, main_witness);
     return { witness: compressWitnessStack(witness_stack), returnValue };
-  }
-
-  /**
-   *
-   * @description
-   * Generates a witness and a proof given an object as input.
-   *
-   * @example
-   * ```typescript
-   * async generateProof(input)
-   * ```
-   *
-   */
-  async generateProof(inputs: InputMap, foreignCallHandler?: ForeignCallHandler): Promise<ProofData> {
-    const { witness } = await this.execute(inputs, foreignCallHandler);
-    return this.getBackend().generateProof(witness);
-  }
-
-  /**
-   *
-   * @description
-   * Instantiates the verification key and verifies a proof.
-   *
-   *
-   * @example
-   * ```typescript
-   * async verifyProof(proof)
-   * ```
-   *
-   */
-  async verifyProof(proofData: ProofData): Promise<boolean> {
-    return this.getBackend().verifyProof(proofData);
   }
 }

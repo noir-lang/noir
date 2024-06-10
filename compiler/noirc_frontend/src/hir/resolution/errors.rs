@@ -2,7 +2,7 @@ pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::{ast::Ident, parser::ParserError, Type};
+use crate::{ast::Ident, hir::comptime::InterpreterError, parser::ParserError, Type};
 
 use super::import::PathResolutionError;
 
@@ -80,6 +80,12 @@ pub enum ResolverError {
     AbiAttributeOutsideContract { span: Span },
     #[error("Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library")]
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
+    #[error(
+        "Usage of the `#[oracle]` function attribute is only valid on unconstrained functions"
+    )]
+    OracleMarkedAsConstrained { ident: Ident },
+    #[error("Oracle functions cannot be called directly from constrained functions")]
+    UnconstrainedOracleReturnToConstrained { span: Span },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { span: Span, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -94,6 +100,8 @@ pub enum ResolverError {
     NoPredicatesAttributeOnUnconstrained { ident: Ident },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident },
+    #[error("Invalid array length construction")]
+    ArrayLengthInterpreter { error: InterpreterError },
 }
 
 impl ResolverError {
@@ -325,6 +333,16 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 ident.span(),
             ),
+            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_error(
+                error.to_string(),
+                "Oracle functions must have the `unconstrained` keyword applied".into(),
+                ident.span(),
+            ),
+            ResolverError::UnconstrainedOracleReturnToConstrained { span } => Diagnostic::simple_error(
+                error.to_string(),
+                "This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime".into(),
+                *span,
+            ),
             ResolverError::DependencyCycle { span, item, cycle } => {
                 Diagnostic::simple_error(
                     "Dependency cycle found".into(),
@@ -386,6 +404,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());
                 diag
             }
+            ResolverError::ArrayLengthInterpreter { error } => Diagnostic::from(error),
         }
     }
 }
