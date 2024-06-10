@@ -2,11 +2,11 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
-use acir::FieldElement;
+use acir::{acir_field::GenericFieldElement, FieldElement};
 use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 mod embedded_curve_ops;
-mod generator;
+pub mod generator;
 mod pedersen;
 mod poseidon2;
 mod schnorr;
