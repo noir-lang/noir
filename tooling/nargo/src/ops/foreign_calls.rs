@@ -114,7 +114,6 @@ pub struct DefaultForeignCallExecutor<F> {
     external_resolver: Option<Client>,
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 struct ResolveForeignCallRequest<F> {
     /// A session ID which allows the external RPC server to link this foreign call request to other foreign calls
@@ -437,7 +436,7 @@ mod tests {
     fn foreign_call_executor_id_is_persistent() {
         let (server, url) = build_oracle_server();
 
-        let mut executor = DefaultForeignCallExecutor::new(false, Some(&url));
+        let mut executor = DefaultForeignCallExecutor::<FieldElement>::new(false, Some(&url));
 
         let foreign_call = ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
 
@@ -452,8 +451,8 @@ mod tests {
     fn oracle_resolver_rpc_can_distinguish_executors() {
         let (server, url) = build_oracle_server();
 
-        let mut executor_1 = DefaultForeignCallExecutor::new(false, Some(&url));
-        let mut executor_2 = DefaultForeignCallExecutor::new(false, Some(&url));
+        let mut executor_1 = DefaultForeignCallExecutor::<FieldElement>::new(false, Some(&url));
+        let mut executor_2 = DefaultForeignCallExecutor::<FieldElement>::new(false, Some(&url));
 
         let foreign_call = ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
 
