@@ -1,18 +1,18 @@
 use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
-    AcirField, FieldElement,
+    AcirField,
 };
 use jsonrpc::{arg as build_json_rpc_arg, minreq_http::Builder, Client};
 use noirc_printable_type::{decode_string_value, ForeignCallError, PrintableValueDisplay};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-pub trait ForeignCallExecutor {
+pub trait ForeignCallExecutor<F> {
     fn execute(
         &mut self,
-        foreign_call: &ForeignCallWaitInfo<FieldElement>,
-    ) -> Result<ForeignCallResult<FieldElement>, ForeignCallError>;
+        foreign_call: &ForeignCallWaitInfo<F>,
+    ) -> Result<ForeignCallResult<F>, ForeignCallError>;
 }
 
 /// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
@@ -62,22 +62,22 @@ impl ForeignCall {
 
 /// This struct represents an oracle mock. It can be used for testing programs that use oracles.
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct MockedCall {
+struct MockedCall<F> {
     /// The id of the mock, used to update or remove it
     id: usize,
     /// The oracle it's mocking
     name: String,
     /// Optionally match the parameters
-    params: Option<Vec<ForeignCallParam<FieldElement>>>,
+    params: Option<Vec<ForeignCallParam<F>>>,
     /// The parameters with which the mock was last called
-    last_called_params: Option<Vec<ForeignCallParam<FieldElement>>>,
+    last_called_params: Option<Vec<ForeignCallParam<F>>>,
     /// The result to return when this mock is called
-    result: ForeignCallResult<FieldElement>,
+    result: ForeignCallResult<F>,
     /// How many times should this mock be called before it is removed
     times_left: Option<u64>,
 }
 
-impl MockedCall {
+impl<F> MockedCall<F> {
     fn new(id: usize, name: String) -> Self {
         Self {
             id,
@@ -90,14 +90,14 @@ impl MockedCall {
     }
 }
 
-impl MockedCall {
-    fn matches(&self, name: &str, params: &[ForeignCallParam<FieldElement>]) -> bool {
+impl<F: PartialEq> MockedCall<F> {
+    fn matches(&self, name: &str, params: &[ForeignCallParam<F>]) -> bool {
         self.name == name && (self.params.is_none() || self.params.as_deref() == Some(params))
     }
 }
 
 #[derive(Debug, Default)]
-pub struct DefaultForeignCallExecutor {
+pub struct DefaultForeignCallExecutor<F> {
     /// A randomly generated id for this `DefaultForeignCallExecutor`.
     ///
     /// This is used so that a single `external_resolver` can distinguish between requests from multiple
@@ -107,7 +107,7 @@ pub struct DefaultForeignCallExecutor {
     /// Mocks have unique ids used to identify them in Noir, allowing to update or remove them.
     last_mock_id: usize,
     /// The registered mocks
-    mocked_responses: Vec<MockedCall>,
+    mocked_responses: Vec<MockedCall<F>>,
     /// Whether to print [`ForeignCall::Print`] output.
     show_output: bool,
     /// JSON RPC client to resolve foreign calls
@@ -128,7 +128,7 @@ struct ResolveForeignCallRequest<F> {
     function_call: ForeignCallWaitInfo<F>,
 }
 
-impl DefaultForeignCallExecutor {
+impl<F> DefaultForeignCallExecutor<F> {
     pub fn new(show_output: bool, resolver_url: Option<&str>) -> Self {
         let oracle_resolver = resolver_url.map(|resolver_url| {
             let mut transport_builder =
@@ -146,15 +146,16 @@ impl DefaultForeignCallExecutor {
             show_output,
             external_resolver: oracle_resolver,
             id: rand::thread_rng().gen(),
-            ..DefaultForeignCallExecutor::default()
+            mocked_responses: Vec::new(),
+            last_mock_id: 0,
         }
     }
 }
 
-impl DefaultForeignCallExecutor {
+impl<F: AcirField> DefaultForeignCallExecutor<F> {
     fn extract_mock_id(
-        foreign_call_inputs: &[ForeignCallParam<FieldElement>],
-    ) -> Result<(usize, &[ForeignCallParam<FieldElement>]), ForeignCallError> {
+        foreign_call_inputs: &[ForeignCallParam<F>],
+    ) -> Result<(usize, &[ForeignCallParam<F>]), ForeignCallError> {
         let (id, params) =
             foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?;
         let id =
@@ -163,22 +164,20 @@ impl DefaultForeignCallExecutor {
         Ok((id, params))
     }
 
-    fn find_mock_by_id(&self, id: usize) -> Option<&MockedCall> {
+    fn find_mock_by_id(&self, id: usize) -> Option<&MockedCall<F>> {
         self.mocked_responses.iter().find(|response| response.id == id)
     }
 
-    fn find_mock_by_id_mut(&mut self, id: usize) -> Option<&mut MockedCall> {
+    fn find_mock_by_id_mut(&mut self, id: usize) -> Option<&mut MockedCall<F>> {
         self.mocked_responses.iter_mut().find(|response| response.id == id)
     }
 
-    fn parse_string(param: &ForeignCallParam<FieldElement>) -> String {
+    fn parse_string(param: &ForeignCallParam<F>) -> String {
         let fields: Vec<_> = param.fields().to_vec();
         decode_string_value(&fields)
     }
 
-    fn execute_print(
-        foreign_call_inputs: &[ForeignCallParam<FieldElement>],
-    ) -> Result<(), ForeignCallError> {
+    fn execute_print(foreign_call_inputs: &[ForeignCallParam<F>]) -> Result<(), ForeignCallError> {
         let skip_newline = foreign_call_inputs[0].unwrap_field().is_zero();
 
         let foreign_call_inputs =
@@ -191,10 +190,10 @@ impl DefaultForeignCallExecutor {
     }
 
     fn format_printable_value(
-        foreign_call_inputs: &[ForeignCallParam<FieldElement>],
+        foreign_call_inputs: &[ForeignCallParam<F>],
         skip_newline: bool,
     ) -> Result<String, ForeignCallError> {
-        let display_values: PrintableValueDisplay = foreign_call_inputs.try_into()?;
+        let display_values: PrintableValueDisplay<F> = foreign_call_inputs.try_into()?;
 
         let result = format!("{display_values}{}", if skip_newline { "" } else { "\n" });
 
@@ -202,11 +201,13 @@ impl DefaultForeignCallExecutor {
     }
 }
 
-impl ForeignCallExecutor for DefaultForeignCallExecutor {
+impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
+    for DefaultForeignCallExecutor<F>
+{
     fn execute(
         &mut self,
-        foreign_call: &ForeignCallWaitInfo<FieldElement>,
-    ) -> Result<ForeignCallResult<FieldElement>, ForeignCallError> {
+        foreign_call: &ForeignCallWaitInfo<F>,
+    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
         let foreign_call_name = foreign_call.function.as_str();
         match ForeignCall::lookup(foreign_call_name) {
             Some(ForeignCall::Print) => {
@@ -222,7 +223,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                 self.mocked_responses.push(MockedCall::new(id, mock_oracle_name));
                 self.last_mock_id += 1;
 
-                Ok(FieldElement::from(id).into())
+                Ok(F::from(id).into())
             }
             Some(ForeignCall::SetMockParams) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
@@ -308,7 +309,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
 
                     let response = external_resolver.send_request(req)?;
 
-                    let parsed_response: ForeignCallResult<FieldElement> = response.result()?;
+                    let parsed_response: ForeignCallResult<F> = response.result()?;
 
                     Ok(parsed_response)
                 } else {
@@ -401,7 +402,7 @@ mod tests {
     fn test_oracle_resolver_echo() {
         let (server, url) = build_oracle_server();
 
-        let mut executor = DefaultForeignCallExecutor::new(false, Some(&url));
+        let mut executor = DefaultForeignCallExecutor::<FieldElement>::new(false, Some(&url));
 
         let foreign_call = ForeignCallWaitInfo {
             function: "echo".to_string(),
@@ -435,7 +436,7 @@ mod tests {
     fn foreign_call_executor_id_is_persistent() {
         let (server, url) = build_oracle_server();
 
-        let mut executor = DefaultForeignCallExecutor::new(false, Some(&url));
+        let mut executor = DefaultForeignCallExecutor::<FieldElement>::new(false, Some(&url));
 
         let foreign_call = ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
 
@@ -450,8 +451,8 @@ mod tests {
     fn oracle_resolver_rpc_can_distinguish_executors() {
         let (server, url) = build_oracle_server();
 
-        let mut executor_1 = DefaultForeignCallExecutor::new(false, Some(&url));
-        let mut executor_2 = DefaultForeignCallExecutor::new(false, Some(&url));
+        let mut executor_1 = DefaultForeignCallExecutor::<FieldElement>::new(false, Some(&url));
+        let mut executor_2 = DefaultForeignCallExecutor::<FieldElement>::new(false, Some(&url));
 
         let foreign_call = ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
 
