@@ -232,30 +232,15 @@ fn resolve_name_in_module(
 
     let first_segment = import_path.first().expect("ice: could not fetch first segment");
 
-    // TODO: cleanup
-    // dbg!("resolve_name_in_module (ran)", &current_mod, &first_segment);
-
     let mut current_ns = current_mod.find_name(first_segment);
     if current_ns.is_none() {
-        // if matches!(krate, CrateId::Root(..)) {
-        //     dbg!("this?", krate, importing_crate, import_path, starting_mod);
-        //     dbg!(def_maps.values().map(|x| x.modules.iter().collect::<Vec<_>>()).collect::<Vec<_>>());
-        //     panic!("this.")
-        // }
-        // panic!("ok?");
-
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
     }
 
     let mut warning: Option<PathResolutionError> = None;
     for (last_segment, current_segment) in import_path.iter().zip(import_path.iter().skip(1)) {
-
-        // TODO cleanup
-        // dbg!("resolve_name_in_module", &last_segment, &current_segment, &current_ns);
-
         let (typ, visibility) = match current_ns.types {
             None => {
-                panic!("okkk?");
                 return Err(PathResolutionError::Unresolved(last_segment.clone()))
             },
             Some((typ, visibility, _)) => (typ, visibility),
@@ -292,7 +277,6 @@ fn resolve_name_in_module(
         let found_ns = current_mod.find_name(current_segment);
 
         if found_ns.is_none() {
-            panic!("kk");
             return Err(PathResolutionError::Unresolved(current_segment.clone()));
         }
 
@@ -329,7 +313,7 @@ fn resolve_external_dep(
         .extern_prelude
         .get(&crate_name.0.contents)
         .ok_or_else(|| {
-            panic!("external"); PathResolutionError::Unresolved(crate_name.to_owned())
+            PathResolutionError::Unresolved(crate_name.to_owned())
         })?;
 
     // Create an import directive for the dependency crate
