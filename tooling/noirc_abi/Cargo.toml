@@ -23,6 +23,9 @@ num-traits = "0.2"
 [dev-dependencies]
 strum = "0.24"
 strum_macros = "0.24"
+proptest.workspace = true
+proptest-derive.workspace = true
+
 
 [features]
 bn254 = [
