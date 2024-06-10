@@ -1,5 +1,5 @@
-use dep::std::embedded_curve_ops::EmbeddedCurvePoint;
-use dep::std::embedded_curve_ops::EmbeddedCurveScalar;
+use std::embedded_curve_ops::EmbeddedCurvePoint;
+use std::embedded_curve_ops::EmbeddedCurveScalar;
 
 fn main(is_active: bool) {
     let a = EmbeddedCurvePoint {

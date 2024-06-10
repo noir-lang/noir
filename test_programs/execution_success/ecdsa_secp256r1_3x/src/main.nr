@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 fn main(
     hashed_message: [u8; 32],
