@@ -279,7 +279,6 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         // We can then differentiate positive from negative values by their MSB.
         let is_negative = self.neg().num_bits() < self.num_bits();
         let bytes = if is_negative { self.neg() } else { self }.to_be_bytes();
-
         i128::from_be_bytes(bytes[16..32].try_into().unwrap()) * if is_negative { -1 } else { 1 }
     }
 
