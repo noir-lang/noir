@@ -65,3 +65,23 @@ fn mask_vector_le(bytes: &mut [u8], num_bits: usize) {
     // reverse back to little endian
     bytes.reverse();
 }
+
+#[cfg(test)]
+mod tests {
+    use acir::{AcirField, FieldElement};
+
+    use crate::bit_and;
+
+    #[test]
+    fn and() {
+        let max = 10_000u32;
+
+        let num_bits = (std::mem::size_of::<u32>() * 8) as u32 - max.leading_zeros();
+
+        for x in 0..max {
+            let x = FieldElement::from(x as i128);
+            let res = bit_and(x, x, num_bits);
+            assert_eq!(res.to_be_bytes(), x.to_be_bytes());
+        }
+    }
+}

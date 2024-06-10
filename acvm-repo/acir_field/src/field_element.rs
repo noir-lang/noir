@@ -428,19 +428,6 @@ mod tests {
     use super::{AcirField, FieldElement};
 
     #[test]
-    fn and() {
-        let max = 10_000u32;
-
-        let num_bits = (std::mem::size_of::<u32>() * 8) as u32 - max.leading_zeros();
-
-        for x in 0..max {
-            let x = FieldElement::<ark_bn254::Fr>::from(x as i128);
-            let res = x.and(&x, num_bits);
-            assert_eq!(res.to_be_bytes(), x.to_be_bytes());
-        }
-    }
-
-    #[test]
     fn serialize_fixed_test_vectors() {
         // Serialized field elements from of 0, -1, -2, -3
         let hex_strings = vec![
