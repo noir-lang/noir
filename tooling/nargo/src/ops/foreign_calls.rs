@@ -116,9 +116,15 @@ pub struct DefaultForeignCallExecutor {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ResolveForeignCallRequest<F> {
-    id: u64,
+    /// A session ID which allows the external RPC server to link this foreign call request to other foreign calls
+    /// for the same program execution.
+    ///
+    /// This is intended to allow a single RPC server to maintain state related to multiple program executions being
+    /// performed in parallel.
+    session_id: u64,
 
     #[serde(flatten)]
+    /// The foreign call which the external RPC server is to provide a response for.
     function_call: ForeignCallWaitInfo<F>,
 }
 
@@ -293,7 +299,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                     // If the user has registered an external resolver then we forward any remaining oracle calls there.
 
                     let encoded_params = vec![build_json_rpc_arg(ResolveForeignCallRequest {
-                        id: self.id,
+                        session_id: self.id,
                         function_call: foreign_call.clone(),
                     })];
 
@@ -370,7 +376,7 @@ mod tests {
             let response = match req.function_call.function.as_str() {
                 "sum" => self.sum(req.function_call.inputs[0].clone()),
                 "echo" => self.echo(req.function_call.inputs[0].clone()),
-                "id" => FieldElement::from(req.id as u128).into(),
+                "id" => FieldElement::from(req.session_id as u128).into(),
 
                 _ => panic!("unexpected foreign call"),
             };
