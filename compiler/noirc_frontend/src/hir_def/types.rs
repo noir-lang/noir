@@ -918,7 +918,7 @@ impl std::fmt::Display for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
             }
-            Type::Expr => write!(f, "Code"),
+            Type::Expr => write!(f, "Expr"),
         }
     }
 }
@@ -1959,7 +1959,7 @@ impl std::fmt::Debug for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element:?}")
             }
-            Type::Expr => write!(f, "Code"),
+            Type::Expr => write!(f, "Expr"),
         }
     }
 }
