@@ -312,6 +312,7 @@ impl<'context> Elaborator<'context> {
         let old_function = std::mem::replace(&mut self.current_function, Some(id));
 
         // Without this, impl methods can accidentally be placed in contracts. See #3254
+        let was_in_contract = self.in_contract;
         if self.self_type.is_some() {
             self.in_contract = false;
         }
@@ -407,6 +408,7 @@ impl<'context> Elaborator<'context> {
         self.trait_bounds.clear();
         self.in_unconstrained_fn = false;
         self.interner.update_fn(id, hir_func);
+        self.in_contract = was_in_contract;
         self.current_function = old_function;
         self.current_item = old_item;
     }
@@ -548,6 +550,7 @@ impl<'context> Elaborator<'context> {
         self.current_function = Some(func_id);
 
         // Without this, impl methods can accidentally be placed in contracts. See #3254
+        let was_in_contract = self.in_contract;
         if self.self_type.is_some() {
             self.in_contract = false;
         }
@@ -566,7 +569,7 @@ impl<'context> Elaborator<'context> {
         self.run_lint(|elaborator| {
             lints::unnecessary_pub_return(func, elaborator.pub_allowed(func)).map(Into::into)
         });
-        self.run_lint(|_| lints::oracle_not_marked_unconstrained(func).map(Into::into));
+        // self.run_lint(|_| lints::oracle_not_marked_unconstrained(func).map(Into::into));
         self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(func, elaborator.crate_id).map(Into::into)
         });
@@ -663,6 +666,7 @@ impl<'context> Elaborator<'context> {
         };
 
         self.interner.push_fn_meta(meta, func_id);
+        self.in_contract = was_in_contract;
         self.current_function = None;
         self.scopes.end_function();
         self.current_item = None;
@@ -1081,6 +1085,7 @@ impl<'context> Elaborator<'context> {
         // make sure every struct's fields is accurately set.
         for id in struct_ids {
             let struct_type = self.interner.get_struct(id);
+
             // Only handle structs without generics as any generics args will be checked
             // after monomorphization when performing SSA codegen
             if struct_type.borrow().generics.is_empty() {
@@ -1115,8 +1120,8 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
-        self.local_module = global.module_id;
-        self.file = global.file_id;
+        let old_module = std::mem::replace(&mut self.local_module, global.module_id);
+        let old_file = std::mem::replace(&mut self.file, global.file_id);
 
         let global_id = global.global_id;
         self.current_item = Some(DependencyId::Global(global_id));
@@ -1148,6 +1153,8 @@ impl<'context> Elaborator<'context> {
         // Otherwise we may prematurely default to a Field inside the next function if this
         // global was unused there, even if it is consistently used as a u8 everywhere else.
         self.type_variables.clear();
+        self.local_module = old_module;
+        self.file = old_file;
     }
 
     fn elaborate_comptime_global(&mut self, global_id: GlobalId) {
@@ -1187,11 +1194,13 @@ impl<'context> Elaborator<'context> {
             self.local_module = *local_module;
 
             for (generics, _, function_set) in function_sets {
+                self.file = function_set.file_id;
                 self.add_generics(generics);
                 let self_type = self.resolve_type(self_type.clone());
                 function_set.self_type = Some(self_type.clone());
                 self.self_type = Some(self_type);
                 self.define_function_metas_for_functions(function_set);
+                self.self_type = None;
                 self.generics.clear();
             }
         }
@@ -1204,11 +1213,23 @@ impl<'context> Elaborator<'context> {
             self.add_generics(&trait_impl.generics);
             trait_impl.resolved_generics = self.generics.clone();
 
+            // changes here
             let trait_generics =
                 vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()));
+
             trait_impl.resolved_trait_generics = trait_generics;
 
+            // This is resolving TxRequest in id 171 sometimes instead of 45 which doesn't happen
+            // in the resolver.
             let self_type = self.resolve_type(unresolved_type.clone());
+
+            if self_type == Type::Error {
+                let map = &self.def_maps[&self.crate_id];
+                let m = &map.modules[self.local_module.0];
+
+                let path = map.get_module_path(self.local_module.0, m.parent);
+                panic!("{} resolved to Type::Error in module {}", unresolved_type, path);
+            }
 
             self.self_type = Some(self_type.clone());
             trait_impl.methods.self_type = Some(self_type);
