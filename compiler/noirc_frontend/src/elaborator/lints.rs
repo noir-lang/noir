@@ -10,7 +10,7 @@ use crate::{
         HirExpression, HirLiteral, NodeInterner, NoirFunction, UnaryOp, UnresolvedTypeData,
         Visibility,
     },
-    node_interner::{DefinitionKind, ExprId},
+    node_interner::{DefinitionKind, ExprId, FuncId},
     Type,
 };
 use acvm::AcirField;
@@ -41,7 +41,7 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
 /// as all unconstrained functions are not inlined and so
 /// associated attributes are disallowed.
 pub(super) fn inlining_attributes(func: &NoirFunction) -> Option<ResolverError> {
-    if !func.def.is_unconstrained {
+    if func.def.is_unconstrained {
         let attributes = func.attributes().clone();
 
         if attributes.is_no_predicates() {
@@ -67,6 +67,40 @@ pub(super) fn low_level_function_outside_stdlib(
         func.attributes().function.as_ref().map_or(false, |func| func.is_low_level());
     if !crate_id.is_stdlib() && is_low_level_function {
         Some(ResolverError::LowLevelFunctionOutsideOfStdlib { ident: func.name_ident().clone() })
+    } else {
+        None
+    }
+}
+
+/// Oracle definitions (functions with the `#[oracle]` attribute) must be marked as unconstrained.
+pub(super) fn oracle_not_marked_unconstrained(func: &NoirFunction) -> Option<ResolverError> {
+    let is_oracle_function =
+        func.attributes().function.as_ref().map_or(false, |func| func.is_oracle());
+    if is_oracle_function && !func.def.is_unconstrained {
+        Some(ResolverError::OracleMarkedAsConstrained { ident: func.name_ident().clone() })
+    } else {
+        None
+    }
+}
+
+/// Oracle functions may not be called by constrained functions directly.
+///
+/// In order for a constrained function to call an oracle it must first call through an unconstrained function.
+pub(super) fn oracle_called_from_constrained_function(
+    interner: &NodeInterner,
+    called_func: &FuncId,
+    calling_from_constrained_runtime: bool,
+    span: Span,
+) -> Option<ResolverError> {
+    if !calling_from_constrained_runtime {
+        return None;
+    }
+
+    let function_attributes = interner.function_attributes(called_func);
+    let is_oracle_call =
+        function_attributes.function.as_ref().map_or(false, |func| func.is_oracle());
+    if is_oracle_call {
+        Some(ResolverError::UnconstrainedOracleReturnToConstrained { span })
     } else {
         None
     }

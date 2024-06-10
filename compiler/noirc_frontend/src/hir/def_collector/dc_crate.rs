@@ -139,7 +139,7 @@ pub struct UnresolvedTypeAlias {
     pub type_alias_def: NoirTypeAlias,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct UnresolvedGlobal {
     pub file_id: FileId,
     pub module_id: LocalModuleId,

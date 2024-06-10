@@ -326,7 +326,7 @@ impl CSatTransformer {
 
         // First check if this polynomial actually needs a partial opcode optimization
         // There is the chance that it fits perfectly within the assert-zero opcode
-        if opcode.fits_in_one_identity(self.width) {
+        if fits_in_one_identity(&opcode, self.width) {
             return opcode;
         }
 
@@ -407,6 +407,61 @@ impl CSatTransformer {
         opcode.linear_combinations.extend(added);
         self.partial_opcode_scan_optimization(opcode, intermediate_variables, num_witness)
     }
+}
+
+/// Checks if this expression can fit into one arithmetic identity
+fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> bool {
+    // A Polynomial with more than one mul term cannot fit into one opcode
+    if expr.mul_terms.len() > 1 {
+        return false;
+    };
+    // A Polynomial with more terms than fan-in cannot fit within a single opcode
+    if expr.linear_combinations.len() > width {
+        return false;
+    }
+
+    // A polynomial with no mul term and a fan-in that fits inside of the width can fit into a single opcode
+    if expr.mul_terms.is_empty() {
+        return true;
+    }
+
+    // A polynomial with width-2 fan-in terms and a single non-zero mul term can fit into one opcode
+    // Example: Axy + Dz . Notice, that the mul term places a constraint on the first two terms, but not the last term
+    // XXX: This would change if our arithmetic polynomial equation was changed to Axyz for example, but for now it is not.
+    if expr.linear_combinations.len() <= (width - 2) {
+        return true;
+    }
+
+    // We now know that we have a single mul term. We also know that the mul term must match up with two other terms
+    // A polynomial whose mul terms are non zero which do not match up with two terms in the fan-in cannot fit into one opcode
+    // An example of this is: Axy + Bx + Cy + ...
+    // Notice how the bivariate monomial xy has two univariate monomials with their respective coefficients
+    // XXX: note that if x or y is zero, then we could apply a further optimization, but this would be done in another algorithm.
+    // It would be the same as when we have zero coefficients - Can only work if wire is constrained to be zero publicly
+    let mul_term = &expr.mul_terms[0];
+
+    // The coefficient should be non-zero, as this method is ran after the compiler removes all zero coefficient terms
+    assert_ne!(mul_term.0, F::zero());
+
+    let mut found_x = false;
+    let mut found_y = false;
+
+    for term in expr.linear_combinations.iter() {
+        let witness = &term.1;
+        let x = &mul_term.1;
+        let y = &mul_term.2;
+        if witness == x {
+            found_x = true;
+        };
+        if witness == y {
+            found_y = true;
+        };
+        if found_x & found_y {
+            break;
+        }
+    }
+
+    found_x & found_y
 }
 
 #[cfg(test)]

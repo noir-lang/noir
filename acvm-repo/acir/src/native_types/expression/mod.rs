@@ -42,27 +42,10 @@ impl<F: AcirField> std::fmt::Display for Expression<F> {
     }
 }
 
-impl<F: AcirField> Expression<F> {
-    // TODO: possibly remove, and move to noir repo.
-    pub const fn can_defer_constraint(&self) -> bool {
-        false
-    }
-
+impl<F> Expression<F> {
     /// Returns the number of multiplication terms
     pub fn num_mul_terms(&self) -> usize {
         self.mul_terms.len()
-    }
-
-    pub fn from_field(q_c: F) -> Self {
-        Self { q_c, ..Default::default() }
-    }
-
-    pub fn one() -> Self {
-        Self::from_field(F::one())
-    }
-
-    pub fn zero() -> Self {
-        Self::default()
     }
 
     /// Adds a new linear term to the `Expression`.
@@ -83,6 +66,19 @@ impl<F: AcirField> Expression<F> {
     /// -  f(x,y) = 5 would return true, the degree is 0
     pub fn is_const(&self) -> bool {
         self.mul_terms.is_empty() && self.linear_combinations.is_empty()
+    }
+
+    /// Returns a `FieldElement` if the expression represents a constant polynomial.
+    /// Otherwise returns `None`.
+    ///
+    /// Examples:
+    /// - f(x,y) = x would return `None`
+    /// - f(x,y) = x + 6 would return `None`
+    /// - f(x,y) = 2*y + 6 would return `None`
+    /// - f(x,y) = x + y would return `None`
+    /// - f(x,y) = 5 would return `FieldElement(5)`
+    pub fn to_const(&self) -> Option<&F> {
+        self.is_const().then_some(&self.q_c)
     }
 
     /// Returns `true` if highest degree term in the expression is one or less.
@@ -122,21 +118,29 @@ impl<F: AcirField> Expression<F> {
         self.is_linear() && self.linear_combinations.len() == 1
     }
 
+    /// Sorts opcode in a deterministic order
+    /// XXX: We can probably make this more efficient by sorting on each phase. We only care if it is deterministic
+    pub fn sort(&mut self) {
+        self.mul_terms.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)));
+        self.linear_combinations.sort_by(|a, b| a.1.cmp(&b.1));
+    }
+}
+
+impl<F: AcirField> Expression<F> {
+    pub fn from_field(q_c: F) -> Self {
+        Self { q_c, ..Default::default() }
+    }
+
+    pub fn zero() -> Self {
+        Self::default()
+    }
+
     pub fn is_zero(&self) -> bool {
         *self == Self::zero()
     }
 
-    /// Returns a `FieldElement` if the expression represents a constant polynomial.
-    /// Otherwise returns `None`.
-    ///
-    /// Examples:
-    /// - f(x,y) = x would return `None`
-    /// - f(x,y) = x + 6 would return `None`
-    /// - f(x,y) = 2*y + 6 would return `None`
-    /// - f(x,y) = x + y would return `None`
-    /// - f(x,y) = 5 would return `FieldElement(5)`
-    pub fn to_const(&self) -> Option<F> {
-        self.is_const().then_some(self.q_c)
+    pub fn one() -> Self {
+        Self::from_field(F::one())
     }
 
     /// Returns a `Witness` if the `Expression` can be represented as a degree-1
@@ -159,74 +163,6 @@ impl<F: AcirField> Expression<F> {
             }
         }
         None
-    }
-
-    /// Sorts opcode in a deterministic order
-    /// XXX: We can probably make this more efficient by sorting on each phase. We only care if it is deterministic
-    pub fn sort(&mut self) {
-        self.mul_terms.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)));
-        self.linear_combinations.sort_by(|a, b| a.1.cmp(&b.1));
-    }
-
-    /// Checks if this expression can fit into one arithmetic identity
-    /// TODO: This needs to be reworded, arithmetic identity only makes sense in the context
-    /// TODO of PLONK, whereas we want expressions to be generic.
-    /// TODO: We just need to reword it to say exactly what its doing and
-    /// TODO then reference the fact that this is what plonk will accept.
-    /// TODO alternatively, we can define arithmetic identity in the context of expressions
-    /// TODO and then reference that.
-    pub fn fits_in_one_identity(&self, width: usize) -> bool {
-        // A Polynomial with more than one mul term cannot fit into one opcode
-        if self.mul_terms.len() > 1 {
-            return false;
-        };
-        // A Polynomial with more terms than fan-in cannot fit within a single opcode
-        if self.linear_combinations.len() > width {
-            return false;
-        }
-
-        // A polynomial with no mul term and a fan-in that fits inside of the width can fit into a single opcode
-        if self.mul_terms.is_empty() {
-            return true;
-        }
-
-        // A polynomial with width-2 fan-in terms and a single non-zero mul term can fit into one opcode
-        // Example: Axy + Dz . Notice, that the mul term places a constraint on the first two terms, but not the last term
-        // XXX: This would change if our arithmetic polynomial equation was changed to Axyz for example, but for now it is not.
-        if self.linear_combinations.len() <= (width - 2) {
-            return true;
-        }
-
-        // We now know that we have a single mul term. We also know that the mul term must match up with two other terms
-        // A polynomial whose mul terms are non zero which do not match up with two terms in the fan-in cannot fit into one opcode
-        // An example of this is: Axy + Bx + Cy + ...
-        // Notice how the bivariate monomial xy has two univariate monomials with their respective coefficients
-        // XXX: note that if x or y is zero, then we could apply a further optimization, but this would be done in another algorithm.
-        // It would be the same as when we have zero coefficients - Can only work if wire is constrained to be zero publicly
-        let mul_term = &self.mul_terms[0];
-
-        // The coefficient should be non-zero, as this method is ran after the compiler removes all zero coefficient terms
-        assert_ne!(mul_term.0, F::zero());
-
-        let mut found_x = false;
-        let mut found_y = false;
-
-        for term in self.linear_combinations.iter() {
-            let witness = &term.1;
-            let x = &mul_term.1;
-            let y = &mul_term.2;
-            if witness == x {
-                found_x = true;
-            };
-            if witness == y {
-                found_y = true;
-            };
-            if found_x & found_y {
-                break;
-            }
-        }
-
-        found_x & found_y
     }
 
     /// Returns `self + k*b`

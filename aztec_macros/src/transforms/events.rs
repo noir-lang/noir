@@ -158,7 +158,7 @@ fn transform_event(
             // Also update the type! It might have a different length now than the placeholder.
             interner.push_expr_type(
                 selector_literal_id,
-                Type::String(Box::new(Type::Constant(signature.len() as u64))),
+                Type::String(Box::new(Type::Constant(signature.len() as u32))),
             );
             Ok(())
         }

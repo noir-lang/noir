@@ -51,7 +51,7 @@ pub const MAIN_RETURN_NAME: &str = "return";
 pub enum AbiType {
     Field,
     Array {
-        length: u64,
+        length: u32,
         #[serde(rename = "type")]
         typ: Box<AbiType>,
     },
@@ -72,7 +72,7 @@ pub enum AbiType {
         fields: Vec<AbiType>,
     },
     String {
-        length: u64,
+        length: u32,
     },
 }
 
@@ -137,7 +137,7 @@ impl AbiType {
             Type::FieldElement => Self::Field,
             Type::Array(size, typ) => {
                 let length = size
-                    .evaluate_to_u64()
+                    .evaluate_to_u32()
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
                 Self::Array { length, typ: Box::new(Self::from_type(context, typ)) }
@@ -160,7 +160,7 @@ impl AbiType {
             Type::Bool => Self::Boolean,
             Type::String(size) => {
                 let size = size
-                    .evaluate_to_u64()
+                    .evaluate_to_u32()
                     .expect("Cannot have variable sized strings as a parameter to main");
                 Self::String { length: size }
             }
@@ -198,14 +198,14 @@ impl AbiType {
     pub fn field_count(&self) -> u32 {
         match self {
             AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => 1,
-            AbiType::Array { length, typ } => typ.field_count() * (*length as u32),
+            AbiType::Array { length, typ } => typ.field_count() * *length,
             AbiType::Struct { fields, .. } => {
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
             }
             AbiType::Tuple { fields } => {
                 fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
             }
-            AbiType::String { length } => *length as u32,
+            AbiType::String { length } => *length,
         }
     }
 }
@@ -600,14 +600,14 @@ fn range_to_vec(ranges: &[Range<Witness>]) -> Vec<Witness> {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "error_kind", rename_all = "lowercase")]
 pub enum AbiErrorType {
-    FmtString { length: u64, item_types: Vec<AbiType> },
+    FmtString { length: u32, item_types: Vec<AbiType> },
     Custom(AbiType),
 }
 impl AbiErrorType {
     pub fn from_type(context: &Context, typ: &Type) -> Self {
         match typ {
             Type::FmtString(len, item_types) => {
-                let length = len.evaluate_to_u64().expect("Cannot evaluate fmt length");
+                let length = len.evaluate_to_u32().expect("Cannot evaluate fmt length");
                 let Type::Tuple(item_types) = item_types.as_ref() else {
                     unreachable!("FmtString items must be a tuple")
                 };

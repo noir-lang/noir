@@ -5,6 +5,7 @@ use acvm::{
 };
 use jsonrpc::{arg as build_json_rpc_arg, minreq_http::Builder, Client};
 use noirc_printable_type::{decode_string_value, ForeignCallError, PrintableValueDisplay};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 pub trait ForeignCallExecutor<F> {
@@ -97,6 +98,12 @@ impl<F: PartialEq> MockedCall<F> {
 
 #[derive(Debug, Default)]
 pub struct DefaultForeignCallExecutor<F> {
+    /// A randomly generated id for this `DefaultForeignCallExecutor`.
+    ///
+    /// This is used so that a single `external_resolver` can distinguish between requests from multiple
+    /// instantiations of `DefaultForeignCallExecutor`.
+    id: u64,
+
     /// Mocks have unique ids used to identify them in Noir, allowing to update or remove them.
     last_mock_id: usize,
     /// The registered mocks
@@ -105,6 +112,21 @@ pub struct DefaultForeignCallExecutor<F> {
     show_output: bool,
     /// JSON RPC client to resolve foreign calls
     external_resolver: Option<Client>,
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ResolveForeignCallRequest<F> {
+    /// A session ID which allows the external RPC server to link this foreign call request to other foreign calls
+    /// for the same program execution.
+    ///
+    /// This is intended to allow a single RPC server to maintain state related to multiple program executions being
+    /// performed in parallel.
+    session_id: u64,
+
+    #[serde(flatten)]
+    /// The foreign call which the external RPC server is to provide a response for.
+    function_call: ForeignCallWaitInfo<F>,
 }
 
 impl<F> DefaultForeignCallExecutor<F> {
@@ -124,6 +146,7 @@ impl<F> DefaultForeignCallExecutor<F> {
         DefaultForeignCallExecutor {
             show_output,
             external_resolver: oracle_resolver,
+            id: rand::thread_rng().gen(),
             mocked_responses: Vec::new(),
             last_mock_id: 0,
         }
@@ -277,10 +300,13 @@ impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
                 } else if let Some(external_resolver) = &self.external_resolver {
                     // If the user has registered an external resolver then we forward any remaining oracle calls there.
 
-                    let encoded_params: Vec<_> =
-                        foreign_call.inputs.iter().map(build_json_rpc_arg).collect();
+                    let encoded_params = vec![build_json_rpc_arg(ResolveForeignCallRequest {
+                        session_id: self.id,
+                        function_call: foreign_call.clone(),
+                    })];
 
-                    let req = external_resolver.build_request(foreign_call_name, &encoded_params);
+                    let req =
+                        external_resolver.build_request("resolve_foreign_call", &encoded_params);
 
                     let response = external_resolver.send_request(req)?;
 
@@ -314,43 +340,49 @@ mod tests {
 
     use crate::ops::{DefaultForeignCallExecutor, ForeignCallExecutor};
 
+    use super::ResolveForeignCallRequest;
+
     #[allow(unreachable_pub)]
     #[rpc]
     pub trait OracleResolver {
-        #[rpc(name = "echo")]
-        fn echo(
+        #[rpc(name = "resolve_foreign_call")]
+        fn resolve_foreign_call(
             &self,
-            param: ForeignCallParam<FieldElement>,
-        ) -> RpcResult<ForeignCallResult<FieldElement>>;
-
-        #[rpc(name = "sum")]
-        fn sum(
-            &self,
-            array: ForeignCallParam<FieldElement>,
+            req: ResolveForeignCallRequest<FieldElement>,
         ) -> RpcResult<ForeignCallResult<FieldElement>>;
     }
 
     struct OracleResolverImpl;
 
-    impl OracleResolver for OracleResolverImpl {
-        fn echo(
-            &self,
-            param: ForeignCallParam<FieldElement>,
-        ) -> RpcResult<ForeignCallResult<FieldElement>> {
-            Ok(vec![param].into())
+    impl OracleResolverImpl {
+        fn echo(&self, param: ForeignCallParam<FieldElement>) -> ForeignCallResult<FieldElement> {
+            vec![param].into()
         }
 
-        fn sum(
-            &self,
-            array: ForeignCallParam<FieldElement>,
-        ) -> RpcResult<ForeignCallResult<FieldElement>> {
+        fn sum(&self, array: ForeignCallParam<FieldElement>) -> ForeignCallResult<FieldElement> {
             let mut res: FieldElement = 0_usize.into();
 
             for value in array.fields() {
                 res += value;
             }
 
-            Ok(res.into())
+            res.into()
+        }
+    }
+
+    impl OracleResolver for OracleResolverImpl {
+        fn resolve_foreign_call(
+            &self,
+            req: ResolveForeignCallRequest<FieldElement>,
+        ) -> RpcResult<ForeignCallResult<FieldElement>> {
+            let response = match req.function_call.function.as_str() {
+                "sum" => self.sum(req.function_call.inputs[0].clone()),
+                "echo" => self.echo(req.function_call.inputs[0].clone()),
+                "id" => FieldElement::from(req.session_id as u128).into(),
+
+                _ => panic!("unexpected foreign call"),
+            };
+            Ok(response)
         }
     }
 
@@ -397,6 +429,37 @@ mod tests {
 
         let result = executor.execute(&foreign_call);
         assert_eq!(result.unwrap(), FieldElement::from(3_usize).into());
+
+        server.close();
+    }
+
+    #[test]
+    fn foreign_call_executor_id_is_persistent() {
+        let (server, url) = build_oracle_server();
+
+        let mut executor = DefaultForeignCallExecutor::new(false, Some(&url));
+
+        let foreign_call = ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
+
+        let result_1 = executor.execute(&foreign_call).unwrap();
+        let result_2 = executor.execute(&foreign_call).unwrap();
+        assert_eq!(result_1, result_2);
+
+        server.close();
+    }
+
+    #[test]
+    fn oracle_resolver_rpc_can_distinguish_executors() {
+        let (server, url) = build_oracle_server();
+
+        let mut executor_1 = DefaultForeignCallExecutor::new(false, Some(&url));
+        let mut executor_2 = DefaultForeignCallExecutor::new(false, Some(&url));
+
+        let foreign_call = ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
+
+        let result_1 = executor_1.execute(&foreign_call).unwrap();
+        let result_2 = executor_2.execute(&foreign_call).unwrap();
+        assert_ne!(result_1, result_2);
 
         server.close();
     }
