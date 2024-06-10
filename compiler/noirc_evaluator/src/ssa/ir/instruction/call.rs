@@ -3,7 +3,7 @@ use std::{collections::VecDeque, rc::Rc};
 
 use acvm::{
     acir::{AcirField, BlackBoxFunc},
-    BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement,
+    FieldElement,
 };
 use iter_extended::vecmap;
 use num_bigint::BigUint;
@@ -21,6 +21,8 @@ use crate::ssa::{
 };
 
 use super::{Binary, BinaryOp, Endian, Instruction, SimplifyResult};
+
+mod blackbox;
 
 /// Try to simplify this call instruction. If the instruction can be simplified to a known value,
 /// that value is returned. Otherwise None is returned.
@@ -445,9 +447,15 @@ fn simplify_black_box_func(
         }
     };
     match bb_func {
-        BlackBoxFunc::SHA256 => simplify_hash(dfg, arguments, acvm::blackbox_solver::sha256),
-        BlackBoxFunc::Blake2s => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s),
-        BlackBoxFunc::Blake3 => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake3),
+        BlackBoxFunc::SHA256 => {
+            blackbox::simplify_hash(dfg, arguments, acvm::blackbox_solver::sha256)
+        }
+        BlackBoxFunc::Blake2s => {
+            blackbox::simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s)
+        }
+        BlackBoxFunc::Blake3 => {
+            blackbox::simplify_hash(dfg, arguments, acvm::blackbox_solver::blake3)
+        }
         BlackBoxFunc::Keccakf1600 => SimplifyResult::None, //TODO(Guillaume)
         BlackBoxFunc::Keccak256 => {
             match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
@@ -469,22 +477,25 @@ fn simplify_black_box_func(
             }
         }
         BlackBoxFunc::Poseidon2Permutation => SimplifyResult::None, //TODO(Guillaume)
-        BlackBoxFunc::EcdsaSecp256k1 => {
-            simplify_signature(dfg, arguments, acvm::blackbox_solver::ecdsa_secp256k1_verify)
-        }
-        BlackBoxFunc::EcdsaSecp256r1 => {
-            simplify_signature(dfg, arguments, acvm::blackbox_solver::ecdsa_secp256r1_verify)
-        }
+        BlackBoxFunc::EcdsaSecp256k1 => blackbox::simplify_signature(
+            dfg,
+            arguments,
+            acvm::blackbox_solver::ecdsa_secp256k1_verify,
+        ),
+        BlackBoxFunc::EcdsaSecp256r1 => blackbox::simplify_signature(
+            dfg,
+            arguments,
+            acvm::blackbox_solver::ecdsa_secp256r1_verify,
+        ),
 
-        BlackBoxFunc::PedersenCommitment => simplify_pedersen_commitment(dfg, solver, arguments),
-        BlackBoxFunc::PedersenHash => simplify_pedersen_hash(dfg, solver, arguments),
-
-        BlackBoxFunc::MultiScalarMul
-        | BlackBoxFunc::SchnorrVerify
-        | BlackBoxFunc::EmbeddedCurveAdd => {
-            // Currently unsolvable here as we rely on an implementation in the backend.
-            SimplifyResult::None
+        BlackBoxFunc::PedersenCommitment => {
+            blackbox::simplify_pedersen_commitment(dfg, solver, arguments)
         }
+        BlackBoxFunc::PedersenHash => blackbox::simplify_pedersen_hash(dfg, solver, arguments),
+        BlackBoxFunc::EmbeddedCurveAdd => blackbox::simplify_ec_add(dfg, solver, arguments),
+        BlackBoxFunc::MultiScalarMul => blackbox::simplify_msm(dfg, solver, arguments),
+        BlackBoxFunc::SchnorrVerify => blackbox::simplify_schnorr_verify(dfg, solver, arguments),
+
         BlackBoxFunc::BigIntAdd
         | BlackBoxFunc::BigIntSub
         | BlackBoxFunc::BigIntMul
@@ -567,133 +578,4 @@ fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Id<Value>>) -> Vec<u8> {
 
 fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<Id<Value>>) -> bool {
     values.iter().all(|value| dfg.get_numeric_constant(*value).is_some())
-}
-
-fn simplify_pedersen_commitment(
-    dfg: &mut DataFlowGraph,
-    solver: impl BlackBoxFunctionSolver<FieldElement>,
-    arguments: &[ValueId],
-) -> SimplifyResult {
-    match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
-        (Some((inputs, _)), Some(domain_separator)) if array_is_constant(dfg, &inputs) => {
-            let input_fields: Vec<_> = inputs
-                .iter()
-                .map(|id| {
-                    dfg.get_numeric_constant(*id)
-                        .expect("value id from array should point at constant")
-                })
-                .collect();
-
-            let Ok((result_x, result_y)) =
-                solver.pedersen_commitment(&input_fields, domain_separator.to_u128() as u32)
-            else {
-                return SimplifyResult::None;
-            };
-
-            let result_x = dfg.make_constant(result_x, Type::field());
-            let result_y = dfg.make_constant(result_y, Type::field());
-
-            let typ = Type::Array(Rc::new(vec![Type::field()]), 2);
-            let result_array = dfg.make_array(im::vector![result_x, result_y], typ);
-
-            SimplifyResult::SimplifiedTo(result_array)
-        }
-        _ => SimplifyResult::None,
-    }
-}
-
-fn simplify_pedersen_hash(
-    dfg: &mut DataFlowGraph,
-    solver: impl BlackBoxFunctionSolver<FieldElement>,
-    arguments: &[ValueId],
-) -> SimplifyResult {
-    match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
-        (Some((inputs, _)), Some(domain_separator)) if array_is_constant(dfg, &inputs) => {
-            let input_fields: Vec<_> = inputs
-                .iter()
-                .map(|id| {
-                    dfg.get_numeric_constant(*id)
-                        .expect("value id from array should point at constant")
-                })
-                .collect();
-
-            let Ok(hash) = solver.pedersen_hash(&input_fields, domain_separator.to_u128() as u32)
-            else {
-                return SimplifyResult::None;
-            };
-
-            let hash_value = dfg.make_constant(hash, Type::field());
-            SimplifyResult::SimplifiedTo(hash_value)
-        }
-        _ => SimplifyResult::None,
-    }
-}
-
-fn simplify_hash(
-    dfg: &mut DataFlowGraph,
-    arguments: &[ValueId],
-    hash_function: fn(&[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
-) -> SimplifyResult {
-    match dfg.get_array_constant(arguments[0]) {
-        Some((input, _)) if array_is_constant(dfg, &input) => {
-            let input_bytes: Vec<u8> = to_u8_vec(dfg, input);
-
-            let hash = hash_function(&input_bytes)
-                .expect("Rust solvable black box function should not fail");
-
-            let hash_values = vecmap(hash, |byte| FieldElement::from_be_bytes_reduce(&[byte]));
-
-            let result_array = make_constant_array(dfg, hash_values, Type::unsigned(8));
-            SimplifyResult::SimplifiedTo(result_array)
-        }
-        _ => SimplifyResult::None,
-    }
-}
-
-type ECDSASignatureVerifier = fn(
-    hashed_msg: &[u8],
-    public_key_x: &[u8; 32],
-    public_key_y: &[u8; 32],
-    signature: &[u8; 64],
-) -> Result<bool, BlackBoxResolutionError>;
-fn simplify_signature(
-    dfg: &mut DataFlowGraph,
-    arguments: &[ValueId],
-    signature_verifier: ECDSASignatureVerifier,
-) -> SimplifyResult {
-    match (
-        dfg.get_array_constant(arguments[0]),
-        dfg.get_array_constant(arguments[1]),
-        dfg.get_array_constant(arguments[2]),
-        dfg.get_array_constant(arguments[3]),
-    ) {
-        (
-            Some((public_key_x, _)),
-            Some((public_key_y, _)),
-            Some((signature, _)),
-            Some((hashed_message, _)),
-        ) if array_is_constant(dfg, &public_key_x)
-            && array_is_constant(dfg, &public_key_y)
-            && array_is_constant(dfg, &signature)
-            && array_is_constant(dfg, &hashed_message) =>
-        {
-            let public_key_x: [u8; 32] = to_u8_vec(dfg, public_key_x)
-                .try_into()
-                .expect("ECDSA public key fields are 32 bytes");
-            let public_key_y: [u8; 32] = to_u8_vec(dfg, public_key_y)
-                .try_into()
-                .expect("ECDSA public key fields are 32 bytes");
-            let signature: [u8; 64] =
-                to_u8_vec(dfg, signature).try_into().expect("ECDSA signatures are 64 bytes");
-            let hashed_message: Vec<u8> = to_u8_vec(dfg, hashed_message);
-
-            let valid_signature =
-                signature_verifier(&hashed_message, &public_key_x, &public_key_y, &signature)
-                    .expect("Rust solvable black box function should not fail");
-
-            let valid_signature = dfg.make_constant(valid_signature.into(), Type::bool());
-            SimplifyResult::SimplifiedTo(valid_signature)
-        }
-        _ => SimplifyResult::None,
-    }
 }
