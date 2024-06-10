@@ -287,9 +287,6 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
 #[test]
 fn compile_success_empty_{test_name}() {{
 
-    // We use a mocked backend for this test as we do not rely on the returned circuit size
-    // but we must call a backend as part of querying the number of opcodes in the circuit.
-
     let test_program_dir = PathBuf::from("{test_dir}");
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
