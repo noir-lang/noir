@@ -93,7 +93,7 @@ mod tests {
             let x_xor_y = x ^ y;
             let x_xor_y_as_field = bit_xor(x_as_field, y_as_field, bit_size);
 
-            prop_assert_eq!(x_xor_y_as_field, FieldElement::from(x_xor_y), "AND on fields should match that on integers");
+            prop_assert_eq!(x_xor_y_as_field, FieldElement::from(x_xor_y), "XOR on fields should match that on integers");
         }
     }
 }
