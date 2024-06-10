@@ -464,7 +464,7 @@ export class BBNativeRollupProver implements ServerCircuitProver {
   private async generateAvmProofWithBB(input: AvmCircuitInputs, workingDirectory: string): Promise<BBSuccess> {
     logger.debug(`Proving avm-circuit...`);
 
-    const provingResult = await generateAvmProof(this.config.bbBinaryPath, workingDirectory, input, logger.debug);
+    const provingResult = await generateAvmProof(this.config.bbBinaryPath, workingDirectory, input, logger.verbose);
 
     if (provingResult.status === BB_RESULT.FAILURE) {
       logger.error(`Failed to generate proof for avm-circuit: ${provingResult.reason}`);
@@ -475,7 +475,11 @@ export class BBNativeRollupProver implements ServerCircuitProver {
   }
 
   private async createAvmProof(input: AvmCircuitInputs): Promise<ProofAndVerificationKey> {
+    const cleanupDir: boolean = !process.env.AVM_PROVING_PRESERVE_WORKING_DIR;
     const operation = async (bbWorkingDirectory: string): Promise<ProofAndVerificationKey> => {
+      if (!cleanupDir) {
+        logger.info(`Preserving working directory ${bbWorkingDirectory}`);
+      }
       const provingResult = await this.generateAvmProofWithBB(input, bbWorkingDirectory);
 
       const rawProof = await fs.readFile(provingResult.proofPath!);
@@ -503,7 +507,7 @@ export class BBNativeRollupProver implements ServerCircuitProver {
 
       return { proof, verificationKey };
     };
-    return await runInDirectory(this.config.bbWorkingDirectory, operation);
+    return await runInDirectory(this.config.bbWorkingDirectory, operation, cleanupDir);
   }
 
   /**
