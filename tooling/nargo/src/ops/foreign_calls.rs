@@ -347,17 +347,11 @@ mod tests {
     struct OracleResolverImpl;
 
     impl OracleResolverImpl {
-        fn echo(
-            &self,
-            param: ForeignCallParam<FieldElement>,
-        ) -> ForeignCallResult<FieldElement> {
+        fn echo(&self, param: ForeignCallParam<FieldElement>) -> ForeignCallResult<FieldElement> {
             vec![param].into()
         }
 
-        fn sum(
-            &self,
-            array: ForeignCallParam<FieldElement>,
-        ) -> ForeignCallResult<FieldElement> {
+        fn sum(&self, array: ForeignCallParam<FieldElement>) -> ForeignCallResult<FieldElement> {
             let mut res: FieldElement = 0_usize.into();
 
             for value in array.fields() {
@@ -380,7 +374,7 @@ mod tests {
 
                 _ => panic!("unexpected foreign call"),
             };
-            Ok(response.into())
+            Ok(response)
         }
     }
 
@@ -431,7 +425,6 @@ mod tests {
         server.close();
     }
 
-
     #[test]
     fn oracle_resolver_rpc_can_distinguish_executors() {
         let (server, url) = build_oracle_server();
@@ -439,10 +432,7 @@ mod tests {
         let mut executor_1 = DefaultForeignCallExecutor::new(false, Some(&url));
         let mut executor_2 = DefaultForeignCallExecutor::new(false, Some(&url));
 
-        let foreign_call = ForeignCallWaitInfo {
-            function: "id".to_string(),
-            inputs: Vec::new()
-        };
+        let foreign_call = ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
 
         let result_1 = executor_1.execute(&foreign_call).unwrap();
         let result_2 = executor_2.execute(&foreign_call).unwrap();
