@@ -1,11 +1,14 @@
 #pragma once
 
+#include <filesystem>
+
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 #include "barretenberg/vm/avm_trace/avm_trace.hpp"
 
 namespace bb::avm_trace {
 
 void log_avm_trace(std::vector<Row> const& trace, size_t beg, size_t end, bool enable_selectors = false);
+void dump_trace_as_csv(const std::vector<Row>& trace, const std::filesystem::path& filename);
 
 bool is_operand_indirect(uint8_t ind_value, uint8_t operand_idx);
 

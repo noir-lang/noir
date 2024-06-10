@@ -517,7 +517,11 @@ template <typename FF> struct AvmFullRow {
     FF avm_mem_tag_shift{};
     FF avm_mem_tsp_shift{};
     FF avm_mem_val_shift{};
+
+    [[maybe_unused]] static std::vector<std::string> names();
 };
+
+template <typename FF> std::ostream& operator<<(std::ostream& os, AvmFullRow<FF> const& row);
 
 class AvmCircuitBuilder {
   public:

@@ -47,7 +47,7 @@ template <typename... Args> std::string benchmark_format(Args... args)
     return os.str();
 }
 
-#if NDEBUG
+#ifndef NDEBUG
 template <typename... Args> inline void debug(Args... args)
 {
     logstr(format(args...).c_str());
@@ -59,6 +59,14 @@ template <typename... Args> inline void debug(Args... /*unused*/) {}
 template <typename... Args> inline void info(Args... args)
 {
     logstr(format(args...).c_str());
+}
+
+extern bool verbose_logging;
+template <typename... Args> inline void vinfo(Args... args)
+{
+    if (verbose_logging) {
+        info(args...);
+    }
 }
 
 template <typename... Args> inline void important(Args... args)

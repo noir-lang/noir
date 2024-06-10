@@ -127,6 +127,8 @@ template <typename FF> struct Avm_aluRow {
     FF avm_alu_u8_r1{};
     FF avm_alu_u8_r1_shift{};
     FF avm_alu_u8_tag{};
+
+    [[maybe_unused]] static std::vector<std::string> names();
 };
 
 inline std::string get_relation_label_avm_alu(int index)

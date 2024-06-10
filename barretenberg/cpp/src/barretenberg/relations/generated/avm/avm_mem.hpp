@@ -45,6 +45,8 @@ template <typename FF> struct Avm_memRow {
     FF avm_mem_val{};
     FF avm_mem_val_shift{};
     FF avm_mem_w_in_tag{};
+
+    [[maybe_unused]] static std::vector<std::string> names();
 };
 
 inline std::string get_relation_label_avm_mem(int index)

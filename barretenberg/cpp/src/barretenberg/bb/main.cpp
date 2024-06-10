@@ -16,6 +16,7 @@
 #include "log.hpp"
 #include <barretenberg/common/benchmark.hpp>
 #include <barretenberg/common/container.hpp>
+#include <barretenberg/common/log.hpp>
 #include <barretenberg/common/timer.hpp>
 #include <barretenberg/dsl/acir_format/acir_to_constraint_buf.hpp>
 #include <barretenberg/dsl/acir_proofs/acir_composer.hpp>
@@ -35,7 +36,6 @@ std::string getHomeDir()
 }
 
 std::string CRS_PATH = getHomeDir() + "/.bb-crs";
-bool verbose = false;
 
 const std::filesystem::path current_path = std::filesystem::current_path();
 const auto current_dir = current_path.filename().string();
@@ -69,7 +69,7 @@ void init_grumpkin_crs(size_t eccvm_dyadic_circuit_size)
 // TODO(https://github.com/AztecProtocol/barretenberg/issues/811) adapt for grumpkin
 acir_proofs::AcirComposer verifier_init()
 {
-    acir_proofs::AcirComposer acir_composer(0, verbose);
+    acir_proofs::AcirComposer acir_composer(0, verbose_logging);
     auto g2_data = get_bn254_g2_data(CRS_PATH);
     srs::init_crs_factory({}, g2_data);
     return acir_composer;
@@ -135,7 +135,7 @@ bool proveAndVerify(const std::string& bytecodePath, const std::string& witnessP
     auto constraint_system = get_constraint_system(bytecodePath, /*honk_recursion=*/false);
     auto witness = get_witness(witnessPath);
 
-    acir_proofs::AcirComposer acir_composer{ 0, verbose };
+    acir_proofs::AcirComposer acir_composer{ 0, verbose_logging };
     acir_composer.create_circuit(constraint_system, witness);
 
     init_bn254_crs(acir_composer.get_dyadic_circuit_size());
@@ -286,7 +286,7 @@ void prove(const std::string& bytecodePath, const std::string& witnessPath, cons
     auto constraint_system = get_constraint_system(bytecodePath, /*honk_recursion=*/false);
     auto witness = get_witness(witnessPath);
 
-    acir_proofs::AcirComposer acir_composer{ 0, verbose };
+    acir_proofs::AcirComposer acir_composer{ 0, verbose_logging };
     acir_composer.create_circuit(constraint_system, witness);
     init_bn254_crs(acir_composer.get_dyadic_circuit_size());
     acir_composer.init_proving_key();
@@ -316,7 +316,7 @@ void gateCount(const std::string& bytecodePath, bool honk_recursion)
     auto constraint_systems = get_constraint_systems(bytecodePath, honk_recursion);
     size_t i = 0;
     for (auto constraint_system : constraint_systems) {
-        acir_proofs::AcirComposer acir_composer(0, verbose);
+        acir_proofs::AcirComposer acir_composer(0, verbose_logging);
         acir_composer.create_circuit(constraint_system);
         auto circuit_size = acir_composer.get_total_circuit_size();
 
@@ -383,7 +383,7 @@ bool verify(const std::string& proof_path, const std::string& vk_path)
 void write_vk(const std::string& bytecodePath, const std::string& outputPath)
 {
     auto constraint_system = get_constraint_system(bytecodePath, /*honk_recursion=*/false);
-    acir_proofs::AcirComposer acir_composer{ 0, verbose };
+    acir_proofs::AcirComposer acir_composer{ 0, verbose_logging };
     acir_composer.create_circuit(constraint_system);
     init_bn254_crs(acir_composer.get_dyadic_circuit_size());
     acir_composer.init_proving_key();
@@ -401,7 +401,7 @@ void write_vk(const std::string& bytecodePath, const std::string& outputPath)
 void write_pk(const std::string& bytecodePath, const std::string& outputPath)
 {
     auto constraint_system = get_constraint_system(bytecodePath, /*honk_recursion=*/false);
-    acir_proofs::AcirComposer acir_composer{ 0, verbose };
+    acir_proofs::AcirComposer acir_composer{ 0, verbose_logging };
     acir_composer.create_circuit(constraint_system);
     init_bn254_crs(acir_composer.get_dyadic_circuit_size());
     auto pk = acir_composer.init_proving_key();
@@ -535,12 +535,20 @@ void avm_prove(const std::filesystem::path& bytecode_path,
                const std::filesystem::path& hints_path,
                const std::filesystem::path& output_path)
 {
-    // Get Bytecode
-    std::vector<uint8_t> const bytecode =
-        bytecode_path.extension() == ".gz" ? gunzip(bytecode_path) : read_file(bytecode_path);
+    std::vector<uint8_t> const bytecode = read_file(bytecode_path);
     std::vector<fr> const calldata = many_from_buffer<fr>(read_file(calldata_path));
     std::vector<fr> const public_inputs_vec = many_from_buffer<fr>(read_file(public_inputs_path));
     auto const avm_hints = bb::avm_trace::ExecutionHints::from(read_file(hints_path));
+
+    vinfo("bytecode size: ", bytecode.size());
+    vinfo("calldata size: ", calldata.size());
+    vinfo("public_inputs size: ", public_inputs_vec.size());
+    vinfo("hints.storage_value_hints size: ", avm_hints.storage_value_hints.size());
+    vinfo("hints.note_hash_exists_hints size: ", avm_hints.note_hash_exists_hints.size());
+    vinfo("hints.nullifier_exists_hints size: ", avm_hints.nullifier_exists_hints.size());
+    vinfo("hints.l1_to_l2_message_exists_hints size: ", avm_hints.l1_to_l2_message_exists_hints.size());
+    vinfo("hints.externalcall_hints size: ", avm_hints.externalcall_hints.size());
+    vinfo("hints.contract_instance_hints size: ", avm_hints.contract_instance_hints.size());
 
     // Hardcoded circuit size for now, with enough to support 16-bit range checks
     init_bn254_crs(1 << 17);
@@ -548,6 +556,8 @@ void avm_prove(const std::filesystem::path& bytecode_path,
     // Prove execution and return vk
     auto const [verification_key, proof] =
         avm_trace::Execution::prove(bytecode, calldata, public_inputs_vec, avm_hints);
+    vinfo("------- PROVING DONE -------");
+
     // TODO(ilyas): <#4887>: Currently we only need these two parts of the vk, look into pcs_verification key reqs
     std::vector<uint64_t> vk_vector = { verification_key.circuit_size, verification_key.num_public_inputs };
     std::vector<fr> vk_as_fields = { verification_key.circuit_size, verification_key.num_public_inputs };
@@ -779,7 +789,7 @@ void prove_output_all(const std::string& bytecodePath, const std::string& witnes
     auto constraint_system = get_constraint_system(bytecodePath, /*honk_recursion=*/false);
     auto witness = get_witness(witnessPath);
 
-    acir_proofs::AcirComposer acir_composer{ 0, verbose };
+    acir_proofs::AcirComposer acir_composer{ 0, verbose_logging };
     acir_composer.create_circuit(constraint_system, witness);
     init_bn254_crs(acir_composer.get_dyadic_circuit_size());
     acir_composer.init_proving_key();
@@ -831,7 +841,7 @@ int main(int argc, char* argv[])
 {
     try {
         std::vector<std::string> args(argv + 1, argv + argc);
-        verbose = flag_present(args, "-v") || flag_present(args, "--verbose");
+        verbose_logging = flag_present(args, "-v") || flag_present(args, "--verbose_logging");
         if (args.empty()) {
             std::cerr << "No command provided.\n";
             return 1;
@@ -905,6 +915,8 @@ int main(int argc, char* argv[])
             std::filesystem::path avm_hints_path = get_option(args, "--avm-hints", "./target/avm_hints.bin");
             // This outputs both files: proof and vk, under the given directory.
             std::filesystem::path output_path = get_option(args, "-o", "./proofs");
+            extern std::filesystem::path avm_dump_trace_path;
+            avm_dump_trace_path = get_option(args, "--avm-dump-trace", "");
             avm_prove(avm_bytecode_path, avm_calldata_path, avm_public_inputs_path, avm_hints_path, output_path);
         } else if (command == "avm_verify") {
             return avm_verify(proof_path, vk_path) ? 0 : 1;

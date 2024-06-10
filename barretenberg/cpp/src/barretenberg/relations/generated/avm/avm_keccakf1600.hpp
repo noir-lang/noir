@@ -8,6 +8,8 @@ namespace bb::Avm_vm {
 
 template <typename FF> struct Avm_keccakf1600Row {
     FF avm_keccakf1600_keccakf1600_sel{};
+
+    [[maybe_unused]] static std::vector<std::string> names();
 };
 
 inline std::string get_relation_label_avm_keccakf1600(int index)

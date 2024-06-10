@@ -1,4 +1,5 @@
 #include "barretenberg/vm/avm_trace/avm_execution.hpp"
+#include "barretenberg/bb/log.hpp"
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 #include "barretenberg/vm/avm_trace/avm_deserialization.hpp"
@@ -16,12 +17,16 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <string>
 #include <tuple>
 #include <variant>
 #include <vector>
 
 using namespace bb;
+
+// Set in BB's main.cpp.
+std::filesystem::path avm_dump_trace_path;
 
 namespace bb::avm_trace {
 
@@ -56,8 +61,14 @@ std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<u
     }
 
     auto instructions = Deserialization::parse(bytecode);
-    std::vector<FF> returndata{};
+    vinfo("Deserialized " + std::to_string(instructions.size()) + " instructions");
+
+    std::vector<FF> returndata;
     auto trace = gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
+    if (!avm_dump_trace_path.empty()) {
+        info("Dumping trace as CSV to: " + avm_dump_trace_path.string());
+        dump_trace_as_csv(trace, avm_dump_trace_path);
+    }
     auto circuit_builder = bb::AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
 
@@ -291,6 +302,7 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
                                       ExecutionHints const& execution_hints)
 
 {
+    vinfo("------- GENERATING TRACE -------");
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6718): construction of the public input columns
     // should be done in the kernel - this is stubbed and underconstrained
     VmPublicInputs public_inputs = convert_public_inputs(public_inputs_vec);
@@ -302,6 +314,7 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
     uint32_t pc = 0;
     while ((pc = trace_builder.getPc()) < instructions.size()) {
         auto inst = instructions.at(pc);
+        debug("[@" + std::to_string(pc) + "] " + inst.to_string());
 
         // TODO: We do not yet support the indirect flag. Therefore we do not extract
         // inst.operands(0) (i.e. the indirect flag) when processiing the instructions.

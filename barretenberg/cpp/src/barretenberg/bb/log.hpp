@@ -1,15 +1,8 @@
 #pragma once
-#include <barretenberg/common/log.hpp>
+
+#include <cstdint>
 #include <iostream>
-
-extern bool verbose;
-
-template <typename... Args> inline void vinfo(Args... args)
-{
-    if (verbose) {
-        info(args...);
-    }
-}
+#include <vector>
 
 /**
  * @brief Writes raw bytes of the vector to stdout

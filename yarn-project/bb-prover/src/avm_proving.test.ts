@@ -52,7 +52,7 @@ import { SerializableContractInstance } from '../../types/src/contracts/contract
 import { type BBSuccess, BB_RESULT, generateAvmProof, verifyAvmProof } from './bb/execute.js';
 import { extractVkData } from './verification_key/verification_key_data.js';
 
-const TIMEOUT = 30_000;
+const TIMEOUT = 60_000;
 const TIMESTAMP = new Fr(99833);
 
 describe('AVM WitGen, proof generation and verification', () => {

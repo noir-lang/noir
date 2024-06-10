@@ -8,6 +8,8 @@ namespace bb::Avm_vm {
 
 template <typename FF> struct Avm_sha256Row {
     FF avm_sha256_sha256_compression_sel{};
+
+    [[maybe_unused]] static std::vector<std::string> names();
 };
 
 inline std::string get_relation_label_avm_sha256(int index)

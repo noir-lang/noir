@@ -38,6 +38,8 @@ template <typename FF> struct Avm_kernelRow {
     FF avm_main_sel_op_nullifier_exists{};
     FF avm_main_sel_op_sload{};
     FF avm_main_sel_op_sstore{};
+
+    [[maybe_unused]] static std::vector<std::string> names();
 };
 
 inline std::string get_relation_label_avm_kernel(int index)

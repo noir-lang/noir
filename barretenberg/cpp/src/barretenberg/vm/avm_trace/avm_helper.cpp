@@ -1,5 +1,6 @@
 #include "barretenberg/vm/avm_trace/avm_helper.hpp"
 #include "barretenberg/vm/avm_trace/avm_mem_trace.hpp"
+#include "barretenberg/vm/generated/avm_circuit_builder.hpp"
 
 namespace bb::avm_trace {
 
@@ -96,6 +97,21 @@ void log_avm_trace(std::vector<Row> const& trace, size_t beg, size_t end, bool e
             }
             info("\n");
         }
+    }
+}
+
+void dump_trace_as_csv(std::vector<Row> const& trace, std::filesystem::path const& filename)
+{
+    std::ofstream file;
+    file.open(filename);
+
+    for (const auto& row_name : Row::names()) {
+        file << row_name << ",";
+    }
+    file << std::endl;
+
+    for (const auto& row : trace) {
+        file << row << std::endl;
     }
 }
 

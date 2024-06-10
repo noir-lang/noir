@@ -8,6 +8,8 @@ namespace bb::Avm_vm {
 
 template <typename FF> struct Avm_poseidon2Row {
     FF avm_poseidon2_poseidon_perm_sel{};
+
+    [[maybe_unused]] static std::vector<std::string> names();
 };
 
 inline std::string get_relation_label_avm_poseidon2(int index)

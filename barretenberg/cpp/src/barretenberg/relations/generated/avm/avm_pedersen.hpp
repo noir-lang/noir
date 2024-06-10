@@ -8,6 +8,8 @@ namespace bb::Avm_vm {
 
 template <typename FF> struct Avm_pedersenRow {
     FF avm_pedersen_pedersen_sel{};
+
+    [[maybe_unused]] static std::vector<std::string> names();
 };
 
 inline std::string get_relation_label_avm_pedersen(int index)

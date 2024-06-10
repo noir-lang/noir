@@ -22,6 +22,8 @@ template <typename FF> struct Avm_binaryRow {
     FF avm_binary_mem_tag_ctr_shift{};
     FF avm_binary_op_id{};
     FF avm_binary_op_id_shift{};
+
+    [[maybe_unused]] static std::vector<std::string> names();
 };
 
 inline std::string get_relation_label_avm_binary(int index)

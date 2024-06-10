@@ -119,6 +119,8 @@ template <typename FF> struct Avm_mainRow {
     FF avm_main_space_id{};
     FF avm_main_tag_err{};
     FF avm_main_w_in_tag{};
+
+    [[maybe_unused]] static std::vector<std::string> names();
 };
 
 inline std::string get_relation_label_avm_main(int index)
