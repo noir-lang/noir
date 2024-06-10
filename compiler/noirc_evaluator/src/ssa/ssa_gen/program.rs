@@ -80,6 +80,14 @@ impl Ssa {
         self.functions.insert(new_id, function);
         new_id
     }
+
+    /// Clones an already existing function with a fresh id
+    pub(crate) fn clone_fn(&mut self, existing_function_id: FunctionId) -> FunctionId {
+        let new_id = self.next_id.next();
+        let function = Function::clone_with_id(new_id, &self.functions[&existing_function_id]);
+        self.functions.insert(new_id, function);
+        new_id
+    }
 }
 
 impl Display for Ssa {

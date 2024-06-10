@@ -494,7 +494,10 @@ fn check_trait_wrong_parameter_type() {
     }";
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
-    assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
+
+    // This is a duplicate error in the name resolver & type checker.
+    // In the elaborator there is no duplicate and only 1 error is issued
+    assert!(errors.len() <= 2, "Expected 1 or 2 errors, got: {:?}", errors);
 
     for (err, _file_id) in errors {
         match &err {
@@ -593,22 +596,20 @@ fn check_impl_struct_not_trait() {
         bar: Field,
         array: [Field; 2],
     }
-    
+
     struct Default {
         x: Field,
         z: Field, 
     }
     
-    // Default is struct not a trait
+    // Default is a struct not a trait
     impl Default for Foo {
         fn default(x: Field, y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
     }
     
-    fn main() {
-    }
-    
+    fn main() {}
     ";
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
@@ -1377,4 +1378,69 @@ fn deny_fold_attribute_on_unconstrained() {
         errors[0].0,
         CompilationError::ResolverError(ResolverError::FoldAttributeOnUnconstrained { .. })
     ));
+}
+
+#[test]
+fn specify_function_types_with_turbofish() {
+    let src = r#"
+        trait Default {
+            fn default() -> Self;
+        }
+
+        impl Default for Field {
+            fn default() -> Self { 0 }
+        }
+
+        impl Default for u64 {
+            fn default() -> Self { 0 }
+        }
+
+        // Need the above as we don't have access to the stdlib here.
+        // We also need to construct a concrete value of `U` without giving away its type
+        // as otherwise the unspecified type is ignored.
+
+        fn generic_func<T, U>() -> (T, U) where T: Default, U: Default {
+            (T::default(), U::default())
+        }
+    
+        fn main() {
+            let _ = generic_func::<u64, Field>();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn specify_method_types_with_turbofish() {
+    let src = r#"
+        trait Default {
+            fn default() -> Self;
+        }
+
+        impl Default for Field {
+            fn default() -> Self { 0 }
+        }
+
+        // Need the above as we don't have access to the stdlib here.
+        // We also need to construct a concrete value of `U` without giving away its type
+        // as otherwise the unspecified type is ignored.
+
+        struct Foo<T> {
+            inner: T
+        }
+        
+        impl<T> Foo<T> {
+            fn generic_method<U>(_self: Self) -> U where U: Default {
+                U::default()
+            }
+        }
+        
+        fn main() {
+            let foo: Foo<Field> = Foo { inner: 1 };
+            let _ = foo.generic_method::<Field>();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
 }

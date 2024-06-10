@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use acvm::acir::native_types::{WitnessMap, WitnessStack};
+use acvm::FieldElement;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
@@ -199,16 +200,15 @@ fn debug_program_and_decode(
     program: CompiledProgram,
     package: &Package,
     prover_name: &str,
-) -> Result<(Option<InputValue>, Option<WitnessMap>), CliError> {
+) -> Result<(Option<InputValue>, Option<WitnessMap<FieldElement>>), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
     let solved_witness = debug_program(&program, &inputs_map)?;
-    let public_abi = program.abi.public_abi();
 
     match solved_witness {
         Some(witness) => {
-            let (_, return_value) = public_abi.decode(&witness)?;
+            let (_, return_value) = program.abi.decode(&witness)?;
             Ok((return_value, Some(witness)))
         }
         None => Ok((None, None)),
@@ -218,19 +218,16 @@ fn debug_program_and_decode(
 pub(crate) fn debug_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
-) -> Result<Option<WitnessMap>, CliError> {
-    let blackbox_solver = Bn254BlackBoxSolver::new();
-
+) -> Result<Option<WitnessMap<FieldElement>>, CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let debug_artifact = DebugArtifact {
         debug_symbols: compiled_program.debug.clone(),
         file_map: compiled_program.file_map.clone(),
-        warnings: compiled_program.warnings.clone(),
     };
 
     noir_debugger::debug_circuit(
-        &blackbox_solver,
+        &Bn254BlackBoxSolver,
         &compiled_program.program.functions[0],
         debug_artifact,
         initial_witness,

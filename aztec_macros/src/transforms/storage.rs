@@ -1,7 +1,8 @@
+use acvm::acir::AcirField;
 use noirc_errors::Span;
 use noirc_frontend::ast::{
     BlockExpression, Expression, ExpressionKind, FunctionDefinition, Ident, Literal, NoirFunction,
-    NoirStruct, PathKind, Pattern, StatementKind, TypeImpl, UnresolvedType, UnresolvedTypeData,
+    NoirStruct, Pattern, StatementKind, TypeImpl, UnresolvedType, UnresolvedTypeData,
 };
 use noirc_frontend::{
     graph::CrateId,
@@ -16,7 +17,7 @@ use noirc_frontend::{
 };
 
 use crate::{
-    chained_dep, chained_path,
+    chained_path,
     utils::{
         ast_utils::{
             call, expression, ident, ident_path, is_custom_attribute, lambda, make_statement,
@@ -48,7 +49,58 @@ pub fn check_for_storage_definition(
     Ok(result.iter().map(|&r#struct| r#struct.name.0.contents.clone()).next())
 }
 
-// Check to see if the user has defined a storage struct
+// Injects the Context generic in each of the Storage struct fields to avoid boilerplate,
+// taking maps into account (including nested maps)
+fn inject_context_in_storage_field(field: &mut UnresolvedType) -> Result<(), AztecMacroError> {
+    match &mut field.typ {
+        UnresolvedTypeData::Named(path, generics, _) => {
+            generics.push(make_type(UnresolvedTypeData::Named(
+                ident_path("Context"),
+                vec![],
+                false,
+            )));
+            match path.segments.last().unwrap().0.contents.as_str() {
+                "Map" => inject_context_in_storage_field(&mut generics[1]),
+                _ => Ok(()),
+            }
+        }
+        _ => Err(AztecMacroError::CouldNotInjectContextGenericInStorage {
+            secondary_message: Some(format!("Unsupported type: {:?}", field.typ)),
+        }),
+    }
+}
+
+// Injects the Context generic in the storage struct to avoid boilerplate
+// Transforms this:
+// struct Storage {
+//     a_var: SomeStoragePrimitive<ASerializableType>,
+//     a_map: Map<Field, SomeStoragePrimitive<ASerializableType>>,
+// }
+//
+// Into this:
+//
+// struct Storage<Context> {
+//     a_var: SomeStoragePrimitive<ASerializableType, Context>,
+//     a_map: Map<Field, SomeStoragePrimitive<ASerializableType, Context>, Context>,
+// }
+pub fn inject_context_in_storage(module: &mut SortedModule) -> Result<(), AztecMacroError> {
+    let storage_struct = module
+        .types
+        .iter_mut()
+        .find(|r#struct| {
+            r#struct.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(storage)"))
+        })
+        .unwrap();
+    storage_struct.generics.push(ident("Context"));
+    storage_struct
+        .fields
+        .iter_mut()
+        .map(|(_, field)| inject_context_in_storage_field(field))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(())
+}
+
+// Check to see if the user has defined an impl for the storage struct
 pub fn check_for_storage_implementation(
     module: &SortedModule,
     storage_struct_name: &String,
@@ -79,22 +131,22 @@ pub fn generate_storage_field_constructor(
                         variable("context"),
                         slot,
                         lambda(
+                            // This lambda will be equivalent to the following
+                            // | context, slot | { T::new(context, slot) }
+                            // Since the `new` function has type bindings for its arguments, we don't specify the types
+                            // of either context nor slot, and avoid that way having to deal with the generic context
+                            // type.
                             vec![
-                                (
-                                    pattern("context"),
-                                    make_type(UnresolvedTypeData::Named(
-                                        chained_dep!("aztec", "context", "Context"),
-                                        vec![],
-                                        true,
-                                    )),
-                                ),
+                                (pattern("context"), make_type(UnresolvedTypeData::Unspecified)),
                                 (
                                     Pattern::Identifier(ident("slot")),
-                                    make_type(UnresolvedTypeData::FieldElement),
+                                    make_type(UnresolvedTypeData::Unspecified),
                                 ),
                             ],
                             generate_storage_field_constructor(
-                                &(type_ident.clone(), generics.iter().last().unwrap().clone()),
+                                // Map is expected to have three generic parameters: key, value and context (i.e.
+                                // Map<K, V, Context>. Here `get(1)` fetches the value type.
+                                &(type_ident.clone(), generics.get(1).unwrap().clone()),
                                 variable("slot"),
                             )?,
                         ),
@@ -113,15 +165,15 @@ pub fn generate_storage_field_constructor(
 // Generates the Storage implementation block from the Storage struct definition if it does not exist
 /// From:
 ///
-/// struct Storage {
-///     a_map: Map<Field, SomeStoragePrimitive<ASerializableType>>,
-///     a_nested_map: Map<Field, Map<Field, SomeStoragePrimitive<ASerializableType>>>,
-///     a_field: SomeStoragePrimitive<ASerializableType>,
+/// struct Storage<Context> {
+///     a_map: Map<Field, SomeStoragePrimitive<ASerializableType, Context>, Context>,
+///     a_nested_map: Map<Field, Map<Field, SomeStoragePrimitive<ASerializableType, Context>, Context>, Context>,
+///     a_field: SomeStoragePrimitive<ASerializableType, Context>,
 /// }
 ///
 /// To:
 ///
-/// impl Storage {
+/// impl<Context> Storage<Contex> {
 ///    fn init(context: Context) -> Self {
 ///        Storage {
 ///             a_map: Map::new(context, 0, |context, slot| {
@@ -167,17 +219,15 @@ pub fn generate_storage_implementation(
         ExpressionKind::constructor((chained_path!(storage_struct_name), field_constructors)),
     )));
 
+    // This is the type over which the impl is generic.
+    let generic_context_ident = ident("Context");
+    let generic_context_type =
+        make_type(UnresolvedTypeData::Named(ident_path("Context"), vec![], true));
+
     let init = NoirFunction::normal(FunctionDefinition::normal(
         &ident("init"),
         &vec![],
-        &[(
-            ident("context"),
-            make_type(UnresolvedTypeData::Named(
-                chained_dep!("aztec", "context", "Context"),
-                vec![],
-                true,
-            )),
-        )],
+        &[(ident("context"), generic_context_type.clone())],
         &BlockExpression { statements: vec![storage_constructor_statement] },
         &[],
         &return_type(chained_path!("Self")),
@@ -185,11 +235,16 @@ pub fn generate_storage_implementation(
 
     let storage_impl = TypeImpl {
         object_type: UnresolvedType {
-            typ: UnresolvedTypeData::Named(chained_path!(storage_struct_name), vec![], true),
+            typ: UnresolvedTypeData::Named(
+                chained_path!(storage_struct_name),
+                vec![generic_context_type.clone()],
+                true,
+            ),
             span: Some(Span::default()),
         },
         type_span: Span::default(),
-        generics: vec![],
+        generics: vec![generic_context_ident],
+
         methods: vec![(init, Span::default())],
     };
     module.impls.push(storage_impl);
@@ -202,7 +257,7 @@ pub fn get_storage_serialized_length(
     traits: &[TraitId],
     typ: &Type,
     interner: &NodeInterner,
-) -> Result<u64, AztecMacroError> {
+) -> Result<u32, AztecMacroError> {
     let (struct_name, maybe_stored_in_state) = match typ {
         Type::Struct(struct_type, generics) => {
             Ok((struct_type.borrow().name.0.contents.clone(), generics.first()))
@@ -339,9 +394,11 @@ pub fn assign_storage_slots(
                 )),
             }?;
 
-            let mut storage_slot: u64 = 1;
+            let mut storage_slot: u32 = 1;
             for (index, (_, expr_id)) in storage_constructor_expression.fields.iter().enumerate() {
-                let fields = storage_struct.borrow().get_fields(&[]);
+                let fields = storage_struct
+                    .borrow()
+                    .get_fields(&storage_constructor_expression.struct_generics);
                 let (field_name, field_type) = fields.get(index).unwrap();
                 let new_call_expression = match context.def_interner.expression(expr_id) {
                     HirExpression::Call(hir_call_expression) => Ok(hir_call_expression),

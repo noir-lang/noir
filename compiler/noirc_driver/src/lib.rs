@@ -24,7 +24,6 @@ use noirc_frontend::monomorphization::{
 use noirc_frontend::node_interner::FuncId;
 use noirc_frontend::token::SecondaryAttribute;
 use std::path::Path;
-use thiserror::Error;
 use tracing::info;
 
 mod abi_gen;
@@ -84,10 +83,6 @@ pub struct CompileOptions {
     #[arg(long, conflicts_with = "deny_warnings")]
     pub silence_warnings: bool,
 
-    /// Output ACIR gzipped bytecode instead of the JSON artefact
-    #[arg(long, hide = true)]
-    pub only_acir: bool,
-
     /// Disables the builtin Aztec macros being used in the compiler
     #[arg(long, hide = true)]
     pub disable_macros: bool,
@@ -121,13 +116,22 @@ fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug)]
 pub enum CompileError {
-    #[error(transparent)]
-    MonomorphizationError(#[from] MonomorphizationError),
+    MonomorphizationError(MonomorphizationError),
+    RuntimeError(RuntimeError),
+}
 
-    #[error(transparent)]
-    RuntimeError(#[from] RuntimeError),
+impl From<MonomorphizationError> for CompileError {
+    fn from(error: MonomorphizationError) -> Self {
+        Self::MonomorphizationError(error)
+    }
+}
+
+impl From<RuntimeError> for CompileError {
+    fn from(error: RuntimeError) -> Self {
+        Self::RuntimeError(error)
+    }
 }
 
 impl From<CompileError> for FileDiagnostic {
@@ -535,17 +539,9 @@ pub fn compile_no_check(
         info!("Program matches existing artifact, returning early");
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
-    let visibility = program.return_visibility;
+    let return_visibility = program.return_visibility;
 
-    let SsaProgramArtifact {
-        program,
-        debug,
-        warnings,
-        main_input_witnesses,
-        main_return_witnesses,
-        names,
-        error_types,
-    } = create_program(
+    let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } = create_program(
         program,
         options.show_ssa,
         options.show_brillig,
@@ -553,14 +549,7 @@ pub fn compile_no_check(
         options.benchmark_codegen,
     )?;
 
-    let abi = abi_gen::gen_abi(
-        context,
-        &main_function,
-        main_input_witnesses,
-        main_return_witnesses,
-        visibility,
-        error_types,
-    );
+    let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 
     Ok(CompiledProgram {

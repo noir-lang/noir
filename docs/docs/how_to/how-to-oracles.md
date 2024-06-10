@@ -137,22 +137,15 @@ app.listen(5555);
 Now, we will add our `getSqrt` method, as expected by the `#[oracle(getSqrt)]` decorator in our Noir code. It maps through the params array and returns their square roots:
 
 ```js
-server.addMethod("getSqrt", async (params) => {
-  const values = params[0].Array.map((field) => {
+server.addMethod("resolve_function_call", async (params) => {
+  if params.function !== "getSqrt" {
+    throw Error("Unexpected foreign call")
+  };
+  const values = params.inputs[0].Array.map((field) => {
     return `${Math.sqrt(parseInt(field, 16))}`;
   });
   return { values: [{ Array: values }] };
 });
-```
-
-:::tip
-
-Brillig expects an object with an array of values. Each value is an object declaring to be `Single` or `Array` and returning a field element *as a string*. For example:
-
-```json
-{ "values": [{ "Array": ["1", "2"] }]}
-{ "values": [{ "Single": "1" }]}
-{ "values": [{ "Single": "1" }, { "Array": ["1", "2"] }]}
 ```
 
 If you're using Typescript, the following types may be helpful in understanding the expected return value and making sure they're easy to follow:
@@ -177,7 +170,7 @@ interface ForeignCallResult {
 
 ## Step 3 - Usage with Nargo
 
-Using the [`nargo` CLI tool](../getting_started/installation/index.md), you can use oracles in the `nargo test`, `nargo execute` and `nargo prove` commands by passing a value to `--oracle-resolver`. For example:
+Using the [`nargo` CLI tool](../getting_started/installation/index.md), you can use oracles in the `nargo test` and `nargo execute`  commands by passing a value to `--oracle-resolver`. For example:
 
 ```bash
 nargo test --oracle-resolver http://localhost:5555
@@ -194,7 +187,7 @@ For example, if your Noir program expects the host machine to provide CPU pseudo
 ```js
 const foreignCallHandler = (name, inputs) => crypto.randomBytes(16) // etc
 
-await noir.generateProof(inputs, foreignCallHandler)
+await noir.execute(inputs, foreignCallHandler)
 ```
 
 As one can see, in NoirJS, the [`foreignCallHandler`](../reference/NoirJS/noir_js/type-aliases/ForeignCallHandler.md) function simply means "a callback function that returns a value of type [`ForeignCallOutput`](../reference/NoirJS/noir_js/type-aliases/ForeignCallOutput.md). It doesn't have to be an RPC call like in the case for Nargo.
@@ -203,7 +196,7 @@ As one can see, in NoirJS, the [`foreignCallHandler`](../reference/NoirJS/noir_j
 
 Does this mean you don't have to write an RPC server like in [Step #2](#step-2---write-an-rpc-server)?
 
-You don't technically have to, but then how would you run `nargo test` or `nargo prove`? To use both `Nargo` and `NoirJS` in your development flow, you will have to write a JSON RPC server.
+You don't technically have to, but then how would you run `nargo test`? To use both `Nargo` and `NoirJS` in your development flow, you will have to write a JSON RPC server.
 
 :::
 

@@ -1,26 +1,28 @@
 use acvm::acir::circuit::brillig::BrilligBytecode;
-use acvm::acir::circuit::{OpcodeLocation, Program, ResolvedOpcodeLocation};
+use acvm::acir::circuit::{
+    OpcodeLocation, Program, ResolvedAssertionPayload, ResolvedOpcodeLocation,
+};
 use acvm::acir::native_types::WitnessStack;
 use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ACVM};
-use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
+use acvm::{AcirField, BlackBoxFunctionSolver};
 
 use crate::errors::ExecutionError;
 use crate::NargoError;
 
 use super::foreign_calls::ForeignCallExecutor;
 
-struct ProgramExecutor<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> {
-    functions: &'a [Circuit],
+struct ProgramExecutor<'a, F, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>> {
+    functions: &'a [Circuit<F>],
 
-    unconstrained_functions: &'a [BrilligBytecode],
+    unconstrained_functions: &'a [BrilligBytecode<F>],
 
     // This gets built as we run through the program looking at each function call
-    witness_stack: WitnessStack,
+    witness_stack: WitnessStack<F>,
 
     blackbox_solver: &'a B,
 
-    foreign_call_executor: &'a mut F,
+    foreign_call_executor: &'a mut E,
 
     // The Noir compiler codegens per function and call stacks are not shared across ACIR function calls.
     // We must rebuild a call stack when executing a program of many circuits.
@@ -32,12 +34,14 @@ struct ProgramExecutor<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> {
     current_function_index: usize,
 }
 
-impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, B, F> {
+impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
+    ProgramExecutor<'a, F, B, E>
+{
     fn new(
-        functions: &'a [Circuit],
-        unconstrained_functions: &'a [BrilligBytecode],
+        functions: &'a [Circuit<F>],
+        unconstrained_functions: &'a [BrilligBytecode<F>],
         blackbox_solver: &'a B,
-        foreign_call_executor: &'a mut F,
+        foreign_call_executor: &'a mut E,
     ) -> Self {
         ProgramExecutor {
             functions,
@@ -50,12 +54,15 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
         }
     }
 
-    fn finalize(self) -> WitnessStack {
+    fn finalize(self) -> WitnessStack<F> {
         self.witness_stack
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn execute_circuit(&mut self, initial_witness: WitnessMap) -> Result<WitnessMap, NargoError> {
+    fn execute_circuit(
+        &mut self,
+        initial_witness: WitnessMap<F>,
+    ) -> Result<WitnessMap<F>, NargoError<F>> {
         let circuit = &self.functions[self.current_function_index];
         let mut acvm = ACVM::new(
             self.blackbox_solver,
@@ -102,7 +109,7 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
                         _ => None,
                     };
 
-                    let assertion_payload = match &error {
+                    let assertion_payload: Option<ResolvedAssertionPayload<F>> = match &error {
                         OpcodeResolutionError::BrilligFunctionFailed { payload, .. }
                         | OpcodeResolutionError::UnsatisfiedConstrain { payload, .. } => {
                             payload.clone()
@@ -166,12 +173,12 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
 }
 
 #[tracing::instrument(level = "trace", skip_all)]
-pub fn execute_program<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
-    program: &Program,
-    initial_witness: WitnessMap,
+pub fn execute_program<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>(
+    program: &Program<F>,
+    initial_witness: WitnessMap<F>,
     blackbox_solver: &B,
-    foreign_call_executor: &mut F,
-) -> Result<WitnessStack, NargoError> {
+    foreign_call_executor: &mut E,
+) -> Result<WitnessStack<F>, NargoError<F>> {
     let mut executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,

@@ -8,7 +8,7 @@ use acvm::{
         circuit::ErrorSelector,
         native_types::{Witness, WitnessMap},
     },
-    FieldElement,
+    AcirField, FieldElement,
 };
 use errors::AbiError;
 use input_parser::InputValue;
@@ -20,7 +20,7 @@ use noirc_printable_type::{
     PrintableValueDisplay,
 };
 use serde::{Deserialize, Serialize};
-use std::{borrow::Borrow, ops::Range};
+use std::borrow::Borrow;
 use std::{collections::BTreeMap, str};
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
@@ -51,7 +51,7 @@ pub const MAIN_RETURN_NAME: &str = "return";
 pub enum AbiType {
     Field,
     Array {
-        length: u64,
+        length: u32,
         #[serde(rename = "type")]
         typ: Box<AbiType>,
     },
@@ -72,7 +72,7 @@ pub enum AbiType {
         fields: Vec<AbiType>,
     },
     String {
-        length: u64,
+        length: u32,
     },
 }
 
@@ -137,7 +137,7 @@ impl AbiType {
             Type::FieldElement => Self::Field,
             Type::Array(size, typ) => {
                 let length = size
-                    .evaluate_to_u64()
+                    .evaluate_to_u32()
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
                 Self::Array { length, typ: Box::new(Self::from_type(context, typ)) }
@@ -160,7 +160,7 @@ impl AbiType {
             Type::Bool => Self::Boolean,
             Type::String(size) => {
                 let size = size
-                    .evaluate_to_u64()
+                    .evaluate_to_u32()
                     .expect("Cannot have variable sized strings as a parameter to main");
                 Self::String { length: size }
             }
@@ -198,14 +198,14 @@ impl AbiType {
     pub fn field_count(&self) -> u32 {
         match self {
             AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => 1,
-            AbiType::Array { length, typ } => typ.field_count() * (*length as u32),
+            AbiType::Array { length, typ } => typ.field_count() * *length,
             AbiType::Struct { fields, .. } => {
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
             }
             AbiType::Tuple { fields } => {
                 fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
             }
-            AbiType::String { length } => *length as u32,
+            AbiType::String { length } => *length,
         }
     }
 }
@@ -267,11 +267,7 @@ pub struct AbiReturnType {
 pub struct Abi {
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
     pub parameters: Vec<AbiParameter>,
-    /// A map from the ABI's parameters to the indices they are written to in the [`WitnessMap`].
-    /// This defines how to convert between the [`InputMap`] and [`WitnessMap`].
-    pub param_witnesses: BTreeMap<String, Vec<Range<Witness>>>,
     pub return_type: Option<AbiReturnType>,
-    pub return_witnesses: Vec<Witness>,
     pub error_types: BTreeMap<ErrorSelector, AbiErrorType>,
 }
 
@@ -307,31 +303,12 @@ impl Abi {
         map
     }
 
-    /// ABI with only the public parameters
-    #[must_use]
-    pub fn public_abi(self) -> Abi {
-        let parameters: Vec<_> =
-            self.parameters.into_iter().filter(|param| param.is_public()).collect();
-        let param_witnesses = self
-            .param_witnesses
-            .into_iter()
-            .filter(|(param_name, _)| parameters.iter().any(|param| &param.name == param_name))
-            .collect();
-        Abi {
-            parameters,
-            param_witnesses,
-            return_type: self.return_type,
-            return_witnesses: self.return_witnesses,
-            error_types: self.error_types,
-        }
-    }
-
     /// Encode a set of inputs as described in the ABI into a `WitnessMap`.
     pub fn encode(
         &self,
         input_map: &InputMap,
         return_value: Option<InputValue>,
-    ) -> Result<WitnessMap, AbiError> {
+    ) -> Result<WitnessMap<FieldElement>, AbiError> {
         // Check that no extra witness values have been provided.
         let param_names = self.parameter_names();
         if param_names.len() < input_map.len() {
@@ -341,33 +318,20 @@ impl Abi {
         }
 
         // First encode each input separately, performing any input validation.
-        let encoded_input_map: BTreeMap<String, Vec<FieldElement>> = self
-            .to_btree_map()
-            .into_iter()
-            .map(|(param_name, expected_type)| {
+        let mut encoded_inputs: Vec<Vec<FieldElement>> = self
+            .parameters
+            .iter()
+            .map(|param| {
                 let value = input_map
-                    .get(&param_name)
-                    .ok_or_else(|| AbiError::MissingParam(param_name.clone()))?
+                    .get(&param.name)
+                    .ok_or_else(|| AbiError::MissingParam(param.name.clone()))?
                     .clone();
 
-                value.find_type_mismatch(&expected_type, param_name.clone())?;
+                value.find_type_mismatch(&param.typ, param.name.clone())?;
 
-                Self::encode_value(value, &expected_type).map(|v| (param_name, v))
+                Self::encode_value(value, &param.typ)
             })
             .collect::<Result<_, _>>()?;
-
-        // Write input field elements into witness indices specified in `self.param_witnesses`.
-        let mut witness_map: BTreeMap<Witness, FieldElement> = encoded_input_map
-            .iter()
-            .flat_map(|(param_name, encoded_param_fields)| {
-                let param_witness_indices = range_to_vec(&self.param_witnesses[param_name]);
-                param_witness_indices
-                    .iter()
-                    .zip(encoded_param_fields.iter())
-                    .map(|(&witness, &field_element)| (witness, field_element))
-                    .collect::<Vec<_>>()
-            })
-            .collect::<BTreeMap<Witness, FieldElement>>();
 
         // When encoding public inputs to be passed to the verifier, the user can must provide a return value
         // to be inserted into the witness map. This is not needed when generating a witness when proving the circuit.
@@ -380,18 +344,7 @@ impl Abi {
                     });
                 }
                 let encoded_return_fields = Self::encode_value(return_value, return_type)?;
-
-                // We need to be more careful when writing the return value's witness values.
-                // This is as it may share witness indices with other public inputs so we must check that when
-                // this occurs the witness values are consistent with each other.
-                self.return_witnesses.iter().zip(encoded_return_fields.iter()).try_for_each(
-                    |(&witness, &field_element)| match witness_map.insert(witness, field_element) {
-                        Some(existing_value) if existing_value != field_element => {
-                            Err(AbiError::InconsistentWitnessAssignment(witness))
-                        }
-                        _ => Ok(()),
-                    },
-                )?;
+                encoded_inputs.push(encoded_return_fields);
             }
             (None, Some(return_value)) => {
                 return Err(AbiError::UnexpectedReturnValue(return_value))
@@ -400,6 +353,14 @@ impl Abi {
             // in order to generate the initial partial witness.
             (_, None) => {}
         }
+
+        // Write input field elements into witness map.
+        let witness_map: BTreeMap<Witness, FieldElement> = encoded_inputs
+            .into_iter()
+            .flatten()
+            .enumerate()
+            .map(|(index, field_element)| (Witness(index as u32), field_element))
+            .collect::<BTreeMap<Witness, FieldElement>>();
 
         Ok(witness_map.into())
     }
@@ -439,20 +400,23 @@ impl Abi {
     /// Decode a `WitnessMap` into the types specified in the ABI.
     pub fn decode(
         &self,
-        witness_map: &WitnessMap,
+        witness_map: &WitnessMap<FieldElement>,
     ) -> Result<(InputMap, Option<InputValue>), AbiError> {
+        let mut pointer: u32 = 0;
         let public_inputs_map =
             try_btree_map(self.parameters.clone(), |AbiParameter { name, typ, .. }| {
-                let param_witness_values =
-                    try_vecmap(range_to_vec(&self.param_witnesses[&name]), |witness_index| {
-                        witness_map
-                            .get(&witness_index)
-                            .ok_or_else(|| AbiError::MissingParamWitnessValue {
-                                name: name.clone(),
-                                witness_index,
-                            })
-                            .copied()
-                    })?;
+                let num_fields = typ.field_count();
+                let param_witness_values = try_vecmap(0..num_fields, |index| {
+                    let witness_index = Witness(pointer + index);
+                    witness_map
+                        .get(&witness_index)
+                        .ok_or_else(|| AbiError::MissingParamWitnessValue {
+                            name: name.clone(),
+                            witness_index,
+                        })
+                        .copied()
+                })?;
+                pointer += num_fields;
 
                 decode_value(&mut param_witness_values.into_iter(), &typ)
                     .map(|input_value| (name.clone(), input_value))
@@ -461,7 +425,8 @@ impl Abi {
         // We also attempt to decode the circuit's return value from `witness_map`.
         let return_value = if let Some(return_type) = &self.return_type {
             if let Ok(return_witness_values) =
-                try_vecmap(self.return_witnesses.clone(), |witness_index| {
+                try_vecmap(0..return_type.abi_type.field_count(), |index| {
+                    let witness_index = Witness(pointer + index);
                     witness_map
                         .get(&witness_index)
                         .ok_or_else(|| AbiError::MissingParamWitnessValue {
@@ -471,7 +436,15 @@ impl Abi {
                         .copied()
                 })
             {
-                Some(decode_value(&mut return_witness_values.into_iter(), &return_type.abi_type)?)
+                // We do not return value for the data bus.
+                if return_type.visibility == AbiVisibility::DataBus {
+                    None
+                } else {
+                    Some(decode_value(
+                        &mut return_witness_values.into_iter(),
+                        &return_type.abi_type,
+                    )?)
+                }
             } else {
                 // Unlike for the circuit inputs, we tolerate not being able to find the witness values for the return value.
                 // This is because the user may be decoding a partial witness map for which is hasn't been calculated yet.
@@ -579,27 +552,17 @@ pub enum AbiValue {
     },
 }
 
-fn range_to_vec(ranges: &[Range<Witness>]) -> Vec<Witness> {
-    let mut result = Vec::new();
-    for range in ranges {
-        for witness in range.start.witness_index()..range.end.witness_index() {
-            result.push(witness.into());
-        }
-    }
-    result
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "error_kind", rename_all = "lowercase")]
 pub enum AbiErrorType {
-    FmtString { length: u64, item_types: Vec<AbiType> },
+    FmtString { length: u32, item_types: Vec<AbiType> },
     Custom(AbiType),
 }
 impl AbiErrorType {
     pub fn from_type(context: &Context, typ: &Type) -> Self {
         match typ {
             Type::FmtString(len, item_types) => {
-                let length = len.evaluate_to_u64().expect("Cannot evaluate fmt length");
+                let length = len.evaluate_to_u32().expect("Cannot evaluate fmt length");
                 let Type::Tuple(item_types) = item_types.as_ref() else {
                     unreachable!("FmtString items must be a tuple")
                 };
@@ -612,10 +575,10 @@ impl AbiErrorType {
     }
 }
 
-pub fn display_abi_error(
-    fields: &[FieldElement],
+pub fn display_abi_error<F: AcirField>(
+    fields: &[F],
     error_type: AbiErrorType,
-) -> PrintableValueDisplay {
+) -> PrintableValueDisplay<F> {
     match error_type {
         AbiErrorType::FmtString { length, item_types } => {
             let mut fields_iter = fields.iter().copied();
@@ -644,7 +607,7 @@ pub fn display_abi_error(
 mod test {
     use std::collections::BTreeMap;
 
-    use acvm::{acir::native_types::Witness, FieldElement};
+    use acvm::{AcirField, FieldElement};
 
     use crate::{
         input_parser::InputValue, Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility,
@@ -666,16 +629,10 @@ mod test {
                     visibility: AbiVisibility::Public,
                 },
             ],
-            // Note that the return value shares a witness with `thing2`
-            param_witnesses: BTreeMap::from([
-                ("thing1".to_string(), vec![(Witness(1)..Witness(3))]),
-                ("thing2".to_string(), vec![(Witness(3)..Witness(4))]),
-            ]),
             return_type: Some(AbiReturnType {
                 abi_type: AbiType::Field,
                 visibility: AbiVisibility::Public,
             }),
-            return_witnesses: vec![Witness(3)],
             error_types: BTreeMap::default(),
         };
 
@@ -698,7 +655,6 @@ mod test {
             assert_eq!(reconstructed_inputs[&key], expected_value);
         }
 
-        // We also decode the return value (we can do this immediately as we know it shares a witness with an input).
-        assert_eq!(return_value.unwrap(), reconstructed_inputs["thing2"]);
+        assert!(return_value.is_none());
     }
 }

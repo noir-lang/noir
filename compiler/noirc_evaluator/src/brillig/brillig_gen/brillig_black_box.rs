@@ -207,15 +207,17 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::EmbeddedCurveAdd => {
             if let (
-                [BrilligVariable::SingleAddr(input1_x), BrilligVariable::SingleAddr(input1_y), BrilligVariable::SingleAddr(input2_x), BrilligVariable::SingleAddr(input2_y)],
+                [BrilligVariable::SingleAddr(input1_x), BrilligVariable::SingleAddr(input1_y), BrilligVariable::SingleAddr(input1_infinite), BrilligVariable::SingleAddr(input2_x), BrilligVariable::SingleAddr(input2_y), BrilligVariable::SingleAddr(input2_infinite)],
                 [BrilligVariable::BrilligArray(result_array)],
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::EmbeddedCurveAdd {
                     input1_x: input1_x.address,
                     input1_y: input1_y.address,
+                    input1_infinite: input1_infinite.address,
                     input2_x: input2_x.address,
                     input2_y: input2_y.address,
+                    input2_infinite: input2_infinite.address,
                     result: result_array.to_heap_array(),
                 });
             } else {
@@ -233,9 +235,7 @@ pub(crate) fn convert_black_box_call(
         BlackBoxFunc::RANGE => unreachable!(
             "ICE: `BlackBoxFunc::RANGE` calls should be transformed into a `Instruction::Cast`"
         ),
-        BlackBoxFunc::RecursiveAggregation => unimplemented!(
-            "ICE: `BlackBoxFunc::RecursiveAggregation` is not implemented by the Brillig VM"
-        ),
+        BlackBoxFunc::RecursiveAggregation => {}
         BlackBoxFunc::BigIntAdd => {
             if let (
                 [BrilligVariable::SingleAddr(lhs), BrilligVariable::SingleAddr(lhs_modulus), BrilligVariable::SingleAddr(rhs), BrilligVariable::SingleAddr(rhs_modulus)],

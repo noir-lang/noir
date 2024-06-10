@@ -1,6 +1,6 @@
 use acir::{
     native_types::{Witness, WitnessMap},
-    FieldElement,
+    AcirField, FieldElement,
 };
 use toml::Table;
 
@@ -11,7 +11,7 @@ use std::{fs::read, path::Path};
 pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
     working_directory: P,
     file_name: &String,
-) -> Result<WitnessMap, CliError> {
+) -> Result<WitnessMap<FieldElement>, CliError> {
     let file_path = working_directory.as_ref().join(file_name);
     if !file_path.exists() {
         return Err(CliError::FilesystemError(FilesystemError::MissingTomlFile(
@@ -25,7 +25,7 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
     let input_map = input_string
         .parse::<Table>()
         .map_err(|_| FilesystemError::InvalidTomlFile(file_name.clone()))?;
-    let mut witnesses: WitnessMap = WitnessMap::new();
+    let mut witnesses: WitnessMap<FieldElement> = WitnessMap::new();
     for (key, value) in input_map.into_iter() {
         let index =
             Witness(key.trim().parse().map_err(|_| CliError::WitnessIndexError(key.clone()))?);

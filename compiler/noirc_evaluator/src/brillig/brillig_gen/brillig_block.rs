@@ -7,7 +7,7 @@ use crate::brillig::brillig_ir::{
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::instruction::ConstrainError;
 use crate::ssa::ir::{
-    basic_block::{BasicBlock, BasicBlockId},
+    basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     function::FunctionId,
     instruction::{
@@ -18,7 +18,7 @@ use crate::ssa::ir::{
 };
 use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 use acvm::brillig_vm::brillig::HeapVector;
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
 use num_bigint::BigUint;
@@ -49,8 +49,7 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
     ) {
         let live_in = function_context.liveness.get_live_in(&block_id);
-        let variables =
-            BlockVariables::new(live_in.clone(), function_context.all_block_parameters());
+        let variables = BlockVariables::new(live_in.clone());
 
         brillig_context.set_allocated_registers(
             variables
@@ -72,9 +71,9 @@ impl<'block> BrilligBlock<'block> {
         let block_label = self.create_block_label_for_current_function(self.block_id);
         self.brillig_context.enter_context(block_label);
 
-        // Convert the block parameters
+        self.convert_block_params(dfg);
+
         let block = &dfg[self.block_id];
-        self.convert_block_params(block, dfg);
 
         // Convert all of the instructions into the block
         for instruction_id in block.instructions() {
@@ -134,12 +133,8 @@ impl<'block> BrilligBlock<'block> {
                 let target_block = &dfg[*destination_block];
                 for (src, dest) in arguments.iter().zip(target_block.parameters()) {
                     // Destinations are block parameters so they should have been allocated previously.
-                    let destination = self.variables.get_block_param(
-                        self.function_context,
-                        *destination_block,
-                        *dest,
-                        dfg,
-                    );
+                    let destination =
+                        self.variables.get_allocation(self.function_context, *dest, dfg);
                     let source = self.convert_ssa_value(*src, dfg);
                     self.pass_variable(source, destination);
                 }
@@ -206,10 +201,14 @@ impl<'block> BrilligBlock<'block> {
         }
     }
 
-    /// Converts SSA Block parameters into Brillig Registers.
-    fn convert_block_params(&mut self, block: &BasicBlock, dfg: &DataFlowGraph) {
-        for param_id in block.parameters() {
-            let value = &dfg[*param_id];
+    /// Allocates the block parameters that the given block is defining
+    fn convert_block_params(&mut self, dfg: &DataFlowGraph) {
+        // We don't allocate the block parameters here, we allocate the parameters the block is defining.
+        // Since predecessors to a block have to know where the parameters of the block are allocated to pass data to it,
+        // the block parameters need to be defined/allocated before the given block. Variable liveness provides when the block parameters are defined.
+        // For the entry block, the defined block params will be the params of the function + any extra params of blocks it's the immediate dominator of.
+        for param_id in self.function_context.liveness.defined_block_params(&self.block_id) {
+            let value = &dfg[param_id];
             let param_type = match value {
                 Value::Param { typ, .. } => typ,
                 _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
@@ -220,10 +219,10 @@ impl<'block> BrilligBlock<'block> {
                 // Be a valid pointer to the array.
                 // For slices, two registers are passed, the pointer to the data and a register holding the size of the slice.
                 Type::Numeric(_) | Type::Array(..) | Type::Slice(..) | Type::Reference(_) => {
-                    self.variables.get_block_param(
+                    self.variables.define_variable(
                         self.function_context,
-                        self.block_id,
-                        *param_id,
+                        self.brillig_context,
+                        param_id,
                         dfg,
                     );
                 }
@@ -488,8 +487,22 @@ impl<'block> BrilligBlock<'block> {
                 }
                 Value::Intrinsic(Intrinsic::ToRadix(endianness)) => {
                     let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
-                    let radix = self.convert_ssa_single_addr_value(arguments[1], dfg);
-                    let limb_count = self.convert_ssa_single_addr_value(arguments[2], dfg);
+
+                    let radix: u32 = dfg
+                        .get_numeric_constant(arguments[1])
+                        .expect("Radix should be known")
+                        .try_to_u64()
+                        .expect("Radix should fit in u64")
+                        .try_into()
+                        .expect("Radix should be u32");
+
+                    let limb_count: usize = dfg
+                        .get_numeric_constant(arguments[2])
+                        .expect("Limb count should be known")
+                        .try_to_u64()
+                        .expect("Limb count should fit in u64")
+                        .try_into()
+                        .expect("Limb count should fit in usize");
 
                     let results = dfg.instruction_results(instruction_id);
 
@@ -511,7 +524,8 @@ impl<'block> BrilligBlock<'block> {
                         .extract_vector();
 
                     // Update the user-facing slice length
-                    self.brillig_context.cast_instruction(target_len, limb_count);
+                    self.brillig_context
+                        .usize_const_instruction(target_len.address, limb_count.into());
 
                     self.brillig_context.codegen_to_radix(
                         source,
@@ -524,7 +538,13 @@ impl<'block> BrilligBlock<'block> {
                 }
                 Value::Intrinsic(Intrinsic::ToBits(endianness)) => {
                     let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
-                    let limb_count = self.convert_ssa_single_addr_value(arguments[1], dfg);
+                    let limb_count: usize = dfg
+                        .get_numeric_constant(arguments[1])
+                        .expect("Limb count should be known")
+                        .try_to_u64()
+                        .expect("Limb count should fit in u64")
+                        .try_into()
+                        .expect("Limb count should fit in usize");
 
                     let results = dfg.instruction_results(instruction_id);
 
@@ -549,21 +569,18 @@ impl<'block> BrilligBlock<'block> {
                         BrilligVariable::SingleAddr(..) => unreachable!("ICE: ToBits on non-array"),
                     };
 
-                    let radix = self.brillig_context.make_constant_instruction(2_usize.into(), 32);
-
                     // Update the user-facing slice length
-                    self.brillig_context.cast_instruction(target_len, limb_count);
+                    self.brillig_context
+                        .usize_const_instruction(target_len.address, limb_count.into());
 
                     self.brillig_context.codegen_to_radix(
                         source,
                         target_vector,
-                        radix,
+                        2,
                         limb_count,
                         matches!(endianness, Endian::Big),
                         1,
                     );
-
-                    self.brillig_context.deallocate_single_addr(radix);
                 }
                 _ => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])

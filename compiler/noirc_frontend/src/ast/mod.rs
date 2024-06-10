@@ -26,6 +26,7 @@ use crate::{
     token::IntType,
     BinaryTypeOperator,
 };
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
@@ -91,7 +92,7 @@ pub enum UnresolvedTypeData {
     Integer(Signedness, IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
     Expression(UnresolvedTypeExpression),
-    String(Option<UnresolvedTypeExpression>),
+    String(UnresolvedTypeExpression),
     FormatString(UnresolvedTypeExpression, Box<UnresolvedType>),
     Unit,
 
@@ -132,13 +133,17 @@ pub struct UnresolvedType {
     pub span: Option<Span>,
 }
 
+/// Type wrapper for a member access
+pub(crate) type UnaryRhsMemberAccess =
+    (Ident, Option<(Option<Vec<UnresolvedType>>, Vec<Expression>)>);
+
 /// The precursor to TypeExpression, this is the type that the parser allows
 /// to be used in the length position of an array type. Only constants, variables,
 /// and numeric binary operators are allowed here.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(u64, Span),
+    Constant(u32, Span),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
@@ -186,10 +191,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             }
             Expression(expression) => expression.fmt(f),
             Bool => write!(f, "bool"),
-            String(len) => match len {
-                None => write!(f, "str<_>"),
-                Some(len) => write!(f, "str<{len}>"),
-            },
+            String(len) => write!(f, "str<{len}>"),
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
             Function(args, ret, env) => {
                 let args = vecmap(args, ToString::to_string).join(", ");
@@ -305,12 +307,12 @@ impl UnresolvedTypeExpression {
         match expr.kind {
             ExpressionKind::Literal(Literal::Integer(int, sign)) => {
                 assert!(!sign, "Negative literal is not allowed here");
-                match int.try_to_u64() {
+                match int.try_to_u32() {
                     Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
                     None => Err(expr),
                 }
             }
-            ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
+            ExpressionKind::Variable(path, _) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(0, expr.span));
                 let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);

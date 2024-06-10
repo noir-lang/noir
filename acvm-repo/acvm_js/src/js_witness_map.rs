@@ -1,5 +1,6 @@
 use acvm::{
     acir::native_types::{Witness, WitnessMap},
+    acir::AcirField,
     FieldElement,
 };
 use js_sys::{JsString, Map, Object};
@@ -51,8 +52,8 @@ impl Default for JsSolvedAndReturnWitness {
     }
 }
 
-impl From<WitnessMap> for JsWitnessMap {
-    fn from(witness_map: WitnessMap) -> Self {
+impl From<WitnessMap<FieldElement>> for JsWitnessMap {
+    fn from(witness_map: WitnessMap<FieldElement>) -> Self {
         let js_map = JsWitnessMap::new();
         for (key, value) in witness_map {
             js_map.set(
@@ -64,7 +65,7 @@ impl From<WitnessMap> for JsWitnessMap {
     }
 }
 
-impl From<JsWitnessMap> for WitnessMap {
+impl From<JsWitnessMap> for WitnessMap<FieldElement> {
     fn from(js_map: JsWitnessMap) -> Self {
         let mut witness_map = WitnessMap::new();
         js_map.for_each(&mut |value, key| {
@@ -76,8 +77,8 @@ impl From<JsWitnessMap> for WitnessMap {
     }
 }
 
-impl From<(WitnessMap, WitnessMap)> for JsSolvedAndReturnWitness {
-    fn from(witness_maps: (WitnessMap, WitnessMap)) -> Self {
+impl From<(WitnessMap<FieldElement>, WitnessMap<FieldElement>)> for JsSolvedAndReturnWitness {
+    fn from(witness_maps: (WitnessMap<FieldElement>, WitnessMap<FieldElement>)) -> Self {
         let js_solved_witness = JsWitnessMap::from(witness_maps.0);
         let js_return_witness = JsWitnessMap::from(witness_maps.1);
 
@@ -113,7 +114,7 @@ mod test {
 
     use acvm::{
         acir::native_types::{Witness, WitnessMap},
-        FieldElement,
+        AcirField, FieldElement,
     };
     use wasm_bindgen::JsValue;
 
