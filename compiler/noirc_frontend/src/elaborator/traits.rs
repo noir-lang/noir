@@ -23,7 +23,7 @@ use super::Elaborator;
 impl<'context> Elaborator<'context> {
     pub fn collect_trait_generics(&mut self, traits: &BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
-            self.scopes.start_scope();
+            self.push_scope();
             self.recover_generics(|this| {
                 this.add_generics(&unresolved_trait.trait_def.generics);
 
@@ -31,12 +31,13 @@ impl<'context> Elaborator<'context> {
                     trait_def.generics = this.generics.clone();
                 });
             });
+            self.pop_scope();
         }
     }
 
     pub fn collect_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
-            self.scopes.start_scope();
+            self.push_scope();
             self.recover_generics(|this| {
                 let resolved_generics = this.interner.get_trait(trait_id).generics.clone();
                 this.add_existing_generics(
@@ -63,7 +64,7 @@ impl<'context> Elaborator<'context> {
             if self.crate_id.is_stdlib() {
                 self.interner.try_add_operator_trait(trait_id);
             }
-            self.scopes.end_scope();
+            self.pop_scope();
         }
     }
 
