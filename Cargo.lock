@@ -34,6 +34,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "hex",
  "num-bigint",
+ "proptest",
  "serde",
 ]
 
@@ -47,9 +48,7 @@ dependencies = [
  "brillig_vm",
  "indexmap 1.9.3",
  "num-bigint",
- "paste",
- "proptest",
- "rand 0.8.5",
+ "serde",
  "thiserror",
  "tracing",
 ]
@@ -66,6 +65,7 @@ dependencies = [
  "libaes",
  "num-bigint",
  "p256",
+ "proptest",
  "sha2",
  "sha3",
  "thiserror",
@@ -2485,6 +2485,7 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "noirc_printable_type",
+ "rand 0.8.5",
  "rayon",
  "serde",
  "tempfile",
@@ -2801,6 +2802,7 @@ name = "noirc_evaluator"
 version = "0.30.0"
 dependencies = [
  "acvm",
+ "bn254_blackbox_solver",
  "chrono",
  "fxhash",
  "im",

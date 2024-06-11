@@ -382,7 +382,7 @@ pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
     debug_artifact: &DebugArtifact,
     initial_witness: WitnessMap<FieldElement>,
     unconstrained_functions: &[BrilligBytecode<FieldElement>],
-) -> Result<Option<WitnessMap<FieldElement>>, NargoError> {
+) -> Result<Option<WitnessMap<FieldElement>>, NargoError<FieldElement>> {
     let context = RefCell::new(ReplDebugger::new(
         blackbox_solver,
         circuit,

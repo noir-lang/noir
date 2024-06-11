@@ -29,7 +29,12 @@ pub fn blake3<N>(input: [u8; N]) -> [u8; 32]
 // docs:start:pedersen_commitment
 pub fn pedersen_commitment<N>(input: [Field; N]) -> EmbeddedCurvePoint {
     // docs:end:pedersen_commitment
-    pedersen_commitment_with_separator(input, 0)
+    let value = pedersen_commitment_with_separator(input, 0);
+    if (value.x == 0) & (value.y == 0) {
+        EmbeddedCurvePoint { x: 0, y: 0, is_infinite: true }
+    } else {
+        EmbeddedCurvePoint { x: value.x, y: value.y, is_infinite: false }
+    }
 }
 
 pub fn pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {

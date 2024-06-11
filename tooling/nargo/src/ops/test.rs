@@ -76,7 +76,7 @@ fn test_status_program_compile_pass(
     test_function: &TestFunction,
     abi: Abi,
     debug: Vec<DebugInfo>,
-    circuit_execution: Result<WitnessStack<FieldElement>, NargoError>,
+    circuit_execution: Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
 ) -> TestStatus {
     let circuit_execution_err = match circuit_execution {
         // Circuit execution was successful; ie no errors or unsatisfied constraints
