@@ -793,7 +793,8 @@ impl Builder {
             Instruction::Cast(value_id, typ) => {
                 // TODO(stanm): Add check that value is already truncated (if bit_size <
                 // old_bit_size) for added safety.
-                let (_, target) = self.get_integer(value_id).unwrap();
+                let p2value = self.get(value_id).unwrap();
+                let target = p2value.get_target()?;
                 let bit_size = match typ {
                     Type::Numeric(numeric_type) => match numeric_type {
                         NumericType::Unsigned { bit_size } => bit_size,

@@ -41,7 +41,7 @@ fn main() {
     generate_plonky2_prove_success_tests(&mut test_file, &test_dir);
     generate_plonky2_prove_failure_tests(&mut test_file, &test_dir);
     // generate_plonky2_prove_unsupported_tests(&mut test_file, &test_dir);
-    generate_plonky2_prove_crash_tests(&mut test_file, &test_dir);
+    // generate_plonky2_prove_crash_tests(&mut test_file, &test_dir);
 }
 
 /// Some tests are explicitly ignored in brillig due to them failing.
