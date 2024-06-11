@@ -51,7 +51,9 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::If(if_) => self.elaborate_if(*if_),
             ExpressionKind::Variable(variable, generics) => {
                 let generics = generics.map(|option_inner| {
-                    option_inner.into_iter().map(|generic| self.resolve_type(generic)).collect()
+                    option_inner.into_iter().map(|generic| {
+                        self.resolve_type(generic)
+                    }).collect()
                 });
                 return self.elaborate_variable(variable, generics);
             }
@@ -82,7 +84,7 @@ impl<'context> Elaborator<'context> {
         let mut statements = Vec::with_capacity(block.statements.len());
 
         for (i, statement) in block.statements.into_iter().enumerate() {
-            let (id, stmt_type) = self.elaborate_statement(statement);
+            let (id, stmt_type) = self.elaborate_statement(statement.clone());
             statements.push(id);
 
             if let HirStatement::Semi(expr) = self.interner.statement(&id) {
@@ -97,6 +99,9 @@ impl<'context> Elaborator<'context> {
 
             if i + 1 == statements.len() {
                 block_type = stmt_type;
+            }
+            if self.errors.len() == 2 {
+                // dbg!(statement);
             }
         }
 

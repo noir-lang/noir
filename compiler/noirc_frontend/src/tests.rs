@@ -1323,7 +1323,7 @@ fn break_and_continue_outside_loop() {
 #[test]
 fn for_loop_over_array() {
     let src = r#"
-        fn hello<let N: u64>(_array: [u1; N]) {
+        fn hello<N>(_array: [u1; N]) {
             for _ in 0..N {}
         }
 
@@ -1674,9 +1674,26 @@ fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
     }
     "#;
     let errors = get_program_errors_elaborator(src);
-    if !errors.is_empty() {
-        dbg!(errors.clone());
+    assert!(errors.is_empty());
+}
+
+#[test]
+fn numeric_generic_used_in_where_clause() {
+    let src = r#"
+
+    trait Deserialize<let N: u32> {
+        fn deserialize(fields: [Field; N]) -> Self;
     }
+
+    fn read<T, let N: u32>() -> T where T: Deserialize<N> {
+        let mut fields: [Field; N] = [0; N];
+        for i in 0..N {
+            fields[i] = i as Field + 1;
+        }
+        T::deserialize(fields)
+    }
+    "#;
+    let errors = get_program_errors_elaborator(src);
     assert!(errors.is_empty());
 }
 
@@ -1703,7 +1720,6 @@ fn implicit_numeric_generics_elaborator() {
             self.len += 1;
         }
     }
-
     "#;
     let errors = get_program_errors_elaborator(src);
 
@@ -1714,4 +1730,30 @@ fn implicit_numeric_generics_elaborator() {
             panic!("Expected ResolverError::UseExplicitNumericGeneric but got {:?}", error);
         }
     }
+}
+
+#[test]
+fn nested_generic_elaborator() {
+    let src = r#"
+    trait Default {
+        fn default() -> Self;
+    }
+
+    struct Option<T> {
+        _is_some: bool,
+        _value: T,
+    }
+
+    impl<T> Option<T> {
+        pub fn flatten(option: Option<Option<T>>) -> Option<T> where T: Default {
+            if option._is_some {
+                option._value
+            } else {
+                Self { _is_some: false, _value: T::default() }
+            }
+        }
+    }
+    "#;
+    let errors = get_program_errors_elaborator(src);
+    assert!(errors.is_empty());
 }

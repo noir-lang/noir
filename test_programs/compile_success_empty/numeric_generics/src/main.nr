@@ -18,7 +18,7 @@ fn id<I>(x: [Field; I]) -> [Field; I] {
     x
 }
 
-struct MyStruct<let S: u64> {
+struct MyStruct<S> {
     data: [Field; S],
 }
 

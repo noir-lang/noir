@@ -21,11 +21,25 @@ use crate::{
 use super::Elaborator;
 
 impl<'context> Elaborator<'context> {
-    pub fn collect_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
+    pub fn collect_trait_generics(&mut self, traits: &BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.scopes.start_scope();
             self.recover_generics(|this| {
                 this.add_generics(&unresolved_trait.trait_def.generics);
+
+                this.interner.update_trait(*trait_id, |trait_def| {
+                    trait_def.generics = this.generics.clone();
+                });
+            });
+        }
+    }
+
+    pub fn collect_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
+        for (trait_id, unresolved_trait) in traits {
+            self.scopes.start_scope();
+            self.recover_generics(|this| {
+                let resolved_generics = this.interner.get_trait(trait_id).generics.clone();
+                this.add_existing_generics(&unresolved_trait.trait_def.generics, &resolved_generics);
 
                 // Resolve order
                 // 1. Trait Types ( Trait constants can have a trait type, therefore types before constants)
@@ -37,8 +51,6 @@ impl<'context> Elaborator<'context> {
 
                 this.interner.update_trait(trait_id, |trait_def| {
                     trait_def.set_methods(methods);
-                    trait_def.generics = this.generics.clone();
-                    // trait_def.generics = vecmap(&this.generics, |generic| generic.type_var.clone());
                 });
             });
 
@@ -100,6 +112,7 @@ impl<'context> Elaborator<'context> {
                     this.self_type = Some(self_type.clone());
 
                     let func_id = unresolved_trait.method_ids[&name.0.contents];
+   
                     this.resolve_trait_function(
                         name,
                         generics,
@@ -157,6 +170,7 @@ impl<'context> Elaborator<'context> {
     ) {
         let old_generic_count = self.generics.len();
         let old_generic_ident_count = self.generic_idents.len();
+
         self.scopes.start_function();
 
         self.trait_bounds = where_clause.to_vec();
