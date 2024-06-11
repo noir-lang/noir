@@ -44,7 +44,7 @@ it('end-to-end proof creation and verification (outer) -- Verifier API', async (
   const { witness } = await program.execute(inputs);
 
   // Generate proof
-  // const backend = new Backend(assert_lt_program);
+  const backend = new Backend(assert_lt_program);
   const proof = await backend.generateProof(witness);
 
   const verificationKey = await backend.getVerificationKey();
