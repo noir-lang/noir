@@ -157,6 +157,7 @@
         "preprocess",
         "prettytable",
         "printstd",
+        "proptest",
         "pseudocode",
         "pubkey",
         "quantile",

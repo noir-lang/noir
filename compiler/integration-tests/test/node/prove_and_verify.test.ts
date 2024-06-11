@@ -42,10 +42,10 @@ it('end-to-end proof creation and verification (outer) -- Verifier API', async (
   const { witness } = await program.execute(inputs);
 
   // Generate proof
-  const backend = new Backend(assert_lt_program);
-  const proof = await backend.generateProof(witness);
+  const prover = new Backend(assert_lt_program);
+  const proof = await prover.generateProof(witness);
 
-  const verificationKey = await backend.getVerificationKey();
+  const verificationKey = await prover.getVerificationKey();
 
   // Proof verification
   const verifier = new Verifier();
@@ -147,10 +147,10 @@ it('end-to-end proof creation and verification for multiple ACIR circuits (inner
   // bb.js part
   //
   // Proof creation
-  const backend = new Backend(fold_fibonacci_program);
-  const proof = await backend.generateProof(witness);
+  const prover = new Backend(fold_fibonacci_program);
+  const proof = await prover.generateProof(witness);
 
   // Proof verification
-  const isValid = await backend.verifyProof(proof);
+  const isValid = await prover.verifyProof(proof);
   expect(isValid).to.be.true;
 });

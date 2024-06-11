@@ -142,7 +142,7 @@ pub(super) fn compile_workspace_full(
     let circuit_dir = workspace.target_directory_path();
     for (package, contract) in contract_packages.into_iter().zip(compiled_contracts) {
         let contract = nargo::ops::transform_contract(contract, compile_options.expression_width);
-        save_contract(contract, &package, &circuit_dir);
+        save_contract(contract, &package, &circuit_dir, compile_options.show_artifact_paths);
     }
 
     Ok(())
@@ -200,11 +200,19 @@ pub(super) fn save_program(program: CompiledProgram, package: &Package, circuit_
     save_program_to_file(&program_artifact, &package.name, circuit_dir);
 }
 
-fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Path) {
+fn save_contract(
+    contract: CompiledContract,
+    package: &Package,
+    circuit_dir: &Path,
+    show_artifact_paths: bool,
+) {
     let contract_name = contract.name.clone();
-    save_contract_to_file(
+    let artifact_path = save_contract_to_file(
         &contract.into(),
         &format!("{}-{}", package.name, contract_name),
         circuit_dir,
     );
+    if show_artifact_paths {
+        println!("Saved contract artifact to: {}", artifact_path.display());
+    }
 }
