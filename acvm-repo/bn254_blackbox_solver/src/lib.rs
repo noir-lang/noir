@@ -2,7 +2,6 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
-use acir::FieldElement;
 use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 mod embedded_curve_ops;
@@ -14,6 +13,10 @@ mod schnorr;
 use ark_ec::AffineRepr;
 pub use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 pub use poseidon2::poseidon2_permutation;
+
+// Temporary hack, this ensure that we always use a bn254 field here
+// without polluting the feature flags of the `acir_field` crate.
+type FieldElement = acir::acir_field::GenericFieldElement<ark_bn254::Fr>;
 
 #[derive(Default)]
 pub struct Bn254BlackBoxSolver;
