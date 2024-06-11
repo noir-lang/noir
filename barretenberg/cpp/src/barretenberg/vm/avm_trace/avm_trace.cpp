@@ -26,10 +26,13 @@ namespace bb::avm_trace {
  * @brief Constructor of a trace builder of AVM. Only serves to set the capacity of the
  *        underlying traces and initialize gas values.
  */
-AvmTraceBuilder::AvmTraceBuilder(VmPublicInputs public_inputs, ExecutionHints execution_hints)
+AvmTraceBuilder::AvmTraceBuilder(VmPublicInputs public_inputs,
+                                 ExecutionHints execution_hints,
+                                 uint32_t side_effect_counter)
     // NOTE: we initialise the environment builder here as it requires public inputs
-    : kernel_trace_builder(public_inputs)
-    , execution_hints(execution_hints)
+    : kernel_trace_builder(std::move(public_inputs))
+    , side_effect_counter(side_effect_counter)
+    , execution_hints(std::move(execution_hints))
 {
     main_trace.reserve(AVM_TRACE_SIZE);
 
@@ -1643,11 +1646,12 @@ void AvmTraceBuilder::op_note_hash_exists(uint8_t indirect, uint32_t note_offset
     side_effect_counter++;
 }
 
-void AvmTraceBuilder::op_nullifier_exists(uint8_t indirect, uint32_t note_offset, uint32_t dest_offset)
+void AvmTraceBuilder::op_nullifier_exists(uint8_t indirect, uint32_t nullifier_offset, uint32_t dest_offset)
 {
     auto const clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
-    Row row = create_kernel_output_opcode_with_set_metadata_output_from_hint(indirect, clk, note_offset, dest_offset);
+    Row row =
+        create_kernel_output_opcode_with_set_metadata_output_from_hint(indirect, clk, nullifier_offset, dest_offset);
     kernel_trace_builder.op_nullifier_exists(
         clk, side_effect_counter, row.avm_main_ia, /*safe*/ static_cast<uint32_t>(row.avm_main_ib));
     row.avm_main_sel_op_nullifier_exists = FF(1);

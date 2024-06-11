@@ -12,7 +12,7 @@
 namespace bb::avm_trace {
 
 AvmKernelTraceBuilder::AvmKernelTraceBuilder(VmPublicInputs public_inputs)
-    : public_inputs(public_inputs)
+    : public_inputs(std::move(public_inputs))
 {}
 
 void AvmKernelTraceBuilder::reset()

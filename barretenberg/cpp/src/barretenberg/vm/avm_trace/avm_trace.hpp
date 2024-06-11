@@ -28,7 +28,9 @@ using Row = bb::AvmFullRow<bb::fr>;
 class AvmTraceBuilder {
 
   public:
-    AvmTraceBuilder(VmPublicInputs public_inputs = {}, ExecutionHints execution_hints = {});
+    AvmTraceBuilder(VmPublicInputs public_inputs = {},
+                    ExecutionHints execution_hints = {},
+                    uint32_t side_effect_counter = 0);
 
     std::vector<Row> finalize(uint32_t min_trace_size = 0, bool range_check_required = false);
     void reset();

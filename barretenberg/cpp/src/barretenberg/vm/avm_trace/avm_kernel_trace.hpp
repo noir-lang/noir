@@ -59,7 +59,7 @@ class AvmKernelTraceBuilder {
         bool op_sstore = false;
     };
 
-    VmPublicInputs public_inputs{};
+    VmPublicInputs public_inputs;
 
     // Counts the number of accesses into each SELECTOR for the environment selector lookups;
     std::unordered_map<uint32_t, uint32_t> kernel_input_selector_counter;

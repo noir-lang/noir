@@ -116,7 +116,7 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
  */
 VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_inputs_vec)
 {
-    VmPublicInputs public_inputs = {};
+    VmPublicInputs public_inputs;
 
     // Case where we pass in empty public inputs - this will be used in tests where they are not required
     if (public_inputs_vec.empty()) {
@@ -306,7 +306,10 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6718): construction of the public input columns
     // should be done in the kernel - this is stubbed and underconstrained
     VmPublicInputs public_inputs = convert_public_inputs(public_inputs_vec);
-    AvmTraceBuilder trace_builder(public_inputs, execution_hints);
+    uint32_t start_side_effect_counter =
+        !public_inputs_vec.empty() ? static_cast<uint32_t>(public_inputs_vec[PCPI_START_SIDE_EFFECT_COUNTER_OFFSET])
+                                   : 0;
+    AvmTraceBuilder trace_builder(public_inputs, execution_hints, start_side_effect_counter);
 
     // Copied version of pc maintained in trace builder. The value of pc is evolving based
     // on opcode logic and therefore is not maintained here. However, the next opcode in the execution

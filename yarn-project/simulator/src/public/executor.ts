@@ -38,7 +38,7 @@ export class PublicExecutor {
     txContext: TxContext,
     pendingNullifiers: Nullifier[],
     transactionFee: Fr = Fr.ZERO,
-    sideEffectCounter: number = 0,
+    startSideEffectCounter: number = 0,
   ): Promise<PublicExecutionResult> {
     const address = execution.contractAddress;
     const selector = execution.functionSelector;
@@ -52,13 +52,11 @@ export class PublicExecutor {
     // These data structures will permeate across the simulator when the public executor is phased out
     const hostStorage = new HostStorage(this.stateDb, this.contractsDb, this.commitmentsDb);
 
-    const startSideEffectCounter = sideEffectCounter;
     const worldStateJournal = new AvmPersistableStateManager(hostStorage);
     for (const nullifier of pendingNullifiers) {
       worldStateJournal.nullifiers.cache.appendSiloed(nullifier.value);
     }
-    // All the subsequent side effects will have a counter larger than the call's start counter.
-    worldStateJournal.trace.accessCounter = startSideEffectCounter + 1;
+    worldStateJournal.trace.accessCounter = startSideEffectCounter;
 
     const executionEnv = createAvmExecutionEnvironment(
       execution,
