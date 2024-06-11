@@ -152,11 +152,12 @@ async function findNoteIndexAndNullifier(
     }
 
     const expectedNonce = computeNoteHashNonce(firstNullifier, noteHashIndex);
-    ({ innerNoteHash, siloedNoteHash, innerNullifier } = await simulator.computeNoteHashAndNullifier(
+    ({ innerNoteHash, siloedNoteHash, innerNullifier } = await simulator.computeNoteHashAndOptionallyANullifier(
       contractAddress,
       expectedNonce,
       storageSlot,
       noteTypeId,
+      true,
       note,
     ));
 

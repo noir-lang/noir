@@ -60,6 +60,12 @@ export interface PxeDatabase extends ContractArtifactDatabase, ContractInstanceD
   addNote(note: IncomingNoteDao): Promise<void>;
 
   /**
+   * Adds a nullified note to DB.
+   * @param note - The note to add.
+   */
+  addNullifiedNote(note: IncomingNoteDao): Promise<void>;
+
+  /**
    * Adds an array of notes to DB.
    * This function is used to insert multiple notes to the database at once,
    * which can improve performance when dealing with large numbers of transactions.

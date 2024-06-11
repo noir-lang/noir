@@ -47,7 +47,7 @@ If the decryption is successful, the PXE will store the decrypted note inside a 
 If the decryption fails, the specific log will be discarded.
 
 For the PXE to successfully process the decrypted note we need to compute the note's 'note hash' and 'nullifier'.
-Aztec.nr enables smart contract developers to design custom notes, meaning developers can also customize how a note's note hash and nullifier should be computed. Because of this customizability, and because there will be a potentially-unlimited number of smart contracts deployed to Aztec, an PXE needs to be 'taught' how to compute the custom note hashes and nullifiers for a particular contract. This is done by a function called `compute_note_hash_and_nullifier`, which is automatically injected into every contract when compiled.
+Aztec.nr enables smart contract developers to design custom notes, meaning developers can also customize how a note's note hash and nullifier should be computed. Because of this customizability, and because there will be a potentially-unlimited number of smart contracts deployed to Aztec, an PXE needs to be 'taught' how to compute the custom note hashes and nullifiers for a particular contract. This is done by a function called `compute_note_hash_and_optionally_a_nullifier`, which is automatically injected into every contract when compiled.
 
 ## Encrypted Events
 

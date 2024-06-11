@@ -26,7 +26,10 @@ export class IncomingNoteDao implements NoteData {
      * We can use this value to compute siloedNoteHash and uniqueSiloedNoteHash.
      */
     public innerNoteHash: Fr,
-    /** The nullifier of the note (siloed by contract address). */
+    /**
+     * The nullifier of the note (siloed by contract address).
+     * Note: Might be set as 0 if the note was added to PXE as nullified.
+     */
     public siloedNullifier: Fr,
     /** The location of the relevant note in the note hash tree. */
     public index: bigint,

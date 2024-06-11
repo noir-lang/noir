@@ -28,5 +28,5 @@ export class PrivateEnv {
 
 export const deployerEnv = new PrivateEnv(SECRET_KEY, process.env.PXE_URL || 'http://localhost:8080');
 
-const IGNORE_FUNCTIONS = ['constructor', 'compute_note_hash_and_nullifier'];
+const IGNORE_FUNCTIONS = ['constructor', 'compute_note_hash_and_optionally_a_nullifier'];
 export const filteredInterface = BoxReactContractArtifact.functions.filter(f => !IGNORE_FUNCTIONS.includes(f.name));

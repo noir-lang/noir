@@ -12,7 +12,7 @@ import { getContractArtifact } from '../utils.js';
 
 export async function inspectContract(contractArtifactFile: string, debugLogger: DebugLogger, log: LogFn) {
   const contractArtifact = await getContractArtifact(contractArtifactFile, log);
-  const contractFns = contractArtifact.functions.filter(f => f.name !== 'compute_note_hash_and_nullifier');
+  const contractFns = contractArtifact.functions.filter(f => f.name !== 'compute_note_hash_and_optionally_a_nullifier');
   if (contractFns.length === 0) {
     log(`No functions found for contract ${contractArtifact.name}`);
   }

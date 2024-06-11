@@ -14,16 +14,16 @@ use crate::utils::{
     },
 };
 
-// Check if "compute_note_hash_and_nullifier(AztecAddress,Field,Field,Field,[Field; N]) -> [Field; 4]" is defined
-fn check_for_compute_note_hash_and_nullifier_definition(
+// Check if "compute_note_hash_and_optionally_a_nullifier(AztecAddress,Field,Field,Field,bool,[Field; N]) -> [Field; 4]" is defined
+fn check_for_compute_note_hash_and_optionally_a_nullifier_definition(
     crate_id: &CrateId,
     context: &HirContext,
 ) -> bool {
     collect_crate_functions(crate_id, context).iter().any(|funct_id| {
         let func_data = context.def_interner.function_meta(funct_id);
         let func_name = context.def_interner.function_name(funct_id);
-        func_name == "compute_note_hash_and_nullifier"
-                && func_data.parameters.len() == 5
+        func_name == "compute_note_hash_and_optionally_a_nullifier"
+                && func_data.parameters.len() == 6
                 && func_data.parameters.0.first().is_some_and(| (_, typ, _) | match typ {
                     Type::Struct(struct_typ, _) => struct_typ.borrow().name.0.contents == "AztecAddress",
                     _ => false
@@ -31,8 +31,9 @@ fn check_for_compute_note_hash_and_nullifier_definition(
                 && func_data.parameters.0.get(1).is_some_and(|(_, typ, _)| typ.is_field())
                 && func_data.parameters.0.get(2).is_some_and(|(_, typ, _)| typ.is_field())
                 && func_data.parameters.0.get(3).is_some_and(|(_, typ, _)|  typ.is_field())
-                // checks if the 5th parameter is an array and contains only fields
-                && func_data.parameters.0.get(4).is_some_and(|(_, typ, _)|  match typ {
+                && func_data.parameters.0.get(4).is_some_and(|(_, typ, _)|  typ.is_bool())
+                // checks if the 6th parameter is an array and contains only fields
+                && func_data.parameters.0.get(5).is_some_and(|(_, typ, _)|  match typ {
                     Type::Array(_, inner_type) => inner_type.to_owned().is_field(),
                     _ => false
                 })
@@ -49,16 +50,16 @@ fn check_for_compute_note_hash_and_nullifier_definition(
     })
 }
 
-pub fn inject_compute_note_hash_and_nullifier(
+pub fn inject_compute_note_hash_and_optionally_a_nullifier(
     crate_id: &CrateId,
     context: &mut HirContext,
 ) -> Result<(), (AztecMacroError, FileId)> {
     if let Some((_, module_id, file_id)) = get_contract_module_data(context, crate_id) {
-        // If compute_note_hash_and_nullifier is already defined by the user, we skip auto-generation in order to provide an
+        // If compute_note_hash_and_optionally_a_nullifier is already defined by the user, we skip auto-generation in order to provide an
         // escape hatch for this mechanism.
         // TODO(#4647): improve this diagnosis and error messaging.
         if context.crate_graph.root_crate_id() != crate_id
-            || check_for_compute_note_hash_and_nullifier_definition(crate_id, context)
+            || check_for_compute_note_hash_and_optionally_a_nullifier_definition(crate_id, context)
         {
             return Ok(());
         }
@@ -69,14 +70,14 @@ pub fn inject_compute_note_hash_and_nullifier(
         let max_note_length_const = get_global_numberic_const(context, "MAX_NOTE_FIELDS_LENGTH")
             .map_err(|err| {
                 (
-                    AztecMacroError::CouldNotImplementComputeNoteHashAndNullifier {
+                    AztecMacroError::CouldNotImplementComputeNoteHashAndOptionallyANullifier {
                         secondary_message: Some(err.primary_message),
                     },
                     file_id,
                 )
             })?;
 
-        // In order to implement compute_note_hash_and_nullifier, we need to know all of the different note types the
+        // In order to implement compute_note_hash_and_optionally_a_nullifier, we need to know all of the different note types the
         // contract might use and their serialized lengths. These are the types that are marked as #[aztec(note)].
         let mut notes_and_lengths = vec![];
 
@@ -89,7 +90,7 @@ pub fn inject_compute_note_hash_and_nullifier(
             )
             .map_err(|_err| {
                 (
-                    AztecMacroError::CouldNotImplementComputeNoteHashAndNullifier {
+                    AztecMacroError::CouldNotImplementComputeNoteHashAndOptionallyANullifier {
                         secondary_message: Some(format!(
                             "Failed to get serialized length for note type {}",
                             path
@@ -102,7 +103,7 @@ pub fn inject_compute_note_hash_and_nullifier(
 
             if serialized_len > max_note_length_const {
                 return Err((
-                   AztecMacroError::CouldNotImplementComputeNoteHashAndNullifier {
+                   AztecMacroError::CouldNotImplementComputeNoteHashAndOptionallyANullifier {
                         secondary_message: Some(format!(
                             "Note type {} as {} fields, which is more than the maximum allowed length of {}.",
                             path,
@@ -120,11 +121,12 @@ pub fn inject_compute_note_hash_and_nullifier(
         let max_note_length: u128 =
             *notes_and_lengths.iter().map(|(_, serialized_len)| serialized_len).max().unwrap_or(&0);
 
-        let note_types =
+        let note_types: Vec<String> =
             notes_and_lengths.iter().map(|(note_type, _)| note_type.clone()).collect::<Vec<_>>();
 
-        // We can now generate a version of compute_note_hash_and_nullifier tailored for the contract in this crate.
-        let func = generate_compute_note_hash_and_nullifier(&note_types, max_note_length);
+        // We can now generate a version of compute_note_hash_and_optionally_a_nullifier tailored for the contract in this crate.
+        let func =
+            generate_compute_note_hash_and_optionally_a_nullifier(&note_types, max_note_length);
 
         // And inject the newly created function into the contract.
 
@@ -134,7 +136,7 @@ pub fn inject_compute_note_hash_and_nullifier(
 
         inject_fn(crate_id, context, func, location, module_id, file_id).map_err(|err| {
             (
-                AztecMacroError::CouldNotImplementComputeNoteHashAndNullifier {
+                AztecMacroError::CouldNotImplementComputeNoteHashAndOptionallyANullifier {
                     secondary_message: err.secondary_message,
                 },
                 file_id,
@@ -144,12 +146,12 @@ pub fn inject_compute_note_hash_and_nullifier(
     Ok(())
 }
 
-fn generate_compute_note_hash_and_nullifier(
+fn generate_compute_note_hash_and_optionally_a_nullifier(
     note_types: &[String],
     max_note_length: u128,
 ) -> NoirFunction {
     let function_source =
-        generate_compute_note_hash_and_nullifier_source(note_types, max_note_length);
+        generate_compute_note_hash_and_optionally_a_nullifier_source(note_types, max_note_length);
 
     let (function_ast, errors) = parse_program(&function_source);
     if !errors.is_empty() {
@@ -161,7 +163,7 @@ fn generate_compute_note_hash_and_nullifier(
     function_ast.functions.remove(0)
 }
 
-fn generate_compute_note_hash_and_nullifier_source(
+fn generate_compute_note_hash_and_optionally_a_nullifier_source(
     note_types: &[String],
     max_note_length: u128,
 ) -> String {
@@ -173,12 +175,13 @@ fn generate_compute_note_hash_and_nullifier_source(
         // so we include a dummy version.
         format!(
             "
-        unconstrained fn compute_note_hash_and_nullifier(
+        unconstrained fn compute_note_hash_and_optionally_a_nullifier(
             contract_address: dep::aztec::protocol_types::address::AztecAddress,
             nonce: Field,
             storage_slot: Field,
             note_type_id: Field,
-            serialized_note: [Field; {}]
+            compute_nullifier: bool,
+            serialized_note: [Field; {}],
         ) -> pub [Field; 4] {{
             assert(false, \"This contract does not use private notes\");
             [0, 0, 0, 0]
@@ -191,7 +194,7 @@ fn generate_compute_note_hash_and_nullifier_source(
 
         let if_statements: Vec<String> = note_types.iter().map(|note_type| format!(
             "if (note_type_id == {0}::get_note_type_id()) {{
-                dep::aztec::note::utils::compute_note_hash_and_nullifier({0}::deserialize_content, note_header, serialized_note)
+                dep::aztec::note::utils::compute_note_hash_and_optionally_a_nullifier({0}::deserialize_content, note_header, compute_nullifier, serialized_note)
             }}"
         , note_type)).collect();
 
@@ -204,12 +207,13 @@ fn generate_compute_note_hash_and_nullifier_source(
 
         format!(
             "
-            unconstrained fn compute_note_hash_and_nullifier(
+            unconstrained fn compute_note_hash_and_optionally_a_nullifier(
                 contract_address: dep::aztec::protocol_types::address::AztecAddress,
                 nonce: Field,
                 storage_slot: Field,
                 note_type_id: Field,
-                serialized_note: [Field; {}]
+                compute_nullifier: bool,
+                serialized_note: [Field; {}],
             ) -> pub [Field; 4] {{
                 let note_header = dep::aztec::prelude::NoteHeader::new(contract_address, nonce, storage_slot);
 

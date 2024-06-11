@@ -13,7 +13,7 @@ use crate::{
     note::{
     note_header::NoteHeader, note_interface::NoteInterface, note_getter_options::NoteGetterOptions,
     note_viewer_options::NoteViewerOptions,
-    utils::compute_note_hash_and_nullifier as utils_compute_note_hash_and_nullifier
+    utils::compute_note_hash_and_optionally_a_nullifier as utils_compute_note_hash_and_optionally_a_nullifier
 }
 };
 // docs:end:prelude

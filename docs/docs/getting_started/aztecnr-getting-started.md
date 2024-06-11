@@ -128,7 +128,7 @@ The `increment` function works very similarly to the `constructor`, but instead 
 
 ## Prevent double spending
 
-Because our counters are private, the network can't directly verify if a note was spent or not, which could lead to double-spending. To solve this, we use a nullifier - a unique identifier generated from each spent note and its nullifier key. Although this isn't really an issue in this simple smart contract, Aztec injects a special function called `compute_note_hash_and_nullifier` to determine these values for any given note produced by this contract.
+Because our counters are private, the network can't directly verify if a note was spent or not, which could lead to double-spending. To solve this, we use a nullifier - a unique identifier generated from each spent note and its nullifier key. Although this isn't really an issue in this simple smart contract, Aztec injects a special function called `compute_note_hash_and_optionally_a_nullifier` to determine these values for any given note produced by this contract.
 
 ## Getting a counter
 

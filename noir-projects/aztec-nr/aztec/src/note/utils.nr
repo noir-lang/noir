@@ -104,11 +104,12 @@ pub fn compute_note_hash_for_consumption<Note, N, M>(note: Note) -> Field where 
     }
 }
 
-pub fn compute_note_hash_and_nullifier<T, N, M, S>(
-    // docs:start:compute_note_hash_and_nullifier_args
+pub fn compute_note_hash_and_optionally_a_nullifier<T, N, M, S>(
+    // docs:start:compute_note_hash_and_optionally_a_nullifier_args
     deserialize_content: fn([Field; N]) -> T,
     note_header: NoteHeader,
-    serialized_note: [Field; S] // docs:end:compute_note_hash_and_nullifier_args
+    compute_nullifier: bool,
+    serialized_note: [Field; S] // docs:end:compute_note_hash_and_optionally_a_nullifier_args
 ) -> [Field; 4] where T: NoteInterface<N, M> {
     let mut note = deserialize_content(arr_copy_slice(serialized_note, [0; N], 0));
     // TODO: change this to note.set_header(header) once https://github.com/noir-lang/noir/issues/4095 is fixed
@@ -126,8 +127,12 @@ pub fn compute_note_hash_and_nullifier<T, N, M, S>(
 
     let siloed_note_hash = compute_siloed_hash(note_header.contract_address, unique_note_hash);
 
-    let inner_nullifier = note.compute_nullifier_without_context();
-    // docs:start:compute_note_hash_and_nullifier_returns
+    let inner_nullifier = if compute_nullifier {
+        note.compute_nullifier_without_context()
+    } else {
+        0
+    };
+    // docs:start:compute_note_hash_and_optionally_a_nullifier_returns
     [inner_note_hash, unique_note_hash, siloed_note_hash, inner_nullifier]
-    // docs:end:compute_note_hash_and_nullifier_returns
+    // docs:end:compute_note_hash_and_optionally_a_nullifier_returns
 }
