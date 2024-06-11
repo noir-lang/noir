@@ -20,6 +20,7 @@ use crate::hir_def::expr::{
     HirMethodCallExpression, HirPrefixExpression, ImplKind,
 };
 
+use crate::hir_def::function::FunctionBody;
 use crate::hir_def::traits::{Trait, TraitConstraint};
 use crate::macros_api::SecondaryAttribute;
 use crate::token::{Attributes, FunctionAttribute};
@@ -36,7 +37,11 @@ use crate::ast::{
 };
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
-use crate::hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver};
+use crate::hir::{
+    comptime::{Interpreter, Value},
+    def_map::CrateDefMap,
+    resolution::path_resolver::PathResolver,
+};
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
@@ -538,45 +543,43 @@ impl<'a> Resolver<'a> {
 
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
-    fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
+    fn resolve_type_inner(&mut self, typ: UnresolvedType) -> Type {
         use crate::ast::UnresolvedTypeData::*;
 
         let resolved_type = match typ.typ {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
-                let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
-                let size = self.resolve_array_size(Some(size), new_variables);
+                let elem = Box::new(self.resolve_type_inner(*elem));
+                let size = self.convert_expression_type(size);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
-                let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
+                let elem = Box::new(self.resolve_type_inner(*elem));
                 Type::Slice(elem)
             }
             Expression(expr) => self.convert_expression_type(expr),
             Integer(sign, bits) => Type::Integer(sign, bits),
             Bool => Type::Bool,
             String(size) => {
-                let resolved_size = self.resolve_array_size(size, new_variables);
+                let resolved_size = self.convert_expression_type(size);
                 Type::String(Box::new(resolved_size))
             }
             FormatString(size, fields) => {
                 let resolved_size = self.convert_expression_type(size);
-                let fields = self.resolve_type_inner(*fields, new_variables);
+                let fields = self.resolve_type_inner(*fields);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
             Code => Type::Code,
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,
-            Named(path, args, _) => self.resolve_named_type(path, args, new_variables),
-            TraitAsType(path, args) => self.resolve_trait_as_type(path, args, new_variables),
+            Named(path, args, _) => self.resolve_named_type(path, args),
+            TraitAsType(path, args) => self.resolve_trait_as_type(path, args),
 
-            Tuple(fields) => {
-                Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
-            }
+            Tuple(fields) => Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field))),
             Function(args, ret, env) => {
-                let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
-                let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
+                let args = vecmap(args, |arg| self.resolve_type_inner(arg));
+                let ret = Box::new(self.resolve_type_inner(*ret));
 
                 // expect() here is valid, because the only places we don't have a span are omitted types
                 // e.g. a function without return type implicitly has a spanless UnresolvedType::Unit return type
@@ -584,7 +587,7 @@ impl<'a> Resolver<'a> {
                 let env_span =
                     env.span.expect("Unexpected missing span for closure environment type");
 
-                let env = Box::new(self.resolve_type_inner(*env, new_variables));
+                let env = Box::new(self.resolve_type_inner(*env));
 
                 match *env {
                     Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
@@ -600,9 +603,9 @@ impl<'a> Resolver<'a> {
                 }
             }
             MutableReference(element) => {
-                Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
+                Type::MutableReference(Box::new(self.resolve_type_inner(*element)))
             }
-            Parenthesized(typ) => self.resolve_type_inner(*typ, new_variables),
+            Parenthesized(typ) => self.resolve_type_inner(*typ),
         };
 
         if let Type::Struct(_, _) = resolved_type {
@@ -621,12 +624,7 @@ impl<'a> Resolver<'a> {
         self.generics.iter().find(|(name, _, _)| name.as_ref() == target_name)
     }
 
-    fn resolve_named_type(
-        &mut self,
-        path: Path,
-        args: Vec<UnresolvedType>,
-        new_variables: &mut Generics,
-    ) -> Type {
+    fn resolve_named_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
         if args.is_empty() {
             if let Some(typ) = self.lookup_generic_or_global_type(&path) {
                 return typ;
@@ -649,7 +647,7 @@ impl<'a> Resolver<'a> {
         }
 
         let span = path.span();
-        let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+        let mut args = vecmap(args, |arg| self.resolve_type_inner(arg));
 
         if let Some(type_alias) = self.lookup_type_alias(path.clone()) {
             let type_alias = type_alias.borrow();
@@ -715,13 +713,8 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn resolve_trait_as_type(
-        &mut self,
-        path: Path,
-        args: Vec<UnresolvedType>,
-        new_variables: &mut Generics,
-    ) -> Type {
-        let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+    fn resolve_trait_as_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
+        let args = vecmap(args, |arg| self.resolve_type_inner(arg));
 
         if let Some(t) = self.lookup_trait_or_error(path) {
             Type::TraitAsType(t.id, Rc::new(t.name.to_string()), args)
@@ -771,26 +764,6 @@ impl<'a> Resolver<'a> {
                 Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
             _ => None,
-        }
-    }
-
-    fn resolve_array_size(
-        &mut self,
-        length: Option<UnresolvedTypeExpression>,
-        new_variables: &mut Generics,
-    ) -> Type {
-        match length {
-            None => {
-                let id = self.interner.next_type_variable_id();
-                let typevar = TypeVariable::unbound(id);
-                new_variables.push(typevar.clone());
-
-                // 'Named'Generic is a bit of a misnomer here, we want a type variable that
-                // wont be bound over but this one has no name since we do not currently
-                // require users to explicitly be generic over array lengths.
-                Type::NamedGeneric(typevar, Rc::new("".into()))
-            }
-            Some(length) => self.convert_expression_type(length),
         }
     }
 
@@ -846,11 +819,10 @@ impl<'a> Resolver<'a> {
     /// Translates an UnresolvedType to a Type
     pub fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         let span = typ.span;
-        let resolved_type = self.resolve_type_inner(typ, &mut vec![]);
+        let resolved_type = self.resolve_type_inner(typ);
         if resolved_type.is_nested_slice() {
             self.errors.push(ResolverError::NestedSlices { span: span.unwrap() });
         }
-
         resolved_type
     }
 
@@ -891,7 +863,7 @@ impl<'a> Resolver<'a> {
     fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {
         match &typ.typ {
             UnresolvedTypeData::Unspecified => self.interner.next_type_variable(),
-            _ => self.resolve_type_inner(typ, &mut vec![]),
+            _ => self.resolve_type(typ),
         }
     }
 
@@ -1019,7 +991,7 @@ impl<'a> Resolver<'a> {
         // indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
         let has_inline_attribute = has_no_predicates_attribute || should_fold;
 
-        let mut generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
+        let generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
         let mut parameters = vec![];
         let mut parameter_types = vec![];
 
@@ -1032,7 +1004,7 @@ impl<'a> Resolver<'a> {
             }
 
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
-            let typ = self.resolve_type_inner(typ, &mut generics);
+            let typ = self.resolve_type_inner(typ);
 
             parameters.push((pattern, typ.clone(), visibility));
             parameter_types.push(typ);
@@ -1106,6 +1078,12 @@ impl<'a> Resolver<'a> {
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
             is_entry_point: self.is_entry_point_function(func),
             has_inline_attribute,
+
+            // These fields are only used by the elaborator
+            all_generics: Vec::new(),
+            is_trait_function: false,
+            parameter_idents: Vec::new(),
+            function_body: FunctionBody::Resolved,
         }
     }
 
@@ -1665,6 +1643,9 @@ impl<'a> Resolver<'a> {
             // The quoted expression isn't resolved since we don't want errors if variables aren't defined
             ExpressionKind::Quote(block) => HirExpression::Quote(block),
             ExpressionKind::Comptime(block) => HirExpression::Comptime(self.resolve_block(block)),
+            ExpressionKind::Resolved(_) => unreachable!(
+                "ExpressionKind::Resolved should only be emitted by the comptime interpreter"
+            ),
         };
 
         // If these lines are ever changed, make sure to change the early return
@@ -2008,7 +1989,7 @@ impl<'a> Resolver<'a> {
         self.interner.push_expr(hir_block)
     }
 
-    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u64 {
+    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u32 {
         let Some(stmt) = self.interner.get_global_let_statement(global) else {
             let path = path.clone();
             self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
@@ -2091,6 +2072,17 @@ impl<'a> Resolver<'a> {
                     BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
                     BinaryOpKind::Modulo => Ok(lhs % rhs),
                 }
+            }
+            HirExpression::Cast(cast) => {
+                let lhs = self.try_eval_array_length_id_with_fuel(cast.lhs, span, fuel - 1)?;
+                let lhs_value = Value::Field(lhs.into());
+                let evaluated_value =
+                    Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, self.interner)
+                        .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
+
+                evaluated_value
+                    .to_u128()
+                    .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
             }
             _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }

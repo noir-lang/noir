@@ -9,15 +9,16 @@ use crate::{
         UnresolvedTypeExpression,
     },
     hir::{
+        comptime::{self, Interpreter, InterpreterError},
         resolution::{errors::ResolverError, resolver::LambdaContext},
         type_check::TypeCheckError,
     },
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
-            HirMethodReference, HirPrefixExpression,
+            HirConstructorExpression, HirIfExpression, HirIndexExpression, HirInfixExpression,
+            HirLambda, HirMemberAccess, HirMethodCallExpression, HirMethodReference,
+            HirPrefixExpression,
         },
         traits::TraitConstraint,
     },
@@ -58,7 +59,10 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda),
             ExpressionKind::Parenthesized(expr) => return self.elaborate_expression(*expr),
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote),
-            ExpressionKind::Comptime(comptime) => self.elaborate_comptime_block(comptime),
+            ExpressionKind::Comptime(comptime) => {
+                return self.elaborate_comptime_block(comptime, expr.span)
+            }
+            ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
             ExpressionKind::Error => (HirExpression::Error, Type::Error),
         };
         let id = self.interner.push_expr(hir_expr);
@@ -68,6 +72,11 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(super) fn elaborate_block(&mut self, block: BlockExpression) -> (HirExpression, Type) {
+        let (block, typ) = self.elaborate_block_expression(block);
+        (HirExpression::Block(block), typ)
+    }
+
+    fn elaborate_block_expression(&mut self, block: BlockExpression) -> (HirBlockExpression, Type) {
         self.push_scope();
         let mut block_type = Type::Unit;
         let mut statements = Vec::with_capacity(block.statements.len());
@@ -84,15 +93,15 @@ impl<'context> Elaborator<'context> {
                     expr_type: inner_expr_type.clone(),
                     expr_span: span,
                 });
+            }
 
-                if i + 1 == statements.len() {
-                    block_type = stmt_type;
-                }
+            if i + 1 == statements.len() {
+                block_type = stmt_type;
             }
         }
 
         self.pop_scope();
-        (HirExpression::Block(HirBlockExpression { statements }), block_type)
+        (HirBlockExpression { statements }, block_type)
     }
 
     fn elaborate_literal(&mut self, literal: Literal, span: Span) -> (HirExpression, Type) {
@@ -105,7 +114,7 @@ impl<'context> Elaborator<'context> {
                 (Lit(int), self.polymorphic_integer_or_field())
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
-                let len = Type::Constant(str.len() as u64);
+                let len = Type::Constant(str.len() as u32);
                 (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
             }
             Literal::FmtStr(str) => self.elaborate_fmt_string(str, span),
@@ -147,7 +156,7 @@ impl<'context> Elaborator<'context> {
                     elem_id
                 });
 
-                let length = Type::Constant(elements.len() as u64);
+                let length = Type::Constant(elements.len() as u32);
                 (HirArrayLiteral::Standard(elements), first_elem_type, length)
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
@@ -211,7 +220,7 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        let len = Type::Constant(str.len() as u64);
+        let len = Type::Constant(str.len() as u32);
         let typ = Type::FmtString(Box::new(len), Box::new(Type::Tuple(capture_types)));
         (HirExpression::Literal(HirLiteral::FmtStr(str, fmt_str_idents)), typ)
     }
@@ -348,6 +357,8 @@ impl<'context> Elaborator<'context> {
                 let func_type =
                     self.type_check_variable(function_name, function_id, turbofish_generics);
 
+                self.interner.push_expr_type(function_id, func_type.clone());
+
                 // Type check the new call now that it has been changed from a method call
                 // to a function call. This way we avoid duplicating code.
                 let typ = self.type_check_call(&function_call, func_type, function_args, span);
@@ -363,32 +374,34 @@ impl<'context> Elaborator<'context> {
     ) -> (HirExpression, Type) {
         let span = constructor.type_name.span();
 
-        match self.lookup_type_or_error(constructor.type_name) {
-            Some(Type::Struct(r#type, struct_generics)) => {
-                let struct_type = r#type.clone();
-                let generics = struct_generics.clone();
+        let (r#type, struct_generics) = if let Some(struct_id) = constructor.struct_type {
+            let typ = self.interner.get_struct(struct_id);
+            let generics = typ.borrow().instantiate(self.interner);
+            (typ, generics)
+        } else {
+            match self.lookup_type_or_error(constructor.type_name) {
+                Some(Type::Struct(r#type, struct_generics)) => (r#type, struct_generics),
+                Some(typ) => {
+                    self.push_err(ResolverError::NonStructUsedInConstructor { typ, span });
+                    return (HirExpression::Error, Type::Error);
+                }
+                None => return (HirExpression::Error, Type::Error),
+            }
+        };
 
-                let fields = constructor.fields;
-                let field_types = r#type.borrow().get_fields(&struct_generics);
-                let fields = self.resolve_constructor_expr_fields(
-                    struct_type.clone(),
-                    field_types,
-                    fields,
-                    span,
-                );
-                let expr = HirExpression::Constructor(HirConstructorExpression {
-                    fields,
-                    r#type,
-                    struct_generics,
-                });
-                (expr, Type::Struct(struct_type, generics))
-            }
-            Some(typ) => {
-                self.push_err(ResolverError::NonStructUsedInConstructor { typ, span });
-                (HirExpression::Error, Type::Error)
-            }
-            None => (HirExpression::Error, Type::Error),
-        }
+        let struct_type = r#type.clone();
+        let generics = struct_generics.clone();
+
+        let fields = constructor.fields;
+        let field_types = r#type.borrow().get_fields(&struct_generics);
+        let fields =
+            self.resolve_constructor_expr_fields(struct_type.clone(), field_types, fields, span);
+        let expr = HirExpression::Constructor(HirConstructorExpression {
+            fields,
+            r#type,
+            struct_generics,
+        });
+        (expr, Type::Struct(struct_type, generics))
     }
 
     /// Resolve all the fields of a struct constructor expression.
@@ -618,7 +631,34 @@ impl<'context> Elaborator<'context> {
         (HirExpression::Quote(block), Type::Code)
     }
 
-    fn elaborate_comptime_block(&mut self, _comptime: BlockExpression) -> (HirExpression, Type) {
-        todo!("Elaborate comptime block")
+    fn elaborate_comptime_block(&mut self, block: BlockExpression, span: Span) -> (ExprId, Type) {
+        let (block, _typ) = self.elaborate_block_expression(block);
+        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        let value = interpreter.evaluate_block(block);
+        self.inline_comptime_value(value, span)
+    }
+
+    pub(super) fn inline_comptime_value(
+        &mut self,
+        value: Result<comptime::Value, InterpreterError>,
+        span: Span,
+    ) -> (ExprId, Type) {
+        let make_error = |this: &mut Self, error: InterpreterError| {
+            this.errors.push(error.into_compilation_error_pair());
+            let error = this.interner.push_expr(HirExpression::Error);
+            this.interner.push_expr_location(error, span, this.file);
+            (error, Type::Error)
+        };
+
+        let value = match value {
+            Ok(value) => value,
+            Err(error) => return make_error(self, error),
+        };
+
+        let location = Location::new(span, self.file);
+        match value.into_expression(self.interner, location) {
+            Ok(new_expr) => self.elaborate_expression(new_expr),
+            Err(error) => make_error(self, error),
+        }
     }
 }

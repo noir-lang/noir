@@ -24,7 +24,6 @@ use noirc_frontend::monomorphization::{
 use noirc_frontend::node_interner::FuncId;
 use noirc_frontend::token::SecondaryAttribute;
 use std::path::Path;
-use thiserror::Error;
 use tracing::info;
 
 mod abi_gen;
@@ -103,6 +102,10 @@ pub struct CompileOptions {
     /// Enable the experimental elaborator pass
     #[arg(long, hide = true)]
     pub use_elaborator: bool,
+
+    /// Outputs the paths to any modified artifacts
+    #[arg(long, hide = true)]
+    pub show_artifact_paths: bool,
 }
 
 fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -117,13 +120,22 @@ fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug)]
 pub enum CompileError {
-    #[error(transparent)]
-    MonomorphizationError(#[from] MonomorphizationError),
+    MonomorphizationError(MonomorphizationError),
+    RuntimeError(RuntimeError),
+}
 
-    #[error(transparent)]
-    RuntimeError(#[from] RuntimeError),
+impl From<MonomorphizationError> for CompileError {
+    fn from(error: MonomorphizationError) -> Self {
+        Self::MonomorphizationError(error)
+    }
+}
+
+impl From<RuntimeError> for CompileError {
+    fn from(error: RuntimeError) -> Self {
+        Self::RuntimeError(error)
+    }
 }
 
 impl From<CompileError> for FileDiagnostic {

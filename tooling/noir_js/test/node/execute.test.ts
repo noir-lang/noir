@@ -11,7 +11,7 @@ const assert_lt_program = assert_lt_json as CompiledCircuit;
 const assert_msg_runtime = assert_msg_json as CompiledCircuit;
 const fold_fibonacci_program = fold_fibonacci_json as CompiledCircuit;
 
-it('returns the return value of the circuit', async () => {
+it('executes a single-ACIR program correctly', async () => {
   const inputs = {
     x: '2',
     y: '3',

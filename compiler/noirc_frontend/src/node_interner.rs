@@ -13,6 +13,7 @@ use petgraph::prelude::NodeIndex as PetGraphIndex;
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
+use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
@@ -111,7 +112,9 @@ pub struct NodeInterner {
     // The purpose for this hashmap is to detect duplication of trait implementations ( if any )
     //
     // Indexed by TraitImplIds
-    pub(crate) trait_implementations: Vec<Shared<TraitImpl>>,
+    pub(crate) trait_implementations: HashMap<TraitImplId, Shared<TraitImpl>>,
+
+    next_trait_implementation_id: usize,
 
     /// Trait implementations on each type. This is expected to always have the same length as
     /// `self.trait_implementations`.
@@ -276,7 +279,7 @@ impl DefinitionId {
 }
 
 /// An ID for a global value
-#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
 pub struct GlobalId(usize);
 
 impl GlobalId {
@@ -464,6 +467,7 @@ pub struct GlobalInfo {
     pub local_id: LocalModuleId,
     pub location: Location,
     pub let_statement: StmtId,
+    pub value: Option<comptime::Value>,
 }
 
 impl Default for NodeInterner {
@@ -485,7 +489,8 @@ impl Default for NodeInterner {
             struct_attributes: HashMap::new(),
             type_aliases: Vec::new(),
             traits: HashMap::new(),
-            trait_implementations: Vec::new(),
+            trait_implementations: HashMap::new(),
+            next_trait_implementation_id: 0,
             trait_implementation_map: HashMap::new(),
             selected_trait_implementations: HashMap::new(),
             operator_traits: HashMap::new(),
@@ -678,6 +683,7 @@ impl NodeInterner {
             local_id,
             let_statement,
             location,
+            value: None,
         });
         self.global_attributes.insert(id, attributes);
         id
@@ -888,8 +894,9 @@ impl NodeInterner {
         match def {
             Node::Statement(hir_stmt) => match hir_stmt {
                 HirStatement::Let(let_stmt) => Some(let_stmt.clone()),
-                _ => {
-                    panic!("ice: all globals should correspond to a let statement in the interner")
+                HirStatement::Error => None,
+                other => {
+                    panic!("ice: all globals should correspond to a let statement in the interner: {other:?}")
                 }
             },
             _ => panic!("ice: all globals should correspond to a statement in the interner"),
@@ -997,6 +1004,10 @@ impl NodeInterner {
 
     pub fn get_global(&self, global_id: GlobalId) -> &GlobalInfo {
         &self.globals[global_id.0]
+    }
+
+    pub fn get_global_mut(&mut self, global_id: GlobalId) -> &mut GlobalInfo {
+        &mut self.globals[global_id.0]
     }
 
     pub fn get_global_definition(&self, global_id: GlobalId) -> &DefinitionInfo {
@@ -1142,8 +1153,12 @@ impl NodeInterner {
         }
     }
 
+    pub fn try_get_trait_implementation(&self, id: TraitImplId) -> Option<Shared<TraitImpl>> {
+        self.trait_implementations.get(&id).cloned()
+    }
+
     pub fn get_trait_implementation(&self, id: TraitImplId) -> Shared<TraitImpl> {
-        self.trait_implementations[id.0].clone()
+        self.trait_implementations[&id].clone()
     }
 
     /// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the
@@ -1378,9 +1393,7 @@ impl NodeInterner {
         impl_generics: Generics,
         trait_impl: Shared<TraitImpl>,
     ) -> Result<(), (Span, FileId)> {
-        assert_eq!(impl_id.0, self.trait_implementations.len(), "trait impl defined out of order");
-
-        self.trait_implementations.push(trait_impl.clone());
+        self.trait_implementations.insert(impl_id, trait_impl.clone());
 
         // Replace each generic with a fresh type variable
         let substitutions = impl_generics
@@ -1483,10 +1496,10 @@ impl NodeInterner {
     }
 
     /// Returns what the next trait impl id is expected to be.
-    /// Note that this does not actually reserve the slot so care should
-    /// be taken that the next trait impl added matches this ID.
-    pub fn next_trait_impl_id(&self) -> TraitImplId {
-        TraitImplId(self.trait_implementations.len())
+    pub fn next_trait_impl_id(&mut self) -> TraitImplId {
+        let next_id = self.next_trait_implementation_id;
+        self.next_trait_implementation_id += 1;
+        TraitImplId(next_id)
     }
 
     /// Removes all TraitImplKind::Assumed from the list of known impls for the given trait

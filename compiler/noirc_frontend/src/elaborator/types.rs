@@ -1,19 +1,16 @@
-use std::rc::Rc;
+use std::{collections::BTreeMap, rc::Rc};
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::{
-    ast::{
-        BinaryOpKind, IntegerBitSize, NoirTypeAlias, UnresolvedGenerics, UnresolvedTraitConstraint,
-        UnresolvedTypeExpression,
-    },
+    ast::{BinaryOpKind, IntegerBitSize, UnresolvedGenerics, UnresolvedTypeExpression},
     hir::{
+        comptime::{Interpreter, Value},
         def_map::ModuleDefId,
         resolution::{
             errors::ResolverError,
-            import::PathResolution,
             resolver::{verify_mutable_reference, SELF_TYPE_NAME},
         },
         type_check::{Source, TypeCheckError},
@@ -23,79 +20,69 @@ use crate::{
             HirBinaryOp, HirCallExpression, HirIdent, HirMemberAccess, HirMethodReference,
             HirPrefixExpression,
         },
-        function::FuncMeta,
-        traits::{Trait, TraitConstraint},
+        function::{FuncMeta, Parameters},
+        traits::TraitConstraint,
     },
     macros_api::{
         HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
         UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
-    node_interner::{
-        DefinitionKind, DependencyId, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId,
-        TypeAliasId,
-    },
-    Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable, TypeVariableKind,
+    node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
+    Generics, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
-use super::Elaborator;
+use super::{lints, Elaborator};
 
 impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type
     pub(super) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         let span = typ.span;
-        let resolved_type = self.resolve_type_inner(typ, &mut vec![]);
+        let resolved_type = self.resolve_type_inner(typ);
         if resolved_type.is_nested_slice() {
             self.push_err(ResolverError::NestedSlices { span: span.unwrap() });
         }
-
         resolved_type
     }
 
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
-    pub fn resolve_type_inner(
-        &mut self,
-        typ: UnresolvedType,
-        new_variables: &mut Generics,
-    ) -> Type {
+    pub fn resolve_type_inner(&mut self, typ: UnresolvedType) -> Type {
         use crate::ast::UnresolvedTypeData::*;
 
         let resolved_type = match typ.typ {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
-                let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
-                let size = self.resolve_array_size(Some(size), new_variables);
+                let elem = Box::new(self.resolve_type_inner(*elem));
+                let size = self.convert_expression_type(size);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
-                let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
+                let elem = Box::new(self.resolve_type_inner(*elem));
                 Type::Slice(elem)
             }
             Expression(expr) => self.convert_expression_type(expr),
             Integer(sign, bits) => Type::Integer(sign, bits),
             Bool => Type::Bool,
             String(size) => {
-                let resolved_size = self.resolve_array_size(size, new_variables);
+                let resolved_size = self.convert_expression_type(size);
                 Type::String(Box::new(resolved_size))
             }
             FormatString(size, fields) => {
                 let resolved_size = self.convert_expression_type(size);
-                let fields = self.resolve_type_inner(*fields, new_variables);
+                let fields = self.resolve_type_inner(*fields);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
             Code => Type::Code,
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,
-            Named(path, args, _) => self.resolve_named_type(path, args, new_variables),
-            TraitAsType(path, args) => self.resolve_trait_as_type(path, args, new_variables),
+            Named(path, args, _) => self.resolve_named_type(path, args),
+            TraitAsType(path, args) => self.resolve_trait_as_type(path, args),
 
-            Tuple(fields) => {
-                Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
-            }
+            Tuple(fields) => Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field))),
             Function(args, ret, env) => {
-                let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
-                let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
+                let args = vecmap(args, |arg| self.resolve_type_inner(arg));
+                let ret = Box::new(self.resolve_type_inner(*ret));
 
                 // expect() here is valid, because the only places we don't have a span are omitted types
                 // e.g. a function without return type implicitly has a spanless UnresolvedType::Unit return type
@@ -103,7 +90,7 @@ impl<'context> Elaborator<'context> {
                 let env_span =
                     env.span.expect("Unexpected missing span for closure environment type");
 
-                let env = Box::new(self.resolve_type_inner(*env, new_variables));
+                let env = Box::new(self.resolve_type_inner(*env));
 
                 match *env {
                     Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
@@ -119,9 +106,9 @@ impl<'context> Elaborator<'context> {
                 }
             }
             MutableReference(element) => {
-                Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
+                Type::MutableReference(Box::new(self.resolve_type_inner(*element)))
             }
-            Parenthesized(typ) => self.resolve_type_inner(*typ, new_variables),
+            Parenthesized(typ) => self.resolve_type_inner(*typ),
         };
 
         if let Type::Struct(_, _) = resolved_type {
@@ -140,12 +127,7 @@ impl<'context> Elaborator<'context> {
         self.generics.iter().find(|(name, _, _)| name.as_ref() == target_name)
     }
 
-    fn resolve_named_type(
-        &mut self,
-        path: Path,
-        args: Vec<UnresolvedType>,
-        new_variables: &mut Generics,
-    ) -> Type {
+    fn resolve_named_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
         if args.is_empty() {
             if let Some(typ) = self.lookup_generic_or_global_type(&path) {
                 return typ;
@@ -168,7 +150,7 @@ impl<'context> Elaborator<'context> {
         }
 
         let span = path.span();
-        let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+        let mut args = vecmap(args, |arg| self.resolve_type_inner(arg));
 
         if let Some(type_alias) = self.lookup_type_alias(path.clone()) {
             let type_alias = type_alias.borrow();
@@ -234,13 +216,8 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn resolve_trait_as_type(
-        &mut self,
-        path: Path,
-        args: Vec<UnresolvedType>,
-        new_variables: &mut Generics,
-    ) -> Type {
-        let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+    fn resolve_trait_as_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
+        let args = vecmap(args, |arg| self.resolve_type_inner(arg));
 
         if let Some(t) = self.lookup_trait_or_error(path) {
             Type::TraitAsType(t.id, Rc::new(t.name.to_string()), args)
@@ -287,26 +264,6 @@ impl<'context> Elaborator<'context> {
                 Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
             _ => None,
-        }
-    }
-
-    fn resolve_array_size(
-        &mut self,
-        length: Option<UnresolvedTypeExpression>,
-        new_variables: &mut Generics,
-    ) -> Type {
-        match length {
-            None => {
-                let id = self.interner.next_type_variable_id();
-                let typevar = TypeVariable::unbound(id);
-                new_variables.push(typevar.clone());
-
-                // 'Named'Generic is a bit of a misnomer here, we want a type variable that
-                // wont be bound over but this one has no name since we do not currently
-                // require users to explicitly be generic over array lengths.
-                Type::NamedGeneric(typevar, Rc::new("".into()))
-            }
-            Some(length) => self.convert_expression_type(length),
         }
     }
 
@@ -411,31 +368,18 @@ impl<'context> Elaborator<'context> {
             return None;
         }
 
-        for UnresolvedTraitConstraint { typ, trait_bound } in self.trait_bounds.clone() {
-            if let UnresolvedTypeData::Named(constraint_path, _, _) = &typ.typ {
+        for constraint in self.trait_bounds.clone() {
+            if let Type::NamedGeneric(_, name) = &constraint.typ {
                 // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
-                if constraint_path.segments.len() == 1
-                    && path.segments[0] != constraint_path.last_segment()
-                {
+                if path.segments[0].0.contents != name.as_str() {
                     continue;
                 }
 
-                if let Ok(ModuleDefId::TraitId(trait_id)) =
-                    self.resolve_path(trait_bound.trait_path.clone())
+                let the_trait = self.interner.get_trait(constraint.trait_id);
+                if let Some(method) =
+                    the_trait.find_method(path.segments.last().unwrap().0.contents.as_str())
                 {
-                    let the_trait = self.interner.get_trait(trait_id);
-                    if let Some(method) =
-                        the_trait.find_method(path.segments.last().unwrap().0.contents.as_str())
-                    {
-                        let constraint = TraitConstraint {
-                            trait_id,
-                            typ: self.resolve_type(typ.clone()),
-                            trait_generics: vecmap(trait_bound.trait_generics, |typ| {
-                                self.resolve_type(typ)
-                            }),
-                        };
-                        return Some((method, constraint, true));
-                    }
+                    return Some((method, constraint, true));
                 }
             }
         }
@@ -455,11 +399,16 @@ impl<'context> Elaborator<'context> {
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
     }
 
-    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u64 {
-        let Some(stmt) = self.interner.get_global_let_statement(global) else {
-            let path = path.clone();
-            self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
-            return 0;
+    fn eval_global_as_array_length(&mut self, global_id: GlobalId, path: &Path) -> u32 {
+        let Some(stmt) = self.interner.get_global_let_statement(global_id) else {
+            if let Some(global) = self.unresolved_globals.remove(&global_id) {
+                self.elaborate_global(global);
+                return self.eval_global_as_array_length(global_id, path);
+            } else {
+                let path = path.clone();
+                self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
+                return 0;
+            }
         };
 
         let length = stmt.expression;
@@ -539,45 +488,18 @@ impl<'context> Elaborator<'context> {
                     BinaryOpKind::Modulo => Ok(lhs % rhs),
                 }
             }
-            _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
-        }
-    }
+            HirExpression::Cast(cast) => {
+                let lhs = self.try_eval_array_length_id_with_fuel(cast.lhs, span, fuel - 1)?;
+                let lhs_value = Value::Field(lhs.into());
+                let evaluated_value =
+                    Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, self.interner)
+                        .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
 
-    /// Check if an assignment is overflowing with respect to `annotated_type`
-    /// in a declaration statement where `annotated_type` is an unsigned integer
-    pub(super) fn lint_overflowing_uint(&mut self, rhs_expr: &ExprId, annotated_type: &Type) {
-        let expr = self.interner.expression(rhs_expr);
-        let span = self.interner.expr_span(rhs_expr);
-        match expr {
-            HirExpression::Literal(HirLiteral::Integer(value, false)) => {
-                let v = value.to_u128();
-                if let Type::Integer(_, bit_count) = annotated_type {
-                    let bit_count: u32 = (*bit_count).into();
-                    let max = 1 << bit_count;
-                    if v >= max {
-                        self.push_err(TypeCheckError::OverflowingAssignment {
-                            expr: value,
-                            ty: annotated_type.clone(),
-                            range: format!("0..={}", max - 1),
-                            span,
-                        });
-                    };
-                };
+                evaluated_value
+                    .to_u128()
+                    .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
             }
-            HirExpression::Prefix(expr) => {
-                self.lint_overflowing_uint(&expr.rhs, annotated_type);
-                if matches!(expr.operator, UnaryOp::Minus) {
-                    self.push_err(TypeCheckError::InvalidUnaryOp {
-                        kind: "annotated_type".to_string(),
-                        span,
-                    });
-                }
-            }
-            HirExpression::Infix(expr) => {
-                self.lint_overflowing_uint(&expr.lhs, annotated_type);
-                self.lint_overflowing_uint(&expr.rhs, annotated_type);
-            }
-            _ => {}
+            _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }
     }
 
@@ -626,7 +548,7 @@ impl<'context> Elaborator<'context> {
     pub(super) fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {
         match &typ.typ {
             UnresolvedTypeData::Unspecified => self.interner.next_type_variable(),
-            _ => self.resolve_type_inner(typ, &mut vec![]),
+            _ => self.resolve_type(typ),
         }
     }
 
@@ -636,7 +558,7 @@ impl<'context> Elaborator<'context> {
         rhs_type: &Type,
         span: Span,
     ) -> Type {
-        let mut unify = |this: &mut Self, expected| {
+        let unify = |this: &mut Self, expected| {
             this.unify(rhs_type, &expected, || TypeCheckError::TypeMismatch {
                 expr_typ: rhs_type.to_string(),
                 expected_typ: expected.to_string(),
@@ -1223,55 +1145,31 @@ impl<'context> Elaborator<'context> {
         args: Vec<(Type, ExprId, Span)>,
         span: Span,
     ) -> Type {
-        // Need to setup these flags here as `self` is borrowed mutably to type check the rest of the call expression
-        // These flags are later used to type check calls to unconstrained functions from constrained functions
+        self.run_lint(|elaborator| {
+            lints::deprecated_function(elaborator.interner, call.func).map(Into::into)
+        });
+
         let func_mod = self.current_function.map(|func| self.interner.function_modifiers(&func));
         let is_current_func_constrained =
             func_mod.map_or(true, |func_mod| !func_mod.is_unconstrained);
-
         let is_unconstrained_call = self.is_unconstrained_call(call.func);
-        self.check_if_deprecated(call.func);
-
-        // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
-        if is_current_func_constrained && is_unconstrained_call {
-            for (typ, _, _) in args.iter() {
-                if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
-                    self.push_err(TypeCheckError::ConstrainedReferenceToUnconstrained { span });
-                }
+        let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
+        if crossing_runtime_boundary {
+            let errors = lints::unconstrained_function_args(&args);
+            for error in errors {
+                self.push_err(error);
             }
         }
 
         let return_type = self.bind_function_type(func_type, args, span);
 
-        // Check that we are not passing a slice from an unconstrained runtime to a constrained runtime
-        if is_current_func_constrained && is_unconstrained_call {
-            if return_type.contains_slice() {
-                self.push_err(TypeCheckError::UnconstrainedSliceReturnToConstrained { span });
-            } else if matches!(&return_type.follow_bindings(), Type::MutableReference(_)) {
-                self.push_err(TypeCheckError::UnconstrainedReferenceToConstrained { span });
-            }
-        };
+        if crossing_runtime_boundary {
+            self.run_lint(|_| {
+                lints::unconstrained_function_return(&return_type, span).map(Into::into)
+            });
+        }
 
         return_type
-    }
-
-    fn check_if_deprecated(&mut self, expr: ExprId) {
-        if let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
-            self.interner.expression(&expr)
-        {
-            if let Some(DefinitionKind::Function(func_id)) =
-                self.interner.try_definition(id).map(|def| &def.kind)
-            {
-                let attributes = self.interner.function_attributes(func_id);
-                if let Some(note) = attributes.get_deprecated_note() {
-                    self.push_err(TypeCheckError::CallDeprecated {
-                        name: self.interner.definition_name(id).to_string(),
-                        note,
-                        span: location.span,
-                    });
-                }
-            }
-        }
     }
 
     fn is_unconstrained_call(&self, expr: ExprId) -> bool {
@@ -1463,6 +1361,98 @@ impl<'context> Elaborator<'context> {
             });
         } else {
             self.generics.push((rc_name, typevar, span));
+        }
+    }
+
+    pub fn find_numeric_generics(
+        parameters: &Parameters,
+        return_type: &Type,
+    ) -> Vec<(String, TypeVariable)> {
+        let mut found = BTreeMap::new();
+        for (_, parameter, _) in &parameters.0 {
+            Self::find_numeric_generics_in_type(parameter, &mut found);
+        }
+        Self::find_numeric_generics_in_type(return_type, &mut found);
+        found.into_iter().collect()
+    }
+
+    fn find_numeric_generics_in_type(typ: &Type, found: &mut BTreeMap<String, TypeVariable>) {
+        match typ {
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Error
+            | Type::TypeVariable(_, _)
+            | Type::Constant(_)
+            | Type::NamedGeneric(_, _)
+            | Type::Code
+            | Type::Forall(_, _) => (),
+
+            Type::TraitAsType(_, _, args) => {
+                for arg in args {
+                    Self::find_numeric_generics_in_type(arg, found);
+                }
+            }
+
+            Type::Array(length, element_type) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
+                }
+                Self::find_numeric_generics_in_type(element_type, found);
+            }
+
+            Type::Slice(element_type) => {
+                Self::find_numeric_generics_in_type(element_type, found);
+            }
+
+            Type::Tuple(fields) => {
+                for field in fields {
+                    Self::find_numeric_generics_in_type(field, found);
+                }
+            }
+
+            Type::Function(parameters, return_type, _env) => {
+                for parameter in parameters {
+                    Self::find_numeric_generics_in_type(parameter, found);
+                }
+                Self::find_numeric_generics_in_type(return_type, found);
+            }
+
+            Type::Struct(struct_type, generics) => {
+                for (i, generic) in generics.iter().enumerate() {
+                    if let Type::NamedGeneric(type_variable, name) = generic {
+                        if struct_type.borrow().generic_is_numeric(i) {
+                            found.insert(name.to_string(), type_variable.clone());
+                        }
+                    } else {
+                        Self::find_numeric_generics_in_type(generic, found);
+                    }
+                }
+            }
+            Type::Alias(alias, generics) => {
+                for (i, generic) in generics.iter().enumerate() {
+                    if let Type::NamedGeneric(type_variable, name) = generic {
+                        if alias.borrow().generic_is_numeric(i) {
+                            found.insert(name.to_string(), type_variable.clone());
+                        }
+                    } else {
+                        Self::find_numeric_generics_in_type(generic, found);
+                    }
+                }
+            }
+            Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
+            Type::String(length) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
+                }
+            }
+            Type::FmtString(length, fields) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
+                }
+                Self::find_numeric_generics_in_type(fields, found);
+            }
         }
     }
 }

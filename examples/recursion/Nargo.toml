@@ -1,0 +1,2 @@
+[workspace]
+members = ["recurse_leaf", "recurse_node", "sum"]

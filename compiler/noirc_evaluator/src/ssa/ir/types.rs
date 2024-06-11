@@ -3,6 +3,8 @@ use std::rc::Rc;
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 
+use crate::ssa::ssa_gen::SSA_WORD_SIZE;
+
 /// A numeric type in the Intermediate representation
 /// Note: we class NativeField as a numeric type
 /// though we also apply limitations to it, such as not
@@ -92,7 +94,7 @@ impl Type {
 
     /// Creates the type of an array's length.
     pub(crate) fn length_type() -> Type {
-        Type::unsigned(64)
+        Type::unsigned(SSA_WORD_SIZE)
     }
 
     /// Returns the bit size of the provided numeric type.

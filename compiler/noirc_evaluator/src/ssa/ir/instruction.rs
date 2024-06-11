@@ -123,7 +123,12 @@ impl Intrinsic {
             | Intrinsic::IsUnconstrained => false,
 
             // Some black box functions have side-effects
-            Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
+            Intrinsic::BlackBox(func) => matches!(
+                func,
+                BlackBoxFunc::RecursiveAggregation
+                    | BlackBoxFunc::MultiScalarMul
+                    | BlackBoxFunc::EmbeddedCurveAdd
+            ),
         }
     }
 
@@ -340,6 +345,9 @@ impl Instruction {
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
+                // Explicitly allows removal of unused ec operations, even if they can fail
+                Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
+                | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
 
                 // All foreign functions are treated as having side effects.
@@ -572,7 +580,7 @@ impl Instruction {
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, _)), Some(index)) = (array, index) {
                     let index =
-                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                        index.try_to_u32().expect("Expected array index to fit in u32") as usize;
                     if index < array.len() {
                         return SimplifiedTo(array[index]);
                     }
@@ -584,7 +592,7 @@ impl Instruction {
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, element_type)), Some(index)) = (array, index) {
                     let index =
-                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                        index.try_to_u32().expect("Expected array index to fit in u32") as usize;
 
                     if index < array.len() {
                         let new_array = dfg.make_array(array.update(index, *value), element_type);
