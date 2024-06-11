@@ -122,6 +122,7 @@ const BaseGasCosts: Record<Opcode, Gas> = {
   [Opcode.POSEIDON2]: DefaultBaseGasCost,
   [Opcode.SHA256]: DefaultBaseGasCost,
   [Opcode.PEDERSEN]: DefaultBaseGasCost,
+  [Opcode.ECADD]: DefaultBaseGasCost,
   // Conversions
   [Opcode.TORADIXLE]: DefaultBaseGasCost,
 };

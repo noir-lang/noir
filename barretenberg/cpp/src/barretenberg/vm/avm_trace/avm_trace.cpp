@@ -3524,6 +3524,113 @@ void AvmTraceBuilder::op_pedersen_hash(uint8_t indirect,
     write_slice_to_memory(
         call_ptr, clk, output_offset, AvmMemoryTag::FF, AvmMemoryTag::FF, FF(internal_return_ptr), { output });
 }
+
+void AvmTraceBuilder::op_ec_add(uint8_t indirect,
+                                uint32_t lhs_x_offset,
+                                uint32_t lhs_y_offset,
+                                uint32_t lhs_is_inf_offset,
+                                uint32_t rhs_x_offset,
+                                uint32_t rhs_y_offset,
+                                uint32_t rhs_is_inf_offset,
+                                uint32_t output_offset)
+{
+    auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
+    // Load lhs point
+    auto lhs_x_read = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IA, lhs_x_offset, AvmMemoryTag::FF, AvmMemoryTag::U0);
+    auto lhs_y_read = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IB, lhs_y_offset, AvmMemoryTag::FF, AvmMemoryTag::U0);
+    // Load rhs point
+    auto rhs_x_read = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IC, rhs_x_offset, AvmMemoryTag::FF, AvmMemoryTag::U0);
+    auto rhs_y_read = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::ID, rhs_y_offset, AvmMemoryTag::FF, AvmMemoryTag::U0);
+
+    // Save this clk time to line up with the gadget op.
+    auto ecc_clk = clk;
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_ia = lhs_x_read.val,
+        .avm_main_ib = lhs_y_read.val,
+        .avm_main_ic = rhs_x_read.val,
+        .avm_main_id = rhs_y_read.val,
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_a = FF(lhs_x_offset),
+        .avm_main_mem_idx_b = FF(lhs_y_offset),
+        .avm_main_mem_idx_c = FF(rhs_x_offset),
+        .avm_main_mem_idx_d = FF(rhs_y_offset),
+        .avm_main_mem_op_a = FF(1),
+        .avm_main_mem_op_b = FF(1),
+        .avm_main_mem_op_c = FF(1),
+        .avm_main_mem_op_d = FF(1),
+        .avm_main_pc = FF(pc++),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
+    });
+    clk++;
+    // Load the infinite bools separately since they have a different memory tag
+    auto lhs_is_inf_read = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IA, lhs_is_inf_offset, AvmMemoryTag::U8, AvmMemoryTag::U0);
+    auto rhs_is_inf_read = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IB, rhs_is_inf_offset, AvmMemoryTag::U8, AvmMemoryTag::U0);
+
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_ia = lhs_is_inf_read.val,
+        .avm_main_ib = rhs_is_inf_read.val,
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_a = FF(lhs_is_inf_offset),
+        .avm_main_mem_idx_b = FF(rhs_is_inf_offset),
+        .avm_main_mem_op_a = FF(1),
+        .avm_main_mem_op_b = FF(1),
+        .avm_main_pc = FF(pc),
+        .avm_main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U8)),
+    });
+    clk++;
+    grumpkin::g1::affine_element lhs = uint8_t(lhs_is_inf_read.val) == 1
+                                           ? grumpkin::g1::affine_element::infinity()
+                                           : grumpkin::g1::affine_element{ lhs_x_read.val, lhs_y_read.val };
+    grumpkin::g1::affine_element rhs = uint8_t(rhs_is_inf_read.val) == 1
+                                           ? grumpkin::g1::affine_element::infinity()
+                                           : grumpkin::g1::affine_element{ rhs_x_read.val, rhs_y_read.val };
+    auto result = ecc_trace_builder.embedded_curve_add(lhs, rhs, ecc_clk);
+    // Write across two lines since we have different mem_tags
+    uint32_t direct_output_offset = output_offset;
+    bool indirect_flag_output = is_operand_indirect(indirect, 6);
+    if (indirect_flag_output) {
+        auto read_ind_output =
+            mem_trace_builder.indirect_read_and_load_from_memory(call_ptr, clk, IndirectRegister::IND_A, output_offset);
+        direct_output_offset = uint32_t(read_ind_output.val);
+    }
+
+    mem_trace_builder.write_into_memory(
+        call_ptr, clk, IntermRegister::IA, direct_output_offset, result.x, AvmMemoryTag::U0, AvmMemoryTag::FF);
+    mem_trace_builder.write_into_memory(
+        call_ptr, clk, IntermRegister::IB, direct_output_offset + 1, result.y, AvmMemoryTag::U0, AvmMemoryTag::FF);
+    main_trace.push_back(Row{
+        .avm_main_clk = clk,
+        .avm_main_ia = result.x,
+        .avm_main_ib = result.y,
+        .avm_main_ind_a = indirect_flag_output ? FF(output_offset) : FF(0),
+        .avm_main_ind_op_a = FF(static_cast<uint32_t>(indirect_flag_output)),
+        .avm_main_internal_return_ptr = FF(internal_return_ptr),
+        .avm_main_mem_idx_a = FF(direct_output_offset),
+        .avm_main_mem_idx_b = FF(direct_output_offset + 1),
+        .avm_main_mem_op_a = FF(1),
+        .avm_main_mem_op_b = FF(1),
+        .avm_main_pc = FF(pc),
+        .avm_main_rwa = FF(1),
+        .avm_main_rwb = FF(1),
+        .avm_main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
+    });
+    clk++;
+    write_slice_to_memory(call_ptr,
+                          clk,
+                          direct_output_offset + 2,
+                          AvmMemoryTag::U8,
+                          AvmMemoryTag::U8,
+                          FF(internal_return_ptr),
+                          { result.is_point_at_infinity() });
+}
 // Finalise Lookup Counts
 //
 // For log derivative lookups, we require a column that contains the number of times each lookup is consumed

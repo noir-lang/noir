@@ -24,6 +24,7 @@ contract AvmTest {
     global big_field_136_bits: Field = 0x991234567890abcdef1234567890abcdef;
 
     // Libs
+    use dep::std::embedded_curve_ops::EmbeddedCurvePoint;
     use dep::aztec::protocol_types::constants::CONTRACT_INSTANCE_LENGTH;
     use dep::aztec::prelude::{Map, Deserialize};
     use dep::aztec::state_vars::PublicMutable;
@@ -132,6 +133,15 @@ contract AvmTest {
     #[aztec(public)]
     fn modulo2(a: u64) -> u64 {
         a % 2
+    }
+
+    #[aztec(public)]
+    fn elliptic_curve_add_and_double() -> EmbeddedCurvePoint {
+        let g = EmbeddedCurvePoint { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };
+
+        let doubled = g + g;
+        let added = g + doubled;
+        added
     }
 
     /************************************************************************

@@ -148,6 +148,16 @@ const std::unordered_map<OpCode, std::vector<OperandType>> OPCODE_WIRE_FORMAT = 
     { OpCode::SHA256, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32 } },
     { OpCode::PEDERSEN,
       { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32 } },
+    // TEMP ECADD without relative memory
+    { OpCode::ECADD,
+      { OperandType::INDIRECT,
+        OperandType::UINT32,     // lhs.x
+        OperandType::UINT32,     // lhs.y
+        OperandType::UINT32,     // lhs.is_infinite
+        OperandType::UINT32,     // rhs.x
+        OperandType::UINT32,     // rhs.y
+        OperandType::UINT32,     // rhs.is_infinite
+        OperandType::UINT32 } }, // dst_offset
     // Gadget - Conversion
     { OpCode::TORADIXLE,
       { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32 } },

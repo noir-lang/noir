@@ -1,9 +1,10 @@
 import { UnencryptedL2Log } from '@aztec/circuit-types';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { EventSelector, FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { keccak256, pedersenHash, poseidon2Hash, sha256 } from '@aztec/foundation/crypto';
-import { Fr } from '@aztec/foundation/fields';
+import { Fq, Fr } from '@aztec/foundation/fields';
 import { type Fieldable } from '@aztec/foundation/serialize';
 
 import { jest } from '@jest/globals';
@@ -93,6 +94,18 @@ describe('AVM simulator: transpiled Noir contracts', () => {
   it('Should be recognized as AVM bytecode (magic present)', async () => {
     const bytecode = getAvmTestContractBytecode('add_args_return');
     expect(await isAvmBytecode(bytecode));
+  });
+
+  it('elliptic curve operations', async () => {
+    const context = initContext();
+
+    const bytecode = getAvmTestContractBytecode('elliptic_curve_add_and_double');
+    const results = await new AvmSimulator(context).executeBytecode(bytecode);
+
+    expect(results.reverted).toBe(false);
+    const grumpkin = new Grumpkin();
+    const g3 = grumpkin.mul(grumpkin.generator(), new Fq(3));
+    expect(results.output).toEqual([g3.x, g3.y, Fr.ZERO]);
   });
 
   describe('U128 addition and overflows', () => {

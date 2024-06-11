@@ -98,6 +98,7 @@ static const inline std::unordered_map<OpCode, GasTableEntry> GAS_COST_TABLE = {
     { OpCode::POSEIDON2, temp_default_gas_entry },
     { OpCode::SHA256, temp_default_gas_entry },
     { OpCode::PEDERSEN, temp_default_gas_entry },
+    { OpCode::ECADD, temp_default_gas_entry },
 
     // Conversions
     { OpCode::TORADIXLE, temp_default_gas_entry },

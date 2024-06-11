@@ -831,6 +831,30 @@ fn handle_black_box_function(avm_instrs: &mut Vec<AvmInstruction>, operation: &B
                 ],
             });
         }
+        // This will be changed to utilise relative memory offsets
+        BlackBoxOp::EmbeddedCurveAdd {
+            input1_x: p1_x_offset,
+            input1_y: p1_y_offset,
+            input1_infinite: p1_infinite_offset,
+            input2_x: p2_x_offset,
+            input2_y: p2_y_offset,
+            input2_infinite: p2_infinite_offset,
+            result,
+        } => avm_instrs.push(AvmInstruction {
+            opcode: AvmOpcode::ECADD,
+            // The result (SIXTH operand) is indirect.
+            indirect: Some(0b1000000),
+            operands: vec![
+                AvmOperand::U32 { value: p1_x_offset.0 as u32 },
+                AvmOperand::U32 { value: p1_y_offset.0 as u32 },
+                AvmOperand::U32 { value: p1_infinite_offset.0 as u32 },
+                AvmOperand::U32 { value: p2_x_offset.0 as u32 },
+                AvmOperand::U32 { value: p2_y_offset.0 as u32 },
+                AvmOperand::U32 { value: p2_infinite_offset.0 as u32 },
+                AvmOperand::U32 { value: result.pointer.0 as u32 },
+            ],
+            ..Default::default()
+        }),
         _ => panic!("Transpiler doesn't know how to process {:?}", operation),
     }
 }

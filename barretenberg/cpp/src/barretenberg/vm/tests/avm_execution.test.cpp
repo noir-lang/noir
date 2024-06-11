@@ -1331,6 +1331,68 @@ TEST_F(AvmExecutionTests, pedersenHashOpCode)
 
     validate_trace(std::move(trace));
 }
+//
+// Positive test with EmbeddedCurveAdd
+TEST_F(AvmExecutionTests, embeddedCurveAddOpCode)
+{
+    // TODO: Look for hardcoded test vectors since bb is missing them
+    grumpkin::g1::affine_element a = grumpkin::g1::affine_element::random_element();
+    auto a_is_inf = a.is_point_at_infinity();
+    grumpkin::g1::affine_element b = grumpkin::g1::affine_element::random_element();
+    auto b_is_inf = b.is_point_at_infinity();
+    grumpkin::g1::affine_element res = a + b;
+    auto expected_output = std::vector<FF>{ res.x, res.y, res.is_point_at_infinity() };
+    std::string bytecode_hex = to_hex(OpCode::CALLDATACOPY) +   // Calldatacopy
+                               "00"                             // Indirect flag
+                               "00000000"                       // cd_offset
+                               "00000002"                       // copy_size
+                               "00000000"                       // dst_offset
+                               + to_hex(OpCode::SET) +          // opcode SET for direct src_length
+                               "00"                             // Indirect flag
+                               "01"                             // U8
+                               + to_hex<uint8_t>(a_is_inf) +    //
+                               "00000002"                       // dst_offset
+                               + to_hex(OpCode::CALLDATACOPY) + // calldatacopy
+                               "00"                             // Indirect flag
+                               "00000002"                       // cd_offset
+                               "00000002"                       // copy_size
+                               "00000003"                       // dst_offset
+                               + to_hex(OpCode::SET) +          // opcode SET for direct src_length
+                               "00"                             // Indirect flag
+                               "01"                             // U32
+                               + to_hex<uint8_t>(b_is_inf) +    // value 2
+                               "00000005"                       // dst_offset
+                               + to_hex(OpCode::SET) +          // opcode SET for direct src_length
+                               "00"                             // Indirect flag
+                               "03"                             // U32
+                               "00000007"                       // value
+                               "00000006"                       // dst_offset
+                               + to_hex(OpCode::ECADD) +        // opcode ECADD
+                               "40"                             // Indirect flag (sixth operand indirect)
+                               "00000000"                       // hash_index offset (direct)
+                               "00000001"                       // dest offset (direct)
+                               "00000002"                       // input offset (indirect)
+                               "00000003"                       // length offset (direct)
+                               "00000004"                       // length offset (direct)
+                               "00000005"                       // length offset (direct)
+                               "00000006"                       // length offset (direct)
+                               + to_hex(OpCode::RETURN) +       // opcode RETURN
+                               "00"                             // Indirect flag
+                               "00000007"                       // ret offset 3
+                               "00000003";                      // ret size 1
+
+    auto bytecode = hex_to_bytes(bytecode_hex);
+    auto instructions = Deserialization::parse(bytecode);
+
+    // Assign a vector that we will mutate internally in gen_trace to store the return values;
+    std::vector<FF> returndata;
+    std::vector<FF> calldata = { a.x, a.y, b.x, b.y };
+    auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
+
+    EXPECT_EQ(returndata, expected_output);
+
+    validate_trace(std::move(trace));
+}
 
 // Positive test for Kernel Input opcodes
 TEST_F(AvmExecutionTests, kernelInputOpcodes)

@@ -49,5 +49,6 @@
     { "path": "entrypoints/tsconfig.json" },
     { "path": "cli/tsconfig.json" }
   ],
-  "files": ["./@types/jest/index.d.ts"]
+  "files": ["./@types/jest/index.d.ts"],
+  "exclude": ["node_modules"]
 }

@@ -248,6 +248,14 @@ export class Fr extends BaseField {
     return new Fr((this.toBigInt() + rhs.toBigInt()) % Fr.MODULUS);
   }
 
+  square() {
+    return new Fr((this.toBigInt() * this.toBigInt()) % Fr.MODULUS);
+  }
+
+  negate() {
+    return new Fr(Fr.MODULUS - this.toBigInt());
+  }
+
   sub(rhs: Fr) {
     const result = this.toBigInt() - rhs.toBigInt();
     return new Fr(result < 0 ? result + Fr.MODULUS : result);
