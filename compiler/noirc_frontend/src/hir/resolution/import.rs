@@ -88,7 +88,6 @@ pub fn resolve_import(
     import_directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
 ) -> Result<ResolvedImport, PathResolutionError> {
-
     // // TODO cleanup
     // dbg!("resolve_import", crate_id, import_directive, def_maps.keys().collect::<Vec<_>>());
 
@@ -240,9 +239,7 @@ fn resolve_name_in_module(
     let mut warning: Option<PathResolutionError> = None;
     for (last_segment, current_segment) in import_path.iter().zip(import_path.iter().skip(1)) {
         let (typ, visibility) = match current_ns.types {
-            None => {
-                return Err(PathResolutionError::Unresolved(last_segment.clone()))
-            },
+            None => return Err(PathResolutionError::Unresolved(last_segment.clone())),
             Some((typ, visibility, _)) => (typ, visibility),
         };
 
@@ -312,9 +309,7 @@ fn resolve_external_dep(
     let dep_module = current_def_map
         .extern_prelude
         .get(&crate_name.0.contents)
-        .ok_or_else(|| {
-            PathResolutionError::Unresolved(crate_name.to_owned())
-        })?;
+        .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
 
     // Create an import directive for the dependency crate
     let path_without_crate_name = &path[1..]; // XXX: This will panic if the path is of the form `use dep::std` Ideal algorithm will not distinguish between crate and module
