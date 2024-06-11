@@ -184,15 +184,13 @@ See [Lambdas](./lambdas.md) for more details.
 
 Attributes are metadata that can be applied to a function, using the following syntax: `#[attribute(value)]`.
 
-A few supported attributes include:
+Supported attributes include:
 
 - **builtin**: the function is implemented by the compiler, for efficiency purposes.
 - **deprecated**: mark the function as _deprecated_. Calling the function will generate a warning: `warning: use of deprecated function`
 - **field**: Used to enable conditional compilation of code depending on the field size. See below for more details
 - **oracle**: mark the function as _oracle_; meaning it is an external unconstrained function, implemented in noir_js. See [Unconstrained](./unconstrained.md) and [NoirJS](../../reference/NoirJS/noir_js/index.md) for more details.
 - **test**: mark the function as unit tests. See [Tests](../../tooling/testing.md) for more details
-
-See the Noir compiler for the full list of supported attributes [here](https://github.com/noir-lang/noir/blob/master/compiler/noirc_frontend/src/lexer/token.rs) (inside `let attribute = match &word_segments[..]` at the time of writing).
 
 ### Field Attribute
 
