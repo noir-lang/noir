@@ -1225,6 +1225,8 @@ impl<'context> Elaborator<'context> {
             self.interner.update_struct(type_id, |struct_def| {
                 struct_def.set_fields(fields);
 
+                // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this with implicit numeric generics
+                // This is only necessary for resolving named types when implicit numeric generics are used.
                 let mut found_names = Vec::new();
                 struct_def.find_numeric_generics_in_fields(&mut found_names);
                 for generic in struct_def.generics.iter_mut() {
