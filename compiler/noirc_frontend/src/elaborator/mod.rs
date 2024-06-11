@@ -232,21 +232,18 @@ impl<'context> Elaborator<'context> {
         // Must resolve structs before we resolve globals.
         this.collect_struct_definitions(items.types);
 
-        // Bind trait impls to their trait. Collect trait functions, that have a
-        // default implementation, which hasn't been overridden.
-        for trait_impl in &mut items.trait_impls {
-            this.collect_trait_impl(trait_impl);
-        }
-
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
         // done during def collection since we need to be able to resolve the type of
         // the impl since that determines the module we should collect into.
-        //
-        // These are resolved after trait impls so that struct methods are chosen
-        // over trait methods if there are name conflicts.
         for ((_self_type, module), impls) in &mut items.impls {
             this.collect_impls(*module, impls);
+        }
+
+        // Bind trait impls to their trait. Collect trait functions, that have a
+        // default implementation, which hasn't been overridden.
+        for trait_impl in &mut items.trait_impls {
+            this.collect_trait_impl(trait_impl);
         }
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
