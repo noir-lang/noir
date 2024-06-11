@@ -502,7 +502,7 @@ impl<'context> Elaborator<'context> {
         typevar: TypeVariable,
     ) -> bool {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
-            let mut typ = self.resolve_type(typ.clone());
+            let typ = self.resolve_type(typ.clone());
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
                 let unsupported_typ_err =
                     CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType {
@@ -510,7 +510,6 @@ impl<'context> Elaborator<'context> {
                         typ: typ.clone(),
                     });
                 self.errors.push((unsupported_typ_err, self.file));
-                typ = Type::Error;
             }
             let definition = DefinitionKind::GenericType(typevar.clone());
             let hir_ident =
