@@ -232,6 +232,12 @@ impl<'context> Elaborator<'context> {
         // Must resolve structs before we resolve globals.
         this.collect_struct_definitions(items.types);
 
+        // Bind trait impls to their trait. Collect trait functions, that have a
+        // default implementation, which hasn't been overridden.
+        for trait_impl in &mut items.trait_impls {
+            this.collect_trait_impl(trait_impl);
+        }
+
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
         // done during def collection since we need to be able to resolve the type of
@@ -241,12 +247,6 @@ impl<'context> Elaborator<'context> {
         // over trait methods if there are name conflicts.
         for ((_self_type, module), impls) in &mut items.impls {
             this.collect_impls(*module, impls);
-        }
-
-        // Bind trait impls to their trait. Collect trait functions, that have a
-        // default implementation, which hasn't been overridden.
-        for trait_impl in &mut items.trait_impls {
-            this.collect_trait_impl(trait_impl);
         }
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
@@ -860,9 +860,12 @@ impl<'context> Elaborator<'context> {
         self.self_type = None;
     }
 
-    fn get_module_mut(&mut self, module: ModuleId) -> &mut ModuleData {
+    fn get_module_mut(
+        def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
+        module: ModuleId,
+    ) -> &mut ModuleData {
         let message = "A crate should always be present for a given crate id";
-        &mut self.def_maps.get_mut(&module.krate).expect(message).modules[module.local_id.0]
+        &mut def_maps.get_mut(&module.krate).expect(message).modules[module.local_id.0]
     }
 
     fn declare_methods_on_struct(
@@ -890,7 +893,7 @@ impl<'context> Elaborator<'context> {
             // Grab the module defined by the struct type. Note that impls are a case
             // where the module the methods are added to is not the same as the module
             // they are resolved in.
-            let module = self.get_module_mut(struct_ref.id.module_id());
+            let module = Self::get_module_mut(self.def_maps, struct_ref.id.module_id());
 
             for (_, method_id, method) in &functions.functions {
                 // If this method was already declared, remove it from the module so it cannot
@@ -899,7 +902,16 @@ impl<'context> Elaborator<'context> {
                 // If not, that is specialization which is allowed.
                 let name = method.name_ident().clone();
                 if module.declare_function(name, ItemVisibility::Public, *method_id).is_err() {
-                    module.remove_function(method.name_ident());
+                    let existing = module.find_func_with_name(method.name_ident()).expect(
+                        "declare_function should only error if there is an existing function",
+                    );
+
+                    // Only remove the existing function from scope if it is from a trait impl as
+                    // well. If it is from a non-trait impl that should override trait impl methods
+                    // anyway so that Foo::bar always resolves to the non-trait impl version.
+                    if self.interner.function_meta(&existing).trait_impl.is_some() {
+                        module.remove_function(method.name_ident());
+                    }
                 }
             }
 
