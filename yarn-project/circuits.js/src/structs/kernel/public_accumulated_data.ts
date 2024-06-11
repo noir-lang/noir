@@ -7,7 +7,6 @@ import { inspect } from 'util';
 
 import {
   MAX_ENCRYPTED_LOGS_PER_TX,
-  type MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
@@ -36,7 +35,7 @@ export class PublicAccumulatedData {
     /**
      * All the new L2 to L1 messages created in this transaction.
      */
-    public readonly newL2ToL1Msgs: Tuple<Fr, typeof MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
+    public readonly newL2ToL1Msgs: Tuple<Fr, typeof MAX_NEW_L2_TO_L1_MSGS_PER_TX>,
     /**
      * Accumulated encrypted note logs hashes from all the previous kernel iterations.
      * Note: Truncated to 31 bytes to fit in Fr.

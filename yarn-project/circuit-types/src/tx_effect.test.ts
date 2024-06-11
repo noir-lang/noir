@@ -10,6 +10,6 @@ describe('TxEffect', () => {
   it('hash of empty tx effect matches snapshot', () => {
     const txEffectHash = TxEffect.empty().hash().toString('hex');
     // If you change this you have to change the hardcoded value in TxsDecoder.sol!
-    expect(txEffectHash).toMatchInlineSnapshot(`"003f2c7d671d4a2c210124550cf00f8e21727a0ae1a43e1758982a25725dde2b"`);
+    expect(txEffectHash).toMatchInlineSnapshot(`"0016cc39e093d21650607a4fe4ccbbb56b1219575378edea7fbe80a96e909603"`);
   });
 });

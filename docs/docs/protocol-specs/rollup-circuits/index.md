@@ -507,18 +507,26 @@ graph BT
     R[OutHash]
     M0[Hash 0-1]
     M1[Hash 2-3]
-    B0[Hash 0.0-0.1]
+    B0[Hash 0.0-0.3]
     B1[Hash 1.0-1.1]
     B2[Hash 2.0-2.1]
-    B3[Hash 3.0-3.1]
-    K0[l2_to_l1_msgs 0.0]
-    K1[l2_to_l1_msgs 0.1]
+    B3[Hash 3.0-3.3]
+    K0[l2_to_l1_msgs 0.0-0.1]
+    K1[l2_to_l1_msgs 0.2-0.3]
     K2[l2_to_l1_msgs 1.0]
     K3[l2_to_l1_msgs 1.1]
     K4[l2_to_l1_msgs 2.0]
     K5[l2_to_l1_msgs 2.1]
-    K6[l2_to_l1_msgs 3.0]
-    K7[l2_to_l1_msgs 3.1]
+    K6[l2_to_l1_msgs 3.0-3.1]
+    K7[l2_to_l1_msgs 3.2-3.3]
+    K8[l2_to_l1_msgs 0.0]
+    K9[l2_to_l1_msgs 0.1]
+    K10[l2_to_l1_msgs 0.2]
+    K11[l2_to_l1_msgs 0.3]
+    K12[l2_to_l1_msgs 3.0]
+    K13[l2_to_l1_msgs 3.1]
+    K14[l2_to_l1_msgs 3.2]
+    K15[l2_to_l1_msgs 3.3]
 
     M0 --> R
     M1 --> R
@@ -534,6 +542,14 @@ graph BT
     K5 --> B2
     K6 --> B3
     K7 --> B3
+    K8 --> K0
+    K9 --> K0
+    K10 --> K1
+    K11 --> K1
+    K12 --> K6
+    K13 --> K6
+    K14 --> K7
+    K15 --> K7
 ```
 
 ```mermaid
@@ -572,6 +588,7 @@ graph BT
 
 While the `TxsHash` merely require the data to be published and known to L1, the `InHash` and `OutHash` needs to be computable on L1 as well.
 This reason require them to be efficiently computable on L1 while still being non-horrible inside a snark - leading us to rely on SHA256.
+The L2 to L1 messages from each transaction form a variable height tree. In the diagram above, transactions 0 and 3 have four messages, so require a tree with two layers, whereas the others only have two messages and so require a single layer tree. The base rollup calculates the root of this tree and passes it as the to the next layer. Merge rollups simply hash both of these roots together and pass it up as the `OutHash`.
 
 ## Next Steps
 

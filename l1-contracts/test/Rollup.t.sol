@@ -159,10 +159,20 @@ contract RollupTest is DecoderBase {
 
     bytes32 l2ToL1MessageTreeRoot;
     {
+      // NB: The below works with full blocks because we require the largest possible subtrees
+      // for L2 to L1 messages - usually we make variable height subtrees, the roots of which
+      // form a balanced tree
       uint256 numTxsWithPadding = txsHelper.computeNumTxEffectsToPad(numTxs) + numTxs;
+      // The below is a little janky - we know that this test deals with full txs with equal numbers
+      // of msgs or txs with no messages, so the division works
+      // TODO edit full.messages to include information about msgs per tx?
+      uint256 subTreeHeight = merkleTestUtil.calculateTreeHeightFromSize(
+        full.messages.l2ToL1Messages.length == 0 ? 0 : full.messages.l2ToL1Messages.length / numTxs
+      );
+      uint256 outHashTreeHeight = merkleTestUtil.calculateTreeHeightFromSize(numTxsWithPadding);
       uint256 numMessagesWithPadding = numTxsWithPadding * Constants.MAX_NEW_L2_TO_L1_MSGS_PER_TX;
 
-      uint256 treeHeight = merkleTestUtil.calculateTreeHeightFromSize(numMessagesWithPadding);
+      uint256 treeHeight = subTreeHeight + outHashTreeHeight;
       NaiveMerkle tree = new NaiveMerkle(treeHeight);
       for (uint256 i = 0; i < numMessagesWithPadding; i++) {
         if (i < full.messages.l2ToL1Messages.length) {

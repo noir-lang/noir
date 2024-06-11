@@ -1,13 +1,13 @@
 use crate::abis::base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInputs;
 use crate::abis::previous_rollup_data::PreviousRollupData;
 use dep::types::{
-    hash::accumulate_sha256,
+    hash::accumulate_sha256, merkle_tree::VariableMerkleTree,
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX,
     MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
 },
-    utils::uint256::U256,
+    utils::{uint256::U256, arrays::array_length},
     abis::{
     append_only_tree_snapshot::AppendOnlyTreeSnapshot, accumulated_data::CombinedAccumulatedData,
     public_data_update_request::PublicDataUpdateRequest
@@ -90,18 +90,9 @@ pub fn compute_out_hash(previous_rollup_data: [PreviousRollupData; 2]) -> Field 
 }
 
 pub fn compute_kernel_out_hash(combined: CombinedAccumulatedData) -> Field {
-    let mut out_hash_inputs: [Field; MAX_NEW_L2_TO_L1_MSGS_PER_TX] = combined.new_l2_to_l1_msgs;
-
-    let mut hash_input_flattened = [0; MAX_NEW_L2_TO_L1_MSGS_PER_TX * 32];
-    for offset in 0..MAX_NEW_L2_TO_L1_MSGS_PER_TX {
-        let input_as_bytes = out_hash_inputs[offset].to_be_bytes(32);
-        for byte_index in 0..32 {
-            hash_input_flattened[offset * 32 + byte_index] = input_as_bytes[byte_index];
-        }
-    }
-
-    let sha_digest = dep::types::hash::sha256_to_field(hash_input_flattened);
-    sha_digest
+    let non_empty_items = array_length(combined.new_l2_to_l1_msgs);
+    let merkle_tree = VariableMerkleTree::new_sha(combined.new_l2_to_l1_msgs, non_empty_items);
+    merkle_tree.get_root()
 }
 
 /**

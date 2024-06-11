@@ -1064,8 +1064,9 @@ mod tests {
     #[test]
     unconstrained fn empty_block_out_hash() {
         let outputs = BaseRollupInputsBuilder::new().execute();
-
-        let hash_input_flattened = [0; MAX_NEW_L2_TO_L1_MSGS_PER_TX * 32];
+        // For now setting an empty out hash to be H(0,0) to keep consistent
+        // with prev work.
+        let hash_input_flattened = [0; 64];
         let sha_digest = dep::std::hash::sha256(hash_input_flattened);
         let expected_out_hash = field_from_bytes_32_trunc(sha_digest);
         assert_eq(outputs.out_hash, expected_out_hash);
@@ -1074,15 +1075,14 @@ mod tests {
     #[test]
     unconstrained fn nonempty_block_out_hash() {
         let mut end = CombinedAccumulatedData::empty();
-        end.new_l2_to_l1_msgs[MAX_NEW_L2_TO_L1_MSGS_PER_TX - 1] = 123;
+        for i in 0..MAX_NEW_L2_TO_L1_MSGS_PER_TX {
+            end.new_l2_to_l1_msgs[i] = 10 + i as Field;
+        }
 
         let out_hash = compute_kernel_out_hash(end);
-
-        let mut hash_input_flattened = [0; MAX_NEW_L2_TO_L1_MSGS_PER_TX * 32];
-        hash_input_flattened[MAX_NEW_L2_TO_L1_MSGS_PER_TX * 32 - 1] = 123;
-        let sha_digest = dep::std::hash::sha256(hash_input_flattened);
-        let expected_out_hash = field_from_bytes_32_trunc(sha_digest);
-        assert_eq(out_hash, expected_out_hash);
+        // Since we fill the tree completely, we know to expect a full tree as below
+        let expected_tree = dep::types::merkle_tree::variable_merkle_tree::tests::generate_full_sha_tree(end.new_l2_to_l1_msgs);
+        assert_eq(out_hash, expected_tree.get_root());
     }
 
     #[test(should_fail_with = "membership check failed")]

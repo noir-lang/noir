@@ -27,9 +27,9 @@ interface IOutbox {
    * @dev Emits `RootAdded` upon inserting the root successfully
    * @param _l2BlockNumber - The L2 Block Number in which the L2 to L1 messages reside
    * @param _root - The merkle root of the tree where all the L2 to L1 messages are leaves
-   * @param _height - The height of the merkle tree that the root corresponds to
+   * @param _minHeight - The min height of the merkle tree that the root corresponds to
    */
-  function insert(uint256 _l2BlockNumber, bytes32 _root, uint256 _height) external;
+  function insert(uint256 _l2BlockNumber, bytes32 _root, uint256 _minHeight) external;
   // docs:end:outbox_insert
 
   // docs:start:outbox_consume

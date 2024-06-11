@@ -3,7 +3,7 @@ import { Fr } from '@aztec/foundation/fields';
 
 import {
   MAX_ENCRYPTED_LOGS_PER_TX,
-  MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
+  MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
@@ -125,7 +125,7 @@ export class PublicAccumulatedDataBuilder {
     return new PublicAccumulatedData(
       padArrayEnd(this.newNoteHashes, NoteHash.empty(), MAX_NEW_NOTE_HASHES_PER_TX),
       padArrayEnd(this.newNullifiers, Nullifier.empty(), MAX_NEW_NULLIFIERS_PER_TX),
-      padArrayEnd(this.newL2ToL1Msgs, Fr.ZERO, MAX_NEW_L2_TO_L1_MSGS_PER_CALL),
+      padArrayEnd(this.newL2ToL1Msgs, Fr.ZERO, MAX_NEW_L2_TO_L1_MSGS_PER_TX),
       padArrayEnd(this.noteEncryptedLogsHashes, LogHash.empty(), MAX_NOTE_ENCRYPTED_LOGS_PER_TX),
       padArrayEnd(this.encryptedLogsHashes, LogHash.empty(), MAX_ENCRYPTED_LOGS_PER_TX),
       padArrayEnd(this.unencryptedLogsHashes, LogHash.empty(), MAX_UNENCRYPTED_LOGS_PER_TX),

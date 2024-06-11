@@ -149,11 +149,12 @@ contract Rollup is IRollup {
       revert Errors.Rollup__InvalidInHash(inHash, header.contentCommitment.inHash);
     }
 
-    // We assume here that the number of L2 to L1 messages per tx is 2. Therefore we just need a tree that is one height
-    // larger (as we can just extend the tree one layer down to hold all the L2 to L1 messages)
-    uint256 l2ToL1TreeHeight = header.contentCommitment.txTreeHeight + 1;
+    // Currently trying out storing each tx's L2 to L1 messages in variable height trees (smallest tree required)
+    // => path lengths will differ and we cannot provide one here
+    // We can provide a minimum which is the height of the rollup layers (txTreeHeight) and the smallest 'tree' (1 layer)
+    uint256 l2ToL1TreeMinHeight = header.contentCommitment.txTreeHeight + 1;
     OUTBOX.insert(
-      header.globalVariables.blockNumber, header.contentCommitment.outHash, l2ToL1TreeHeight
+      header.globalVariables.blockNumber, header.contentCommitment.outHash, l2ToL1TreeMinHeight
     );
 
     // pay the coinbase 1 gas token if it is not empty and header.totalFees is not zero
