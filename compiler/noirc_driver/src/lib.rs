@@ -106,6 +106,10 @@ pub struct CompileOptions {
     /// Skip loading the prelude (stdlib)
     #[arg(long, hide = true)]
     pub skip_prelude: bool,
+
+    /// Outputs the paths to any modified artifacts
+    #[arg(long, hide = true)]
+    pub show_artifact_paths: bool,
 }
 
 fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {

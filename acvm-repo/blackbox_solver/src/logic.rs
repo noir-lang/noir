@@ -68,20 +68,32 @@ fn mask_vector_le(bytes: &mut [u8], num_bits: usize) {
 
 #[cfg(test)]
 mod tests {
-    use acir::{AcirField, FieldElement};
+    use acir::FieldElement;
+    use proptest::prelude::*;
 
-    use crate::bit_and;
+    use crate::{bit_and, bit_xor};
 
-    #[test]
-    fn and() {
-        let max = 10_000u32;
+    proptest! {
+        #[test]
+        fn matches_bitwise_and_on_u128s(x in 0..=u128::MAX, y in 0..=u128::MAX, bit_size in 128u32..) {
+            let x_as_field = FieldElement::from(x);
+            let y_as_field = FieldElement::from(y);
 
-        let num_bits = (std::mem::size_of::<u32>() * 8) as u32 - max.leading_zeros();
+            let x_and_y = x & y;
+            let x_and_y_as_field = bit_and(x_as_field, y_as_field, bit_size);
 
-        for x in 0..max {
-            let x = FieldElement::from(x as i128);
-            let res = bit_and(x, x, num_bits);
-            assert_eq!(res.to_be_bytes(), x.to_be_bytes());
+            prop_assert_eq!(x_and_y_as_field, FieldElement::from(x_and_y), "AND on fields should match that on integers");
+        }
+
+        #[test]
+        fn matches_bitwise_xor_on_u128s(x in 0..=u128::MAX, y in 0..=u128::MAX, bit_size in 128u32..) {
+            let x_as_field = FieldElement::from(x);
+            let y_as_field = FieldElement::from(y);
+
+            let x_xor_y = x ^ y;
+            let x_xor_y_as_field = bit_xor(x_as_field, y_as_field, bit_size);
+
+            prop_assert_eq!(x_xor_y_as_field, FieldElement::from(x_xor_y), "XOR on fields should match that on integers");
         }
     }
 }

@@ -390,26 +390,3 @@ impl std::fmt::Display for Visibility {
         }
     }
 }
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-/// Represents whether the return value should compromise of unique witness indices such that no
-/// index occurs within the program's abi more than once.
-///
-/// This is useful for application stacks that require an uniform abi across across multiple
-/// circuits. When index duplication is allowed, the compiler may identify that a public input
-/// reaches the output unaltered and is thus referenced directly, causing the input and output
-/// witness indices to overlap. Similarly, repetitions of copied values in the output may be
-/// optimized away.
-pub enum Distinctness {
-    Distinct,
-    DuplicationAllowed,
-}
-
-impl std::fmt::Display for Distinctness {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Distinct => write!(f, "distinct"),
-            Self::DuplicationAllowed => write!(f, "duplication-allowed"),
-        }
-    }
-}
