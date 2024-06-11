@@ -51,9 +51,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::If(if_) => self.elaborate_if(*if_),
             ExpressionKind::Variable(variable, generics) => {
                 let generics = generics.map(|option_inner| {
-                    option_inner.into_iter().map(|generic| {
-                        self.resolve_type(generic)
-                    }).collect()
+                    option_inner.into_iter().map(|generic| self.resolve_type(generic)).collect()
                 });
                 return self.elaborate_variable(variable, generics);
             }

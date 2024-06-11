@@ -1,5 +1,8 @@
 use std::{
-    borrow::Cow, cell::RefCell, collections::{BTreeSet, HashMap}, rc::Rc,
+    borrow::Cow,
+    cell::RefCell,
+    collections::{BTreeSet, HashMap},
+    rc::Rc,
 };
 
 use crate::{
@@ -248,7 +251,7 @@ pub struct ResolvedGeneric {
 }
 
 impl ResolvedGeneric {
-    // TODO: Remove once we move to the elaborator. 
+    // TODO: Remove once we move to the elaborator.
     // This is only used during collection in the old resolution process.
     pub fn dummy() -> Self {
         ResolvedGeneric {
@@ -422,10 +425,6 @@ impl TypeAlias {
             .collect();
 
         self.typ.substitute(&substitutions)
-    }
-
-    pub fn find_numeric_generics_in_type(&self, found_names: &mut Vec<String>) {
-        self.typ.find_numeric_type_vars(found_names)
     }
 
     /// True if the given index is the same index as a generic type of this alias
@@ -743,13 +742,9 @@ impl Type {
     pub fn find_numeric_type_vars(&self, found_names: &mut Vec<String>) {
         // Return whether the named generic has a TypeKind::Numeric and save its name
         let named_generic_is_numeric = |typ: &Type, found_names: &mut Vec<String>| {
-            if let Type::NamedGeneric(_, name, kind) = typ {
-                if let TypeKind::Numeric = kind {
-                    found_names.push(name.to_string());
-                    true
-                } else {
-                    false
-                }
+            if let Type::NamedGeneric(_, name, TypeKind::Numeric) = typ {
+                found_names.push(name.to_string());
+                true
             } else {
                 false
             }
@@ -765,14 +760,14 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _, _)
             | Type::Forall(_, _)
-            | Type::Code => {},
+            | Type::Code => {}
 
             Type::TraitAsType(_, _, args) => {
                 for arg in args.iter() {
                     arg.find_numeric_type_vars(found_names);
                 }
             }
-            Type::Array(length, elem) => { 
+            Type::Array(length, elem) => {
                 elem.find_numeric_type_vars(found_names);
                 named_generic_is_numeric(length, found_names);
             }
@@ -793,14 +788,14 @@ impl Type {
                 for generic in generics.iter() {
                     if !named_generic_is_numeric(generic, found_names) {
                         generic.find_numeric_type_vars(found_names);
-                    } 
+                    }
                 }
             }
             Type::Alias(_, generics) => {
                 for generic in generics.iter() {
                     if !named_generic_is_numeric(generic, found_names) {
                         generic.find_numeric_type_vars(found_names);
-                    } 
+                    }
                 }
             }
             Type::MutableReference(element) => element.find_numeric_type_vars(found_names),
@@ -813,7 +808,6 @@ impl Type {
             }
         }
     }
-
 
     /// True if this type can be used as a parameter to `main` or a contract function.
     /// This is only false for unsized types like slices or slices that do not make sense
@@ -1328,7 +1322,7 @@ impl Type {
                 })
             }
 
-            (TypeVariable(var, _), other) | (other, TypeVariable(var, _)) => {
+            (TypeVariable(var, Kind::Normal), other) | (other, TypeVariable(var, Kind::Normal)) => {
                 other.try_unify_to_type_variable(var, bindings, |bindings| {
                     other.try_bind_to(var, bindings)
                 })
@@ -1393,10 +1387,6 @@ impl Type {
                 // Bound NamedGenerics are caught by the check above
                 assert!(binding_a.borrow().is_unbound());
                 assert!(binding_b.borrow().is_unbound());
-                
-                // if kind_a != kind_b {
-                //     return Err(UnificationError)
-                // }
 
                 if name_a == name_b {
                     Ok(())

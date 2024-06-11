@@ -34,9 +34,7 @@ use crate::token::{Attributes, SecondaryAttribute};
 use crate::GenericTypeVars;
 use crate::Generics;
 use crate::ResolvedGeneric;
-use crate::{
-    Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
-};
+use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind};
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`

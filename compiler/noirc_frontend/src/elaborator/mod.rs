@@ -4,7 +4,8 @@ use std::{
 };
 
 use crate::{
-    ast::{FunctionKind, UnresolvedTraitConstraint}, hir::{
+    ast::{FunctionKind, UnresolvedTraitConstraint},
+    hir::{
         comptime::{self, Interpreter},
         def_collector::{
             dc_crate::{
@@ -21,7 +22,7 @@ use crate::{
         expr::HirIdent,
         function::{FunctionBody, Parameters},
         traits::TraitConstraint,
-        types::{ResolvedGeneric, TypeKind, Generics},
+        types::{Generics, ResolvedGeneric, TypeKind},
     },
     macros_api::{
         BlockExpression, Ident, NodeInterner, NoirFunction, NoirStruct, Pattern,
@@ -231,10 +232,10 @@ impl<'context> Elaborator<'context> {
             this.define_type_alias(alias_id, alias);
         }
 
-        // Must collect trait generics before we define function metas as we need to have resolved generics 
+        // Must collect trait generics before we define function metas as we need to have resolved generics
         // when we define trait impl function metas
         this.collect_trait_generics(&items.traits);
-        
+
         // Must resolve structs before we resolve globals.
         this.collect_struct_definitions(items.types);
 
@@ -472,6 +473,13 @@ impl<'context> Elaborator<'context> {
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
 
+            let resolved_generic = ResolvedGeneric {
+                name: name.clone(),
+                type_var: typevar.clone(),
+                is_numeric_generic,
+                span,
+            };
+
             if let Some(generic) = self.find_generic(&name) {
                 self.push_err(ResolverError::DuplicateDefinition {
                     name: ident.0.contents.clone(),
@@ -479,29 +487,28 @@ impl<'context> Elaborator<'context> {
                     second_span: span,
                 });
             } else {
-                let resolved_generic =
-                    ResolvedGeneric { name: name.clone(), type_var: typevar.clone(), is_numeric_generic, span };
                 self.generics.push(resolved_generic.clone());
             }
 
-            let resolved_generic =
-                ResolvedGeneric { name, type_var: typevar.clone(), is_numeric_generic, span };
             resolved_generic
         })
     }
 
     /// If a numeric generic has been specified, add it to the current scope.
     /// Returns `true` if a numeric generic was added, otherwise return `false`
-    pub(super) fn add_numeric_generic(&mut self, generic: &UnresolvedGeneric, typevar: TypeVariable) -> bool {
+    pub(super) fn add_numeric_generic(
+        &mut self,
+        generic: &UnresolvedGeneric,
+        typevar: TypeVariable,
+    ) -> bool {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let mut typ = self.resolve_type(typ.clone());
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
-                let unsupported_typ_err = CompilationError::ResolverError(
-                    ResolverError::UnsupportedNumericGenericType {
+                let unsupported_typ_err =
+                    CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType {
                         ident: ident.clone(),
                         typ: typ.clone(),
-                    },
-                );
+                    });
                 self.errors.push((unsupported_typ_err, self.file));
                 typ = Type::Error;
             }
@@ -575,14 +582,17 @@ impl<'context> Elaborator<'context> {
 
         let resolved_generics = &the_trait.generics;
         assert_eq!(resolved_generics.len(), bound.trait_generics.len());
-        let trait_generics = vecmap(resolved_generics.clone().iter().zip(&bound.trait_generics), |(resolved_generic, typ)| {
-            let typ = typ.clone();
-            if resolved_generic.is_numeric_generic {
-                self.resolve_numeric_type(typ)
-            } else { 
-                self.resolve_type(typ)
-            }
-        });
+        let trait_generics = vecmap(
+            resolved_generics.clone().iter().zip(&bound.trait_generics),
+            |(resolved_generic, typ)| {
+                let typ = typ.clone();
+                if resolved_generic.is_numeric_generic {
+                    self.resolve_numeric_type(typ)
+                } else {
+                    self.resolve_type(typ)
+                }
+            },
+        );
 
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
         let trait_id = the_trait.id;
@@ -787,7 +797,7 @@ impl<'context> Elaborator<'context> {
             // We can fail to find the generic in self.generics if it is an implicit one created
             // by the compiler. This can happen when, e.g. eliding array lengths using the slice
             // syntax [T].
-            if let Some(ResolvedGeneric { name, span, is_numeric_generic, ..}) =
+            if let Some(ResolvedGeneric { name, span, is_numeric_generic, .. }) =
                 self.generics.iter_mut().find(|generic| generic.name.as_ref() == &name_to_find)
             {
                 let scope = self.scopes.get_mut_scope();
@@ -1224,7 +1234,6 @@ impl<'context> Elaborator<'context> {
                         }
                     }
                 }
-
             });
             self.pop_scope();
         }
@@ -1255,17 +1264,14 @@ impl<'context> Elaborator<'context> {
         struct_id: StructId,
     ) -> Vec<(Ident, Type)> {
         self.recover_generics(|this| {
-
             this.current_item = Some(DependencyId::Struct(struct_id));
 
             this.resolving_ids.insert(struct_id);
 
             let struct_def = this.interner.get_struct(struct_id);
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
-            
-            let fields = vecmap(unresolved.fields, |(ident, typ)| {
-                (ident, this.resolve_type(typ))
-            });
+
+            let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, this.resolve_type(typ)));
 
             this.resolving_ids.remove(&struct_id);
 
@@ -1372,24 +1378,28 @@ impl<'context> Elaborator<'context> {
             self.add_generics(&trait_impl.generics);
             trait_impl.resolved_generics = self.generics.clone();
 
-            // Fetch trait constraints here 
+            // Fetch trait constraints here
             let trait_generics = if let Some(trait_id) = trait_impl.trait_id {
                 let trait_def = self.interner.get_trait(trait_id);
                 let resolved_generics = trait_def.generics.clone();
                 assert_eq!(resolved_generics.len(), trait_impl.trait_generics.len());
-                trait_impl.trait_generics.iter().enumerate().map(|(i, generic)| {
-                    let generic = generic.clone();
-                    if resolved_generics[i].is_numeric_generic {
-                        self.resolve_numeric_type(generic)
-                    } else {
-                        self.resolve_type(generic)
-                    }
-                }).collect()
+                trait_impl
+                    .trait_generics
+                    .iter()
+                    .enumerate()
+                    .map(|(i, generic)| {
+                        let generic = generic.clone();
+                        if resolved_generics[i].is_numeric_generic {
+                            self.resolve_numeric_type(generic)
+                        } else {
+                            self.resolve_type(generic)
+                        }
+                    })
+                    .collect()
             } else {
                 // We still resolve as to continue type checking
                 vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()))
             };
-
 
             trait_impl.resolved_trait_generics = trait_generics;
 

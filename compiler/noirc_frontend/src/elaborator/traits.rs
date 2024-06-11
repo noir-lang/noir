@@ -39,7 +39,10 @@ impl<'context> Elaborator<'context> {
             self.scopes.start_scope();
             self.recover_generics(|this| {
                 let resolved_generics = this.interner.get_trait(trait_id).generics.clone();
-                this.add_existing_generics(&unresolved_trait.trait_def.generics, &resolved_generics);
+                this.add_existing_generics(
+                    &unresolved_trait.trait_def.generics,
+                    &resolved_generics,
+                );
 
                 // Resolve order
                 // 1. Trait Types ( Trait constants can have a trait type, therefore types before constants)
@@ -112,7 +115,7 @@ impl<'context> Elaborator<'context> {
                     this.self_type = Some(self_type.clone());
 
                     let func_id = unresolved_trait.method_ids[&name.0.contents];
-   
+
                     this.resolve_trait_function(
                         name,
                         generics,

@@ -178,14 +178,12 @@ impl<'context> Elaborator<'context> {
 
         let actual_type = Type::Struct(struct_type.clone(), generics);
         let location = Location::new(span, self.file);
-        
-        self.unify(&actual_type, &expected_type, || {
-            TypeCheckError::TypeMismatchWithSource {
+
+        self.unify(&actual_type, &expected_type, || TypeCheckError::TypeMismatchWithSource {
             expected: expected_type.clone(),
             actual: actual_type.clone(),
             span: location.span,
             source: Source::Assignment,
-        }
         });
 
         let typ = struct_type.clone();

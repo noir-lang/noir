@@ -1,12 +1,10 @@
 use std::collections::{BTreeMap, HashSet};
-use std::rc::Rc;
 
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::ast::{Ident, ItemVisibility, Path, TraitItem, UnresolvedGeneric};
-use crate::{GenericTypeVars, ResolvedGeneric};
 use crate::{
     graph::CrateId,
     hir::{
@@ -19,8 +17,9 @@ use crate::{
     },
     hir_def::traits::{TraitConstant, TraitFunction, TraitImpl, TraitType},
     node_interner::{FuncId, NodeInterner, TraitId},
-    Generics, Shared, Type, TypeVariable, TypeVariableKind,
+    Shared, Type, TypeVariable, TypeVariableKind,
 };
+use crate::{GenericTypeVars, ResolvedGeneric};
 
 use super::{
     functions, get_module_mut, get_struct_type,

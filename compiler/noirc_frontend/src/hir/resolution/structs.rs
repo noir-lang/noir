@@ -12,7 +12,7 @@ use crate::{
         Context,
     },
     node_interner::StructId,
-    Type, Generics,
+    Generics, Type,
 };
 
 use super::{errors::ResolverError, path_resolver::StandardPathResolver, resolver::Resolver};

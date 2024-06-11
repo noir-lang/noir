@@ -49,7 +49,8 @@ use crate::node_interner::{
     StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
 };
 use crate::{
-    GenericTypeVars, Generics, ResolvedGeneric, Shared, StructType, Type, TypeAlias, TypeKind, TypeVariable, TypeVariableKind
+    GenericTypeVars, Generics, ResolvedGeneric, Shared, StructType, Type, TypeAlias, TypeKind,
+    TypeVariable, TypeVariableKind,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -753,7 +754,11 @@ impl<'a> Resolver<'a> {
             if let Some(generic) = self.find_generic(name) {
                 // We always insert a `TypeKind::Normal` as we do not support explicit numeric generics
                 // in the resolver
-                return Some(Type::NamedGeneric(generic.type_var.clone(), generic.name.clone(), TypeKind::Normal));
+                return Some(Type::NamedGeneric(
+                    generic.type_var.clone(),
+                    generic.name.clone(),
+                    TypeKind::Normal,
+                ));
             };
         }
 
@@ -892,25 +897,15 @@ impl<'a> Resolver<'a> {
                     first_span: generic.span,
                     second_span: span,
                 });
-            } else {
-                let resolved_generic = ResolvedGeneric {
-                    name: name.clone(),
-                    type_var: typevar.clone(),
-                    // We only support numeric generics in the elaborator
-                    is_numeric_generic: false,
-                    span,
-                };
-                self.generics.push(resolved_generic);
             }
 
-            let resolved_generic = ResolvedGeneric {
+            ResolvedGeneric {
                 name,
                 type_var: typevar,
                 // We only support numeric generics in the elaborator
                 is_numeric_generic: false,
                 span,
-            };
-            resolved_generic
+            }
         })
     }
 
@@ -1927,7 +1922,9 @@ impl<'a> Resolver<'a> {
 
                 let constraint = TraitConstraint {
                     typ: self.self_type.clone()?,
-                    trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| generic.type_var.clone())),
+                    trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| {
+                        generic.type_var.clone()
+                    })),
                     trait_id,
                 };
                 return Some((method, constraint, false));
@@ -1955,7 +1952,9 @@ impl<'a> Resolver<'a> {
                     the_trait.self_type_typevar.clone(),
                     TypeVariableKind::Normal,
                 ),
-                trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| generic.type_var.clone())),
+                trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| {
+                    generic.type_var.clone()
+                })),
                 trait_id,
             };
             return Some((method, constraint, false));

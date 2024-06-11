@@ -1724,7 +1724,9 @@ fn implicit_numeric_generics_elaborator() {
     let errors = get_program_errors_elaborator(src);
 
     for error in errors.iter() {
-        if let CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { ident }) = &errors[0].0 {
+        if let CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { ident }) =
+            &errors[0].0
+        {
             assert!(matches!(ident.0.contents.as_str(), "MaxLen" | "Len"));
         } else {
             panic!("Expected ResolverError::UseExplicitNumericGeneric but got {:?}", error);

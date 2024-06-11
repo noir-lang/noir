@@ -4,14 +4,11 @@ use super::{
     parameter_name_recovery, parameter_recovery, parenthesized, parse_type, pattern,
     self_parameter, where_clause, NoirParser,
 };
+use crate::ast::{
+    FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param, Visibility,
+};
 use crate::parser::spanned;
 use crate::token::{Keyword, Token};
-use crate::{
-    ast::{
-        FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param, Visibility,
-    },
-    parser::{ParserError, ParserErrorReason},
-};
 use crate::{
     ast::{UnresolvedGeneric, UnresolvedGenerics},
     parser::labels::ParsingRuleLabel,
