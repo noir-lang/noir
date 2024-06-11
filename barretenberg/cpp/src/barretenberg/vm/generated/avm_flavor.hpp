@@ -73,6 +73,10 @@
 #include "barretenberg/relations/generated/avm/perm_main_mem_ind_d.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_pedersen.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_pos2_perm.hpp"
+#include "barretenberg/relations/generated/avm/range_check_da_gas_hi.hpp"
+#include "barretenberg/relations/generated/avm/range_check_da_gas_lo.hpp"
+#include "barretenberg/relations/generated/avm/range_check_l2_gas_hi.hpp"
+#include "barretenberg/relations/generated/avm/range_check_l2_gas_lo.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
 namespace bb {
@@ -94,11 +98,11 @@ class AvmFlavor {
     using RelationSeparator = FF;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 2;
-    static constexpr size_t NUM_WITNESS_ENTITIES = 369;
+    static constexpr size_t NUM_WITNESS_ENTITIES = 383;
     static constexpr size_t NUM_WIRES = NUM_WITNESS_ENTITIES + NUM_PRECOMPUTED_ENTITIES;
     // We have two copies of the witness entities, so we subtract the number of fixed ones (they have no shift), one for
     // the unshifted and one for the shifted
-    static constexpr size_t NUM_ALL_ENTITIES = 436;
+    static constexpr size_t NUM_ALL_ENTITIES = 450;
 
     using GrandProductRelations = std::tuple<perm_main_alu_relation<FF>,
                                              perm_main_bin_relation<FF>,
@@ -116,6 +120,10 @@ class AvmFlavor {
                                              lookup_byte_lengths_relation<FF>,
                                              lookup_byte_operations_relation<FF>,
                                              lookup_opcode_gas_relation<FF>,
+                                             range_check_l2_gas_hi_relation<FF>,
+                                             range_check_l2_gas_lo_relation<FF>,
+                                             range_check_da_gas_hi_relation<FF>,
+                                             range_check_da_gas_lo_relation<FF>,
                                              kernel_output_lookup_relation<FF>,
                                              lookup_into_kernel_relation<FF>,
                                              incl_main_tag_err_relation<FF>,
@@ -177,6 +185,10 @@ class AvmFlavor {
                                  lookup_byte_lengths_relation<FF>,
                                  lookup_byte_operations_relation<FF>,
                                  lookup_opcode_gas_relation<FF>,
+                                 range_check_l2_gas_hi_relation<FF>,
+                                 range_check_l2_gas_lo_relation<FF>,
+                                 range_check_da_gas_hi_relation<FF>,
+                                 range_check_da_gas_lo_relation<FF>,
                                  kernel_output_lookup_relation<FF>,
                                  lookup_into_kernel_relation<FF>,
                                  incl_main_tag_err_relation<FF>,
@@ -378,6 +390,10 @@ class AvmFlavor {
                               avm_kernel_side_effect_counter,
                               avm_kernel_sload_write_offset,
                               avm_kernel_sstore_write_offset,
+                              avm_main_abs_da_rem_gas_hi,
+                              avm_main_abs_da_rem_gas_lo,
+                              avm_main_abs_l2_rem_gas_hi,
+                              avm_main_abs_l2_rem_gas_lo,
                               avm_main_alu_in_tag,
                               avm_main_alu_sel,
                               avm_main_bin_op_id,
@@ -385,6 +401,7 @@ class AvmFlavor {
                               avm_main_call_ptr,
                               avm_main_da_gas_op,
                               avm_main_da_gas_remaining,
+                              avm_main_da_out_of_gas,
                               avm_main_gas_cost_active,
                               avm_main_ia,
                               avm_main_ib,
@@ -403,6 +420,7 @@ class AvmFlavor {
                               avm_main_inv,
                               avm_main_l2_gas_op,
                               avm_main_l2_gas_remaining,
+                              avm_main_l2_out_of_gas,
                               avm_main_last,
                               avm_main_mem_idx_a,
                               avm_main_mem_idx_b,
@@ -542,6 +560,10 @@ class AvmFlavor {
                               lookup_byte_lengths,
                               lookup_byte_operations,
                               lookup_opcode_gas,
+                              range_check_l2_gas_hi,
+                              range_check_l2_gas_lo,
+                              range_check_da_gas_hi,
+                              range_check_da_gas_lo,
                               kernel_output_lookup,
                               lookup_into_kernel,
                               incl_main_tag_err,
@@ -579,6 +601,10 @@ class AvmFlavor {
                               lookup_byte_lengths_counts,
                               lookup_byte_operations_counts,
                               lookup_opcode_gas_counts,
+                              range_check_l2_gas_hi_counts,
+                              range_check_l2_gas_lo_counts,
+                              range_check_da_gas_hi_counts,
+                              range_check_da_gas_lo_counts,
                               kernel_output_lookup_counts,
                               lookup_into_kernel_counts,
                               incl_main_tag_err_counts,
@@ -750,6 +776,10 @@ class AvmFlavor {
                      avm_kernel_side_effect_counter,
                      avm_kernel_sload_write_offset,
                      avm_kernel_sstore_write_offset,
+                     avm_main_abs_da_rem_gas_hi,
+                     avm_main_abs_da_rem_gas_lo,
+                     avm_main_abs_l2_rem_gas_hi,
+                     avm_main_abs_l2_rem_gas_lo,
                      avm_main_alu_in_tag,
                      avm_main_alu_sel,
                      avm_main_bin_op_id,
@@ -757,6 +787,7 @@ class AvmFlavor {
                      avm_main_call_ptr,
                      avm_main_da_gas_op,
                      avm_main_da_gas_remaining,
+                     avm_main_da_out_of_gas,
                      avm_main_gas_cost_active,
                      avm_main_ia,
                      avm_main_ib,
@@ -775,6 +806,7 @@ class AvmFlavor {
                      avm_main_inv,
                      avm_main_l2_gas_op,
                      avm_main_l2_gas_remaining,
+                     avm_main_l2_out_of_gas,
                      avm_main_last,
                      avm_main_mem_idx_a,
                      avm_main_mem_idx_b,
@@ -914,6 +946,10 @@ class AvmFlavor {
                      lookup_byte_lengths,
                      lookup_byte_operations,
                      lookup_opcode_gas,
+                     range_check_l2_gas_hi,
+                     range_check_l2_gas_lo,
+                     range_check_da_gas_hi,
+                     range_check_da_gas_lo,
                      kernel_output_lookup,
                      lookup_into_kernel,
                      incl_main_tag_err,
@@ -951,6 +987,10 @@ class AvmFlavor {
                      lookup_byte_lengths_counts,
                      lookup_byte_operations_counts,
                      lookup_opcode_gas_counts,
+                     range_check_l2_gas_hi_counts,
+                     range_check_l2_gas_lo_counts,
+                     range_check_da_gas_hi_counts,
+                     range_check_da_gas_lo_counts,
                      kernel_output_lookup_counts,
                      lookup_into_kernel_counts,
                      incl_main_tag_err_counts,
@@ -1127,6 +1167,10 @@ class AvmFlavor {
                               avm_kernel_side_effect_counter,
                               avm_kernel_sload_write_offset,
                               avm_kernel_sstore_write_offset,
+                              avm_main_abs_da_rem_gas_hi,
+                              avm_main_abs_da_rem_gas_lo,
+                              avm_main_abs_l2_rem_gas_hi,
+                              avm_main_abs_l2_rem_gas_lo,
                               avm_main_alu_in_tag,
                               avm_main_alu_sel,
                               avm_main_bin_op_id,
@@ -1134,6 +1178,7 @@ class AvmFlavor {
                               avm_main_call_ptr,
                               avm_main_da_gas_op,
                               avm_main_da_gas_remaining,
+                              avm_main_da_out_of_gas,
                               avm_main_gas_cost_active,
                               avm_main_ia,
                               avm_main_ib,
@@ -1152,6 +1197,7 @@ class AvmFlavor {
                               avm_main_inv,
                               avm_main_l2_gas_op,
                               avm_main_l2_gas_remaining,
+                              avm_main_l2_out_of_gas,
                               avm_main_last,
                               avm_main_mem_idx_a,
                               avm_main_mem_idx_b,
@@ -1291,6 +1337,10 @@ class AvmFlavor {
                               lookup_byte_lengths,
                               lookup_byte_operations,
                               lookup_opcode_gas,
+                              range_check_l2_gas_hi,
+                              range_check_l2_gas_lo,
+                              range_check_da_gas_hi,
+                              range_check_da_gas_lo,
                               kernel_output_lookup,
                               lookup_into_kernel,
                               incl_main_tag_err,
@@ -1328,6 +1378,10 @@ class AvmFlavor {
                               lookup_byte_lengths_counts,
                               lookup_byte_operations_counts,
                               lookup_opcode_gas_counts,
+                              range_check_l2_gas_hi_counts,
+                              range_check_l2_gas_lo_counts,
+                              range_check_da_gas_hi_counts,
+                              range_check_da_gas_lo_counts,
                               kernel_output_lookup_counts,
                               lookup_into_kernel_counts,
                               incl_main_tag_err_counts,
@@ -1566,6 +1620,10 @@ class AvmFlavor {
                      avm_kernel_side_effect_counter,
                      avm_kernel_sload_write_offset,
                      avm_kernel_sstore_write_offset,
+                     avm_main_abs_da_rem_gas_hi,
+                     avm_main_abs_da_rem_gas_lo,
+                     avm_main_abs_l2_rem_gas_hi,
+                     avm_main_abs_l2_rem_gas_lo,
                      avm_main_alu_in_tag,
                      avm_main_alu_sel,
                      avm_main_bin_op_id,
@@ -1573,6 +1631,7 @@ class AvmFlavor {
                      avm_main_call_ptr,
                      avm_main_da_gas_op,
                      avm_main_da_gas_remaining,
+                     avm_main_da_out_of_gas,
                      avm_main_gas_cost_active,
                      avm_main_ia,
                      avm_main_ib,
@@ -1591,6 +1650,7 @@ class AvmFlavor {
                      avm_main_inv,
                      avm_main_l2_gas_op,
                      avm_main_l2_gas_remaining,
+                     avm_main_l2_out_of_gas,
                      avm_main_last,
                      avm_main_mem_idx_a,
                      avm_main_mem_idx_b,
@@ -1730,6 +1790,10 @@ class AvmFlavor {
                      lookup_byte_lengths,
                      lookup_byte_operations,
                      lookup_opcode_gas,
+                     range_check_l2_gas_hi,
+                     range_check_l2_gas_lo,
+                     range_check_da_gas_hi,
+                     range_check_da_gas_lo,
                      kernel_output_lookup,
                      lookup_into_kernel,
                      incl_main_tag_err,
@@ -1767,6 +1831,10 @@ class AvmFlavor {
                      lookup_byte_lengths_counts,
                      lookup_byte_operations_counts,
                      lookup_opcode_gas_counts,
+                     range_check_l2_gas_hi_counts,
+                     range_check_l2_gas_lo_counts,
+                     range_check_da_gas_hi_counts,
+                     range_check_da_gas_lo_counts,
                      kernel_output_lookup_counts,
                      lookup_into_kernel_counts,
                      incl_main_tag_err_counts,
@@ -2005,6 +2073,10 @@ class AvmFlavor {
                      avm_kernel_side_effect_counter,
                      avm_kernel_sload_write_offset,
                      avm_kernel_sstore_write_offset,
+                     avm_main_abs_da_rem_gas_hi,
+                     avm_main_abs_da_rem_gas_lo,
+                     avm_main_abs_l2_rem_gas_hi,
+                     avm_main_abs_l2_rem_gas_lo,
                      avm_main_alu_in_tag,
                      avm_main_alu_sel,
                      avm_main_bin_op_id,
@@ -2012,6 +2084,7 @@ class AvmFlavor {
                      avm_main_call_ptr,
                      avm_main_da_gas_op,
                      avm_main_da_gas_remaining,
+                     avm_main_da_out_of_gas,
                      avm_main_gas_cost_active,
                      avm_main_ia,
                      avm_main_ib,
@@ -2030,6 +2103,7 @@ class AvmFlavor {
                      avm_main_inv,
                      avm_main_l2_gas_op,
                      avm_main_l2_gas_remaining,
+                     avm_main_l2_out_of_gas,
                      avm_main_last,
                      avm_main_mem_idx_a,
                      avm_main_mem_idx_b,
@@ -2169,6 +2243,10 @@ class AvmFlavor {
                      lookup_byte_lengths,
                      lookup_byte_operations,
                      lookup_opcode_gas,
+                     range_check_l2_gas_hi,
+                     range_check_l2_gas_lo,
+                     range_check_da_gas_hi,
+                     range_check_da_gas_lo,
                      kernel_output_lookup,
                      lookup_into_kernel,
                      incl_main_tag_err,
@@ -2206,6 +2284,10 @@ class AvmFlavor {
                      lookup_byte_lengths_counts,
                      lookup_byte_operations_counts,
                      lookup_opcode_gas_counts,
+                     range_check_l2_gas_hi_counts,
+                     range_check_l2_gas_lo_counts,
+                     range_check_da_gas_hi_counts,
+                     range_check_da_gas_lo_counts,
                      kernel_output_lookup_counts,
                      lookup_into_kernel_counts,
                      incl_main_tag_err_counts,
@@ -2491,6 +2573,14 @@ class AvmFlavor {
             bb::compute_logderivative_inverse<AvmFlavor, lookup_byte_operations_relation<FF>>(
                 prover_polynomials, relation_parameters, this->circuit_size);
             bb::compute_logderivative_inverse<AvmFlavor, lookup_opcode_gas_relation<FF>>(
+                prover_polynomials, relation_parameters, this->circuit_size);
+            bb::compute_logderivative_inverse<AvmFlavor, range_check_l2_gas_hi_relation<FF>>(
+                prover_polynomials, relation_parameters, this->circuit_size);
+            bb::compute_logderivative_inverse<AvmFlavor, range_check_l2_gas_lo_relation<FF>>(
+                prover_polynomials, relation_parameters, this->circuit_size);
+            bb::compute_logderivative_inverse<AvmFlavor, range_check_da_gas_hi_relation<FF>>(
+                prover_polynomials, relation_parameters, this->circuit_size);
+            bb::compute_logderivative_inverse<AvmFlavor, range_check_da_gas_lo_relation<FF>>(
                 prover_polynomials, relation_parameters, this->circuit_size);
             bb::compute_logderivative_inverse<AvmFlavor, kernel_output_lookup_relation<FF>>(
                 prover_polynomials, relation_parameters, this->circuit_size);
@@ -2793,6 +2883,10 @@ class AvmFlavor {
             Base::avm_kernel_side_effect_counter = "AVM_KERNEL_SIDE_EFFECT_COUNTER";
             Base::avm_kernel_sload_write_offset = "AVM_KERNEL_SLOAD_WRITE_OFFSET";
             Base::avm_kernel_sstore_write_offset = "AVM_KERNEL_SSTORE_WRITE_OFFSET";
+            Base::avm_main_abs_da_rem_gas_hi = "AVM_MAIN_ABS_DA_REM_GAS_HI";
+            Base::avm_main_abs_da_rem_gas_lo = "AVM_MAIN_ABS_DA_REM_GAS_LO";
+            Base::avm_main_abs_l2_rem_gas_hi = "AVM_MAIN_ABS_L2_REM_GAS_HI";
+            Base::avm_main_abs_l2_rem_gas_lo = "AVM_MAIN_ABS_L2_REM_GAS_LO";
             Base::avm_main_alu_in_tag = "AVM_MAIN_ALU_IN_TAG";
             Base::avm_main_alu_sel = "AVM_MAIN_ALU_SEL";
             Base::avm_main_bin_op_id = "AVM_MAIN_BIN_OP_ID";
@@ -2800,6 +2894,7 @@ class AvmFlavor {
             Base::avm_main_call_ptr = "AVM_MAIN_CALL_PTR";
             Base::avm_main_da_gas_op = "AVM_MAIN_DA_GAS_OP";
             Base::avm_main_da_gas_remaining = "AVM_MAIN_DA_GAS_REMAINING";
+            Base::avm_main_da_out_of_gas = "AVM_MAIN_DA_OUT_OF_GAS";
             Base::avm_main_gas_cost_active = "AVM_MAIN_GAS_COST_ACTIVE";
             Base::avm_main_ia = "AVM_MAIN_IA";
             Base::avm_main_ib = "AVM_MAIN_IB";
@@ -2818,6 +2913,7 @@ class AvmFlavor {
             Base::avm_main_inv = "AVM_MAIN_INV";
             Base::avm_main_l2_gas_op = "AVM_MAIN_L2_GAS_OP";
             Base::avm_main_l2_gas_remaining = "AVM_MAIN_L2_GAS_REMAINING";
+            Base::avm_main_l2_out_of_gas = "AVM_MAIN_L2_OUT_OF_GAS";
             Base::avm_main_last = "AVM_MAIN_LAST";
             Base::avm_main_mem_idx_a = "AVM_MAIN_MEM_IDX_A";
             Base::avm_main_mem_idx_b = "AVM_MAIN_MEM_IDX_B";
@@ -2957,6 +3053,10 @@ class AvmFlavor {
             Base::lookup_byte_lengths = "LOOKUP_BYTE_LENGTHS";
             Base::lookup_byte_operations = "LOOKUP_BYTE_OPERATIONS";
             Base::lookup_opcode_gas = "LOOKUP_OPCODE_GAS";
+            Base::range_check_l2_gas_hi = "RANGE_CHECK_L2_GAS_HI";
+            Base::range_check_l2_gas_lo = "RANGE_CHECK_L2_GAS_LO";
+            Base::range_check_da_gas_hi = "RANGE_CHECK_DA_GAS_HI";
+            Base::range_check_da_gas_lo = "RANGE_CHECK_DA_GAS_LO";
             Base::kernel_output_lookup = "KERNEL_OUTPUT_LOOKUP";
             Base::lookup_into_kernel = "LOOKUP_INTO_KERNEL";
             Base::incl_main_tag_err = "INCL_MAIN_TAG_ERR";
@@ -2994,6 +3094,10 @@ class AvmFlavor {
             Base::lookup_byte_lengths_counts = "LOOKUP_BYTE_LENGTHS_COUNTS";
             Base::lookup_byte_operations_counts = "LOOKUP_BYTE_OPERATIONS_COUNTS";
             Base::lookup_opcode_gas_counts = "LOOKUP_OPCODE_GAS_COUNTS";
+            Base::range_check_l2_gas_hi_counts = "RANGE_CHECK_L2_GAS_HI_COUNTS";
+            Base::range_check_l2_gas_lo_counts = "RANGE_CHECK_L2_GAS_LO_COUNTS";
+            Base::range_check_da_gas_hi_counts = "RANGE_CHECK_DA_GAS_HI_COUNTS";
+            Base::range_check_da_gas_lo_counts = "RANGE_CHECK_DA_GAS_LO_COUNTS";
             Base::kernel_output_lookup_counts = "KERNEL_OUTPUT_LOOKUP_COUNTS";
             Base::lookup_into_kernel_counts = "LOOKUP_INTO_KERNEL_COUNTS";
             Base::incl_main_tag_err_counts = "INCL_MAIN_TAG_ERR_COUNTS";
@@ -3181,6 +3285,10 @@ class AvmFlavor {
         Commitment avm_kernel_side_effect_counter;
         Commitment avm_kernel_sload_write_offset;
         Commitment avm_kernel_sstore_write_offset;
+        Commitment avm_main_abs_da_rem_gas_hi;
+        Commitment avm_main_abs_da_rem_gas_lo;
+        Commitment avm_main_abs_l2_rem_gas_hi;
+        Commitment avm_main_abs_l2_rem_gas_lo;
         Commitment avm_main_alu_in_tag;
         Commitment avm_main_alu_sel;
         Commitment avm_main_bin_op_id;
@@ -3188,6 +3296,7 @@ class AvmFlavor {
         Commitment avm_main_call_ptr;
         Commitment avm_main_da_gas_op;
         Commitment avm_main_da_gas_remaining;
+        Commitment avm_main_da_out_of_gas;
         Commitment avm_main_gas_cost_active;
         Commitment avm_main_ia;
         Commitment avm_main_ib;
@@ -3206,6 +3315,7 @@ class AvmFlavor {
         Commitment avm_main_inv;
         Commitment avm_main_l2_gas_op;
         Commitment avm_main_l2_gas_remaining;
+        Commitment avm_main_l2_out_of_gas;
         Commitment avm_main_last;
         Commitment avm_main_mem_idx_a;
         Commitment avm_main_mem_idx_b;
@@ -3345,6 +3455,10 @@ class AvmFlavor {
         Commitment lookup_byte_lengths;
         Commitment lookup_byte_operations;
         Commitment lookup_opcode_gas;
+        Commitment range_check_l2_gas_hi;
+        Commitment range_check_l2_gas_lo;
+        Commitment range_check_da_gas_hi;
+        Commitment range_check_da_gas_lo;
         Commitment kernel_output_lookup;
         Commitment lookup_into_kernel;
         Commitment incl_main_tag_err;
@@ -3382,6 +3496,10 @@ class AvmFlavor {
         Commitment lookup_byte_lengths_counts;
         Commitment lookup_byte_operations_counts;
         Commitment lookup_opcode_gas_counts;
+        Commitment range_check_l2_gas_hi_counts;
+        Commitment range_check_l2_gas_lo_counts;
+        Commitment range_check_da_gas_hi_counts;
+        Commitment range_check_da_gas_lo_counts;
         Commitment kernel_output_lookup_counts;
         Commitment lookup_into_kernel_counts;
         Commitment incl_main_tag_err_counts;
@@ -3584,6 +3702,10 @@ class AvmFlavor {
             avm_kernel_side_effect_counter = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_kernel_sload_write_offset = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_kernel_sstore_write_offset = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_abs_da_rem_gas_hi = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_abs_da_rem_gas_lo = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_abs_l2_rem_gas_hi = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_abs_l2_rem_gas_lo = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_alu_in_tag = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_alu_sel = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_bin_op_id = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -3591,6 +3713,7 @@ class AvmFlavor {
             avm_main_call_ptr = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_da_gas_op = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_da_gas_remaining = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_da_out_of_gas = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_gas_cost_active = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_ia = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_ib = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -3609,6 +3732,7 @@ class AvmFlavor {
             avm_main_inv = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_l2_gas_op = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_l2_gas_remaining = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_l2_out_of_gas = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_last = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_mem_idx_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_mem_idx_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -3755,6 +3879,10 @@ class AvmFlavor {
             lookup_byte_lengths = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             lookup_byte_operations = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             lookup_opcode_gas = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            range_check_l2_gas_hi = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            range_check_l2_gas_lo = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            range_check_da_gas_hi = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            range_check_da_gas_lo = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             kernel_output_lookup = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             lookup_into_kernel = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             incl_main_tag_err = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -3792,6 +3920,10 @@ class AvmFlavor {
             lookup_byte_lengths_counts = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             lookup_byte_operations_counts = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             lookup_opcode_gas_counts = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            range_check_l2_gas_hi_counts = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            range_check_l2_gas_lo_counts = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            range_check_da_gas_hi_counts = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            range_check_da_gas_lo_counts = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             kernel_output_lookup_counts = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             lookup_into_kernel_counts = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             incl_main_tag_err_counts = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -3983,6 +4115,10 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_kernel_side_effect_counter, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_kernel_sload_write_offset, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_kernel_sstore_write_offset, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_abs_da_rem_gas_hi, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_abs_da_rem_gas_lo, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_abs_l2_rem_gas_hi, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_abs_l2_rem_gas_lo, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_alu_in_tag, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_alu_sel, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_bin_op_id, Transcript::proof_data);
@@ -3990,6 +4126,7 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_main_call_ptr, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_da_gas_op, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_da_gas_remaining, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_da_out_of_gas, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_gas_cost_active, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_ia, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_ib, Transcript::proof_data);
@@ -4008,6 +4145,7 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_main_inv, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_l2_gas_op, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_l2_gas_remaining, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_l2_out_of_gas, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_last, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_mem_idx_a, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_mem_idx_b, Transcript::proof_data);
@@ -4147,6 +4285,10 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(lookup_byte_lengths, Transcript::proof_data);
             serialize_to_buffer<Commitment>(lookup_byte_operations, Transcript::proof_data);
             serialize_to_buffer<Commitment>(lookup_opcode_gas, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(range_check_l2_gas_hi, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(range_check_l2_gas_lo, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(range_check_da_gas_hi, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(range_check_da_gas_lo, Transcript::proof_data);
             serialize_to_buffer<Commitment>(kernel_output_lookup, Transcript::proof_data);
             serialize_to_buffer<Commitment>(lookup_into_kernel, Transcript::proof_data);
             serialize_to_buffer<Commitment>(incl_main_tag_err, Transcript::proof_data);
@@ -4184,6 +4326,10 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(lookup_byte_lengths_counts, Transcript::proof_data);
             serialize_to_buffer<Commitment>(lookup_byte_operations_counts, Transcript::proof_data);
             serialize_to_buffer<Commitment>(lookup_opcode_gas_counts, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(range_check_l2_gas_hi_counts, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(range_check_l2_gas_lo_counts, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(range_check_da_gas_hi_counts, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(range_check_da_gas_lo_counts, Transcript::proof_data);
             serialize_to_buffer<Commitment>(kernel_output_lookup_counts, Transcript::proof_data);
             serialize_to_buffer<Commitment>(lookup_into_kernel_counts, Transcript::proof_data);
             serialize_to_buffer<Commitment>(incl_main_tag_err_counts, Transcript::proof_data);

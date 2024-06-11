@@ -151,6 +151,10 @@
     [[maybe_unused]] auto avm_kernel_side_effect_counter = View(new_term.avm_kernel_side_effect_counter);              \
     [[maybe_unused]] auto avm_kernel_sload_write_offset = View(new_term.avm_kernel_sload_write_offset);                \
     [[maybe_unused]] auto avm_kernel_sstore_write_offset = View(new_term.avm_kernel_sstore_write_offset);              \
+    [[maybe_unused]] auto avm_main_abs_da_rem_gas_hi = View(new_term.avm_main_abs_da_rem_gas_hi);                      \
+    [[maybe_unused]] auto avm_main_abs_da_rem_gas_lo = View(new_term.avm_main_abs_da_rem_gas_lo);                      \
+    [[maybe_unused]] auto avm_main_abs_l2_rem_gas_hi = View(new_term.avm_main_abs_l2_rem_gas_hi);                      \
+    [[maybe_unused]] auto avm_main_abs_l2_rem_gas_lo = View(new_term.avm_main_abs_l2_rem_gas_lo);                      \
     [[maybe_unused]] auto avm_main_alu_in_tag = View(new_term.avm_main_alu_in_tag);                                    \
     [[maybe_unused]] auto avm_main_alu_sel = View(new_term.avm_main_alu_sel);                                          \
     [[maybe_unused]] auto avm_main_bin_op_id = View(new_term.avm_main_bin_op_id);                                      \
@@ -158,6 +162,7 @@
     [[maybe_unused]] auto avm_main_call_ptr = View(new_term.avm_main_call_ptr);                                        \
     [[maybe_unused]] auto avm_main_da_gas_op = View(new_term.avm_main_da_gas_op);                                      \
     [[maybe_unused]] auto avm_main_da_gas_remaining = View(new_term.avm_main_da_gas_remaining);                        \
+    [[maybe_unused]] auto avm_main_da_out_of_gas = View(new_term.avm_main_da_out_of_gas);                              \
     [[maybe_unused]] auto avm_main_gas_cost_active = View(new_term.avm_main_gas_cost_active);                          \
     [[maybe_unused]] auto avm_main_ia = View(new_term.avm_main_ia);                                                    \
     [[maybe_unused]] auto avm_main_ib = View(new_term.avm_main_ib);                                                    \
@@ -176,6 +181,7 @@
     [[maybe_unused]] auto avm_main_inv = View(new_term.avm_main_inv);                                                  \
     [[maybe_unused]] auto avm_main_l2_gas_op = View(new_term.avm_main_l2_gas_op);                                      \
     [[maybe_unused]] auto avm_main_l2_gas_remaining = View(new_term.avm_main_l2_gas_remaining);                        \
+    [[maybe_unused]] auto avm_main_l2_out_of_gas = View(new_term.avm_main_l2_out_of_gas);                              \
     [[maybe_unused]] auto avm_main_last = View(new_term.avm_main_last);                                                \
     [[maybe_unused]] auto avm_main_mem_idx_a = View(new_term.avm_main_mem_idx_a);                                      \
     [[maybe_unused]] auto avm_main_mem_idx_b = View(new_term.avm_main_mem_idx_b);                                      \
@@ -316,6 +322,10 @@
     [[maybe_unused]] auto lookup_byte_lengths = View(new_term.lookup_byte_lengths);                                    \
     [[maybe_unused]] auto lookup_byte_operations = View(new_term.lookup_byte_operations);                              \
     [[maybe_unused]] auto lookup_opcode_gas = View(new_term.lookup_opcode_gas);                                        \
+    [[maybe_unused]] auto range_check_l2_gas_hi = View(new_term.range_check_l2_gas_hi);                                \
+    [[maybe_unused]] auto range_check_l2_gas_lo = View(new_term.range_check_l2_gas_lo);                                \
+    [[maybe_unused]] auto range_check_da_gas_hi = View(new_term.range_check_da_gas_hi);                                \
+    [[maybe_unused]] auto range_check_da_gas_lo = View(new_term.range_check_da_gas_lo);                                \
     [[maybe_unused]] auto kernel_output_lookup = View(new_term.kernel_output_lookup);                                  \
     [[maybe_unused]] auto lookup_into_kernel = View(new_term.lookup_into_kernel);                                      \
     [[maybe_unused]] auto incl_main_tag_err = View(new_term.incl_main_tag_err);                                        \
@@ -353,6 +363,10 @@
     [[maybe_unused]] auto lookup_byte_lengths_counts = View(new_term.lookup_byte_lengths_counts);                      \
     [[maybe_unused]] auto lookup_byte_operations_counts = View(new_term.lookup_byte_operations_counts);                \
     [[maybe_unused]] auto lookup_opcode_gas_counts = View(new_term.lookup_opcode_gas_counts);                          \
+    [[maybe_unused]] auto range_check_l2_gas_hi_counts = View(new_term.range_check_l2_gas_hi_counts);                  \
+    [[maybe_unused]] auto range_check_l2_gas_lo_counts = View(new_term.range_check_l2_gas_lo_counts);                  \
+    [[maybe_unused]] auto range_check_da_gas_hi_counts = View(new_term.range_check_da_gas_hi_counts);                  \
+    [[maybe_unused]] auto range_check_da_gas_lo_counts = View(new_term.range_check_da_gas_lo_counts);                  \
     [[maybe_unused]] auto kernel_output_lookup_counts = View(new_term.kernel_output_lookup_counts);                    \
     [[maybe_unused]] auto lookup_into_kernel_counts = View(new_term.lookup_into_kernel_counts);                        \
     [[maybe_unused]] auto incl_main_tag_err_counts = View(new_term.incl_main_tag_err_counts);                          \

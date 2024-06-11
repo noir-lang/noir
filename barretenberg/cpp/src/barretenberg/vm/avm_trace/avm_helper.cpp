@@ -85,6 +85,12 @@ void log_avm_trace(std::vector<Row> const& trace, size_t beg, size_t end, bool e
             info("da_gas_remaining:   ", trace.at(i).avm_main_da_gas_remaining);
             info("l2_gas_op:          ", trace.at(i).avm_main_l2_gas_op);
             info("da_gas_op:          ", trace.at(i).avm_main_da_gas_op);
+            info("l2_out_of_gas:      ", trace.at(i).avm_main_l2_out_of_gas);
+            info("da_out_of_gas:      ", trace.at(i).avm_main_da_out_of_gas);
+            info("abs_l2_hi_rem_gas:  ", trace.at(i).avm_main_abs_l2_rem_gas_hi);
+            info("abs_l2_lo_rem_gas:  ", trace.at(i).avm_main_abs_l2_rem_gas_lo);
+            info("abs_da_hi_rem_gas:  ", trace.at(i).avm_main_abs_da_rem_gas_hi);
+            info("abs_da_lo_rem_gas:  ", trace.at(i).avm_main_abs_da_rem_gas_lo);
 
             if (enable_selectors) {
                 info("=======SELECTORS======================================================================");

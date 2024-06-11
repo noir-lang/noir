@@ -75,10 +75,19 @@ namespace avm_main(256);
     pol commit l2_gas_op;
     pol commit da_gas_op;
 
-    #[LOOKUP_OPCODE_GAS]
-    gas_cost_active {opcode_val, l2_gas_op, da_gas_op}
-    in
-    avm_gas.gas_cost_sel {clk, avm_gas.l2_gas_fixed_table, avm_gas.da_gas_fixed_table};
+    // Boolean indicating whether the current opcode gas consumption is higher than remaining gas
+    pol commit l2_out_of_gas;
+    pol commit da_out_of_gas;
+
+    // Absolute gas remaining value after the operation in 16-bit high and low limbs
+    pol commit abs_l2_rem_gas_hi;
+    pol commit abs_l2_rem_gas_lo;
+    pol commit abs_da_rem_gas_hi;
+    pol commit abs_da_rem_gas_lo;
+
+    // Boolean constraints
+    l2_out_of_gas * (1 - l2_out_of_gas) = 0;
+    da_out_of_gas * (1 - da_out_of_gas) = 0;
 
     // Constrain that the gas decrements correctly per instruction
     #[L2_GAS_REMAINING_DECREMENT]
@@ -94,6 +103,29 @@ namespace avm_main(256);
 
     // TODO: constrain that it stays the same if an opcode selector is not active -> TODO: will this break when the opcode takes multiple rows
     // So we also need to constrain that it is the first line of the opcodes execution
+
+    // Prove that l2_out_of_gas == 0 <==> l2_gas_remaining' >= 0
+    // Same for da gas
+    // TODO: Ensure that remaining gas values are initialized as u32 and that gas l2_gas_op/da_gas_op are u32.
+    gas_cost_active * ((1 - 2 * l2_out_of_gas) * l2_gas_remaining' - 2**16 * abs_l2_rem_gas_hi - abs_l2_rem_gas_lo) = 0;
+    gas_cost_active * ((1 - 2 * da_out_of_gas) * da_gas_remaining' - 2**16 * abs_da_rem_gas_hi - abs_da_rem_gas_lo) = 0;
+
+    #[LOOKUP_OPCODE_GAS]
+    gas_cost_active {opcode_val, l2_gas_op, da_gas_op}
+    in
+    avm_gas.gas_cost_sel {clk, avm_gas.l2_gas_fixed_table, avm_gas.da_gas_fixed_table};
+
+    #[RANGE_CHECK_L2_GAS_HI]
+    gas_cost_active {abs_l2_rem_gas_hi} in sel_rng_16 {clk};
+
+    #[RANGE_CHECK_L2_GAS_LO]
+    gas_cost_active {abs_l2_rem_gas_lo} in sel_rng_16 {clk};
+
+    #[RANGE_CHECK_DA_GAS_HI]
+    gas_cost_active {abs_da_rem_gas_hi} in sel_rng_16 {clk};
+
+    #[RANGE_CHECK_DA_GAS_LO]
+    gas_cost_active {abs_da_rem_gas_lo} in sel_rng_16 {clk};
 
     //===== Gadget Selectors ======================================================
     pol commit sel_op_radix_le;

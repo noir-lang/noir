@@ -3,7 +3,7 @@
 
 namespace bb::avm_trace {
 
-AvmGasTraceBuilder::AvmGasTraceBuilder() {}
+AvmGasTraceBuilder::AvmGasTraceBuilder() = default;
 
 void AvmGasTraceBuilder::reset()
 {

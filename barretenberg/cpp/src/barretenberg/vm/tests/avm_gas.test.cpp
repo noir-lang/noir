@@ -1,5 +1,6 @@
 #include "avm_common.test.hpp"
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
+#include "barretenberg/vm/avm_trace/avm_helper.hpp"
 #include "barretenberg/vm/avm_trace/avm_kernel_trace.hpp"
 #include "barretenberg/vm/avm_trace/constants.hpp"
 
@@ -24,9 +25,9 @@ struct StartGas {
 };
 
 // TODO: migrate to helper
-// Template helper function to apply boilerplate around the kernel lookup tests
+// Template helper function to apply boilerplate around gas tests
 template <typename OpcodesFunc, typename CheckFunc>
-void test_lookup(StartGas startGas, OpcodesFunc apply_opcodes, CheckFunc check_trace)
+void test_gas(StartGas startGas, OpcodesFunc apply_opcodes, CheckFunc check_trace)
 {
     std::array<FF, KERNEL_INPUTS_LENGTH> kernel_inputs = {};
 
@@ -46,13 +47,14 @@ void test_lookup(StartGas startGas, OpcodesFunc apply_opcodes, CheckFunc check_t
 
     check_trace(trace);
 
+    log_avm_trace(trace, 0, 10);
     validate_trace(std::move(trace), public_inputs);
 }
 
 TEST_F(AvmGasPositiveTests, gasAdd)
 {
     StartGas start_gas = {
-        .l2_gas = 300,
+        .l2_gas = 3,
         .da_gas = 300,
     };
 
@@ -60,48 +62,16 @@ TEST_F(AvmGasPositiveTests, gasAdd)
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         // trace_builder.set()
         trace_builder.op_add(0, 1, 2, 3, AvmMemoryTag::FF);
+        trace_builder.return_op(0, 0, 0);
     };
+
     auto checks = [=](const std::vector<Row>& trace) {
-        std::vector<Row>::const_iterator sender_row =
+        auto sender_row =
             std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_add == FF(1); });
         EXPECT_TRUE(sender_row != trace.end());
-
-        // TODO: Clean these logs once unit tests are implemented.
-        // Show the first few rows and see if the correct gas values are populated
-        for (size_t i = 1; i < 5; i++) {
-            info("Row ",
-                 i,
-                 " opcode active ",
-                 trace[i].avm_main_gas_cost_active,
-                 " l2 gas op: ",
-                 trace[i].avm_main_l2_gas_op,
-                 " | da gas op: ",
-                 trace[i].avm_main_da_gas_op,
-                 " | l2_rem ",
-                 trace[i].avm_main_l2_gas_remaining,
-                 " | da_rem ",
-                 trace[i].avm_main_da_gas_remaining);
-        }
-
-        info("\n");
-        info("\n");
-        info("\n");
-        for (size_t i = 1; i < 5; i++) {
-            info("opcode val ", trace[i].avm_main_opcode_val);
-            info("Row ",
-                 i,
-                 " l2_gas ",
-                 trace[i].avm_main_l2_gas_op,
-                 " table op: ",
-                 trace[i].avm_gas_l2_gas_fixed_table,
-                 " | da gas op: ",
-                 trace[i].avm_main_da_gas_op,
-                 " | da_rem ",
-                 trace[i].avm_gas_da_gas_fixed_table);
-        }
     };
 
-    test_lookup(start_gas, apply_opcodes, checks);
+    test_gas(start_gas, apply_opcodes, checks);
 }
 
 } // namespace tests_avm
