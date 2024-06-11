@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eu
 
+mkdir -p ./proofs
+
 VFLAG=${VERBOSE:+-v}
 BFLAG="-b ./target/program.json"
 FLAGS="-c $CRS_PATH $VFLAG"
