@@ -25,7 +25,7 @@ function run_if_available {
 require_command jq
 require_command cargo
 require_command wasm-bindgen
-#require_command wasm-opt
+require_command wasm-opt
 
 self_path=$(dirname "$(readlink -f "$0")")
 pname=$(cargo read-manifest | jq -r '.name')
