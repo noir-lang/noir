@@ -325,26 +325,35 @@ impl DebugShow {
                     result
                 );
             }
-            BlackBoxOp::MultiScalarMul { points, scalars, outputs } => {
+            BlackBoxOp::MultiScalarMul { points, scalars, output_x, output_y, output_infinite } => {
                 debug_println!(
                     self.enable_debug_trace,
-                    "  MULTI_SCALAR_MUL {} {} -> {}",
+                    "  MULTI_SCALAR_MUL {} {} -> x:{}, y:{}, is_infinite:{}",
                     points,
                     scalars,
-                    outputs
+                    output_x,
+                    output_y,
+                    output_infinite
                 );
             }
             BlackBoxOp::EmbeddedCurveAdd {
-                input1_x, input1_y, input2_x, input2_y, result, ..
+                input1_x,
+                input1_y,
+                input2_x,
+                input2_y,
+                result_x,
+                result_y,
+                ..
             } => {
                 debug_println!(
                     self.enable_debug_trace,
-                    "  EMBEDDED_CURVE_ADD ({} {}) ({} {}) -> {}",
+                    "  EMBEDDED_CURVE_ADD ({} {}) ({} {}) -> {} {}",
                     input1_x,
                     input1_y,
                     input2_x,
                     input2_y,
-                    result
+                    result_x,
+                    result_y
                 );
             }
             BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {

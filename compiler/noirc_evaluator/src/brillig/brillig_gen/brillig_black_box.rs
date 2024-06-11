@@ -189,7 +189,7 @@ pub(crate) fn convert_black_box_call(
             }
         }
         BlackBoxFunc::MultiScalarMul => {
-            if let ([points, scalars], [BrilligVariable::BrilligArray(outputs)]) =
+            if let ([points, scalars], [result_x, result_y, result_infinite]) =
                 (function_arguments, function_results)
             {
                 let points = convert_array_or_vector(brillig_context, points, bb_func);
@@ -197,7 +197,9 @@ pub(crate) fn convert_black_box_call(
                 brillig_context.black_box_op_instruction(BlackBoxOp::MultiScalarMul {
                     points: points.to_heap_vector(),
                     scalars: scalars.to_heap_vector(),
-                    outputs: outputs.to_heap_array(),
+                    output_x: result_x.extract_single_addr().address,
+                    output_y: result_y.extract_single_addr().address,
+                    output_infinite: result_infinite.extract_single_addr().address,
                 });
             } else {
                 unreachable!(
@@ -208,7 +210,7 @@ pub(crate) fn convert_black_box_call(
         BlackBoxFunc::EmbeddedCurveAdd => {
             if let (
                 [BrilligVariable::SingleAddr(input1_x), BrilligVariable::SingleAddr(input1_y), BrilligVariable::SingleAddr(input1_infinite), BrilligVariable::SingleAddr(input2_x), BrilligVariable::SingleAddr(input2_y), BrilligVariable::SingleAddr(input2_infinite)],
-                [BrilligVariable::BrilligArray(result_array)],
+                [BrilligVariable::SingleAddr(output_x), BrilligVariable::SingleAddr(output_y), BrilligVariable::SingleAddr(output_infinite)],
             ) = (function_arguments, function_results)
             {
                 brillig_context.black_box_op_instruction(BlackBoxOp::EmbeddedCurveAdd {
@@ -218,7 +220,9 @@ pub(crate) fn convert_black_box_call(
                     input2_x: input2_x.address,
                     input2_y: input2_y.address,
                     input2_infinite: input2_infinite.address,
-                    result: result_array.to_heap_array(),
+                    result_x: output_x.address,
+                    result_y: output_y.address,
+                    result_infinite: output_infinite.address,
                 });
             } else {
                 unreachable!(

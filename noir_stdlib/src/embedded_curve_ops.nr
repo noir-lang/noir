@@ -63,7 +63,7 @@ struct EmbeddedCurveScalar {
 pub fn multi_scalar_mul<N>(
     points: [EmbeddedCurvePoint; N],
     scalars: [EmbeddedCurveScalar; N]
-) -> [Field; 3]
+) -> EmbeddedCurvePoint
 // docs:end:multi_scalar_mul
 {}
 
@@ -71,7 +71,7 @@ pub fn multi_scalar_mul<N>(
 pub fn fixed_base_scalar_mul(
     scalar_low: Field,
     scalar_high: Field
-) -> [Field; 3]
+) -> EmbeddedCurvePoint
 // docs:end:fixed_base_scalar_mul
 {
     let g1 = EmbeddedCurvePoint { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };
@@ -79,20 +79,11 @@ pub fn fixed_base_scalar_mul(
     multi_scalar_mul([g1], [scalar])
 }
 
-// This is a hack as returning an `EmbeddedCurvePoint` from a foreign function in brillig returns a [BrilligVariable::SingleAddr; 2] rather than BrilligVariable::BrilligArray
-// as is defined in the brillig bytecode format. This is a workaround which allows us to fix this without modifying the serialization format.
+#[foreign(embedded_curve_add)]
 // docs:start:embedded_curve_add
 fn embedded_curve_add(
-    point1: EmbeddedCurvePoint,
-    point2: EmbeddedCurvePoint
+    _point1: EmbeddedCurvePoint,
+    _point2: EmbeddedCurvePoint
 ) -> EmbeddedCurvePoint
 // docs:end:embedded_curve_add
-{
-    let point_array = embedded_curve_add_array_return(point1, point2);
-    let x = point_array[0];
-    let y = point_array[1];
-    EmbeddedCurvePoint { x, y, is_infinite: point_array[2] == 1 }
-}
-
-#[foreign(embedded_curve_add)]
-fn embedded_curve_add_array_return(_point1: EmbeddedCurvePoint, _point2: EmbeddedCurvePoint) -> [Field; 3] {}
+{}

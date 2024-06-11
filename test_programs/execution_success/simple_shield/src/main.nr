@@ -14,8 +14,8 @@ fn main(
 ) -> pub [Field; 2] {
     // Compute public key from private key to show ownership
     let pubkey = std::embedded_curve_ops::fixed_base_scalar_mul(priv_key, 0);
-    let pubkey_x = pubkey[0];
-    let pubkey_y = pubkey[1];
+    let pubkey_x = pubkey.x;
+    let pubkey_y = pubkey.y;
     // Compute input note commitment
     let note_commitment = std::hash::pedersen_commitment([pubkey_x, pubkey_y]);
     // Compute input note nullifier

@@ -77,7 +77,9 @@ pub enum BlackBoxOp {
     MultiScalarMul {
         points: HeapVector,
         scalars: HeapVector,
-        outputs: HeapArray,
+        output_x: MemoryAddress,
+        output_y: MemoryAddress,
+        output_infinite: MemoryAddress,
     },
     /// Performs addition over the embedded curve.
     EmbeddedCurveAdd {
@@ -87,7 +89,9 @@ pub enum BlackBoxOp {
         input2_x: MemoryAddress,
         input2_y: MemoryAddress,
         input2_infinite: MemoryAddress,
-        result: HeapArray,
+        result_x: MemoryAddress,
+        result_y: MemoryAddress,
+        result_infinite: MemoryAddress,
     },
     BigIntAdd {
         lhs: MemoryAddress,
