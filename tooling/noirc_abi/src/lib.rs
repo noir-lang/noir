@@ -251,7 +251,6 @@ impl AbiParameter {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
-
 pub struct AbiReturnType {
     #[cfg_attr(test, proptest(strategy = "arbitrary::arb_abi_type()"))]
     pub abi_type: AbiType,
