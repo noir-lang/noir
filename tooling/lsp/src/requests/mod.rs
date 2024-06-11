@@ -1,8 +1,8 @@
 use std::future::Future;
 
 use crate::types::{CodeLensOptions, InitializeParams};
-use async_lsp::ResponseError;
-use fm::codespan_files::Error;
+use async_lsp::{ErrorCode, ResponseError};
+use fm::{codespan_files::Error, FileMap, PathString};
 use lsp_types::{
     DeclarationCapability, Location, Position, TextDocumentSyncCapability, TextDocumentSyncKind,
     TypeDefinitionProviderCapability, Url,
@@ -169,6 +169,30 @@ where
     } else {
         Err(Error::InvalidCharBoundary { given: position.line as usize })
     }
+}
+
+fn position_to_location(
+    files: &FileMap,
+    file_path: &PathString,
+    position: &Position,
+) -> Result<noirc_errors::Location, ResponseError> {
+    let file_id = files.get_file_id(file_path).ok_or(ResponseError::new(
+        ErrorCode::REQUEST_FAILED,
+        format!("Could not find file in file manager. File path: {:?}", file_path),
+    ))?;
+    let byte_index = position_to_byte_index(files, file_id, position).map_err(|err| {
+        ResponseError::new(
+            ErrorCode::REQUEST_FAILED,
+            format!("Could not convert position to byte index. Error: {:?}", err),
+        )
+    })?;
+
+    let location = noirc_errors::Location {
+        file: file_id,
+        span: noirc_errors::Span::single_char(byte_index as u32),
+    };
+
+    Ok(location)
 }
 
 fn character_to_line_offset(line: &str, character: u32) -> Result<usize, Error> {

@@ -5,6 +5,7 @@ use acir::{
     native_types::{Witness, WitnessMap},
     AcirField,
 };
+use acvm_blackbox_solver::{bit_and, bit_xor};
 
 /// Solves a [`BlackBoxFunc::And`][acir::circuit::black_box_functions::BlackBoxFunc::AND] opcode and inserts
 /// the result into the supplied witness map
@@ -19,7 +20,7 @@ pub(super) fn and<F: AcirField>(
         "number of bits specified for each input must be the same"
     );
     solve_logic_opcode(initial_witness, &lhs.witness, &rhs.witness, *output, |left, right| {
-        left.and(right, lhs.num_bits)
+        bit_and(left, right, lhs.num_bits)
     })
 }
 
@@ -36,7 +37,7 @@ pub(super) fn xor<F: AcirField>(
         "number of bits specified for each input must be the same"
     );
     solve_logic_opcode(initial_witness, &lhs.witness, &rhs.witness, *output, |left, right| {
-        left.xor(right, lhs.num_bits)
+        bit_xor(left, right, lhs.num_bits)
     })
 }
 
@@ -46,11 +47,11 @@ fn solve_logic_opcode<F: AcirField>(
     a: &Witness,
     b: &Witness,
     result: Witness,
-    logic_op: impl Fn(&F, &F) -> F,
+    logic_op: impl Fn(F, F) -> F,
 ) -> Result<(), OpcodeResolutionError<F>> {
     let w_l_value = witness_to_value(initial_witness, *a)?;
     let w_r_value = witness_to_value(initial_witness, *b)?;
-    let assignment = logic_op(w_l_value, w_r_value);
+    let assignment = logic_op(*w_l_value, *w_r_value);
 
     insert_value(&result, assignment, initial_witness)
 }

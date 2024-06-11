@@ -254,7 +254,7 @@ impl<F: AcirField> AcirContext<F> {
     }
 
     /// Converts an [`AcirVar`] to a [`Witness`]
-    fn var_to_witness(&mut self, var: AcirVar) -> Result<Witness, InternalError> {
+    pub(crate) fn var_to_witness(&mut self, var: AcirVar) -> Result<Witness, InternalError> {
         let expression = self.var_to_expression(var)?;
         let witness = if let Some(constant) = expression.to_const() {
             // Check if a witness has been assigned this value already, if so reuse it.
@@ -968,7 +968,9 @@ impl<F: AcirField> AcirContext<F> {
         // 2^{max_bit size-1}
         let max_power_of_two =
             self.add_constant(F::from(2_u128).pow(&F::from(bit_size as u128 - 1)));
+        let zero = self.add_constant(F::zero());
         let one = self.add_constant(F::one());
+
 
         // Get the sign bit of rhs by computing rhs / max_power_of_two
         let (rhs_leading, _) = self.euclidean_division_var(rhs, max_power_of_two, bit_size, one)?;
@@ -987,9 +989,18 @@ impl<F: AcirField> AcirContext<F> {
         // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
         // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
         let q_sign = self.xor_var(lhs_leading, rhs_leading, AcirType::unsigned(1))?;
-
         let quotient = self.two_complement(q1, q_sign, bit_size)?;
         let remainder = self.two_complement(r1, lhs_leading, bit_size)?;
+
+        // Issue #5129 - When q1 is zero and quotient sign is -1, we compute -0=2^{bit_size},
+        // which is not valid because we do not wrap integer operations
+        // Similar case can happen with the remainder.
+        let q_is_0 = self.eq_var(q1, zero)?;
+        let q_is_not_0 = self.not_var(q_is_0, AcirType::unsigned(1))?;
+        let quotient = self.mul_var(quotient, q_is_not_0)?;
+        let r_is_0 = self.eq_var(r1, zero)?;
+        let r_is_not_0 = self.not_var(r_is_0, AcirType::unsigned(1))?;
+        let remainder = self.mul_var(remainder, r_is_not_0)?;
 
         Ok((quotient, remainder))
     }
@@ -1004,15 +1015,6 @@ impl<F: AcirField> AcirContext<F> {
     ) -> Result<AcirVar, RuntimeError> {
         let (_, remainder) = self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
         Ok(remainder)
-    }
-
-    /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
-    /// `GeneratedAcir`'s return witnesses.
-    pub(crate) fn return_var(&mut self, acir_var: AcirVar) -> Result<(), InternalError> {
-        let return_var = self.get_or_create_witness_var(acir_var)?;
-        let witness = self.var_to_witness(return_var)?;
-        self.acir_ir.push_return_witness(witness);
-        Ok(())
     }
 
     /// Constrains the `AcirVar` variable to be of type `NumericType`.
@@ -1514,9 +1516,11 @@ impl<F: AcirField> AcirContext<F> {
     pub(crate) fn finish(
         mut self,
         inputs: Vec<Witness>,
+        return_values: Vec<Witness>,
         warnings: Vec<SsaReport>,
     ) -> GeneratedAcir<F> {
         self.acir_ir.input_witnesses = inputs;
+        self.acir_ir.return_witnesses = return_values;
         self.acir_ir.warnings = warnings;
         self.acir_ir
     }

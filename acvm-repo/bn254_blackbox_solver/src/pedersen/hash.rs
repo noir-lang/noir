@@ -30,8 +30,9 @@ fn length_generator() -> &'static Affine<GrumpkinParameters> {
 pub(crate) mod test {
 
     use super::*;
+    use crate::FieldElement;
 
-    use acir::{AcirField, FieldElement};
+    use acir::AcirField;
     use ark_std::One;
     use grumpkin::Fq;
 

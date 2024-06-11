@@ -3,15 +3,11 @@ use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::{JsString, Object};
 use nargo::{
-    artifacts::{
-        contract::{ContractArtifact, ContractFunctionArtifact},
-        program::ProgramArtifact,
-    },
+    artifacts::{contract::ContractArtifact, program::ProgramArtifact},
     parse_all,
 };
 use noirc_driver::{
     add_dep, file_manager_with_stdlib, prepare_crate, prepare_dependency, CompileOptions,
-    NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_evaluator::errors::SsaReport;
 use noirc_frontend::{
@@ -220,19 +216,9 @@ pub fn compile_contract(
 
     let optimized_contract =
         nargo::ops::transform_contract(compiled_contract, compile_options.expression_width);
+    let warnings = optimized_contract.warnings.clone();
 
-    let functions =
-        optimized_contract.functions.into_iter().map(ContractFunctionArtifact::from).collect();
-
-    let contract_artifact = ContractArtifact {
-        noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
-        name: optimized_contract.name,
-        functions,
-        outputs: optimized_contract.outputs.into(),
-        file_map: optimized_contract.file_map,
-    };
-
-    Ok(JsCompileContractResult::new(contract_artifact, optimized_contract.warnings))
+    Ok(JsCompileContractResult::new(optimized_contract.into(), warnings))
 }
 
 fn prepare_context(

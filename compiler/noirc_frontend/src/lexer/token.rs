@@ -702,16 +702,23 @@ pub enum FunctionAttribute {
 }
 
 impl FunctionAttribute {
-    pub fn builtin(self) -> Option<String> {
+    pub fn builtin(&self) -> Option<&String> {
         match self {
             FunctionAttribute::Builtin(name) => Some(name),
             _ => None,
         }
     }
 
-    pub fn foreign(self) -> Option<String> {
+    pub fn foreign(&self) -> Option<&String> {
         match self {
             FunctionAttribute::Foreign(name) => Some(name),
+            _ => None,
+        }
+    }
+
+    pub fn oracle(&self) -> Option<&String> {
+        match self {
+            FunctionAttribute::Oracle(name) => Some(name),
             _ => None,
         }
     }
@@ -832,7 +839,6 @@ pub enum Keyword {
     Contract,
     Crate,
     Dep,
-    Distinct,
     Else,
     Field,
     Fn,
@@ -877,7 +883,6 @@ impl fmt::Display for Keyword {
             Keyword::Contract => write!(f, "contract"),
             Keyword::Crate => write!(f, "crate"),
             Keyword::Dep => write!(f, "dep"),
-            Keyword::Distinct => write!(f, "distinct"),
             Keyword::Else => write!(f, "else"),
             Keyword::Field => write!(f, "Field"),
             Keyword::Fn => write!(f, "fn"),
@@ -925,7 +930,6 @@ impl Keyword {
             "contract" => Keyword::Contract,
             "crate" => Keyword::Crate,
             "dep" => Keyword::Dep,
-            "distinct" => Keyword::Distinct,
             "else" => Keyword::Else,
             "Field" => Keyword::Field,
             "fn" => Keyword::Fn,
