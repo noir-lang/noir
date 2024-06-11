@@ -345,7 +345,7 @@ impl<'context> Elaborator<'context> {
             let name = self.interner.definition_name(parameter.id).to_owned();
             self.add_existing_variable_to_scope(name, parameter.clone(), true);
         }
-        // We should introduce the IDs for numeric generic into scope as we do with parameters
+        // We should introduce the IDs for numeric generics into scope as we do with parameters
         for numeric_generic in &func_meta.generic_idents {
             let name = self.interner.definition_name(numeric_generic.id).to_owned();
             self.add_existing_variable_to_scope(name, numeric_generic.clone(), false);
@@ -1187,8 +1187,8 @@ impl<'context> Elaborator<'context> {
         // when adding checks after each struct field is resolved.
         let struct_ids = structs.keys().copied().collect::<Vec<_>>();
 
-        // First resolve each struct's generics as fields which contain other
-        // structs themselves may also contain generics.
+        // First resolve each struct's generics as fields with nested structs
+        // may themselves also contain generics.
         // Without resolving all generics first we will not be able to distinguish
         // between normal and numeric generics.
         for (type_id, typ) in structs.iter() {

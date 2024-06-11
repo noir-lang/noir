@@ -82,7 +82,7 @@ impl<'context> Elaborator<'context> {
         let mut statements = Vec::with_capacity(block.statements.len());
 
         for (i, statement) in block.statements.into_iter().enumerate() {
-            let (id, stmt_type) = self.elaborate_statement(statement.clone());
+            let (id, stmt_type) = self.elaborate_statement(statement);
             statements.push(id);
 
             if let HirStatement::Semi(expr) = self.interner.statement(&id) {
@@ -97,9 +97,6 @@ impl<'context> Elaborator<'context> {
 
             if i + 1 == statements.len() {
                 block_type = stmt_type;
-            }
-            if self.errors.len() == 2 {
-                // dbg!(statement);
             }
         }
 

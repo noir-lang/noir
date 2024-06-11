@@ -891,21 +891,24 @@ impl<'a> Resolver<'a> {
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
 
+            let resolved_generic = ResolvedGeneric {
+                name: name.clone(),
+                type_var: typevar,
+                // We only support numeric generics in the elaborator
+                is_numeric_generic: false,
+                span,
+            };
             if let Some(generic) = self.find_generic(&name) {
                 self.errors.push(ResolverError::DuplicateDefinition {
                     name: ident.0.contents,
                     first_span: generic.span,
                     second_span: span,
                 });
+            } else {
+                self.generics.push(resolved_generic.clone());
             }
 
-            ResolvedGeneric {
-                name,
-                type_var: typevar,
-                // We only support numeric generics in the elaborator
-                is_numeric_generic: false,
-                span,
-            }
+            resolved_generic
         })
     }
 

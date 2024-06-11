@@ -1599,6 +1599,10 @@ fn numeric_generic_used_in_nested_type_fail() {
     "#;
     let errors = get_program_errors_elaborator(src);
     assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
+    ));
 }
 
 #[test]
