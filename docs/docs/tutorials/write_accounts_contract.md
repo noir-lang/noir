@@ -1,5 +1,6 @@
 ---
 title: Writing an Account Contract
+tags: [accounts]
 ---
 
 This tutorial will take you through the process of writing your own account contract in Aztec.nr, along with the Typescript glue code required for using it within a wallet.

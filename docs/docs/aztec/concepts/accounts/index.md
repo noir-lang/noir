@@ -1,6 +1,7 @@
 ---
 title: Accounts
 sidebar_position: 0
+tags: [accounts]
 ---
 
 **Every account in Aztec is a smart contract** which defines the rules for whether a transaction is or is not valid. This allows implementing different schemes for transaction signing, nonce management, and fee payments. However, encryption and nullifying keys, which are specific to private blockchains, are still enshrined at the protocol level.

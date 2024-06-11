@@ -1,5 +1,6 @@
 ---
 title: How to use authentication witnesses (authwit)
+tags: [accounts]
 ---
 
 This page assumes you have authwit set up correctly in your contract. To learn how to do that, [go here](../smart_contracts/writing_contracts/authwit.md).

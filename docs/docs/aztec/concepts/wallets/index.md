@@ -1,6 +1,7 @@
 ---
 title: Wallets
 sidebar_position: 1
+tags: [accounts]
 ---
 
 In this page we will cover the main responsibilities of a wallet in the Aztec network.
