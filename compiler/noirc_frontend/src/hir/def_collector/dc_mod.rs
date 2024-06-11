@@ -1,4 +1,4 @@
-use std::{collections::HashMap, vec};
+use std::{collections::HashMap, ffi::OsStr, vec};
 
 use acvm::{AcirField, FieldElement};
 use fm::{FileId, FileManager, FILE_EXTENSION};
@@ -571,20 +571,11 @@ impl<'a> ModCollector<'a> {
         crate_id: CrateId,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
-        // // TODO cleanup
-        // if crate_id != CrateId::Stdlib(0) {
-        //     dbg!("parse_module_declaration", mod_decl, crate_id);
-        //     panic!("hm");
-        // }
-
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         let child_file_id =
-            match find_module(&context.file_manager, self.file_id, &mod_decl.ident.0.contents) {
+            match find_module(&context.file_manager, self.file_id, mod_decl.ident.clone()) {
                 Ok(child_file_id) => child_file_id,
-                Err(expected_path) => {
-                    let mod_name = mod_decl.ident.clone();
-                    let err =
-                        DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path };
+                Err(err) => {
                     errors.push((err.into(), self.file_id));
                     return errors;
                 }
@@ -705,8 +696,8 @@ impl<'a> ModCollector<'a> {
 fn find_module(
     file_manager: &FileManager,
     anchor: FileId,
-    mod_name: &str,
-) -> Result<FileId, String> {
+    mod_name: Ident,
+) -> Result<FileId, DefCollectorErrorKind> {
     let anchor_path = file_manager
         .path(anchor)
         .expect("File must exist in file manager in order for us to be resolving its imports.")
@@ -715,9 +706,10 @@ fn find_module(
 
     // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`, we check siblings of
     // the anchor at `base/mod_name.nr`.
-    let mod_nr_candidate = anchor_dir.join(mod_name).join(format!("mod.{FILE_EXTENSION}"));
-    let parent_candidate = anchor_dir.join(format!("{mod_name}.{FILE_EXTENSION}"));
-    let child_candidate = anchor_path.join(format!("{mod_name}.{FILE_EXTENSION}"));
+    let mod_name_str = mod_name.0.contents.clone();
+    let mod_nr_candidate = anchor_dir.join(&mod_name_str).join(format!("mod.{FILE_EXTENSION}"));
+    let parent_candidate = anchor_dir.join(format!("{mod_name_str}.{FILE_EXTENSION}"));
+    let child_candidate = anchor_path.join(format!("{mod_name_str}.{FILE_EXTENSION}"));
 
     let mod_nr_result = file_manager
         .name_to_id(mod_nr_candidate.clone())
@@ -725,18 +717,42 @@ fn find_module(
     let parent_result = file_manager
         .name_to_id(parent_candidate.clone())
         .ok_or_else(|| parent_candidate.as_os_str().to_string_lossy().to_string());
-    let child_result = file_manager
-        .name_to_id(child_candidate.clone())
-        .ok_or_else(|| child_candidate.as_os_str().to_string_lossy().to_string());
 
-    if mod_nr_result.is_ok() && parent_result.is_err() && child_result.is_err() {
-        mod_nr_result
-    } else if mod_nr_result.is_err() && parent_result.is_ok() && child_result.is_err() {
-        parent_result
-    } else if mod_nr_result.is_err() && parent_result.is_err() && child_result.is_ok() {
-        child_result
-    } else {
-        Err(mod_nr_candidate.as_os_str().to_string_lossy().to_string())
+    let mut path_results = vec![mod_nr_result, parent_result];
+    let anchor_path_suffix = anchor_path
+        .as_path()
+        .file_name()
+        .unwrap_or_else(|| OsStr::new(""))
+        .to_string_lossy()
+        .to_string();
+    if anchor_path_suffix != "main" {
+        let child_result = file_manager
+            .name_to_id(child_candidate.clone())
+            .ok_or_else(|| child_candidate.as_os_str().to_string_lossy().to_string());
+        path_results.push(child_result);
+    }
+
+    let found_paths: Vec<_> = path_results.into_iter().flat_map(|result| result.ok()).collect();
+    match found_paths.len() {
+        0 => {
+            let expected_path = parent_candidate.as_os_str().to_string_lossy().to_string();
+            Err(DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path })
+        }
+        1 => Ok(found_paths[0]),
+        _ => {
+            let overlapping_paths: Vec<_> = found_paths
+                .into_iter()
+                .map(|found_path| {
+                    file_manager
+                        .path(found_path)
+                        .expect("all modules to be in the file manager")
+                        .as_os_str()
+                        .to_string_lossy()
+                        .to_string()
+                })
+                .collect();
+            Err(DefCollectorErrorKind::OverlappingModuleDecls { mod_name, overlapping_paths })
+        }
     }
 }
 
