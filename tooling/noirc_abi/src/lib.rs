@@ -13,8 +13,6 @@ use acvm::{
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
-use noirc_frontend::ast::{Signedness, Visibility};
-use noirc_frontend::{hir::Context, Type, TypeBinding, TypeVariableKind};
 use noirc_printable_type::{
     decode_value as printable_type_decode_value, PrintableType, PrintableValue,
     PrintableValueDisplay,
@@ -87,26 +85,6 @@ pub enum AbiVisibility {
     DataBus,
 }
 
-impl From<Visibility> for AbiVisibility {
-    fn from(value: Visibility) -> Self {
-        match value {
-            Visibility::Public => AbiVisibility::Public,
-            Visibility::Private => AbiVisibility::Private,
-            Visibility::DataBus => AbiVisibility::DataBus,
-        }
-    }
-}
-
-impl From<&Visibility> for AbiVisibility {
-    fn from(value: &Visibility) -> Self {
-        match value {
-            Visibility::Public => AbiVisibility::Public,
-            Visibility::Private => AbiVisibility::Private,
-            Visibility::DataBus => AbiVisibility::DataBus,
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Represents whether the return value should compromise of unique witness indices such that no
@@ -130,70 +108,6 @@ pub enum Sign {
 }
 
 impl AbiType {
-    pub fn from_type(context: &Context, typ: &Type) -> Self {
-        // Note; use strict_eq instead of partial_eq when comparing field types
-        // in this method, you most likely want to distinguish between public and private
-        match typ {
-            Type::FieldElement => Self::Field,
-            Type::Array(size, typ) => {
-                let length = size
-                    .evaluate_to_u32()
-                    .expect("Cannot have variable sized arrays as a parameter to main");
-                let typ = typ.as_ref();
-                Self::Array { length, typ: Box::new(Self::from_type(context, typ)) }
-            }
-            Type::Integer(sign, bit_width) => {
-                let sign = match sign {
-                    Signedness::Unsigned => Sign::Unsigned,
-                    Signedness::Signed => Sign::Signed,
-                };
-
-                Self::Integer { sign, width: (*bit_width).into() }
-            }
-            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField)
-            | Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
-                TypeBinding::Bound(typ) => Self::from_type(context, typ),
-                TypeBinding::Unbound(_) => {
-                    Self::from_type(context, &Type::default_int_or_field_type())
-                }
-            },
-            Type::Bool => Self::Boolean,
-            Type::String(size) => {
-                let size = size
-                    .evaluate_to_u32()
-                    .expect("Cannot have variable sized strings as a parameter to main");
-                Self::String { length: size }
-            }
-
-            Type::Struct(def, args) => {
-                let struct_type = def.borrow();
-                let fields = struct_type.get_fields(args);
-                let fields = vecmap(fields, |(name, typ)| (name, Self::from_type(context, &typ)));
-                // For the ABI, we always want to resolve the struct paths from the root crate
-                let path =
-                    context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
-                Self::Struct { fields, path }
-            }
-            Type::Alias(def, args) => Self::from_type(context, &def.borrow().get_type(args)),
-            Type::Tuple(fields) => {
-                let fields = vecmap(fields, |typ| Self::from_type(context, typ));
-                Self::Tuple { fields }
-            }
-            Type::Error
-            | Type::Unit
-            | Type::Constant(_)
-            | Type::TraitAsType(..)
-            | Type::TypeVariable(_, _)
-            | Type::NamedGeneric(..)
-            | Type::Forall(..)
-            | Type::Code
-            | Type::Slice(_)
-            | Type::Function(_, _, _) => unreachable!("{typ} cannot be used in the abi"),
-            Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
-            Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
-        }
-    }
-
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self) -> u32 {
         match self {
@@ -557,22 +471,6 @@ pub enum AbiValue {
 pub enum AbiErrorType {
     FmtString { length: u32, item_types: Vec<AbiType> },
     Custom(AbiType),
-}
-impl AbiErrorType {
-    pub fn from_type(context: &Context, typ: &Type) -> Self {
-        match typ {
-            Type::FmtString(len, item_types) => {
-                let length = len.evaluate_to_u32().expect("Cannot evaluate fmt length");
-                let Type::Tuple(item_types) = item_types.as_ref() else {
-                    unreachable!("FmtString items must be a tuple")
-                };
-                let item_types =
-                    item_types.iter().map(|typ| AbiType::from_type(context, typ)).collect();
-                Self::FmtString { length, item_types }
-            }
-            _ => Self::Custom(AbiType::from_type(context, typ)),
-        }
-    }
 }
 
 pub fn display_abi_error<F: AcirField>(
