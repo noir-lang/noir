@@ -232,12 +232,6 @@ impl<'context> Elaborator<'context> {
         // Must resolve structs before we resolve globals.
         this.collect_struct_definitions(items.types);
 
-        // Bind trait impls to their trait. Collect trait functions, that have a
-        // default implementation, which hasn't been overridden.
-        for trait_impl in &mut items.trait_impls {
-            this.collect_trait_impl(trait_impl);
-        }
-
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
         // done during def collection since we need to be able to resolve the type of
@@ -247,6 +241,12 @@ impl<'context> Elaborator<'context> {
         // over trait methods if there are name conflicts.
         for ((_self_type, module), impls) in &mut items.impls {
             this.collect_impls(*module, impls);
+        }
+
+        // Bind trait impls to their trait. Collect trait functions, that have a
+        // default implementation, which hasn't been overridden.
+        for trait_impl in &mut items.trait_impls {
+            this.collect_trait_impl(trait_impl);
         }
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
@@ -903,18 +903,24 @@ impl<'context> Elaborator<'context> {
                 }
             }
 
-            self.declare_struct_methods(self_type, &function_ids);
+            // Trait impl methods are already declared in NodeInterner::add_trait_implementation
+            if !is_trait_impl {
+                self.declare_methods(self_type, &function_ids);
+            }
         // We can define methods on primitive types only if we're in the stdlib
         } else if !is_trait_impl && *self_type != Type::Error {
             if self.crate_id.is_stdlib() {
-                self.declare_struct_methods(self_type, &function_ids);
+                // Trait impl methods are already declared in NodeInterner::add_trait_implementation
+                if !is_trait_impl {
+                    self.declare_methods(self_type, &function_ids);
+                }
             } else {
                 self.push_err(DefCollectorErrorKind::NonStructTypeInImpl { span });
             }
         }
     }
 
-    fn declare_struct_methods(&mut self, self_type: &Type, function_ids: &[FuncId]) {
+    fn declare_methods(&mut self, self_type: &Type, function_ids: &[FuncId]) {
         for method_id in function_ids {
             let method_name = self.interner.function_name(method_id).to_owned();
 
