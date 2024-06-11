@@ -5,6 +5,7 @@ mod poseidon2;
 use crate::default::Default;
 use crate::uint128::U128;
 use crate::sha256::{digest, sha256_var};
+use crate::embedded_curve_ops;
 use crate::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar};
 
 #[foreign(sha256)]
@@ -31,12 +32,14 @@ pub fn pedersen_commitment<N>(input: [Field; N]) -> EmbeddedCurvePoint {
     pedersen_commitment_with_separator(input, 0)
 }
 
-#[foreign(pedersen_commitment)]
-pub fn __pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> [Field; 2] {}
-
 pub fn pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
-    let values = __pedersen_commitment_with_separator(input, separator);
-    EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: false }
+    let mut points = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N];
+    for i in 0..N {
+        points[i] = EmbeddedCurveScalar::from_field(input[i]);
+    }
+    let generators = derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), N, 0);
+    let values = crate::embedded_curve_ops::multi_scalar_mul(generators, points);
+    EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: values[2] as bool }
 }
 
 // docs:start:pedersen_hash

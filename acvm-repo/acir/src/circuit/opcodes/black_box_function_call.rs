@@ -54,16 +54,6 @@ pub enum BlackBoxFuncCall {
         message: Vec<FunctionInput>,
         output: Witness,
     },
-    PedersenCommitment {
-        inputs: Vec<FunctionInput>,
-        domain_separator: u32,
-        outputs: (Witness, Witness),
-    },
-    PedersenHash {
-        inputs: Vec<FunctionInput>,
-        domain_separator: u32,
-        output: Witness,
-    },
     EcdsaSecp256k1 {
         public_key_x: Box<[FunctionInput; 32]>,
         public_key_y: Box<[FunctionInput; 32]>,
@@ -189,8 +179,6 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::Blake2s { .. } => BlackBoxFunc::Blake2s,
             BlackBoxFuncCall::Blake3 { .. } => BlackBoxFunc::Blake3,
             BlackBoxFuncCall::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
-            BlackBoxFuncCall::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
-            BlackBoxFuncCall::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
             BlackBoxFuncCall::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
             BlackBoxFuncCall::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
             BlackBoxFuncCall::MultiScalarMul { .. } => BlackBoxFunc::MultiScalarMul,
@@ -219,8 +207,6 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::SHA256 { inputs, .. }
             | BlackBoxFuncCall::Blake2s { inputs, .. }
             | BlackBoxFuncCall::Blake3 { inputs, .. }
-            | BlackBoxFuncCall::PedersenCommitment { inputs, .. }
-            | BlackBoxFuncCall::PedersenHash { inputs, .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
             | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
 
@@ -339,9 +325,7 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::XOR { output, .. }
             | BlackBoxFuncCall::SchnorrVerify { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
-            | BlackBoxFuncCall::PedersenHash { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
-            BlackBoxFuncCall::PedersenCommitment { outputs, .. } => vec![outputs.0, outputs.1],
             BlackBoxFuncCall::MultiScalarMul { outputs, .. }
             | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } => {
                 vec![outputs.0, outputs.1, outputs.2]
@@ -440,13 +424,7 @@ impl std::fmt::Display for BlackBoxFuncCall {
 
         write!(f, "]")?;
 
-        // SPECIFIC PARAMETERS
-        match self {
-            BlackBoxFuncCall::PedersenCommitment { domain_separator, .. } => {
-                write!(f, " domain_separator: {domain_separator}")
-            }
-            _ => write!(f, ""),
-        }
+        write!(f, "")
     }
 }
 

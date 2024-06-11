@@ -61,18 +61,6 @@ pub enum BlackBoxOp {
         signature: HeapVector,
         result: MemoryAddress,
     },
-    /// Calculates a Pedersen commitment to the inputs.
-    PedersenCommitment {
-        inputs: HeapVector,
-        domain_separator: MemoryAddress,
-        output: HeapArray,
-    },
-    /// Calculates a Pedersen hash to the inputs.
-    PedersenHash {
-        inputs: HeapVector,
-        domain_separator: MemoryAddress,
-        output: MemoryAddress,
-    },
     /// Performs multi scalar multiplication over the embedded curve.
     MultiScalarMul {
         points: HeapVector,

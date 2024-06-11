@@ -509,8 +509,6 @@ fn simplify_black_box_func(
 
         BlackBoxFunc::MultiScalarMul
         | BlackBoxFunc::SchnorrVerify
-        | BlackBoxFunc::PedersenCommitment
-        | BlackBoxFunc::PedersenHash
         | BlackBoxFunc::EmbeddedCurveAdd => {
             // Currently unsolvable here as we rely on an implementation in the backend.
             SimplifyResult::None

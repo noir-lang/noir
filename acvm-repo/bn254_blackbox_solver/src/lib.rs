@@ -2,7 +2,7 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
-use acir::{acir_field::GenericFieldElement, FieldElement};
+use acir::FieldElement;
 use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 mod embedded_curve_ops;
@@ -11,7 +11,6 @@ mod pedersen;
 mod poseidon2;
 mod schnorr;
 
-use ark_ec::AffineRepr;
 pub use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 pub use poseidon2::poseidon2_permutation;
 
@@ -35,31 +34,6 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
             sig_e,
             message,
         ))
-    }
-
-    fn pedersen_commitment(
-        &self,
-        inputs: &[FieldElement],
-        domain_separator: u32,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        let inputs: Vec<grumpkin::Fq> = inputs.iter().map(|input| input.into_repr()).collect();
-        let result = pedersen::commitment::commit_native_with_index(&inputs, domain_separator);
-        let res_x =
-            FieldElement::from_repr(*result.x().expect("should not commit to point at infinity"));
-        let res_y =
-            FieldElement::from_repr(*result.y().expect("should not commit to point at infinity"));
-        Ok((res_x, res_y))
-    }
-
-    fn pedersen_hash(
-        &self,
-        inputs: &[FieldElement],
-        domain_separator: u32,
-    ) -> Result<FieldElement, BlackBoxResolutionError> {
-        let inputs: Vec<grumpkin::Fq> = inputs.iter().map(|input| input.into_repr()).collect();
-        let result = pedersen::hash::hash_with_index(&inputs, domain_separator);
-        let result = FieldElement::from_repr(result);
-        Ok(result)
     }
 
     fn multi_scalar_mul(
