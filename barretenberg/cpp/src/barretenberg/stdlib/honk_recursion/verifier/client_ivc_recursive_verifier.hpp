@@ -13,6 +13,7 @@ class ClientIVCRecursiveVerifier {
     using GoblinVerifier = GoblinRecursiveVerifier;
 
   public:
+    using Proof = ClientIVC::Proof;
     using FoldVerifierInput = FoldingVerifier::VerifierInput;
     using GoblinVerifierInput = GoblinVerifier::VerifierInput;
     struct VerifierInput {

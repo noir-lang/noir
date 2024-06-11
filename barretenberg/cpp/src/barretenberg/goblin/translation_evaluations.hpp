@@ -13,20 +13,7 @@ template <typename BF, typename FF> struct TranslationEvaluations_ {
     BF op, Px, Py, z1, z2;
     static constexpr uint32_t NUM_EVALUATIONS = 5;
     static size_t size() { return field_conversion::calc_num_bn254_frs<BF>() * NUM_EVALUATIONS; }
-    std::vector<FF> to_buffer() const
-    {
-        std::vector<FF> result;
-        result.reserve(size());
-        const auto insert = [&result](const BF& elt) {
-            std::vector<FF> buf = field_conversion::convert_to_bn254_frs(elt);
-            result.insert(result.end(), buf.begin(), buf.end());
-        };
-        insert(op);
-        insert(Px);
-        insert(Py);
-        insert(z1);
-        insert(z2);
-        return result;
-    }
+
+    MSGPACK_FIELDS(op, Px, Py, z1, z2);
 };
 } // namespace bb

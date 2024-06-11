@@ -21,6 +21,12 @@ bool ECCVMVerifier::verify_proof(const HonkProof& proof)
 
     for (auto [comm, label] : zip_view(commitments.get_wires(), commitment_labels.get_wires())) {
         comm = transcript->template receive_from_prover<Commitment>(label);
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/1017): This is a hack to ensure zero commitments
+        // are still on curve as the transcript doesn't currently support a point at infinity representation for
+        // cycle_group
+        if (!comm.on_curve()) {
+            comm.self_set_infinity();
+        }
     }
 
     // Get challenge for sorted list batching and wire four memory records

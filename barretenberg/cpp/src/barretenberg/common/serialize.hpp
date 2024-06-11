@@ -335,7 +335,7 @@ template <typename B, typename T> inline void read(B& it, std::shared_ptr<T>& va
     using serialize::read;
     T value;
     read(it, value);
-    *value_ptr = std::make_shared(value);
+    value_ptr = std::make_shared<T>(value);
 }
 
 // Write std::shared_ptr.

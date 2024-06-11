@@ -28,6 +28,7 @@ template <class VerifierInstances> class ProtoGalaxyRecursiveVerifier_ {
     using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<Builder>>;
 
     struct VerifierInput {
+      public:
         using Instance = NativeInstance;
         std::shared_ptr<Instance> accumulator;
         std::vector<std::shared_ptr<NativeVerificationKey>> instance_vks;

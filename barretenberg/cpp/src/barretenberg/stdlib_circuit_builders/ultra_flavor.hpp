@@ -151,6 +151,8 @@ class UltraFlavor {
                               z_lookup)     // column 6
 
         auto get_wires() { return RefArray{ w_l, w_r, w_o, w_4 }; };
+
+        MSGPACK_FIELDS(w_l, w_r, w_o, w_4, sorted_accum, z_perm, z_lookup);
     };
 
     /**
@@ -518,7 +520,10 @@ class UltraFlavor {
             this->lagrange_first = lagrange_first;
             this->lagrange_last = lagrange_last;
         }
+
+        // For serialising and deserialising data
         MSGPACK_FIELDS(circuit_size,
+                       log_circuit_size,
                        num_public_inputs,
                        pub_inputs_offset,
                        q_m,

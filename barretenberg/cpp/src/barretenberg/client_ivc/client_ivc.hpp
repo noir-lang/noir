@@ -46,20 +46,7 @@ class ClientIVC {
         HonkProof decider_proof;
         GoblinProof goblin_proof;
 
-        std::vector<FF> to_buffer() const
-        {
-            size_t proof_size = folding_proof.size() + decider_proof.size() + goblin_proof.size();
-
-            std::vector<FF> result;
-            result.reserve(proof_size);
-            const auto insert = [&result](const std::vector<FF>& buf) {
-                result.insert(result.end(), buf.begin(), buf.end());
-            };
-            insert(folding_proof);
-            insert(decider_proof);
-            insert(goblin_proof.to_buffer());
-            return result;
-        }
+        MSGPACK_FIELDS(folding_proof, decider_proof, goblin_proof);
     };
 
   private:

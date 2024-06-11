@@ -24,19 +24,6 @@ struct GoblinProof {
         return merge_proof.size() + eccvm_proof.size() + translator_proof.size() + TranslationEvaluations::size();
     };
 
-    std::vector<FF> to_buffer() const
-    {
-        // ACIRHACK: so much copying and duplication added here and elsewhere
-        std::vector<FF> result;
-        result.reserve(size());
-        const auto insert = [&result](const std::vector<FF>& buf) {
-            result.insert(result.end(), buf.begin(), buf.end());
-        };
-        insert(merge_proof);
-        insert(eccvm_proof);
-        insert(translator_proof);
-        insert(translation_evaluations.to_buffer());
-        return result;
-    }
+    MSGPACK_FIELDS(merge_proof, eccvm_proof, translator_proof, translation_evaluations);
 };
 } // namespace bb
