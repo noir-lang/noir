@@ -101,7 +101,7 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
     debug_artifact: &DebugArtifact,
     initial_witness: WitnessMap<FieldElement>,
     unconstrained_functions: &[BrilligBytecode<FieldElement>],
-) -> Result<Option<WitnessMap<FieldElement>>, NargoError> {
+) -> Result<Option<WitnessMap<FieldElement>>, NargoError<FieldElement>> {
     let context = RefCell::new(TracingContext::new(
         blackbox_solver,
         circuit,

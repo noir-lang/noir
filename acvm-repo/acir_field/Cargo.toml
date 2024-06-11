@@ -23,6 +23,9 @@ ark-ff = { version = "^0.4.0", default-features = false }
 
 cfg-if = "1.0.0"
 
+[dev-dependencies]
+proptest.workspace = true
+
 [features]
 bn254 = []
 bls12_381 = ["dep:ark-bls12-381"]

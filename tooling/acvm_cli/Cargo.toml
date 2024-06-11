@@ -35,6 +35,6 @@ time = "^0.3.35" # stanm: this is a dependency of tracing-appender and earlier
                  # versions break the build
 
 [dev-dependencies]
-rand = "0.8.5"
+rand.workspace = true
 proptest = "1.2.0"
 paste = "1.0.14"

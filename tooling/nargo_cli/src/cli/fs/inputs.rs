@@ -105,8 +105,6 @@ mod tests {
 
             // Input serialization is only dependent on types, not position in witness map.
             // Neither of these should be relevant so we leave them empty.
-            param_witnesses: BTreeMap::new(),
-            return_witnesses: Vec::new(),
             error_types: BTreeMap::new(),
         };
         let input_map = BTreeMap::from([

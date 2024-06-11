@@ -1,4 +1,4 @@
-use acvm::acir::native_types::{WitnessMap, WitnessStack};
+use acvm::acir::native_types::WitnessMap;
 use acvm::FieldElement;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
@@ -9,13 +9,11 @@ use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
-use noirc_driver::{
-    file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
-};
+use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 
 use super::debug_cmd::compile_bin_package_for_debugging;
-use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
+use super::fs::inputs::read_inputs_from_file;
 use crate::errors::CliError;
 
 use super::NargoConfig;
@@ -81,11 +79,10 @@ fn trace_program_and_decode(
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
     let solved_witness = trace_program(&program, &inputs_map)?;
-    let public_abi = program.abi.public_abi();
 
     match solved_witness {
         Some(witness) => {
-            let (_, return_value) = public_abi.decode(&witness)?;
+            let (_, return_value) = program.abi.decode(&witness)?;
             Ok((return_value, Some(witness)))
         }
         None => Ok((None, None)),

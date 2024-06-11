@@ -547,17 +547,9 @@ pub fn compile_no_check(
         info!("Program matches existing artifact, returning early");
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
-    let visibility = monomorph.return_visibility;
+    let return_visibility = monomorph.return_visibility;
 
-    let SsaProgramArtifact {
-        program,
-        debug,
-        warnings,
-        main_input_witnesses,
-        main_return_witnesses,
-        names,
-        error_types,
-    } = create_program(
+    let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } = create_program(
         monomorph.clone(),
         options.show_ssa,
         options.show_brillig,
@@ -565,14 +557,7 @@ pub fn compile_no_check(
         options.benchmark_codegen,
     )?;
 
-    let abi = abi_gen::gen_abi(
-        context,
-        &main_function,
-        main_input_witnesses,
-        main_return_witnesses,
-        visibility,
-        error_types,
-    );
+    let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 
     let plonky2_circuit = if compile_plonky2_circuit {

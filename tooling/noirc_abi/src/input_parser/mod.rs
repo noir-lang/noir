@@ -267,9 +267,6 @@ mod serialization_tests {
                 abi_type: AbiType::String { length: 5 },
                 visibility: AbiVisibility::Public,
             }),
-            // These two fields are unused when serializing/deserializing to file.
-            param_witnesses: BTreeMap::new(),
-            return_witnesses: Vec::new(),
             error_types: Default::default(),
         };
 
