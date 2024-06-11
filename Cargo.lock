@@ -2801,6 +2801,7 @@ name = "noirc_evaluator"
 version = "0.30.0"
 dependencies = [
  "acvm",
+ "bn254_blackbox_solver",
  "chrono",
  "fxhash",
  "im",
