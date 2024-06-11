@@ -13,6 +13,7 @@ use acir::{
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 use brillig_vm::{FailureReason, MemoryValue, VMStatus, VM};
+use serde::{Deserialize, Serialize};
 
 use crate::{pwg::OpcodeNotSolvable, OpcodeResolutionError};
 
@@ -286,7 +287,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
 /// where the result of the foreign call has not yet been provided.
 ///
 /// The caller must resolve this opcode externally based upon the information in the request.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct ForeignCallWaitInfo<F> {
     /// An identifier interpreted by the caller process
     pub function: String,
