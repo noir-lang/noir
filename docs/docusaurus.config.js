@@ -22,7 +22,7 @@ const config = {
   trailingSlash: false,
   onBrokenLinks: "throw",
   onBrokenMarkdownLinks: process.env.ENV === "dev" ? "warn" : "throw",
-  favicon: "img/Aztec_docs_icons-02.svg",
+  favicon: "img/Aztec_icon_minified.svg",
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
