@@ -1491,10 +1491,11 @@ fn bool_numeric_generic() {
 #[test]
 fn numeric_generic_binary_operation_type_mismatch() {
     let src = r#"
-    fn double<let N: Field>() {
-        let check: bool = true;
-        assert(N == check);
-    }
+    fn foo<let N: Field>() -> bool {
+        let mut check: bool = true;
+        check = N;
+        check
+    }   
     "#;
     let errors = get_program_errors_elaborator(src);
     assert_eq!(errors.len(), 1);
@@ -1619,9 +1620,6 @@ fn numeric_generic_used_in_nested_type_pass() {
     }    
     "#;
     let errors = get_program_errors_elaborator(src);
-    if !errors.is_empty() {
-        dbg!(errors.clone());
-    }
     assert!(errors.is_empty());
 }
 
