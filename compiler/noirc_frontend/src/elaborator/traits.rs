@@ -173,8 +173,6 @@ impl<'context> Elaborator<'context> {
 
         self.scopes.start_function();
 
-        self.trait_bounds = where_clause.to_vec();
-
         let kind = FunctionKind::Normal;
         let def = FunctionDefinition {
             name: name.clone(),
@@ -198,10 +196,9 @@ impl<'context> Elaborator<'context> {
 
         let mut function = NoirFunction { kind, def };
         self.define_function_meta(&mut function, func_id, true);
-        self.elaborate_function(function, func_id);
+        self.elaborate_function(func_id);
         let _ = self.scopes.end_function();
         // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
-        self.trait_bounds.clear();
         self.generics.truncate(old_generic_count);
         self.generic_idents.truncate(old_generic_ident_count);
     }

@@ -143,7 +143,7 @@ pub(crate) type UnaryRhsMemberAccess =
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(u64, Span),
+    Constant(u32, Span),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
@@ -307,7 +307,7 @@ impl UnresolvedTypeExpression {
         match expr.kind {
             ExpressionKind::Literal(Literal::Integer(int, sign)) => {
                 assert!(!sign, "Negative literal is not allowed here");
-                match int.try_to_u64() {
+                match int.try_to_u32() {
                     Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
                     None => Err(expr),
                 }
@@ -387,29 +387,6 @@ impl std::fmt::Display for Visibility {
             Self::Public => write!(f, "pub"),
             Self::Private => write!(f, "priv"),
             Self::DataBus => write!(f, "databus"),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-/// Represents whether the return value should compromise of unique witness indices such that no
-/// index occurs within the program's abi more than once.
-///
-/// This is useful for application stacks that require an uniform abi across across multiple
-/// circuits. When index duplication is allowed, the compiler may identify that a public input
-/// reaches the output unaltered and is thus referenced directly, causing the input and output
-/// witness indices to overlap. Similarly, repetitions of copied values in the output may be
-/// optimized away.
-pub enum Distinctness {
-    Distinct,
-    DuplicationAllowed,
-}
-
-impl std::fmt::Display for Distinctness {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Distinct => write!(f, "distinct"),
-            Self::DuplicationAllowed => write!(f, "duplication-allowed"),
         }
     }
 }

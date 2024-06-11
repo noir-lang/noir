@@ -112,20 +112,9 @@ pub(super) fn generics() -> impl NoirParser<UnresolvedGenerics> {
         .map(|opt| opt.unwrap_or_default())
 }
 
-#[deprecated = "Distinct keyword is now deprecated. Remove this function after the 0.30.0 release"]
-fn optional_distinctness() -> impl NoirParser<bool> {
-    keyword(Keyword::Distinct).or_not().validate(|opt, span, emit| {
-        if opt.is_some() {
-            emit(ParserError::with_reason(ParserErrorReason::DistinctDeprecated, span));
-        }
-        opt.is_some()
-    })
-}
-
 pub(super) fn function_return_type() -> impl NoirParser<(Visibility, FunctionReturnType)> {
     #[allow(deprecated)]
     just(Token::Arrow)
-        .ignore_then(optional_distinctness())
         .ignore_then(optional_visibility())
         .then(spanned(parse_type()))
         .or_not()
@@ -241,8 +230,6 @@ mod test {
                 // A leading plus is not allowed.
                 "fn func_name<T>(f: Field, y : T) where T: + SomeTrait {}",
                 "fn func_name<T>(f: Field, y : T) where T: TraitX + <Y> {}",
-                // `distinct` is deprecated
-                "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }",
             ],
         );
     }

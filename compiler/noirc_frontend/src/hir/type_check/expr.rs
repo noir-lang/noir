@@ -54,7 +54,7 @@ impl<'interner> TypeChecker<'interner> {
     fn check_hir_array_literal(
         &mut self,
         hir_array_literal: HirArrayLiteral,
-    ) -> (Result<u64, Box<Type>>, Box<Type>) {
+    ) -> (Result<u32, Box<Type>>, Box<Type>) {
         match hir_array_literal {
             HirArrayLiteral::Standard(arr) => {
                 let elem_types = vecmap(&arr, |arg| self.check_expression(arg));
@@ -81,7 +81,7 @@ impl<'interner> TypeChecker<'interner> {
                     });
                 }
 
-                (Ok(arr.len() as u64), Box::new(first_elem_type.clone()))
+                (Ok(arr.len() as u32), Box::new(first_elem_type.clone()))
             }
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let elem_type = self.check_expression(&repeated_element);
@@ -131,11 +131,11 @@ impl<'interner> TypeChecker<'interner> {
                 HirLiteral::Bool(_) => Type::Bool,
                 HirLiteral::Integer(_, _) => self.polymorphic_integer_or_field(),
                 HirLiteral::Str(string) => {
-                    let len = Type::Constant(string.len() as u64);
+                    let len = Type::Constant(string.len() as u32);
                     Type::String(Box::new(len))
                 }
                 HirLiteral::FmtStr(string, idents) => {
-                    let len = Type::Constant(string.len() as u64);
+                    let len = Type::Constant(string.len() as u32);
                     let types = vecmap(&idents, |elem| self.check_expression(elem));
                     Type::FmtString(Box::new(len), Box::new(Type::Tuple(types)))
                 }

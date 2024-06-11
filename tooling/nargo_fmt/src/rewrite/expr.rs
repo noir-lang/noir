@@ -167,8 +167,8 @@ pub(crate) fn rewrite(
         }
         ExpressionKind::Lambda(_) => visitor.slice(span).to_string(),
         ExpressionKind::Quote(block) => format!("quote {}", rewrite_block(visitor, block, span)),
-        ExpressionKind::Comptime(block) => {
-            format!("comptime {}", rewrite_block(visitor, block, span))
+        ExpressionKind::Comptime(block, block_span) => {
+            format!("comptime {}", rewrite_block(visitor, block, block_span))
         }
         ExpressionKind::Error => unreachable!(),
         ExpressionKind::Resolved(_) => {

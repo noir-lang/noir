@@ -2,7 +2,7 @@ use acir::{brillig::MemoryAddress, AcirField};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
-pub const MEMORY_ADDRESSING_BIT_SIZE: u32 = 64;
+pub const MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MemoryValue<F> {
@@ -167,15 +167,15 @@ impl<F: AcirField> From<usize> for MemoryValue<F> {
     }
 }
 
-impl<F: AcirField> From<u64> for MemoryValue<F> {
-    fn from(value: u64) -> Self {
-        MemoryValue::new_integer(value.into(), 64)
-    }
-}
-
 impl<F: AcirField> From<u32> for MemoryValue<F> {
     fn from(value: u32) -> Self {
         MemoryValue::new_integer(value.into(), 32)
+    }
+}
+
+impl<F: AcirField> From<u64> for MemoryValue<F> {
+    fn from(value: u64) -> Self {
+        MemoryValue::new_integer(value.into(), 64)
     }
 }
 
