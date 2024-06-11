@@ -128,14 +128,11 @@
     [[maybe_unused]] auto avm_kernel_emit_unencrypted_log_write_offset =                                               \
         View(new_term.avm_kernel_emit_unencrypted_log_write_offset);                                                   \
     [[maybe_unused]] auto avm_kernel_kernel_in_offset = View(new_term.avm_kernel_kernel_in_offset);                    \
-    [[maybe_unused]] auto avm_kernel_kernel_inputs__is_public = View(new_term.avm_kernel_kernel_inputs__is_public);    \
-    [[maybe_unused]] auto avm_kernel_kernel_metadata_out__is_public =                                                  \
-        View(new_term.avm_kernel_kernel_metadata_out__is_public);                                                      \
+    [[maybe_unused]] auto avm_kernel_kernel_inputs = View(new_term.avm_kernel_kernel_inputs);                          \
+    [[maybe_unused]] auto avm_kernel_kernel_metadata_out = View(new_term.avm_kernel_kernel_metadata_out);              \
     [[maybe_unused]] auto avm_kernel_kernel_out_offset = View(new_term.avm_kernel_kernel_out_offset);                  \
-    [[maybe_unused]] auto avm_kernel_kernel_side_effect_out__is_public =                                               \
-        View(new_term.avm_kernel_kernel_side_effect_out__is_public);                                                   \
-    [[maybe_unused]] auto avm_kernel_kernel_value_out__is_public =                                                     \
-        View(new_term.avm_kernel_kernel_value_out__is_public);                                                         \
+    [[maybe_unused]] auto avm_kernel_kernel_side_effect_out = View(new_term.avm_kernel_kernel_side_effect_out);        \
+    [[maybe_unused]] auto avm_kernel_kernel_value_out = View(new_term.avm_kernel_kernel_value_out);                    \
     [[maybe_unused]] auto avm_kernel_l1_to_l2_msg_exists_write_offset =                                                \
         View(new_term.avm_kernel_l1_to_l2_msg_exists_write_offset);                                                    \
     [[maybe_unused]] auto avm_kernel_note_hash_exist_write_offset =                                                    \

@@ -4508,8 +4508,7 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
 
     // Copy the kernel input public inputs
     for (size_t i = 0; i < KERNEL_INPUTS_LENGTH; i++) {
-        main_trace.at(i).avm_kernel_kernel_inputs__is_public =
-            std::get<KERNEL_INPUTS>(kernel_trace_builder.public_inputs).at(i);
+        main_trace.at(i).avm_kernel_kernel_inputs = std::get<KERNEL_INPUTS>(kernel_trace_builder.public_inputs).at(i);
     }
 
     // Write lookup counts for outputs
@@ -4524,13 +4523,13 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
 
     // Copy the kernel outputs counts into the main trace
     for (size_t i = 0; i < KERNEL_OUTPUTS_LENGTH; i++) {
-        main_trace.at(i).avm_kernel_kernel_value_out__is_public =
+        main_trace.at(i).avm_kernel_kernel_value_out =
             std::get<KERNEL_OUTPUTS_VALUE>(kernel_trace_builder.public_inputs).at(i);
 
-        main_trace.at(i).avm_kernel_kernel_side_effect_out__is_public =
+        main_trace.at(i).avm_kernel_kernel_side_effect_out =
             std::get<KERNEL_OUTPUTS_SIDE_EFFECT_COUNTER>(kernel_trace_builder.public_inputs).at(i);
 
-        main_trace.at(i).avm_kernel_kernel_metadata_out__is_public =
+        main_trace.at(i).avm_kernel_kernel_metadata_out =
             std::get<KERNEL_OUTPUTS_METADATA>(kernel_trace_builder.public_inputs).at(i);
     }
 

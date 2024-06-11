@@ -1753,8 +1753,8 @@ TEST_F(AvmExecutionTests, kernelOutputEmitOpcodes)
     uint32_t emit_note_hash_out_offset = AvmKernelTraceBuilder::START_EMIT_NOTE_HASH_WRITE_OFFSET;
     auto emit_note_hash_kernel_out_row = std::ranges::find_if(
         trace.begin(), trace.end(), [&](Row r) { return r.avm_main_clk == emit_note_hash_out_offset; });
-    EXPECT_EQ(emit_note_hash_kernel_out_row->avm_kernel_kernel_value_out__is_public, 1);
-    EXPECT_EQ(emit_note_hash_kernel_out_row->avm_kernel_kernel_side_effect_out__is_public, 0);
+    EXPECT_EQ(emit_note_hash_kernel_out_row->avm_kernel_kernel_value_out, 1);
+    EXPECT_EQ(emit_note_hash_kernel_out_row->avm_kernel_kernel_side_effect_out, 0);
 
     // CHECK EMIT NULLIFIER
     auto emit_nullifier_row =
@@ -1765,8 +1765,8 @@ TEST_F(AvmExecutionTests, kernelOutputEmitOpcodes)
     uint32_t emit_nullifier_out_offset = AvmKernelTraceBuilder::START_EMIT_NULLIFIER_WRITE_OFFSET;
     auto emit_nullifier_kernel_out_row = std::ranges::find_if(
         trace.begin(), trace.end(), [&](Row r) { return r.avm_main_clk == emit_nullifier_out_offset; });
-    EXPECT_EQ(emit_nullifier_kernel_out_row->avm_kernel_kernel_value_out__is_public, 1);
-    EXPECT_EQ(emit_nullifier_kernel_out_row->avm_kernel_kernel_side_effect_out__is_public, 1);
+    EXPECT_EQ(emit_nullifier_kernel_out_row->avm_kernel_kernel_value_out, 1);
+    EXPECT_EQ(emit_nullifier_kernel_out_row->avm_kernel_kernel_side_effect_out, 1);
 
     // CHECK EMIT UNENCRYPTED LOG
     auto emit_log_row = std::ranges::find_if(
@@ -1777,8 +1777,8 @@ TEST_F(AvmExecutionTests, kernelOutputEmitOpcodes)
     uint32_t emit_log_out_offset = AvmKernelTraceBuilder::START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET;
     auto emit_log_kernel_out_row =
         std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) { return r.avm_main_clk == emit_log_out_offset; });
-    EXPECT_EQ(emit_log_kernel_out_row->avm_kernel_kernel_value_out__is_public, 1);
-    EXPECT_EQ(emit_log_kernel_out_row->avm_kernel_kernel_side_effect_out__is_public, 2);
+    EXPECT_EQ(emit_log_kernel_out_row->avm_kernel_kernel_value_out, 1);
+    EXPECT_EQ(emit_log_kernel_out_row->avm_kernel_kernel_side_effect_out, 2);
 
     // CHECK SEND L2 TO L1 MSG
     auto send_row = std::ranges::find_if(
@@ -1790,9 +1790,9 @@ TEST_F(AvmExecutionTests, kernelOutputEmitOpcodes)
     auto msg_out_row = std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) {
         return r.avm_main_clk == AvmKernelTraceBuilder::START_L2_TO_L1_MSG_WRITE_OFFSET;
     });
-    EXPECT_EQ(msg_out_row->avm_kernel_kernel_value_out__is_public, 1);
-    EXPECT_EQ(msg_out_row->avm_kernel_kernel_side_effect_out__is_public, 3);
-    EXPECT_EQ(msg_out_row->avm_kernel_kernel_metadata_out__is_public, 1);
+    EXPECT_EQ(msg_out_row->avm_kernel_kernel_value_out, 1);
+    EXPECT_EQ(msg_out_row->avm_kernel_kernel_side_effect_out, 3);
+    EXPECT_EQ(msg_out_row->avm_kernel_kernel_metadata_out, 1);
 
     validate_trace(std::move(trace));
 }
@@ -1848,9 +1848,9 @@ TEST_F(AvmExecutionTests, kernelOutputStorageLoadOpcodeSimple)
     uint32_t sload_out_offset = AvmKernelTraceBuilder::START_SLOAD_WRITE_OFFSET;
     auto sload_kernel_out_row =
         std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) { return r.avm_main_clk == sload_out_offset; });
-    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_value_out__is_public, 42); // value
-    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_side_effect_out__is_public, 0);
-    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_metadata_out__is_public, 9); // slot
+    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_value_out, 42); // value
+    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_side_effect_out, 0);
+    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_metadata_out, 9); // slot
 
     validate_trace(std::move(trace));
 }
@@ -1910,13 +1910,13 @@ TEST_F(AvmExecutionTests, kernelOutputStorageLoadOpcodeComplex)
     uint32_t sload_out_offset = AvmKernelTraceBuilder::START_SLOAD_WRITE_OFFSET;
     auto sload_kernel_out_row =
         std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) { return r.avm_main_clk == sload_out_offset; });
-    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_value_out__is_public, 42); // value
-    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_side_effect_out__is_public, 0);
-    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_metadata_out__is_public, 9); // slot
+    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_value_out, 42); // value
+    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_side_effect_out, 0);
+    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_metadata_out, 9); // slot
     sload_kernel_out_row++;
-    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_value_out__is_public, 123); // value
-    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_side_effect_out__is_public, 1);
-    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_metadata_out__is_public, 10); // slot
+    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_value_out, 123); // value
+    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_side_effect_out, 1);
+    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_metadata_out, 10); // slot
 
     validate_trace(std::move(trace));
 }
@@ -1960,9 +1960,9 @@ TEST_F(AvmExecutionTests, kernelOutputStorageStoreOpcodeSimple)
     uint32_t sstore_out_offset = AvmKernelTraceBuilder::START_SSTORE_WRITE_OFFSET;
     auto sstore_kernel_out_row =
         std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) { return r.avm_main_clk == sstore_out_offset; });
-    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_value_out__is_public, 42); // value
-    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_side_effect_out__is_public, 0);
-    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_metadata_out__is_public, 9); // slot
+    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_value_out, 42); // value
+    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_side_effect_out, 0);
+    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_metadata_out, 9); // slot
 
     validate_trace(std::move(trace));
 }
@@ -2016,13 +2016,13 @@ TEST_F(AvmExecutionTests, kernelOutputStorageStoreOpcodeComplex)
     uint32_t sstore_out_offset = AvmKernelTraceBuilder::START_SSTORE_WRITE_OFFSET;
     auto sstore_kernel_out_row =
         std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) { return r.avm_main_clk == sstore_out_offset; });
-    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_value_out__is_public, 42); // value
-    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_side_effect_out__is_public, 0);
-    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_metadata_out__is_public, 9); // slot
+    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_value_out, 42); // value
+    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_side_effect_out, 0);
+    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_metadata_out, 9); // slot
     sstore_kernel_out_row++;
-    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_value_out__is_public, 123); // value
-    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_side_effect_out__is_public, 1);
-    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_metadata_out__is_public, 10); // slot
+    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_value_out, 123); // value
+    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_side_effect_out, 1);
+    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_metadata_out, 10); // slot
 
     validate_trace(std::move(trace));
 }
@@ -2083,9 +2083,9 @@ TEST_F(AvmExecutionTests, kernelOutputStorageOpcodes)
     uint32_t sload_out_offset = AvmKernelTraceBuilder::START_SLOAD_WRITE_OFFSET;
     auto sload_kernel_out_row =
         std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) { return r.avm_main_clk == sload_out_offset; });
-    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_value_out__is_public, 42); // value
-    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_side_effect_out__is_public, 0);
-    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_metadata_out__is_public, 9); // slot
+    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_value_out, 42); // value
+    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_side_effect_out, 0);
+    EXPECT_EQ(sload_kernel_out_row->avm_kernel_kernel_metadata_out, 9); // slot
 
     // CHECK SSTORE
     auto sstore_row =
@@ -2098,9 +2098,9 @@ TEST_F(AvmExecutionTests, kernelOutputStorageOpcodes)
     uint32_t sstore_out_offset = AvmKernelTraceBuilder::START_SSTORE_WRITE_OFFSET;
     auto sstore_kernel_out_row =
         std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) { return r.avm_main_clk == sstore_out_offset; });
-    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_value_out__is_public, 42); // value
-    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_side_effect_out__is_public, 1);
-    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_metadata_out__is_public, 9); // slot
+    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_value_out, 42); // value
+    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_side_effect_out, 1);
+    EXPECT_EQ(sstore_kernel_out_row->avm_kernel_kernel_metadata_out, 9); // slot
 
     validate_trace(std::move(trace));
 }
@@ -2162,9 +2162,9 @@ TEST_F(AvmExecutionTests, kernelOutputHashExistsOpcodes)
     auto note_hash_out_row = std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) {
         return r.avm_main_clk == AvmKernelTraceBuilder::START_NOTE_HASH_EXISTS_WRITE_OFFSET;
     });
-    EXPECT_EQ(note_hash_out_row->avm_kernel_kernel_value_out__is_public, 1); // value
-    EXPECT_EQ(note_hash_out_row->avm_kernel_kernel_side_effect_out__is_public, 0);
-    EXPECT_EQ(note_hash_out_row->avm_kernel_kernel_metadata_out__is_public, 1); // exists
+    EXPECT_EQ(note_hash_out_row->avm_kernel_kernel_value_out, 1); // value
+    EXPECT_EQ(note_hash_out_row->avm_kernel_kernel_side_effect_out, 0);
+    EXPECT_EQ(note_hash_out_row->avm_kernel_kernel_metadata_out, 1); // exists
 
     // CHECK NULLIFIEREXISTS
     auto nullifier_row =
@@ -2176,9 +2176,9 @@ TEST_F(AvmExecutionTests, kernelOutputHashExistsOpcodes)
     auto nullifier_out_row = std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) {
         return r.avm_main_clk == AvmKernelTraceBuilder::START_NULLIFIER_EXISTS_OFFSET;
     });
-    EXPECT_EQ(nullifier_out_row->avm_kernel_kernel_value_out__is_public, 1); // value
-    EXPECT_EQ(nullifier_out_row->avm_kernel_kernel_side_effect_out__is_public, 1);
-    EXPECT_EQ(nullifier_out_row->avm_kernel_kernel_metadata_out__is_public, 1); // exists
+    EXPECT_EQ(nullifier_out_row->avm_kernel_kernel_value_out, 1); // value
+    EXPECT_EQ(nullifier_out_row->avm_kernel_kernel_side_effect_out, 1);
+    EXPECT_EQ(nullifier_out_row->avm_kernel_kernel_metadata_out, 1); // exists
 
     // CHECK L1TOL2MSGEXISTS
     auto l1_to_l2_row = std::ranges::find_if(
@@ -2190,9 +2190,9 @@ TEST_F(AvmExecutionTests, kernelOutputHashExistsOpcodes)
     auto msg_out_row = std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) {
         return r.avm_main_clk == AvmKernelTraceBuilder::START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET;
     });
-    EXPECT_EQ(msg_out_row->avm_kernel_kernel_value_out__is_public, 1); // value
-    EXPECT_EQ(msg_out_row->avm_kernel_kernel_side_effect_out__is_public, 2);
-    EXPECT_EQ(msg_out_row->avm_kernel_kernel_metadata_out__is_public, 1); // exists
+    EXPECT_EQ(msg_out_row->avm_kernel_kernel_value_out, 1); // value
+    EXPECT_EQ(msg_out_row->avm_kernel_kernel_side_effect_out, 2);
+    EXPECT_EQ(msg_out_row->avm_kernel_kernel_metadata_out, 1); // exists
 
     validate_trace(std::move(trace));
 }

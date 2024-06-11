@@ -142,9 +142,9 @@ class kernel_output_lookup_lookup_settings {
                                      in.avm_kernel_side_effect_counter,
                                      in.avm_main_ib,
                                      in.avm_main_clk,
-                                     in.avm_kernel_kernel_value_out__is_public,
-                                     in.avm_kernel_kernel_side_effect_out__is_public,
-                                     in.avm_kernel_kernel_metadata_out__is_public);
+                                     in.avm_kernel_kernel_value_out,
+                                     in.avm_kernel_kernel_side_effect_out,
+                                     in.avm_kernel_kernel_metadata_out);
     }
 
     /**
@@ -166,9 +166,9 @@ class kernel_output_lookup_lookup_settings {
                                      in.avm_kernel_side_effect_counter,
                                      in.avm_main_ib,
                                      in.avm_main_clk,
-                                     in.avm_kernel_kernel_value_out__is_public,
-                                     in.avm_kernel_kernel_side_effect_out__is_public,
-                                     in.avm_kernel_kernel_metadata_out__is_public);
+                                     in.avm_kernel_kernel_value_out,
+                                     in.avm_kernel_kernel_side_effect_out,
+                                     in.avm_kernel_kernel_metadata_out);
     }
 };
 

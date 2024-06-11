@@ -161,9 +161,9 @@ void expect_output_table_row_with_exists_metadata(std::vector<Row>::const_iterat
 
 void check_kernel_outputs(const Row& row, FF value, FF side_effect_counter, FF metadata)
 {
-    EXPECT_EQ(row.avm_kernel_kernel_value_out__is_public, value);
-    EXPECT_EQ(row.avm_kernel_kernel_side_effect_out__is_public, side_effect_counter);
-    EXPECT_EQ(row.avm_kernel_kernel_metadata_out__is_public, metadata);
+    EXPECT_EQ(row.avm_kernel_kernel_value_out, value);
+    EXPECT_EQ(row.avm_kernel_kernel_side_effect_out, side_effect_counter);
+    EXPECT_EQ(row.avm_kernel_kernel_metadata_out, metadata);
 }
 
 TEST_F(AvmKernelPositiveTests, kernelSender)

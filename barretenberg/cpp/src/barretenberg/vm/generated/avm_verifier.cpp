@@ -272,16 +272,16 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
         commitment_labels.avm_kernel_emit_unencrypted_log_write_offset);
     commitments.avm_kernel_kernel_in_offset =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_kernel_kernel_in_offset);
-    commitments.avm_kernel_kernel_inputs__is_public =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_kernel_kernel_inputs__is_public);
-    commitments.avm_kernel_kernel_metadata_out__is_public = transcript->template receive_from_prover<Commitment>(
-        commitment_labels.avm_kernel_kernel_metadata_out__is_public);
+    commitments.avm_kernel_kernel_inputs =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_kernel_kernel_inputs);
+    commitments.avm_kernel_kernel_metadata_out =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_kernel_kernel_metadata_out);
     commitments.avm_kernel_kernel_out_offset =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_kernel_kernel_out_offset);
-    commitments.avm_kernel_kernel_side_effect_out__is_public = transcript->template receive_from_prover<Commitment>(
-        commitment_labels.avm_kernel_kernel_side_effect_out__is_public);
-    commitments.avm_kernel_kernel_value_out__is_public =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_kernel_kernel_value_out__is_public);
+    commitments.avm_kernel_kernel_side_effect_out =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_kernel_kernel_side_effect_out);
+    commitments.avm_kernel_kernel_value_out =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_kernel_kernel_value_out);
     commitments.avm_kernel_l1_to_l2_msg_exists_write_offset = transcript->template receive_from_prover<Commitment>(
         commitment_labels.avm_kernel_l1_to_l2_msg_exists_write_offset);
     commitments.avm_kernel_note_hash_exist_write_offset =
@@ -778,30 +778,27 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
 
     // Public columns evaluation checks
 
-    FF avm_kernel_kernel_inputs__is_public_evaluation =
+    FF avm_kernel_kernel_inputs_evaluation =
         evaluate_public_input_column(public_inputs[0], circuit_size, multivariate_challenge);
-    if (avm_kernel_kernel_inputs__is_public_evaluation != claimed_evaluations.avm_kernel_kernel_inputs__is_public) {
+    if (avm_kernel_kernel_inputs_evaluation != claimed_evaluations.avm_kernel_kernel_inputs) {
         return false;
     }
 
-    FF avm_kernel_kernel_metadata_out__is_public_evaluation =
-        evaluate_public_input_column(public_inputs[3], circuit_size, multivariate_challenge);
-    if (avm_kernel_kernel_metadata_out__is_public_evaluation !=
-        claimed_evaluations.avm_kernel_kernel_metadata_out__is_public) {
-        return false;
-    }
-
-    FF avm_kernel_kernel_side_effect_out__is_public_evaluation =
-        evaluate_public_input_column(public_inputs[2], circuit_size, multivariate_challenge);
-    if (avm_kernel_kernel_side_effect_out__is_public_evaluation !=
-        claimed_evaluations.avm_kernel_kernel_side_effect_out__is_public) {
-        return false;
-    }
-
-    FF avm_kernel_kernel_value_out__is_public_evaluation =
+    FF avm_kernel_kernel_value_out_evaluation =
         evaluate_public_input_column(public_inputs[1], circuit_size, multivariate_challenge);
-    if (avm_kernel_kernel_value_out__is_public_evaluation !=
-        claimed_evaluations.avm_kernel_kernel_value_out__is_public) {
+    if (avm_kernel_kernel_value_out_evaluation != claimed_evaluations.avm_kernel_kernel_value_out) {
+        return false;
+    }
+
+    FF avm_kernel_kernel_side_effect_out_evaluation =
+        evaluate_public_input_column(public_inputs[2], circuit_size, multivariate_challenge);
+    if (avm_kernel_kernel_side_effect_out_evaluation != claimed_evaluations.avm_kernel_kernel_side_effect_out) {
+        return false;
+    }
+
+    FF avm_kernel_kernel_metadata_out_evaluation =
+        evaluate_public_input_column(public_inputs[3], circuit_size, multivariate_challenge);
+    if (avm_kernel_kernel_metadata_out_evaluation != claimed_evaluations.avm_kernel_kernel_metadata_out) {
         return false;
     }
 

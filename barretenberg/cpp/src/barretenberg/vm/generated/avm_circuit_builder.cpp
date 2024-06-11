@@ -140,11 +140,11 @@ template <typename FF> std::vector<std::string> AvmFullRow<FF>::names()
              "avm_kernel_emit_nullifier_write_offset",
              "avm_kernel_emit_unencrypted_log_write_offset",
              "avm_kernel_kernel_in_offset",
-             "avm_kernel_kernel_inputs__is_public",
-             "avm_kernel_kernel_metadata_out__is_public",
+             "avm_kernel_kernel_inputs",
+             "avm_kernel_kernel_metadata_out",
              "avm_kernel_kernel_out_offset",
-             "avm_kernel_kernel_side_effect_out__is_public",
-             "avm_kernel_kernel_value_out__is_public",
+             "avm_kernel_kernel_side_effect_out",
+             "avm_kernel_kernel_value_out",
              "avm_kernel_l1_to_l2_msg_exists_write_offset",
              "avm_kernel_note_hash_exist_write_offset",
              "avm_kernel_nullifier_exists_write_offset",
@@ -154,6 +154,10 @@ template <typename FF> std::vector<std::string> AvmFullRow<FF>::names()
              "avm_kernel_side_effect_counter",
              "avm_kernel_sload_write_offset",
              "avm_kernel_sstore_write_offset",
+             "avm_main_abs_da_rem_gas_hi",
+             "avm_main_abs_da_rem_gas_lo",
+             "avm_main_abs_l2_rem_gas_hi",
+             "avm_main_abs_l2_rem_gas_lo",
              "avm_main_alu_in_tag",
              "avm_main_alu_sel",
              "avm_main_bin_op_id",
@@ -161,6 +165,7 @@ template <typename FF> std::vector<std::string> AvmFullRow<FF>::names()
              "avm_main_call_ptr",
              "avm_main_da_gas_op",
              "avm_main_da_gas_remaining",
+             "avm_main_da_out_of_gas",
              "avm_main_gas_cost_active",
              "avm_main_ia",
              "avm_main_ib",
@@ -179,6 +184,7 @@ template <typename FF> std::vector<std::string> AvmFullRow<FF>::names()
              "avm_main_inv",
              "avm_main_l2_gas_op",
              "avm_main_l2_gas_remaining",
+             "avm_main_l2_out_of_gas",
              "avm_main_last",
              "avm_main_mem_idx_a",
              "avm_main_mem_idx_b",
@@ -318,6 +324,10 @@ template <typename FF> std::vector<std::string> AvmFullRow<FF>::names()
              "lookup_byte_lengths",
              "lookup_byte_operations",
              "lookup_opcode_gas",
+             "range_check_l2_gas_hi",
+             "range_check_l2_gas_lo",
+             "range_check_da_gas_hi",
+             "range_check_da_gas_lo",
              "kernel_output_lookup",
              "lookup_into_kernel",
              "incl_main_tag_err",
@@ -355,6 +365,10 @@ template <typename FF> std::vector<std::string> AvmFullRow<FF>::names()
              "lookup_byte_lengths_counts",
              "lookup_byte_operations_counts",
              "lookup_opcode_gas_counts",
+             "range_check_l2_gas_hi_counts",
+             "range_check_l2_gas_lo_counts",
+             "range_check_da_gas_hi_counts",
+             "range_check_da_gas_lo_counts",
              "kernel_output_lookup_counts",
              "lookup_into_kernel_counts",
              "incl_main_tag_err_counts",
@@ -461,12 +475,11 @@ template <typename FF> std::ostream& operator<<(std::ostream& os, AvmFullRow<FF>
            << field_to_string(row.avm_kernel_emit_note_hash_write_offset) << ","
            << field_to_string(row.avm_kernel_emit_nullifier_write_offset) << ","
            << field_to_string(row.avm_kernel_emit_unencrypted_log_write_offset) << ","
-           << field_to_string(row.avm_kernel_kernel_in_offset) << ","
-           << field_to_string(row.avm_kernel_kernel_inputs__is_public) << ","
-           << field_to_string(row.avm_kernel_kernel_metadata_out__is_public) << ","
+           << field_to_string(row.avm_kernel_kernel_in_offset) << "," << field_to_string(row.avm_kernel_kernel_inputs)
+           << "," << field_to_string(row.avm_kernel_kernel_metadata_out) << ","
            << field_to_string(row.avm_kernel_kernel_out_offset) << ","
-           << field_to_string(row.avm_kernel_kernel_side_effect_out__is_public) << ","
-           << field_to_string(row.avm_kernel_kernel_value_out__is_public) << ","
+           << field_to_string(row.avm_kernel_kernel_side_effect_out) << ","
+           << field_to_string(row.avm_kernel_kernel_value_out) << ","
            << field_to_string(row.avm_kernel_l1_to_l2_msg_exists_write_offset) << ","
            << field_to_string(row.avm_kernel_note_hash_exist_write_offset) << ","
            << field_to_string(row.avm_kernel_nullifier_exists_write_offset) << ","
@@ -475,20 +488,24 @@ template <typename FF> std::ostream& operator<<(std::ostream& os, AvmFullRow<FF>
            << field_to_string(row.avm_kernel_q_public_input_kernel_out_add_to_table) << ","
            << field_to_string(row.avm_kernel_side_effect_counter) << ","
            << field_to_string(row.avm_kernel_sload_write_offset) << ","
-           << field_to_string(row.avm_kernel_sstore_write_offset) << "," << field_to_string(row.avm_main_alu_in_tag)
-           << "," << field_to_string(row.avm_main_alu_sel) << "," << field_to_string(row.avm_main_bin_op_id) << ","
+           << field_to_string(row.avm_kernel_sstore_write_offset) << ","
+           << field_to_string(row.avm_main_abs_da_rem_gas_hi) << "," << field_to_string(row.avm_main_abs_da_rem_gas_lo)
+           << "," << field_to_string(row.avm_main_abs_l2_rem_gas_hi) << ","
+           << field_to_string(row.avm_main_abs_l2_rem_gas_lo) << "," << field_to_string(row.avm_main_alu_in_tag) << ","
+           << field_to_string(row.avm_main_alu_sel) << "," << field_to_string(row.avm_main_bin_op_id) << ","
            << field_to_string(row.avm_main_bin_sel) << "," << field_to_string(row.avm_main_call_ptr) << ","
            << field_to_string(row.avm_main_da_gas_op) << "," << field_to_string(row.avm_main_da_gas_remaining) << ","
-           << field_to_string(row.avm_main_gas_cost_active) << "," << field_to_string(row.avm_main_ia) << ","
-           << field_to_string(row.avm_main_ib) << "," << field_to_string(row.avm_main_ic) << ","
-           << field_to_string(row.avm_main_id) << "," << field_to_string(row.avm_main_id_zero) << ","
-           << field_to_string(row.avm_main_ind_a) << "," << field_to_string(row.avm_main_ind_b) << ","
-           << field_to_string(row.avm_main_ind_c) << "," << field_to_string(row.avm_main_ind_d) << ","
-           << field_to_string(row.avm_main_ind_op_a) << "," << field_to_string(row.avm_main_ind_op_b) << ","
-           << field_to_string(row.avm_main_ind_op_c) << "," << field_to_string(row.avm_main_ind_op_d) << ","
-           << field_to_string(row.avm_main_internal_return_ptr) << "," << field_to_string(row.avm_main_inv) << ","
-           << field_to_string(row.avm_main_l2_gas_op) << "," << field_to_string(row.avm_main_l2_gas_remaining) << ","
-           << field_to_string(row.avm_main_last) << "," << field_to_string(row.avm_main_mem_idx_a) << ","
+           << field_to_string(row.avm_main_da_out_of_gas) << "," << field_to_string(row.avm_main_gas_cost_active) << ","
+           << field_to_string(row.avm_main_ia) << "," << field_to_string(row.avm_main_ib) << ","
+           << field_to_string(row.avm_main_ic) << "," << field_to_string(row.avm_main_id) << ","
+           << field_to_string(row.avm_main_id_zero) << "," << field_to_string(row.avm_main_ind_a) << ","
+           << field_to_string(row.avm_main_ind_b) << "," << field_to_string(row.avm_main_ind_c) << ","
+           << field_to_string(row.avm_main_ind_d) << "," << field_to_string(row.avm_main_ind_op_a) << ","
+           << field_to_string(row.avm_main_ind_op_b) << "," << field_to_string(row.avm_main_ind_op_c) << ","
+           << field_to_string(row.avm_main_ind_op_d) << "," << field_to_string(row.avm_main_internal_return_ptr) << ","
+           << field_to_string(row.avm_main_inv) << "," << field_to_string(row.avm_main_l2_gas_op) << ","
+           << field_to_string(row.avm_main_l2_gas_remaining) << "," << field_to_string(row.avm_main_l2_out_of_gas)
+           << "," << field_to_string(row.avm_main_last) << "," << field_to_string(row.avm_main_mem_idx_a) << ","
            << field_to_string(row.avm_main_mem_idx_b) << "," << field_to_string(row.avm_main_mem_idx_c) << ","
            << field_to_string(row.avm_main_mem_idx_d) << "," << field_to_string(row.avm_main_mem_op_a) << ","
            << field_to_string(row.avm_main_mem_op_activate_gas) << "," << field_to_string(row.avm_main_mem_op_b) << ","
@@ -564,6 +581,8 @@ template <typename FF> std::ostream& operator<<(std::ostream& os, AvmFullRow<FF>
            << field_to_string(row.perm_main_mem_ind_b) << "," << field_to_string(row.perm_main_mem_ind_c) << ","
            << field_to_string(row.perm_main_mem_ind_d) << "," << field_to_string(row.lookup_byte_lengths) << ","
            << field_to_string(row.lookup_byte_operations) << "," << field_to_string(row.lookup_opcode_gas) << ","
+           << field_to_string(row.range_check_l2_gas_hi) << "," << field_to_string(row.range_check_l2_gas_lo) << ","
+           << field_to_string(row.range_check_da_gas_hi) << "," << field_to_string(row.range_check_da_gas_lo) << ","
            << field_to_string(row.kernel_output_lookup) << "," << field_to_string(row.lookup_into_kernel) << ","
            << field_to_string(row.incl_main_tag_err) << "," << field_to_string(row.incl_mem_tag_err) << ","
            << field_to_string(row.lookup_mem_rng_chk_lo) << "," << field_to_string(row.lookup_mem_rng_chk_mid) << ","
@@ -583,11 +602,14 @@ template <typename FF> std::ostream& operator<<(std::ostream& os, AvmFullRow<FF>
            << field_to_string(row.lookup_div_u16_6) << "," << field_to_string(row.lookup_div_u16_7) << ","
            << field_to_string(row.lookup_byte_lengths_counts) << ","
            << field_to_string(row.lookup_byte_operations_counts) << "," << field_to_string(row.lookup_opcode_gas_counts)
-           << "," << field_to_string(row.kernel_output_lookup_counts) << ","
-           << field_to_string(row.lookup_into_kernel_counts) << "," << field_to_string(row.incl_main_tag_err_counts)
-           << "," << field_to_string(row.incl_mem_tag_err_counts) << ","
-           << field_to_string(row.lookup_mem_rng_chk_lo_counts) << ","
-           << field_to_string(row.lookup_mem_rng_chk_mid_counts) << ","
+           << "," << field_to_string(row.range_check_l2_gas_hi_counts) << ","
+           << field_to_string(row.range_check_l2_gas_lo_counts) << ","
+           << field_to_string(row.range_check_da_gas_hi_counts) << ","
+           << field_to_string(row.range_check_da_gas_lo_counts) << ","
+           << field_to_string(row.kernel_output_lookup_counts) << "," << field_to_string(row.lookup_into_kernel_counts)
+           << "," << field_to_string(row.incl_main_tag_err_counts) << ","
+           << field_to_string(row.incl_mem_tag_err_counts) << "," << field_to_string(row.lookup_mem_rng_chk_lo_counts)
+           << "," << field_to_string(row.lookup_mem_rng_chk_mid_counts) << ","
            << field_to_string(row.lookup_mem_rng_chk_hi_counts) << "," << field_to_string(row.lookup_pow_2_0_counts)
            << "," << field_to_string(row.lookup_pow_2_1_counts) << "," << field_to_string(row.lookup_u8_0_counts) << ","
            << field_to_string(row.lookup_u8_1_counts) << "," << field_to_string(row.lookup_u16_0_counts) << ","
