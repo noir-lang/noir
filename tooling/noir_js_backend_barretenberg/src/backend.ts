@@ -45,10 +45,7 @@ export class BarretenbergVerifierBackend implements VerifierBackend {
       const { Barretenberg, RawBuffer, Crs } = await import('@aztec/bb.js');
       const api = await Barretenberg.new(this.options);
 
-      const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(
-        this.acirUncompressedBytecode,
-        /*honkRecursion=*/ false, // TODO(https://github.com/AztecProtocol/barretenberg/issues/1013): Remove this flag
-      );
+      const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(this.acirUncompressedBytecode);
       const crs = await Crs.new(subgroupSize + 1);
       await api.commonInitSlabAllocator(subgroupSize);
       await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));

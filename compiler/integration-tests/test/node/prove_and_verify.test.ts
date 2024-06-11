@@ -8,8 +8,6 @@ import { CompiledCircuit } from '@noir-lang/types';
 const assert_lt_program = assert_lt_json as CompiledCircuit;
 const fold_fibonacci_program = fold_fibonacci_json as CompiledCircuit;
 
-const backend = new Backend(assert_lt_program);
-
 it('end-to-end proof creation and verification (outer)', async () => {
   // Noir.Js part
   const inputs = {
@@ -24,11 +22,11 @@ it('end-to-end proof creation and verification (outer)', async () => {
   // bb.js part
   //
   // Proof creation
-  // const prover = new Backend(assert_lt_program);
-  const proof = await backend.generateProof(witness);
+  const prover = new Backend(assert_lt_program);
+  const proof = await prover.generateProof(witness);
 
   // Proof verification
-  const isValid = await backend.verifyProof(proof);
+  const isValid = await prover.verifyProof(proof);
   expect(isValid).to.be.true;
 });
 
@@ -44,10 +42,10 @@ it('end-to-end proof creation and verification (outer) -- Verifier API', async (
   const { witness } = await program.execute(inputs);
 
   // Generate proof
-  const backend = new Backend(assert_lt_program);
-  const proof = await backend.generateProof(witness);
+  const prover = new Backend(assert_lt_program);
+  const proof = await prover.generateProof(witness);
 
-  const verificationKey = await backend.getVerificationKey();
+  const verificationKey = await prover.getVerificationKey();
 
   // Proof verification
   const verifier = new Verifier();
@@ -70,11 +68,11 @@ it('end-to-end proof creation and verification (inner)', async () => {
   // bb.js part
   //
   // Proof creation
-  // const prover = new Backend(assert_lt_program);
-  const proof = await backend.generateProof(witness);
+  const prover = new Backend(assert_lt_program);
+  const proof = await prover.generateProof(witness);
 
   // Proof verification
-  const isValid = await backend.verifyProof(proof);
+  const isValid = await prover.verifyProof(proof);
   expect(isValid).to.be.true;
 });
 
@@ -90,9 +88,9 @@ it('end-to-end proving and verification with different instances', async () => {
   const { witness } = await program.execute(inputs);
 
   // bb.js part
-  // const prover = new Backend(assert_lt_program);
+  const prover = new Backend(assert_lt_program);
 
-  const proof = await backend.generateProof(witness);
+  const proof = await prover.generateProof(witness);
 
   const verifier = new Backend(assert_lt_program);
   const proof_is_valid = await verifier.verifyProof(proof);
@@ -121,18 +119,18 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
   //
   // Proof creation
   //
-  // const prover = new Backend(assert_lt_program);
+  const prover = new Backend(assert_lt_program);
   // Create a proof using both proving systems, the majority of the time
   // one would only use outer proofs.
-  const proofOuter = await backend.generateProof(witness);
-  const _proofInner = await backend.generateProof(witness);
+  const proofOuter = await prover.generateProof(witness);
+  const _proofInner = await prover.generateProof(witness);
 
   // Proof verification
   //
-  const isValidOuter = await backend.verifyProof(proofOuter);
+  const isValidOuter = await prover.verifyProof(proofOuter);
   expect(isValidOuter).to.be.true;
   // We can also try verifying an inner proof and it will fail.
-  const isValidInner = await backend.verifyProof(_proofInner);
+  const isValidInner = await prover.verifyProof(_proofInner);
   expect(isValidInner).to.be.true;
 });
 
@@ -149,10 +147,10 @@ it('end-to-end proof creation and verification for multiple ACIR circuits (inner
   // bb.js part
   //
   // Proof creation
-  const backend = new Backend(fold_fibonacci_program);
-  const proof = await backend.generateProof(witness);
+  const prover = new Backend(fold_fibonacci_program);
+  const proof = await prover.generateProof(witness);
 
   // Proof verification
-  const isValid = await backend.verifyProof(proof);
+  const isValid = await prover.verifyProof(proof);
   expect(isValid).to.be.true;
 });
