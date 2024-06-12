@@ -45,7 +45,7 @@ impl<Context> EasyPrivateUint<&mut PrivateContext> {
         // docs:end:get_notes
 
         let mut minuend: u64 = 0;
-        for i in 0..maybe_notes.len() {
+        for i in 0..options.limit {
             if maybe_notes[i].is_some() {
                 let note = maybe_notes[i].unwrap_unchecked();
 

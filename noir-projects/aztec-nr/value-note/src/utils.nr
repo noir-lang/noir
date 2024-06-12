@@ -58,7 +58,7 @@ pub fn decrement_by_at_most(
     let opt_notes = balance.get_notes(options);
 
     let mut decremented = 0;
-    for i in 0..opt_notes.len() {
+    for i in 0..options.limit {
         if opt_notes[i].is_some() {
             let note = opt_notes[i].unwrap_unchecked();
 

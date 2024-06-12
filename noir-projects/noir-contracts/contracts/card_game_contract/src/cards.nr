@@ -125,7 +125,7 @@ impl Deck<&mut PrivateContext> {
         let options = NoteGetterOptions::with_filter(filter_cards, cards);
         let maybe_notes = self.set.get_notes(options);
         let mut found_cards = [Option::none(); N];
-        for i in 0..maybe_notes.len() {
+        for i in 0..options.limit {
             if maybe_notes[i].is_some() {
                 let card_note = CardNote::from_note(maybe_notes[i].unwrap_unchecked());
 

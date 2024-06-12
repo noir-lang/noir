@@ -156,6 +156,10 @@ impl<Note, N, M, FILTER_ARGS> NoteGetterOptions<Note, N, M, FILTER_ARGS> {
     // This method lets you set a limit for the maximum number of notes to be retrieved in a single query result.
     pub fn set_limit(&mut self, limit: u32) -> Self {
         assert(limit <= MAX_NOTE_HASH_READ_REQUESTS_PER_CALL as u32);
+        // By requesting that the limit is a constant, we guarantee that it will be possible to loop over it, reducing
+        // gate counts when a limit has been set.
+        assert_constant(limit);
+
         self.limit = limit;
         *self
     }
