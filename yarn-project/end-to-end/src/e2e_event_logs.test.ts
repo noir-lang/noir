@@ -1,7 +1,8 @@
 import { type AccountWalletWithSecretKey, type AztecNode, Fr, L1EventPayload, TaggedLog } from '@aztec/aztec.js';
 import { deriveMasterIncomingViewingSecretKey } from '@aztec/circuits.js';
 import { makeTuple } from '@aztec/foundation/array';
-import { TestLogContract } from '@aztec/noir-contracts.js';
+import { type Tuple } from '@aztec/foundation/serialize';
+import { type ExampleEvent0, type ExampleEvent1, TestLogContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
 
@@ -109,6 +110,47 @@ describe('Logs', () => {
       // Again, trying to decode another event with mismatching data does not yield anything
       const badEvent1 = TestLogContract.events.ExampleEvent0.decode(decryptedLog1!.payload);
       expect(badEvent1).toBe(undefined);
+    });
+
+    it('emits multiple events as encrypted logs and decodes them', async () => {
+      const randomness = makeTuple(5, makeTuple.bind(undefined, 2, Fr.random)) as Tuple<Tuple<Fr, 2>, 5>;
+      const preimage = makeTuple(5, makeTuple.bind(undefined, 4, Fr.random)) as Tuple<Tuple<Fr, 4>, 5>;
+
+      let i = 0;
+      const firstTx = await testLogContract.methods.emit_encrypted_events(randomness[i], preimage[i]).send().wait();
+      await Promise.all(
+        [...new Array(3)].map(() =>
+          testLogContract.methods.emit_encrypted_events(randomness[++i], preimage[i]).send().wait(),
+        ),
+      );
+      const lastTx = await testLogContract.methods.emit_encrypted_events(randomness[++i], preimage[i]).send().wait();
+
+      const collectedEvent0s = await wallets[0].getEvents(
+        firstTx.blockNumber!,
+        lastTx.blockNumber! - firstTx.blockNumber! + 1,
+        TestLogContract.events.ExampleEvent0,
+      );
+
+      const collectedEvent1s = await wallets[0].getEvents(
+        firstTx.blockNumber!,
+        lastTx.blockNumber! - firstTx.blockNumber! + 1,
+        TestLogContract.events.ExampleEvent1,
+        // This function can also be called specifying the incoming viewing public key associated with the encrypted event.
+        wallets[0].getCompleteAddress().publicKeys.masterIncomingViewingPublicKey,
+      );
+
+      expect(collectedEvent0s.length).toBe(5);
+      expect(collectedEvent1s.length).toBe(5);
+
+      const exampleEvent0Sort = (a: ExampleEvent0, b: ExampleEvent0) => (a.value0 > b.value0 ? 1 : -1);
+      expect(collectedEvent0s.sort(exampleEvent0Sort)).toStrictEqual(
+        preimage.map(preimage => ({ value0: preimage[0], value1: preimage[1] })).sort(exampleEvent0Sort),
+      );
+
+      const exampleEvent1Sort = (a: ExampleEvent1, b: ExampleEvent1) => (a.value2 > b.value2 ? 1 : -1);
+      expect(collectedEvent1s.sort(exampleEvent1Sort)).toStrictEqual(
+        preimage.map(preimage => ({ value2: preimage[2], value3: preimage[3] })).sort(exampleEvent1Sort),
+      );
     });
   });
 });

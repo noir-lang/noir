@@ -1,5 +1,12 @@
-import { type AztecAddress, type CompleteAddress, type Fq, type Fr, type PartialAddress } from '@aztec/circuits.js';
-import { type ContractArtifact } from '@aztec/foundation/abi';
+import {
+  type AztecAddress,
+  type CompleteAddress,
+  type Fq,
+  type Fr,
+  type PartialAddress,
+  type Point,
+} from '@aztec/circuits.js';
+import { type ContractArtifact, type FunctionSelector } from '@aztec/foundation/abi';
 import {
   type ContractClassWithId,
   type ContractInstanceWithAddress,
@@ -9,7 +16,7 @@ import { type NodeInfo } from '@aztec/types/interfaces';
 
 import { type AuthWitness } from '../auth_witness.js';
 import { type L2Block } from '../l2_block.js';
-import { type GetUnencryptedLogsResponse, type LogFilter } from '../logs/index.js';
+import { type GetUnencryptedLogsResponse, type L1EventPayload, type LogFilter } from '../logs/index.js';
 import { type ExtendedNote } from '../notes/index.js';
 import { type NoteFilter } from '../notes/note_filter.js';
 import { type NoteProcessorStats } from '../stats/stats.js';
@@ -365,8 +372,27 @@ export interface PXE {
    * TODO(@spalladino): Same notes as above.
    */
   isContractPubliclyDeployed(address: AztecAddress): Promise<boolean>;
+
+  /**
+   * Returns the events of a specified type.
+   * @param from - The block number to search from.
+   * @param limit - The amount of blocks to search.
+   * @param eventMetadata - Identifier of the event. This should be the class generated from the contract. e.g. Contract.events.Event
+   * @param ivpk - The incoming viewing public key that corresponds to the incoming viewing secret key that can decrypt the log.
+   * @returns - The deserialized events.
+   */
+  getEvents<T>(from: number, limit: number, eventMetadata: EventMetadata<T>, ivpk: Point): Promise<T[]>;
 }
 // docs:end:pxe-interface
+
+/**
+ * The shape of the event generated on the Contract.
+ */
+export interface EventMetadata<T> {
+  decode(payload: L1EventPayload): T | undefined;
+  functionSelector: FunctionSelector;
+  fieldNames: string[];
+}
 
 /**
  * Provides basic information about the running PXE.
