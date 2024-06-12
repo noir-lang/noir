@@ -1422,6 +1422,13 @@ impl NodeInterner {
     ) -> Result<(), (Span, FileId)> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
 
+        // Avoid adding error types to impls since they'll conflict with every other type.
+        // We don't need to return an error since we expect an error to already be issued when
+        // the error type is created.
+        if object_type == Type::Error {
+            return Ok(());
+        }
+
         // Replace each generic with a fresh type variable
         let substitutions = impl_generics
             .into_iter()
@@ -1477,6 +1484,7 @@ impl NodeInterner {
         force_type_check: bool,
     ) -> Option<FuncId> {
         let methods = self.struct_methods.get(&(id, method_name.to_owned()));
+
         // If there is only one method, just return it immediately.
         // It will still be typechecked later.
         if !force_type_check {
