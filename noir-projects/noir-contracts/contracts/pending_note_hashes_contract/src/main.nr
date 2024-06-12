@@ -136,7 +136,6 @@ contract PendingNoteHashes {
 
         // Emit note again
         context.encrypt_and_emit_note(
-            context.this_address(),
             note.get_header().storage_slot,
             outgoing_viewer_ovpk_m,
             owner_ivpk_m,
@@ -369,7 +368,6 @@ contract PendingNoteHashes {
         bad_note.set_header(existing_note_header);
 
         context.encrypt_and_emit_note(
-            context.this_address(),
             existing_note_header.storage_slot,
             outgoing_viewer_ovpk_m,
             owner_ivpk_m,

@@ -93,7 +93,6 @@ contract TestLog {
         let msg_sender_ovpk_m = header.get_ovpk_m(&mut context, context.msg_sender());
 
         context.encrypt_and_emit_event(
-            context.this_address(),
             randomness,
             event_type_id,
             msg_sender_ovpk_m,
@@ -109,7 +108,6 @@ contract TestLog {
         let msg_sender_ovpk_m = header.get_ovpk_m(&mut context, context.msg_sender());
 
         context.encrypt_and_emit_event(
-            context.this_address(),
             randomness[0],
             ExampleEvent0::selector().to_field(),
             msg_sender_ovpk_m,
@@ -118,7 +116,6 @@ contract TestLog {
         );
 
         context.encrypt_and_emit_event(
-            context.this_address(),
             randomness[1],
             ExampleEvent1::selector().to_field(),
             msg_sender_ovpk_m,

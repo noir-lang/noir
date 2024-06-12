@@ -59,6 +59,15 @@ pub fn compute_encrypted_note_log<Note, N, NB, M>(
         encrypted_bytes[400 + i] = incoming_body_ciphertext[i];
     }
 
+    // Current unoptimized size of the encrypted log
+    // incoming_tag (32 bytes)
+    // outgoing_tag (32 bytes)
+    // eph_pk (64 bytes)
+    // incoming_header (48 bytes)
+    // outgoing_header (48 bytes)
+    // outgoing_body (176 bytes)
+    // incoming_body_fixed (64 bytes)
+    // incoming_body_variable (N * 32 bytes + 16 bytes padding)
     encrypted_bytes
 }
 

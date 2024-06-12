@@ -47,7 +47,6 @@ impl NoteInterface<ADDRESS_NOTE_LEN, ADDRESS_NOTE_BYTES_LEN> for AddressNote {
     fn broadcast(self, context: &mut PrivateContext, slot: Field, ovpk_m: GrumpkinPoint, ivpk_m: GrumpkinPoint) {
         // docs:start:encrypted
         context.encrypt_and_emit_note(
-            (*context).this_address(),
             slot,
             ovpk_m,
             ivpk_m,
