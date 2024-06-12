@@ -205,11 +205,10 @@ fn debug_program_and_decode(
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
     let solved_witness = debug_program(&program, &inputs_map)?;
-    let public_abi = program.abi.public_abi();
 
     match solved_witness {
         Some(witness) => {
-            let (_, return_value) = public_abi.decode(&witness)?;
+            let (_, return_value) = program.abi.decode(&witness)?;
             Ok((return_value, Some(witness)))
         }
         None => Ok((None, None)),

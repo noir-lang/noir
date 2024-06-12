@@ -1,6 +1,6 @@
 import { expect } from 'chai';
-import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
-import fold_fibonacci_json from '../noir_compiled_examples/fold_fibonacci/target/fold_fibonacci.json' assert { type: 'json' };
+import assert_lt_json from '../../circuits/assert_lt/target/assert_lt.json' assert { type: 'json' };
+import fold_fibonacci_json from '../../circuits/fold_fibonacci/target/fold_fibonacci.json' assert { type: 'json' };
 import { Noir } from '@noir-lang/noir_js';
 import { BarretenbergBackend as Backend, BarretenbergVerifier as Verifier } from '@noir-lang/backend_barretenberg';
 import { CompiledCircuit } from '@noir-lang/types';
@@ -30,25 +30,6 @@ it('end-to-end proof creation and verification (outer)', async () => {
   expect(isValid).to.be.true;
 });
 
-it('end-to-end proof creation and verification (outer) -- Program API', async () => {
-  // Noir.Js part
-  const inputs = {
-    x: '2',
-    y: '3',
-  };
-
-  // Initialize backend
-  const backend = new Backend(assert_lt_program);
-  // Initialize program
-  const program = new Noir(assert_lt_program, backend);
-  // Generate proof
-  const proof = await program.generateProof(inputs);
-
-  // Proof verification
-  const isValid = await program.verifyProof(proof);
-  expect(isValid).to.be.true;
-});
-
 it('end-to-end proof creation and verification (outer) -- Verifier API', async () => {
   // Noir.Js part
   const inputs = {
@@ -56,14 +37,15 @@ it('end-to-end proof creation and verification (outer) -- Verifier API', async (
     y: '3',
   };
 
-  // Initialize backend
-  const backend = new Backend(assert_lt_program);
-  // Initialize program
-  const program = new Noir(assert_lt_program, backend);
-  // Generate proof
-  const proof = await program.generateProof(inputs);
+  // Execute program
+  const program = new Noir(assert_lt_program);
+  const { witness } = await program.execute(inputs);
 
-  const verificationKey = await backend.getVerificationKey();
+  // Generate proof
+  const prover = new Backend(assert_lt_program);
+  const proof = await prover.generateProof(witness);
+
+  const verificationKey = await prover.getVerificationKey();
 
   // Proof verification
   const verifier = new Verifier();
@@ -165,10 +147,10 @@ it('end-to-end proof creation and verification for multiple ACIR circuits (inner
   // bb.js part
   //
   // Proof creation
-  const backend = new Backend(fold_fibonacci_program);
-  const proof = await backend.generateProof(witness);
+  const prover = new Backend(fold_fibonacci_program);
+  const proof = await prover.generateProof(witness);
 
   // Proof verification
-  const isValid = await backend.verifyProof(proof);
+  const isValid = await prover.verifyProof(proof);
   expect(isValid).to.be.true;
 });

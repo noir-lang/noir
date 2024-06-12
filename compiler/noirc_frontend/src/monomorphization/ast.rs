@@ -278,11 +278,11 @@ pub struct Function {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
     Field,
-    Array(/*len:*/ u64, Box<Type>), // Array(4, Field) = [Field; 4]
+    Array(/*len:*/ u32, Box<Type>), // Array(4, Field) = [Field; 4]
     Integer(Signedness, /*bits:*/ IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
-    String(/*len:*/ u64), // String(4) = str[4]
-    FmtString(/*len:*/ u64, Box<Type>),
+    String(/*len:*/ u32), // String(4) = str[4]
+    FmtString(/*len:*/ u32, Box<Type>),
     Unit,
     Tuple(Vec<Type>),
     Slice(Box<Type>),

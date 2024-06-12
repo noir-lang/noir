@@ -77,6 +77,14 @@ noirc_abi = { path = "tooling/noirc_abi" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
 acvm_cli = { path = "tooling/acvm_cli" }
 
+# Arkworks
+ark-bn254 = { version = "^0.4.0", default-features = false, features = ["curve"] }
+ark-bls12-381 = { version = "^0.4.0", default-features = false, features = ["curve"] }
+grumpkin = { version = "0.1.0", package = "noir_grumpkin", features = ["std"] } 
+ark-ec = { version = "^0.4.0", default-features = false }
+ark-ff = { version = "^0.4.0", default-features = false }
+ark-std = { version = "^0.4.0", default-features = false }
+
 # Misc utils crates
 iter-extended = { path = "utils/iter-extended" }
 
@@ -131,6 +139,8 @@ similar-asserts = "1.5.0"
 tempfile = "3.6.0"
 jsonrpc = { version = "0.16.0", features = ["minreq_http"] }
 flate2 = "1.0.24"
+rand = "0.8.5"
+proptest = "1.2.0"
 
 im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"

@@ -1,12 +1,12 @@
-fn len_plus_1<T, N>(array: [T; N]) -> u64 {
+fn len_plus_1<T, N>(array: [T; N]) -> u32 {
     array.len() + 1
 }
 
-fn add_lens<T, N, M>(a: [T; N], b: [Field; M]) -> u64 {
+fn add_lens<T, N, M>(a: [T; N], b: [Field; M]) -> u32 {
     a.len() + b.len()
 }
 
-fn nested_call<N>(b: [Field; N]) -> u64 {
+fn nested_call<N>(b: [Field; N]) -> u32 {
     len_plus_1(b)
 }
 

@@ -109,7 +109,7 @@ export default {
             },
             {
               label: 'Docs GitHub',
-              href: 'https://github.com/noir-lang/docs',
+              href: 'https://github.com/noir-lang/noir/tree/master/docs',
             },
           ],
         },
