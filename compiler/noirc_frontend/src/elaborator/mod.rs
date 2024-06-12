@@ -1234,18 +1234,7 @@ impl<'context> Elaborator<'context> {
 
             trait_impl.resolved_trait_generics = trait_generics;
 
-            // This is resolving TxRequest in id 171 sometimes instead of 45 which doesn't happen
-            // in the resolver.
             let self_type = self.resolve_type(unresolved_type.clone());
-
-            if self_type == Type::Error {
-                let map = &self.def_maps[&self.crate_id];
-                let m = &map.modules[self.local_module.0];
-
-                let path = map.get_module_path(self.local_module.0, m.parent);
-                panic!("{} resolved to Type::Error in module {}", unresolved_type, path);
-            }
-
             self.self_type = Some(self_type.clone());
             trait_impl.methods.self_type = Some(self_type);
 
