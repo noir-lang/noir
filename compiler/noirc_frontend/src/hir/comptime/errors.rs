@@ -108,10 +108,9 @@ impl InterpreterError {
     }
 
     pub(crate) fn debug_evaluate_comptime(expr: impl Display, location: Location) -> Self {
-        let displayed_expr: String = format!("{}", expr);
         let diagnostic = CustomDiagnostic::simple_debug(
             "`comptime` expression ran:".to_string(),
-            format!("After evaluation:\n{}", displayed_expr),
+            format!("After evaluation:\n{}", expr),
             location.span,
         );
         InterpreterError::DebugEvaluateComptime { diagnostic, location }
