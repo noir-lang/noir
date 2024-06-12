@@ -33,7 +33,7 @@ pub enum ExpressionKind {
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
-    Quote(BlockExpression),
+    Quote(BlockExpression, Span),
     Comptime(BlockExpression, Span),
 
     // This variant is only emitted when inlining the result of comptime
@@ -548,7 +548,7 @@ impl Display for ExpressionKind {
             }
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
-            Quote(block) => write!(f, "quote {block}"),
+            Quote(block, _) => write!(f, "quote {block}"),
             Comptime(block, _) => write!(f, "comptime {block}"),
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),

@@ -1105,13 +1105,15 @@ fn quote<'a, P>(statement: P) -> impl NoirParser<ExpressionKind> + 'a
 where
     P: NoirParser<StatementKind> + 'a,
 {
-    keyword(Keyword::Quote).ignore_then(block(statement)).validate(|block, span, emit| {
-        emit(ParserError::with_reason(
-            ParserErrorReason::ExperimentalFeature("quoted expressions"),
-            span,
-        ));
-        ExpressionKind::Quote(block)
-    })
+    keyword(Keyword::Quote).ignore_then(spanned(block(statement))).validate(
+        |(block, block_span), span, emit| {
+            emit(ParserError::with_reason(
+                ParserErrorReason::ExperimentalFeature("quoted expressions"),
+                span,
+            ));
+            ExpressionKind::Quote(block, block_span)
+        },
+    )
 }
 
 /// unquote: '$' variable
