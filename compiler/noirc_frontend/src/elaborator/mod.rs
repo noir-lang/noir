@@ -402,6 +402,7 @@ impl<'context> Elaborator<'context> {
         meta.function_body = FunctionBody::Resolved;
 
         self.trait_bounds.clear();
+        self.type_variables.clear();
         self.in_unconstrained_fn = false;
         self.interner.update_fn(id, hir_func);
         self.in_contract = was_in_contract;
