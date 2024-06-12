@@ -751,7 +751,6 @@ impl<'context> Elaborator<'context> {
 
         let result = interpreter.call_function(function, comptime_args, location);
         let (expr_id, typ) = self.inline_comptime_value(result, location.span);
-        eprintln!("Inlined macro type is {typ:?}");
         Some((self.interner.expression(&expr_id), typ))
     }
 }
