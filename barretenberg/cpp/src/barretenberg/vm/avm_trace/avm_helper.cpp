@@ -133,7 +133,7 @@ bool is_operand_indirect(uint8_t ind_value, uint8_t operand_idx)
     return static_cast<bool>((ind_value & (1 << operand_idx)) >> operand_idx);
 }
 
-std::vector<std::vector<FF>> copy_public_inputs_columns(VmPublicInputs public_inputs)
+std::vector<std::vector<FF>> copy_public_inputs_columns(VmPublicInputs const& public_inputs)
 {
     // We convert to a vector as the pil generated verifier is generic and unaware of the KERNEL_INPUTS_LENGTH
     // For each of the public input vectors

@@ -28,7 +28,9 @@ static const bool ENABLE_PROVING = std::getenv("AVM_TESTS_ENABLE_PROVING") != nu
 // Otherwise, use validate_trace with a single argument. If the proving needs to be
 // enabled all the time in a given test, use validate_trace with setting with_proof = true.
 void validate_trace_check_circuit(std::vector<Row>&& trace, VmPublicInputs public_inputs = {});
-void validate_trace(std::vector<Row>&& trace, VmPublicInputs public_inputs = {}, bool with_proof = ENABLE_PROVING);
+void validate_trace(std::vector<Row>&& trace,
+                    VmPublicInputs const& public_inputs = {},
+                    bool with_proof = ENABLE_PROVING);
 void mutate_ic_in_trace(std::vector<Row>& trace,
                         std::function<bool(Row)>&& selectRow,
                         FF const& newValue,

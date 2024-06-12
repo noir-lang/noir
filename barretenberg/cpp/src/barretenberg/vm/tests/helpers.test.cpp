@@ -34,7 +34,7 @@ void validate_trace_check_circuit(std::vector<Row>&& trace, VmPublicInputs publi
  *
  * @param trace The execution trace
  */
-void validate_trace(std::vector<Row>&& trace, VmPublicInputs public_inputs, bool with_proof)
+void validate_trace(std::vector<Row>&& trace, VmPublicInputs const& public_inputs, bool with_proof)
 {
     auto circuit_builder = AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
