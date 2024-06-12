@@ -1121,7 +1121,8 @@ where
     P: ExprParser + 'a,
 {
     let unquote = variable().map_with_span(Expression::new).or(parenthesized(expr_parser));
-    just(Token::DollarSign).ignore_then(unquote).map(|expr| ExpressionKind::Unquote(Box::new(expr)))
+    // This will be updated to ExpressionKind::Unquote in a later PR
+    just(Token::DollarSign).ignore_then(unquote).map(|_| ExpressionKind::Error)
 }
 
 fn tuple<P>(expr_parser: P) -> impl NoirParser<Expression>

@@ -69,7 +69,7 @@ pub(super) fn bool_type() -> impl NoirParser<UnresolvedType> {
 
 /// This is the type `Expr` - the type of a quoted, untyped expression object used for macros
 pub(super) fn expr_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::Expr).map_with_span(|_, span| UnresolvedTypeData::Expr.with_span(span))
+    keyword(Keyword::Expr).map_with_span(|_, span| UnresolvedTypeData::Code.with_span(span))
 }
 
 pub(super) fn string_type() -> impl NoirParser<UnresolvedType> {
