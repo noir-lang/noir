@@ -576,6 +576,7 @@ version = "0.46.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
+ "ark-bn254",
  "ark-ec",
  "ark-ff",
  "ark-std",
