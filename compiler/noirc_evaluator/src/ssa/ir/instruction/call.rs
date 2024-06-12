@@ -296,7 +296,13 @@ pub(super) fn simplify_call(
         }
         Intrinsic::AsWitness => SimplifyResult::None,
         Intrinsic::IsUnconstrained => SimplifyResult::None,
-        Intrinsic::DerivePedersenGenerators => simplify_derive_generators(dfg, arguments),
+        Intrinsic::DerivePedersenGenerators => {
+            if let Some(Type::Array(_, len)) = ctrl_typevars.unwrap().first() {
+                simplify_derive_generators(dfg, arguments, *len as u32)
+            } else {
+                unreachable!("Derive Pedersen Generators must return an array");
+            }
+        }
     }
 }
 
@@ -629,13 +635,16 @@ fn simplify_signature(
     }
 }
 
-fn simplify_derive_generators(dfg: &mut DataFlowGraph, arguments: &[ValueId]) -> SimplifyResult {
-    if arguments.len() == 3 {
+fn simplify_derive_generators(
+    dfg: &mut DataFlowGraph,
+    arguments: &[ValueId],
+    num_generators: u32,
+) -> SimplifyResult {
+    if arguments.len() == 2 {
         let domain_separator_string = dfg.get_array_constant(arguments[0]);
-        let num_generators = dfg.get_numeric_constant(arguments[1]);
-        let starting_index = dfg.get_numeric_constant(arguments[2]);
-        if let (Some(domain_separator_string), Some(num_generators), Some(starting_index)) =
-            (domain_separator_string, num_generators, starting_index)
+        let starting_index = dfg.get_numeric_constant(arguments[1]);
+        if let (Some(domain_separator_string), Some(starting_index)) =
+            (domain_separator_string, starting_index)
         {
             let domain_separator_bytes = domain_separator_string
                 .0
@@ -644,7 +653,7 @@ fn simplify_derive_generators(dfg: &mut DataFlowGraph, arguments: &[ValueId]) ->
                 .collect::<Vec<u8>>();
             let generators = derive_generators(
                 &domain_separator_bytes,
-                num_generators.try_to_u32().expect("argument is declared as u32"),
+                num_generators,
                 starting_index.try_to_u32().expect("argument is declared as u32"),
             );
             let is_infinite = dfg.make_constant(FieldElement::zero(), Type::bool());

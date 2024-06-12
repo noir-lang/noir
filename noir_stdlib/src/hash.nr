@@ -55,16 +55,12 @@ pub fn pedersen_hash<N>(input: [Field; N]) -> Field
 fn derive_generators<N, M>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {
     crate::assert_constant(domain_separator_bytes);
     crate::assert_constant(starting_index);
-    __derive_generators(domain_separator_bytes, N, starting_index)
+    __derive_generators(domain_separator_bytes, starting_index)
 }
 
 #[builtin(derive_pedersen_generators)]
 #[field(bn254)]
-fn __derive_generators<N, M>(
-    domain_separator_bytes: [u8; M],
-    num_generators: u32,
-    starting_index: u32
-) -> [EmbeddedCurvePoint; N] {}
+fn __derive_generators<N, M>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {}
 
 pub fn pedersen_hash_with_separator<N>(input: [Field; N], separator: u32) -> Field {
     let v1 = pedersen_commitment(input);
