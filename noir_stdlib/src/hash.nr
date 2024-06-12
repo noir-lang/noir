@@ -42,7 +42,7 @@ pub fn pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) 
     for i in 0..N {
         points[i] = EmbeddedCurveScalar::from_field(input[i]);
     }
-    let generators = derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), N, separator);
+    let generators = derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
     let values = crate::embedded_curve_ops::multi_scalar_mul(generators, points);
     EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: values[2] as bool }
 }
