@@ -32,6 +32,7 @@ AvmTraceBuilder::AvmTraceBuilder(VmPublicInputs public_inputs,
     // NOTE: we initialise the environment builder here as it requires public inputs
     : kernel_trace_builder(std::move(public_inputs))
     , side_effect_counter(side_effect_counter)
+    , initial_side_effect_counter(side_effect_counter)
     , execution_hints(std::move(execution_hints))
 {
     main_trace.reserve(AVM_TRACE_SIZE);
@@ -4382,9 +4383,16 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
     // 4. Whenever we hit the last row, we zero all write_offsets such that the shift relation will succeed
     std::vector<AvmKernelTraceBuilder::KernelTraceEntry> kernel_trace = kernel_trace_builder.finalize();
     size_t kernel_padding_main_trace_bottom = 1;
-    for (size_t i = 0; i < kernel_trace.size(); i++) {
-        auto const& src = kernel_trace.at(i);
-        // check the clock and iterate through the main trace until we hit the clock
+
+    // Index 1 corresponds here to the first active row of the main execution trace, as
+    // we already prepended the extra row for shifted columns. Therefore, initialization
+    // of side_effect_counter occurs occurs on this row.
+    main_trace.at(1).avm_kernel_side_effect_counter = initial_side_effect_counter;
+
+    // External loop iterates over the kernel entries which are sorted by increasing clk.
+    // Internal loop iterates to fill the gap in main trace between each kernel entries.
+    for (auto const& src : kernel_trace) {
+        // Check the clock and iterate through the main trace until we hit the clock
         auto clk = src.clk;
 
         // Until the next kernel changing instruction is encountered we set all of the values of the offset arrays

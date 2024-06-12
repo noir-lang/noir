@@ -324,9 +324,10 @@ class AvmTraceBuilder {
         0; // After a nested call, it should be initialized with MAX_SIZE_INTERNAL_STACK * call_ptr
     uint8_t call_ptr = 0;
 
-    // Side effect counter will incremenent when any state writing values are
+    // Side effect counter will increment when any state writing values are
     // encountered
     uint32_t side_effect_counter = 0;
+    uint32_t initial_side_effect_counter; // This one is constant.
     uint32_t external_call_counter = 0;
 
     // Execution hints aid witness solving for instructions that require auxiliary information to construct
