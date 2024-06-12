@@ -1,5 +1,4 @@
 mod dungeon;
-mod tests;
 
 fn main(
     watcher_map: pub [[bool; 8]; 8],
