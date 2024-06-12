@@ -33,7 +33,7 @@ pub enum ExpressionKind {
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
-    Quote(BlockExpression),
+    Quote(BlockExpression, Span),
     Unquote(Box<Expression>),
     Comptime(BlockExpression, Span),
 
@@ -466,8 +466,8 @@ pub enum ArrayLiteral {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CallExpression {
     pub func: Box<Expression>,
-    pub is_macro_call: bool,
     pub arguments: Vec<Expression>,
+    pub is_macro_call: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -557,7 +557,7 @@ impl Display for ExpressionKind {
             }
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
-            Quote(block) => write!(f, "quote {block}"),
+            Quote(block, _) => write!(f, "quote {block}"),
             Comptime(block, _) => write!(f, "comptime {block}"),
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),

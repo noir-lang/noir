@@ -130,7 +130,9 @@ impl<'a> Interpreter<'a> {
             ExpressionKind::Tuple(tuple) => self.substitute_unquoted_into_tuple(tuple, args),
             ExpressionKind::Lambda(lambda) => self.substitute_unquoted_into_lambda(lambda, args),
             ExpressionKind::Parenthesized(expr) => self.substitute_unquoted_into_expr(expr, args),
-            ExpressionKind::Quote(quote) => self.substitute_unquoted_values_into_block(quote, args),
+            ExpressionKind::Quote(quote, _) => {
+                self.substitute_unquoted_values_into_block(quote, args)
+            }
             ExpressionKind::Unquote(unquote) => self.substitute_unquoted_into_expr(unquote, args),
             ExpressionKind::Comptime(comptime, _) => {
                 self.substitute_unquoted_values_into_block(comptime, args)

@@ -1641,7 +1641,7 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Parenthesized(sub_expr) => return self.resolve_expression(*sub_expr),
 
             // The quoted expression isn't resolved since we don't want errors if variables aren't defined
-            ExpressionKind::Quote(block) => {
+            ExpressionKind::Quote(block, _) => {
                 let quoted = HirQuoted { quoted_block: block, unquoted_exprs: Vec::new() };
                 HirExpression::Quote(quoted)
             }

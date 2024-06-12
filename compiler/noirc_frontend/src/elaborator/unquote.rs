@@ -138,7 +138,7 @@ impl<'a> Elaborator<'a> {
             ExpressionKind::Parenthesized(expr) => {
                 self.find_unquoted_exprs_in_expr(expr, unquoted_exprs);
             }
-            ExpressionKind::Quote(quote) => {
+            ExpressionKind::Quote(quote, _) => {
                 self.find_unquoted_exprs_in_block(quote, unquoted_exprs);
             }
             ExpressionKind::Comptime(block, _) => {
