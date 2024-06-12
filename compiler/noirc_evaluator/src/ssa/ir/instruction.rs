@@ -93,7 +93,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::AsField => write!(f, "as_field"),
             Intrinsic::AsWitness => write!(f, "as_witness"),
             Intrinsic::IsUnconstrained => write!(f, "is_unconstrained"),
-            Intrinsic::DeriveGenerators => write!(f, "derive_generators"),
+            Intrinsic::DeriveGenerators => write!(f, "derive_pedersen_generators"),
         }
     }
 }
@@ -158,7 +158,7 @@ impl Intrinsic {
             "as_field" => Some(Intrinsic::AsField),
             "as_witness" => Some(Intrinsic::AsWitness),
             "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
-            "derive_generators" => Some(Intrinsic::DeriveGenerators),
+            "derive_pedersen_generators" => Some(Intrinsic::DeriveGenerators),
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }
