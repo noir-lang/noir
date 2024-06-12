@@ -2,17 +2,16 @@ use dep::protocol_types::grumpkin_point::GrumpkinPoint;
 use crate::context::{PrivateContext, PublicContext};
 use crate::note::{
     note_header::NoteHeader, note_interface::NoteInterface,
-    utils::{compute_note_hash_for_insertion, compute_note_hash_for_consumption}
+    utils::{compute_note_hash_for_insertion, compute_note_hash_for_consumption},
+    note_emission::NoteEmission
 };
 use crate::oracle::notes::{notify_created_note, notify_nullified_note};
 
 pub fn create_note<Note, N, M>(
     context: &mut PrivateContext,
     storage_slot: Field,
-    note: &mut Note,
-    ovpk_m: GrumpkinPoint,
-    ivpk_m: GrumpkinPoint
-) where Note: NoteInterface<N, M> {
+    note: &mut Note
+) -> NoteEmission<Note> where Note: NoteInterface<N, M> {
     let contract_address = (*context).this_address();
     let note_hash_counter = context.side_effect_counter;
 
@@ -36,7 +35,7 @@ pub fn create_note<Note, N, M>(
 
     context.push_new_note_hash(inner_note_hash);
 
-    Note::broadcast(*note, context, storage_slot, ovpk_m, ivpk_m);
+    NoteEmission::new(*note)
 }
 
 pub fn create_note_hash_from_public<Note, N, M>(

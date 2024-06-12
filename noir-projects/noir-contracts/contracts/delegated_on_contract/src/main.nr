@@ -4,6 +4,7 @@ contract DelegatedOn {
         AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, NoteViewerOptions, PublicMutable,
         PrivateSet, PrivateContext, Map
     };
+    use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt;
     use dep::aztec::{protocol_types::grumpkin_point::GrumpkinPoint};
     use dep::value_note::value_note::ValueNote;
 
@@ -17,11 +18,9 @@ contract DelegatedOn {
     fn private_set_value(new_value: Field, owner: AztecAddress) -> Field {
         let header = context.get_header();
         let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
-        let msg_sender_ovpk_m = header.get_ovpk_m(&mut context, context.msg_sender());
-        let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
 
         let mut note = ValueNote::new(new_value, owner_npk_m_hash);
-        storage.a_map_with_private_values.at(owner).insert(&mut note, msg_sender_ovpk_m, owner_ivpk_m);
+        storage.a_map_with_private_values.at(owner).insert(&mut note).emit(encode_and_encrypt(&mut context, context.msg_sender(), owner));
         new_value
     }
 

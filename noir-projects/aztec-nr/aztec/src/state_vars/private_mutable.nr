@@ -6,7 +6,7 @@ use dep::protocol_types::{
 use crate::context::{PrivateContext, UnconstrainedContext};
 use crate::note::{
     lifecycle::{create_note, destroy_note}, note_getter::{get_note, view_notes},
-    note_interface::NoteInterface, note_viewer_options::NoteViewerOptions
+    note_interface::NoteInterface, note_viewer_options::NoteViewerOptions, note_emission::NoteEmission
 };
 use crate::oracle::notes::check_nullifier_exists;
 use crate::state_vars::storage::Storage;
@@ -50,41 +50,32 @@ impl<Note> PrivateMutable<Note, &mut PrivateContext> {
     // docs:start:initialize
     pub fn initialize<N, M>(
         self,
-        note: &mut Note,
-        ovpk_m: GrumpkinPoint,
-        ivpk_m: GrumpkinPoint
-    ) where Note: NoteInterface<N, M> {
+        note: &mut Note
+    ) -> NoteEmission<Note> where Note: NoteInterface<N, M> {
         // Nullify the storage slot.
         let nullifier = self.compute_initialization_nullifier();
         self.context.push_new_nullifier(nullifier, 0);
 
-        create_note(self.context, self.storage_slot, note, ovpk_m, ivpk_m);
+        create_note(self.context, self.storage_slot, note)
     }
     // docs:end:initialize
 
     // docs:start:replace
     pub fn replace<N, M>(
         self,
-        new_note: &mut Note,
-        ovpk_m: GrumpkinPoint,
-        ivpk_m: GrumpkinPoint
-    ) where Note: NoteInterface<N, M> {
+        new_note: &mut Note
+    ) -> NoteEmission<Note>  where Note: NoteInterface<N, M> {
         let prev_note: Note = get_note(self.context, self.storage_slot);
 
         // Nullify previous note.
         destroy_note(self.context, prev_note);
 
         // Add replacement note.
-        create_note(self.context, self.storage_slot, new_note, ovpk_m, ivpk_m);
+        create_note(self.context, self.storage_slot, new_note)
     }
     // docs:end:replace
 
-    pub fn initialize_or_replace<N, M>(
-        self,
-        note: &mut Note,
-        ovpk_m: GrumpkinPoint,
-        ivpk_m: GrumpkinPoint
-    ) where Note: NoteInterface<N, M> {
+    pub fn initialize_or_replace<N, M>(self, note: &mut Note) -> NoteEmission<Note>  where Note: NoteInterface<N, M> {
         let is_initialized = check_nullifier_exists(self.compute_initialization_nullifier());
 
         // check_nullifier_exists() is an unconstrained function - we can constrain a true value by providing an 
@@ -98,18 +89,14 @@ impl<Note> PrivateMutable<Note, &mut PrivateContext> {
         // This means that an honest oracle will assist the prover to produce a valid proof, while a malicious oracle
         // (i.e. one that returns an incorrect value for is_initialized) will simply fail to produce a proof.
         if (!is_initialized) {
-            self.initialize(note, ovpk_m, ivpk_m);
+            self.initialize(note)
         } else {
-            self.replace(note, ovpk_m, ivpk_m)
+            self.replace(note)
         }
     }
 
     // docs:start:get_note
-    pub fn get_note<N, M>(
-        self,
-        ovpk_m: GrumpkinPoint,
-        ivpk_m: GrumpkinPoint
-    ) -> Note where Note: NoteInterface<N, M> {
+    pub fn get_note<N, M>(self) -> NoteEmission<Note> where Note: NoteInterface<N, M> {
         let mut note = get_note(self.context, self.storage_slot);
 
         // Nullify current note to make sure it's reading the latest note.
@@ -117,9 +104,7 @@ impl<Note> PrivateMutable<Note, &mut PrivateContext> {
 
         // Add the same note again.
         // Because a nonce is added to every note in the kernel, its nullifier will be different.
-        create_note(self.context, self.storage_slot, &mut note, ovpk_m, ivpk_m);
-
-        note
+        create_note(self.context, self.storage_slot, &mut note)
     }
     // docs:end:get_note
 }

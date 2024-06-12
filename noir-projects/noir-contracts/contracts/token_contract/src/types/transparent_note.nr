@@ -60,10 +60,6 @@ impl NoteInterface<TRANSPARENT_NOTE_LEN, TRANSPARENT_NOTE_BYTES_LEN> for Transpa
             GENERATOR_INDEX__NOTE_NULLIFIER as Field,
         ])
     }
-
-    fn broadcast(self, context: &mut PrivateContext, slot: Field, ovpk_m: GrumpkinPoint, ivpk_m: GrumpkinPoint) {
-        assert(false, "TransparentNote does not support broadcast");
-    }
 }
 
 impl TransparentNote {

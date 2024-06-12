@@ -1,6 +1,7 @@
 use dep::aztec::{
     context::PrivateContext, protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint},
-    note::note_getter_options::NoteGetterOptions, state_vars::PrivateSet
+    note::note_getter_options::NoteGetterOptions, state_vars::PrivateSet,
+    encrypted_logs::encrypted_note_emission::encode_and_encrypt
 };
 use dep::value_note::{filter::filter_notes_min_sum, value_note::ValueNote};
 
@@ -24,14 +25,12 @@ impl<Context> EasyPrivateUint<&mut PrivateContext> {
     pub fn add(self, addend: u64, owner: AztecAddress, outgoing_viewer: AztecAddress) {
         let header = self.context.get_header();
         let owner_npk_m_hash = header.get_npk_m_hash(self.context, owner);
-        let outgoing_viewer = header.get_ovpk_m(self.context, outgoing_viewer);
-        let owner_ivpk_m = header.get_ivpk_m(self.context, owner);
         // Creates new note for the owner.
         let mut addend_note = ValueNote::new(addend as Field, owner_npk_m_hash);
 
         // Insert the new note to the owner's set of notes.
         // docs:start:insert
-        self.set.insert(&mut addend_note, outgoing_viewer, owner_ivpk_m);
+        self.set.insert(&mut addend_note).emit(encode_and_encrypt(self.context, outgoing_viewer, owner));
         // docs:end:insert
     }
 
@@ -39,8 +38,6 @@ impl<Context> EasyPrivateUint<&mut PrivateContext> {
     pub fn sub(self, subtrahend: u64, owner: AztecAddress, outgoing_viewer: AztecAddress) {
         let header = self.context.get_header();
         let owner_npk_m_hash = header.get_npk_m_hash(self.context, owner);
-        let outgoing_viewer_ovpk_m = header.get_ovpk_m(self.context, outgoing_viewer);
-        let owner_ivpk_m = header.get_ivpk_m(self.context, owner);
 
         // docs:start:get_notes
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, subtrahend as Field);
@@ -66,6 +63,6 @@ impl<Context> EasyPrivateUint<&mut PrivateContext> {
         // Creates change note for the owner.
         let result_value = minuend - subtrahend;
         let mut result_note = ValueNote::new(result_value as Field, owner_npk_m_hash);
-        self.set.insert(&mut result_note, outgoing_viewer_ovpk_m, owner_ivpk_m);
+        self.set.insert(&mut result_note).emit(encode_and_encrypt(self.context, outgoing_viewer, owner));
     }
 }

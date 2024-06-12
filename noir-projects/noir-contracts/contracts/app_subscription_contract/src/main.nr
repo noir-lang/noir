@@ -9,6 +9,7 @@ contract AppSubscription {
         AztecAddress, FunctionSelector, PrivateContext, NoteHeader, Map, PrivateMutable, PublicMutable,
         SharedImmutable
     },
+        encrypted_logs::encrypted_note_emission::encode_and_encrypt,
         protocol_types::{traits::is_empty, grumpkin_point::GrumpkinPoint}
     },
         authwit::{account::AccountActions, auth_witness::get_auth_witness, auth::assert_current_call_valid_authwit},
@@ -37,18 +38,14 @@ contract AppSubscription {
         assert(context.msg_sender().to_field() == 0);
         assert_current_call_valid_authwit(&mut context, user_address);
 
-        let header = context.get_header();
-        // We are emitting both the outgoing and the incoming logs to the subscriber here because passing a separate
-        // outgoing_viewer arg to entrypoint function is impractical and the outgoing are not so valuable here.
-        let subscriber_ovpk_m = header.get_ovpk_m(&mut context, user_address);
-        let subscriber_ivpk_m = header.get_ivpk_m(&mut context, user_address);
-
-        let mut note = storage.subscriptions.at(user_address).get_note(subscriber_ovpk_m, subscriber_ivpk_m);
+        let mut note = storage.subscriptions.at(user_address).get_note().note;
         assert(note.remaining_txs as u64 > 0, "you're out of txs");
 
         note.remaining_txs -= 1;
 
-        storage.subscriptions.at(user_address).replace(&mut note, subscriber_ovpk_m, subscriber_ivpk_m);
+        // We are emitting both the outgoing and the incoming logs to the subscriber here because passing a separate
+        // outgoing_viewer arg to entrypoint function is impractical and the outgoing are not so valuable here.
+        storage.subscriptions.at(user_address).replace(&mut note).emit(encode_and_encrypt(&mut context, user_address, user_address));
 
         context.set_as_fee_payer();
 
@@ -117,11 +114,9 @@ contract AppSubscription {
         AppSubscription::at(context.this_address()).assert_block_number(expiry_block_number).enqueue_view(&mut context);
         let header = context.get_header();
         let subscriber_npk_m_hash = header.get_npk_m_hash(&mut context, subscriber_address);
-        let msg_sender_ovpk_m = header.get_ovpk_m(&mut context, context.msg_sender());
-        let subscriber_ivpk_m = header.get_ivpk_m(&mut context, subscriber_address);
 
         let mut subscription_note = SubscriptionNote::new(subscriber_npk_m_hash, expiry_block_number, tx_count);
-        storage.subscriptions.at(subscriber_address).initialize_or_replace(&mut subscription_note, msg_sender_ovpk_m, subscriber_ivpk_m);
+        storage.subscriptions.at(subscriber_address).initialize_or_replace(&mut subscription_note).emit(encode_and_encrypt(&mut context, context.msg_sender(), subscriber_address));
     }
 
     unconstrained fn is_initialized(subscriber_address: AztecAddress) -> pub bool {

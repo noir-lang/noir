@@ -6,7 +6,7 @@ use dep::protocol_types::{
 use crate::context::{PrivateContext, UnconstrainedContext};
 use crate::note::{
     lifecycle::create_note, note_getter::{get_note, view_notes}, note_interface::NoteInterface,
-    note_viewer_options::NoteViewerOptions
+    note_viewer_options::NoteViewerOptions, note_emission::NoteEmission
 };
 use crate::oracle::notes::check_nullifier_exists;
 use crate::state_vars::storage::Storage;
@@ -46,15 +46,13 @@ impl<Note> PrivateImmutable<Note, &mut PrivateContext> {
     // docs:start:initialize
     pub fn initialize<N, M>(
         self,
-        note: &mut Note,
-        ovpk_m: GrumpkinPoint,
-        ivpk_m: GrumpkinPoint
-    ) where Note: NoteInterface<N, M> {
+        note: &mut Note
+    ) -> NoteEmission<Note> where Note: NoteInterface<N, M> {
         // Nullify the storage slot.
         let nullifier = self.compute_initialization_nullifier();
         self.context.push_new_nullifier(nullifier, 0);
 
-        create_note(self.context, self.storage_slot, note, ovpk_m, ivpk_m);
+        create_note(self.context, self.storage_slot, note)
     }
     // docs:end:initialize
 

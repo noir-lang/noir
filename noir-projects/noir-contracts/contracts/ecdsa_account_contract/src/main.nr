@@ -4,6 +4,7 @@ mod ecdsa_public_key_note;
 // The signing key is stored in an immutable private note and should be different from the signing key.
 contract EcdsaAccount {
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PrivateContext, PrivateImmutable};
+    use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt;
 
     use dep::aztec::protocol_types::abis::call_context::CallContext;
     use dep::std;
@@ -32,11 +33,9 @@ contract EcdsaAccount {
         // Not emitting outgoing for msg_sender here to not have to register keys for the contract through which we
         // deploy this (typically MultiCallEntrypoint). I think it's ok here as I feel the outgoing here is not that
         // important.
-        let this_ovpk_m = header.get_ovpk_m(&mut context, this);
-        let this_ivpk_m = header.get_ivpk_m(&mut context, this);
 
         let mut pub_key_note = EcdsaPublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this_npk_m_hash);
-        storage.public_key.initialize(&mut pub_key_note, this_ovpk_m, this_ivpk_m);
+        storage.public_key.initialize(&mut pub_key_note).emit(encode_and_encrypt(&mut context, this, this));
     }
 
     // Note: If you globally change the entrypoint signature don't forget to update default_entrypoint.ts

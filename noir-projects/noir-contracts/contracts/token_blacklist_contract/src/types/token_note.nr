@@ -47,20 +47,6 @@ impl NoteInterface<TOKEN_NOTE_LEN, TOKEN_NOTE_BYTES_LEN> for TokenNote {
             GENERATOR_INDEX__NOTE_NULLIFIER as Field,
         ])
     }
-
-    // Broadcasts the note as an encrypted log on L1.
-    fn broadcast(self, context: &mut PrivateContext, slot: Field, ovpk_m: GrumpkinPoint, ivpk_m: GrumpkinPoint) {
-      // We only bother inserting the note if non-empty to save funds on gas.
-      // TODO: (#5901) This will be changed a lot, as it should use the updated encrypted log format
-      if !(self.amount == U128::from_integer(0)) {
-          context.encrypt_and_emit_note(
-              slot,
-              ovpk_m,
-              ivpk_m,
-              self,
-          );
-      }
-    }
 }
 
 impl OwnedNote for TokenNote {

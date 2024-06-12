@@ -2,13 +2,12 @@ use dep::aztec::{
     prelude::{AztecAddress, NoteHeader, NoteInterface, PrivateContext},
     protocol_types::{constants::GENERATOR_INDEX__NOTE_NULLIFIER, grumpkin_point::GrumpkinPoint, hash::poseidon2_hash},
     note::utils::compute_note_hash_for_consumption, oracle::unsafe_rand::unsafe_rand,
-    keys::getters::get_nsk_app
+    note::note_emission::NoteEmission, keys::getters::get_nsk_app
 };
 
 trait OwnedNote {
     fn new(amount: U128, owner_npk_m_hash: Field) -> Self;
     fn get_amount(self) -> U128;
-    fn get_owner_npk_m_hash(self) -> Field;
 }
 
 global TOKEN_NOTE_LEN: Field = 3; // 3 plus a header.
@@ -47,20 +46,6 @@ impl NoteInterface<TOKEN_NOTE_LEN, TOKEN_NOTE_BYTES_LEN> for TokenNote {
             GENERATOR_INDEX__NOTE_NULLIFIER as Field,
         ])
     }
-
-    // Broadcasts the note as an encrypted log on L1.
-    fn broadcast(self, context: &mut PrivateContext, slot: Field, ovpk_m: GrumpkinPoint, ivpk_m: GrumpkinPoint) {
-      // We only bother inserting the note if non-empty to save funds on gas.
-      // TODO: (#5901) This will be changed a lot, as it should use the updated encrypted log format
-      if !(self.amount == U128::from_integer(0)) {
-          context.encrypt_and_emit_note(
-              slot,
-              ovpk_m,
-              ivpk_m,
-              self,
-          );
-      }
-    }
 }
 
 impl OwnedNote for TokenNote {
@@ -75,9 +60,5 @@ impl OwnedNote for TokenNote {
 
     fn get_amount(self) -> U128 {
         self.amount
-    }
-
-    fn get_owner_npk_m_hash(self) -> Field {
-        self.npk_m_hash
     }
 }

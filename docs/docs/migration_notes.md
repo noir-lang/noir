@@ -6,6 +6,21 @@ keywords: [sandbox, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
+## TBD
+
+### [Aztec.nr] emit encrypted logs
+
+Emitting or broadcasting encrypted notes are no longer done as part of the note creation, but must explicitly be either emitted or discarded instead.
+
+```diff
++ use dep::aztec::encrypted_logs::encrypted_note_emission::{encode_and_encrypt, encode_and_encrypt_with_keys};
+
+- storage.balances.sub(from, amount);
++ storage.balances.sub(from, amount).emit(encode_and_encrypt_with_keys(&mut context, from, from));
++ storage.balances.sub(from, amount).emit(encode_and_encrypt_with_keys(&mut context, from_ovpk, from_ivpk));
++ storage.balances.sub(from, amount).discard();
+```
+
 ## 0.42.0
 
 ### [Aztec.nr] Unconstrained Context

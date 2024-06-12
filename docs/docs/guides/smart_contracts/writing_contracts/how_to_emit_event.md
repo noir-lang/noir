@@ -33,11 +33,13 @@ Then to register the recipient's complete address in PXE we would call `register
 If a note recipient is one of the accounts inside the PXE, we don't need to register it as a recipient because we already have the public key available. You can register a recipient as shown [here](../how_to_deploy_contract.md)
 :::
 
-### Call encrypt_and_emit_note
+### Call emit
 
-To emit encrypted logs you don't need to import any library. You call the context method `encrypt_and_emit_note`:
+To emit encrypted logs you can import the `encode_and_encrypt` or `encode_and_encrypt_with_keys` functions and pass them into the `emit` function after inserting a note. An example can be seen in the reference token contract's transfer function:
 
-#include_code encrypted /noir-projects/aztec-nr/address-note/src/address_note.nr rust
+#include_code encrypted /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
+
+Furthermore, if not emitting the note, one should explicitly `discard` the value returned from the note creation.
 
 ### Successfully process the encrypted event
 

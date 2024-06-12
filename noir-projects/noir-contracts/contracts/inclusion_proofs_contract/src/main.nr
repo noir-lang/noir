@@ -4,6 +4,7 @@ contract InclusionProofs {
         AztecAddress, EthAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PrivateContext, Map,
         PrivateSet, PublicMutable
     };
+    use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt;
 
     use dep::aztec::protocol_types::{grumpkin_point::GrumpkinPoint, contract_class_id::ContractClassId, header::Header};
     use dep::aztec::{note::note_getter_options::NoteStatus};
@@ -33,11 +34,9 @@ contract InclusionProofs {
         let owner_private_values = storage.private_values.at(owner);
         let header = context.get_header();
         let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
-        let msg_sender_ovpk_m = header.get_ovpk_m(&mut context, context.msg_sender());
-        let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
 
         let mut note = ValueNote::new(value, owner_npk_m_hash);
-        owner_private_values.insert(&mut note, msg_sender_ovpk_m, owner_ivpk_m);
+        owner_private_values.insert(&mut note).emit(encode_and_encrypt(&mut context, context.msg_sender(), owner));
     }
     // docs:end:create_note
 

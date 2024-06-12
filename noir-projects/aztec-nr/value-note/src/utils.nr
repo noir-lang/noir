@@ -1,6 +1,7 @@
 use dep::aztec::prelude::{AztecAddress, PrivateContext, PrivateSet, NoteGetterOptions};
 use dep::aztec::note::note_getter_options::SortOrder;
 use dep::aztec::protocol_types::grumpkin_point::GrumpkinPoint;
+use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt;
 use crate::{filter::filter_notes_min_sum, value_note::{ValueNote, VALUE_NOTE_LEN, VALUE_NOTE_BYTES_LEN}};
 
 // Sort the note values (0th field) in descending order.
@@ -19,12 +20,10 @@ pub fn increment(
 ) {
     let header = balance.context.get_header();
     let recipient_npk_m_hash = header.get_npk_m_hash(balance.context, recipient);
-    let outgoing_viewer_ovpk_m = header.get_ovpk_m(balance.context, outgoing_viewer);
-    let recipient_ivpk_m = header.get_ivpk_m(balance.context, recipient);
 
     let mut note = ValueNote::new(amount, recipient_npk_m_hash);
     // Insert the new note to the owner's set of notes and emit the log if value is non-zero.
-    balance.insert(&mut note, outgoing_viewer_ovpk_m, recipient_ivpk_m);
+    balance.insert(&mut note).emit(encode_and_encrypt(balance.context, outgoing_viewer, recipient));
 }
 
 // Find some of the `owner`'s notes whose values add up to the `amount`.

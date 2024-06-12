@@ -38,16 +38,6 @@ impl NoteInterface<PUBLIC_KEY_NOTE_LEN, PUBLIC_KEY_NOTE_BYTES_LEN> for PublicKey
             GENERATOR_INDEX__NOTE_NULLIFIER as Field,
         ])
     }
-
-    // Broadcasts the note as an encrypted log on L1.
-    fn broadcast(self, context: &mut PrivateContext, slot: Field, ovpk_m: GrumpkinPoint, ivpk_m: GrumpkinPoint) {
-        context.encrypt_and_emit_note(
-            slot,
-            ovpk_m,
-            ivpk_m,
-            self,
-        );
-    }
 }
 
 impl PublicKeyNote {
