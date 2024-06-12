@@ -61,6 +61,18 @@ pub enum BlackBoxOp {
         signature: HeapVector,
         result: MemoryAddress,
     },
+    /// Deprecated. To be removed with a sync from aztec-packages
+    PedersenCommitment {
+        inputs: HeapVector,
+        domain_separator: MemoryAddress,
+        output: HeapArray,
+    },
+    /// Deprecated. To be removed with a sync from aztec-packages
+    PedersenHash {
+        inputs: HeapVector,
+        domain_separator: MemoryAddress,
+        output: MemoryAddress,
+    },
     /// Performs multi scalar multiplication over the embedded curve.
     MultiScalarMul {
         points: HeapVector,

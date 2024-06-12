@@ -365,6 +365,8 @@ impl GeneratedAcir {
                     .expect("Compiler should generate correct size inputs"),
                 outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
             },
+            BlackBoxFunc::PedersenCommitment => todo!("Deprecated Blackbox"),
+            BlackBoxFunc::PedersenHash => todo!("Deprecated Blackbox"),
         };
 
         self.push_opcode(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
@@ -683,6 +685,8 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
 
         // FromLeBytes takes a variable array of bytes as input
         BlackBoxFunc::BigIntFromLeBytes => None,
+        BlackBoxFunc::PedersenCommitment => todo!(),
+        BlackBoxFunc::PedersenHash => todo!(),
     }
 }
 
@@ -734,6 +738,8 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 
         // AES encryption returns a variable number of outputs
         BlackBoxFunc::AES128Encrypt => None,
+        BlackBoxFunc::PedersenCommitment => todo!(),
+        BlackBoxFunc::PedersenHash => todo!(),
     }
 }
 

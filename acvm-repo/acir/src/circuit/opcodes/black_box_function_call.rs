@@ -54,6 +54,18 @@ pub enum BlackBoxFuncCall {
         message: Vec<FunctionInput>,
         output: Witness,
     },
+    /// Deprecated. To be removed with a sync from aztec-packages
+    PedersenCommitment {
+        inputs: Vec<FunctionInput>,
+        domain_separator: u32,
+        outputs: (Witness, Witness),
+    },
+    /// Deprecated. To be removed with a sync from aztec-packages
+    PedersenHash {
+        inputs: Vec<FunctionInput>,
+        domain_separator: u32,
+        output: Witness,
+    },
     EcdsaSecp256k1 {
         public_key_x: Box<[FunctionInput; 32]>,
         public_key_y: Box<[FunctionInput; 32]>,
@@ -194,6 +206,8 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::BigIntToLeBytes { .. } => BlackBoxFunc::BigIntToLeBytes,
             BlackBoxFuncCall::Poseidon2Permutation { .. } => BlackBoxFunc::Poseidon2Permutation,
             BlackBoxFuncCall::Sha256Compression { .. } => BlackBoxFunc::Sha256Compression,
+            BlackBoxFuncCall::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
+            BlackBoxFuncCall::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
         }
     }
 
@@ -304,6 +318,8 @@ impl BlackBoxFuncCall {
                 inputs.push(*key_hash);
                 inputs
             }
+            BlackBoxFuncCall::PedersenCommitment { .. } => todo!(),
+            BlackBoxFuncCall::PedersenHash { .. } => todo!(),
         }
     }
 
@@ -340,6 +356,8 @@ impl BlackBoxFuncCall {
                 vec![]
             }
             BlackBoxFuncCall::BigIntToLeBytes { outputs, .. } => outputs.to_vec(),
+            BlackBoxFuncCall::PedersenCommitment { .. } => todo!(),
+            BlackBoxFuncCall::PedersenHash { .. } => todo!(),
         }
     }
 }
@@ -405,6 +423,14 @@ fn get_outputs_string(outputs: &[Witness]) -> String {
 
 impl std::fmt::Display for BlackBoxFuncCall {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BlackBoxFuncCall::PedersenCommitment { .. } => {
+                return write!(f, "BLACKBOX::Deprecated")
+            }
+            BlackBoxFuncCall::PedersenHash { .. } => return write!(f, "BLACKBOX::Deprecated"),
+            _ => (),
+        }
+
         let uppercase_name = self.name().to_uppercase();
         write!(f, "BLACKBOX::{uppercase_name} ")?;
         // INPUTS

@@ -390,6 +390,8 @@ pub(crate) fn convert_black_box_call(
                 unreachable!("ICE: AES128Encrypt expects three array arguments, one array result")
             }
         }
+        BlackBoxFunc::PedersenCommitment => todo!("Deprecated Blackbox"),
+        BlackBoxFunc::PedersenHash => todo!("Deprecated Blackbox"),
     }
 }
 

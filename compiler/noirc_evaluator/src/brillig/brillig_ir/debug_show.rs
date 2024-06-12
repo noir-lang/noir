@@ -444,6 +444,8 @@ impl DebugShow {
                     output
                 );
             }
+            BlackBoxOp::PedersenCommitment { .. } => todo!("Deprecated Blackbox"),
+            BlackBoxOp::PedersenHash { .. } => todo!("Deprecated Blackbox"),
         }
     }
 

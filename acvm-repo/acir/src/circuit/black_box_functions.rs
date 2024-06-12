@@ -82,7 +82,10 @@ pub enum BlackBoxFunc {
     ///
     /// [grumpkin]: https://hackmd.io/@aztec-network/ByzgNxBfd#2-Grumpkin---A-curve-on-top-of-BN-254-for-SNARK-efficient-group-operations
     SchnorrVerify,
-
+    /// Deprecated. To be removed with a sync from aztec-packages
+    PedersenCommitment,
+    /// Deprecated. To be removed with a sync from aztec-packages
+    PedersenHash,
     /// Verifies a ECDSA signature over the secp256k1 curve.
     /// - inputs:
     ///     - x coordinate of public key as 32 bytes
@@ -224,6 +227,8 @@ impl BlackBoxFunc {
             BlackBoxFunc::BigIntToLeBytes => "bigint_to_le_bytes",
             BlackBoxFunc::Poseidon2Permutation => "poseidon2_permutation",
             BlackBoxFunc::Sha256Compression => "sha256_compression",
+            BlackBoxFunc::PedersenCommitment => "deprecated",
+            BlackBoxFunc::PedersenHash => "deprecated",
         }
     }
 

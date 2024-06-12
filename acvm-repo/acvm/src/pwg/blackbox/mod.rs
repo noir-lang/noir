@@ -179,5 +179,7 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len } => {
             solve_poseidon2_permutation_opcode(backend, initial_witness, inputs, outputs, *len)
         }
+        BlackBoxFuncCall::PedersenCommitment { .. } => todo!("Deprecated BlackBox"),
+        BlackBoxFuncCall::PedersenHash { .. } => todo!("Deprecated BlackBox"),
     }
 }
