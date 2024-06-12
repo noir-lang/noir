@@ -1,7 +1,8 @@
 use iter_extended::{btree_map, vecmap};
+use prop::collection::vec;
 use proptest::prelude::*;
 
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 
 use crate::{
     input_parser::InputValue, Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, InputMap,
@@ -30,28 +31,72 @@ proptest::prop_compose! {
     }
 }
 
-fn arb_primitive_abi_type_and_value(
-) -> impl proptest::strategy::Strategy<Value = (AbiType, InputValue)> {
-    proptest::prop_oneof![
-        any::<u128>().prop_map(|val| (AbiType::Field, InputValue::Field(FieldElement::from(val)))),
-        any::<(Sign, u32)>().prop_flat_map(|(sign, width)| {
-            let width = (width % 128).clamp(1, 127);
-            (
-                Just(AbiType::Integer { sign, width }),
-                arb_field_from_integer(width).prop_map(InputValue::Field),
-            )
-        }),
-        any::<bool>()
-            .prop_map(|val| (AbiType::Boolean, InputValue::Field(FieldElement::from(val)))),
-        ".+".prop_map(|str| (
-            AbiType::String { length: str.len() as u32 },
-            InputValue::String(str)
-        ))
-    ]
+fn arb_value_from_abi_type(abi_type: &AbiType) -> SBoxedStrategy<InputValue> {
+    match abi_type {
+        AbiType::Field => vec(any::<u8>(), 32)
+            .prop_map(|bytes| InputValue::Field(FieldElement::from_be_bytes_reduce(&bytes)))
+            .sboxed(),
+        AbiType::Integer { width, .. } => {
+            arb_field_from_integer(*width).prop_map(InputValue::Field).sboxed()
+        }
+
+        AbiType::Boolean => {
+            any::<bool>().prop_map(|val| InputValue::Field(FieldElement::from(val))).sboxed()
+        }
+
+        AbiType::String { length } => {
+            // Strings only allow ASCII characters as each character must be able to be represented by a single byte.
+            let string_regex = format!("[[:ascii:]]{{{length}}}");
+            proptest::string::string_regex(&string_regex)
+                .expect("fix me")
+                .prop_map(InputValue::String)
+                .sboxed()
+        }
+        AbiType::Array { length, typ } => {
+            let length = *length as usize;
+            let elements = vec(arb_value_from_abi_type(typ), length..=length);
+
+            elements.prop_map(InputValue::Vec).sboxed()
+        }
+
+        AbiType::Struct { fields, .. } => {
+            let fields: Vec<SBoxedStrategy<(String, InputValue)>> = fields
+                .iter()
+                .map(|(name, typ)| (Just(name.clone()), arb_value_from_abi_type(typ)).sboxed())
+                .collect();
+
+            fields
+                .prop_map(|fields| {
+                    let fields: BTreeMap<_, _> = fields.into_iter().collect();
+                    InputValue::Struct(fields)
+                })
+                .sboxed()
+        }
+
+        AbiType::Tuple { fields } => {
+            let fields: Vec<_> = fields.iter().map(arb_value_from_abi_type).collect();
+            fields.prop_map(InputValue::Vec).sboxed()
+        }
+    }
 }
 
-fn arb_abi_type_and_value() -> impl proptest::strategy::Strategy<Value = (AbiType, InputValue)> {
-    let leaf = arb_primitive_abi_type_and_value();
+fn arb_primitive_abi_type() -> SBoxedStrategy<AbiType> {
+    const MAX_STRING_LEN: u32 = 1000;
+    proptest::prop_oneof![
+        Just(AbiType::Field),
+        Just(AbiType::Boolean),
+        any::<(Sign, u32)>().prop_map(|(sign, width)| {
+            let width = (width % 128).clamp(1, 127);
+            AbiType::Integer { sign, width }
+        }),
+        // restrict length of strings to avoid running out of memory
+        (1..MAX_STRING_LEN).prop_map(|length| AbiType::String { length }),
+    ]
+    .sboxed()
+}
+
+pub(super) fn arb_abi_type() -> BoxedStrategy<AbiType> {
+    let leaf = arb_primitive_abi_type();
 
     leaf.prop_recursive(
         8,   // 8 levels deep
@@ -59,47 +104,40 @@ fn arb_abi_type_and_value() -> impl proptest::strategy::Strategy<Value = (AbiTyp
         10,  // We put up to 10 items per collection
         |inner| {
             prop_oneof![
-                // TODO: support `AbiType::Array`.
-                // This is non-trivial due to the need to get N `InputValue`s which are all compatible with
-                // the element's `AbiType`.`
-                prop::collection::vec(inner.clone(), 1..10).prop_map(|typ| {
-                    let (fields, values): (Vec<_>, Vec<_>) = typ.into_iter().unzip();
-                    let tuple_type = AbiType::Tuple { fields };
-                    (tuple_type, InputValue::Vec(values))
-                }),
-                (".*", prop::collection::vec((inner.clone(), ".*"), 1..10)).prop_map(
-                    |(path, mut typ)| {
+                (1..10u32, inner.clone())
+                    .prop_map(|(length, typ)| { AbiType::Array { length, typ: Box::new(typ) } })
+                    .boxed(),
+                prop::collection::vec(inner.clone(), 1..10)
+                    .prop_map(|fields| { AbiType::Tuple { fields } })
+                    .boxed(),
+                (".*", prop::collection::vec((".+", inner), 1..10))
+                    .prop_map(|(path, mut fields)| {
                         // Require that all field names are unique.
-                        ensure_unique_strings(typ.iter_mut().map(|(_, field_name)| field_name));
-
-                        let (types_and_values, names): (Vec<_>, Vec<_>) = typ.into_iter().unzip();
-                        let (types, values): (Vec<_>, Vec<_>) =
-                            types_and_values.into_iter().unzip();
-
-                        let fields = names.clone().into_iter().zip(types).collect();
-                        let struct_values = names.into_iter().zip(values).collect();
-                        let struct_type = AbiType::Struct { path, fields };
-
-                        (struct_type, InputValue::Struct(struct_values))
-                    }
-                ),
+                        ensure_unique_strings(fields.iter_mut().map(|(field_name, _)| field_name));
+                        AbiType::Struct { path, fields }
+                    })
+                    .boxed(),
             ]
         },
     )
+    .boxed()
 }
 
-proptest::prop_compose! {
-    pub(super) fn arb_abi_type()((typ, _) in arb_abi_type_and_value())-> AbiType {
-        typ
-    }
+fn arb_abi_param_and_value() -> BoxedStrategy<(AbiParameter, InputValue)> {
+    let typ = arb_abi_type();
+    let x = typ.prop_flat_map(|typ| {
+        let value = arb_value_from_abi_type(&typ);
+        let param = arb_abi_param(typ);
+        (param, value)
+    });
+
+    x.boxed()
 }
 
-prop_compose! {
-    fn arb_abi_param_and_value()
-                ((typ, value) in arb_abi_type_and_value(), name: String, visibility: AbiVisibility)
-                -> (AbiParameter, InputValue) {
-        (AbiParameter{ name, typ, visibility }, value)
-    }
+fn arb_abi_param(typ: AbiType) -> SBoxedStrategy<AbiParameter> {
+    (".+", any::<AbiVisibility>())
+        .prop_map(move |(name, visibility)| AbiParameter { name, typ: typ.clone(), visibility })
+        .sboxed()
 }
 
 prop_compose! {
