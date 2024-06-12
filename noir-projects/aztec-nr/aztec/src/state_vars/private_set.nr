@@ -44,20 +44,6 @@ impl<Note> PrivateSet<Note, &mut PrivateContext> {
     }
     // docs:end:insert
 
-    // DEPRECATED
-    fn assert_contains_and_remove(_self: Self, _note: &mut Note, _nonce: Field) {
-        assert(
-            false, "`assert_contains_and_remove` has been deprecated. Please call PXE.addNote() to add a note to the database. Then use PrivateSet.get_notes() and PrivateSet.remove() in your contract to verify and remove a note."
-        );
-    }
-
-    // DEPRECATED
-    fn assert_contains_and_remove_publicly_created(_self: Self, _note: &mut Note) {
-        assert(
-            false, "`assert_contains_and_remove_publicly_created` has been deprecated. Please call PXE.addNote() to add a note to the database. Then use PrivateSet.get_notes() and PrivateSet.remove() in your contract to verify and remove a note."
-        );
-    }
-
     // docs:start:remove
     pub fn remove<N, M>(self, note: Note) where Note: NoteInterface<N, M> {
         let note_hash = compute_note_hash_for_read_request(note);
