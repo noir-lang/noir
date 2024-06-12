@@ -23,6 +23,16 @@ export GITHUB_ACTIONS=true
 export FORCE_COLOR=1
 export EARTHLY_CONFIG=$(git rev-parse --show-toplevel)/.github/earthly-ci-config.yml
 
+function wipe_non_cache_docker_state {
+  echo "Detected corrupted docker images. Wiping and trying again."
+  # Based on https://stackoverflow.com/a/75849307
+  # wipe everything but volumes where we have earthly cache
+  sudo service docker stop
+  sudo bash -c 'rm -rf /var/lib/docker/{buildkit,containers,image,network,overlay2,plugins.runtimes,swarm,tmp,trust}/*'
+  # restart docker - might take down builds, but we need to recover anyway
+  sudo service docker restart
+}
+
 # Handle earthly commands and retries
 while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
   if earthly $@ 2>&1 | tee $OUTPUT_FILE >&2 ; then
@@ -49,16 +59,14 @@ while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
       echo "Detected earthly unable to find buildkit, waiting and trying again..."
       sleep 20
     elif grep 'The container name "/earthly-buildkitd" is already in use by container' $OUTPUT_FILE >/dev/null; then
-      echo "Detected earthly bootstrap happening in parallel and failing, waiting and trying again."
+      if [ $ATTEMPT_COUNT -lt 3 ] ; then
+        echo "Detected earthly bootstrap happening in parallel and failing, waiting and trying again."
+      else
+        wipe_non_cache_docker_state
+      fi
       sleep 20
     elif grep 'status 125: docker: Error response from daemon: layer does not exist.' $OUTPUT_FILE >/dev/null || grep 'could not determine buildkit address - is Docker or Podman running?' $OUTPUT_FILE >/dev/null ; then
-      echo "Detected corrupted docker images. Wiping and trying again."
-      # Based on https://stackoverflow.com/a/75849307
-      # wipe everything but volumes where we have earthly cache
-      sudo service docker stop
-      sudo bash -c 'rm -rf /var/lib/docker/{buildkit,containers,image,network,overlay2,plugins.runtimes,swarm,tmp,trust}/*'
-      # restart docker - might take down builds, but we need to recover anyway
-      sudo service docker restart
+      wipe_non_cache_docker_state
       # wait for other docker restarts
       sleep 20
     else
