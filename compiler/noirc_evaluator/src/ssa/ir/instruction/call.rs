@@ -296,7 +296,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::AsWitness => SimplifyResult::None,
         Intrinsic::IsUnconstrained => SimplifyResult::None,
-        Intrinsic::DeriveGenerators => simplify_derive_generators(dfg, arguments),
+        Intrinsic::DerivePedersenGenerators => simplify_derive_generators(dfg, arguments),
     }
 }
 
