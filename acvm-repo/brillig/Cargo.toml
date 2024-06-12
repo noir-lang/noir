@@ -2,7 +2,7 @@
 name = "brillig"
 description = "Brillig is the bytecode ACIR uses for non-determinism."
 # x-release-please-start-version
-version = "0.45.0"
+version = "0.46.0"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -17,6 +17,5 @@ acir_field.workspace = true
 serde.workspace = true
 
 [features]
-default = ["bn254"]
 bn254 = ["acir_field/bn254"]
 bls12_381 = ["acir_field/bls12_381"]

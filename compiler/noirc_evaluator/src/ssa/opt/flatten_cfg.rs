@@ -134,7 +134,7 @@
 use fxhash::FxHashMap as HashMap;
 use std::collections::{BTreeMap, HashSet};
 
-use acvm::FieldElement;
+use acvm::{acir::AcirField, acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
 
 use crate::ssa::{
@@ -769,7 +769,38 @@ impl<'f> Context<'f> {
 
                         Instruction::Call { func, arguments }
                     }
+                    //Issue #5045: We set curve points to infinity if condition is false
+                    Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => {
+                        arguments[2] = self.var_or_one(arguments[2], condition, call_stack.clone());
+                        arguments[5] = self.var_or_one(arguments[5], condition, call_stack.clone());
 
+                        Instruction::Call { func, arguments }
+                    }
+                    Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)) => {
+                        let mut array_with_predicate = im::Vector::new();
+                        let array_typ;
+                        if let Value::Array { array, typ } =
+                            &self.inserter.function.dfg[arguments[0]]
+                        {
+                            array_typ = typ.clone();
+                            for (i, value) in array.clone().iter().enumerate() {
+                                if i % 3 == 2 {
+                                    array_with_predicate.push_back(self.var_or_one(
+                                        *value,
+                                        condition,
+                                        call_stack.clone(),
+                                    ));
+                                } else {
+                                    array_with_predicate.push_back(*value);
+                                }
+                            }
+                        } else {
+                            unreachable!();
+                        }
+                        arguments[0] =
+                            self.inserter.function.dfg.make_array(array_with_predicate, array_typ);
+                        Instruction::Call { func, arguments }
+                    }
                     _ => Instruction::Call { func, arguments },
                 },
                 other => other,
@@ -777,6 +808,20 @@ impl<'f> Context<'f> {
         } else {
             instruction
         }
+    }
+
+    // Computes: if condition { var } else { 1 }
+    fn var_or_one(&mut self, var: ValueId, condition: ValueId, call_stack: CallStack) -> ValueId {
+        let field = self.insert_instruction(
+            Instruction::binary(BinaryOp::Mul, var, condition),
+            call_stack.clone(),
+        );
+        let not_condition =
+            self.insert_instruction(Instruction::Not(condition), call_stack.clone());
+        self.insert_instruction(
+            Instruction::binary(BinaryOp::Add, field, not_condition),
+            call_stack,
+        )
     }
 
     fn undo_stores_in_then_branch(&mut self, store_values: &HashMap<ValueId, Store>) {
@@ -791,6 +836,8 @@ impl<'f> Context<'f> {
 #[cfg(test)]
 mod test {
     use std::rc::Rc;
+
+    use acvm::acir::AcirField;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,

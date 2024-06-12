@@ -5,6 +5,7 @@ mod poseidon2;
 use crate::default::Default;
 use crate::uint128::U128;
 use crate::sha256::{digest, sha256_var};
+use crate::embedded_curve_ops::EmbeddedCurvePoint;
 
 #[foreign(sha256)]
 // docs:start:sha256
@@ -25,12 +26,7 @@ pub fn blake3<N>(input: [u8; N]) -> [u8; 32]
 {}
 
 // docs:start:pedersen_commitment
-struct PedersenPoint {
-   x : Field,
-   y : Field,
-}
-
-pub fn pedersen_commitment<N>(input: [Field; N]) -> PedersenPoint {
+pub fn pedersen_commitment<N>(input: [Field; N]) -> EmbeddedCurvePoint {
     // docs:end:pedersen_commitment
     pedersen_commitment_with_separator(input, 0)
 }
@@ -38,9 +34,9 @@ pub fn pedersen_commitment<N>(input: [Field; N]) -> PedersenPoint {
 #[foreign(pedersen_commitment)]
 pub fn __pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> [Field; 2] {}
 
-pub fn pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> PedersenPoint {
+pub fn pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
     let values = __pedersen_commitment_with_separator(input, separator);
-    PedersenPoint { x: values[0], y: values[1] }
+    EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: false }
 }
 
 // docs:start:pedersen_hash

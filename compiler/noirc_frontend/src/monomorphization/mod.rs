@@ -18,10 +18,9 @@ use crate::{
         types,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
-    token::FunctionAttribute,
     Type, TypeBinding, TypeBindings, TypeVariable, TypeVariableKind,
 };
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
@@ -55,9 +54,12 @@ struct LambdaContext {
 struct Monomorphizer<'interner> {
     /// Functions are keyed by their unique ID and expected type so that we can monomorphize
     /// a new version of the function for each type.
+    /// We also key by any turbofish generics that are specified.
+    /// This is necessary for a case where we may have a trait generic that can be instantiated
+    /// outside of a function parameter or return value.
     ///
     /// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
-    functions: HashMap<node_interner::FuncId, HashMap<HirType, FuncId>>,
+    functions: HashMap<node_interner::FuncId, HashMap<(HirType, Vec<HirType>), FuncId>>,
 
     /// Unlike functions, locals are only keyed by their unique ID because they are never
     /// duplicated during monomorphization. Doing so would allow them to be used polymorphically
@@ -198,43 +200,45 @@ impl<'interner> Monomorphizer<'interner> {
         id: node_interner::FuncId,
         expr_id: node_interner::ExprId,
         typ: &HirType,
+        turbofish_generics: Vec<HirType>,
         trait_method: Option<TraitMethodId>,
     ) -> Definition {
         let typ = typ.follow_bindings();
-        match self.functions.get(&id).and_then(|inner_map| inner_map.get(&typ)) {
+        match self
+            .functions
+            .get(&id)
+            .and_then(|inner_map| inner_map.get(&(typ.clone(), turbofish_generics.clone())))
+        {
             Some(id) => Definition::Function(*id),
             None => {
                 // Function has not been monomorphized yet
                 let attributes = self.interner.function_attributes(&id);
                 match self.interner.function_meta(&id).kind {
                     FunctionKind::LowLevel => {
-                        let attribute = attributes.function.clone().expect("all low level functions must contain a function attribute which contains the opcode which it links to");
+                        let attribute = attributes.function.as_ref().expect("all low level functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.foreign().expect(
                             "ice: function marked as foreign, but attribute kind does not match this",
                         );
-                        Definition::LowLevel(opcode)
+                        Definition::LowLevel(opcode.to_string())
                     }
                     FunctionKind::Builtin => {
-                        let attribute = attributes.function.clone().expect("all low level functions must contain a function  attribute which contains the opcode which it links to");
+                        let attribute = attributes.function.as_ref().expect("all builtin functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.builtin().expect(
                             "ice: function marked as builtin, but attribute kind does not match this",
                         );
-                        Definition::Builtin(opcode)
+                        Definition::Builtin(opcode.to_string())
                     }
                     FunctionKind::Normal => {
-                        let id = self.queue_function(id, expr_id, typ, trait_method);
+                        let id =
+                            self.queue_function(id, expr_id, typ, turbofish_generics, trait_method);
                         Definition::Function(id)
                     }
                     FunctionKind::Oracle => {
-                        let attr = attributes
-                            .function
-                            .clone()
-                            .expect("Oracle function must have an oracle attribute");
-
-                        match attr {
-                            FunctionAttribute::Oracle(name) => Definition::Oracle(name),
-                            _ => unreachable!("Oracle function must have an oracle attribute"),
-                        }
+                        let attribute = attributes.function.as_ref().expect("all oracle functions must contain a function attribute which contains the opcode which it links to");
+                        let opcode = attribute.oracle().expect(
+                            "ice: function marked as builtin, but attribute kind does not match this",
+                        );
+                        Definition::Oracle(opcode.to_string())
                     }
                     FunctionKind::Recursive => {
                         unreachable!("Only main can be specified as recursive, which should already be checked");
@@ -249,8 +253,14 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Prerequisite: typ = typ.follow_bindings()
-    fn define_function(&mut self, id: node_interner::FuncId, typ: HirType, new_id: FuncId) {
-        self.functions.entry(id).or_default().insert(typ, new_id);
+    fn define_function(
+        &mut self,
+        id: node_interner::FuncId,
+        typ: HirType,
+        turbofish_generics: Vec<HirType>,
+        new_id: FuncId,
+    ) {
+        self.functions.entry(id).or_default().insert((typ, turbofish_generics), new_id);
     }
 
     fn compile_main(
@@ -393,7 +403,7 @@ impl<'interner> Monomorphizer<'interner> {
         use ast::Literal::*;
 
         let expr = match self.interner.expression(&expr) {
-            HirExpression::Ident(ident) => self.ident(ident, expr)?,
+            HirExpression::Ident(ident, generics) => self.ident(ident, expr, generics)?,
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
             HirExpression::Literal(HirLiteral::FmtStr(contents, idents)) => {
                 let fields = try_vecmap(idents, |ident| self.expr(ident))?;
@@ -558,7 +568,7 @@ impl<'interner> Monomorphizer<'interner> {
         let location = self.interner.expr_location(&array);
         let typ = Self::convert_type(&self.interner.id_type(array), location)?;
 
-        let length = length.evaluate_to_u64().ok_or_else(|| {
+        let length = length.evaluate_to_u32().ok_or_else(|| {
             let location = self.interner.expr_location(&array);
             MonomorphizationError::UnknownArrayLength { location }
         })?;
@@ -825,6 +835,7 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         ident: HirIdent,
         expr_id: node_interner::ExprId,
+        generics: Option<Vec<HirType>>,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let typ = self.interner.id_type(expr_id);
 
@@ -838,7 +849,13 @@ impl<'interner> Monomorphizer<'interner> {
                 let mutable = definition.mutable;
                 let location = Some(ident.location);
                 let name = definition.name.clone();
-                let definition = self.lookup_function(*func_id, expr_id, &typ, None);
+                let definition = self.lookup_function(
+                    *func_id,
+                    expr_id,
+                    &typ,
+                    generics.unwrap_or_default(),
+                    None,
+                );
                 let typ = Self::convert_type(&typ, ident.location)?;
                 let ident = ast::Ident { location, mutable, definition, name, typ: typ.clone() };
                 let ident_expression = ast::Expression::Ident(ident);
@@ -855,12 +872,19 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
             DefinitionKind::Global(global_id) => {
-                let Some(let_) = self.interner.get_global_let_statement(*global_id) else {
-                    unreachable!(
-                        "Globals should have a corresponding let statement by monomorphization"
-                    )
+                let global = self.interner.get_global(*global_id);
+
+                let expr = if let Some(value) = global.value.clone() {
+                    value
+                        .into_hir_expression(self.interner, global.location)
+                        .map_err(MonomorphizationError::InterpreterError)?
+                } else {
+                    let let_ = self.interner.get_global_let_statement(*global_id).expect(
+                        "Globals should have a corresponding let statement by monomorphization",
+                    );
+                    let_.expression
                 };
-                self.expr(let_.expression)?
+                self.expr(expr)?
             }
             DefinitionKind::Local(_) => match self.lookup_captured_expr(ident.id) {
                 Some(expr) => expr,
@@ -874,7 +898,7 @@ impl<'interner> Monomorphizer<'interner> {
                     TypeBinding::Unbound(_) => {
                         unreachable!("Unbound type variable used in expression")
                     }
-                    TypeBinding::Bound(binding) => binding.evaluate_to_u64().unwrap_or_else(|| {
+                    TypeBinding::Bound(binding) => binding.evaluate_to_u32().unwrap_or_else(|| {
                         panic!("Non-numeric type variable used in expression expecting a value")
                     }),
                 };
@@ -895,16 +919,16 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::FieldElement => ast::Type::Field,
             HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool => ast::Type::Bool,
-            HirType::String(size) => ast::Type::String(size.evaluate_to_u64().unwrap_or(0)),
+            HirType::String(size) => ast::Type::String(size.evaluate_to_u32().unwrap_or(0)),
             HirType::FmtString(size, fields) => {
-                let size = size.evaluate_to_u64().unwrap_or(0);
+                let size = size.evaluate_to_u32().unwrap_or(0);
                 let fields = Box::new(Self::convert_type(fields.as_ref(), location)?);
                 ast::Type::FmtString(size, fields)
             }
             HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
                 let element = Box::new(Self::convert_type(element.as_ref(), location)?);
-                let length = match length.evaluate_to_u64() {
+                let length = match length.evaluate_to_u32() {
                     Some(length) => length,
                     None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
                 };
@@ -1063,10 +1087,11 @@ impl<'interner> Monomorphizer<'interner> {
             }
         };
 
-        let func_id = match self.lookup_function(func_id, expr_id, &function_type, Some(method)) {
-            Definition::Function(func_id) => func_id,
-            _ => unreachable!(),
-        };
+        let func_id =
+            match self.lookup_function(func_id, expr_id, &function_type, vec![], Some(method)) {
+                Definition::Function(func_id) => func_id,
+                _ => unreachable!(),
+            };
 
         let the_trait = self.interner.get_trait(method.trait_id);
         let location = self.interner.expr_location(&expr_id);
@@ -1172,7 +1197,7 @@ impl<'interner> Monomorphizer<'interner> {
         arguments: &mut Vec<ast::Expression>,
     ) {
         match hir_argument {
-            HirExpression::Ident(ident) => {
+            HirExpression::Ident(ident, _) => {
                 let typ = self.interner.definition_type(ident.id);
                 let typ: Type = typ.follow_bindings();
                 let is_fmt_str = match typ {
@@ -1281,7 +1306,7 @@ impl<'interner> Monomorphizer<'interner> {
             Expression::Literal(Literal::Integer((byte as u128).into(), int_type.clone(), location))
         });
 
-        let typ = Type::Array(bytes_as_expr.len() as u64, Box::new(int_type));
+        let typ = Type::Array(bytes_as_expr.len() as u32, Box::new(int_type));
 
         let arr_literal = ArrayLiteral { typ, contents: bytes_as_expr };
         Expression::Literal(Literal::Array(arr_literal))
@@ -1292,10 +1317,11 @@ impl<'interner> Monomorphizer<'interner> {
         id: node_interner::FuncId,
         expr_id: node_interner::ExprId,
         function_type: HirType,
+        turbofish_generics: Vec<HirType>,
         trait_method: Option<TraitMethodId>,
     ) -> FuncId {
         let new_id = self.next_function_id();
-        self.define_function(id, function_type.clone(), new_id);
+        self.define_function(id, function_type.clone(), turbofish_generics, new_id);
 
         let bindings = self.interner.get_instantiation_bindings(expr_id);
         let bindings = self.follow_bindings(bindings);

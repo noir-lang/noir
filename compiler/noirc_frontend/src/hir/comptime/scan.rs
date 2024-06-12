@@ -65,7 +65,7 @@ impl<'interner> Interpreter<'interner> {
 
     fn scan_expression(&mut self, expr: ExprId) -> IResult<()> {
         match self.interner.expression(&expr) {
-            HirExpression::Ident(ident) => self.scan_ident(ident, expr),
+            HirExpression::Ident(ident, _) => self.scan_ident(ident, expr),
             HirExpression::Literal(literal) => self.scan_literal(literal),
             HirExpression::Block(block) => self.scan_block(block),
             HirExpression::Prefix(prefix) => self.scan_expression(prefix.rhs),
@@ -82,7 +82,7 @@ impl<'interner> Interpreter<'interner> {
             HirExpression::Comptime(block) => {
                 let location = self.interner.expr_location(&expr);
                 let new_expr =
-                    self.evaluate_block(block)?.into_expression(self.interner, location)?;
+                    self.evaluate_block(block)?.into_hir_expression(self.interner, location)?;
                 let new_expr = self.interner.expression(&new_expr);
                 self.interner.replace_expr(&expr, new_expr);
                 Ok(())
@@ -229,8 +229,9 @@ impl<'interner> Interpreter<'interner> {
             HirStatement::Error => Ok(()),
             HirStatement::Comptime(comptime) => {
                 let location = self.interner.statement_location(comptime);
-                let new_expr =
-                    self.evaluate_comptime(comptime)?.into_expression(self.interner, location)?;
+                let new_expr = self
+                    .evaluate_comptime(comptime)?
+                    .into_hir_expression(self.interner, location)?;
                 self.interner.replace_statement(statement, HirStatement::Expression(new_expr));
                 Ok(())
             }
@@ -249,7 +250,7 @@ impl<'interner> Interpreter<'interner> {
 
     fn inline_expression(&mut self, value: Value, expr: ExprId) -> IResult<()> {
         let location = self.interner.expr_location(&expr);
-        let new_expr = value.into_expression(self.interner, location)?;
+        let new_expr = value.into_hir_expression(self.interner, location)?;
         let new_expr = self.interner.expression(&new_expr);
         self.interner.replace_expr(&expr, new_expr);
         Ok(())

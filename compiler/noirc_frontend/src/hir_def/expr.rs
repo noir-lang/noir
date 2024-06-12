@@ -17,7 +17,9 @@ use super::types::{StructType, Type};
 /// from the definition that refers to them so there is no ambiguity with names.
 #[derive(Debug, Clone)]
 pub enum HirExpression {
-    Ident(HirIdent),
+    // The optional vec here is the optional list of generics
+    // provided by the turbofish operator, if it was used
+    Ident(HirIdent, Option<Vec<Type>>),
     Literal(HirLiteral),
     Block(HirBlockExpression),
     Prefix(HirPrefixExpression),
@@ -181,6 +183,8 @@ pub struct HirCallExpression {
 pub struct HirMethodCallExpression {
     pub method: Ident,
     pub object: ExprId,
+    /// Method calls have an optional list of generics provided by the turbofish operator
+    pub generics: Option<Vec<Type>>,
     pub arguments: Vec<ExprId>,
     pub location: Location,
 }
@@ -200,13 +204,15 @@ pub enum HirMethodReference {
 
 impl HirMethodCallExpression {
     /// Converts a method call into a function call
+    ///
+    /// Returns ((func_var_id, func_var), call_expr)
     pub fn into_function_call(
         mut self,
         method: &HirMethodReference,
         object_type: Type,
         location: Location,
         interner: &mut NodeInterner,
-    ) -> HirExpression {
+    ) -> ((ExprId, HirIdent), HirCallExpression) {
         let mut arguments = vec![self.object];
         arguments.append(&mut self.arguments);
 
@@ -224,10 +230,11 @@ impl HirMethodCallExpression {
                 (id, ImplKind::TraitMethod(*method_id, constraint, false))
             }
         };
-        let func = HirExpression::Ident(HirIdent { location, id, impl_kind });
-        let func = interner.push_expr(func);
+        let func_var = HirIdent { location, id, impl_kind };
+        let func = interner.push_expr(HirExpression::Ident(func_var.clone(), self.generics));
         interner.push_expr_location(func, location.span, location.file);
-        HirExpression::Call(HirCallExpression { func, arguments, location })
+        let expr = HirCallExpression { func, arguments, location };
+        ((func, func_var), expr)
     }
 }
 

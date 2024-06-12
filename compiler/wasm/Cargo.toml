@@ -13,11 +13,11 @@ license.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-acvm.workspace = true
+acvm = { workspace = true, features = ["bn254"] }
 fm.workspace = true
 nargo.workspace = true
 noirc_driver.workspace = true
-noirc_frontend.workspace = true
+noirc_frontend = { workspace = true, features = ["bn254"] }
 noirc_errors.workspace = true
 noirc_evaluator.workspace = true
 wasm-bindgen.workspace = true

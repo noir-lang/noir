@@ -1,5 +1,7 @@
 use acvm::acir::circuit::ExpressionWidth;
 use acvm::acir::native_types::WitnessMap;
+use acvm::FieldElement;
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::workspace::Workspace;
@@ -28,7 +30,7 @@ use noir_debugger::errors::{DapError, LoadError};
 #[derive(Debug, Clone, Args)]
 pub(crate) struct DapCommand {
     /// Override the expression width requested by the backend.
-    #[arg(long, value_parser = parse_expression_width, default_value = "3")]
+    #[arg(long, value_parser = parse_expression_width, default_value = "4")]
     expression_width: ExpressionWidth,
 
     #[clap(long)]
@@ -100,7 +102,7 @@ fn load_and_compile_project(
     expression_width: ExpressionWidth,
     acir_mode: bool,
     skip_instrumentation: bool,
-) -> Result<(CompiledProgram, WitnessMap), LoadError> {
+) -> Result<(CompiledProgram, WitnessMap<FieldElement>), LoadError> {
     let workspace = find_workspace(project_folder, package)
         .ok_or(LoadError::Generic(workspace_not_found_error_msg(project_folder, package)))?;
     let package = workspace
@@ -193,11 +195,9 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
                     Ok((compiled_program, initial_witness)) => {
                         server.respond(req.ack()?)?;
 
-                        let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver::new();
-
                         noir_debugger::run_dap_loop(
                             server,
-                            &blackbox_solver,
+                            &Bn254BlackBoxSolver,
                             compiled_program,
                             initial_witness,
                         )?;

@@ -3,6 +3,7 @@ use acvm::{
         BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapValueType, MemoryAddress,
         Opcode as BrilligOpcode, ValueOrArray,
     },
+    acir::AcirField,
     FieldElement,
 };
 
@@ -212,7 +213,7 @@ impl BrilligContext {
     /// Adds a unresolved `Jump` to the bytecode.
     fn add_unresolved_jump(
         &mut self,
-        jmp_instruction: BrilligOpcode,
+        jmp_instruction: BrilligOpcode<FieldElement>,
         destination: UnresolvedJumpLocation,
     ) {
         self.obj.add_unresolved_jump(jmp_instruction, destination);
@@ -380,7 +381,7 @@ impl BrilligContext {
             constant,
             result.bit_size
         );
-        if result.bit_size > 128 && !constant.fits_in_u128() {
+        if result.bit_size > 128 && constant.num_bits() > 128 {
             let high = FieldElement::from_be_bytes_reduce(
                 constant.to_be_bytes().get(0..16).expect("FieldElement::to_be_bytes() too short!"),
             );

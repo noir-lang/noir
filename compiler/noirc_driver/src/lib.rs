@@ -3,7 +3,7 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-use abi_gen::value_from_hir_expression;
+use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use fm::{FileId, FileManager};
@@ -24,7 +24,6 @@ use noirc_frontend::monomorphization::{
 use noirc_frontend::node_interner::FuncId;
 use noirc_frontend::token::SecondaryAttribute;
 use std::path::Path;
-use thiserror::Error;
 use tracing::info;
 
 mod abi_gen;
@@ -54,7 +53,7 @@ pub const NOIR_ARTIFACT_VERSION_STRING: &str =
 #[derive(Args, Clone, Debug, Default)]
 pub struct CompileOptions {
     /// Override the expression width requested by the backend.
-    #[arg(long, value_parser = parse_expression_width, default_value = "3")]
+    #[arg(long, value_parser = parse_expression_width, default_value = "4")]
     pub expression_width: ExpressionWidth,
 
     /// Force a full recompilation.
@@ -84,10 +83,6 @@ pub struct CompileOptions {
     #[arg(long, conflicts_with = "deny_warnings")]
     pub silence_warnings: bool,
 
-    /// Output ACIR gzipped bytecode instead of the JSON artefact
-    #[arg(long, hide = true)]
-    pub only_acir: bool,
-
     /// Disables the builtin Aztec macros being used in the compiler
     #[arg(long, hide = true)]
     pub disable_macros: bool,
@@ -103,6 +98,14 @@ pub struct CompileOptions {
     /// Force Brillig output (for step debugging)
     #[arg(long, hide = true)]
     pub force_brillig: bool,
+
+    /// Enable the experimental elaborator pass
+    #[arg(long, hide = true)]
+    pub use_elaborator: bool,
+
+    /// Outputs the paths to any modified artifacts
+    #[arg(long, hide = true)]
+    pub show_artifact_paths: bool,
 }
 
 fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -117,13 +120,22 @@ fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug)]
 pub enum CompileError {
-    #[error(transparent)]
-    MonomorphizationError(#[from] MonomorphizationError),
+    MonomorphizationError(MonomorphizationError),
+    RuntimeError(RuntimeError),
+}
 
-    #[error(transparent)]
-    RuntimeError(#[from] RuntimeError),
+impl From<MonomorphizationError> for CompileError {
+    fn from(error: MonomorphizationError) -> Self {
+        Self::MonomorphizationError(error)
+    }
+}
+
+impl From<RuntimeError> for CompileError {
+    fn from(error: RuntimeError) -> Self {
+        Self::RuntimeError(error)
+    }
 }
 
 impl From<CompileError> for FileDiagnostic {
@@ -245,12 +257,13 @@ pub fn check_crate(
     crate_id: CrateId,
     deny_warnings: bool,
     disable_macros: bool,
+    use_elaborator: bool,
 ) -> CompilationResult<()> {
     let macros: &[&dyn MacroProcessor] =
         if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
 
     let mut errors = vec![];
-    let diagnostics = CrateDefMap::collect_defs(crate_id, context, macros);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, use_elaborator, macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic = CustomDiagnostic::from(&error);
         diagnostic.in_file(file_id)
@@ -282,8 +295,13 @@ pub fn compile_main(
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
-    let (_, mut warnings) =
-        check_crate(context, crate_id, options.deny_warnings, options.disable_macros)?;
+    let (_, mut warnings) = check_crate(
+        context,
+        crate_id,
+        options.deny_warnings,
+        options.disable_macros,
+        options.use_elaborator,
+    )?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
         // TODO(#2155): This error might be a better to exist in Nargo
@@ -318,8 +336,13 @@ pub fn compile_contract(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
-    let (_, warnings) =
-        check_crate(context, crate_id, options.deny_warnings, options.disable_macros)?;
+    let (_, warnings) = check_crate(
+        context,
+        crate_id,
+        options.deny_warnings,
+        options.disable_macros,
+        options.use_elaborator,
+    )?;
 
     // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);
@@ -445,7 +468,7 @@ fn compile_contract_inner(
                         let typ = context.def_interner.get_struct(struct_id);
                         let typ = typ.borrow();
                         let fields = vecmap(typ.get_fields(&[]), |(name, typ)| {
-                            (name, AbiType::from_type(context, &typ))
+                            (name, abi_type_from_hir_type(context, &typ))
                         });
                         let path =
                             context.fully_qualified_struct_path(context.root_crate_id(), typ.id);
@@ -520,17 +543,9 @@ pub fn compile_no_check(
         info!("Program matches existing artifact, returning early");
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
-    let visibility = program.return_visibility;
+    let return_visibility = program.return_visibility;
 
-    let SsaProgramArtifact {
-        program,
-        debug,
-        warnings,
-        main_input_witnesses,
-        main_return_witnesses,
-        names,
-        error_types,
-    } = create_program(
+    let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } = create_program(
         program,
         options.show_ssa,
         options.show_brillig,
@@ -538,14 +553,7 @@ pub fn compile_no_check(
         options.benchmark_codegen,
     )?;
 
-    let abi = abi_gen::gen_abi(
-        context,
-        &main_function,
-        main_input_witnesses,
-        main_return_witnesses,
-        visibility,
-        error_types,
-    );
+    let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 
     Ok(CompiledProgram {

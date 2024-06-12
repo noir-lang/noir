@@ -115,7 +115,7 @@ y = "1"
 Would result in:
 
 ```
-$ nargo prove
+$ nargo execute
 error: Assertion failed: 'attempt to add with overflow'
 ┌─ ~/src/main.nr:9:13
 │
