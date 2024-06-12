@@ -1,11 +1,10 @@
 ---
-
 title: "Crowdfunding contract"
 sidebar_position: 2
 tags: [developers, tutorial, example]
 ---
 
-# Build a donations contract
+# Write a donations contract
 
 In this tutorial we'll create two contracts related to crowdfunding:
 

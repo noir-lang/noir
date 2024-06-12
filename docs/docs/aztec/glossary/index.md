@@ -2,17 +2,43 @@
 title: Glossary
 ---
 
-### Smart Contracts
+### `aztec-nargo`
 
-Programs that run on the Aztec network are called smart contracts, similar to [programs](https://ethereum.org/en/developers/docs/smart-contracts/) that run on Ethereum.
+The command line tool used to compile Aztec contracts. It gets its name from the Noir compiler, `nargo`. `aztec-nargo` is really just a specific version of `nargo`. You can read more about `nargo` [here](#nargo).
 
-However, these will be written in the [Noir](https://noir-lang.org/index.html) programming language, and may optionally include [private state and private functions](https://docs.aztec.network/aztec/how-it-works/private-smart-contracts).
+### Aztec.nr
+
+A [Noir](https://noir-lang.org) framework for writing smart contracts on Aztec.
+
+Read more and review the source code [here](https://aztec.nr).
 
 ### Barretenberg
 
 Aztec's cryptography back-end. Refer to the graphic at the top of [this page](https://medium.com/aztec-protocol/explaining-the-network-in-aztec-network-166862b3ef7d) to see how it fits in the Aztec architecture.
 
 Barretenberg's source code can be found [here](https://github.com/AztecProtocol/barretenberg).
+
+### `nargo`
+
+With `nargo`, you can start new projects, compile, execute, prove, verify, test, generate solidity contracts, and do pretty much all that is available in Noir.
+
+You can find more information in the nargo installation docs [here](https://noir-lang.org/docs/getting_started/installation/) and the nargo command reference [here](https://noir-lang.org/docs/reference/nargo_commands).
+
+### Noir
+
+Noir is a Domain Specific Language for SNARK proving systems. It is used for writing smart contracts in Aztec because private functions on Aztec are implemented as SNARKs to support privacy-preserving operations.
+
+### Provers
+
+Aztec will be launched with a fully permissionless proving network that anyone can participate in.
+
+How this works will be discussed via a future RFP process on Discourse, similarly to the Sequencer RFP.
+
+### Private Execution Environment
+
+The Private eXecution Environment (PXE) is a client-side library for the execution of private operations. The PXE generates proofs of private function execution, and sends these proofs along with public function requests to the sequencer. Private inputs never leave the client-side PXE.
+
+Read more [here](../concepts/pxe/index.md).
 
 ### Sequencer
 
@@ -34,11 +60,11 @@ Sequencers are generally responsible for:
 
 Previously in [Aztec Connect](https://medium.com/aztec-protocol/sunsetting-aztec-connect-a786edce5cae) there was a single sequencer, and you can find the Typescript reference implementation called Falafel [here](https://github.com/AztecProtocol/aztec-connect/tree/master/yarn-project/falafel).
 
-### Provers
+### Smart Contracts
 
-Aztec will be launched with a fully permissionless proving network that anyone can participate in.
+Programs that run on the Aztec network are called smart contracts, similar to [programs](https://ethereum.org/en/developers/docs/smart-contracts/) that run on Ethereum.
 
-How this works will be discussed via a future RFP process on Discourse, similarly to the Sequencer RFP.
+However, these will be written in the [Noir](https://noir-lang.org/index.html) programming language, and may optionally include [private state and private functions](https://docs.aztec.network/aztec/how-it-works/private-smart-contracts).
 
 ### Proving Key
 
