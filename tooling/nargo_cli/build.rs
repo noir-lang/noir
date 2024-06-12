@@ -111,7 +111,7 @@ fn execution_success_elaborator_{test_name}() {{
     cmd.assert().success();
 }}
 
-#[test]{brillig_ignored}
+#[test]{brillig_ignored}{comptime_ignored}
 fn execution_success_{test_name}_brillig() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
