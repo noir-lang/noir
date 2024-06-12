@@ -234,6 +234,6 @@ fn slice_capacity_change(
         | Intrinsic::AsField
         | Intrinsic::AsWitness
         | Intrinsic::IsUnconstrained
-        | Intrinsic::DeriveGenerators => SizeChange::None,
+        | Intrinsic::DerivePedersenGenerators => SizeChange::None,
     }
 }
