@@ -105,7 +105,7 @@ describe('e2e_fees private_payment', () => {
      * this is expected to squash notes and nullifiers
      */
     const transferAmount = 5n;
-    const interaction = bananaCoin.methods.transfer(aliceAddress, bobAddress, transferAmount, 0n);
+    const interaction = bananaCoin.methods.transfer(bobAddress, transferAmount);
     const localTx = await interaction.prove({
       fee: {
         gasSettings,
@@ -313,7 +313,7 @@ describe('e2e_fees private_payment', () => {
      *   create transparent note with RefundAmount
      */
     const tx = await new BatchCall(aliceWallet, [
-      bananaCoin.methods.transfer(aliceAddress, bobAddress, privateTransfer, 0n).request(),
+      bananaCoin.methods.transfer(bobAddress, privateTransfer).request(),
       bananaCoin.methods.shield(aliceAddress, shieldedBananas, shieldSecretHash, 0n).request(),
     ])
       .send({

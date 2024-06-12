@@ -73,7 +73,7 @@ async function main() {
 
   // We will now transfer tokens from Alice to Bob
   logger.info(`Transferring ${TRANSFER_AMOUNT} tokens from Alice to Bob...`);
-  await tokenAlice.methods.transfer(alice, bob, TRANSFER_AMOUNT, 0).send().wait();
+  await tokenAlice.methods.transfer(bob, TRANSFER_AMOUNT).send().wait();
 
   // Check the new balances
   const aliceBalance = await tokenAlice.methods.balance_of_private(alice).simulate();

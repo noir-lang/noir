@@ -79,7 +79,7 @@ contract Crowdfunding {
         // docs:start:do-transfer
         // 2) Transfer the donation tokens from donor to this contract
         let donor = context.msg_sender();
-        Token::at(storage.donation_token.read_private()).transfer(donor, context.this_address(), amount as Field, 0).call(&mut context);
+        Token::at(storage.donation_token.read_private()).transfer_from(donor, context.this_address(), amount as Field, 0).call(&mut context);
         // docs:end:do-transfer
 
         let header = context.get_header();
@@ -100,7 +100,7 @@ contract Crowdfunding {
         assert(context.msg_sender() == operator_address, "Not an operator");
 
         // 2) Transfer the donation tokens from this contract to the operator
-        Token::at(storage.donation_token.read_private()).transfer(context.this_address(), operator_address, amount as Field, 0).call(&mut context);
+        Token::at(storage.donation_token.read_private()).transfer(operator_address, amount as Field).call(&mut context);
 
         // 3) Emit an unencrypted event so that anyone can audit how much the operator has withdrawn
         let event = WithdrawalProcessed { amount, who: operator_address };

@@ -31,12 +31,7 @@ describe('full_prover_with_padding_tx', () => {
       const privateBalance = await provenAssets[0].methods.balance_of_private(accounts[0].address).simulate();
       const privateSendAmount = privateBalance / 2n;
       expect(privateSendAmount).toBeGreaterThan(0n);
-      const privateInteraction = provenAssets[0].methods.transfer(
-        accounts[0].address,
-        accounts[1].address,
-        privateSendAmount,
-        0,
-      );
+      const privateInteraction = provenAssets[0].methods.transfer(accounts[1].address, privateSendAmount);
 
       const privateTx = await privateInteraction.prove();
 

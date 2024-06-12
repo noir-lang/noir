@@ -89,7 +89,7 @@ describe('benchmarks/tx_size_fees', () => {
       const paymentMethod = createPaymentMethod();
       const gasSettings = GasSettings.default();
       const tx = await token.methods
-        .transfer(aliceWallet.getAddress(), bobAddress, 1n, 0)
+        .transfer(bobAddress, 1n)
         .send({ fee: paymentMethod ? { gasSettings, paymentMethod } : undefined })
         .wait();
 

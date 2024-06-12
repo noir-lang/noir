@@ -214,22 +214,22 @@ describe('guides/dapp/testing', () => {
 
       it('asserts a local transaction simulation fails by calling simulate', async () => {
         // docs:start:local-tx-fails
-        const call = token.methods.transfer(owner.getAddress(), recipient.getAddress(), 200n, 0);
+        const call = token.methods.transfer(recipient.getAddress(), 200n);
         await expect(call.prove()).rejects.toThrow(/Balance too low/);
         // docs:end:local-tx-fails
       });
 
       it('asserts a local transaction simulation fails by calling send', async () => {
         // docs:start:local-tx-fails-send
-        const call = token.methods.transfer(owner.getAddress(), recipient.getAddress(), 200n, 0);
+        const call = token.methods.transfer(recipient.getAddress(), 200n);
         await expect(call.send().wait()).rejects.toThrow(/Balance too low/);
         // docs:end:local-tx-fails-send
       });
 
       it('asserts a transaction is dropped', async () => {
         // docs:start:tx-dropped
-        const call1 = token.methods.transfer(owner.getAddress(), recipient.getAddress(), 80n, 0);
-        const call2 = token.methods.transfer(owner.getAddress(), recipient.getAddress(), 50n, 0);
+        const call1 = token.methods.transfer(recipient.getAddress(), 80n);
+        const call2 = token.methods.transfer(recipient.getAddress(), 50n);
 
         await call1.prove();
         await call2.prove();

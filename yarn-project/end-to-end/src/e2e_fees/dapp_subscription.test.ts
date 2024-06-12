@@ -192,7 +192,7 @@ describe('e2e_fees dapp_subscription', () => {
 
   async function subscribe(paymentMethod: FeePaymentMethod, blockDelta: number = 5, txCount: number = 4) {
     const nonce = Fr.random();
-    const action = bananaCoin.methods.transfer(aliceAddress, bobAddress, t.SUBSCRIPTION_AMOUNT, nonce);
+    const action = bananaCoin.methods.transfer_from(aliceAddress, bobAddress, t.SUBSCRIPTION_AMOUNT, nonce);
     await aliceWallet.createAuthWit({ caller: subscriptionContract.address, action });
 
     return subscriptionContract

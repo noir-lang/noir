@@ -122,7 +122,7 @@ describe('e2e_sandbox_example', () => {
     // We will now transfer tokens from ALice to Bob
     const transferQuantity = 543n;
     logger.info(`Transferring ${transferQuantity} tokens from Alice to Bob...`);
-    await tokenContractAlice.methods.transfer(alice, bob, transferQuantity, 0).send().wait();
+    await tokenContractAlice.methods.transfer(bob, transferQuantity).send().wait();
 
     // Check the new balances
     aliceBalance = await tokenContractAlice.methods.balance_of_private(alice).simulate();

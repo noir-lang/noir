@@ -34,12 +34,7 @@ describe('full_prover', () => {
       const privateBalance = await provenAssets[0].methods.balance_of_private(accounts[0].address).simulate();
       const privateSendAmount = privateBalance / 2n;
       expect(privateSendAmount).toBeGreaterThan(0n);
-      const privateInteraction = provenAssets[0].methods.transfer(
-        accounts[0].address,
-        accounts[1].address,
-        privateSendAmount,
-        0,
-      );
+      const privateInteraction = provenAssets[0].methods.transfer(accounts[1].address, privateSendAmount);
 
       const publicBalance = await provenAssets[1].methods.balance_of_public(accounts[0].address).simulate();
       const publicSendAmount = publicBalance / 2n;
@@ -94,7 +89,7 @@ describe('full_prover', () => {
   );
 
   it('rejects txs with invalid proofs', async () => {
-    const privateInteraction = t.fakeProofsAsset.methods.transfer(accounts[0].address, accounts[1].address, 1, 0);
+    const privateInteraction = t.fakeProofsAsset.methods.transfer(accounts[1].address, 1);
     const publicInteraction = t.fakeProofsAsset.methods.transfer_public(accounts[0].address, accounts[1].address, 1, 0);
 
     const sentPrivateTx = privateInteraction.send();

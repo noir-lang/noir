@@ -78,7 +78,7 @@ describe('e2e_fees native_payments', () => {
     it('sends tx with native fee payment method with no public calls', async () => {
       const initialBalance = await gasTokenContract.methods.balance_of_public(aliceAddress).simulate();
       const { transactionFee } = await bananaCoin.methods
-        .transfer(aliceAddress, bobAddress, 1n, 0n)
+        .transfer(bobAddress, 1n)
         .send({ fee: { gasSettings, paymentMethod } })
         .wait();
       expect(transactionFee).toBeGreaterThan(0n);

@@ -159,7 +159,7 @@ describe('e2e_key_rotation', () => {
     const transfer1Amount = 654n;
     {
       ({ txHash: txHashTransfer1 } = await contractWithWalletA.methods
-        .transfer(walletA.getAddress(), walletB.getAddress(), transfer1Amount, 0)
+        .transfer(walletB.getAddress(), transfer1Amount)
         .send()
         .wait());
 
@@ -190,7 +190,7 @@ describe('e2e_key_rotation', () => {
     const transfer2Amount = 321n;
     {
       ({ txHash: txHashTransfer2 } = await contractWithWalletA.methods
-        .transfer(walletA.getAddress(), walletB.getAddress(), transfer2Amount, 0)
+        .transfer(walletB.getAddress(), transfer2Amount)
         .send()
         .wait());
 
@@ -225,7 +225,7 @@ describe('e2e_key_rotation', () => {
     // --> this way we verify that it's possible to obtain both keys via oracles
     {
       await contractWithWalletB.methods
-        .transfer(walletB.getAddress(), walletA.getAddress(), transfer1Amount + transfer2Amount, 0)
+        .transfer(walletA.getAddress(), transfer1Amount + transfer2Amount)
         .send()
         .wait();
 

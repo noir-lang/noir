@@ -130,7 +130,7 @@ describe('e2e_escrow_contract', () => {
     await expectBalance(owner, 50n);
 
     const actions = [
-      token.methods.transfer(owner, recipient, 10, 0).request(),
+      token.methods.transfer(recipient, 10).request(),
       escrowContract.methods.withdraw(token.address, 20, recipient).request(),
     ];
 

@@ -151,7 +151,7 @@ describe('Aztec persistence', () => {
 
       const initialOwnerBalance = await contract.methods.balance_of_private(ownerWallet.getAddress()).simulate();
 
-      await contract.methods.transfer(ownerWallet.getAddress(), otherWallet.getAddress(), 500n, Fr.ZERO).send().wait();
+      await contract.methods.transfer(otherWallet.getAddress(), 500n).send().wait();
 
       const [ownerBalance, targetBalance] = await Promise.all([
         contract.methods.balance_of_private(ownerWallet.getAddress()).simulate(),

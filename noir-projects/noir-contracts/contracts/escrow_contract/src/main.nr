@@ -26,12 +26,11 @@ contract Escrow {
     // Withdraws balance. Requires that msg.sender is the owner.
     #[aztec(private)]
     fn withdraw(token: AztecAddress, amount: Field, recipient: AztecAddress) {
-        let this = context.this_address();
         let sender = context.msg_sender();
 
         let note = storage.owner.get_note();
         assert(note.address == sender);
 
-        Token::at(token).transfer(this, recipient, amount, 0).call(&mut context);
+        Token::at(token).transfer(recipient, amount).call(&mut context);
     }
 }

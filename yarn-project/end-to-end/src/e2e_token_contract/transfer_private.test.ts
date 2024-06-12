@@ -26,7 +26,7 @@ describe('e2e_token_contract transfer private', () => {
     const balance0 = await asset.methods.balance_of_private(accounts[0].address).simulate();
     const amount = balance0 / 2n;
     expect(amount).toBeGreaterThan(0n);
-    await asset.methods.transfer(accounts[0].address, accounts[1].address, amount, 0).send().wait();
+    await asset.methods.transfer(accounts[1].address, amount).send().wait();
     tokenSim.transferPrivate(accounts[0].address, accounts[1].address, amount);
   });
 
@@ -34,7 +34,7 @@ describe('e2e_token_contract transfer private', () => {
     const balance0 = await asset.methods.balance_of_private(accounts[0].address).simulate();
     const amount = balance0 / 2n;
     expect(amount).toBeGreaterThan(0n);
-    await asset.methods.transfer(accounts[0].address, accounts[0].address, amount, 0).send().wait();
+    await asset.methods.transfer(accounts[0].address, amount).send().wait();
     tokenSim.transferPrivate(accounts[0].address, accounts[0].address, amount);
   });
 
@@ -48,7 +48,7 @@ describe('e2e_token_contract transfer private', () => {
     // docs:start:authwit_transfer_example
     const action = asset
       .withWallet(wallets[1])
-      .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce);
+      .methods.transfer_from(accounts[0].address, accounts[1].address, amount, nonce);
 
     const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
     await wallets[1].addAuthWitness(witness);
@@ -65,7 +65,7 @@ describe('e2e_token_contract transfer private', () => {
     // Perform the transfer again, should fail
     const txReplay = asset
       .withWallet(wallets[1])
-      .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce)
+      .methods.transfer_from(accounts[0].address, accounts[1].address, amount, nonce)
       .send();
     await expect(txReplay.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
   });
@@ -75,9 +75,9 @@ describe('e2e_token_contract transfer private', () => {
       const balance0 = await asset.methods.balance_of_private(accounts[0].address).simulate();
       const amount = balance0 + 1n;
       expect(amount).toBeGreaterThan(0n);
-      await expect(
-        asset.methods.transfer(accounts[0].address, accounts[1].address, amount, 0).simulate(),
-      ).rejects.toThrow('Assertion failed: Balance too low');
+      await expect(asset.methods.transfer(accounts[1].address, amount).simulate()).rejects.toThrow(
+        'Assertion failed: Balance too low',
+      );
     });
 
     it('transfer on behalf of self with non-zero nonce', async () => {
@@ -85,7 +85,7 @@ describe('e2e_token_contract transfer private', () => {
       const amount = balance0 - 1n;
       expect(amount).toBeGreaterThan(0n);
       await expect(
-        asset.methods.transfer(accounts[0].address, accounts[1].address, amount, 1).simulate(),
+        asset.methods.transfer_from(accounts[0].address, accounts[1].address, amount, 1).simulate(),
       ).rejects.toThrow('Assertion failed: invalid nonce');
     });
 
@@ -99,7 +99,7 @@ describe('e2e_token_contract transfer private', () => {
       // We need to compute the message we want to sign and add it to the wallet as approved
       const action = asset
         .withWallet(wallets[1])
-        .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce);
+        .methods.transfer_from(accounts[0].address, accounts[1].address, amount, nonce);
 
       // Both wallets are connected to same node and PXE so we could just insert directly using
       // await wallet.signAndAddAuthWitness(messageHash, );
@@ -129,7 +129,7 @@ describe('e2e_token_contract transfer private', () => {
       // We need to compute the message we want to sign and add it to the wallet as approved
       const action = asset
         .withWallet(wallets[1])
-        .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce);
+        .methods.transfer_from(accounts[0].address, accounts[1].address, amount, nonce);
       const messageHash = computeAuthWitMessageHash(
         accounts[1].address,
         wallets[0].getChainId(),
@@ -151,7 +151,7 @@ describe('e2e_token_contract transfer private', () => {
       // We need to compute the message we want to sign and add it to the wallet as approved
       const action = asset
         .withWallet(wallets[2])
-        .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce);
+        .methods.transfer_from(accounts[0].address, accounts[1].address, amount, nonce);
       const expectedMessageHash = computeAuthWitMessageHash(
         accounts[2].address,
         wallets[0].getChainId(),
@@ -177,7 +177,7 @@ describe('e2e_token_contract transfer private', () => {
       // We need to compute the message we want to sign and add it to the wallet as approved
       const action = asset
         .withWallet(wallets[1])
-        .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce);
+        .methods.transfer_from(accounts[0].address, accounts[1].address, amount, nonce);
 
       const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
       await wallets[1].addAuthWitness(witness);
@@ -187,7 +187,7 @@ describe('e2e_token_contract transfer private', () => {
       // Perform the transfer, should fail because nullifier already emitted
       const txCancelledAuthwit = asset
         .withWallet(wallets[1])
-        .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce)
+        .methods.transfer_from(accounts[0].address, accounts[1].address, amount, nonce)
         .send();
       await expect(txCancelledAuthwit.wait()).rejects.toThrowError(DUPLICATE_NULLIFIER_ERROR);
     });
@@ -201,7 +201,7 @@ describe('e2e_token_contract transfer private', () => {
       // We need to compute the message we want to sign and add it to the wallet as approved
       const action = asset
         .withWallet(wallets[1])
-        .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce);
+        .methods.transfer_from(accounts[0].address, accounts[1].address, amount, nonce);
 
       const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
       await wallets[1].addAuthWitness(witness);
@@ -211,7 +211,7 @@ describe('e2e_token_contract transfer private', () => {
       // Perform the transfer, should fail because nullifier already emitted
       const txCancelledAuthwit = asset
         .withWallet(wallets[1])
-        .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce)
+        .methods.transfer_from(accounts[0].address, accounts[1].address, amount, nonce)
         .send();
       await expect(txCancelledAuthwit.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
     });
@@ -222,7 +222,7 @@ describe('e2e_token_contract transfer private', () => {
       // Should fail as the returned value from the badAccount is malformed
       const txCancelledAuthwit = asset
         .withWallet(wallets[1])
-        .methods.transfer(badAccount.address, accounts[1].address, 0, nonce)
+        .methods.transfer_from(badAccount.address, accounts[1].address, 0, nonce)
         .send();
       await expect(txCancelledAuthwit.wait()).rejects.toThrow(
         "Assertion failed: Message not authorized by account 'result == IS_VALID_SELECTOR'",

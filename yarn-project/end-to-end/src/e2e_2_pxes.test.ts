@@ -139,10 +139,7 @@ describe('e2e_2_pxes', () => {
 
     // Transfer funds from A to B via PXE A
     const contractWithWalletA = await TokenContract.at(token.address, walletA);
-    await contractWithWalletA.methods
-      .transfer(walletA.getAddress(), walletB.getAddress(), transferAmount1, 0)
-      .send()
-      .wait();
+    await contractWithWalletA.methods.transfer(walletB.getAddress(), transferAmount1).send().wait();
 
     // Check balances and logs are as expected
     await expectTokenBalance(walletA, token.address, walletA.getAddress(), initialBalance - transferAmount1);
@@ -151,10 +148,7 @@ describe('e2e_2_pxes', () => {
 
     // Transfer funds from B to A via PXE B
     const contractWithWalletB = await TokenContract.at(token.address, walletB);
-    await contractWithWalletB.methods
-      .transfer(walletB.getAddress(), walletA.getAddress(), transferAmount2, 0)
-      .send()
-      .wait({ interval: 0.1 });
+    await contractWithWalletB.methods.transfer(walletA.getAddress(), transferAmount2).send().wait({ interval: 0.1 });
 
     // Check balances and logs are as expected
     await expectTokenBalance(
@@ -281,10 +275,7 @@ describe('e2e_2_pxes', () => {
 
     // Transfer funds from A to B via PXE A
     const contractWithWalletA = await TokenContract.at(tokenAddress, walletA);
-    await contractWithWalletA.methods
-      .transfer(walletA.getAddress(), walletB.getAddress(), transferAmount1, 0)
-      .send()
-      .wait();
+    await contractWithWalletA.methods.transfer(walletB.getAddress(), transferAmount1).send().wait();
 
     // now add the contract and check balances
     await pxeB.registerContract(token);
@@ -316,17 +307,11 @@ describe('e2e_2_pxes', () => {
 
     // Transfer funds from A to Shared Wallet via PXE A
     const contractWithWalletA = await TokenContract.at(token.address, walletA);
-    await contractWithWalletA.methods
-      .transfer(walletA.getAddress(), sharedAccountAddress.address, transferAmount1, 0)
-      .send()
-      .wait();
+    await contractWithWalletA.methods.transfer(sharedAccountAddress.address, transferAmount1).send().wait();
 
     // Now send funds from Shared Wallet to B via PXE A
     const contractWithSharedWalletA = await TokenContract.at(token.address, sharedWalletOnA);
-    await contractWithSharedWalletA.methods
-      .transfer(sharedAccountAddress.address, walletB.getAddress(), transferAmount2, 0)
-      .send()
-      .wait();
+    await contractWithSharedWalletA.methods.transfer(walletB.getAddress(), transferAmount2).send().wait();
 
     // check balances from PXE-A's perspective
     await expectTokenBalance(walletA, token.address, walletA.getAddress(), initialBalance - transferAmount1);

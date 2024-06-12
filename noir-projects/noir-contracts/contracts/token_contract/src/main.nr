@@ -310,7 +310,24 @@ contract Token {
 
     // docs:start:transfer
     #[aztec(private)]
-    fn transfer(from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) {
+    fn transfer(to: AztecAddress, amount: Field) {
+        let from = context.msg_sender();
+
+        // By fetching the keys here, we can avoid doing an extra read from the storage, since from_ovpk would
+        // be needed twice.
+        let header = context.get_header();
+        let from_ovpk = header.get_ovpk_m(&mut context, from);
+        let from_ivpk = header.get_ivpk_m(&mut context, from);
+        let to_ivpk = header.get_ivpk_m(&mut context, to);
+
+        let amount = U128::from_integer(amount);
+        storage.balances.sub(from, amount).emit(encode_and_encrypt_with_keys(&mut context, from_ovpk, from_ivpk));
+        storage.balances.add(to, amount).emit(encode_and_encrypt_with_keys(&mut context, from_ovpk, to_ivpk));
+    }
+    // docs:end:transfer
+
+    #[aztec(private)]
+    fn transfer_from(from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) {
         // docs:start:assert_current_call_valid_authwit
         if (!from.eq(context.msg_sender())) {
             assert_current_call_valid_authwit(&mut context, from);
@@ -334,7 +351,6 @@ contract Token {
         // docs:end:increase_private_balance
         storage.balances.add(to, amount).emit(encode_and_encrypt_with_keys(&mut context, from_ovpk, to_ivpk));
     }
-    // docs:end:transfer
 
     // docs:start:burn
     #[aztec(private)]
