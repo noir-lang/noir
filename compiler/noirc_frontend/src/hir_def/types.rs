@@ -738,6 +738,7 @@ impl Type {
         }
     }
 
+    /// TODO(https://github.com/noir-lang/noir/issues/5156): Remove with explicit numeric generics
     pub fn find_numeric_type_vars(&self, found_names: &mut Vec<String>) {
         // Return whether the named generic has a TypeKind::Numeric and save its name
         let named_generic_is_numeric = |typ: &Type, found_names: &mut Vec<String>| {
