@@ -42,7 +42,7 @@ pub fn pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) 
     for i in 0..N {
         points[i] = EmbeddedCurveScalar::from_field(input[i]);
     }
-    let generators = derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), N, 0);
+    let generators = derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), N, separator);
     let values = crate::embedded_curve_ops::multi_scalar_mul(generators, points);
     EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: values[2] as bool }
 }
@@ -51,13 +51,7 @@ pub fn pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) 
 pub fn pedersen_hash<N>(input: [Field; N]) -> Field
 // docs:end:pedersen_hash
 {
-    //  pedersen_hash_with_separator(input, 0)
-    let v1 = pedersen_commitment(input);
-    let length_generator :[EmbeddedCurvePoint;1] = derive_generators("pedersen_hash_length".as_bytes(), 1, 0);
-    crate::embedded_curve_ops::multi_scalar_mul(
-        [length_generator[0], v1],
-        [EmbeddedCurveScalar { lo: N as Field, hi: 0 }, EmbeddedCurveScalar { lo: 1, hi: 0 }]
-    )[0]
+    pedersen_hash_with_separator(input, 0)
 }
 
 #[builtin(derive_generators)]
@@ -68,8 +62,14 @@ pub fn derive_generators<N, M>(
     starting_index: u32
 ) -> [EmbeddedCurvePoint; N] {}
 
-#[foreign(pedersen_hash)]
-pub fn pedersen_hash_with_separator<N>(input: [Field; N], separator: u32) -> Field {}
+pub fn pedersen_hash_with_separator<N>(input: [Field; N], separator: u32) -> Field {
+    let v1 = pedersen_commitment(input);
+    let length_generator :[EmbeddedCurvePoint;1] = derive_generators("pedersen_hash_length".as_bytes(), 1, separator);
+    crate::embedded_curve_ops::multi_scalar_mul(
+        [length_generator[0], v1],
+        [EmbeddedCurveScalar { lo: N as Field, hi: 0 }, EmbeddedCurveScalar { lo: 1, hi: 0 }]
+    )[0]
+}
 
 pub fn hash_to_field(inputs: [Field]) -> Field {
     let mut sum = 0;
