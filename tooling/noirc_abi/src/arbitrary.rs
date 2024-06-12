@@ -124,13 +124,13 @@ pub(super) fn arb_abi_type() -> BoxedStrategy<AbiType> {
 }
 
 fn arb_abi_param_and_value() -> BoxedStrategy<(AbiParameter, InputValue)> {
-    let typ = arb_abi_type();
-    typ.prop_flat_map(|typ| {
-        let value = arb_value_from_abi_type(&typ);
-        let param = arb_abi_param(typ);
-        (param, value)
-    })
-    .boxed()
+    arb_abi_type()
+        .prop_flat_map(|typ| {
+            let value = arb_value_from_abi_type(&typ);
+            let param = arb_abi_param(typ);
+            (param, value)
+        })
+        .boxed()
 }
 
 fn arb_abi_param(typ: AbiType) -> SBoxedStrategy<AbiParameter> {
