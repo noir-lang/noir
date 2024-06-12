@@ -970,7 +970,8 @@ int main(int argc, char* argv[])
 {
     try {
         std::vector<std::string> args(argv + 1, argv + argc);
-        verbose_logging = flag_present(args, "-v") || flag_present(args, "--verbose_logging");
+        debug_logging = flag_present(args, "-d") || flag_present(args, "--debug_logging");
+        verbose_logging = debug_logging || flag_present(args, "-v") || flag_present(args, "--verbose_logging");
         if (args.empty()) {
             std::cerr << "No command provided.\n";
             return 1;
