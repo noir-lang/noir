@@ -325,7 +325,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 ident.span(),
             ),
-            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_error(
+            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_warning(
                 error.to_string(),
                 "Oracle functions must have the `unconstrained` keyword applied".into(),
                 ident.span(),
