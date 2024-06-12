@@ -1,6 +1,6 @@
 use std::collections::hash_map::Entry;
 
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::ir::value::ValueId;
@@ -231,6 +231,8 @@ fn slice_capacity_change(
         | Intrinsic::StrAsBytes
         | Intrinsic::BlackBox(_)
         | Intrinsic::FromField
-        | Intrinsic::AsField => SizeChange::None,
+        | Intrinsic::AsField
+        | Intrinsic::AsWitness
+        | Intrinsic::IsUnconstrained => SizeChange::None,
     }
 }

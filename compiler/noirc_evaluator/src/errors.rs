@@ -43,6 +43,8 @@ pub enum RuntimeError {
     UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
     #[error("All `oracle` methods should be wrapped in an unconstrained fn")]
     UnconstrainedOracleReturnToConstrained { call_stack: CallStack },
+    #[error("Could not resolve some references to the array. All references must be resolved at compile time")]
+    UnknownReference { call_stack: CallStack },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -123,7 +125,8 @@ impl RuntimeError {
             | RuntimeError::NestedSlice { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
             | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
-            | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack } => call_stack,
+            | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack }
+            | RuntimeError::UnknownReference { call_stack } => call_stack,
         }
     }
 }

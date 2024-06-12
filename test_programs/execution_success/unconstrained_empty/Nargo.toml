@@ -1,5 +1,0 @@
-[package]
-name = "unconstrained_empty"
-type = "bin"
-authors = [""]
-[dependencies]

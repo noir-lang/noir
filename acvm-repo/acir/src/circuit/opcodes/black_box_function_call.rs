@@ -89,14 +89,12 @@ pub enum BlackBoxFuncCall {
     MultiScalarMul {
         points: Vec<FunctionInput>,
         scalars: Vec<FunctionInput>,
-        outputs: (Witness, Witness),
+        outputs: (Witness, Witness, Witness),
     },
     EmbeddedCurveAdd {
-        input1_x: FunctionInput,
-        input1_y: FunctionInput,
-        input2_x: FunctionInput,
-        input2_y: FunctionInput,
-        outputs: (Witness, Witness),
+        input1: Box<[FunctionInput; 3]>,
+        input2: Box<[FunctionInput; 3]>,
+        outputs: (Witness, Witness, Witness),
     },
     Keccak256 {
         inputs: Vec<FunctionInput>,
@@ -245,9 +243,9 @@ impl BlackBoxFuncCall {
                 inputs.extend(scalars.iter().copied());
                 inputs
             }
-            BlackBoxFuncCall::EmbeddedCurveAdd {
-                input1_x, input1_y, input2_x, input2_y, ..
-            } => vec![*input1_x, *input1_y, *input2_x, *input2_y],
+            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, .. } => {
+                vec![input1[0], input1[1], input2[0], input2[1]]
+            }
             BlackBoxFuncCall::RANGE { input } => vec![*input],
             BlackBoxFuncCall::SchnorrVerify {
                 public_key_x,
@@ -343,9 +341,11 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
             | BlackBoxFuncCall::PedersenHash { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
+            BlackBoxFuncCall::PedersenCommitment { outputs, .. } => vec![outputs.0, outputs.1],
             BlackBoxFuncCall::MultiScalarMul { outputs, .. }
-            | BlackBoxFuncCall::PedersenCommitment { outputs, .. }
-            | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } => vec![outputs.0, outputs.1],
+            | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } => {
+                vec![outputs.0, outputs.1, outputs.2]
+            }
             BlackBoxFuncCall::RANGE { .. }
             | BlackBoxFuncCall::RecursiveAggregation { .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { .. }
@@ -481,11 +481,11 @@ where
 mod tests {
 
     use crate::{circuit::Opcode, native_types::Witness};
-    use acir_field::FieldElement;
+    use acir_field::{AcirField, FieldElement};
 
     use super::{BlackBoxFuncCall, FunctionInput};
 
-    fn keccakf1600_opcode() -> Opcode {
+    fn keccakf1600_opcode<F: AcirField>() -> Opcode<F> {
         let inputs: Box<[FunctionInput; 25]> = Box::new(std::array::from_fn(|i| FunctionInput {
             witness: Witness(i as u32 + 1),
             num_bits: 8,
@@ -494,7 +494,7 @@ mod tests {
 
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
     }
-    fn schnorr_verify_opcode() -> Opcode {
+    fn schnorr_verify_opcode<F: AcirField>() -> Opcode<F> {
         let public_key_x =
             FunctionInput { witness: Witness(1), num_bits: FieldElement::max_num_bits() };
         let public_key_y =
@@ -516,7 +516,7 @@ mod tests {
 
     #[test]
     fn keccakf1600_serialization_roundtrip() {
-        let opcode = keccakf1600_opcode();
+        let opcode = keccakf1600_opcode::<FieldElement>();
         let buf = bincode::serialize(&opcode).unwrap();
         let recovered_opcode = bincode::deserialize(&buf).unwrap();
         assert_eq!(opcode, recovered_opcode);
@@ -524,7 +524,7 @@ mod tests {
 
     #[test]
     fn schnorr_serialization_roundtrip() {
-        let opcode = schnorr_verify_opcode();
+        let opcode = schnorr_verify_opcode::<FieldElement>();
         let buf = bincode::serialize(&opcode).unwrap();
         let recovered_opcode = bincode::deserialize(&buf).unwrap();
         assert_eq!(opcode, recovered_opcode);

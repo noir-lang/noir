@@ -1,6 +1,0 @@
-[package]
-name = "brillig_embedded_curve"
-type = "bin"
-authors = [""]
-
-[dependencies]
