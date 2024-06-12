@@ -349,8 +349,7 @@ impl StructType {
     /// True if the given index is the same index as a generic type of this struct
     /// which is expected to be a numeric generic.
     /// This is needed because we infer type kinds in Noir and don't have extensive kind checking.
-    /// TODO(https://github.com/noir-lang/noir/issues/5156): This is outdated and we should remove this implicit searching
-    /// a new strategy for finding implicit generics with `find_numeric_type_vars` as we now have type kinds
+    /// TODO(https://github.com/noir-lang/noir/issues/5156): This is outdated and we should remove this implicit searching for numeric generics
     pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
         let target_id = self.generics[index_of_generic].type_var.id();
         self.fields.iter().any(|(_, field)| field.contains_numeric_typevar(target_id))
