@@ -2,7 +2,7 @@ use fxhash::FxHashMap as HashMap;
 use std::{collections::VecDeque, rc::Rc};
 
 use acvm::{acir::AcirField, acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
-use bn254_blackbox_solver::generator::generators::derive_generators;
+use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
