@@ -83,13 +83,10 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
         let brillig_ignored =
             if IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()) { "\n#[ignore]" } else { "" };
 
-        let comptime_ignored =
-            if IGNORED_COMPTIME_TESTS.contains(&test_name.as_str()) { "\n#[ignore]" } else { "" };
-
         write!(
             test_file,
             r#"
-#[test]{comptime_ignored}
+#[test]
 fn execution_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
@@ -111,7 +108,7 @@ fn execution_success_elaborator_{test_name}() {{
     cmd.assert().success();
 }}
 
-#[test]{brillig_ignored}{comptime_ignored}
+#[test]{brillig_ignored}
 fn execution_success_{test_name}_brillig() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
@@ -289,10 +286,13 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
         };
         let test_dir = &test_dir.path();
 
+        let comptime_ignored =
+            if IGNORED_COMPTIME_TESTS.contains(&test_name.as_str()) { "\n#[ignore]" } else { "" };
+
         write!(
             test_file,
             r#"
-#[test]
+#[test]{comptime_ignored}
 fn compile_success_empty_{test_name}() {{
 
     let test_program_dir = PathBuf::from("{test_dir}");

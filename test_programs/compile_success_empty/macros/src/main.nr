@@ -7,7 +7,9 @@ comptime fn my_macro(x: Field, y: Field) -> Expr {
     }
 }
 
-fn main(a: Field, b: pub Field) {
+fn main() {
+    let a = 100;
+    let b = 200;
     let result = my_macro!(1, 2);
     assert_eq(result, 1 + 2 + a + b);
 }
