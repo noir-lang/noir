@@ -227,8 +227,8 @@ impl BlackBoxFunc {
             BlackBoxFunc::BigIntToLeBytes => "bigint_to_le_bytes",
             BlackBoxFunc::Poseidon2Permutation => "poseidon2_permutation",
             BlackBoxFunc::Sha256Compression => "sha256_compression",
-            BlackBoxFunc::PedersenCommitment => "deprecated",
-            BlackBoxFunc::PedersenHash => "deprecated",
+            BlackBoxFunc::PedersenCommitment => "deprecated pedersen commitment",
+            BlackBoxFunc::PedersenHash => "deprecated pedersen hash",
         }
     }
 
@@ -257,6 +257,8 @@ impl BlackBoxFunc {
             "bigint_to_le_bytes" => Some(BlackBoxFunc::BigIntToLeBytes),
             "poseidon2_permutation" => Some(BlackBoxFunc::Poseidon2Permutation),
             "sha256_compression" => Some(BlackBoxFunc::Sha256Compression),
+            "deprecated pedersen commitment" => Some(BlackBoxFunc::PedersenCommitment),
+            "deprecated pedersen hash" => Some(BlackBoxFunc::PedersenHash),
             _ => None,
         }
     }
