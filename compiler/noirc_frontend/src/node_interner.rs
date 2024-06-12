@@ -1466,6 +1466,7 @@ impl NodeInterner {
         force_type_check: bool,
     ) -> Option<FuncId> {
         let methods = self.struct_methods.get(&(id, method_name.to_owned()));
+
         // If there is only one method, just return it immediately.
         // It will still be typechecked later.
         if !force_type_check {
