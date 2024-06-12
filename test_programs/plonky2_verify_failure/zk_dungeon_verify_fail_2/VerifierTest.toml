@@ -1,3 +1,5 @@
+# This file is separate from Verifier.toml, because nargo prove overwrites Verifier.toml
+
 watcher_map = [[false, false, false, false, false, false, false, false], [false, false, false, false, false, false, false, false], [false, false, false, false, false, false, false, false], [false, false, false, false, false, false, false, false], [false, false, false, false, false, false, false, false], [false, false, false, true, false, false, false, false], [false, false, false, false, false, false, false, false], [false, true, false, false, true, true, false, false]]
 
 [dagger]
