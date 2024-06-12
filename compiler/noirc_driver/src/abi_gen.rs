@@ -50,8 +50,6 @@ fn build_abi_error_type(context: &Context, typ: &Type) -> AbiErrorType {
 }
 
 pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
-    // Note; use strict_eq instead of partial_eq when comparing field types
-    // in this method, you most likely want to distinguish between public and private
     match typ {
         Type::FieldElement => AbiType::Field,
         Type::Array(size, typ) => {
