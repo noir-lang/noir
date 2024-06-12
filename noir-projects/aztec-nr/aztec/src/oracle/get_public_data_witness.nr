@@ -14,7 +14,7 @@ struct PublicDataWitness {
 }
 
 #[oracle(getPublicDataTreeWitness)]
-fn get_public_data_witness_oracle(
+unconstrained fn get_public_data_witness_oracle(
     _block_number: u32,
     _leaf_slot: Field
 ) -> [Field; PUBLIC_DATA_WITNESS] {}

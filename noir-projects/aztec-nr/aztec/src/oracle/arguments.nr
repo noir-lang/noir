@@ -1,8 +1,8 @@
 #[oracle(packArgumentsArray)]
-fn pack_arguments_array_oracle<N>(_args: [Field; N]) -> Field {}
+unconstrained fn pack_arguments_array_oracle<N>(_args: [Field; N]) -> Field {}
 
 #[oracle(packArguments)]
-fn pack_arguments_oracle(_args: [Field]) -> Field {}
+unconstrained fn pack_arguments_oracle(_args: [Field]) -> Field {}
 
 /// - Pack arguments (array version) will notify the simulator that these arguments will be used later at
 ///   some point in the call. 

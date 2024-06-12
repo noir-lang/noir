@@ -2,7 +2,7 @@ use crate::keys::PublicKeys;
 use dep::protocol_types::{address::{AztecAddress, PartialAddress}, grumpkin_point::GrumpkinPoint};
 
 #[oracle(getPublicKeysAndPartialAddress)]
-fn get_public_keys_and_partial_address_oracle(_address: AztecAddress) -> [Field; 9] {}
+unconstrained fn get_public_keys_and_partial_address_oracle(_address: AztecAddress) -> [Field; 9] {}
 
 unconstrained fn get_public_keys_and_partial_address_oracle_wrapper(address: AztecAddress) -> [Field; 9] {
     get_public_keys_and_partial_address_oracle(address)

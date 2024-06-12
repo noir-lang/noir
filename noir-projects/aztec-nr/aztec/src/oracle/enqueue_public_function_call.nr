@@ -19,7 +19,7 @@ use dep::protocol_types::{
 };
 
 #[oracle(enqueuePublicFunctionCall)]
-fn enqueue_public_function_call_oracle(
+unconstrained fn enqueue_public_function_call_oracle(
     _contract_address: AztecAddress,
     _function_selector: FunctionSelector,
     _args_hash: Field,
@@ -47,7 +47,7 @@ unconstrained pub fn enqueue_public_function_call_internal(
 }
 
 #[oracle(setPublicTeardownFunctionCall)]
-fn set_public_teardown_function_call_oracle(
+unconstrained fn set_public_teardown_function_call_oracle(
     _contract_address: AztecAddress,
     _function_selector: FunctionSelector,
     _args_hash: Field,

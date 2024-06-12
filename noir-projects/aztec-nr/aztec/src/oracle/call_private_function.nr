@@ -4,7 +4,7 @@ use dep::protocol_types::{
 };
 
 #[oracle(callPrivateFunction)]
-fn call_private_function_oracle(
+unconstrained fn call_private_function_oracle(
     _contract_address: AztecAddress,
     _function_selector: FunctionSelector,
     _args_hash: Field,

@@ -4,7 +4,7 @@ use dep::protocol_types::{
 };
 
 #[oracle(getKeyValidationRequest)]
-fn get_key_validation_request_oracle(_pk_m_hash: Field, _key_index: Field) -> [Field; KEY_VALIDATION_REQUEST_LENGTH] {}
+unconstrained fn get_key_validation_request_oracle(_pk_m_hash: Field, _key_index: Field) -> [Field; KEY_VALIDATION_REQUEST_LENGTH] {}
 
 unconstrained fn get_key_validation_request_internal(npk_m_hash: Field, key_index: Field) -> KeyValidationRequest {
     let result = get_key_validation_request_oracle(npk_m_hash, key_index);

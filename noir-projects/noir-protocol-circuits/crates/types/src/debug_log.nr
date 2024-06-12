@@ -2,7 +2,7 @@
 // WARNING: sometimes when using debug logs the ACVM errors with: `thrown: "solver opcode resolution error: cannot solve opcode: expression has too many unknowns x155"`
 
 #[oracle(debugLog)]
-fn debug_log_oracle<M, N>(_msg: str<M>, args: [Field]) {}
+unconstrained fn debug_log_oracle<M, N>(_msg: str<M>, args: [Field]) {}
 
 /// NOTE: call this with a str<N> msg of form
 /// "some string with {0} and {1} ... {N}"

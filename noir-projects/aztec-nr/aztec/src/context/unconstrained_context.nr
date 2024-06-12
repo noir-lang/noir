@@ -26,7 +26,7 @@ impl UnconstrainedContext {
 }
 
 #[oracle(getContractAddress)]
-fn contract_address_oracle() -> AztecAddress {}
+unconstrained fn contract_address_oracle() -> AztecAddress {}
 
 #[oracle(getBlockNumber)]
-fn block_number_oracle() -> u32 {}
+unconstrained fn block_number_oracle() -> u32 {}

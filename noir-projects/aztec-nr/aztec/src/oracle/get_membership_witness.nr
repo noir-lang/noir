@@ -16,7 +16,7 @@ struct MembershipWitness<N, M> {
 }
 
 #[oracle(getMembershipWitness)]
-fn get_membership_witness_oracle<M>(
+unconstrained fn get_membership_witness_oracle<M>(
     _block_number: u32,
     _tree_id: Field,
     _leaf_value: Field

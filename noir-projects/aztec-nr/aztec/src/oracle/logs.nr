@@ -2,7 +2,7 @@ use dep::protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint};
 
 // = 480 + 32 * N bytes
 #[oracle(emitEncryptedNoteLog)]
-fn emit_encrypted_note_log_oracle<M>(
+unconstrained fn emit_encrypted_note_log_oracle<M>(
     _note_hash_counter: u32,
     _encrypted_note: [u8; M],
     _counter: u32
@@ -17,7 +17,7 @@ unconstrained pub fn emit_encrypted_note_log<M>(
 }
 
 #[oracle(emitEncryptedEventLog)]
-fn emit_encrypted_event_log_oracle<M>(
+unconstrained fn emit_encrypted_event_log_oracle<M>(
     _contract_address: AztecAddress,
     _randomness: Field,
     _encrypted_event: [u8; M],
@@ -35,7 +35,7 @@ unconstrained pub fn emit_encrypted_event_log<M>(
 
 // = 480 + 32 * N bytes
 #[oracle(computeEncryptedNoteLog)]
-fn compute_encrypted_note_log_oracle<N, M>(
+unconstrained fn compute_encrypted_note_log_oracle<N, M>(
     _contract_address: AztecAddress,
     _storage_slot: Field,
     _note_type_id: Field,
@@ -67,7 +67,7 @@ unconstrained pub fn compute_encrypted_note_log<N, M>(
 
 // = 480 + 32 * N bytes
 #[oracle(computeEncryptedEventLog)]
-fn compute_encrypted_event_log_oracle<N, M>(
+unconstrained fn compute_encrypted_event_log_oracle<N, M>(
     _contract_address: AztecAddress,
     _randomness: Field,
     _event_type_id: Field,
@@ -98,7 +98,7 @@ unconstrained pub fn compute_encrypted_event_log<N, M>(
 }
 
 #[oracle(emitUnencryptedLog)]
-fn emit_unencrypted_log_oracle_private<T>(
+unconstrained fn emit_unencrypted_log_oracle_private<T>(
     _contract_address: AztecAddress,
     _event_selector: Field,
     _message: T,
@@ -115,7 +115,7 @@ unconstrained pub fn emit_unencrypted_log_private_internal<T>(
 }
 
 #[oracle(emitContractClassUnencryptedLog)]
-fn emit_contract_class_unencrypted_log_private<N>(
+unconstrained fn emit_contract_class_unencrypted_log_private<N>(
     contract_address: AztecAddress,
     event_selector: Field,
     message: [Field; N],
