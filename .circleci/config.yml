@@ -426,6 +426,11 @@ jobs:
           command: |
             should_release || exit 0
             deploy_npm l1-contracts latest
+      - run:
+          name: "Update aztec-up"
+          command: |
+            should_release || exit 0
+            deploy_terraform "" aztec-up/terraform
 
 # Repeatable config for defining the workflow below.
 defaults: &defaults
