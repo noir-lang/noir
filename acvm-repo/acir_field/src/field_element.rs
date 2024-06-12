@@ -286,7 +286,6 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         (self.num_bits() <= 64).then(|| self.to_u128() as u64)
     }
 
-
     fn try_to_u32(&self) -> Option<u32> {
         (self.num_bits() <= 32).then(|| self.to_u128() as u32)
     }

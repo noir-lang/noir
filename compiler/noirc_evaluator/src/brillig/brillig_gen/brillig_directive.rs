@@ -41,7 +41,7 @@ pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
             // Put value one in register (1)
             BrilligOpcode::Const {
                 destination: one_const,
-                value: F::from(1_usize),
+                value: F::one(),
                 bit_size: F::max_num_bits(),
             },
             // Divide 1 by the input, and set the result of the division into register (0)

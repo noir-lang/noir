@@ -971,7 +971,6 @@ impl<F: AcirField> AcirContext<F> {
         let zero = self.add_constant(F::zero());
         let one = self.add_constant(F::one());
 
-
         // Get the sign bit of rhs by computing rhs / max_power_of_two
         let (rhs_leading, _) = self.euclidean_division_var(rhs, max_power_of_two, bit_size, one)?;
 
