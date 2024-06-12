@@ -751,7 +751,10 @@ fn generate_plonky2_verify_failure_tests(test_file: &mut File, test_data_dir: &P
     let test_case_dirs =
         fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
 
-    let expected_messages = HashMap::from([("simple_add", vec!["Cannot satisfy constraint"])]);
+    let expected_messages = HashMap::from([
+        ("zk_dungeon_verify_fail_1", vec!["Public inputs don't match proof"]),
+        ("zk_dungeon_verify_fail_2", vec!["Expected argument `dagger.y`, but none was found"]),
+    ]);
 
     for test_dir in test_case_dirs {
         let test_name =
@@ -793,7 +796,7 @@ fn plonky2_verify_failure_{test_name}() {{
                     write!(
                         test_file,
                         r#"
-    cmd.assert().failure().stderr(predicate::str::contains("{message}"));"#
+    cmd2.assert().failure().stderr(predicate::str::contains("{message}"));"#
                     )
                     .expect("Could not write templated test file.");
                 }
