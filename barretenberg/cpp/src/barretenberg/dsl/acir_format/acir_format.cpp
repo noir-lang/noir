@@ -1,5 +1,6 @@
 #include "acir_format.hpp"
 #include "barretenberg/common/log.hpp"
+#include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/stdlib/primitives/field/field_conversion.hpp"
 #include "barretenberg/stdlib_circuit_builders/mega_circuit_builder.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
@@ -14,114 +15,215 @@ template class DSLBigInts<MegaCircuitBuilder>;
 
 template <typename Builder>
 void build_constraints(Builder& builder,
-                       AcirFormat const& constraint_system,
+                       AcirFormat& constraint_system,
                        bool has_valid_witness_assignments,
-                       bool honk_recursion)
+                       bool honk_recursion,
+                       bool collect_gates_per_opcode)
 {
-    // Add arithmetic gates
-    for (const auto& constraint : constraint_system.poly_triple_constraints) {
-        builder.create_poly_gate(constraint);
+    if (collect_gates_per_opcode) {
+        constraint_system.gates_per_opcode.resize(constraint_system.num_acir_opcodes, 0);
     }
-    for (const auto& constraint : constraint_system.quad_constraints) {
+    size_t prev_gate_count = 0;
+
+    auto compute_gate_diff = [&]() -> size_t {
+        if (!collect_gates_per_opcode) {
+            return 0;
+        }
+        size_t new_gate_count = builder.get_num_gates();
+        size_t diff = new_gate_count - prev_gate_count;
+        prev_gate_count = new_gate_count;
+        return diff;
+    };
+
+    auto track_gate_diff = [&](std::vector<size_t>& gates_per_opcode, size_t opcode_index) -> void {
+        if (collect_gates_per_opcode) {
+            gates_per_opcode[opcode_index] = compute_gate_diff();
+        }
+    };
+
+    // Add arithmetic gates
+    for (size_t i = 0; i < constraint_system.poly_triple_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.poly_triple_constraints.at(i);
+        builder.create_poly_gate(constraint);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.poly_triple_constraints.at(i));
+    }
+
+    for (size_t i = 0; i < constraint_system.quad_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.quad_constraints.at(i);
         builder.create_big_mul_gate(constraint);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.quad_constraints.at(i));
     }
 
     // Add logic constraint
-    for (const auto& constraint : constraint_system.logic_constraints) {
+    for (size_t i = 0; i < constraint_system.logic_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.logic_constraints.at(i);
         create_logic_gate(
             builder, constraint.a, constraint.b, constraint.result, constraint.num_bits, constraint.is_xor_gate);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.logic_constraints.at(i));
     }
 
     // Add range constraint
-    for (const auto& constraint : constraint_system.range_constraints) {
+    for (size_t i = 0; i < constraint_system.range_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.range_constraints.at(i);
         builder.create_range_constraint(constraint.witness, constraint.num_bits, "");
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.range_constraints.at(i));
     }
 
     // Add aes128 constraints
-    for (const auto& constraint : constraint_system.aes128_constraints) {
+    for (size_t i = 0; i < constraint_system.aes128_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.aes128_constraints.at(i);
         create_aes128_constraints(builder, constraint);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.aes128_constraints.at(i));
     }
 
     // Add sha256 constraints
-    for (const auto& constraint : constraint_system.sha256_constraints) {
+    for (size_t i = 0; i < constraint_system.sha256_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.sha256_constraints.at(i);
         create_sha256_constraints(builder, constraint);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.sha256_constraints.at(i));
     }
-    for (const auto& constraint : constraint_system.sha256_compression) {
+
+    for (size_t i = 0; i < constraint_system.sha256_compression.size(); ++i) {
+        const auto& constraint = constraint_system.sha256_compression[i];
         create_sha256_compression_constraints(builder, constraint);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.sha256_compression[i]);
     }
 
     // Add schnorr constraints
-    for (const auto& constraint : constraint_system.schnorr_constraints) {
+    for (size_t i = 0; i < constraint_system.schnorr_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.schnorr_constraints.at(i);
         create_schnorr_verify_constraints(builder, constraint);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.schnorr_constraints.at(i));
     }
 
     // Add ECDSA k1 constraints
-    for (const auto& constraint : constraint_system.ecdsa_k1_constraints) {
+    for (size_t i = 0; i < constraint_system.ecdsa_k1_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.ecdsa_k1_constraints.at(i);
         create_ecdsa_k1_verify_constraints(builder, constraint, has_valid_witness_assignments);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.ecdsa_k1_constraints.at(i));
     }
 
     // Add ECDSA r1 constraints
-    for (const auto& constraint : constraint_system.ecdsa_r1_constraints) {
+    for (size_t i = 0; i < constraint_system.ecdsa_r1_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.ecdsa_r1_constraints.at(i);
         create_ecdsa_r1_verify_constraints(builder, constraint, has_valid_witness_assignments);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.ecdsa_r1_constraints.at(i));
     }
 
     // Add blake2s constraints
-    for (const auto& constraint : constraint_system.blake2s_constraints) {
+    for (size_t i = 0; i < constraint_system.blake2s_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.blake2s_constraints.at(i);
         create_blake2s_constraints(builder, constraint);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.blake2s_constraints.at(i));
     }
 
     // Add blake3 constraints
-    for (const auto& constraint : constraint_system.blake3_constraints) {
+    for (size_t i = 0; i < constraint_system.blake3_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.blake3_constraints.at(i);
         create_blake3_constraints(builder, constraint);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.blake3_constraints.at(i));
     }
 
     // Add keccak constraints
-    for (const auto& constraint : constraint_system.keccak_constraints) {
+    for (size_t i = 0; i < constraint_system.keccak_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.keccak_constraints.at(i);
         create_keccak_constraints(builder, constraint);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.keccak_constraints.at(i));
     }
-    for (const auto& constraint : constraint_system.keccak_permutations) {
+
+    for (size_t i = 0; i < constraint_system.keccak_permutations.size(); ++i) {
+        const auto& constraint = constraint_system.keccak_permutations[i];
         create_keccak_permutations(builder, constraint);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.keccak_permutations[i]);
     }
 
     // Add pedersen constraints
-    for (const auto& constraint : constraint_system.pedersen_constraints) {
+    for (size_t i = 0; i < constraint_system.pedersen_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.pedersen_constraints.at(i);
         create_pedersen_constraint(builder, constraint);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.pedersen_constraints.at(i));
     }
 
-    for (const auto& constraint : constraint_system.pedersen_hash_constraints) {
+    for (size_t i = 0; i < constraint_system.pedersen_hash_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.pedersen_hash_constraints.at(i);
         create_pedersen_hash_constraint(builder, constraint);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.pedersen_hash_constraints.at(i));
     }
 
-    for (const auto& constraint : constraint_system.poseidon2_constraints) {
+    for (size_t i = 0; i < constraint_system.poseidon2_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.poseidon2_constraints.at(i);
         create_poseidon2_permutations(builder, constraint);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.poseidon2_constraints.at(i));
     }
 
     // Add multi scalar mul constraints
-    for (const auto& constraint : constraint_system.multi_scalar_mul_constraints) {
+    for (size_t i = 0; i < constraint_system.multi_scalar_mul_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.multi_scalar_mul_constraints.at(i);
         create_multi_scalar_mul_constraint(builder, constraint);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.multi_scalar_mul_constraints.at(i));
     }
 
     // Add ec add constraints
-    for (const auto& constraint : constraint_system.ec_add_constraints) {
+    for (size_t i = 0; i < constraint_system.ec_add_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.ec_add_constraints.at(i);
         create_ec_add_constraint(builder, constraint, has_valid_witness_assignments);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.ec_add_constraints.at(i));
     }
 
     // Add block constraints
-    for (const auto& constraint : constraint_system.block_constraints) {
+    for (size_t i = 0; i < constraint_system.block_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.block_constraints.at(i);
         create_block_constraints(builder, constraint, has_valid_witness_assignments);
+        if (collect_gates_per_opcode) {
+            size_t avg_gates_per_opcode =
+                compute_gate_diff() / constraint_system.original_opcode_indices.block_constraints.at(i).size();
+            for (size_t opcode_index : constraint_system.original_opcode_indices.block_constraints.at(i)) {
+                constraint_system.gates_per_opcode[opcode_index] = avg_gates_per_opcode;
+            }
+        }
     }
 
     // Add big_int constraints
     DSLBigInts<Builder> dsl_bigints;
     dsl_bigints.set_builder(&builder);
-    for (const auto& constraint : constraint_system.bigint_from_le_bytes_constraints) {
+    for (size_t i = 0; i < constraint_system.bigint_from_le_bytes_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.bigint_from_le_bytes_constraints.at(i);
         create_bigint_from_le_bytes_constraint(builder, constraint, dsl_bigints);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.bigint_from_le_bytes_constraints.at(i));
     }
-    for (const auto& constraint : constraint_system.bigint_operations) {
+
+    for (size_t i = 0; i < constraint_system.bigint_operations.size(); ++i) {
+        const auto& constraint = constraint_system.bigint_operations[i];
         create_bigint_operations_constraint<Builder>(constraint, dsl_bigints, has_valid_witness_assignments);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.bigint_operations[i]);
     }
-    for (const auto& constraint : constraint_system.bigint_to_le_bytes_constraints) {
+
+    for (size_t i = 0; i < constraint_system.bigint_to_le_bytes_constraints.size(); ++i) {
+        const auto& constraint = constraint_system.bigint_to_le_bytes_constraints.at(i);
         create_bigint_to_le_bytes_constraint(builder, constraint, dsl_bigints);
+        track_gate_diff(constraint_system.gates_per_opcode,
+                        constraint_system.original_opcode_indices.bigint_to_le_bytes_constraints.at(i));
     }
 
     // RecursionConstraint
@@ -152,7 +254,9 @@ void build_constraints(Builder& builder,
         auto proof_size_no_pub_inputs = recursion_proof_size_without_public_inputs();
 
         // Add recursion constraints
-        for (auto constraint : constraint_system.recursion_constraints) {
+        for (size_t constraint_idx = 0; constraint_idx < constraint_system.recursion_constraints.size();
+             ++constraint_idx) {
+            auto constraint = constraint_system.recursion_constraints[constraint_idx];
             // A proof passed into the constraint should be stripped of its public inputs, except in the case where a
             // proof contains an aggregation object itself. We refer to this as the `nested_aggregation_object`. The
             // verifier circuit requires that the indices to a nested proof aggregation state are a circuit constant.
@@ -187,12 +291,15 @@ void build_constraints(Builder& builder,
                                        constraint.proof.begin() +
                                            static_cast<std::ptrdiff_t>(RecursionConstraint::AGGREGATION_OBJECT_SIZE));
             }
+
             current_output_aggregation_object = create_recursion_constraints(builder,
                                                                              constraint,
                                                                              current_input_aggregation_object,
                                                                              nested_aggregation_object,
                                                                              has_valid_witness_assignments);
             current_input_aggregation_object = current_output_aggregation_object;
+            track_gate_diff(constraint_system.gates_per_opcode,
+                            constraint_system.original_opcode_indices.recursion_constraints[constraint_idx]);
         }
 
         // Now that the circuit has been completely built, we add the output aggregation as public
@@ -232,11 +339,13 @@ void build_constraints(Builder& builder,
         };
 
         // Add recursion constraints
-        for (auto constraint : constraint_system.honk_recursion_constraints) {
-            // A proof passed into the constraint should be stripped of its inner public inputs, but not the nested
-            // aggregation object itself. The verifier circuit requires that the indices to a nested proof aggregation
-            // state are a circuit constant. The user tells us they how they want these constants set by keeping the
-            // nested aggregation object attached to the proof as public inputs.
+
+        for (size_t i = 0; i < constraint_system.honk_recursion_constraints.size(); ++i) {
+            auto constraint = constraint_system.honk_recursion_constraints.at(i);
+            // A proof passed into the constraint should be stripped of its inner public inputs, but not the
+            // nested aggregation object itself. The verifier circuit requires that the indices to a nested
+            // proof aggregation state are a circuit constant. The user tells us they how they want these
+            // constants set by keeping the nested aggregation object attached to the proof as public inputs.
             std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> nested_aggregation_object = {};
             for (size_t i = 0; i < HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE; ++i) {
                 // Set the nested aggregation object indices to witness indices from the proof
@@ -256,6 +365,8 @@ void build_constraints(Builder& builder,
                                                                            current_aggregation_object,
                                                                            nested_aggregation_object,
                                                                            has_valid_witness_assignments);
+            track_gate_diff(constraint_system.gates_per_opcode,
+                            constraint_system.original_opcode_indices.honk_recursion_constraints.at(i));
         }
 
         // Now that the circuit has been completely built, we add the output aggregation as public
@@ -319,18 +430,20 @@ void build_constraints(Builder& builder,
  * @return Builder
  */
 template <>
-UltraCircuitBuilder create_circuit(const AcirFormat& constraint_system,
+UltraCircuitBuilder create_circuit(AcirFormat& constraint_system,
                                    size_t size_hint,
                                    WitnessVector const& witness,
                                    bool honk_recursion,
-                                   [[maybe_unused]] std::shared_ptr<ECCOpQueue>)
+                                   [[maybe_unused]] std::shared_ptr<ECCOpQueue>,
+                                   bool collect_gates_per_opcode)
 {
     Builder builder{
         size_hint, witness, constraint_system.public_inputs, constraint_system.varnum, constraint_system.recursive
     };
 
     bool has_valid_witness_assignments = !witness.empty();
-    build_constraints(builder, constraint_system, has_valid_witness_assignments, honk_recursion);
+    build_constraints(
+        builder, constraint_system, has_valid_witness_assignments, honk_recursion, collect_gates_per_opcode);
 
     return builder;
 };
@@ -345,22 +458,24 @@ UltraCircuitBuilder create_circuit(const AcirFormat& constraint_system,
  * @return Builder
  */
 template <>
-MegaCircuitBuilder create_circuit(const AcirFormat& constraint_system,
+MegaCircuitBuilder create_circuit(AcirFormat& constraint_system,
                                   [[maybe_unused]] size_t size_hint,
                                   WitnessVector const& witness,
                                   bool honk_recursion,
-                                  std::shared_ptr<ECCOpQueue> op_queue)
+                                  std::shared_ptr<ECCOpQueue> op_queue,
+                                  bool collect_gates_per_opcode)
 {
     // Construct a builder using the witness and public input data from acir and with the goblin-owned op_queue
     auto builder = MegaCircuitBuilder{ op_queue, witness, constraint_system.public_inputs, constraint_system.varnum };
 
     // Populate constraints in the builder via the data in constraint_system
     bool has_valid_witness_assignments = !witness.empty();
-    acir_format::build_constraints(builder, constraint_system, has_valid_witness_assignments, honk_recursion);
+    acir_format::build_constraints(
+        builder, constraint_system, has_valid_witness_assignments, honk_recursion, collect_gates_per_opcode);
 
     return builder;
 };
 
-template void build_constraints<MegaCircuitBuilder>(MegaCircuitBuilder&, AcirFormat const&, bool, bool);
+template void build_constraints<MegaCircuitBuilder>(MegaCircuitBuilder&, AcirFormat&, bool, bool, bool);
 
 } // namespace acir_format

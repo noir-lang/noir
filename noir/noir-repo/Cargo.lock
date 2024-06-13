@@ -1187,6 +1187,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashmap"
+version = "5.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "978747c1d849a7d2ee5e8adc0159961c48fb7e5db2f06af6723b80123bb53856"
+dependencies = [
+ "cfg-if 1.0.0",
+ "hashbrown 0.14.5",
+ "lock_api",
+ "once_cell",
+ "parking_lot_core 0.9.8",
+]
+
+[[package]]
 name = "debugid"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1381,6 +1394,15 @@ name = "endian-type"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c34f04666d835ff5d62e058c3995147c06f42fe86ff053337632bca83e42702d"
+
+[[package]]
+name = "env_logger"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4cd405aab171cb85d6735e5c8d9db038c17d3ca007a4d2c25f337935c3d90580"
+dependencies = [
+ "log",
+]
 
 [[package]]
 name = "equivalent"
@@ -2017,12 +2039,17 @@ dependencies = [
 
 [[package]]
 name = "inferno"
-version = "0.11.15"
+version = "0.11.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fb7c1b80a1dfa604bb4a649a5c5aeef3d913f7c520cb42b40e534e8a61bcdfc"
+checksum = "321f0f839cd44a4686e9504b0a62b4d69a50b62072144c71c68f5873c167b8d9"
 dependencies = [
  "ahash 0.8.11",
- "indexmap 1.9.3",
+ "clap",
+ "crossbeam-channel",
+ "crossbeam-utils",
+ "dashmap",
+ "env_logger",
+ "indexmap 2.2.6",
  "is-terminal",
  "itoa",
  "log",
@@ -2696,6 +2723,29 @@ dependencies = [
  "tokio",
  "tower",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "noir_profiler"
+version = "0.30.0"
+dependencies = [
+ "acir",
+ "clap",
+ "codespan-reporting",
+ "color-eyre",
+ "const_format",
+ "fm",
+ "im",
+ "inferno",
+ "nargo",
+ "noirc_abi",
+ "noirc_driver",
+ "noirc_errors",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tracing-appender",
+ "tracing-subscriber",
 ]
 
 [[package]]

@@ -24,6 +24,44 @@
 
 namespace acir_format {
 
+/**
+ * @brief Indices of the original opcode that originated each constraint in AcirFormat.
+ * @details Contains one array of indices per opcode type. The length of each array is equal to the number of
+ * constraints of that type. The relationship between the opcodes and constraints is assumed to be one to one, except
+ * for block constraints.
+ */
+struct AcirFormatOriginalOpcodeIndices {
+    std::vector<size_t> logic_constraints;
+    std::vector<size_t> range_constraints;
+    std::vector<size_t> aes128_constraints;
+    std::vector<size_t> sha256_constraints;
+    std::vector<size_t> sha256_compression;
+    std::vector<size_t> schnorr_constraints;
+    std::vector<size_t> ecdsa_k1_constraints;
+    std::vector<size_t> ecdsa_r1_constraints;
+    std::vector<size_t> blake2s_constraints;
+    std::vector<size_t> blake3_constraints;
+    std::vector<size_t> keccak_constraints;
+    std::vector<size_t> keccak_permutations;
+    std::vector<size_t> pedersen_constraints;
+    std::vector<size_t> pedersen_hash_constraints;
+    std::vector<size_t> poseidon2_constraints;
+    std::vector<size_t> multi_scalar_mul_constraints;
+    std::vector<size_t> ec_add_constraints;
+    std::vector<size_t> recursion_constraints;
+    std::vector<size_t> honk_recursion_constraints;
+    std::vector<size_t> bigint_from_le_bytes_constraints;
+    std::vector<size_t> bigint_to_le_bytes_constraints;
+    std::vector<size_t> bigint_operations;
+    std::vector<size_t> poly_triple_constraints;
+    std::vector<size_t> quad_constraints;
+    // Multiple opcode indices per block:
+    std::vector<std::vector<size_t>> block_constraints;
+
+    friend bool operator==(AcirFormatOriginalOpcodeIndices const& lhs,
+                           AcirFormatOriginalOpcodeIndices const& rhs) = default;
+};
+
 struct AcirFormat {
     // The number of witnesses in the circuit
     uint32_t varnum;
@@ -71,6 +109,13 @@ struct AcirFormat {
                 bb::ContainerSlabAllocator<bb::mul_quad_<bb::curve::BN254::ScalarField>>>
         quad_constraints;
     std::vector<BlockConstraint> block_constraints;
+
+    // Number of gates added to the circuit per original opcode.
+    // Has length equal to num_acir_opcodes.
+    std::vector<size_t> gates_per_opcode = {};
+
+    // Indices of the original opcode that originated each constraint in AcirFormat.
+    AcirFormatOriginalOpcodeIndices original_opcode_indices;
 
     // For serialization, update with any new fields
     MSGPACK_FIELDS(varnum,
@@ -142,18 +187,21 @@ struct AcirProgramStack {
 };
 
 template <typename Builder = bb::UltraCircuitBuilder>
-Builder create_circuit(const AcirFormat& constraint_system,
+Builder create_circuit(AcirFormat& constraint_system,
                        size_t size_hint = 0,
                        WitnessVector const& witness = {},
                        bool honk_recursion = false,
-                       std::shared_ptr<bb::ECCOpQueue> op_queue = std::make_shared<bb::ECCOpQueue>());
+                       std::shared_ptr<bb::ECCOpQueue> op_queue = std::make_shared<bb::ECCOpQueue>(),
+                       bool collect_gates_per_opcode = false);
 
 template <typename Builder>
-void build_constraints(Builder& builder,
-                       AcirFormat const& constraint_system,
-                       bool has_valid_witness_assignments,
-                       bool honk_recursion = false); // honk_recursion means we will honk to recursively verify this
-                                                     // circuit. This distinction is needed to not add the default
-                                                     // aggregation object when we're not using the honk RV.
+void build_constraints(
+    Builder& builder,
+    AcirFormat& constraint_system,
+    bool has_valid_witness_assignments,
+    bool honk_recursion = false,
+    bool collect_gates_per_opcode = false); // honk_recursion means we will honk to recursively verify this
+                                            // circuit. This distinction is needed to not add the default
+                                            // aggregation object when we're not using the honk RV.
 
 } // namespace acir_format

@@ -446,15 +446,25 @@ void gateCount(const std::string& bytecodePath, bool honk_recursion)
     size_t i = 0;
     for (auto constraint_system : constraint_systems) {
         acir_proofs::AcirComposer acir_composer(0, verbose_logging);
-        acir_composer.create_circuit(constraint_system);
+        acir_composer.create_circuit(constraint_system, {}, true);
         auto circuit_size = acir_composer.get_total_circuit_size();
 
         // Build individual circuit report
+        std::string gates_per_opcode_str;
+        for (size_t j = 0; j < constraint_system.gates_per_opcode.size(); j++) {
+            gates_per_opcode_str += std::to_string(constraint_system.gates_per_opcode[j]);
+            if (j != constraint_system.gates_per_opcode.size() - 1) {
+                gates_per_opcode_str += ",";
+            }
+        }
+
         auto result_string = format("{\n        \"acir_opcodes\": ",
                                     constraint_system.num_acir_opcodes,
                                     ",\n        \"circuit_size\": ",
                                     circuit_size,
-                                    "\n  }");
+                                    ",\n        \"gates_per_opcode\": [",
+                                    gates_per_opcode_str,
+                                    "]\n  }");
 
         // Attach a comma if we still circuit reports to generate
         if (i != (constraint_systems.size() - 1)) {

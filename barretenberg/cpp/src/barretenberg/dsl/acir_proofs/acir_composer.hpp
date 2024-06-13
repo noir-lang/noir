@@ -17,7 +17,9 @@ class AcirComposer {
     AcirComposer(size_t size_hint = 0, bool verbose = true);
 
     template <typename Builder = bb::UltraCircuitBuilder>
-    void create_circuit(acir_format::AcirFormat& constraint_system, WitnessVector const& witness = {});
+    void create_circuit(acir_format::AcirFormat& constraint_system,
+                        WitnessVector const& witness = {},
+                        bool collect_gates_per_opcode = false);
 
     std::shared_ptr<bb::plonk::proving_key> init_proving_key();
 

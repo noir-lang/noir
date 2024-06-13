@@ -1,5 +1,8 @@
 #include "acir_to_constraint_buf.hpp"
 #include "barretenberg/common/container.hpp"
+#include <cstddef>
+#include <tuple>
+#include <utility>
 #ifndef __wasm__
 #include "barretenberg/bb/get_bytecode.hpp"
 #endif
@@ -164,7 +167,7 @@ mul_quad_<fr> serialize_mul_quad_gate(Program::Expression const& arg)
     return quad;
 }
 
-void handle_arithmetic(Program::Opcode::AssertZero const& arg, AcirFormat& af)
+void handle_arithmetic(Program::Opcode::AssertZero const& arg, AcirFormat& af, size_t opcode_index)
 {
     if (arg.value.linear_combinations.size() <= 3) {
         poly_triple pt = serialize_arithmetic_gate(arg.value);
@@ -174,15 +177,22 @@ void handle_arithmetic(Program::Opcode::AssertZero const& arg, AcirFormat& af)
         // gate instead. We could probably always use a width-4 gate in fact.
         if (pt == poly_triple{ 0, 0, 0, 0, 0, 0, 0, 0 }) {
             af.quad_constraints.push_back(serialize_mul_quad_gate(arg.value));
+            af.original_opcode_indices.quad_constraints.push_back(opcode_index);
+
         } else {
             af.poly_triple_constraints.push_back(pt);
+            af.original_opcode_indices.poly_triple_constraints.push_back(opcode_index);
         }
     } else {
         af.quad_constraints.push_back(serialize_mul_quad_gate(arg.value));
+        af.original_opcode_indices.quad_constraints.push_back(opcode_index);
     }
 }
 
-void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, AcirFormat& af, bool honk_recursion)
+void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg,
+                               AcirFormat& af,
+                               bool honk_recursion,
+                               size_t opcode_index)
 {
     std::visit(
         [&](auto&& arg) {
@@ -195,6 +205,7 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                     .num_bits = arg.lhs.num_bits,
                     .is_xor_gate = false,
                 });
+                af.original_opcode_indices.logic_constraints.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::XOR>) {
                 af.logic_constraints.push_back(LogicConstraint{
                     .a = arg.lhs.witness.value,
@@ -203,11 +214,14 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                     .num_bits = arg.lhs.num_bits,
                     .is_xor_gate = true,
                 });
+                af.original_opcode_indices.logic_constraints.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::RANGE>) {
                 af.range_constraints.push_back(RangeConstraint{
                     .witness = arg.input.witness.value,
                     .num_bits = arg.input.num_bits,
                 });
+                af.original_opcode_indices.range_constraints.push_back(opcode_index);
+
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::AES128Encrypt>) {
                 af.aes128_constraints.push_back(AES128Constraint{
                     .inputs = map(arg.inputs,
@@ -233,6 +247,8 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                                }),
                     .outputs = map(arg.outputs, [](auto& e) { return e.value; }),
                 });
+                af.original_opcode_indices.aes128_constraints.push_back(opcode_index);
+
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::SHA256>) {
                 af.sha256_constraints.push_back(Sha256Constraint{
                     .inputs = map(arg.inputs,
@@ -244,6 +260,8 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                                   }),
                     .result = map(arg.outputs, [](auto& e) { return e.value; }),
                 });
+                af.original_opcode_indices.sha256_constraints.push_back(opcode_index);
+
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::Sha256Compression>) {
                 af.sha256_compression.push_back(Sha256Compression{
                     .inputs = map(arg.inputs,
@@ -262,6 +280,7 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                                        }),
                     .result = map(arg.outputs, [](auto& e) { return e.value; }),
                 });
+                af.original_opcode_indices.sha256_compression.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::Blake2s>) {
                 af.blake2s_constraints.push_back(Blake2sConstraint{
                     .inputs = map(arg.inputs,
@@ -273,6 +292,7 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                                   }),
                     .result = map(arg.outputs, [](auto& e) { return e.value; }),
                 });
+                af.original_opcode_indices.blake2s_constraints.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::Blake3>) {
                 af.blake3_constraints.push_back(Blake3Constraint{
                     .inputs = map(arg.inputs,
@@ -284,6 +304,7 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                                   }),
                     .result = map(arg.outputs, [](auto& e) { return e.value; }),
                 });
+                af.original_opcode_indices.blake3_constraints.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::SchnorrVerify>) {
                 af.schnorr_constraints.push_back(SchnorrConstraint{
                     .message = map(arg.message, [](auto& e) { return e.witness.value; }),
@@ -292,6 +313,7 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                     .result = arg.output.value,
                     .signature = map(arg.signature, [](auto& e) { return e.witness.value; }),
                 });
+                af.original_opcode_indices.schnorr_constraints.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::PedersenCommitment>) {
                 af.pedersen_constraints.push_back(PedersenConstraint{
                     .scalars = map(arg.inputs, [](auto& e) { return e.witness.value; }),
@@ -299,12 +321,14 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                     .result_x = arg.outputs[0].value,
                     .result_y = arg.outputs[1].value,
                 });
+                af.original_opcode_indices.pedersen_constraints.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::PedersenHash>) {
                 af.pedersen_hash_constraints.push_back(PedersenHashConstraint{
                     .scalars = map(arg.inputs, [](auto& e) { return e.witness.value; }),
                     .hash_index = arg.domain_separator,
                     .result = arg.output.value,
                 });
+                af.original_opcode_indices.pedersen_hash_constraints.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::EcdsaSecp256k1>) {
                 af.ecdsa_k1_constraints.push_back(EcdsaSecp256k1Constraint{
                     .hashed_message = map(arg.hashed_message, [](auto& e) { return e.witness.value; }),
@@ -313,6 +337,7 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                     .pub_y_indices = map(arg.public_key_y, [](auto& e) { return e.witness.value; }),
                     .result = arg.output.value,
                 });
+                af.original_opcode_indices.ecdsa_k1_constraints.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::EcdsaSecp256r1>) {
                 af.ecdsa_r1_constraints.push_back(EcdsaSecp256r1Constraint{
                     .hashed_message = map(arg.hashed_message, [](auto& e) { return e.witness.value; }),
@@ -321,6 +346,7 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                     .result = arg.output.value,
                     .signature = map(arg.signature, [](auto& e) { return e.witness.value; }),
                 });
+                af.original_opcode_indices.ecdsa_r1_constraints.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::MultiScalarMul>) {
                 af.multi_scalar_mul_constraints.push_back(MultiScalarMul{
                     .points = map(arg.points, [](auto& e) { return e.witness.value; }),
@@ -329,6 +355,7 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                     .out_point_y = arg.outputs[1].value,
                     .out_point_is_infinite = arg.outputs[2].value,
                 });
+                af.original_opcode_indices.multi_scalar_mul_constraints.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::EmbeddedCurveAdd>) {
                 af.ec_add_constraints.push_back(EcAdd{
                     .input1_x = arg.input1[0].witness.value,
@@ -341,6 +368,7 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                     .result_y = arg.outputs[1].value,
                     .result_infinite = arg.outputs[2].value,
                 });
+                af.original_opcode_indices.ec_add_constraints.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::Keccak256>) {
                 af.keccak_constraints.push_back(KeccakConstraint{
                     .inputs = map(arg.inputs,
@@ -353,11 +381,13 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                     .result = map(arg.outputs, [](auto& e) { return e.value; }),
                     .var_message_size = arg.var_message_size.witness.value,
                 });
+                af.original_opcode_indices.keccak_constraints.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::Keccakf1600>) {
                 af.keccak_permutations.push_back(Keccakf1600{
                     .state = map(arg.inputs, [](auto& e) { return e.witness.value; }),
                     .result = map(arg.outputs, [](auto& e) { return e.value; }),
                 });
+                af.original_opcode_indices.keccak_permutations.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::RecursiveAggregation>) {
                 if (honk_recursion) { // if we're using the honk recursive verifier
                     auto c = HonkRecursionConstraint{
@@ -366,6 +396,7 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                         .public_inputs = map(arg.public_inputs, [](auto& e) { return e.witness.value; }),
                     };
                     af.honk_recursion_constraints.push_back(c);
+                    af.original_opcode_indices.honk_recursion_constraints.push_back(opcode_index);
                 } else {
                     auto c = RecursionConstraint{
                         .key = map(arg.verification_key, [](auto& e) { return e.witness.value; }),
@@ -374,6 +405,7 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                         .key_hash = arg.key_hash.witness.value,
                     };
                     af.recursion_constraints.push_back(c);
+                    af.original_opcode_indices.recursion_constraints.push_back(opcode_index);
                 }
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::BigIntFromLeBytes>) {
                 af.bigint_from_le_bytes_constraints.push_back(BigIntFromLeBytes{
@@ -381,11 +413,13 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                     .modulus = map(arg.modulus, [](auto& e) -> uint32_t { return e; }),
                     .result = arg.output,
                 });
+                af.original_opcode_indices.bigint_from_le_bytes_constraints.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::BigIntToLeBytes>) {
                 af.bigint_to_le_bytes_constraints.push_back(BigIntToLeBytes{
                     .input = arg.input,
                     .result = map(arg.outputs, [](auto& e) { return e.value; }),
                 });
+                af.original_opcode_indices.bigint_to_le_bytes_constraints.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::BigIntAdd>) {
                 af.bigint_operations.push_back(BigIntOperation{
                     .lhs = arg.lhs,
@@ -393,6 +427,7 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                     .result = arg.output,
                     .opcode = BigIntOperationType::Add,
                 });
+                af.original_opcode_indices.bigint_operations.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::BigIntSub>) {
                 af.bigint_operations.push_back(BigIntOperation{
                     .lhs = arg.lhs,
@@ -400,6 +435,7 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                     .result = arg.output,
                     .opcode = BigIntOperationType::Sub,
                 });
+                af.original_opcode_indices.bigint_operations.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::BigIntMul>) {
                 af.bigint_operations.push_back(BigIntOperation{
                     .lhs = arg.lhs,
@@ -407,6 +443,7 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                     .result = arg.output,
                     .opcode = BigIntOperationType::Mul,
                 });
+                af.original_opcode_indices.bigint_operations.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::BigIntDiv>) {
                 af.bigint_operations.push_back(BigIntOperation{
                     .lhs = arg.lhs,
@@ -414,12 +451,14 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                     .result = arg.output,
                     .opcode = BigIntOperationType::Div,
                 });
+                af.original_opcode_indices.bigint_operations.push_back(opcode_index);
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::Poseidon2Permutation>) {
                 af.poseidon2_constraints.push_back(Poseidon2Constraint{
                     .state = map(arg.inputs, [](auto& e) { return e.witness.value; }),
                     .result = map(arg.outputs, [](auto& e) { return e.value; }),
                     .len = arg.len,
                 });
+                af.original_opcode_indices.poseidon2_constraints.push_back(opcode_index);
             }
         },
         arg.value.value);
@@ -445,7 +484,8 @@ BlockConstraint handle_memory_init(Program::Opcode::MemoryInit const& mem_init)
         });
     }
 
-    // Databus is only supported for Goblin, non Goblin builders will treat call_data and return_data as normal array.
+    // Databus is only supported for Goblin, non Goblin builders will treat call_data and return_data as normal
+    // array.
     if (IsMegaBuilder<Builder>) {
         if (std::holds_alternative<Program::BlockType::CallData>(mem_init.block_type.value)) {
             block.type = BlockType::CallData;
@@ -490,32 +530,36 @@ AcirFormat circuit_serde_to_acir_format(Program::Circuit const& circuit, bool ho
     af.num_acir_opcodes = static_cast<uint32_t>(circuit.opcodes.size());
     af.public_inputs = join({ map(circuit.public_parameters.value, [](auto e) { return e.value; }),
                               map(circuit.return_values.value, [](auto e) { return e.value; }) });
-    std::map<uint32_t, BlockConstraint> block_id_to_block_constraint;
-    for (auto gate : circuit.opcodes) {
+    // Map to a pair of: BlockConstraint, and list of opcodes associated with that BlockConstraint
+    std::unordered_map<uint32_t, std::pair<BlockConstraint, std::vector<size_t>>> block_id_to_block_constraint;
+    for (size_t i = 0; i < circuit.opcodes.size(); ++i) {
+        auto gate = circuit.opcodes[i];
         std::visit(
             [&](auto&& arg) {
                 using T = std::decay_t<decltype(arg)>;
                 if constexpr (std::is_same_v<T, Program::Opcode::AssertZero>) {
-                    handle_arithmetic(arg, af);
+                    handle_arithmetic(arg, af, i);
                 } else if constexpr (std::is_same_v<T, Program::Opcode::BlackBoxFuncCall>) {
-                    handle_blackbox_func_call(arg, af, honk_recursion);
+                    handle_blackbox_func_call(arg, af, honk_recursion, i);
                 } else if constexpr (std::is_same_v<T, Program::Opcode::MemoryInit>) {
                     auto block = handle_memory_init(arg);
                     uint32_t block_id = arg.block_id.value;
-                    block_id_to_block_constraint[block_id] = block;
+                    block_id_to_block_constraint[block_id] = std::make_pair(block, std::vector<size_t>());
                 } else if constexpr (std::is_same_v<T, Program::Opcode::MemoryOp>) {
                     auto block = block_id_to_block_constraint.find(arg.block_id.value);
                     if (block == block_id_to_block_constraint.end()) {
                         throw_or_abort("unitialized MemoryOp");
                     }
-                    handle_memory_op(arg, block->second);
+                    handle_memory_op(arg, block->second.first);
+                    block->second.second.push_back(i);
                 }
             },
             gate.value);
     }
     for (const auto& [block_id, block] : block_id_to_block_constraint) {
-        if (!block.trace.empty()) {
-            af.block_constraints.push_back(block);
+        if (!block.first.trace.empty()) {
+            af.block_constraints.push_back(block.first);
+            af.original_opcode_indices.block_constraints.push_back(block.second);
         }
     }
     return af;
@@ -523,9 +567,9 @@ AcirFormat circuit_serde_to_acir_format(Program::Circuit const& circuit, bool ho
 
 AcirFormat circuit_buf_to_acir_format(std::vector<uint8_t> const& buf, bool honk_recursion)
 {
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/927): Move to using just `program_buf_to_acir_format`
-    // once Honk fully supports all ACIR test flows
-    // For now the backend still expects to work with a single ACIR function
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/927): Move to using just
+    // `program_buf_to_acir_format` once Honk fully supports all ACIR test flows For now the backend still expects
+    // to work with a single ACIR function
     auto circuit = Program::Program::bincodeDeserialize(buf).functions[0];
 
     return circuit_serde_to_acir_format(circuit, honk_recursion);
@@ -567,9 +611,9 @@ WitnessVector witness_map_to_witness_vector(WitnessStack::WitnessMap const& witn
  */
 WitnessVector witness_buf_to_witness_data(std::vector<uint8_t> const& buf)
 {
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/927): Move to using just `witness_buf_to_witness_stack`
-    // once Honk fully supports all ACIR test flows.
-    // For now the backend still expects to work with the stop of the `WitnessStack`.
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/927): Move to using just
+    // `witness_buf_to_witness_stack` once Honk fully supports all ACIR test flows. For now the backend still
+    // expects to work with the stop of the `WitnessStack`.
     auto witness_stack = WitnessStack::WitnessStack::bincodeDeserialize(buf);
     auto w = witness_stack.stack[witness_stack.stack.size() - 1].witness;
 

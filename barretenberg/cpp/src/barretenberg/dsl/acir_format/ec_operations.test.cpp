@@ -1,5 +1,6 @@
 #include "ec_operations.hpp"
 #include "acir_format.hpp"
+#include "acir_format_mocks.hpp"
 #include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
@@ -89,7 +90,9 @@ TEST_F(EcOperations, TestECOperations)
         .poly_triple_constraints = {},
         .quad_constraints = {},
         .block_constraints = {},
+        .original_opcode_indices = create_empty_original_opcode_indices(),
     };
+    mock_opcode_indices(constraint_system);
 
     auto builder = create_circuit(constraint_system, /*size_hint*/ 0, witness_values);
 
@@ -175,7 +178,9 @@ TEST_F(EcOperations, TestECMultiScalarMul)
         .poly_triple_constraints = { assert_equal },
         .quad_constraints = {},
         .block_constraints = {},
+        .original_opcode_indices = create_empty_original_opcode_indices(),
     };
+    mock_opcode_indices(constraint_system);
 
     auto builder = create_circuit(constraint_system, /*size_hint*/ 0, witness_values);
 

@@ -28,10 +28,13 @@ AcirComposer::AcirComposer(size_t size_hint, bool verbose)
  * @param witness
  */
 template <typename Builder>
-void AcirComposer::create_circuit(acir_format::AcirFormat& constraint_system, WitnessVector const& witness)
+void AcirComposer::create_circuit(acir_format::AcirFormat& constraint_system,
+                                  WitnessVector const& witness,
+                                  bool collect_gates_per_opcode)
 {
     vinfo("building circuit...");
-    builder_ = acir_format::create_circuit<Builder>(constraint_system, size_hint_, witness);
+    builder_ = acir_format::create_circuit<Builder>(
+        constraint_system, size_hint_, witness, false, std::make_shared<bb::ECCOpQueue>(), collect_gates_per_opcode);
     vinfo("gates: ", builder_.get_total_circuit_size());
     vinfo("circuit is recursive friendly: ", builder_.is_recursive_circuit);
 }
@@ -144,6 +147,7 @@ std::vector<bb::fr> AcirComposer::serialize_verification_key_into_fields()
 }
 
 template void AcirComposer::create_circuit<UltraCircuitBuilder>(acir_format::AcirFormat& constraint_system,
-                                                                WitnessVector const& witness);
+                                                                WitnessVector const& witness,
+                                                                bool collect_gates_per_opcode);
 
 } // namespace acir_proofs

@@ -1,5 +1,6 @@
 #include "sha256_constraint.hpp"
 #include "acir_format.hpp"
+#include "acir_format_mocks.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
@@ -34,35 +35,39 @@ TEST_F(Sha256Tests, TestSha256Compression)
         .result = { 25, 26, 27, 28, 29, 30, 31, 32 },
     };
 
-    AcirFormat constraint_system{ .varnum = 34,
-                                  .recursive = false,
-                                  .num_acir_opcodes = 1,
-                                  .public_inputs = {},
-                                  .logic_constraints = {},
-                                  .range_constraints = {},
-                                  .aes128_constraints = {},
-                                  .sha256_constraints = {},
-                                  .sha256_compression = { sha256_compression },
-                                  .schnorr_constraints = {},
-                                  .ecdsa_k1_constraints = {},
-                                  .ecdsa_r1_constraints = {},
-                                  .blake2s_constraints = {},
-                                  .blake3_constraints = {},
-                                  .keccak_constraints = {},
-                                  .keccak_permutations = {},
-                                  .pedersen_constraints = {},
-                                  .pedersen_hash_constraints = {},
-                                  .poseidon2_constraints = {},
-                                  .multi_scalar_mul_constraints = {},
-                                  .ec_add_constraints = {},
-                                  .recursion_constraints = {},
-                                  .honk_recursion_constraints = {},
-                                  .bigint_from_le_bytes_constraints = {},
-                                  .bigint_to_le_bytes_constraints = {},
-                                  .bigint_operations = {},
-                                  .poly_triple_constraints = {},
-                                  .quad_constraints = {},
-                                  .block_constraints = {} };
+    AcirFormat constraint_system{
+        .varnum = 34,
+        .recursive = false,
+        .num_acir_opcodes = 1,
+        .public_inputs = {},
+        .logic_constraints = {},
+        .range_constraints = {},
+        .aes128_constraints = {},
+        .sha256_constraints = {},
+        .sha256_compression = { sha256_compression },
+        .schnorr_constraints = {},
+        .ecdsa_k1_constraints = {},
+        .ecdsa_r1_constraints = {},
+        .blake2s_constraints = {},
+        .blake3_constraints = {},
+        .keccak_constraints = {},
+        .keccak_permutations = {},
+        .pedersen_constraints = {},
+        .pedersen_hash_constraints = {},
+        .poseidon2_constraints = {},
+        .multi_scalar_mul_constraints = {},
+        .ec_add_constraints = {},
+        .recursion_constraints = {},
+        .honk_recursion_constraints = {},
+        .bigint_from_le_bytes_constraints = {},
+        .bigint_to_le_bytes_constraints = {},
+        .bigint_operations = {},
+        .poly_triple_constraints = {},
+        .quad_constraints = {},
+        .block_constraints = {},
+        .original_opcode_indices = create_empty_original_opcode_indices(),
+    };
+    mock_opcode_indices(constraint_system);
 
     WitnessVector witness{ 0,
                            0,

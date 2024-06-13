@@ -1,5 +1,6 @@
 #include "honk_recursion_constraint.hpp"
 #include "acir_format.hpp"
+#include "acir_format_mocks.hpp"
 #include "barretenberg/sumcheck/instance/prover_instance.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 #include "barretenberg/ultra_honk/ultra_verifier.hpp"
@@ -86,35 +87,39 @@ class AcirHonkRecursionConstraint : public ::testing::Test {
             .q_c = 1,
         };
 
-        AcirFormat constraint_system{ .varnum = 6,
-                                      .recursive = true,
-                                      .num_acir_opcodes = 7,
-                                      .public_inputs = { 1, 2 },
-                                      .logic_constraints = { logic_constraint },
-                                      .range_constraints = { range_a, range_b },
-                                      .aes128_constraints = {},
-                                      .sha256_constraints = {},
-                                      .sha256_compression = {},
-                                      .schnorr_constraints = {},
-                                      .ecdsa_k1_constraints = {},
-                                      .ecdsa_r1_constraints = {},
-                                      .blake2s_constraints = {},
-                                      .blake3_constraints = {},
-                                      .keccak_constraints = {},
-                                      .keccak_permutations = {},
-                                      .pedersen_constraints = {},
-                                      .pedersen_hash_constraints = {},
-                                      .poseidon2_constraints = {},
-                                      .multi_scalar_mul_constraints = {},
-                                      .ec_add_constraints = {},
-                                      .recursion_constraints = {},
-                                      .honk_recursion_constraints = {},
-                                      .bigint_from_le_bytes_constraints = {},
-                                      .bigint_to_le_bytes_constraints = {},
-                                      .bigint_operations = {},
-                                      .poly_triple_constraints = { expr_a, expr_b, expr_c, expr_d },
-                                      .quad_constraints = {},
-                                      .block_constraints = {} };
+        AcirFormat constraint_system{
+            .varnum = 6,
+            .recursive = true,
+            .num_acir_opcodes = 7,
+            .public_inputs = { 1, 2 },
+            .logic_constraints = { logic_constraint },
+            .range_constraints = { range_a, range_b },
+            .aes128_constraints = {},
+            .sha256_constraints = {},
+            .sha256_compression = {},
+            .schnorr_constraints = {},
+            .ecdsa_k1_constraints = {},
+            .ecdsa_r1_constraints = {},
+            .blake2s_constraints = {},
+            .blake3_constraints = {},
+            .keccak_constraints = {},
+            .keccak_permutations = {},
+            .pedersen_constraints = {},
+            .pedersen_hash_constraints = {},
+            .poseidon2_constraints = {},
+            .multi_scalar_mul_constraints = {},
+            .ec_add_constraints = {},
+            .recursion_constraints = {},
+            .honk_recursion_constraints = {},
+            .bigint_from_le_bytes_constraints = {},
+            .bigint_to_le_bytes_constraints = {},
+            .bigint_operations = {},
+            .poly_triple_constraints = { expr_a, expr_b, expr_c, expr_d },
+            .quad_constraints = {},
+            .block_constraints = {},
+            .original_opcode_indices = create_empty_original_opcode_indices(),
+        };
+        mock_opcode_indices(constraint_system);
 
         uint256_t inverse_of_five = fr(5).invert();
         WitnessVector witness{
@@ -244,36 +249,42 @@ class AcirHonkRecursionConstraint : public ::testing::Test {
             witness_offset = key_indices_start_idx + key_witnesses.size();
         }
 
-        AcirFormat constraint_system{ .varnum = static_cast<uint32_t>(witness.size()),
-                                      .recursive = false,
-                                      .num_acir_opcodes = static_cast<uint32_t>(honk_recursion_constraints.size()),
-                                      .public_inputs = {},
-                                      .logic_constraints = {},
-                                      .range_constraints = {},
-                                      .aes128_constraints = {},
-                                      .sha256_constraints = {},
-                                      .sha256_compression = {},
-                                      .schnorr_constraints = {},
-                                      .ecdsa_k1_constraints = {},
-                                      .ecdsa_r1_constraints = {},
-                                      .blake2s_constraints = {},
-                                      .blake3_constraints = {},
-                                      .keccak_constraints = {},
-                                      .keccak_permutations = {},
-                                      .pedersen_constraints = {},
-                                      .pedersen_hash_constraints = {},
-                                      .poseidon2_constraints = {},
-                                      .multi_scalar_mul_constraints = {},
-                                      .ec_add_constraints = {},
-                                      .recursion_constraints = {},
-                                      .honk_recursion_constraints = honk_recursion_constraints,
-                                      .bigint_from_le_bytes_constraints = {},
-                                      .bigint_to_le_bytes_constraints = {},
-                                      .bigint_operations = {},
-                                      .poly_triple_constraints = {},
-                                      .quad_constraints = {},
-                                      .block_constraints = {} };
+        std::vector<size_t> honk_recursion_opcode_indices(honk_recursion_constraints.size());
+        std::iota(honk_recursion_opcode_indices.begin(), honk_recursion_opcode_indices.end(), 0);
 
+        AcirFormat constraint_system{
+            .varnum = static_cast<uint32_t>(witness.size()),
+            .recursive = false,
+            .num_acir_opcodes = static_cast<uint32_t>(honk_recursion_constraints.size()),
+            .public_inputs = {},
+            .logic_constraints = {},
+            .range_constraints = {},
+            .aes128_constraints = {},
+            .sha256_constraints = {},
+            .sha256_compression = {},
+            .schnorr_constraints = {},
+            .ecdsa_k1_constraints = {},
+            .ecdsa_r1_constraints = {},
+            .blake2s_constraints = {},
+            .blake3_constraints = {},
+            .keccak_constraints = {},
+            .keccak_permutations = {},
+            .pedersen_constraints = {},
+            .pedersen_hash_constraints = {},
+            .poseidon2_constraints = {},
+            .multi_scalar_mul_constraints = {},
+            .ec_add_constraints = {},
+            .recursion_constraints = {},
+            .honk_recursion_constraints = honk_recursion_constraints,
+            .bigint_from_le_bytes_constraints = {},
+            .bigint_to_le_bytes_constraints = {},
+            .bigint_operations = {},
+            .poly_triple_constraints = {},
+            .quad_constraints = {},
+            .block_constraints = {},
+            .original_opcode_indices = create_empty_original_opcode_indices(),
+        };
+        mock_opcode_indices(constraint_system);
         auto outer_circuit = create_circuit(constraint_system, /*size_hint*/ 0, witness, /*honk recursion*/ true);
 
         return outer_circuit;

@@ -1,5 +1,6 @@
 #include "ecdsa_secp256r1.hpp"
 #include "acir_format.hpp"
+#include "acir_format_mocks.hpp"
 #include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
@@ -155,7 +156,9 @@ TEST(ECDSASecp256r1, test_hardcoded)
         .poly_triple_constraints = {},
         .quad_constraints = {},
         .block_constraints = {},
+        .original_opcode_indices = create_empty_original_opcode_indices(),
     };
+    mock_opcode_indices(constraint_system);
 
     secp256r1::g1::affine_element pub_key = { pub_key_x, pub_key_y };
     bool we_ballin =
@@ -209,7 +212,9 @@ TEST(ECDSASecp256r1, TestECDSAConstraintSucceed)
         .poly_triple_constraints = {},
         .quad_constraints = {},
         .block_constraints = {},
+        .original_opcode_indices = create_empty_original_opcode_indices(),
     };
+    mock_opcode_indices(constraint_system);
 
     auto builder = create_circuit(constraint_system, /*size_hint*/ 0, witness_values);
 
@@ -261,7 +266,10 @@ TEST(ECDSASecp256r1, TestECDSACompilesForVerifier)
         .poly_triple_constraints = {},
         .quad_constraints = {},
         .block_constraints = {},
+        .original_opcode_indices = create_empty_original_opcode_indices(),
     };
+    mock_opcode_indices(constraint_system);
+
     auto builder = create_circuit(constraint_system);
 }
 
@@ -308,7 +316,9 @@ TEST(ECDSASecp256r1, TestECDSAConstraintFail)
         .poly_triple_constraints = {},
         .quad_constraints = {},
         .block_constraints = {},
+        .original_opcode_indices = create_empty_original_opcode_indices(),
     };
+    mock_opcode_indices(constraint_system);
 
     auto builder = create_circuit(constraint_system, /*size_hint*/ 0, witness_values);
 
