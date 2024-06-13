@@ -410,4 +410,29 @@ TEST_F(AvmCastNegativeTests, wrongCopySubHiForRangeCheck)
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "OP_CAST_RNG_CHECK_P_SUB_A_HIGH");
 }
 
+TEST_F(AvmCastNegativeTests, secondRowNoOp)
+{
+    gen_trace(6583, 0, 1, AvmMemoryTag::U64, AvmMemoryTag::U8);
+    ASSERT_EQ(trace.at(alu_idx).avm_alu_ic, 183);
+
+    // We have to enable alu_sel otherwise another relation will fail.
+    trace.at(alu_idx + 1).avm_alu_alu_sel = 1;
+
+    // Add an LT selector in the next row (second part of the cast operation)
+    auto trace_lt = trace;
+    trace_lt.at(alu_idx + 1).avm_alu_op_lt = 1;
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace_lt)), "TWO_LINE_OP_NO_OVERLAP");
+
+    // Try with EQ selector
+    auto trace_eq = trace;
+    trace_eq.at(alu_idx + 1).avm_alu_op_eq = 1;
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace_eq)), "TWO_LINE_OP_NO_OVERLAP");
+
+    // Try with a second cast selector
+    trace.at(alu_idx + 1).avm_alu_op_cast = 1;
+    // Adjust to not violate #[RNG_CHK_LOOKUP_SELECTOR]
+    trace.at(alu_idx + 1).avm_alu_rng_chk_lookup_selector = 2;
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "TWO_LINE_OP_NO_OVERLAP");
+}
+
 } // namespace tests_avm

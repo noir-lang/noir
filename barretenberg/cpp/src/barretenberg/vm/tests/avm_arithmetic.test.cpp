@@ -2300,6 +2300,41 @@ TEST_F(AvmArithmeticNegativeTestsU128, multiplication)
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "ALU_MULTIPLICATION_OUT_U128");
 }
 
+// Test that the second row of an U128 multiplication cannot be enabled for
+// another alu operation.
+TEST_F(AvmArithmeticNegativeTestsU128, multiplicationSecondRowNoOp)
+{
+    trace_builder.op_set(0, 3, 0, AvmMemoryTag::U128);
+    trace_builder.op_set(0, 4, 1, AvmMemoryTag::U128);
+
+    trace_builder.op_mul(0, 0, 1, 2, AvmMemoryTag::U128);
+    trace_builder.return_op(0, 0, 0);
+    auto trace = trace_builder.finalize();
+
+    auto alu_row_index = common_validate_mul(trace, FF(3), FF(4), FF(12), FF(0), FF(1), FF(2), AvmMemoryTag::U128);
+
+    // We have to enable alu_sel otherwise another relation will fail.
+    trace.at(alu_row_index + 1).avm_alu_alu_sel = 1;
+
+    // Add an LTE selector in the next row (second part of U128 multiplication)
+    auto trace_lte = trace;
+    trace_lte.at(alu_row_index + 1).avm_alu_op_lte = 1;
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace_lte)), "TWO_LINE_OP_NO_OVERLAP");
+
+    // Try with SUB selector.
+    auto trace_sub = trace;
+    trace_sub.at(alu_row_index + 1).avm_alu_op_sub = 1;
+    // Adjust to not violate #[RNG_CHK_LOOKUP_SELECTOR]
+    trace_sub.at(alu_row_index + 1).avm_alu_rng_chk_lookup_selector = 2;
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace_sub)), "TWO_LINE_OP_NO_OVERLAP");
+
+    // Try with another MUL selector.
+    trace.at(alu_row_index + 1).avm_alu_op_mul = 1;
+    // Adjust to not violate #[RNG_CHK_LOOKUP_SELECTOR]
+    trace.at(alu_row_index + 1).avm_alu_rng_chk_lookup_selector = 2;
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "TWO_LINE_OP_NO_OVERLAP");
+}
+
 // Tests a situation for U128 elements where a != b but c == 1;
 TEST_F(AvmArithmeticNegativeTestsU128, invalidEquality)
 {
