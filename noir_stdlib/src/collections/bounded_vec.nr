@@ -187,7 +187,7 @@ mod bounded_vec_tests {
 
         #[test(should_fail_with = "Attempted to write past end of BoundedVec")]
         fn panics_when_writing_elements_past_end_of_vec() {
-            let mut vec = BoundedVec::new();
+            let mut vec: BoundedVec<Field, 5> = BoundedVec::new();
             vec.set(0, 42);
 
             // Need to use println to avoid DIE removing the write operation.

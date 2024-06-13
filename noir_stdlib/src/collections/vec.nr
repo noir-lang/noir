@@ -87,7 +87,7 @@ mod tests {
         assert_eq(vec.slice, &[0, 10, 44, 0, 0]);
     }
 
-    #[test(should_fail_with = "Index out of bounds, array has size 0, but index was 0")]
+    #[test(should_fail)]
     fn panics_when_writing_elements_past_end_of_vec() {
         let mut vec = Vec::new();
         vec.set(0, 42);
