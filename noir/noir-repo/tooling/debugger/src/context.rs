@@ -23,7 +23,7 @@ pub(super) enum DebugCommandResult {
     Done,
     Ok,
     BreakpointReached(OpcodeLocation),
-    Error(NargoError),
+    Error(NargoError<FieldElement>),
 }
 
 pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
@@ -482,11 +482,11 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn get_variables(&self) -> Vec<StackFrame> {
+    pub(super) fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
         return self.foreign_call_executor.get_variables();
     }
 
-    pub(super) fn current_stack_frame(&self) -> Option<StackFrame> {
+    pub(super) fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>> {
         return self.foreign_call_executor.current_stack_frame();
     }
 

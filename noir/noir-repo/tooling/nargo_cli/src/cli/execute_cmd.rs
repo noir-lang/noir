@@ -97,11 +97,10 @@ fn execute_program_and_decode(
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
     let witness_stack = execute_program(&program, &inputs_map, foreign_call_resolver_url)?;
-    let public_abi = program.abi.public_abi();
     // Get the entry point witness for the ABI
     let main_witness =
         &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
-    let (_, return_value) = public_abi.decode(main_witness)?;
+    let (_, return_value) = program.abi.decode(main_witness)?;
 
     Ok((return_value, witness_stack))
 }

@@ -2,11 +2,7 @@ use dep::protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint};
 
 // = 480 + 32 * N bytes
 #[oracle(emitEncryptedNoteLog)]
-unconstrained fn emit_encrypted_note_log_oracle<M>(
-    _note_hash_counter: u32,
-    _encrypted_note: [u8; M],
-    _counter: u32
-) {}
+unconstrained fn emit_encrypted_note_log_oracle<M>(_note_hash_counter: u32, _encrypted_note: [u8; M], _counter: u32) {}
 
 unconstrained pub fn emit_encrypted_note_log<M>(
     note_hash_counter: u32,
@@ -17,12 +13,7 @@ unconstrained pub fn emit_encrypted_note_log<M>(
 }
 
 #[oracle(emitEncryptedEventLog)]
-unconstrained fn emit_encrypted_event_log_oracle<M>(
-    _contract_address: AztecAddress,
-    _randomness: Field,
-    _encrypted_event: [u8; M],
-    _counter: u32
-) {}
+unconstrained fn emit_encrypted_event_log_oracle<M>(_contract_address: AztecAddress, _randomness: Field, _encrypted_event: [u8; M], _counter: u32) {}
 
 unconstrained pub fn emit_encrypted_event_log<M>(
     contract_address: AztecAddress,
@@ -98,12 +89,7 @@ unconstrained pub fn compute_encrypted_event_log<N, M>(
 }
 
 #[oracle(emitUnencryptedLog)]
-unconstrained fn emit_unencrypted_log_oracle_private<T>(
-    _contract_address: AztecAddress,
-    _event_selector: Field,
-    _message: T,
-    _counter: u32
-) -> Field {}
+unconstrained fn emit_unencrypted_log_oracle_private<T>(_contract_address: AztecAddress, _event_selector: Field, _message: T, _counter: u32) -> Field {}
 
 unconstrained pub fn emit_unencrypted_log_private_internal<T>(
     contract_address: AztecAddress,
@@ -115,12 +101,7 @@ unconstrained pub fn emit_unencrypted_log_private_internal<T>(
 }
 
 #[oracle(emitContractClassUnencryptedLog)]
-unconstrained fn emit_contract_class_unencrypted_log_private<N>(
-    contract_address: AztecAddress,
-    event_selector: Field,
-    message: [Field; N],
-    counter: u32
-) -> Field {}
+unconstrained fn emit_contract_class_unencrypted_log_private<N>(contract_address: AztecAddress, event_selector: Field, message: [Field; N], counter: u32) -> Field {}
 
 unconstrained pub fn emit_contract_class_unencrypted_log_private_internal<N>(
     contract_address: AztecAddress,

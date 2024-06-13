@@ -40,8 +40,6 @@ pub enum ResolverError {
     UnnecessaryPub { ident: Ident, position: PubPosition },
     #[error("Required 'pub', main function must return public value")]
     NecessaryPub { ident: Ident },
-    #[error("'distinct' keyword can only be used with main method")]
-    DistinctNotAllowed { ident: Ident },
     #[error("Missing expression for declared constant")]
     MissingRhsExpr { name: String, span: Span },
     #[error("Expression invalid in an array length context")]
@@ -80,6 +78,12 @@ pub enum ResolverError {
     AbiAttributeOutsideContract { span: Span },
     #[error("Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library")]
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
+    #[error(
+        "Usage of the `#[oracle]` function attribute is only valid on unconstrained functions"
+    )]
+    OracleMarkedAsConstrained { ident: Ident },
+    #[error("Oracle functions cannot be called directly from constrained functions")]
+    UnconstrainedOracleReturnToConstrained { span: Span },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { span: Span, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -214,18 +218,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag.add_note("The `pub` keyword is mandatory for the entry-point function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
                 diag
             }
-            ResolverError::DistinctNotAllowed { ident } => {
-                let name = &ident.0.contents;
-
-                let mut diag = Diagnostic::simple_error(
-                    format!("Invalid `distinct` keyword on return type of function {name}"),
-                    "Invalid distinct on return type".to_string(),
-                    ident.0.span(),
-                );
-
-                diag.add_note("The `distinct` keyword is only valid when used on the main function of a program, as its only purpose is to ensure that all witness indices that occur in the abi are unique".to_owned());
-                diag
-            }
             ResolverError::MissingRhsExpr { name, span } => Diagnostic::simple_error(
                 format!(
                     "no expression specifying the value stored by the constant variable {name}"
@@ -326,6 +318,16 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Definition of low-level function outside of standard library".into(),
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 ident.span(),
+            ),
+            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_error(
+                error.to_string(),
+                "Oracle functions must have the `unconstrained` keyword applied".into(),
+                ident.span(),
+            ),
+            ResolverError::UnconstrainedOracleReturnToConstrained { span } => Diagnostic::simple_error(
+                error.to_string(),
+                "This oracle call must be wrapped in a call to another unconstrained function before being returned to a constrained runtime".into(),
+                *span,
             ),
             ResolverError::DependencyCycle { span, item, cycle } => {
                 Diagnostic::simple_error(

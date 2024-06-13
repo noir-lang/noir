@@ -2,9 +2,9 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
-mod generic_ark;
 
 mod field_element;
+mod generic_ark;
 
 pub use generic_ark::AcirField;
 

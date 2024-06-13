@@ -28,11 +28,7 @@ unconstrained pub fn notify_created_note<N>(
 }
 
 #[oracle(notifyNullifiedNote)]
-unconstrained fn notify_nullified_note_oracle<N>(
-    _nullifier: Field,
-    _inner_note_hash: Field,
-    _counter: u32
-) -> Field {}
+unconstrained fn notify_nullified_note_oracle<N>(_nullifier: Field, _inner_note_hash: Field, _counter: u32) -> Field {}
 
 unconstrained pub fn notify_nullified_note<N>(
     nullifier: Field,

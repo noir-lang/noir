@@ -565,6 +565,7 @@ impl<'context> Elaborator<'context> {
         self.run_lint(|elaborator| {
             lints::unnecessary_pub_return(func, elaborator.pub_allowed(func)).map(Into::into)
         });
+        self.run_lint(|_| lints::oracle_not_marked_unconstrained(func).map(Into::into));
         self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(func, elaborator.crate_id).map(Into::into)
         });
@@ -801,7 +802,6 @@ impl<'context> Elaborator<'context> {
             self.push_err(DefCollectorErrorKind::MutableReferenceInTraitImpl { span });
         }
 
-        assert!(trait_impl.trait_id.is_some());
         if let Some(trait_id) = trait_impl.trait_id {
             self.generics = trait_impl.resolved_generics.clone();
             self.collect_trait_impl_methods(trait_id, trait_impl);

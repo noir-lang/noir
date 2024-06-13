@@ -24,7 +24,6 @@ it('end-to-end proof creation and verification (outer)', async () => {
   // bb.js part
   //
   // Proof creation
-  // const prover = new Backend(assert_lt_program);
   const proof = await backend.generateProof(witness);
 
   // Proof verification
@@ -44,7 +43,6 @@ it('end-to-end proof creation and verification (outer) -- Verifier API', async (
   const { witness } = await program.execute(inputs);
 
   // Generate proof
-  // const backend = new Backend(assert_lt_program);
   const proof = await backend.generateProof(witness);
 
   const verificationKey = await backend.getVerificationKey();
@@ -70,7 +68,6 @@ it('end-to-end proof creation and verification (inner)', async () => {
   // bb.js part
   //
   // Proof creation
-  // const prover = new Backend(assert_lt_program);
   const proof = await backend.generateProof(witness);
 
   // Proof verification
@@ -90,8 +87,6 @@ it('end-to-end proving and verification with different instances', async () => {
   const { witness } = await program.execute(inputs);
 
   // bb.js part
-  // const prover = new Backend(assert_lt_program);
-
   const proof = await backend.generateProof(witness);
 
   const verifier = new Backend(assert_lt_program);
@@ -121,7 +116,6 @@ it('[BUG] -- bb.js null function or function signature mismatch (outer-inner) ',
   //
   // Proof creation
   //
-  // const prover = new Backend(assert_lt_program);
   // Create a proof using both proving systems, the majority of the time
   // one would only use outer proofs.
   const proofOuter = await backend.generateProof(witness);

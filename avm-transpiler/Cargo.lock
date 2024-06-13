@@ -37,6 +37,7 @@ dependencies = [
  "brillig_vm",
  "indexmap 1.9.3",
  "num-bigint",
+ "serde",
  "thiserror",
  "tracing",
 ]

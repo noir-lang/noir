@@ -59,17 +59,16 @@ impl<'a> Interpreter<'a> {
         let previous_state = self.enter_function();
 
         let meta = self.interner.function_meta(&function);
-        if meta.kind != FunctionKind::Normal {
-            let item = "Evaluation for builtin functions";
-            return Err(InterpreterError::Unimplemented { item, location });
-        }
-
         if meta.parameters.len() != arguments.len() {
             return Err(InterpreterError::ArgumentCountMismatch {
                 expected: meta.parameters.len(),
                 actual: arguments.len(),
                 location,
             });
+        }
+
+        if meta.kind != FunctionKind::Normal {
+            return self.call_builtin(function, arguments, location);
         }
 
         let parameters = meta.parameters.0.clone();
@@ -82,6 +81,35 @@ impl<'a> Interpreter<'a> {
 
         self.exit_function(previous_state);
         Ok(result)
+    }
+
+    fn call_builtin(
+        &mut self,
+        function: FuncId,
+        arguments: Vec<(Value, Location)>,
+        location: Location,
+    ) -> IResult<Value> {
+        let attributes = self.interner.function_attributes(&function);
+        let func_attrs = attributes.function.as_ref()
+            .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to");
+
+        if let Some(builtin) = func_attrs.builtin() {
+            let item = format!("Evaluation for builtin functions like {builtin}");
+            Err(InterpreterError::Unimplemented { item, location })
+        } else if let Some(foreign) = func_attrs.foreign() {
+            let item = format!("Evaluation for foreign functions like {foreign}");
+            Err(InterpreterError::Unimplemented { item, location })
+        } else if let Some(oracle) = func_attrs.oracle() {
+            if oracle == "print" {
+                self.print_oracle(arguments)
+            } else {
+                let item = format!("Evaluation for oracle functions like {oracle}");
+                Err(InterpreterError::Unimplemented { item, location })
+            }
+        } else {
+            let name = self.interner.function_name(&function);
+            unreachable!("Non-builtin, lowlevel or oracle builtin fn '{name}'")
+        }
     }
 
     fn call_closure(
@@ -121,8 +149,8 @@ impl<'a> Interpreter<'a> {
         let mut scope = Vec::new();
         if self.scopes.len() > 1 {
             scope = self.scopes.drain(1..).collect();
-            self.push_scope();
         }
+        self.push_scope();
         (std::mem::take(&mut self.in_loop), scope)
     }
 
@@ -177,10 +205,11 @@ impl<'a> Interpreter<'a> {
                 }
             },
             HirPattern::Struct(struct_type, pattern_fields, _) => {
+                self.push_scope();
                 self.type_check(typ, &argument, location)?;
                 self.type_check(struct_type, &argument, location)?;
 
-                match argument {
+                let res = match argument {
                     Value::Struct(fields, struct_type) if fields.len() == pattern_fields.len() => {
                         for (field_name, field_pattern) in pattern_fields {
                             let field = fields.get(&field_name.0.contents).ok_or_else(|| {
@@ -206,7 +235,9 @@ impl<'a> Interpreter<'a> {
                         value,
                         location,
                     }),
-                }
+                };
+                self.pop_scope();
+                res
             }
         }
     }
@@ -219,7 +250,8 @@ impl<'a> Interpreter<'a> {
         argument: Value,
         location: Location,
     ) -> IResult<()> {
-        self.type_check(typ, &argument, location)?;
+        // Temporarily disabled since this fails on generic types
+        // self.type_check(typ, &argument, location)?;
         self.current_scope_mut().insert(id, argument);
         Ok(())
     }
@@ -287,7 +319,10 @@ impl<'a> Interpreter<'a> {
         match self.interner.expression(&id) {
             HirExpression::Ident(ident, _) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
-            HirExpression::Block(block) => self.evaluate_block(block),
+            HirExpression::Block(block) => {
+                dbg!("going to evaluate a block");
+                self.evaluate_block(block)
+            }
             HirExpression::Prefix(prefix) => self.evaluate_prefix(prefix, id),
             HirExpression::Infix(infix) => self.evaluate_infix(infix, id),
             HirExpression::Index(index) => self.evaluate_index(index, id),
@@ -324,13 +359,14 @@ impl<'a> Interpreter<'a> {
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
-                // Don't need to check let_.comptime, we can evaluate non-comptime globals too.
                 // Avoid resetting the value if it is already known
                 if let Ok(value) = self.lookup(&ident) {
                     Ok(value)
                 } else {
                     let let_ = self.interner.get_global_let_statement(*global_id).unwrap();
-                    self.evaluate_let(let_)?;
+                    if let_.comptime {
+                        self.evaluate_let(let_.clone())?;
+                    }
                     self.lookup(&ident)
                 }
             }
@@ -360,7 +396,11 @@ impl<'a> Interpreter<'a> {
                 self.evaluate_integer(value, is_negative, id)
             }
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
-            HirLiteral::FmtStr(_, _) => todo!("Evaluate format strings"),
+            HirLiteral::FmtStr(_, _) => {
+                let item = "format strings in a comptime context".into();
+                let location = self.interner.expr_location(&id);
+                Err(InterpreterError::Unimplemented { item, location })
+            }
             HirLiteral::Array(array) => self.evaluate_array(array, id),
             HirLiteral::Slice(array) => self.evaluate_slice(array, id),
         }
@@ -454,6 +494,14 @@ impl<'a> Interpreter<'a> {
                     Ok(Value::I64(value))
                 }
             }
+        } else if let Type::TypeVariable(variable, TypeVariableKind::IntegerOrField) = &typ {
+            Ok(Value::Field(value))
+        } else if let Type::TypeVariable(variable, TypeVariableKind::Integer) = &typ {
+            let value: u64 = value
+                .try_to_u64()
+                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+            let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
+            Ok(Value::U64(value))
         } else {
             Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
         }
@@ -1241,6 +1289,7 @@ impl<'a> Interpreter<'a> {
                 Err(InterpreterError::Continue) => continue,
                 Err(other) => return Err(other),
             }
+
             self.pop_scope();
         }
 
@@ -1268,5 +1317,18 @@ impl<'a> Interpreter<'a> {
 
     pub(super) fn evaluate_comptime(&mut self, statement: StmtId) -> IResult<Value> {
         self.evaluate_statement(statement)
+    }
+
+    fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
+        assert_eq!(arguments.len(), 2);
+
+        let print_newline = arguments[0].0 == Value::Bool(true);
+        if print_newline {
+            println!("{}", arguments[1].0);
+        } else {
+            print!("{}", arguments[1].0);
+        }
+
+        Ok(Value::Unit)
     }
 }

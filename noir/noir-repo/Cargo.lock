@@ -34,6 +34,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "hex",
  "num-bigint",
+ "proptest",
  "serde",
 ]
 
@@ -47,9 +48,7 @@ dependencies = [
  "brillig_vm",
  "indexmap 1.9.3",
  "num-bigint",
- "paste",
- "proptest",
- "rand 0.8.5",
+ "serde",
  "thiserror",
  "tracing",
 ]
@@ -66,6 +65,7 @@ dependencies = [
  "libaes",
  "num-bigint",
  "p256",
+ "proptest",
  "sha2",
  "sha3",
  "thiserror",
@@ -574,6 +574,7 @@ version = "0.46.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
+ "ark-bn254",
  "ark-ec",
  "ark-ff",
  "ark-std",
@@ -2485,6 +2486,7 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "noirc_printable_type",
+ "rand 0.8.5",
  "rayon",
  "serde",
  "tempfile",
