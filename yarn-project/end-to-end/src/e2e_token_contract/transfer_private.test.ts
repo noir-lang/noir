@@ -1,4 +1,4 @@
-import { Fr, computeAuthWitMessageHash } from '@aztec/aztec.js';
+import { AztecAddress, CompleteAddress, Fr, computeAuthWitMessageHash } from '@aztec/aztec.js';
 
 import { DUPLICATE_NULLIFIER_ERROR } from '../fixtures/fixtures.js';
 import { TokenContractTest } from './token_contract_test.js';
@@ -28,6 +28,22 @@ describe('e2e_token_contract transfer private', () => {
     expect(amount).toBeGreaterThan(0n);
     await asset.methods.transfer(accounts[1].address, amount).send().wait();
     tokenSim.transferPrivate(accounts[0].address, accounts[1].address, amount);
+  });
+
+  it('transfer less than balance to non-deployed account', async () => {
+    const balance0 = await asset.methods.balance_of_private(accounts[0].address).simulate();
+    const amount = balance0 / 2n;
+    expect(amount).toBeGreaterThan(0n);
+
+    const nonDeployed = CompleteAddress.random();
+    await wallets[0].registerRecipient(nonDeployed);
+
+    await asset.methods.transfer(nonDeployed.address, amount).send().wait();
+
+    // Add the account as balance we should change, but since we don't have the key,
+    // we cannot decrypt, and instead we simulate a transfer to address(0)
+    tokenSim.addAccount(nonDeployed.address);
+    tokenSim.transferPrivate(accounts[0].address, AztecAddress.ZERO, amount);
   });
 
   it('transfer to self', async () => {
