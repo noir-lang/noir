@@ -4,6 +4,8 @@ description: Learn about how to write recursive proofs in Noir.
 keywords: [recursion, recursive proofs, verification_key, verify_proof]
 ---
 
+import BlackBoxInfo from '@site/src/components/Notes/_blackbox.mdx';
+
 Noir supports recursively verifying proofs, meaning you verify the proof of a Noir program in another Noir program. This enables creating proofs of arbitrary size by doing step-wise verification of smaller components of a large proof.
 
 Read [the explainer on recursion](../../explainers/explainer-recursion.md) to know more about this function and the [guide on how to use it.](../../how_to/how-to-recursion.md)
@@ -33,11 +35,7 @@ By incorporating this attribute directly in the circuit's definition, tooling li
 pub fn verify_proof(verification_key: [Field], proof: [Field], public_inputs: [Field], key_hash: Field) {}
 ```
 
-:::info
-
-This is a black box function. Read [this section](./black_box_fns) to learn more about black box functions in Noir.
-
-:::
+<BlackBoxInfo />
 
 ## Example usage
 
