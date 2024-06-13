@@ -26,7 +26,7 @@ fn run_stdlib_tests() {
         root_dir: PathBuf::from("."),
         package_type: PackageType::Binary,
         entry_path: PathBuf::from("main.nr"),
-        name: "dummy".parse().unwrap(),
+        name: "stdlib".parse().unwrap(),
         dependencies: BTreeMap::new(),
     };
 
