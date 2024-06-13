@@ -33,7 +33,7 @@ pub(crate) struct BrilligBlock<'block> {
     /// The basic block that is being converted
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
-    pub(crate) brillig_context: &'block mut BrilligContext,
+    pub(crate) brillig_context: &'block mut BrilligContext<FieldElement>,
     /// Tracks the available variable during the codegen of the block
     pub(crate) variables: BlockVariables,
     /// For each instruction, the set of values that are not used anymore after it.
@@ -44,7 +44,7 @@ impl<'block> BrilligBlock<'block> {
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     pub(crate) fn compile(
         function_context: &'block mut FunctionContext,
-        brillig_context: &'block mut BrilligContext,
+        brillig_context: &'block mut BrilligContext<FieldElement>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
     ) {
@@ -944,7 +944,7 @@ impl<'block> BrilligBlock<'block> {
     }
 
     pub(crate) fn store_variable_in_array_with_ctx(
-        ctx: &mut BrilligContext,
+        ctx: &mut BrilligContext<FieldElement>,
         destination_pointer: MemoryAddress,
         index_register: SingleAddrVariable,
         value_variable: BrilligVariable,
