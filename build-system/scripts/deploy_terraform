@@ -36,6 +36,8 @@ export TF_VAR_CHAIN_ID=$CHAIN_ID
 if [ -n "$REPOSITORY" ]; then
   BACKEND_CONFIG=-backend-config="key=$DEPLOY_TAG/$REPOSITORY"
   echo "Using backend key $DEPLOY_TAG/$REPOSITORY"
+else
+  BACKEND_CONFIG=""
 fi
 
 terraform init -input=false $BACKEND_CONFIG

@@ -50,6 +50,7 @@ avm-transpiler:
     - ^noir/
   dependencies:
     - noir
+  multiarch: host
 
 aztec-nargo:
   buildDir: .
@@ -61,6 +62,7 @@ aztec-nargo:
   dependencies:
     - avm-transpiler
     - noir
+  multiarch: buildx
 
 # Compiles all aztec noir projects using nargo and the avm-transpiler.
 noir-projects:
