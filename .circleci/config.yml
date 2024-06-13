@@ -231,7 +231,7 @@ jobs:
           command: cond_spot_run_build noir-packages 32
           aztec_manifest_key: noir-packages
 
-  avm-transpiler:
+  avm-transpiler-x86_64:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -243,7 +243,31 @@ jobs:
           command: cond_spot_run_build avm-transpiler 32
           aztec_manifest_key: avm-transpiler
 
-  aztec-nargo:
+  avm-transpiler-arm64:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build avm-transpiler 32 arm64
+          aztec_manifest_key: avm-transpiler
+
+  avm-transpiler-ecr-manifest:
+    machine:
+      image: default
+    resource_class: medium
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Create ECR manifest"
+          command: create_ecr_manifest avm-transpiler x86_64,arm64
+          aztec_manifest_key: avm-transpiler
+
+  aztec-nargo-x86_64:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -253,6 +277,30 @@ jobs:
       - run:
           name: "Build"
           command: cond_spot_run_build aztec-nargo 32
+          aztec_manifest_key: aztec-nargo
+
+  aztec-nargo-arm64:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build aztec-nargo 32 arm64
+          aztec_manifest_key: aztec-nargo
+
+  aztec-nargo-ecr-manifest:
+    machine:
+      image: default
+    resource_class: medium
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Create ECR manifest"
+          command: create_ecr_manifest aztec-nargo x86_64,arm64
           aztec_manifest_key: aztec-nargo
 
   l1-contracts:
@@ -510,15 +558,33 @@ workflows:
           <<: *defaults
 
       # Transpiler
-      - avm-transpiler:
+      - avm-transpiler-x86_64:
           requires:
-            - noir-ecr-manifest
+            - noir-x86_64
+          <<: *defaults
+      - avm-transpiler-arm64:
+          requires:
+            - noir-arm64
+          <<: *defaults
+      - avm-transpiler-ecr-manifest:
+          requires:
+            - avm-transpiler-x86_64
+            - avm-transpiler-arm64
           <<: *defaults
 
       # aztec-nargo (nargo & transpiler)
-      - aztec-nargo:
+      - aztec-nargo-x86_64:
           requires:
-            - avm-transpiler
+            - avm-transpiler-x86_64
+          <<: *defaults
+      - aztec-nargo-arm64:
+          requires:
+            - avm-transpiler-arm64
+          <<: *defaults
+      - aztec-nargo-ecr-manifest:
+          requires:
+            - aztec-nargo-x86_64
+            - aztec-nargo-arm64
           <<: *defaults
 
       # Barretenberg
@@ -536,7 +602,7 @@ workflows:
 
       - noir-projects:
           requires:
-            - avm-transpiler
+            - avm-transpiler-ecr-manifest
             - noir-ecr-manifest
           <<: *defaults
 
