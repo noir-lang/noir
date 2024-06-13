@@ -3,7 +3,7 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-use abi_gen::value_from_hir_expression;
+use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use fm::{FileId, FileManager};
@@ -102,6 +102,10 @@ pub struct CompileOptions {
     /// Enable the experimental elaborator pass
     #[arg(long, hide = true)]
     pub use_elaborator: bool,
+
+    /// Outputs the paths to any modified artifacts
+    #[arg(long, hide = true)]
+    pub show_artifact_paths: bool,
 }
 
 fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -464,7 +468,7 @@ fn compile_contract_inner(
                         let typ = context.def_interner.get_struct(struct_id);
                         let typ = typ.borrow();
                         let fields = vecmap(typ.get_fields(&[]), |(name, typ)| {
-                            (name, AbiType::from_type(context, &typ))
+                            (name, abi_type_from_hir_type(context, &typ))
                         });
                         let path =
                             context.fully_qualified_struct_path(context.root_crate_id(), typ.id);
@@ -539,17 +543,9 @@ pub fn compile_no_check(
         info!("Program matches existing artifact, returning early");
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
-    let visibility = program.return_visibility;
+    let return_visibility = program.return_visibility;
 
-    let SsaProgramArtifact {
-        program,
-        debug,
-        warnings,
-        main_input_witnesses,
-        main_return_witnesses,
-        names,
-        error_types,
-    } = create_program(
+    let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } = create_program(
         program,
         options.show_ssa,
         options.show_brillig,
@@ -557,14 +553,7 @@ pub fn compile_no_check(
         options.benchmark_codegen,
     )?;
 
-    let abi = abi_gen::gen_abi(
-        context,
-        &main_function,
-        main_input_witnesses,
-        main_return_witnesses,
-        visibility,
-        error_types,
-    );
+    let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 
     Ok(CompiledProgram {
