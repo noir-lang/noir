@@ -19,7 +19,7 @@ pub fn run_repl_session<B: BlackBoxFunctionSolver<FieldElement>>(
     solver: &B,
     program: CompiledProgram,
     initial_witness: WitnessMap<FieldElement>,
-) -> Result<Option<WitnessStack<FieldElement>>, NargoError<FieldElement> {
+) -> Result<Option<WitnessStack<FieldElement>>, NargoError<FieldElement>> {
     repl::run(solver, program, initial_witness)
 }
 
