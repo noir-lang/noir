@@ -13,21 +13,21 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
 
     /// Get an element from the vector at the given index.
     /// Panics if the given index points beyond the end of the vector (`self.len()`).
-    pub fn get(mut self: Self, index: u32) -> T {
+    pub fn get(self, index: u32) -> T {
         assert(index < self.len);
         self.get_unchecked(index)
     }
 
     /// Get an element from the vector at the given index.
     /// Responds with undefined data for `index` where `self.len < index < self.max_len()`.
-    pub fn get_unchecked(mut self: Self, index: u32) -> T {
+    pub fn get_unchecked(self, index: u32) -> T {
         self.storage[index]
     }
 
     /// Write an element to the vector at the given index.
     /// Panics if the given index points beyond the end of the vector (`self.len()`).
-    pub fn set(mut self: Self, index: u32, value: T) {
-        assert(index < self.len);
+    pub fn set(&mut self, index: u32, value: T) {
+        assert(index < self.len, "Attempted to write past end of BoundedVec");
         self.set_unchecked(index, value)
     }
 
@@ -36,7 +36,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
     ///
     /// Silently writes past the end of the vector for `index` where `self.len < index < self.max_len()`
     /// Panics if the given index points beyond the maximum length of the vector (`self.max_len()`).
-    pub fn set_unchecked(mut self: Self, index: u32, value: T) {
+    pub fn set_unchecked(&mut self, index: u32, value: T) {
         self.storage[index] = value;
     }
 
@@ -160,6 +160,39 @@ mod bounded_vec_tests {
         bounded_vec2.push(2);
 
         assert(bounded_vec1 != bounded_vec2);
+    }
+
+    mod set {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn set_updates_values_properly() {
+            let mut vec = BoundedVec::from_array([0, 0, 0, 0, 0]);
+
+            vec.set(0, 42);
+            assert_eq(vec.storage, [42, 0, 0, 0, 0]);
+
+            vec.set(1, 43);
+            assert_eq(vec.storage, [42, 43, 0, 0, 0]);
+
+            vec.set(2, 44);
+            assert_eq(vec.storage, [42, 43, 44, 0, 0]);
+
+            vec.set(1, 10);
+            assert_eq(vec.storage, [42, 10, 44, 0, 0]);
+
+            vec.set(0, 0);
+            assert_eq(vec.storage, [0, 10, 44, 0, 0]);
+        }
+
+        #[test(should_fail_with = "Index out of bounds, array has size 0, but index was 0")]
+        fn panics_when_writing_elements_past_end_of_vec() {
+            let mut vec = BoundedVec::new();
+            vec.set(0, 42);
+
+            // Need to use println to avoid DIE removing the write operation.
+            crate::println(vec.get(0));
+        }
     }
 
     mod from_array {
