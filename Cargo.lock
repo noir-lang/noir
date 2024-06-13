@@ -574,6 +574,7 @@ version = "0.46.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
+ "ark-bn254",
  "ark-ec",
  "ark-ff",
  "ark-std",
@@ -2726,7 +2727,6 @@ version = "0.30.0"
 dependencies = [
  "acvm",
  "iter-extended",
- "noirc_frontend",
  "noirc_printable_type",
  "num-bigint",
  "num-traits",
