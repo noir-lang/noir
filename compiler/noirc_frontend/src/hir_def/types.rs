@@ -251,7 +251,7 @@ pub struct ResolvedGeneric {
 }
 
 impl ResolvedGeneric {
-    // TODO: Remove once we move to the elaborator.
+    // TODO(https://github.com/noir-lang/noir/issues/5231): Remove once we move to the elaborator.
     // This is only used during collection in the old resolution process.
     pub fn dummy() -> Self {
         ResolvedGeneric {

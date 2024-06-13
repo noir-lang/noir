@@ -58,7 +58,7 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     &"is_unconstrained",
 ];
 
-/// Some tests are explicit ignored when not working with the elaborator.
+/// TODO(https://github.com/noir-lang/noir/issues/5231): Some tests are explicitly ignored when not working with the elaborator.
 /// These should be fixed and removed from this list.
 const IGNORED_NON_ELABORATOR_TESTS: [&str; 1] = [
     // Explicit numeric generics are only supported in the elaborator.
