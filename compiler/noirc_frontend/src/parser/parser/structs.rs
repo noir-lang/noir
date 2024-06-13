@@ -28,12 +28,14 @@ pub(super) fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         .or(just(Semicolon).to(Vec::new()));
 
     attributes()
+        .or_not()
         .then_ignore(keyword(Struct))
         .then(ident())
         .then(function::generics())
         .then(fields)
         .validate(|(((raw_attributes, name), generics), fields), span, emit| {
-            let attributes = validate_secondary_attributes(raw_attributes, span, emit);
+            let attributes =
+                validate_secondary_attributes(raw_attributes.unwrap_or_default(), span, emit);
             TopLevelStatement::Struct(NoirStruct { name, attributes, generics, fields, span })
         })
 }

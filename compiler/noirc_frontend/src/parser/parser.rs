@@ -824,7 +824,13 @@ fn array_type<'a>(
 ) -> impl NoirParser<UnresolvedType> + 'a {
     just(Token::LeftBracket)
         .ignore_then(type_parser)
-        .then(just(Token::Semicolon).ignore_then(type_expression()))
+        .then(
+            just(Token::Semicolon).ignore_then(
+                ident()
+                    .map(|ident| UnresolvedTypeExpression::Variable(Path::from_ident(ident)))
+                    .or(type_expression()),
+            ),
+        )
         .then_ignore(just(Token::RightBracket))
         .map_with_span(|(element_type, size), span| {
             UnresolvedTypeData::Array(size, Box::new(element_type)).with_span(span)

@@ -1761,3 +1761,18 @@ fn nested_generic_elaborator() {
     let errors = get_program_errors_elaborator(src);
     assert!(errors.is_empty());
 }
+
+#[test]
+fn single_parser_error_bad_numeric_generic() {
+    let src = r#"
+    fn id<let I>(x: [Field; I]) -> [Field; I] {
+        x
+    }
+    "#;
+    let errors = get_program_errors_elaborator(src);
+    assert!(has_parser_error(&errors));
+    // We want to make sure that each ill-formed numeric generic (e.g. `<let I>` or `<I:>`)
+    // returns a single parser error.
+    // We have this test to make sure we are not displaying deceiving errors to the user.
+    assert_eq!(errors.len(), 1);
+}
