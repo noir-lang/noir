@@ -11,13 +11,33 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         BoundedVec { storage: [zeroed; MaxLen], len: 0 }
     }
 
+    /// Get an element from the vector at the given index.
+    /// Panics if the given index points beyond the end of the vector (`self.len()`).
     pub fn get(mut self: Self, index: u32) -> T {
         assert(index < self.len);
+        self.get_unchecked(index)
+    }
+
+    /// Get an element from the vector at the given index.
+    /// Responds with undefined data for `index` where `self.len < index < self.max_len()`.
+    pub fn get_unchecked(mut self: Self, index: u32) -> T {
         self.storage[index]
     }
 
-    pub fn get_unchecked(mut self: Self, index: u32) -> T {
-        self.storage[index]
+    /// Write an element to the vector at the given index.
+    /// Panics if the given index points beyond the end of the vector (`self.len()`).
+    pub fn set(mut self: Self, index: u32, value: T) {
+        assert(index < self.len);
+        self.set_unchecked(index, value)
+    }
+
+    /// Write an element to the vector at the given index.
+    /// Does not check whether the passed `index` is a valid index within the vector.
+    ///
+    /// Silently writes past the end of the vector for `index` where `self.len < index < self.max_len()`
+    /// Panics if the given index points beyond the maximum length of the vector (`self.max_len()`).
+    pub fn set_unchecked(mut self: Self, index: u32, value: T) {
+        self.storage[index] = value;
     }
 
     pub fn push(&mut self, elem: T) {
