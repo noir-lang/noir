@@ -1,4 +1,4 @@
-unconstrained fn brillig_as_slice(x: Field) -> (u64, Field, Field) {
+unconstrained fn brillig_as_slice(x: Field) -> (u32, Field, Field) {
     let mut dynamic: [Field; 1] = [1];
     dynamic[x] = 2;
     assert(dynamic[0] == 2);

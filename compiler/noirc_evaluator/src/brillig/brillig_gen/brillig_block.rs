@@ -7,7 +7,7 @@ use crate::brillig::brillig_ir::{
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::instruction::ConstrainError;
 use crate::ssa::ir::{
-    basic_block::{BasicBlock, BasicBlockId},
+    basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     function::FunctionId,
     instruction::{
@@ -18,7 +18,7 @@ use crate::ssa::ir::{
 };
 use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 use acvm::brillig_vm::brillig::HeapVector;
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
 use num_bigint::BigUint;
@@ -33,7 +33,7 @@ pub(crate) struct BrilligBlock<'block> {
     /// The basic block that is being converted
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
-    pub(crate) brillig_context: &'block mut BrilligContext,
+    pub(crate) brillig_context: &'block mut BrilligContext<FieldElement>,
     /// Tracks the available variable during the codegen of the block
     pub(crate) variables: BlockVariables,
     /// For each instruction, the set of values that are not used anymore after it.
@@ -44,13 +44,12 @@ impl<'block> BrilligBlock<'block> {
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     pub(crate) fn compile(
         function_context: &'block mut FunctionContext,
-        brillig_context: &'block mut BrilligContext,
+        brillig_context: &'block mut BrilligContext<FieldElement>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
     ) {
         let live_in = function_context.liveness.get_live_in(&block_id);
-        let variables =
-            BlockVariables::new(live_in.clone(), function_context.all_block_parameters());
+        let variables = BlockVariables::new(live_in.clone());
 
         brillig_context.set_allocated_registers(
             variables
@@ -72,9 +71,9 @@ impl<'block> BrilligBlock<'block> {
         let block_label = self.create_block_label_for_current_function(self.block_id);
         self.brillig_context.enter_context(block_label);
 
-        // Convert the block parameters
+        self.convert_block_params(dfg);
+
         let block = &dfg[self.block_id];
-        self.convert_block_params(block, dfg);
 
         // Convert all of the instructions into the block
         for instruction_id in block.instructions() {
@@ -134,12 +133,8 @@ impl<'block> BrilligBlock<'block> {
                 let target_block = &dfg[*destination_block];
                 for (src, dest) in arguments.iter().zip(target_block.parameters()) {
                     // Destinations are block parameters so they should have been allocated previously.
-                    let destination = self.variables.get_block_param(
-                        self.function_context,
-                        *destination_block,
-                        *dest,
-                        dfg,
-                    );
+                    let destination =
+                        self.variables.get_allocation(self.function_context, *dest, dfg);
                     let source = self.convert_ssa_value(*src, dfg);
                     self.pass_variable(source, destination);
                 }
@@ -206,10 +201,14 @@ impl<'block> BrilligBlock<'block> {
         }
     }
 
-    /// Converts SSA Block parameters into Brillig Registers.
-    fn convert_block_params(&mut self, block: &BasicBlock, dfg: &DataFlowGraph) {
-        for param_id in block.parameters() {
-            let value = &dfg[*param_id];
+    /// Allocates the block parameters that the given block is defining
+    fn convert_block_params(&mut self, dfg: &DataFlowGraph) {
+        // We don't allocate the block parameters here, we allocate the parameters the block is defining.
+        // Since predecessors to a block have to know where the parameters of the block are allocated to pass data to it,
+        // the block parameters need to be defined/allocated before the given block. Variable liveness provides when the block parameters are defined.
+        // For the entry block, the defined block params will be the params of the function + any extra params of blocks it's the immediate dominator of.
+        for param_id in self.function_context.liveness.defined_block_params(&self.block_id) {
+            let value = &dfg[param_id];
             let param_type = match value {
                 Value::Param { typ, .. } => typ,
                 _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
@@ -220,10 +219,10 @@ impl<'block> BrilligBlock<'block> {
                 // Be a valid pointer to the array.
                 // For slices, two registers are passed, the pointer to the data and a register holding the size of the slice.
                 Type::Numeric(_) | Type::Array(..) | Type::Slice(..) | Type::Reference(_) => {
-                    self.variables.get_block_param(
+                    self.variables.define_variable(
                         self.function_context,
-                        self.block_id,
-                        *param_id,
+                        self.brillig_context,
+                        param_id,
                         dfg,
                     );
                 }
@@ -945,7 +944,7 @@ impl<'block> BrilligBlock<'block> {
     }
 
     pub(crate) fn store_variable_in_array_with_ctx(
-        ctx: &mut BrilligContext,
+        ctx: &mut BrilligContext<FieldElement>,
         destination_pointer: MemoryAddress,
         index_register: SingleAddrVariable,
         value_variable: BrilligVariable,
@@ -1738,8 +1737,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let array = variable.extract_array();
-                self.brillig_context.codegen_allocate_fixed_length_array(array.pointer, array.size);
-                self.brillig_context.usize_const_instruction(array.rc, 1_usize.into());
+                self.allocate_nested_array(typ, Some(array));
 
                 variable
             }
@@ -1763,6 +1761,43 @@ impl<'block> BrilligBlock<'block> {
             _ => {
                 unreachable!("ICE: unsupported return type for black box call {typ:?}")
             }
+        }
+    }
+
+    fn allocate_nested_array(
+        &mut self,
+        typ: &Type,
+        array: Option<BrilligArray>,
+    ) -> BrilligVariable {
+        match typ {
+            Type::Array(types, size) => {
+                let array = array.unwrap_or(BrilligArray {
+                    pointer: self.brillig_context.allocate_register(),
+                    size: *size,
+                    rc: self.brillig_context.allocate_register(),
+                });
+                self.brillig_context.codegen_allocate_fixed_length_array(array.pointer, array.size);
+                self.brillig_context.usize_const_instruction(array.rc, 1_usize.into());
+
+                let mut index = 0_usize;
+                for _ in 0..*size {
+                    for element_type in types.iter() {
+                        match element_type {
+                            Type::Array(_, _) => {
+                                let inner_array = self.allocate_nested_array(element_type, None);
+                                let idx =
+                                    self.brillig_context.make_usize_constant_instruction(index.into());
+                                self.store_variable_in_array(array.pointer, idx, inner_array);
+                            }
+                            Type::Slice(_) => unreachable!("ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"),
+                            _ => (),
+                        }
+                        index += 1;
+                    }
+                }
+                BrilligVariable::BrilligArray(array)
+            }
+            _ => unreachable!("ICE: allocate_nested_array() expects an array, got {typ:?}"),
         }
     }
 

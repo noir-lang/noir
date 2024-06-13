@@ -372,20 +372,20 @@ mod tests {
     use crate::ssa::ir::map::Id;
     use crate::ssa::ssa_gen::Ssa;
 
-    fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext) {
+    fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext<FieldElement>) {
         let mut builder = FunctionBuilder::new("main".to_string(), Id::test_new(0));
         builder.set_runtime(RuntimeType::Brillig);
 
         let ssa = builder.finish();
-        let mut brillig_context = create_context();
+        let brillig_context = create_context();
 
-        let function_context = FunctionContext::new(ssa.main(), &mut brillig_context);
+        let function_context = FunctionContext::new(ssa.main());
         (ssa, function_context, brillig_context)
     }
 
     fn create_brillig_block<'a>(
         function_context: &'a mut FunctionContext,
-        brillig_context: &'a mut BrilligContext,
+        brillig_context: &'a mut BrilligContext<FieldElement>,
     ) -> BrilligBlock<'a> {
         let variables = BlockVariables::default();
         BrilligBlock {

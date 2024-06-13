@@ -1,6 +1,7 @@
 use std::hash::{Hash, Hasher};
 
 use acvm::{
+    acir::AcirField,
     acir::{
         circuit::{ErrorSelector, STRING_ERROR_SELECTOR},
         BlackBoxFunc,
@@ -65,6 +66,7 @@ pub(crate) enum Intrinsic {
     FromField,
     AsField,
     AsWitness,
+    IsUnconstrained,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -89,6 +91,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::FromField => write!(f, "from_field"),
             Intrinsic::AsField => write!(f, "as_field"),
             Intrinsic::AsWitness => write!(f, "as_witness"),
+            Intrinsic::IsUnconstrained => write!(f, "is_unconstrained"),
         }
     }
 }
@@ -116,10 +119,16 @@ impl Intrinsic {
             | Intrinsic::SliceRemove
             | Intrinsic::StrAsBytes
             | Intrinsic::FromField
-            | Intrinsic::AsField => false,
+            | Intrinsic::AsField
+            | Intrinsic::IsUnconstrained => false,
 
             // Some black box functions have side-effects
-            Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
+            Intrinsic::BlackBox(func) => matches!(
+                func,
+                BlackBoxFunc::RecursiveAggregation
+                    | BlackBoxFunc::MultiScalarMul
+                    | BlackBoxFunc::EmbeddedCurveAdd
+            ),
         }
     }
 
@@ -145,6 +154,7 @@ impl Intrinsic {
             "from_field" => Some(Intrinsic::FromField),
             "as_field" => Some(Intrinsic::AsField),
             "as_witness" => Some(Intrinsic::AsWitness),
+            "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }
@@ -335,6 +345,9 @@ impl Instruction {
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
+                // Explicitly allows removal of unused ec operations, even if they can fail
+                Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
+                | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
 
                 // All foreign functions are treated as having side effects.
@@ -567,7 +580,7 @@ impl Instruction {
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, _)), Some(index)) = (array, index) {
                     let index =
-                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                        index.try_to_u32().expect("Expected array index to fit in u32") as usize;
                     if index < array.len() {
                         return SimplifiedTo(array[index]);
                     }
@@ -579,7 +592,7 @@ impl Instruction {
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, element_type)), Some(index)) = (array, index) {
                     let index =
-                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                        index.try_to_u32().expect("Expected array index to fit in u32") as usize;
 
                     if index < array.len() {
                         let new_array = dfg.make_array(array.update(index, *value), element_type);

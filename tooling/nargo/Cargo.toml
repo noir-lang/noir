@@ -15,7 +15,6 @@ fm.workspace = true
 noirc_abi.workspace = true
 noirc_driver.workspace = true
 noirc_errors.workspace = true
-noirc_evaluator.workspace = true
 noirc_frontend.workspace = true
 noirc_printable_type.workspace = true
 iter-extended.workspace = true
@@ -25,6 +24,7 @@ codespan-reporting.workspace = true
 tracing.workspace = true
 rayon = "1.8.0"
 jsonrpc.workspace = true
+rand.workspace = true
 
 [dev-dependencies]
 # TODO: This dependency is used to generate unit tests for `get_all_paths_in_dir`

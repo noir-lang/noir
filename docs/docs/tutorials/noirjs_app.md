@@ -263,7 +263,7 @@ And instantiate them inside our try-catch block:
 ```ts
 // try {
 const backend = new BarretenbergBackend(circuit);
-const noir = new Noir(circuit, backend);
+const noir = new Noir(circuit);
 // }
 ```
 
@@ -288,7 +288,8 @@ Now we're ready to prove stuff! Let's feed some inputs to our circuit and calcul
 await setup(); // let's squeeze our wasm inits here
 
 display('logs', 'Generating proof... ⌛');
-const proof = await noir.generateProof(input);
+const { witness } = await noir.execute(input);
+const proof = await backend.generateProof(witness);
 display('logs', 'Generating proof... ✅');
 display('results', proof.proof);
 ```

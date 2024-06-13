@@ -3,7 +3,9 @@ use ark_ec::AffineRepr;
 use ark_ff::MontConfig;
 use num_bigint::BigUint;
 
-use acir::{BlackBoxFunc, FieldElement};
+use crate::FieldElement;
+use acir::AcirField;
+use acir::BlackBoxFunc;
 
 use crate::BlackBoxResolutionError;
 
@@ -117,9 +119,9 @@ fn create_point(
 
 #[cfg(test)]
 mod tests {
-    use ark_ff::BigInteger;
-
     use super::*;
+
+    use ark_ff::BigInteger;
 
     fn get_generator() -> [FieldElement; 3] {
         let generator = grumpkin::SWAffine::generator();

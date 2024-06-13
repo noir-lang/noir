@@ -1,0 +1,7 @@
+[package]
+name = "cast_and_shift_global"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.30.0"
+
+[dependencies]

@@ -1,7 +1,7 @@
 use acir::{
     circuit::opcodes::{BlackBoxFuncCall, FunctionInput},
     native_types::{Witness, WitnessMap},
-    FieldElement,
+    AcirField,
 };
 use acvm_blackbox_solver::{blake2s, blake3, keccak256, keccakf1600, sha256};
 
@@ -37,8 +37,8 @@ use signature::{
 /// Check if all of the inputs to the function have assignments
 ///
 /// Returns the first missing assignment if any are missing
-fn first_missing_assignment(
-    witness_assignments: &WitnessMap,
+fn first_missing_assignment<F>(
+    witness_assignments: &WitnessMap<F>,
     inputs: &[FunctionInput],
 ) -> Option<Witness> {
     inputs.iter().find_map(|input| {
@@ -51,16 +51,16 @@ fn first_missing_assignment(
 }
 
 /// Check if all of the inputs to the function have assignments
-fn contains_all_inputs(witness_assignments: &WitnessMap, inputs: &[FunctionInput]) -> bool {
+fn contains_all_inputs<F>(witness_assignments: &WitnessMap<F>, inputs: &[FunctionInput]) -> bool {
     inputs.iter().all(|input| witness_assignments.contains_key(&input.witness))
 }
 
-pub(crate) fn solve(
-    backend: &impl BlackBoxFunctionSolver,
-    initial_witness: &mut WitnessMap,
+pub(crate) fn solve<F: AcirField>(
+    backend: &impl BlackBoxFunctionSolver<F>,
+    initial_witness: &mut WitnessMap<F>,
     bb_func: &BlackBoxFuncCall,
     bigint_solver: &mut AcvmBigIntSolver,
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     let inputs = bb_func.get_inputs_vec();
     if !contains_all_inputs(initial_witness, &inputs) {
         let unassigned_witness = first_missing_assignment(initial_witness, &inputs)
@@ -108,7 +108,7 @@ pub(crate) fn solve(
             }
             let output_state = keccakf1600(state)?;
             for (output_witness, value) in outputs.iter().zip(output_state.into_iter()) {
-                insert_value(output_witness, FieldElement::from(value as u128), initial_witness)?;
+                insert_value(output_witness, F::from(value as u128), initial_witness)?;
             }
             Ok(())
         }

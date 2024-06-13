@@ -1,3 +1,4 @@
+use acvm::acir::AcirField;
 use noirc_errors::Span;
 use noirc_frontend::ast::{
     BlockExpression, Expression, ExpressionKind, FunctionDefinition, Ident, Literal, NoirFunction,
@@ -256,7 +257,7 @@ pub fn get_storage_serialized_length(
     traits: &[TraitId],
     typ: &Type,
     interner: &NodeInterner,
-) -> Result<u64, AztecMacroError> {
+) -> Result<u32, AztecMacroError> {
     let (struct_name, maybe_stored_in_state) = match typ {
         Type::Struct(struct_type, generics) => {
             Ok((struct_type.borrow().name.0.contents.clone(), generics.first()))
@@ -393,7 +394,7 @@ pub fn assign_storage_slots(
                 )),
             }?;
 
-            let mut storage_slot: u64 = 1;
+            let mut storage_slot: u32 = 1;
             for (index, (_, expr_id)) in storage_constructor_expression.fields.iter().enumerate() {
                 let fields = storage_struct
                     .borrow()

@@ -88,7 +88,7 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction, is_static_call
         })
         .collect::<Vec<_>>()
         .join("");
-    if aztec_visibility != "Avm" {
+    if aztec_visibility != "Public" {
         let args_hash = if !parameters.is_empty() {
             format!(
                 "let mut args_acc: [Field] = &[];
@@ -125,7 +125,7 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction, is_static_call
         );
         let fn_body = format!(
             "{}
-            dep::aztec::context::Avm{}{}CallInterface {{
+            dep::aztec::context::Public{}{}CallInterface {{
                 target_contract: self.target_contract,
                 selector: {},
                 args: args_acc,
@@ -134,7 +134,7 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction, is_static_call
             args, is_static, is_void, fn_selector,
         );
         format!(
-            "pub fn {}(self, {}) -> dep::aztec::context::Avm{}{}CallInterface{} {{
+            "pub fn {}(self, {}) -> dep::aztec::context::Public{}{}CallInterface{} {{
                     {}
             }}",
             fn_name, fn_parameters, is_static, is_void, return_type_hint, fn_body

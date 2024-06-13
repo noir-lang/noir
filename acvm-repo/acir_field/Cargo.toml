@@ -16,19 +16,16 @@ repository.workspace = true
 hex.workspace = true
 num-bigint.workspace = true
 serde.workspace = true
-num-traits.workspace = true
 
-ark-bn254 = { version = "^0.4.0", optional = true, default-features = false, features = [
-    "curve",
-] }
-ark-bls12-381 = { version = "^0.4.0", optional = true, default-features = false, features = [
-    "curve",
-] }
-ark-ff = { version = "^0.4.0", optional = true, default-features = false }
+ark-bn254.workspace = true
+ark-bls12-381 = { workspace = true, optional = true }
+ark-ff.workspace = true
 
 cfg-if = "1.0.0"
 
+[dev-dependencies]
+proptest.workspace = true
+
 [features]
-default = ["bn254"]
-bn254 = ["dep:ark-bn254", "dep:ark-ff"]
-bls12_381 = ["dep:ark-bls12-381", "dep:ark-ff"]
+bn254 = []
+bls12_381 = ["dep:ark-bls12-381"]

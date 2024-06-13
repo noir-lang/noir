@@ -1,7 +1,7 @@
 use fxhash::FxHashMap as HashMap;
 use std::{collections::VecDeque, rc::Rc};
 
-use acvm::{acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
+use acvm::{acir::AcirField, acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
@@ -294,6 +294,7 @@ pub(super) fn simplify_call(
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
         Intrinsic::AsWitness => SimplifyResult::None,
+        Intrinsic::IsUnconstrained => SimplifyResult::None,
     }
 }
 

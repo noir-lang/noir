@@ -1,14 +1,18 @@
-use std::{borrow::Cow, rc::Rc};
+use std::{borrow::Cow, fmt::Display, rc::Rc};
 
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
 use crate::{
-    ast::{BlockExpression, Ident, IntegerBitSize, Signedness},
+    ast::{
+        ArrayLiteral, BlockExpression, ConstructorExpression, Ident, IntegerBitSize, Signedness,
+    },
     hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
-    macros_api::{HirExpression, HirLiteral, NodeInterner},
+    macros_api::{
+        Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
+    },
     node_interner::{ExprId, FuncId},
     Shared, Type,
 };
@@ -55,7 +59,7 @@ impl Value {
             Value::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
             Value::U64(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
             Value::String(value) => {
-                let length = Type::Constant(value.len() as u64);
+                let length = Type::Constant(value.len() as u32);
                 Type::String(Box::new(length))
             }
             Value::Function(_, typ) => return Cow::Borrowed(typ),
@@ -75,6 +79,108 @@ impl Value {
     }
 
     pub(crate) fn into_expression(
+        self,
+        interner: &mut NodeInterner,
+        location: Location,
+    ) -> IResult<Expression> {
+        let kind = match self {
+            Value::Unit => ExpressionKind::Literal(Literal::Unit),
+            Value::Bool(value) => ExpressionKind::Literal(Literal::Bool(value)),
+            Value::Field(value) => ExpressionKind::Literal(Literal::Integer(value, false)),
+            Value::I8(value) => {
+                let negative = value < 0;
+                let value = value.abs();
+                let value = (value as u128).into();
+                ExpressionKind::Literal(Literal::Integer(value, negative))
+            }
+            Value::I16(value) => {
+                let negative = value < 0;
+                let value = value.abs();
+                let value = (value as u128).into();
+                ExpressionKind::Literal(Literal::Integer(value, negative))
+            }
+            Value::I32(value) => {
+                let negative = value < 0;
+                let value = value.abs();
+                let value = (value as u128).into();
+                ExpressionKind::Literal(Literal::Integer(value, negative))
+            }
+            Value::I64(value) => {
+                let negative = value < 0;
+                let value = value.abs();
+                let value = (value as u128).into();
+                ExpressionKind::Literal(Literal::Integer(value, negative))
+            }
+            Value::U8(value) => {
+                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
+            }
+            Value::U16(value) => {
+                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
+            }
+            Value::U32(value) => {
+                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
+            }
+            Value::U64(value) => {
+                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
+            }
+            Value::String(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
+            Value::Function(id, typ) => {
+                let id = interner.function_definition_id(id);
+                let impl_kind = ImplKind::NotATraitMethod;
+                let ident = HirIdent { location, id, impl_kind };
+                let expr_id = interner.push_expr(HirExpression::Ident(ident, None));
+                interner.push_expr_location(expr_id, location.span, location.file);
+                interner.push_expr_type(expr_id, typ);
+                ExpressionKind::Resolved(expr_id)
+            }
+            Value::Closure(_lambda, _env, _typ) => {
+                // TODO: How should a closure's environment be inlined?
+                let item = "Returning closures from a comptime fn".into();
+                return Err(InterpreterError::Unimplemented { item, location });
+            }
+            Value::Tuple(fields) => {
+                let fields = try_vecmap(fields, |field| field.into_expression(interner, location))?;
+                ExpressionKind::Tuple(fields)
+            }
+            Value::Struct(fields, typ) => {
+                let fields = try_vecmap(fields, |(name, field)| {
+                    let field = field.into_expression(interner, location)?;
+                    Ok((Ident::new(unwrap_rc(name), location.span), field))
+                })?;
+
+                let struct_type = match typ.follow_bindings() {
+                    Type::Struct(def, _) => Some(def.borrow().id),
+                    _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
+                };
+
+                // Since we've provided the struct_type, the path should be ignored.
+                let type_name = Path::from_single(String::new(), location.span);
+                ExpressionKind::Constructor(Box::new(ConstructorExpression {
+                    type_name,
+                    fields,
+                    struct_type,
+                }))
+            }
+            Value::Array(elements, _) => {
+                let elements =
+                    try_vecmap(elements, |element| element.into_expression(interner, location))?;
+                ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(elements)))
+            }
+            Value::Slice(elements, _) => {
+                let elements =
+                    try_vecmap(elements, |element| element.into_expression(interner, location))?;
+                ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(elements)))
+            }
+            Value::Code(block) => ExpressionKind::Block(unwrap_rc(block)),
+            Value::Pointer(_) => {
+                return Err(InterpreterError::CannotInlineMacro { value: self, location })
+            }
+        };
+
+        Ok(Expression::new(kind, location.span))
+    }
+
+    pub(crate) fn into_hir_expression(
         self,
         interner: &mut NodeInterner,
         location: Location,
@@ -129,16 +235,17 @@ impl Value {
             }
             Value::Closure(_lambda, _env, _typ) => {
                 // TODO: How should a closure's environment be inlined?
-                let item = "Returning closures from a comptime fn";
+                let item = "Returning closures from a comptime fn".into();
                 return Err(InterpreterError::Unimplemented { item, location });
             }
             Value::Tuple(fields) => {
-                let fields = try_vecmap(fields, |field| field.into_expression(interner, location))?;
+                let fields =
+                    try_vecmap(fields, |field| field.into_hir_expression(interner, location))?;
                 HirExpression::Tuple(fields)
             }
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
-                    let field = field.into_expression(interner, location)?;
+                    let field = field.into_hir_expression(interner, location)?;
                     Ok((Ident::new(unwrap_rc(name), location.span), field))
                 })?;
 
@@ -154,13 +261,15 @@ impl Value {
                 })
             }
             Value::Array(elements, _) => {
-                let elements =
-                    try_vecmap(elements, |elements| elements.into_expression(interner, location))?;
+                let elements = try_vecmap(elements, |element| {
+                    element.into_hir_expression(interner, location)
+                })?;
                 HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(elements)))
             }
             Value::Slice(elements, _) => {
-                let elements =
-                    try_vecmap(elements, |elements| elements.into_expression(interner, location))?;
+                let elements = try_vecmap(elements, |element| {
+                    element.into_hir_expression(interner, location)
+                })?;
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
             Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
@@ -174,9 +283,72 @@ impl Value {
         interner.push_expr_type(id, typ);
         Ok(id)
     }
+
+    /// Converts any unsigned `Value` into a `u128`.
+    /// Returns `None` for negative integers.
+    pub(crate) fn to_u128(&self) -> Option<u128> {
+        match self {
+            Self::Field(value) => Some(value.to_u128()),
+            Self::I8(value) => (*value >= 0).then_some(*value as u128),
+            Self::I16(value) => (*value >= 0).then_some(*value as u128),
+            Self::I32(value) => (*value >= 0).then_some(*value as u128),
+            Self::I64(value) => (*value >= 0).then_some(*value as u128),
+            Self::U8(value) => Some(*value as u128),
+            Self::U16(value) => Some(*value as u128),
+            Self::U32(value) => Some(*value as u128),
+            Self::U64(value) => Some(*value as u128),
+            _ => None,
+        }
+    }
 }
 
 /// Unwraps an Rc value without cloning the inner value if the reference count is 1. Clones otherwise.
 fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
     Rc::try_unwrap(rc).unwrap_or_else(|rc| (*rc).clone())
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Unit => write!(f, "()"),
+            Value::Bool(value) => {
+                let msg = if *value { "true" } else { "false" };
+                write!(f, "{msg}")
+            }
+            Value::Field(value) => write!(f, "{value}"),
+            Value::I8(value) => write!(f, "{value}"),
+            Value::I16(value) => write!(f, "{value}"),
+            Value::I32(value) => write!(f, "{value}"),
+            Value::I64(value) => write!(f, "{value}"),
+            Value::U8(value) => write!(f, "{value}"),
+            Value::U16(value) => write!(f, "{value}"),
+            Value::U32(value) => write!(f, "{value}"),
+            Value::U64(value) => write!(f, "{value}"),
+            Value::String(value) => write!(f, "{value}"),
+            Value::Function(_, _) => write!(f, "(function)"),
+            Value::Closure(_, _, _) => write!(f, "(closure)"),
+            Value::Tuple(fields) => {
+                let fields = vecmap(fields, ToString::to_string);
+                write!(f, "({})", fields.join(", "))
+            }
+            Value::Struct(fields, typ) => {
+                let typename = match typ.follow_bindings() {
+                    Type::Struct(def, _) => def.borrow().name.to_string(),
+                    other => other.to_string(),
+                };
+                let fields = vecmap(fields, |(name, value)| format!("{}: {}", name, value));
+                write!(f, "{typename} {{ {} }}", fields.join(", "))
+            }
+            Value::Pointer(value) => write!(f, "&mut {}", value.borrow()),
+            Value::Array(values, _) => {
+                let values = vecmap(values, ToString::to_string);
+                write!(f, "[{}]", values.join(", "))
+            }
+            Value::Slice(values, _) => {
+                let values = vecmap(values, ToString::to_string);
+                write!(f, "&[{}]", values.join(", "))
+            }
+            Value::Code(_) => todo!(),
+        }
+    }
 }
