@@ -4,7 +4,7 @@ global BN254_MODULUS_BE_BYTES: [u8; 32] =[
 
 pub fn is_bn254() -> bool {
     // TODO: refactor this once https://github.com/noir-lang/noir/issues/5245 is resolved.
-    let modulus_bytes = dep::std::field::modulus_be_bytes();
+    let modulus_bytes = crate::field::modulus_be_bytes();
     if modulus_bytes.len() == 32 {
         let mut modulus_bytes_array: [u8; 32] = [0; 32];
         for i in 0..32 {
