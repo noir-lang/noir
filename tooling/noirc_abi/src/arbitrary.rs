@@ -99,7 +99,7 @@ pub(super) fn arb_abi_type() -> BoxedStrategy<AbiType> {
     let leaf = arb_primitive_abi_type();
 
     leaf.prop_recursive(
-        8,   // 8 levels deep
+        8,   // up to 8 levels deep
         256, // Shoot for maximum size of 256 nodes
         10,  // We put up to 10 items per collection
         |inner| {
