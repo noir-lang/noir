@@ -121,6 +121,17 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         }
         ret
     }
+
+    pub fn map<Env>(self, f: fn[Env](T) -> T) -> Self {
+        let mut ret = BoundedVec::new();
+        ret.len = self.len();
+        for i in 0..MaxLen {
+            if i < self.len() {
+                ret.storage[i] = f(self.get_unchecked(i));
+            }
+        }
+        ret
+    }
 }
 
 impl<T, MaxLen> Eq for BoundedVec<T, MaxLen> where T: Eq {
@@ -192,6 +203,29 @@ mod bounded_vec_tests {
 
             // Need to use println to avoid DIE removing the write operation.
             crate::println(vec.get(0));
+        }
+    }
+
+    mod map {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn applies_function_correctly() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = vec.map(|value| if value > 2 { value * 2 } else { value });
+            let expected = BoundedVec::from_array([1, 2, 6, 8]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn does_not_apply_function_past_len() {
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([0, 1]);
+            let result = vec.map(|value| if value == 0 { 5 } else { value });
+            let expected = BoundedVec::from_array([5, 1]);
+
+            assert_eq(result, expected);
+            assert_eq(result.storage()[2], 0);
         }
     }
 
