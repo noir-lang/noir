@@ -1782,11 +1782,15 @@ impl<'block> BrilligBlock<'block> {
                 let mut index = 0_usize;
                 for _ in 0..*size {
                     for element_type in types.iter() {
-                        if matches!(element_type, Type::Array(_, _)) {
-                            let inner_array = self.allocate_nested_array(element_type, None);
-                            let idx =
-                                self.brillig_context.make_usize_constant_instruction(index.into());
-                            self.store_variable_in_array(array.pointer, idx, inner_array);
+                        match element_type {
+                            Type::Array(_, _) => {
+                                let inner_array = self.allocate_nested_array(element_type, None);
+                                let idx =
+                                    self.brillig_context.make_usize_constant_instruction(index.into());
+                                self.store_variable_in_array(array.pointer, idx, inner_array);
+                            }
+                            Type::Slice(_) => unreachable!("ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"),
+                            _ => (),
                         }
                         index += 1;
                     }

@@ -509,7 +509,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                         }
                     }
                 } else {
-                    // foreign call returning flatten values into a nested type, so the sizes do not match
+                    // foreign call returning flattened values into a nested type, so the sizes do not match
                     let destination = self.memory.read_ref(*pointer_index);
                     let return_type = value_type;
                     let mut flatten_values_idx = 0; //index of values read from flatten_values
@@ -600,7 +600,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         Ok(())
     }
 
-    /// Writes flatten values to memory, using the provided type
+    /// Writes flattened values to memory, using the provided type
     /// Function calls itself recursively in order to work with recursive types (nested arrays)
     /// values_idx is the current index in the values vector and is incremented every time
     /// a value is written to memory
