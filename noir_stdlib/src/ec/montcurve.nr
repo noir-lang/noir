@@ -103,8 +103,9 @@ mod affine {
         pub fn contains(self, p: Point) -> bool {
             let Self {j, k, gen: _gen} = self;
             let Point {x, y, infty: infty} = p;
-
-            infty | (k * y * y == x * (x * x + j * x + 1))
+            let xx = x * x;
+            let yy = y * y;
+            infty | (k * yy == x * (xx + j * x + 1))
         }
 
         // Point addition
@@ -304,8 +305,11 @@ mod curvegroup {
         pub fn contains(self, p: Point) -> bool {
             let Self {j, k, gen: _gen} = self;
             let Point {x, y, z} = p;
+            let xx = x * x;
+            let yy = y * y;
+            let zz = z * z;
 
-            k * y * y * z == x * (x * x + j * x * z + z * z)
+            k * yy * z == x * (xx + j * x * z + zz)
         }
 
         // Point addition
