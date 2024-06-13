@@ -311,7 +311,7 @@ contract AvmTest {
     #[aztec(public)]
     fn assert_timestamp(expected_timestamp: u64) {
         let timestamp = context.timestamp();
-        assert(timestamp == expected_timestamp, "timestamp did not match");
+        assert(timestamp == expected_timestamp, "timestamp does not match");
     }
 
     #[aztec(public)]

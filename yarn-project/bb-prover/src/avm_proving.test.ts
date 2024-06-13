@@ -137,11 +137,11 @@ describe('AVM WitGen, proof generation and verification', () => {
     TIMEOUT,
   );
 
-  // TODO: Investigate why does the prover throws an out-of-range exception
-  it.skip(
-    'Should prove that mutated timestamp does not match',
+  it(
+    'Should prove that mutated timestamp does not match and a revert is performed',
     async () => {
-      await proveAndVerifyAvmTestContract('assert_timestamp', [TIMESTAMP], [new Fr(231)]);
+      // The error assertion string must match with that of assert_timestamp noir function.
+      await proveAndVerifyAvmTestContract('assert_timestamp', [TIMESTAMP.add(new Fr(1))], 'timestamp does not match');
     },
     TIMEOUT,
   );
@@ -179,7 +179,16 @@ describe('AVM WitGen, proof generation and verification', () => {
  * Helpers
  ************************************************************************/
 
-const proveAndVerifyAvmTestContract = async (functionName: string, calldata: Fr[] = [], mutatedCalldata: Fr[] = []) => {
+/**
+ * If assertionErrString is set, we expect a (non exceptional halting) revert due to a failing assertion and
+ * we check that the revert reason error contains this string. However, the circuit must correctly prove the
+ * execution.
+ */
+const proveAndVerifyAvmTestContract = async (
+  functionName: string,
+  calldata: Fr[] = [],
+  assertionErrString?: string,
+) => {
   const startSideEffectCounter = 0;
   const globals = GlobalVariables.empty();
   globals.timestamp = TIMESTAMP;
@@ -223,7 +232,14 @@ const proveAndVerifyAvmTestContract = async (functionName: string, calldata: Fr[
   // First we simulate (though it's not needed in this simple case).
   const simulator = new AvmSimulator(context);
   const avmResult = await simulator.executeBytecode(bytecode);
-  expect(avmResult.reverted).toBe(false);
+
+  if (assertionErrString == undefined) {
+    expect(avmResult.reverted).toBe(false);
+  } else {
+    // Explicit revert when an assertion failed.
+    expect(avmResult.reverted).toBe(true);
+    expect(avmResult.revertReason?.message).toContain(assertionErrString);
+  }
 
   const pxResult = convertAvmResultsToPxResult(
     avmResult,
@@ -235,33 +251,28 @@ const proveAndVerifyAvmTestContract = async (functionName: string, calldata: Fr[
   );
   // TODO(dbanks12): public inputs should not be empty.... Need to construct them from AvmContext?
   const uncompressedBytecode = simulator.getBytecode()!;
-
   const publicInputs = getPublicInputs(pxResult);
+
   const avmCircuitInputs = new AvmCircuitInputs(
     uncompressedBytecode,
-    mutatedCalldata.length === 0 ? context.environment.calldata : mutatedCalldata,
+    context.environment.calldata,
     publicInputs,
     pxResult.avmHints,
   );
 
   // Then we prove.
   const proofRes = await generateAvmProof(bbPath, bbWorkingDirectory, avmCircuitInputs, logger);
+  expect(proofRes.status).toEqual(BB_RESULT.SUCCESS);
 
-  if (mutatedCalldata.length !== 0) {
-    expect(proofRes.status).toEqual(BB_RESULT.FAILURE);
-  } else {
-    expect(proofRes.status).toEqual(BB_RESULT.SUCCESS);
+  // Then we test VK extraction.
+  const succeededRes = proofRes as BBSuccess;
+  const verificationKey = await extractVkData(succeededRes.vkPath!);
+  expect(verificationKey.keyAsBytes).toHaveLength(16);
 
-    // Then we test VK extraction.
-    const succeededRes = proofRes as BBSuccess;
-    const verificationKey = await extractVkData(succeededRes.vkPath!);
-    expect(verificationKey.keyAsBytes).toHaveLength(16);
-
-    // Then we verify.
-    const rawVkPath = path.join(succeededRes.vkPath!, 'vk');
-    const verificationRes = await verifyAvmProof(bbPath, succeededRes.proofPath!, rawVkPath, logger);
-    expect(verificationRes.status).toBe(BB_RESULT.SUCCESS);
-  }
+  // Then we verify.
+  const rawVkPath = path.join(succeededRes.vkPath!, 'vk');
+  const verificationRes = await verifyAvmProof(bbPath, succeededRes.proofPath!, rawVkPath, logger);
+  expect(verificationRes.status).toBe(BB_RESULT.SUCCESS);
 };
 
 // TODO: pub somewhere more usable - copied from abstract phase manager
