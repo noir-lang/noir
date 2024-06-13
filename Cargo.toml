@@ -141,6 +141,8 @@ jsonrpc = { version = "0.16.0", features = ["minreq_http"] }
 flate2 = "1.0.24"
 rand = "0.8.5"
 proptest = "1.2.0"
+proptest-derive = "0.4.0"
+
 
 im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"

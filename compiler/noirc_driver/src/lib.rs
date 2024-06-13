@@ -3,7 +3,7 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-use abi_gen::value_from_hir_expression;
+use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use fm::{FileId, FileManager};
@@ -468,7 +468,7 @@ fn compile_contract_inner(
                         let typ = context.def_interner.get_struct(struct_id);
                         let typ = typ.borrow();
                         let fields = vecmap(typ.get_fields(&[]), |(name, typ)| {
-                            (name, AbiType::from_type(context, &typ))
+                            (name, abi_type_from_hir_type(context, &typ))
                         });
                         let path =
                             context.fully_qualified_struct_path(context.root_crate_id(), typ.id);

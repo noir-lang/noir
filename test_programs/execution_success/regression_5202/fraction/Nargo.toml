@@ -1,0 +1,6 @@
+[package]
+name = "fraction"
+type = "lib"
+authors = [""]
+
+[dependencies]
