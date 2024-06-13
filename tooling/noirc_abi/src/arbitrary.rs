@@ -48,7 +48,7 @@ fn arb_value_from_abi_type(abi_type: &AbiType) -> SBoxedStrategy<InputValue> {
             // Strings only allow ASCII characters as each character must be able to be represented by a single byte.
             let string_regex = format!("[[:ascii:]]{{{length}}}");
             proptest::string::string_regex(&string_regex)
-                .expect("fix me")
+                .expect("parsing of regex should always succeed")
                 .prop_map(InputValue::String)
                 .sboxed()
         }
