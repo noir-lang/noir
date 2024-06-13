@@ -2,7 +2,7 @@ use crate::{cmp::Eq, convert::From};
 
 struct BoundedVec<T, MaxLen> {
     storage: [T; MaxLen],
-    len: u64,
+    len: u32,
 }
 
 impl<T, MaxLen> BoundedVec<T, MaxLen> {
@@ -11,12 +11,12 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         BoundedVec { storage: [zeroed; MaxLen], len: 0 }
     }
 
-    pub fn get(mut self: Self, index: u64) -> T {
+    pub fn get(mut self: Self, index: u32) -> T {
         assert(index < self.len);
         self.storage[index]
     }
 
-    pub fn get_unchecked(mut self: Self, index: u64) -> T {
+    pub fn get_unchecked(mut self: Self, index: u32) -> T {
         self.storage[index]
     }
 
@@ -27,11 +27,11 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self.len += 1;
     }
 
-    pub fn len(self) -> u64 {
+    pub fn len(self) -> u32 {
         self.len
     }
 
-    pub fn max_len(_self: BoundedVec<T, MaxLen>) -> u64 {
+    pub fn max_len(_self: BoundedVec<T, MaxLen>) -> u32 {
         MaxLen
     }
 

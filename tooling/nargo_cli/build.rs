@@ -92,6 +92,17 @@ fn execution_success_{test_name}() {{
     cmd.assert().success();
 }}
 
+#[test]
+fn execution_success_elaborator_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("execute").arg("--force").arg("--use-elaborator");
+
+    cmd.assert().success();
+}}
+
 #[test]{brillig_ignored}
 fn execution_success_{test_name}_brillig() {{
     let test_program_dir = PathBuf::from("{test_dir}");
@@ -139,6 +150,17 @@ fn execution_failure_{test_name}() {{
 
     cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
 }}
+
+#[test]
+fn execution_failure_elaborator_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("execute").arg("--force").arg("--use-elaborator");
+
+    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
+}}
             "#,
             test_dir = test_dir.display(),
         )
@@ -173,6 +195,17 @@ fn noir_test_success_{test_name}() {{
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("test");
+
+    cmd.assert().success();
+}}
+
+#[test]
+fn noir_test_success_elaborator_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("test").arg("--use-elaborator");
 
     cmd.assert().success();
 }}
@@ -213,6 +246,17 @@ fn noir_test_failure_{test_name}() {{
 
     cmd.assert().failure();
 }}
+
+#[test]
+fn noir_test_failure_elaborator_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("test").arg("--use-elaborator");
+
+    cmd.assert().failure();
+}}
             "#,
             test_dir = test_dir.display(),
         )
@@ -243,15 +287,36 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
 #[test]
 fn compile_success_empty_{test_name}() {{
 
-    // We use a mocked backend for this test as we do not rely on the returned circuit size
-    // but we must call a backend as part of querying the number of opcodes in the circuit.
-
     let test_program_dir = PathBuf::from("{test_dir}");
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("info");
     cmd.arg("--json");
     cmd.arg("--force");
+
+    let output = cmd.output().expect("Failed to execute command");
+
+    if !output.status.success() {{
+        panic!("`nargo info` failed with: {{}}", String::from_utf8(output.stderr).unwrap_or_default());
+    }}
+
+    // `compile_success_empty` tests should be able to compile down to an empty circuit.
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|e| {{
+        panic!("JSON was not well-formatted {{:?}}\n\n{{:?}}", e, std::str::from_utf8(&output.stdout))
+    }});
+    let num_opcodes = &json["programs"][0]["functions"][0]["acir_opcodes"];
+    assert_eq!(num_opcodes.as_u64().expect("number of opcodes should fit in a u64"), 0);
+}}
+
+#[test]
+fn compile_success_empty_elaborator_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("info");
+    cmd.arg("--json");
+    cmd.arg("--force");
+    cmd.arg("--use-elaborator");
 
     let output = cmd.output().expect("Failed to execute command");
 
@@ -303,6 +368,16 @@ fn compile_success_contract_{test_name}() {{
 
     cmd.assert().success();
 }}
+#[test]
+fn compile_success_contract_elaborator_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("compile").arg("--force").arg("--use-elaborator");
+
+    cmd.assert().success();
+}}
             "#,
             test_dir = test_dir.display(),
         )
@@ -337,6 +412,16 @@ fn compile_failure_{test_name}() {{
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile").arg("--force");
+
+    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
+}}
+#[test]
+fn compile_failure_elaborator_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("compile").arg("--force").arg("--use-elaborator");
 
     cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
 }}

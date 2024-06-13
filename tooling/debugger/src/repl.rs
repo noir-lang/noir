@@ -402,12 +402,11 @@ pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
     blackbox_solver: &B,
     program: CompiledProgram,
     initial_witness: WitnessMap<FieldElement>,
-) -> Result<Option<WitnessStack<FieldElement>>, NargoError> {
+) -> Result<Option<WitnessStack<FieldElement>>, NargoError<FieldElement>> {
     let circuits = &program.program.functions;
     let debug_artifact =
         &DebugArtifact { debug_symbols: program.debug, file_map: program.file_map };
     let unconstrained_functions = &program.program.unconstrained_functions;
-
     let context = RefCell::new(ReplDebugger::new(
         blackbox_solver,
         circuits,

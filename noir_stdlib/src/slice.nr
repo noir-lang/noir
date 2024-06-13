@@ -1,6 +1,6 @@
 impl<T> [T] {
     #[builtin(array_len)]
-    pub fn len(self) -> u64 {}
+    pub fn len(self) -> u32 {}
 
     /// Push a new element to the end of the slice, returning a
     /// new slice with a length one greater than the
@@ -27,13 +27,13 @@ impl<T> [T] {
     /// Insert an element at a specified index, shifting all elements 
     /// after it to the right
     #[builtin(slice_insert)]
-    pub fn insert(self, index: u64, elem: T) -> Self {}
+    pub fn insert(self, index: u32, elem: T) -> Self {}
 
     /// Remove an element at a specified index, shifting all elements
     /// after it to the left, returning the altered slice and 
     /// the removed element
     #[builtin(slice_remove)]
-    pub fn remove(self, index: u64) -> (Self, T) {}
+    pub fn remove(self, index: u32) -> (Self, T) {}
 
     // Append each element of the `other` slice to the end of `self`.
     // This returns a new slice and leaves both input slices unchanged.

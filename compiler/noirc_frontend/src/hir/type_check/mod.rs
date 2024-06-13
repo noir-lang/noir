@@ -452,6 +452,7 @@ pub mod test {
         PathResolution, PathResolutionError, PathResolutionResult,
     };
     use crate::hir_def::expr::HirIdent;
+    use crate::hir_def::function::FunctionBody;
     use crate::hir_def::stmt::HirLetStatement;
     use crate::hir_def::stmt::HirPattern::Identifier;
     use crate::hir_def::types::Type;
@@ -559,6 +560,7 @@ pub mod test {
             has_inline_attribute: false,
             all_generics: Vec::new(),
             parameter_idents: Vec::new(),
+            function_body: FunctionBody::Resolved,
         };
         interner.push_fn_meta(func_meta, func_id);
 

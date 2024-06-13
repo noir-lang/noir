@@ -100,7 +100,8 @@ After the export and codegen steps, you should have an `index.ts` like:
 export type Field = string;
 
 
-export const is_equal_circuit: CompiledCircuit = {"abi":{"parameters":[{"name":"x","type":{"kind":"field"},"visibility":"private"},{"name":"y","type":{"kind":"field"},"visibility":"private"}],"param_witnesses":{"x":[{"start":0,"end":1}],"y":[{"start":1,"end":2}]},"return_type":{"abi_type":{"kind":"boolean"},"visibility":"private"},"return_witnesses":[4]},"bytecode":"H4sIAAAAAAAA/7WUMQ7DIAxFQ0Krrr2JjSGYLVcpKrn/CaqqDQN12WK+hPBgmWd/wEyHbF1SS923uhOs3pfoChI+wKXMAXzIKyNj4PB0TFTYc0w5RUjoqeAeEu1wqK0F54RGkWvW44LPzExnlkbMEs4JNZmN8PxS42uHv82T8a3Jeyn2Ks+VLPcO558HmyLMCDOXAXXtpPt4R/Rt9T36ss6dS9HGPx/eG17nGegKBQAA"};
+export const is_equal_circuit: CompiledCircuit = 
+{"abi":{"parameters":[{"name":"x","type":{"kind":"field"},"visibility":"private"},{"name":"y","type":{"kind":"field"},"visibility":"private"}],"return_type":{"abi_type":{"kind":"boolean"},"visibility":"private"}},"bytecode":"H4sIAAAAAAAA/7WUMQ7DIAxFQ0Krrr2JjSGYLVcpKrn/CaqqDQN12WK+hPBgmWd/wEyHbF1SS923uhOs3pfoChI+wKXMAXzIKyNj4PB0TFTYc0w5RUjoqeAeEu1wqK0F54RGkWvW44LPzExnlkbMEs4JNZmN8PxS42uHv82T8a3Jeyn2Ks+VLPcO558HmyLMCDOXAXXtpPt4R/Rt9T36ss6dS9HGPx/eG17nGegKBQAA"};
 
 export async function is_equal(x: Field, y: Field, foreignCallHandler?: ForeignCallHandler): Promise<boolean> {
   const program = new Noir(is_equal_circuit);

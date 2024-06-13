@@ -200,7 +200,6 @@ fn debug_program_and_decode(
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
-    let public_abi = program.abi.clone().public_abi();
     let witness_stack = debug_program(program, &inputs_map)?;
 
     match witness_stack {
@@ -209,7 +208,7 @@ fn debug_program_and_decode(
                 .peek()
                 .expect("Should have at least one witness on the stack")
                 .witness;
-            let (_, return_value) = public_abi.decode(main_witness)?;
+            let (_, return_value) = program.abi.decode(main_witness)?;
             Ok((return_value, Some(witness_stack)))
         }
         None => Ok((None, None)),

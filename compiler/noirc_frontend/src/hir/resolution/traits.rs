@@ -300,6 +300,7 @@ fn collect_trait_impl(
         let file = def_maps[&crate_id].file_id(trait_impl.module_id);
         let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
         resolver.add_generics(&trait_impl.generics);
+
         let typ = resolver.resolve_type(unresolved_type);
         errors.extend(take_errors(trait_impl.file_id, resolver));
 
