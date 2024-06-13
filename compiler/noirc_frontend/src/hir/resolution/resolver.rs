@@ -1087,13 +1087,6 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    /// Override whether this name resolver is within a contract or not.
-    /// This will affect which types are allowed as parameters to methods as well
-    /// as which modifiers are allowed on a function.
-    pub(crate) fn set_in_contract(&mut self, in_contract: bool) {
-        self.in_contract = in_contract;
-    }
-
     /// True if the 'pub' keyword is allowed on parameters in this function
     /// 'pub' on function parameters is only allowed for entry point functions
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
