@@ -27,7 +27,8 @@ proptest::prop_compose! {
     pub(super) fn arb_field_from_integer(bit_size: u32)(value: u128)-> FieldElement {
         let width = (bit_size % 128).clamp(1, 127);
         let max_value = 2u128.pow(width) - 1;
-        FieldElement::from(value.clamp(0, max_value))
+        let value = value % max_value;
+        FieldElement::from(value)
     }
 }
 
@@ -137,6 +138,21 @@ fn arb_abi_param(typ: AbiType) -> SBoxedStrategy<AbiParameter> {
     (".+", any::<AbiVisibility>())
         .prop_map(move |(name, visibility)| AbiParameter { name, typ: typ.clone(), visibility })
         .sboxed()
+}
+
+pub fn arb_input_map(abi: &Abi) -> BoxedStrategy<InputMap> {
+    let values: Vec<_> = abi
+        .parameters
+        .iter()
+        .map(|param| (Just(param.name.clone()), arb_value_from_abi_type(&param.typ)))
+        .collect();
+
+    values
+        .prop_map(|values| {
+            let input_map: InputMap = values.into_iter().collect();
+            input_map
+        })
+        .boxed()
 }
 
 prop_compose! {

@@ -25,8 +25,7 @@ use std::{collections::BTreeMap, str};
 //
 // This ABI has nothing to do with ACVM or ACIR. Although they implicitly have a relationship
 
-#[cfg(test)]
-mod arbitrary;
+pub mod arbitrary;
 
 pub mod errors;
 pub mod input_parser;
@@ -77,8 +76,7 @@ pub enum AbiType {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(arbitrary::Arbitrary))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, arbitrary::Arbitrary)]
 #[serde(rename_all = "lowercase")]
 /// Represents whether the parameter is public or known only to the prover.
 pub enum AbiVisibility {
@@ -89,8 +87,7 @@ pub enum AbiVisibility {
     DataBus,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(arbitrary::Arbitrary))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, arbitrary::Arbitrary)]
 #[serde(rename_all = "lowercase")]
 pub enum Sign {
     Unsigned,
@@ -146,13 +143,13 @@ impl From<&AbiType> for PrintableType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(arbitrary::Arbitrary))]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, arbitrary::Arbitrary)]
+
 /// An argument or return value of the circuit's `main` function.
 pub struct AbiParameter {
     pub name: String,
     #[serde(rename = "type")]
-    #[cfg_attr(test, proptest(strategy = "arbitrary::arb_abi_type()"))]
+    #[proptest(strategy = "arbitrary::arb_abi_type()")]
     pub typ: AbiType,
     pub visibility: AbiVisibility,
 }
@@ -163,21 +160,21 @@ impl AbiParameter {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(test, derive(arbitrary::Arbitrary))]
+#[derive(Clone, Debug, Serialize, Deserialize, arbitrary::Arbitrary)]
+
 pub struct AbiReturnType {
-    #[cfg_attr(test, proptest(strategy = "arbitrary::arb_abi_type()"))]
+    #[proptest(strategy = "arbitrary::arb_abi_type()")]
     pub abi_type: AbiType,
     pub visibility: AbiVisibility,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(test, derive(arbitrary::Arbitrary))]
+#[derive(Clone, Debug, Serialize, Deserialize, arbitrary::Arbitrary)]
+
 pub struct Abi {
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
     pub parameters: Vec<AbiParameter>,
     pub return_type: Option<AbiReturnType>,
-    #[cfg_attr(test, proptest(strategy = "proptest::prelude::Just(BTreeMap::from([]))"))]
+    #[proptest(strategy = "proptest::prelude::Just(BTreeMap::from([]))")]
     pub error_types: BTreeMap<ErrorSelector, AbiErrorType>,
 }
 

@@ -12,6 +12,7 @@ pub use self::test::{run_test, TestStatus};
 mod compile;
 mod execute;
 mod foreign_calls;
+pub mod fuzz;
 mod optimize;
 mod test;
 mod transform;
