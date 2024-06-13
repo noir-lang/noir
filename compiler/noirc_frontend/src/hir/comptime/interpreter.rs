@@ -149,8 +149,8 @@ impl<'a> Interpreter<'a> {
         let mut scope = Vec::new();
         if self.scopes.len() > 1 {
             scope = self.scopes.drain(1..).collect();
-            self.push_scope();
         }
+        self.push_scope();
         (std::mem::take(&mut self.in_loop), scope)
     }
 
@@ -205,10 +205,11 @@ impl<'a> Interpreter<'a> {
                 }
             },
             HirPattern::Struct(struct_type, pattern_fields, _) => {
+                self.push_scope();
                 self.type_check(typ, &argument, location)?;
                 self.type_check(struct_type, &argument, location)?;
 
-                match argument {
+                let res = match argument {
                     Value::Struct(fields, struct_type) if fields.len() == pattern_fields.len() => {
                         for (field_name, field_pattern) in pattern_fields {
                             let field = fields.get(&field_name.0.contents).ok_or_else(|| {
@@ -234,7 +235,9 @@ impl<'a> Interpreter<'a> {
                         value,
                         location,
                     }),
-                }
+                };
+                self.pop_scope();
+                res
             }
         }
     }
@@ -316,7 +319,10 @@ impl<'a> Interpreter<'a> {
         match self.interner.expression(&id) {
             HirExpression::Ident(ident, _) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
-            HirExpression::Block(block) => self.evaluate_block(block),
+            HirExpression::Block(block) => {
+                dbg!("going to evaluate a block");
+                self.evaluate_block(block)
+            }
             HirExpression::Prefix(prefix) => self.evaluate_prefix(prefix, id),
             HirExpression::Infix(infix) => self.evaluate_infix(infix, id),
             HirExpression::Index(index) => self.evaluate_index(index, id),
@@ -353,13 +359,14 @@ impl<'a> Interpreter<'a> {
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
-                // Don't need to check let_.comptime, we can evaluate non-comptime globals too.
                 // Avoid resetting the value if it is already known
                 if let Ok(value) = self.lookup(&ident) {
                     Ok(value)
                 } else {
                     let let_ = self.interner.get_global_let_statement(*global_id).unwrap();
-                    self.evaluate_let(let_)?;
+                    if let_.comptime {
+                        self.evaluate_let(let_.clone())?;
+                    }
                     self.lookup(&ident)
                 }
             }
@@ -1282,6 +1289,7 @@ impl<'a> Interpreter<'a> {
                 Err(InterpreterError::Continue) => continue,
                 Err(other) => return Err(other),
             }
+
             self.pop_scope();
         }
 
