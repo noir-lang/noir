@@ -149,15 +149,6 @@ export class AvmPersistableStateManager {
     this.publicStorage.write(storageAddress, slot, value);
 
     // TRANSITIONAL: This should be removed once the kernel handles and entire enqueued call per circuit
-    // The current info to the kernel clears any previous read or write request.
-    this.transitionalExecutionResult.contractStorageReads =
-      this.transitionalExecutionResult.contractStorageReads.filter(
-        read => !read.storageSlot.equals(slot) || !read.contractAddress!.equals(storageAddress),
-      );
-    this.transitionalExecutionResult.contractStorageUpdateRequests =
-      this.transitionalExecutionResult.contractStorageUpdateRequests.filter(
-        update => !update.storageSlot.equals(slot) || !update.contractAddress!.equals(storageAddress),
-      );
     this.transitionalExecutionResult.contractStorageUpdateRequests.push(
       new ContractStorageUpdateRequest(slot, value, this.trace.accessCounter, storageAddress),
     );
@@ -180,17 +171,9 @@ export class AvmPersistableStateManager {
     );
 
     // TRANSITIONAL: This should be removed once the kernel handles and entire enqueued call per circuit
-    // The current info to the kernel kernel does not consider cached reads.
-    if (!cached) {
-      // The current info to the kernel removes any previous reads to the same slot.
-      this.transitionalExecutionResult.contractStorageReads =
-        this.transitionalExecutionResult.contractStorageReads.filter(
-          read => !read.storageSlot.equals(slot) || !read.contractAddress!.equals(storageAddress),
-        );
-      this.transitionalExecutionResult.contractStorageReads.push(
-        new ContractStorageRead(slot, value, this.trace.accessCounter, storageAddress),
-      );
-    }
+    this.transitionalExecutionResult.contractStorageReads.push(
+      new ContractStorageRead(slot, value, this.trace.accessCounter, storageAddress),
+    );
 
     // We want to keep track of all performed reads (even reverted ones)
     this.trace.tracePublicStorageRead(storageAddress, slot, value, exists, cached);

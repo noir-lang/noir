@@ -5,6 +5,9 @@ import { FullProverTest } from './e2e_prover_test.js';
 
 const TIMEOUT = 1_800_000;
 
+// This makes AVM proving throw if there's a failure.
+process.env.AVM_PROVING_STRICT = '1';
+
 describe('full_prover', () => {
   const t = new FullProverTest('full_prover', 2);
   let { provenAssets, accounts, tokenSim, logger } = t;

@@ -22,14 +22,14 @@ global ARGS_LENGTH: u32 = 16;
 
 // docs:start:constants
 // "PER CALL" CONSTANTS
-// If modifiying, update avm_kernel.pil / avm_constants.pil offset values (our pil does not yet support constant evaluation so values are hardcoded)
+// If modifiying, update avm_kernel.pil / constants.pil offset values (our pil does not yet support constant evaluation so values are hardcoded)
 global MAX_NEW_NOTE_HASHES_PER_CALL: u32 = 16;
 global MAX_NEW_NULLIFIERS_PER_CALL: u32 = 16;
 global MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL: u32 = 4;
 global MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL: u32 = 16;
 global MAX_NEW_L2_TO_L1_MSGS_PER_CALL: u32 = 2;
 global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL: u32 = 32;
-global MAX_PUBLIC_DATA_READS_PER_CALL: u32 = 16;
+global MAX_PUBLIC_DATA_READS_PER_CALL: u32 = 32;
 global MAX_NOTE_HASH_READ_REQUESTS_PER_CALL: u32 = 32;
 global MAX_NULLIFIER_READ_REQUESTS_PER_CALL: u32 = 32;
 global MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL: u32 = 32;
@@ -51,7 +51,7 @@ global PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: u32 = 1;
 // would then result in the type of the constant be a number and not a literal type. This would mess up the types.
 // Pain.
 global MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: u32 = 64; // MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX + PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX;
-global MAX_PUBLIC_DATA_READS_PER_TX: u32 = 32;
+global MAX_PUBLIC_DATA_READS_PER_TX: u32 = 64;
 global MAX_NEW_L2_TO_L1_MSGS_PER_TX: u32 = 8;
 global MAX_NOTE_HASH_READ_REQUESTS_PER_TX: u32 = 128;
 global MAX_NULLIFIER_READ_REQUESTS_PER_TX: u32 = 128;
@@ -68,7 +68,7 @@ global MAX_UNENCRYPTED_LOGS_PER_TX: u32 = 8;
 // KERNEL CIRCUIT PRIVATE INPUTS CONSTANTS
 // global MAX_PUBLIC_DATA_HINTS: u32 = MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX + MAX_PUBLIC_DATA_READS_PER_TX;
 // FIX: Sadly, writing this as above causes a type error in type_conversion.ts.
-global MAX_PUBLIC_DATA_HINTS: u32 = 64;
+global MAX_PUBLIC_DATA_HINTS: u32 = 128;
 
 // ROLLUP CONTRACT CONSTANTS - constants used only in l1-contracts
 global NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP: u32 = 16;
