@@ -34,7 +34,13 @@ export const Metrics = [
   {
     name: 'avm_simulation_time_ms',
     groupBy: 'app-circuit-name',
-    description: 'Time to simulate an AVM circuit.',
+    description: 'Time to simulate an AVM program.',
+    events: ['avm-simulation'],
+  },
+  {
+    name: 'avm_simulation_bytecode_size_in_bytes',
+    groupBy: 'app-circuit-name',
+    description: 'Uncompressed bytecode size for an AVM program.',
     events: ['avm-simulation'],
   },
   {

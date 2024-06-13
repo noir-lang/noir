@@ -239,7 +239,7 @@ export class WorldStateDB implements CommitmentsDB {
       return undefined;
     }
 
-    this.log.verbose(`[DB] Fetched nullifier membership`, {
+    this.log.debug(`[DB] Fetched nullifier membership`, {
       eventName: 'public-db-access',
       duration: timer.ms(),
       operation: 'get-nullifier-membership-witness-at-latest-block',
@@ -277,7 +277,7 @@ export class WorldStateDB implements CommitmentsDB {
       messageIndex,
     );
 
-    this.log.verbose(`[DB] Fetched L1 to L2 message membership`, {
+    this.log.debug(`[DB] Fetched L1 to L2 message membership`, {
       eventName: 'public-db-access',
       duration: timer.ms(),
       operation: 'get-l1-to-l2-message-membership-witness',
@@ -289,7 +289,7 @@ export class WorldStateDB implements CommitmentsDB {
   public async getL1ToL2LeafValue(leafIndex: bigint): Promise<Fr | undefined> {
     const timer = new Timer();
     const leafValue = await this.db.getLeafValue(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, leafIndex);
-    this.log.verbose(`[DB] Fetched L1 to L2 message leaf value`, {
+    this.log.debug(`[DB] Fetched L1 to L2 message leaf value`, {
       eventName: 'public-db-access',
       duration: timer.ms(),
       operation: 'get-l1-to-l2-message-leaf-value',
@@ -300,7 +300,7 @@ export class WorldStateDB implements CommitmentsDB {
   public async getCommitmentIndex(commitment: Fr): Promise<bigint | undefined> {
     const timer = new Timer();
     const index = await this.db.findLeafIndex(MerkleTreeId.NOTE_HASH_TREE, commitment);
-    this.log.verbose(`[DB] Fetched commitment index`, {
+    this.log.debug(`[DB] Fetched commitment index`, {
       eventName: 'public-db-access',
       duration: timer.ms(),
       operation: 'get-commitment-index',
@@ -311,7 +311,7 @@ export class WorldStateDB implements CommitmentsDB {
   public async getNullifierIndex(nullifier: Fr): Promise<bigint | undefined> {
     const timer = new Timer();
     const index = await this.db.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
-    this.log.verbose(`[DB] Fetched nullifier index`, {
+    this.log.debug(`[DB] Fetched nullifier index`, {
       eventName: 'public-db-access',
       duration: timer.ms(),
       operation: 'get-nullifier-index',

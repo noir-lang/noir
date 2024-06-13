@@ -153,6 +153,7 @@ function processCircuitProving(entry: CircuitProvingStats, results: BenchmarkCol
 
 function processAvmSimulation(entry: AvmSimulationStats, results: BenchmarkCollectedResults) {
   append(results, 'avm_simulation_time_ms', entry.appCircuitName, entry.duration);
+  append(results, 'avm_simulation_bytecode_size_in_bytes', entry.appCircuitName, entry.bytecodeSize);
 }
 
 function processDbAccess(entry: PublicDBAccessStats, results: BenchmarkCollectedResults) {

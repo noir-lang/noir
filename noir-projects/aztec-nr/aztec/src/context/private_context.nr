@@ -193,10 +193,10 @@ impl PrivateContext {
     }
 
     pub fn end_setup(&mut self) {
-        dep::protocol_types::debug_log::debug_log_format(
-            "Ending setup at counter {0}",
-            [self.side_effect_counter as Field]
-        );
+        // dep::protocol_types::debug_log::debug_log_format(
+        //     "Ending setup at counter {0}",
+        //     [self.side_effect_counter as Field]
+        // );
         self.min_revertible_side_effect_counter = self.side_effect_counter;
     }
 
