@@ -319,10 +319,7 @@ impl<'a> Interpreter<'a> {
         match self.interner.expression(&id) {
             HirExpression::Ident(ident, _) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
-            HirExpression::Block(block) => {
-                dbg!("going to evaluate a block");
-                self.evaluate_block(block)
-            }
+            HirExpression::Block(block) => self.evaluate_block(block),
             HirExpression::Prefix(prefix) => self.evaluate_prefix(prefix, id),
             HirExpression::Infix(infix) => self.evaluate_infix(infix, id),
             HirExpression::Index(index) => self.evaluate_index(index, id),
