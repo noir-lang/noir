@@ -64,12 +64,7 @@ impl<'a> Interpreter<'a> {
         let previous_state = self.enter_function();
 
         let meta = self.interner.function_meta(&function);
-
-        eprintln!("Calling function {}", self.interner.function_name(&function));
-        dbg!();
-
         if meta.parameters.len() != arguments.len() {
-        dbg!();
             return Err(InterpreterError::ArgumentCountMismatch {
                 expected: meta.parameters.len(),
                 actual: arguments.len(),
@@ -77,13 +72,10 @@ impl<'a> Interpreter<'a> {
             });
         }
 
-        dbg!();
         if meta.kind != FunctionKind::Normal {
-        dbg!();
             return self.call_builtin(function, arguments, location);
         }
 
-        dbg!();
         let parameters = meta.parameters.0.clone();
         for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
             self.define_pattern(parameter, typ, argument, arg_location)?;
@@ -106,8 +98,6 @@ impl<'a> Interpreter<'a> {
         let func_attrs = attributes.function.as_ref()
             .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to");
 
-        dbg!();
-
         if let Some(builtin) = func_attrs.builtin() {
             let item = format!("Evaluation for builtin functions like {builtin}");
             Err(InterpreterError::Unimplemented { item, location })
@@ -115,7 +105,6 @@ impl<'a> Interpreter<'a> {
             let item = format!("Evaluation for foreign functions like {foreign}");
             Err(InterpreterError::Unimplemented { item, location })
         } else if let Some(oracle) = func_attrs.oracle() {
-        dbg!(oracle);
             if oracle == "print" {
                 self.print_oracle(arguments)
             } else {

@@ -6,7 +6,7 @@ use std::{
 use crate::{
     ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
-        comptime::{self, Interpreter},
+        comptime::{self, Interpreter, Value},
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
@@ -205,10 +205,22 @@ impl<'context> Elaborator<'context> {
     pub fn elaborate(
         context: &'context mut Context,
         crate_id: CrateId,
-        mut items: CollectedItems,
+        items: CollectedItems,
     ) -> Vec<(CompilationError, FileId)> {
         let mut this = Self::new(context, crate_id);
 
+        // Filter out comptime items to execute their functions first if needed.
+        // This step is why comptime items can only refer to other comptime items
+        // in the same crate, but can refer to any item in dependencies. Trying to
+        // run these at the same time as other items would lead to them seeing empty
+        // function bodies from functions that have yet to be elaborated.
+        let (comptime_items, runtime_items) = Self::filter_comptime_items(items);
+        this.elaborate_items(comptime_items);
+        this.elaborate_items(runtime_items);
+        this.errors
+    }
+
+    fn elaborate_items(&mut self, mut items: CollectedItems) {
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
         //
@@ -216,58 +228,56 @@ impl<'context> Elaborator<'context> {
         // the values of integer globals as numeric generics.
         let (literal_globals, non_literal_globals) = filter_literal_globals(items.globals);
         for global in non_literal_globals {
-            this.unresolved_globals.insert(global.global_id, global);
+            self.unresolved_globals.insert(global.global_id, global);
         }
 
         for global in literal_globals {
-            this.elaborate_global(global);
+            self.elaborate_global(global);
         }
 
         for (alias_id, alias) in items.type_aliases {
-            this.define_type_alias(alias_id, alias);
+            self.define_type_alias(alias_id, alias);
         }
 
-        this.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
-        this.collect_traits(items.traits);
+        self.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
+        self.collect_traits(items.traits);
 
         // Must resolve structs before we resolve globals.
-        this.collect_struct_definitions(items.types);
+        self.collect_struct_definitions(items.types);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
         // done during def collection since we need to be able to resolve the type of
         // the impl since that determines the module we should collect into.
         for ((_self_type, module), impls) in &mut items.impls {
-            this.collect_impls(*module, impls);
+            self.collect_impls(*module, impls);
         }
 
         // Bind trait impls to their trait. Collect trait functions, that have a
         // default implementation, which hasn't been overridden.
         for trait_impl in &mut items.trait_impls {
-            this.collect_trait_impl(trait_impl);
+            self.collect_trait_impl(trait_impl);
         }
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to ensure they are valid.
-        while let Some((_, global)) = this.unresolved_globals.pop_first() {
-            this.elaborate_global(global);
+        while let Some((_, global)) = self.unresolved_globals.pop_first() {
+            self.elaborate_global(global);
         }
 
         for functions in items.functions {
-            this.elaborate_functions(functions);
+            self.elaborate_functions(functions);
         }
 
         for impls in items.impls.into_values() {
-            this.elaborate_impls(impls);
+            self.elaborate_impls(impls);
         }
 
         for trait_impl in items.trait_impls {
-            this.elaborate_trait_impl(trait_impl);
+            self.elaborate_trait_impl(trait_impl);
         }
 
-        let cycle_errors = this.interner.check_for_dependency_cycles();
-        this.errors.extend(cycle_errors);
-        this.errors
+        self.errors.extend(self.interner.check_for_dependency_cycles());
     }
 
     /// Runs `f` and if it modifies `self.generics`, `self.generics` is truncated
@@ -1122,26 +1132,32 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn run_comptime_attributes_on_struct(&mut self, attributes: Vec<SecondaryAttribute>, typ: StructId, span: Span) {
+    fn run_comptime_attributes_on_struct(
+        &mut self,
+        attributes: Vec<SecondaryAttribute>,
+        struct_id: StructId,
+        span: Span,
+    ) {
         for attribute in attributes {
             if let SecondaryAttribute::Custom(name) = attribute {
                 match self.lookup_global(Path::from_single(name, span)) {
                     Ok(id) => {
-                        if let DefinitionKind::Function(function) = &self.interner.definition(id).kind {
+                        let definition = self.interner.definition(id);
+                        if let DefinitionKind::Function(function) = &definition.kind {
                             let function = *function;
-                            let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+                            let mut interpreter =
+                                Interpreter::new(self.interner, &mut self.comptime_scopes);
 
                             let location = Location::new(span, self.file);
-                            let arguments = vec![(comptime::Value::Unit, location)];
+                            let arguments = vec![(Value::TypeDefinition(struct_id), location)];
                             let result = interpreter.call_function(function, arguments, location);
-                            dbg!(&result);
                             if let Err(error) = result {
                                 self.errors.push(error.into_compilation_error_pair());
                             }
                         } else {
                             self.push_err(ResolverError::NonFunctionInAnnotation { span });
                         }
-                    },
+                    }
                     Err(error) => self.push_err(error),
                 }
             }
@@ -1289,5 +1305,53 @@ impl<'context> Elaborator<'context> {
                 this.define_function_meta(func, *id, false);
             });
         }
+    }
+
+    /// Filters out comptime items from non-comptime items.
+    /// Returns a pair of (comptime items, non-comptime items)
+    fn filter_comptime_items(mut items: CollectedItems) -> (CollectedItems, CollectedItems) {
+        let mut function_sets = Vec::with_capacity(items.functions.len());
+        let mut comptime_function_sets = Vec::new();
+
+        for function_set in items.functions {
+            let mut functions = Vec::with_capacity(function_set.functions.len());
+            let mut comptime_functions = Vec::new();
+
+            for function in function_set.functions {
+                if function.2.def.is_comptime {
+                    comptime_functions.push(function);
+                } else {
+                    functions.push(function);
+                }
+            }
+
+            let file_id = function_set.file_id;
+            let self_type = function_set.self_type;
+            let trait_id = function_set.trait_id;
+
+            if !comptime_functions.is_empty() {
+                comptime_function_sets.push(UnresolvedFunctions {
+                    functions: comptime_functions,
+                    file_id,
+                    trait_id,
+                    self_type: self_type.clone(),
+                });
+            }
+
+            function_sets.push(UnresolvedFunctions { functions, file_id, trait_id, self_type });
+        }
+
+        let comptime = CollectedItems {
+            functions: comptime_function_sets,
+            types: BTreeMap::new(),
+            type_aliases: BTreeMap::new(),
+            traits: BTreeMap::new(),
+            trait_impls: Vec::new(),
+            globals: Vec::new(),
+            impls: std::collections::HashMap::new(),
+        };
+
+        items.functions = function_sets;
+        (comptime, items)
     }
 }
