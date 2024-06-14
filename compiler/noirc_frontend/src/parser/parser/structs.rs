@@ -33,8 +33,7 @@ pub(super) fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         .then(function::generics())
         .then(fields)
         .validate(|(((raw_attributes, name), generics), fields), span, emit| {
-            let attributes =
-                validate_secondary_attributes(raw_attributes.unwrap_or_default(), span, emit);
+            let attributes = validate_secondary_attributes(raw_attributes, span, emit);
             TopLevelStatement::Struct(NoirStruct { name, attributes, generics, fields, span })
         })
 }
