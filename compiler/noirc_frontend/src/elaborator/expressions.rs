@@ -66,7 +66,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Error => (HirExpression::Error, Type::Error),
             ExpressionKind::Unquote(_) => {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
-                (HirExpression::Literal(HirLiteral::Unit), Type::Error)
+                (HirExpression::Error, Type::Error)
             }
             ExpressionKind::UnquoteMarker(index) => {
                 unreachable!("UnquoteMarker({index}) remaining in runtime code")
