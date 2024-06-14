@@ -134,8 +134,16 @@ pub struct UnresolvedType {
 }
 
 /// Type wrapper for a member access
-pub(crate) type UnaryRhsMemberAccess =
-    (Ident, Option<(Option<Vec<UnresolvedType>>, Vec<Expression>)>);
+pub struct UnaryRhsMemberAccess {
+    pub method_or_field: Ident,
+    pub method_call: Option<UnaryRhsMethodCall>,
+}
+
+pub struct UnaryRhsMethodCall {
+    pub turbofish: Option<Vec<UnresolvedType>>,
+    pub macro_call: bool,
+    pub args: Vec<Expression>,
+}
 
 /// The precursor to TypeExpression, this is the type that the parser allows
 /// to be used in the length position of an array type. Only constant integers, variables,

@@ -258,7 +258,7 @@ impl<'context> Elaborator<'context> {
         }
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
-        // globals will need to reference the struct type they're initialized to to ensure they are valid.
+        // globals will need to reference the struct type they're initialized to ensure they are valid.
         while let Some((_, global)) = this.unresolved_globals.pop_first() {
             this.elaborate_global(global);
         }
@@ -421,6 +421,7 @@ impl<'context> Elaborator<'context> {
         meta.function_body = FunctionBody::Resolved;
 
         self.trait_bounds.clear();
+        self.type_variables.clear();
         self.in_unconstrained_fn = false;
         self.interner.update_fn(id, hir_func);
         self.in_contract = was_in_contract;

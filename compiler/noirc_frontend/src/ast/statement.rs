@@ -626,6 +626,7 @@ impl ForRange {
                     object: Expression::new(array_ident.clone(), array_span),
                     method_name: Ident::new("len".to_string(), array_span),
                     generics: None,
+                    is_macro_call: false,
                     arguments: vec![],
                 }));
                 let end_range = Expression::new(end_range, array_span);
