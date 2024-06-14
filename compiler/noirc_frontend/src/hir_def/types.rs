@@ -82,7 +82,7 @@ pub enum Type {
 
     /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
-    NamedGeneric(TypeVariable, Rc<String>, TypeKind),
+    NamedGeneric(TypeVariable, Rc<String>, Kind),
 
     /// A functions with arguments, a return type and environment.
     /// the environment should be `Unit` by default,
@@ -194,16 +194,16 @@ impl Type {
 /// a type of kind * (reprsented here as `Normal`). Types used in positions where a number
 /// is expected (such as in an array length position) are expected to be of kind `Kind::Numeric`.
 #[derive(PartialEq, Eq, Clone, Copy, Hash, Debug)]
-pub enum TypeKind {
+pub enum Kind {
     Normal,
     Numeric,
 }
 
-impl std::fmt::Display for TypeKind {
+impl std::fmt::Display for Kind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeKind::Normal => write!(f, "normal"),
-            TypeKind::Numeric => write!(f, "numeric"),
+            Kind::Normal => write!(f, "normal"),
+            Kind::Numeric => write!(f, "numeric"),
         }
     }
 }
@@ -247,7 +247,7 @@ pub type Generics = Vec<ResolvedGeneric>;
 pub struct ResolvedGeneric {
     pub name: Rc<String>,
     pub type_var: TypeVariable,
-    pub is_numeric_generic: bool,
+    pub kind: Kind,
     pub span: Span,
 }
 
@@ -258,7 +258,7 @@ impl ResolvedGeneric {
         ResolvedGeneric {
             name: Rc::default(),
             type_var: TypeVariable::unbound(TypeVariableId(0)),
-            is_numeric_generic: false,
+            kind: Kind::Normal,
             span: Span::default(),
         }
     }
@@ -743,7 +743,7 @@ impl Type {
     pub fn find_numeric_type_vars(&self, found_names: &mut Vec<String>) {
         // Return whether the named generic has a TypeKind::Numeric and save its name
         let named_generic_is_numeric = |typ: &Type, found_names: &mut Vec<String>| {
-            if let Type::NamedGeneric(_, name, TypeKind::Numeric) = typ {
+            if let Type::NamedGeneric(_, name, Kind::Numeric) = typ {
                 found_names.push(name.to_string());
                 true
             } else {

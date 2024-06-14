@@ -49,7 +49,7 @@ use crate::node_interner::{
     StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
 };
 use crate::{
-    GenericTypeVars, Generics, ResolvedGeneric, Shared, StructType, Type, TypeAlias, TypeKind,
+    GenericTypeVars, Generics, Kind, ResolvedGeneric, Shared, StructType, Type, TypeAlias,
     TypeVariable, TypeVariableKind,
 };
 use fm::FileId;
@@ -757,7 +757,7 @@ impl<'a> Resolver<'a> {
                 return Some(Type::NamedGeneric(
                     generic.type_var.clone(),
                     generic.name.clone(),
-                    TypeKind::Normal,
+                    Kind::Normal,
                 ));
             };
         }
@@ -895,7 +895,7 @@ impl<'a> Resolver<'a> {
                 name: name.clone(),
                 type_var: typevar,
                 // We only support numeric generics in the elaborator
-                is_numeric_generic: false,
+                kind: Kind::Normal,
                 span,
             };
             if let Some(generic) = self.find_generic(&name) {
@@ -950,12 +950,10 @@ impl<'a> Resolver<'a> {
                 second_span: span,
             });
         } else {
-            let is_numeric_generic =
-                matches!(unresolved_generic, UnresolvedGeneric::Numeric { .. });
             let resolved_generic = ResolvedGeneric {
                 name: rc_name,
                 type_var: typevar.clone(),
-                is_numeric_generic,
+                kind: unresolved_generic.kind(),
                 span,
             };
             self.generics.push(resolved_generic);

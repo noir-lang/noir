@@ -22,7 +22,7 @@ use crate::{
         traits::TraitConstraint,
     },
     node_interner::{ExprId, FuncId, GlobalId, NodeInterner},
-    Type, TypeBindings, TypeKind,
+    Kind, Type, TypeBindings,
 };
 
 pub use self::errors::Source;
@@ -284,7 +284,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         for ((_, trait_fn_generic), (name, impl_fn_generic)) in
             trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
-            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone(), TypeKind::Normal);
+            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone(), Kind::Normal);
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), arg));
         }
 

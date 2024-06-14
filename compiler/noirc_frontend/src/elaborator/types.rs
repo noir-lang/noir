@@ -32,7 +32,7 @@ use crate::{
         UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
     node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
-    Generics, ResolvedGeneric, Type, TypeBinding, TypeKind, TypeVariable, TypeVariableKind,
+    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
 use super::{lints, Elaborator};
@@ -40,17 +40,17 @@ use super::{lints, Elaborator};
 impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
     pub(super) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
-        self.resolve_type_inner(typ, TypeKind::Normal)
+        self.resolve_type_inner(typ, Kind::Normal)
     }
 
     /// Translate an UnresolvedType to a Type with a `TypeKind::Numeric`
     pub(super) fn resolve_numeric_type(&mut self, typ: UnresolvedType) -> Type {
-        self.resolve_type_inner(typ, TypeKind::Numeric)
+        self.resolve_type_inner(typ, Kind::Numeric)
     }
 
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
-    pub fn resolve_type_inner(&mut self, typ: UnresolvedType, kind: TypeKind) -> Type {
+    pub fn resolve_type_inner(&mut self, typ: UnresolvedType, kind: Kind) -> Type {
         use crate::ast::UnresolvedTypeData::*;
 
         let span = typ.span;
@@ -61,7 +61,7 @@ impl<'context> Elaborator<'context> {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
                 let mut size = self.convert_expression_type(size);
                 if let Type::NamedGeneric(type_var, name, _) = size {
-                    size = Type::NamedGeneric(type_var, name, TypeKind::Numeric);
+                    size = Type::NamedGeneric(type_var, name, Kind::Numeric);
                 }
                 Type::Array(Box::new(size), elem)
             }
@@ -75,14 +75,14 @@ impl<'context> Elaborator<'context> {
             String(size) => {
                 let mut resolved_size = self.convert_expression_type(size);
                 if let Type::NamedGeneric(type_var, name, _) = resolved_size {
-                    resolved_size = Type::NamedGeneric(type_var, name, TypeKind::Numeric);
+                    resolved_size = Type::NamedGeneric(type_var, name, Kind::Numeric);
                 }
                 Type::String(Box::new(resolved_size))
             }
             FormatString(size, fields) => {
                 let mut resolved_size = self.convert_expression_type(size);
                 if let Type::NamedGeneric(type_var, name, _) = resolved_size {
-                    resolved_size = Type::NamedGeneric(type_var, name, TypeKind::Numeric);
+                    resolved_size = Type::NamedGeneric(type_var, name, Kind::Numeric);
                 }
                 let fields = self.resolve_type_inner(*fields, kind);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
@@ -140,7 +140,7 @@ impl<'context> Elaborator<'context> {
 
         // Check that any types with a type kind match the expected type kind supplied to this function
         if let Type::NamedGeneric(_, name, resolved_kind) = &resolved_type {
-            if matches!(resolved_kind, TypeKind::Numeric) && matches!(kind, TypeKind::Normal) {
+            if matches!(resolved_kind, Kind::Numeric) && matches!(kind, Kind::Normal) {
                 let expected_typ_err =
                     CompilationError::ResolverError(ResolverError::NumericGenericUsedForType {
                         name: name.to_string(),
@@ -195,11 +195,7 @@ impl<'context> Elaborator<'context> {
             let id = type_alias.id;
 
             let mut args = vecmap(type_alias.generics.iter().zip(args), |(generic, arg)| {
-                if generic.is_numeric_generic {
-                    self.resolve_numeric_type(arg)
-                } else {
-                    self.resolve_type(arg)
-                }
+                self.resolve_type_inner(arg, generic.kind)
             });
 
             self.verify_generics_count(expected_generic_count, &mut args, span, || {
@@ -249,11 +245,7 @@ impl<'context> Elaborator<'context> {
 
                 let mut args =
                     vecmap(struct_type.borrow().generics.iter().zip(args), |(generic, arg)| {
-                        if generic.is_numeric_generic {
-                            self.resolve_numeric_type(arg)
-                        } else {
-                            self.resolve_type(arg)
-                        }
+                        self.resolve_type_inner(arg, generic.kind)
                     });
 
                 self.verify_generics_count(expected_generic_count, &mut args, span, || {
@@ -271,12 +263,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn resolve_trait_as_type(
-        &mut self,
-        path: Path,
-        args: Vec<UnresolvedType>,
-        kind: TypeKind,
-    ) -> Type {
+    fn resolve_trait_as_type(&mut self, path: Path, args: Vec<UnresolvedType>, kind: Kind) -> Type {
         let args = vecmap(args, |arg| self.resolve_type_inner(arg, kind));
 
         if let Some(t) = self.lookup_trait_or_error(path) {
@@ -310,12 +297,10 @@ impl<'context> Elaborator<'context> {
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
             if let Some(generic) = self.find_generic(name) {
-                let kind =
-                    if generic.is_numeric_generic { TypeKind::Numeric } else { TypeKind::Normal };
                 return Some(Type::NamedGeneric(
                     generic.type_var.clone(),
                     generic.name.clone(),
-                    kind,
+                    generic.kind,
                 ));
             }
         }
@@ -1458,12 +1443,13 @@ impl<'context> Elaborator<'context> {
             });
         } else {
             // Declare numeric generic if it is specified
-            let is_numeric_generic = self.add_numeric_generic(unresolved_generic, typevar.clone());
+            let is_numeric_generic =
+                self.try_add_numeric_generic(unresolved_generic, typevar.clone());
 
             let resolved_generic = ResolvedGeneric {
                 name: rc_name,
                 type_var: typevar.clone(),
-                is_numeric_generic,
+                kind: if is_numeric_generic { Kind::Numeric } else { Kind::Normal },
                 span,
             };
 

@@ -8,6 +8,7 @@ use crate::ast::{
 use crate::macros_api::StructId;
 use crate::node_interner::ExprId;
 use crate::token::{Attributes, Token};
+use crate::Kind;
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
@@ -60,6 +61,13 @@ impl UnresolvedGeneric {
             UnresolvedGeneric::Numeric { ident, typ } => {
                 ident.0.span().merge(typ.span.unwrap_or_default())
             }
+        }
+    }
+
+    pub fn kind(&self) -> Kind {
+        match self {
+            UnresolvedGeneric::Variable(_) => Kind::Normal,
+            UnresolvedGeneric::Numeric { .. } => Kind::Numeric,
         }
     }
 }
