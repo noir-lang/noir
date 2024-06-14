@@ -12,8 +12,9 @@ fn get_selected_tests() -> Vec<PathBuf> {
         .parent()
         .unwrap()
         .join("test_programs")
-        .join("execution_success");
+        .join("benchmarks");
 
-    let selected_tests = vec!["struct", "eddsa", "regression"];
-    selected_tests.into_iter().map(|t| test_dir.join(t)).collect()
+        let dirs = std::fs::read_dir(&test_dir).unwrap();
+
+    dirs.into_iter().map(|t| test_dir.join(t.unwrap().path())).collect()
 }
