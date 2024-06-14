@@ -84,14 +84,15 @@ fn verify_package(
     compiled_program: CompiledProgram,
     verifier_name: &str,
 ) -> Result<(), CliError> {
+    let public_abi = compiled_program.abi.public_abi();
     let (public_inputs_map, return_value) = read_inputs_from_file(
         &package.root_dir,
         verifier_name,
         Format::Toml,
-        &compiled_program.abi,
+        &public_abi,
     )?;
 
-    let public_inputs = compiled_program.abi.encode(&public_inputs_map, return_value)?;
+    let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
 
     let proof_path =
         workspace.proofs_directory_path().join(package.name.to_string()).with_extension(PROOF_EXT);

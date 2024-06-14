@@ -356,6 +356,18 @@ impl Abi {
 
         Ok((public_inputs_map, return_value))
     }
+
+    /// ABI with only the public parameters
+    #[must_use]
+    pub fn public_abi(self) -> Abi {
+        let parameters: Vec<_> =
+            self.parameters.into_iter().filter(|param| param.is_public()).collect();
+        Abi {
+            parameters,
+            return_type: self.return_type,
+            error_types: self.error_types,
+        }
+    }
 }
 
 pub fn decode_value(
