@@ -1085,15 +1085,20 @@ impl<'context> Elaborator<'context> {
 
         // Resolve each field in each struct.
         // Each struct should already be present in the NodeInterner after def collection.
-        for (type_id, typ) in structs {
+        for (type_id, mut typ) in structs {
             self.file = typ.file_id;
             self.local_module = typ.module_id;
+
+            let attributes = std::mem::take(&mut typ.struct_def.attributes);
+            let span = typ.struct_def.span;
             let (generics, fields) = self.resolve_struct_fields(typ.struct_def, type_id);
 
             self.interner.update_struct(type_id, |struct_def| {
                 struct_def.set_fields(fields);
                 struct_def.generics = generics;
             });
+
+            self.run_comptime_attributes_on_struct(attributes, type_id, span);
         }
 
         // Check whether the struct fields have nested slices
@@ -1112,6 +1117,32 @@ impl<'context> Elaborator<'context> {
                         self.file = location.file;
                         self.push_err(ResolverError::NestedSlices { span: location.span });
                     }
+                }
+            }
+        }
+    }
+
+    fn run_comptime_attributes_on_struct(&mut self, attributes: Vec<SecondaryAttribute>, typ: StructId, span: Span) {
+        for attribute in attributes {
+            if let SecondaryAttribute::Custom(name) = attribute {
+                match self.lookup_global(Path::from_single(name, span)) {
+                    Ok(id) => {
+                        if let DefinitionKind::Function(function) = &self.interner.definition(id).kind {
+                            let function = *function;
+                            let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+
+                            let location = Location::new(span, self.file);
+                            let arguments = vec![(comptime::Value::Unit, location)];
+                            let result = interpreter.call_function(function, arguments, location);
+                            dbg!(&result);
+                            if let Err(error) = result {
+                                self.errors.push(error.into_compilation_error_pair());
+                            }
+                        } else {
+                            self.push_err(ResolverError::NonFunctionInAnnotation { span });
+                        }
+                    },
+                    Err(error) => self.push_err(error),
                 }
             }
         }
