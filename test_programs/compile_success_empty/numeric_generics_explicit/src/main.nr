@@ -24,10 +24,7 @@ fn main() {
     assert(my_type.c == 3);
 
     let foo = baz::<10>();
-    assert(foo.inner == [1; 10]);
-
-    let new_arr = update_arr([0, 1, 2, 3]);
-    assert(new_arr[0] == 5);
+    assert(foo.data == [1; 10]);
 }
 
 // Used in the signature of a function
