@@ -248,7 +248,7 @@ impl<'context> Elaborator<'context> {
         }
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
-        // globals will need to reference the struct type they're initialized to to ensure they are valid.
+        // globals will need to reference the struct type they're initialized to ensure they are valid.
         while let Some((_, global)) = this.unresolved_globals.pop_first() {
             this.elaborate_global(global);
         }
