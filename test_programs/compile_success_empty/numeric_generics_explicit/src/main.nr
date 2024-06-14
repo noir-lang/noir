@@ -30,14 +30,17 @@ fn main() {
     assert(new_arr[0] == 5);
 }
 
+// Used in the signature of a function
 fn id<let I: Field>(x: [Field; I]) -> [Field; I] {
     x
 }
 
+// Used as a field of a struct
 struct MyStruct<let S: u32> {
     data: [Field; S],
 }
 
+// Used in an impl
 impl<let S: u32> MyStruct<S> {
     fn insert(mut self: Self, index: Field, elem: Field) -> Self {
         // Regression test for numeric generics on impls
@@ -53,6 +56,10 @@ fn foo(mut s: MyStruct<2+1>) -> MyStruct<10/2-2> {
     s
 }
 
+fn baz<let N: u32>() -> MyStruct<N> {
+    MyStruct { data: [1; N] }
+}
+
 fn double<let N: u32>() -> u32 {
     // Used as an expression
     N * 2
@@ -63,20 +70,6 @@ fn double_numeric_generics_test() {
     assert(double::<9>() == 18);
     assert(double::<123>() == 246);
     assert(double::<7 + 8>() == 30);
-}
-
-// Used as a field of a struct
-struct Foo<let N: u32> {
-    inner: [u32; N],
-}
-fn baz<let N: u32>() -> Foo<N> {
-    Foo { inner: [1; N] }
-}
-// Used in an impl
-impl<let N: u32> Foo<N> {
-    fn bar(self) -> u32 {
-        N * self.inner[0]
-    }
 }
 
 struct MyType {
@@ -95,16 +88,6 @@ trait Deserialize<let N: u32> {
     fn deserialize(fields: [Field; N]) -> Self;
 }
 
-fn read<T, let N: u32>() -> T where T: Deserialize<N> {
-    // Used as a type within a function body
-    let mut fields: [Field; N] = [0; N];
-    // Used a loop bound
-    for i in 0..N {
-        fields[i] = i as Field + 1;
-    }
-    T::deserialize(fields)
-}
-
 struct PublicStorage {}
 
 impl PublicStorage {
@@ -117,12 +100,6 @@ impl PublicStorage {
         }
         T::deserialize(fields)
     }
-}
-
-// Used in the signature of a function
-fn update_arr<let N: u8>(mut arr: [Field; N]) -> [Field; N] {
-    arr[0] = 5;
-    arr
 }
 
 // Check that we can thread numeric generics into nested structs
