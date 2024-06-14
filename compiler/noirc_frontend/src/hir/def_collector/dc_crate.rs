@@ -404,7 +404,7 @@ impl DefCollector {
         resolved_module.errors.extend(collect_impls(context, crate_id, &def_collector.items.impls));
 
         // We must wait to resolve non-integer globals until after we resolve structs since struct
-        // globals will need to reference the struct type they're initialized to to ensure they are valid.
+        // globals will need to reference the struct type they're initialized to ensure they are valid.
         resolved_module.resolve_globals(context, other_globals, crate_id);
 
         // Resolve each function in the crate. This is now possible since imports have been resolved

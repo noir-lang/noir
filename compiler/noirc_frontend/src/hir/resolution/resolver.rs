@@ -17,7 +17,7 @@ use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCapturedVar,
     HirCastExpression, HirConstructorExpression, HirExpression, HirIdent, HirIfExpression,
     HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess,
-    HirMethodCallExpression, HirPrefixExpression, ImplKind,
+    HirMethodCallExpression, HirPrefixExpression, HirQuoted, ImplKind,
 };
 
 use crate::hir_def::function::FunctionBody;
@@ -569,7 +569,7 @@ impl<'a> Resolver<'a> {
                 let fields = self.resolve_type_inner(*fields);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
-            Code => Type::Code,
+            Expr => Type::Expr,
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,
@@ -1158,7 +1158,7 @@ impl<'a> Resolver<'a> {
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
-            | Type::Code
+            | Type::Expr
             | Type::Forall(_, _) => (),
 
             Type::TraitAsType(_, _, args) => {
@@ -1641,13 +1641,23 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Parenthesized(sub_expr) => return self.resolve_expression(*sub_expr),
 
             // The quoted expression isn't resolved since we don't want errors if variables aren't defined
-            ExpressionKind::Quote(block) => HirExpression::Quote(block),
+            ExpressionKind::Quote(block, _) => {
+                let quoted = HirQuoted { quoted_block: block, unquoted_exprs: Vec::new() };
+                HirExpression::Quote(quoted)
+            }
             ExpressionKind::Comptime(block, _) => {
                 HirExpression::Comptime(self.resolve_block(block))
             }
             ExpressionKind::Resolved(_) => unreachable!(
                 "ExpressionKind::Resolved should only be emitted by the comptime interpreter"
             ),
+            ExpressionKind::Unquote(_) => {
+                self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
+                HirExpression::Literal(HirLiteral::Unit)
+            }
+            ExpressionKind::UnquoteMarker(index) => {
+                unreachable!("UnquoteMarker({index}) remaining in runtime code")
+            }
         };
 
         // If these lines are ever changed, make sure to change the early return

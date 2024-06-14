@@ -33,7 +33,7 @@ pub(crate) struct BrilligBlock<'block> {
     /// The basic block that is being converted
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
-    pub(crate) brillig_context: &'block mut BrilligContext,
+    pub(crate) brillig_context: &'block mut BrilligContext<FieldElement>,
     /// Tracks the available variable during the codegen of the block
     pub(crate) variables: BlockVariables,
     /// For each instruction, the set of values that are not used anymore after it.
@@ -44,7 +44,7 @@ impl<'block> BrilligBlock<'block> {
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     pub(crate) fn compile(
         function_context: &'block mut FunctionContext,
-        brillig_context: &'block mut BrilligContext,
+        brillig_context: &'block mut BrilligContext<FieldElement>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
     ) {
@@ -944,7 +944,7 @@ impl<'block> BrilligBlock<'block> {
     }
 
     pub(crate) fn store_variable_in_array_with_ctx(
-        ctx: &mut BrilligContext,
+        ctx: &mut BrilligContext<FieldElement>,
         destination_pointer: MemoryAddress,
         index_register: SingleAddrVariable,
         value_variable: BrilligVariable,
@@ -1737,8 +1737,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let array = variable.extract_array();
-                self.brillig_context.codegen_allocate_fixed_length_array(array.pointer, array.size);
-                self.brillig_context.usize_const_instruction(array.rc, 1_usize.into());
+                self.allocate_nested_array(typ, Some(array));
 
                 variable
             }
@@ -1762,6 +1761,43 @@ impl<'block> BrilligBlock<'block> {
             _ => {
                 unreachable!("ICE: unsupported return type for black box call {typ:?}")
             }
+        }
+    }
+
+    fn allocate_nested_array(
+        &mut self,
+        typ: &Type,
+        array: Option<BrilligArray>,
+    ) -> BrilligVariable {
+        match typ {
+            Type::Array(types, size) => {
+                let array = array.unwrap_or(BrilligArray {
+                    pointer: self.brillig_context.allocate_register(),
+                    size: *size,
+                    rc: self.brillig_context.allocate_register(),
+                });
+                self.brillig_context.codegen_allocate_fixed_length_array(array.pointer, array.size);
+                self.brillig_context.usize_const_instruction(array.rc, 1_usize.into());
+
+                let mut index = 0_usize;
+                for _ in 0..*size {
+                    for element_type in types.iter() {
+                        match element_type {
+                            Type::Array(_, _) => {
+                                let inner_array = self.allocate_nested_array(element_type, None);
+                                let idx =
+                                    self.brillig_context.make_usize_constant_instruction(index.into());
+                                self.store_variable_in_array(array.pointer, idx, inner_array);
+                            }
+                            Type::Slice(_) => unreachable!("ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"),
+                            _ => (),
+                        }
+                        index += 1;
+                    }
+                }
+                BrilligVariable::BrilligArray(array)
+            }
+            _ => unreachable!("ICE: allocate_nested_array() expects an array, got {typ:?}"),
         }
     }
 

@@ -47,12 +47,17 @@ pub fn method_call(
         object,
         method_name: ident(method_name),
         arguments,
+        is_macro_call: false,
         generics: None,
     })))
 }
 
 pub fn call(func: Expression, arguments: Vec<Expression>) -> Expression {
-    expression(ExpressionKind::Call(Box::new(CallExpression { func: Box::new(func), arguments })))
+    expression(ExpressionKind::Call(Box::new(CallExpression {
+        func: Box::new(func),
+        is_macro_call: false,
+        arguments,
+    })))
 }
 
 pub fn pattern(name: &str) -> Pattern {

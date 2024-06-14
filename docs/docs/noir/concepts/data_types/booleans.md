@@ -24,5 +24,5 @@ fn main() {
 ```
 
 The boolean type is most commonly used in conditionals like `if` expressions and `assert`
-statements. More about conditionals is covered in the [Control Flow](../control_flow) and
-[Assert Function](../assert) sections.
+statements. More about conditionals is covered in the [Control Flow](../control_flow.md) and
+[Assert Function](../assert.md) sections.
