@@ -1288,9 +1288,6 @@ impl<'context> Elaborator<'context> {
     }
 
     fn include_interpreter_errors(&mut self, errors: Vec<InterpreterError>) {
-        self.errors.extend(errors.into_iter().map(|error| {
-            let file_id = error.get_location().file;
-            (error.into(), file_id)
-        }));
+        self.errors.extend(errors.into_iter().map(InterpreterError::into_compilation_error_pair));
     }
 }
