@@ -47,6 +47,7 @@ pub fn config<T, N, X>(
     PoseidonConfig { t, rf, rp, alpha, round_constants, mds, presparse_mds, sparse_mds }
 }
 
+#[no_predicates]
 pub fn permute<T, N, X>(pos_conf: PoseidonConfig<T, N, X>, mut state: [Field; T]) -> [Field; T] {
     let PoseidonConfig {t, rf, rp, alpha, round_constants, mds, presparse_mds, sparse_mds } = pos_conf;
 
@@ -176,6 +177,7 @@ struct PoseidonHasher{
 
 impl Hasher for PoseidonHasher {
     #[field(bn254)]
+    #[no_predicates]
     fn finish(self) -> Field {
         let mut result = 0;
         let len = self._state.len();
