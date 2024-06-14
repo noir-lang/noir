@@ -104,7 +104,6 @@ pub(super) fn generics() -> impl NoirParser<UnresolvedGenerics> {
     generic()
         .separated_by(just(Token::Comma))
         .allow_trailing()
-        // .at_least(1)
         .delimited_by(just(Token::Less), just(Token::Greater))
         .or_not()
         .map(|opt| opt.unwrap_or_default())
