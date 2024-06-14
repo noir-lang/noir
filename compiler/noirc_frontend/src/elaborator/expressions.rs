@@ -16,15 +16,15 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirIfExpression, HirIndexExpression, HirInfixExpression,
-            HirLambda, HirMemberAccess, HirMethodCallExpression, HirMethodReference,
-            HirPrefixExpression,
+            HirConstructorExpression, HirExpression, HirIfExpression, HirIndexExpression,
+            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
+            HirMethodReference, HirPrefixExpression,
         },
         traits::TraitConstraint,
     },
     macros_api::{
-        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirExpression,
-        HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
+        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirLiteral,
+        HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
         MethodCallExpression, PrefixExpression,
     },
     node_interner::{DefinitionKind, ExprId, FuncId},
@@ -633,9 +633,28 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_comptime_block(&mut self, block: BlockExpression, span: Span) -> (ExprId, Type) {
         let (block, _typ) = self.elaborate_block_expression(block);
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        let mut interpreter_errors = vec![];
+        let mut interpreter = Interpreter::new(
+            self.interner,
+            &mut self.comptime_scopes,
+            self.debug_comptime_scope,
+            &mut interpreter_errors,
+        );
         let value = interpreter.evaluate_block(block);
-        self.inline_comptime_value(value, span)
+        self.include_interpreter_errors(interpreter_errors);
+        let (id, typ) = self.inline_comptime_value(value, span);
+
+        let location = self.interner.id_location(id);
+        if Some(location.file) == self.debug_comptime_scope {
+            let new_expr =
+                self.interner.expression(&id).to_display_ast(self.interner, location.span).kind;
+            self.errors.push((
+                InterpreterError::debug_evaluate_comptime(new_expr, location).into(),
+                location.file,
+            ));
+        }
+
+        (id, typ)
     }
 
     pub(super) fn inline_comptime_value(

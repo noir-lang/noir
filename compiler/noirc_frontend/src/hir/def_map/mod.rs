@@ -74,6 +74,7 @@ impl CrateDefMap {
         crate_id: CrateId,
         context: &mut Context,
         use_elaborator: bool,
+        debug_comptime_scope: Option<String>,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
@@ -123,6 +124,7 @@ impl CrateDefMap {
             ast,
             root_file_id,
             use_elaborator,
+            debug_comptime_scope,
             macro_processors,
         ));
 

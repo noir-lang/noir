@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{hir::def_collector::dc_crate::CompilationError, Type};
 use acvm::{acir::AcirField, FieldElement};
 use noirc_errors::{CustomDiagnostic, Location};
@@ -35,6 +37,7 @@ pub enum InterpreterError {
     NonStructInConstructor { typ: Type, location: Location },
     CannotInlineMacro { value: Value, location: Location },
     UnquoteFoundDuringEvaluation { location: Location },
+    DebugEvaluateComptime { diagnostic: CustomDiagnostic, location: Location },
 
     Unimplemented { item: String, location: Location },
 
@@ -96,11 +99,21 @@ impl InterpreterError {
             | InterpreterError::UnquoteFoundDuringEvaluation { location, .. }
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::BreakNotInLoop { location, .. }
-            | InterpreterError::ContinueNotInLoop { location, .. } => *location,
+            | InterpreterError::ContinueNotInLoop { location, .. }
+            | InterpreterError::DebugEvaluateComptime { location, .. } => *location,
             InterpreterError::Break | InterpreterError::Continue => {
                 panic!("Tried to get the location of Break/Continue error!")
             }
         }
+    }
+
+    pub(crate) fn debug_evaluate_comptime(expr: impl Display, location: Location) -> Self {
+        let diagnostic = CustomDiagnostic::simple_debug(
+            "`comptime` expression ran:".to_string(),
+            format!("After evaluation:\n{}", expr),
+            location.span,
+        );
+        InterpreterError::DebugEvaluateComptime { diagnostic, location }
     }
 }
 
@@ -258,6 +271,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "This is a bug".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
+            InterpreterError::DebugEvaluateComptime { diagnostic, .. } => diagnostic.clone(),
             InterpreterError::Unimplemented { item, location } => {
                 let msg = format!("{item} is currently unimplemented");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)

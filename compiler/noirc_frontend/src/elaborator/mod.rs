@@ -6,7 +6,7 @@ use std::{
 use crate::{
     ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
-        comptime::{self, Interpreter},
+        comptime::{self, Interpreter, InterpreterError},
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
@@ -166,6 +166,9 @@ pub struct Elaborator<'context> {
     /// up all currently visible definitions. The first scope is always the global scope.
     comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
+    /// The scope of --debug-comptime, or None if unset
+    debug_comptime_scope: Option<FileId>,
+
     /// These are the globals that have yet to be elaborated.
     /// This map is used to lazily evaluate these globals if they're encountered before
     /// they are elaborated (e.g. in a function's type or another global's RHS).
@@ -173,7 +176,11 @@ pub struct Elaborator<'context> {
 }
 
 impl<'context> Elaborator<'context> {
-    pub fn new(context: &'context mut Context, crate_id: CrateId) -> Self {
+    pub fn new(
+        context: &'context mut Context,
+        crate_id: CrateId,
+        debug_comptime_scope: Option<FileId>,
+    ) -> Self {
         Self {
             scopes: ScopeForest::default(),
             errors: Vec::new(),
@@ -197,6 +204,7 @@ impl<'context> Elaborator<'context> {
             trait_constraints: Vec::new(),
             current_trait_impl: None,
             comptime_scopes: vec![HashMap::default()],
+            debug_comptime_scope,
             unresolved_globals: BTreeMap::new(),
         }
     }
@@ -205,8 +213,9 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         mut items: CollectedItems,
+        debug_comptime_scope: Option<FileId>,
     ) -> Vec<(CompilationError, FileId)> {
-        let mut this = Self::new(context, crate_id);
+        let mut this = Self::new(context, crate_id, debug_comptime_scope);
 
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
@@ -1181,8 +1190,13 @@ impl<'context> Elaborator<'context> {
         let global = self.interner.get_global(global_id);
         let definition_id = global.definition_id;
         let location = global.location;
-
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        let mut interpreter_errors = vec![];
+        let mut interpreter = Interpreter::new(
+            self.interner,
+            &mut self.comptime_scopes,
+            self.debug_comptime_scope,
+            &mut interpreter_errors,
+        );
 
         if let Err(error) = interpreter.evaluate_let(let_statement) {
             self.errors.push(error.into_compilation_error_pair());
@@ -1191,8 +1205,22 @@ impl<'context> Elaborator<'context> {
                 .lookup_id(definition_id, location)
                 .expect("The global should be defined since evaluate_let did not error");
 
+            if Some(location.file) == self.debug_comptime_scope {
+                let new_stmt = self
+                    .interner
+                    .get_global(global_id)
+                    .let_statement
+                    .to_display_ast(self.interner)
+                    .kind;
+                self.errors.push((
+                    InterpreterError::debug_evaluate_comptime(new_stmt, location).into(),
+                    location.file,
+                ));
+            }
+
             self.interner.get_global_mut(global_id).value = Some(value);
         }
+        self.include_interpreter_errors(interpreter_errors);
     }
 
     fn define_function_metas(
@@ -1257,5 +1285,12 @@ impl<'context> Elaborator<'context> {
                 this.define_function_meta(func, *id, false);
             });
         }
+    }
+
+    fn include_interpreter_errors(&mut self, errors: Vec<InterpreterError>) {
+        self.errors.extend(errors.into_iter().map(|error| {
+            let file_id = error.get_location().file;
+            (error.into(), file_id)
+        }));
     }
 }

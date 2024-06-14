@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
+use std::marker::Copy;
 use std::ops::Deref;
 
 use fm::FileId;
@@ -964,6 +965,10 @@ impl NodeInterner {
         self.id_location(expr_id).span
     }
 
+    pub fn try_expr_span(&self, expr_id: &ExprId) -> Option<Span> {
+        self.try_id_location(expr_id).map(|location| location.span)
+    }
+
     pub fn expr_location(&self, expr_id: &ExprId) -> Location {
         self.id_location(expr_id)
     }
@@ -1068,8 +1073,14 @@ impl NodeInterner {
     }
 
     /// Returns the span of an item stored in the Interner
-    pub fn id_location(&self, index: impl Into<Index>) -> Location {
-        self.id_to_location.get(&index.into()).copied().unwrap()
+    pub fn id_location(&self, index: impl Into<Index> + Copy) -> Location {
+        self.try_id_location(index)
+            .unwrap_or_else(|| panic!("ID is missing a source location: {:?}", index.into()))
+    }
+
+    /// Returns the span of an item stored in the Interner, if present
+    pub fn try_id_location(&self, index: impl Into<Index>) -> Option<Location> {
+        self.id_to_location.get(&index.into()).copied()
     }
 
     /// Replaces the HirExpression at the given ExprId with a new HirExpression
