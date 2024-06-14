@@ -1,6 +1,6 @@
 import { Fr, computeSecretHash } from '@aztec/aztec.js';
 
-import { DUPLICATE_NULLIFIER_ERROR, U128_UNDERFLOW_ERROR } from '../fixtures/fixtures.js';
+import { U128_UNDERFLOW_ERROR } from '../fixtures/fixtures.js';
 import { TokenContractTest } from './token_contract_test.js';
 
 describe('e2e_token_contract shield + redeem shield', () => {
@@ -59,8 +59,9 @@ describe('e2e_token_contract shield + redeem shield', () => {
     await tokenSim.check();
 
     // Check that replaying the shield should fail!
-    const txReplay = asset.withWallet(wallets[1]).methods.shield(accounts[0].address, amount, secretHash, nonce).send();
-    await expect(txReplay.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
+    await expect(
+      asset.withWallet(wallets[1]).methods.shield(accounts[0].address, amount, secretHash, nonce).simulate(),
+    ).rejects.toThrow(/unauthorized/);
 
     // Redeem it
     await t.addPendingShieldNoteToPXE(0, amount, secretHash, receipt.txHash);
@@ -113,7 +114,7 @@ describe('e2e_token_contract shield + redeem shield', () => {
       const action = asset.withWallet(wallets[2]).methods.shield(accounts[0].address, amount, secretHash, nonce);
       await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, true).send().wait();
 
-      await expect(action.simulate()).rejects.toThrow('Assertion failed: Message not authorized by account');
+      await expect(action.simulate()).rejects.toThrow(/unauthorized/);
     });
 
     it('on behalf of other (without approval)', async () => {
@@ -124,7 +125,7 @@ describe('e2e_token_contract shield + redeem shield', () => {
 
       await expect(
         asset.withWallet(wallets[1]).methods.shield(accounts[0].address, amount, secretHash, nonce).simulate(),
-      ).rejects.toThrow(`Assertion failed: Message not authorized by account`);
+      ).rejects.toThrow(/unauthorized/);
     });
   });
 });

@@ -1,19 +1,11 @@
 import { type AztecAddress, type EthAddress, type Fr, type FunctionSelector } from '@aztec/circuits.js';
 
-/** A function that the sequencer allows to run in either setup or teardown phase */
-export type AllowedFunction =
-  | {
-      /** The contract address this selector is valid for */
-      address: AztecAddress;
-      /** The function selector */
-      selector: FunctionSelector;
-    }
-  | {
-      /** The contract class this selector is valid for */
-      classId: Fr;
-      /** The function selector */
-      selector: FunctionSelector;
-    };
+type AllowedInstance = { address: AztecAddress };
+type AllowedInstanceFunction = { address: AztecAddress; selector: FunctionSelector };
+type AllowedClass = { classId: Fr };
+type AllowedClassFunction = { classId: Fr; selector: FunctionSelector };
+
+export type AllowedElement = AllowedInstance | AllowedInstanceFunction | AllowedClass | AllowedClassFunction;
 
 /**
  * The sequencer configuration.
@@ -34,9 +26,9 @@ export interface SequencerConfig {
   /** The path to the ACVM binary */
   acvmBinaryPath?: string;
   /** The list of functions calls allowed to run in setup */
-  allowedFunctionsInSetup?: AllowedFunction[];
+  allowedInSetup?: AllowedElement[];
   /** The list of functions calls allowed to run teardown */
-  allowedFunctionsInTeardown?: AllowedFunction[];
+  allowedInTeardown?: AllowedElement[];
   /** Max block size */
   maxBlockSizeInBytes?: number;
   /** Whether to require every tx to have a fee payer */

@@ -1,6 +1,6 @@
 import { Fr } from '@aztec/aztec.js';
 
-import { DUPLICATE_NULLIFIER_ERROR, U128_UNDERFLOW_ERROR } from '../fixtures/index.js';
+import { U128_UNDERFLOW_ERROR } from '../fixtures/index.js';
 import { BlacklistTokenContractTest } from './blacklist_token_contract_test.js';
 
 describe('e2e_blacklist_token_contract transfer public', () => {
@@ -61,12 +61,12 @@ describe('e2e_blacklist_token_contract transfer public', () => {
 
     tokenSim.transferPublic(wallets[0].getAddress(), wallets[1].getAddress(), amount);
 
-    // Check that the message hash is no longer valid. Need to try to send since nullifiers are handled by sequencer.
-    const txReplay = asset
-      .withWallet(wallets[1])
-      .methods.transfer_public(wallets[0].getAddress(), wallets[1].getAddress(), amount, nonce)
-      .send();
-    await expect(txReplay.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
+    await expect(
+      asset
+        .withWallet(wallets[1])
+        .methods.transfer_public(wallets[0].getAddress(), wallets[1].getAddress(), amount, nonce)
+        .simulate(),
+    ).rejects.toThrow(/unauthorized/);
   });
 
   describe('failure cases', () => {
@@ -96,8 +96,8 @@ describe('e2e_blacklist_token_contract transfer public', () => {
         asset
           .withWallet(wallets[1])
           .methods.transfer_public(wallets[0].getAddress(), wallets[1].getAddress(), amount, nonce)
-          .prove(),
-      ).rejects.toThrow('Assertion failed: Message not authorized by account');
+          .simulate(),
+      ).rejects.toThrow(/unauthorized/);
     });
 
     it('transfer more than balance on behalf of other', async () => {
@@ -137,26 +137,7 @@ describe('e2e_blacklist_token_contract transfer public', () => {
       await wallets[0].setPublicAuthWit({ caller: wallets[0].getAddress(), action }, true).send().wait();
 
       // Perform the transfer
-      await expect(action.prove()).rejects.toThrow('Assertion failed: Message not authorized by account');
-
-      expect(await asset.methods.balance_of_public(wallets[0].getAddress()).simulate()).toEqual(balance0);
-      expect(await asset.methods.balance_of_public(wallets[1].getAddress()).simulate()).toEqual(balance1);
-    });
-
-    it('transfer on behalf of other, wrong designated caller', async () => {
-      const balance0 = await asset.methods.balance_of_public(wallets[0].getAddress()).simulate();
-      const balance1 = await asset.methods.balance_of_public(wallets[1].getAddress()).simulate();
-      const amount = balance0 + 2n;
-      const nonce = Fr.random();
-      expect(amount).toBeGreaterThan(0n);
-
-      // We need to compute the message we want to sign and add it to the wallet as approved
-      const action = asset
-        .withWallet(wallets[1])
-        .methods.transfer_public(wallets[0].getAddress(), wallets[1].getAddress(), amount, nonce);
-      await wallets[0].setPublicAuthWit({ caller: wallets[0].getAddress(), action }, true).send().wait();
-      // Perform the transfer
-      await expect(action.prove()).rejects.toThrow('Assertion failed: Message not authorized by account');
+      await expect(action.simulate()).rejects.toThrow(/unauthorized/);
 
       expect(await asset.methods.balance_of_public(wallets[0].getAddress()).simulate()).toEqual(balance0);
       expect(await asset.methods.balance_of_public(wallets[1].getAddress()).simulate()).toEqual(balance1);

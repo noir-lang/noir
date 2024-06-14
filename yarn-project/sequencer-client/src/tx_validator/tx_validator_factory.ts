@@ -1,4 +1,4 @@
-import { type AllowedFunction, type ProcessedTx, type Tx, type TxValidator } from '@aztec/circuit-types';
+import { type AllowedElement, type ProcessedTx, type Tx, type TxValidator } from '@aztec/circuit-types';
 import { type GlobalVariables } from '@aztec/circuits.js';
 import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 import { WorldStateDB, WorldStatePublicDB } from '@aztec/simulator';
@@ -18,7 +18,7 @@ export class TxValidatorFactory {
     private enforceFees: boolean,
   ) {}
 
-  validatorForNewTxs(globalVariables: GlobalVariables, setupAllowList: AllowedFunction[]): TxValidator<Tx> {
+  validatorForNewTxs(globalVariables: GlobalVariables, setupAllowList: AllowedElement[]): TxValidator<Tx> {
     return new AggregateTxValidator(
       new MetadataTxValidator(globalVariables),
       new DoubleSpendTxValidator(new WorldStateDB(this.merkleTreeDb)),

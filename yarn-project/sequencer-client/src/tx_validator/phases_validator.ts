@@ -1,4 +1,4 @@
-import { type AllowedFunction, PublicKernelType, Tx, type TxValidator } from '@aztec/circuit-types';
+import { type AllowedElement, PublicKernelType, Tx, type TxValidator } from '@aztec/circuit-types';
 import { type PublicCallRequest } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AbstractPhaseManager, ContractsDataSourcePublicDB } from '@aztec/simulator';
@@ -8,7 +8,7 @@ export class PhasesTxValidator implements TxValidator<Tx> {
   #log = createDebugLogger('aztec:sequencer:tx_validator:tx_phases');
   private contractDataSource: ContractsDataSourcePublicDB;
 
-  constructor(contracts: ContractDataSource, private setupAllowList: AllowedFunction[]) {
+  constructor(contracts: ContractDataSource, private setupAllowList: AllowedElement[]) {
     this.contractDataSource = new ContractsDataSourcePublicDB(contracts);
   }
 
@@ -57,7 +57,7 @@ export class PhasesTxValidator implements TxValidator<Tx> {
     return true;
   }
 
-  async isOnAllowList(publicCall: PublicCallRequest, allowList: AllowedFunction[]): Promise<boolean> {
+  async isOnAllowList(publicCall: PublicCallRequest, allowList: AllowedElement[]): Promise<boolean> {
     if (publicCall.isEmpty()) {
       return true;
     }
@@ -66,27 +66,37 @@ export class PhasesTxValidator implements TxValidator<Tx> {
 
     // do these checks first since they don't require the contract class
     for (const entry of allowList) {
-      if (!('address' in entry)) {
-        continue;
+      if ('address' in entry && !('selector' in entry)) {
+        if (contractAddress.equals(entry.address)) {
+          return true;
+        }
       }
 
-      if (contractAddress.equals(entry.address) && entry.selector.equals(functionSelector)) {
-        return true;
-      }
-    }
-
-    const contractClass = await this.contractDataSource.getContractInstance(contractAddress);
-    if (!contractClass) {
-      throw new Error(`Contract not found: ${publicCall.contractAddress.toString()}`);
-    }
-
-    for (const entry of allowList) {
-      if (!('classId' in entry)) {
-        continue;
+      if ('address' in entry && 'selector' in entry) {
+        if (contractAddress.equals(entry.address) && entry.selector.equals(functionSelector)) {
+          return true;
+        }
       }
 
-      if (contractClass.contractClassId.equals(entry.classId) && entry.selector.equals(functionSelector)) {
-        return true;
+      const contractClass = await this.contractDataSource.getContractInstance(contractAddress);
+
+      if (!contractClass) {
+        throw new Error(`Contract not found: ${publicCall.contractAddress.toString()}`);
+      }
+
+      if ('classId' in entry && !('selector' in entry)) {
+        if (contractClass.contractClassId.equals(entry.classId)) {
+          return true;
+        }
+      }
+
+      if ('classId' in entry && 'selector' in entry) {
+        if (
+          contractClass.contractClassId.equals(entry.classId) &&
+          (entry.selector === undefined || entry.selector.equals(functionSelector))
+        ) {
+          return true;
+        }
       }
     }
 

@@ -206,10 +206,6 @@ export const uniswapL1L2TestSuite = (
       const wethL2BalanceBeforeSwap = await wethCrossChainHarness.getL2PrivateBalanceOf(ownerAddress);
       const daiL2BalanceBeforeSwap = await daiCrossChainHarness.getL2PrivateBalanceOf(ownerAddress);
 
-      // before swap - check nonce_for_burn_approval stored on uniswap
-      // (which is used by uniswap to approve the bridge to burn funds on its behalf to exit to L1)
-      const nonceForBurnApprovalBeforeSwap = await uniswapL2Contract.methods.nonce_for_burn_approval().simulate();
-
       // 3. Owner gives uniswap approval to unshield funds to self on its behalf
       logger.info('Approving uniswap to unshield funds to self on my behalf');
       const nonceForWETHUnshieldApproval = new Fr(1n);
@@ -289,9 +285,6 @@ export const uniswapL1L2TestSuite = (
       await wethCrossChainHarness.expectPrivateBalanceOnL2(ownerAddress, wethL2BalanceBeforeSwap - wethAmountToBridge);
       // ensure that uniswap contract didn't eat the funds.
       await wethCrossChainHarness.expectPublicBalanceOnL2(uniswapL2Contract.address, 0n);
-      // check burn approval nonce incremented:
-      const nonceForBurnApprovalAfterSwap = await uniswapL2Contract.methods.nonce_for_burn_approval().simulate();
-      expect(nonceForBurnApprovalAfterSwap).toBe(nonceForBurnApprovalBeforeSwap + 1n);
 
       // 5. Consume L2 to L1 message by calling uniswapPortal.swap_private()
       logger.info('Execute withdraw and swap on the uniswapPortal!');
@@ -442,10 +435,6 @@ export const uniswapL1L2TestSuite = (
       );
       await ownerWallet.setPublicAuthWit(transferMessageHash, true).send().wait();
 
-      // before swap - check nonce_for_burn_approval stored on uniswap
-      // (which is used by uniswap to approve the bridge to burn funds on its behalf to exit to L1)
-      const nonceForBurnApprovalBeforeSwap = await uniswapL2Contract.methods.nonce_for_burn_approval().simulate();
-
       // 4. Swap on L1 - sends L2 to L1 message to withdraw WETH to L1 and another message to swap assets.
       const [secretForDepositingSwappedDai, secretHashForDepositingSwappedDai] =
         daiCrossChainHarness.generateClaimSecret();
@@ -520,10 +509,6 @@ export const uniswapL1L2TestSuite = (
 
       // check weth balance of owner on L2 (we first bridged `wethAmountToBridge` into L2 and now withdrew it!)
       await wethCrossChainHarness.expectPublicBalanceOnL2(ownerAddress, wethL2BalanceBeforeSwap - wethAmountToBridge);
-
-      // check burn approval nonce incremented:
-      const nonceForBurnApprovalAfterSwap = await uniswapL2Contract.methods.nonce_for_burn_approval().simulate();
-      expect(nonceForBurnApprovalAfterSwap).toBe(nonceForBurnApprovalBeforeSwap + 1n);
 
       // 5. Perform the swap on L1 with the `uniswapPortal.swap_private()` (consuming L2 to L1 messages)
       logger.info('Execute withdraw and swap on the uniswapPortal!');
@@ -773,10 +758,7 @@ export const uniswapL1L2TestSuite = (
       );
       await ownerWallet.setPublicAuthWit(swapMessageHash, true).send().wait();
 
-      // Swap!
-      await expect(action.prove()).rejects.toThrow(
-        "Assertion failed: Message not authorized by account 'is_valid == true'",
-      );
+      await expect(action.simulate()).rejects.toThrow(/unauthorized/);
     });
 
     it("uniswap can't pull funds without transfer approval", async () => {
@@ -808,8 +790,8 @@ export const uniswapL1L2TestSuite = (
             ownerEthAddress,
             Fr.ZERO,
           )
-          .prove(),
-      ).rejects.toThrow(`Assertion failed: Message not authorized by account 'is_valid == true'`);
+          .simulate(),
+      ).rejects.toThrow(/unauthorized/);
     });
 
     // tests when trying to mix private and public flows:

@@ -7,7 +7,7 @@ import {
   type TxValidator,
 } from '@aztec/circuit-types';
 import {
-  type AllowedFunction,
+  type AllowedElement,
   BlockProofError,
   type BlockProver,
   PROVING_STATUS,
@@ -46,8 +46,8 @@ export class Sequencer {
   private _feeRecipient = AztecAddress.ZERO;
   private lastPublishedBlock = 0;
   private state = SequencerState.STOPPED;
-  private allowedFunctionsInSetup: AllowedFunction[] = [];
-  private allowedFunctionsInTeardown: AllowedFunction[] = [];
+  private allowedInSetup: AllowedElement[] = [];
+  private allowedInTeardown: AllowedElement[] = [];
   private maxBlockSizeInBytes: number = 1024 * 1024;
 
   constructor(
@@ -87,15 +87,15 @@ export class Sequencer {
     if (config.feeRecipient) {
       this._feeRecipient = config.feeRecipient;
     }
-    if (config.allowedFunctionsInSetup) {
-      this.allowedFunctionsInSetup = config.allowedFunctionsInSetup;
+    if (config.allowedInSetup) {
+      this.allowedInSetup = config.allowedInSetup;
     }
     if (config.maxBlockSizeInBytes) {
       this.maxBlockSizeInBytes = config.maxBlockSizeInBytes;
     }
     // TODO(#5917) remove this. it is no longer needed since we don't need to whitelist functions in teardown
-    if (config.allowedFunctionsInTeardown) {
-      this.allowedFunctionsInTeardown = config.allowedFunctionsInTeardown;
+    if (config.allowedInTeardown) {
+      this.allowedInTeardown = config.allowedInTeardown;
     }
   }
 
@@ -206,7 +206,7 @@ export class Sequencer {
       // TODO: It should be responsibility of the P2P layer to validate txs before passing them on here
       const allValidTxs = await this.takeValidTxs(
         pendingTxs,
-        this.txValidatorFactory.validatorForNewTxs(newGlobalVariables, this.allowedFunctionsInSetup),
+        this.txValidatorFactory.validatorForNewTxs(newGlobalVariables, this.allowedInSetup),
       );
 
       // TODO: We are taking the size of the tx from private-land, but we should be doing this after running

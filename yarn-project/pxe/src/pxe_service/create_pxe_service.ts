@@ -5,6 +5,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { KeyStore } from '@aztec/key-store';
 import { AztecLmdbStore } from '@aztec/kv-store/lmdb';
 import { initStoreForRollup } from '@aztec/kv-store/utils';
+import { getCanonicalAuthRegistry } from '@aztec/protocol-contracts/auth-registry';
 import { getCanonicalClassRegisterer } from '@aztec/protocol-contracts/class-registerer';
 import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
 import { getCanonicalInstanceDeployer } from '@aztec/protocol-contracts/instance-deployer';
@@ -67,6 +68,7 @@ export async function createPXEService(
     getCanonicalMultiCallEntrypointContract(),
     getCanonicalGasToken(),
     getCanonicalKeyRegistry(),
+    getCanonicalAuthRegistry(),
   ]) {
     await server.registerContract(contract);
   }

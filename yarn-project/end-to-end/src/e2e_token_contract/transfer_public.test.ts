@@ -1,6 +1,6 @@
 import { Fr, computeAuthWitMessageHash } from '@aztec/aztec.js';
 
-import { DUPLICATE_NULLIFIER_ERROR, U128_UNDERFLOW_ERROR } from '../fixtures/fixtures.js';
+import { U128_UNDERFLOW_ERROR } from '../fixtures/fixtures.js';
 import { TokenContractTest } from './token_contract_test.js';
 
 describe('e2e_token_contract transfer public', () => {
@@ -60,12 +60,13 @@ describe('e2e_token_contract transfer public', () => {
 
     tokenSim.transferPublic(accounts[0].address, accounts[1].address, amount);
 
-    // Check that the message hash is no longer valid. Need to try to send since nullifiers are handled by sequencer.
-    const txReplay = asset
-      .withWallet(wallets[1])
-      .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
-      .send();
-    await expect(txReplay.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
+    // Check that the message hash is no longer valid.
+    await expect(
+      asset
+        .withWallet(wallets[1])
+        .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
+        .simulate(),
+    ).rejects.toThrow(/unauthorized/);
   });
 
   describe('failure cases', () => {
@@ -96,7 +97,7 @@ describe('e2e_token_contract transfer public', () => {
           .withWallet(wallets[1])
           .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
           .simulate(),
-      ).rejects.toThrow('Assertion failed: Message not authorized by account');
+      ).rejects.toThrow(/unauthorized/);
     });
 
     it('transfer more than balance on behalf of other', async () => {
@@ -149,7 +150,7 @@ describe('e2e_token_contract transfer public', () => {
       await wallets[0].setPublicAuthWit({ caller: accounts[0].address, action }, true).send().wait();
 
       // Perform the transfer
-      await expect(action.simulate()).rejects.toThrow('Assertion failed: Message not authorized by account');
+      await expect(action.simulate()).rejects.toThrow(/unauthorized/);
 
       expect(await asset.methods.balance_of_public(accounts[0].address).simulate()).toEqual(balance0);
       expect(await asset.methods.balance_of_public(accounts[1].address).simulate()).toEqual(balance1);
@@ -169,7 +170,7 @@ describe('e2e_token_contract transfer public', () => {
       await wallets[0].setPublicAuthWit({ caller: accounts[0].address, action }, true).send().wait();
 
       // Perform the transfer
-      await expect(action.simulate()).rejects.toThrow('Assertion failed: Message not authorized by account');
+      await expect(action.simulate()).rejects.toThrow(/unauthorized/);
 
       expect(await asset.methods.balance_of_public(accounts[0].address).simulate()).toEqual(balance0);
       expect(await asset.methods.balance_of_public(accounts[1].address).simulate()).toEqual(balance1);
@@ -187,14 +188,14 @@ describe('e2e_token_contract transfer public', () => {
 
       await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, true).send().wait();
 
-      await wallets[0].cancelAuthWit({ caller: accounts[1].address, action }).send().wait();
+      await wallets[0].cancelPublicAuthWit({ caller: accounts[1].address, action }).send().wait();
 
-      // Check that the authwit is no longer valid. Need to try to send since nullifiers are handled by sequencer.
-      const txCancelledAuthwit = asset
-        .withWallet(wallets[1])
-        .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
-        .send();
-      await expect(txCancelledAuthwit.wait()).rejects.toThrowError(DUPLICATE_NULLIFIER_ERROR);
+      await expect(
+        asset
+          .withWallet(wallets[1])
+          .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
+          .simulate(),
+      ).rejects.toThrowError(/unauthorized/);
     });
 
     it('transfer on behalf of other, cancelled authwit, flow 2', async () => {
@@ -211,12 +212,12 @@ describe('e2e_token_contract transfer public', () => {
 
       await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, false).send().wait();
 
-      // Check that the authwit is no longer valid. Need to try to send since nullifiers are handled by sequencer.
-      const txCancelledAuthwit = asset
-        .withWallet(wallets[1])
-        .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
-        .send();
-      await expect(txCancelledAuthwit.wait()).rejects.toThrowError(DUPLICATE_NULLIFIER_ERROR);
+      await expect(
+        asset
+          .withWallet(wallets[1])
+          .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
+          .simulate(),
+      ).rejects.toThrowError(/unauthorized/);
     });
 
     it('transfer on behalf of other, cancelled authwit, flow 3', async () => {
@@ -237,27 +238,25 @@ describe('e2e_token_contract transfer public', () => {
 
       await wallets[0].setPublicAuthWit(messageHash, true).send().wait();
 
-      await wallets[0].cancelAuthWit(messageHash).send().wait();
+      await wallets[0].cancelPublicAuthWit(messageHash).send().wait();
 
-      // Check that the message hash is no longer valid. Need to try to send since nullifiers are handled by sequencer.
-      const txCancelledAuthwit = asset
-        .withWallet(wallets[1])
-        .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
-        .send();
-      await expect(txCancelledAuthwit.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
+      await expect(
+        asset
+          .withWallet(wallets[1])
+          .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
+          .simulate(),
+      ).rejects.toThrow(/unauthorized/);
     });
 
     it('transfer on behalf of other, invalid spend_public_authwit on "from"', async () => {
       const nonce = Fr.random();
 
-      // Should fail as the returned value from the badAccount is malformed
-      const txCancelledAuthwit = asset
-        .withWallet(wallets[1])
-        .methods.transfer_public(badAccount.address, accounts[1].address, 0, nonce)
-        .send();
-      await expect(txCancelledAuthwit.wait()).rejects.toThrow(
-        "Assertion failed: Message not authorized by account 'result == IS_VALID_SELECTOR'",
-      );
+      await expect(
+        asset
+          .withWallet(wallets[1])
+          .methods.transfer_public(badAccount.address, accounts[1].address, 0, nonce)
+          .simulate(),
+      ).rejects.toThrow(/unauthorized/);
     });
 
     it.skip('transfer into account to overflow', () => {

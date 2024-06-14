@@ -70,15 +70,14 @@ sequenceDiagram
 Note in particular that the request for a witness is done by the token contract, and the user will have to provide it to the contract before it can continue execution. Since the request is made all the way into the contract where it is to be used, we don't need to pass it along as an extra input to the functions before it which gives us a cleaner interface.
 :::
 
-As part of `AuthWit` we are assuming that the `on_behalf_of` implements the private and/or public functions:
+As part of `AuthWit` we are assuming that the `on_behalf_of` implements the private function:
 
 ```rust
 #[aztec(private)]
 fn spend_private_authwit(inner_hash: Field) -> Field;
-
-#[aztec(public)]
-fn spend_public_authwit(inner_hash: Field) -> Field;
 ```
+
+For public authwit, we have a shared registry that is used, there we are using a `consume` function.
 
 Both return the value `0xabf64ad4` (`IS_VALID` selector) for a successful authentication, and `0x00000000` for a failed authentication. You might be wondering why we are expecting the return value to be a selector instead of a boolean. This is mainly to account for a case of selector collisions where the same selector is used for different functions, and we don't want an account to mistakenly allow a different function to be called on its behalf - it is hard to return the selector by mistake, but you might have other functions returning a bool.
 
@@ -113,7 +112,7 @@ This is to cover the case where the `on_behalf_of` might implemented some functi
 
 ### Utilities for public calls
 
-Very similar to the above, we have variations that work in the public domain. These functions are wrapped to give a similar flow for both cases, but behind the scenes the logic of the account contracts is slightly different since they cannot use the oracle as they are not in the private domain.
+Very similar to the above, we have variations that work in the public domain (`assert_current_call_valid_authwit_public`). These functions are wrapped to give a similar flow for both cases, but behind the scenes the logic is slightly different since the public goes to the auth registry, while the private flow calls the account contract.
 
 #### Example
 
@@ -167,7 +166,7 @@ With private functions covered, how can we use this in a public function? Well, 
 
 #### Authenticating an action in TypeScript
 
-Authenticating an action in the public domain is quite similar to the private domain, with the difference that we are executing a function on the account contract to add the witness, if you recall, this is because we don't have access to the oracle in the public domain.
+Authenticating an action in the public domain is slightly different from the private domain, since we are executing a function on the auth registry contract to add the witness flag. As you might recall, this was to ensure that we don't need to call into the account contract from public, which is a potential DOS vector.
 
 In the snippet below, this is done as a separate contract call, but can also be done as part of a batch as mentioned in the [Accounts concepts](../../../aztec/concepts/accounts/authwit.md#what-about-public).
 
@@ -177,13 +176,11 @@ In the snippet below, this is done as a separate contract call, but can also be 
 
 We have cases where we need a non-wallet contract to approve an action to be executed by another contract. One of the cases could be when making more complex defi where funds are passed along. When doing so, we need the intermediate contracts to support approving of actions on their behalf.
 
-To support this, we must implement the `spend_public_authwit` function as seen in the snippet below.
+This is fairly straight forward to do using the `auth` library which include logic for updating values in the public auth registry. Namely, you can prepare the `message_hash` using `compute_call_authwit_hash` and then simply feed it into the `set_authorized` function (both are in `auth` library) to update the value. 
 
-#include_code authwit_uniswap_get /noir-projects/noir-contracts/contracts/uniswap_contract/src/main.nr rust
+When another contract later is consuming the authwit using `assert_current_call_valid_authwit_public` it will be calling the registry, and spend that authwit.
 
-It also needs a way to update those storage values. Since we want the updates to be trustless, we can compute the action based on the function inputs, and then have the contract compute the key at which it must add a `true` to approve the action.
-
-An example of this would be our Uniswap example which performs a cross chain swap on L1. In here, we both do private and public auth witnesses, where the public is set by the uniswap L2 contract itself. In the below snippet, you can see that we compute the action hash, and then update an `approved_action` mapping with the hash as key and `true` as value. When we then call the `token_bridge` to execute afterwards, it reads this value, burns the tokens, and consumes the authentication.
+An example of this would be our Uniswap example which performs a cross chain swap on L1. In here, we both do private and public auth witnesses, where the public is set by the uniswap L2 contract itself. In the below snippet, you can see that we compute the action hash and update the value in the registry. When we then call the `token_bridge` to execute afterwards, it reads this value, burns the tokens, and consumes the authentication.
 
 #include_code authwit_uniswap_set /noir-projects/noir-contracts/contracts/uniswap_contract/src/main.nr rust
 

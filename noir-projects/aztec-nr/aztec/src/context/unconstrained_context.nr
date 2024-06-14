@@ -20,7 +20,7 @@ impl UnconstrainedContext {
         self.block_number
     }
 
-    fn contract_address(self) -> AztecAddress {
+    fn this_address(self) -> AztecAddress {
         self.contract_address
     }
 }

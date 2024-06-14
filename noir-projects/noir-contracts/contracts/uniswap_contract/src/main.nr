@@ -10,7 +10,7 @@ contract Uniswap {
 
     use dep::authwit::auth::{
         IS_VALID_SELECTOR, assert_current_call_valid_authwit_public, compute_call_authwit_hash,
-        compute_outer_authwit_hash
+        compute_outer_authwit_hash, set_authorized
     };
 
     use dep::token::Token;
@@ -19,11 +19,6 @@ contract Uniswap {
 
     #[aztec(storage)]
     struct Storage {
-        // like with account contracts, stores the approval message on a slot and tracks if they are active
-        approved_action: Map<Field, PublicMutable<bool>>,
-        // tracks the nonce used to create the approval message for burning funds
-        // gets incremented each time after use to prevent replay attacks
-        nonce_for_burn_approval: PublicMutable<Field>,
         portal_address: SharedImmutable<EthAddress>,
     }
     // docs:end:uniswap_setup
@@ -153,28 +148,6 @@ contract Uniswap {
     }
     // docs:end:swap_private
 
-    // docs:start:authwit_uniswap_get
-    // Since the token bridge burns funds on behalf of this contract, this contract has to tell the token contract if the signature is valid
-    // implementation is similar to how account contracts validate public approvals.
-    // if valid, it returns the IS_VALID selector which is expected by token contract
-    #[aztec(public)]
-    fn spend_public_authwit(inner_hash: Field) -> Field {
-        let message_hash = compute_outer_authwit_hash(
-            context.msg_sender(),
-            context.chain_id(),
-            context.version(),
-            inner_hash
-        );
-        let value = storage.approved_action.at(message_hash).read();
-        if (value) {
-            context.push_new_nullifier(message_hash, 0);
-            IS_VALID_SELECTOR
-        } else {
-            0
-        }
-    }
-    // docs:end:authwit_uniswap_get
-
     // docs:start:authwit_uniswap_set
     // This helper method approves the bridge to burn this contract's funds and exits the input asset to L1
     // Assumes contract already has funds.
@@ -188,8 +161,10 @@ contract Uniswap {
         token_bridge: AztecAddress,
         amount: Field
     ) {
-        // approve bridge to burn this contract's funds (required when exiting on L1, as it burns funds on L2):
-        let nonce_for_burn_approval = storage.nonce_for_burn_approval.read();
+        // Since we will authorize and instantly spend the funds, all in public, we can use the same nonce
+        // every interaction. In practice, the authwit should be squashed, so this is also cheap!
+        let nonce = 0xdeadbeef;
+
         let selector = FunctionSelector::from_signature("burn_public((Field),Field,Field)");
         let message_hash = compute_call_authwit_hash(
             token_bridge,
@@ -197,21 +172,15 @@ contract Uniswap {
             context.chain_id(),
             context.version(),
             selector,
-            [context.this_address().to_field(), amount, nonce_for_burn_approval]
+            [context.this_address().to_field(), amount, nonce]
         );
-        storage.approved_action.at(message_hash).write(true);
 
-        // increment nonce_for_burn_approval so it won't be used again
-        storage.nonce_for_burn_approval.write(nonce_for_burn_approval + 1);
+        // We need to make a call to update it.
+        set_authorized(&mut context, message_hash, true);
 
         let this_portal_address = storage.portal_address.read_public();
         // Exit to L1 Uniswap Portal !
-        TokenBridge::at(token_bridge).exit_to_l1_public(
-            this_portal_address,
-            amount,
-            this_portal_address,
-            nonce_for_burn_approval
-        ).call(&mut context)
+        TokenBridge::at(token_bridge).exit_to_l1_public(this_portal_address, amount, this_portal_address, nonce).call(&mut context)
     }
     // docs:end:authwit_uniswap_set
 
@@ -223,13 +192,6 @@ contract Uniswap {
         assert(
             token.eq(TokenBridge::at(token_bridge).get_token().view(&mut context)), "input_asset address is not the same as seen in the bridge contract"
         );
-    }
-
-    // /// Unconstrained ///
-
-    // this method exists solely for e2e tests to test that nonce gets incremented each time.
-    unconstrained fn nonce_for_burn_approval() -> pub Field {
-        storage.nonce_for_burn_approval.read()
     }
     // docs:end:assert_token_is_same
 }

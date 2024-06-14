@@ -1,5 +1,6 @@
 import { type AccountWallet, Fr, computeInnerAuthWitHash, computeOuterAuthWitHash } from '@aztec/aztec.js';
-import { SchnorrAccountContract } from '@aztec/noir-contracts.js';
+import { AuthRegistryContract, SchnorrAccountContract } from '@aztec/noir-contracts.js';
+import { getCanonicalAuthRegistry } from '@aztec/protocol-contracts/auth-registry';
 
 import { jest } from '@jest/globals';
 
@@ -206,8 +207,8 @@ describe('e2e_authwit_tests', () => {
           isValidInPublic: true,
         });
 
-        const c = await SchnorrAccountContract.at(wallets[0].getAddress(), wallets[0]);
-        await c.withWallet(wallets[1]).methods.spend_public_authwit(innerHash).send().wait();
+        const registry = await AuthRegistryContract.at(getCanonicalAuthRegistry().instance.address, wallets[1]);
+        await registry.methods.consume(wallets[0].getAddress(), innerHash).send().wait();
 
         expect(await wallets[0].lookupValidity(wallets[0].getAddress(), outerHash)).toEqual({
           isValidInPrivate: false,
@@ -232,17 +233,17 @@ describe('e2e_authwit_tests', () => {
             isValidInPublic: true,
           });
 
-          await wallets[0].cancelAuthWit(outerHash).send().wait();
+          await wallets[0].cancelPublicAuthWit(outerHash).send().wait();
 
           expect(await wallets[0].lookupValidity(wallets[0].getAddress(), outerHash)).toEqual({
             isValidInPrivate: false,
             isValidInPublic: false,
           });
 
-          const c = await SchnorrAccountContract.at(wallets[0].getAddress(), wallets[0]);
-          const txCancelledAuthwit = c.withWallet(wallets[1]).methods.spend_public_authwit(innerHash).send();
-          // The transaction should be dropped because of a cancelled authwit (duplicate nullifier)
-          await expect(txCancelledAuthwit.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
+          const registry = await AuthRegistryContract.at(getCanonicalAuthRegistry().instance.address, wallets[1]);
+          await expect(registry.methods.consume(wallets[0].getAddress(), innerHash).simulate()).rejects.toThrow(
+            /unauthorized/,
+          );
         });
       });
     });

@@ -32,7 +32,7 @@ import { MNEMONIC } from './fixtures.js';
 import { getACVMConfig } from './get_acvm_config.js';
 import { getBBConfig } from './get_bb_config.js';
 import { setupL1Contracts } from './setup_l1_contracts.js';
-import { deployCanonicalKeyRegistry } from './utils.js';
+import { deployCanonicalAuthRegistry, deployCanonicalKeyRegistry } from './utils.js';
 
 export type SubsystemsContext = {
   anvil: Anvil;
@@ -280,6 +280,10 @@ async function setupFromFresh(statePath: string | undefined, logger: Logger): Pr
 
   logger.verbose('Deploying key registry...');
   await deployCanonicalKeyRegistry(
+    new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(aztecNodeConfig.chainId, aztecNodeConfig.version)),
+  );
+  logger.verbose('Deploying auth registry...');
+  await deployCanonicalAuthRegistry(
     new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(aztecNodeConfig.chainId, aztecNodeConfig.version)),
   );
 

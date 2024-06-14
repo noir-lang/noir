@@ -12,7 +12,7 @@ contract AppSubscription {
         encrypted_logs::encrypted_note_emission::encode_and_encrypt,
         protocol_types::{traits::is_empty, grumpkin_point::GrumpkinPoint}
     },
-        authwit::{account::AccountActions, auth_witness::get_auth_witness, auth::assert_current_call_valid_authwit},
+        authwit::{auth_witness::get_auth_witness, auth::assert_current_call_valid_authwit},
         gas_token::GasToken, token::Token
     };
 

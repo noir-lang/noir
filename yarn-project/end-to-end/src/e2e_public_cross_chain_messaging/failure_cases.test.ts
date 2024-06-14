@@ -35,7 +35,7 @@ describe('e2e_public_cross_chain_messaging failures', () => {
         .withWallet(user1Wallet)
         .methods.exit_to_l1_public(ethAccount, withdrawAmount, EthAddress.ZERO, nonce)
         .prove(),
-    ).rejects.toThrow('Assertion failed: Message not authorized by account');
+    ).rejects.toThrow(/unauthorized/);
   }, 60_000);
 
   it("can't claim funds privately which were intended for public deposit from the token portal", async () => {

@@ -47,9 +47,9 @@ describe('e2e_token_contract burn', () => {
 
       tokenSim.burnPublic(accounts[0].address, amount);
 
-      // Check that the message hash is no longer valid. Need to try to send since nullifiers are handled by sequencer.
-      const txReplay = asset.withWallet(wallets[1]).methods.burn_public(accounts[0].address, amount, nonce).send();
-      await expect(txReplay.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
+      await expect(
+        asset.withWallet(wallets[1]).methods.burn_public(accounts[0].address, amount, nonce).simulate(),
+      ).rejects.toThrow(/unauthorized/);
     });
 
     describe('failure cases', () => {
@@ -78,7 +78,7 @@ describe('e2e_token_contract burn', () => {
         const nonce = Fr.random();
         await expect(
           asset.withWallet(wallets[1]).methods.burn_public(accounts[0].address, amount, nonce).simulate(),
-        ).rejects.toThrow('Assertion failed: Message not authorized by account');
+        ).rejects.toThrow(/unauthorized/);
       });
 
       it('burn more than balance on behalf of other', async () => {
@@ -106,7 +106,7 @@ describe('e2e_token_contract burn', () => {
 
         await expect(
           asset.withWallet(wallets[1]).methods.burn_public(accounts[0].address, amount, nonce).simulate(),
-        ).rejects.toThrow('Assertion failed: Message not authorized by account');
+        ).rejects.toThrow(/unauthorized/);
       });
     });
   });

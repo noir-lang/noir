@@ -74,9 +74,8 @@ describe('Key Registry', () => {
         keyRegistry
           .withWallet(wallets[0])
           .methods.rotate_npk_m(wallets[1].getAddress(), Point.random(), Fr.ZERO)
-          .send()
-          .wait(),
-      ).rejects.toThrow('Assertion failed: Message not authorized by account');
+          .simulate(),
+      ).rejects.toThrow(/unauthorized/);
     });
 
     it('fresh key lib fails for non-existent account', async () => {

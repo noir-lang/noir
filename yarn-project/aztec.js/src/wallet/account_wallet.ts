@@ -1,6 +1,7 @@
 import { type AuthWitness, type FunctionCall, type PXE, type TxExecutionRequest } from '@aztec/circuit-types';
 import { AztecAddress, CANONICAL_KEY_REGISTRY_ADDRESS, Fq, Fr, derivePublicKeyFromSecretKey } from '@aztec/circuits.js';
 import { type ABIParameterVisibility, type FunctionAbi, FunctionType } from '@aztec/foundation/abi';
+import { AuthRegistryAddress } from '@aztec/protocol-contracts/auth-registry';
 
 import { type AccountInterface } from '../account/interface.js';
 import { ContractFunctionInteraction } from '../contract/contract_function_interaction.js';
@@ -80,11 +81,33 @@ export class AccountWallet extends BaseWallet {
     authorized: boolean,
   ): ContractFunctionInteraction {
     const message = this.getMessageHash(messageHashOrIntent);
-    if (authorized) {
-      return new ContractFunctionInteraction(this, this.getAddress(), this.getApprovePublicAuthwitAbi(), [message]);
-    } else {
-      return this.cancelAuthWit(message);
-    }
+    return new ContractFunctionInteraction(this, AuthRegistryAddress, this.getSetAuthorizedAbi(), [
+      message,
+      authorized,
+    ]);
+  }
+
+  /**
+   * Returns a function interaction to cancel a message hash as authorized or revoked.
+   * @param messageHashOrIntent - The message or the caller and action to revoke
+   * @returns - A function interaction.
+   */
+  public cancelPublicAuthWit(
+    messageHashOrIntent:
+      | Fr
+      | Buffer
+      | {
+          /** The caller to approve  */
+          caller: AztecAddress;
+          /** The action to approve */
+          action: ContractFunctionInteraction | FunctionCall;
+          /** The chain id to approve */
+          chainId?: Fr;
+          /** The version to approve  */
+          version?: Fr;
+        },
+  ): ContractFunctionInteraction {
+    return this.setPublicAuthWit(messageHashOrIntent, false);
   }
 
   /**
@@ -152,17 +175,25 @@ export class AccountWallet extends BaseWallet {
     isValidInPublic: boolean;
   }> {
     const messageHash = this.getMessageHash(messageHashOrIntent);
-    const witness = await this.getAuthWitness(messageHash);
-    const blockNumber = await this.getBlockNumber();
-    const interaction = new ContractFunctionInteraction(this, target, this.getLookupValidityAbi(), [
-      target,
-      blockNumber,
-      witness != undefined,
-      messageHash,
-    ]);
+    const results = { isValidInPrivate: false, isValidInPublic: false };
 
-    const [isValidInPrivate, isValidInPublic] = (await interaction.simulate()) as [boolean, boolean];
-    return { isValidInPrivate, isValidInPublic };
+    // Check private
+    const witness = await this.getAuthWitness(messageHash);
+    if (witness !== undefined) {
+      results.isValidInPrivate = (await new ContractFunctionInteraction(this, target, this.getLookupValidityAbi(), [
+        messageHash,
+      ]).simulate()) as boolean;
+    }
+
+    // check public
+    results.isValidInPublic = (await new ContractFunctionInteraction(
+      this,
+      AuthRegistryAddress,
+      this.getIsConsumableAbi(),
+      [target, messageHash],
+    ).simulate()) as boolean;
+
+    return results;
   }
 
   /**
@@ -224,9 +255,9 @@ export class AccountWallet extends BaseWallet {
     return this.getCompleteAddress().address;
   }
 
-  private getApprovePublicAuthwitAbi(): FunctionAbi {
+  private getSetAuthorizedAbi(): FunctionAbi {
     return {
-      name: 'approve_public_authwit',
+      name: 'set_authorized',
       isInitializer: false,
       functionType: FunctionType.PUBLIC,
       isInternal: true,
@@ -235,6 +266,11 @@ export class AccountWallet extends BaseWallet {
         {
           name: 'message_hash',
           type: { kind: 'field' },
+          visibility: 'private' as ABIParameterVisibility,
+        },
+        {
+          name: 'authorize',
+          type: { kind: 'boolean' },
           visibility: 'private' as ABIParameterVisibility,
         },
       ],
@@ -267,29 +303,31 @@ export class AccountWallet extends BaseWallet {
       functionType: FunctionType.UNCONSTRAINED,
       isInternal: false,
       isStatic: false,
+      parameters: [{ name: 'message_hash', type: { kind: 'field' }, visibility: 'private' as ABIParameterVisibility }],
+      returnTypes: [{ kind: 'boolean' }],
+    };
+  }
+
+  private getIsConsumableAbi(): FunctionAbi {
+    return {
+      name: 'unconstrained_is_consumable',
+      isInitializer: false,
+      functionType: FunctionType.UNCONSTRAINED,
+      isInternal: false,
+      isStatic: false,
       parameters: [
         {
-          name: 'myself',
+          name: 'address',
           type: {
+            fields: [{ name: 'inner', type: { kind: 'field' } }],
             kind: 'struct',
             path: 'authwit::aztec::protocol_types::address::aztec_address::AztecAddress',
-            fields: [{ name: 'inner', type: { kind: 'field' } }],
           },
-          visibility: 'private' as ABIParameterVisibility,
-        },
-        {
-          name: 'block_number',
-          type: { kind: 'integer', sign: 'unsigned', width: 32 },
-          visibility: 'private' as ABIParameterVisibility,
-        },
-        {
-          name: 'check_private',
-          type: { kind: 'boolean' },
           visibility: 'private' as ABIParameterVisibility,
         },
         { name: 'message_hash', type: { kind: 'field' }, visibility: 'private' as ABIParameterVisibility },
       ],
-      returnTypes: [{ kind: 'array', length: 2, type: { kind: 'boolean' } }],
+      returnTypes: [{ kind: 'boolean' }],
     };
   }
 

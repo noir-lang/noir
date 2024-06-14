@@ -134,7 +134,7 @@ describe('e2e_fees failures', () => {
           },
         })
         .wait(),
-    ).rejects.toThrow(/Message not authorized by account 'is_valid == true'/);
+    ).rejects.toThrow(/unauthorized/);
 
     // so does the sequencer
     await expect(

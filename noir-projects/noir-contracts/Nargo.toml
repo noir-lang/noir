@@ -2,6 +2,7 @@
 members = [
     "contracts/app_subscription_contract",
     "contracts/auth_contract",
+    "contracts/auth_registry_contract",
     "contracts/avm_initializer_test_contract",
     "contracts/avm_test_contract",
     "contracts/fpc_contract",

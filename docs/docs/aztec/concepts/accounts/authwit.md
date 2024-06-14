@@ -138,25 +138,30 @@ The above flow could be re-entered at token transfer. It is mainly for show to i
 
 ### What about public
 
-As noted earlier, we could use the ERC20 standard for public. But this seems like a waste when we have the ability to try righting some wrongs. Instead, we can expand our AuthWit scheme to also work in public. This is actually quite simple, instead of asking an oracle (which we can't do as easily because not private execution) we can just store the AuthWit in the account contract, and look it up when we need it. While this needs the storage to be updated ahead of time, we can quite easily do so by batching the AuthWit updates with the interaction - a benefit of Account Contracts.
+As noted earlier, we could use the ERC20 standard for public. But this seems like a waste when we have the ability to try righting some wrongs. Instead, we can expand our AuthWit scheme to also work in public. This is actually quite simple, instead of asking an oracle (which we can't do as easily because not private execution) we can just store the AuthWit in a shared registry, and look it up when we need it. While this needs the storage to be updated ahead of time (can be same tx), we can quite easily do so by batching the AuthWit updates with the interaction - a benefit of Account Contracts. A shared registry is used such that execution from the sequencers point of view will be more straight forward and predictable. Furthermore, since we have the authorization data directly in public state, if they are both set and unset (authorized and then used) in the same transaction, there will be no state effect after the transaction for the authorization which saves gas ⛽.
 
 ```mermaid
 sequenceDiagram
     actor Alice
     participant AC as Alice Account
+    participant AR as Auth Registry
     participant Token
+    participant Defi
     rect rgb(191, 223, 255)
     note right of Alice: Alice sends a batch
-    Alice->>AC: Allow Defi to call transfer(Alice, Defi, 1000);
+    Alice->>AC: Authorize Defi to call transfer(Alice, Defi, 1000);
     activate AC
     Alice->>AC: Defi.deposit(Token, 1000);
     end
+    AC->>AR: Authorize Defi to call transfer(Alice, Defi, 1000);
+    AR->>AR: add authorize to true
     AC->>Defi: deposit(Token, 1000);
     activate Defi
     Defi->>Token: transfer(Alice, Defi, 1000);
     activate Token
-    Token->>AC: Check if Defi may call transfer(Alice, Defi, 1000);
-    AC->>Token: AuthWit validity
+    Token->>AR: Check if Defi may call transfer(Alice, Defi, 1000);
+    AR->>AR: set authorize to false
+    AR->>Token: AuthWit validity
     Token->>Token: throw if invalid AuthWit
     Token->>Token: transfer(Alice, Defi, 1000);
     Token->>Defi: success

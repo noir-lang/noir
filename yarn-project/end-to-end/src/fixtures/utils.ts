@@ -30,6 +30,7 @@ import { deployInstance, registerContractClass } from '@aztec/aztec.js/deploymen
 import { DefaultMultiCallEntrypoint } from '@aztec/aztec.js/entrypoint';
 import { type BBNativeProofCreator } from '@aztec/bb-prover';
 import {
+  CANONICAL_AUTH_REGISTRY_ADDRESS,
   CANONICAL_KEY_REGISTRY_ADDRESS,
   GasSettings,
   MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS,
@@ -54,8 +55,9 @@ import {
   RollupAbi,
   RollupBytecode,
 } from '@aztec/l1-artifacts';
-import { KeyRegistryContract } from '@aztec/noir-contracts.js';
+import { AuthRegistryContract, KeyRegistryContract } from '@aztec/noir-contracts.js';
 import { GasTokenContract } from '@aztec/noir-contracts.js/GasToken';
+import { getCanonicalAuthRegistry } from '@aztec/protocol-contracts/auth-registry';
 import { GasTokenAddress, getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
 import { getCanonicalKeyRegistry } from '@aztec/protocol-contracts/key-registry';
 import { type ProverClient } from '@aztec/prover-client';
@@ -228,6 +230,9 @@ async function setupWithRemoteEnvironment(
   await deployCanonicalKeyRegistry(
     new SignerlessWallet(pxeClient, new DefaultMultiCallEntrypoint(chainId, protocolVersion)),
   );
+  await deployCanonicalAuthRegistry(
+    new SignerlessWallet(pxeClient, new DefaultMultiCallEntrypoint(config.chainId, config.version)),
+  );
 
   if (enableGas) {
     await deployCanonicalGasToken(
@@ -374,6 +379,11 @@ export async function setup(
 
   logger.verbose('Deploying key registry...');
   await deployCanonicalKeyRegistry(
+    new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.chainId, config.version)),
+  );
+
+  logger.verbose('Deploying auth registry...');
+  await deployCanonicalAuthRegistry(
     new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.chainId, config.version)),
   );
 
@@ -663,4 +673,37 @@ export async function deployCanonicalKeyRegistry(deployer: Wallet) {
   expect(getContractClassFromArtifact(keyRegistry.artifact).id).toEqual(keyRegistry.instance.contractClassId);
   await expect(deployer.isContractClassPubliclyRegistered(canonicalKeyRegistry.contractClass.id)).resolves.toBe(true);
   await expect(deployer.getContractInstance(canonicalKeyRegistry.instance.address)).resolves.toBeDefined();
+}
+
+export async function deployCanonicalAuthRegistry(deployer: Wallet) {
+  const canonicalAuthRegistry = getCanonicalAuthRegistry();
+
+  // We check to see if there exists a contract at the canonical Auth Registry address with the same contract class id as we expect. This means that
+  // the auth registry has already been deployed to the correct address.
+  if (
+    (await deployer.getContractInstance(canonicalAuthRegistry.address))?.contractClassId.equals(
+      canonicalAuthRegistry.contractClass.id,
+    ) &&
+    (await deployer.isContractClassPubliclyRegistered(canonicalAuthRegistry.contractClass.id))
+  ) {
+    return;
+  }
+
+  const authRegistry = await AuthRegistryContract.deploy(deployer)
+    .send({ contractAddressSalt: canonicalAuthRegistry.instance.salt, universalDeploy: true })
+    .deployed();
+
+  if (
+    !authRegistry.address.equals(canonicalAuthRegistry.address) ||
+    !authRegistry.address.equals(AztecAddress.fromBigInt(CANONICAL_AUTH_REGISTRY_ADDRESS))
+  ) {
+    throw new Error(
+      `Deployed Auth Registry address ${authRegistry.address} does not match expected address ${canonicalAuthRegistry.address}, or they both do not equal CANONICAL_AUTH_REGISTRY_ADDRESS`,
+    );
+  }
+
+  expect(computeContractAddressFromInstance(authRegistry.instance)).toEqual(authRegistry.address);
+  expect(getContractClassFromArtifact(authRegistry.artifact).id).toEqual(authRegistry.instance.contractClassId);
+  await expect(deployer.isContractClassPubliclyRegistered(canonicalAuthRegistry.contractClass.id)).resolves.toBe(true);
+  await expect(deployer.getContractInstance(canonicalAuthRegistry.instance.address)).resolves.toBeDefined();
 }
