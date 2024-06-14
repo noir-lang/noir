@@ -92,7 +92,7 @@ pub(super) fn generic_variable() -> impl NoirParser<UnresolvedGeneric> {
 }
 
 pub(super) fn generic() -> impl NoirParser<UnresolvedGeneric> {
-    numeric_generic().or(generic_variable())
+    generic_variable().or(numeric_generic())
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list
