@@ -109,7 +109,7 @@ impl CustomDiagnostic {
     }
 
     pub fn is_debug(&self) -> bool {
-        matches!(self.kind, DiagnosticKind::Warning)
+        matches!(self.kind, DiagnosticKind::Debug)
     }
 }
 
