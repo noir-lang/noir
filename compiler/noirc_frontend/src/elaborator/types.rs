@@ -43,11 +43,6 @@ impl<'context> Elaborator<'context> {
         self.resolve_type_inner(typ, Kind::Normal)
     }
 
-    /// Translate an UnresolvedType to a Type with a `TypeKind::Numeric`
-    pub(super) fn resolve_numeric_type(&mut self, typ: UnresolvedType) -> Type {
-        self.resolve_type_inner(typ, Kind::Numeric)
-    }
-
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
     pub fn resolve_type_inner(&mut self, typ: UnresolvedType, kind: Kind) -> Type {
@@ -1443,13 +1438,12 @@ impl<'context> Elaborator<'context> {
             });
         } else {
             // Declare numeric generic if it is specified
-            let is_numeric_generic =
-                self.try_add_numeric_generic(unresolved_generic, typevar.clone());
+            self.try_add_numeric_generic(unresolved_generic, typevar.clone());
 
             let resolved_generic = ResolvedGeneric {
                 name: rc_name,
                 type_var: typevar.clone(),
-                kind: if is_numeric_generic { Kind::Numeric } else { Kind::Normal },
+                kind: unresolved_generic.kind(),
                 span,
             };
 

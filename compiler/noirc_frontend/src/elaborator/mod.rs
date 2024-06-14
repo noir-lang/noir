@@ -468,7 +468,7 @@ impl<'context> Elaborator<'context> {
             let span = ident.0.span();
 
             // Declare numeric generic if it is specified
-            let is_numeric_generic = self.try_add_numeric_generic(generic, typevar.clone());
+            self.try_add_numeric_generic(generic, typevar.clone());
 
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
@@ -476,7 +476,7 @@ impl<'context> Elaborator<'context> {
             let resolved_generic = ResolvedGeneric {
                 name: name.clone(),
                 type_var: typevar.clone(),
-                kind: if is_numeric_generic { Kind::Numeric } else { Kind::Normal },
+                kind: generic.kind(),
                 span,
             };
 
@@ -495,12 +495,11 @@ impl<'context> Elaborator<'context> {
     }
 
     /// If a numeric generic has been specified, add it to the current scope.
-    /// Returns `true` if a numeric generic was added, otherwise return `false`
     pub(super) fn try_add_numeric_generic(
         &mut self,
         generic: &UnresolvedGeneric,
         typevar: TypeVariable,
-    ) -> bool {
+    ) {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let typ = self.resolve_type(typ.clone());
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
@@ -523,9 +522,6 @@ impl<'context> Elaborator<'context> {
             // Store the ident of the numeric generic to set up the function meta so that
             // any numeric generics are accurately brought into scope.
             self.generic_idents.push(hir_ident);
-            true
-        } else {
-            false
         }
     }
 
