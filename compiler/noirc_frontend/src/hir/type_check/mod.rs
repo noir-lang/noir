@@ -315,11 +315,11 @@ fn check_function_type_matches_expected_type(
 ) {
     let mut bindings = TypeBindings::new();
     // Shouldn't need to unify envs, they should always be equal since they're both free functions
-    if let (Type::Function(params_a, ret_a, _env_a), Type::Function(params_b, ret_b, _env_b)) =
-        (expected, actual)
-    {
-        if params_a.len() == params_b.len() {
-            for (i, (a, b)) in params_a.iter().zip(params_b.iter()).enumerate() {
+    if let (Type::Function(function_a), Type::Function(function_b)) = (expected, actual) {
+        if function_a.parameters.len() == function_b.parameters.len() {
+            for (i, (a, b)) in
+                function_a.parameters.iter().zip(function_b.parameters.iter()).enumerate()
+            {
                 if a.try_unify(b, &mut bindings).is_err() {
                     errors.push(TypeCheckError::TraitMethodParameterTypeMismatch {
                         method_name: method_name.to_string(),
@@ -331,17 +331,17 @@ fn check_function_type_matches_expected_type(
                 }
             }
 
-            if ret_b.try_unify(ret_a, &mut bindings).is_err() {
+            if function_a.return_type.try_unify(&function_b.return_type, &mut bindings).is_err() {
                 errors.push(TypeCheckError::TypeMismatch {
-                    expected_typ: ret_a.to_string(),
-                    expr_typ: ret_b.to_string(),
+                    expected_typ: function_a.return_type.to_string(),
+                    expr_typ: function_b.return_type.to_string(),
                     expr_span: span,
                 });
             }
         } else {
             errors.push(TypeCheckError::MismatchTraitImplNumParameters {
-                actual_num_parameters: params_b.len(),
-                expected_num_parameters: params_a.len(),
+                expected_num_parameters: function_a.parameters.len(),
+                actual_num_parameters: function_b.parameters.len(),
                 trait_name: trait_name.to_string(),
                 method_name: method_name.to_string(),
                 span,
@@ -539,11 +539,12 @@ pub mod test {
             name,
             kind: FunctionKind::Normal,
             location,
-            typ: Type::Function(
-                vec![Type::FieldElement, Type::FieldElement],
-                Box::new(Type::Unit),
-                Box::new(Type::Unit),
-            ),
+            typ: Type::Function(crate::FunctionType {
+                parameters: vec![Type::FieldElement, Type::FieldElement],
+                return_type: Box::new(Type::Unit),
+                environment: Box::new(Type::Unit),
+                is_comptime: false,
+            }),
             parameters: vec![
                 (Identifier(x), Type::FieldElement, Visibility::Private),
                 (Identifier(y), Type::FieldElement, Visibility::Private),

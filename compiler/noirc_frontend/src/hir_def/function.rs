@@ -175,9 +175,9 @@ impl FuncMeta {
     /// Gives the (uninstantiated) return type of this function.
     pub fn return_type(&self) -> &Type {
         match &self.typ {
-            Type::Function(_, ret, _env) => ret,
+            Type::Function(function) => &function.return_type,
             Type::Forall(_, typ) => match typ.as_ref() {
-                Type::Function(_, ret, _env) => ret,
+                Type::Function(function) => &function.return_type,
                 _ => unreachable!(),
             },
             _ => unreachable!(),

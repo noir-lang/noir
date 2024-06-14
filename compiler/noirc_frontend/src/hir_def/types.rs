@@ -88,7 +88,7 @@ pub enum Type {
     /// the environment should be `Unit` by default,
     /// for closures it should contain a `Tuple` type with the captured
     /// variable types.
-    Function(Vec<Type>, /*return_type:*/ Box<Type>, /*environment:*/ Box<Type>),
+    Function(FunctionType),
 
     /// &mut T
     MutableReference(Box<Type>),
@@ -143,7 +143,7 @@ impl Type {
             | Type::TypeVariable(_, _)
             | Type::TraitAsType(..)
             | Type::NamedGeneric(_, _)
-            | Type::Function(_, _, _)
+            | Type::Function(_)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             | Type::Constant(_)
@@ -310,6 +310,20 @@ impl std::fmt::Display for StructType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
+}
+
+#[derive(PartialEq, Eq, Clone, Hash)]
+pub struct FunctionType {
+    pub parameters: Vec<Type>,
+    pub return_type: Box<Type>,
+
+    /// A closure's environment type.
+    /// If this is not a closure, this defaults to the unit type.
+    pub environment: Box<Type>,
+
+    /// True if this is a `comptime fn`, false otherwise.
+    /// comptime functions are incompatible with non-comptime functions.
+    pub is_comptime: bool,
 }
 
 /// Wrap around an unsolved type
@@ -652,10 +666,13 @@ impl Type {
             Type::Tuple(fields) => {
                 fields.iter().any(|field| field.contains_numeric_typevar(target_id))
             }
-            Type::Function(parameters, return_type, env) => {
-                parameters.iter().any(|parameter| parameter.contains_numeric_typevar(target_id))
-                    || return_type.contains_numeric_typevar(target_id)
-                    || env.contains_numeric_typevar(target_id)
+            Type::Function(function) => {
+                function
+                    .parameters
+                    .iter()
+                    .any(|parameter| parameter.contains_numeric_typevar(target_id))
+                    || function.return_type.contains_numeric_typevar(target_id)
+                    || function.environment.contains_numeric_typevar(target_id)
             }
             Type::Struct(struct_type, generics) => {
                 generics.iter().enumerate().any(|(i, generic)| {
@@ -703,7 +720,7 @@ impl Type {
             Type::FmtString(_, _)
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(_, _)
-            | Type::Function(_, _, _)
+            | Type::Function(_)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             | Type::Expr
@@ -750,7 +767,7 @@ impl Type {
             Type::FmtString(_, _)
             // To enable this we would need to determine the size of the closure outputs at compile-time.
             // This is possible as long as the output size is not dependent upon a witness condition.
-            | Type::Function(_, _, _)
+            | Type::Function(_)
             | Type::Slice(_)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
@@ -905,15 +922,20 @@ impl std::fmt::Display for Type {
                 let typevars = vecmap(typevars, |var| var.id().to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
             }
-            Type::Function(args, ret, env) => {
-                let closure_env_text = match **env {
+            Type::Function(function) => {
+                let closure_env_text = match *function.environment {
                     Type::Unit => "".to_string(),
-                    _ => format!(" with env {env}"),
+                    _ => format!(" with env {}", function.environment),
                 };
 
-                let args = vecmap(args.iter(), ToString::to_string);
-
-                write!(f, "fn({}) -> {ret}{closure_env_text}", args.join(", "))
+                let comptime = if function.is_comptime { "comptime " } else { "" };
+                let args = vecmap(function.parameters.iter(), ToString::to_string);
+                write!(
+                    f,
+                    "{comptime}fn({}) -> {}{closure_env_text}",
+                    args.join(", "),
+                    function.return_type
+                )
             }
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
@@ -1268,14 +1290,16 @@ impl Type {
                 }
             }
 
-            (Function(params_a, ret_a, env_a), Function(params_b, ret_b, env_b)) => {
-                if params_a.len() == params_b.len() {
-                    for (a, b) in params_a.iter().zip(params_b.iter()) {
+            (Function(function_a), Function(function_b)) => {
+                if function_a.parameters.len() == function_b.parameters.len()
+                    && function_a.is_comptime == function_b.is_comptime
+                {
+                    for (a, b) in function_a.parameters.iter().zip(function_b.parameters.iter()) {
                         a.try_unify(b, bindings)?;
                     }
 
-                    env_a.try_unify(env_b, bindings)?;
-                    ret_b.try_unify(ret_a, bindings)
+                    function_a.environment.try_unify(&function_b.environment, bindings)?;
+                    function_a.return_type.try_unify(&function_b.return_type, bindings)
                 } else {
                     Err(UnificationError)
                 }
@@ -1615,13 +1639,22 @@ impl Type {
                 let typ = Box::new(typ.substitute_helper(type_bindings, substitute_bound_typevars));
                 Type::Forall(typevars.clone(), typ)
             }
-            Type::Function(args, ret, env) => {
-                let args = vecmap(args, |arg| {
+            Type::Function(function) => {
+                let parameters = vecmap(&function.parameters, |arg| {
                     arg.substitute_helper(type_bindings, substitute_bound_typevars)
                 });
-                let ret = Box::new(ret.substitute_helper(type_bindings, substitute_bound_typevars));
-                let env = Box::new(env.substitute_helper(type_bindings, substitute_bound_typevars));
-                Type::Function(args, ret, env)
+                let return_type = Box::new(
+                    function
+                        .return_type
+                        .substitute_helper(type_bindings, substitute_bound_typevars),
+                );
+                let environment = Box::new(
+                    function
+                        .environment
+                        .substitute_helper(type_bindings, substitute_bound_typevars),
+                );
+                let is_comptime = function.is_comptime;
+                Type::Function(FunctionType { parameters, return_type, environment, is_comptime })
             }
             Type::MutableReference(element) => Type::MutableReference(Box::new(
                 element.substitute_helper(type_bindings, substitute_bound_typevars),
@@ -1670,10 +1703,10 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 !typevars.iter().any(|var| var.id() == target_id) && typ.occurs(target_id)
             }
-            Type::Function(args, ret, env) => {
-                args.iter().any(|arg| arg.occurs(target_id))
-                    || ret.occurs(target_id)
-                    || env.occurs(target_id)
+            Type::Function(function) => {
+                function.parameters.iter().any(|arg| arg.occurs(target_id))
+                    || function.return_type.occurs(target_id)
+                    || function.environment.occurs(target_id)
             }
             Type::MutableReference(element) => element.occurs(target_id),
 
@@ -1723,11 +1756,12 @@ impl Type {
                 self.clone()
             }
 
-            Function(args, ret, env) => {
-                let args = vecmap(args, |arg| arg.follow_bindings());
-                let ret = Box::new(ret.follow_bindings());
-                let env = Box::new(env.follow_bindings());
-                Function(args, ret, env)
+            Function(function) => {
+                let parameters = vecmap(&function.parameters, |arg| arg.follow_bindings());
+                let return_type = Box::new(function.return_type.follow_bindings());
+                let environment = Box::new(function.environment.follow_bindings());
+                let is_comptime = function.is_comptime;
+                Function(FunctionType { parameters, return_type, environment, is_comptime })
             }
 
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
@@ -1778,8 +1812,13 @@ fn convert_array_expression_to_slice(
     interner.push_expr_location(func, location.span, location.file);
     interner.push_expr_type(expression, target_type.clone());
 
-    let func_type = Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit));
-    interner.push_expr_type(func, func_type);
+    let func_type = FunctionType {
+        parameters: vec![array_type],
+        return_type: Box::new(target_type),
+        environment: Box::new(Type::Unit),
+        is_comptime: false,
+    };
+    interner.push_expr_type(func, Type::Function(func_type));
 }
 
 impl BinaryTypeOperator {
@@ -1866,10 +1905,10 @@ impl From<&Type> for PrintableType {
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(arguments, return_type, env) => PrintableType::Function {
-                arguments: arguments.iter().map(|arg| arg.into()).collect(),
-                return_type: Box::new(return_type.as_ref().into()),
-                env: Box::new(env.as_ref().into()),
+            Type::Function(function) => PrintableType::Function {
+                arguments: function.parameters.iter().map(|arg| arg.into()).collect(),
+                return_type: Box::new(function.return_type.as_ref().into()),
+                env: Box::new(function.environment.as_ref().into()),
             },
             Type::MutableReference(typ) => {
                 PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
@@ -1946,15 +1985,21 @@ impl std::fmt::Debug for Type {
                 let typevars = vecmap(typevars, |var| format!("{:?}", var));
                 write!(f, "forall {}. {:?}", typevars.join(" "), typ)
             }
-            Type::Function(args, ret, env) => {
-                let closure_env_text = match **env {
+            Type::Function(function) => {
+                let closure_env_text = match *function.environment {
                     Type::Unit => "".to_string(),
-                    _ => format!(" with env {env:?}"),
+                    _ => format!(" with env {:?}", function.environment),
                 };
 
-                let args = vecmap(args.iter(), |arg| format!("{:?}", arg));
+                let comptime = if function.is_comptime { "comptime " } else { "" };
 
-                write!(f, "fn({}) -> {ret:?}{closure_env_text}", args.join(", "))
+                let args = vecmap(function.parameters.iter(), |arg| format!("{:?}", arg));
+                write!(
+                    f,
+                    "{comptime}fn({}) -> {:?}{closure_env_text}",
+                    args.join(", "),
+                    function.return_type
+                )
             }
             Type::MutableReference(element) => {
                 write!(f, "&mut {element:?}")

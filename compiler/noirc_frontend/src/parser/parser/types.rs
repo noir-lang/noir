@@ -2,7 +2,10 @@ use super::{
     expression_with_precedence, keyword, nothing, parenthesized, path, NoirParser, ParserError,
     ParserErrorReason, Precedence,
 };
-use crate::ast::{Recoverable, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression};
+use crate::ast::{
+    Recoverable, UnresolvedFunctionType, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression,
+};
 
 use crate::parser::labels::ParsingRuleLabel;
 use crate::token::{Keyword, Token};
@@ -212,13 +215,21 @@ where
             t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(Span::empty(span.end())))
         });
 
-    keyword(Keyword::Fn)
-        .ignore_then(env)
+    keyword(Keyword::Comptime)
+        .or_not()
+        .then_ignore(keyword(Keyword::Fn))
+        .then(env)
         .then(args)
         .then_ignore(just(Token::Arrow))
         .then(type_parser)
-        .map_with_span(|((env, args), ret), span| {
-            UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env)).with_span(span)
+        .map_with_span(|(((comptime, env), parameters), ret), span| {
+            UnresolvedTypeData::Function(UnresolvedFunctionType {
+                parameters,
+                return_type: Box::new(ret),
+                environment: Box::new(env),
+                is_comptime: comptime.is_some(),
+            })
+            .with_span(span)
         })
 }
 

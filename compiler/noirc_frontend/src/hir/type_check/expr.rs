@@ -4,6 +4,7 @@ use noirc_errors::Span;
 use crate::ast::{BinaryOpKind, IntegerBitSize, UnaryOp};
 use crate::hir_def::expr::HirCallExpression;
 use crate::macros_api::Signedness;
+use crate::FunctionType;
 use crate::{
     hir::{resolution::resolver::verify_mutable_reference, type_check::errors::Source},
     hir_def::{
@@ -291,7 +292,7 @@ impl<'interner> TypeChecker<'interner> {
                 let env_type: Type =
                     if captured_vars.is_empty() { Type::Unit } else { Type::Tuple(captured_vars) };
 
-                let params = vecmap(lambda.parameters, |(pattern, typ)| {
+                let parameters = vecmap(lambda.parameters, |(pattern, typ)| {
                     self.bind_pattern(&pattern, typ.clone());
                     typ
                 });
@@ -305,7 +306,12 @@ impl<'interner> TypeChecker<'interner> {
                     expr_span: span,
                 });
 
-                Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
+                Type::Function(FunctionType {
+                    parameters,
+                    return_type: Box::new(lambda.return_type),
+                    environment: Box::new(env_type),
+                    is_comptime: false,
+                })
             }
             HirExpression::Quote(_) => Type::Expr,
             HirExpression::Comptime(block) => self.check_block(block),

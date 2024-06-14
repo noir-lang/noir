@@ -110,17 +110,21 @@ pub enum UnresolvedTypeData {
     // Note: Tuples have no visibility, instead each of their elements may have one.
     Tuple(Vec<UnresolvedType>),
 
-    Function(
-        /*args:*/ Vec<UnresolvedType>,
-        /*ret:*/ Box<UnresolvedType>,
-        /*env:*/ Box<UnresolvedType>,
-    ),
+    Function(UnresolvedFunctionType),
 
     // The type of quoted code for metaprogramming
     Expr,
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct UnresolvedFunctionType {
+    pub parameters: Vec<UnresolvedType>,
+    pub return_type: Box<UnresolvedType>,
+    pub environment: Box<UnresolvedType>,
+    pub is_comptime: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -201,18 +205,20 @@ impl std::fmt::Display for UnresolvedTypeData {
             Bool => write!(f, "bool"),
             String(len) => write!(f, "str<{len}>"),
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
-            Function(args, ret, env) => {
-                let args = vecmap(args, ToString::to_string).join(", ");
+            Function(function) => {
+                let args = vecmap(&function.parameters, ToString::to_string).join(", ");
+                let ret = function.return_type.to_string();
+                let comptime = if function.is_comptime { "comptime " } else { "" };
 
-                match &env.as_ref().typ {
+                match &function.environment.as_ref().typ {
                     UnresolvedTypeData::Unit => {
-                        write!(f, "fn({args}) -> {ret}")
+                        write!(f, "{comptime}fn({args}) -> {ret}")
                     }
                     UnresolvedTypeData::Tuple(env_types) => {
                         let env_types = vecmap(env_types, |arg| arg.typ.to_string()).join(", ");
-                        write!(f, "fn[{env_types}]({args}) -> {ret}")
+                        write!(f, "{comptime}fn[{env_types}]({args}) -> {ret}")
                     }
-                    other => write!(f, "fn[{other}]({args}) -> {ret}"),
+                    other => write!(f, "{comptime}fn[{other}]({args}) -> {ret}"),
                 }
             }
             MutableReference(element) => write!(f, "&mut {element}"),

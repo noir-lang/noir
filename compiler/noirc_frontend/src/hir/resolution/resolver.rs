@@ -47,7 +47,9 @@ use crate::node_interner::{
     DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
     StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
 };
-use crate::{Generics, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind};
+use crate::{
+    FunctionType, Generics, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind,
+};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
@@ -577,30 +579,30 @@ impl<'a> Resolver<'a> {
             TraitAsType(path, args) => self.resolve_trait_as_type(path, args),
 
             Tuple(fields) => Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field))),
-            Function(args, ret, env) => {
-                let args = vecmap(args, |arg| self.resolve_type_inner(arg));
-                let ret = Box::new(self.resolve_type_inner(*ret));
+            Function(function) => {
+                let parameters = vecmap(function.parameters, |arg| self.resolve_type_inner(arg));
+                let return_type = Box::new(self.resolve_type_inner(*function.return_type));
 
                 // expect() here is valid, because the only places we don't have a span are omitted types
                 // e.g. a function without return type implicitly has a spanless UnresolvedType::Unit return type
                 // To get an invalid env type, the user must explicitly specify the type, which will have a span
-                let env_span =
-                    env.span.expect("Unexpected missing span for closure environment type");
+                let env_span = function
+                    .environment
+                    .span
+                    .expect("Unexpected missing span for closure environment type");
 
-                let env = Box::new(self.resolve_type_inner(*env));
+                let mut environment = Box::new(self.resolve_type_inner(*function.environment));
 
-                match *env {
-                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
-                        Type::Function(args, ret, env)
-                    }
-                    _ => {
-                        self.push_err(ResolverError::InvalidClosureEnvironment {
-                            typ: *env,
-                            span: env_span,
-                        });
-                        Type::Error
-                    }
+                if !matches!(&environment, Type::Unit | Type::Tuple(_) | Type::NamedGeneric(..)) {
+                    self.push_err(ResolverError::InvalidClosureEnvironment {
+                        typ: *environment,
+                        span: env_span,
+                    });
+                    *environment = Type::Error;
                 }
+
+                let is_comptime = function.is_comptime;
+                Type::Function(FunctionType { parameters, return_type, environment, is_comptime })
             }
             MutableReference(element) => {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element)))
@@ -1050,7 +1052,12 @@ impl<'a> Resolver<'a> {
             });
         }
 
-        let mut typ = Type::Function(parameter_types, return_type, Box::new(Type::Unit));
+        let mut typ = Type::Function(FunctionType {
+            parameters: parameter_types,
+            return_type,
+            environment: Box::new(Type::Unit),
+            is_comptime: func.def.is_comptime,
+        });
 
         if !generics.is_empty() {
             typ = Type::Forall(generics, Box::new(typ));
@@ -1184,11 +1191,12 @@ impl<'a> Resolver<'a> {
                 }
             }
 
-            Type::Function(parameters, return_type, _env) => {
-                for parameter in parameters {
+            Type::Function(function) => {
+                for parameter in &function.parameters {
                     Self::find_numeric_generics_in_type(parameter, found);
                 }
-                Self::find_numeric_generics_in_type(return_type, found);
+                Self::find_numeric_generics_in_type(&function.return_type, found);
+                Self::find_numeric_generics_in_type(&function.environment, found);
             }
 
             Type::Struct(struct_type, generics) => {
