@@ -62,7 +62,7 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
 /// These should be fixed and removed from this list.
 const IGNORED_NON_ELABORATOR_TESTS: [&str; 1] = [
     // Explicit numeric generics are only supported in the elaborator.
-    &"numeric_generics_explicit",
+    "numeric_generics_explicit",
 ];
 
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
