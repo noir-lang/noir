@@ -170,12 +170,12 @@ template <size_t TABLE_BITS = 0, size_t LANE_INDEX = 0> class Rho {
         table.id = id;
         table.table_index = table_index;
         table.use_twin_keys = false;
-        table.size = numeric::pow64(static_cast<uint64_t>(EFFECTIVE_BASE), TABLE_BITS);
+        auto table_size = numeric::pow64(static_cast<uint64_t>(EFFECTIVE_BASE), TABLE_BITS);
 
         std::array<size_t, TABLE_BITS> counts{};
         std::array<uint64_t, 3> column_values{ 0, 0, 0 };
 
-        for (size_t i = 0; i < table.size; ++i) {
+        for (size_t i = 0; i < table_size; ++i) {
             table.column_1.emplace_back(column_values[0]);
             table.column_2.emplace_back(column_values[1]);
             table.column_3.emplace_back(column_values[2]);
@@ -264,7 +264,7 @@ template <size_t TABLE_BITS = 0, size_t LANE_INDEX = 0> class Rho {
 
             table.slice_sizes.push_back(scaled_base);
             table.get_table_values.emplace_back(&get_rho_renormalization_values);
-            table.lookup_ids.push_back((BasicTableId)((size_t)KECCAK_RHO_1 + (bit_slice - 1)));
+            table.basic_table_ids.push_back((BasicTableId)((size_t)KECCAK_RHO_1 + (bit_slice - 1)));
         });
 
         // generate table selector values for the 'left' slice
@@ -284,7 +284,7 @@ template <size_t TABLE_BITS = 0, size_t LANE_INDEX = 0> class Rho {
 
             table.slice_sizes.push_back(scaled_base);
             table.get_table_values.emplace_back(&get_rho_renormalization_values);
-            table.lookup_ids.push_back((BasicTableId)((size_t)KECCAK_RHO_1 + (bit_slice - 1)));
+            table.basic_table_ids.push_back((BasicTableId)((size_t)KECCAK_RHO_1 + (bit_slice - 1)));
         });
 
         return table;

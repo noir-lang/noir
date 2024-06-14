@@ -28,10 +28,10 @@ inline BasicTable generate_sparse_table_with_rotation(BasicTableId id, const siz
     BasicTable table;
     table.id = id;
     table.table_index = table_index;
-    table.size = (1U << bits_per_slice);
+    auto table_size = (1U << bits_per_slice);
     table.use_twin_keys = false;
 
-    for (uint64_t i = 0; i < table.size; ++i) {
+    for (uint64_t i = 0; i < table_size; ++i) {
         const uint64_t source = i;
         const auto target = numeric::map_into_sparse_form<base>(source);
         table.column_1.emplace_back(bb::fr(source));
@@ -89,11 +89,11 @@ inline BasicTable generate_sparse_normalization_table(BasicTableId id, const siz
     table.id = id;
     table.table_index = table_index;
     table.use_twin_keys = false;
-    table.size = numeric::pow64(static_cast<uint64_t>(base), num_bits);
+    auto table_size = numeric::pow64(static_cast<uint64_t>(base), num_bits);
 
     numeric::sparse_int<base, num_bits> accumulator(0);
     numeric::sparse_int<base, num_bits> to_add(1);
-    for (size_t i = 0; i < table.size; ++i) {
+    for (size_t i = 0; i < table_size; ++i) {
         const auto& limbs = accumulator.get_limbs();
         uint64_t key = 0;
         for (size_t j = 0; j < num_bits; ++j) {
@@ -109,7 +109,7 @@ inline BasicTable generate_sparse_normalization_table(BasicTableId id, const siz
 
     table.get_values_from_key = &get_sparse_normalization_values<base, base_table>;
 
-    table.column_1_step_size = bb::fr(table.size);
+    table.column_1_step_size = bb::fr(table_size);
     table.column_2_step_size = bb::fr(((uint64_t)1 << num_bits));
     table.column_3_step_size = bb::fr(0);
     return table;

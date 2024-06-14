@@ -77,7 +77,7 @@ field_t<Builder> plookup_read<Builder>::read_from_2_to_1_table(const MultiTableI
                                                                const field_t<Builder>& key_a,
                                                                const field_t<Builder>& key_b)
 {
-    const auto lookup = get_lookup_accumulators(id, key_a, key_b, true);
+    const auto lookup = get_lookup_accumulators(id, key_a, key_b, /*is_2_to_1_lookup=*/true);
 
     return lookup[ColumnIdx::C3][0];
 }

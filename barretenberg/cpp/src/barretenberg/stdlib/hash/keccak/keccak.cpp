@@ -126,7 +126,7 @@ field_t<Builder> keccak<Builder>::normalize_and_rotate(const field_ct& limb, fie
             // We need to provide a key/value object for this lookup in order for the Builder
             // to compute the plookup sorted list commitment
             const auto [input_quotient, input_slice] = input.divmod(divisor);
-            lookup.key_entries.push_back(
+            lookup.lookup_entries.push_back(
                 { { static_cast<uint64_t>(input_slice), 0 }, { normalized_slice, normalized_msb } });
 
             // reduce the input and output by 11^{bit_slice}

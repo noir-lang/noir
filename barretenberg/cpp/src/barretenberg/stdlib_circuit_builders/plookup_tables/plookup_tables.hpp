@@ -4,7 +4,7 @@
 
 namespace bb::plookup {
 
-const MultiTable& create_table(MultiTableId id);
+const MultiTable& get_multitable(MultiTableId id);
 
 ReadData<bb::fr> get_lookup_accumulators(MultiTableId id,
                                          const bb::fr& key_a,

@@ -116,7 +116,7 @@ inline MultiTable get_witness_extension_output_table(const MultiTableId id = SHA
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(numeric::pow64(16, 3));
-        table.lookup_ids.emplace_back(SHA256_WITNESS_NORMALIZE);
+        table.basic_table_ids.emplace_back(SHA256_WITNESS_NORMALIZE);
         table.get_table_values.emplace_back(
             &sparse_tables::get_sparse_normalization_values<16, witness_extension_normalization_table>);
     }
@@ -132,7 +132,7 @@ inline MultiTable get_choose_output_table(const MultiTableId id = SHA256_CH_OUTP
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(numeric::pow64(28, 2));
-        table.lookup_ids.emplace_back(SHA256_CH_NORMALIZE);
+        table.basic_table_ids.emplace_back(SHA256_CH_NORMALIZE);
         table.get_table_values.emplace_back(
             &sparse_tables::get_sparse_normalization_values<28, choose_normalization_table>);
     }
@@ -148,7 +148,7 @@ inline MultiTable get_majority_output_table(const MultiTableId id = SHA256_MAJ_O
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(numeric::pow64(16, 3));
-        table.lookup_ids.emplace_back(SHA256_MAJ_NORMALIZE);
+        table.basic_table_ids.emplace_back(SHA256_MAJ_NORMALIZE);
         table.get_table_values.emplace_back(
             &sparse_tables::get_sparse_normalization_values<16, majority_normalization_table>);
     }
@@ -223,10 +223,10 @@ inline MultiTable get_witness_extension_input_table(const MultiTableId id = SHA2
     MultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
     table.slice_sizes = { (1 << 3), (1 << 7), (1 << 8), (1 << 18) };
-    table.lookup_ids = { SHA256_WITNESS_SLICE_3,
-                         SHA256_WITNESS_SLICE_7_ROTATE_4,
-                         SHA256_WITNESS_SLICE_8_ROTATE_7,
-                         SHA256_WITNESS_SLICE_14_ROTATE_1 };
+    table.basic_table_ids = { SHA256_WITNESS_SLICE_3,
+                              SHA256_WITNESS_SLICE_7_ROTATE_4,
+                              SHA256_WITNESS_SLICE_8_ROTATE_7,
+                              SHA256_WITNESS_SLICE_14_ROTATE_1 };
 
     table.get_table_values = {
         &sparse_tables::get_sparse_table_with_rotation_values<16, 0>,
@@ -321,7 +321,7 @@ inline MultiTable get_choose_input_table(const MultiTableId id = SHA256_CH_INPUT
     MultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
     table.slice_sizes = { (1 << 11), (1 << 11), (1 << 10) };
-    table.lookup_ids = { SHA256_BASE28_ROTATE6, SHA256_BASE28, SHA256_BASE28_ROTATE3 };
+    table.basic_table_ids = { SHA256_BASE28_ROTATE6, SHA256_BASE28, SHA256_BASE28_ROTATE3 };
 
     table.get_table_values.push_back(&sparse_tables::get_sparse_table_with_rotation_values<28, 6>);
     table.get_table_values.push_back(&sparse_tables::get_sparse_table_with_rotation_values<28, 0>);
@@ -380,7 +380,7 @@ inline MultiTable get_majority_input_table(const MultiTableId id = SHA256_MAJ_IN
     MultiTable table(column_1_coefficients, column_2_coefficients, column_3_coefficients);
     table.id = id;
     table.slice_sizes = { (1 << 11), (1 << 11), (1 << 10) };
-    table.lookup_ids = { SHA256_BASE16_ROTATE2, SHA256_BASE16_ROTATE2, SHA256_BASE16 };
+    table.basic_table_ids = { SHA256_BASE16_ROTATE2, SHA256_BASE16_ROTATE2, SHA256_BASE16 };
     table.get_table_values = {
         &sparse_tables::get_sparse_table_with_rotation_values<16, 2>,
         &sparse_tables::get_sparse_table_with_rotation_values<16, 2>,

@@ -26,7 +26,7 @@ void construct_lookup_table_polynomials(RefArray<typename Flavor::Polynomial, 4>
     for (const auto& table : circuit.lookup_tables) {
         const fr table_index(table.table_index);
 
-        for (size_t i = 0; i < table.size; ++i) {
+        for (size_t i = 0; i < table.size(); ++i) {
             table_polynomials[0][offset] = table.column_1[i];
             table_polynomials[1][offset] = table.column_2[i];
             table_polynomials[2][offset] = table.column_3[i];
@@ -67,7 +67,7 @@ std::array<typename Flavor::Polynomial, 4> construct_sorted_list_polynomials(typ
     for (auto& table : circuit.lookup_tables) {
         const fr table_index(table.table_index);
         auto& lookup_gates = table.lookup_gates;
-        for (size_t i = 0; i < table.size; ++i) {
+        for (size_t i = 0; i < table.size(); ++i) {
             if (table.use_twin_keys) {
                 lookup_gates.push_back({
                     {

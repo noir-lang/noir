@@ -19,7 +19,6 @@ inline BasicTable generate_xor_rotate_table(BasicTableId id, const size_t table_
     BasicTable table;
     table.id = id;
     table.table_index = table_index;
-    table.size = base * base;
     table.use_twin_keys = true;
 
     for (uint64_t i = 0; i < base; ++i) {
@@ -52,7 +51,6 @@ inline BasicTable generate_and_rotate_table(BasicTableId id, const size_t table_
     BasicTable table;
     table.id = id;
     table.table_index = table_index;
-    table.size = base * base;
     table.use_twin_keys = true;
 
     for (uint64_t i = 0; i < base; ++i) {
@@ -81,7 +79,7 @@ inline MultiTable get_uint32_xor_table(const MultiTableId id = UINT32_XOR)
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(base);
-        table.lookup_ids.emplace_back(UINT_XOR_ROTATE0);
+        table.basic_table_ids.emplace_back(UINT_XOR_ROTATE0);
         table.get_table_values.emplace_back(&get_xor_rotate_values_from_key<6, 0>);
     }
     return table;
@@ -96,7 +94,7 @@ inline MultiTable get_uint32_and_table(const MultiTableId id = UINT32_AND)
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(base);
-        table.lookup_ids.emplace_back(UINT_AND_ROTATE0);
+        table.basic_table_ids.emplace_back(UINT_AND_ROTATE0);
         table.get_table_values.emplace_back(&get_and_rotate_values_from_key<6, 0>);
     }
     return table;

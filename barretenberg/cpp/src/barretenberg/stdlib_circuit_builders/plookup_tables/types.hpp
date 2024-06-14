@@ -121,19 +121,33 @@ enum MultiTableId {
     NUM_MULTI_TABLES = KECCAK_NORMALIZE_AND_ROTATE + 25,
 };
 
+/**
+ * @brief Container for managing multiple BasicTables plus the data needed to combine basic table outputs (limbs) into
+ * accumulators. Does not store actual raw table data.
+ * @details As a simple example, consider using lookups to compute XOR on uint32_t inputs. To do this we decompose the
+ * inputs into 6 limbs and use a BasicTable for 6-bit XOR lookups. In this case the MultiTable simply manages 6 basic
+ * tables, all of which are the XOR BasicTable. (In many cases all of the BasicTables managed by a MultiTable are
+ * identical, however there are some cases where more than 1 type is required, e.g. if a certain limb has to be handled
+ * differently etc.). This class also stores the scalars needed to reconstruct full values from the components that are
+ * contained in the basic lookup tables.
+ * @note Note that a MultiTable does not actually *store* any table data. Rather it stores a set of basic table IDs, the
+ * methods used to compute the basic table entries, plus some metadata.
+ *
+ */
 struct MultiTable {
     // Coefficients are accumulated products of corresponding step sizes until that point
     std::vector<bb::fr> column_1_coefficients;
     std::vector<bb::fr> column_2_coefficients;
     std::vector<bb::fr> column_3_coefficients;
     MultiTableId id;
-    std::vector<BasicTableId> lookup_ids;
+    std::vector<BasicTableId> basic_table_ids;
     std::vector<uint64_t> slice_sizes;
     std::vector<bb::fr> column_1_step_sizes;
     std::vector<bb::fr> column_2_step_sizes;
     std::vector<bb::fr> column_3_step_sizes;
     typedef std::array<bb::fr, 2> table_out;
     typedef std::array<uint64_t, 2> table_in;
+    // Methods for computing the value from a key for each basic table
     std::vector<table_out (*)(table_in)> get_table_values;
 
   private:
@@ -255,19 +269,22 @@ struct MultiTable {
 // }
 
 /**
- * @brief The structure contains the most basic table serving one function (for, example an xor table)
+ * @brief A basic table from which we can perform lookups (for example, an xor table)
+ * @details Also stores the lookup gate data for all lookups performed on this table
  *
  * @details You can find initialization example at
  * ../ultra_plonk_composer.cpp#UltraPlonkComposer::initialize_precomputed_table(..)
  *
  */
 struct BasicTable {
-    struct KeyEntry {
-        bool operator==(const KeyEntry& other) const = default;
+    struct LookupEntry {
+        bool operator==(const LookupEntry& other) const = default;
 
+        // Storage for two key values and two result values to support different lookup formats, i.e. 1:1, 1:2, and 2:1
         std::array<uint256_t, 2> key{ 0, 0 };
         std::array<bb::fr, 2> value{ bb::fr(0), bb::fr(0) };
-        bool operator<(const KeyEntry& other) const
+        // Comparison operator required for sorting; Used to construct sorted-concatenated table/lookup polynomial
+        bool operator<(const LookupEntry& other) const
         {
             return key[0] < other.key[0] || ((key[0] == other.key[0]) && key[1] < other.key[1]);
         }
@@ -285,8 +302,6 @@ struct BasicTable {
     // Unique id of the table which is used to look it up, when we need its functionality. One of BasicTableId enum
     BasicTableId id;
     size_t table_index;
-    // The size of the table
-    size_t size;
     // This means that we are using two inputs to look up stuff, not translate a single entry into another one.
     bool use_twin_keys;
 
@@ -294,13 +309,19 @@ struct BasicTable {
     bb::fr column_2_step_size = bb::fr(0);
     bb::fr column_3_step_size = bb::fr(0);
     std::vector<bb::fr> column_1;
-    std::vector<bb::fr> column_3;
     std::vector<bb::fr> column_2;
-    std::vector<KeyEntry> lookup_gates;
+    std::vector<bb::fr> column_3;
+    std::vector<LookupEntry> lookup_gates; // wire data for all lookup gates created for lookups on this table
 
     std::array<bb::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
 
     bool operator==(const BasicTable& other) const = default;
+
+    size_t size() const
+    {
+        ASSERT(column_1.size() == column_2.size() && column_2.size() == column_3.size());
+        return column_1.size();
+    }
 };
 
 enum ColumnIdx { C1, C2, C3 };
@@ -324,9 +345,10 @@ template <class DataType> class ReadData {
     std::vector<DataType>& operator[](ColumnIdx idx) { return columns[static_cast<size_t>(idx)]; };
     const std::vector<DataType>& operator[](ColumnIdx idx) const { return columns[static_cast<size_t>(idx)]; };
 
-    std::vector<BasicTable::KeyEntry> key_entries;
+    std::vector<BasicTable::LookupEntry> lookup_entries;
 
   private:
+    // Container for the lookup accumulators; 0th index of each column contains full accumulated value
     std::array<std::vector<DataType>, 3> columns;
 };
 

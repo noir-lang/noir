@@ -25,9 +25,9 @@ inline BasicTable generate_aes_sparse_table(BasicTableId id, const size_t table_
     BasicTable table;
     table.id = id;
     table.table_index = table_index;
-    table.size = 256;
+    size_t table_size = 256;
     table.use_twin_keys = true;
-    for (uint64_t i = 0; i < table.size; ++i) {
+    for (uint64_t i = 0; i < table_size; ++i) {
         uint64_t left = i;
         const auto right = numeric::map_into_sparse_form<AES_BASE>((uint8_t)i);
         table.column_1.emplace_back(bb::fr(left));
@@ -74,7 +74,6 @@ inline BasicTable generate_aes_sparse_normalization_table(BasicTableId id, const
             }
         }
     }
-    table.size = table.column_1.size();
     table.use_twin_keys = false;
     table.get_values_from_key = &get_aes_sparse_normalization_values_from_key;
 
@@ -102,7 +101,7 @@ inline MultiTable get_aes_normalization_table(const MultiTableId id = AES_NORMAL
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(AES_BASE * AES_BASE * AES_BASE * AES_BASE);
-        table.lookup_ids.emplace_back(AES_SPARSE_NORMALIZE);
+        table.basic_table_ids.emplace_back(AES_SPARSE_NORMALIZE);
         table.get_table_values.emplace_back(&get_aes_sparse_normalization_values_from_key);
     }
     return table;
@@ -117,7 +116,7 @@ inline MultiTable get_aes_input_table(const MultiTableId id = AES_INPUT)
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(256);
-        table.lookup_ids.emplace_back(AES_SPARSE_MAP);
+        table.basic_table_ids.emplace_back(AES_SPARSE_MAP);
         table.get_table_values.emplace_back(&sparse_tables::get_sparse_table_with_rotation_values<AES_BASE, 0>);
     }
     return table;
@@ -137,9 +136,9 @@ inline BasicTable generate_aes_sbox_table(BasicTableId id, const size_t table_in
     BasicTable table;
     table.id = id;
     table.table_index = table_index;
-    table.size = 256;
+    size_t table_size = 256;
     table.use_twin_keys = false;
-    for (uint64_t i = 0; i < table.size; ++i) {
+    for (uint64_t i = 0; i < table_size; ++i) {
         const auto first = numeric::map_into_sparse_form<AES_BASE>((uint8_t)i);
         uint8_t sbox_value = crypto::aes128_sbox[(uint8_t)i];
         uint8_t swizzled = ((uint8_t)(sbox_value << 1) ^ (uint8_t)(((sbox_value >> 7) & 1) * 0x1b));
@@ -167,7 +166,7 @@ inline MultiTable get_aes_sbox_table(const MultiTableId id = AES_SBOX)
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(numeric::pow64(AES_BASE, 8));
-        table.lookup_ids.emplace_back(AES_SBOX_MAP);
+        table.basic_table_ids.emplace_back(AES_SBOX_MAP);
         table.get_table_values.emplace_back(&get_aes_sbox_values_from_key);
     }
     return table;

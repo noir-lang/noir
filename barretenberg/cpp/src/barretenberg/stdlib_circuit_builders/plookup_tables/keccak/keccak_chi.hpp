@@ -169,11 +169,11 @@ class Chi {
         table.id = id;
         table.table_index = table_index;
         table.use_twin_keys = false;
-        table.size = numeric::pow64(static_cast<uint64_t>(EFFECTIVE_BASE), TABLE_BITS);
+        auto table_size = numeric::pow64(static_cast<uint64_t>(EFFECTIVE_BASE), TABLE_BITS);
 
         std::array<size_t, TABLE_BITS> counts{};
         std::array<uint64_t, 3> column_values{ 0, 0, 0 };
-        for (size_t i = 0; i < table.size; ++i) {
+        for (size_t i = 0; i < table_size; ++i) {
             table.column_1.emplace_back(column_values[0]);
             table.column_2.emplace_back(column_values[1]);
             table.column_3.emplace_back(column_values[2]);
@@ -242,7 +242,7 @@ class Chi {
         table.id = id;
         for (size_t i = 0; i < num_tables_per_multitable; ++i) {
             table.slice_sizes.emplace_back(numeric::pow64(BASE, TABLE_BITS));
-            table.lookup_ids.emplace_back(KECCAK_CHI);
+            table.basic_table_ids.emplace_back(KECCAK_CHI);
             table.get_table_values.emplace_back(&get_chi_renormalization_values);
         }
         return table;

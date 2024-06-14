@@ -49,7 +49,6 @@ inline BasicTable generate_honk_dummy_table(const BasicTableId id, const size_t 
     BasicTable table;
     table.id = id;
     table.table_index = table_index;
-    table.size = base * base;
     table.use_twin_keys = true;
     for (uint64_t i = 0; i < base; ++i) {
         for (uint64_t j = 0; j < base; ++j) {
@@ -85,10 +84,10 @@ inline MultiTable get_honk_dummy_multitable()
                      number_of_lookups);
     table.id = id;
     table.slice_sizes.emplace_back(number_of_elements_in_argument);
-    table.lookup_ids.emplace_back(HONK_DUMMY_BASIC1);
+    table.basic_table_ids.emplace_back(HONK_DUMMY_BASIC1);
     table.get_table_values.emplace_back(&get_value_from_key<HONK_DUMMY_BASIC1>);
     table.slice_sizes.emplace_back(number_of_elements_in_argument);
-    table.lookup_ids.emplace_back(HONK_DUMMY_BASIC2);
+    table.basic_table_ids.emplace_back(HONK_DUMMY_BASIC2);
     table.get_table_values.emplace_back(&get_value_from_key<HONK_DUMMY_BASIC2>);
     return table;
 }

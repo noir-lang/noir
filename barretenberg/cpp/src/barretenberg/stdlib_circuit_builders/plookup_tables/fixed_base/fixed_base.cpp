@@ -197,12 +197,11 @@ BasicTable table::generate_basic_fixed_base_table(BasicTableId id, size_t basic_
     BasicTable table;
     table.id = id;
     table.table_index = basic_table_index;
-    table.size = table_size;
     table.use_twin_keys = false;
 
     const auto& basic_table = fixed_base_tables[multitable_index][table_index];
 
-    for (size_t i = 0; i < table.size; ++i) {
+    for (size_t i = 0; i < table_size; ++i) {
         table.column_1.emplace_back(i);
         table.column_2.emplace_back(basic_table[i].x);
         table.column_3.emplace_back(basic_table[i].y);
@@ -213,7 +212,7 @@ BasicTable table::generate_basic_fixed_base_table(BasicTableId id, size_t basic_
     table.get_values_from_key = get_values_from_key_table[multitable_index][table_index];
 
     ASSERT(table.get_values_from_key != nullptr);
-    table.column_1_step_size = table.size;
+    table.column_1_step_size = table_size;
     table.column_2_step_size = 0;
     table.column_3_step_size = 0;
 
@@ -243,13 +242,13 @@ template <size_t multitable_index, size_t num_bits> MultiTable table::get_fixed_
     MultiTable table(MAX_TABLE_SIZE, 0, 0, NUM_TABLES);
     table.id = id;
     table.get_table_values.resize(NUM_TABLES);
-    table.lookup_ids.resize(NUM_TABLES);
+    table.basic_table_ids.resize(NUM_TABLES);
     for (size_t i = 0; i < NUM_TABLES; ++i) {
         table.slice_sizes.emplace_back(MAX_TABLE_SIZE);
         table.get_table_values[i] = get_values_from_key_table[multitable_index][i];
         static_assert(multitable_index < NUM_FIXED_BASE_MULTI_TABLES);
         size_t idx = i + static_cast<size_t>(basic_table_ids[multitable_index]);
-        table.lookup_ids[i] = static_cast<plookup::BasicTableId>(idx);
+        table.basic_table_ids[i] = static_cast<plookup::BasicTableId>(idx);
     }
     return table;
 }

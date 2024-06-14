@@ -182,10 +182,10 @@ template <typename G1> BasicTable ecc_generator_table<G1>::generate_xlo_table(Ba
     BasicTable table;
     table.id = id;
     table.table_index = table_index;
-    table.size = 256;
+    size_t table_size = 256;
     table.use_twin_keys = false;
 
-    for (size_t i = 0; i < table.size; ++i) {
+    for (size_t i = 0; i < table_size; ++i) {
         table.column_1.emplace_back((i));
         table.column_2.emplace_back(ecc_generator_table<G1>::generator_xlo_table[i].first);
         table.column_3.emplace_back(ecc_generator_table<G1>::generator_xlo_table[i].second);
@@ -205,10 +205,10 @@ template <typename G1> BasicTable ecc_generator_table<G1>::generate_xhi_table(Ba
     BasicTable table;
     table.id = id;
     table.table_index = table_index;
-    table.size = 256;
+    size_t table_size = 256;
     table.use_twin_keys = false;
 
-    for (size_t i = 0; i < table.size; ++i) {
+    for (size_t i = 0; i < table_size; ++i) {
         table.column_1.emplace_back((i));
         table.column_2.emplace_back(ecc_generator_table<G1>::generator_xhi_table[i].first);
         table.column_3.emplace_back(ecc_generator_table<G1>::generator_xhi_table[i].second);
@@ -229,10 +229,10 @@ BasicTable ecc_generator_table<G1>::generate_xlo_endo_table(BasicTableId id, con
     BasicTable table;
     table.id = id;
     table.table_index = table_index;
-    table.size = 256;
+    size_t table_size = 256;
     table.use_twin_keys = false;
 
-    for (size_t i = 0; i < table.size; ++i) {
+    for (size_t i = 0; i < table_size; ++i) {
         table.column_1.emplace_back((i));
         table.column_2.emplace_back(ecc_generator_table<G1>::generator_endo_xlo_table[i].first);
         table.column_3.emplace_back(ecc_generator_table<G1>::generator_endo_xlo_table[i].second);
@@ -253,10 +253,10 @@ BasicTable ecc_generator_table<G1>::generate_xhi_endo_table(BasicTableId id, con
     BasicTable table;
     table.id = id;
     table.table_index = table_index;
-    table.size = 256;
+    size_t table_size = 256;
     table.use_twin_keys = false;
 
-    for (size_t i = 0; i < table.size; ++i) {
+    for (size_t i = 0; i < table_size; ++i) {
         table.column_1.emplace_back((i));
         table.column_2.emplace_back(ecc_generator_table<G1>::generator_endo_xhi_table[i].first);
         table.column_3.emplace_back(ecc_generator_table<G1>::generator_endo_xhi_table[i].second);
@@ -276,10 +276,10 @@ template <typename G1> BasicTable ecc_generator_table<G1>::generate_ylo_table(Ba
     BasicTable table;
     table.id = id;
     table.table_index = table_index;
-    table.size = 256;
+    size_t table_size = 256;
     table.use_twin_keys = false;
 
-    for (size_t i = 0; i < table.size; ++i) {
+    for (size_t i = 0; i < table_size; ++i) {
         table.column_1.emplace_back((i));
         table.column_2.emplace_back(ecc_generator_table<G1>::generator_ylo_table[i].first);
         table.column_3.emplace_back(ecc_generator_table<G1>::generator_ylo_table[i].second);
@@ -299,10 +299,10 @@ template <typename G1> BasicTable ecc_generator_table<G1>::generate_yhi_table(Ba
     BasicTable table;
     table.id = id;
     table.table_index = table_index;
-    table.size = 256;
+    size_t table_size = 256;
     table.use_twin_keys = false;
 
-    for (size_t i = 0; i < table.size; ++i) {
+    for (size_t i = 0; i < table_size; ++i) {
         table.column_1.emplace_back((i));
         table.column_2.emplace_back(ecc_generator_table<G1>::generator_yhi_table[i].first);
         table.column_3.emplace_back(ecc_generator_table<G1>::generator_yhi_table[i].second);
@@ -323,10 +323,10 @@ BasicTable ecc_generator_table<G1>::generate_xyprime_table(BasicTableId id, cons
     BasicTable table;
     table.id = id;
     table.table_index = table_index;
-    table.size = 256;
+    size_t table_size = 256;
     table.use_twin_keys = false;
 
-    for (size_t i = 0; i < table.size; ++i) {
+    for (size_t i = 0; i < table_size; ++i) {
         table.column_1.emplace_back((i));
         table.column_2.emplace_back(ecc_generator_table<G1>::generator_xyprime_table[i].first);
         table.column_3.emplace_back(ecc_generator_table<G1>::generator_xyprime_table[i].second);
@@ -347,10 +347,10 @@ BasicTable ecc_generator_table<G1>::generate_xyprime_endo_table(BasicTableId id,
     BasicTable table;
     table.id = id;
     table.table_index = table_index;
-    table.size = 256;
+    size_t table_size = 256;
     table.use_twin_keys = false;
 
-    for (size_t i = 0; i < table.size; ++i) {
+    for (size_t i = 0; i < table_size; ++i) {
         table.column_1.emplace_back((i));
         table.column_2.emplace_back(ecc_generator_table<G1>::generator_endo_xyprime_table[i].first);
         table.column_3.emplace_back(ecc_generator_table<G1>::generator_endo_xyprime_table[i].second);
@@ -374,7 +374,7 @@ MultiTable ecc_generator_table<G1>::get_xlo_table(const MultiTableId id, const B
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(512);
-        table.lookup_ids.emplace_back(basic_id);
+        table.basic_table_ids.emplace_back(basic_id);
         table.get_table_values.emplace_back(&get_xlo_values);
     }
     return table;
@@ -389,7 +389,7 @@ MultiTable ecc_generator_table<G1>::get_xhi_table(const MultiTableId id, const B
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(512);
-        table.lookup_ids.emplace_back(basic_id);
+        table.basic_table_ids.emplace_back(basic_id);
         table.get_table_values.emplace_back(&get_xhi_values);
     }
     return table;
@@ -404,7 +404,7 @@ MultiTable ecc_generator_table<G1>::get_xlo_endo_table(const MultiTableId id, co
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(512);
-        table.lookup_ids.emplace_back(basic_id);
+        table.basic_table_ids.emplace_back(basic_id);
         table.get_table_values.emplace_back(&get_xlo_endo_values);
     }
     return table;
@@ -419,7 +419,7 @@ MultiTable ecc_generator_table<G1>::get_xhi_endo_table(const MultiTableId id, co
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(512);
-        table.lookup_ids.emplace_back(basic_id);
+        table.basic_table_ids.emplace_back(basic_id);
         table.get_table_values.emplace_back(&get_xhi_endo_values);
     }
     return table;
@@ -434,7 +434,7 @@ MultiTable ecc_generator_table<G1>::get_ylo_table(const MultiTableId id, const B
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(512);
-        table.lookup_ids.emplace_back(basic_id);
+        table.basic_table_ids.emplace_back(basic_id);
         table.get_table_values.emplace_back(&get_ylo_values);
     }
     return table;
@@ -449,7 +449,7 @@ MultiTable ecc_generator_table<G1>::get_yhi_table(const MultiTableId id, const B
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(512);
-        table.lookup_ids.emplace_back(basic_id);
+        table.basic_table_ids.emplace_back(basic_id);
         table.get_table_values.emplace_back(&get_yhi_values);
     }
     return table;
@@ -464,7 +464,7 @@ MultiTable ecc_generator_table<G1>::get_xyprime_table(const MultiTableId id, con
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(512);
-        table.lookup_ids.emplace_back(basic_id);
+        table.basic_table_ids.emplace_back(basic_id);
         table.get_table_values.emplace_back(&get_xyprime_values);
     }
     return table;
@@ -479,7 +479,7 @@ MultiTable ecc_generator_table<G1>::get_xyprime_endo_table(const MultiTableId id
     table.id = id;
     for (size_t i = 0; i < num_entries; ++i) {
         table.slice_sizes.emplace_back(512);
-        table.lookup_ids.emplace_back(basic_id);
+        table.basic_table_ids.emplace_back(basic_id);
         table.get_table_values.emplace_back(&get_xyprime_endo_values);
     }
     return table;
