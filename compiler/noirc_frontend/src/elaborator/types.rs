@@ -135,7 +135,7 @@ impl<'context> Elaborator<'context> {
 
         // Check that any types with a type kind match the expected type kind supplied to this function
         if let Type::NamedGeneric(_, name, resolved_kind) = &resolved_type {
-            if matches!(resolved_kind, Kind::Numeric) && matches!(kind, Kind::Normal) {
+            if *resolved_kind != kind {
                 let expected_typ_err =
                     CompilationError::ResolverError(ResolverError::NumericGenericUsedForType {
                         name: name.to_string(),

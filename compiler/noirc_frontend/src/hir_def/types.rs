@@ -191,7 +191,7 @@ impl Type {
 /// certain positions.
 ///
 /// For example, the type of a struct field or a function parameter is expected to be
-/// a type of kind * (reprsented here as `Normal`). Types used in positions where a number
+/// a type of kind * (represented here as `Normal`). Types used in positions where a number
 /// is expected (such as in an array length position) are expected to be of kind `Kind::Numeric`.
 #[derive(PartialEq, Eq, Clone, Copy, Hash, Debug)]
 pub enum Kind {
