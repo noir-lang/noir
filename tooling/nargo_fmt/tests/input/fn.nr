@@ -45,8 +45,8 @@ fn main(
 
 pub fn from_baz(x: [Field; crate::foo::MAGIC_NUMBER]) {}
 
-fn id<T,    let I: Field>(x: [Field; I]) -> [Field; I] {}
+fn id < T ,    let  I :  Field > ( x :  [ Field ;  I ] )  -> [Field; I ]  {  }
 
 fn id_two<T, 
-let I: Field>(x: [Field; I]) -> [Field; I] {}
+let   I :    Field >(x: [Field ;  I])  ->   [ Field; I] {}
 
