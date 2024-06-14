@@ -133,7 +133,6 @@ struct MimcHasher {
 
 impl Hasher for MimcHasher {
     #[field(bn254)]
-    #[no_predicates]
     fn finish(self) -> Field {
         let exponent = 7;
         let mut r = 0;

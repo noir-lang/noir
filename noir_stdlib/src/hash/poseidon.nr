@@ -177,7 +177,6 @@ struct PoseidonHasher{
 
 impl Hasher for PoseidonHasher {
     #[field(bn254)]
-    #[no_predicates]
     fn finish(self) -> Field {
         let mut result = 0;
         let len = self._state.len();
