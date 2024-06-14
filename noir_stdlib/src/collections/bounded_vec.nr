@@ -122,7 +122,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         ret
     }
 
-    pub fn map<Env>(self, f: fn[Env](T) -> T) -> Self {
+    pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> BoundedVec<U, MaxLen> {
         let mut ret = BoundedVec::new();
         ret.len = self.len();
         for i in 0..MaxLen {
@@ -211,9 +211,20 @@ mod bounded_vec_tests {
 
         #[test]
         fn applies_function_correctly() {
+            // docs:start:bounded-vec-map-example
             let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
-            let result = vec.map(|value| if value > 2 { value * 2 } else { value });
-            let expected = BoundedVec::from_array([1, 2, 6, 8]);
+            let result = vec.map(|value| value * 2);
+            // docs:end:bounded-vec-map-example
+            let expected = BoundedVec::from_array([2, 4, 6, 8]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn applies_function_that_changes_return_type() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = vec.map(|value| (value * 2)  as Field);
+            let expected: BoundedVec<Field, 4> = BoundedVec::from_array([2, 4, 6, 8]);
 
             assert_eq(result, expected);
         }

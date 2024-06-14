@@ -249,16 +249,14 @@ let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from_array([1, 2, 3])
 ### map
 
 ```rust
-pub fn map<Env>(self, f: fn[Env](T) -> T) -> Self
+pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> BoundedVec<U, MaxLen>
 ```
 
 Creates a new vector of equal size by calling a closure on each element in this vector.  
 
 Example:
-```rust
-let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from_array([1, 2, 3])
-let doubled = bounded_vec.map(|x| x * 2);
-```
+
+#include_code bounded-vec-map-example noir_stdlib/src/collections/bounded_vec.nr rust
 
 ### any
 
