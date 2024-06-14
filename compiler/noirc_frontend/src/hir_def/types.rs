@@ -187,11 +187,12 @@ impl Type {
     }
 }
 
-/// Types need to be distinguished depending on the scenario in which they can be used.
+/// A Kind is the type of a Type. These are used since only certain kinds of types are allowed in
+/// certain positions.
 ///
 /// For example, the type of a struct field or a function parameter is expected to be
-/// a normal type. While the type we expect in an array expression (`[<some value>; <numeric type>]`)
-/// is expected to be a numeric type.  
+/// a type of kind * (reprsented here as `Normal`). Types used in positions where a number
+/// is expected (such as in an array length position) are expected to be of kind `Kind::Numeric`.
 #[derive(PartialEq, Eq, Clone, Copy, Hash, Debug)]
 pub enum TypeKind {
     Normal,
