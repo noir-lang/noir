@@ -56,9 +56,9 @@ fn verify_collapse_hints<T, N>(
             }
             last_index = Option::some(input_index);
         } else {
-            // We don't technically need to check past the length of the BoundedVec since those slots should not be
-            // accessible, but its fairly cheap to prevent dirty data from being stored there.
-            assert_eq(collapsed.get_unchecked(i), dep::std::unsafe::zeroed(), "Dirty collapsed vec");
+            // BoundedVec assumes that the unused parts of the storage are zeroed out (e.g. in the Eq impl), so we make
+            // sure that this property holds.
+            assert_eq(collapsed.get_unchecked(i), dep::std::unsafe::zeroed(), "Dirty collapsed vec storage");
         }
     }
     // We now know that:
