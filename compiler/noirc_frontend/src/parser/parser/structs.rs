@@ -28,7 +28,6 @@ pub(super) fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         .or(just(Semicolon).to(Vec::new()));
 
     attributes()
-        .or_not()
         .then_ignore(keyword(Struct))
         .then(ident())
         .then(function::generics())
