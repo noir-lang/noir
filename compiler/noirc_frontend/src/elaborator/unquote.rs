@@ -289,7 +289,7 @@ impl<'a> Elaborator<'a> {
         self.find_unquoted_exprs_in_expr(&mut lambda.body, unquoted_exprs);
     }
 
-    /// Elaborate & store the unquoted expression in the given vector, then
+    /// Elaborate and store the unquoted expression in the given vector, then
     /// replace it with an unquote expression with an UnquoteMarker expression to mark the position
     /// to replace it with later.
     fn replace_unquote(
