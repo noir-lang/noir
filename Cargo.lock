@@ -2486,7 +2486,6 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "noirc_printable_type",
- "proptest",
  "rand 0.8.5",
  "rayon",
  "serde",
@@ -2519,6 +2518,7 @@ dependencies = [
  "nargo_fmt",
  "nargo_toml",
  "noir_debugger",
+ "noir_fuzzer",
  "noir_lsp",
  "noirc_abi",
  "noirc_driver",
@@ -2660,6 +2660,17 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror",
+]
+
+[[package]]
+name = "noir_fuzzer"
+version = "0.30.0"
+dependencies = [
+ "acvm",
+ "nargo",
+ "noirc_abi",
+ "proptest",
+ "rand 0.8.5",
 ]
 
 [[package]]

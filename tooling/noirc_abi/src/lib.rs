@@ -496,9 +496,46 @@ pub fn display_abi_error<F: AcirField>(
 
 #[cfg(test)]
 mod test {
+    use std::collections::BTreeMap;
+
+    use iter_extended::{btree_map, vecmap};
     use proptest::prelude::*;
 
-    use crate::arbitrary::arb_abi_and_input_map;
+    use crate::{
+        arbitrary::{arb_abi_type, arb_value_from_abi_type, ensure_unique_strings},
+        input_parser::InputValue,
+        Abi, AbiParameter, AbiType, AbiVisibility, InputMap,
+    };
+
+    fn arb_abi_param_and_value() -> BoxedStrategy<(AbiParameter, InputValue)> {
+        arb_abi_type()
+            .prop_flat_map(|typ| {
+                let value = arb_value_from_abi_type(&typ);
+                let param = arb_abi_param(typ);
+                (param, value)
+            })
+            .boxed()
+    }
+
+    fn arb_abi_param(typ: AbiType) -> SBoxedStrategy<AbiParameter> {
+        (".+", any::<AbiVisibility>())
+            .prop_map(move |(name, visibility)| AbiParameter { name, typ: typ.clone(), visibility })
+            .sboxed()
+    }
+
+    prop_compose! {
+        pub(super) fn arb_abi_and_input_map()
+            (mut parameters_with_values in proptest::collection::vec(arb_abi_param_and_value(), 0..100), return_type: Option<AbiReturnType>)
+            -> (Abi, InputMap) {
+                // Require that all parameter names are unique.
+                ensure_unique_strings(parameters_with_values.iter_mut().map(|(param_name,_)| &mut param_name.name));
+
+                let parameters  = vecmap(&parameters_with_values, |(param, _)| param.clone());
+                let input_map = btree_map(parameters_with_values, |(param, value)| (param.name, value));
+
+                (Abi { parameters, return_type, error_types: BTreeMap::default() }, input_map)
+        }
+    }
 
     proptest! {
         #[test]

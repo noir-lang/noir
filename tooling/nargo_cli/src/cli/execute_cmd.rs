@@ -6,7 +6,6 @@ use clap::Args;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
-use nargo::ops::fuzz::FuzzedExecutor;
 use nargo::ops::DefaultForeignCallExecutor;
 use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -14,7 +13,6 @@ use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
 use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
-use proptest::test_runner::TestRunner;
 
 use super::compile_cmd::compile_workspace_full;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
@@ -113,13 +111,6 @@ pub(crate) fn execute_program(
     foreign_call_resolver_url: Option<&str>,
 ) -> Result<WitnessStack<FieldElement>, CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
-
-    let runner = TestRunner::default();
-    let fuzzer = FuzzedExecutor::new(compiled_program.clone().into(), runner);
-
-    let result = fuzzer.fuzz();
-
-    println!("{result:?}");
 
     let solved_witness_stack_err = nargo::ops::execute_program(
         &compiled_program.program,

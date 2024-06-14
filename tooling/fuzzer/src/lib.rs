@@ -6,16 +6,17 @@
 use std::cell::RefCell;
 
 use acvm::{blackbox_solver::StubbedBlackBoxSolver, FieldElement};
-use noirc_abi::{arbitrary::arb_input_map, InputMap};
+use noirc_abi::InputMap;
 use proptest::test_runner::{TestCaseError, TestError, TestRunner};
 
+mod strategies;
 mod types;
 
 use types::{CaseOutcome, CounterExampleOutcome, FuzzOutcome, FuzzTestResult};
 
-use crate::artifacts::program::ProgramArtifact;
+use nargo::artifacts::program::ProgramArtifact;
 
-use super::{execute_program, DefaultForeignCallExecutor};
+use nargo::ops::{execute_program, DefaultForeignCallExecutor};
 
 /// Wrapper around an [`Executor`] which provides fuzzing support using [`proptest`].
 ///
@@ -40,31 +41,32 @@ impl FuzzedExecutor {
         // Stores the result and calldata of the last failed call, if any.
         let counterexample: RefCell<InputMap> = RefCell::default();
 
-        let strategy = arb_input_map(&self.program.abi);
+        let strategy = strategies::arb_input_map(&self.program.abi);
 
-        let run_result: Result<_, TestError<_>> = self.runner.clone().run(&strategy, |input_map| {
-            println!("fuzzing with {input_map:?}");
+        let run_result: Result<(), TestError<_>> =
+            self.runner.clone().run(&strategy, |input_map| {
+                println!("fuzzing with {input_map:?}");
 
-            let fuzz_res = self.single_fuzz(input_map)?;
+                let fuzz_res = self.single_fuzz(input_map)?;
 
-            match fuzz_res {
-                FuzzOutcome::Case(_) => Ok(()),
-                FuzzOutcome::CounterExample(CounterExampleOutcome {
-                    exit_reason: status,
-                    counterexample: outcome,
-                    ..
-                }) => {
-                    println!("found counterexample, {outcome:?}");
-                    // We cannot use the calldata returned by the test runner in `TestError::Fail`,
-                    // since that input represents the last run case, which may not correspond with
-                    // our failure - when a fuzz case fails, proptest will try
-                    // to run at least one more case to find a minimal failure
-                    // case.
-                    *counterexample.borrow_mut() = outcome;
-                    Err(TestCaseError::fail(status))
+                match fuzz_res {
+                    FuzzOutcome::Case(_) => Ok(()),
+                    FuzzOutcome::CounterExample(CounterExampleOutcome {
+                        exit_reason: status,
+                        counterexample: outcome,
+                        ..
+                    }) => {
+                        println!("found counterexample, {outcome:?}");
+                        // We cannot use the calldata returned by the test runner in `TestError::Fail`,
+                        // since that input represents the last run case, which may not correspond with
+                        // our failure - when a fuzz case fails, proptest will try
+                        // to run at least one more case to find a minimal failure
+                        // case.
+                        *counterexample.borrow_mut() = outcome;
+                        Err(TestCaseError::fail(status))
+                    }
                 }
-            }
-        });
+            });
 
         let mut result =
             FuzzTestResult { success: run_result.is_ok(), reason: None, counterexample: None };
