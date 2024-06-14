@@ -28,7 +28,7 @@ pub(crate) struct FunctionContext {
 }
 
 impl FunctionContext {
-    /// Creates a new function context. It will compute the liveness of every variable.
+    /// Creates a new function context. It will allocate parameters for all blocks and compute the liveness of every variable.
     pub(crate) fn new(function: &Function) -> Self {
         let id = function.id();
 

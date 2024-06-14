@@ -460,7 +460,7 @@ impl fmt::Display for IntType {
 
 impl IntType {
     // XXX: Result<Option<Token, LexerErrorKind>
-    // Is not the best API. We could split this into two functions. One that checks if the the
+    // Is not the best API. We could split this into two functions. One that checks if the
     // word is a integer, which only returns an Option
     pub(crate) fn lookup_int_type(word: &str) -> Result<Option<Token>, LexerErrorKind> {
         // Check if the first string is a 'u' or 'i'

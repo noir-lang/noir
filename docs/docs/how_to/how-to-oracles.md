@@ -166,6 +166,10 @@ interface ForeignCallResult {
 }
 ```
 
+::: Multidimensional Arrays
+
+If the Oracle function is returning an array containing other arrays, such as `[['1','2],['3','4']]`, you need to provide the values in json as flattened values. In the previous example, it would be `['1', '2', '3', '4']`. In the noir program, the Oracle signature can use a nested type, the flattened values will be automatically converted to the nested type.
+
 :::
 
 ## Step 3 - Usage with Nargo
