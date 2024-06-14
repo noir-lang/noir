@@ -76,21 +76,15 @@ The
 illustrates all of the above primitives on various forms of the Baby Jubjub curve. A couple of more
 interesting examples in Noir would be:
 
-Public-key cryptography: Given an elliptic curve and a 'base point' on it, determine the public key
-from the private key. This is a matter of using scalar multiplication. In the case of Baby Jubjub,
-for example, this code would do:
+Public-key cryptography: Determine the public key from the private key. This is a matter of using scalar multiplication.
+In the case of Baby Jubjub, for example, this code would do:
 
 ```rust
-use dep::std::ec::tecurve::affine::{Curve, Point};
+use dep::std::eddsa::eddsa_to_pub;
 
-fn bjj_pub_key(priv_key: Field) -> Point
+fn bjj_pub_key(priv_key: Field) -> (Field, Field)
 {
-
- let bjj = Curve::new(168700, 168696, G::new(995203441582195749578291179787384436505546430278305826713579947235728471134,5472060717959818805561601436314318772137091100104008585924551046643952123905));
-
- let base_pt = Point::new(5299619240641551281634865583518297030282874472190772894086521144482721001553, 16950150798460657717958625567821834550301663161624707787222815936182638968203);
-
- bjj.mul(priv_key,base_pt)
+ let public = eddsa_to_pub(priv_key);
 }
 ```
 
