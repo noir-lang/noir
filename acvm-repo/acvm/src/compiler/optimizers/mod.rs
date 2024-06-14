@@ -7,13 +7,15 @@ use acir::{
 mod general;
 mod redundant_range;
 mod unused_memory;
+mod witness_rebinding;
 
 pub(crate) use general::GeneralOptimizer;
 pub(crate) use redundant_range::RangeOptimizer;
 use tracing::info;
 
+use witness_rebinding::WitnessRebindingOptimizer;
 // use self::constant_backpropagation::ConstantBackpropagationOptimizer;
-use self::unused_memory::UnusedMemoryOptimizer;
+use unused_memory::UnusedMemoryOptimizer;
 
 use super::{transform_assert_messages, AcirTransformationMap};
 
@@ -61,18 +63,17 @@ pub(super) fn optimize_internal<F: AcirField>(acir: Circuit<F>) -> (Circuit<F>, 
     let (acir, acir_opcode_positions) =
         memory_optimizer.remove_unused_memory_initializations(acir_opcode_positions);
 
-    // let (acir, acir_opcode_positions) =
-    // ConstantBackpropagationOptimizer::backpropagate_constants(acir, acir_opcode_positions);
+    let (acir, acir_opcode_positions) =
+        WitnessRebindingOptimizer::rebind_witnesses(acir, acir_opcode_positions);
 
     // Range optimization pass
     let range_optimizer = RangeOptimizer::new(acir);
     let (acir, acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
 
-    // let (acir, acir_opcode_positions) =
-    // ConstantBackpropagationOptimizer::backpropagate_constants(acir, acir_opcode_positions);
+    let (acir, acir_opcode_positions) =
+        WitnessRebindingOptimizer::rebind_witnesses(acir, acir_opcode_positions);
 
     info!("Number of opcodes after: {}", acir.opcodes.len());
-
     (acir, acir_opcode_positions)
 }
