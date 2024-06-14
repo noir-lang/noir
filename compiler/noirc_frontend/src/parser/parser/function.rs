@@ -87,12 +87,12 @@ pub(super) fn numeric_generic() -> impl NoirParser<UnresolvedGeneric> {
         .map(|(ident, typ)| UnresolvedGeneric::Numeric { ident, typ })
 }
 
-pub(super) fn generic_variable() -> impl NoirParser<UnresolvedGeneric> {
+pub(super) fn generic_type() -> impl NoirParser<UnresolvedGeneric> {
     ident().map(UnresolvedGeneric::Variable)
 }
 
 pub(super) fn generic() -> impl NoirParser<UnresolvedGeneric> {
-    generic_variable().or(numeric_generic())
+    generic_type().or(numeric_generic())
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list
