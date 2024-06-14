@@ -1229,7 +1229,6 @@ impl<'context> Elaborator<'context> {
             self.add_generics(&trait_impl.generics);
             trait_impl.resolved_generics = self.generics.clone();
 
-            // changes here
             let trait_generics =
                 vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()));
 
