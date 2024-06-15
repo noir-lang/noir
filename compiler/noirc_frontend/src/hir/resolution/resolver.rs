@@ -23,7 +23,7 @@ use crate::hir_def::expr::{
 use crate::hir_def::function::FunctionBody;
 use crate::hir_def::traits::{Trait, TraitConstraint};
 use crate::macros_api::SecondaryAttribute;
-use crate::token::{Attributes, FunctionAttribute};
+use crate::token::Attributes;
 use regex::Regex;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::rc::Rc;
@@ -1042,13 +1042,13 @@ impl<'a> Resolver<'a> {
             });
         }
 
-        if matches!(attributes.function, Some(FunctionAttribute::Test { .. }))
-            && !parameters.is_empty()
-        {
-            self.push_err(ResolverError::TestFunctionHasParameters {
-                span: func.name_ident().span(),
-            });
-        }
+        // if matches!(attributes.function, Some(FunctionAttribute::Test { .. }))
+        //     && !parameters.is_empty()
+        // {
+        //     self.push_err(ResolverError::TestFunctionHasParameters {
+        //         span: func.name_ident().span(),
+        //     });
+        // }
 
         let mut typ = Type::Function(parameter_types, return_type, Box::new(Type::Unit));
 
