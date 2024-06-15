@@ -18,12 +18,13 @@ use nargo::artifacts::program::ProgramArtifact;
 
 use nargo::ops::{execute_program, DefaultForeignCallExecutor};
 
-/// Wrapper around an [`Executor`] which provides fuzzing support using [`proptest`].
+/// An executor for Noir programs which which provides fuzzing support using [`proptest`].
 ///
 /// After instantiation, calling `fuzz` will proceed to hammer the program with
 /// inputs, until it finds a counterexample. The provided [`TestRunner`] contains all the
 /// configuration which can be overridden via [environment variables](proptest::test_runner::Config)
 pub struct FuzzedExecutor {
+    /// The program to be fuzzed
     program: ProgramArtifact,
 
     /// The fuzzer
@@ -54,7 +55,6 @@ impl FuzzedExecutor {
                     FuzzOutcome::CounterExample(CounterExampleOutcome {
                         exit_reason: status,
                         counterexample: outcome,
-                        ..
                     }) => {
                         println!("found counterexample, {outcome:?}");
                         // We cannot use the calldata returned by the test runner in `TestError::Fail`,

@@ -5,12 +5,12 @@ type CounterExample = InputMap;
 /// The outcome of a fuzz test
 #[derive(Debug)]
 pub struct FuzzTestResult {
-    /// Whether the test case was successful. This means that the transaction executed
-    /// properly, or that there was a revert and that the test was expected to fail
-    /// (prefixed with `testFail`)
+    /// Whether the test case was successful. This means that the program executed
+    /// properly, or that there was a constraint failure and that the test was expected to fail
+    /// (has the `should_fail` attribute)
     pub success: bool,
 
-    /// If there was a revert, this field will be populated. Note that the test can
+    /// If there was a constraint failure, this field will be populated. Note that the test can
     /// still be successful (i.e self.success == true) when it's expected to fail.
     pub reason: Option<String>,
 
