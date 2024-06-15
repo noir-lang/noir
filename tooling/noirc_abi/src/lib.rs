@@ -25,6 +25,7 @@ use std::{collections::BTreeMap, str};
 //
 // This ABI has nothing to do with ACVM or ACIR. Although they implicitly have a relationship
 
+#[cfg(test)]
 pub mod arbitrary;
 
 pub mod errors;
@@ -76,7 +77,8 @@ pub enum AbiType {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, arbitrary::Arbitrary)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(arbitrary::Arbitrary))]
 #[serde(rename_all = "lowercase")]
 /// Represents whether the parameter is public or known only to the prover.
 pub enum AbiVisibility {
@@ -87,7 +89,8 @@ pub enum AbiVisibility {
     DataBus,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, arbitrary::Arbitrary)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(arbitrary::Arbitrary))]
 #[serde(rename_all = "lowercase")]
 pub enum Sign {
     Unsigned,
@@ -143,13 +146,12 @@ impl From<&AbiType> for PrintableType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, arbitrary::Arbitrary)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 
 /// An argument or return value of the circuit's `main` function.
 pub struct AbiParameter {
     pub name: String,
     #[serde(rename = "type")]
-    #[proptest(strategy = "arbitrary::arb_abi_type()")]
     pub typ: AbiType,
     pub visibility: AbiVisibility,
 }
@@ -160,21 +162,18 @@ impl AbiParameter {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, arbitrary::Arbitrary)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 
 pub struct AbiReturnType {
-    #[proptest(strategy = "arbitrary::arb_abi_type()")]
     pub abi_type: AbiType,
     pub visibility: AbiVisibility,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, arbitrary::Arbitrary)]
-
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Abi {
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
     pub parameters: Vec<AbiParameter>,
     pub return_type: Option<AbiReturnType>,
-    #[proptest(strategy = "proptest::prelude::Just(BTreeMap::from([]))")]
     pub error_types: BTreeMap<ErrorSelector, AbiErrorType>,
 }
 
@@ -496,46 +495,10 @@ pub fn display_abi_error<F: AcirField>(
 
 #[cfg(test)]
 mod test {
-    use std::collections::BTreeMap;
 
-    use iter_extended::{btree_map, vecmap};
     use proptest::prelude::*;
 
-    use crate::{
-        arbitrary::{arb_abi_type, arb_value_from_abi_type, ensure_unique_strings},
-        input_parser::InputValue,
-        Abi, AbiParameter, AbiType, AbiVisibility, InputMap,
-    };
-
-    fn arb_abi_param_and_value() -> BoxedStrategy<(AbiParameter, InputValue)> {
-        arb_abi_type()
-            .prop_flat_map(|typ| {
-                let value = arb_value_from_abi_type(&typ);
-                let param = arb_abi_param(typ);
-                (param, value)
-            })
-            .boxed()
-    }
-
-    fn arb_abi_param(typ: AbiType) -> SBoxedStrategy<AbiParameter> {
-        (".+", any::<AbiVisibility>())
-            .prop_map(move |(name, visibility)| AbiParameter { name, typ: typ.clone(), visibility })
-            .sboxed()
-    }
-
-    prop_compose! {
-        pub(super) fn arb_abi_and_input_map()
-            (mut parameters_with_values in proptest::collection::vec(arb_abi_param_and_value(), 0..100), return_type: Option<AbiReturnType>)
-            -> (Abi, InputMap) {
-                // Require that all parameter names are unique.
-                ensure_unique_strings(parameters_with_values.iter_mut().map(|(param_name,_)| &mut param_name.name));
-
-                let parameters  = vecmap(&parameters_with_values, |(param, _)| param.clone());
-                let input_map = btree_map(parameters_with_values, |(param, value)| (param.name, value));
-
-                (Abi { parameters, return_type, error_types: BTreeMap::default() }, input_map)
-        }
-    }
+    use crate::arbitrary::arb_abi_and_input_map;
 
     proptest! {
         #[test]
