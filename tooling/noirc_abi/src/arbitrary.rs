@@ -13,7 +13,7 @@ use std::collections::{BTreeMap, HashSet};
 pub(super) use proptest_derive::Arbitrary;
 
 /// Mutates an iterator of mutable references to [`String`]s to ensure that all values are unique.
-pub(super) fn ensure_unique_strings<'a>(iter: impl Iterator<Item = &'a mut String>) {
+fn ensure_unique_strings<'a>(iter: impl Iterator<Item = &'a mut String>) {
     let mut seen_values: HashSet<String> = HashSet::default();
     for value in iter {
         while seen_values.contains(value.as_str()) {
