@@ -1,8 +1,8 @@
+use iter_extended::{btree_map, vecmap};
 use prop::collection::vec;
 use proptest::prelude::*;
 
 use acvm::{AcirField, FieldElement};
-use iter_extended::{btree_map, vecmap};
 
 use crate::{
     input_parser::InputValue, Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, InputMap,
@@ -24,61 +24,11 @@ fn ensure_unique_strings<'a>(iter: impl Iterator<Item = &'a mut String>) {
 }
 
 proptest::prop_compose! {
-    fn arb_field_from_integer(bit_size: u32)(value: u128)-> FieldElement {
+    pub(super) fn arb_field_from_integer(bit_size: u32)(value: u128)-> FieldElement {
         let width = (bit_size % 128).clamp(1, 127);
         let max_value = 2u128.pow(width) - 1;
-        let value = value % max_value;
-        FieldElement::from(value)
+        FieldElement::from(value.clamp(0, max_value))
     }
-}
-
-fn arb_primitive_abi_type() -> SBoxedStrategy<AbiType> {
-    const MAX_STRING_LEN: u32 = 1000;
-    proptest::prop_oneof![
-        Just(AbiType::Field),
-        Just(AbiType::Boolean),
-        any::<(Sign, u32)>().prop_map(|(sign, width)| {
-            let width = (width % 128).clamp(1, 127);
-            AbiType::Integer { sign, width }
-        }),
-        // restrict length of strings to avoid running out of memory
-        (1..MAX_STRING_LEN).prop_map(|length| AbiType::String { length }),
-    ]
-    .sboxed()
-}
-
-fn arb_abi_type() -> BoxedStrategy<AbiType> {
-    let leaf = arb_primitive_abi_type();
-
-    leaf.prop_recursive(
-        8,   // up to 8 levels deep
-        256, // Shoot for maximum size of 256 nodes
-        10,  // We put up to 10 items per collection
-        |inner| {
-            prop_oneof![
-                (1..10u32, inner.clone())
-                    .prop_map(|(length, typ)| { AbiType::Array { length, typ: Box::new(typ) } })
-                    .boxed(),
-                prop::collection::vec(inner.clone(), 1..10)
-                    .prop_map(|fields| { AbiType::Tuple { fields } })
-                    .boxed(),
-                (".*", prop::collection::vec((".+", inner), 1..10))
-                    .prop_map(|(path, mut fields)| {
-                        // Require that all field names are unique.
-                        ensure_unique_strings(fields.iter_mut().map(|(field_name, _)| field_name));
-                        AbiType::Struct { path, fields }
-                    })
-                    .boxed(),
-            ]
-        },
-    )
-    .boxed()
-}
-
-fn arb_abi_param(typ: AbiType) -> SBoxedStrategy<AbiParameter> {
-    (".+", any::<AbiVisibility>())
-        .prop_map(move |(name, visibility)| AbiParameter { name, typ: typ.clone(), visibility })
-        .sboxed()
 }
 
 fn arb_value_from_abi_type(abi_type: &AbiType) -> SBoxedStrategy<InputValue> {
@@ -130,6 +80,49 @@ fn arb_value_from_abi_type(abi_type: &AbiType) -> SBoxedStrategy<InputValue> {
     }
 }
 
+fn arb_primitive_abi_type() -> SBoxedStrategy<AbiType> {
+    const MAX_STRING_LEN: u32 = 1000;
+    proptest::prop_oneof![
+        Just(AbiType::Field),
+        Just(AbiType::Boolean),
+        any::<(Sign, u32)>().prop_map(|(sign, width)| {
+            let width = (width % 128).clamp(1, 127);
+            AbiType::Integer { sign, width }
+        }),
+        // restrict length of strings to avoid running out of memory
+        (1..MAX_STRING_LEN).prop_map(|length| AbiType::String { length }),
+    ]
+    .sboxed()
+}
+
+pub(super) fn arb_abi_type() -> BoxedStrategy<AbiType> {
+    let leaf = arb_primitive_abi_type();
+
+    leaf.prop_recursive(
+        8,   // up to 8 levels deep
+        256, // Shoot for maximum size of 256 nodes
+        10,  // We put up to 10 items per collection
+        |inner| {
+            prop_oneof![
+                (1..10u32, inner.clone())
+                    .prop_map(|(length, typ)| { AbiType::Array { length, typ: Box::new(typ) } })
+                    .boxed(),
+                prop::collection::vec(inner.clone(), 1..10)
+                    .prop_map(|fields| { AbiType::Tuple { fields } })
+                    .boxed(),
+                (".*", prop::collection::vec((".+", inner), 1..10))
+                    .prop_map(|(path, mut fields)| {
+                        // Require that all field names are unique.
+                        ensure_unique_strings(fields.iter_mut().map(|(field_name, _)| field_name));
+                        AbiType::Struct { path, fields }
+                    })
+                    .boxed(),
+            ]
+        },
+    )
+    .boxed()
+}
+
 fn arb_abi_param_and_value() -> BoxedStrategy<(AbiParameter, InputValue)> {
     arb_abi_type()
         .prop_flat_map(|typ| {
@@ -140,17 +133,15 @@ fn arb_abi_param_and_value() -> BoxedStrategy<(AbiParameter, InputValue)> {
         .boxed()
 }
 
-prop_compose! {
-    fn arb_abi_return_type()
-        (abi_type in arb_abi_type(), visibility: AbiVisibility)
-        -> AbiReturnType {
-            AbiReturnType { abi_type, visibility }
-    }
+fn arb_abi_param(typ: AbiType) -> SBoxedStrategy<AbiParameter> {
+    (".+", any::<AbiVisibility>())
+        .prop_map(move |(name, visibility)| AbiParameter { name, typ: typ.clone(), visibility })
+        .sboxed()
 }
 
 prop_compose! {
     pub(super) fn arb_abi_and_input_map()
-        (mut parameters_with_values in proptest::collection::vec(arb_abi_param_and_value(), 0..100), return_type in proptest::option::of(arb_abi_return_type()))
+        (mut parameters_with_values in proptest::collection::vec(arb_abi_param_and_value(), 0..100), return_type: Option<AbiReturnType>)
         -> (Abi, InputMap) {
             // Require that all parameter names are unique.
             ensure_unique_strings(parameters_with_values.iter_mut().map(|(param_name,_)| &mut param_name.name));

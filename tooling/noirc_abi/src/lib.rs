@@ -26,7 +26,7 @@ use std::{collections::BTreeMap, str};
 // This ABI has nothing to do with ACVM or ACIR. Although they implicitly have a relationship
 
 #[cfg(test)]
-pub mod arbitrary;
+mod arbitrary;
 
 pub mod errors;
 pub mod input_parser;
@@ -147,11 +147,12 @@ impl From<&AbiType> for PrintableType {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-
+#[cfg_attr(test, derive(arbitrary::Arbitrary))]
 /// An argument or return value of the circuit's `main` function.
 pub struct AbiParameter {
     pub name: String,
     #[serde(rename = "type")]
+    #[cfg_attr(test, proptest(strategy = "arbitrary::arb_abi_type()"))]
     pub typ: AbiType,
     pub visibility: AbiVisibility,
 }
@@ -163,17 +164,20 @@ impl AbiParameter {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-
+#[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub struct AbiReturnType {
+    #[cfg_attr(test, proptest(strategy = "arbitrary::arb_abi_type()"))]
     pub abi_type: AbiType,
     pub visibility: AbiVisibility,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub struct Abi {
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
     pub parameters: Vec<AbiParameter>,
     pub return_type: Option<AbiReturnType>,
+    #[cfg_attr(test, proptest(strategy = "proptest::prelude::Just(BTreeMap::from([]))"))]
     pub error_types: BTreeMap<ErrorSelector, AbiErrorType>,
 }
 
@@ -495,7 +499,6 @@ pub fn display_abi_error<F: AcirField>(
 
 #[cfg(test)]
 mod test {
-
     use proptest::prelude::*;
 
     use crate::arbitrary::arb_abi_and_input_map;
