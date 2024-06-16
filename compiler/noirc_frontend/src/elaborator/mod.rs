@@ -1195,7 +1195,7 @@ impl<'context> Elaborator<'context> {
         // when adding checks after each struct field is resolved.
         let struct_ids = structs.keys().copied().collect::<Vec<_>>();
 
-        // First resolve each struct's generics as fields with nested structs
+        // First resolve each struct's generics because fields with nested structs
         // may themselves also contain generics.
         // Without resolving all generics first we will not be able to distinguish
         // between normal and numeric generics.
