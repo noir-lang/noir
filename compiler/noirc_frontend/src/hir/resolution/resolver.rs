@@ -1042,14 +1042,6 @@ impl<'a> Resolver<'a> {
             });
         }
 
-        // if matches!(attributes.function, Some(FunctionAttribute::Test { .. }))
-        //     && !parameters.is_empty()
-        // {
-        //     self.push_err(ResolverError::TestFunctionHasParameters {
-        //         span: func.name_ident().span(),
-        //     });
-        // }
-
         let mut typ = Type::Function(parameter_types, return_type, Box::new(Type::Unit));
 
         if !generics.is_empty() {
