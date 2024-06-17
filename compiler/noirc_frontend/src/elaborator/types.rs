@@ -6,7 +6,7 @@ use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{
-        BinaryOpKind, Ident, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics,
+        BinaryOpKind, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTypeExpression,
     },
     hir::{
@@ -135,7 +135,9 @@ impl<'context> Elaborator<'context> {
 
         // Check that any types with a type kind match the expected type kind supplied to this function
         if let Type::NamedGeneric(_, name, resolved_kind) = &resolved_type {
-            if *resolved_kind != kind {
+            // TODO: make this check more general with `*resolved_kind != kind`
+            // implicit numeric generics kind of messes up the check
+            if matches!(resolved_kind, Kind::Numeric) && matches!(kind, Kind::Normal) {
                 let expected_typ_err =
                     CompilationError::ResolverError(ResolverError::NumericGenericUsedForType {
                         name: name.to_string(),
@@ -1424,15 +1426,14 @@ impl<'context> Elaborator<'context> {
         span: Span,
         typevar: TypeVariable,
     ) {
-        let ident = Ident::from(unresolved_generic);
-        let name = ident.0.contents;
+        let name = &unresolved_generic.ident().0.contents;
 
         // Check for name collisions of this generic
         let rc_name = Rc::new(name.clone());
 
         if let Some(generic) = self.find_generic(&rc_name) {
             self.push_err(ResolverError::DuplicateDefinition {
-                name,
+                name: name.clone(),
                 first_span: generic.span,
                 second_span: span,
             });

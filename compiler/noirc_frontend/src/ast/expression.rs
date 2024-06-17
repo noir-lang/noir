@@ -70,6 +70,12 @@ impl UnresolvedGeneric {
             UnresolvedGeneric::Numeric { .. } => Kind::Numeric,
         }
     }
+
+    pub(crate) fn ident(&self) -> &Ident {
+        match self {
+            UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } => ident,
+        }
+    }
 }
 
 impl Display for UnresolvedGeneric {

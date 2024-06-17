@@ -464,7 +464,7 @@ impl<'context> Elaborator<'context> {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
             let typevar = TypeVariable::unbound(id);
-            let ident = Ident::from(generic);
+            let ident = generic.ident();
             let span = ident.0.span();
 
             // Declare numeric generic if it is specified
@@ -705,10 +705,7 @@ impl<'context> Elaborator<'context> {
 
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
-            .filter_map(|generic| {
-                let generic = Ident::from(generic);
-                self.find_generic(&generic.0.contents)
-            })
+            .filter_map(|generic| self.find_generic(&generic.ident().0.contents))
             .map(|ResolvedGeneric { name, type_var, .. }| (name.clone(), type_var.clone()))
             .collect();
 
@@ -1245,6 +1242,7 @@ impl<'context> Elaborator<'context> {
                     }
                 }
             });
+
             self.pop_scope();
         }
 

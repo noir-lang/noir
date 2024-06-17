@@ -885,7 +885,7 @@ impl<'a> Resolver<'a> {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
             let typevar = TypeVariable::unbound(id);
-            let ident = Ident::from(generic);
+            let ident = generic.ident();
             let span = ident.0.span();
 
             // Check for name collisions of this generic
@@ -900,7 +900,7 @@ impl<'a> Resolver<'a> {
             };
             if let Some(generic) = self.find_generic(&name) {
                 self.errors.push(ResolverError::DuplicateDefinition {
-                    name: ident.0.contents,
+                    name: ident.0.contents.clone(),
                     first_span: generic.span,
                     second_span: span,
                 });
@@ -937,15 +937,14 @@ impl<'a> Resolver<'a> {
         span: Span,
         typevar: TypeVariable,
     ) {
-        let ident = Ident::from(unresolved_generic);
-        let name = ident.0.contents;
+        let name = &unresolved_generic.ident().0.contents;
 
         // Check for name collisions of this generic
         let rc_name = Rc::new(name.clone());
 
         if let Some(generic) = self.find_generic(&rc_name) {
             self.errors.push(ResolverError::DuplicateDefinition {
-                name,
+                name: name.clone(),
                 first_span: generic.span,
                 second_span: span,
             });
@@ -1101,10 +1100,7 @@ impl<'a> Resolver<'a> {
 
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
-            .filter_map(|generic| {
-                let generic = Ident::from(generic);
-                self.find_generic(&generic.0.contents)
-            })
+            .filter_map(|generic| self.find_generic(&generic.ident().0.contents))
             .map(|ResolvedGeneric { name, type_var, .. }| (name.clone(), type_var.clone()))
             .collect();
 
