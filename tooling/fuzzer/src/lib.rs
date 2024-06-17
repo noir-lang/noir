@@ -46,8 +46,6 @@ impl FuzzedExecutor {
 
         let run_result: Result<(), TestError<_>> =
             self.runner.clone().run(&strategy, |input_map| {
-                println!("fuzzing with {input_map:?}");
-
                 let fuzz_res = self.single_fuzz(input_map)?;
 
                 match fuzz_res {
@@ -56,12 +54,10 @@ impl FuzzedExecutor {
                         exit_reason: status,
                         counterexample: outcome,
                     }) => {
-                        println!("found counterexample, {outcome:?}");
-                        // We cannot use the calldata returned by the test runner in `TestError::Fail`,
+                        // We cannot use the input map returned by the test runner in `TestError::Fail`,
                         // since that input represents the last run case, which may not correspond with
-                        // our failure - when a fuzz case fails, proptest will try
-                        // to run at least one more case to find a minimal failure
-                        // case.
+                        // our failure - when a fuzz case fails, proptest will try to run at least one
+                        // more case to find a minimal failure case.
                         *counterexample.borrow_mut() = outcome;
                         Err(TestCaseError::fail(status))
                     }
