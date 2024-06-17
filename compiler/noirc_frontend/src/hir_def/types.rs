@@ -193,17 +193,18 @@ impl Type {
 /// For example, the type of a struct field or a function parameter is expected to be
 /// a type of kind * (represented here as `Normal`). Types used in positions where a number
 /// is expected (such as in an array length position) are expected to be of kind `Kind::Numeric`.
-#[derive(PartialEq, Eq, Clone, Copy, Hash, Debug)]
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum Kind {
     Normal,
-    Numeric,
+    Numeric { typ: Box<Type> },
 }
 
 impl std::fmt::Display for Kind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Kind::Normal => write!(f, "normal"),
-            Kind::Numeric => write!(f, "numeric"),
+            // TODO(numeric generics): Use the typ of the numeric in the kind
+            Kind::Numeric { .. } => write!(f, "numeric"),
         }
     }
 }
@@ -747,7 +748,7 @@ impl Type {
     pub fn find_numeric_type_vars(&self, found_names: &mut Vec<String>) {
         // Return whether the named generic has a TypeKind::Numeric and save its name
         let named_generic_is_numeric = |typ: &Type, found_names: &mut Vec<String>| {
-            if let Type::NamedGeneric(_, name, Kind::Numeric) = typ {
+            if let Type::NamedGeneric(_, name, Kind::Numeric { .. }) = typ {
                 found_names.push(name.to_string());
                 true
             } else {

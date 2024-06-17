@@ -328,11 +328,12 @@ impl<'context> Elaborator<'context> {
 
         // Introduce all numeric generics into scope
         for generic in &func_meta.all_generics {
-            if let Kind::Numeric = generic.kind {
+            if let Kind::Numeric { typ } = &generic.kind {
                 let definition = DefinitionKind::GenericType(generic.type_var.clone());
                 let ident = Ident::new(generic.name.to_string(), generic.span);
-                self.add_variable_decl_inner(ident, false, false, false, definition);
-                // self.interner.push_definition_type(hir_ident.id, typ);
+                let hir_ident =
+                    self.add_variable_decl_inner(ident, false, false, false, definition);
+                self.interner.push_definition_type(hir_ident.id, *typ.clone());
             }
         }
 
@@ -462,17 +463,13 @@ impl<'context> Elaborator<'context> {
             let span = ident.0.span();
 
             // Declare numeric generic if it is specified
-            self.try_add_numeric_generic(generic);
+            let kind = self.try_add_numeric_generic(generic);
 
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
 
-            let resolved_generic = ResolvedGeneric {
-                name: name.clone(),
-                type_var: typevar.clone(),
-                kind: generic.kind(),
-                span,
-            };
+            let resolved_generic =
+                ResolvedGeneric { name: name.clone(), type_var: typevar.clone(), kind, span };
 
             if let Some(generic) = self.find_generic(&name) {
                 self.push_err(ResolverError::DuplicateDefinition {
@@ -489,7 +486,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// If a numeric generic has been specified, add it to the current scope.
-    pub(super) fn try_add_numeric_generic(&mut self, generic: &UnresolvedGeneric) {
+    pub(super) fn try_add_numeric_generic(&mut self, generic: &UnresolvedGeneric) -> Kind {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let typ = self.resolve_type(typ.clone());
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
@@ -500,6 +497,9 @@ impl<'context> Elaborator<'context> {
                     });
                 self.errors.push((unsupported_typ_err, self.file));
             }
+            Kind::Numeric { typ: Box::new(typ) }
+        } else {
+            Kind::Normal
         }
     }
 
@@ -557,7 +557,7 @@ impl<'context> Elaborator<'context> {
         assert_eq!(resolved_generics.len(), bound.trait_generics.len());
         let trait_generics = vecmap(
             resolved_generics.clone().iter().zip(&bound.trait_generics),
-            |(resolved_generic, typ)| self.resolve_type_inner(typ.clone(), resolved_generic.kind),
+            |(resolved_generic, typ)| self.resolve_type_inner(typ.clone(), &resolved_generic.kind),
         );
 
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
@@ -649,7 +649,7 @@ impl<'context> Elaborator<'context> {
                 UnresolvedTypeData::TraitAsType(path, args) => {
                     self.desugar_impl_trait_arg(path, args, &mut generics, &mut trait_constraints)
                 }
-                _ => self.resolve_type_inner(typ, Kind::Normal),
+                _ => self.resolve_type_inner(typ, &Kind::Normal),
             };
 
             self.check_if_type_is_valid_for_program_input(
@@ -776,7 +776,8 @@ impl<'context> Elaborator<'context> {
                     // ```
                     continue;
                 }
-                *kind = Kind::Numeric;
+                // TODO: check if we need this
+                *kind = Kind::Numeric { typ: Box::new(Type::FieldElement) };
                 let ident = Ident::new(name.to_string(), *span);
                 let definition = DefinitionKind::GenericType(type_variable);
                 self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
@@ -1169,7 +1170,8 @@ impl<'context> Elaborator<'context> {
                 for generic in struct_def.generics.iter_mut() {
                     for found_generic in found_names.iter() {
                         if found_generic == generic.name.as_str() {
-                            generic.kind = Kind::Numeric;
+                            // TODO: might need the actual type here
+                            generic.kind = Kind::Numeric { typ: Box::new(Type::FieldElement) };
                             break;
                         }
                     }
@@ -1325,7 +1327,7 @@ impl<'context> Elaborator<'context> {
                     .iter()
                     .enumerate()
                     .map(|(i, generic)| {
-                        self.resolve_type_inner(generic.clone(), resolved_generics[i].kind)
+                        self.resolve_type_inner(generic.clone(), &resolved_generics[i].kind)
                     })
                     .collect()
             } else {

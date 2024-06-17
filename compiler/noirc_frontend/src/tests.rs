@@ -1481,7 +1481,6 @@ fn bool_numeric_generic() {
     }
     "#;
     let errors = get_program_errors_elaborator(src);
-    dbg!(errors.clone());
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
@@ -1518,8 +1517,7 @@ fn bool_generic_as_loop_bound() {
     }
     "#;
     let errors = get_program_errors_elaborator(src);
-    dbg!(errors.clone());
-    assert_eq!(errors.len(), 1);
+    assert_eq!(errors.len(), 2);
 
     assert!(matches!(
         errors[0].0,
