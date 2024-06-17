@@ -9,11 +9,8 @@ import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
  */
 export class DeferredNoteDao {
   constructor(
-    /**
-     * The incoming viewing public key the note was encrypted with.
-     * @dev Will never be ovpkM because there are no deferred notes for outgoing.
-     */
-    public ivpkM: PublicKey,
+    /** IvpkM or OvpkM (depending on if incoming or outgoing) the note was encrypted with. */
+    public publicKey: PublicKey,
     /** The note as emitted from the Noir contract. */
     public note: Note,
     /** The contract address this note is created in. */
@@ -32,7 +29,7 @@ export class DeferredNoteDao {
 
   toBuffer(): Buffer {
     return serializeToBuffer(
-      this.ivpkM,
+      this.publicKey,
       this.note,
       this.contractAddress,
       this.storageSlot,

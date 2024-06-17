@@ -4,9 +4,10 @@ import {
   type ExtendedNote,
   type FunctionCall,
   type GetUnencryptedLogsResponse,
+  type IncomingNotesFilter,
   type L2Block,
   type LogFilter,
-  type NoteFilter,
+  type OutgoingNotesFilter,
   type PXE,
   type PXEInfo,
   type SimulatedTx,
@@ -129,8 +130,11 @@ export abstract class BaseWallet implements Wallet {
   getTxReceipt(txHash: TxHash): Promise<TxReceipt> {
     return this.pxe.getTxReceipt(txHash);
   }
-  getNotes(filter: NoteFilter): Promise<ExtendedNote[]> {
-    return this.pxe.getNotes(filter);
+  getIncomingNotes(filter: IncomingNotesFilter): Promise<ExtendedNote[]> {
+    return this.pxe.getIncomingNotes(filter);
+  }
+  getOutgoingNotes(filter: OutgoingNotesFilter): Promise<ExtendedNote[]> {
+    return this.pxe.getOutgoingNotes(filter);
   }
   // TODO(#4956): Un-expose this
   getNoteNonces(note: ExtendedNote): Promise<Fr[]> {

@@ -1,4 +1,4 @@
-import { type NoteFilter } from '@aztec/circuit-types';
+import { type IncomingNotesFilter, type OutgoingNotesFilter } from '@aztec/circuit-types';
 import { type CompleteAddress, type Header, type PublicKey } from '@aztec/circuits.js';
 import { type ContractArtifact } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
@@ -47,11 +47,17 @@ export interface PxeDatabase extends ContractArtifactDatabase, ContractInstanceD
   popCapsule(): Promise<Fr[] | undefined>;
 
   /**
-   * Gets notes based on the provided filter.
+   * Gets incoming notes based on the provided filter.
    * @param filter - The filter to apply to the notes.
    * @returns The requested notes.
    */
-  getNotes(filter: NoteFilter): Promise<IncomingNoteDao[]>;
+  getIncomingNotes(filter: IncomingNotesFilter): Promise<IncomingNoteDao[]>;
+
+  /**
+   * Gets outgoing notes.
+   * @returns The outgoing notes.
+   */
+  getOutgoingNotes(filter: OutgoingNotesFilter): Promise<OutgoingNoteDao[]>;
 
   /**
    * Adds a note to DB.
@@ -170,5 +176,5 @@ export interface PxeDatabase extends ContractArtifactDatabase, ContractInstanceD
    * Returns the estimated size in bytes of this db.
    * @returns The estimated size in bytes of this db.
    */
-  estimateSize(): number;
+  estimateSize(): Promise<number>;
 }

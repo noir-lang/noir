@@ -179,7 +179,7 @@ describe('guides/dapp/testing', () => {
 
       it('checks private storage', async () => {
         // docs:start:private-storage
-        const notes = await pxe.getNotes({
+        const notes = await pxe.getIncomingNotes({
           owner: owner.getAddress(),
           contractAddress: token.address,
           storageSlot: ownerSlot,

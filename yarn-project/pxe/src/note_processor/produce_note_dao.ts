@@ -22,7 +22,7 @@ import { OutgoingNoteDao } from '../database/outgoing_note_dao.js';
  * @param dataStartIndexForTx - The next available leaf index for the note hash tree for this transaction.
  * @param excludedIndices - Indices that have been assigned a note in the same tx. Notes in a tx can have the same l1NotePayload, we need to find a different index for each replicate.
  * @param simulator - An instance of AcirSimulator.
- * @returns An object containing the incoming note, outgoing note, and deferred note.
+ * @returns An object containing the incoming, outgoing, and deferred notes.
  */
 export async function produceNoteDaos(
   simulator: AcirSimulator,
@@ -38,6 +38,7 @@ export async function produceNoteDaos(
   incomingNote: IncomingNoteDao | undefined;
   outgoingNote: OutgoingNoteDao | undefined;
   incomingDeferredNote: DeferredNoteDao | undefined;
+  outgoingDeferredNote: DeferredNoteDao | undefined;
 }> {
   if (!ivpkM && !ovpkM) {
     throw new Error('Both ivpkM and ovpkM are undefined. Cannot create note.');
@@ -45,21 +46,8 @@ export async function produceNoteDaos(
 
   let incomingNote: IncomingNoteDao | undefined;
   let outgoingNote: OutgoingNoteDao | undefined;
-
-  // Note that there are no deferred outgoing notes because we don't need the contract there for anything since we
-  // are not attempting to derive a nullifier.
   let incomingDeferredNote: DeferredNoteDao | undefined;
-
-  if (ovpkM) {
-    outgoingNote = new OutgoingNoteDao(
-      payload.note,
-      payload.contractAddress,
-      payload.storageSlot,
-      payload.noteTypeId,
-      txHash,
-      ovpkM,
-    );
-  }
+  let outgoingDeferredNote: DeferredNoteDao | undefined;
 
   try {
     if (ivpkM) {
@@ -69,6 +57,7 @@ export async function produceNoteDaos(
         txHash,
         payload,
         excludedIndices,
+        true, // For incoming we compute a nullifier (recipient of incoming is the party that nullifies).
       );
       const index = BigInt(dataStartIndexForTx + noteHashIndex);
       excludedIndices?.add(noteHashIndex);
@@ -107,10 +96,72 @@ export async function produceNoteDaos(
     }
   }
 
+  try {
+    if (ovpkM) {
+      if (incomingNote) {
+        // Incoming note is defined meaning that this PXE has both the incoming and outgoing keys. We can skip computing
+        // note hash and note index since we already have them in the incoming note.
+        outgoingNote = new OutgoingNoteDao(
+          payload.note,
+          payload.contractAddress,
+          payload.storageSlot,
+          payload.noteTypeId,
+          txHash,
+          incomingNote.nonce,
+          incomingNote.innerNoteHash,
+          incomingNote.index,
+          ovpkM,
+        );
+      } else {
+        const { noteHashIndex, nonce, innerNoteHash } = await findNoteIndexAndNullifier(
+          simulator,
+          newNoteHashes,
+          txHash,
+          payload,
+          excludedIndices,
+          false, // For outgoing we do not compute a nullifier.
+        );
+        const index = BigInt(dataStartIndexForTx + noteHashIndex);
+        excludedIndices?.add(noteHashIndex);
+        outgoingNote = new OutgoingNoteDao(
+          payload.note,
+          payload.contractAddress,
+          payload.storageSlot,
+          payload.noteTypeId,
+          txHash,
+          nonce,
+          innerNoteHash,
+          index,
+          ovpkM,
+        );
+      }
+    }
+  } catch (e) {
+    if (e instanceof ContractNotFoundError) {
+      log.warn(e.message);
+
+      if (ovpkM) {
+        outgoingDeferredNote = new DeferredNoteDao(
+          ovpkM,
+          payload.note,
+          payload.contractAddress,
+          payload.storageSlot,
+          payload.noteTypeId,
+          txHash,
+          newNoteHashes,
+          dataStartIndexForTx,
+        );
+      }
+    } else {
+      log.error(`Could not process note because of "${e}". Discarding note...`);
+    }
+  }
+
   return {
     incomingNote,
     outgoingNote,
     incomingDeferredNote,
+    outgoingDeferredNote,
   };
 }
 
@@ -124,6 +175,7 @@ export async function produceNoteDaos(
  * @param l1NotePayload - The note payload.
  * @param excludedIndices - Indices that have been assigned a note in the same tx. Notes in a tx can have the same
  * l1NotePayload. We need to find a different index for each replicate.
+ * @param computeNullifier - A flag indicating whether to compute the nullifier or just return 0.
  * @returns Nonce, index, inner hash and siloed nullifier for a given note.
  * @throws If cannot find the nonce for the note.
  */
@@ -133,6 +185,7 @@ async function findNoteIndexAndNullifier(
   txHash: TxHash,
   { contractAddress, storageSlot, noteTypeId, note }: L1NotePayload,
   excludedIndices: Set<number>,
+  computeNullifier: boolean,
 ) {
   let noteHashIndex = 0;
   let nonce: Fr | undefined;
@@ -157,7 +210,7 @@ async function findNoteIndexAndNullifier(
       expectedNonce,
       storageSlot,
       noteTypeId,
-      true,
+      computeNullifier,
       note,
     ));
 

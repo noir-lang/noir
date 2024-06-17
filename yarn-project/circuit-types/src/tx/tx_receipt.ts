@@ -122,9 +122,15 @@ interface DebugInfo {
    */
   l2ToL1Msgs: Fr[];
   /**
-   * Notes created in this tx which belong to accounts which are registered in the PXE which was used to submit the
-   * tx. You will not receive notes of accounts which are not registered in the PXE here even though they were
-   * created in this tx.
+   * Notes created in this tx which were successfully decoded with the incoming keys of accounts which are registered
+   * in the PXE which was used to submit the tx. You will not get notes of accounts which are not registered in
+   * the PXE here even though they were created in this tx.
    */
-  visibleNotes: ExtendedNote[];
+  visibleIncomingNotes: ExtendedNote[];
+  /**
+   * Notes created in this tx which were successfully decoded with the outgoing keys of accounts which are registered
+   * in the PXE which was used to submit the tx. You will not get notes of accounts which are not registered in
+   * the PXE here even though they were created in this tx.
+   */
+  visibleOutgoingNotes: ExtendedNote[];
 }

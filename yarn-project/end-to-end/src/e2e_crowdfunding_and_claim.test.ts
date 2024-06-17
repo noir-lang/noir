@@ -225,7 +225,7 @@ describe('e2e_crowdfunding_and_claim', () => {
         });
 
       // Get the notes emitted by the Crowdfunding contract and check that only 1 was emitted (the value note)
-      const notes = donateTxReceipt.debugInfo?.visibleNotes.filter(x =>
+      const notes = donateTxReceipt.debugInfo?.visibleIncomingNotes.filter(x =>
         x.contractAddress.equals(crowdfundingContract.address),
       );
       expect(notes!.length).toEqual(1);
@@ -291,7 +291,7 @@ describe('e2e_crowdfunding_and_claim', () => {
       });
 
     // Get the notes emitted by the Crowdfunding contract and check that only 1 was emitted (the value note)
-    const notes = donateTxReceipt.debugInfo?.visibleNotes.filter(x =>
+    const notes = donateTxReceipt.debugInfo?.visibleIncomingNotes.filter(x =>
       x.contractAddress.equals(crowdfundingContract.address),
     );
     expect(notes!.length).toEqual(1);
@@ -347,9 +347,9 @@ describe('e2e_crowdfunding_and_claim', () => {
     let note: any;
     {
       const receipt = await inclusionsProofsContract.methods.create_note(owner, 5n).send().wait({ debug: true });
-      const { visibleNotes } = receipt.debugInfo!;
-      expect(visibleNotes.length).toEqual(1);
-      note = await processExtendedNote(visibleNotes![0]);
+      const { visibleIncomingNotes } = receipt.debugInfo!;
+      expect(visibleIncomingNotes.length).toEqual(1);
+      note = await processExtendedNote(visibleIncomingNotes![0]);
     }
 
     // 3) Test the note was included

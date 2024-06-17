@@ -9,6 +9,7 @@ import { type KeyStore } from '@aztec/key-store';
 import { type DeferredNoteDao } from '../database/deferred_note_dao.js';
 import { type IncomingNoteDao } from '../database/incoming_note_dao.js';
 import { type PxeDatabase } from '../database/index.js';
+import { type OutgoingNoteDao } from '../database/outgoing_note_dao.js';
 import { NoteProcessor } from '../note_processor/index.js';
 
 /**
@@ -194,7 +195,7 @@ export class Synchronizer {
             eventName: 'note-processor-caught-up',
             account: noteProcessor.account.toString(),
             duration: noteProcessor.timer.ms(),
-            dbSize: this.db.estimateSize(),
+            dbSize: await this.db.estimateSize(),
             ...noteProcessor.stats,
           } satisfies NoteProcessorCaughtUpStats);
 
@@ -333,37 +334,50 @@ export class Synchronizer {
 
     // keep track of decoded notes
     const incomingNotes: IncomingNoteDao[] = [];
+    const outgoingNotes: OutgoingNoteDao[] = [];
+
     // now process each txHash
     for (const deferredNotes of txHashToDeferredNotes.values()) {
       // to be safe, try each note processor in case the deferred notes are for different accounts.
       for (const processor of this.noteProcessors) {
-        const notes = await processor.decodeDeferredNotes(deferredNotes);
-        incomingNotes.push(...notes);
+        const { incomingNotes: inNotes, outgoingNotes: outNotes } = await processor.decodeDeferredNotes(deferredNotes);
+        incomingNotes.push(...inNotes);
+        outgoingNotes.push(...outNotes);
       }
     }
 
     // now drop the deferred notes, and add the decoded notes
     await this.db.removeDeferredNotesByContract(contractAddress);
-    await this.db.addNotes(incomingNotes, []);
+    await this.db.addNotes(incomingNotes, outgoingNotes);
 
     incomingNotes.forEach(noteDao => {
       this.log.debug(
-        `Decoded deferred note for contract ${noteDao.contractAddress} at slot ${
+        `Decoded deferred incoming note for contract ${noteDao.contractAddress} at slot ${
           noteDao.storageSlot
         } with nullifier ${noteDao.siloedNullifier.toString()}`,
       );
     });
 
+    outgoingNotes.forEach(noteDao => {
+      this.log.debug(
+        `Decoded deferred outgoing note for contract ${noteDao.contractAddress} at slot ${noteDao.storageSlot}`,
+      );
+    });
+
+    await this.#removeNullifiedNotes(incomingNotes);
+  }
+
+  async #removeNullifiedNotes(notes: IncomingNoteDao[]) {
     // now group the decoded incoming notes by public key
-    const publicKeyToNotes: Map<PublicKey, IncomingNoteDao[]> = new Map();
-    for (const noteDao of incomingNotes) {
-      const notesForPublicKey = publicKeyToNotes.get(noteDao.ivpkM) ?? [];
+    const publicKeyToIncomingNotes: Map<PublicKey, IncomingNoteDao[]> = new Map();
+    for (const noteDao of notes) {
+      const notesForPublicKey = publicKeyToIncomingNotes.get(noteDao.ivpkM) ?? [];
       notesForPublicKey.push(noteDao);
-      publicKeyToNotes.set(noteDao.ivpkM, notesForPublicKey);
+      publicKeyToIncomingNotes.set(noteDao.ivpkM, notesForPublicKey);
     }
 
     // now for each group, look for the nullifiers in the nullifier tree
-    for (const [publicKey, notes] of publicKeyToNotes.entries()) {
+    for (const [publicKey, notes] of publicKeyToIncomingNotes.entries()) {
       const nullifiers = notes.map(n => n.siloedNullifier);
       const relevantNullifiers: Fr[] = [];
       for (const nullifier of nullifiers) {

@@ -291,7 +291,11 @@ export class AztecCheatCodes {
    * @returns The notes stored at the given slot
    */
   public async loadPrivate(owner: AztecAddress, contract: AztecAddress, slot: Fr | bigint): Promise<Note[]> {
-    const extendedNotes = await this.pxe.getNotes({ owner, contractAddress: contract, storageSlot: new Fr(slot) });
+    const extendedNotes = await this.pxe.getIncomingNotes({
+      owner,
+      contractAddress: contract,
+      storageSlot: new Fr(slot),
+    });
     return extendedNotes.map(extendedNote => extendedNote.note);
   }
 }

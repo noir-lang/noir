@@ -1,6 +1,7 @@
 import {
   type AccountWallet,
   AztecAddress,
+  type ExtendedNote,
   Fr,
   INITIAL_L2_BLOCK_NUM,
   type PXE,
@@ -52,7 +53,7 @@ describe('e2e_inclusion_proofs_contract', () => {
     describe('proves note existence and its nullifier non-existence and nullifier non-existence failure case', () => {
       // Owner of a note
       let noteCreationBlockNumber: number;
-      let noteHashes, visibleNotes: any;
+      let noteHashes, visibleIncomingNotes: ExtendedNote[];
       const value = 100n;
       let validNoteBlockNumber: any;
 
@@ -61,13 +62,13 @@ describe('e2e_inclusion_proofs_contract', () => {
         const receipt = await contract.methods.create_note(owner, value).send().wait({ debug: true });
 
         noteCreationBlockNumber = receipt.blockNumber!;
-        ({ noteHashes, visibleNotes } = receipt.debugInfo!);
+        ({ noteHashes, visibleIncomingNotes } = receipt.debugInfo!);
       });
 
       it('should return the correct values for creating a note', () => {
         expect(noteHashes.length).toBe(1);
-        expect(visibleNotes.length).toBe(1);
-        const [receivedValue, receivedOwner, _randomness] = visibleNotes[0].note.items;
+        expect(visibleIncomingNotes.length).toBe(1);
+        const [receivedValue, receivedOwner, _randomness] = visibleIncomingNotes[0].note.items;
         expect(receivedValue.toBigInt()).toBe(value);
         expect(receivedOwner).toEqual(owner.toField());
       });
@@ -144,7 +145,7 @@ describe('e2e_inclusion_proofs_contract', () => {
       });
     });
 
-    it('proves note validity (note commitment inclusion and nullifier non-inclusion)', async () => {
+    it('proves note validity (note hash inclusion and nullifier non-inclusion)', async () => {
       // Owner of a note
       const owner = wallets[0].getAddress();
       let noteCreationBlockNumber: number;
@@ -154,11 +155,11 @@ describe('e2e_inclusion_proofs_contract', () => {
         const receipt = await contract.methods.create_note(owner, value).send().wait({ debug: true });
 
         noteCreationBlockNumber = receipt.blockNumber!;
-        const { noteHashes, visibleNotes } = receipt.debugInfo!;
+        const { noteHashes, visibleIncomingNotes } = receipt.debugInfo!;
 
         expect(noteHashes.length).toBe(1);
-        expect(visibleNotes.length).toBe(1);
-        const [receivedValue, receivedOwner, _randomness] = visibleNotes[0].note.items;
+        expect(visibleIncomingNotes.length).toBe(1);
+        const [receivedValue, receivedOwner, _randomness] = visibleIncomingNotes[0].note.items;
         expect(receivedValue.toBigInt()).toBe(value);
         expect(receivedOwner).toEqual(owner.toField());
       }

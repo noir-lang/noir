@@ -1,21 +1,13 @@
 import { type AztecAddress, type Fr } from '@aztec/circuits.js';
 
 import { type TxHash } from '../tx/tx_hash.js';
+import { type NoteStatus } from './note_status.js';
 
 /**
- * The status of notes to retrieve.
+ * A filter used to fetch incoming notes.
+ * @remarks This filter is applied as an intersection of all its params.
  */
-export enum NoteStatus {
-  ACTIVE = 1,
-  ACTIVE_OR_NULLIFIED = 2,
-  // TODO 4217: add 'NULLIFIED'
-}
-
-/**
- * A filter used to fetch Notes.
- * @remarks This filter is applied as an intersection of all it's params.
- */
-export type NoteFilter = {
+export type IncomingNotesFilter = {
   /** Hash of a transaction from which to fetch the notes. */
   txHash?: TxHash;
   /** The contract address the note belongs to. */
@@ -29,15 +21,3 @@ export type NoteFilter = {
   /** The siloed nullifier for the note. */
   siloedNullifier?: Fr;
 };
-
-/**
- * The comparator to use to compare.
- */
-export enum Comparator {
-  EQ = 1,
-  NEQ = 2,
-  LT = 3,
-  LTE = 4,
-  GT = 5,
-  GTE = 6,
-}

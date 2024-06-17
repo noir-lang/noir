@@ -78,7 +78,7 @@ export class SimulatorOracle implements DBOracle {
   }
 
   async getNotes(contractAddress: AztecAddress, storageSlot: Fr, status: NoteStatus) {
-    const noteDaos = await this.db.getNotes({
+    const noteDaos = await this.db.getIncomingNotes({
       contractAddress,
       storageSlot,
       status,

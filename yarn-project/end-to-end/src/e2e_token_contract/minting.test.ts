@@ -89,9 +89,9 @@ describe('e2e_token_contract minting', () => {
         // docs:end:debug
         tokenSim.redeemShield(accounts[0].address, amount);
         // 1 note should be created containing `amount` of tokens
-        const { visibleNotes } = receiptClaim.debugInfo!;
-        expect(visibleNotes.length).toBe(1);
-        expect(visibleNotes[0].note.items[0].toBigInt()).toBe(amount);
+        const { visibleIncomingNotes } = receiptClaim.debugInfo!;
+        expect(visibleIncomingNotes.length).toBe(1);
+        expect(visibleIncomingNotes[0].note.items[0].toBigInt()).toBe(amount);
       });
     });
 

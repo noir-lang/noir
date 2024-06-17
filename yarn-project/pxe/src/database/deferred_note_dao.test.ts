@@ -5,7 +5,7 @@ import { randomInt } from '@aztec/foundation/crypto';
 import { DeferredNoteDao } from './deferred_note_dao.js';
 
 export const randomDeferredNoteDao = ({
-  ivpkM = Point.random(),
+  publicKey = Point.random(),
   note = Note.random(),
   contractAddress = AztecAddress.random(),
   txHash = randomTxHash(),
@@ -15,7 +15,7 @@ export const randomDeferredNoteDao = ({
   dataStartIndexForTx = randomInt(100),
 }: Partial<DeferredNoteDao> = {}) => {
   return new DeferredNoteDao(
-    ivpkM,
+    publicKey,
     note,
     contractAddress,
     storageSlot,

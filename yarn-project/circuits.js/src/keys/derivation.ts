@@ -13,7 +13,7 @@ import { getKeyGenerator } from './utils.js';
 const curve = new Grumpkin();
 
 export function computeAppNullifierSecretKey(masterNullifierSecretKey: GrumpkinPrivateKey, app: AztecAddress): Fr {
-  return poseidon2Hash([masterNullifierSecretKey.high, masterNullifierSecretKey.low, app, GeneratorIndex.NSK_M]);
+  return computeAppSecretKey(masterNullifierSecretKey, app, 'n'); // 'n' is the key prefix for nullifier secret key
 }
 
 export function computeAppSecretKey(skM: GrumpkinPrivateKey, app: AztecAddress, keyPrefix: KeyPrefix): Fr {
@@ -40,12 +40,11 @@ export function computeIvskApp(ivsk: GrumpkinPrivateKey, address: AztecAddress) 
   return new Fq((I.toBigInt() + ivsk.toBigInt()) % Fq.MODULUS);
 }
 
-export function computeOvskApp(ovsk: GrumpkinPrivateKey, address: AztecAddress) {
+export function computeOvskApp(ovsk: GrumpkinPrivateKey, app: AztecAddress) {
+  const ovskAppFr = computeAppSecretKey(ovsk, app, 'ov'); // 'ov' is the key prefix for outgoing viewing key
   // Here we are intentionally converting Fr (output of poseidon) to Fq. This is fine even though a distribution of
   // P = s * G will not be uniform because 2 * (q - r) / q is small.
-  return GrumpkinPrivateKey.fromBuffer(
-    poseidon2Hash([address.toField(), ovsk.high, ovsk.low, GeneratorIndex.OVSK_M]).toBuffer(),
-  );
+  return GrumpkinPrivateKey.fromBuffer(ovskAppFr.toBuffer());
 }
 
 export function deriveMasterNullifierSecretKey(secretKey: Fr): GrumpkinScalar {

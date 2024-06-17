@@ -9,9 +9,22 @@ export const randomOutgoingNoteDao = ({
   txHash = randomTxHash(),
   storageSlot = Fr.random(),
   noteTypeId = Fr.random(),
+  nonce = Fr.random(),
+  innerNoteHash = Fr.random(),
+  index = Fr.random().toBigInt(),
   ovpkM = Point.random(),
 }: Partial<OutgoingNoteDao> = {}) => {
-  return new OutgoingNoteDao(note, contractAddress, storageSlot, noteTypeId, txHash, ovpkM);
+  return new OutgoingNoteDao(
+    note,
+    contractAddress,
+    storageSlot,
+    noteTypeId,
+    txHash,
+    nonce,
+    innerNoteHash,
+    index,
+    ovpkM,
+  );
 };
 
 describe('Outgoing Note DAO', () => {
