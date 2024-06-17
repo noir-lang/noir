@@ -53,6 +53,7 @@ import {
   Version,
   Xor,
 } from '../opcodes/index.js';
+import { MultiScalarMul } from '../opcodes/multi_scalar_mul.js';
 import { BufferCursor } from './buffer_cursor.js';
 import { Opcode } from './instruction_serialization.js';
 
@@ -143,6 +144,7 @@ const INSTRUCTION_SET = () =>
     [Poseidon2.opcode, Poseidon2],
     [Sha256.opcode, Sha256],
     [Pedersen.opcode, Pedersen],
+    [MultiScalarMul.opcode, MultiScalarMul],
     // Conversions
     [ToRadixLE.opcode, ToRadixLE],
   ]);

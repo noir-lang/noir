@@ -105,6 +105,7 @@ enum class OpCode : uint8_t {
     SHA256,
     PEDERSEN,
     ECADD,
+    MSM,
     // Conversions
     TORADIXLE,
     // Future Gadgets -- pending changes in noir

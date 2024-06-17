@@ -137,8 +137,20 @@ export class Point {
     return poseidon2Hash(this.toFields());
   }
 
+  /**
+   * Check if this is point at infinity.
+   * Check this is consistent with how bb is encoding the point at infinity
+   */
+  public get inf() {
+    return this.x == Fr.ZERO;
+  }
+  public toFieldsWithInf() {
+    return [this.x, this.y, new Fr(this.inf)];
+  }
+
   isOnGrumpkin() {
-    if (this.isZero()) {
+    // TODO: Check this against how bb handles curve check and infinity point check
+    if (this.inf) {
       return true;
     }
 

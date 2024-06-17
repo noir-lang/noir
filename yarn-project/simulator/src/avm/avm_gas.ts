@@ -123,6 +123,7 @@ const BaseGasCosts: Record<Opcode, Gas> = {
   [Opcode.SHA256]: DefaultBaseGasCost,
   [Opcode.PEDERSEN]: DefaultBaseGasCost,
   [Opcode.ECADD]: DefaultBaseGasCost,
+  [Opcode.MSM]: DefaultBaseGasCost,
   // Conversions
   [Opcode.TORADIXLE]: DefaultBaseGasCost,
 };
