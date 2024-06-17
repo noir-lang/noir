@@ -105,7 +105,7 @@ pub enum Type {
     Constant(u32),
 
     /// The type of quoted code in macros. This is always a comptime-only type
-    Code,
+    Expr,
 
     /// The result of some type error. Remembering type errors as their own type variant lets
     /// us avoid issuing repeat type errors for the same item. For example, a lambda with
@@ -147,7 +147,7 @@ impl Type {
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             | Type::Constant(_)
-            | Type::Code
+            | Type::Expr
             | Type::Slice(_)
             | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
         }
@@ -655,6 +655,10 @@ impl Type {
         matches!(self.follow_bindings(), Type::FieldElement)
     }
 
+    pub fn is_bool(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Bool)
+    }
+
     pub fn is_signed(&self) -> bool {
         matches!(self.follow_bindings(), Type::Integer(Signedness::Signed, _))
     }
@@ -697,7 +701,7 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _, _)
             | Type::Forall(_, _)
-            | Type::Code => false,
+            | Type::Expr => false,
 
             Type::TraitAsType(_, _, args) => {
                 args.iter().any(|generic| generic.contains_numeric_typevar(target_id))
@@ -761,7 +765,7 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _, _)
             | Type::Forall(_, _)
-            | Type::Code => {}
+            | Type::Expr => {}
 
             Type::TraitAsType(_, _, args) => {
                 for arg in args.iter() {
@@ -834,7 +838,7 @@ impl Type {
             | Type::Function(_, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
-            | Type::Code
+            | Type::Expr
             | Type::Slice(_)
             | Type::TraitAsType(..) => false,
 
@@ -883,7 +887,7 @@ impl Type {
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             // TODO: probably can allow code as it is all compile time
-            | Type::Code
+            | Type::Expr
             | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {
@@ -1046,7 +1050,7 @@ impl std::fmt::Display for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
             }
-            Type::Code => write!(f, "Code"),
+            Type::Expr => write!(f, "Expr"),
         }
     }
 }
@@ -1767,7 +1771,7 @@ impl Type {
             | Type::Bool
             | Type::Constant(_)
             | Type::Error
-            | Type::Code
+            | Type::Expr
             | Type::Unit => self.clone(),
         }
     }
@@ -1810,7 +1814,7 @@ impl Type {
             | Type::Bool
             | Type::Constant(_)
             | Type::Error
-            | Type::Code
+            | Type::Expr
             | Type::Unit => false,
         }
     }
@@ -1867,7 +1871,7 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Code | Error => self.clone(),
+            FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Expr | Error => self.clone(),
         }
     }
 
@@ -2002,7 +2006,7 @@ impl From<&Type> for PrintableType {
             Type::MutableReference(typ) => {
                 PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
             }
-            Type::Code => unreachable!(),
+            Type::Expr => unreachable!(),
         }
     }
 }
@@ -2087,7 +2091,7 @@ impl std::fmt::Debug for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element:?}")
             }
-            Type::Code => write!(f, "Code"),
+            Type::Expr => write!(f, "Expr"),
         }
     }
 }

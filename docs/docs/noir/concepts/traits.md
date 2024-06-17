@@ -372,13 +372,13 @@ impls for any trait we need on it.
 
 ```rust
 struct Wrapper {
-    foo: dep::some_library::Foo,
+    foo: some_library::Foo,
 }
 
 impl Default for Wrapper {
     fn default() -> Wrapper {
         Wrapper {
-            foo: dep::some_library::Foo::new(),
+            foo: some_library::Foo::new(),
         }
     }
 }

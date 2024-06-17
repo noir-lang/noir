@@ -20,7 +20,6 @@ You can use strings in `assert()` functions or print them with
 `println()`. See more about [Logging](../../standard_library/logging.md).
 
 ```rust
-use dep::std;
 
 fn main(message : pub str<11>, hex_as_string : str<4>) {
     println(message);

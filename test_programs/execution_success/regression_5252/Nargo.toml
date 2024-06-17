@@ -1,5 +1,5 @@
 [package]
-name = "bench_sha256"
+name = "regression_5252"
 version = "0.1.0"
 type = "bin"
 authors = [""]

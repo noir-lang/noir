@@ -82,7 +82,7 @@ impl<'context> Elaborator<'context> {
                 let fields = self.resolve_type_inner(*fields, kind);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
-            Code => Type::Code,
+            Expr => Type::Expr,
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,
@@ -1471,7 +1471,7 @@ impl<'context> Elaborator<'context> {
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _, _)
-            | Type::Code
+            | Type::Expr
             | Type::Forall(_, _) => (),
 
             Type::TraitAsType(_, _, args) => {
