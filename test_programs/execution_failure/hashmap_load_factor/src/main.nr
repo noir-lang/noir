@@ -1,6 +1,6 @@
-use dep::std::collections::map::HashMap;
-use dep::std::hash::BuildHasherDefault;
-use dep::std::hash::poseidon2::Poseidon2Hasher;
+use std::collections::map::HashMap;
+use std::hash::BuildHasherDefault;
+use std::hash::poseidon2::Poseidon2Hasher;
 
 struct Entry{
     key: Field,
