@@ -1238,6 +1238,7 @@ impl<'context> Elaborator<'context> {
                     for found_generic in found_names.iter() {
                         if found_generic == generic.name.as_str() {
                             generic.kind = Kind::Numeric;
+                            break;
                         }
                     }
                 }
