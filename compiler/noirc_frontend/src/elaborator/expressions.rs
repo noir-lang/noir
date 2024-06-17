@@ -749,7 +749,8 @@ impl<'context> Elaborator<'context> {
             return None;
         }
 
-        let result = interpreter.call_function(function, comptime_args, location);
+        let bindings = interpreter.interner.get_instantiation_bindings(func).clone();
+        let result = interpreter.call_function(function, comptime_args, location, bindings);
         let (expr_id, typ) = self.inline_comptime_value(result, location.span);
         Some((self.interner.expression(&expr_id), typ))
     }

@@ -8,6 +8,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::hir_def::expr::HirQuoted;
+use crate::monomorphization::{perform_instantiation_bindings, undo_instantiation_bindings};
 use crate::{
     hir_def::{
         expr::{
@@ -60,9 +61,31 @@ impl<'a> Interpreter<'a> {
         function: FuncId,
         arguments: Vec<(Value, Location)>,
         location: Location,
+        instantiation_bindings: TypeBindings,
     ) -> IResult<Value> {
-        let previous_state = self.enter_function();
+        let n = self.interner.function_name(&function);
+        eprintln!(
+            "{} bindings for {}: {:?}",
+            instantiation_bindings.len(),
+            n,
+            instantiation_bindings
+        );
 
+        perform_instantiation_bindings(&instantiation_bindings);
+        let mut result = self.call_non_generic_function(function, arguments, location);
+        undo_instantiation_bindings(instantiation_bindings);
+
+        let n = self.interner.function_name(&function);
+        eprintln!("Popping instantiation bindings for {}", n);
+        result
+    }
+
+    pub(crate) fn call_non_generic_function(
+        &mut self,
+        function: FuncId,
+        arguments: Vec<(Value, Location)>,
+        location: Location,
+    ) -> IResult<Value> {
         let meta = self.interner.function_meta(&function);
         if meta.parameters.len() != arguments.len() {
             return Err(InterpreterError::ArgumentCountMismatch {
@@ -77,6 +100,8 @@ impl<'a> Interpreter<'a> {
         }
 
         let parameters = meta.parameters.0.clone();
+        let previous_state = self.enter_function();
+
         for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
             self.define_pattern(parameter, typ, argument, arg_location)?;
         }
@@ -99,8 +124,12 @@ impl<'a> Interpreter<'a> {
             .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to");
 
         if let Some(builtin) = func_attrs.builtin() {
-            let item = format!("Evaluation for builtin functions like {builtin}");
-            Err(InterpreterError::Unimplemented { item, location })
+            if builtin == "array_len" {
+                self.call_array_len(arguments)
+            } else {
+                let item = format!("Evaluation for builtin functions like {builtin}");
+                Err(InterpreterError::Unimplemented { item, location })
+            }
         } else if let Some(foreign) = func_attrs.foreign() {
             let item = format!("Evaluation for foreign functions like {foreign}");
             Err(InterpreterError::Unimplemented { item, location })
@@ -255,8 +284,7 @@ impl<'a> Interpreter<'a> {
         argument: Value,
         location: Location,
     ) -> IResult<()> {
-        // Temporarily disabled since this fails on generic types
-        // self.type_check(typ, &argument, location)?;
+        self.type_check(typ, &argument, location)?;
         self.current_scope_mut().insert(id, argument);
         Ok(())
     }
@@ -314,7 +342,9 @@ impl<'a> Interpreter<'a> {
         let typ = typ.follow_bindings();
         let value_type = value.get_type();
 
+        eprintln!("Try_unify {:?} =? {:?}", typ, value_type);
         typ.try_unify(&value_type, &mut TypeBindings::new()).map_err(|_| {
+            panic!("Failed!");
             InterpreterError::TypeMismatch { expected: typ, value: value.clone(), location }
         })
     }
@@ -356,8 +386,9 @@ impl<'a> Interpreter<'a> {
 
         match &definition.kind {
             DefinitionKind::Function(function_id) => {
-                let typ = self.interner.id_type(id);
-                Ok(Value::Function(*function_id, typ))
+                let typ = self.expr_type(id);
+                let bindings = self.interner.get_instantiation_bindings(id).clone();
+                Ok(Value::Function(*function_id, typ, bindings))
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
@@ -379,7 +410,7 @@ impl<'a> Interpreter<'a> {
                 };
 
                 if let Some(value) = value {
-                    let typ = self.interner.id_type(id);
+                    let typ = self.expr_type(id);
                     self.evaluate_integer((value as u128).into(), false, id)
                 } else {
                     let location = self.interner.expr_location(&id);
@@ -414,7 +445,7 @@ impl<'a> Interpreter<'a> {
         is_negative: bool,
         id: ExprId,
     ) -> IResult<Value> {
-        let typ = self.interner.id_type(id).follow_bindings();
+        let typ = self.expr_type(id);
         let location = self.interner.expr_location(&id);
 
         if let Type::FieldElement = &typ {
@@ -528,7 +559,7 @@ impl<'a> Interpreter<'a> {
     }
 
     fn evaluate_array(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
-        let typ = self.interner.id_type(id);
+        let typ = self.expr_type(id);
 
         match array {
             HirArrayLiteral::Standard(elements) => {
@@ -922,7 +953,7 @@ impl<'a> Interpreter<'a> {
             })
             .collect::<Result<_, _>>()?;
 
-        let typ = self.interner.id_type(id);
+        let typ = self.expr_type(id);
         Ok(Value::Struct(fields, typ))
     }
 
@@ -951,7 +982,9 @@ impl<'a> Interpreter<'a> {
         let location = self.interner.expr_location(&id);
 
         match function {
-            Value::Function(function_id, _) => self.call_function(function_id, arguments, location),
+            Value::Function(function_id, _, bindings) => {
+                self.call_function(function_id, arguments, location, bindings)
+            }
             Value::Closure(closure, env, _) => self.call_closure(closure, env, arguments, location),
             value => Err(InterpreterError::NonFunctionCalled { value, location }),
         }
@@ -980,7 +1013,8 @@ impl<'a> Interpreter<'a> {
         };
 
         if let Some(method) = method {
-            self.call_function(method, arguments, location)
+            let bindings = self.interner.get_instantiation_bindings(id).clone();
+            self.call_function(method, arguments, location, bindings)
         } else {
             Err(InterpreterError::NoMethodFound { name: method_name.clone(), typ, location })
         }
@@ -1125,7 +1159,7 @@ impl<'a> Interpreter<'a> {
         let environment =
             try_vecmap(&lambda.captures, |capture| self.lookup_id(capture.ident.id, location))?;
 
-        let typ = self.interner.id_type(id);
+        let typ = self.expr_type(id);
         Ok(Value::Closure(lambda, environment, typ))
     }
 
@@ -1330,7 +1364,7 @@ impl<'a> Interpreter<'a> {
         self.evaluate_statement(statement)
     }
 
-    fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
+    fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> IResult<Value> {
         assert_eq!(arguments.len(), 2);
 
         let print_newline = arguments[0].0 == Value::Bool(true);
@@ -1341,5 +1375,26 @@ impl<'a> Interpreter<'a> {
         }
 
         Ok(Value::Unit)
+    }
+
+    fn call_array_len(&self, mut arguments: Vec<(Value, Location)>) -> IResult<Value> {
+        assert_eq!(arguments.len(), 1);
+        let argument = arguments.pop().expect("The assert above guarantees this case");
+
+        match argument {
+            (Value::Array(elements, _), _) => Ok(Value::U32(elements.len() as u32)),
+            (value, location) => {
+                // This isn't a valid type but lets us show `[_; _]` in the error message
+                // which is a clearer stand in for "any array" than `[Field; 1]` or some
+                // other arbitrary pair.
+                let element = Box::new(self.interner.next_type_variable());
+                let expected = Type::Array(element.clone(), element);
+                Err(InterpreterError::TypeMismatch { expected, value, location })
+            }
+        }
+    }
+
+    fn expr_type(&self, id: ExprId) -> Type {
+        self.interner.id_type(id).follow_bindings()
     }
 }

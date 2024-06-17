@@ -121,7 +121,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::TypeMismatch { expected, value, location } => {
                 let typ = value.get_type();
-                let msg = format!("Expected `{expected}` but a value of type `{typ}` was given");
+                let msg =
+                    format!("Expected `{expected:?}` but a value of type `{typ:?}` was given");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
             InterpreterError::NonComptimeVarReferenced { name, location } => {
