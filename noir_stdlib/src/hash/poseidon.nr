@@ -47,7 +47,6 @@ pub fn config<T, N, X>(
     PoseidonConfig { t, rf, rp, alpha, round_constants, mds, presparse_mds, sparse_mds }
 }
 
-#[no_predicates]
 pub fn permute<T, N, X>(pos_conf: PoseidonConfig<T, N, X>, mut state: [Field; T]) -> [Field; T] {
     let PoseidonConfig {t, rf, rp, alpha, round_constants, mds, presparse_mds, sparse_mds } = pos_conf;
 
