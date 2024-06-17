@@ -93,23 +93,23 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             r#"
 #[test]
+fn execution_success_legacy_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("execute").arg("--force").arg("--use-legacy");
+
+    cmd.assert().success();
+}}
+
+#[test]
 fn execution_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("execute").arg("--force");
-
-    cmd.assert().success();
-}}
-
-#[test]
-fn execution_success_elaborator_{test_name}() {{
-    let test_program_dir = PathBuf::from("{test_dir}");
-
-    let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("execute").arg("--force").arg("--use-elaborator");
 
     cmd.assert().success();
 }}
@@ -152,23 +152,23 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             r#"
 #[test]
+fn execution_failure_legacy_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("execute").arg("--force").arg("--use-legacy");
+
+    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
+}}
+
+#[test]
 fn execution_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("execute").arg("--force");
-
-    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
-}}
-
-#[test]
-fn execution_failure_elaborator_{test_name}() {{
-    let test_program_dir = PathBuf::from("{test_dir}");
-
-    let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("execute").arg("--force").arg("--use-elaborator");
 
     cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
 }}
@@ -200,23 +200,23 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             r#"
 #[test]
+fn noir_test_success_legacy_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("test").arg("--use-legacy");
+
+    cmd.assert().success();
+}}
+
+#[test]
 fn noir_test_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("test");
-
-    cmd.assert().success();
-}}
-
-#[test]
-fn noir_test_success_elaborator_{test_name}() {{
-    let test_program_dir = PathBuf::from("{test_dir}");
-
-    let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("test").arg("--use-elaborator");
 
     cmd.assert().success();
 }}
@@ -248,23 +248,23 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             r#"
 #[test]
+fn noir_test_failure_legacy_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("test").arg("--use-legacy");
+
+    cmd.assert().failure();
+}}
+
+#[test]
 fn noir_test_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("test");
-
-    cmd.assert().failure();
-}}
-
-#[test]
-fn noir_test_failure_elaborator_{test_name}() {{
-    let test_program_dir = PathBuf::from("{test_dir}");
-
-    let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("test").arg("--use-elaborator");
 
     cmd.assert().failure();
 }}
@@ -305,7 +305,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             test_file,
             r#"
 #[test]{comptime_ignored}{non_elaborator_ignored}
-fn compile_success_empty_{test_name}() {{
+fn compile_success_empty_legacy_{test_name}() {{
 
     let test_program_dir = PathBuf::from("{test_dir}");
     let mut cmd = Command::cargo_bin("nargo").unwrap();
@@ -313,6 +313,7 @@ fn compile_success_empty_{test_name}() {{
     cmd.arg("info");
     cmd.arg("--json");
     cmd.arg("--force");
+    cmd.arg("--use-legacy");
 
     let output = cmd.output().expect("Failed to execute command");
 
@@ -329,14 +330,13 @@ fn compile_success_empty_{test_name}() {{
 }}
 
 #[test]
-fn compile_success_empty_elaborator_{test_name}() {{
+fn compile_success_empty_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("info");
     cmd.arg("--json");
     cmd.arg("--force");
-    cmd.arg("--use-elaborator");
 
     let output = cmd.output().expect("Failed to execute command");
 
@@ -379,22 +379,22 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             test_file,
             r#"
 #[test]
+fn compile_success_contract_legacy_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("compile").arg("--force").arg("--use-legacy");
+
+    cmd.assert().success();
+}}
+#[test]
 fn compile_success_contract_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile").arg("--force");
-
-    cmd.assert().success();
-}}
-#[test]
-fn compile_success_contract_elaborator_{test_name}() {{
-    let test_program_dir = PathBuf::from("{test_dir}");
-
-    let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("compile").arg("--force").arg("--use-elaborator");
 
     cmd.assert().success();
 }}
@@ -426,22 +426,22 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
             test_file,
             r#"
 #[test]
+fn compile_failure_legacy_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("compile").arg("--force").arg("--use-legacy");
+
+    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
+}}
+#[test]
 fn compile_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile").arg("--force");
-
-    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
-}}
-#[test]
-fn compile_failure_elaborator_{test_name}() {{
-    let test_program_dir = PathBuf::from("{test_dir}");
-
-    let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("compile").arg("--force").arg("--use-elaborator");
 
     cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
 }}
