@@ -462,22 +462,7 @@ impl<'context> Elaborator<'context> {
             let span = ident.0.span();
 
             // Declare numeric generic if it is specified
-            // self.try_add_numeric_generic(generic);
-            let typ = if let UnresolvedGeneric::Numeric { ident, typ } = generic {
-                let typ = self.resolve_type(typ.clone());
-                if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
-                    let unsupported_typ_err = CompilationError::ResolverError(
-                        ResolverError::UnsupportedNumericGenericType {
-                            ident: ident.clone(),
-                            typ: typ.clone(),
-                        },
-                    );
-                    self.errors.push((unsupported_typ_err, self.file));
-                }
-                typ
-            } else {
-                Type::Error
-            };
+            self.try_add_numeric_generic(generic);
 
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
