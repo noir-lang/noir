@@ -1,5 +1,4 @@
 use dep::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
-// TODO(6052): get new side effect counter from this call
 #[oracle(callPublicFunction)]
 unconstrained fn call_public_function_oracle<RETURNS_COUNT>(
     _contract_address: AztecAddress,
