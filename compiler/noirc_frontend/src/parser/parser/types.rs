@@ -94,9 +94,8 @@ fn top_level_item_type() -> impl NoirParser<UnresolvedType> {
 
 /// This is the type `Type` - the type of a quoted noir type.
 fn quoted_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::TypeType).map_with_span(|_, span| {
-        UnresolvedTypeData::Quoted(QuotedType::Type).with_span(span)
-    })
+    keyword(Keyword::TypeType)
+        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Type).with_span(span))
 }
 
 pub(super) fn string_type() -> impl NoirParser<UnresolvedType> {
