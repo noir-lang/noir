@@ -87,7 +87,6 @@ fn msg_u8_to_u64(msg: [u8; 128]) -> [u64; 16] {
     msg64
 }
 // SHA-512 hash function
-#[no_predicates]
 pub fn digest<N>(msg: [u8; N]) -> [u8; 64] {
     let mut msg_block: [u8; 128] = [0; 128];
     // noir-fmt:ignore

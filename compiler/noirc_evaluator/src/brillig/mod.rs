@@ -1,8 +1,6 @@
 pub(crate) mod brillig_gen;
 pub(crate) mod brillig_ir;
 
-use acvm::FieldElement;
-
 use self::{
     brillig_gen::{brillig_fn::FunctionContext, convert_ssa_function},
     brillig_ir::artifact::{BrilligArtifact, Label},
@@ -18,7 +16,7 @@ use std::collections::{BTreeSet, HashMap};
 #[derive(Default)]
 pub struct Brillig {
     /// Maps SSA function labels to their brillig artifact
-    ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
+    ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact>,
 }
 
 impl Brillig {
@@ -29,10 +27,7 @@ impl Brillig {
     }
 
     /// Finds a brillig function artifact by its function label
-    pub(crate) fn find_by_function_label(
-        &self,
-        function_label: Label,
-    ) -> Option<&BrilligArtifact<FieldElement>> {
+    pub(crate) fn find_by_function_label(&self, function_label: Label) -> Option<&BrilligArtifact> {
         self.ssa_function_to_brillig.iter().find_map(|(function_id, obj)| {
             if FunctionContext::function_id_to_function_label(*function_id) == function_label {
                 Some(obj)
@@ -44,7 +39,7 @@ impl Brillig {
 }
 
 impl std::ops::Index<FunctionId> for Brillig {
-    type Output = BrilligArtifact<FieldElement>;
+    type Output = BrilligArtifact;
     fn index(&self, id: FunctionId) -> &Self::Output {
         &self.ssa_function_to_brillig[&id]
     }

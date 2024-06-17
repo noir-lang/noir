@@ -11,7 +11,6 @@ fold_distinct_return
 fold_fibonacci
 fold_numeric_generic_poseidon
 is_unconstrained
-macros
 modulus
 references
 regression_4709

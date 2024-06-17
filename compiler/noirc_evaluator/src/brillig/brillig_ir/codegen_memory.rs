@@ -1,14 +1,13 @@
-use acvm::{acir::brillig::MemoryAddress, AcirField};
+use acvm::acir::brillig::MemoryAddress;
 
 use crate::brillig::brillig_ir::BrilligBinaryOp;
 
 use super::{
     brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
-    debug_show::DebugToString,
     BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 
-impl<F: AcirField + DebugToString> BrilligContext<F> {
+impl BrilligContext {
     /// Allocates an array of size `size` and stores the pointer to the array
     /// in `pointer_register`
     pub(crate) fn codegen_allocate_fixed_length_array(

@@ -166,7 +166,6 @@
         "rfind",
         "rustc",
         "rustup",
-        "sboxed",
         "schnorr",
         "sdiv",
         "secp256k1",

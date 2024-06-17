@@ -33,7 +33,7 @@ pub enum HirExpression {
     If(HirIfExpression),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
-    Quote(HirQuoted),
+    Quote(crate::ast::BlockExpression),
     Unquote(crate::ast::BlockExpression),
     Comptime(HirBlockExpression),
     Error,
@@ -290,14 +290,4 @@ pub struct HirLambda {
     pub return_type: Type,
     pub body: ExprId,
     pub captures: Vec<HirCapturedVar>,
-}
-
-#[derive(Debug, Clone)]
-pub struct HirQuoted {
-    pub quoted_block: crate::ast::BlockExpression,
-
-    /// Each expression here corresponds to a `ExpressionKind::UnquoteMarker(index)` in `quoted_block`.
-    /// The values of these expressions after evaluation will be inlined into the position
-    /// indicated by their corresponding UnquoteMarker with that index.
-    pub unquoted_exprs: Vec<ExprId>,
 }

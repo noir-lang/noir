@@ -581,7 +581,6 @@ fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Sta
             ),
             span,
         }),
-        is_macro_call: false,
         arguments: vec![uint_expr(var_id.0 as u128, span), expr],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
@@ -600,7 +599,6 @@ fn build_drop_var_stmt(var_id: SourceVarId, span: Span) -> ast::Statement {
             ),
             span,
         }),
-        is_macro_call: false,
         arguments: vec![uint_expr(var_id.0 as u128, span)],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
@@ -628,7 +626,6 @@ fn build_assign_member_stmt(
             ),
             span,
         }),
-        is_macro_call: false,
         arguments: [
             vec![uint_expr(var_id.0 as u128, span)],
             vec![expr.clone()],
@@ -652,7 +649,6 @@ fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, span: Span) -> ast::Stat
             ),
             span,
         }),
-        is_macro_call: false,
         arguments: vec![uint_expr(fn_id.0 as u128, span)],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }

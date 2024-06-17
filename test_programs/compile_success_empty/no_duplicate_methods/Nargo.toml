@@ -1,6 +1,0 @@
-[package]
-name = "no_duplicate_methods"
-type = "bin"
-authors = [""]
-
-[dependencies]

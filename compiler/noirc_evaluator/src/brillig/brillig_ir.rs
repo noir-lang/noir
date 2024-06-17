@@ -25,13 +25,11 @@ mod instructions;
 
 pub(crate) use instructions::BrilligBinaryOp;
 
-use self::{
-    artifact::BrilligArtifact, debug_show::DebugToString, registers::BrilligRegistersContext,
-};
+use self::{artifact::BrilligArtifact, registers::BrilligRegistersContext};
 use crate::ssa::ir::dfg::CallStack;
 use acvm::{
     acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
-    AcirField,
+    FieldElement,
 };
 use debug_show::DebugShow;
 
@@ -78,8 +76,8 @@ impl ReservedRegisters {
 
 /// Brillig context object that is used while constructing the
 /// Brillig bytecode.
-pub(crate) struct BrilligContext<F> {
-    obj: BrilligArtifact<F>,
+pub(crate) struct BrilligContext {
+    obj: BrilligArtifact,
     /// Tracks register allocations
     registers: BrilligRegistersContext,
     /// Context label, must be unique with respect to the function
@@ -95,9 +93,9 @@ pub(crate) struct BrilligContext<F> {
     bigint_new_id: u32,
 }
 
-impl<F: AcirField + DebugToString> BrilligContext<F> {
+impl BrilligContext {
     /// Initial context state
-    pub(crate) fn new(enable_debug_trace: bool) -> BrilligContext<F> {
+    pub(crate) fn new(enable_debug_trace: bool) -> BrilligContext {
         BrilligContext {
             obj: BrilligArtifact::default(),
             registers: BrilligRegistersContext::new(),
@@ -115,12 +113,12 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         result
     }
     /// Adds a brillig instruction to the brillig byte code
-    fn push_opcode(&mut self, opcode: BrilligOpcode<F>) {
+    fn push_opcode(&mut self, opcode: BrilligOpcode<FieldElement>) {
         self.obj.push_opcode(opcode);
     }
 
     /// Returns the artifact
-    pub(crate) fn artifact(self) -> BrilligArtifact<F> {
+    pub(crate) fn artifact(self) -> BrilligArtifact {
         self.obj
     }
 
@@ -202,17 +200,17 @@ pub(crate) mod tests {
         }
     }
 
-    pub(crate) fn create_context() -> BrilligContext<FieldElement> {
+    pub(crate) fn create_context() -> BrilligContext {
         let mut context = BrilligContext::new(true);
         context.enter_context("test");
         context
     }
 
     pub(crate) fn create_entry_point_bytecode(
-        context: BrilligContext<FieldElement>,
+        context: BrilligContext,
         arguments: Vec<BrilligParameter>,
         returns: Vec<BrilligParameter>,
-    ) -> GeneratedBrillig<FieldElement> {
+    ) -> GeneratedBrillig {
         let artifact = context.artifact();
         let mut entry_point_artifact =
             BrilligContext::new_entry_point_artifact(arguments, returns, "test".to_string());

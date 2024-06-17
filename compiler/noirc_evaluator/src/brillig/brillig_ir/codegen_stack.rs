@@ -1,8 +1,8 @@
-use acvm::{acir::brillig::MemoryAddress, AcirField};
+use acvm::acir::brillig::MemoryAddress;
 
-use super::{debug_show::DebugToString, BrilligContext};
+use super::BrilligContext;
 
-impl<F: AcirField + DebugToString> BrilligContext<F> {
+impl BrilligContext {
     /// This function moves values from a set of registers to another set of registers.
     /// It first moves all sources to new allocated registers to avoid overwriting.
     pub(crate) fn codegen_mov_registers_to_registers(

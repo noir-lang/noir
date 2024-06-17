@@ -1,12 +1,13 @@
 use acvm::{
     acir::brillig::{BinaryFieldOp, BinaryIntOp, MemoryAddress, Opcode as BrilligOpcode},
     acir::AcirField,
+    FieldElement,
 };
 
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 
 /// Generates brillig bytecode which computes the inverse of its input if not null, and zero else.
-pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
+pub(crate) fn directive_invert() -> GeneratedBrillig {
     //  We generate the following code:
     // fn invert(x : Field) -> Field {
     //    1/ x
@@ -27,8 +28,8 @@ pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
             // Put value zero in register (2)
             BrilligOpcode::Const {
                 destination: zero_const,
-                value: F::from(0_usize),
-                bit_size: F::max_num_bits(),
+                value: FieldElement::from(0_usize),
+                bit_size: FieldElement::max_num_bits(),
             },
             BrilligOpcode::BinaryFieldOp {
                 op: BinaryFieldOp::Equals,
@@ -41,8 +42,8 @@ pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
             // Put value one in register (1)
             BrilligOpcode::Const {
                 destination: one_const,
-                value: F::one(),
-                bit_size: F::max_num_bits(),
+                value: FieldElement::from(1_usize),
+                bit_size: FieldElement::max_num_bits(),
             },
             // Divide 1 by the input, and set the result of the division into register (0)
             BrilligOpcode::BinaryFieldOp {
@@ -67,13 +68,13 @@ pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
 ///    (a/b, a-a/b*b)
 /// }
 /// ```
-pub(crate) fn directive_quotient<F: AcirField>(bit_size: u32) -> GeneratedBrillig<F> {
+pub(crate) fn directive_quotient(bit_size: u32) -> GeneratedBrillig {
     // `a` is (0) (i.e register index 0)
     // `b` is (1)
 
     // TODO: The only difference between these implementations is the integer version will truncate the input to the `bit_size` via cast.
     // Once we deduplicate brillig functions then we can modify this so that fields and integers share the same quotient function.
-    if bit_size >= F::max_num_bits() {
+    if bit_size >= FieldElement::max_num_bits() {
         // Field version
         GeneratedBrillig {
             byte_code: vec![

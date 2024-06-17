@@ -16,7 +16,7 @@ keywords:
 The string type is a fixed length value defined with `str<N>`.
 
 You can use strings in `assert()` functions or print them with
-`std::println()`. See more about [Logging](../../standard_library/logging.md).
+`std::println()`. See more about [Logging](../../standard_library/logging).
 
 ```rust
 use dep::std;

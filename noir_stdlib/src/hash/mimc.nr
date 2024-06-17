@@ -116,7 +116,6 @@ global MIMC_BN254_CONSTANTS: [Field; MIMC_BN254_ROUNDS] = [
 
 //mimc implementation with hardcoded parameters for BN254 curve.
 #[field(bn254)]
-#[no_predicates]
 pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
     let exponent = 7;
     let mut r = 0;
