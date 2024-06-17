@@ -2727,13 +2727,14 @@ template <typename Arithmetization> uint256_t UltraCircuitBuilder_<Arithmetizati
 
 /**
  * Export the existing circuit as msgpack compatible buffer.
+ * Should be called after `finalize_circuit()`
  *
  * @return msgpack compatible buffer
  */
 template <typename Arithmetization> msgpack::sbuffer UltraCircuitBuilder_<Arithmetization>::export_circuit()
 {
     using base = CircuitBuilderBase<FF>;
-    CircuitSchema<FF> cir;
+    CircuitSchemaInternal<FF> cir;
 
     uint64_t modulus[4] = {
         FF::Params::modulus_0, FF::Params::modulus_1, FF::Params::modulus_2, FF::Params::modulus_3
@@ -2770,17 +2771,10 @@ template <typename Arithmetization> msgpack::sbuffer UltraCircuitBuilder_<Arithm
         std::vector<std::vector<FF>> block_selectors;
         std::vector<std::vector<uint32_t>> block_wires;
         for (size_t idx = 0; idx < block.size(); ++idx) {
-            std::vector<FF> tmp_sel = { block.q_m()[idx],
-                                        block.q_1()[idx],
-                                        block.q_2()[idx],
-                                        block.q_3()[idx],
-                                        block.q_4()[idx],
-                                        block.q_c()[idx],
-                                        block.q_arith()[idx],
-                                        block.q_lookup_type()[idx],
-                                        block.q_elliptic()[idx],
-                                        block.q_aux()[idx],
-                                        curve_b };
+            std::vector<FF> tmp_sel = { block.q_m()[idx],     block.q_1()[idx],           block.q_2()[idx],
+                                        block.q_3()[idx],     block.q_4()[idx],           block.q_c()[idx],
+                                        block.q_arith()[idx], block.q_delta_range()[idx], block.q_elliptic()[idx],
+                                        block.q_aux()[idx],   block.q_lookup_type()[idx], curve_b };
 
             std::vector<uint32_t> tmp_w = {
                 this->real_variable_index[block.w_l()[idx]],
@@ -2819,6 +2813,12 @@ template <typename Arithmetization> msgpack::sbuffer UltraCircuitBuilder_<Arithm
             tmp_table.push_back({ table.column_1[i], table.column_2[i], table.column_3[i] });
         }
         cir.lookup_tables.push_back(tmp_table);
+    }
+
+    cir.real_variable_tags = this->real_variable_tags;
+
+    for (const auto& list : range_lists) {
+        cir.range_tags[list.second.range_tag] = list.first;
     }
 
     msgpack::sbuffer buffer;

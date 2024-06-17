@@ -15,6 +15,8 @@ StandardCircuit::StandardCircuit(
                   circuit_info.variables,
                   circuit_info.public_inps,
                   circuit_info.real_variable_index,
+                  circuit_info.real_variable_tags,
+                  circuit_info.range_tags,
                   solver,
                   type,
                   tag,
@@ -438,7 +440,7 @@ size_t StandardCircuit::handle_range_constraint(size_t cursor)
  * It compares the chunk of selectors of the current circuit
  * with pure shift left from uint/logic.cpp
  * After a match is found, it updates the cursor to skip all the
- * redundant constraints and adds a pure b = a.ror(n)
+ * redundant constraints and adds a pure b = a >> n
  * constraint to solver.
  * If there's no match, it will return -1
  *
@@ -547,7 +549,7 @@ size_t StandardCircuit::handle_shr_constraint(size_t cursor)
  * It compares the chunk of selectors of the current circuit
  * with pure shift left from uint/logic.cpp
  * After a match is found, it updates the cursor to skip all the
- * redundant constraints and adds a pure b = a.ror(n)
+ * redundant constraints and adds a pure b = a << n
  * constraint to solver.
  * If there's no match, it will return -1
  *

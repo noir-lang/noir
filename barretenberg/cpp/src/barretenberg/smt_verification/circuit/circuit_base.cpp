@@ -6,6 +6,8 @@ CircuitBase::CircuitBase(std::unordered_map<uint32_t, std::string>& variable_nam
                          std::vector<bb::fr>& variables,
                          std::vector<uint32_t>& public_inps,
                          std::vector<uint32_t>& real_variable_index,
+                         std::vector<uint32_t>& real_variable_tags,
+                         std::unordered_map<uint32_t, uint64_t>& range_tags,
                          Solver* solver,
                          TermType type,
                          const std::string& tag,
@@ -14,6 +16,8 @@ CircuitBase::CircuitBase(std::unordered_map<uint32_t, std::string>& variable_nam
     , public_inps(public_inps)
     , variable_names(variable_names)
     , real_variable_index(real_variable_index)
+    , real_variable_tags(real_variable_tags)
+    , range_tags(range_tags)
     , optimizations(optimizations)
     , solver(solver)
     , type(type)

@@ -371,6 +371,19 @@ STerm STerm::rotl(const uint32_t& n) const
     return { res, this->solver, this->type };
 }
 
+/**
+ * @brief Create an inclusion constraint
+ *
+ * @param entry entry to be checked
+ * @param table table that consists of elements, ranges mostly
+ */
+void STerm::in(const cvc5::Term& table) const
+{
+    Solver* slv = this->solver;
+    cvc5::Term inc = slv->term_manager.mkTerm(cvc5::Kind::SET_MEMBER, { this->term, table });
+    slv->assertFormula(inc);
+}
+
 STerm operator+(const bb::fr& lhs, const STerm& rhs)
 {
     return rhs + lhs;

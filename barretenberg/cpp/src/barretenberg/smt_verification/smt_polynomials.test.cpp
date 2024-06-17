@@ -8,7 +8,7 @@
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib_circuit_builders/standard_circuit_builder.hpp"
 
-#include "barretenberg/smt_verification/circuit/circuit.hpp"
+#include "barretenberg/smt_verification/circuit/standard_circuit.hpp"
 #include "barretenberg/smt_verification/util/smt_util.hpp"
 
 using namespace bb;
@@ -54,7 +54,7 @@ msgpack::sbuffer create_polynomial_evaluation_circuit(size_t n, bool pub_coeffs)
     return builder.export_circuit();
 }
 
-STerm direct_polynomial_evaluation(Circuit& c, size_t n)
+STerm direct_polynomial_evaluation(StandardCircuit& c, size_t n)
 {
     STerm point = c["point"];
     STerm result = c["result"];
@@ -65,7 +65,7 @@ STerm direct_polynomial_evaluation(Circuit& c, size_t n)
     return ev;
 }
 
-void model_variables(Circuit& c, Solver* s, STerm& evaluation)
+void model_variables(StandardCircuit& c, Solver* s, STerm& evaluation)
 {
     std::unordered_map<std::string, cvc5::Term> terms;
     terms.insert({ "point", c["point"] });
@@ -86,11 +86,11 @@ TEST(polynomial_evaluation, public)
 
     CircuitSchema circuit_info = unpack_from_buffer(buf);
     Solver s(circuit_info.modulus);
-    Circuit circuit(circuit_info, &s, TermType::FFTerm);
+    StandardCircuit circuit(circuit_info, &s, TermType::FFTerm);
     STerm ev = direct_polynomial_evaluation(circuit, n);
     ev != circuit["result"];
 
-    bool res = smt_timer(&s, false);
+    bool res = smt_timer(&s);
     ASSERT_FALSE(res);
 }
 
@@ -101,11 +101,11 @@ TEST(polynomial_evaluation, private)
 
     CircuitSchema circuit_info = unpack_from_buffer(buf);
     Solver s(circuit_info.modulus);
-    Circuit circuit(circuit_info, &s, TermType::FFTerm);
+    StandardCircuit circuit(circuit_info, &s, TermType::FFTerm);
     STerm ev = direct_polynomial_evaluation(circuit, n);
     ev != circuit["result"];
 
-    bool res = smt_timer(&s, false);
+    bool res = smt_timer(&s);
     ASSERT_FALSE(res);
     info("Gates: ", circuit.get_num_gates());
     info("Result: ", s.getResult());

@@ -105,7 +105,7 @@ std::unordered_map<std::string, std::string> Solver::model(std::vector<cvc5::Ter
  * @param term cvc5 term.
  * @return Parsed term.
  * */
-std::string stringify_term(const cvc5::Term& term, bool parenthesis)
+std::string Solver::stringify_term(const cvc5::Term& term, bool parenthesis)
 {
     if (term.getKind() == cvc5::Kind::CONSTANT) {
         return term.toString();
@@ -122,6 +122,20 @@ std::string stringify_term(const cvc5::Term& term, bool parenthesis)
     if (term.getKind() == cvc5::Kind::CONST_BOOLEAN) {
         std::vector<std::string> bool_res = { "false", "true" };
         return bool_res[static_cast<size_t>(term.getBooleanValue())];
+    }
+    // handling tuples
+    if (term.getKind() == cvc5::Kind::APPLY_CONSTRUCTOR) {
+        std::string res = "(";
+        for (const auto& t : term) {
+            res += stringify_term(t) + ", ";
+        }
+        return res + ")";
+    }
+    if (term.getKind() == cvc5::Kind::INTERNAL_KIND) {
+        return "set_" + std::to_string(this->tables[term]);
+    }
+    if (term.getKind() == cvc5::Kind::SET_INSERT || term.getKind() == cvc5::Kind::SET_EMPTY) {
+        return "";
     }
 
     std::string res;
@@ -184,11 +198,9 @@ std::string stringify_term(const cvc5::Term& term, bool parenthesis)
         op = " & ";
         break;
     case cvc5::Kind::BITVECTOR_SHL:
-        back = true;
         op = " << ";
         break;
     case cvc5::Kind::BITVECTOR_LSHR:
-        back = true;
         op = " >> ";
         break;
     case cvc5::Kind::BITVECTOR_ROTATE_LEFT:
@@ -209,8 +221,13 @@ std::string stringify_term(const cvc5::Term& term, bool parenthesis)
         op = " % ";
         parenthesis = true;
         break;
+    case cvc5::Kind::SET_MEMBER:
+        op = " in ";
+        parenthesis = true;
+        break;
     default:
         info("Invalid operand :", term.getKind());
+        info(term);
         break;
     }
 
@@ -239,33 +256,51 @@ std::string stringify_term(const cvc5::Term& term, bool parenthesis)
  * Output assertions in human readable format.
  *
  * */
-void Solver::print_assertions() const
+void Solver::print_assertions()
 {
     for (const auto& t : this->solver.getAssertions()) {
-        info(stringify_term(t));
+        info(this->stringify_term(t));
     }
 }
 
 cvc5::Term Solver::create_lookup_table(std::vector<std::vector<cvc5::Term>>& table)
 {
-    if (!lookup_enabled) {
-        this->solver.setLogic("ALL");
-        this->solver.setOption("finite-model-find", "true");
-        this->solver.setOption("sets-ext", "true");
-        lookup_enabled = true;
-    }
-
     cvc5::Term tmp = table[0][0];
     cvc5::Sort tuple_sort = this->term_manager.mkTupleSort({ tmp.getSort(), tmp.getSort(), tmp.getSort() });
     cvc5::Sort relation = this->term_manager.mkSetSort(tuple_sort);
     cvc5::Term resulting_table = this->term_manager.mkEmptySet(relation);
 
     std::vector<cvc5::Term> children;
+    children.reserve(table.size() + 1);
     for (auto& table_entry : table) {
         cvc5::Term entry = this->term_manager.mkTuple(table_entry);
         children.push_back(entry);
     }
     children.push_back(resulting_table);
-    return this->term_manager.mkTerm(cvc5::Kind::SET_INSERT, children);
+    cvc5::Term res = this->term_manager.mkTerm(cvc5::Kind::SET_INSERT, children);
+    size_t cursize = this->tables.size();
+    info("Creating table for op: ", children.size(), ", № ", cursize);
+    this->tables.insert({ res, cursize });
+    return res;
+}
+
+cvc5::Term Solver::create_table(std::vector<cvc5::Term>& table)
+{
+    cvc5::Term tmp = table[0];
+    cvc5::Sort relation = this->term_manager.mkSetSort(tmp.getSort());
+    cvc5::Term resulting_table = this->term_manager.mkEmptySet(relation);
+
+    std::vector<cvc5::Term> children;
+    children.reserve(table.size() + 1);
+    for (auto& table_entry : table) {
+        children.push_back(table_entry);
+    }
+    children.push_back(resulting_table);
+    cvc5::Term res = this->term_manager.mkTerm(cvc5::Kind::SET_INSERT, children);
+    size_t cursize = this->tables.size();
+    info("Creating table for range: ", children.size(), ", № ", cursize);
+
+    this->tables.insert({ res, cursize });
+    return res;
 }
 }; // namespace smt_solver

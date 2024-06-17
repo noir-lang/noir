@@ -34,9 +34,9 @@ TEST(SMT_Example, multiplication_true)
 
     auto buf = builder.export_circuit();
 
-    smt_circuit::CircuitSchema circuit_info = smt_circuit::unpack_from_buffer(buf);
+    smt_circuit::CircuitSchema circuit_info = smt_circuit_schema::unpack_from_buffer(buf);
     smt_solver::Solver s(circuit_info.modulus);
-    smt_circuit::Circuit circuit(circuit_info, &s, smt_terms::TermType::FFTerm);
+    smt_circuit::StandardCircuit circuit(circuit_info, &s, smt_terms::TermType::FFTerm);
     smt_terms::STerm a1 = circuit["a"];
     smt_terms::STerm b1 = circuit["b"];
     smt_terms::STerm c1 = circuit["c"];
@@ -65,9 +65,9 @@ TEST(SMT_Example, multiplication_true_kind)
 
     auto buf = builder.export_circuit();
 
-    smt_circuit::CircuitSchema circuit_info = smt_circuit::unpack_from_buffer(buf);
+    smt_circuit::CircuitSchema circuit_info = smt_circuit_schema::unpack_from_buffer(buf);
     smt_solver::Solver s(circuit_info.modulus);
-    smt_circuit::Circuit circuit(circuit_info, &s, smt_terms::TermType::FFTerm);
+    smt_circuit::StandardCircuit circuit(circuit_info, &s, smt_terms::TermType::FFTerm);
     smt_terms::STerm a1 = circuit["a"];
     smt_terms::STerm b1 = circuit["b"];
     smt_terms::STerm c1 = circuit["c"];
@@ -96,9 +96,9 @@ TEST(SMT_Example, multiplication_false)
 
     auto buf = builder.export_circuit();
 
-    smt_circuit::CircuitSchema circuit_info = smt_circuit::unpack_from_buffer(buf);
+    smt_circuit::CircuitSchema circuit_info = smt_circuit_schema::unpack_from_buffer(buf);
     smt_solver::Solver s(circuit_info.modulus);
-    smt_circuit::Circuit circuit(circuit_info, &s, smt_terms::TermType::FFTerm);
+    smt_circuit::StandardCircuit circuit(circuit_info, &s, smt_terms::TermType::FFTerm);
 
     smt_terms::STerm a1 = circuit["a"];
     smt_terms::STerm b1 = circuit["b"];
@@ -141,11 +141,12 @@ TEST(SMT_Example, unique_witness_ext)
 
     auto buf = builder.export_circuit();
 
-    smt_circuit::CircuitSchema circuit_info = smt_circuit::unpack_from_buffer(buf);
+    smt_circuit::CircuitSchema circuit_info = smt_circuit_schema::unpack_from_buffer(buf);
     smt_solver::Solver s(circuit_info.modulus);
 
-    std::pair<smt_circuit::Circuit, smt_circuit::Circuit> cirs =
-        smt_circuit::unique_witness_ext(circuit_info, &s, smt_terms::TermType::FFTerm, { "ev" }, { "z" });
+    std::pair<smt_circuit::StandardCircuit, smt_circuit::StandardCircuit> cirs =
+        smt_circuit::StandardCircuit::unique_witness_ext(
+            circuit_info, &s, smt_terms::TermType::FFTerm, { "ev" }, { "z" });
 
     bool res = s.check();
     ASSERT_TRUE(res);
@@ -173,11 +174,11 @@ TEST(SMT_Example, unique_witness)
 
     auto buf = builder.export_circuit();
 
-    smt_circuit::CircuitSchema circuit_info = smt_circuit::unpack_from_buffer(buf);
+    smt_circuit::CircuitSchema circuit_info = smt_circuit_schema::unpack_from_buffer(buf);
     smt_solver::Solver s(circuit_info.modulus);
 
-    std::pair<smt_circuit::Circuit, smt_circuit::Circuit> cirs =
-        smt_circuit::unique_witness(circuit_info, &s, smt_terms::TermType::FFTerm, { "ev" });
+    std::pair<smt_circuit::StandardCircuit, smt_circuit::StandardCircuit> cirs =
+        smt_circuit::StandardCircuit::unique_witness(circuit_info, &s, smt_terms::TermType::FFTerm, { "ev" });
 
     bool res = s.check();
     ASSERT_TRUE(res);

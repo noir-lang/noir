@@ -153,7 +153,9 @@ class STerm {
     STerm rotr(const uint32_t& n) const;
     STerm rotl(const uint32_t& n) const;
 
-    operator std::string() const { return smt_solver::stringify_term(term); };
+    void in(const cvc5::Term& table) const;
+
+    operator std::string() const { return this->solver->stringify_term(term); };
     operator cvc5::Term() const { return term; };
 
     ~STerm() = default;

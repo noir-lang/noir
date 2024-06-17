@@ -31,8 +31,18 @@ struct CircuitSchema {
     std::vector<std::vector<std::vector<uint32_t>>> wires;
     std::vector<uint32_t> real_variable_index;
     std::vector<std::vector<std::vector<bb::fr>>> lookup_tables;
-    MSGPACK_FIELDS(
-        modulus, public_inps, vars_of_interest, variables, selectors, wires, real_variable_index, lookup_tables);
+    std::vector<uint32_t> real_variable_tags;
+    std::unordered_map<uint32_t, uint64_t> range_tags;
+    MSGPACK_FIELDS(modulus,
+                   public_inps,
+                   vars_of_interest,
+                   variables,
+                   selectors,
+                   wires,
+                   real_variable_index,
+                   lookup_tables,
+                   real_variable_tags,
+                   range_tags);
 };
 
 CircuitSchema unpack_from_buffer(const msgpack::sbuffer& buf);

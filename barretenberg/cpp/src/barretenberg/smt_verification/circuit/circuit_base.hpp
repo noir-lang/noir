@@ -33,6 +33,8 @@ class CircuitBase {
     std::unordered_map<std::string, uint32_t> variable_names_inverse; // inverse map of the previous memeber
     std::unordered_map<uint32_t, STerm> symbolic_vars;                // all the symbolic variables from the circuit
     std::vector<uint32_t> real_variable_index;                        // indexes for assert_equal'd wires
+    std::vector<uint32_t> real_variable_tags;                         // tags of the variables in the circuit
+    std::unordered_map<uint32_t, uint64_t> range_tags;                // ranges associated with a certain tag
     std::unordered_map<uint32_t, bool> optimized; // keeps track of the variables that were excluded from symbolic
                                                   // circuit during optimizations
     bool optimizations;                           // flags to turn on circuit optimizations
@@ -51,6 +53,8 @@ class CircuitBase {
                 std::vector<bb::fr>& variables,
                 std::vector<uint32_t>& public_inps,
                 std::vector<uint32_t>& real_variable_index,
+                std::vector<uint32_t>& real_variable_tags,
+                std::unordered_map<uint32_t, uint64_t>& range_tags,
                 Solver* solver,
                 TermType type,
                 const std::string& tag = "",

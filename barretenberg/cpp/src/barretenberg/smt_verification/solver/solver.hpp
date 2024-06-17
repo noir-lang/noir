@@ -14,8 +14,10 @@ namespace smt_solver {
  * @param timeout tells solver to stop trying after `timeout` msecs.
  * @param debug set verbosity of cvc5: 0, 1, 2.
  *
- * @param ff_disjunctive_bit tells solver to change all ((x = 0) | (x = 1)) to x*x = x.
+ * @param ff_elim_disjunctive_bit tells solver to change all ((x = 0) | (x = 1)) to x*x = x.
  * @param ff_solver tells solver which finite field solver to use: "gb", "split".
+ *
+ * @param lookup_enabled tells solver to enable sets when we deal with lookups
  */
 struct SolverConfiguration {
     bool produce_models;
@@ -24,9 +26,12 @@ struct SolverConfiguration {
 
     bool ff_elim_disjunctive_bit;
     std::string ff_solver;
+
+    bool lookup_enabled;
 };
 
-const SolverConfiguration default_solver_config = { true, 0, 0, false, "" };
+const SolverConfiguration default_solver_config = { true, 0, 0, false, "", false };
+const SolverConfiguration ultra_solver_config = { true, 0, 0, false, "", true };
 
 /**
  * @brief Class for the solver.
@@ -45,6 +50,8 @@ class Solver {
     bool res = false;
     cvc5::Result cvc_result;
     bool checked = false;
+
+    std::unordered_map<cvc5::Term, size_t> tables;
 
     explicit Solver(const std::string& modulus,
                     const SolverConfiguration& config = default_solver_config,
@@ -88,6 +95,13 @@ class Solver {
             solver.setOption("ff-solver", config.ff_solver);
         }
 
+        if (lookup_enabled) {
+            this->solver.setLogic("ALL");
+            this->solver.setOption("finite-model-find", "true");
+            this->solver.setOption("sets-ext", "true");
+            lookup_enabled = true;
+        }
+
         solver.setOption("output", "incomplete");
     }
 
@@ -99,6 +113,7 @@ class Solver {
     bool lookup_enabled = false;
 
     cvc5::Term create_lookup_table(std::vector<std::vector<cvc5::Term>>& table);
+    cvc5::Term create_table(std::vector<cvc5::Term>& table);
 
     void assertFormula(const cvc5::Term& term) const { this->solver.assertFormula(term); }
 
@@ -117,11 +132,10 @@ class Solver {
     std::unordered_map<std::string, std::string> model(std::unordered_map<std::string, cvc5::Term>& terms) const;
     std::unordered_map<std::string, std::string> model(std::vector<cvc5::Term>& terms) const;
 
-    void print_assertions() const;
+    void print_assertions();
+    std::string stringify_term(const cvc5::Term& term, bool parenthesis = false);
 
     ~Solver() = default;
 };
-
-std::string stringify_term(const cvc5::Term& term, bool parenthesis = false);
 
 }; // namespace smt_solver
