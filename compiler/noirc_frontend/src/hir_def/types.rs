@@ -192,6 +192,7 @@ pub enum QuotedType {
     Expr,
     TypeDefinition,
     TopLevelItem,
+    Type,
 }
 
 /// A list of TypeVariableIds to bind to a type. Storing the
@@ -963,6 +964,7 @@ impl std::fmt::Display for QuotedType {
             QuotedType::Expr => write!(f, "Expr"),
             QuotedType::TypeDefinition => write!(f, "TypeDefinition"),
             QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
+            QuotedType::Type => write!(f, "Type"),
         }
     }
 }
