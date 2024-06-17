@@ -12,8 +12,8 @@ function escapeBraces(str) {
   return str.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function stripBraces(str) {
-  return str.replace(/[<>]/g, "");
+function escapeTicks(str) {
+  return str.replace(/`/g, "\\`");
 }
 
 function instructionSetPreface() {
@@ -44,10 +44,10 @@ function htmlInstructionSetTable() {
     const instr = INSTRUCTION_SET[i];
     const name = instr["Name"];
     let row = `<tr>\n`;
-    row += `\t<td style={{'text-align': 'center'}}>${toOpcode(i)}</td>`;
+    row += `\t<td style={{'text-align': 'center'}}>${toOpcode(i)}</td>\n`;
     row += `\t<td style={{'text-align': 'center'}}><a id='isa-table-${
       instr["id"]
-    }'/><Markdown>[${stripBraces(name)}](#isa-section-${
+    }'/><Markdown>\\[${escapeTicks(name)}\\](#isa-section-${
       instr["id"]
     })</Markdown></td>`;
 

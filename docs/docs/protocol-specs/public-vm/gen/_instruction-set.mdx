@@ -14,245 +14,280 @@ Click on an instruction name to jump to its section.
 <table>
 <th>Opcode</th><th>Name</th><th>Summary</th><th>Expression</th>
 <tr>
-	<td style={{'text-align': 'center'}}>0x00</td>	<td style={{'text-align': 'center'}}><a id='isa-table-add'/><Markdown>[`ADD`](#isa-section-add)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x00</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-add'/><Markdown>\[\`ADD\`\](#isa-section-add)</Markdown></td>
 	<td><Markdown>Addition (a + b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] + M[bOffset] mod 2^k`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x01</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sub'/><Markdown>[`SUB`](#isa-section-sub)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x01</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-sub'/><Markdown>\[\`SUB\`\](#isa-section-sub)</Markdown></td>
 	<td><Markdown>Subtraction (a - b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] - M[bOffset] mod 2^k`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x02</td>	<td style={{'text-align': 'center'}}><a id='isa-table-mul'/><Markdown>[`MUL`](#isa-section-mul)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x02</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-mul'/><Markdown>\[\`MUL\`\](#isa-section-mul)</Markdown></td>
 	<td><Markdown>Multiplication (a * b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] * M[bOffset] mod 2^k`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x03</td>	<td style={{'text-align': 'center'}}><a id='isa-table-div'/><Markdown>[`DIV`](#isa-section-div)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x03</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-div'/><Markdown>\[\`DIV\`\](#isa-section-div)</Markdown></td>
 	<td><Markdown>Unsigned integer division (a / b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] / M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x04</td>	<td style={{'text-align': 'center'}}><a id='isa-table-fdiv'/><Markdown>[`FDIV`](#isa-section-fdiv)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x04</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-fdiv'/><Markdown>\[\`FDIV\`\](#isa-section-fdiv)</Markdown></td>
 	<td><Markdown>Field division (a / b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] / M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x05</td>	<td style={{'text-align': 'center'}}><a id='isa-table-eq'/><Markdown>[`EQ`](#isa-section-eq)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x05</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-eq'/><Markdown>\[\`EQ\`\](#isa-section-eq)</Markdown></td>
 	<td><Markdown>Equality check (a == b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] == M[bOffset] ? 1 : 0`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x06</td>	<td style={{'text-align': 'center'}}><a id='isa-table-lt'/><Markdown>[`LT`](#isa-section-lt)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x06</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-lt'/><Markdown>\[\`LT\`\](#isa-section-lt)</Markdown></td>
 	<td><Markdown>Less-than check (a &lt; b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] < M[bOffset] ? 1 : 0`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x07</td>	<td style={{'text-align': 'center'}}><a id='isa-table-lte'/><Markdown>[`LTE`](#isa-section-lte)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x07</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-lte'/><Markdown>\[\`LTE\`\](#isa-section-lte)</Markdown></td>
 	<td><Markdown>Less-than-or-equals check (a &lt;= b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] <= M[bOffset] ? 1 : 0`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x08</td>	<td style={{'text-align': 'center'}}><a id='isa-table-and'/><Markdown>[`AND`](#isa-section-and)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x08</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-and'/><Markdown>\[\`AND\`\](#isa-section-and)</Markdown></td>
 	<td><Markdown>Bitwise AND (a & b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] AND M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x09</td>	<td style={{'text-align': 'center'}}><a id='isa-table-or'/><Markdown>[`OR`](#isa-section-or)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x09</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-or'/><Markdown>\[\`OR\`\](#isa-section-or)</Markdown></td>
 	<td><Markdown>Bitwise OR (a | b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] OR M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-xor'/><Markdown>[`XOR`](#isa-section-xor)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0a</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-xor'/><Markdown>\[\`XOR\`\](#isa-section-xor)</Markdown></td>
 	<td><Markdown>Bitwise XOR (a ^ b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] XOR M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-not'/><Markdown>[`NOT`](#isa-section-not)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0b</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-not'/><Markdown>\[\`NOT\`\](#isa-section-not)</Markdown></td>
 	<td><Markdown>Bitwise NOT (inversion)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = NOT M[aOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-shl'/><Markdown>[`SHL`](#isa-section-shl)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0c</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-shl'/><Markdown>\[\`SHL\`\](#isa-section-shl)</Markdown></td>
 	<td><Markdown>Bitwise leftward shift (a &lt;&lt; b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] << M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-shr'/><Markdown>[`SHR`](#isa-section-shr)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0d</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-shr'/><Markdown>\[\`SHR\`\](#isa-section-shr)</Markdown></td>
 	<td><Markdown>Bitwise rightward shift (a &gt;&gt; b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] >> M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-cast'/><Markdown>[`CAST`](#isa-section-cast)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0e</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-cast'/><Markdown>\[\`CAST\`\](#isa-section-cast)</Markdown></td>
 	<td><Markdown>Type cast</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = cast<dstTag>(M[aOffset])`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-address'/><Markdown>[`ADDRESS`](#isa-section-address)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0f</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-address'/><Markdown>\[\`ADDRESS\`\](#isa-section-address)</Markdown></td>
 	<td><Markdown>Get the address of the currently executing l2 contract</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.address`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x10</td>	<td style={{'text-align': 'center'}}><a id='isa-table-storageaddress'/><Markdown>[`STORAGEADDRESS`](#isa-section-storageaddress)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x10</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-storageaddress'/><Markdown>\[\`STORAGEADDRESS\`\](#isa-section-storageaddress)</Markdown></td>
 	<td><Markdown>Get the _storage_ address of the currently executing context</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.storageAddress`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x11</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sender'/><Markdown>[`SENDER`](#isa-section-sender)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x11</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-sender'/><Markdown>\[\`SENDER\`\](#isa-section-sender)</Markdown></td>
 	<td><Markdown>Get the address of the sender (caller of the current context)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.sender`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x12</td>	<td style={{'text-align': 'center'}}><a id='isa-table-feeperl2gas'/><Markdown>[`FEEPERL2GAS`](#isa-section-feeperl2gas)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x12</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-feeperl2gas'/><Markdown>\[\`FEEPERL2GAS\`\](#isa-section-feeperl2gas)</Markdown></td>
 	<td><Markdown>Get the fee to be paid per "L2 gas" - constant for entire transaction</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.feePerL2Gas`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x13</td>	<td style={{'text-align': 'center'}}><a id='isa-table-feeperdagas'/><Markdown>[`FEEPERDAGAS`](#isa-section-feeperdagas)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x13</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-feeperdagas'/><Markdown>\[\`FEEPERDAGAS\`\](#isa-section-feeperdagas)</Markdown></td>
 	<td><Markdown>Get the fee to be paid per "DA gas" - constant for entire transaction</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.feePerDaGas`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x14</td>	<td style={{'text-align': 'center'}}><a id='isa-table-transactionfee'/><Markdown>[`TRANSACTIONFEE`](#isa-section-transactionfee)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x14</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-transactionfee'/><Markdown>\[\`TRANSACTIONFEE\`\](#isa-section-transactionfee)</Markdown></td>
 	<td><Markdown>Get the computed transaction fee during teardown phase, zero otherwise</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.transactionFee`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x15</td>	<td style={{'text-align': 'center'}}><a id='isa-table-contractcalldepth'/><Markdown>[`CONTRACTCALLDEPTH`](#isa-section-contractcalldepth)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x15</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-contractcalldepth'/><Markdown>\[\`CONTRACTCALLDEPTH\`\](#isa-section-contractcalldepth)</Markdown></td>
 	<td><Markdown>Get how many contract calls deep the current call context is</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.contractCallDepth`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x16</td>	<td style={{'text-align': 'center'}}><a id='isa-table-chainid'/><Markdown>[`CHAINID`](#isa-section-chainid)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x16</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-chainid'/><Markdown>\[\`CHAINID\`\](#isa-section-chainid)</Markdown></td>
 	<td><Markdown>Get this rollup's L1 chain ID</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.chainId`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x17</td>	<td style={{'text-align': 'center'}}><a id='isa-table-version'/><Markdown>[`VERSION`](#isa-section-version)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x17</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-version'/><Markdown>\[\`VERSION\`\](#isa-section-version)</Markdown></td>
 	<td><Markdown>Get this rollup's L2 version ID</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.version`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x18</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blocknumber'/><Markdown>[`BLOCKNUMBER`](#isa-section-blocknumber)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x18</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-blocknumber'/><Markdown>\[\`BLOCKNUMBER\`\](#isa-section-blocknumber)</Markdown></td>
 	<td><Markdown>Get this L2 block's number</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.blocknumber`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x19</td>	<td style={{'text-align': 'center'}}><a id='isa-table-timestamp'/><Markdown>[`TIMESTAMP`](#isa-section-timestamp)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x19</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-timestamp'/><Markdown>\[\`TIMESTAMP\`\](#isa-section-timestamp)</Markdown></td>
 	<td><Markdown>Get this L2 block's timestamp</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.timestamp`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-coinbase'/><Markdown>[`COINBASE`](#isa-section-coinbase)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1a</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-coinbase'/><Markdown>\[\`COINBASE\`\](#isa-section-coinbase)</Markdown></td>
 	<td><Markdown>Get the block's beneficiary address</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.coinbase`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockl2gaslimit'/><Markdown>[`BLOCKL2GASLIMIT`](#isa-section-blockl2gaslimit)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1b</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-blockl2gaslimit'/><Markdown>\[\`BLOCKL2GASLIMIT\`\](#isa-section-blockl2gaslimit)</Markdown></td>
 	<td><Markdown>Total amount of "L2 gas" that a block can consume</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.l2GasLimit`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockdagaslimit'/><Markdown>[`BLOCKDAGASLIMIT`](#isa-section-blockdagaslimit)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1c</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-blockdagaslimit'/><Markdown>\[\`BLOCKDAGASLIMIT\`\](#isa-section-blockdagaslimit)</Markdown></td>
 	<td><Markdown>Total amount of "DA gas" that a block can consume</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.daGasLimit`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-calldatacopy'/><Markdown>[`CALLDATACOPY`](#isa-section-calldatacopy)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1d</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-calldatacopy'/><Markdown>\[\`CALLDATACOPY\`\](#isa-section-calldatacopy)</Markdown></td>
 	<td><Markdown>Copy calldata into memory</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset:dstOffset+copySize] = context.environment.calldata[cdOffset:cdOffset+copySize]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-l2gasleft'/><Markdown>[`L2GASLEFT`](#isa-section-l2gasleft)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1e</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-l2gasleft'/><Markdown>\[\`L2GASLEFT\`\](#isa-section-l2gasleft)</Markdown></td>
 	<td><Markdown>Remaining "L2 gas" for this call (after this instruction)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.MachineState.l2GasLeft`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-dagasleft'/><Markdown>[`DAGASLEFT`](#isa-section-dagasleft)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1f</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-dagasleft'/><Markdown>\[\`DAGASLEFT\`\](#isa-section-dagasleft)</Markdown></td>
 	<td><Markdown>Remaining "DA gas" for this call (after this instruction)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.machineState.daGasLeft`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x20</td>	<td style={{'text-align': 'center'}}><a id='isa-table-jump'/><Markdown>[`JUMP`](#isa-section-jump)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x20</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-jump'/><Markdown>\[\`JUMP\`\](#isa-section-jump)</Markdown></td>
 	<td><Markdown>Jump to a location in the bytecode</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`context.machineState.pc = loc`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x21</td>	<td style={{'text-align': 'center'}}><a id='isa-table-jumpi'/><Markdown>[`JUMPI`](#isa-section-jumpi)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x21</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-jumpi'/><Markdown>\[\`JUMPI\`\](#isa-section-jumpi)</Markdown></td>
 	<td><Markdown>Conditionally jump to a location in the bytecode</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`context.machineState.pc = M[condOffset] > 0 ? loc : context.machineState.pc`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x22</td>	<td style={{'text-align': 'center'}}><a id='isa-table-internalcall'/><Markdown>[`INTERNALCALL`](#isa-section-internalcall)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x22</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-internalcall'/><Markdown>\[\`INTERNALCALL\`\](#isa-section-internalcall)</Markdown></td>
 	<td><Markdown>Make an internal call. Push the current PC to the internal call stack and jump to the target location.</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.machineState.internalCallStack.push(context.machineState.pc)
@@ -260,49 +295,56 @@ context.machineState.pc = loc`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x23</td>	<td style={{'text-align': 'center'}}><a id='isa-table-internalreturn'/><Markdown>[`INTERNALRETURN`](#isa-section-internalreturn)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x23</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-internalreturn'/><Markdown>\[\`INTERNALRETURN\`\](#isa-section-internalreturn)</Markdown></td>
 	<td><Markdown>Return from an internal call. Pop from the internal call stack and jump to the popped location.</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`context.machineState.pc = context.machineState.internalCallStack.pop()`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x24</td>	<td style={{'text-align': 'center'}}><a id='isa-table-set'/><Markdown>[`SET`](#isa-section-set)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x24</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-set'/><Markdown>\[\`SET\`\](#isa-section-set)</Markdown></td>
 	<td><Markdown>Set a memory word from a constant in the bytecode</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = const`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x25</td>	<td style={{'text-align': 'center'}}><a id='isa-table-mov'/><Markdown>[`MOV`](#isa-section-mov)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x25</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-mov'/><Markdown>\[\`MOV\`\](#isa-section-mov)</Markdown></td>
 	<td><Markdown>Move a word from source memory location to destination</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[srcOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x26</td>	<td style={{'text-align': 'center'}}><a id='isa-table-cmov'/><Markdown>[`CMOV`](#isa-section-cmov)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x26</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-cmov'/><Markdown>\[\`CMOV\`\](#isa-section-cmov)</Markdown></td>
 	<td><Markdown>Move a word (conditionally chosen) from one memory location to another (`d = cond &gt; 0 ? a : b`)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[condOffset] > 0 ? M[aOffset] : M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x27</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sload'/><Markdown>[`SLOAD`](#isa-section-sload)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x27</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-sload'/><Markdown>\[\`SLOAD\`\](#isa-section-sload)</Markdown></td>
 	<td><Markdown>Load a word from this contract's persistent public storage. Zero is loaded for unwritten slots.</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`M[dstOffset] = S[M[slotOffset]]`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x28</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sstore'/><Markdown>[`SSTORE`](#isa-section-sstore)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x28</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-sstore'/><Markdown>\[\`SSTORE\`\](#isa-section-sstore)</Markdown></td>
 	<td><Markdown>Write a word to this contract's persistent public storage</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`S[M[slotOffset]] = M[srcOffset]`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x29</td>	<td style={{'text-align': 'center'}}><a id='isa-table-notehashexists'/><Markdown>[`NOTEHASHEXISTS`](#isa-section-notehashexists)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x29</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-notehashexists'/><Markdown>\[\`NOTEHASHEXISTS\`\](#isa-section-notehashexists)</Markdown></td>
 	<td><Markdown>Check whether a note hash exists in the note hash tree (as of the start of the current block)</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`exists = context.worldState.noteHashes.has({
@@ -313,7 +355,8 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnotehash'/><Markdown>[`EMITNOTEHASH`](#isa-section-emitnotehash)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2a</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-emitnotehash'/><Markdown>\[\`EMITNOTEHASH\`\](#isa-section-emitnotehash)</Markdown></td>
 	<td><Markdown>Emit a new note hash to be inserted into the note hash tree</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.worldState.noteHashes.append(
@@ -322,7 +365,8 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-nullifierexists'/><Markdown>[`NULLIFIEREXISTS`](#isa-section-nullifierexists)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2b</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-nullifierexists'/><Markdown>\[\`NULLIFIEREXISTS\`\](#isa-section-nullifierexists)</Markdown></td>
 	<td><Markdown>Check whether a nullifier exists in the nullifier tree (including nullifiers from earlier in the current transaction or from earlier in the current block)</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`exists = pendingNullifiers.has(M[addressOffset], M[nullifierOffset]) || context.worldState.nullifiers.has(
@@ -332,7 +376,8 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnullifier'/><Markdown>[`EMITNULLIFIER`](#isa-section-emitnullifier)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2c</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-emitnullifier'/><Markdown>\[\`EMITNULLIFIER\`\](#isa-section-emitnullifier)</Markdown></td>
 	<td><Markdown>Emit a new nullifier to be inserted into the nullifier tree</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.worldState.nullifiers.append(
@@ -341,7 +386,8 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-l1tol2msgexists'/><Markdown>[`L1TOL2MSGEXISTS`](#isa-section-l1tol2msgexists)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2d</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-l1tol2msgexists'/><Markdown>\[\`L1TOL2MSGEXISTS\`\](#isa-section-l1tol2msgexists)</Markdown></td>
 	<td><Markdown>Check if a message exists in the L1-to-L2 message tree</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`exists = context.worldState.l1ToL2Messages.has({
@@ -351,7 +397,8 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-headermember'/><Markdown>[`HEADERMEMBER`](#isa-section-headermember)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2e</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-headermember'/><Markdown>\[\`HEADERMEMBER\`\](#isa-section-headermember)</Markdown></td>
 	<td><Markdown>Check if a header exists in the [archive tree](../state/archive) and retrieve the specified member if so</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`exists = context.worldState.header.has({
@@ -364,7 +411,8 @@ if exists:
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-getcontractinstance'/><Markdown>[`GETCONTRACTINSTANCE`](#isa-section-getcontractinstance)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2f</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-getcontractinstance'/><Markdown>\[\`GETCONTRACTINSTANCE\`\](#isa-section-getcontractinstance)</Markdown></td>
 	<td><Markdown>Copies contract instance data to memory</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`M[dstOffset:dstOffset+CONTRACT_INSTANCE_SIZE+1] = [
@@ -379,7 +427,8 @@ if exists:
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x30</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitunencryptedlog'/><Markdown>[`EMITUNENCRYPTEDLOG`](#isa-section-emitunencryptedlog)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x30</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-emitunencryptedlog'/><Markdown>\[\`EMITUNENCRYPTEDLOG\`\](#isa-section-emitunencryptedlog)</Markdown></td>
 	<td><Markdown>Emit an unencrypted log</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.accruedSubstate.unencryptedLogs.append(
@@ -392,7 +441,8 @@ if exists:
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x31</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sendl2tol1msg'/><Markdown>[`SENDL2TOL1MSG`](#isa-section-sendl2tol1msg)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x31</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-sendl2tol1msg'/><Markdown>\[\`SENDL2TOL1MSG\`\](#isa-section-sendl2tol1msg)</Markdown></td>
 	<td><Markdown>Send an L2-to-L1 message</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.accruedSubstate.sentL2ToL1Messages.append(
@@ -405,7 +455,8 @@ if exists:
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x32</td>	<td style={{'text-align': 'center'}}><a id='isa-table-call'/><Markdown>[`CALL`](#isa-section-call)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x32</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-call'/><Markdown>\[\`CALL\`\](#isa-section-call)</Markdown></td>
 	<td><Markdown>Call into another contract</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
@@ -419,7 +470,8 @@ updateContextAfterNestedCall(context, instr.args, nestedContext)`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x33</td>	<td style={{'text-align': 'center'}}><a id='isa-table-staticcall'/><Markdown>[`STATICCALL`](#isa-section-staticcall)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x33</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-staticcall'/><Markdown>\[\`STATICCALL\`\](#isa-section-staticcall)</Markdown></td>
 	<td><Markdown>Call into another contract, disallowing World State and Accrued Substate modifications</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
@@ -433,7 +485,8 @@ updateContextAfterNestedCall(context, instr.args, nestedContext)`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x34</td>	<td style={{'text-align': 'center'}}><a id='isa-table-delegatecall'/><Markdown>[`DELEGATECALL`](#isa-section-delegatecall)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x34</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-delegatecall'/><Markdown>\[\`DELEGATECALL\`\](#isa-section-delegatecall)</Markdown></td>
 	<td><Markdown>Call into another contract, but keep the caller's `sender` and `storageAddress`</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
@@ -447,7 +500,8 @@ updateContextAfterNestedCall(context, instr.args, nestedContext)`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x35</td>	<td style={{'text-align': 'center'}}><a id='isa-table-return'/><Markdown>[`RETURN`](#isa-section-return)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x35</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-return'/><Markdown>\[\`RETURN\`\](#isa-section-return)</Markdown></td>
 	<td><Markdown>Halt execution within this context (without revert), optionally returning some data</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.contractCallResults.output = M[retOffset:retOffset+retSize]
@@ -455,7 +509,8 @@ halt`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x36</td>	<td style={{'text-align': 'center'}}><a id='isa-table-revert'/><Markdown>[`REVERT`](#isa-section-revert)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x36</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-revert'/><Markdown>\[\`REVERT\`\](#isa-section-revert)</Markdown></td>
 	<td><Markdown>Halt execution within this context as `reverted`, optionally returning some data</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.contractCallResults.output = M[retOffset:retOffset+retSize]
@@ -464,7 +519,8 @@ halt`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x37</td>	<td style={{'text-align': 'center'}}><a id='isa-table-to_radix_le'/><Markdown>[`TORADIXLE`](#isa-section-to_radix_le)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x37</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-to_radix_le'/><Markdown>\[\`TORADIXLE\`\](#isa-section-to_radix_le)</Markdown></td>
 	<td><Markdown>Convert a word to an array of limbs in little-endian radix form</Markdown></td>
 	<td><Markdown>TBD: Storage of limbs and if T[dstOffset] is constrained to U8</Markdown></td>
 </tr>
