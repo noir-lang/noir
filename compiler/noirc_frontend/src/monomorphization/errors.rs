@@ -1,14 +1,12 @@
-use thiserror::Error;
-
 use noirc_errors::{CustomDiagnostic, FileDiagnostic, Location};
 
-#[derive(Debug, Error)]
-pub enum MonomorphizationError {
-    #[error("Length of generic array could not be determined.")]
-    UnknownArrayLength { location: Location },
+use crate::hir::comptime::InterpreterError;
 
-    #[error("Type annotations needed")]
+#[derive(Debug)]
+pub enum MonomorphizationError {
+    UnknownArrayLength { location: Location },
     TypeAnnotationsNeeded { location: Location },
+    InterpreterError(InterpreterError),
 }
 
 impl MonomorphizationError {
@@ -16,6 +14,7 @@ impl MonomorphizationError {
         match self {
             MonomorphizationError::UnknownArrayLength { location }
             | MonomorphizationError::TypeAnnotationsNeeded { location } => *location,
+            MonomorphizationError::InterpreterError(error) => error.get_location(),
         }
     }
 }
@@ -31,9 +30,15 @@ impl From<MonomorphizationError> for FileDiagnostic {
 
 impl MonomorphizationError {
     fn into_diagnostic(self) -> CustomDiagnostic {
-        let message = self.to_string();
-        let location = self.location();
+        let message = match self {
+            MonomorphizationError::UnknownArrayLength { .. } => {
+                "Length of generic array could not be determined."
+            }
+            MonomorphizationError::TypeAnnotationsNeeded { .. } => "Type annotations needed",
+            MonomorphizationError::InterpreterError(error) => return (&error).into(),
+        };
 
-        CustomDiagnostic::simple_error(message, String::new(), location.span)
+        let location = self.location();
+        CustomDiagnostic::simple_error(message.into(), String::new(), location.span)
     }
 }

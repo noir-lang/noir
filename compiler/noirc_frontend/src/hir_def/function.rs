@@ -7,6 +7,7 @@ use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
 use crate::ast::{FunctionKind, FunctionReturnType, Visibility};
+use crate::macros_api::BlockExpression;
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
 use crate::{Type, TypeVariable};
 
@@ -142,6 +143,15 @@ pub struct FuncMeta {
     /// that indicates it should be inlined differently than the default (inline everything).
     /// For example, such as `fold` (never inlined) or `no_predicates` (inlined after flattening)
     pub has_inline_attribute: bool,
+
+    pub function_body: FunctionBody,
+}
+
+#[derive(Debug, Clone)]
+pub enum FunctionBody {
+    Unresolved(FunctionKind, BlockExpression, Span),
+    Resolving,
+    Resolved,
 }
 
 impl FuncMeta {
@@ -171,6 +181,21 @@ impl FuncMeta {
                 _ => unreachable!(),
             },
             _ => unreachable!(),
+        }
+    }
+
+    /// Take this function body, returning an owned version while avoiding
+    /// cloning any large Expressions inside by replacing a Unresolved with a Resolving variant.
+    pub fn take_body(&mut self) -> FunctionBody {
+        match &mut self.function_body {
+            FunctionBody::Unresolved(kind, block, span) => {
+                let statements = std::mem::take(&mut block.statements);
+                let (kind, span) = (*kind, *span);
+                self.function_body = FunctionBody::Resolving;
+                FunctionBody::Unresolved(kind, BlockExpression { statements }, span)
+            }
+            FunctionBody::Resolving => FunctionBody::Resolving,
+            FunctionBody::Resolved => FunctionBody::Resolved,
         }
     }
 }

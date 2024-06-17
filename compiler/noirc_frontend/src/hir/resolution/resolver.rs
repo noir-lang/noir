@@ -17,9 +17,10 @@ use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCapturedVar,
     HirCastExpression, HirConstructorExpression, HirExpression, HirIdent, HirIfExpression,
     HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess,
-    HirMethodCallExpression, HirPrefixExpression, ImplKind,
+    HirMethodCallExpression, HirPrefixExpression, HirQuoted, ImplKind,
 };
 
+use crate::hir_def::function::FunctionBody;
 use crate::hir_def::traits::{Trait, TraitConstraint};
 use crate::macros_api::SecondaryAttribute;
 use crate::token::{Attributes, FunctionAttribute};
@@ -36,7 +37,11 @@ use crate::ast::{
 };
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
-use crate::hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver};
+use crate::hir::{
+    comptime::{Interpreter, Value},
+    def_map::CrateDefMap,
+    resolution::path_resolver::PathResolver,
+};
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
@@ -564,7 +569,7 @@ impl<'a> Resolver<'a> {
                 let fields = self.resolve_type_inner(*fields);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
-            Code => Type::Code,
+            Expr => Type::Expr,
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,
@@ -1074,10 +1079,11 @@ impl<'a> Resolver<'a> {
             is_entry_point: self.is_entry_point_function(func),
             has_inline_attribute,
 
-            // This is only used by the elaborator
+            // These fields are only used by the elaborator
             all_generics: Vec::new(),
             is_trait_function: false,
             parameter_idents: Vec::new(),
+            function_body: FunctionBody::Resolved,
         }
     }
 
@@ -1152,7 +1158,7 @@ impl<'a> Resolver<'a> {
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
-            | Type::Code
+            | Type::Expr
             | Type::Forall(_, _) => (),
 
             Type::TraitAsType(_, _, args) => {
@@ -1635,11 +1641,23 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Parenthesized(sub_expr) => return self.resolve_expression(*sub_expr),
 
             // The quoted expression isn't resolved since we don't want errors if variables aren't defined
-            ExpressionKind::Quote(block) => HirExpression::Quote(block),
-            ExpressionKind::Comptime(block) => HirExpression::Comptime(self.resolve_block(block)),
+            ExpressionKind::Quote(block, _) => {
+                let quoted = HirQuoted { quoted_block: block, unquoted_exprs: Vec::new() };
+                HirExpression::Quote(quoted)
+            }
+            ExpressionKind::Comptime(block, _) => {
+                HirExpression::Comptime(self.resolve_block(block))
+            }
             ExpressionKind::Resolved(_) => unreachable!(
                 "ExpressionKind::Resolved should only be emitted by the comptime interpreter"
             ),
+            ExpressionKind::Unquote(_) => {
+                self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
+                HirExpression::Literal(HirLiteral::Unit)
+            }
+            ExpressionKind::UnquoteMarker(index) => {
+                unreachable!("UnquoteMarker({index}) remaining in runtime code")
+            }
         };
 
         // If these lines are ever changed, make sure to change the early return
@@ -1983,7 +2001,7 @@ impl<'a> Resolver<'a> {
         self.interner.push_expr(hir_block)
     }
 
-    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u64 {
+    fn eval_global_as_array_length(&mut self, global: GlobalId, path: &Path) -> u32 {
         let Some(stmt) = self.interner.get_global_let_statement(global) else {
             let path = path.clone();
             self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
@@ -2066,6 +2084,17 @@ impl<'a> Resolver<'a> {
                     BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
                     BinaryOpKind::Modulo => Ok(lhs % rhs),
                 }
+            }
+            HirExpression::Cast(cast) => {
+                let lhs = self.try_eval_array_length_id_with_fuel(cast.lhs, span, fuel - 1)?;
+                let lhs_value = Value::Field(lhs.into());
+                let evaluated_value =
+                    Interpreter::evaluate_cast_one_step(&cast, rhs, lhs_value, self.interner)
+                        .map_err(|error| Some(ResolverError::ArrayLengthInterpreter { error }))?;
+
+                evaluated_value
+                    .to_u128()
+                    .ok_or_else(|| Some(ResolverError::InvalidArrayLengthExpr { span }))
             }
             _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }

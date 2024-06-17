@@ -146,7 +146,7 @@ impl SsaProgramArtifact {
 
 /// Compiles the [`Program`] into [`ACIR``][acvm::acir::circuit::Program].
 ///
-/// The output ACIR is is backend-agnostic and so must go through a transformation pass before usage in proof generation.
+/// The output ACIR is backend-agnostic and so must go through a transformation pass before usage in proof generation.
 #[allow(clippy::type_complexity)]
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn create_program(
@@ -206,7 +206,7 @@ pub struct SsaCircuitArtifact {
 }
 
 fn convert_generated_acir_into_circuit(
-    mut generated_acir: GeneratedAcir,
+    mut generated_acir: GeneratedAcir<FieldElement>,
     func_sig: FunctionSignature,
     recursive: bool,
     debug_variables: DebugVariables,

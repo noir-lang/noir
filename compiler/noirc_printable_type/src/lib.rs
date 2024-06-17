@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, str};
 
-use acvm::{acir::AcirField, brillig_vm::brillig::ForeignCallParam, FieldElement};
+use acvm::{acir::AcirField, brillig_vm::brillig::ForeignCallParam};
 use iter_extended::vecmap;
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ use thiserror::Error;
 pub enum PrintableType {
     Field,
     Array {
-        length: u64,
+        length: u32,
         #[serde(rename = "type")]
         typ: Box<PrintableType>,
     },
@@ -34,7 +34,7 @@ pub enum PrintableType {
         fields: Vec<(String, PrintableType)>,
     },
     String {
-        length: u64,
+        length: u32,
     },
     Function {
         arguments: Vec<PrintableType>,
@@ -51,19 +51,19 @@ pub enum PrintableType {
 /// For example, a toml file will parse into TomlTypes
 /// and those TomlTypes will be mapped to Value
 #[derive(Debug, Clone, Serialize, PartialEq)]
-pub enum PrintableValue {
-    Field(FieldElement),
+pub enum PrintableValue<F> {
+    Field(F),
     String(String),
-    Vec { array_elements: Vec<PrintableValue>, is_slice: bool },
-    Struct(BTreeMap<String, PrintableValue>),
+    Vec { array_elements: Vec<PrintableValue<F>>, is_slice: bool },
+    Struct(BTreeMap<String, PrintableValue<F>>),
     Other,
 }
 
 /// In order to display a `PrintableValue` we need a `PrintableType` to accurately
 /// convert the value into a human-readable format.
-pub enum PrintableValueDisplay {
-    Plain(PrintableValue, PrintableType),
-    FmtString(String, Vec<(PrintableValue, PrintableType)>),
+pub enum PrintableValueDisplay<F> {
+    Plain(PrintableValue<F>, PrintableType),
+    FmtString(String, Vec<(PrintableValue<F>, PrintableType)>),
 }
 
 #[derive(Debug, Error)]
@@ -81,12 +81,10 @@ pub enum ForeignCallError {
     ResolvedAssertMessage(String),
 }
 
-impl TryFrom<&[ForeignCallParam<FieldElement>]> for PrintableValueDisplay {
+impl<F: AcirField> TryFrom<&[ForeignCallParam<F>]> for PrintableValueDisplay<F> {
     type Error = ForeignCallError;
 
-    fn try_from(
-        foreign_call_inputs: &[ForeignCallParam<FieldElement>],
-    ) -> Result<Self, Self::Error> {
+    fn try_from(foreign_call_inputs: &[ForeignCallParam<F>]) -> Result<Self, Self::Error> {
         let (is_fmt_str, foreign_call_inputs) =
             foreign_call_inputs.split_last().ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
@@ -98,9 +96,9 @@ impl TryFrom<&[ForeignCallParam<FieldElement>]> for PrintableValueDisplay {
     }
 }
 
-fn convert_string_inputs(
-    foreign_call_inputs: &[ForeignCallParam<FieldElement>],
-) -> Result<PrintableValueDisplay, ForeignCallError> {
+fn convert_string_inputs<F: AcirField>(
+    foreign_call_inputs: &[ForeignCallParam<F>],
+) -> Result<PrintableValueDisplay<F>, ForeignCallError> {
     // Fetch the PrintableType from the foreign call input
     // The remaining input values should hold what is to be printed
     let (printable_type_as_values, input_values) =
@@ -115,9 +113,9 @@ fn convert_string_inputs(
     Ok(PrintableValueDisplay::Plain(value, printable_type))
 }
 
-fn convert_fmt_string_inputs(
-    foreign_call_inputs: &[ForeignCallParam<FieldElement>],
-) -> Result<PrintableValueDisplay, ForeignCallError> {
+fn convert_fmt_string_inputs<F: AcirField>(
+    foreign_call_inputs: &[ForeignCallParam<F>],
+) -> Result<PrintableValueDisplay<F>, ForeignCallError> {
     let (message, input_and_printable_types) =
         foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?;
 
@@ -144,8 +142,8 @@ fn convert_fmt_string_inputs(
     Ok(PrintableValueDisplay::FmtString(message_as_string, output))
 }
 
-fn fetch_printable_type(
-    printable_type: &ForeignCallParam<FieldElement>,
+fn fetch_printable_type<F: AcirField>(
+    printable_type: &ForeignCallParam<F>,
 ) -> Result<PrintableType, ForeignCallError> {
     let printable_type_as_fields = printable_type.fields();
     let printable_type_as_string = decode_string_value(&printable_type_as_fields);
@@ -154,7 +152,7 @@ fn fetch_printable_type(
     Ok(printable_type)
 }
 
-fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
+fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Option<String> {
     let mut output = String::new();
     match (value, typ) {
         (PrintableValue::Field(f), PrintableType::Field) => {
@@ -269,7 +267,7 @@ fn replace_all<E>(
     Ok(new)
 }
 
-impl std::fmt::Display for PrintableValueDisplay {
+impl<F: AcirField> std::fmt::Display for PrintableValueDisplay<F> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Plain(value, typ) => {
@@ -295,7 +293,7 @@ impl std::fmt::Display for PrintableValueDisplay {
 /// A singular '0' will be prepended as well if the trimmed string has an odd length.
 /// A hex string's length needs to be even to decode into bytes, as two digits correspond to
 /// one byte.
-fn format_field_string(field: FieldElement) -> String {
+fn format_field_string<F: AcirField>(field: F) -> String {
     if field.is_zero() {
         return "0x00".to_owned();
     }
@@ -306,11 +304,11 @@ fn format_field_string(field: FieldElement) -> String {
     "0x".to_owned() + &trimmed_field
 }
 
-/// Assumes that `field_iterator` contains enough [FieldElement] in order to decode the [PrintableType]
-pub fn decode_value(
-    field_iterator: &mut impl Iterator<Item = FieldElement>,
+/// Assumes that `field_iterator` contains enough field elements in order to decode the [PrintableType]
+pub fn decode_value<F: AcirField>(
+    field_iterator: &mut impl Iterator<Item = F>,
     typ: &PrintableType,
-) -> PrintableValue {
+) -> PrintableValue<F> {
     match typ {
         PrintableType::Field
         | PrintableType::SignedInteger { .. }
@@ -346,7 +344,7 @@ pub fn decode_value(
             is_slice: false,
         },
         PrintableType::String { length } => {
-            let field_elements: Vec<FieldElement> = field_iterator.take(*length as usize).collect();
+            let field_elements: Vec<F> = field_iterator.take(*length as usize).collect();
 
             PrintableValue::String(decode_string_value(&field_elements))
         }
@@ -372,11 +370,11 @@ pub fn decode_value(
             // we decode the reference, but it's not really used for printing
             decode_value(field_iterator, typ)
         }
-        PrintableType::Unit => PrintableValue::Field(FieldElement::zero()),
+        PrintableType::Unit => PrintableValue::Field(F::zero()),
     }
 }
 
-pub fn decode_string_value(field_elements: &[FieldElement]) -> String {
+pub fn decode_string_value<F: AcirField>(field_elements: &[F]) -> String {
     // TODO: Replace with `into` when Char is supported
     let string_as_slice = vecmap(field_elements, |e| {
         let mut field_as_bytes = e.to_be_bytes();

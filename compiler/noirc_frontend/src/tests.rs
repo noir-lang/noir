@@ -619,7 +619,7 @@ fn check_impl_struct_not_trait() {
             CompilationError::DefinitionError(DefCollectorErrorKind::NotATrait {
                 not_a_trait_name,
             }) => {
-                assert_eq!(not_a_trait_name.to_string(), "plain::Default");
+                assert_eq!(not_a_trait_name.to_string(), "Default");
             }
             _ => {
                 panic!("No other errors are expected! Found = {:?}", err);

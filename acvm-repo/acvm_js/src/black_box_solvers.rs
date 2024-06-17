@@ -9,7 +9,7 @@ use acvm::{acir::AcirField, FieldElement};
 pub fn and(lhs: JsString, rhs: JsString) -> JsString {
     let lhs = js_value_to_field_element(lhs.into()).unwrap();
     let rhs = js_value_to_field_element(rhs.into()).unwrap();
-    let result = lhs.and(&rhs, FieldElement::max_num_bits());
+    let result = acvm::blackbox_solver::bit_and(lhs, rhs, FieldElement::max_num_bits());
     field_element_to_js_string(&result)
 }
 
@@ -18,7 +18,7 @@ pub fn and(lhs: JsString, rhs: JsString) -> JsString {
 pub fn xor(lhs: JsString, rhs: JsString) -> JsString {
     let lhs = js_value_to_field_element(lhs.into()).unwrap();
     let rhs = js_value_to_field_element(rhs.into()).unwrap();
-    let result = lhs.xor(&rhs, FieldElement::max_num_bits());
+    let result = acvm::blackbox_solver::bit_xor(lhs, rhs, FieldElement::max_num_bits());
     field_element_to_js_string(&result)
 }
 

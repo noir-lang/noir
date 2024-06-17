@@ -55,6 +55,13 @@ for dir in $base_path/*; do
     dirs_to_process+=("$dir")
 done
 
+for dir in $current_dir/benchmarks/*; do
+    if [[ ! -d $dir ]]; then
+        continue
+    fi
+    dirs_to_process+=("$dir")
+done
+
 # Process each directory in parallel
 pids=()
 if [ -z $NO_PARALLEL ]; then

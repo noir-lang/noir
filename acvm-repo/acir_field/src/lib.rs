@@ -2,18 +2,20 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
+mod field_element;
 mod generic_ark;
 
 pub use generic_ark::AcirField;
 
 /// Temporarily exported generic field to aid migration to `AcirField`
-pub use generic_ark::FieldElement as GenericFieldElement;
+pub use field_element::FieldElement as GenericFieldElement;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "bls12_381")] {
-        pub type FieldElement = generic_ark::FieldElement<ark_bls12_381::Fr>;
+        pub type FieldElement = field_element::FieldElement<ark_bls12_381::Fr>;
     } else {
-        pub type FieldElement = generic_ark::FieldElement<ark_bn254::Fr>;
+        pub type FieldElement = field_element::FieldElement<ark_bn254::Fr>;
     }
 }
 

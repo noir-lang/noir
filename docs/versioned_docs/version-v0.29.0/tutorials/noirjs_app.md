@@ -24,7 +24,7 @@ Before we start, we want to make sure we have Node and Nargo installed.
 
 We start by opening a terminal and executing `node --version`. If we don't get an output like `v20.10.0`, that means node is not installed. Let's do that by following the handy [nvm guide](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script).
 
-As for `Nargo`, we can follow the the [Nargo guide](../getting_started/installation/index.md) to install it. If you're lazy, just paste this on a terminal and run `noirup`:
+As for `Nargo`, we can follow the [Nargo guide](../getting_started/installation/index.md) to install it. If you're lazy, just paste this on a terminal and run `noirup`:
 
 ```sh
 curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
