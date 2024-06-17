@@ -12,7 +12,6 @@ Let's walk through an example of a merkle membership proof in Noir that proves t
 in a merkle tree.
 
 ```rust
-use dep::std;
 
 fn main(message : [Field; 62], index : Field, hashpath : [Field; 40], root : Field) {
     let leaf = std::hash::hash_to_field(message.as_slice());

@@ -40,7 +40,6 @@ pub fn verify_proof(verification_key: [Field], proof: [Field], public_inputs: [F
 ## Example usage
 
 ```rust
-use dep::std;
 
 fn main(
     verification_key : [Field; 114],

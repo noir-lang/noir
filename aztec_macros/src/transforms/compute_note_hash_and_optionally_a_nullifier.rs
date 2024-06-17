@@ -176,7 +176,7 @@ fn generate_compute_note_hash_and_optionally_a_nullifier_source(
         format!(
             "
         unconstrained fn compute_note_hash_and_optionally_a_nullifier(
-            contract_address: dep::aztec::protocol_types::address::AztecAddress,
+            contract_address: aztec::protocol_types::address::AztecAddress,
             nonce: Field,
             storage_slot: Field,
             note_type_id: Field,
@@ -194,7 +194,7 @@ fn generate_compute_note_hash_and_optionally_a_nullifier_source(
 
         let if_statements: Vec<String> = note_types.iter().map(|note_type| format!(
             "if (note_type_id == {0}::get_note_type_id()) {{
-                dep::aztec::note::utils::compute_note_hash_and_optionally_a_nullifier({0}::deserialize_content, note_header, compute_nullifier, serialized_note)
+                aztec::note::utils::compute_note_hash_and_optionally_a_nullifier({0}::deserialize_content, note_header, compute_nullifier, serialized_note)
             }}"
         , note_type)).collect();
 
@@ -208,14 +208,14 @@ fn generate_compute_note_hash_and_optionally_a_nullifier_source(
         format!(
             "
             unconstrained fn compute_note_hash_and_optionally_a_nullifier(
-                contract_address: dep::aztec::protocol_types::address::AztecAddress,
+                contract_address: aztec::protocol_types::address::AztecAddress,
                 nonce: Field,
                 storage_slot: Field,
                 note_type_id: Field,
                 compute_nullifier: bool,
                 serialized_note: [Field; {}],
             ) -> pub [Field; 4] {{
-                let note_header = dep::aztec::prelude::NoteHeader::new(contract_address, nonce, storage_slot);
+                let note_header = aztec::prelude::NoteHeader::new(contract_address, nonce, storage_slot);
 
                 {}
             }}",

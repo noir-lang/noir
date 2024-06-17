@@ -468,7 +468,7 @@ fn inject_prelude(
 
         let path = Path {
             segments: segments.clone(),
-            kind: crate::ast::PathKind::Dep,
+            kind: crate::ast::PathKind::Plain,
             span: Span::default(),
         };
 
@@ -489,7 +489,7 @@ fn inject_prelude(
                     0,
                     ImportDirective {
                         module_id: crate_root,
-                        path: Path { segments, kind: PathKind::Dep, span: Span::default() },
+                        path: Path { segments, kind: PathKind::Plain, span: Span::default() },
                         alias: None,
                         is_prelude: true,
                     },
