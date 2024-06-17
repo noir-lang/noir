@@ -861,13 +861,21 @@ fn generate_plonky2_trace_tests(test_file: &mut File, test_data_dir: &Path) {
             r#"
 #[test]
 fn plonky2_trace_{test_name}() {{
+    use tempfile::tempdir;
+
     let test_program_dir = PathBuf::from("{test_dir}");
 
-    let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.arg("--program-dir").arg(test_program_dir.clone());
-    cmd.arg("trace").arg("--trace-dir").arg("it-does-not-matter-yet");
+    let temp_dir = tempdir().unwrap();
 
-    cmd.assert().success();"#,
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir.to_str().unwrap());
+    cmd.arg("trace").arg("--trace-dir").arg(temp_dir.path());
+
+
+    let trace_file_path = temp_dir.path().join("trace.json");
+    let file_written_message = format!("Saved trace to {{:?}}", trace_file_path);
+
+    cmd.assert().success().stdout(predicate::str::contains(file_written_message));"#,
             test_dir = test_dir.display(),
         )
         .expect("Could not write templated test file.");
@@ -890,6 +898,11 @@ fn plonky2_trace_{test_name}() {{
         write!(
             test_file,
             r#"
+
+    let expected_trace_path = test_program_dir.join("expected_trace.json");
+    let mut diff_cmd = Command::new("diff");
+    diff_cmd.arg(trace_file_path).arg(expected_trace_path);
+    diff_cmd.assert().success();
 }}
 "#
         )

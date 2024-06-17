@@ -13,7 +13,7 @@ use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING
 use noirc_frontend::graph::CrateName;
 
 use super::debug_cmd::compile_bin_package_for_debugging;
-use super::fs::inputs::read_inputs_from_file;
+use super::fs::{inputs::read_inputs_from_file, trace::save_trace_to_file};
 use crate::errors::CliError;
 
 use super::NargoConfig;
@@ -64,35 +64,26 @@ pub(crate) fn run(args: TraceCommand, config: NargoConfig) -> Result<(), CliErro
         args.compile_options.clone(),
     )?;
 
-    let (return_value, solved_witness) =
-        trace_program_and_decode(compiled_program, package, &args.prover_name)?;
-
-    Ok(())
+    trace_program_and_decode(compiled_program, package, &args.prover_name, &args.trace_dir)
 }
 
 fn trace_program_and_decode(
     program: CompiledProgram,
     package: &Package,
     prover_name: &str,
-) -> Result<(Option<InputValue>, Option<WitnessMap<FieldElement>>), CliError> {
+    trace_dir: &str,
+) -> Result<(), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
-    let solved_witness = trace_program(&program, &inputs_map)?;
-
-    match solved_witness {
-        Some(witness) => {
-            let (_, return_value) = program.abi.decode(&witness)?;
-            Ok((return_value, Some(witness)))
-        }
-        None => Ok((None, None)),
-    }
+    trace_program(&program, &inputs_map, trace_dir)
 }
 
 pub(crate) fn trace_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
-) -> Result<Option<WitnessMap<FieldElement>>, CliError> {
+    trace_dir: &str,
+) -> Result<(), CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let debug_artifact = DebugArtifact {
@@ -100,12 +91,18 @@ pub(crate) fn trace_program(
         file_map: compiled_program.file_map.clone(),
     };
 
-    noir_tracer::trace_circuit(
+    let trace_artifact = match noir_tracer::trace_circuit(
         &Bn254BlackBoxSolver,
         &compiled_program.program.functions[0],
         &debug_artifact,
         initial_witness,
         &compiled_program.program.unconstrained_functions,
-    )
-    .map_err(CliError::from)
+    ) {
+        Err(error) => return Err(CliError::from(error)),
+        Ok(trace_artifact) => trace_artifact,
+    };
+
+    save_trace_to_file(&trace_artifact, trace_dir);
+
+    Ok(())
 }

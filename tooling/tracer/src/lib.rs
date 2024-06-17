@@ -7,6 +7,7 @@ use acvm::acir::circuit::brillig::BrilligBytecode;
 
 use noir_debugger::foreign_calls::DefaultDebugForeignCallExecutor;
 use noirc_artifacts::debug::DebugArtifact;
+use noirc_artifacts::trace::TraceArtifact;
 
 use nargo::NargoError;
 
@@ -14,6 +15,7 @@ use std::cell::RefCell;
 
 pub struct TracingContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     context: DebugContext<'a, B>,
+    trace_artifact: TraceArtifact, // The result of tracing, built incrementally.
     last_result: DebugCommandResult,
 }
 
@@ -41,7 +43,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         } else {
             DebugCommandResult::Ok
         };
-        Self { context, last_result }
+
+        let trace_artifact = TraceArtifact::new();
+
+        Self { context, trace_artifact, last_result }
     }
 
     fn validate_in_progress(&self) -> bool {
@@ -101,25 +106,20 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
     debug_artifact: &DebugArtifact,
     initial_witness: WitnessMap<FieldElement>,
     unconstrained_functions: &[BrilligBytecode<FieldElement>],
-) -> Result<Option<WitnessMap<FieldElement>>, NargoError<FieldElement>> {
-    let context = RefCell::new(TracingContext::new(
+) -> Result<TraceArtifact, NargoError<FieldElement>> {
+    let mut context = TracingContext::new(
         blackbox_solver,
         circuit,
         debug_artifact,
         initial_witness,
         unconstrained_functions,
-    ));
+    );
 
     let mut steps = 0;
-    while (&context).borrow_mut().next_into() {
+    while context.next_into() {
         steps += 1;
     }
     println!("Total tracing steps: {steps}");
 
-    if context.borrow().is_solved() {
-        let solved_witness = context.into_inner().finalize();
-        Ok(Some(solved_witness))
-    } else {
-        Ok(None)
-    }
+    Ok(context.trace_artifact)
 }

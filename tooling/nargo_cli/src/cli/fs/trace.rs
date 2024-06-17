@@ -11,6 +11,8 @@ pub(crate) fn save_trace_to_file<P: AsRef<Path>>(trace: &TraceArtifact, trace_di
 
     write_to_file(&serde_json::to_vec(trace).unwrap(), &trace_path);
 
+    println!("Saved trace to {:?}", trace_path);
+
     trace_path
 }
 
