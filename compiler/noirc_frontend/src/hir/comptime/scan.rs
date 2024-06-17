@@ -59,7 +59,6 @@ impl<'interner> Interpreter<'interner> {
                 self.scan_expression(let_.expression)?;
             }
         }
-
         Ok(())
     }
 
