@@ -3,6 +3,7 @@ brillig_references
 brillig_to_bytes_integration
 debug_logs
 is_unconstrained
+macros
 modulus
 references
 regression_4709

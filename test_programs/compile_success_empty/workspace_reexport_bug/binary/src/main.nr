@@ -1,2 +1,2 @@
-use dep::library::ReExportMeFromAnotherLib;
+use library::ReExportMeFromAnotherLib;
 fn main(_x: ReExportMeFromAnotherLib) {}
