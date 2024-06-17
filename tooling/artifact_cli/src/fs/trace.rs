@@ -6,10 +6,12 @@ use crate::errors::FilesystemError;
 
 use super::artifact::write_to_file;
 
-pub(crate) fn save_trace_to_file<P: AsRef<Path>>(trace: &TraceArtifact, trace_dir: P) -> PathBuf {
+pub fn save_trace_to_file<P: AsRef<Path>>(trace: &TraceArtifact, trace_dir: P) -> PathBuf {
     let trace_path = trace_dir.as_ref().join("trace").with_extension("json");
 
     write_to_file(&serde_json::to_vec(trace).unwrap(), &trace_path);
+
+    println!("Saved trace to {:?}", trace_path);
 
     trace_path
 }

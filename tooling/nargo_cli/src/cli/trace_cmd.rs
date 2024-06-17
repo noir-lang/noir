@@ -3,6 +3,7 @@ use acvm::FieldElement;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
+use noir_artifact_cli::fs::trace::save_trace_to_file;
 use noirc_artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::package::Package;
@@ -66,31 +67,28 @@ pub(crate) fn run(args: TraceCommand, config: NargoConfig) -> Result<(), CliErro
         args.compile_options.clone(),
     )?;
 
-    let () =
-        trace_program_and_decode(compiled_program, package, &args.prover_name, args.compile_options.pedantic_solving)?;
-
-    Ok(())
+    trace_program_and_decode(compiled_program, package, &args.prover_name, &args.trace_dir, args.compile_options.pedantic_solving)
 }
 
 fn trace_program_and_decode(
     program: CompiledProgram,
     package: &Package,
     prover_name: &str,
+    trace_dir: &str,
     pedantic_solving: bool,
 ) -> Result<(), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
-    let solved_witness = trace_program(&program, &inputs_map, pedantic_solving)?;
-
-    Ok(())
+    trace_program(&program, &inputs_map, trace_dir, pedantic_solving)
 }
 
 pub(crate) fn trace_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
+    trace_dir: &str,
     pedantic_solving: bool,
-) -> Result<Option<WitnessStack<FieldElement>>, CliError> {
+) -> Result<(), CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let debug_artifact = DebugArtifact {
@@ -98,12 +96,18 @@ pub(crate) fn trace_program(
         file_map: compiled_program.file_map.clone(),
     };
 
-    noir_tracer::trace_circuit(
+    let trace_artifact = match noir_tracer::trace_circuit(
         &Bn254BlackBoxSolver(pedantic_solving),
         &compiled_program.program.functions,
         &debug_artifact,
         initial_witness,
         &compiled_program.program.unconstrained_functions,
-    )
-    .map_err(CliError::from)
+    ) {
+        Err(error) => return Err(CliError::from(error)),
+        Ok(trace_artifact) => trace_artifact,
+    };
+
+    save_trace_to_file(&trace_artifact, trace_dir);
+
+    Ok(())
 }
