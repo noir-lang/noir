@@ -34,7 +34,7 @@ impl Bar<Field> {
 impl<T> Bar<T> {
     // This is to test that we can use turbofish on methods as well
     fn zeroed<A>(_self: Self) -> A {
-        dep::std::unsafe::zeroed()
+        std::unsafe::zeroed()
     }
 }
 
