@@ -1123,7 +1123,6 @@ impl<'a> Resolver<'a> {
             all_generics: Vec::new(),
             is_trait_function: false,
             parameter_idents: Vec::new(),
-            generic_idents: Vec::new(),
             function_body: FunctionBody::Resolved,
         }
     }

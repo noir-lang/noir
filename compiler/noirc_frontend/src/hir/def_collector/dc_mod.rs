@@ -1,7 +1,9 @@
+use std::rc::Rc;
 use std::{collections::HashMap, path::Path, vec};
 
 use acvm::{AcirField, FieldElement};
 use fm::{FileId, FileManager, FILE_EXTENSION};
+use iter_extended::vecmap;
 use noirc_errors::Location;
 use num_bigint::BigUint;
 use num_traits::Num;
@@ -9,14 +11,16 @@ use num_traits::Num;
 use crate::ast::{
     FunctionDefinition, Ident, ItemVisibility, LetStatement, ModuleDeclaration, NoirFunction,
     NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItem, TraitItem,
-    TypeImpl,
+    TypeImpl, UnresolvedGenerics,
 };
+use crate::Generics;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     macros_api::MacroProcessor,
     node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
+    ResolvedGeneric, TypeVariable,
 };
 
 use super::{
@@ -332,10 +336,45 @@ impl<'a> ModCollector<'a> {
                 definition_errors.push((error.into(), self.file_id));
             }
 
+            let resolved_generics =
+                Self::resolve_generics(context, &unresolved.struct_def.generics);
+
+            context.def_interner.update_struct(id, |struct_def| {
+                struct_def.generics = resolved_generics;
+            });
+
             // And store the TypeId -> StructType mapping somewhere it is reachable
             self.def_collector.items.types.insert(id, unresolved);
+
+            // let resolved_generics = unresolved.struct_def.generics.iter().map(|generic| {
+            //     let resolved_generic = ResolvedGeneric {
+            //         name: generic.ident().0.contents.clone(),
+            //         type_var: typevar.clone(),
+            //         kind: generic.kind(),
+            //         span,
+            //     };
+            //     resolved_generic
+            // });
         }
         definition_errors
+    }
+
+    /// Resolve generics during definition collection
+    /// Generics need to be resolved before elaboration to distinguish
+    /// between normal and numeric generics.
+    fn resolve_generics(context: &mut Context, generics: &UnresolvedGenerics) -> Generics {
+        vecmap(generics, |generic| {
+            // Map the generic to a fresh type variable
+            let id = context.def_interner.next_type_variable_id();
+            let type_var = TypeVariable::unbound(id);
+            let ident = generic.ident();
+            let span = ident.0.span();
+
+            // Check for name collisions of this generic
+            let name = Rc::new(ident.0.contents.clone());
+
+            ResolvedGeneric { name, type_var, kind: generic.kind(), span }
+        })
     }
 
     /// Collect any type aliases definitions declared within the ast.
@@ -526,6 +565,12 @@ impl<'a> ModCollector<'a> {
                 fns_with_default_impl: unresolved_functions,
             };
             context.def_interner.push_empty_trait(trait_id, &unresolved);
+
+            let resolved_generics = Self::resolve_generics(context, &unresolved.trait_def.generics);
+            context.def_interner.update_trait(trait_id, |trait_def| {
+                trait_def.generics = resolved_generics;
+            });
+
             self.def_collector.items.traits.insert(trait_id, unresolved);
         }
         errors

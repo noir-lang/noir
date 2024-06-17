@@ -21,23 +21,8 @@ use crate::{
 use super::Elaborator;
 
 impl<'context> Elaborator<'context> {
-    pub fn collect_trait_generics(&mut self, traits: &BTreeMap<TraitId, UnresolvedTrait>) {
-        for (trait_id, unresolved_trait) in traits {
-            self.push_scope();
-            self.recover_generics(|this| {
-                this.add_generics(&unresolved_trait.trait_def.generics);
-
-                this.interner.update_trait(*trait_id, |trait_def| {
-                    trait_def.generics = this.generics.clone();
-                });
-            });
-            self.pop_scope();
-        }
-    }
-
     pub fn collect_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
-            self.push_scope();
             self.recover_generics(|this| {
                 let resolved_generics = this.interner.get_trait(trait_id).generics.clone();
                 this.add_existing_generics(
@@ -64,7 +49,6 @@ impl<'context> Elaborator<'context> {
             if self.crate_id.is_stdlib() {
                 self.interner.try_add_operator_trait(trait_id);
             }
-            self.pop_scope();
         }
     }
 
@@ -173,7 +157,6 @@ impl<'context> Elaborator<'context> {
         func_id: FuncId,
     ) {
         let old_generic_count = self.generics.len();
-        let old_generic_ident_count = self.generic_idents.len();
 
         self.scopes.start_function();
 
@@ -204,6 +187,5 @@ impl<'context> Elaborator<'context> {
         let _ = self.scopes.end_function();
         // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
         self.generics.truncate(old_generic_count);
-        self.generic_idents.truncate(old_generic_ident_count);
     }
 }

@@ -106,11 +106,6 @@ pub struct Elaborator<'context> {
     /// were declared in.
     generics: Vec<ResolvedGeneric>,
 
-    /// The idents for each numeric generic on a function.
-    /// These definitions are generated when creating function metas
-    /// and need to be brought into scope later when elaborating the function body.
-    generic_idents: Vec<HirIdent>,
-
     /// When resolving lambda expressions, we need to keep track of the variables
     /// that are captured. We do this in order to create the hidden environment
     /// parameter for the lambda function.
@@ -189,7 +184,6 @@ impl<'context> Elaborator<'context> {
             nested_loops: 0,
             in_contract: false,
             generics: Vec::new(),
-            generic_idents: Vec::new(),
             lambda_stack: Vec::new(),
             self_type: None,
             current_item: None,
@@ -231,10 +225,6 @@ impl<'context> Elaborator<'context> {
         for (alias_id, alias) in items.type_aliases {
             this.define_type_alias(alias_id, alias);
         }
-
-        // Must collect trait generics before we define function metas as we need to have resolved generics
-        // when we define trait impl function metas
-        this.collect_trait_generics(&items.traits);
 
         // Must resolve structs before we resolve globals.
         this.collect_struct_definitions(items.types);
@@ -284,10 +274,8 @@ impl<'context> Elaborator<'context> {
     /// back to the previous length.
     fn recover_generics<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         let generics_count = self.generics.len();
-        let generic_idents_count = self.generic_idents.len();
         let ret = f(self);
         self.generics.truncate(generics_count);
-        self.generic_idents.truncate(generic_idents_count);
         ret
     }
 
@@ -337,16 +325,21 @@ impl<'context> Elaborator<'context> {
             self.in_unconstrained_fn = true;
         }
 
+        // Introduce all numeric generics into scope
+        for generic in &func_meta.all_generics {
+            if let Kind::Numeric = generic.kind {
+                let definition = DefinitionKind::GenericType(generic.type_var.clone());
+                let ident = Ident::new(generic.name.to_string(), generic.span);
+                self.add_variable_decl_inner(ident, false, false, false, definition);
+                // self.interner.push_definition_type(hir_ident.id, typ);
+            }
+        }
+
         // The DefinitionIds for each parameter were already created in define_function_meta
         // so we need to reintroduce the same IDs into scope here.
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
             self.add_existing_variable_to_scope(name, parameter.clone(), true);
-        }
-        // We should introduce the IDs for numeric generics into scope as we do with parameters
-        for numeric_generic in &func_meta.generic_idents {
-            let name = self.interner.definition_name(numeric_generic.id).to_owned();
-            self.add_existing_variable_to_scope(name, numeric_generic.clone(), false);
         }
 
         self.generics = func_meta.all_generics.clone();
@@ -468,7 +461,22 @@ impl<'context> Elaborator<'context> {
             let span = ident.0.span();
 
             // Declare numeric generic if it is specified
-            self.try_add_numeric_generic(generic, typevar.clone());
+            // self.try_add_numeric_generic(generic);
+            let typ = if let UnresolvedGeneric::Numeric { ident, typ } = generic {
+                let typ = self.resolve_type(typ.clone());
+                if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
+                    let unsupported_typ_err = CompilationError::ResolverError(
+                        ResolverError::UnsupportedNumericGenericType {
+                            ident: ident.clone(),
+                            typ: typ.clone(),
+                        },
+                    );
+                    self.errors.push((unsupported_typ_err, self.file));
+                }
+                typ
+            } else {
+                Type::Error
+            };
 
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
@@ -495,11 +503,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// If a numeric generic has been specified, add it to the current scope.
-    pub(super) fn try_add_numeric_generic(
-        &mut self,
-        generic: &UnresolvedGeneric,
-        typevar: TypeVariable,
-    ) {
+    pub(super) fn try_add_numeric_generic(&mut self, generic: &UnresolvedGeneric) {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let typ = self.resolve_type(typ.clone());
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
@@ -510,18 +514,6 @@ impl<'context> Elaborator<'context> {
                     });
                 self.errors.push((unsupported_typ_err, self.file));
             }
-            let definition = DefinitionKind::GenericType(typevar.clone());
-            let hir_ident =
-                self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
-
-            // Push the definition type because if one is missing, when the numeric generic is used in an expression
-            // its definition type will be resolved to a polymorphic integer or field.
-            // We do not yet fully support bool generics but this will be a foot-gun once we look to add support
-            // and can lead to confusing errors.
-            self.interner.push_definition_type(hir_ident.id, typ);
-            // Store the ident of the numeric generic to set up the function meta so that
-            // any numeric generics are accurately brought into scope.
-            self.generic_idents.push(hir_ident);
         }
     }
 
@@ -722,7 +714,6 @@ impl<'context> Elaborator<'context> {
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
             parameter_idents,
-            generic_idents: self.generic_idents.clone(),
             return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
             has_body: !func.def.body.is_empty(),
@@ -860,7 +851,6 @@ impl<'context> Elaborator<'context> {
         self.self_type = None;
         self.current_trait_impl = None;
         self.generics.clear();
-        self.generic_idents.clear();
     }
 
     fn collect_impls(
@@ -871,23 +861,15 @@ impl<'context> Elaborator<'context> {
         self.local_module = module;
 
         for (generics, span, unresolved) in impls {
-            self.push_scope();
-
             self.file = unresolved.file_id;
             let old_generic_count = self.generics.len();
-            let old_generic_ident_count = self.generic_idents.len();
             self.add_generics(generics);
             self.declare_methods_on_struct(false, unresolved, *span);
             self.generics.truncate(old_generic_count);
-            self.generic_idents.truncate(old_generic_ident_count);
-
-            self.pop_scope();
         }
     }
 
     fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
-        self.push_scope();
-
         self.local_module = trait_impl.module_id;
         self.file = trait_impl.file_id;
         self.current_trait_impl = trait_impl.impl_id;
@@ -959,12 +941,9 @@ impl<'context> Elaborator<'context> {
         }
 
         self.generics.clear();
-        self.generic_idents.clear();
 
         self.current_trait_impl = None;
         self.self_type = None;
-
-        self.pop_scope();
     }
 
     fn get_module_mut(
@@ -1172,8 +1151,6 @@ impl<'context> Elaborator<'context> {
     }
 
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
-        self.push_scope();
-
         self.file = alias.file_id;
         self.local_module = alias.module_id;
 
@@ -1182,9 +1159,6 @@ impl<'context> Elaborator<'context> {
         let typ = self.resolve_type(alias.type_alias_def.typ);
         self.interner.set_type_alias(alias_id, typ, generics);
         self.generics.clear();
-        self.generic_idents.clear();
-
-        self.pop_scope();
     }
 
     fn collect_struct_definitions(&mut self, structs: BTreeMap<StructId, UnresolvedStruct>) {
@@ -1192,37 +1166,9 @@ impl<'context> Elaborator<'context> {
         // when adding checks after each struct field is resolved.
         let struct_ids = structs.keys().copied().collect::<Vec<_>>();
 
-        // First resolve each struct's generics because fields with nested structs
-        // may themselves also contain generics.
-        // Without resolving all generics first we will not be able to distinguish
-        // between normal and numeric generics.
-        for (type_id, typ) in structs.iter() {
-            self.push_scope();
-
-            self.file = typ.file_id;
-            self.local_module = typ.module_id;
-
-            self.recover_generics(|this| {
-                this.current_item = Some(DependencyId::Struct(*type_id));
-
-                this.resolving_ids.insert(*type_id);
-
-                let generics = this.add_generics(&typ.struct_def.generics);
-                this.interner.update_struct(*type_id, |struct_def| {
-                    struct_def.generics = generics;
-                });
-
-                this.resolving_ids.remove(type_id);
-            });
-
-            self.pop_scope();
-        }
-
         // Resolve each field in each struct.
         // Each struct should already be present in the NodeInterner after def collection.
         for (type_id, typ) in structs {
-            self.push_scope();
-
             self.file = typ.file_id;
             self.local_module = typ.module_id;
 
@@ -1243,8 +1189,6 @@ impl<'context> Elaborator<'context> {
                     }
                 }
             });
-
-            self.pop_scope();
         }
 
         // Check whether the struct fields have nested slices
@@ -1361,8 +1305,6 @@ impl<'context> Elaborator<'context> {
         }
 
         for ((self_type, local_module), function_sets) in impls {
-            self.push_scope();
-
             self.local_module = *local_module;
 
             for (generics, _, function_set) in function_sets {
@@ -1374,15 +1316,10 @@ impl<'context> Elaborator<'context> {
                 self.define_function_metas_for_functions(function_set);
                 self.self_type = None;
                 self.generics.clear();
-                self.generic_idents.clear();
             }
-
-            self.pop_scope();
         }
 
         for trait_impl in trait_impls {
-            self.push_scope();
-
             self.file = trait_impl.file_id;
             self.local_module = trait_impl.module_id;
 
@@ -1424,9 +1361,6 @@ impl<'context> Elaborator<'context> {
             trait_impl.resolved_object_type = self.self_type.take();
             trait_impl.impl_id = self.current_trait_impl.take();
             self.generics.clear();
-            self.generic_idents.clear();
-
-            self.pop_scope();
         }
     }
 

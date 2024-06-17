@@ -1412,11 +1412,8 @@ impl<'context> Elaborator<'context> {
         assert_eq!(unresolved_generics.len(), generics.len());
 
         for (unresolved_generic, generic) in unresolved_generics.iter().zip(generics) {
-            self.add_existing_generic(
-                unresolved_generic,
-                unresolved_generic.span(),
-                generic.type_var.clone(),
-            );
+            let type_var = generic.type_var.clone();
+            self.add_existing_generic(unresolved_generic, unresolved_generic.span(), type_var);
         }
     }
 
@@ -1439,7 +1436,7 @@ impl<'context> Elaborator<'context> {
             });
         } else {
             // Declare numeric generic if it is specified
-            self.try_add_numeric_generic(unresolved_generic, typevar.clone());
+            self.try_add_numeric_generic(unresolved_generic);
 
             let resolved_generic = ResolvedGeneric {
                 name: rc_name,
