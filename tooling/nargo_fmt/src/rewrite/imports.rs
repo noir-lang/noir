@@ -12,6 +12,7 @@ use crate::{
 pub(crate) enum UseSegment {
     Ident(String, Option<String>),
     List(Vec<UseTree>),
+    Dep,
     Crate,
 }
 
@@ -47,6 +48,7 @@ impl UseSegment {
                     format!("{{{list_str}}}")
                 }
             }
+            UseSegment::Dep => "dep".into(),
             UseSegment::Crate => "crate".into(),
         }
     }
@@ -63,7 +65,8 @@ impl UseTree {
 
         match use_tree.prefix.kind {
             ast::PathKind::Crate => result.path.push(UseSegment::Crate),
-            ast::PathKind::Plain | ast::PathKind::Dep => {}
+            ast::PathKind::Dep => result.path.push(UseSegment::Dep),
+            ast::PathKind::Plain => {}
         };
 
         result.path.extend(

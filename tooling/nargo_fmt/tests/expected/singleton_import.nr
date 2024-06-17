@@ -1,2 +1,2 @@
-use std;
+use dep::std;
 use some_crate;
