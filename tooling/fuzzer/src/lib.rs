@@ -3,8 +3,6 @@
 //!
 //! Code is used under the MIT license.
 
-use std::cell::RefCell;
-
 use acvm::{blackbox_solver::StubbedBlackBoxSolver, FieldElement};
 use noirc_abi::InputMap;
 use proptest::test_runner::{TestCaseError, TestError, TestRunner};
@@ -39,12 +37,9 @@ impl FuzzedExecutor {
 
     /// Fuzzes the provided program.
     pub fn fuzz(&self) -> FuzzTestResult {
-        // Stores the result and calldata of the last failed call, if any.
-        let counterexample: RefCell<InputMap> = RefCell::default();
-
         let strategy = strategies::arb_input_map(&self.program.abi);
 
-        let run_result: Result<(), TestError<_>> =
+        let run_result: Result<(), TestError<InputMap>> =
             self.runner.clone().run(&strategy, |input_map| {
                 let fuzz_res = self.single_fuzz(input_map)?;
 
@@ -52,35 +47,26 @@ impl FuzzedExecutor {
                     FuzzOutcome::Case(_) => Ok(()),
                     FuzzOutcome::CounterExample(CounterExampleOutcome {
                         exit_reason: status,
-                        counterexample: outcome,
-                    }) => {
-                        // We cannot use the input map returned by the test runner in `TestError::Fail`,
-                        // since that input represents the last run case, which may not correspond with
-                        // our failure - when a fuzz case fails, proptest will try to run at least one
-                        // more case to find a minimal failure case.
-                        *counterexample.borrow_mut() = outcome;
-                        Err(TestCaseError::fail(status))
-                    }
+                        ..
+                    }) => Err(TestCaseError::fail(status)),
                 }
             });
 
-        let mut result =
-            FuzzTestResult { success: run_result.is_ok(), reason: None, counterexample: None };
-
         match run_result {
-            Err(TestError::Abort(reason)) => {
-                result.reason = Some(reason.to_string());
-            }
-            Err(TestError::Fail(reason, _)) => {
+            Ok(()) => FuzzTestResult { success: true, reason: None, counterexample: None },
+
+            Err(TestError::Abort(reason)) => FuzzTestResult {
+                success: false,
+                reason: Some(reason.to_string()),
+                counterexample: None,
+            },
+            Err(TestError::Fail(reason, counterexample)) => {
                 let reason = reason.to_string();
-                result.reason = if reason.is_empty() { None } else { Some(reason) };
+                let reason = if reason.is_empty() { None } else { Some(reason) };
 
-                result.counterexample = Some(counterexample.into_inner());
+                FuzzTestResult { success: false, reason, counterexample: Some(counterexample) }
             }
-            _ => {}
         }
-
-        result
     }
 
     /// Granular and single-step function that runs only one fuzz and returns either a `CaseOutcome`
