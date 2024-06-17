@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -40,6 +41,7 @@ fn main() {
     generate_compile_success_no_bug_tests(&mut test_file, &test_dir);
     generate_compile_success_with_bug_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
+    generate_trace_tests(&mut test_file, &test_dir);
 }
 
 /// Some tests are explicitly ignored in brillig due to them failing.
@@ -569,4 +571,64 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
         );
     }
     writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_trace_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_sub_dir = "trace";
+    let test_data_dir = test_data_dir.join(test_sub_dir);
+
+    let test_case_dirs =
+        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+
+    let expected_messages = HashMap::from([("1_mul", vec!["Total tracing steps: 14"])]);
+
+    for test_dir in test_case_dirs {
+        let test_name =
+            test_dir.file_name().into_string().expect("Directory can't be converted to string");
+        if test_name.contains('-') {
+            panic!(
+                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
+            );
+        };
+        let test_dir = &test_dir.path();
+
+        write!(
+            test_file,
+            r#"
+#[test]
+fn trace_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir.clone());
+    cmd.arg("trace").arg("--trace-dir").arg("it-does-not-matter-yet");
+
+    cmd.assert().success();"#,
+            test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+
+        // Not all tests have expected messages, so match.
+        match expected_messages.get(test_name.as_str()) {
+            Some(messages) => {
+                for message in messages.iter() {
+                    write!(
+                        test_file,
+                        r#"
+    cmd.assert().success().stdout(predicate::str::contains("{message}"));"#
+                    )
+                    .expect("Could not write templated test file.");
+                }
+            }
+            None => {}
+        }
+
+        write!(
+            test_file,
+            r#"
+}}
+"#
+        )
+        .expect("Could not write templated test file.");
+    }
 }
