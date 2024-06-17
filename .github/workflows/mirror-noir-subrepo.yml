@@ -96,6 +96,12 @@ jobs:
             git config --file="$SUBREPO_PATH/.gitrepo" subrepo.commit "$BASE_NOIR_COMMIT"
             # make a new commit with our previous message
             git commit -am "$COMMIT_MESSAGE"
+
+            # There's various changes which we need to make to account for CI differences so we run this script to apply them.
+            git checkout origin/master -- noir/scripts/sync-out-fixup.sh
+            noir/scripts/sync-out-fixup.sh
+            git commit -am "chore: apply sync fixes"
+
             # Now push to it with subrepo with computed commit messages
             if ./scripts/git-subrepo/lib/git-subrepo push $SUBREPO_PATH --squash --branch=$STAGING_BRANCH; then
               # We don't push a commit to aztec anymore so that we can maintain the 'commit' as our last pull branch
