@@ -1,4 +1,3 @@
-use std;
 // Test global string literals
 global HELLO_WORLD = "hello world";
 

@@ -1,5 +1,3 @@
-use std;
-
 fn main(
     // Public key of note
   // all notes have the same denomination

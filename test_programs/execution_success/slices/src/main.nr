@@ -1,5 +1,4 @@
 use std::slice;
-use std;
 
 fn main(x: Field, y: pub Field) {
     let mut slice = &[0; 2];

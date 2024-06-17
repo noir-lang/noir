@@ -1,4 +1,3 @@
-use std;
 struct Item {
     id: Field,
 }

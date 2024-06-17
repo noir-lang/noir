@@ -1,4 +1,3 @@
-use std;
 fn main() {
     let a = "hello";
     let b = a.as_bytes();

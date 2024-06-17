@@ -1,4 +1,3 @@
-use std;
 // This test checks that we perform dead-instruction-elimination on intrinsic functions.
 fn main(x: Field) {
     let hash = std::hash::pedersen_commitment([x]);

@@ -149,7 +149,6 @@ fn wrapping_mul<T>(x: T, y: T) -> T;
 Example of how it is used:
 
 ```rust
-use std;
 
 fn main(x: u8, y: u8) -> pub u8 {
     std::wrapping_add(x, y)

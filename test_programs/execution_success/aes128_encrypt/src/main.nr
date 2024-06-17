@@ -1,5 +1,3 @@
-use std;
-
 unconstrained fn decode_ascii(ascii: u8) -> u8 {
     if ascii < 58 {
         ascii - 48

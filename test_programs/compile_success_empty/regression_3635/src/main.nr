@@ -1,5 +1,3 @@
-use std;
-
 fn main() {
     let x: u8 = 0x61;
     let y: u8 = "a".as_bytes()[0];

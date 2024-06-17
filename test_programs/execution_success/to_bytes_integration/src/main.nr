@@ -1,5 +1,3 @@
-use std;
-
 fn main(x: Field, a: Field) {
     let y: Field = 2040124;
     let be_byte_array = y.to_be_bytes(31);

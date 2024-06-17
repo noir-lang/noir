@@ -1,5 +1,3 @@
-use std;
-
 trait MyDefault {
     fn my_default(x: Field, y: Field) -> Self;
 
