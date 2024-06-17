@@ -20,7 +20,7 @@ pub enum ParserErrorReason {
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
     ConstrainDeprecated,
-    #[error("'dep::' prefix in paths is deprecated")]
+    #[error("Expression is invalid in an array-length type: '{0}'. Only unsigned integer constants, globals, generics, +, -, *, /, and % may be used in this context.")]
     InvalidArrayLengthExpression(Expression),
     #[error("Early 'return' is unsupported")]
     EarlyReturn,
