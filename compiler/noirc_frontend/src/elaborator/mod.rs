@@ -1158,7 +1158,7 @@ impl<'context> Elaborator<'context> {
                             self.push_err(ResolverError::NonFunctionInAnnotation { span });
                         }
                     }
-                    Err(error) => self.push_err(error),
+                    Err(_) => self.push_err(ResolverError::UnknownAnnotation { span }),
                 }
             }
         }
