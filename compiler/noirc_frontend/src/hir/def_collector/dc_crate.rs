@@ -256,7 +256,7 @@ impl DefCollector {
         context: &mut Context,
         ast: SortedModule,
         root_file_id: FileId,
-        use_elaborator: bool,
+        use_legacy: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -273,7 +273,7 @@ impl DefCollector {
             errors.extend(CrateDefMap::collect_defs(
                 dep.crate_id,
                 context,
-                use_elaborator,
+                use_legacy,
                 macro_processors,
             ));
 
@@ -351,7 +351,7 @@ impl DefCollector {
             }
         }
 
-        if use_elaborator {
+        if !use_legacy {
             let mut more_errors = Elaborator::elaborate(context, crate_id, def_collector.items);
             errors.append(&mut more_errors);
             return errors;

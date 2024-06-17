@@ -1138,6 +1138,7 @@ impl<'context> Elaborator<'context> {
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
         let old_module = std::mem::replace(&mut self.local_module, global.module_id);
         let old_file = std::mem::replace(&mut self.file, global.file_id);
+        let old_item = self.current_item.take();
 
         let global_id = global.global_id;
         self.current_item = Some(DependencyId::Global(global_id));
@@ -1171,6 +1172,7 @@ impl<'context> Elaborator<'context> {
         self.type_variables.clear();
         self.local_module = old_module;
         self.file = old_file;
+        self.current_item = old_item;
     }
 
     fn elaborate_comptime_global(&mut self, global_id: GlobalId) {
