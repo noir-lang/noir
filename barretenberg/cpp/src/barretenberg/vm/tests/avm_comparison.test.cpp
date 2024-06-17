@@ -130,7 +130,7 @@ TEST_P(AvmCmpTestsLT, ParamTest)
     ASSERT_TRUE(alu_row != trace.end());
     common_validate_cmp(*row, *alu_row, a, b, c, FF(0), FF(1), FF(2), mem_tag);
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 INSTANTIATE_TEST_SUITE_P(AvmCmpTests,
                          AvmCmpTestsLT,
@@ -159,7 +159,7 @@ TEST_P(AvmCmpTestsLTE, ParamTest)
     ASSERT_TRUE(row != trace.end());
     ASSERT_TRUE(alu_row != trace.end());
     common_validate_cmp(*row, *alu_row, a, b, c, FF(0), FF(1), FF(2), mem_tag);
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 INSTANTIATE_TEST_SUITE_P(AvmCmpTests,
                          AvmCmpTestsLTE,

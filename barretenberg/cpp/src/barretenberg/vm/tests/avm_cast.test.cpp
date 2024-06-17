@@ -118,7 +118,7 @@ class AvmCastTests : public ::testing::Test {
         if (force_proof) {
             validate_trace(std::move(trace), public_inputs, true);
         } else {
-            validate_trace(std::move(trace));
+            validate_trace(std::move(trace), public_inputs);
         }
     }
 };
@@ -248,7 +248,7 @@ TEST_F(AvmCastTests, indirectAddrWrongResolutionU64ToU8)
                       Field("alu_sel", &Row::avm_main_alu_sel, 0),   // ALU trace not activated
                       Field("tag_err", &Row::avm_main_tag_err, 1))); // Error activated
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 TEST_F(AvmCastNegativeTests, nonTruncatedOutputMainIc)

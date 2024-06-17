@@ -404,7 +404,7 @@ TEST_F(AvmArithmeticTestsFF, subtraction)
     EXPECT_EQ(alu_row.avm_alu_cf, FF(0));
     EXPECT_EQ(alu_row.avm_alu_u8_r0, FF(0));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic multiplication over finite field type.
@@ -424,7 +424,7 @@ TEST_F(AvmArithmeticTestsFF, multiplication)
     EXPECT_EQ(alu_row.avm_alu_cf, FF(0));
     EXPECT_EQ(alu_row.avm_alu_u8_r0, FF(0));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on multiplication by zero over finite field type.
@@ -444,7 +444,7 @@ TEST_F(AvmArithmeticTestsFF, multiplicationByZero)
     EXPECT_EQ(alu_row.avm_alu_cf, FF(0));
     EXPECT_EQ(alu_row.avm_alu_u8_r0, FF(0));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic division over finite field type.
@@ -467,7 +467,7 @@ TEST_F(AvmArithmeticTestsFF, fDivision)
     EXPECT_EQ(row->avm_main_mem_op_c, FF(1));
     EXPECT_EQ(row->avm_main_rwc, FF(1));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on division with zero numerator over finite field type.
@@ -490,7 +490,7 @@ TEST_F(AvmArithmeticTestsFF, fDivisionNumeratorZero)
     EXPECT_EQ(row->avm_main_mem_op_c, FF(1));
     EXPECT_EQ(row->avm_main_rwc, FF(1));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on division by zero over finite field type.
@@ -515,7 +515,7 @@ TEST_F(AvmArithmeticTestsFF, fDivisionByZeroError)
     EXPECT_EQ(row->avm_main_rwc, FF(1));
     EXPECT_EQ(row->avm_main_op_err, FF(1));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on division of zero by zero over finite field type.
@@ -538,7 +538,7 @@ TEST_F(AvmArithmeticTestsFF, fDivisionZeroByZeroError)
     EXPECT_EQ(row->avm_main_rwc, FF(1));
     EXPECT_EQ(row->avm_main_op_err, FF(1));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Testing an execution of the different arithmetic opcodes over finite field
@@ -580,7 +580,7 @@ TEST_F(AvmArithmeticTestsFF, equality)
 
     EXPECT_EQ(alu_row.avm_alu_ff_tag, FF(1));
     EXPECT_EQ(alu_row.avm_alu_op_eq_diff_inv, FF(0)); // Expect 0 as inv of (q-1) - (q-1)
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test correct non-equality of FF elements
@@ -597,7 +597,7 @@ TEST_F(AvmArithmeticTestsFF, nonEquality)
 
     EXPECT_EQ(alu_row.avm_alu_ff_tag, FF(1));
     EXPECT_EQ(alu_row.avm_alu_op_eq_diff_inv, FF(-1).invert());
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 TEST_P(AvmArithmeticTestsDiv, division)
@@ -613,7 +613,7 @@ TEST_P(AvmArithmeticTestsDiv, division)
     common_validate_div(trace, a, b, output, 0, 1, 2, mem_tag);
     // auto alu_row = trace.at(alu_row_index);
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 INSTANTIATE_TEST_SUITE_P(AvmArithmeticTestsDiv,
                          AvmArithmeticTestsDiv,
@@ -640,7 +640,7 @@ TEST_F(AvmArithmeticTests, DivisionByZeroError)
     EXPECT_EQ(row->avm_main_rwc, FF(1));
     EXPECT_EQ(row->avm_main_op_err, FF(1));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 /******************************************************************************
@@ -665,7 +665,7 @@ TEST_F(AvmArithmeticTestsU8, addition)
     EXPECT_EQ(alu_row.avm_alu_cf, FF(0));
     EXPECT_EQ(alu_row.avm_alu_u8_r0, FF(91));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic addition over u8 type with carry.
@@ -687,7 +687,7 @@ TEST_F(AvmArithmeticTestsU8, additionCarry)
     EXPECT_EQ(alu_row.avm_alu_u8_r0, FF(3));
     EXPECT_EQ(alu_row.avm_alu_u8_r1, FF(1));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic subtraction over u8 type.
@@ -708,7 +708,7 @@ TEST_F(AvmArithmeticTestsU8, subtraction)
     EXPECT_EQ(alu_row.avm_alu_cf, FF(0));
     EXPECT_EQ(alu_row.avm_alu_u8_r0, FF(133));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on subtraction over u8 type with carry.
@@ -738,7 +738,7 @@ TEST_F(AvmArithmeticTestsU8, subtractionCarry)
     EXPECT_EQ(alu_row.avm_alu_u16_r5, FF(UINT16_MAX));
     EXPECT_EQ(alu_row.avm_alu_u16_r6, FF(UINT16_MAX));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic multiplication over u8 type.
@@ -761,7 +761,7 @@ TEST_F(AvmArithmeticTestsU8, multiplication)
     EXPECT_EQ(alu_row.avm_alu_u8_r0, FF(195));
     EXPECT_EQ(alu_row.avm_alu_u8_r1, FF(0));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on multiplication over u8 type with overflow.
@@ -785,7 +785,7 @@ TEST_F(AvmArithmeticTestsU8, multiplicationOverflow)
     EXPECT_EQ(alu_row.avm_alu_u8_r0, FF(208));
     EXPECT_EQ(alu_row.avm_alu_u8_r1, FF(132));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test of equality on u8 elements
@@ -798,7 +798,7 @@ TEST_F(AvmArithmeticTestsU8, equality)
 
     EXPECT_EQ(alu_row.avm_alu_u8_tag, FF(1));
     EXPECT_EQ(alu_row.avm_alu_op_eq_diff_inv, FF(0));
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test correct non-equality of U8 elements
@@ -811,7 +811,7 @@ TEST_F(AvmArithmeticTestsU8, nonEquality)
 
     EXPECT_EQ(alu_row.avm_alu_u8_tag, FF(1));
     EXPECT_EQ(alu_row.avm_alu_op_eq_diff_inv, FF(-116).invert());
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 /******************************************************************************
@@ -837,7 +837,7 @@ TEST_F(AvmArithmeticTestsU16, addition)
     EXPECT_EQ(alu_row.avm_alu_u8_r0, FF(0xDC)); // 34780 = 0x87DC
     EXPECT_EQ(alu_row.avm_alu_u8_r1, FF(0x87));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic addition over u16 type with carry.
@@ -859,7 +859,7 @@ TEST_F(AvmArithmeticTestsU16, additionCarry)
     EXPECT_EQ(alu_row.avm_alu_u8_r0, FF(17));
     EXPECT_EQ(alu_row.avm_alu_u8_r1, FF(0));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic subtraction over u16 type.
@@ -882,7 +882,7 @@ TEST_F(AvmArithmeticTestsU16, subtraction)
     EXPECT_EQ(alu_row.avm_alu_u8_r1, FF(0x79));
     EXPECT_EQ(alu_row.avm_alu_u16_r0, FF(0));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic subtraction over u16 type with carry.
@@ -912,7 +912,7 @@ TEST_F(AvmArithmeticTestsU16, subtractionCarry)
     EXPECT_EQ(alu_row.avm_alu_u16_r5, FF(UINT16_MAX));
     EXPECT_EQ(alu_row.avm_alu_u16_r6, FF(UINT16_MAX));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic multiplication over u16 type.
@@ -937,7 +937,7 @@ TEST_F(AvmArithmeticTestsU16, multiplication)
     EXPECT_EQ(alu_row.avm_alu_u8_r1, FF(0xBF));
     EXPECT_EQ(alu_row.avm_alu_u16_r0, FF(0));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on multiplication over u16 type with overflow.
@@ -963,7 +963,7 @@ TEST_F(AvmArithmeticTestsU16, multiplicationOverflow)
     EXPECT_EQ(alu_row.avm_alu_u16_r0, FF(8));
     EXPECT_EQ(alu_row.avm_alu_u16_r1, FF(0));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test of equality on U16 elements
@@ -976,7 +976,7 @@ TEST_F(AvmArithmeticTestsU16, equality)
 
     EXPECT_EQ(alu_row.avm_alu_u16_tag, FF(1));
     EXPECT_EQ(alu_row.avm_alu_op_eq_diff_inv, FF(0));
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test correct non-equality of U16 elements
@@ -989,7 +989,7 @@ TEST_F(AvmArithmeticTestsU16, nonEquality)
 
     EXPECT_EQ(alu_row.avm_alu_u16_tag, FF(1));
     EXPECT_EQ(alu_row.avm_alu_op_eq_diff_inv, FF(-14'300).invert());
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 /******************************************************************************
@@ -1016,7 +1016,7 @@ TEST_F(AvmArithmeticTestsU32, addition)
     EXPECT_EQ(alu_row.avm_alu_u8_r1, FF((2234567891LLU >> 8) & UINT8_MAX));
     EXPECT_EQ(alu_row.avm_alu_u16_r0, FF(2234567891LLU >> 16));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic addition over u32 type with carry.
@@ -1038,7 +1038,7 @@ TEST_F(AvmArithmeticTestsU32, additionCarry)
     EXPECT_EQ(alu_row.avm_alu_u8_r0, FF(231)); // 999 = 3 * 256 + 231
     EXPECT_EQ(alu_row.avm_alu_u8_r1, FF(3));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic subtraction over u32 type.
@@ -1064,7 +1064,7 @@ TEST_F(AvmArithmeticTestsU32, subtraction)
     EXPECT_EQ(alu_row.avm_alu_u16_r0, FF(0x69F));
     EXPECT_EQ(alu_row.avm_alu_u16_r1, FF(0));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic subtraction over u32 type with carry.
@@ -1096,7 +1096,7 @@ TEST_F(AvmArithmeticTestsU32, subtractionCarry)
     EXPECT_EQ(alu_row.avm_alu_u16_r5, FF(UINT16_MAX));
     EXPECT_EQ(alu_row.avm_alu_u16_r6, FF(UINT16_MAX));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic multiplication over u32 type.
@@ -1125,7 +1125,7 @@ TEST_F(AvmArithmeticTestsU32, multiplication)
     EXPECT_EQ(alu_row.avm_alu_u16_r2, FF(0));
     EXPECT_EQ(alu_row.avm_alu_u16_r3, FF(0));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on multiplication over u32 type with overflow.
@@ -1154,7 +1154,7 @@ TEST_F(AvmArithmeticTestsU32, multiplicationOverflow)
     EXPECT_EQ(alu_row.avm_alu_u16_r2, FF(71));
     EXPECT_EQ(alu_row.avm_alu_u16_r3, FF(0));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test of equality on U32 elements
@@ -1168,7 +1168,7 @@ TEST_F(AvmArithmeticTestsU32, equality)
 
     EXPECT_EQ(alu_row.avm_alu_u32_tag, FF(1));
     EXPECT_EQ(alu_row.avm_alu_op_eq_diff_inv, FF(0));
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test correct non-equality of U32 elements
@@ -1182,7 +1182,7 @@ TEST_F(AvmArithmeticTestsU32, nonEquality)
 
     EXPECT_EQ(alu_row.avm_alu_u32_tag, FF(1));
     EXPECT_EQ(alu_row.avm_alu_op_eq_diff_inv, FF(1).invert());
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 /******************************************************************************
@@ -1216,7 +1216,7 @@ TEST_F(AvmArithmeticTestsU64, addition)
     EXPECT_EQ(alu_row.avm_alu_u16_r1, FF(0x3684));
     EXPECT_EQ(alu_row.avm_alu_u16_r2, FF(0x24));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic addition over u64 type with carry.
@@ -1244,7 +1244,7 @@ TEST_F(AvmArithmeticTestsU64, additionCarry)
     EXPECT_EQ(alu_row.avm_alu_u16_r1, FF(UINT16_MAX));
     EXPECT_EQ(alu_row.avm_alu_u16_r2, FF(UINT16_MAX));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic subtraction over u64 type.
@@ -1275,7 +1275,7 @@ TEST_F(AvmArithmeticTestsU64, subtraction)
     EXPECT_EQ(alu_row.avm_alu_u16_r2, FF(0X23));
     EXPECT_EQ(alu_row.avm_alu_u16_r3, FF(0));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic subtraction over u64 type with carry.
@@ -1308,7 +1308,7 @@ TEST_F(AvmArithmeticTestsU64, subtractionCarry)
     EXPECT_EQ(alu_row.avm_alu_u16_r4, FF(UINT16_MAX));
     EXPECT_EQ(alu_row.avm_alu_u16_r5, FF(UINT16_MAX));
     EXPECT_EQ(alu_row.avm_alu_u16_r6, FF(UINT16_MAX));
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic multiplication over u64 type.
@@ -1337,7 +1337,7 @@ TEST_F(AvmArithmeticTestsU64, multiplication)
     EXPECT_EQ(alu_row.avm_alu_u16_r2, FF(0x7B5));
     EXPECT_EQ(alu_row.avm_alu_u16_r3, FF(0));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on multiplication over u64 type with overflow.
@@ -1372,7 +1372,7 @@ TEST_F(AvmArithmeticTestsU64, multiplicationOverflow)
     EXPECT_EQ(alu_row.avm_alu_u16_r5, FF(UINT16_MAX));
     EXPECT_EQ(alu_row.avm_alu_u16_r6, FF(UINT16_MAX));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 TEST_F(AvmArithmeticTestsU64, equality)
@@ -1385,7 +1385,7 @@ TEST_F(AvmArithmeticTestsU64, equality)
 
     EXPECT_EQ(alu_row.avm_alu_u64_tag, FF(1));
     EXPECT_EQ(alu_row.avm_alu_op_eq_diff_inv, FF(0));
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test correct non-equality of U64 elements
@@ -1399,7 +1399,7 @@ TEST_F(AvmArithmeticTestsU64, nonEquality)
 
     EXPECT_EQ(alu_row.avm_alu_u64_tag, FF(1));
     EXPECT_EQ(alu_row.avm_alu_op_eq_diff_inv, FF(0x510000).invert());
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 /******************************************************************************
@@ -1442,7 +1442,7 @@ TEST_F(AvmArithmeticTestsU128, addition)
     EXPECT_EQ(alu_row.avm_alu_u16_r5, FF(0x4444));
     EXPECT_EQ(alu_row.avm_alu_u16_r6, FF(0x8888));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic addition over u128 type with carry.
@@ -1482,7 +1482,7 @@ TEST_F(AvmArithmeticTestsU128, additionCarry)
     EXPECT_EQ(alu_row.avm_alu_u16_r5, FF(0xFFFF));
     EXPECT_EQ(alu_row.avm_alu_u16_r6, FF(0xFFFF));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic subtraction over u128 type.
@@ -1524,7 +1524,7 @@ TEST_F(AvmArithmeticTestsU128, subtraction)
     EXPECT_EQ(alu_row.avm_alu_u16_r6, FF(0));
     EXPECT_EQ(alu_row.avm_alu_u16_r7, FF(0));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic subtraction over u128 type with carry.
@@ -1564,7 +1564,7 @@ TEST_F(AvmArithmeticTestsU128, subtractionCarry)
     EXPECT_EQ(alu_row.avm_alu_u16_r5, FF(0));
     EXPECT_EQ(alu_row.avm_alu_u16_r6, FF(0x2222));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on basic multiplication over u128 type.
@@ -1600,7 +1600,7 @@ TEST_F(AvmArithmeticTestsU128, multiplication)
     EXPECT_EQ(alu_row_second.avm_alu_u16_r0, FF(0x762C));
     EXPECT_EQ(alu_row_second.avm_alu_u16_r1, FF(0xF92C));
     EXPECT_EQ(alu_row_second.avm_alu_u16_r2, FF(0x1));
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test on multiplication over u128 type with overflow.
@@ -1668,7 +1668,7 @@ TEST_F(AvmArithmeticTestsU128, multiplicationOverflow)
     // CF
     EXPECT_EQ(alu_row_first.avm_alu_cf, FF(1));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 TEST_F(AvmArithmeticTestsU128, equality)
@@ -1688,7 +1688,7 @@ TEST_F(AvmArithmeticTestsU128, equality)
 
     EXPECT_EQ(alu_row.avm_alu_u128_tag, FF(1));
     EXPECT_EQ(alu_row.avm_alu_op_eq_diff_inv, FF(0));
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 // Test correct non-equality of U128 elements
@@ -1710,7 +1710,7 @@ TEST_F(AvmArithmeticTestsU128, nonEquality)
 
     EXPECT_EQ(alu_row.avm_alu_u128_tag, FF(1));
     EXPECT_EQ(alu_row.avm_alu_op_eq_diff_inv, FF(0xdeadbeefLLU << 32).invert());
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 /******************************************************************************

@@ -124,7 +124,7 @@ TEST_F(AvmControlFlowTests, simpleJump)
         EXPECT_TRUE(halt_row != trace.end());
         EXPECT_EQ(halt_row->avm_main_pc, FF(JUMP_PC));
     }
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 TEST_F(AvmControlFlowTests, simpleCallAndReturn)
@@ -171,7 +171,7 @@ TEST_F(AvmControlFlowTests, simpleCallAndReturn)
         EXPECT_EQ(halt_row->avm_main_pc, FF(RETURN_PC));
     }
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 
 TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
@@ -304,6 +304,6 @@ TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
     EXPECT_TRUE(halt_row != trace.end());
     EXPECT_EQ(halt_row->avm_main_pc, FF(1));
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
 } // namespace tests_avm
