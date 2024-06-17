@@ -42,21 +42,26 @@ fn main() {
 /// These should be fixed and removed from this list.
 const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     // Takes a very long time to execute as large loops do not get simplified.
-    &"regression_4709",
+    "regression_4709",
     // bit sizes for bigint operation doesn't match up.
-    &"bigint",
+    "bigint",
     // ICE due to looking for function which doesn't exist.
-    &"fold_after_inlined_calls",
-    &"fold_basic",
-    &"fold_basic_nested_call",
-    &"fold_call_witness_condition",
-    &"fold_complex_outputs",
-    &"fold_distinct_return",
-    &"fold_fibonacci",
-    &"fold_numeric_generic_poseidon",
+    "fold_after_inlined_calls",
+    "fold_basic",
+    "fold_basic_nested_call",
+    "fold_call_witness_condition",
+    "fold_complex_outputs",
+    "fold_distinct_return",
+    "fold_fibonacci",
+    "fold_numeric_generic_poseidon",
     // Expected to fail as test asserts on which runtime it is in.
-    &"is_unconstrained",
+    "is_unconstrained",
 ];
+
+/// Certain comptime features are only available in the elaborator.
+/// We skip these tests for non-elaborator code since they are not
+/// expected to work there. This can be removed once the old code is removed.
+const IGNORED_COMPTIME_TESTS: [&str; 1] = ["macros"];
 
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_sub_dir = "execution_success";
@@ -281,10 +286,13 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
         };
         let test_dir = &test_dir.path();
 
+        let comptime_ignored =
+            if IGNORED_COMPTIME_TESTS.contains(&test_name.as_str()) { "\n#[ignore]" } else { "" };
+
         write!(
             test_file,
             r#"
-#[test]
+#[test]{comptime_ignored}
 fn compile_success_empty_{test_name}() {{
 
     let test_program_dir = PathBuf::from("{test_dir}");
