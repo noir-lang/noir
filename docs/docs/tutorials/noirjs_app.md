@@ -3,7 +3,7 @@ title: Building a web app with NoirJS
 description: Learn how to setup a new app that uses Noir to generate and verify zero-knowledge SNARK proofs in a typescript or javascript environment.
 keywords: [how to, guide, javascript, typescript, noir, barretenberg, zero-knowledge, proofs, app]
 sidebar_position: 0
-pagination_next: noir/concepts/data_types/index
+pagination_next: how_to/how-to-oracles
 ---
 
 NoirJS is a set of packages meant to work both in a browser and a server environment. In this tutorial, we will build a simple web app using them. From here, you should get an idea on how to proceed with your own Noir projects!
