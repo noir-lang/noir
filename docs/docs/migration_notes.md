@@ -8,6 +8,10 @@ Aztec is in full-speed development. Literally every version breaks compatibility
 
 ## 0.43.0
 
+### [Aztec.nr] break `token.transfer()` into `transfer` and `transferFrom`
+Earlier we had just one function - `transfer()` which used authwits to handle the case where a contract/user wants to transfer funds on behalf of another user. 
+To reduce circuit sizes and proof times, we are breaking up `transfer` and introducing a dedicated `transferFrom()` function like in the ERC20 standard.
+
 ### [Aztec.nr] `options.limit` has to be constant
 
 The `limit` parameter in `NoteGetterOptions` and `NoteViewerOptions` is now required to be a compile-time constant. This allows performing loops over this value, which leads to reduced circuit gate counts when setting a `limit` value.
