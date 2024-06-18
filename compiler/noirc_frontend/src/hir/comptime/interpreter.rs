@@ -102,6 +102,7 @@ impl<'a> Interpreter<'a> {
         if let Some(builtin) = func_attrs.builtin() {
             match builtin.as_str() {
                 "array_len" => builtin::array_len(&arguments),
+                "as_slice" => builtin::as_slice(arguments),
                 _ => {
                     let item = format!("Evaluation for builtin function {builtin}");
                     Err(InterpreterError::Unimplemented { item, location })
