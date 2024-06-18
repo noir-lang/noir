@@ -11,7 +11,7 @@ use crate::{
         def_map::ModuleDefId,
         resolution::{
             errors::ResolverError,
-            resolver::{verify_mutable_reference, SELF_TYPE_NAME},
+            resolver::{verify_mutable_reference, SELF_TYPE_NAME, WILDCARD_TYPE},
         },
         type_check::{Source, TypeCheckError},
     },
@@ -146,6 +146,9 @@ impl<'context> Elaborator<'context> {
                     }
                     return self_type;
                 }
+            } else if name == WILDCARD_TYPE {
+                let id = self.interner.next_type_variable_id();
+                return Type::type_variable(id);
             }
         }
 
