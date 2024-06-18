@@ -102,7 +102,10 @@ impl<'a> Interpreter<'a> {
         if let Some(builtin) = func_attrs.builtin() {
             match builtin.as_str() {
                 "array_len" => builtin::array_len(&arguments),
+<<<<<<< tf/comptime-as-slice
                 "as_slice" => builtin::as_slice(arguments),
+=======
+>>>>>>> master
                 _ => {
                     let item = format!("Evaluation for builtin function {builtin}");
                     Err(InterpreterError::Unimplemented { item, location })
