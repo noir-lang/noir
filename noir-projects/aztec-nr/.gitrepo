@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/AztecProtocol/aztec-nr
 	branch = master
-	commit = 0d11558d6233cab30506b049306388f7f93c0b7c
+	commit = afee776d80f622d89234a9acc8ed07a1d96cd25e
 	method = merge
 	cmdver = 0.4.6
-	parent = 6b0c4b926c673dd161890167be8afca04096a6bb
+	parent = 01d95ce259f37e7eacfade3f15b122ca33cda38f
