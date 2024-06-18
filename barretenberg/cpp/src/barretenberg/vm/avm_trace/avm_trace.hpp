@@ -204,6 +204,11 @@ class AvmTraceBuilder {
                    uint32_t rhs_y_offset,
                    uint32_t rhs_is_inf_offset,
                    uint32_t output_offset);
+    void op_variable_msm(uint8_t indirect,
+                         uint32_t points_offset,
+                         uint32_t scalars_offset,
+                         uint32_t output_offset,
+                         uint32_t point_length_offset);
 
   private:
     // Used for the standard indirect address resolution of three operands opcode.

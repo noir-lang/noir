@@ -1400,6 +1400,82 @@ TEST_F(AvmExecutionTests, embeddedCurveAddOpCode)
     validate_trace(std::move(trace), public_inputs);
 }
 
+// Positive test with MSM
+TEST_F(AvmExecutionTests, msmOpCode)
+{
+    grumpkin::g1::affine_element a = grumpkin::g1::affine_element::random_element();
+    FF a_is_inf = a.is_point_at_infinity();
+    grumpkin::g1::affine_element b = grumpkin::g1::affine_element::random_element();
+    FF b_is_inf = b.is_point_at_infinity();
+
+    grumpkin::g1::Fr scalar_a = grumpkin::g1::Fr::random_element();
+    FF scalar_a_lo = uint256_t::from_uint128(uint128_t(scalar_a));
+    FF scalar_a_hi = uint256_t(scalar_a) >> 128;
+    grumpkin::g1::Fr scalar_b = grumpkin::g1::Fr::random_element();
+    FF scalar_b_lo = uint256_t::from_uint128(uint128_t(scalar_b));
+    FF scalar_b_hi = uint256_t(scalar_b) >> 128;
+    auto expected_result = a * scalar_a + b * scalar_b;
+    std::vector<FF> expected_output = { expected_result.x, expected_result.y, expected_result.is_point_at_infinity() };
+    // Send all the input as Fields and cast them to U8 later
+    std::vector<FF> calldata = { FF(a.x),  FF(a.y),     a_is_inf,    FF(b.x),     FF(b.y),
+                                 b_is_inf, scalar_a_lo, scalar_a_hi, scalar_b_lo, scalar_b_hi };
+    std::string bytecode_hex = to_hex(OpCode::CALLDATACOPY) + // Calldatacopy...should fix the limit on calldatacopy
+                               "00"                           // Indirect flag
+                               "00000000"                     // cd_offset 0
+                               "0000000a"                     // copy_size (10 elements)
+                               "00000000"                     // dst_offset 0
+                               + to_hex(OpCode::CAST) +       // opcode CAST inf to U8
+                               "00"                           // Indirect flag
+                               "01"                           // U8 tag field
+                               "00000002"                     // a_is_inf
+                               "00000002"                     //
+                               + to_hex(OpCode::CAST) +       // opcode CAST inf to U8
+                               "00"                           // Indirect flag
+                               "01"                           // U8 tag field
+                               "00000005"                     // b_is_inf
+                               "00000005"                     //
+                               + to_hex(OpCode::SET) +        // opcode SET for length
+                               "00"                           // Indirect flag
+                               "03"                           // U32
+                               "00000006"                     // Length of point elements (6)
+                               "0000000b"                     // dst offset (11)
+                               + to_hex(OpCode::SET) +        // SET Indirects
+                               "00"                           // Indirect flag
+                               "03"                           // U32
+                               "00000000"                     // points offset
+                               "0000000d"                     // dst offset +
+                               + to_hex(OpCode::SET) +        // SET Indirects
+                               "00"                           // Indirect flag
+                               "03"                           // U32
+                               "00000006"                     // scalars offset
+                               "0000000e" +                   // dst offset
+                               to_hex(OpCode::SET) +          // SET Indirects
+                               "00"                           // Indirect flag
+                               "03"                           // U32
+                               "0000000c"                     // output offset
+                               "0000000f" +                   // dst offset
+                               to_hex(OpCode::MSM) +          // opcode MSM
+                               "07"                           // Indirect flag (first 3 indirect)
+                               "0000000d"                     // points offset
+                               "0000000e"                     // scalars offset
+                               "0000000f"                     // output offset
+                               "0000000b"                     // length offset
+                               + to_hex(OpCode::RETURN) +     // opcode RETURN
+                               "00"                           // Indirect flag
+                               "0000000c"                     // ret offset 12 (this overwrites)
+                               "00000003";                    // ret size 3
+
+    auto bytecode = hex_to_bytes(bytecode_hex);
+    auto instructions = Deserialization::parse(bytecode);
+
+    // Assign a vector that we will mutate internally in gen_trace to store the return values;
+    std::vector<FF> returndata;
+    auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
+
+    EXPECT_EQ(returndata, expected_output);
+
+    validate_trace(std::move(trace));
+}
 // Positive test for Kernel Input opcodes
 TEST_F(AvmExecutionTests, kernelInputOpcodes)
 {

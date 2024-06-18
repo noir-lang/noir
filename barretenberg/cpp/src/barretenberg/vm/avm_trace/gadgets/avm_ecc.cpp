@@ -30,4 +30,21 @@ element AvmEccTraceBuilder::embedded_curve_add(element lhs, element rhs, uint32_
     return result;
 }
 
+element AvmEccTraceBuilder::variable_msm(const std::vector<element>& points,
+                                         const std::vector<grumpkin::fr>& scalars,
+                                         uint32_t clk)
+{
+    // Replace this with pippenger if/when we have the time
+    auto result = grumpkin::g1::affine_point_at_infinity;
+    for (size_t i = 0; i < points.size(); ++i) {
+        result = result + points[i] * scalars[i];
+    }
+
+    std::tuple<FF, FF, bool> result_tuple = { result.x, result.y, result.is_point_at_infinity() };
+
+    ecc_trace.push_back({ .clk = clk, .result = result_tuple });
+
+    return result;
+}
+
 } // namespace bb::avm_trace

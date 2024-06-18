@@ -144,6 +144,10 @@ std::string to_string(OpCode opcode)
         return "SHA256";
     case OpCode::PEDERSEN:
         return "PEDERSEN";
+    case OpCode::ECADD:
+        return "ECADD";
+    case OpCode::MSM:
+        return "MSM";
     case OpCode::TORADIXLE:
         return "TORADIXLE";
     case OpCode::SHA256COMPRESSION:
