@@ -1806,8 +1806,7 @@ enum TypeMethodKey {
     Tuple,
     Function,
     Generic,
-    Expr,
-    TypeDefinition,
+    Quoted(QuotedType),
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
@@ -1827,8 +1826,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _, _) => Some(Function),
         Type::NamedGeneric(_, _) => Some(Generic),
-        Type::Quoted(QuotedType::Expr) => Some(Expr),
-        Type::Quoted(QuotedType::TypeDefinition) => Some(TypeDefinition),
+        Type::Quoted(quoted) => Some(Quoted(*quoted)),
         Type::MutableReference(element) => get_type_method_key(element),
         Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
 

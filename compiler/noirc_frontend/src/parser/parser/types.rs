@@ -25,6 +25,8 @@ pub(super) fn parse_type_inner<'a>(
         string_type(),
         expr_type(),
         type_definition_type(),
+        top_level_item_type(),
+        quoted_type(),
         format_string_type(recursive_type_parser.clone()),
         named_type(recursive_type_parser.clone()),
         named_trait(recursive_type_parser.clone()),
@@ -80,6 +82,20 @@ pub(super) fn type_definition_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::TypeDefinition).map_with_span(|_, span| {
         UnresolvedTypeData::Quoted(QuotedType::TypeDefinition).with_span(span)
     })
+}
+
+/// This is the type `TopLevelItem` - the type of a quoted statement in the top level.
+/// E.g. a type definition, trait definition, trait impl, function, etc.
+fn top_level_item_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::TopLevelItem).map_with_span(|_, span| {
+        UnresolvedTypeData::Quoted(QuotedType::TopLevelItem).with_span(span)
+    })
+}
+
+/// This is the type `Type` - the type of a quoted noir type.
+fn quoted_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::TypeType)
+        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Type).with_span(span))
 }
 
 pub(super) fn string_type() -> impl NoirParser<UnresolvedType> {
