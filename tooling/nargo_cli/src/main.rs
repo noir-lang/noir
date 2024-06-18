@@ -7,9 +7,6 @@
 //! This name was used because it sounds like `cargo` and
 //! Noir Package Manager abbreviated is npm, which is already taken.
 
-// Hack to appease compiler warnings
-use nargo_cli as _;
-
 mod cli;
 mod errors;
 
@@ -19,8 +16,6 @@ use color_eyre::config::HookBuilder;
 
 use tracing_appender::rolling;
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
-
-pub use cli::run_test;
 
 const PANIC_MESSAGE: &str = "This is a bug. We may have already fixed this in newer versions of Nargo so try searching for similar issues at https://github.com/noir-lang/noir/issues/.\nIf there isn't an open issue for this bug, consider opening one at https://github.com/noir-lang/noir/issues/new?labels=bug&template=bug_report.yml";
 
