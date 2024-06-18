@@ -6,7 +6,7 @@ struct bar {
 
 fn main(enable: [Field; 2]) -> pub [Field; 4] {
     let mut result = [0; 4];
-    let a:[_;4] = foo(enable[1]);
+    let a: [_; 4] = foo(enable[1]);
     for i in 0..4 {
         result[i] = a[i].data[i % 2];
     }

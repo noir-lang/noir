@@ -106,12 +106,10 @@ type Bad2 = Bad1;
 ```
 
 ## Wildcard Type
-When a variable has a complex type that the compiler cannot infer, it 
-Noir can infer the type of the variable from the context, so specifying the type of a variable is only required when it cannot be inferred. However, specifying a complex type can be tedious, especially with multiple generic arguments. Often the generic types can be inferred from the context, and Noir only needs a hint to properly infer them. This can be done by using the wildcard type `_` inside a complex type.
-The example below tells Noir that `a` is an array of size 4, without specifying the type of its elements.
+Noir can usually infer the type of the variable from the context, so specifying the type of a variable is only required when it cannot be inferred. However, specifying a complex type can be tedious, especially when it has multiple generic arguments. Often some of the generic types can be inferred from the context, and Noir only needs a hint to properly infer the other types. We can partially specify a variable's type by using `_` as a marker, indicating where we still want the compiler to infer the type.
 
 ```rust
-  let a:[_;4] = foo(b);
+let a: [_; 4] = foo(b);
 ```
  
 

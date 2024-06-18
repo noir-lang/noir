@@ -147,8 +147,7 @@ impl<'context> Elaborator<'context> {
                     return self_type;
                 }
             } else if name == WILDCARD_TYPE {
-                let id = self.interner.next_type_variable_id();
-                return Type::type_variable(id);
+                return self.interner.next_type_variable();
             }
         }
 
