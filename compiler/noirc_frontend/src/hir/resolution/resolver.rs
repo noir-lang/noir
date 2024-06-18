@@ -64,6 +64,7 @@ use super::errors::{PubPosition, ResolverError};
 use super::import::PathResolution;
 
 pub const SELF_TYPE_NAME: &str = "Self";
+pub const WILDCARD_TYPE: &str = "_";
 
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;

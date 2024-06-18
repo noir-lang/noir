@@ -58,10 +58,10 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     "is_unconstrained",
 ];
 
-/// Certain comptime features are only available in the elaborator.
+/// Certain features are only available in the elaborator.
 /// We skip these tests for non-elaborator code since they are not
 /// expected to work there. This can be removed once the old code is removed.
-const IGNORED_COMPTIME_TESTS: [&str; 1] = ["macros"];
+const IGNORED_NEW_FEATURE_TESTS: [&str; 2] = ["macros", "wildcard_type"];
 
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_sub_dir = "execution_success";
@@ -82,11 +82,16 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
 
         let brillig_ignored =
             if IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()) { "\n#[ignore]" } else { "" };
+        let new_features_ignored = if IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) {
+            "\n#[ignore]"
+        } else {
+            ""
+        };
 
         write!(
             test_file,
             r#"
-#[test]
+#[test]{new_features_ignored}
 fn execution_success_legacy_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
@@ -286,8 +291,11 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
         };
         let test_dir = &test_dir.path();
 
-        let comptime_ignored =
-            if IGNORED_COMPTIME_TESTS.contains(&test_name.as_str()) { "\n#[ignore]" } else { "" };
+        let comptime_ignored = if IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) {
+            "\n#[ignore]"
+        } else {
+            ""
+        };
 
         write!(
             test_file,
