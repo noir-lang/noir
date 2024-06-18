@@ -291,7 +291,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
         };
         let test_dir = &test_dir.path();
 
-        let comptime_ignored = if IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) {
+        let new_feature_ignored = if IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) {
             "\n#[ignore]"
         } else {
             ""
@@ -300,7 +300,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
         write!(
             test_file,
             r#"
-#[test]{comptime_ignored}
+#[test]{new_feature_ignored}
 fn compile_success_empty_legacy_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
     let mut cmd = Command::cargo_bin("nargo").unwrap();
@@ -417,13 +417,13 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
         };
         let test_dir = &test_dir.path();
 
-        let comptime_ignored =
-            if IGNORED_COMPTIME_TESTS.contains(&test_name.as_str()) { "\n#[ignore]" } else { "" };
+        let new_feature_ignored =
+            if IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) { "\n#[ignore]" } else { "" };
 
         write!(
             test_file,
             r#"
-#[test]{comptime_ignored}
+#[test]{new_feature_ignored}
 fn compile_failure_legacy_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
