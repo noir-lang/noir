@@ -11,8 +11,9 @@ fn nested_call<N>(b: [Field; N]) -> u32 {
 }
 
 fn main(x: Field, len3: [u8; 3], len4: [Field; 4]) {
-    comptime {
-        assert_eq([1,2,3].len(), 3);
+    comptime
+    {
+        assert_eq([1, 2, 3].len(), 3);
     }
     assert(len_plus_1(len3) == 4);
     assert(len_plus_1(len4) == 5);
