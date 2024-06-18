@@ -338,28 +338,23 @@ mod curvegroup {
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
         fn bit_mul<N>(self, bits: [u1; N], p: Point) -> Point {
             let mut out = Point::zero();
-
+            let mut base = p;
             for i in 0..N {
-                out = self.add(
-                    self.add(out, out),
-                    if(bits[N - i - 1] == 0) {Point::zero()} else {p});
+                if bits[i] == 1 {
+                    out = self.add(out, base);
+                }
+                base = self.add(base, base);
             }
-
             out
         }
 
         // Scalar multiplication (p + ... + p n times)
         pub fn mul(self, n: Field, p: Point) -> Point {
             let N_BITS = crate::field::modulus_num_bits();
-
-            // TODO: temporary workaround until issue 1354 is solved
-            let mut n_as_bits: [u1; 254] = [0; 254];
-            let tmp = n.to_le_bits(N_BITS as u32);
-            for i in 0..254 {
-                n_as_bits[i] = tmp[i];
-            }
-
-            self.bit_mul(n_as_bits, p)
+            assert(N_BITS <= 254);
+            let bits  = n.to_le_bits(N_BITS as u32);
+            let bits_array :[u1; 254] = bits.as_array();
+            self.bit_mul(bits_array, p)
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
