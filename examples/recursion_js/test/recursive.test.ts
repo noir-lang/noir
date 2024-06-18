@@ -29,7 +29,7 @@ const cores = 12;
 async function fullNoirFromCircuit(circuitName: string): Promise<FullNoir> {
   const circuit: CompiledCircuit = await getCircuit(circuitName);
   const backend: BarretenbergBackend = new BarretenbergBackend(circuit, { threads: cores });
-  const noir: Noir = new Noir(circuit, backend);
+  const noir: Noir = new Noir(circuit);
   return { circuit, backend, noir };
 }
 
@@ -76,6 +76,7 @@ describe('can verify recursive proofs', () => {
     ({ witness, returnValue } = await leaf.noir.execute(leafParams));
     console.log('leaf: %d + %d = ', ...Object.values(leafParams), Number(returnValue).toString());
     const innerProof1: ProofData = await leaf.backend.generateProof(witness);
+    console.log('\n\ninnerProof1.publicInputs\n', innerProof1.publicInputs);
     console.log('Generating intermediate proof artifacts for leaf calculation...');
     const artifacts1 = await leaf.backend.generateRecursiveProofArtifacts(
       innerProof1,
@@ -109,15 +110,19 @@ describe('can verify recursive proofs', () => {
       numPubInputs + 1 + 16, // +1 for public return +16 for hidden aggregation object
     );
     console.log('artifacts2.proof length = ', artifacts2.proofAsFields.length);
+    console.log('pub = ', innerProof2.publicInputs);
+    console.log('proof = ', artifacts2.proofAsFields);
 
     pub_inputs.push(returnValue.toString()); // leaf returns sum
+    const pub_inputs2 = innerProof2.publicInputs.slice(0, 4); // take only public inputs
+    const proof2 = [...innerProof2.publicInputs.slice(4), ...artifacts2.proofAsFields]; // prepend 16 agg values to 93 proof (total 109)
 
     // Generate outer proof artifacts (S3: verify 4+5=9)
     outerParams = {
       verification_key: artifacts2.vkAsFields,
-      public_inputs: pub_inputs,
+      public_inputs: pub_inputs2,
       key_hash: artifacts2.vkHash,
-      proof: artifacts2.proofAsFields, // the proof size of a function that verifies another proof was expected to be 109 bytes, but was still 93
+      proof: proof2, // the proof size of a function that verifies another proof was expected to be 109 bytes, but was still 93
     };
   });
 

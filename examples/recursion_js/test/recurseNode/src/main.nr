@@ -4,7 +4,7 @@ fn main(
     verification_key: [Field; 114],
     public_inputs: pub [Field; 4],
     key_hash: Field,
-    proof: [Field; 93] // 109 bytes were supposed to be required to verify recursive proofs (WIP)
+    proof: [Field; 109] // 109 bytes were supposed to be required to verify recursive proofs (WIP)
 ) -> pub u64 {
     // verify sum was computed correctly
     std::verify_proof(

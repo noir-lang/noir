@@ -1,5 +1,4 @@
 use dep::std;
-use dep::sumLib::secretSum;
 
 #[recursive]
 fn main(
@@ -16,5 +15,6 @@ fn main(
         public_inputs.as_slice(),
         key_hash
     );
-    secretSum((public_inputs[2] as u64), num)
+    // Take output of previous proof and add another number to it.
+    public_inputs[2] as u64 + num
 }

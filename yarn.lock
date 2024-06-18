@@ -18057,9 +18057,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"recursive-proofs-30599d@workspace:examples/recursive-proofs":
+"recursion_js-c82175@workspace:examples/recursion_js":
   version: 0.0.0-use.local
-  resolution: "recursive-proofs-30599d@workspace:examples/recursive-proofs"
+  resolution: "recursion_js-c82175@workspace:examples/recursion_js"
   dependencies:
     "@noir-lang/backend_barretenberg": "workspace:*"
     "@noir-lang/noir_js": "workspace:*"
