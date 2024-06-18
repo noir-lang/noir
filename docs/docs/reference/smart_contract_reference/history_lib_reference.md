@@ -1,6 +1,6 @@
 ---
 title: History Reference
-sidebar_position: 2
+sidebar_position: 3
 ---
 
 <!-- Note: This will soon be moved into an Aztec.nr reference category under Aztec.nr smart contracts -->

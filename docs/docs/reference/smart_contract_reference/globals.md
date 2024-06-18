@@ -1,7 +1,7 @@
 ---
 title: Global Variables
 description: Documentation of Aztec's Global Variables in the Public and Private Contexts
-sidebar_position: 1
+sidebar_position: 2
 ---
 
 # Global Variables

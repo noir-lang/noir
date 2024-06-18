@@ -21,14 +21,14 @@ contract Uniswap {
     struct Storage {
         portal_address: SharedImmutable<EthAddress>,
     }
-    // docs:end:uniswap_setup
-
+   
     #[aztec(public)]
     #[aztec(initializer)]
     fn constructor(portal_address: EthAddress) {
         storage.portal_address.initialize(portal_address);
     }
-
+    // docs:end:uniswap_setup
+    
     // docs:start:swap_public
     #[aztec(public)]
     fn swap_public(

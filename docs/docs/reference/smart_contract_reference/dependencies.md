@@ -1,6 +1,6 @@
 ---
 title: Importing Aztec.nr
-sidebar_position: 4
+sidebar_position: 5
 ---
 
 On this page you will find information about Aztec.nr libraries and up-to-date paths for use in your `Nargo.toml`.
