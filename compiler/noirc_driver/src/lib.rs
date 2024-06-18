@@ -99,9 +99,9 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub force_brillig: bool,
 
-    /// Enable the experimental elaborator pass
+    /// Use the deprecated name resolution & type checking passes instead of the elaborator
     #[arg(long, hide = true)]
-    pub use_elaborator: bool,
+    pub use_legacy: bool,
 
     /// Outputs the paths to any modified artifacts
     #[arg(long, hide = true)]
@@ -257,13 +257,13 @@ pub fn check_crate(
     crate_id: CrateId,
     deny_warnings: bool,
     disable_macros: bool,
-    use_elaborator: bool,
+    use_legacy: bool,
 ) -> CompilationResult<()> {
     let macros: &[&dyn MacroProcessor] =
         if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
 
     let mut errors = vec![];
-    let diagnostics = CrateDefMap::collect_defs(crate_id, context, use_elaborator, macros);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, use_legacy, macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic = CustomDiagnostic::from(&error);
         diagnostic.in_file(file_id)
@@ -300,7 +300,7 @@ pub fn compile_main(
         crate_id,
         options.deny_warnings,
         options.disable_macros,
-        options.use_elaborator,
+        options.use_legacy,
     )?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
@@ -341,7 +341,7 @@ pub fn compile_contract(
         crate_id,
         options.deny_warnings,
         options.disable_macros,
-        options.use_elaborator,
+        options.use_legacy,
     )?;
 
     // TODO: We probably want to error if contracts is empty

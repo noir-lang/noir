@@ -1445,7 +1445,7 @@ mod test {
             "use foo::{bar, hello}",
             "use foo::{bar as bar2, hello}",
             "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
-            "use dep::{std::println, bar::baz}",
+            "use std::{println, bar::baz}",
         ];
 
         let invalid_use_statements = [
