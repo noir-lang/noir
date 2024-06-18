@@ -1,6 +1,5 @@
 [package]
-name = "bench_sha256"
-version = "0.1.0"
+name = "no_duplicate_methods"
 type = "bin"
 authors = [""]
 

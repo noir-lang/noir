@@ -82,7 +82,7 @@ impl BrilligRegistersContext {
     }
 }
 
-impl BrilligContext {
+impl<F> BrilligContext<F> {
     /// Returns the i'th register after the reserved ones
     pub(crate) fn register(&self, i: usize) -> MemoryAddress {
         MemoryAddress::from(ReservedRegisters::NUM_RESERVED_REGISTERS + i)

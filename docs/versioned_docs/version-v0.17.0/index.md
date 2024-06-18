@@ -34,7 +34,7 @@ Noir can be used for a variety of purposes.
 ### Solidity Developers
 
 Noir currently includes a command to create a Solidity contract which verifies your Noir program. This will
-be modularized in the future; however, as of the alpha, you can use the [`nargo codegen-verifier`](./nargo/commands#nargo-codegen-verifier) command to create
+be modularized in the future; however, as of the alpha, you can use the [`nargo codegen-verifier`](./nargo/commands.md#nargo-codegen-verifier) command to create
 a verifier contract.
 
 ### Protocol Developers
@@ -96,4 +96,4 @@ Some libraries that are available today include:
 - [Signed Int](https://github.com/resurgencelabs/signed_int) - a library for accessing a custom Signed Integer data type, allowing access to negative numbers on Noir
 - [Fraction](https://github.com/resurgencelabs/fraction) - a library for accessing fractional number data type in Noir, allowing results that aren't whole numbers
 
-See the section on [dependencies](./modules_packages_crates/dependencies) for more information.
+See the section on [dependencies](./modules_packages_crates/dependencies.md) for more information.

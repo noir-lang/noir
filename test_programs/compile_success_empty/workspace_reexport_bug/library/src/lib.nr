@@ -1,2 +1,2 @@
 // Re-export 
-use dep::library2::ReExportMeFromAnotherLib;
+use library2::ReExportMeFromAnotherLib;
