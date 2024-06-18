@@ -598,6 +598,10 @@ impl Type {
         matches!(self.follow_bindings(), Type::FieldElement)
     }
 
+    pub fn is_bool(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Bool)
+    }
+
     pub fn is_signed(&self) -> bool {
         matches!(self.follow_bindings(), Type::Integer(Signedness::Signed, _))
     }
