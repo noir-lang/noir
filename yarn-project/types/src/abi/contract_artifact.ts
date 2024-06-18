@@ -2,7 +2,6 @@ import {
   type ABIParameter,
   type ABIParameterVisibility,
   type AbiType,
-  type BasicValue,
   type ContractArtifact,
   type ContractNote,
   type FieldLayout,
@@ -227,10 +226,8 @@ function getStorageLayout(input: NoirCompiledContract) {
   return storageFields.reduce((acc: Record<string, FieldLayout>, field) => {
     const name = field.name;
     const slot = field.value.fields[0].value as IntegerValue;
-    const typ = field.value.fields[1].value as BasicValue<'string', string>;
     acc[name] = {
       slot: new Fr(BigInt(slot.value)),
-      typ: typ.value,
     };
     return acc;
   }, {});

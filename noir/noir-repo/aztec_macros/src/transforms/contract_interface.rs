@@ -61,11 +61,7 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction, is_static_call
     let parameters = func.parameters();
     let is_void = if matches!(fn_return_type.typ, UnresolvedTypeData::Unit) { "Void" } else { "" };
     let is_static = if is_static_call { "Static" } else { "" };
-    let return_type_hint = if is_void == "Void" {
-        "".to_string()
-    } else {
-        format!("<{}>", fn_return_type.typ.to_string().replace("plain::", ""))
-    };
+    let return_type_hint = fn_return_type.typ.to_string().replace("plain::", "");
     let call_args = parameters
         .iter()
         .map(|arg| {
@@ -73,22 +69,67 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction, is_static_call
             match &arg.typ.typ {
                 UnresolvedTypeData::Array(_, typ) => {
                     format!(
-                        "let hash_{0} = {0}.map(|x: {1}| x.serialize());
-                for i in 0..{0}.len() {{
-                    args_acc = args_acc.append(hash_{0}[i].as_slice());
-                }}\n",
+                        "let serialized_{0} = {0}.map(|x: {1}| x.serialize());
+                        for i in 0..{0}.len() {{
+                            args_acc = args_acc.append(serialized_{0}[i].as_slice());
+                        }}\n",
                         param_name,
                         typ.typ.to_string().replace("plain::", "")
                     )
                 }
-                _ => {
+                UnresolvedTypeData::Named(_, _, _) | UnresolvedTypeData::String(_) => {
                     format!("args_acc = args_acc.append({}.serialize().as_slice());\n", param_name)
+                }
+                _ => {
+                    format!("args_acc = args_acc.append(&[{}.to_field()]);\n", param_name)
                 }
             }
         })
         .collect::<Vec<_>>()
         .join("");
-    if aztec_visibility != "Public" {
+
+    let param_types = if !parameters.is_empty() {
+        parameters
+            .iter()
+            .map(|param| param.pattern.name_ident().0.contents.clone())
+            .collect::<Vec<_>>()
+            .join(", ")
+    } else {
+        "".to_string()
+    };
+
+    let original = format!(
+        "| inputs: dep::aztec::context::inputs::{}ContextInputs | -> {} {{
+            {}(inputs{})
+        }}",
+        aztec_visibility,
+        if aztec_visibility == "Private" {
+            "dep::aztec::protocol_types::abis::private_circuit_public_inputs::PrivateCircuitPublicInputs".to_string()
+        } else {
+            return_type_hint.clone()
+        },
+        fn_name,
+        if param_types.is_empty() { "".to_string() } else { format!(" ,{}  ", param_types) }
+    );
+    let arg_types = format!(
+        "({}{})",
+        parameters
+            .iter()
+            .map(|param| param.typ.typ.to_string().replace("plain::", ""))
+            .collect::<Vec<_>>()
+            .join(","),
+        // In order to distinguish between a single element Tuple (Type,) and a single type with unnecessary parenthesis around it (Type),
+        // The latter gets simplified to Type, that is NOT a valid env
+        if parameters.len() == 1 { "," } else { "" }
+    );
+
+    let generics = if is_void == "Void" {
+        format!("{}>", arg_types)
+    } else {
+        format!("{}, {}>", return_type_hint, arg_types)
+    };
+
+    let fn_body = if aztec_visibility != "Public" {
         let args_hash = if !parameters.is_empty() {
             format!(
                 "let mut args_acc: [Field] = &[];
@@ -98,23 +139,25 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction, is_static_call
                 call_args
             )
         } else {
-            "let args_hash = 0;".to_string()
+            "
+            let mut args_acc: [Field] = &[];
+            let args_hash = 0;
+            "
+            .to_string()
         };
 
-        let fn_body = format!(
-            "{}
-                dep::aztec::context::{}{}{}CallInterface {{
-                    target_contract: self.target_contract,
-                    selector: {},
-                    args_hash,
-                }}",
-            args_hash, aztec_visibility, is_static, is_void, fn_selector,
-        );
         format!(
-            "pub fn {}(self, {}) -> dep::aztec::context::{}{}{}CallInterface{} {{
-                    {}
-                }}",
-            fn_name, fn_parameters, aztec_visibility, is_static, is_void, return_type_hint, fn_body
+            "{}
+            let selector = {};
+            dep::aztec::context::{}{}{}CallInterface {{
+                target_contract: self.target_contract,
+                selector,
+                name: \"{}\",
+                args_hash,
+                args: args_acc,
+                original: {}
+            }}",
+            args_hash, fn_selector, aztec_visibility, is_static, is_void, fn_name, original
         )
     } else {
         let args = format!(
@@ -123,23 +166,34 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction, is_static_call
             ",
             call_args
         );
-        let fn_body = format!(
+        format!(
             "{}
-            dep::aztec::context::Public{}{}CallInterface {{
+            let selector = {};
+            dep::aztec::context::{}{}{}CallInterface {{
                 target_contract: self.target_contract,
-                selector: {},
+                selector,
+                name: \"{}\",
                 args: args_acc,
                 gas_opts: dep::aztec::context::gas::GasOpts::default(),
+                original: {}
             }}",
-            args, is_static, is_void, fn_selector,
-        );
-        format!(
-            "pub fn {}(self, {}) -> dep::aztec::context::Public{}{}CallInterface{} {{
-                    {}
-            }}",
-            fn_name, fn_parameters, is_static, is_void, return_type_hint, fn_body
+            args, fn_selector, aztec_visibility, is_static, is_void, fn_name, original
         )
-    }
+    };
+
+    format!(
+        "pub fn {}(self, {}) -> dep::aztec::context::{}{}{}CallInterface<{},{} {{
+                {}
+        }}",
+        fn_name,
+        fn_parameters,
+        aztec_visibility,
+        is_static,
+        is_void,
+        fn_name.len(),
+        generics,
+        fn_body
+    )
 }
 
 // Generates the contract interface as a struct with an `at` function that holds the stubbed functions and provides
@@ -149,7 +203,15 @@ pub fn generate_contract_interface(
     module: &mut SortedModule,
     module_name: &str,
     stubs: &[(String, Location)],
+    has_storage_layout: bool,
 ) -> Result<(), AztecMacroError> {
+    let storage_layout_getter = format!(
+        "#[contract_library_method]
+        pub fn storage() -> StorageLayout {{
+            {}_STORAGE_LAYOUT
+        }}",
+        module_name,
+    );
     let contract_interface = format!(
         "
         struct {0} {{
@@ -164,6 +226,12 @@ pub fn generate_contract_interface(
             ) -> Self {{
                 Self {{ target_contract }}
             }}
+
+            pub fn interface() -> Self {{
+                Self {{ target_contract: dep::aztec::protocol_types::address::AztecAddress::zero() }}
+            }}
+
+            {2}
         }}
 
         #[contract_library_method]
@@ -172,9 +240,18 @@ pub fn generate_contract_interface(
         ) -> {0} {{
             {0} {{ target_contract }}
         }}
+
+        #[contract_library_method]
+        pub fn interface() -> {0} {{
+            {0} {{ target_contract: dep::aztec::protocol_types::address::AztecAddress::zero() }}
+        }}
+
+        {3}
     ",
         module_name,
         stubs.iter().map(|(src, _)| src.to_owned()).collect::<Vec<String>>().join("\n"),
+        if has_storage_layout { storage_layout_getter.clone() } else { "".to_string() },
+        if has_storage_layout { format!("#[contract_library_method]\n{}", storage_layout_getter) } else { "".to_string() } 
     );
 
     let (contract_interface_ast, errors) = parse_program(&contract_interface);
@@ -191,7 +268,7 @@ pub fn generate_contract_interface(
         .iter()
         .enumerate()
         .map(|(i, (method, orig_span))| {
-            if method.name() == "at" {
+            if method.name() == "at" || method.name() == "interface" || method.name() == "storage" {
                 (method.clone(), *orig_span)
             } else {
                 let (_, new_location) = stubs[i];
@@ -205,7 +282,9 @@ pub fn generate_contract_interface(
 
     module.types.push(contract_interface_ast.types.pop().unwrap());
     module.impls.push(impl_with_locations);
-    module.functions.push(contract_interface_ast.functions.pop().unwrap());
+    for function in contract_interface_ast.functions {
+        module.functions.push(function);
+    }
 
     Ok(())
 }
@@ -244,7 +323,7 @@ pub fn update_fn_signatures_in_contract_interface(
                 let name = context.def_interner.function_name(func_id);
                 let fn_parameters = &context.def_interner.function_meta(func_id).parameters.clone();
 
-                if name == "at" {
+                if name == "at" || name == "interface" || name == "storage" {
                     continue;
                 }
 
@@ -257,42 +336,29 @@ pub fn update_fn_signatures_in_contract_interface(
                         .collect::<Vec<Type>>(),
                 );
                 let hir_func = context.def_interner.function(func_id).block(&context.def_interner);
-                let call_interface_constructor_statement = context.def_interner.statement(
-                    hir_func
-                        .statements()
-                        .last()
-                        .ok_or((AztecMacroError::AztecDepNotFound, file_id))?,
+
+                let function_selector_statement = context.def_interner.statement(
+                    hir_func.statements().get(hir_func.statements().len() - 2).ok_or((
+                        AztecMacroError::CouldNotGenerateContractInterface {
+                            secondary_message: Some(
+                                "Function signature statement not found, invalid body length"
+                                    .to_string(),
+                            ),
+                        },
+                        file_id,
+                    ))?,
                 );
-                let call_interface_constructor_expression =
-                    match call_interface_constructor_statement {
-                        HirStatement::Expression(expression_id) => {
-                            match context.def_interner.expression(&expression_id) {
-                        HirExpression::Constructor(hir_constructor_expression) => {
-                            Ok(hir_constructor_expression)
-                        }
-                        _ => Err((
-                            AztecMacroError::CouldNotGenerateContractInterface {
-                                secondary_message: Some(
-                                    "CallInterface constructor statement must be a constructor expression"
-                                        .to_string(),
-                                ),
-                            },
-                            file_id,
-                        )),
-                    }
-                        }
-                        _ => Err((
-                            AztecMacroError::CouldNotGenerateContractInterface {
-                                secondary_message: Some(
-                                    "CallInterface constructor statement must be an expression"
-                                        .to_string(),
-                                ),
-                            },
-                            file_id,
-                        )),
-                    }?;
-                let (_, function_selector_expression_id) =
-                    call_interface_constructor_expression.fields[1];
+                let function_selector_expression_id = match function_selector_statement {
+                    HirStatement::Let(let_statement) => Ok(let_statement.expression),
+                    _ => Err((
+                        AztecMacroError::CouldNotGenerateContractInterface {
+                            secondary_message: Some(
+                                "Function selector statement must be an expression".to_string(),
+                            ),
+                        },
+                        file_id,
+                    )),
+                }?;
                 let function_selector_expression =
                     context.def_interner.expression(&function_selector_expression_id);
 

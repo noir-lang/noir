@@ -169,5 +169,4 @@
     "**/noir/noir-repo/docs/versioned_docs/**": true
   },
   "cmake.sourceDirectory": "${workspaceFolder}/barretenberg/cpp",
-  "noir.nargoPath": "./noir/noir-repo/target/release/nargo"
 }

@@ -41,10 +41,25 @@ build:
   SAVE ARTIFACT noir-protocol-circuits
 
 test:
-  FROM +build
-  RUN cd noir-protocol-circuits && nargo test --silence-warnings
-  RUN cd aztec-nr && nargo test --silence-warnings
-  RUN cd noir-contracts && nargo test --silence-warnings
+  FROM ../yarn-project/+txe
+
+  # Install nargo
+  COPY ../noir/+nargo/nargo /usr/bin/nargo
+
+  COPY +build/. /usr/src/noir-projects
+
+  RUN cd /usr/src/noir-projects/noir-protocol-circuits && nargo test --silence-warnings
+  RUN cd /usr/src/yarn-project/txe && yarn start & echo $! > /tmp/txe.pid && \
+      # Wait for TXE to initialize
+      sleep 5 && \
+      cd /usr/src/noir-projects/aztec-nr && nargo test --silence-warnings --oracle-resolver http://localhost:8080 ; \
+      kill $(cat /tmp/txe.pid)
+
+  RUN cd /usr/src/yarn-project/txe && yarn start & echo $! > /tmp/txe.pid && \
+      # Wait for TXE to initialize
+      sleep 5 && \
+      cd /usr/src/noir-projects/noir-contracts && nargo test --silence-warnings --oracle-resolver http://localhost:8080 ; \
+      kill $(cat /tmp/txe.pid)
 
 format:
   FROM +build

@@ -1,11 +1,20 @@
-import { type ContractArtifact, type FunctionArtifact, getDefaultInitializer } from '@aztec/foundation/abi';
+import {
+  type ContractArtifact,
+  type FunctionArtifact,
+  FunctionSelector,
+  getDefaultInitializer,
+} from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { type ContractInstance, type ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { getContractClassFromArtifact } from '../contract/contract_class.js';
 import { computeContractClassId } from '../contract/contract_class_id.js';
-import { computeContractAddressFromInstance, computeInitializationHash } from './contract_address.js';
+import {
+  computeContractAddressFromInstance,
+  computeInitializationHash,
+  computeInitializationHashFromEncodedArgs,
+} from './contract_address.js';
 
 /**
  * Generates a Contract Instance from the deployment params.
@@ -18,6 +27,7 @@ export function getContractInstanceFromDeployParams(
   opts: {
     constructorArtifact?: FunctionArtifact | string;
     constructorArgs?: any[];
+    skipArgsDecoding?: boolean;
     salt?: Fr;
     publicKeysHash?: Fr;
     deployer?: AztecAddress;
@@ -27,10 +37,15 @@ export function getContractInstanceFromDeployParams(
   const salt = opts.salt ?? Fr.random();
   const constructorArtifact = getConstructorArtifact(artifact, opts.constructorArtifact);
   const deployer = opts.deployer ?? AztecAddress.ZERO;
-
   const contractClass = getContractClassFromArtifact(artifact);
   const contractClassId = computeContractClassId(contractClass);
-  const initializationHash = computeInitializationHash(constructorArtifact, args);
+  const initializationHash =
+    constructorArtifact && opts?.skipArgsDecoding
+      ? computeInitializationHashFromEncodedArgs(
+          FunctionSelector.fromNameAndParameters(constructorArtifact?.name, constructorArtifact?.parameters),
+          args,
+        )
+      : computeInitializationHash(constructorArtifact, args);
   const publicKeysHash = opts.publicKeysHash ?? Fr.ZERO;
 
   const instance: ContractInstance = {

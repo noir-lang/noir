@@ -1,14 +1,16 @@
 use dep::protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint};
 use crate::{context::PrivateContext, state_vars::private_mutable::PrivateMutable};
-use crate::test::{mocks::mock_note::MockNote, helpers::context_builder::ContextBuilder};
+use crate::test::{mocks::mock_note::MockNote, helpers::{cheatcodes, test_environment::TestEnvironment}};
 use dep::std::{unsafe::zeroed, test::OracleMock};
 
-global contract_address = AztecAddress::from_field(13);
 global storage_slot = 17;
 
-fn setup() -> PrivateMutable<MockNote, &mut PrivateContext> {
-    let mut context = ContextBuilder::new().contract_address(contract_address).private();
-    let state_var = PrivateMutable::new(&mut context, storage_slot);
+fn setup() -> TestEnvironment {
+    TestEnvironment::new()
+}
+
+fn in_private(env: &mut TestEnvironment) -> PrivateMutable<MockNote, &mut PrivateContext> {
+    let state_var = PrivateMutable::new(&mut env.private(), storage_slot);
 
     // This oracle is called for its side effects alone - it's always expected to return 0.
     OracleMock::mock("notifyCreatedNote").returns(0);
@@ -18,13 +20,14 @@ fn setup() -> PrivateMutable<MockNote, &mut PrivateContext> {
 
 #[test]
 fn test_initialize_or_replace_without_nullifier() {
-    let state_var = setup();
+    let mut env = setup();
+    let state_var = in_private(&mut env);
 
     let ovpk_m: GrumpkinPoint = zeroed();
     let ivpk_m: GrumpkinPoint = zeroed();
 
     let value = 42;
-    let mut note = MockNote::new(value).contract_address(contract_address).storage_slot(storage_slot).build();
+    let mut note = MockNote::new(value).contract_address(cheatcodes::get_contract_address()).storage_slot(storage_slot).build();
 
     OracleMock::mock("checkNullifierExists").returns(0);
     state_var.initialize_or_replace(&mut note).discard();

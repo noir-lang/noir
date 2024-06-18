@@ -290,10 +290,6 @@ export type FieldLayout = {
    * Slot in which the field is stored.
    */
   slot: Fr;
-  /**
-   * Type being stored at the slot (e.g., 'Map<AztecAddress, PublicMutable<U128>>')
-   */
-  typ: string;
 };
 
 /**

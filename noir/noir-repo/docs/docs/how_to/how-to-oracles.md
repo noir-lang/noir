@@ -141,10 +141,10 @@ server.addMethod("resolve_function_call", async (params) => {
   if params.function !== "getSqrt" {
     throw Error("Unexpected foreign call")
   };
-  const values = params.inputs[0].Array.map((field) => {
+  const values = params.inputs[0].map((field) => {
     return `${Math.sqrt(parseInt(field, 16))}`;
   });
-  return { values: [{ Array: values }] };
+  return { values };
 });
 ```
 
@@ -232,9 +232,9 @@ const foreignCallHandler = async (name, input) => {
     // notice that the "inputs" parameter contains *all* the inputs
     // in this case we to make the RPC request with the first parameter "numbers", which would be input[0]
     const oracleReturn = await client.request(name, [
-      { Array: input[0].map((i) => i.toString("hex")) },
+      input[0].map((i) => i.toString("hex")),
     ]);
-    return [oracleReturn.values[0].Array];
+    return { values: oracleReturn };
 };
 
 // the rest of your NoirJS code

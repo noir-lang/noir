@@ -418,7 +418,7 @@ jobs:
         run: earthly-ci --no-output ./noir+packages-test
 
   noir-projects:
-    needs: [setup, changes]
+    needs: [setup, changes, build]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     if: ${{ needs.changes.outputs.barretenberg == 'true' || needs.changes.outputs.noir == 'true' || needs.changes.outputs.noir-projects == 'true' }}
     steps:

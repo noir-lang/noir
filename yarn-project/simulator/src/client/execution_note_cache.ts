@@ -63,7 +63,6 @@ export class ExecutionNoteCache {
       nullifiedNoteHashCounter = note.counter;
       this.newNotes.set(contractAddress.toBigInt(), notes);
     }
-
     return nullifiedNoteHashCounter;
   }
 

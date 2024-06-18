@@ -486,12 +486,12 @@ contract Test {
 
     // This function is used in the e2e_state_vars to test the SharedMutablePrivateGetter in isolation
     #[aztec(private)]
-    fn test_shared_mutable_private_getter<T>(
+    fn test_shared_mutable_private_getter(
         contract_address_to_read: AztecAddress,
         storage_slot_of_shared_mutable: Field
-    ) -> Field where T: FromField, T: ToField {
+    ) -> Field {
         // It's a bit wonky because we need to know the delay for get_current_value_in_private to work correctly
-        let test: SharedMutablePrivateGetter<T, 5> = SharedMutablePrivateGetter::new(
+        let test: SharedMutablePrivateGetter<AztecAddress, 5> = SharedMutablePrivateGetter::new(
             &mut context,
             contract_address_to_read,
             storage_slot_of_shared_mutable

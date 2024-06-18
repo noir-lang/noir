@@ -105,3 +105,4 @@ deploy_package p2p
 deploy_package prover-client
 deploy_package sequencer-client
 deploy_package aztec-node
+deploy_package txe

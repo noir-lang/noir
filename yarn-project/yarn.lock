@@ -933,6 +933,34 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@aztec/txe@workspace:txe":
+  version: 0.0.0-use.local
+  resolution: "@aztec/txe@workspace:txe"
+  dependencies:
+    "@aztec/archiver": "workspace:^"
+    "@aztec/aztec.js": "workspace:^"
+    "@aztec/circuit-types": "workspace:^"
+    "@aztec/circuits.js": "workspace:^"
+    "@aztec/foundation": "workspace:^"
+    "@aztec/key-store": "workspace:^"
+    "@aztec/kv-store": "workspace:^"
+    "@aztec/noir-contracts.js": "workspace:^"
+    "@aztec/pxe": "workspace:^"
+    "@aztec/simulator": "workspace:^"
+    "@aztec/types": "workspace:^"
+    "@aztec/world-state": "workspace:^"
+    "@jest/globals": ^29.5.0
+    "@types/jest": ^29.5.0
+    "@types/node": ^18.7.23
+    jest: ^29.5.0
+    jest-mock-extended: ^3.0.3
+    ts-node: ^10.9.1
+    typescript: ^5.0.4
+  bin:
+    txe: ./dest/bin/index.js
+  languageName: unknown
+  linkType: soft
+
 "@aztec/types@workspace:^, @aztec/types@workspace:types":
   version: 0.0.0-use.local
   resolution: "@aztec/types@workspace:types"

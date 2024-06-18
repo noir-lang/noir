@@ -1,0 +1,82 @@
+{
+  "name": "@aztec/txe",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": "./dest/index.js",
+  "bin": "./dest/bin/index.js",
+  "typedocOptions": {
+    "entryPoints": [
+      "./src/index.ts"
+    ],
+    "name": "TXE",
+    "tsconfig": "./tsconfig.json"
+  },
+  "scripts": {
+    "build": "yarn clean && tsc -b",
+    "build:dev": "tsc -b --watch",
+    "clean": "rm -rf ./dest .tsbuildinfo",
+    "formatting": "run -T prettier --check ./src && run -T eslint ./src",
+    "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests",
+    "start": "DEBUG='aztec:*' && node ./dest/bin/index.js"
+  },
+  "inherits": [
+    "../package.common.json"
+  ],
+  "jest": {
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.[cm]?js$": "$1"
+    },
+    "testRegex": "./src/.*\\.test\\.(js|mjs|ts)$",
+    "rootDir": "./src",
+    "workerThreads": true,
+    "transform": {
+      "^.+\\.tsx?$": [
+        "@swc/jest"
+      ]
+    },
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
+    "reporters": [
+      [
+        "default",
+        {
+          "summaryThreshold": 9999
+        }
+      ]
+    ]
+  },
+  "dependencies": {
+    "@aztec/archiver": "workspace:^",
+    "@aztec/aztec.js": "workspace:^",
+    "@aztec/circuit-types": "workspace:^",
+    "@aztec/circuits.js": "workspace:^",
+    "@aztec/foundation": "workspace:^",
+    "@aztec/key-store": "workspace:^",
+    "@aztec/kv-store": "workspace:^",
+    "@aztec/noir-contracts.js": "workspace:^",
+    "@aztec/pxe": "workspace:^",
+    "@aztec/simulator": "workspace:^",
+    "@aztec/types": "workspace:^",
+    "@aztec/world-state": "workspace:^"
+  },
+  "devDependencies": {
+    "@jest/globals": "^29.5.0",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^18.7.23",
+    "jest": "^29.5.0",
+    "jest-mock-extended": "^3.0.3",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.4"
+  },
+  "files": [
+    "dest",
+    "src",
+    "!*.test.*"
+  ],
+  "types": "./dest/index.d.ts",
+  "engines": {
+    "node": ">=18"
+  }
+}

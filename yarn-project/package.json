@@ -51,6 +51,7 @@
     "sequencer-client",
     "scripts",
     "types",
+    "txe",
     "world-state"
   ],
   "prettier": "@aztec/foundation/prettier",

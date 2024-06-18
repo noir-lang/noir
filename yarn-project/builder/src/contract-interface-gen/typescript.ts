@@ -194,10 +194,9 @@ function generateStorageLayoutGetter(input: ContractArtifact) {
   const storageFieldsUnionType = entries.map(([name]) => `'${name}'`).join(' | ');
   const layout = entries
     .map(
-      ([name, { slot, typ }]) =>
+      ([name, { slot }]) =>
         `${name}: {
       slot: new Fr(${slot.toBigInt()}n),
-      typ: "${typ}",
     }`,
     )
     .join(',\n');

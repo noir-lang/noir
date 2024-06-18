@@ -65,14 +65,8 @@ fn transform(
     // Usage -> mut ast -> aztec_library::transform(&mut ast)
     // Covers all functions in the ast
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
-        if transform_module(
-            crate_id,
-            &file_id,
-            context,
-            &mut submodule.contents,
-            submodule.name.0.contents.as_str(),
-        )
-        .map_err(|err| (err.into(), file_id))?
+        if transform_module(&file_id, &mut submodule.contents, submodule.name.0.contents.as_str())
+            .map_err(|err| (err.into(), file_id))?
         {
             check_for_aztec_dependency(crate_id, context)?;
         }
@@ -87,9 +81,7 @@ fn transform(
 /// For annotated functions it calls the `transform` function which will perform the required transformations.
 /// Returns true if an annotated node is found, false otherwise
 fn transform_module(
-    crate_id: &CrateId,
     file_id: &FileId,
-    context: &HirContext,
     module: &mut SortedModule,
     module_name: &str,
 ) -> Result<bool, AztecMacroError> {
@@ -106,12 +98,7 @@ fn transform_module(
         if !check_for_storage_implementation(module, storage_struct_name) {
             generate_storage_implementation(module, storage_struct_name)?;
         }
-        // Make sure we're only generating the storage layout for the root crate
-        // In case we got a contract importing other contracts for their interface, we
-        // don't want to generate the storage layout for them
-        if crate_id == context.root_crate_id() {
-            generate_storage_layout(module, storage_struct_name.clone())?;
-        }
+        generate_storage_layout(module, storage_struct_name.clone(), module_name)?;
     }
 
     for structure in module.types.iter_mut() {
@@ -219,7 +206,7 @@ fn transform_module(
             });
         }
 
-        generate_contract_interface(module, module_name, &stubs)?;
+        generate_contract_interface(module, module_name, &stubs, storage_defined)?;
     }
 
     Ok(has_transformed_module)

@@ -115,6 +115,19 @@ rollup-verifier-contract:
     RUN --entrypoint write-contract -c RootRollupArtifact -n UltraVerifier.sol
     SAVE ARTIFACT /usr/src/bb /usr/src/bb
 
+txe: 
+    FROM +build
+    RUN yarn workspaces focus @aztec/txe --production && yarn cache clean
+    # Remove a bunch of stuff that we don't need that takes up space.
+    RUN rm -rf \
+        ../noir-projects \
+        ../l1-contracts \
+        ../barretenberg/ts/src \
+        ../barretenberg/ts/dest/node-cjs \
+        ../barretenberg/ts/dest/browser \
+        **/artifacts
+    SAVE ARTIFACT /usr/src /usr/src
+
 aztec-prod:
     FROM +build
     RUN yarn workspaces focus @aztec/aztec @aztec/builder --production && yarn cache clean

@@ -111,3 +111,9 @@ trait Deserialize<N> {
     fn deserialize(fields: [Field; N]) -> Self;
 }
 // docs:end:deserialize
+
+impl<N> Deserialize<N> for [Field; N] {
+    fn deserialize(fields: [Field; N]) -> Self {
+        fields
+    }
+}

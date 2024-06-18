@@ -37,4 +37,29 @@ contract Counter {
         balance_utils::get_balance(counters.at(owner).set)
     }
     // docs:end:get_counter
+
+    use dep::aztec::test::{helpers::{cheatcodes, test_environment::TestEnvironment}};
+    use dep::aztec::protocol_types::storage::map::derive_storage_slot_in_map;
+    use dep::aztec::note::note_getter::{MAX_NOTES_PER_PAGE, view_notes};
+    use dep::aztec::note::note_viewer_options::NoteViewerOptions;
+
+    #[test]
+    fn test_initialize() {
+        // Setup env, generate keys
+        let mut env = TestEnvironment::new();
+        let owner = env.create_account();
+        let outgoing_viewer = env.create_account();
+
+        // Deploy contract and initialize 
+        let initializer = Counter::interface().initialize(5, owner, outgoing_viewer);
+        let contract_address = env.deploy("@aztec/noir-contracts.js/Counter").with_private_initializer(initializer);
+        // Read the stored value in the note
+
+        cheatcodes::set_contract_address(contract_address);
+        let counter_slot = Counter::storage().counters.slot;
+        let owner_slot = derive_storage_slot_in_map(counter_slot, owner);
+        let mut options = NoteViewerOptions::new();
+        let opt_notes: [Option<ValueNote>; MAX_NOTES_PER_PAGE] = view_notes(owner_slot, options);
+        assert(opt_notes[0].unwrap().value == 5);
+    }
 }
