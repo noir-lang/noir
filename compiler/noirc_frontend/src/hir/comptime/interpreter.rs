@@ -31,6 +31,7 @@ use self::unquote::UnquoteArgs;
 use super::errors::{IResult, InterpreterError};
 use super::value::Value;
 
+mod builtin;
 mod unquote;
 
 #[allow(unused)]
@@ -99,8 +100,13 @@ impl<'a> Interpreter<'a> {
             .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to");
 
         if let Some(builtin) = func_attrs.builtin() {
-            let item = format!("Evaluation for builtin functions like {builtin}");
-            Err(InterpreterError::Unimplemented { item, location })
+            match builtin.as_str() {
+                "array_len" => builtin::array_len(&arguments),
+                _ => {
+                    let item = format!("Evaluation for builtin function {builtin}");
+                    Err(InterpreterError::Unimplemented { item, location })
+                }
+            }
         } else if let Some(foreign) = func_attrs.foreign() {
             let item = format!("Evaluation for foreign functions like {foreign}");
             Err(InterpreterError::Unimplemented { item, location })
