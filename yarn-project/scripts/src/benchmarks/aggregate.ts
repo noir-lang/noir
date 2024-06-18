@@ -134,14 +134,25 @@ function processCircuitSimulation(entry: CircuitSimulationStats, results: Benchm
  */
 function processCircuitProving(entry: CircuitProvingStats, results: BenchmarkCollectedResults) {
   if (entry.circuitName === 'app-circuit') {
-    const bucket = entry.appCircuitName;
-    if (!bucket) {
+    if (!entry.appCircuitName) {
       return;
     }
+    const bucket = entry.appCircuitName;
     append(results, 'app_circuit_proving_time_in_ms', bucket, entry.duration);
     append(results, 'app_circuit_proof_size_in_bytes', bucket, entry.proofSize);
     append(results, 'app_circuit_size_in_gates', bucket, entry.circuitSize);
     append(results, 'app_circuit_num_public_inputs', bucket, entry.numPublicInputs);
+  } else if (entry.circuitName === 'avm-circuit') {
+    if (!entry.appCircuitName) {
+      return;
+    }
+    const bucket = `${entry.appCircuitName} (avm)`;
+    append(results, 'app_circuit_proving_time_in_ms', bucket, entry.duration);
+    append(results, 'app_circuit_proof_size_in_bytes', bucket, entry.proofSize);
+    append(results, 'app_circuit_input_size_in_bytes', bucket, entry.inputSize);
+    // These are not yet correctly passed in bb_prover.ts.
+    // append(results, 'app_circuit_size_in_gates', bucket, entry.circuitSize);
+    // append(results, 'app_circuit_num_public_inputs', bucket, entry.numPublicInputs);
   } else {
     const bucket = entry.circuitName;
     append(results, 'protocol_circuit_proving_time_in_ms', bucket, entry.duration);

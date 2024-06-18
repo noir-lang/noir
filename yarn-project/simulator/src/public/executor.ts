@@ -43,7 +43,7 @@ export class PublicExecutor {
     const address = execution.contractAddress;
     const selector = execution.functionSelector;
     const startGas = availableGas;
-    const fnName = await this.contractsDb.getDebugFunctionName(address, selector);
+    const fnName = (await this.contractsDb.getDebugFunctionName(address, selector)) ?? `${address}:${selector}`;
 
     PublicExecutor.log.verbose(`[AVM] Executing public external function ${fnName}.`);
     const timer = new Timer();
@@ -83,7 +83,7 @@ export class PublicExecutor {
       }.`,
       {
         eventName: 'avm-simulation',
-        appCircuitName: fnName ?? 'unknown',
+        appCircuitName: fnName,
         duration: timer.ms(),
         bytecodeSize: bytecode!.length,
       } satisfies AvmSimulationStats,
@@ -96,6 +96,7 @@ export class PublicExecutor {
       startGas,
       avmContext,
       bytecode,
+      fnName,
     );
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/5818): is this really needed?

@@ -1336,6 +1336,7 @@ export function makeAvmExecutionHints(
  */
 export function makeAvmCircuitInputs(seed = 0, overrides: Partial<FieldsOf<AvmCircuitInputs>> = {}): AvmCircuitInputs {
   return AvmCircuitInputs.from({
+    functionName: `function${seed}`,
     bytecode: makeBytes((seed % 100) + 100, seed),
     calldata: makeArray((seed % 100) + 10, i => new Fr(i), seed + 0x1000),
     publicInputs: makePublicCircuitPublicInputs(seed + 0x2000),

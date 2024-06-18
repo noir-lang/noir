@@ -144,6 +144,7 @@ export class PublicExecutionResultBuilder {
       transactionFee: Fr.ZERO,
       calldata: [],
       avmHints: AvmExecutionHints.empty(),
+      functionName: 'unknown',
       ...overrides,
     };
   }

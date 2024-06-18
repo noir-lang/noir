@@ -77,6 +77,8 @@ export interface PublicExecutionResult {
   calldata: Fr[];
   /** Hints for proving AVM execution. */
   avmHints: AvmExecutionHints;
+  /** The name of the function that was executed. Only used for logging. */
+  functionName: string;
 }
 
 /**

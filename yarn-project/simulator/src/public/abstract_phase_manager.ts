@@ -77,6 +77,7 @@ export const PhaseIsRevertible: Record<PublicKernelType, boolean> = {
 };
 
 export type PublicProvingInformation = {
+  functionName: string; // informational only
   calldata: Fr[];
   bytecode: Buffer;
   inputs: PublicKernelCircuitPrivateInputs;
@@ -89,6 +90,7 @@ export function makeAvmProvingRequest(
 ): AvmProvingRequest {
   return {
     type: AVM_REQUEST,
+    functionName: info.functionName,
     bytecode: info.bytecode,
     calldata: info.calldata,
     avmHints: info.avmHints,
@@ -282,15 +284,17 @@ export abstract class AbstractPhaseManager {
         const functionSelector = result.execution.functionSelector.toString();
         if (result.reverted && !result.revertReason) {
           throw new Error(
-            `Simulation of ${result.execution.contractAddress.toString()}:${functionSelector} reverted with no reason.`,
+            `Simulation of ${result.execution.contractAddress.toString()}:${functionSelector}(${
+              result.functionName
+            }) reverted with no reason.`,
           );
         }
 
         if (result.reverted && !PhaseIsRevertible[this.phase]) {
           this.log.debug(
-            `Simulation error on ${result.execution.contractAddress.toString()}:${functionSelector} with reason: ${
-              result.revertReason
-            }`,
+            `Simulation error on ${result.execution.contractAddress.toString()}:${functionSelector}(${
+              result.functionName
+            }) with reason: ${result.revertReason}`,
           );
           throw result.revertReason;
         }
@@ -302,7 +306,9 @@ export abstract class AbstractPhaseManager {
 
         // Simulate the public kernel circuit.
         this.log.debug(
-          `Running public kernel circuit for ${result.execution.contractAddress.toString()}:${functionSelector}`,
+          `Running public kernel circuit for ${result.execution.contractAddress.toString()}:${functionSelector}(${
+            result.functionName
+          })`,
         );
         const callData = await this.getPublicCallData(result, isExecutionRequest);
         const [privateInputs, publicInputs] = await this.runKernelCircuit(kernelPublicOutput, callData);
@@ -310,6 +316,7 @@ export abstract class AbstractPhaseManager {
 
         // Capture the inputs for later proving in the AVM and kernel.
         const publicProvingInformation: PublicProvingInformation = {
+          functionName: result.functionName,
           calldata: result.calldata,
           bytecode: result.bytecode!,
           inputs: privateInputs,
@@ -322,7 +329,9 @@ export abstract class AbstractPhaseManager {
         // but the kernel carries the reverted flag forward. But if the simulator reverts, so should the kernel.
         if (result.reverted && kernelPublicOutput.revertCode.isOK()) {
           throw new Error(
-            `Public kernel circuit did not revert on ${result.execution.contractAddress.toString()}:${functionSelector}, but simulator did.`,
+            `Public kernel circuit did not revert on ${result.execution.contractAddress.toString()}:${functionSelector}(${
+              result.functionName
+            }), but simulator did.`,
           );
         }
 
@@ -330,9 +339,9 @@ export abstract class AbstractPhaseManager {
         // So safely return the revert reason and the kernel output (which has had its revertible side effects dropped)
         if (result.reverted) {
           this.log.debug(
-            `Reverting on ${result.execution.contractAddress.toString()}:${functionSelector} with reason: ${
-              result.revertReason
-            }`,
+            `Reverting on ${result.execution.contractAddress.toString()}:${functionSelector}(${
+              result.functionName
+            }) with reason: ${result.revertReason}`,
           );
           // TODO(@spalladino): Check gasUsed is correct. The AVM should take care of setting gasLeft to zero upon a revert.
           return {

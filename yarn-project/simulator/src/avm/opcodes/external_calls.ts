@@ -94,6 +94,11 @@ abstract class ExternalCall extends Instruction {
     const oldStyleExecution = createPublicExecution(startSideEffectCounter, nestedContext.environment, calldata);
     const simulator = new AvmSimulator(nestedContext);
     const nestedCallResults: AvmContractCallResults = await simulator.execute();
+    const functionName =
+      (await nestedContext.persistableState.hostStorage.contractsDb.getDebugFunctionName(
+        nestedContext.environment.address,
+        nestedContext.environment.temporaryFunctionSelector,
+      )) ?? `${nestedContext.environment.address}:${nestedContext.environment.temporaryFunctionSelector}`;
     const pxResults = convertAvmResultsToPxResult(
       nestedCallResults,
       startSideEffectCounter,
@@ -101,6 +106,7 @@ abstract class ExternalCall extends Instruction {
       Gas.from(allocatedGas),
       nestedContext,
       simulator.getBytecode(),
+      functionName,
     );
     // store the old PublicExecutionResult object to maintain a recursive data structure for the old kernel
     context.persistableState.transitionalExecutionResult.nestedExecutions.push(pxResults);

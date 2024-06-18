@@ -248,12 +248,14 @@ const proveAndVerifyAvmTestContract = async (
     startGas,
     context,
     simulator.getBytecode(),
+    functionName,
   );
   // TODO(dbanks12): public inputs should not be empty.... Need to construct them from AvmContext?
   const uncompressedBytecode = simulator.getBytecode()!;
   const publicInputs = getPublicInputs(pxResult);
 
   const avmCircuitInputs = new AvmCircuitInputs(
+    functionName,
     uncompressedBytecode,
     context.environment.calldata,
     publicInputs,

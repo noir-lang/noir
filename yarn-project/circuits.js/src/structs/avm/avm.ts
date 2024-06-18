@@ -367,6 +367,7 @@ export class AvmExecutionHints {
 
 export class AvmCircuitInputs {
   constructor(
+    public readonly functionName: string, // only informational
     public readonly bytecode: Buffer,
     public readonly calldata: Fr[],
     public readonly publicInputs: PublicCircuitPublicInputs,
@@ -378,7 +379,10 @@ export class AvmCircuitInputs {
    * @returns - The inputs serialized to a buffer.
    */
   toBuffer() {
+    const functionNameBuffer = Buffer.from(this.functionName);
     return serializeToBuffer(
+      functionNameBuffer.length,
+      functionNameBuffer,
       this.bytecode.length,
       this.bytecode,
       this.calldata.length,
@@ -402,7 +406,11 @@ export class AvmCircuitInputs {
    */
   isEmpty(): boolean {
     return (
-      this.bytecode.length == 0 && this.calldata.length == 0 && this.publicInputs.isEmpty() && this.avmHints.isEmpty()
+      this.functionName.length == 0 &&
+      this.bytecode.length == 0 &&
+      this.calldata.length == 0 &&
+      this.publicInputs.isEmpty() &&
+      this.avmHints.isEmpty()
     );
   }
 
@@ -421,7 +429,7 @@ export class AvmCircuitInputs {
    * @returns An array of fields.
    */
   static getFields(fields: FieldsOf<AvmCircuitInputs>) {
-    return [fields.bytecode, fields.calldata, fields.publicInputs, fields.avmHints] as const;
+    return [fields.functionName, fields.bytecode, fields.calldata, fields.publicInputs, fields.avmHints] as const;
   }
 
   /**
@@ -432,8 +440,9 @@ export class AvmCircuitInputs {
   static fromBuffer(buff: Buffer | BufferReader): AvmCircuitInputs {
     const reader = BufferReader.asReader(buff);
     return new AvmCircuitInputs(
-      reader.readBuffer(),
-      reader.readVector(Fr),
+      /*functionName=*/ reader.readBuffer().toString(),
+      /*bytecode=*/ reader.readBuffer(),
+      /*calldata=*/ reader.readVector(Fr),
       PublicCircuitPublicInputs.fromBuffer(reader),
       AvmExecutionHints.fromBuffer(reader),
     );

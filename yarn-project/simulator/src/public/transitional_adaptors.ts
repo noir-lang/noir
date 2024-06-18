@@ -114,12 +114,14 @@ export function convertAvmResultsToPxResult(
   startGas: Gas,
   endAvmContext: AvmContext,
   bytecode: Buffer | undefined,
+  functionName: string,
 ): PublicExecutionResult {
   const endPersistableState = endAvmContext.persistableState;
   const endMachineState = endAvmContext.machineState;
 
   return {
     ...endPersistableState.transitionalExecutionResult, // includes nestedExecutions
+    functionName: functionName,
     execution: fromPx,
     returnValues: avmResult.output,
     startSideEffectCounter: new Fr(startSideEffectCounter),

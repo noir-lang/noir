@@ -54,6 +54,7 @@ export const AVM_REQUEST = 'AVM' as const;
 
 export type AvmProvingRequest = {
   type: typeof AVM_REQUEST;
+  functionName: string; // informational only
   bytecode: Buffer;
   calldata: Fr[];
   avmHints: AvmExecutionHints;

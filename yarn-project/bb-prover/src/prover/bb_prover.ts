@@ -439,22 +439,17 @@ export class BBNativeRollupProver implements ServerCircuitProver {
       const rawProof = await fs.readFile(`${provingResult.proofPath!}/${PROOF_FILENAME}`);
 
       const proof = new Proof(rawProof, vkData.numPublicInputs);
-      logger.info(
-        `Generated proof for ${circuitType} in ${Math.ceil(provingResult.duration)} ms, size: ${
-          proof.buffer.length
-        } bytes`,
-        {
-          circuitName: mapProtocolArtifactNameToCircuitName(circuitType),
-          // does not include reading the proof from disk
-          duration: provingResult.duration,
-          proofSize: proof.buffer.length,
-          eventName: 'circuit-proving',
-          // circuitOutput is the partial witness that became the input to the proof
-          inputSize: output.toBuffer().length,
-          circuitSize: vkData.circuitSize,
-          numPublicInputs: vkData.numPublicInputs,
-        } satisfies CircuitProvingStats,
-      );
+      logger.info(`Generated proof for ${circuitType} in ${Math.ceil(provingResult.duration)} ms`, {
+        circuitName: mapProtocolArtifactNameToCircuitName(circuitType),
+        // does not include reading the proof from disk
+        duration: provingResult.duration,
+        proofSize: proof.buffer.length,
+        eventName: 'circuit-proving',
+        // circuitOutput is the partial witness that became the input to the proof
+        inputSize: output.toBuffer().length,
+        circuitSize: vkData.circuitSize,
+        numPublicInputs: vkData.numPublicInputs,
+      } satisfies CircuitProvingStats);
 
       return { circuitOutput: output, proof };
     };
@@ -462,12 +457,12 @@ export class BBNativeRollupProver implements ServerCircuitProver {
   }
 
   private async generateAvmProofWithBB(input: AvmCircuitInputs, workingDirectory: string): Promise<BBSuccess> {
-    logger.debug(`Proving avm-circuit...`);
+    logger.info(`Proving avm-circuit for ${input.functionName}...`);
 
     const provingResult = await generateAvmProof(this.config.bbBinaryPath, workingDirectory, input, logger.verbose);
 
     if (provingResult.status === BB_RESULT.FAILURE) {
-      logger.error(`Failed to generate proof for avm-circuit: ${provingResult.reason}`);
+      logger.error(`Failed to generate AVM proof for ${input.functionName}: ${provingResult.reason}`);
       throw new Error(provingResult.reason);
     }
 
@@ -490,18 +485,17 @@ export class BBNativeRollupProver implements ServerCircuitProver {
 
       const circuitType = 'avm-circuit' as const;
       logger.info(
-        `Generated proof for ${circuitType} in ${Math.ceil(provingResult.duration)} ms, size: ${
-          proof.buffer.length
-        } bytes`,
+        `Generated proof for ${circuitType}(${input.functionName}) in ${Math.ceil(provingResult.duration)} ms`,
         {
           circuitName: circuitType,
+          appCircuitName: input.functionName,
           // does not include reading the proof from disk
           duration: provingResult.duration,
           proofSize: proof.buffer.length,
           eventName: 'circuit-proving',
           inputSize: input.toBuffer().length,
-          circuitSize: verificationKey.circuitSize,
-          numPublicInputs: verificationKey.numPublicInputs,
+          circuitSize: verificationKey.circuitSize, // FIX: wrong in VK
+          numPublicInputs: verificationKey.numPublicInputs, // FIX: wrong in VK
         } satisfies CircuitProvingStats,
       );
 

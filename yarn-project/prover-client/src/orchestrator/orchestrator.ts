@@ -772,6 +772,7 @@ export class ProvingOrchestrator {
       // Nothing downstream depends on the AVM proof yet. So having this mode lets us incrementally build the AVM circuit.
       const doAvmProving = async (signal: AbortSignal) => {
         const inputs: AvmCircuitInputs = new AvmCircuitInputs(
+          publicFunction.vmRequest!.functionName,
           publicFunction.vmRequest!.bytecode,
           publicFunction.vmRequest!.calldata,
           publicFunction.vmRequest!.kernelRequest.inputs.publicCall.callStackItem.publicInputs,
