@@ -158,7 +158,7 @@ fn run_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     Ok(test_report)
 }
 
-fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
+pub fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     package: &Package,
