@@ -73,17 +73,18 @@ impl<'a> Interpreter<'a> {
             });
         }
 
-        if meta.kind != FunctionKind::Normal {
-            return self.call_builtin(function, arguments, location);
-        }
+        let result = if meta.kind != FunctionKind::Normal {
+            self.call_builtin(function, arguments, location)?
+        } else {
+            let parameters = meta.parameters.0.clone();
+            for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments)
+            {
+                self.define_pattern(parameter, typ, argument, arg_location)?;
+            }
 
-        let parameters = meta.parameters.0.clone();
-        for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
-            self.define_pattern(parameter, typ, argument, arg_location)?;
-        }
-
-        let function_body = self.interner.function(&function).as_expr();
-        let result = self.evaluate(function_body)?;
+            let function_body = self.interner.function(&function).as_expr();
+            self.evaluate(function_body)?
+        };
 
         self.exit_function(previous_state);
         Ok(result)
