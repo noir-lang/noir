@@ -268,7 +268,7 @@ fn generate_note_get_header(
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source = format!(
         "
-        fn get_header(note: {}) -> dep::aztec::note::note_header::NoteHeader {{
+        fn get_header(note: {}) -> aztec::note::note_header::NoteHeader {{
             note.{}
         }}
     ",
@@ -299,7 +299,7 @@ fn generate_note_set_header(
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source = format!(
         "
-        fn set_header(self: &mut {}, header: dep::aztec::note::note_header::NoteHeader) {{
+        fn set_header(self: &mut {}, header: aztec::note::note_header::NoteHeader) {{
             self.{} = header;
         }}
     ",
@@ -488,7 +488,7 @@ fn generate_note_properties_fn(
 
 // Automatically generate the method to compute the note's content hash as:
 // fn compute_note_content_hash(self: NoteType) -> Field {
-//    dep::aztec::hash::pedersen_hash(self.serialize_content(), dep::aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_CONTENT_HASH)
+//    aztec::hash::pedersen_hash(self.serialize_content(), aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_CONTENT_HASH)
 // }
 //
 fn generate_compute_note_content_hash(
@@ -498,7 +498,7 @@ fn generate_compute_note_content_hash(
     let function_source = format!(
         "
         fn compute_note_content_hash(self: {}) -> Field {{
-            dep::aztec::hash::pedersen_hash(self.serialize_content(), dep::aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_CONTENT_HASH)
+            aztec::hash::pedersen_hash(self.serialize_content(), aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_CONTENT_HASH)
         }}
         ",
         note_type
@@ -557,10 +557,7 @@ fn generate_note_properties_struct_source(
         .iter()
         .filter_map(|(field_name, _)| {
             if field_name != note_header_field_name {
-                Some(format!(
-                    "{}: dep::aztec::note::note_getter_options::PropertySelector",
-                    field_name
-                ))
+                Some(format!("{}: aztec::note::note_getter_options::PropertySelector", field_name))
             } else {
                 None
             }
@@ -588,7 +585,7 @@ fn generate_note_properties_fn_source(
         .filter_map(|(index, (field_name, _))| {
             if field_name != note_header_field_name {
                 Some(format!(
-                    "{}: dep::aztec::note::note_getter_options::PropertySelector {{ index: {}, offset: 0, length: 32 }}",
+                    "{}: aztec::note::note_getter_options::PropertySelector {{ index: {}, offset: 0, length: 32 }}",
                     field_name,
                     index
                 ))
@@ -665,10 +662,7 @@ fn generate_note_deserialize_content_source(
                     )
                 }
             } else {
-                format!(
-                    "{}: dep::aztec::note::note_header::NoteHeader::empty()",
-                    note_header_field_name
-                )
+                format!("{}: aztec::note::note_header::NoteHeader::empty()", note_header_field_name)
             }
         })
         .collect::<Vec<String>>()

@@ -5,11 +5,9 @@ use std::{
 
 use acvm::acir::circuit::ExpressionWidth;
 use async_lsp::{ErrorCode, ResponseError};
-use nargo::{
-    artifacts::debug::DebugArtifact, insert_all_files_for_workspace_into_file_manager,
-    ops::report_errors,
-};
+use nargo::{insert_all_files_for_workspace_into_file_manager, ops::report_errors};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING,
 };

@@ -51,10 +51,10 @@ fn let_() {
 
     let expr = MyExpr { /*A boolean literal (true, false).*/ kind: ExprKind::Bool(true) };
 
-    let mut V = dep::crate2::MyStruct { Q: x };
-    let mut V = dep::crate2::MyStruct {};
-    let mut V = dep::crate2::MyStruct {/*test*/};
-    let mut V = dep::crate2::MyStruct {
+    let mut V = crate2::MyStruct { Q: x };
+    let mut V = crate2::MyStruct {};
+    let mut V = crate2::MyStruct {/*test*/};
+    let mut V = crate2::MyStruct {
         // sad
     };
 }
