@@ -2487,6 +2487,7 @@ dependencies = [
  "noirc_printable_type",
  "rand 0.8.5",
  "rayon",
+ "serde",
  "tempfile",
  "thiserror",
  "tracing",
