@@ -105,6 +105,16 @@ type Bad2 = Bad1;
 //   ^^^^^^^^^^^ 'Bad2' recursively depends on itself: Bad2 -> Bad1 -> Bad2
 ```
 
+## Wildcard Type
+When a variable has a complex type that the compiler cannot infer, it 
+Noir can infer the type of the variable from the context, so specifying the type of a variable is only required when it cannot be inferred. However, specifying a complex type can be tedious, especially with multiple generic arguments. Often the generic types can be inferred from the context, and Noir only needs a hint to properly infer them. This can be done by using the wildcard type `_` inside a complex type.
+The example below tells Noir that `a` is an array of size 4, without specifying the type of its elements.
+
+```rust
+  let a:[_;4] = foo(b);
+```
+ 
+
 ### BigInt
 
 You can achieve BigInt functionality using the [Noir BigInt](https://github.com/shuklaayush/noir-bigint) library.
