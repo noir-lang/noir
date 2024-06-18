@@ -1,5 +1,5 @@
 // Regression test for issue #4561
-use dep::std::test::OracleMock;
+use std::test::OracleMock;
 
 type TReturnElem = [Field; 3];
 type TReturn = [TReturnElem; 2];
