@@ -28,7 +28,7 @@ fn main(bn254_modulus_be_bytes: [u8; 32], bn254_modulus_be_bits: [u1; 254]) {
 }
 
 fn assert_reverse(forwards: [u8], backwards: [u8]) {
-    for i in 0..31 {
+    for i in 0..32 {
         assert_eq(forwards[i], backwards[31 - i]);
     }
 }
