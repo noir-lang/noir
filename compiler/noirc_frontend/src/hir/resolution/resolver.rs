@@ -570,7 +570,7 @@ impl<'a> Resolver<'a> {
                 let fields = self.resolve_type_inner(*fields);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
-            Expr => Type::Expr,
+            Quoted(quoted) => Type::Quoted(quoted),
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,
@@ -1159,7 +1159,7 @@ impl<'a> Resolver<'a> {
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
-            | Type::Expr
+            | Type::Quoted(_)
             | Type::Forall(_, _) => (),
 
             Type::TraitAsType(_, _, args) => {

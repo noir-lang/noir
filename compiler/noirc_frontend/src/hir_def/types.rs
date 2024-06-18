@@ -105,7 +105,7 @@ pub enum Type {
     Constant(u32),
 
     /// The type of quoted code in macros. This is always a comptime-only type
-    Expr,
+    Quoted(QuotedType),
 
     /// The result of some type error. Remembering type errors as their own type variant lets
     /// us avoid issuing repeat type errors for the same item. For example, a lambda with
@@ -147,7 +147,7 @@ impl Type {
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             | Type::Constant(_)
-            | Type::Expr
+            | Type::Quoted(_)
             | Type::Slice(_)
             | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
         }
@@ -185,6 +185,14 @@ impl Type {
             _ => false,
         }
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+pub enum QuotedType {
+    Expr,
+    TypeDefinition,
+    TopLevelItem,
+    Type,
 }
 
 /// A list of TypeVariableIds to bind to a type. Storing the
@@ -644,7 +652,7 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::Forall(_, _)
-            | Type::Expr => false,
+            | Type::Quoted(_) => false,
 
             Type::TraitAsType(_, _, args) => {
                 args.iter().any(|generic| generic.contains_numeric_typevar(target_id))
@@ -710,7 +718,7 @@ impl Type {
             | Type::Function(_, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
-            | Type::Expr
+            | Type::Quoted(_)
             | Type::Slice(_)
             | Type::TraitAsType(..) => false,
 
@@ -759,7 +767,7 @@ impl Type {
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             // TODO: probably can allow code as it is all compile time
-            | Type::Expr
+            | Type::Quoted(_)
             | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {
@@ -922,7 +930,7 @@ impl std::fmt::Display for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
             }
-            Type::Expr => write!(f, "Expr"),
+            Type::Quoted(quoted) => write!(f, "{}", quoted),
         }
     }
 }
@@ -950,6 +958,17 @@ impl std::fmt::Display for TypeBinding {
         match self {
             TypeBinding::Bound(typ) => typ.fmt(f),
             TypeBinding::Unbound(id) => id.fmt(f),
+        }
+    }
+}
+
+impl std::fmt::Display for QuotedType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QuotedType::Expr => write!(f, "Expr"),
+            QuotedType::TypeDefinition => write!(f, "TypeDefinition"),
+            QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
+            QuotedType::Type => write!(f, "Type"),
         }
     }
 }
@@ -1643,7 +1662,7 @@ impl Type {
             | Type::Bool
             | Type::Constant(_)
             | Type::Error
-            | Type::Expr
+            | Type::Quoted(_)
             | Type::Unit => self.clone(),
         }
     }
@@ -1686,7 +1705,7 @@ impl Type {
             | Type::Bool
             | Type::Constant(_)
             | Type::Error
-            | Type::Expr
+            | Type::Quoted(_)
             | Type::Unit => false,
         }
     }
@@ -1743,7 +1762,9 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Expr | Error => self.clone(),
+            FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Quoted(_) | Error => {
+                self.clone()
+            }
         }
     }
 
@@ -1878,7 +1899,7 @@ impl From<&Type> for PrintableType {
             Type::MutableReference(typ) => {
                 PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
             }
-            Type::Expr => unreachable!(),
+            Type::Quoted(_) => unreachable!(),
         }
     }
 }
@@ -1963,7 +1984,7 @@ impl std::fmt::Debug for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element:?}")
             }
-            Type::Expr => write!(f, "Expr"),
+            Type::Quoted(quoted) => write!(f, "{}", quoted),
         }
     }
 }
