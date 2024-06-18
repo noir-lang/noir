@@ -1,5 +1,5 @@
 use codespan_reporting::files::Files;
-use nargo::artifacts::debug::DebugArtifact;
+use noirc_artifacts::debug::DebugArtifact;
 use noirc_errors::Location;
 use owo_colors::OwoColorize;
 use std::ops::Range;
@@ -224,7 +224,7 @@ mod tests {
     use crate::source_code_printer::PrintedLine::Content;
     use acvm::acir::circuit::OpcodeLocation;
     use fm::FileManager;
-    use nargo::artifacts::debug::DebugArtifact;
+    use noirc_artifacts::debug::DebugArtifact;
     use noirc_errors::{debug_info::DebugInfo, Location, Span};
     use std::collections::BTreeMap;
     use std::ops::Range;

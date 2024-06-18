@@ -186,7 +186,7 @@ impl<'a> Files<'a> for DebugArtifact {
 
 #[cfg(test)]
 mod tests {
-    use crate::artifacts::debug::DebugArtifact;
+    use crate::debug::DebugArtifact;
     use acvm::acir::circuit::OpcodeLocation;
     use fm::FileManager;
     use noirc_errors::{debug_info::DebugInfo, Location, Span};

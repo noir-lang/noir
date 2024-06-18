@@ -1,10 +1,10 @@
-impl Type {}
+impl MyType {}
 
-impl Type<A> {}
+impl MyType<A> {}
 
-impl Type<A, B> {}
+impl MyType<A, B> {}
 
-impl Type {
+impl MyType {
     fn method(self) {}
 
     fn method(mut self) {}
@@ -12,10 +12,10 @@ impl Type {
     fn method(&mut self) {}
 }
 
-impl Type {
+impl MyType {
     fn method(self) {}
 }
 
-impl Type {
+impl MyType {
     fn method(self) {}
 }

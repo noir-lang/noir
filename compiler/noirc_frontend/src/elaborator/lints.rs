@@ -130,15 +130,6 @@ pub(super) fn recursive_non_entrypoint_function(
     }
 }
 
-/// Test functions cannot have arguments in order to be executable.
-pub(super) fn test_function_with_args(func: &NoirFunction) -> Option<ResolverError> {
-    if func.attributes().is_test_function() && !func.parameters().is_empty() {
-        Some(ResolverError::TestFunctionHasParameters { span: func.name_ident().span() })
-    } else {
-        None
-    }
-}
-
 /// Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime.
 pub(super) fn unconstrained_function_args(
     function_args: &[(Type, ExprId, Span)],

@@ -6,9 +6,10 @@ use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use noirc_driver::CompiledProgram;
+use nargo::NargoError;
 
 use crate::foreign_calls::DefaultDebugForeignCallExecutor;
-use nargo::{artifacts::debug::DebugArtifact, NargoError};
+use noirc_artifacts::debug::DebugArtifact;
 
 use easy_repl::{command, CommandStatus, Repl};
 use noirc_printable_type::PrintableValueDisplay;
