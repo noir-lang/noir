@@ -63,23 +63,29 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
 /// expected to work there. This can be removed once the old code is removed.
 const IGNORED_COMPTIME_TESTS: [&str; 1] = ["macros"];
 
-fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "execution_success";
+fn read_test_cases(
+    test_data_dir: &Path,
+    test_sub_dir: &str,
+) -> impl Iterator<Item = (String, PathBuf)> {
     let test_data_dir = test_data_dir.join(test_sub_dir);
-
     let test_case_dirs =
         fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
 
-    for test_dir in test_case_dirs {
+    test_case_dirs.into_iter().map(|dir| {
         let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
+            dir.file_name().into_string().expect("Directory can't be converted to string");
         if test_name.contains('-') {
             panic!(
                 "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
             );
-        };
-        let test_dir = &test_dir.path();
+        }
+        (test_name, dir.path())
+    })
+}
 
+fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_cases = read_test_cases(test_data_dir, "execution_success");
+    for (test_name, test_dir) in test_cases {
         let brillig_ignored =
             if IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()) { "\n#[ignore]" } else { "" };
 
@@ -126,22 +132,8 @@ fn execution_success_{test_name}_brillig() {{
 }
 
 fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "execution_failure";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let test_cases = read_test_cases(test_data_dir, "execution_failure");
+    for (test_name, test_dir) in test_cases {
         write!(
             test_file,
             r#"
@@ -174,22 +166,8 @@ fn execution_failure_{test_name}() {{
 }
 
 fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "noir_test_success";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let test_cases = read_test_cases(test_data_dir, "noir_test_success");
+    for (test_name, test_dir) in test_cases {
         write!(
             test_file,
             r#"
@@ -222,22 +200,8 @@ fn noir_test_success_{test_name}() {{
 }
 
 fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "noir_test_failure";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let test_cases = read_test_cases(test_data_dir, "noir_test_failure");
+    for (test_name, test_dir) in test_cases {
         write!(
             test_file,
             r#"
@@ -270,22 +234,8 @@ fn noir_test_failure_{test_name}() {{
 }
 
 fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "compile_success_empty";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let test_cases = read_test_cases(test_data_dir, "compile_success_empty");
+    for (test_name, test_dir) in test_cases {
         let comptime_ignored =
             if IGNORED_COMPTIME_TESTS.contains(&test_name.as_str()) { "\n#[ignore]" } else { "" };
 
@@ -346,22 +296,8 @@ fn compile_success_empty_{test_name}() {{
 }
 
 fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "compile_success_contract";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let test_cases = read_test_cases(test_data_dir, "compile_success_contract");
+    for (test_name, test_dir) in test_cases {
         write!(
             test_file,
             r#"
@@ -393,22 +329,8 @@ fn compile_success_contract_{test_name}() {{
 }
 
 fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "compile_failure";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let test_cases = read_test_cases(test_data_dir, "compile_failure");
+    for (test_name, test_dir) in test_cases {
         write!(
             test_file,
             r#"
