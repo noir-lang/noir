@@ -58,10 +58,10 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     "is_unconstrained",
 ];
 
-/// Certain comptime features are only available in the elaborator.
+/// Certain features are only available in the elaborator.
 /// We skip these tests for non-elaborator code since they are not
 /// expected to work there. This can be removed once the old code is removed.
-const IGNORED_COMPTIME_TESTS: [&str; 1] = ["macros"];
+const IGNORED_NEW_FEATURE_TESTS: [&str; 2] = ["macros", "wildcard_type"];
 
 fn read_test_cases(
     test_data_dir: &Path,
@@ -117,20 +117,22 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             ),
         );
 
-        generate_test_case(
-            test_file,
-            test_type,
-            &format!("legacy_{test_name}"),
-            &format!(
-                r#"let test_program_dir = PathBuf::from("{test_dir}");
+        if !IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) {
+            generate_test_case(
+                test_file,
+                test_type,
+                &format!("legacy_{test_name}"),
+                &format!(
+                    r#"let test_program_dir = PathBuf::from("{test_dir}");
 
                 let mut cmd = Command::cargo_bin("nargo").unwrap();
                 cmd.arg("--program-dir").arg(test_program_dir);
                 cmd.arg("execute").arg("--force").arg("--use-legacy");
             
                 cmd.assert().success();"#,
-            ),
-        );
+                ),
+            );
+        }
 
         if !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()) {
             generate_test_case(
@@ -301,7 +303,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             ),
         );
 
-        if !IGNORED_COMPTIME_TESTS.contains(&test_name.as_str()) {
+        if !IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) {
             generate_test_case(
                 test_file,
                 test_type,
