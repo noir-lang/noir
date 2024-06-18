@@ -1074,8 +1074,8 @@ where
         },
         lambdas::lambda(expr_parser.clone()),
         block(statement.clone()).map(ExpressionKind::Block),
-        comptime_expr(statement.clone()),
-        quote(statement),
+        comptime_expr(statement),
+        quote(),
         unquote(expr_parser.clone()),
         variable(),
         literal(),
@@ -1101,19 +1101,59 @@ where
         .labelled(ParsingRuleLabel::Atom)
 }
 
-fn quote<'a, P>(statement: P) -> impl NoirParser<ExpressionKind> + 'a
-where
-    P: NoirParser<StatementKind> + 'a,
-{
-    keyword(Keyword::Quote).ignore_then(spanned(block(statement))).validate(
-        |(block, block_span), span, emit| {
+fn quote() -> impl NoirParser<ExpressionKind> {
+    keyword(Keyword::Quote).ignore_then(spanned(token_stream_block(false, true))).validate(
+        |(tokens, block_span), span, emit| {
             emit(ParserError::with_reason(
                 ParserErrorReason::ExperimentalFeature("quoted expressions"),
                 span,
             ));
-            ExpressionKind::Quote(block, block_span)
+            ExpressionKind::Quote(tokens, block_span)
         },
     )
+}
+
+/// Parses a stream of tokens terminated by '{' or '}'.
+/// - parse_braces: if true, parses '{' and '}' surrounding the token stream.
+/// - include_braces: if true, include the surrounding braces in the returned tokens vec
+fn token_stream_block(include_braces: bool, parse_braces: bool) -> impl NoirParser<Vec<Token>> {
+    let append_vecs = |(mut vec1, mut vec2): (Vec<Token>, _)| {
+        vec1.append(&mut vec2);
+        vec1
+    };
+
+    // Parse a stream of tokens ending in '{' or '}'.
+    // - If we ended with a '}': end
+    // - If we ended with a '{': recursively parse another token stream block
+    let inner_stream = none_of([Token::LeftBrace, Token::RightBrace])
+        .repeated()
+        .then(one_of([Token::LeftBrace, Token::RightBrace]).rewind().then_with(move |end| {
+            match end {
+                Token::LeftBrace => token_stream_block(true, true)
+                    .then(token_stream_block(false, false))
+                    .map(append_vecs)
+                    .boxed(),
+                _ => empty().map(|_| Vec::new()).boxed(),
+            }
+        }))
+        .map(append_vecs);
+
+    if parse_braces {
+        just(Token::LeftBrace)
+            .ignore_then(inner_stream)
+            .then_ignore(just(Token::RightBrace))
+            .map(move |mut stream| {
+                let mut ret = if include_braces { vec![Token::LeftBrace] } else { vec![] };
+                ret.append(&mut stream);
+                if include_braces {
+                    ret.push(Token::LeftBrace);
+                }
+                ret
+            })
+            .boxed()
+    } else {
+        inner_stream.boxed()
+    }
 }
 
 /// unquote: '$' variable

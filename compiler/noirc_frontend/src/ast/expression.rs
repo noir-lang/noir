@@ -33,7 +33,7 @@ pub enum ExpressionKind {
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
-    Quote(BlockExpression, Span),
+    Quote(Vec<Token>, Span),
     Unquote(Box<Expression>),
     Comptime(BlockExpression, Span),
 

@@ -650,7 +650,7 @@ impl<'context> Elaborator<'context> {
         let mut unquoted_exprs = Vec::new();
         self.find_unquoted_exprs_in_block(&mut block, &mut unquoted_exprs);
         let quoted = HirQuoted { quoted_block: block, unquoted_exprs };
-        (HirExpression::Quote(quoted), Type::Quoted(QuotedType::Expr))
+        (HirExpression::Quote(quoted), Type::Slice(Box::new(Type::Quoted(QuotedType::Symbol))))
     }
 
     fn elaborate_comptime_block(&mut self, block: BlockExpression, span: Span) -> (ExprId, Type) {

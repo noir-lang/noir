@@ -190,9 +190,10 @@ impl Type {
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum QuotedType {
     Expr,
-    TypeDefinition,
+    Symbol,
     TopLevelItem,
     Type,
+    TypeDefinition,
 }
 
 /// A list of TypeVariableIds to bind to a type. Storing the
@@ -966,9 +967,10 @@ impl std::fmt::Display for QuotedType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             QuotedType::Expr => write!(f, "Expr"),
-            QuotedType::TypeDefinition => write!(f, "TypeDefinition"),
+            QuotedType::Symbol => write!(f, "Symbol"),
             QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
             QuotedType::Type => write!(f, "Type"),
+            QuotedType::TypeDefinition => write!(f, "TypeDefinition"),
         }
     }
 }

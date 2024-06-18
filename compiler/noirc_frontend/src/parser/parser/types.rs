@@ -27,6 +27,7 @@ pub(super) fn parse_type_inner<'a>(
         type_definition_type(),
         top_level_item_type(),
         quoted_type(),
+        symbol_type(),
         format_string_type(recursive_type_parser.clone()),
         named_type(recursive_type_parser.clone()),
         named_trait(recursive_type_parser.clone()),
@@ -96,6 +97,14 @@ fn top_level_item_type() -> impl NoirParser<UnresolvedType> {
 fn quoted_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::TypeType)
         .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Type).with_span(span))
+}
+
+/// This is the type of a quoted token, most often quoted as part of a token stream.
+fn symbol_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::Symbol).map_with_span(|_, span| {
+        let symbol = UnresolvedTypeData::Quoted(QuotedType::Symbol).with_span(span);
+        UnresolvedTypeData::Slice(Box::new(symbol)).with_span(span)
+    })
 }
 
 pub(super) fn string_type() -> impl NoirParser<UnresolvedType> {
