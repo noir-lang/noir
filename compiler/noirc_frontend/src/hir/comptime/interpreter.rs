@@ -31,6 +31,7 @@ use self::unquote::UnquoteArgs;
 use super::errors::{IResult, InterpreterError};
 use super::value::Value;
 
+mod builtin;
 mod unquote;
 
 #[allow(unused)]
@@ -61,8 +62,6 @@ impl<'a> Interpreter<'a> {
         arguments: Vec<(Value, Location)>,
         location: Location,
     ) -> IResult<Value> {
-        let previous_state = self.enter_function();
-
         let meta = self.interner.function_meta(&function);
         if meta.parameters.len() != arguments.len() {
             return Err(InterpreterError::ArgumentCountMismatch {
@@ -77,6 +76,8 @@ impl<'a> Interpreter<'a> {
         }
 
         let parameters = meta.parameters.0.clone();
+        let previous_state = self.enter_function();
+
         for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
             self.define_pattern(parameter, typ, argument, arg_location)?;
         }
@@ -99,8 +100,14 @@ impl<'a> Interpreter<'a> {
             .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to");
 
         if let Some(builtin) = func_attrs.builtin() {
-            let item = format!("Evaluation for builtin functions like {builtin}");
-            Err(InterpreterError::Unimplemented { item, location })
+            match builtin.as_str() {
+                "array_len" => builtin::array_len(&arguments),
+                "as_slice" => builtin::as_slice(arguments),
+                _ => {
+                    let item = format!("Evaluation for builtin function {builtin}");
+                    Err(InterpreterError::Unimplemented { item, location })
+                }
+            }
         } else if let Some(foreign) = func_attrs.foreign() {
             let item = format!("Evaluation for foreign functions like {foreign}");
             Err(InterpreterError::Unimplemented { item, location })

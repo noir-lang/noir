@@ -3,11 +3,9 @@ use std::collections::HashMap;
 use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use iter_extended::vecmap;
-use nargo::{
-    artifacts::{debug::DebugArtifact, program::ProgramArtifact},
-    package::Package,
-};
+use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_artifacts::{debug::DebugArtifact, program::ProgramArtifact};
 use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::{debug_info::OpCodesCount, Location};
 use noirc_frontend::graph::CrateName;
