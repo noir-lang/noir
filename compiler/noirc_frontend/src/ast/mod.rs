@@ -117,7 +117,7 @@ pub enum UnresolvedTypeData {
     ),
 
     // The type of quoted code for metaprogramming
-    Expr,
+    Quoted(crate::QuotedType),
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
@@ -216,7 +216,7 @@ impl std::fmt::Display for UnresolvedTypeData {
                 }
             }
             MutableReference(element) => write!(f, "&mut {element}"),
-            Expr => write!(f, "Expr"),
+            Quoted(quoted) => write!(f, "{}", quoted),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),

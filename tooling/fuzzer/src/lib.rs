@@ -14,7 +14,7 @@ mod types;
 
 use types::{CaseOutcome, CounterExampleOutcome, FuzzOutcome, FuzzTestResult};
 
-use nargo::artifacts::program::ProgramArtifact;
+use noirc_artifacts::program::ProgramArtifact;
 
 use nargo::ops::{execute_program, DefaultForeignCallExecutor};
 

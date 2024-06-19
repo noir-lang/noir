@@ -470,7 +470,7 @@ impl DebugInstrumenter {
             .join(",\n");
         let (program, errors) = parse_program(&format!(
             r#"
-            use dep::__debug::{{
+            use __debug::{{
                 __debug_var_assign,
                 __debug_var_drop,
                 __debug_fn_enter,

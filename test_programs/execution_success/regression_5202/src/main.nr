@@ -1,4 +1,4 @@
-use dep::fraction::{Fraction, MAX, floor, toFraction, addFraction};
+use fraction::{Fraction, MAX, floor, toFraction, addFraction};
 
 fn main() {
     let g1 = toFraction(true, 33333333, 5);
