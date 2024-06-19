@@ -1396,7 +1396,7 @@ mod test {
         //       jmp b4()
         //     b4():
         //       constrain v9 == u1 1
-        //       return 
+        //       return
         //     b3():
         //       store u8 0 at v10
         //       jmp b4()
@@ -1415,12 +1415,11 @@ mod test {
 
         let zero = builder.numeric_constant(0_u128, Type::unsigned(8));
         let two = builder.numeric_constant(2_u128, Type::unsigned(8));
-        
+
         let keccak =
             builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccak256));
         let v4 =
-            builder.insert_call(keccak, vec![array, two], vec![Type::Array(element_type, 32)])
-                [0];
+            builder.insert_call(keccak, vec![array, two], vec![Type::Array(element_type, 32)])[0];
         let v5 = builder.insert_array_get(v4, zero, Type::unsigned(8));
         let v6 = builder.insert_cast(v5, Type::unsigned(32));
         let i_two = builder.numeric_constant(2_u128, Type::unsigned(32));
@@ -1450,7 +1449,7 @@ mod test {
         builder.insert_constrain(v12, v_true, None);
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish();        
+        let ssa = builder.finish();
         let flattened_ssa = ssa.flatten_cfg();
         let main = flattened_ssa.main();
 
