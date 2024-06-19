@@ -71,6 +71,15 @@ noir-projects:
     - noir
     - avm-transpiler
 
+# Compiles all aztec noir projects using nargo and the avm-transpiler, then tests them using the TXE.
+noir-projects-tests:
+  buildDir: noir-projects
+  dockerfile: Dockerfile.test
+  dependencies:
+    - noir
+    - avm-transpiler
+    - yarn-project
+
 # Uses nargo to compile all the noir test programs, used to test bb and bb.js.
 noir-compile-acir-tests:
   buildDir: noir/noir-repo/test_programs

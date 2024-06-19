@@ -1,0 +1,38 @@
+FROM aztecprotocol/noir as noir
+FROM aztecprotocol/avm-transpiler as transpiler
+FROM aztecprotocol/yarn-project as yarn-project
+
+RUN apt-get update && apt-get install -y parallel
+
+# Copy in nargo
+COPY --from=noir /usr/src/noir/noir-repo/target/release/nargo /usr/src/noir/noir-repo/target/release/nargo
+ENV PATH="/usr/src/noir/noir-repo/target/release:${PATH}"
+# Copy in transpiler
+COPY --from=transpiler /usr/src/avm-transpiler/target/release/avm-transpiler /usr/src/avm-transpiler/target/release/avm-transpiler
+ENV PATH="/usr/src/avm-transpiler/target/release:${PATH}"
+
+# All built files are ignored so we have to repeat the txe build here.
+# It is fast (compared to the tests) and we're moving to earthly, so we don't bother with something more sophisticated.
+WORKDIR /usr/src/yarn-project
+RUN yarn workspaces focus @aztec/txe
+RUN cd ./txe && yarn build
+
+# Copy in noir projects
+WORKDIR /usr/src/noir-projects
+COPY . .
+
+# Build & test
+RUN cd ./noir-protocol-circuits && ./bootstrap.sh && nargo test --silence-warnings
+
+RUN cd /usr/src/yarn-project/txe && yarn start & echo $! > /tmp/txe.pid && \ 
+    # Wait for TXE to initialize
+    sleep 5 && \ 
+    cd ./noir-contracts && \
+    ./bootstrap.sh && nargo test --silence-warnings --oracle-resolver http://localhost:8080 ; \
+    kill $(cat /tmp/txe.pid)
+
+RUN cd /usr/src/yarn-project/txe && yarn start & echo $! > /tmp/txe.pid && \ 
+    # Wait for TXE to initialize
+    sleep 5 && \ 
+    cd ./aztec-nr && \
+    nargo test --silence-warnings --oracle-resolver http://localhost:8080
