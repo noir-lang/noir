@@ -1379,29 +1379,28 @@ mod test {
     fn should_not_merge_incorrectly_to_false() {
         // Regression test for #1792
         // Tests that it does not simplify a true constraint an always-false constraint
-        // fn main f1 {
-        //   b0():
-        //     v4 = call keccak(u8 0, u8 1, u8 2)
-        //     v5 = array_get v4, index Field 0
-        //     v6 = cast v5 as u32
-        //     v8 = mod v6, u32 2
-        //     v9 = cast v8 as u1
-        //     v10 = allocate
-        //     store Field 0 at v10
-        //     jmpif v9 then: b1, else: b2
-        //   b1():
-        //     v5b = cast v5 as Field
-        //     v14 = add v5b, Field 1
-        //     store v14 at v10
-        //     jmp b3()
-        //   b3():
-        //     v12 = eq v9, u1 1
-        //     constrain v12
-        //     return
-        //   b2():
-        //     store Field 0 at v10
-        //     jmp b3()
-        // }
+        // acir(inline) fn main f1 {
+        //     b0(v0: [u8; 2]):
+        //       v4 = call keccak256(v0, u8 2)
+        //       v5 = array_get v4, index u8 0
+        //       v6 = cast v5 as u32
+        //       v8 = truncate v6 to 1 bits, max_bit_size: 32
+        //       v9 = cast v8 as u1
+        //       v10 = allocate
+        //       store u8 0 at v10
+        //       jmpif v9 then: b2, else: b3
+        //     b2():
+        //       v12 = cast v5 as Field
+        //       v13 = add v12, Field 1
+        //       store v13 at v10
+        //       jmp b4()
+        //     b4():
+        //       constrain v9 == u1 1
+        //       return 
+        //     b3():
+        //       store u8 0 at v10
+        //       jmp b4()
+        //   }
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
@@ -1412,15 +1411,15 @@ mod test {
 
         let element_type = Rc::new(vec![Type::unsigned(8)]);
         let array_type = Type::Array(element_type.clone(), 2);
+        let array = builder.add_parameter(array_type);
 
         let zero = builder.numeric_constant(0_u128, Type::unsigned(8));
-        let one = builder.numeric_constant(1_u128, Type::unsigned(8));
         let two = builder.numeric_constant(2_u128, Type::unsigned(8));
-        let array_init = builder.array_constant(vec![zero, one].into(), array_type);
+        
         let keccak =
             builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccak256));
         let v4 =
-            builder.insert_call(keccak, vec![array_init, two], vec![Type::Array(element_type, 32)])
+            builder.insert_call(keccak, vec![array, two], vec![Type::Array(element_type, 32)])
                 [0];
         let v5 = builder.insert_array_get(v4, zero, Type::unsigned(8));
         let v6 = builder.insert_cast(v5, Type::unsigned(32));
@@ -1436,7 +1435,8 @@ mod test {
         builder.switch_to_block(b1);
         let one = builder.field_constant(1_u128);
         let v5b = builder.insert_cast(v5, Type::field());
-        let v14 = builder.insert_binary(v5b, BinaryOp::Add, one);
+        let v13: Id<Value> = builder.insert_binary(v5b, BinaryOp::Add, one);
+        let v14 = builder.insert_cast(v13, Type::unsigned(8));
         builder.insert_store(v10, v14);
         builder.terminate_with_jmp(b3, vec![]);
 
@@ -1450,8 +1450,9 @@ mod test {
         builder.insert_constrain(v12, v_true, None);
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish().flatten_cfg();
-        let main = ssa.main();
+        let ssa = builder.finish();        
+        let flattened_ssa = ssa.flatten_cfg();
+        let main = flattened_ssa.main();
 
         // Now assert that there is not an always-false constraint after flattening:
         let mut constrain_count = 0;
@@ -1465,7 +1466,7 @@ mod test {
                 constrain_count += 1;
             }
         }
-        assert_eq!(constrain_count, 0);
+        assert_eq!(constrain_count, 1);
     }
 
     #[test]
