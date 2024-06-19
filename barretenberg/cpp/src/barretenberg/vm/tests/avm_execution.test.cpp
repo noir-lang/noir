@@ -1473,8 +1473,9 @@ TEST_F(AvmExecutionTests, msmOpCode)
 
     EXPECT_EQ(returndata, expected_output);
 
-    validate_trace(std::move(trace));
+    validate_trace(std::move(trace), public_inputs);
 }
+
 // Positive test for Kernel Input opcodes
 TEST_F(AvmExecutionTests, kernelInputOpcodes)
 {
