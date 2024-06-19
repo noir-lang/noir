@@ -447,10 +447,37 @@ fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
         .map(|r#type| r#type.unwrap_or_else(UnresolvedType::unspecified))
 }
 
+/// import_visibility: 'pub(crate)' | 'pub' | %empty
+fn import_visibility() -> impl NoirParser<ItemVisibility> {
+    let is_pub_crate = (keyword(Keyword::Pub)
+        .then_ignore(just(Token::LeftParen))
+        .then_ignore(keyword(Keyword::Crate))
+        .then_ignore(just(Token::RightParen)))
+    .map(|_| ItemVisibility::PublicCrate);
+
+    let is_pub_super = (keyword(Keyword::Pub)
+        .then_ignore(just(Token::LeftParen))
+        .then_ignore(keyword(Keyword::Super))
+        .then_ignore(just(Token::RightParen)))
+    .map(|_| ItemVisibility::PublicSuper);
+
+    let is_pub = keyword(Keyword::Pub).map(|_| ItemVisibility::Public);
+
+    let is_private = empty().map(|_| ItemVisibility::Private);
+
+    choice((is_pub_crate, is_pub_super, is_pub, is_private))
+}
+
 fn module_declaration() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Mod)
-        .ignore_then(ident())
-        .map(|ident| TopLevelStatement::Module(ModuleDeclaration { ident }))
+    import_visibility().then_ignore(keyword(Keyword::Mod)).then(ident()).map(
+        |(mut visibility, ident)| {
+            // A module's contents are visible to the parent module unless they themselves are marked private.
+            if visibility == ItemVisibility::Private {
+                visibility = ItemVisibility::PublicSuper;
+            }
+            TopLevelStatement::Module(ModuleDeclaration { ident, visibility })
+        },
+    )
 }
 
 fn use_statement() -> impl NoirParser<TopLevelStatement> {

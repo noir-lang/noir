@@ -375,6 +375,18 @@ pub enum ItemVisibility {
     Public,
     Private,
     PublicCrate,
+    PublicSuper,
+}
+
+impl std::fmt::Display for ItemVisibility {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Public => write!(f, "pub"),
+            Self::Private => write!(f, "priv"),
+            Self::PublicCrate => write!(f, "pub(crate)"),
+            Self::PublicSuper => write!(f, "pub(super)"),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

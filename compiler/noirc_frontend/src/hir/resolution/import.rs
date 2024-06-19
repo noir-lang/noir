@@ -364,6 +364,18 @@ fn can_reference_module_id(
     match visibility {
         ItemVisibility::Public => true,
         ItemVisibility::PublicCrate => same_crate,
+        ItemVisibility::PublicSuper => {
+            same_crate
+                && (module_descendent_of_target(
+                    target_crate_def_map,
+                    target_module.local_id,
+                    current_module,
+                ) || module_parent_of_target(
+                    target_crate_def_map,
+                    target_module.local_id,
+                    current_module,
+                ))
+        }
         ItemVisibility::Private => {
             same_crate
                 && module_descendent_of_target(
@@ -389,4 +401,13 @@ fn module_descendent_of_target(
     def_map.modules[current.0]
         .parent
         .map_or(false, |parent| module_descendent_of_target(def_map, target, parent))
+}
+
+// Returns true if `target` is a direct child module of `current`.
+fn module_parent_of_target(
+    def_map: &CrateDefMap,
+    target: LocalModuleId,
+    current: LocalModuleId,
+) -> bool {
+    def_map.modules[target.0].parent.map_or(false, |parent| parent == current)
 }
