@@ -1,0 +1,60 @@
+name: AVM Full Tests
+
+on:
+  schedule:
+    - cron: "15 4 * * 1-5" # Monday to Friday at 4:15 AM UTC
+  workflow_dispatch:
+    inputs:
+      username:
+        description: "Username (optional)"
+        required: false
+      action:
+        description: "Default to 'start'"
+        required: false
+        default: "start"
+
+concurrency:
+  # force parallelism in master
+  group: avm-full-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOCKERHUB_PASSWORD: "${{ secrets.DOCKERHUB_PASSWORD }}"
+  RUN_ID: ${{ github.run_id }}
+  RUN_ATTEMPT: ${{ github.run_attempt }}
+  USERNAME: ${{ github.event.pull_request.user.login || github.actor }}
+  GITHUB_TOKEN: ${{ github.token }}
+  GH_SELF_HOSTED_RUNNER_TOKEN: ${{ secrets.GH_SELF_HOSTED_RUNNER_TOKEN }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  BUILD_INSTANCE_SSH_KEY: ${{ secrets.BUILD_INSTANCE_SSH_KEY }}
+  GIT_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+  # kludge until we move away from runners
+  WAIT_FOR_RUNNERS: false
+
+jobs:
+  setup:
+    uses: ./.github/workflows/setup-runner.yml
+    with:
+      username: ${{ github.event.pull_request.user.login || github.actor }}
+      runner_type: builder-x86
+    secrets: inherit
+
+  # barretenberg (prover) native and AVM (public VM) tests
+  # only ran on x86 for resource reasons (memory intensive)
+  avm-full-tests:
+    needs: [setup]
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      # Only allow one memory-hunger prover test to use this runner
+      - uses: ./.github/ci-setup-action
+        with:
+          # must be globally unique for build x runner
+          concurrency_key: avm-full-tests-x86
+      - name: "AVM Full Tests"
+        working-directory: ./barretenberg/cpp/
+        timeout-minutes: 90
+        # limit our parallelism to half our cores
+        run: earthly-ci --no-output +vm-full-test --hardware_concurrency=64

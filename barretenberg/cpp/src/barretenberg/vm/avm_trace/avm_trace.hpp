@@ -33,7 +33,7 @@ class AvmTraceBuilder {
                     ExecutionHints execution_hints = {},
                     uint32_t side_effect_counter = 0);
 
-    std::vector<Row> finalize(uint32_t min_trace_size = 0, bool range_check_required = false);
+    std::vector<Row> finalize(uint32_t min_trace_size = 0, bool range_check_required = ENABLE_PROVING);
     void reset();
 
     uint32_t getPc() const { return pc; }

@@ -15,9 +15,8 @@ namespace bb::avm_trace {
 using Flavor = bb::AvmFlavor;
 using FF = Flavor::FF;
 
-} // namespace bb::avm_trace
-
-namespace bb::avm_trace {
+// To toggle all relevant unit tests with proving, set the env variable "AVM_ENABLE_FULL_PROVING".
+static const bool ENABLE_PROVING = std::getenv("AVM_ENABLE_FULL_PROVING") != nullptr;
 
 // There are 4 public input columns, 1 for context inputs, and 3 for emitting side effects
 using VmPublicInputs = std::tuple<std::array<FF, KERNEL_INPUTS_LENGTH>,   // Input: Kernel context inputs

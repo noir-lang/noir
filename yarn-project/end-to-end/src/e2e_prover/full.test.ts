@@ -7,6 +7,8 @@ const TIMEOUT = 1_800_000;
 
 // This makes AVM proving throw if there's a failure.
 process.env.AVM_PROVING_STRICT = '1';
+// Enable proving the full lookup tables (no truncation).
+process.env.AVM_ENABLE_FULL_PROVING = '1';
 
 describe('full_prover', () => {
   const t = new FullProverTest('full_prover', 2);

@@ -247,6 +247,22 @@ test:
     END
     RUN cd build && GTEST_COLOR=1 ctest -j$(nproc) --output-on-failure
 
+vm-full-test:
+    ARG hardware_concurrency=""
+    # prefetch
+    BUILD +test-binaries
+    BUILD +preset-release-assert-test
+    BUILD ./srs_db/+build # prefetch
+    FROM +source
+    COPY --dir +test-binaries/build build
+    FROM +preset-release-assert-test
+    COPY --dir ./srs_db/+build/. srs_db
+    # limit hardware concurrency, if provided
+    IF [ "$HARDWARE_CONCURRENCY" != "" ]
+        ENV HARDWARE_CONCURRENCY=$hardware_concurrency
+    END
+    RUN cd build && GTEST_COLOR=1 AVM_ENABLE_FULL_PROVING=1 ctest -j4 --test-dir src/barretenberg/vm --output-on-failure
+
 build:
     BUILD +preset-wasm
     BUILD +preset-wasm-threads
