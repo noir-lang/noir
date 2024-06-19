@@ -99,6 +99,7 @@ pub(crate) fn optimize_into_acir(
 pub(crate) fn optimize_into_plonky2(
     program: Program,
     print_passes: bool,
+    print_plonky2: bool,
     print_timings: bool,
     parameter_names: Vec<String>,
 ) -> Result<Plonky2Circuit, RuntimeError> {
@@ -128,7 +129,7 @@ pub(crate) fn optimize_into_plonky2(
 
     drop(ssa_gen_span_guard);
 
-    Builder::new().build(ssa, parameter_names, main_function_signature)
+    Builder::new(print_plonky2).build(ssa, parameter_names, main_function_signature)
 }
 
 // Helper to time SSA passes
@@ -341,10 +342,11 @@ fn split_public_and_private_inputs(
 pub fn create_plonky2_circuit(
     program: Program,
     enable_ssa_logging: bool,
+    show_plonky2: bool,
     print_codegen_timings: bool,
     parameter_names: Vec<String>,
 ) -> Result<Plonky2Circuit, RuntimeError> {
-    optimize_into_plonky2(program, enable_ssa_logging, print_codegen_timings, parameter_names)
+    optimize_into_plonky2(program, enable_ssa_logging, show_plonky2, print_codegen_timings, parameter_names)
 }
 
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.

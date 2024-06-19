@@ -67,6 +67,9 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_brillig: bool,
 
+    #[arg(long, hide = true)]
+    pub show_plonky2: bool,
+
     /// Display the ACIR for compiled circuit
     #[arg(long)]
     pub print_acir: bool,
@@ -569,6 +572,7 @@ pub fn compile_no_check(
         Some(create_plonky2_circuit(
             monomorph,
             options.show_ssa,
+            options.show_plonky2,
             options.benchmark_codegen,
             parameter_names,
         )?)

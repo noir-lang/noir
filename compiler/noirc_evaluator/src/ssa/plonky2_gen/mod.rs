@@ -298,15 +298,17 @@ pub(crate) struct Builder {
     builder: P2Builder,
     translation: HashMap<ValueId, P2Value>,
     dfg: DataFlowGraph,
+    show_plonky2: bool,
 }
 
 impl Builder {
-    pub(crate) fn new() -> Builder {
+    pub(crate) fn new(show_plonky2: bool) -> Builder {
         let config = CircuitConfig::standard_recursion_config();
         Builder {
             builder: P2Builder::new(config),
             translation: HashMap::new(),
             dfg: DataFlowGraph::default(),
+            show_plonky2,
         }
     }
 
