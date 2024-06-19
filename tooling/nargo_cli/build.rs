@@ -61,7 +61,8 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
 /// Certain features are only available in the elaborator.
 /// We skip these tests for non-elaborator code since they are not
 /// expected to work there. This can be removed once the old code is removed.
-const IGNORED_NEW_FEATURE_TESTS: [&str; 2] = ["macros", "wildcard_type"];
+const IGNORED_NEW_FEATURE_TESTS: [&str; 3] =
+    ["macros", "wildcard_type", "type_definition_annotation"];
 
 fn read_test_cases(
     test_data_dir: &Path,
@@ -83,7 +84,13 @@ fn read_test_cases(
     })
 }
 
-fn generate_test_case(test_file: &mut File, test_type: &str, test_name: &str, test_dir: &std::path::Display, test_content: &str) {
+fn generate_test_case(
+    test_file: &mut File,
+    test_type: &str,
+    test_name: &str,
+    test_dir: &std::path::Display,
+    test_content: &str,
+) {
     write!(
         test_file,
         r#"
@@ -125,7 +132,6 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
                 test_type,
                 &format!("legacy_{test_name}"),
                 &test_dir,
-
                 &format!(
                     r#"
                 nargo.arg("execute").arg("--force").arg("--use-legacy");
@@ -141,7 +147,6 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
                 test_type,
                 &format!("{test_name}_brillig"),
                 &test_dir,
-
                 &format!(
                     r#"
                 nargo.arg("execute").arg("--force").arg("--force-brillig");
@@ -164,7 +169,6 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_type,
             &test_name,
             &test_dir,
-
             &format!(
                 r#"
                 nargo.arg("execute").arg("--force");
@@ -178,7 +182,6 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_type,
             &format!("legacy_{test_name}"),
             &test_dir,
-
             &format!(
                 r#"
                 nargo.arg("execute").arg("--force").arg("--use-legacy");
@@ -200,7 +203,6 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
             test_type,
             &test_name,
             &test_dir,
-
             &format!(
                 r#"
         nargo.arg("test");
@@ -234,7 +236,6 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_type,
             &test_name,
             &test_dir,
-
             &format!(
                 r#"
         nargo.arg("test");
@@ -248,7 +249,6 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_type,
             &format!("legacy_{test_name}"),
             &test_dir,
-
             &format!(
                 r#"
         nargo.arg("test").arg("--use-legacy");
@@ -359,19 +359,22 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
                 r#"nargo.arg("compile").arg("--force");
         
         nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
-        ));
-
-        generate_test_case(
-            test_file,
-            test_type,
-            &format!("legacy_{test_name}"),
-            &test_dir,
-            &format!(
-                r#"
-        nargo.arg("compile").arg("--force").arg("--use-legacy");
-        
-        nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
             ),
         );
+
+        if !IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) {
+            generate_test_case(
+                test_file,
+                test_type,
+                &format!("legacy_{test_name}"),
+                &test_dir,
+                &format!(
+                    r#"
+            nargo.arg("compile").arg("--force").arg("--use-legacy");
+            
+            nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
+                ),
+            );
+        }
     }
 }
