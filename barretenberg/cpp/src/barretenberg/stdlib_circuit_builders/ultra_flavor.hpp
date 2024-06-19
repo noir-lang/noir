@@ -48,12 +48,15 @@ class UltraFlavor {
 
     using GrandProductRelations = std::tuple<bb::UltraPermutationRelation<FF>, bb::LookupRelation<FF>>;
     // define the tuple of Relations that comprise the Sumcheck relation
-    using Relations = std::tuple<bb::UltraArithmeticRelation<FF>,
-                                 bb::UltraPermutationRelation<FF>,
-                                 bb::LookupRelation<FF>,
-                                 bb::DeltaRangeConstraintRelation<FF>,
-                                 bb::EllipticRelation<FF>,
-                                 bb::AuxiliaryRelation<FF>>;
+    // Note: made generic for use in MegaRecursive.
+    template <typename FF>
+    using Relations_ = std::tuple<bb::UltraArithmeticRelation<FF>,
+                                  bb::UltraPermutationRelation<FF>,
+                                  bb::LookupRelation<FF>,
+                                  bb::DeltaRangeConstraintRelation<FF>,
+                                  bb::EllipticRelation<FF>,
+                                  bb::AuxiliaryRelation<FF>>;
+    using Relations = Relations_<FF>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
     static_assert(MAX_PARTIAL_RELATION_LENGTH == 6);
@@ -88,7 +91,6 @@ class UltraFlavor {
 
     static constexpr bool is_decider = true;
 
-  private:
     /**
      * @brief A base class labelling precomputed entities and (ordered) subsets of interest.
      * @details Used to build the proving key and verification key.
@@ -189,92 +191,33 @@ class UltraFlavor {
      * Symbolically we have: AllEntities = PrecomputedEntities + WitnessEntities + "ShiftedEntities". It could be
      * implemented as such, but we have this now.
      */
-    template <typename DataType> class AllEntities {
+    template <typename DataType>
+    class AllEntities : public PrecomputedEntities<DataType>,
+                        public WitnessEntities<DataType>,
+                        public ShiftedEntities<DataType> {
       public:
-        DEFINE_FLAVOR_MEMBERS(DataType,
-                              q_c,                // column 0
-                              q_l,                // column 1
-                              q_r,                // column 2
-                              q_o,                // column 3
-                              q_4,                // column 4
-                              q_m,                // column 5
-                              q_arith,            // column 6
-                              q_delta_range,      // column 7
-                              q_elliptic,         // column 8
-                              q_aux,              // column 9
-                              q_lookup,           // column 10
-                              sigma_1,            // column 11
-                              sigma_2,            // column 12
-                              sigma_3,            // column 13
-                              sigma_4,            // column 14
-                              id_1,               // column 15
-                              id_2,               // column 16
-                              id_3,               // column 17
-                              id_4,               // column 18
-                              table_1,            // column 19
-                              table_2,            // column 20
-                              table_3,            // column 21
-                              table_4,            // column 22
-                              lagrange_first,     // column 23
-                              lagrange_last,      // column 24
-                              w_l,                // column 25
-                              w_r,                // column 26
-                              w_o,                // column 27
-                              w_4,                // column 28
-                              sorted_accum,       // column 29
-                              z_perm,             // column 30
-                              z_lookup,           // column 31
-                              table_1_shift,      // column 32
-                              table_2_shift,      // column 33
-                              table_3_shift,      // column 34
-                              table_4_shift,      // column 35
-                              w_l_shift,          // column 36
-                              w_r_shift,          // column 37
-                              w_o_shift,          // column 38
-                              w_4_shift,          // column 39
-                              sorted_accum_shift, // column 40
-                              z_perm_shift,       // column 41
-                              z_lookup_shift)     // column 42
+        DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>, WitnessEntities<DataType>, ShiftedEntities<DataType>)
 
-        auto get_wires() { return RefArray{ w_l, w_r, w_o, w_4 }; };
-        auto get_selectors()
-        {
-            return RefArray{ q_m, q_c, q_l, q_r, q_o, q_4, q_arith, q_delta_range, q_elliptic, q_aux, q_lookup };
-        }
-        auto get_sigmas() { return RefArray{ sigma_1, sigma_2, sigma_3, sigma_4 }; };
-        auto get_ids() { return RefArray{ id_1, id_2, id_3, id_4 }; };
-        auto get_tables() { return RefArray{ table_1, table_2, table_3, table_4 }; };
+        auto get_wires() { return RefArray{ this->w_l, this->w_r, this->w_o, this->w_4 }; };
+        auto get_selectors() { return PrecomputedEntities<DataType>::get_selectors(); }
+        auto get_sigmas() { return RefArray{ this->sigma_1, this->sigma_2, this->sigma_3, this->sigma_4 }; };
+        auto get_ids() { return RefArray{ this->id_1, this->id_2, this->id_3, this->id_4 }; };
+        auto get_tables() { return RefArray{ this->table_1, this->table_2, this->table_3, this->table_4 }; };
         // Gemini-specific getters.
         auto get_unshifted()
         {
-            return RefArray{ q_m,           q_c,   q_l,      q_r,     q_o,     q_4,          q_arith, q_delta_range,
-                             q_elliptic,    q_aux, q_lookup, sigma_1, sigma_2, sigma_3,      sigma_4, id_1,
-                             id_2,          id_3,  id_4,     table_1, table_2, table_3,      table_4, lagrange_first,
-                             lagrange_last, w_l,   w_r,      w_o,     w_4,     sorted_accum, z_perm,  z_lookup
-
-            };
+            return concatenate(PrecomputedEntities<DataType>::get_all(), WitnessEntities<DataType>::get_all());
         };
 
-        auto get_precomputed()
-        {
-            return RefArray{ q_m,          q_c,   q_l,      q_r,     q_o,     q_4,     q_arith, q_delta_range,
-                             q_elliptic,   q_aux, q_lookup, sigma_1, sigma_2, sigma_3, sigma_4, id_1,
-                             id_2,         id_3,  id_4,     table_1, table_2, table_3, table_4, lagrange_first,
-                             lagrange_last
+        auto get_precomputed() { return PrecomputedEntities<DataType>::get_all(); }
 
-            };
-        }
-
-        auto get_witness() { return RefArray{ w_l, w_r, w_o, w_4, sorted_accum, z_perm, z_lookup }; };
+        auto get_witness() { return WitnessEntities<DataType>::get_all(); };
         auto get_to_be_shifted()
         {
-            return RefArray{ table_1, table_2, table_3, table_4, w_l, w_r, w_o, w_4, sorted_accum, z_perm, z_lookup };
+            return RefArray{ this->table_1, this->table_2, this->table_3,      this->table_4, this->w_l,     this->w_r,
+                             this->w_o,     this->w_4,     this->sorted_accum, this->z_perm,  this->z_lookup };
         };
-        auto get_shifted()
-        {
-            return RefArray{ table_1_shift, table_2_shift, table_3_shift,      table_4_shift, w_l_shift,     w_r_shift,
-                             w_o_shift,     w_4_shift,     sorted_accum_shift, z_perm_shift,  z_lookup_shift };
-        };
+        auto get_shifted() { return ShiftedEntities<DataType>::get_all(); };
     };
 
   public:
@@ -667,36 +610,37 @@ class UltraFlavor {
      * witness polynomials).
      *
      */
-    class VerifierCommitments : public AllEntities<Commitment> {
+    template <typename Commitment, typename VerificationKey>
+    class VerifierCommitments_ : public AllEntities<Commitment> {
       public:
-        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key,
-                            const std::optional<WitnessCommitments>& witness_commitments = std::nullopt)
+        VerifierCommitments_(const std::shared_ptr<VerificationKey>& verification_key,
+                             const std::optional<WitnessCommitments>& witness_commitments = std::nullopt)
         {
-            q_m = verification_key->q_m;
-            q_c = verification_key->q_c;
-            q_l = verification_key->q_l;
-            q_r = verification_key->q_r;
-            q_o = verification_key->q_o;
-            q_4 = verification_key->q_4;
-            q_arith = verification_key->q_arith;
-            q_delta_range = verification_key->q_delta_range;
-            q_elliptic = verification_key->q_elliptic;
-            q_aux = verification_key->q_aux;
-            q_lookup = verification_key->q_lookup;
-            sigma_1 = verification_key->sigma_1;
-            sigma_2 = verification_key->sigma_2;
-            sigma_3 = verification_key->sigma_3;
-            sigma_4 = verification_key->sigma_4;
-            id_1 = verification_key->id_1;
-            id_2 = verification_key->id_2;
-            id_3 = verification_key->id_3;
-            id_4 = verification_key->id_4;
-            table_1 = verification_key->table_1;
-            table_2 = verification_key->table_2;
-            table_3 = verification_key->table_3;
-            table_4 = verification_key->table_4;
-            lagrange_first = verification_key->lagrange_first;
-            lagrange_last = verification_key->lagrange_last;
+            this->q_m = verification_key->q_m;
+            this->q_c = verification_key->q_c;
+            this->q_l = verification_key->q_l;
+            this->q_r = verification_key->q_r;
+            this->q_o = verification_key->q_o;
+            this->q_4 = verification_key->q_4;
+            this->q_arith = verification_key->q_arith;
+            this->q_delta_range = verification_key->q_delta_range;
+            this->q_elliptic = verification_key->q_elliptic;
+            this->q_aux = verification_key->q_aux;
+            this->q_lookup = verification_key->q_lookup;
+            this->sigma_1 = verification_key->sigma_1;
+            this->sigma_2 = verification_key->sigma_2;
+            this->sigma_3 = verification_key->sigma_3;
+            this->sigma_4 = verification_key->sigma_4;
+            this->id_1 = verification_key->id_1;
+            this->id_2 = verification_key->id_2;
+            this->id_3 = verification_key->id_3;
+            this->id_4 = verification_key->id_4;
+            this->table_1 = verification_key->table_1;
+            this->table_2 = verification_key->table_2;
+            this->table_3 = verification_key->table_3;
+            this->table_4 = verification_key->table_4;
+            this->lagrange_first = verification_key->lagrange_first;
+            this->lagrange_last = verification_key->lagrange_last;
 
             if (witness_commitments.has_value()) {
                 auto commitments = witness_commitments.value();
@@ -710,6 +654,8 @@ class UltraFlavor {
             }
         }
     };
+    // Specialize for Ultra (general case used in UltraRecursive).
+    using VerifierCommitments = VerifierCommitments_<Commitment, VerificationKey>;
 
     /**
      * @brief Derived class that defines proof structure for Ultra proofs, as well as supporting functions.
