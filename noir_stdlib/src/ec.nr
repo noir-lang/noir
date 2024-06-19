@@ -146,12 +146,13 @@ global C5 = 19103219067921713944291392827692070036145651957329286315305642004821
 pub fn safe_inverse(x: Field) -> Field {
     if x == 0 { 0 } else { 1 / x }
 }
+
 // Boolean indicating whether Field element is a square, i.e. whether there exists a y in Field s.t. x = y*y.
 pub fn is_square(x: Field) -> bool {
-    let v = pow(x, 0 - 1 / 2);
-
-    v * (v - 1) == 0
+    let sqrt_x = sqrt_unconstrained(x);
+    sqrt_x * sqrt_x == x
 }
+
 // Power function of two Field arguments of arbitrary size.
 // Adapted from std::field::pow_32.
 pub fn pow(x: Field, y: Field) -> Field {
@@ -168,12 +169,19 @@ pub fn pow(x: Field, y: Field) -> Field {
 
     r
 }
+
+pub fn sqrt(x: Field) -> Field {
+    let sqrt_x = sqrt_unconstrained(x);
+    assert_eq(sqrt_x * sqrt_x, x);
+    x
+}
+
 // Tonelli-Shanks algorithm for computing the square root of a Field element.
 // Requires C1 = max{c: 2^c divides (p-1)}, where p is the order of Field
 // as well as C3 = (C2 - 1)/2, where C2 = (p-1)/(2^c1),
 // and C5 = ZETA^C2, where ZETA is a non-square element of Field.
 // These are pre-computed above as globals.
-pub fn sqrt(x: Field) -> Field {
+unconstrained fn sqrt_unconstrained(x: Field) -> Field {
     let mut z = pow(x, C3);
     let mut t = z * z * x;
     z *= x;
@@ -195,4 +203,16 @@ pub fn sqrt(x: Field) -> Field {
     }
 
     z
+}
+
+mod tests {
+    mod sqrt {
+        #[test]
+        fn returns_sqrt_of_squared_input(x: Field) {
+            let xx = x * x;
+            let sqrt_xx = crate::ec::sqrt_unconstrained(xx);
+            // The sqrt has two solutions `n` and `p - n` so we must check both.
+            assert((x == sqrt_xx) | (x == -sqrt_xx) );
+        }
+    }
 }
