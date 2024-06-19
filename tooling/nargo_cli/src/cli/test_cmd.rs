@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acvm::BlackBoxFunctionSolver;
+use acvm::{BlackBoxFunctionSolver, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
@@ -10,7 +10,8 @@ use nargo::{
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
-    check_crate, file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING,
+    check_crate, compile_no_check, file_manager_with_stdlib, CompileOptions,
+    NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{
     graph::CrateName,
@@ -19,7 +20,7 @@ use noirc_frontend::{
 use rayon::prelude::{IntoParallelIterator, ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-use crate::{backends::Backend, cli::check_cmd::check_crate_and_report_errors, errors::CliError};
+use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
 
 use super::NargoConfig;
 
@@ -54,11 +55,7 @@ pub(crate) struct TestCommand {
     oracle_resolver: Option<String>,
 }
 
-pub(crate) fn run(
-    _backend: &Backend,
-    args: TestCommand,
-    config: NargoConfig,
-) -> Result<(), CliError> {
+pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -123,7 +120,7 @@ pub(crate) fn run(
     }
 }
 
-fn run_tests<S: BlackBoxFunctionSolver + Default>(
+fn run_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     package: &Package,
@@ -161,7 +158,7 @@ fn run_tests<S: BlackBoxFunctionSolver + Default>(
     Ok(test_report)
 }
 
-fn run_test<S: BlackBoxFunctionSolver + Default>(
+fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     package: &Package,
@@ -179,6 +176,7 @@ fn run_test<S: BlackBoxFunctionSolver + Default>(
         crate_id,
         compile_options.deny_warnings,
         compile_options.disable_macros,
+        compile_options.use_legacy,
     )
     .expect("Any errors should have occurred when collecting test functions");
 
@@ -188,14 +186,47 @@ fn run_test<S: BlackBoxFunctionSolver + Default>(
 
     let blackbox_solver = S::default();
 
-    nargo::ops::run_test(
-        &blackbox_solver,
-        &mut context,
-        test_function,
-        show_output,
-        foreign_call_resolver_url,
-        compile_options,
-    )
+    let test_function_has_no_arguments = context
+        .def_interner
+        .function_meta(&test_function.get_id())
+        .function_signature()
+        .0
+        .is_empty();
+
+    if test_function_has_no_arguments {
+        nargo::ops::run_test(
+            &blackbox_solver,
+            &mut context,
+            test_function,
+            show_output,
+            foreign_call_resolver_url,
+            compile_options,
+        )
+    } else {
+        use noir_fuzzer::FuzzedExecutor;
+        use proptest::test_runner::TestRunner;
+
+        let compiled_program =
+            compile_no_check(&mut context, compile_options, test_function.get_id(), None, false);
+        match compiled_program {
+            Ok(compiled_program) => {
+                let runner = TestRunner::default();
+
+                let fuzzer = FuzzedExecutor::new(compiled_program.into(), runner);
+
+                let result = fuzzer.fuzz();
+                if result.success {
+                    TestStatus::Pass
+                } else {
+                    TestStatus::Fail {
+                        message: result.reason.unwrap_or_default(),
+                        error_diagnostic: None,
+                    }
+                }
+            }
+            Err(err) => TestStatus::CompileError(err.into()),
+        }
+    }
 }
 
 fn get_tests_in_package(
@@ -212,6 +243,7 @@ fn get_tests_in_package(
         compile_options.deny_warnings,
         compile_options.disable_macros,
         compile_options.silence_warnings,
+        compile_options.use_legacy,
     )?;
 
     Ok(context

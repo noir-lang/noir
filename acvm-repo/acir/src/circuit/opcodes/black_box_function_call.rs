@@ -1,6 +1,6 @@
 use crate::native_types::Witness;
 use crate::BlackBoxFunc;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 // Note: Some functions will not use all of the witness
 // So we need to supply how many bits of the witness is needed
@@ -10,14 +10,14 @@ pub struct FunctionInput {
     pub num_bits: u32,
 }
 
-impl FunctionInput {
-    pub fn dummy() -> Self {
-        Self { witness: Witness(0), num_bits: 0 }
-    }
-}
-
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BlackBoxFuncCall {
+    AES128Encrypt {
+        inputs: Vec<FunctionInput>,
+        iv: Box<[FunctionInput; 16]>,
+        key: Box<[FunctionInput; 16]>,
+        outputs: Vec<Witness>,
+    },
     AND {
         lhs: FunctionInput,
         rhs: FunctionInput,
@@ -33,20 +33,24 @@ pub enum BlackBoxFuncCall {
     },
     SHA256 {
         inputs: Vec<FunctionInput>,
-        outputs: Vec<Witness>,
+        outputs: Box<[Witness; 32]>,
     },
     Blake2s {
         inputs: Vec<FunctionInput>,
-        outputs: Vec<Witness>,
+        outputs: Box<[Witness; 32]>,
     },
     Blake3 {
         inputs: Vec<FunctionInput>,
-        outputs: Vec<Witness>,
+        outputs: Box<[Witness; 32]>,
     },
     SchnorrVerify {
         public_key_x: FunctionInput,
         public_key_y: FunctionInput,
-        signature: Vec<FunctionInput>,
+        #[serde(
+            serialize_with = "serialize_big_array",
+            deserialize_with = "deserialize_big_array_into_box"
+        )]
+        signature: Box<[FunctionInput; 64]>,
         message: Vec<FunctionInput>,
         output: Witness,
     },
@@ -61,47 +65,49 @@ pub enum BlackBoxFuncCall {
         output: Witness,
     },
     EcdsaSecp256k1 {
-        public_key_x: Vec<FunctionInput>,
-        public_key_y: Vec<FunctionInput>,
-        signature: Vec<FunctionInput>,
-        hashed_message: Vec<FunctionInput>,
+        public_key_x: Box<[FunctionInput; 32]>,
+        public_key_y: Box<[FunctionInput; 32]>,
+        #[serde(
+            serialize_with = "serialize_big_array",
+            deserialize_with = "deserialize_big_array_into_box"
+        )]
+        signature: Box<[FunctionInput; 64]>,
+        hashed_message: Box<[FunctionInput; 32]>,
         output: Witness,
     },
     EcdsaSecp256r1 {
-        public_key_x: Vec<FunctionInput>,
-        public_key_y: Vec<FunctionInput>,
-        signature: Vec<FunctionInput>,
-        hashed_message: Vec<FunctionInput>,
+        public_key_x: Box<[FunctionInput; 32]>,
+        public_key_y: Box<[FunctionInput; 32]>,
+        #[serde(
+            serialize_with = "serialize_big_array",
+            deserialize_with = "deserialize_big_array_into_box"
+        )]
+        signature: Box<[FunctionInput; 64]>,
+        hashed_message: Box<[FunctionInput; 32]>,
         output: Witness,
     },
-    FixedBaseScalarMul {
-        low: FunctionInput,
-        high: FunctionInput,
-        outputs: (Witness, Witness),
+    MultiScalarMul {
+        points: Vec<FunctionInput>,
+        scalars: Vec<FunctionInput>,
+        outputs: (Witness, Witness, Witness),
     },
     EmbeddedCurveAdd {
-        input1_x: FunctionInput,
-        input1_y: FunctionInput,
-        input2_x: FunctionInput,
-        input2_y: FunctionInput,
-        outputs: (Witness, Witness),
+        input1: Box<[FunctionInput; 3]>,
+        input2: Box<[FunctionInput; 3]>,
+        outputs: (Witness, Witness, Witness),
     },
     Keccak256 {
-        inputs: Vec<FunctionInput>,
-        outputs: Vec<Witness>,
-    },
-    Keccak256VariableLength {
         inputs: Vec<FunctionInput>,
         /// This is the number of bytes to take
         /// from the input. Note: if `var_message_size`
         /// is more than the number of bytes in the input,
         /// then an error is returned.
         var_message_size: FunctionInput,
-        outputs: Vec<Witness>,
+        outputs: Box<[Witness; 32]>,
     },
     Keccakf1600 {
-        inputs: Vec<FunctionInput>,
-        outputs: Vec<Witness>,
+        inputs: Box<[FunctionInput; 25]>,
+        outputs: Box<[Witness; 25]>,
     },
     RecursiveAggregation {
         verification_key: Vec<FunctionInput>,
@@ -164,17 +170,18 @@ pub enum BlackBoxFuncCall {
     /// * `outputs` - result of the input compressed into 256 bits
     Sha256Compression {
         /// 512 bits of the input message, represented by 16 u32s
-        inputs: Vec<FunctionInput>,
+        inputs: Box<[FunctionInput; 16]>,
         /// Vector of 8 u32s used to compress the input
-        hash_values: Vec<FunctionInput>,
+        hash_values: Box<[FunctionInput; 8]>,
         /// Output of the compression, represented by 8 u32s
-        outputs: Vec<Witness>,
+        outputs: Box<[Witness; 8]>,
     },
 }
 
 impl BlackBoxFuncCall {
     pub fn get_black_box_func(&self) -> BlackBoxFunc {
         match self {
+            BlackBoxFuncCall::AES128Encrypt { .. } => BlackBoxFunc::AES128Encrypt,
             BlackBoxFuncCall::AND { .. } => BlackBoxFunc::AND,
             BlackBoxFuncCall::XOR { .. } => BlackBoxFunc::XOR,
             BlackBoxFuncCall::RANGE { .. } => BlackBoxFunc::RANGE,
@@ -186,10 +193,9 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
             BlackBoxFuncCall::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
             BlackBoxFuncCall::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
-            BlackBoxFuncCall::FixedBaseScalarMul { .. } => BlackBoxFunc::FixedBaseScalarMul,
+            BlackBoxFuncCall::MultiScalarMul { .. } => BlackBoxFunc::MultiScalarMul,
             BlackBoxFuncCall::EmbeddedCurveAdd { .. } => BlackBoxFunc::EmbeddedCurveAdd,
             BlackBoxFuncCall::Keccak256 { .. } => BlackBoxFunc::Keccak256,
-            BlackBoxFuncCall::Keccak256VariableLength { .. } => BlackBoxFunc::Keccak256,
             BlackBoxFuncCall::Keccakf1600 { .. } => BlackBoxFunc::Keccakf1600,
             BlackBoxFuncCall::RecursiveAggregation { .. } => BlackBoxFunc::RecursiveAggregation,
             BlackBoxFuncCall::BigIntAdd { .. } => BlackBoxFunc::BigIntAdd,
@@ -209,17 +215,19 @@ impl BlackBoxFuncCall {
 
     pub fn get_inputs_vec(&self) -> Vec<FunctionInput> {
         match self {
-            BlackBoxFuncCall::SHA256 { inputs, .. }
+            BlackBoxFuncCall::AES128Encrypt { inputs, .. }
+            | BlackBoxFuncCall::SHA256 { inputs, .. }
             | BlackBoxFuncCall::Blake2s { inputs, .. }
             | BlackBoxFuncCall::Blake3 { inputs, .. }
-            | BlackBoxFuncCall::Keccak256 { inputs, .. }
-            | BlackBoxFuncCall::Keccakf1600 { inputs, .. }
             | BlackBoxFuncCall::PedersenCommitment { inputs, .. }
             | BlackBoxFuncCall::PedersenHash { inputs, .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
             | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
+
+            BlackBoxFuncCall::Keccakf1600 { inputs, .. } => inputs.to_vec(),
+
             BlackBoxFuncCall::Sha256Compression { inputs, hash_values, .. } => {
-                inputs.iter().chain(hash_values).copied().collect()
+                inputs.iter().chain(hash_values.as_ref()).copied().collect()
             }
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
                 vec![*lhs, *rhs]
@@ -229,10 +237,15 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::BigIntMul { .. }
             | BlackBoxFuncCall::BigIntDiv { .. }
             | BlackBoxFuncCall::BigIntToLeBytes { .. } => Vec::new(),
-            BlackBoxFuncCall::FixedBaseScalarMul { low, high, .. } => vec![*low, *high],
-            BlackBoxFuncCall::EmbeddedCurveAdd {
-                input1_x, input1_y, input2_x, input2_y, ..
-            } => vec![*input1_x, *input1_y, *input2_x, *input2_y],
+            BlackBoxFuncCall::MultiScalarMul { points, scalars, .. } => {
+                let mut inputs: Vec<FunctionInput> = Vec::with_capacity(points.len() * 2);
+                inputs.extend(points.iter().copied());
+                inputs.extend(scalars.iter().copied());
+                inputs
+            }
+            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, .. } => {
+                vec![input1[0], input1[1], input2[0], input2[1]]
+            }
             BlackBoxFuncCall::RANGE { input } => vec![*input],
             BlackBoxFuncCall::SchnorrVerify {
                 public_key_x,
@@ -241,7 +254,8 @@ impl BlackBoxFuncCall {
                 message,
                 ..
             } => {
-                let mut inputs = Vec::with_capacity(2 + signature.len() + message.len());
+                let mut inputs: Vec<FunctionInput> =
+                    Vec::with_capacity(2 + signature.len() + message.len());
                 inputs.push(*public_key_x);
                 inputs.push(*public_key_y);
                 inputs.extend(signature.iter().copied());
@@ -286,7 +300,7 @@ impl BlackBoxFuncCall {
                 inputs.extend(hashed_message.iter().copied());
                 inputs
             }
-            BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, .. } => {
+            BlackBoxFuncCall::Keccak256 { inputs, var_message_size, .. } => {
                 let mut inputs = inputs.clone();
                 inputs.push(*var_message_size);
                 inputs
@@ -312,20 +326,26 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::SHA256 { outputs, .. }
             | BlackBoxFuncCall::Blake2s { outputs, .. }
             | BlackBoxFuncCall::Blake3 { outputs, .. }
-            | BlackBoxFuncCall::Keccak256 { outputs, .. }
-            | BlackBoxFuncCall::Keccakf1600 { outputs, .. }
-            | BlackBoxFuncCall::Keccak256VariableLength { outputs, .. }
-            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. }
-            | BlackBoxFuncCall::Sha256Compression { outputs, .. } => outputs.to_vec(),
+            | BlackBoxFuncCall::Keccak256 { outputs, .. } => outputs.to_vec(),
+
+            BlackBoxFuncCall::Keccakf1600 { outputs, .. } => outputs.to_vec(),
+
+            BlackBoxFuncCall::Sha256Compression { outputs, .. } => outputs.to_vec(),
+
+            BlackBoxFuncCall::AES128Encrypt { outputs, .. }
+            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. } => outputs.to_vec(),
+
             BlackBoxFuncCall::AND { output, .. }
             | BlackBoxFuncCall::XOR { output, .. }
             | BlackBoxFuncCall::SchnorrVerify { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
             | BlackBoxFuncCall::PedersenHash { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
-            BlackBoxFuncCall::FixedBaseScalarMul { outputs, .. }
-            | BlackBoxFuncCall::PedersenCommitment { outputs, .. }
-            | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } => vec![outputs.0, outputs.1],
+            BlackBoxFuncCall::PedersenCommitment { outputs, .. } => vec![outputs.0, outputs.1],
+            BlackBoxFuncCall::MultiScalarMul { outputs, .. }
+            | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } => {
+                vec![outputs.0, outputs.1, outputs.2]
+            }
             BlackBoxFuncCall::RANGE { .. }
             | BlackBoxFuncCall::RecursiveAggregation { .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { .. }
@@ -433,5 +453,80 @@ impl std::fmt::Display for BlackBoxFuncCall {
 impl std::fmt::Debug for BlackBoxFuncCall {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(self, f)
+    }
+}
+
+fn serialize_big_array<S>(big_array: &[FunctionInput; 64], s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    use serde_big_array::BigArray;
+
+    (*big_array).serialize(s)
+}
+
+fn deserialize_big_array_into_box<'de, D>(
+    deserializer: D,
+) -> Result<Box<[FunctionInput; 64]>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde_big_array::BigArray;
+
+    let big_array: [FunctionInput; 64] = BigArray::deserialize(deserializer)?;
+    Ok(Box::new(big_array))
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::{circuit::Opcode, native_types::Witness};
+    use acir_field::{AcirField, FieldElement};
+
+    use super::{BlackBoxFuncCall, FunctionInput};
+
+    fn keccakf1600_opcode<F: AcirField>() -> Opcode<F> {
+        let inputs: Box<[FunctionInput; 25]> = Box::new(std::array::from_fn(|i| FunctionInput {
+            witness: Witness(i as u32 + 1),
+            num_bits: 8,
+        }));
+        let outputs: Box<[Witness; 25]> = Box::new(std::array::from_fn(|i| Witness(i as u32 + 26)));
+
+        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
+    }
+    fn schnorr_verify_opcode<F: AcirField>() -> Opcode<F> {
+        let public_key_x =
+            FunctionInput { witness: Witness(1), num_bits: FieldElement::max_num_bits() };
+        let public_key_y =
+            FunctionInput { witness: Witness(2), num_bits: FieldElement::max_num_bits() };
+        let signature: Box<[FunctionInput; 64]> = Box::new(std::array::from_fn(|i| {
+            FunctionInput { witness: Witness(i as u32 + 3), num_bits: 8 }
+        }));
+        let message: Vec<FunctionInput> = vec![FunctionInput { witness: Witness(67), num_bits: 8 }];
+        let output = Witness(68);
+
+        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::SchnorrVerify {
+            public_key_x,
+            public_key_y,
+            signature,
+            message,
+            output,
+        })
+    }
+
+    #[test]
+    fn keccakf1600_serialization_roundtrip() {
+        let opcode = keccakf1600_opcode::<FieldElement>();
+        let buf = bincode::serialize(&opcode).unwrap();
+        let recovered_opcode = bincode::deserialize(&buf).unwrap();
+        assert_eq!(opcode, recovered_opcode);
+    }
+
+    #[test]
+    fn schnorr_serialization_roundtrip() {
+        let opcode = schnorr_verify_opcode::<FieldElement>();
+        let buf = bincode::serialize(&opcode).unwrap();
+        let recovered_opcode = bincode::deserialize(&buf).unwrap();
+        assert_eq!(opcode, recovered_opcode);
     }
 }

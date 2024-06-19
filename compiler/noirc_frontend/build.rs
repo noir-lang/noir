@@ -1,15 +1,28 @@
-use std::path::PathBuf;
+use std::fs::{read_to_string, File};
+use std::io::Write;
 
-const BLNS_JSON_PATH: &str = "BLNS_JSON_PATH";
+fn main() {
+    lalrpop::Configuration::new()
+        .emit_rerun_directives(true)
+        .use_cargo_dir_conventions()
+        .process()
+        .unwrap();
 
-fn main() -> Result<(), String> {
+    // here, we get a lint error from "extern crate core" so patching that until lalrpop does
+    // (adding cfg directives appears to be unsupported by lalrpop)
     let out_dir = std::env::var("OUT_DIR").unwrap();
-
-    let dest_path = PathBuf::from(out_dir.clone()).join("blns.base64.json");
-    let dest_path_str = dest_path.to_str().unwrap();
-
-    println!("cargo:rustc-env={BLNS_JSON_PATH}={dest_path_str}");
-    std::fs::copy("./src/blns/blns.base64.json", dest_path).unwrap();
-
-    Ok(())
+    let parser_path = std::path::Path::new(&out_dir).join("noir_parser.rs");
+    let content_str = read_to_string(parser_path.clone()).unwrap();
+    let mut parser_file = File::create(parser_path).unwrap();
+    for line in content_str.lines() {
+        if line.contains("extern crate core") {
+            parser_file
+                .write_all(
+                    format!("{}\n", line.replace("extern crate core", "use core")).as_bytes(),
+                )
+                .unwrap();
+        } else {
+            parser_file.write_all(format!("{}\n", line).as_bytes()).unwrap();
+        }
+    }
 }

@@ -20,16 +20,16 @@ fn let_() {
 
     let person = Person { first_name: "John", last_name: "Doe", home_address: Address { street: "123 Main St", city: "Exampleville", zip_code: "12345", master: Person { first_name: "John", last_name: "Doe", home_address: Address { street: "123 Main St", city: "Exampleville", zip_code: "12345" } } } };
 
-    let expr = Expr {// A boolean literal (true, false).
+    let expr = MyExpr {// A boolean literal (true, false).
 kind: ExprKind::Bool(true),
     };
 
-    let expr = Expr {/*A boolean literal (true, false).*/kind: ExprKind::Bool(true),};
+    let expr = MyExpr {/*A boolean literal (true, false).*/kind: ExprKind::Bool(true),};
 
-    let mut V = dep::crate2::MyStruct { Q: x };
-    let mut V = dep::crate2::MyStruct {};
-    let mut V = dep::crate2::MyStruct {/*test*/};
-    let mut V = dep::crate2::MyStruct {
+    let mut V = crate2::MyStruct { Q: x };
+    let mut V = crate2::MyStruct {};
+    let mut V = crate2::MyStruct {/*test*/};
+    let mut V = crate2::MyStruct {
         // sad
     };
 }

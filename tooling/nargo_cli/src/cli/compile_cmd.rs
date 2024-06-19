@@ -3,7 +3,6 @@ use std::path::Path;
 use std::time::Duration;
 
 use fm::FileManager;
-use nargo::artifacts::program::ProgramArtifact;
 use nargo::ops::{collect_errors, compile_contract, compile_program, report_errors};
 use nargo::package::Package;
 use nargo::workspace::Workspace;
@@ -11,7 +10,7 @@ use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::file_manager_with_stdlib;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
-use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, CompiledProgram};
+use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
 
 use noirc_frontend::graph::CrateName;
 
@@ -20,10 +19,8 @@ use noirc_frontend::hir::ParsedFiles;
 use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::new_debouncer;
 
-use crate::backends::Backend;
 use crate::errors::CliError;
 
-use super::fs::program::only_acir;
 use super::fs::program::{read_program_from_file, save_contract_to_file, save_program_to_file};
 use super::NargoConfig;
 use rayon::prelude::*;
@@ -47,11 +44,7 @@ pub(crate) struct CompileCommand {
     watch: bool,
 }
 
-pub(crate) fn run(
-    backend: &Backend,
-    mut args: CompileCommand,
-    config: NargoConfig,
-) -> Result<(), CliError> {
+pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -62,10 +55,6 @@ pub(crate) fn run(
         selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
     )?;
-
-    if args.compile_options.expression_width.is_none() {
-        args.compile_options.expression_width = Some(backend.get_backend_info_or_default());
-    };
 
     if args.watch {
         watch_workspace(&workspace, &args.compile_options)
@@ -120,7 +109,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
     Ok(())
 }
 
-fn compile_workspace_full(
+pub(super) fn compile_workspace_full(
     workspace: &Workspace,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
@@ -128,45 +117,25 @@ fn compile_workspace_full(
     insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
-    let expression_width =
-        compile_options.expression_width.expect("expression width should have been set");
     let compiled_workspace =
         compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
 
-    let (compiled_programs, compiled_contracts) = report_errors(
+    report_errors(
         compiled_workspace,
         &workspace_file_manager,
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )?;
 
-    let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
-        .into_iter()
-        .filter(|package| !package.is_library())
-        .cloned()
-        .partition(|package| package.is_binary());
-
-    // Save build artifacts to disk.
-    let only_acir = compile_options.only_acir;
-    for (package, program) in binary_packages.into_iter().zip(compiled_programs) {
-        let program = nargo::ops::transform_program(program, expression_width);
-        save_program(program.clone(), &package, &workspace.target_directory_path(), only_acir);
-    }
-    let circuit_dir = workspace.target_directory_path();
-    for (package, contract) in contract_packages.into_iter().zip(compiled_contracts) {
-        let contract = nargo::ops::transform_contract(contract, expression_width);
-        save_contract(contract, &package, &circuit_dir);
-    }
-
     Ok(())
 }
 
-pub(super) fn compile_workspace(
+fn compile_workspace(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     workspace: &Workspace,
     compile_options: &CompileOptions,
-) -> CompilationResult<(Vec<CompiledProgram>, Vec<CompiledContract>)> {
+) -> CompilationResult<()> {
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .into_iter()
         .filter(|package| !package.is_library())
@@ -174,32 +143,20 @@ pub(super) fn compile_workspace(
         .partition(|package| package.is_binary());
 
     // Compile all of the packages in parallel.
-    let program_results: Vec<CompilationResult<CompiledProgram>> = binary_packages
-        .par_iter()
-        .map(|package| {
-            let program_artifact_path = workspace.package_build_path(package);
-            let cached_program: Option<CompiledProgram> =
-                read_program_from_file(program_artifact_path)
-                    .ok()
-                    .filter(|p| p.noir_version == NOIR_ARTIFACT_VERSION_STRING)
-                    .map(|p| p.into());
+    let program_warnings_or_errors: CompilationResult<()> =
+        compile_programs(file_manager, parsed_files, workspace, &binary_packages, compile_options);
+    let contract_warnings_or_errors: CompilationResult<()> = compiled_contracts(
+        file_manager,
+        parsed_files,
+        &contract_packages,
+        compile_options,
+        &workspace.target_directory_path(),
+    );
 
-            compile_program(file_manager, parsed_files, package, compile_options, cached_program)
-        })
-        .collect();
-    let contract_results: Vec<CompilationResult<CompiledContract>> = contract_packages
-        .par_iter()
-        .map(|package| compile_contract(file_manager, parsed_files, package, compile_options))
-        .collect();
-
-    // Collate any warnings/errors which were encountered during compilation.
-    let compiled_programs = collect_errors(program_results);
-    let compiled_contracts = collect_errors(contract_results);
-
-    match (compiled_programs, compiled_contracts) {
-        (Ok((programs, program_warnings)), Ok((contracts, contract_warnings))) => {
+    match (program_warnings_or_errors, contract_warnings_or_errors) {
+        (Ok((_, program_warnings)), Ok((_, contract_warnings))) => {
             let warnings = [program_warnings, contract_warnings].concat();
-            Ok(((programs, contracts), warnings))
+            Ok(((), warnings))
         }
         (Err(program_errors), Err(contract_errors)) => {
             Err([program_errors, contract_errors].concat())
@@ -208,25 +165,81 @@ pub(super) fn compile_workspace(
     }
 }
 
-pub(super) fn save_program(
-    program: CompiledProgram,
-    package: &Package,
-    circuit_dir: &Path,
-    only_acir_opt: bool,
-) {
-    if only_acir_opt {
-        only_acir(program.program, circuit_dir);
-    } else {
-        let program_artifact = ProgramArtifact::from(program.clone());
-        save_program_to_file(&program_artifact, &package.name, circuit_dir);
-    }
+fn compile_programs(
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
+    workspace: &Workspace,
+    binary_packages: &[Package],
+    compile_options: &CompileOptions,
+) -> CompilationResult<()> {
+    let load_cached_program = |package| {
+        let program_artifact_path = workspace.package_build_path(package);
+        read_program_from_file(program_artifact_path)
+            .ok()
+            .filter(|p| p.noir_version == NOIR_ARTIFACT_VERSION_STRING)
+            .map(|p| p.into())
+    };
+
+    let program_results: Vec<CompilationResult<()>> = binary_packages
+        .par_iter()
+        .map(|package| {
+            let (program, warnings) = compile_program(
+                file_manager,
+                parsed_files,
+                package,
+                compile_options,
+                load_cached_program(package),
+            )?;
+            let program = nargo::ops::transform_program(program, compile_options.expression_width);
+            save_program_to_file(
+                &program.clone().into(),
+                &package.name,
+                workspace.target_directory_path(),
+            );
+            Ok(((), warnings))
+        })
+        .collect();
+
+    // Collate any warnings/errors which were encountered during compilation.
+    collect_errors(program_results).map(|(_, warnings)| ((), warnings))
 }
 
-fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Path) {
+fn compiled_contracts(
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
+    contract_packages: &[Package],
+    compile_options: &CompileOptions,
+    target_dir: &Path,
+) -> CompilationResult<()> {
+    let contract_results: Vec<CompilationResult<()>> = contract_packages
+        .par_iter()
+        .map(|package| {
+            let (contract, warnings) =
+                compile_contract(file_manager, parsed_files, package, compile_options)?;
+            let contract =
+                nargo::ops::transform_contract(contract, compile_options.expression_width);
+            save_contract(contract, package, target_dir, compile_options.show_artifact_paths);
+            Ok(((), warnings))
+        })
+        .collect();
+
+    // Collate any warnings/errors which were encountered during compilation.
+    collect_errors(contract_results).map(|(_, warnings)| ((), warnings))
+}
+
+fn save_contract(
+    contract: CompiledContract,
+    package: &Package,
+    target_dir: &Path,
+    show_artifact_paths: bool,
+) {
     let contract_name = contract.name.clone();
-    save_contract_to_file(
+    let artifact_path = save_contract_to_file(
         &contract.into(),
         &format!("{}-{}", package.name, contract_name),
-        circuit_dir,
+        target_dir,
     );
+    if show_artifact_paths {
+        println!("Saved contract artifact to: {}", artifact_path.display());
+    }
 }

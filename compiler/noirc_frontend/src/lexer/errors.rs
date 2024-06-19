@@ -96,8 +96,8 @@ impl LexerErrorKind {
     }
 }
 
-impl From<LexerErrorKind> for Diagnostic {
-    fn from(error: LexerErrorKind) -> Diagnostic {
+impl<'a> From<&'a LexerErrorKind> for Diagnostic {
+    fn from(error: &'a LexerErrorKind) -> Diagnostic {
         let (primary, secondary, span) = error.parts();
         Diagnostic::simple_error(primary, secondary, span)
     }

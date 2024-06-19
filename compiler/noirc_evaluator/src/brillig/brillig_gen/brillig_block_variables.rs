@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
@@ -9,7 +10,6 @@ use crate::{
         BrilligContext,
     },
     ssa::ir::{
-        basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         types::{CompositeType, Type},
         value::ValueId,
@@ -21,18 +21,13 @@ use super::brillig_fn::FunctionContext;
 #[derive(Debug, Default)]
 pub(crate) struct BlockVariables {
     available_variables: HashSet<ValueId>,
-    block_parameters: HashSet<ValueId>,
     available_constants: HashMap<ValueId, BrilligVariable>,
 }
 
 impl BlockVariables {
     /// Creates a BlockVariables instance. It uses the variables that are live in to the block and the global available variables (block parameters)
-    pub(crate) fn new(live_in: HashSet<ValueId>, all_block_parameters: HashSet<ValueId>) -> Self {
-        BlockVariables {
-            available_variables: live_in.into_iter().chain(all_block_parameters.clone()).collect(),
-            block_parameters: all_block_parameters,
-            ..Default::default()
-        }
+    pub(crate) fn new(live_in: HashSet<ValueId>) -> Self {
+        BlockVariables { available_variables: live_in, ..Default::default() }
     }
 
     /// Returns all non-constant variables that have not been removed at this point.
@@ -56,7 +51,7 @@ impl BlockVariables {
     pub(crate) fn define_variable(
         &mut self,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext,
+        brillig_context: &mut BrilligContext<FieldElement>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
@@ -76,7 +71,7 @@ impl BlockVariables {
     pub(crate) fn define_single_addr_variable(
         &mut self,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext,
+        brillig_context: &mut BrilligContext<FieldElement>,
         value: ValueId,
         dfg: &DataFlowGraph,
     ) -> SingleAddrVariable {
@@ -89,19 +84,16 @@ impl BlockVariables {
         &mut self,
         value_id: &ValueId,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext,
+        brillig_context: &mut BrilligContext<FieldElement>,
     ) {
         assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
-        // Block parameters should not be deallocated
-        if !self.block_parameters.contains(value_id) {
-            let variable = function_context
-                .ssa_value_allocations
-                .get(value_id)
-                .expect("ICE: Variable allocation not found");
-            variable.extract_registers().iter().for_each(|register| {
-                brillig_context.deallocate_register(*register);
-            });
-        }
+        let variable = function_context
+            .ssa_value_allocations
+            .get(value_id)
+            .expect("ICE: Variable allocation not found");
+        variable.extract_registers().iter().for_each(|register| {
+            brillig_context.deallocate_register(*register);
+        });
     }
 
     /// For a given SSA value id, return the corresponding cached allocation.
@@ -131,7 +123,7 @@ impl BlockVariables {
     /// We keep constants block-local.
     pub(crate) fn allocate_constant(
         &mut self,
-        brillig_context: &mut BrilligContext,
+        brillig_context: &mut BrilligContext<FieldElement>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
@@ -155,27 +147,6 @@ impl BlockVariables {
     pub(crate) fn dump_constants(&mut self) {
         self.available_constants.clear();
     }
-
-    /// For a given block parameter, return the allocation that was done globally to the function.
-    pub(crate) fn get_block_param(
-        &mut self,
-        function_context: &FunctionContext,
-        block_id: BasicBlockId,
-        value_id: ValueId,
-        dfg: &DataFlowGraph,
-    ) -> BrilligVariable {
-        let value_id = dfg.resolve(value_id);
-        assert!(
-            function_context
-                .block_parameters
-                .get(&block_id)
-                .expect("Block not found")
-                .contains(&value_id),
-            "Value is not a block parameter"
-        );
-
-        *function_context.ssa_value_allocations.get(&value_id).expect("Block param not found")
-    }
 }
 
 /// Computes the length of an array. This will match with the indexes that SSA will issue
@@ -184,9 +155,9 @@ pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) 
 }
 
 /// For a given value_id, allocates the necessary registers to hold it.
-pub(crate) fn allocate_value(
+pub(crate) fn allocate_value<F>(
     value_id: ValueId,
-    brillig_context: &mut BrilligContext,
+    brillig_context: &mut BrilligContext<F>,
     dfg: &DataFlowGraph,
 ) -> BrilligVariable {
     let typ = dfg.type_of_value(value_id);

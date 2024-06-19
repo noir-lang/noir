@@ -1,14 +1,13 @@
 pub mod hash;
-mod array;
+pub mod aes128;
+pub mod array;
 pub mod slice;
 pub mod merkle;
 pub mod schnorr;
 pub mod ecdsa_secp256k1;
 pub mod ecdsa_secp256r1;
 pub mod eddsa;
-pub(crate) mod grumpkin_scalar;
-mod grumpkin_scalar_mul;
-pub mod scalar_mul;
+pub mod embedded_curve_ops;
 pub mod sha256;
 pub mod sha512;
 pub mod field;
@@ -18,7 +17,7 @@ pub mod collections;
 pub mod compat;
 pub(crate) mod convert;
 pub mod option;
-mod string;
+pub mod string;
 pub mod test;
 pub mod cmp;
 pub mod ops;
@@ -26,7 +25,7 @@ pub(crate) mod default;
 pub mod prelude;
 pub mod uint128;
 pub mod bigint;
-pub mod internal;
+pub mod runtime;
 
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident
@@ -69,3 +68,7 @@ pub fn wrapping_sub<T>(x: T, y: T) -> T {
 pub fn wrapping_mul<T>(x: T, y: T) -> T {
     crate::from_field(crate::as_field(x) * crate::as_field(y))
 }
+
+#[builtin(as_witness)]
+pub fn as_witness(x: Field) {}
+

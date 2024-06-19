@@ -2,10 +2,13 @@ use noirc_errors::{CustomDiagnostic, Span};
 use thiserror::Error;
 
 use crate::graph::CrateId;
+use crate::hir::def_collector::dc_crate::CompilationError;
 use std::collections::BTreeMap;
 
+use crate::ast::{Ident, ItemVisibility, Path, PathKind};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs};
-use crate::{Ident, ItemVisibility, Path, PathKind};
+
+use super::errors::ResolverError;
 
 #[derive(Debug, Clone)]
 pub struct ImportDirective {
@@ -53,8 +56,14 @@ pub struct ResolvedImport {
     pub error: Option<PathResolutionError>,
 }
 
-impl From<PathResolutionError> for CustomDiagnostic {
+impl From<PathResolutionError> for CompilationError {
     fn from(error: PathResolutionError) -> Self {
+        Self::ResolverError(ResolverError::PathResolutionError(error))
+    }
+}
+
+impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
+    fn from(error: &'a PathResolutionError) -> Self {
         match &error {
             PathResolutionError::Unresolved(ident) => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.span())
@@ -149,16 +158,34 @@ fn resolve_path_to_ns(
                 allow_contracts,
             )
         }
-        crate::ast::PathKind::Dep => resolve_external_dep(
-            def_map,
-            import_directive,
-            def_maps,
-            allow_contracts,
-            importing_crate,
-        ),
         crate::ast::PathKind::Plain => {
-            // Plain paths are only used to import children modules. It's possible to allow import of external deps, but maybe this distinction is better?
-            // In Rust they can also point to external Dependencies, if no children can be found with the specified name
+            // There is a possibility that the import path is empty
+            // In that case, early return
+            if import_path.is_empty() {
+                return resolve_name_in_module(
+                    crate_id,
+                    importing_crate,
+                    import_path,
+                    import_directive.module_id,
+                    def_maps,
+                    allow_contracts,
+                );
+            }
+
+            let current_mod_id = ModuleId { krate: crate_id, local_id: import_directive.module_id };
+            let current_mod = &def_map.modules[current_mod_id.local_id.0];
+            let first_segment = import_path.first().expect("ice: could not fetch first segment");
+            if current_mod.find_name(first_segment).is_none() {
+                // Resolve externally when first segment is unresolved
+                return resolve_external_dep(
+                    def_map,
+                    import_directive,
+                    def_maps,
+                    allow_contracts,
+                    importing_crate,
+                );
+            }
+
             resolve_name_in_module(
                 crate_id,
                 importing_crate,
@@ -168,6 +195,14 @@ fn resolve_path_to_ns(
                 allow_contracts,
             )
         }
+
+        crate::ast::PathKind::Dep => resolve_external_dep(
+            def_map,
+            import_directive,
+            def_maps,
+            allow_contracts,
+            importing_crate,
+        ),
     }
 }
 
@@ -293,7 +328,9 @@ fn resolve_external_dep(
         .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
 
     // Create an import directive for the dependency crate
-    let path_without_crate_name = &path[1..]; // XXX: This will panic if the path is of the form `use dep::std` Ideal algorithm will not distinguish between crate and module
+    // XXX: This will panic if the path is of the form `use std`. Ideal algorithm will not distinguish between crate and module
+    // See `singleton_import.nr` test case for a check that such cases are handled elsewhere.
+    let path_without_crate_name = &path[1..];
 
     let path = Path {
         segments: path_without_crate_name.to_vec(),

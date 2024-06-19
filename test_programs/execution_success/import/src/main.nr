@@ -3,7 +3,7 @@ use crate::import::hello;
 use import::foo::goodbye;
 
 fn main(x: Field, y: Field) {
-    let _k = dep::std::hash::pedersen_commitment([x]);
+    let _k = std::hash::pedersen_commitment([x]);
     let _l = hello(x);
     let _l = goodbye(x);
 

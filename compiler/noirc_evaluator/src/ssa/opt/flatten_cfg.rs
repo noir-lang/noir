@@ -134,7 +134,7 @@
 use fxhash::FxHashMap as HashMap;
 use std::collections::{BTreeMap, HashSet};
 
-use acvm::FieldElement;
+use acvm::{acir::AcirField, acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
 
 use crate::ssa::{
@@ -154,9 +154,6 @@ use crate::ssa::{
 mod branch_analysis;
 mod capacity_tracker;
 pub(crate) mod value_merger;
-
-use capacity_tracker::SliceCapacityTracker;
-use value_merger::ValueMerger;
 
 impl Ssa {
     /// Flattens the control flow graph of main such that the function is left with a
@@ -311,18 +308,6 @@ impl<'f> Context<'f> {
         if self.inserter.function.entry_block() == block {
             // we do not inline the entry block into itself
             // for the outer block before we start inlining
-            let outer_block_instructions = self.inserter.function.dfg[block].instructions();
-            let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
-            for instruction in outer_block_instructions {
-                let results = self.inserter.function.dfg.instruction_results(*instruction);
-                let instruction = &self.inserter.function.dfg[*instruction];
-                capacity_tracker.collect_slice_information(
-                    instruction,
-                    &mut self.slice_sizes,
-                    results.to_vec(),
-                );
-            }
-
             return;
         }
 
@@ -333,14 +318,7 @@ impl<'f> Context<'f> {
         // unnecessary, when removing it actually causes an aliasing/mutability error.
         let instructions = self.inserter.function.dfg[block].instructions().to_vec();
         for instruction in instructions.iter() {
-            let results = self.push_instruction(*instruction);
-            let (instruction, _) = self.inserter.map_instruction(*instruction);
-            let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
-            capacity_tracker.collect_slice_information(
-                &instruction,
-                &mut self.slice_sizes,
-                results,
-            );
+            self.push_instruction(*instruction);
         }
     }
 
@@ -397,7 +375,6 @@ impl<'f> Context<'f> {
         let old_condition = *condition;
         let then_condition = self.inserter.resolve(old_condition);
 
-        let one = FieldElement::one();
         let old_stores = std::mem::take(&mut self.store_values);
         let old_allocations = std::mem::take(&mut self.local_allocations);
         let branch = ConditionalBranch {
@@ -415,15 +392,6 @@ impl<'f> Context<'f> {
         };
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
-        // Optimization: within the then branch we know the condition to be true, so replace
-        // any references of it within this branch with true. Likewise, do the same with false
-        // with the else branch. We must be careful not to replace the condition if it is a
-        // known constant, otherwise we can end up setting 1 = 0 or vice-versa.
-        if self.inserter.function.dfg.get_numeric_constant(old_condition).is_none() {
-            let known_value = self.inserter.function.dfg.make_constant(one, Type::bool());
-
-            self.inserter.map_value(old_condition, known_value);
-        }
         vec![self.branch_ends[if_entry], *else_destination, *then_destination]
     }
 
@@ -436,7 +404,6 @@ impl<'f> Context<'f> {
             self.insert_instruction(Instruction::Not(cond_context.condition), CallStack::new());
         let else_condition = self.link_condition(else_condition);
 
-        let zero = FieldElement::zero();
         // Make sure the else branch sees the previous values of each store
         // rather than any values created in the 'then' branch.
         let old_stores = std::mem::take(&mut cond_context.then_branch.store_values);
@@ -451,21 +418,12 @@ impl<'f> Context<'f> {
             local_allocations: old_allocations,
             last_block: *block,
         };
-        let old_condition = else_branch.old_condition;
         cond_context.then_branch.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
         self.condition_stack.push(cond_context);
 
         self.insert_current_side_effects_enabled();
-        // Optimization: within the then branch we know the condition to be true, so replace
-        // any references of it within this branch with true. Likewise, do the same with false
-        // with the else branch. We must be careful not to replace the condition if it is a
-        // known constant, otherwise we can end up setting 1 = 0 or vice-versa.
-        if self.inserter.function.dfg.get_numeric_constant(old_condition).is_none() {
-            let known_value = self.inserter.function.dfg.make_constant(zero, Type::bool());
 
-            self.inserter.map_value(old_condition, known_value);
-        }
         assert_eq!(self.cfg.successors(*block).len(), 1);
         vec![self.cfg.successors(*block).next().unwrap()]
     }
@@ -492,11 +450,6 @@ impl<'f> Context<'f> {
         // end, in addition to resetting the value of old_condition since it is set to
         // known to be true/false within the then/else branch respectively.
         self.insert_current_side_effects_enabled();
-
-        // We must map back to `then_condition` here. Mapping `old_condition` to itself would
-        // lose any previous mappings.
-        self.inserter
-            .map_value(cond_context.then_branch.old_condition, cond_context.then_branch.condition);
 
         // While there is a condition on the stack we don't compile outside the condition
         // until it is popped. This ensures we inline the full then and else branches
@@ -543,24 +496,19 @@ impl<'f> Context<'f> {
 
         let block = self.inserter.function.entry_block();
 
-        // Make sure we have tracked the slice capacities of any block arguments
-        let capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
-        for (then_arg, else_arg) in args.iter() {
-            capacity_tracker.compute_slice_capacity(*then_arg, &mut self.slice_sizes);
-            capacity_tracker.compute_slice_capacity(*else_arg, &mut self.slice_sizes);
-        }
-
-        let mut value_merger =
-            ValueMerger::new(&mut self.inserter.function.dfg, block, &mut self.slice_sizes);
-
         // Cannot include this in the previous vecmap since it requires exclusive access to self
         let args = vecmap(args, |(then_arg, else_arg)| {
-            value_merger.merge_values(
-                cond_context.then_branch.condition,
-                cond_context.else_branch.clone().unwrap().condition,
-                then_arg,
-                else_arg,
-            )
+            let instruction = Instruction::IfElse {
+                then_condition: cond_context.then_branch.condition,
+                then_value: then_arg,
+                else_condition: cond_context.else_branch.as_ref().unwrap().condition,
+                else_value: else_arg,
+            };
+            self.inserter
+                .function
+                .dfg
+                .insert_instruction_and_results(instruction, block, None, CallStack::new())
+                .first()
         });
 
         self.merge_stores(cond_context.then_branch, cond_context.else_branch);
@@ -643,15 +591,6 @@ impl<'f> Context<'f> {
             }
         }
 
-        // Most slice information is collected when instructions are inlined.
-        // We need to collect information on slice values here as we may possibly merge stores
-        // before any inlining occurs.
-        let capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
-        for (then_case, else_case, _) in new_map.values() {
-            capacity_tracker.compute_slice_capacity(*then_case, &mut self.slice_sizes);
-            capacity_tracker.compute_slice_capacity(*else_case, &mut self.slice_sizes);
-        }
-
         let then_condition = then_branch.condition;
         let else_condition = if let Some(branch) = else_branch {
             branch.condition
@@ -660,13 +599,22 @@ impl<'f> Context<'f> {
         };
         let block = self.inserter.function.entry_block();
 
-        let mut value_merger =
-            ValueMerger::new(&mut self.inserter.function.dfg, block, &mut self.slice_sizes);
         // Merging must occur in a separate loop as we cannot borrow `self` as mutable while `value_merger` does
         let mut new_values = HashMap::default();
         for (address, (then_case, else_case, _)) in &new_map {
-            let value =
-                value_merger.merge_values(then_condition, else_condition, *then_case, *else_case);
+            let instruction = Instruction::IfElse {
+                then_condition,
+                then_value: *then_case,
+                else_condition,
+                else_value: *else_case,
+            };
+            let value = self
+                .inserter
+                .function
+                .dfg
+                .insert_instruction_and_results(instruction, block, None, CallStack::new())
+                .first();
+
             new_values.insert(address, value);
         }
 
@@ -683,16 +631,6 @@ impl<'f> Context<'f> {
                     .insert(address, Store { old_value: *old_value, new_value: value });
             }
         }
-
-        // Collect any potential slice information on the stores we are merging
-        for (address, (_, _, _)) in &new_map {
-            let value = new_values[address];
-            let address = *address;
-            let instruction = Instruction::Store { address, value };
-
-            let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
-            capacity_tracker.collect_slice_information(&instruction, &mut self.slice_sizes, vec![]);
-        }
     }
 
     fn remember_store(&mut self, address: ValueId, new_value: ValueId) {
@@ -705,14 +643,6 @@ impl<'f> Context<'f> {
                 let load_type = Some(vec![self.inserter.function.dfg.type_of_value(new_value)]);
                 let old_value =
                     self.insert_instruction_with_typevars(load.clone(), load_type).first();
-
-                // Need this or else we will be missing a the previous value of a slice that we wish to merge
-                let mut capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
-                capacity_tracker.collect_slice_information(
-                    &load,
-                    &mut self.slice_sizes,
-                    vec![old_value],
-                );
 
                 self.store_values.insert(address, Store { old_value, new_value });
             }
@@ -814,7 +744,38 @@ impl<'f> Context<'f> {
 
                         Instruction::Call { func, arguments }
                     }
+                    //Issue #5045: We set curve points to infinity if condition is false
+                    Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => {
+                        arguments[2] = self.var_or_one(arguments[2], condition, call_stack.clone());
+                        arguments[5] = self.var_or_one(arguments[5], condition, call_stack.clone());
 
+                        Instruction::Call { func, arguments }
+                    }
+                    Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)) => {
+                        let mut array_with_predicate = im::Vector::new();
+                        let array_typ;
+                        if let Value::Array { array, typ } =
+                            &self.inserter.function.dfg[arguments[0]]
+                        {
+                            array_typ = typ.clone();
+                            for (i, value) in array.clone().iter().enumerate() {
+                                if i % 3 == 2 {
+                                    array_with_predicate.push_back(self.var_or_one(
+                                        *value,
+                                        condition,
+                                        call_stack.clone(),
+                                    ));
+                                } else {
+                                    array_with_predicate.push_back(*value);
+                                }
+                            }
+                        } else {
+                            unreachable!();
+                        }
+                        arguments[0] =
+                            self.inserter.function.dfg.make_array(array_with_predicate, array_typ);
+                        Instruction::Call { func, arguments }
+                    }
                     _ => Instruction::Call { func, arguments },
                 },
                 other => other,
@@ -822,6 +783,20 @@ impl<'f> Context<'f> {
         } else {
             instruction
         }
+    }
+
+    // Computes: if condition { var } else { 1 }
+    fn var_or_one(&mut self, var: ValueId, condition: ValueId, call_stack: CallStack) -> ValueId {
+        let field = self.insert_instruction(
+            Instruction::binary(BinaryOp::Mul, var, condition),
+            call_stack.clone(),
+        );
+        let not_condition =
+            self.insert_instruction(Instruction::Not(condition), call_stack.clone());
+        self.insert_instruction(
+            Instruction::binary(BinaryOp::Add, field, not_condition),
+            call_stack,
+        )
     }
 
     fn undo_stores_in_then_branch(&mut self, store_values: &HashMap<ValueId, Store>) {
@@ -836,6 +811,8 @@ impl<'f> Context<'f> {
 #[cfg(test)]
 mod test {
     use std::rc::Rc;
+
+    use acvm::acir::AcirField;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,

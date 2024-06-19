@@ -3,27 +3,29 @@ use std::collections::HashMap;
 use acir::{
     circuit::opcodes::MemOp,
     native_types::{Expression, Witness, WitnessMap},
-    FieldElement,
+    AcirField,
 };
 
-use super::{arithmetic::ExpressionSolver, get_value, insert_value, witness_to_value};
+use super::{
+    arithmetic::ExpressionSolver, get_value, insert_value, is_predicate_false, witness_to_value,
+};
 use super::{ErrorLocation, OpcodeResolutionError};
 
 type MemoryIndex = u32;
 
 /// Maintains the state for solving [`MemoryInit`][`acir::circuit::Opcode::MemoryInit`] and [`MemoryOp`][`acir::circuit::Opcode::MemoryOp`] opcodes.
 #[derive(Default)]
-pub(crate) struct MemoryOpSolver {
-    pub(super) block_value: HashMap<MemoryIndex, FieldElement>,
+pub(crate) struct MemoryOpSolver<F> {
+    pub(super) block_value: HashMap<MemoryIndex, F>,
     pub(super) block_len: u32,
 }
 
-impl MemoryOpSolver {
+impl<F: AcirField> MemoryOpSolver<F> {
     fn write_memory_index(
         &mut self,
         index: MemoryIndex,
-        value: FieldElement,
-    ) -> Result<(), OpcodeResolutionError> {
+        value: F,
+    ) -> Result<(), OpcodeResolutionError<F>> {
         if index >= self.block_len {
             return Err(OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
@@ -35,7 +37,7 @@ impl MemoryOpSolver {
         Ok(())
     }
 
-    fn read_memory_index(&self, index: MemoryIndex) -> Result<FieldElement, OpcodeResolutionError> {
+    fn read_memory_index(&self, index: MemoryIndex) -> Result<F, OpcodeResolutionError<F>> {
         self.block_value.get(&index).copied().ok_or(OpcodeResolutionError::IndexOutOfBounds {
             opcode_location: ErrorLocation::Unresolved,
             index,
@@ -47,8 +49,8 @@ impl MemoryOpSolver {
     pub(crate) fn init(
         &mut self,
         init: &[Witness],
-        initial_witness: &WitnessMap,
-    ) -> Result<(), OpcodeResolutionError> {
+        initial_witness: &WitnessMap<F>,
+    ) -> Result<(), OpcodeResolutionError<F>> {
         self.block_len = init.len() as u32;
         for (memory_index, witness) in init.iter().enumerate() {
             self.write_memory_index(
@@ -61,10 +63,10 @@ impl MemoryOpSolver {
 
     pub(crate) fn solve_memory_op(
         &mut self,
-        op: &MemOp,
-        initial_witness: &mut WitnessMap,
-        predicate: &Option<Expression>,
-    ) -> Result<(), OpcodeResolutionError> {
+        op: &MemOp<F>,
+        initial_witness: &mut WitnessMap<F>,
+        predicate: &Option<Expression<F>>,
+    ) -> Result<(), OpcodeResolutionError<F>> {
         let operation = get_value(&op.operation, initial_witness)?;
 
         // Find the memory index associated with this memory operation.
@@ -80,11 +82,8 @@ impl MemoryOpSolver {
         // `operation == 0` implies a read operation. (`operation == 1` implies write operation).
         let is_read_operation = operation.is_zero();
 
-        // If the predicate is `None`, then we simply return the value 1
-        let pred_value = match predicate {
-            Some(pred) => get_value(pred, initial_witness),
-            None => Ok(FieldElement::one()),
-        }?;
+        // Fetch whether or not the predicate is false (e.g. equal to zero)
+        let skip_operation = is_predicate_false(initial_witness, predicate)?;
 
         if is_read_operation {
             // `value_read = arr[memory_index]`
@@ -97,11 +96,8 @@ impl MemoryOpSolver {
 
             // A zero predicate indicates that we should skip the read operation
             // and zero out the operation's output.
-            let value_in_array = if pred_value.is_zero() {
-                FieldElement::zero()
-            } else {
-                self.read_memory_index(memory_index)?
-            };
+            let value_in_array =
+                if skip_operation { F::zero() } else { self.read_memory_index(memory_index)? };
             insert_value(&value_read_witness, value_in_array, initial_witness)
         } else {
             // `arr[memory_index] = value_write`
@@ -111,7 +107,7 @@ impl MemoryOpSolver {
             let value_write = value;
 
             // A zero predicate indicates that we should skip the write operation.
-            if pred_value.is_zero() {
+            if skip_operation {
                 // We only want to write to already initialized memory.
                 // Do nothing if the predicate is zero.
                 Ok(())
@@ -130,7 +126,7 @@ mod tests {
     use acir::{
         circuit::opcodes::MemOp,
         native_types::{Expression, Witness, WitnessMap},
-        FieldElement,
+        AcirField, FieldElement,
     };
 
     use super::MemoryOpSolver;

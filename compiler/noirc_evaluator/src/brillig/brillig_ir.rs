@@ -25,15 +25,20 @@ mod instructions;
 
 pub(crate) use instructions::BrilligBinaryOp;
 
-use self::{artifact::BrilligArtifact, registers::BrilligRegistersContext};
+use self::{
+    artifact::BrilligArtifact, debug_show::DebugToString, registers::BrilligRegistersContext,
+};
 use crate::ssa::ir::dfg::CallStack;
-use acvm::acir::brillig::{MemoryAddress, Opcode as BrilligOpcode};
+use acvm::{
+    acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
+    AcirField,
+};
 use debug_show::DebugShow;
 
 /// The Brillig VM does not apply a limit to the memory address space,
-/// As a convention, we take use 64 bits. This means that we assume that
-/// memory has 2^64 memory slots.
-pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 64;
+/// As a convention, we take use 32 bits. This means that we assume that
+/// memory has 2^32 memory slots.
+pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
 
 // Registers reserved in runtime for special purposes.
 pub(crate) enum ReservedRegisters {
@@ -73,8 +78,8 @@ impl ReservedRegisters {
 
 /// Brillig context object that is used while constructing the
 /// Brillig bytecode.
-pub(crate) struct BrilligContext {
-    obj: BrilligArtifact,
+pub(crate) struct BrilligContext<F> {
+    obj: BrilligArtifact<F>,
     /// Tracks register allocations
     registers: BrilligRegistersContext,
     /// Context label, must be unique with respect to the function
@@ -86,11 +91,13 @@ pub(crate) struct BrilligContext {
     next_section: usize,
     /// IR printer
     debug_show: DebugShow,
+    /// Counter for generating bigint ids in unconstrained functions
+    bigint_new_id: u32,
 }
 
-impl BrilligContext {
+impl<F: AcirField + DebugToString> BrilligContext<F> {
     /// Initial context state
-    pub(crate) fn new(enable_debug_trace: bool) -> BrilligContext {
+    pub(crate) fn new(enable_debug_trace: bool) -> BrilligContext<F> {
         BrilligContext {
             obj: BrilligArtifact::default(),
             registers: BrilligRegistersContext::new(),
@@ -98,16 +105,22 @@ impl BrilligContext {
             section_label: 0,
             next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),
+            bigint_new_id: 0,
         }
     }
 
+    pub(crate) fn get_new_bigint_id(&mut self) -> u32 {
+        let result = self.bigint_new_id;
+        self.bigint_new_id += 1;
+        result
+    }
     /// Adds a brillig instruction to the brillig byte code
-    fn push_opcode(&mut self, opcode: BrilligOpcode) {
+    fn push_opcode(&mut self, opcode: BrilligOpcode<F>) {
         self.obj.push_opcode(opcode);
     }
 
     /// Returns the artifact
-    pub(crate) fn artifact(self) -> BrilligArtifact {
+    pub(crate) fn artifact(self) -> BrilligArtifact<F> {
         self.obj
     }
 
@@ -122,7 +135,7 @@ pub(crate) mod tests {
     use std::vec;
 
     use acvm::acir::brillig::{
-        ForeignCallParam, ForeignCallResult, HeapVector, MemoryAddress, ValueOrArray,
+        ForeignCallParam, ForeignCallResult, HeapArray, HeapVector, MemoryAddress, ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
     use acvm::brillig_vm::{VMStatus, VM};
@@ -135,12 +148,12 @@ pub(crate) mod tests {
 
     pub(crate) struct DummyBlackBoxSolver;
 
-    impl BlackBoxFunctionSolver for DummyBlackBoxSolver {
+    impl BlackBoxFunctionSolver<FieldElement> for DummyBlackBoxSolver {
         fn schnorr_verify(
             &self,
             _public_key_x: &FieldElement,
             _public_key_y: &FieldElement,
-            _signature: &[u8],
+            _signature: &[u8; 64],
             _message: &[u8],
         ) -> Result<bool, BlackBoxResolutionError> {
             Ok(true)
@@ -159,21 +172,24 @@ pub(crate) mod tests {
         ) -> Result<FieldElement, BlackBoxResolutionError> {
             Ok(6_u128.into())
         }
-        fn fixed_base_scalar_mul(
+        fn multi_scalar_mul(
             &self,
-            _low: &FieldElement,
-            _high: &FieldElement,
-        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Ok((4_u128.into(), 5_u128.into()))
+            _points: &[FieldElement],
+            _scalars_lo: &[FieldElement],
+            _scalars_hi: &[FieldElement],
+        ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
+            Ok((4_u128.into(), 5_u128.into(), 0_u128.into()))
         }
 
         fn ec_add(
             &self,
             _input1_x: &FieldElement,
             _input1_y: &FieldElement,
+            _input1_infinite: &FieldElement,
             _input2_x: &FieldElement,
             _input2_y: &FieldElement,
-        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            _input2_infinite: &FieldElement,
+        ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
             panic!("Path not trodden by this test")
         }
 
@@ -186,17 +202,17 @@ pub(crate) mod tests {
         }
     }
 
-    pub(crate) fn create_context() -> BrilligContext {
+    pub(crate) fn create_context() -> BrilligContext<FieldElement> {
         let mut context = BrilligContext::new(true);
         context.enter_context("test");
         context
     }
 
     pub(crate) fn create_entry_point_bytecode(
-        context: BrilligContext,
+        context: BrilligContext<FieldElement>,
         arguments: Vec<BrilligParameter>,
         returns: Vec<BrilligParameter>,
-    ) -> GeneratedBrillig {
+    ) -> GeneratedBrillig<FieldElement> {
         let artifact = context.artifact();
         let mut entry_point_artifact =
             BrilligContext::new_entry_point_artifact(arguments, returns, "test".to_string());
@@ -206,8 +222,8 @@ pub(crate) mod tests {
 
     pub(crate) fn create_and_run_vm(
         calldata: Vec<FieldElement>,
-        bytecode: &[BrilligOpcode],
-    ) -> (VM<'_, DummyBlackBoxSolver>, usize, usize) {
+        bytecode: &[BrilligOpcode<FieldElement>],
+    ) -> (VM<'_, FieldElement, DummyBlackBoxSolver>, usize, usize) {
         let mut vm = VM::new(calldata, bytecode, vec![], &DummyBlackBoxSolver);
 
         let status = vm.process_opcodes();
@@ -262,11 +278,11 @@ pub(crate) mod tests {
         // uses unresolved jumps which requires a block to be constructed in SSA and
         // we don't need this for Brillig IR tests
         context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 8 });
-        context.push_opcode(BrilligOpcode::Trap);
+        context.push_opcode(BrilligOpcode::Trap { revert_data: HeapArray::default() });
 
         context.stop_instruction();
 
-        let bytecode: Vec<BrilligOpcode> = context.artifact().finish().byte_code;
+        let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
         let number_sequence: Vec<FieldElement> =
             (0_usize..12_usize).map(FieldElement::from).collect();
         let mut vm = VM::new(

@@ -1,3 +1,4 @@
+use acir::FieldElement;
 use nargo::NargoError;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -20,9 +21,6 @@ pub(crate) enum FilesystemError {
 
     #[error(" Error: failed to create output witness file {0}.")]
     OutputWitnessCreationFailed(String),
-
-    #[error(" Error: failed to write output witness file {0}.")]
-    OutputWitnessWriteFailed(String),
 }
 
 #[derive(Debug, Error)]
@@ -37,7 +35,7 @@ pub(crate) enum CliError {
 
     /// Error related to circuit execution
     #[error(transparent)]
-    CircuitExecutionError(#[from] NargoError),
+    CircuitExecutionError(#[from] NargoError<FieldElement>),
 
     /// Input Witness Value Error
     #[error("Error: failed to parse witness value {0}")]

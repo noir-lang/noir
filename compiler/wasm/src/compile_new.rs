@@ -3,11 +3,10 @@ use crate::compile::{
     PathToFileSourceMap,
 };
 use crate::errors::{CompileError, JsCompileError};
-use nargo::artifacts::contract::{ContractArtifact, ContractFunctionArtifact};
+use acvm::acir::circuit::ExpressionWidth;
 use nargo::parse_all;
 use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
-    NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{
     graph::{CrateId, CrateName},
@@ -96,11 +95,14 @@ impl CompilerContext {
         mut self,
         program_width: usize,
     ) -> Result<JsCompileProgramResult, JsCompileError> {
-        let compile_options = CompileOptions::default();
-        let np_language = acvm::acir::circuit::ExpressionWidth::Bounded { width: program_width };
+        let expression_width = if program_width == 0 {
+            ExpressionWidth::Unbounded
+        } else {
+            ExpressionWidth::Bounded { width: 4 }
+        };
+        let compile_options = CompileOptions { expression_width, ..CompileOptions::default() };
 
         let root_crate_id = *self.context.root_crate_id();
-
         let compiled_program =
             compile_main(&mut self.context, root_crate_id, &compile_options, None)
                 .map_err(|errs| {
@@ -112,7 +114,8 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_program = nargo::ops::transform_program(compiled_program, np_language);
+        let optimized_program =
+            nargo::ops::transform_program(compiled_program, compile_options.expression_width);
         let warnings = optimized_program.warnings.clone();
 
         Ok(JsCompileProgramResult::new(optimized_program.into(), warnings))
@@ -122,10 +125,14 @@ impl CompilerContext {
         mut self,
         program_width: usize,
     ) -> Result<JsCompileContractResult, JsCompileError> {
-        let compile_options = CompileOptions::default();
-        let np_language = acvm::acir::circuit::ExpressionWidth::Bounded { width: program_width };
-        let root_crate_id = *self.context.root_crate_id();
+        let expression_width = if program_width == 0 {
+            ExpressionWidth::Unbounded
+        } else {
+            ExpressionWidth::Bounded { width: 4 }
+        };
+        let compile_options = CompileOptions { expression_width, ..CompileOptions::default() };
 
+        let root_crate_id = *self.context.root_crate_id();
         let compiled_contract =
             compile_contract(&mut self.context, root_crate_id, &compile_options)
                 .map_err(|errs| {
@@ -137,20 +144,11 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_contract = nargo::ops::transform_contract(compiled_contract, np_language);
+        let optimized_contract =
+            nargo::ops::transform_contract(compiled_contract, compile_options.expression_width);
+        let warnings = optimized_contract.warnings.clone();
 
-        let functions =
-            optimized_contract.functions.into_iter().map(ContractFunctionArtifact::from).collect();
-
-        let contract_artifact = ContractArtifact {
-            noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
-            name: optimized_contract.name,
-            functions,
-            events: optimized_contract.events,
-            file_map: optimized_contract.file_map,
-        };
-
-        Ok(JsCompileContractResult::new(contract_artifact, optimized_contract.warnings))
+        Ok(JsCompileContractResult::new(optimized_contract.into(), warnings))
     }
 }
 
@@ -166,7 +164,7 @@ pub fn compile_program_(
 
     let compiler_context =
         prepare_compiler_context(entry_point, dependency_graph, file_source_map)?;
-    let program_width = 3;
+    let program_width = 4;
 
     compiler_context.compile_program(program_width)
 }
@@ -183,7 +181,7 @@ pub fn compile_contract_(
 
     let compiler_context =
         prepare_compiler_context(entry_point, dependency_graph, file_source_map)?;
-    let program_width = 3;
+    let program_width = 4;
 
     compiler_context.compile_contract(program_width)
 }

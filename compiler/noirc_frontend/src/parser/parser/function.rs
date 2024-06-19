@@ -1,16 +1,15 @@
 use super::{
     attributes::{attributes, validate_attributes},
-    block, fresh_statement, ident, import_visibility, keyword, nothing, optional_distinctness,
-    optional_visibility, parameter_name_recovery, parameter_recovery, parenthesized, parse_type,
-    pattern, self_parameter, where_clause, NoirParser,
+    block, fresh_statement, ident, keyword, maybe_comp_time, nothing, optional_visibility,
+    parameter_name_recovery, parameter_recovery, parenthesized, parse_type, pattern,
+    self_parameter, where_clause, NoirParser,
+};
+use crate::ast::{
+    FunctionDefinition, FunctionReturnType, Ident, ItemVisibility, NoirFunction, Param, Visibility,
 };
 use crate::parser::labels::ParsingRuleLabel;
 use crate::parser::spanned;
 use crate::token::{Keyword, Token};
-use crate::{
-    Distinctness, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility, NoirFunction,
-    Param, Visibility,
-};
 
 use chumsky::prelude::*;
 
@@ -37,13 +36,13 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
                 attributes,
                 is_unconstrained: modifiers.0,
                 visibility: modifiers.1,
+                is_comptime: modifiers.2,
                 generics,
                 parameters,
                 body,
                 where_clause,
                 return_type: ret.1,
-                return_visibility: ret.0 .1,
-                return_distinctness: ret.0 .0,
+                return_visibility: ret.0,
             }
             .into()
         })
@@ -52,11 +51,14 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
 /// function_modifiers: 'unconstrained'? (visibility)?
 ///
 /// returns (is_unconstrained, visibility) for whether each keyword was present
-fn function_modifiers() -> impl NoirParser<(bool, ItemVisibility)> {
+fn function_modifiers() -> impl NoirParser<(bool, ItemVisibility, bool)> {
     keyword(Keyword::Unconstrained)
         .or_not()
         .then(import_visibility())
-        .map(|(unconstrained, visibility)| (unconstrained.is_some(), visibility))
+        .then(maybe_comp_time())
+        .map(|((unconstrained, visibility), comptime)| {
+            (unconstrained.is_some(), visibility, comptime)
+        })
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list
@@ -74,18 +76,15 @@ pub(super) fn generics() -> impl NoirParser<Vec<Ident>> {
         .map(|opt| opt.unwrap_or_default())
 }
 
-fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), FunctionReturnType)> {
+pub(super) fn function_return_type() -> impl NoirParser<(Visibility, FunctionReturnType)> {
+    #[allow(deprecated)]
     just(Token::Arrow)
-        .ignore_then(optional_distinctness())
-        .then(optional_visibility())
+        .ignore_then(optional_visibility())
         .then(spanned(parse_type()))
         .or_not()
         .map_with_span(|ret, span| match ret {
-            Some((head, (ty, _))) => (head, FunctionReturnType::Ty(ty)),
-            None => (
-                (Distinctness::DuplicationAllowed, Visibility::Private),
-                FunctionReturnType::Default(span),
-            ),
+            Some((visibility, (ty, _))) => (visibility, FunctionReturnType::Ty(ty)),
+            None => (Visibility::Private, FunctionReturnType::Default(span)),
         })
 }
 
@@ -155,9 +154,9 @@ mod test {
                 "fn f(f: pub Field, y : Field, z : Field) -> u8 { x + a }",
                 "fn f<T>(f: pub Field, y : T, z : Field) -> u8 { x + a }",
                 "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
-                "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }",
-                "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
-                "fn f<T>(f: pub Field, y : T, z : comptime Field) -> u8 { x + a }",
+                "fn main(x: pub u8, y: pub u8) -> pub [u8; 2] { [x, y] }",
+                "fn f(f: pub Field, y : Field, z : Field) -> u8 { x + a }",
+                "fn f<T>(f: pub Field, y : T, z : Field) -> u8 { x + a }",
                 "fn func_name<T>(f: Field, y : T) where T: SomeTrait {}",
                 "fn func_name<T>(f: Field, y : T) where T: SomeTrait + SomeTrait2 {}",
                 "fn func_name<T>(f: Field, y : T) where T: SomeTrait, T: SomeTrait2 {}",
@@ -174,6 +173,11 @@ mod test {
                 "fn func_name<T>(f: Field, y : T) where T: SomeTrait + {}",
                 // The following should produce compile error on later stage. From the parser's perspective it's fine
                 "fn func_name<A>(f: Field, y : Field, z : Field) where T: SomeTrait {}",
+                // TODO: this fails with known EOF != EOF error
+                // https://github.com/noir-lang/noir/issues/4763
+                // fn func_name(x: impl Eq) {} with error Expected an end of input but found end of input
+                // "fn func_name(x: impl Eq) {}",
+                "fn func_name<T>(x: impl Eq, y : T) where T: SomeTrait + Eq {}",
             ],
         );
 

@@ -1,10 +1,11 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt;
 use std::ops::Deref;
 
-use arena::{Arena, Index};
 use fm::FileId;
 use iter_extended::vecmap;
+use noirc_arena::{Arena, Index};
 use noirc_errors::{Location, Span, Spanned};
 use petgraph::algo::tarjan_scc;
 use petgraph::prelude::DiGraph;
@@ -12,11 +13,15 @@ use petgraph::prelude::NodeIndex as PetGraphIndex;
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
+use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::QuotedType;
 
+use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
 use crate::hir::resolution::errors::ResolverError;
+use crate::hir_def::expr::HirIdent;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::traits::TraitImpl;
 use crate::hir_def::traits::{Trait, TraitConstraint};
@@ -28,8 +33,7 @@ use crate::hir_def::{
 };
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
-    BinaryOpKind, FunctionDefinition, Generics, ItemVisibility, Shared, TypeAlias, TypeBindings,
-    TypeVariable, TypeVariableId, TypeVariableKind,
+    Generics, Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -110,7 +114,9 @@ pub struct NodeInterner {
     // The purpose for this hashmap is to detect duplication of trait implementations ( if any )
     //
     // Indexed by TraitImplIds
-    pub(crate) trait_implementations: Vec<Shared<TraitImpl>>,
+    pub(crate) trait_implementations: HashMap<TraitImplId, Shared<TraitImpl>>,
+
+    next_trait_implementation_id: usize,
 
     /// Trait implementations on each type. This is expected to always have the same length as
     /// `self.trait_implementations`.
@@ -146,6 +152,7 @@ pub struct NodeInterner {
     // Maps GlobalId -> GlobalInfo
     // NOTE: currently only used for checking repeat globals and restricting their scope to a module
     globals: Vec<GlobalInfo>,
+    global_attributes: HashMap<GlobalId, Vec<SecondaryAttribute>>,
 
     next_type_variable_id: std::cell::Cell<usize>,
 
@@ -222,10 +229,10 @@ pub enum TraitImplKind {
 ///
 /// Additionally, types can define specialized impls with methods of the same name
 /// as long as these specialized impls do not overlap. E.g. `impl Struct<u32>` and `impl Struct<u64>`
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Methods {
-    direct: Vec<FuncId>,
-    trait_impl_methods: Vec<FuncId>,
+    pub direct: Vec<FuncId>,
+    pub trait_impl_methods: Vec<FuncId>,
 }
 
 /// All the information from a function that is filled out during definition collection rather than
@@ -241,6 +248,10 @@ pub struct FunctionModifiers {
     pub attributes: Attributes,
 
     pub is_unconstrained: bool,
+
+    pub generic_count: usize,
+
+    pub is_comptime: bool,
 }
 
 impl FunctionModifiers {
@@ -253,6 +264,8 @@ impl FunctionModifiers {
             visibility: ItemVisibility::Public,
             attributes: Attributes::empty(),
             is_unconstrained: false,
+            generic_count: 0,
+            is_comptime: false,
         }
     }
 }
@@ -268,7 +281,7 @@ impl DefinitionId {
 }
 
 /// An ID for a global value
-#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
 pub struct GlobalId(usize);
 
 impl GlobalId {
@@ -307,6 +320,12 @@ impl FuncId {
     // after resolution
     pub fn dummy_id() -> FuncId {
         FuncId(Index::dummy())
+    }
+}
+
+impl fmt::Display for FuncId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
     }
 }
 
@@ -450,6 +469,7 @@ pub struct GlobalInfo {
     pub local_id: LocalModuleId,
     pub location: Location,
     pub let_statement: StmtId,
+    pub value: Option<comptime::Value>,
 }
 
 impl Default for NodeInterner {
@@ -471,7 +491,8 @@ impl Default for NodeInterner {
             struct_attributes: HashMap::new(),
             type_aliases: Vec::new(),
             traits: HashMap::new(),
-            trait_implementations: Vec::new(),
+            trait_implementations: HashMap::new(),
+            next_trait_implementation_id: 0,
             trait_implementation_map: HashMap::new(),
             selected_trait_implementations: HashMap::new(),
             operator_traits: HashMap::new(),
@@ -480,6 +501,7 @@ impl Default for NodeInterner {
             field_indices: HashMap::new(),
             next_type_variable_id: std::cell::Cell::new(0),
             globals: Vec::new(),
+            global_attributes: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
             type_alias_ref: Vec::new(),
@@ -520,7 +542,7 @@ impl NodeInterner {
         self.id_to_type.insert(expr_id.into(), typ);
     }
 
-    /// Store the type for an interned expression
+    /// Store the type for a definition
     pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
         self.definition_to_type.insert(definition_id, typ);
     }
@@ -647,11 +669,15 @@ impl NodeInterner {
         local_id: LocalModuleId,
         let_statement: StmtId,
         file: FileId,
+        attributes: Vec<SecondaryAttribute>,
+        mutable: bool,
     ) -> GlobalId {
         let id = GlobalId(self.globals.len());
         let location = Location::new(ident.span(), file);
         let name = ident.to_string();
-        let definition_id = self.push_definition(name, false, DefinitionKind::Global(id), location);
+        let definition_id =
+            self.push_definition(name, mutable, DefinitionKind::Global(id), location);
+
         self.globals.push(GlobalInfo {
             id,
             definition_id,
@@ -659,7 +685,9 @@ impl NodeInterner {
             local_id,
             let_statement,
             location,
+            value: None,
         });
+        self.global_attributes.insert(id, attributes);
         id
     }
 
@@ -673,9 +701,14 @@ impl NodeInterner {
         name: Ident,
         local_id: LocalModuleId,
         file: FileId,
+        attributes: Vec<SecondaryAttribute>,
+        mutable: bool,
     ) -> GlobalId {
         let statement = self.push_stmt(HirStatement::Error);
-        self.push_global(name, local_id, statement, file)
+        let span = name.span();
+        let id = self.push_global(name, local_id, statement, file, attributes, mutable);
+        self.push_stmt_location(statement, span, file);
+        id
     }
 
     /// Intern an empty function.
@@ -753,6 +786,8 @@ impl NodeInterner {
             visibility: function.visibility,
             attributes: function.attributes.clone(),
             is_unconstrained: function.is_unconstrained,
+            generic_count: function.generics.len(),
+            is_comptime: function.is_comptime,
         };
         self.push_function_definition(id, modifiers, module, location)
     }
@@ -791,6 +826,21 @@ impl NodeInterner {
         self.function_modules[&func]
     }
 
+    /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`
+    pub fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
+        if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(expr) {
+            if let Some(DefinitionKind::Function(func_id)) =
+                self.try_definition(id).map(|def| &def.kind)
+            {
+                Some(*func_id)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
     /// Returns the interned HIR function corresponding to `func_id`
     //
     // Cloning HIR structures is cheap, so we return owned structures
@@ -812,10 +862,10 @@ impl NodeInterner {
         self.func_meta.get(func_id)
     }
 
-    pub fn function_ident(&self, func_id: &FuncId) -> crate::Ident {
+    pub fn function_ident(&self, func_id: &FuncId) -> crate::ast::Ident {
         let name = self.function_name(func_id).to_owned();
         let span = self.function_meta(func_id).name.location.span;
-        crate::Ident(Spanned::from(span, name))
+        crate::ast::Ident(Spanned::from(span, name))
     }
 
     pub fn function_name(&self, func_id: &FuncId) -> &str {
@@ -838,6 +888,10 @@ impl NodeInterner {
         &self.struct_attributes[struct_id]
     }
 
+    pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {
+        &self.global_attributes[global_id]
+    }
+
     /// Returns the interned statement corresponding to `stmt_id`
     pub fn statement(&self, stmt_id: &StmtId) -> HirStatement {
         let def =
@@ -857,8 +911,9 @@ impl NodeInterner {
         match def {
             Node::Statement(hir_stmt) => match hir_stmt {
                 HirStatement::Let(let_stmt) => Some(let_stmt.clone()),
-                _ => {
-                    panic!("ice: all globals should correspond to a let statement in the interner")
+                HirStatement::Error => None,
+                other => {
+                    panic!("ice: all globals should correspond to a let statement in the interner: {other:?}")
                 }
             },
             _ => panic!("ice: all globals should correspond to a statement in the interner"),
@@ -885,6 +940,13 @@ impl NodeInterner {
         &self.definitions[id.0]
     }
 
+    /// Retrieves the definition where the given id was defined.
+    /// This will panic if given DefinitionId::dummy_id. Use try_definition for
+    /// any call with a possibly undefined variable.
+    pub fn definition_mut(&mut self, id: DefinitionId) -> &mut DefinitionInfo {
+        &mut self.definitions[id.0]
+    }
+
     /// Tries to retrieve the given id's definition.
     /// This function should be used during name resolution or type checking when we cannot be sure
     /// all variables have corresponding definitions (in case of an error in the user's code).
@@ -907,8 +969,38 @@ impl NodeInterner {
         self.id_location(expr_id)
     }
 
+    pub fn statement_span(&self, stmt_id: StmtId) -> Span {
+        self.id_location(stmt_id).span
+    }
+
+    pub fn statement_location(&self, stmt_id: StmtId) -> Location {
+        self.id_location(stmt_id)
+    }
+
+    pub fn push_stmt_location(&mut self, id: StmtId, span: Span, file: FileId) {
+        self.id_to_location.insert(id.into(), Location::new(span, file));
+    }
+
     pub fn get_struct(&self, id: StructId) -> Shared<StructType> {
         self.structs[&id].clone()
+    }
+
+    pub fn get_struct_methods(&self, id: StructId) -> Vec<Methods> {
+        self.struct_methods
+            .keys()
+            .filter_map(|(key_id, name)| {
+                if key_id == &id {
+                    Some(
+                        self.struct_methods
+                            .get(&(*key_id, name.clone()))
+                            .expect("get_struct_methods given invalid StructId")
+                            .clone(),
+                    )
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
@@ -931,9 +1023,18 @@ impl NodeInterner {
         &self.globals[global_id.0]
     }
 
+    pub fn get_global_mut(&mut self, global_id: GlobalId) -> &mut GlobalInfo {
+        &mut self.globals[global_id.0]
+    }
+
     pub fn get_global_definition(&self, global_id: GlobalId) -> &DefinitionInfo {
         let global = self.get_global(global_id);
         self.definition(global.definition_id)
+    }
+
+    pub fn get_global_definition_mut(&mut self, global_id: GlobalId) -> &mut DefinitionInfo {
+        let global = self.get_global(global_id);
+        self.definition_mut(global.definition_id)
     }
 
     pub fn get_all_globals(&self) -> &[GlobalInfo] {
@@ -1069,8 +1170,12 @@ impl NodeInterner {
         }
     }
 
+    pub fn try_get_trait_implementation(&self, id: TraitImplId) -> Option<Shared<TraitImpl>> {
+        self.trait_implementations.get(&id).cloned()
+    }
+
     pub fn get_trait_implementation(&self, id: TraitImplId) -> Shared<TraitImpl> {
-        self.trait_implementations[id.0].clone()
+        self.trait_implementations[&id].clone()
     }
 
     /// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the
@@ -1305,9 +1410,14 @@ impl NodeInterner {
         impl_generics: Generics,
         trait_impl: Shared<TraitImpl>,
     ) -> Result<(), (Span, FileId)> {
-        assert_eq!(impl_id.0, self.trait_implementations.len(), "trait impl defined out of order");
+        self.trait_implementations.insert(impl_id, trait_impl.clone());
 
-        self.trait_implementations.push(trait_impl.clone());
+        // Avoid adding error types to impls since they'll conflict with every other type.
+        // We don't need to return an error since we expect an error to already be issued when
+        // the error type is created.
+        if object_type == Type::Error {
+            return Ok(());
+        }
 
         // Replace each generic with a fresh type variable
         let substitutions = impl_generics
@@ -1364,6 +1474,7 @@ impl NodeInterner {
         force_type_check: bool,
     ) -> Option<FuncId> {
         let methods = self.struct_methods.get(&(id, method_name.to_owned()));
+
         // If there is only one method, just return it immediately.
         // It will still be typechecked later.
         if !force_type_check {
@@ -1410,10 +1521,10 @@ impl NodeInterner {
     }
 
     /// Returns what the next trait impl id is expected to be.
-    /// Note that this does not actually reserve the slot so care should
-    /// be taken that the next trait impl added matches this ID.
-    pub fn next_trait_impl_id(&self) -> TraitImplId {
-        TraitImplId(self.trait_implementations.len())
+    pub fn next_trait_impl_id(&mut self) -> TraitImplId {
+        let next_id = self.next_trait_implementation_id;
+        self.next_trait_implementation_id += 1;
+        TraitImplId(next_id)
     }
 
     /// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
@@ -1695,7 +1806,7 @@ enum TypeMethodKey {
     Tuple,
     Function,
     Generic,
-    Code,
+    Quoted(QuotedType),
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
@@ -1715,7 +1826,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _, _) => Some(Function),
         Type::NamedGeneric(_, _) => Some(Generic),
-        Type::Code => Some(Code),
+        Type::Quoted(quoted) => Some(Quoted(*quoted)),
         Type::MutableReference(element) => get_type_method_key(element),
         Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
 

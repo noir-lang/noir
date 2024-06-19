@@ -1,14 +1,10 @@
 ---
 title: Tooling
-Description: This section provides information about the various tools and utilities available for Noir development. It covers the Noir playground, IDE tools, Codespaces, and community projects.
+Description: This section provides information about the various tools and utilities available for Noir development. It covers IDE tools, Codespaces, and community projects.
 Keywords: [Noir, Development, Playground, IDE Tools, Language Service Provider, VS Code Extension, Codespaces, noir-starter, Community Projects, Awesome Noir Repository, Developer Tooling]
 ---
 
 Noir is meant to be easy to develop with. For that reason, a number of utilities have been put together to ease the development process as much as feasible in the zero-knowledge world.
-
-## Playground
-
-The Noir playground is an easy way to test small ideas, share snippets, and integrate in other websites. You can access it at [play.noir-lang.org](https://play.noir-lang.org).
 
 ## IDE tools
 

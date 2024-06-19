@@ -1,0 +1,7 @@
+[package]
+name = "comptime_mut_global"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.28.0"
+
+[dependencies]

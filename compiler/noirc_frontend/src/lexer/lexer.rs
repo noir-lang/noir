@@ -2,7 +2,9 @@ use crate::token::{Attribute, DocStyle};
 
 use super::{
     errors::LexerErrorKind,
-    token::{IntType, Keyword, SpannedToken, Token, Tokens},
+    token::{
+        token_to_borrowed_token, BorrowedToken, IntType, Keyword, SpannedToken, Token, Tokens,
+    },
 };
 use acvm::FieldElement;
 use noirc_errors::{Position, Span};
@@ -20,6 +22,21 @@ pub struct Lexer<'a> {
 }
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
+
+pub(crate) fn from_spanned_token_result(
+    token_result: &SpannedTokenResult,
+) -> Result<(usize, BorrowedToken<'_>, usize), LexerErrorKind> {
+    token_result
+        .as_ref()
+        .map(|spanned_token| {
+            (
+                spanned_token.to_span().start() as usize,
+                token_to_borrowed_token(spanned_token.into()),
+                spanned_token.to_span().end() as usize,
+            )
+        })
+        .map_err(Clone::clone)
+}
 
 impl<'a> Lexer<'a> {
     /// Given a source file of noir code, return all the tokens in the file
@@ -94,7 +111,7 @@ impl<'a> Lexer<'a> {
 
     fn next_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
-            Some(x) if x.is_whitespace() => {
+            Some(x) if Self::is_code_whitespace(x) => {
                 let spanned = self.eat_whitespace(x);
                 if self.skip_whitespaces {
                     self.next_token()
@@ -124,6 +141,7 @@ impl<'a> Lexer<'a> {
             Some('}') => self.single_char_token(Token::RightBrace),
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
+            Some('$') => self.single_char_token(Token::DollarSign),
             Some('"') => self.eat_string_literal(),
             Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('r') => self.eat_raw_string_or_alpha_numeric(),
@@ -560,16 +578,21 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn is_code_whitespace(c: char) -> bool {
+        c == '\t' || c == '\n' || c == '\r' || c == ' '
+    }
+
     /// Skips white space. They are not significant in the source language
     fn eat_whitespace(&mut self, initial_char: char) -> SpannedToken {
         let start = self.position;
-        let whitespace = self.eat_while(initial_char.into(), |ch| ch.is_whitespace());
+        let whitespace = self.eat_while(initial_char.into(), Self::is_code_whitespace);
         SpannedToken::new(Token::Whitespace(whitespace), Span::inclusive(start, self.position))
     }
 }
 
 impl<'a> Iterator for Lexer<'a> {
     type Item = SpannedTokenResult;
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
             None
@@ -578,10 +601,12 @@ impl<'a> Iterator for Lexer<'a> {
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
+
     #[test]
     fn test_single_double_char() {
         let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
@@ -1160,7 +1185,7 @@ mod tests {
     fn test_big_list_of_naughty_strings() {
         use std::mem::discriminant;
 
-        let blns_contents = include_str!(env!("BLNS_JSON_PATH"));
+        let blns_contents = include_str!("./blns/blns.base64.json");
         let blns_base64: Vec<String> =
             serde_json::from_str(blns_contents).expect("BLNS json invalid");
         for blns_base64_str in blns_base64 {

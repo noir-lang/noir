@@ -13,33 +13,26 @@ import BlackBoxInfo from '@site/src/components/Notes/_blackbox.mdx';
 ## sha256
 
 Given an array of bytes, returns the resulting sha256 hash.
-See sha256_slice for a version that works directly on slices.
+Specify a message_size to hash only the first `message_size` bytes of the input.
 
 #include_code sha256 noir_stdlib/src/hash.nr rust
 
 example:
+#include_code sha256_var test_programs/execution_success/sha256/src/main.nr rust
 
 ```rust
 fn main() {
     let x = [163, 117, 178, 149]; // some random bytes
-    let hash = std::hash::sha256(x);
+    let hash = std::sha256::sha256_var(x, 4);
 }
 ```
 
-<BlackBoxInfo />
-
-## sha256_slice
-
-A version of sha256 specialized to slices:
-
-#include_code sha256_slice noir_stdlib/src/hash.nr rust
 
 <BlackBoxInfo />
 
 ## blake2s
 
 Given an array of bytes, returns an array with the Blake2 hash
-See blake2s_slice for a version that works directly on slices.
 
 #include_code blake2s noir_stdlib/src/hash.nr rust
 
@@ -54,18 +47,9 @@ fn main() {
 
 <BlackBoxInfo />
 
-## blake2s_slice
-
-A version of blake2s specialized to slices:
-
-#include_code blake2s_slice noir_stdlib/src/hash.nr rust
-
-<BlackBoxInfo />
-
 ## blake3
 
 Given an array of bytes, returns an array with the Blake3 hash
-See blake3_slice for a version that works directly on slices.
 
 #include_code blake3 noir_stdlib/src/hash.nr rust
 
@@ -80,18 +64,9 @@ fn main() {
 
 <BlackBoxInfo />
 
-## blake3_slice
-
-A version of blake3 specialized to slices:
-
-#include_code blake3_slice noir_stdlib/src/hash.nr rust
-
-<BlackBoxInfo />
-
 ## pedersen_hash
 
 Given an array of Fields, returns the Pedersen hash.
-See pedersen_hash_slice for a version that works directly on slices.
 
 #include_code pedersen_hash noir_stdlib/src/hash.nr rust
 
@@ -101,18 +76,9 @@ example:
 
 <BlackBoxInfo />
 
-## pedersen_hash_slice
-
-Given a slice of Fields, returns the Pedersen hash.
-
-#include_code pedersen_hash_slice noir_stdlib/src/hash.nr rust
-
-<BlackBoxInfo />
-
 ## pedersen_commitment
 
 Given an array of Fields, returns the Pedersen commitment.
-See pedersen_commitment_slice for a version that works directly on slices.
 
 #include_code pedersen_commitment noir_stdlib/src/hash.nr rust
 
@@ -122,35 +88,17 @@ example:
 
 <BlackBoxInfo />
 
-## pedersen_commitment_slice
-
-Given a slice of Fields, returns the Pedersen commitment.
-
-#include_code pedersen_commitment_slice noir_stdlib/src/hash.nr rust
-
-<BlackBoxInfo />
-
 ## keccak256
 
 Given an array of bytes (`u8`), returns the resulting keccak hash as an array of
 32 bytes (`[u8; 32]`). Specify a message_size to hash only the first
-`message_size` bytes of the input. See keccak256_slice for a version that works
-directly on slices.
+`message_size` bytes of the input.
 
 #include_code keccak256 noir_stdlib/src/hash.nr rust
 
 example:
 
 #include_code keccak256 test_programs/execution_success/keccak256/src/main.nr rust
-
-<BlackBoxInfo />
-
-## keccak256_slice
-
-Given a slice of bytes (`u8`), returns the resulting keccak hash as an array of
-32 bytes (`[u8; 32]`).
-
-#include_code keccak256_slice noir_stdlib/src/hash.nr rust
 
 <BlackBoxInfo />
 

@@ -11,8 +11,8 @@ struct Poseidon2 {
 }
 
 impl Poseidon2 {
-
-    pub fn hash<N>(input: [Field; N], message_size: u64) -> Field {
+    #[no_predicates]
+    pub fn hash<N>(input: [Field; N], message_size: u32) -> Field {
         if message_size == N {
             Poseidon2::hash_internal(input, N, false)
         } else {
@@ -95,7 +95,7 @@ impl Poseidon2 {
         result
     }
 
-    fn hash_internal<N>(input: [Field; N], in_len: u64, is_variable_length: bool) -> Field {
+    fn hash_internal<N>(input: [Field; N], in_len: u32, is_variable_length: bool) -> Field {
         let two_pow_64 = 18446744073709551616;
         let iv : Field = (in_len as Field) * two_pow_64;
         let mut sponge = Poseidon2::new(iv);
@@ -117,30 +117,27 @@ impl Poseidon2 {
 
 struct Poseidon2Hasher{
     _state: [Field],
-    _len: u64,
 }
 
 impl Hasher for Poseidon2Hasher {
     fn finish(self) -> Field {
         let iv : Field = (self._state.len() as Field)*18446744073709551616;    // iv = (self._state.len() << 64)
         let mut sponge = Poseidon2::new(iv);
-        for i in 0..self._len {
+        for i in 0..self._state.len() {
             sponge.absorb(self._state[i]);
         }
         sponge.squeeze()
     }
 
-    fn write(&mut self, input: [Field]){
-        self._state = self._state.append(input);
-        self._len += input.len();
+    fn write(&mut self, input: Field){
+        self._state = self._state.push_back(input);
     }
 }
 
-impl Default for Poseidon2Hasher{
-    fn default() -> Self{
-        Poseidon2Hasher{
+impl Default for Poseidon2Hasher {
+    fn default() -> Self {
+        Poseidon2Hasher {
             _state: &[],
-            _len: 0,
         }
     }
 }
