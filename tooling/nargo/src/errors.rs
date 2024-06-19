@@ -6,7 +6,7 @@ use acvm::{
         ResolvedOpcodeLocation,
     },
     pwg::{ErrorLocation, OpcodeResolutionError},
-    FieldElement,
+    AcirField, FieldElement,
 };
 use noirc_abi::{display_abi_error, Abi, AbiErrorType};
 use noirc_errors::{
@@ -40,21 +40,21 @@ impl From<ReportedErrors> for CompileError {
 }
 
 #[derive(Debug, Error)]
-pub enum NargoError {
+pub enum NargoError<F: AcirField> {
     /// Error while compiling Noir into ACIR.
     #[error("Failed to compile circuit")]
     CompilationError,
 
     /// ACIR circuit execution error
     #[error(transparent)]
-    ExecutionError(#[from] ExecutionError),
+    ExecutionError(#[from] ExecutionError<F>),
 
     /// Oracle handling error
     #[error(transparent)]
     ForeignCallError(#[from] ForeignCallError),
 }
 
-impl NargoError {
+impl<F: AcirField> NargoError<F> {
     /// Extracts the user defined failure message from the ExecutionError
     /// If one exists.
     ///
@@ -94,17 +94,17 @@ impl NargoError {
 }
 
 #[derive(Debug, Error)]
-pub enum ExecutionError {
+pub enum ExecutionError<F: AcirField> {
     #[error("Failed assertion")]
-    AssertionFailed(ResolvedAssertionPayload<FieldElement>, Vec<ResolvedOpcodeLocation>),
+    AssertionFailed(ResolvedAssertionPayload<F>, Vec<ResolvedOpcodeLocation>),
 
     #[error("Failed to solve program: '{}'", .0)]
-    SolvingError(OpcodeResolutionError<FieldElement>, Option<Vec<ResolvedOpcodeLocation>>),
+    SolvingError(OpcodeResolutionError<F>, Option<Vec<ResolvedOpcodeLocation>>),
 }
 
 /// Extracts the opcode locations from a nargo error.
-fn extract_locations_from_error(
-    error: &ExecutionError,
+fn extract_locations_from_error<F: AcirField>(
+    error: &ExecutionError<F>,
     debug: &[DebugInfo],
 ) -> Option<Vec<Location>> {
     let mut opcode_locations = match error {
@@ -163,7 +163,7 @@ fn extract_locations_from_error(
 
 fn extract_message_from_error(
     error_types: &BTreeMap<ErrorSelector, AbiErrorType>,
-    nargo_err: &NargoError,
+    nargo_err: &NargoError<FieldElement>,
 ) -> String {
     match nargo_err {
         NargoError::ExecutionError(ExecutionError::AssertionFailed(
@@ -198,7 +198,7 @@ fn extract_message_from_error(
 
 /// Tries to generate a runtime diagnostic from a nargo error. It will successfully do so if it's a runtime error with a call stack.
 pub fn try_to_diagnose_runtime_error(
-    nargo_err: &NargoError,
+    nargo_err: &NargoError<FieldElement>,
     abi: &Abi,
     debug: &[DebugInfo],
 ) -> Option<FileDiagnostic> {

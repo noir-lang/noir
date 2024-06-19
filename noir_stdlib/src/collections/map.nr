@@ -19,7 +19,7 @@ struct HashMap<K, V, N, B> {
     _table: [Slot<K, V>; N],
 
     // Amount of valid elements in the map.
-    _len: u64,
+    _len: u32,
 
     _build_hasher: B
 }
@@ -262,14 +262,14 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
 
     // Amount of active key-value entries.
     // docs:start:len
-    pub fn len(self) -> u64 {
+    pub fn len(self) -> u32 {
         // docs:end:len
         self._len
     }
 
     // Get the compile-time map capacity.
     // docs:start:capacity
-    pub fn capacity(_self: Self) -> u64 {
+    pub fn capacity(_self: Self) -> u32 {
         // docs:end:capacity
         N
     }
@@ -292,7 +292,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
 
         for attempt in 0..N {
             if !should_break {
-                let index = self.quadratic_probe(hash, attempt as u64);
+                let index = self.quadratic_probe(hash, attempt as u32);
                 let slot = self._table[index];
 
                 // Not marked as deleted and has key-value.
@@ -328,7 +328,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
 
         for attempt in 0..N {
             if !should_break {
-                let index = self.quadratic_probe(hash, attempt as u64);
+                let index = self.quadratic_probe(hash, attempt as u32);
                 let mut slot = self._table[index];
                 let mut insert = false;
 
@@ -368,7 +368,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
 
         for attempt in 0..N {
             if !should_break {
-                let index = self.quadratic_probe(hash, attempt as u64);
+                let index = self.quadratic_probe(hash, attempt as u32);
                 let mut slot = self._table[index];
 
                 // Not marked as deleted and has key-value.
@@ -389,21 +389,21 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     fn hash(
         self,
         key: K
-    ) -> u64
+    ) -> u32
     where
         K: Hash,
         B: BuildHasher<H>,
         H: Hasher {
         let mut hasher = self._build_hasher.build_hasher();
         key.hash(&mut hasher);
-        hasher.finish() as u64
+        hasher.finish() as u32
     }
 
     // Probing scheme: quadratic function.
     // We use 0.5 constant near variadic attempt and attempt^2 monomials.
     // This ensures good uniformity of distribution for table sizes
     // equal to prime numbers or powers of two. 
-    fn quadratic_probe(_self: Self, hash: u64, attempt: u64) -> u64 {
+    fn quadratic_probe(_self: Self, hash: u32, attempt: u32) -> u32 {
         (hash + (attempt + attempt * attempt) / 2) % N
     }
 

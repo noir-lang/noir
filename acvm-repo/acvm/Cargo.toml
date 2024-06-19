@@ -2,7 +2,7 @@
 name = "acvm"
 description = "The virtual machine that processes ACIR given a backend/proof system."
 # x-release-please-start-version
-version = "0.46.0"
+version = "0.47.0"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -16,6 +16,7 @@ repository.workspace = true
 num-bigint.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+serde.workspace = true
 
 acir.workspace = true
 brillig_vm.workspace = true
@@ -36,7 +37,4 @@ bls12_381 = [
 ]
 
 [dev-dependencies]
-rand = "0.8.5"
-proptest = "1.2.0"
-paste = "1.0.14"
 ark-bls12-381 = { version = "^0.4.0", default-features = false, features = ["curve"] }

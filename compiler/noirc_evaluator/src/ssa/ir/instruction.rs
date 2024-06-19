@@ -67,6 +67,7 @@ pub(crate) enum Intrinsic {
     AsField,
     AsWitness,
     IsUnconstrained,
+    DerivePedersenGenerators,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -92,6 +93,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::AsField => write!(f, "as_field"),
             Intrinsic::AsWitness => write!(f, "as_witness"),
             Intrinsic::IsUnconstrained => write!(f, "is_unconstrained"),
+            Intrinsic::DerivePedersenGenerators => write!(f, "derive_pedersen_generators"),
         }
     }
 }
@@ -120,7 +122,8 @@ impl Intrinsic {
             | Intrinsic::StrAsBytes
             | Intrinsic::FromField
             | Intrinsic::AsField
-            | Intrinsic::IsUnconstrained => false,
+            | Intrinsic::IsUnconstrained
+            | Intrinsic::DerivePedersenGenerators => false,
 
             // Some black box functions have side-effects
             Intrinsic::BlackBox(func) => matches!(
@@ -155,6 +158,7 @@ impl Intrinsic {
             "as_field" => Some(Intrinsic::AsField),
             "as_witness" => Some(Intrinsic::AsWitness),
             "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
+            "derive_pedersen_generators" => Some(Intrinsic::DerivePedersenGenerators),
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }
@@ -580,7 +584,7 @@ impl Instruction {
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, _)), Some(index)) = (array, index) {
                     let index =
-                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                        index.try_to_u32().expect("Expected array index to fit in u32") as usize;
                     if index < array.len() {
                         return SimplifiedTo(array[index]);
                     }
@@ -592,7 +596,7 @@ impl Instruction {
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, element_type)), Some(index)) = (array, index) {
                     let index =
-                        index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                        index.try_to_u32().expect("Expected array index to fit in u32") as usize;
 
                     if index < array.len() {
                         let new_array = dfg.make_array(array.update(index, *value), element_type);

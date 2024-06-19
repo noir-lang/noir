@@ -4,11 +4,9 @@ use crate::compile::{
 };
 use crate::errors::{CompileError, JsCompileError};
 use acvm::acir::circuit::ExpressionWidth;
-use nargo::artifacts::contract::{ContractArtifact, ContractFunctionArtifact};
 use nargo::parse_all;
 use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
-    NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{
     graph::{CrateId, CrateName},
@@ -148,19 +146,9 @@ impl CompilerContext {
 
         let optimized_contract =
             nargo::ops::transform_contract(compiled_contract, compile_options.expression_width);
+        let warnings = optimized_contract.warnings.clone();
 
-        let functions =
-            optimized_contract.functions.into_iter().map(ContractFunctionArtifact::from).collect();
-
-        let contract_artifact = ContractArtifact {
-            noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
-            name: optimized_contract.name,
-            functions,
-            outputs: optimized_contract.outputs.into(),
-            file_map: optimized_contract.file_map,
-        };
-
-        Ok(JsCompileContractResult::new(contract_artifact, optimized_contract.warnings))
+        Ok(JsCompileContractResult::new(optimized_contract.into(), warnings))
     }
 }
 

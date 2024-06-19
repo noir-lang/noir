@@ -3,7 +3,7 @@ mod utils;
 
 use noirc_errors::Location;
 use transforms::{
-    compute_note_hash_and_nullifier::inject_compute_note_hash_and_nullifier,
+    compute_note_hash_and_optionally_a_nullifier::inject_compute_note_hash_and_optionally_a_nullifier,
     contract_interface::{
         generate_contract_interface, stub_function, update_fn_signatures_in_contract_interface,
     },
@@ -236,7 +236,7 @@ fn transform_hir(
 ) -> Result<(), (AztecMacroError, FileId)> {
     if has_aztec_dependency(crate_id, context) {
         transform_events(crate_id, context)?;
-        inject_compute_note_hash_and_nullifier(crate_id, context)?;
+        inject_compute_note_hash_and_optionally_a_nullifier(crate_id, context)?;
         assign_storage_slots(crate_id, context)?;
         inject_note_exports(crate_id, context)?;
         update_fn_signatures_in_contract_interface(crate_id, context)

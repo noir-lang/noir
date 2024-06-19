@@ -12,11 +12,10 @@ There are currently two ways of debugging Noir programs:
 1. From VS Code, via the [vscode-noir](https://github.com/noir-lang/vscode-noir) extension. You can install it via the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=noir-lang.vscode-noir).
 2. Via the REPL debugger, which ships with Nargo.
 
-In order to use either version of the debugger, you will need to install recent enough versions of Noir, [Nargo](../getting_started/installation) and vscode-noir:
+In order to use either version of the debugger, you will need to install recent enough versions of Noir, [Nargo](../getting_started/installation/index.md) and vscode-noir:
 
-- Noir 0.xx 
-- Nargo 0.xx
-- vscode-noir 0.xx
+- Noir & Nargo ≥0.28.0
+- Noir's VS Code extension ≥0.0.11
 
 :::info
 At the moment, the debugger supports debugging binary projects, but not contracts.

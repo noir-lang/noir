@@ -1,22 +1,42 @@
 use super::{
-    expression_with_precedence, keyword, nothing, parenthesized, NoirParser, ParserError,
+    expression_with_precedence, keyword, nothing, parenthesized, path, NoirParser, ParserError,
     ParserErrorReason, Precedence,
 };
-use crate::ast::{UnresolvedType, UnresolvedTypeData};
+use crate::ast::{Recoverable, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression};
+use crate::QuotedType;
 
 use crate::parser::labels::ParsingRuleLabel;
 use crate::token::{Keyword, Token};
-use crate::{Recoverable, UnresolvedTypeExpression};
 
 use chumsky::prelude::*;
 use noirc_errors::Span;
 
-fn maybe_comp_time() -> impl NoirParser<()> {
-    keyword(Keyword::Comptime).or_not().validate(|opt, span, emit| {
-        if opt.is_some() {
-            emit(ParserError::with_reason(ParserErrorReason::ComptimeDeprecated, span));
-        }
-    })
+pub(super) fn parse_type<'a>() -> impl NoirParser<UnresolvedType> + 'a {
+    recursive(parse_type_inner)
+}
+
+pub(super) fn parse_type_inner<'a>(
+    recursive_type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
+    choice((
+        field_type(),
+        int_type(),
+        bool_type(),
+        string_type(),
+        expr_type(),
+        type_definition_type(),
+        top_level_item_type(),
+        quoted_type(),
+        format_string_type(recursive_type_parser.clone()),
+        named_type(recursive_type_parser.clone()),
+        named_trait(recursive_type_parser.clone()),
+        slice_type(recursive_type_parser.clone()),
+        array_type(recursive_type_parser.clone()),
+        parenthesized_type(recursive_type_parser.clone()),
+        tuple_type(recursive_type_parser.clone()),
+        function_type(recursive_type_parser.clone()),
+        mutable_reference_type(recursive_type_parser),
+    ))
 }
 
 pub(super) fn parenthesized_type(
@@ -30,29 +50,63 @@ pub(super) fn parenthesized_type(
         })
 }
 
+pub(super) fn maybe_comp_time() -> impl NoirParser<bool> {
+    keyword(Keyword::Comptime).or_not().validate(|opt, span, emit| {
+        if opt.is_some() {
+            emit(ParserError::with_reason(
+                ParserErrorReason::ExperimentalFeature("Comptime values"),
+                span,
+            ));
+        }
+        opt.is_some()
+    })
+}
+
 pub(super) fn field_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comp_time()
-        .then_ignore(keyword(Keyword::Field))
+    keyword(Keyword::Field)
         .map_with_span(|_, span| UnresolvedTypeData::FieldElement.with_span(span))
 }
 
 pub(super) fn bool_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comp_time()
-        .then_ignore(keyword(Keyword::Bool))
-        .map_with_span(|_, span| UnresolvedTypeData::Bool.with_span(span))
+    keyword(Keyword::Bool).map_with_span(|_, span| UnresolvedTypeData::Bool.with_span(span))
+}
+
+/// This is the type `Expr` - the type of a quoted, untyped expression object used for macros
+pub(super) fn expr_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::Expr)
+        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Expr).with_span(span))
+}
+
+/// This is the type `TypeDefinition` - the type of a quoted type definition
+pub(super) fn type_definition_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::TypeDefinition).map_with_span(|_, span| {
+        UnresolvedTypeData::Quoted(QuotedType::TypeDefinition).with_span(span)
+    })
+}
+
+/// This is the type `TopLevelItem` - the type of a quoted statement in the top level.
+/// E.g. a type definition, trait definition, trait impl, function, etc.
+fn top_level_item_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::TopLevelItem).map_with_span(|_, span| {
+        UnresolvedTypeData::Quoted(QuotedType::TopLevelItem).with_span(span)
+    })
+}
+
+/// This is the type `Type` - the type of a quoted noir type.
+fn quoted_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::TypeType)
+        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Type).with_span(span))
 }
 
 pub(super) fn string_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::String)
-        .ignore_then(
-            type_expression().delimited_by(just(Token::Less), just(Token::Greater)).or_not(),
-        )
+        .ignore_then(type_expression().delimited_by(just(Token::Less), just(Token::Greater)))
         .map_with_span(|expr, span| UnresolvedTypeData::String(expr).with_span(span))
 }
 
-pub(super) fn format_string_type(
-    type_parser: impl NoirParser<UnresolvedType>,
-) -> impl NoirParser<UnresolvedType> {
+pub(super) fn format_string_type<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
     keyword(Keyword::FormatString)
         .ignore_then(
             type_expression()
@@ -66,26 +120,61 @@ pub(super) fn format_string_type(
 }
 
 pub(super) fn int_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comp_time()
-        .then(filter_map(|span, token: Token| match token {
-            Token::IntType(int_type) => Ok(int_type),
-            unexpected => {
-                Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
-            }
-        }))
-        .validate(|(_, token), span, emit| {
-            UnresolvedTypeData::from_int_token(token)
-                .map(|data| data.with_span(span))
-                .unwrap_or_else(|err| {
-                    emit(ParserError::with_reason(ParserErrorReason::InvalidBitSize(err.0), span));
-                    UnresolvedType::error(span)
-                })
-        })
+    filter_map(|span, token: Token| match token {
+        Token::IntType(int_type) => Ok(int_type),
+        unexpected => {
+            Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
+        }
+    })
+    .validate(|token, span, emit| {
+        UnresolvedTypeData::from_int_token(token).map(|data| data.with_span(span)).unwrap_or_else(
+            |err| {
+                emit(ParserError::with_reason(ParserErrorReason::InvalidBitSize(err.0), span));
+                UnresolvedType::error(span)
+            },
+        )
+    })
 }
 
-pub(super) fn array_type(
-    type_parser: impl NoirParser<UnresolvedType>,
-) -> impl NoirParser<UnresolvedType> {
+pub(super) fn named_type<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
+    path().then(generic_type_args(type_parser)).map_with_span(|(path, args), span| {
+        UnresolvedTypeData::Named(path, args, false).with_span(span)
+    })
+}
+
+pub(super) fn named_trait<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
+    keyword(Keyword::Impl).ignore_then(path()).then(generic_type_args(type_parser)).map_with_span(
+        |(path, args), span| UnresolvedTypeData::TraitAsType(path, args).with_span(span),
+    )
+}
+
+pub(super) fn generic_type_args<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<Vec<UnresolvedType>> + 'a {
+    type_parser
+        .clone()
+        // Without checking for a terminating ',' or '>' here we may incorrectly
+        // parse a generic `N * 2` as just the type `N` then fail when there is no
+        // separator afterward. Failing early here ensures we try the `type_expression`
+        // parser afterward.
+        .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
+        .or(type_expression()
+            .map_with_span(|expr, span| UnresolvedTypeData::Expression(expr).with_span(span)))
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .at_least(1)
+        .delimited_by(just(Token::Less), just(Token::Greater))
+        .or_not()
+        .map(Option::unwrap_or_default)
+}
+
+pub(super) fn array_type<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
     just(Token::LeftBracket)
         .ignore_then(type_parser)
         .then(just(Token::Semicolon).ignore_then(type_expression()))
