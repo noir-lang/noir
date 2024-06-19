@@ -1438,7 +1438,7 @@ impl<'context> Elaborator<'context> {
         typevar: TypeVariable,
     ) {
         let name = &unresolved_generic.ident().0.contents;
-
+        dbg!(name.clone());
         // Check for name collisions of this generic
         let rc_name = Rc::new(name.clone());
 

@@ -345,16 +345,6 @@ impl<'a> ModCollector<'a> {
 
             // And store the TypeId -> StructType mapping somewhere it is reachable
             self.def_collector.items.types.insert(id, unresolved);
-
-            // let resolved_generics = unresolved.struct_def.generics.iter().map(|generic| {
-            //     let resolved_generic = ResolvedGeneric {
-            //         name: generic.ident().0.contents.clone(),
-            //         type_var: typevar.clone(),
-            //         kind: generic.kind(),
-            //         span,
-            //     };
-            //     resolved_generic
-            // });
         }
         definition_errors
     }

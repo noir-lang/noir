@@ -51,7 +51,7 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, F
 
 pub(crate) fn get_program(
     src: &str,
-    use_elaborator: bool,
+    use_legacy: bool,
 ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
     let root = std::path::Path::new("/");
     let fm = FileManager::new(root);
@@ -84,7 +84,7 @@ pub(crate) fn get_program(
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            use_elaborator,
+            use_legacy,
             &[], // No macro processors
         ));
     }
@@ -96,7 +96,7 @@ pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
 }
 
 pub(crate) fn get_program_errors_elaborator(src: &str) -> Vec<(CompilationError, FileId)> {
-    get_program(src, true).2
+    get_program(src, false).2
 }
 
 #[test]
@@ -1332,7 +1332,13 @@ fn for_loop_over_array() {
             hello(array);
         }
     "#;
-    assert_eq!(get_program_errors(src).len(), 0);
+    let errors = get_program_errors(src);
+    assert_eq!(get_program_errors(src).len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. })
+    ));
 }
 
 // Regression for #4545
