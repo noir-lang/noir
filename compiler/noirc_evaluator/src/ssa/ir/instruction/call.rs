@@ -5,6 +5,7 @@ use acvm::{
     acir::{AcirField, BlackBoxFunc},
     FieldElement,
 };
+use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
@@ -300,6 +301,13 @@ pub(super) fn simplify_call(
         }
         Intrinsic::AsWitness => SimplifyResult::None,
         Intrinsic::IsUnconstrained => SimplifyResult::None,
+        Intrinsic::DerivePedersenGenerators => {
+            if let Some(Type::Array(_, len)) = ctrl_typevars.unwrap().first() {
+                simplify_derive_generators(dfg, arguments, *len as u32)
+            } else {
+                unreachable!("Derive Pedersen Generators must return an array");
+            }
+        }
     }
 }
 
@@ -517,6 +525,8 @@ fn simplify_black_box_func(
         }
         BlackBoxFunc::Sha256Compression => SimplifyResult::None, //TODO(Guillaume)
         BlackBoxFunc::AES128Encrypt => SimplifyResult::None,
+        BlackBoxFunc::PedersenCommitment => todo!("Deprecated Blackbox"),
+        BlackBoxFunc::PedersenHash => todo!("Deprecated Blackbox"),
     }
 }
 
@@ -578,4 +588,117 @@ fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Id<Value>>) -> Vec<u8> {
 
 fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<Id<Value>>) -> bool {
     values.iter().all(|value| dfg.get_numeric_constant(*value).is_some())
+}
+
+fn simplify_hash(
+    dfg: &mut DataFlowGraph,
+    arguments: &[ValueId],
+    hash_function: fn(&[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
+) -> SimplifyResult {
+    match dfg.get_array_constant(arguments[0]) {
+        Some((input, _)) if array_is_constant(dfg, &input) => {
+            let input_bytes: Vec<u8> = to_u8_vec(dfg, input);
+
+            let hash = hash_function(&input_bytes)
+                .expect("Rust solvable black box function should not fail");
+
+            let hash_values = vecmap(hash, |byte| FieldElement::from_be_bytes_reduce(&[byte]));
+
+            let result_array = make_constant_array(dfg, hash_values, Type::unsigned(8));
+            SimplifyResult::SimplifiedTo(result_array)
+        }
+        _ => SimplifyResult::None,
+    }
+}
+
+type ECDSASignatureVerifier = fn(
+    hashed_msg: &[u8],
+    public_key_x: &[u8; 32],
+    public_key_y: &[u8; 32],
+    signature: &[u8; 64],
+) -> Result<bool, BlackBoxResolutionError>;
+fn simplify_signature(
+    dfg: &mut DataFlowGraph,
+    arguments: &[ValueId],
+    signature_verifier: ECDSASignatureVerifier,
+) -> SimplifyResult {
+    match (
+        dfg.get_array_constant(arguments[0]),
+        dfg.get_array_constant(arguments[1]),
+        dfg.get_array_constant(arguments[2]),
+        dfg.get_array_constant(arguments[3]),
+    ) {
+        (
+            Some((public_key_x, _)),
+            Some((public_key_y, _)),
+            Some((signature, _)),
+            Some((hashed_message, _)),
+        ) if array_is_constant(dfg, &public_key_x)
+            && array_is_constant(dfg, &public_key_y)
+            && array_is_constant(dfg, &signature)
+            && array_is_constant(dfg, &hashed_message) =>
+        {
+            let public_key_x: [u8; 32] = to_u8_vec(dfg, public_key_x)
+                .try_into()
+                .expect("ECDSA public key fields are 32 bytes");
+            let public_key_y: [u8; 32] = to_u8_vec(dfg, public_key_y)
+                .try_into()
+                .expect("ECDSA public key fields are 32 bytes");
+            let signature: [u8; 64] =
+                to_u8_vec(dfg, signature).try_into().expect("ECDSA signatures are 64 bytes");
+            let hashed_message: Vec<u8> = to_u8_vec(dfg, hashed_message);
+
+            let valid_signature =
+                signature_verifier(&hashed_message, &public_key_x, &public_key_y, &signature)
+                    .expect("Rust solvable black box function should not fail");
+
+            let valid_signature = dfg.make_constant(valid_signature.into(), Type::bool());
+            SimplifyResult::SimplifiedTo(valid_signature)
+        }
+        _ => SimplifyResult::None,
+    }
+}
+
+fn simplify_derive_generators(
+    dfg: &mut DataFlowGraph,
+    arguments: &[ValueId],
+    num_generators: u32,
+) -> SimplifyResult {
+    if arguments.len() == 2 {
+        let domain_separator_string = dfg.get_array_constant(arguments[0]);
+        let starting_index = dfg.get_numeric_constant(arguments[1]);
+        if let (Some(domain_separator_string), Some(starting_index)) =
+            (domain_separator_string, starting_index)
+        {
+            let domain_separator_bytes = domain_separator_string
+                .0
+                .iter()
+                .map(|&x| dfg.get_numeric_constant(x).unwrap().to_u128() as u8)
+                .collect::<Vec<u8>>();
+            let generators = derive_generators(
+                &domain_separator_bytes,
+                num_generators,
+                starting_index.try_to_u32().expect("argument is declared as u32"),
+            );
+            let is_infinite = dfg.make_constant(FieldElement::zero(), Type::bool());
+            let mut results = Vec::new();
+            for gen in generators {
+                let x_big: BigUint = gen.x.into();
+                let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
+                let y_big: BigUint = gen.y.into();
+                let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
+                results.push(dfg.make_constant(x, Type::field()));
+                results.push(dfg.make_constant(y, Type::field()));
+                results.push(is_infinite);
+            }
+            let len = results.len();
+            let result =
+                dfg.make_array(results.into(), Type::Array(vec![Type::field()].into(), len));
+            SimplifyResult::SimplifiedTo(result)
+        } else {
+            SimplifyResult::None
+        }
+    } else {
+        unreachable!("Unexpected number of arguments to derive_generators");
+    }
 }

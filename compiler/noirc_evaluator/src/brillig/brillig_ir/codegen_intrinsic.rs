@@ -1,15 +1,15 @@
 use acvm::{
     acir::brillig::{BlackBoxOp, HeapArray},
     acir::AcirField,
-    FieldElement,
 };
 
 use super::{
     brillig_variable::{BrilligVector, SingleAddrVariable},
+    debug_show::DebugToString,
     BrilligContext,
 };
 
-impl BrilligContext {
+impl<F: AcirField + DebugToString> BrilligContext<F> {
     /// Codegens a truncation of a value to the given bit size
     pub(crate) fn codegen_truncate(
         &mut self,
@@ -43,7 +43,7 @@ impl BrilligContext {
         big_endian: bool,
         limb_bit_size: u32,
     ) {
-        assert!(source_field.bit_size == FieldElement::max_num_bits());
+        assert!(source_field.bit_size == F::max_num_bits());
 
         self.usize_const_instruction(target_vector.size, limb_count.into());
         self.usize_const_instruction(target_vector.rc, 1_usize.into());
@@ -55,12 +55,10 @@ impl BrilligContext {
             output: HeapArray { pointer: target_vector.pointer, size: limb_count },
         });
 
-        let limb_field =
-            SingleAddrVariable::new(self.allocate_register(), FieldElement::max_num_bits());
-
+        let limb_field = SingleAddrVariable::new(self.allocate_register(), F::max_num_bits());
         let limb_casted = SingleAddrVariable::new(self.allocate_register(), limb_bit_size);
 
-        if limb_bit_size != FieldElement::max_num_bits() {
+        if limb_bit_size != F::max_num_bits() {
             self.codegen_loop(target_vector.size, |ctx, iterator_register| {
                 // Read the limb
                 ctx.codegen_array_get(target_vector.pointer, iterator_register, limb_field.address);

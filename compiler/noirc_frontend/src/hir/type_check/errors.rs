@@ -143,6 +143,8 @@ pub enum TypeCheckError {
     },
     #[error("Strings do not support indexed assignment")]
     StringIndexAssign { span: Span },
+    #[error("Macro calls may only return Expr values")]
+    MacroReturningNonExpr { typ: Type, span: Span },
 }
 
 impl TypeCheckError {
@@ -335,6 +337,11 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let msg = format!("Expected {expected_count} generic{expected_plural} from this function, but {actual_count} {actual_plural} provided");
                 Diagnostic::simple_error(msg, "".into(), *span)
             },
+            TypeCheckError::MacroReturningNonExpr { typ, span } => Diagnostic::simple_error(
+                format!("Expected macro call to return an `Expr` but found a(n) {typ}"),
+                "Macro calls must return quoted expressions, otherwise there is no code to insert".into(),
+                *span,
+                ),
         }
     }
 }

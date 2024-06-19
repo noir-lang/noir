@@ -42,11 +42,11 @@ use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 
 #[derive(Default)]
-struct SharedContext {
+struct SharedContext<F> {
     /// Final list of Brillig functions which will be part of the final program
     /// This is shared across `Context` structs as we want one list of Brillig
     /// functions across all ACIR artifacts
-    generated_brillig: Vec<GeneratedBrillig>,
+    generated_brillig: Vec<GeneratedBrillig<F>>,
 
     /// Maps SSA function index -> Final generated Brillig artifact index.
     /// There can be Brillig functions specified in SSA which do not act as
@@ -65,7 +65,7 @@ struct SharedContext {
     brillig_stdlib_calls_to_resolve: HashMap<FunctionId, Vec<(OpcodeLocation, u32)>>,
 }
 
-impl SharedContext {
+impl<F: AcirField> SharedContext<F> {
     fn generated_brillig_pointer(
         &self,
         func_id: FunctionId,
@@ -74,7 +74,7 @@ impl SharedContext {
         self.brillig_generated_func_pointers.get(&(func_id, arguments))
     }
 
-    fn generated_brillig(&self, func_pointer: usize) -> &GeneratedBrillig {
+    fn generated_brillig(&self, func_pointer: usize) -> &GeneratedBrillig<F> {
         &self.generated_brillig[func_pointer]
     }
 
@@ -83,7 +83,7 @@ impl SharedContext {
         func_id: FunctionId,
         arguments: Vec<BrilligParameter>,
         generated_pointer: u32,
-        code: GeneratedBrillig,
+        code: GeneratedBrillig<F>,
     ) {
         self.brillig_generated_func_pointers.insert((func_id, arguments), generated_pointer);
         self.generated_brillig.push(code);
@@ -123,7 +123,7 @@ impl SharedContext {
         generated_pointer: u32,
         func_id: FunctionId,
         opcode_location: OpcodeLocation,
-        code: GeneratedBrillig,
+        code: GeneratedBrillig<F>,
     ) {
         self.brillig_stdlib_func_pointer.insert(brillig_stdlib_func, generated_pointer);
         self.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
@@ -151,7 +151,7 @@ struct Context<'a> {
     current_side_effects_enabled_var: AcirVar,
 
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
-    acir_context: AcirContext,
+    acir_context: AcirContext<FieldElement>,
 
     /// Track initialized acir dynamic arrays
     ///
@@ -189,7 +189,7 @@ struct Context<'a> {
     data_bus: DataBus,
 
     /// Contains state that is generated and also used across ACIR functions
-    shared_context: &'a mut SharedContext,
+    shared_context: &'a mut SharedContext<FieldElement>,
 }
 
 #[derive(Clone)]
@@ -274,8 +274,11 @@ impl AcirValue {
     }
 }
 
-pub(crate) type Artifacts =
-    (Vec<GeneratedAcir>, Vec<BrilligBytecode<FieldElement>>, BTreeMap<ErrorSelector, ErrorType>);
+pub(crate) type Artifacts = (
+    Vec<GeneratedAcir<FieldElement>>,
+    Vec<BrilligBytecode<FieldElement>>,
+    BTreeMap<ErrorSelector, ErrorType>,
+);
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
@@ -331,7 +334,7 @@ impl Ssa {
 }
 
 impl<'a> Context<'a> {
-    fn new(shared_context: &'a mut SharedContext) -> Context<'a> {
+    fn new(shared_context: &'a mut SharedContext<FieldElement>) -> Context<'a> {
         let mut acir_context = AcirContext::default();
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
@@ -354,7 +357,7 @@ impl<'a> Context<'a> {
         ssa: &Ssa,
         function: &Function,
         brillig: &Brillig,
-    ) -> Result<Option<GeneratedAcir>, RuntimeError> {
+    ) -> Result<Option<GeneratedAcir<FieldElement>>, RuntimeError> {
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
                 match inline_type {
@@ -386,7 +389,7 @@ impl<'a> Context<'a> {
         main_func: &Function,
         ssa: &Ssa,
         brillig: &Brillig,
-    ) -> Result<GeneratedAcir, RuntimeError> {
+    ) -> Result<GeneratedAcir<FieldElement>, RuntimeError> {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
         let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
@@ -435,7 +438,7 @@ impl<'a> Context<'a> {
         mut self,
         main_func: &Function,
         brillig: &Brillig,
-    ) -> Result<GeneratedAcir, RuntimeError> {
+    ) -> Result<GeneratedAcir<FieldElement>, RuntimeError> {
         let dfg = &main_func.dfg;
 
         let inputs = try_vecmap(dfg[main_func.entry_block()].parameters(), |param_id| {
@@ -919,7 +922,7 @@ impl<'a> Context<'a> {
         func: &Function,
         arguments: Vec<BrilligParameter>,
         brillig: &Brillig,
-    ) -> Result<GeneratedBrillig, InternalError> {
+    ) -> Result<GeneratedBrillig<FieldElement>, InternalError> {
         // Create the entry point artifact
         let mut entry_point = BrilligContext::new_entry_point_artifact(
             arguments,
@@ -1897,7 +1900,7 @@ impl<'a> Context<'a> {
         }
 
         let binary_type = AcirType::from(binary_type);
-        let bit_count = binary_type.bit_size();
+        let bit_count = binary_type.bit_size::<FieldElement>();
         let num_type = binary_type.to_numeric_type();
         let result = match binary.operator {
             BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
