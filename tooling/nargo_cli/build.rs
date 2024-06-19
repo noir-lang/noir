@@ -118,12 +118,10 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             test_type,
             &test_name,
             &test_dir,
-            &format!(
-                r#"
+            r#"
                 nargo.arg("execute").arg("--force");
             
                 nargo.assert().success();"#,
-            ),
         );
 
         if !IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) {
@@ -132,12 +130,10 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
                 test_type,
                 &format!("legacy_{test_name}"),
                 &test_dir,
-                &format!(
-                    r#"
+                r#"
                 nargo.arg("execute").arg("--force").arg("--use-legacy");
             
                 nargo.assert().success();"#,
-                ),
             );
         }
 
@@ -147,12 +143,10 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
                 test_type,
                 &format!("{test_name}_brillig"),
                 &test_dir,
-                &format!(
-                    r#"
+                r#"
                 nargo.arg("execute").arg("--force").arg("--force-brillig");
             
                 nargo.assert().success();"#,
-                ),
             );
         }
     }
@@ -169,12 +163,10 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_type,
             &test_name,
             &test_dir,
-            &format!(
-                r#"
+            r#"
                 nargo.arg("execute").arg("--force");
             
                 nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
-            ),
         );
 
         generate_test_case(
@@ -182,12 +174,10 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_type,
             &format!("legacy_{test_name}"),
             &test_dir,
-            &format!(
-                r#"
+            r#"
                 nargo.arg("execute").arg("--force").arg("--use-legacy");
             
                 nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
-            ),
         );
     }
 }
@@ -203,12 +193,10 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
             test_type,
             &test_name,
             &test_dir,
-            &format!(
-                r#"
+            r#"
         nargo.arg("test");
         
         nargo.assert().success();"#,
-            ),
         );
 
         generate_test_case(
@@ -216,12 +204,10 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
             test_type,
             &format!("legacy_{test_name}"),
             &test_dir,
-            &format!(
-                r#"
+            r#"
         nargo.arg("test").arg("--use-legacy");
         
         nargo.assert().success();"#,
-            ),
         );
     }
 }
@@ -236,12 +222,10 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_type,
             &test_name,
             &test_dir,
-            &format!(
-                r#"
+            r#"
         nargo.arg("test");
         
         nargo.assert().failure();"#,
-            ),
         );
 
         generate_test_case(
@@ -249,12 +233,10 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_type,
             &format!("legacy_{test_name}"),
             &test_dir,
-            &format!(
-                r#"
+            r#"
         nargo.arg("test").arg("--use-legacy");
         
         nargo.assert().failure();"#,
-            ),
         );
     }
 }
@@ -321,12 +303,10 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             test_type,
             &test_name,
             &test_dir,
-            &format!(
-                r#"
+            r#"
         nargo.arg("compile").arg("--force");
         
         nargo.assert().success();"#,
-            ),
         );
 
         generate_test_case(
@@ -334,12 +314,10 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             test_type,
             &format!("legacy_{test_name}"),
             &test_dir,
-            &format!(
-                r#"
+            r#"
         nargo.arg("compile").arg("--force").arg("--use-legacy");
         
         nargo.assert().success();"#,
-            ),
         );
     }
 }
@@ -355,11 +333,9 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
             test_type,
             &test_name,
             &test_dir,
-            &format!(
-                r#"nargo.arg("compile").arg("--force");
+            r#"nargo.arg("compile").arg("--force");
         
         nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
-            ),
         );
 
         if !IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) {
@@ -368,12 +344,10 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
                 test_type,
                 &format!("legacy_{test_name}"),
                 &test_dir,
-                &format!(
-                    r#"
+                r#"
             nargo.arg("compile").arg("--force").arg("--use-legacy");
             
             nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
-                ),
             );
         }
     }
