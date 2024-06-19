@@ -3,17 +3,17 @@ import { DocsExampleContract, TestContract } from '@aztec/noir-contracts.js';
 
 import { setup } from './fixtures/utils.js';
 
-interface NoirOption<T> {
-  _is_some: boolean;
-  _value: T;
+interface NoirBoundedVec<T> {
+  storage: T[];
+  len: bigint;
+}
+
+function boundedVecToArray<T>(boundedVec: NoirBoundedVec<T>): T[] {
+  return boundedVec.storage.slice(0, Number(boundedVec.len));
 }
 
 const sortFunc = (a: any, b: any) =>
   a.points > b.points ? 1 : a.points < b.points ? -1 : a.randomness > b.randomness ? 1 : -1;
-
-function unwrapOptions<T>(options: NoirOption<T>[]): T[] {
-  return options.filter((option: any) => option._is_some).map((option: any) => option._value);
-}
 
 describe('e2e_note_getter', () => {
   let wallet: Wallet;
@@ -60,7 +60,7 @@ describe('e2e_note_getter', () => {
       ]);
 
       expect(
-        unwrapOptions(returnEq)
+        boundedVecToArray(returnEq)
           .map(({ points, randomness }: any) => ({ points, randomness }))
           .sort(sortFunc),
       ).toStrictEqual(
@@ -71,7 +71,7 @@ describe('e2e_note_getter', () => {
       );
 
       expect(
-        unwrapOptions(returnNeq)
+        boundedVecToArray(returnNeq)
           .map(({ points, randomness }: any) => ({ points, randomness }))
           .sort(sortFunc),
       ).toStrictEqual(
@@ -89,7 +89,7 @@ describe('e2e_note_getter', () => {
       );
 
       expect(
-        unwrapOptions(returnLt)
+        boundedVecToArray(returnLt)
           .map(({ points, randomness }: any) => ({ points, randomness }))
           .sort(sortFunc),
       ).toStrictEqual(
@@ -103,7 +103,7 @@ describe('e2e_note_getter', () => {
       );
 
       expect(
-        unwrapOptions(returnGt)
+        boundedVecToArray(returnGt)
           .map(({ points, randomness }: any) => ({ points, randomness }))
           .sort(sortFunc),
       ).toStrictEqual(
@@ -116,7 +116,7 @@ describe('e2e_note_getter', () => {
       );
 
       expect(
-        unwrapOptions(returnLte)
+        boundedVecToArray(returnLte)
           .map(({ points, randomness }: any) => ({ points, randomness }))
           .sort(sortFunc),
       ).toStrictEqual(
@@ -132,7 +132,7 @@ describe('e2e_note_getter', () => {
       );
 
       expect(
-        unwrapOptions(returnGte)
+        boundedVecToArray(returnGte)
           .map(({ points, randomness }: any) => ({ points, randomness }))
           .sort(sortFunc),
       ).toStrictEqual(
@@ -179,7 +179,7 @@ describe('e2e_note_getter', () => {
 
     async function assertNoReturnValue(storageSlot: number, activeOrNullified: boolean) {
       await expect(contract.methods.call_view_notes(storageSlot, activeOrNullified).simulate()).rejects.toThrow(
-        'is_some',
+        'index < self.len', // from BoundedVec::get
       );
       await expect(contract.methods.call_get_notes(storageSlot, activeOrNullified).prove()).rejects.toThrow(
         `Assertion failed: Cannot return zero notes`,

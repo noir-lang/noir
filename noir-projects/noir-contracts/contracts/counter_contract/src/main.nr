@@ -59,7 +59,7 @@ contract Counter {
         let counter_slot = Counter::storage().counters.slot;
         let owner_slot = derive_storage_slot_in_map(counter_slot, owner);
         let mut options = NoteViewerOptions::new();
-        let opt_notes: [Option<ValueNote>; MAX_NOTES_PER_PAGE] = view_notes(owner_slot, options);
-        assert(opt_notes[0].unwrap().value == 5);
+        let notes: BoundedVec<ValueNote, MAX_NOTES_PER_PAGE> = view_notes(owner_slot, options);
+        assert(notes.get(0).value == 5);
     }
 }

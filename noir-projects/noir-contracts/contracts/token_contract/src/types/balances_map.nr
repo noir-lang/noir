@@ -42,16 +42,15 @@ impl<T> BalancesMap<T, UnconstrainedContext> {
         let mut balance = U128::from_integer(0);
         // docs:start:view_notes
         let mut options = NoteViewerOptions::new();
-        let opt_notes = self.map.at(owner).view_notes(options.set_offset(offset));
+        let notes = self.map.at(owner).view_notes(options.set_offset(offset));
         // docs:end:view_notes
-        let len = opt_notes.len();
-        for i in 0..len {
-            if opt_notes[i].is_some() {
-                balance = balance + opt_notes[i].unwrap_unchecked().get_amount();
+        for i in 0..options.limit {
+            if i < notes.len() {
+                balance = balance + notes.get_unchecked(i).get_amount();
             }
         }
-        if (opt_notes[len - 1].is_some()) {
-            balance = balance + self.balance_of_with_offset(owner, offset + opt_notes.len() as u32);
+        if (notes.len() == options.limit) {
+            balance = balance + self.balance_of_with_offset(owner, offset + options.limit);
         }
 
         balance
@@ -87,13 +86,13 @@ impl<T> BalancesMap<T, &mut PrivateContext> {
     ) -> OuterNoteEmission<T> where T: NoteInterface<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN> + OwnedNote {
         // docs:start:get_notes
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, subtrahend);
-        let maybe_notes = self.map.at(owner).get_notes(options);
+        let notes = self.map.at(owner).get_notes(options);
         // docs:end:get_notes
 
         let mut minuend: U128 = U128::from_integer(0);
         for i in 0..options.limit {
-            if maybe_notes[i].is_some() {
-                let note = maybe_notes[i].unwrap_unchecked();
+            if i < notes.len() {
+                let note = notes.get_unchecked(i);
 
                 // Removes the note from the owner's set of notes.
                 // This will call the the `compute_nullifer` function of the `token_note`

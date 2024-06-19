@@ -12,16 +12,16 @@ unconstrained pub fn get_balance_with_offset(set: PrivateSet<ValueNote, Unconstr
     let mut balance = 0;
     // docs:start:view_notes
     let mut options = NoteViewerOptions::new();
-    let opt_notes = set.view_notes(options.set_offset(offset));
+    let notes = set.view_notes(options.set_offset(offset));
     // docs:end:view_notes
-    let len = opt_notes.len();
-    for i in 0..len {
-        if opt_notes[i].is_some() {
-            balance += opt_notes[i].unwrap_unchecked().value;
+    for i in 0..options.limit {
+        if i < notes.len() {
+            balance += notes.get_unchecked(i).value;
         }
     }
-    if (opt_notes[len - 1].is_some()) {
-        balance += get_balance_with_offset(set, offset + opt_notes.len() as u32);
+
+    if (notes.len() == options.limit) {
+        balance += get_balance_with_offset(set, offset + options.limit);
     }
 
     balance

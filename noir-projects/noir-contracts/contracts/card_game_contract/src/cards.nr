@@ -123,12 +123,17 @@ impl Deck<&mut PrivateContext> {
 
     pub fn get_cards<N>(&mut self, cards: [Card; N]) -> [CardNote; N] {
         let options = NoteGetterOptions::with_filter(filter_cards, cards);
-        let maybe_notes = self.set.get_notes(options);
-        let mut found_cards = [Option::none(); N];
-        for i in 0..options.limit {
-            if maybe_notes[i].is_some() {
-                let card_note = CardNote::from_note(maybe_notes[i].unwrap_unchecked());
+        let notes = self.set.get_notes(options);
 
+        // This array will hold the notes that correspond to each of the requested cards. It begins empty (with all the
+        // options being none) and we gradually fill it up as we find the matching notes.
+        let mut found_cards = [Option::none(); N];
+
+        for i in 0..options.limit {
+            if i < notes.len() {
+                let card_note = CardNote::from_note(notes.get_unchecked(i));
+
+                // For each note that we read, we search for a matching card that we have not already marked as found.
                 for j in 0..cards.len() {
                     if found_cards[j].is_none()
                         & (cards[j].strength == card_note.card.strength)
@@ -139,6 +144,7 @@ impl Deck<&mut PrivateContext> {
             }
         }
 
+        // And then we assert that we did indeed find all cards, since found_cards and cards have the same length.
         found_cards.map(
             |card_note: Option<CardNote>| {
             assert(card_note.is_some(), "Card not found");
@@ -156,16 +162,19 @@ impl Deck<&mut PrivateContext> {
 }
 
 impl Deck<UnconstrainedContext> {
-    unconstrained pub fn view_cards(self, offset: u32) -> [Option<Card>; MAX_NOTES_PER_PAGE] {
+    unconstrained pub fn view_cards(self, offset: u32) -> BoundedVec<Card, MAX_NOTES_PER_PAGE> {
         let mut options = NoteViewerOptions::new();
-        let opt_notes = self.set.view_notes(options.set_offset(offset));
-        let mut opt_cards = [Option::none(); MAX_NOTES_PER_PAGE];
+        let notes = self.set.view_notes(options.set_offset(offset));
 
-        for i in 0..opt_notes.len() {
-            opt_cards[i] = opt_notes[i].map(|note: ValueNote| Card::from_field(note.value));
+        // TODO: ideally we'd do let cards = notes.map(|note| Cards::from_field(note.value));
+        // see https://github.com/noir-lang/noir/pull/5250
+        let mut cards = BoundedVec::new();
+        cards.len = notes.len();
+        for i in 0..notes.len() {
+            cards.storage[i] = Card::from_field(notes.get_unchecked(i).value);
         }
 
-        opt_cards
+        cards
     }
 }
 

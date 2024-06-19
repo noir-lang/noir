@@ -44,13 +44,13 @@ interface Game {
   current_round: bigint;
 }
 
-interface NoirOption<T> {
-  _is_some: boolean;
-  _value: T;
+interface NoirBoundedVec<T> {
+  storage: T[];
+  len: bigint;
 }
 
-function unwrapOptions<T>(options: NoirOption<T>[]): T[] {
-  return options.filter((option: any) => option._is_some).map((option: any) => option._value);
+function boundedVecToArray<T>(boundedVec: NoirBoundedVec<T>): T[] {
+  return boundedVec.storage.slice(0, Number(boundedVec.len));
 }
 
 // Game settings.
@@ -149,7 +149,7 @@ describe('e2e_card_game', () => {
     // docs:end:send_tx
     const collection = await contract.methods.view_collection_cards(firstPlayer, 0).simulate({ from: firstPlayer });
     const expected = getPackedCards(0, seed);
-    expect(unwrapOptions(collection)).toMatchObject(expected);
+    expect(boundedVecToArray(collection)).toMatchObject(expected);
   });
 
   describe('game join', () => {
@@ -161,7 +161,7 @@ describe('e2e_card_game', () => {
         contract.methods.buy_pack(seed).send().wait(),
         contractAsSecondPlayer.methods.buy_pack(seed).send().wait(),
       ]);
-      firstPlayerCollection = unwrapOptions(
+      firstPlayerCollection = boundedVecToArray(
         await contract.methods.view_collection_cards(firstPlayer, 0).simulate({ from: firstPlayer }),
       );
     });
@@ -180,8 +180,8 @@ describe('e2e_card_game', () => {
       ).rejects.toThrow(`Assertion failed: Cannot return zero notes`);
 
       const collection = await contract.methods.view_collection_cards(firstPlayer, 0).simulate({ from: firstPlayer });
-      expect(unwrapOptions(collection)).toHaveLength(1);
-      expect(unwrapOptions(collection)).toMatchObject([firstPlayerCollection[1]]);
+      expect(boundedVecToArray(collection)).toHaveLength(1);
+      expect(boundedVecToArray(collection)).toMatchObject([firstPlayerCollection[1]]);
 
       expect((await contract.methods.view_game(GAME_ID).simulate({ from: firstPlayer })) as Game).toMatchObject({
         players: [
@@ -204,10 +204,10 @@ describe('e2e_card_game', () => {
     });
 
     it('should start games', async () => {
-      const secondPlayerCollection = unwrapOptions(
+      const secondPlayerCollection = boundedVecToArray(
         (await contract.methods
           .view_collection_cards(secondPlayer, 0)
-          .simulate({ from: secondPlayer })) as NoirOption<Card>[],
+          .simulate({ from: secondPlayer })) as NoirBoundedVec<Card>,
       );
 
       await Promise.all([
@@ -257,15 +257,15 @@ describe('e2e_card_game', () => {
         contractAsThirdPlayer.methods.buy_pack(seed).send().wait(),
       ]);
 
-      firstPlayerCollection = unwrapOptions(
+      firstPlayerCollection = boundedVecToArray(
         await contract.methods.view_collection_cards(firstPlayer, 0).simulate({ from: firstPlayer }),
       );
 
-      secondPlayerCollection = unwrapOptions(
+      secondPlayerCollection = boundedVecToArray(
         await contract.methods.view_collection_cards(secondPlayer, 0).simulate({ from: secondPlayer }),
       );
 
-      thirdPlayerCOllection = unwrapOptions(
+      thirdPlayerCOllection = boundedVecToArray(
         await contract.methods.view_collection_cards(thirdPlayer, 0).simulate({ from: thirdPlayer }),
       );
     });
@@ -319,8 +319,8 @@ describe('e2e_card_game', () => {
 
       await contractFor(winner).methods.claim_cards(GAME_ID, game.rounds_cards.map(cardToField)).send().wait();
 
-      const winnerCollection = unwrapOptions(
-        (await contract.methods.view_collection_cards(winner, 0).simulate({ from: winner })) as NoirOption<Card>[],
+      const winnerCollection = boundedVecToArray(
+        (await contract.methods.view_collection_cards(winner, 0).simulate({ from: winner })) as NoirBoundedVec<Card>,
       );
 
       const winnerGameDeck = [winnerCollection[0], winnerCollection[3]];

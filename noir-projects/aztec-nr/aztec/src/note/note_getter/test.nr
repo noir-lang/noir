@@ -21,6 +21,19 @@ fn build_valid_note(value: Field) -> MockNote {
     MockNote::new(value).contract_address(cheatcodes::get_contract_address()).storage_slot(storage_slot).build()
 }
 
+fn assert_equivalent_vec_and_array<T, N>(vec: BoundedVec<T, N>, arr: [Option<T>; N]) where T: Eq {
+    let mut count = 0;
+
+    for i in 0..N {
+        if arr[i].is_some() {
+            assert_eq(arr[i].unwrap(), vec.get(count));
+            count += 1;
+        }
+    }
+
+    assert_eq(count, vec.len());
+}
+
 #[test]
 fn processes_single_note() {
     let mut env = setup();
@@ -32,7 +45,7 @@ fn processes_single_note() {
     let options = NoteGetterOptions::new();
     let returned = constrain_get_notes_internal(&mut context, storage_slot, notes_to_constrain, options);
 
-    assert_eq(returned, notes_to_constrain);
+    assert_equivalent_vec_and_array(returned, notes_to_constrain);
     assert_eq(context.note_hash_read_requests.len(), 1);
 }
 
@@ -48,7 +61,7 @@ fn processes_many_notes() {
     let options = NoteGetterOptions::new();
     let returned = constrain_get_notes_internal(&mut context, storage_slot, notes_to_constrain, options);
 
-    assert_eq(returned, notes_to_constrain);
+    assert_equivalent_vec_and_array(returned, notes_to_constrain);
     assert_eq(context.note_hash_read_requests.len(), 2);
 }
 
@@ -78,7 +91,7 @@ fn collapses_notes_at_the_beginning_of_the_array() {
     expected[5] = Option::some(build_valid_note(5));
     expected[6] = Option::some(build_valid_note(6));
 
-    assert_eq(returned, expected);
+    assert_equivalent_vec_and_array(returned, expected);
 }
 
 #[test(should_fail_with="Cannot return zero notes")]
@@ -137,7 +150,7 @@ fn applies_filter_before_constraining() {
     let mut expected = [Option::none(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL];
     expected[0] = Option::some(build_valid_note(42));
 
-    assert_eq(returned, expected);
+    assert_equivalent_vec_and_array(returned, expected);
     assert_eq(context.note_hash_read_requests.len(), 1);
 }
 

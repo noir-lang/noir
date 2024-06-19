@@ -35,7 +35,7 @@ contract Delegator {
         let mut options = NoteGetterOptions::new();
         options = options.select(ValueNote::properties().value, amount, Option::none()).set_limit(1);
         let notes = storage.a_map_with_private_values.at(owner).get_notes(options);
-        notes[0].unwrap_unchecked().value
+        notes.get_unchecked(0).value
     }
 
     unconstrained fn view_public_value() -> pub Field {

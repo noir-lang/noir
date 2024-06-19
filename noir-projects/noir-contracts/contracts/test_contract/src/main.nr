@@ -111,9 +111,9 @@ contract Test {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
 
-        let opt_notes: [Option<ValueNote>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] = get_notes(&mut context, storage_slot, options);
+        let notes: BoundedVec<ValueNote, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> = get_notes(&mut context, storage_slot, options);
 
-        opt_notes[0].unwrap().value
+        notes.get(0).value
     }
 
     #[aztec(private)]
@@ -127,9 +127,9 @@ contract Test {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
 
-        let opt_notes: [Option<ValueNote>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] = get_notes(&mut context, storage_slot, options);
+        let notes: BoundedVec<ValueNote, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> = get_notes(&mut context, storage_slot, options);
 
-        [opt_notes[0].unwrap().value, opt_notes[1].unwrap().value]
+        [notes.get(0).value, notes.get(1).value]
     }
 
     unconstrained fn call_view_notes(storage_slot: Field, active_or_nullified: bool) -> pub Field {
@@ -142,9 +142,9 @@ contract Test {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
 
-        let opt_notes: [Option<ValueNote>; MAX_NOTES_PER_PAGE] = view_notes(storage_slot, options);
+        let notes: BoundedVec<ValueNote, MAX_NOTES_PER_PAGE> = view_notes(storage_slot, options);
 
-        opt_notes[0].unwrap().value
+        notes.get(0).value
     }
 
     unconstrained fn call_view_notes_many(storage_slot: Field, active_or_nullified: bool) -> pub [Field; 2] {
@@ -157,9 +157,9 @@ contract Test {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
 
-        let opt_notes: [Option<ValueNote>; MAX_NOTES_PER_PAGE] = view_notes(storage_slot, options);
+        let notes: BoundedVec<ValueNote, MAX_NOTES_PER_PAGE> = view_notes(storage_slot, options);
 
-        [opt_notes[0].unwrap().value, opt_notes[1].unwrap().value]
+        [notes.get(0).value, notes.get(1).value]
     }
 
     #[aztec(private)]
@@ -169,9 +169,9 @@ contract Test {
         );
 
         let options = NoteGetterOptions::new();
-        let opt_notes: [Option<ValueNote>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] = get_notes(&mut context, storage_slot, options);
+        let notes: BoundedVec<ValueNote, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> = get_notes(&mut context, storage_slot, options);
 
-        let note = opt_notes[0].unwrap();
+        let note = notes.get(0);
 
         destroy_note(&mut context, note);
     }
@@ -475,7 +475,7 @@ contract Test {
         let mut options = NoteGetterOptions::new();
         options = options.select(TestNote::properties().value, secret_hash, Option::none()).set_limit(1);
         let notes = notes_set.get_notes(options);
-        let note = notes[0].unwrap_unchecked();
+        let note = notes.get_unchecked(0);
         notes_set.remove(note);
     }
 

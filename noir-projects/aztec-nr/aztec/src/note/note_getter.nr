@@ -104,7 +104,7 @@ pub fn get_notes<Note, N, M, FILTER_ARGS>(
     context: &mut PrivateContext,
     storage_slot: Field,
     options: NoteGetterOptions<Note, N, M, FILTER_ARGS>
-) -> [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] where Note: NoteInterface<N, M> {
+) -> BoundedVec<Note, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> where Note: NoteInterface<N, M> {
     let opt_notes = get_notes_internal(storage_slot, options);
 
     constrain_get_notes_internal(context, storage_slot, opt_notes, options)
@@ -115,8 +115,8 @@ fn constrain_get_notes_internal<Note, N, M, FILTER_ARGS>(
     storage_slot: Field,
     opt_notes: [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
     options: NoteGetterOptions<Note, N, M, FILTER_ARGS>
-) -> [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] where Note: NoteInterface<N, M> {
-    let mut returned_notes = [Option::none(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL];
+) -> BoundedVec<Note, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> where Note: NoteInterface<N, M> {
+    let mut returned_notes = BoundedVec::new();
 
     // The filter is applied first to avoid pushing note read requests for notes we're not interested in. Note that
     // while the filter function can technically mutate the contents of the notes (as opposed to simply removing some),
@@ -126,7 +126,6 @@ fn constrain_get_notes_internal<Note, N, M, FILTER_ARGS>(
     let filter_args = options.filter_args;
     let filtered_notes = filter_fn(opt_notes, filter_args);
 
-    let mut num_notes = 0;
     let mut prev_fields = [0; N];
     for i in 0..filtered_notes.len() {
         let opt_note = filtered_notes[i];
@@ -151,14 +150,12 @@ fn constrain_get_notes_internal<Note, N, M, FILTER_ARGS>(
             // resulting in a smaller circuit and faster proving times.
             // We write at returned_notes[num_notes] because num_notes is only advanced when we have a value in 
             // filtered_notes.
-            returned_notes[num_notes] = Option::some(note);
-            num_notes += 1;
+            returned_notes.push(note);
         };
     }
 
-    assert(num_notes <= options.limit, "Got more notes than limit.");
-
-    assert(num_notes != 0, "Cannot return zero notes");
+    assert(returned_notes.len() <= options.limit, "Got more notes than limit.");
+    assert(returned_notes.len() != 0, "Cannot return zero notes");
 
     returned_notes
 }
@@ -223,12 +220,13 @@ unconstrained fn get_notes_internal<Note, N, M, FILTER_ARGS>(
 unconstrained pub fn view_notes<Note, N, M>(
     storage_slot: Field,
     options: NoteViewerOptions<Note, N, M>
-) -> [Option<Note>; MAX_NOTES_PER_PAGE] where Note: NoteInterface<N, M> {
+) -> BoundedVec<Note, MAX_NOTES_PER_PAGE> where Note: NoteInterface<N, M> {
     let (num_selects, select_by_indexes, select_by_offsets, select_by_lengths, select_values, select_comparators, sort_by_indexes, sort_by_offsets, sort_by_lengths, sort_order) = flatten_options(options.selects, options.sorts);
     let placeholder_opt_notes = [Option::none(); MAX_NOTES_PER_PAGE];
     let placeholder_fields = [0; VIEW_NOTE_ORACLE_RETURN_LENGTH];
     let placeholder_note_length = [0; N];
-    oracle::notes::get_notes(
+
+    let notes_array = oracle::notes::get_notes(
         storage_slot,
         num_selects,
         select_by_indexes,
@@ -246,7 +244,16 @@ unconstrained pub fn view_notes<Note, N, M>(
         placeholder_opt_notes,
         placeholder_fields,
         placeholder_note_length
-    )
+    );
+
+    let mut notes = BoundedVec::new();
+    for i in 0..notes_array.len() {
+        if notes_array[i].is_some() {
+            notes.push(notes_array[i].unwrap_unchecked());
+        }
+    }
+
+    notes
 }
 
 unconstrained fn flatten_options<Note, N>(

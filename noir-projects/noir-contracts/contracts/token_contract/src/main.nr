@@ -281,7 +281,7 @@ contract Token {
             Option::none()
         ).set_limit(1);
         let notes = pending_shields.get_notes(options);
-        let note = notes[0].unwrap_unchecked();
+        let note = notes.get_unchecked(0);
         // Remove the note from the pending shields set
         pending_shields.remove(note);
 
@@ -457,13 +457,13 @@ contract Token {
         let balances_slot = Token::storage().balances.slot;
         let recipient_slot = derive_storage_slot_in_map(balances_slot, recipient);
         let mut options = NoteViewerOptions::new();
-        let opt_notes: [Option<TokenNote>; MAX_NOTES_PER_PAGE] = view_notes(recipient_slot, options);
-        assert(opt_notes[0].unwrap().amount.to_field() == transfer_amount);
+        let notes: BoundedVec<TokenNote, MAX_NOTES_PER_PAGE> = view_notes(recipient_slot, options);
+        assert(notes.get(0).amount.to_field() == transfer_amount);
 
         let owner_slot = derive_storage_slot_in_map(balances_slot, owner);
         let mut options = NoteViewerOptions::new();
-        let opt_notes: [Option<TokenNote>; MAX_NOTES_PER_PAGE] = view_notes(owner_slot, options);
-        assert(opt_notes[0].unwrap().amount.to_field() == mint_amount - transfer_amount);
+        let notes: BoundedVec<TokenNote, MAX_NOTES_PER_PAGE> = view_notes(owner_slot, options);
+        assert(notes.get(0).amount.to_field() == mint_amount - transfer_amount);
     }
 }
 // docs:end:token_all

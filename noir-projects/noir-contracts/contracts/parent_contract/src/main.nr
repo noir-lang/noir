@@ -274,8 +274,8 @@ contract Parent {
         let counter_slot = Child::storage().a_map_with_private_values.slot;
         let owner_slot = derive_storage_slot_in_map(counter_slot, owner);
         let mut options = NoteViewerOptions::new();
-        let opt_notes: [Option<ValueNote>; MAX_NOTES_PER_PAGE] = view_notes(owner_slot, options);
-        let note_value = opt_notes[0].unwrap().value;
+        let notes: BoundedVec<ValueNote, MAX_NOTES_PER_PAGE> = view_notes(owner_slot, options);
+        let note_value = notes.get(0).value;
         assert(note_value == value_to_set);
         assert(note_value == result);
         // Get value from child through parent

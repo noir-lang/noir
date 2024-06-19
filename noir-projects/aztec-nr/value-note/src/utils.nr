@@ -55,12 +55,12 @@ pub fn decrement_by_at_most(
     outgoing_viewer: AztecAddress
 ) -> Field {
     let options = create_note_getter_options_for_decreasing_balance(max_amount);
-    let opt_notes = balance.get_notes(options);
+    let notes = balance.get_notes(options);
 
     let mut decremented = 0;
     for i in 0..options.limit {
-        if opt_notes[i].is_some() {
-            let note = opt_notes[i].unwrap_unchecked();
+        if i < notes.len() {
+            let note = notes.get_unchecked(i);
 
             decremented += destroy_note(balance, note);
         }

@@ -40,11 +40,11 @@ contract PendingNoteHashes {
 
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, amount);
         // get note inserted above
-        let maybe_notes = owner_balance.get_notes(options);
+        let notes = owner_balance.get_notes(options);
 
-        let note0 = maybe_notes[0].unwrap();
+        let note0 = notes.get(0);
         assert(note.value == note0.value);
-        assert(maybe_notes[1].is_none());
+        assert(notes.len() == 1);
 
         owner_balance.remove(note0);
 
@@ -58,10 +58,13 @@ contract PendingNoteHashes {
 
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, amount);
         // get note (note inserted at bottom of function shouldn't exist yet)
-        let maybe_notes = owner_balance.get_notes(options);
+        let notes = owner_balance.get_notes(options);
 
-        assert(maybe_notes[0].is_none());
-        assert(maybe_notes[1].is_none());
+        // TODO https://github.com/AztecProtocol/aztec-packages/issues/7059: clean this test up - we won't actually hit 
+        // this assert because the same one exists in get_notes (we always return at least one note), so all lines after 
+        // this one are effectively dead code. We should find a different way to test what this function attempts to 
+        // test.
+        assert(notes.len() == 0);
 
         let header = context.get_header();
         let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
@@ -139,7 +142,7 @@ contract PendingNoteHashes {
 
         let mut options = NoteGetterOptions::new();
         options = options.set_limit(1);
-        let note = owner_balance.get_notes(options)[0].unwrap();
+        let note = owner_balance.get_notes(options).get(0);
 
         assert(expected_value == note.value);
 
@@ -154,10 +157,11 @@ contract PendingNoteHashes {
         let owner_balance = storage.balances.at(owner);
 
         let options = NoteGetterOptions::new();
-        let maybe_notes = owner_balance.get_notes(options);
+        let notes = owner_balance.get_notes(options);
 
-        assert(maybe_notes[0].is_none());
-        assert(maybe_notes[1].is_none());
+        // TODO https://github.com/AztecProtocol/aztec-packages/issues/7059: review what this test aimed to test, as 
+        // it's now superfluous: get_notes never returns 0 notes.
+        assert(notes.len() == 0);
     }
 
     // Test pending note hashes with note insertion done in a nested call
@@ -384,7 +388,7 @@ contract PendingNoteHashes {
         let notes = owner_balance.get_notes(NoteGetterOptions::new());
 
         for i in 0..max_notes_per_call() {
-            let note = notes[i].unwrap();
+            let note = notes.get(i);
             owner_balance.remove(note);
         }
     }

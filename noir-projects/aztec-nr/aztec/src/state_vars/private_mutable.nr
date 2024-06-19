@@ -118,7 +118,7 @@ impl<Note> PrivateMutable<Note, UnconstrainedContext> {
     // docs:start:view_note
     unconstrained pub fn view_note<N, M>(self) -> Note where Note: NoteInterface<N, M> {
         let mut options = NoteViewerOptions::new();
-        view_notes(self.storage_slot, options.set_limit(1))[0].unwrap()
+        view_notes(self.storage_slot, options.set_limit(1)).get(0)
     }
     // docs:end:view_note
 }
