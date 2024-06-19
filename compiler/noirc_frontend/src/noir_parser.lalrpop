@@ -125,7 +125,7 @@ pub(crate) Path: Path = {
     },
 
     <lo:@L> "dep" "::" <segments:PathSegments> <hi:@R> => {
-        let kind = PathKind::Dep;
+        let kind = PathKind::Plain;
         let span = Span::from(lo as u32..hi as u32);
         Path { segments, kind, span }
     },

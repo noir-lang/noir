@@ -8,7 +8,7 @@ use acvm::{
 };
 
 /// Trait for converting values into debug-friendly strings.
-trait DebugToString {
+pub(crate) trait DebugToString {
     fn debug_to_string(&self) -> String;
 }
 
@@ -59,8 +59,8 @@ impl DebugToString for BrilligBinaryOp {
             BrilligBinaryOp::UnsignedDiv => "/".into(),
             BrilligBinaryOp::LessThan => "<".into(),
             BrilligBinaryOp::LessThanEquals => "<=".into(),
-            BrilligBinaryOp::And => "&&".into(),
-            BrilligBinaryOp::Or => "||".into(),
+            BrilligBinaryOp::And => "&".into(),
+            BrilligBinaryOp::Or => "|".into(),
             BrilligBinaryOp::Xor => "^".into(),
             BrilligBinaryOp::Shl => "<<".into(),
             BrilligBinaryOp::Shr => ">>".into(),
@@ -169,7 +169,7 @@ impl DebugShow {
     }
 
     /// Stores the value of `constant` in the `result` register
-    pub(crate) fn const_instruction(&self, result: MemoryAddress, constant: FieldElement) {
+    pub(crate) fn const_instruction<F: DebugToString>(&self, result: MemoryAddress, constant: F) {
         debug_println!(self.enable_debug_trace, "  CONST {} = {}", result, constant);
     }
 

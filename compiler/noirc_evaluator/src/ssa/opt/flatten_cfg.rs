@@ -375,7 +375,6 @@ impl<'f> Context<'f> {
         let old_condition = *condition;
         let then_condition = self.inserter.resolve(old_condition);
 
-        let one = FieldElement::one();
         let old_stores = std::mem::take(&mut self.store_values);
         let old_allocations = std::mem::take(&mut self.local_allocations);
         let branch = ConditionalBranch {
@@ -393,15 +392,6 @@ impl<'f> Context<'f> {
         };
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
-        // Optimization: within the then branch we know the condition to be true, so replace
-        // any references of it within this branch with true. Likewise, do the same with false
-        // with the else branch. We must be careful not to replace the condition if it is a
-        // known constant, otherwise we can end up setting 1 = 0 or vice-versa.
-        if self.inserter.function.dfg.get_numeric_constant(old_condition).is_none() {
-            let known_value = self.inserter.function.dfg.make_constant(one, Type::bool());
-
-            self.inserter.map_value(old_condition, known_value);
-        }
         vec![self.branch_ends[if_entry], *else_destination, *then_destination]
     }
 
@@ -414,7 +404,6 @@ impl<'f> Context<'f> {
             self.insert_instruction(Instruction::Not(cond_context.condition), CallStack::new());
         let else_condition = self.link_condition(else_condition);
 
-        let zero = FieldElement::zero();
         // Make sure the else branch sees the previous values of each store
         // rather than any values created in the 'then' branch.
         let old_stores = std::mem::take(&mut cond_context.then_branch.store_values);
@@ -429,21 +418,12 @@ impl<'f> Context<'f> {
             local_allocations: old_allocations,
             last_block: *block,
         };
-        let old_condition = else_branch.old_condition;
         cond_context.then_branch.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
         self.condition_stack.push(cond_context);
 
         self.insert_current_side_effects_enabled();
-        // Optimization: within the then branch we know the condition to be true, so replace
-        // any references of it within this branch with true. Likewise, do the same with false
-        // with the else branch. We must be careful not to replace the condition if it is a
-        // known constant, otherwise we can end up setting 1 = 0 or vice-versa.
-        if self.inserter.function.dfg.get_numeric_constant(old_condition).is_none() {
-            let known_value = self.inserter.function.dfg.make_constant(zero, Type::bool());
 
-            self.inserter.map_value(old_condition, known_value);
-        }
         assert_eq!(self.cfg.successors(*block).len(), 1);
         vec![self.cfg.successors(*block).next().unwrap()]
     }
@@ -470,11 +450,6 @@ impl<'f> Context<'f> {
         // end, in addition to resetting the value of old_condition since it is set to
         // known to be true/false within the then/else branch respectively.
         self.insert_current_side_effects_enabled();
-
-        // We must map back to `then_condition` here. Mapping `old_condition` to itself would
-        // lose any previous mappings.
-        self.inserter
-            .map_value(cond_context.then_branch.old_condition, cond_context.then_branch.condition);
 
         // While there is a condition on the stack we don't compile outside the condition
         // until it is popped. This ensures we inline the full then and else branches

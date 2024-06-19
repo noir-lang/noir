@@ -1,4 +1,3 @@
-use dep::std;
 // This test checks that we perform dead-instruction-elimination on intrinsic functions.
 fn main(x: Field) {
     let g1_x = 0x0000000000000000000000000000000000000000000000000000000000000001;

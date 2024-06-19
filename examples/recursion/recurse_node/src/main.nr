@@ -1,5 +1,3 @@
-use dep::std;
-
 fn main(
     verification_key: [Field; 114],
     public_inputs: pub [Field; 4],

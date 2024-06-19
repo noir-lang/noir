@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
@@ -50,7 +51,7 @@ impl BlockVariables {
     pub(crate) fn define_variable(
         &mut self,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext,
+        brillig_context: &mut BrilligContext<FieldElement>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
@@ -70,7 +71,7 @@ impl BlockVariables {
     pub(crate) fn define_single_addr_variable(
         &mut self,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext,
+        brillig_context: &mut BrilligContext<FieldElement>,
         value: ValueId,
         dfg: &DataFlowGraph,
     ) -> SingleAddrVariable {
@@ -83,7 +84,7 @@ impl BlockVariables {
         &mut self,
         value_id: &ValueId,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext,
+        brillig_context: &mut BrilligContext<FieldElement>,
     ) {
         assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
         let variable = function_context
@@ -122,7 +123,7 @@ impl BlockVariables {
     /// We keep constants block-local.
     pub(crate) fn allocate_constant(
         &mut self,
-        brillig_context: &mut BrilligContext,
+        brillig_context: &mut BrilligContext<FieldElement>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
@@ -154,9 +155,9 @@ pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) 
 }
 
 /// For a given value_id, allocates the necessary registers to hold it.
-pub(crate) fn allocate_value(
+pub(crate) fn allocate_value<F>(
     value_id: ValueId,
-    brillig_context: &mut BrilligContext,
+    brillig_context: &mut BrilligContext<F>,
     dfg: &DataFlowGraph,
 ) -> BrilligVariable {
     let typ = dfg.type_of_value(value_id);

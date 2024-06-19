@@ -25,7 +25,7 @@ fn empty_path() -> impl NoirParser<Path> {
     let make_path = |kind| move |_, span| Path { segments: Vec::new(), kind, span };
     let path_kind = |key, kind| keyword(key).map_with_span(make_path(kind));
 
-    choice((path_kind(Keyword::Crate, PathKind::Crate), path_kind(Keyword::Dep, PathKind::Dep)))
+    choice((path_kind(Keyword::Crate, PathKind::Crate), path_kind(Keyword::Dep, PathKind::Plain)))
 }
 
 pub(super) fn maybe_empty_path() -> impl NoirParser<Path> {
@@ -43,7 +43,8 @@ mod test {
             ("std", vec!["std"]),
             ("std::hash", vec!["std", "hash"]),
             ("std::hash::collections", vec!["std", "hash", "collections"]),
-            ("dep::foo::bar", vec!["foo", "bar"]),
+            ("foo::bar", vec!["foo", "bar"]),
+            ("foo::bar", vec!["foo", "bar"]),
             ("crate::std::hash", vec!["std", "hash"]),
         ];
 
@@ -61,7 +62,7 @@ mod test {
     fn parse_path_kinds() {
         let cases = vec![
             ("std", PathKind::Plain),
-            ("dep::hash::collections", PathKind::Dep),
+            ("hash::collections", PathKind::Plain),
             ("crate::std::hash", PathKind::Crate),
         ];
 
@@ -72,7 +73,7 @@ mod test {
 
         parse_all_failing(
             path(),
-            vec!["dep", "crate", "crate::std::crate", "foo::bar::crate", "foo::dep"],
+            vec!["crate", "crate::std::crate", "foo::bar::crate", "foo::dep"],
         );
     }
 }

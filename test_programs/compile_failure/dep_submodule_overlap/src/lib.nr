@@ -1,0 +1,3 @@
+struct MyStruct {
+    inner: Field
+}
