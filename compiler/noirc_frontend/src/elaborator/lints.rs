@@ -244,3 +244,21 @@ pub(crate) fn overflowing_uint(
 
     errors
 }
+
+/// Only sized types are valid to be used as main's parameters or the parameters to a contract
+/// function. If the given type is not sized (e.g. contains a slice or NamedGeneric type), an
+/// error is issued.
+pub(super) fn invalid_type_for_program_input(
+    typ: &Type,
+    is_entry_point: bool,
+    has_inline_attribute: bool,
+    span: Span,
+) -> Option<TypeCheckError> {
+    if (is_entry_point && !typ.is_valid_for_program_input())
+        || (has_inline_attribute && !typ.is_valid_non_inlined_function_input())
+    {
+        Some(TypeCheckError::InvalidTypeForEntryPoint { span })
+    } else {
+        None
+    }
+}

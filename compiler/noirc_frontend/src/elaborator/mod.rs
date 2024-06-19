@@ -615,12 +615,16 @@ impl<'context> Elaborator<'context> {
                 _ => self.resolve_type_inner(typ),
             };
 
-            self.check_if_type_is_valid_for_program_input(
-                &typ,
-                is_entry_point,
-                has_inline_attribute,
-                type_span,
-            );
+            self.run_lint(|_| {
+                lints::invalid_type_for_program_input(
+                    &typ,
+                    is_entry_point,
+                    has_inline_attribute,
+                    type_span,
+                )
+                .map(Into::into)
+            });
+
             let pattern = self.elaborate_pattern_and_store_ids(
                 pattern,
                 typ.clone(),
@@ -677,23 +681,6 @@ impl<'context> Elaborator<'context> {
         self.current_function = None;
         self.scopes.end_function();
         self.current_item = None;
-    }
-
-    /// Only sized types are valid to be used as main's parameters or the parameters to a contract
-    /// function. If the given type is not sized (e.g. contains a slice or NamedGeneric type), an
-    /// error is issued.
-    fn check_if_type_is_valid_for_program_input(
-        &mut self,
-        typ: &Type,
-        is_entry_point: bool,
-        has_inline_attribute: bool,
-        span: Span,
-    ) {
-        if (is_entry_point && !typ.is_valid_for_program_input())
-            || (has_inline_attribute && !typ.is_valid_non_inlined_function_input())
-        {
-            self.push_err(TypeCheckError::InvalidTypeForEntryPoint { span });
-        }
     }
 
     /// True if the `pub` keyword is allowed on parameters in this function
