@@ -86,7 +86,7 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
             Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
                 input: FunctionInput { num_bits, .. },
             }) => {
-                let field = 1u128 << num_bits;
+                let field = 1u128.wrapping_shl(*num_bits);
                 constants.insert(F::from(field));
                 constants.insert(F::from(field - 1));
             }
@@ -105,14 +105,14 @@ fn build_dictionary_from_unconstrained_function<F: AcirField>(
     for opcode in &function.bytecode {
         match opcode {
             BrilligOpcode::Cast { bit_size, .. } => {
-                let field = 1u128 << bit_size;
+                let field = 1u128.wrapping_shl(*bit_size);
                 constants.insert(F::from(field));
                 constants.insert(F::from(field - 1));
             }
             BrilligOpcode::Const { bit_size, value, .. } => {
                 constants.insert(*value);
 
-                let field = 1u128 << bit_size;
+                let field = 1u128.wrapping_shl(*bit_size);
                 constants.insert(F::from(field));
                 constants.insert(F::from(field - 1));
             }
