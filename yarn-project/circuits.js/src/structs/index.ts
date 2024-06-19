@@ -84,6 +84,6 @@ export * from './tx_request.js';
 export * from './validation_requests.js';
 export * from './verification_key.js';
 
-export { FunctionSelector } from '@aztec/foundation/abi';
+export { EventSelector, FunctionSelector } from '@aztec/foundation/abi';
 export * from '@aztec/foundation/aztec-address';
 export * from '@aztec/foundation/fields';

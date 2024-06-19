@@ -41,6 +41,7 @@ export {
   CheatCodes,
   EthAddressLike,
   EthCheatCodes,
+  EventSelectorLike,
   FieldLike,
   FunctionSelectorLike,
   WrappedFieldLike,

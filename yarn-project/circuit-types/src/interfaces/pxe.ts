@@ -6,7 +6,7 @@ import {
   type PartialAddress,
   type Point,
 } from '@aztec/circuits.js';
-import { type ContractArtifact, type FunctionSelector } from '@aztec/foundation/abi';
+import { type ContractArtifact, type EventSelector } from '@aztec/foundation/abi';
 import {
   type ContractClassWithId,
   type ContractInstanceWithAddress,
@@ -397,7 +397,7 @@ export interface PXE {
  */
 export interface EventMetadata<T> {
   decode(payload: L1EventPayload): T | undefined;
-  functionSelector: FunctionSelector;
+  eventSelector: EventSelector;
   fieldNames: string[];
 }
 
