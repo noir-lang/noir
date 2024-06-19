@@ -25,7 +25,6 @@ strum_macros = "0.24"
 proptest.workspace = true
 proptest-derive.workspace = true
 
-
 [features]
 bn254 = ["acvm/bn254"]
 bls12_381 = ["acvm/bls12_381"]

@@ -82,43 +82,10 @@ pub enum BlackBoxFunc {
     ///
     /// [grumpkin]: https://hackmd.io/@aztec-network/ByzgNxBfd#2-Grumpkin---A-curve-on-top-of-BN-254-for-SNARK-efficient-group-operations
     SchnorrVerify,
-
-    /// Calculates a Pedersen commitment to the inputs.
-    ///
-    /// Computes a Pedersen commitment of the inputs using generators of the
-    /// embedded curve
-    /// - input: vector of (witness, 254)
-    /// - output: 2 witnesses representing the x,y coordinates of the resulting
-    ///   Grumpkin point
-    /// - domain separator: a constant public value (a field element) that you
-    ///   can use so that the commitment also depends on the domain separator.
-    ///   Noir uses 0 as domain separator.
-    ///
-    /// The backend should handle proper conversion between the inputs being ACIR
-    /// field elements and the scalar field of the embedded curve. In the case of
-    /// Aztec's Barretenberg, the latter is bigger than the ACIR field so it is
-    /// straightforward. The Pedersen generators are managed by the proving
-    /// system.
-    ///
-    /// The commitment is expected to be additively homomorphic
+    /// Deprecated. To be removed with a sync from aztec-packages
     PedersenCommitment,
-
-    /// Calculates a Pedersen hash to the inputs.
-    ///
-    /// Computes a Pedersen hash of the inputs and their number, using
-    /// generators of the embedded curve
-    /// - input: vector of (witness, 254)
-    /// - output: the x-coordinate of the pedersen commitment of the
-    ///   'prepended input' (see below)
-    /// - domain separator: a constant public value (a field element) that you
-    ///   can use so that the hash also depends on the domain separator. Noir
-    ///   uses 0 as domain separator.
-    ///
-    /// In Barretenberg, PedersenHash is doing the same as PedersenCommitment,
-    /// except that it prepends the inputs with their length. This is expected
-    /// to not be additively homomorphic.
+    /// Deprecated. To be removed with a sync from aztec-packages
     PedersenHash,
-
     /// Verifies a ECDSA signature over the secp256k1 curve.
     /// - inputs:
     ///     - x coordinate of public key as 32 bytes
@@ -242,8 +209,6 @@ impl BlackBoxFunc {
             BlackBoxFunc::SchnorrVerify => "schnorr_verify",
             BlackBoxFunc::Blake2s => "blake2s",
             BlackBoxFunc::Blake3 => "blake3",
-            BlackBoxFunc::PedersenCommitment => "pedersen_commitment",
-            BlackBoxFunc::PedersenHash => "pedersen_hash",
             BlackBoxFunc::EcdsaSecp256k1 => "ecdsa_secp256k1",
             BlackBoxFunc::MultiScalarMul => "multi_scalar_mul",
             BlackBoxFunc::EmbeddedCurveAdd => "embedded_curve_add",
@@ -262,6 +227,8 @@ impl BlackBoxFunc {
             BlackBoxFunc::BigIntToLeBytes => "bigint_to_le_bytes",
             BlackBoxFunc::Poseidon2Permutation => "poseidon2_permutation",
             BlackBoxFunc::Sha256Compression => "sha256_compression",
+            BlackBoxFunc::PedersenCommitment => "deprecated pedersen commitment",
+            BlackBoxFunc::PedersenHash => "deprecated pedersen hash",
         }
     }
 
@@ -272,8 +239,6 @@ impl BlackBoxFunc {
             "schnorr_verify" => Some(BlackBoxFunc::SchnorrVerify),
             "blake2s" => Some(BlackBoxFunc::Blake2s),
             "blake3" => Some(BlackBoxFunc::Blake3),
-            "pedersen_commitment" => Some(BlackBoxFunc::PedersenCommitment),
-            "pedersen_hash" => Some(BlackBoxFunc::PedersenHash),
             "ecdsa_secp256k1" => Some(BlackBoxFunc::EcdsaSecp256k1),
             "ecdsa_secp256r1" => Some(BlackBoxFunc::EcdsaSecp256r1),
             "multi_scalar_mul" => Some(BlackBoxFunc::MultiScalarMul),
@@ -292,6 +257,8 @@ impl BlackBoxFunc {
             "bigint_to_le_bytes" => Some(BlackBoxFunc::BigIntToLeBytes),
             "poseidon2_permutation" => Some(BlackBoxFunc::Poseidon2Permutation),
             "sha256_compression" => Some(BlackBoxFunc::Sha256Compression),
+            "deprecated pedersen commitment" => Some(BlackBoxFunc::PedersenCommitment),
+            "deprecated pedersen hash" => Some(BlackBoxFunc::PedersenHash),
             _ => None,
         }
     }
