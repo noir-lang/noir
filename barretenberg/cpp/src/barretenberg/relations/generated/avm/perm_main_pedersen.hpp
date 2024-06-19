@@ -23,7 +23,7 @@ class perm_main_pedersen_permutation_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_main_sel_op_pedersen == 1 || in.avm_pedersen_pedersen_sel == 1);
+        return (in.main_sel_op_pedersen == 1 || in.pedersen_pedersen_sel == 1);
     }
 
     /**
@@ -47,13 +47,13 @@ class perm_main_pedersen_permutation_settings {
     {
 
         return std::forward_as_tuple(in.perm_main_pedersen,
-                                     in.avm_main_sel_op_pedersen,
-                                     in.avm_main_sel_op_pedersen,
-                                     in.avm_pedersen_pedersen_sel,
-                                     in.avm_main_clk,
-                                     in.avm_main_ia,
-                                     in.avm_pedersen_clk,
-                                     in.avm_pedersen_input);
+                                     in.main_sel_op_pedersen,
+                                     in.main_sel_op_pedersen,
+                                     in.pedersen_pedersen_sel,
+                                     in.main_clk,
+                                     in.main_ia,
+                                     in.pedersen_clk,
+                                     in.pedersen_input);
     }
 
     /**
@@ -77,13 +77,13 @@ class perm_main_pedersen_permutation_settings {
     {
 
         return std::forward_as_tuple(in.perm_main_pedersen,
-                                     in.avm_main_sel_op_pedersen,
-                                     in.avm_main_sel_op_pedersen,
-                                     in.avm_pedersen_pedersen_sel,
-                                     in.avm_main_clk,
-                                     in.avm_main_ia,
-                                     in.avm_pedersen_clk,
-                                     in.avm_pedersen_input);
+                                     in.main_sel_op_pedersen,
+                                     in.main_sel_op_pedersen,
+                                     in.pedersen_pedersen_sel,
+                                     in.main_clk,
+                                     in.main_ia,
+                                     in.pedersen_clk,
+                                     in.pedersen_input);
     }
 };
 

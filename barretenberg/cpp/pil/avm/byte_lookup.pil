@@ -1,5 +1,5 @@
 
-namespace avm_byte_lookup(256);
+namespace byte_lookup(256);
     // These columns are commited for now, but will be migrated to constant/fixed when
     // we support more *exotic* code generation options
     pol commit table_op_id; // identifies if operation is AND/OR/XOR

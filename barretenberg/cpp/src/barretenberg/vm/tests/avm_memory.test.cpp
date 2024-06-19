@@ -47,37 +47,37 @@ TEST_F(AvmMemoryTests, mismatchedTagAddOperation)
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the addition selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_add == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_add == FF(1); });
 
     EXPECT_TRUE(row != trace.end());
 
-    EXPECT_EQ(row->avm_main_ia, FF(98));
-    EXPECT_EQ(row->avm_main_ib, FF(12));
-    EXPECT_EQ(row->avm_main_ic, FF(0));
+    EXPECT_EQ(row->main_ia, FF(98));
+    EXPECT_EQ(row->main_ib, FF(12));
+    EXPECT_EQ(row->main_ic, FF(0));
 
-    auto clk = row->avm_main_clk;
+    auto clk = row->main_clk;
 
     // Find the memory trace position corresponding to the load sub-operation of register ia.
     row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
-        return r.avm_mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_A;
+        return r.mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_A;
     });
 
     EXPECT_TRUE(row != trace.end());
 
-    EXPECT_EQ(row->avm_mem_tag_err, FF(1)); // Error is raised
-    EXPECT_EQ(row->avm_mem_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U8)));
-    EXPECT_EQ(row->avm_mem_tag, FF(static_cast<uint32_t>(AvmMemoryTag::FF)));
+    EXPECT_EQ(row->mem_tag_err, FF(1)); // Error is raised
+    EXPECT_EQ(row->mem_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U8)));
+    EXPECT_EQ(row->mem_tag, FF(static_cast<uint32_t>(AvmMemoryTag::FF)));
 
     // Find the memory trace position corresponding to the add sub-operation of register ib.
     row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
-        return r.avm_mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_B;
+        return r.mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_B;
     });
 
     EXPECT_TRUE(row != trace.end());
 
-    EXPECT_EQ(row->avm_mem_tag_err, FF(1)); // Error is raised
-    EXPECT_EQ(row->avm_mem_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U8)));
-    EXPECT_EQ(row->avm_mem_tag, FF(static_cast<uint32_t>(AvmMemoryTag::FF)));
+    EXPECT_EQ(row->mem_tag_err, FF(1)); // Error is raised
+    EXPECT_EQ(row->mem_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U8)));
+    EXPECT_EQ(row->mem_tag, FF(static_cast<uint32_t>(AvmMemoryTag::FF)));
 
     validate_trace(std::move(trace), public_inputs, true);
 }
@@ -94,33 +94,33 @@ TEST_F(AvmMemoryTests, mismatchedTagEqOperation)
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the equality selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_eq == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_eq == FF(1); });
 
     EXPECT_TRUE(row != trace.end());
 
-    auto clk = row->avm_main_clk;
+    auto clk = row->main_clk;
 
     // Find the memory trace position corresponding to the load sub-operation of register ia.
     row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
-        return r.avm_mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_A;
+        return r.mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_A;
     });
 
     EXPECT_TRUE(row != trace.end());
 
-    EXPECT_EQ(row->avm_mem_tag_err, FF(0)); // Error is NOT raised
-    EXPECT_EQ(row->avm_mem_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
-    EXPECT_EQ(row->avm_mem_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
+    EXPECT_EQ(row->mem_tag_err, FF(0)); // Error is NOT raised
+    EXPECT_EQ(row->mem_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
+    EXPECT_EQ(row->mem_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
 
     // Find the memory trace position corresponding to the load sub-operation of register ib.
     row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
-        return r.avm_mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_B;
+        return r.mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_B;
     });
 
     EXPECT_TRUE(row != trace.end());
 
-    EXPECT_EQ(row->avm_mem_tag_err, FF(1)); // Error is raised
-    EXPECT_EQ(row->avm_mem_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
-    EXPECT_EQ(row->avm_mem_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U16)));
+    EXPECT_EQ(row->mem_tag_err, FF(1)); // Error is raised
+    EXPECT_EQ(row->mem_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
+    EXPECT_EQ(row->mem_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U16)));
 
     validate_trace(std::move(trace), public_inputs);
 }
@@ -138,20 +138,20 @@ TEST_F(AvmMemoryTests, mLastAccessViolation)
     auto trace = trace_builder.finalize();
 
     // Find the row with subtraction operation
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_sub == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sub == FF(1); });
 
     EXPECT_TRUE(row != trace.end());
-    auto clk = row->avm_main_clk;
+    auto clk = row->main_clk;
 
     // Find the row for memory trace with last memory entry for address 1 (read for subtraction)
     row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
-        return r.avm_mem_addr == FF(1) &&
-               r.avm_mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_A;
+        return r.mem_addr == FF(1) &&
+               r.mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_A;
     });
 
     EXPECT_TRUE(row != trace.end());
 
-    row->avm_mem_lastAccess = FF(0);
+    row->mem_lastAccess = FF(0);
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "MEM_LAST_ACCESS_DELIMITER");
 }
@@ -169,20 +169,20 @@ TEST_F(AvmMemoryTests, readWriteConsistencyValViolation)
     auto trace = trace_builder.finalize();
 
     // Find the row with multiplication operation
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_mul == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_mul == FF(1); });
 
     EXPECT_TRUE(row != trace.end());
-    auto clk = row->avm_main_clk + 1; // return operation is just after the multiplication
+    auto clk = row->main_clk + 1; // return operation is just after the multiplication
 
     // Find the row for memory trace with last memory entry for address 2 (read for multiplication)
     row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
-        return r.avm_mem_addr == FF(2) &&
-               r.avm_mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_A;
+        return r.mem_addr == FF(2) &&
+               r.mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_A;
     });
 
     EXPECT_TRUE(row != trace.end());
 
-    row->avm_mem_val = FF(35);
+    row->mem_val = FF(35);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "MEM_READ_WRITE_VAL_CONSISTENCY");
 }
 
@@ -199,20 +199,20 @@ TEST_F(AvmMemoryTests, readWriteConsistencyTagViolation)
     auto trace = trace_builder.finalize();
 
     // Find the row with multiplication operation
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_mul == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_mul == FF(1); });
 
     EXPECT_TRUE(row != trace.end());
-    auto clk = row->avm_main_clk + 1; // return operation is just after the multiplication
+    auto clk = row->main_clk + 1; // return operation is just after the multiplication
 
     // Find the row for memory trace with last memory entry for address 2 (read for multiplication)
     row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
-        return r.avm_mem_addr == FF(2) &&
-               r.avm_mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_A;
+        return r.mem_addr == FF(2) &&
+               r.mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_A;
     });
 
     EXPECT_TRUE(row != trace.end());
 
-    row->avm_mem_tag = static_cast<uint32_t>(AvmMemoryTag::U16);
+    row->mem_tag = static_cast<uint32_t>(AvmMemoryTag::U16);
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "MEM_READ_WRITE_TAG_CONSISTENCY");
 }
@@ -223,7 +223,7 @@ TEST_F(AvmMemoryTests, readUninitializedMemoryViolation)
     trace_builder.return_op(0, 1, 1); // Return single memory word at position 1
     auto trace = trace_builder.finalize();
 
-    trace[1].avm_mem_val = 9;
+    trace[1].mem_val = 9;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "MEM_ZERO_INIT");
 }
@@ -239,25 +239,25 @@ TEST_F(AvmMemoryTests, mismatchedTagErrorViolation)
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the subtraction selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_sub == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sub == FF(1); });
 
     EXPECT_TRUE(row != trace.end());
 
-    auto clk = row->avm_main_clk;
+    auto clk = row->main_clk;
 
     // Find the memory trace position corresponding to the subtraction sub-operation of register ia.
     row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
-        return r.avm_mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_A;
+        return r.mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_A;
     });
 
-    row->avm_mem_tag_err = FF(0);
+    row->mem_tag_err = FF(0);
     auto index = static_cast<uint32_t>(row - trace.begin());
     auto trace2 = trace;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "MEM_IN_TAG_CONSISTENCY_1");
 
     // More sophisticated attempt by adapting witness "on_min_inv" to make pass the above constraint
-    trace2[index].avm_mem_one_min_inv = FF(1);
+    trace2[index].mem_one_min_inv = FF(1);
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace2)), "MEM_IN_TAG_CONSISTENCY_2");
 }
@@ -273,18 +273,18 @@ TEST_F(AvmMemoryTests, consistentTagNoErrorViolation)
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the fdiv selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_fdiv == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_fdiv == FF(1); });
 
     EXPECT_TRUE(row != trace.end());
 
-    auto clk = row->avm_main_clk;
+    auto clk = row->main_clk;
 
     // Find the memory trace position corresponding to the fdiv sub-operation of register ia.
     row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
-        return r.avm_mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_A;
+        return r.mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_LOAD_A;
     });
 
-    row->avm_mem_tag_err = FF(1);
+    row->mem_tag_err = FF(1);
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "MEM_IN_TAG_CONSISTENCY_1");
 }
@@ -299,19 +299,19 @@ TEST_F(AvmMemoryTests, noErrorTagWriteViolation)
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the fdiv selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_fdiv == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_fdiv == FF(1); });
 
     ASSERT_TRUE(row != trace.end());
 
-    auto clk = row->avm_main_clk;
+    auto clk = row->main_clk;
 
     // Find the memory trace position corresponding to the fdiv sub-operation of register ic.
     row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
-        return r.avm_mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_STORE_C;
+        return r.mem_tsp == FF(AvmMemTraceBuilder::NUM_SUB_CLK) * clk + AvmMemTraceBuilder::SUB_CLK_STORE_C;
     });
 
     ASSERT_TRUE(row != trace.end());
-    row->avm_mem_tag_err = FF(1);
+    row->mem_tag_err = FF(1);
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "NO_TAG_ERR_WRITE");
 }

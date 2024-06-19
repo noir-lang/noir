@@ -50,28 +50,28 @@ TEST_F(AvmIndirectMemTests, allIndirectAdd)
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the addition selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_add == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_add == FF(1); });
 
     EXPECT_TRUE(row != trace.end());
 
     // Check all addresses and values
-    EXPECT_EQ(row->avm_main_ia, FF(100));
-    EXPECT_EQ(row->avm_main_ib, FF(101));
-    EXPECT_EQ(row->avm_main_ic, FF(201));
-    EXPECT_EQ(row->avm_main_ind_a, FF(0));
-    EXPECT_EQ(row->avm_main_ind_b, FF(1));
-    EXPECT_EQ(row->avm_main_ind_c, FF(2));
-    EXPECT_EQ(row->avm_main_mem_idx_a, FF(10));
-    EXPECT_EQ(row->avm_main_mem_idx_b, FF(11));
-    EXPECT_EQ(row->avm_main_mem_idx_c, FF(12));
+    EXPECT_EQ(row->main_ia, FF(100));
+    EXPECT_EQ(row->main_ib, FF(101));
+    EXPECT_EQ(row->main_ic, FF(201));
+    EXPECT_EQ(row->main_ind_a, FF(0));
+    EXPECT_EQ(row->main_ind_b, FF(1));
+    EXPECT_EQ(row->main_ind_c, FF(2));
+    EXPECT_EQ(row->main_mem_idx_a, FF(10));
+    EXPECT_EQ(row->main_mem_idx_b, FF(11));
+    EXPECT_EQ(row->main_mem_idx_c, FF(12));
 
     // Check memory operation tags
-    EXPECT_EQ(row->avm_main_ind_op_a, FF(1));
-    EXPECT_EQ(row->avm_main_ind_op_b, FF(1));
-    EXPECT_EQ(row->avm_main_ind_op_c, FF(1));
-    EXPECT_EQ(row->avm_main_mem_op_a, FF(1));
-    EXPECT_EQ(row->avm_main_mem_op_b, FF(1));
-    EXPECT_EQ(row->avm_main_mem_op_c, FF(1));
+    EXPECT_EQ(row->main_ind_op_a, FF(1));
+    EXPECT_EQ(row->main_ind_op_b, FF(1));
+    EXPECT_EQ(row->main_ind_op_c, FF(1));
+    EXPECT_EQ(row->main_mem_op_a, FF(1));
+    EXPECT_EQ(row->main_mem_op_b, FF(1));
+    EXPECT_EQ(row->main_mem_op_c, FF(1));
 
     validate_trace(std::move(trace), public_inputs, true);
 }
@@ -96,28 +96,28 @@ TEST_F(AvmIndirectMemTests, indirectOutputSub)
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the subtraction selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_sub == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sub == FF(1); });
 
     EXPECT_TRUE(row != trace.end());
 
     // Check all addresses and values
-    EXPECT_EQ(row->avm_main_ia, FF(600));
-    EXPECT_EQ(row->avm_main_ib, FF(500));
-    EXPECT_EQ(row->avm_main_ic, FF(100));
-    EXPECT_EQ(row->avm_main_ind_a, FF(0));
-    EXPECT_EQ(row->avm_main_ind_b, FF(0));
-    EXPECT_EQ(row->avm_main_ind_c, FF(5));
-    EXPECT_EQ(row->avm_main_mem_idx_a, FF(50));
-    EXPECT_EQ(row->avm_main_mem_idx_b, FF(51));
-    EXPECT_EQ(row->avm_main_mem_idx_c, FF(52));
+    EXPECT_EQ(row->main_ia, FF(600));
+    EXPECT_EQ(row->main_ib, FF(500));
+    EXPECT_EQ(row->main_ic, FF(100));
+    EXPECT_EQ(row->main_ind_a, FF(0));
+    EXPECT_EQ(row->main_ind_b, FF(0));
+    EXPECT_EQ(row->main_ind_c, FF(5));
+    EXPECT_EQ(row->main_mem_idx_a, FF(50));
+    EXPECT_EQ(row->main_mem_idx_b, FF(51));
+    EXPECT_EQ(row->main_mem_idx_c, FF(52));
 
     // Check memory operation tags
-    EXPECT_EQ(row->avm_main_ind_op_a, FF(0));
-    EXPECT_EQ(row->avm_main_ind_op_b, FF(0));
-    EXPECT_EQ(row->avm_main_ind_op_c, FF(1));
-    EXPECT_EQ(row->avm_main_mem_op_a, FF(1));
-    EXPECT_EQ(row->avm_main_mem_op_b, FF(1));
-    EXPECT_EQ(row->avm_main_mem_op_c, FF(1));
+    EXPECT_EQ(row->main_ind_op_a, FF(0));
+    EXPECT_EQ(row->main_ind_op_b, FF(0));
+    EXPECT_EQ(row->main_ind_op_c, FF(1));
+    EXPECT_EQ(row->main_mem_op_a, FF(1));
+    EXPECT_EQ(row->main_mem_op_b, FF(1));
+    EXPECT_EQ(row->main_mem_op_c, FF(1));
 
     validate_trace(std::move(trace), public_inputs);
 }
@@ -142,28 +142,28 @@ TEST_F(AvmIndirectMemTests, indirectInputAMul)
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the multiplication selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_mul == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_mul == FF(1); });
 
     EXPECT_TRUE(row != trace.end());
 
     // Check all addresses and values
-    EXPECT_EQ(row->avm_main_ia, FF(4));
-    EXPECT_EQ(row->avm_main_ib, FF(7));
-    EXPECT_EQ(row->avm_main_ic, FF(28));
-    EXPECT_EQ(row->avm_main_ind_a, FF(1000));
-    EXPECT_EQ(row->avm_main_ind_b, FF(0));
-    EXPECT_EQ(row->avm_main_ind_c, FF(0));
-    EXPECT_EQ(row->avm_main_mem_idx_a, FF(100));
-    EXPECT_EQ(row->avm_main_mem_idx_b, FF(101));
-    EXPECT_EQ(row->avm_main_mem_idx_c, FF(102));
+    EXPECT_EQ(row->main_ia, FF(4));
+    EXPECT_EQ(row->main_ib, FF(7));
+    EXPECT_EQ(row->main_ic, FF(28));
+    EXPECT_EQ(row->main_ind_a, FF(1000));
+    EXPECT_EQ(row->main_ind_b, FF(0));
+    EXPECT_EQ(row->main_ind_c, FF(0));
+    EXPECT_EQ(row->main_mem_idx_a, FF(100));
+    EXPECT_EQ(row->main_mem_idx_b, FF(101));
+    EXPECT_EQ(row->main_mem_idx_c, FF(102));
 
     // Check memory operation tags
-    EXPECT_EQ(row->avm_main_ind_op_a, FF(1));
-    EXPECT_EQ(row->avm_main_ind_op_b, FF(0));
-    EXPECT_EQ(row->avm_main_ind_op_c, FF(0));
-    EXPECT_EQ(row->avm_main_mem_op_a, FF(1));
-    EXPECT_EQ(row->avm_main_mem_op_b, FF(1));
-    EXPECT_EQ(row->avm_main_mem_op_c, FF(1));
+    EXPECT_EQ(row->main_ind_op_a, FF(1));
+    EXPECT_EQ(row->main_ind_op_b, FF(0));
+    EXPECT_EQ(row->main_ind_op_c, FF(0));
+    EXPECT_EQ(row->main_mem_op_a, FF(1));
+    EXPECT_EQ(row->main_mem_op_b, FF(1));
+    EXPECT_EQ(row->main_mem_op_c, FF(1));
 
     validate_trace(std::move(trace), public_inputs);
 }

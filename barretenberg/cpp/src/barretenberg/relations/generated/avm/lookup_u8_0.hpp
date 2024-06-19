@@ -87,7 +87,7 @@ class lookup_u8_0_lookup_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_alu_rng_chk_lookup_selector == 1 || in.avm_main_sel_rng_8 == 1);
+        return (in.alu_rng_chk_lookup_selector == 1 || in.main_sel_rng_8 == 1);
     }
 
     /**
@@ -104,8 +104,8 @@ class lookup_u8_0_lookup_settings {
     static inline auto compute_inverse_exists(const AllEntities& in)
     {
         using View = typename Accumulator::View;
-        const auto is_operation = View(in.avm_alu_rng_chk_lookup_selector);
-        const auto is_table_entry = View(in.avm_main_sel_rng_8);
+        const auto is_operation = View(in.alu_rng_chk_lookup_selector);
+        const auto is_table_entry = View(in.main_sel_rng_8);
         return (is_operation + is_table_entry - is_operation * is_table_entry);
     }
 
@@ -135,10 +135,10 @@ class lookup_u8_0_lookup_settings {
 
         return std::forward_as_tuple(in.lookup_u8_0,
                                      in.lookup_u8_0_counts,
-                                     in.avm_alu_rng_chk_lookup_selector,
-                                     in.avm_main_sel_rng_8,
-                                     in.avm_alu_u8_r0,
-                                     in.avm_main_clk);
+                                     in.alu_rng_chk_lookup_selector,
+                                     in.main_sel_rng_8,
+                                     in.alu_u8_r0,
+                                     in.main_clk);
     }
 
     /**
@@ -153,10 +153,10 @@ class lookup_u8_0_lookup_settings {
 
         return std::forward_as_tuple(in.lookup_u8_0,
                                      in.lookup_u8_0_counts,
-                                     in.avm_alu_rng_chk_lookup_selector,
-                                     in.avm_main_sel_rng_8,
-                                     in.avm_alu_u8_r0,
-                                     in.avm_main_clk);
+                                     in.alu_rng_chk_lookup_selector,
+                                     in.main_sel_rng_8,
+                                     in.alu_u8_r0,
+                                     in.main_clk);
     }
 };
 

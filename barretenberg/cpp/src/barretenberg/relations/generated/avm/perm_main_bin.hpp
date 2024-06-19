@@ -23,7 +23,7 @@ class perm_main_bin_permutation_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_main_bin_sel == 1 || in.avm_binary_start == 1);
+        return (in.main_bin_sel == 1 || in.binary_start == 1);
     }
 
     /**
@@ -47,21 +47,21 @@ class perm_main_bin_permutation_settings {
     {
 
         return std::forward_as_tuple(in.perm_main_bin,
-                                     in.avm_main_bin_sel,
-                                     in.avm_main_bin_sel,
-                                     in.avm_binary_start,
-                                     in.avm_main_clk,
-                                     in.avm_main_ia,
-                                     in.avm_main_ib,
-                                     in.avm_main_ic,
-                                     in.avm_main_bin_op_id,
-                                     in.avm_main_r_in_tag,
-                                     in.avm_binary_clk,
-                                     in.avm_binary_acc_ia,
-                                     in.avm_binary_acc_ib,
-                                     in.avm_binary_acc_ic,
-                                     in.avm_binary_op_id,
-                                     in.avm_binary_in_tag);
+                                     in.main_bin_sel,
+                                     in.main_bin_sel,
+                                     in.binary_start,
+                                     in.main_clk,
+                                     in.main_ia,
+                                     in.main_ib,
+                                     in.main_ic,
+                                     in.main_bin_op_id,
+                                     in.main_r_in_tag,
+                                     in.binary_clk,
+                                     in.binary_acc_ia,
+                                     in.binary_acc_ib,
+                                     in.binary_acc_ic,
+                                     in.binary_op_id,
+                                     in.binary_in_tag);
     }
 
     /**
@@ -85,21 +85,21 @@ class perm_main_bin_permutation_settings {
     {
 
         return std::forward_as_tuple(in.perm_main_bin,
-                                     in.avm_main_bin_sel,
-                                     in.avm_main_bin_sel,
-                                     in.avm_binary_start,
-                                     in.avm_main_clk,
-                                     in.avm_main_ia,
-                                     in.avm_main_ib,
-                                     in.avm_main_ic,
-                                     in.avm_main_bin_op_id,
-                                     in.avm_main_r_in_tag,
-                                     in.avm_binary_clk,
-                                     in.avm_binary_acc_ia,
-                                     in.avm_binary_acc_ib,
-                                     in.avm_binary_acc_ic,
-                                     in.avm_binary_op_id,
-                                     in.avm_binary_in_tag);
+                                     in.main_bin_sel,
+                                     in.main_bin_sel,
+                                     in.binary_start,
+                                     in.main_clk,
+                                     in.main_ia,
+                                     in.main_ib,
+                                     in.main_ic,
+                                     in.main_bin_op_id,
+                                     in.main_r_in_tag,
+                                     in.binary_clk,
+                                     in.binary_acc_ia,
+                                     in.binary_acc_ib,
+                                     in.binary_acc_ic,
+                                     in.binary_op_id,
+                                     in.binary_in_tag);
     }
 };
 

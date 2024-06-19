@@ -1,6 +1,6 @@
-include "../avm_main.pil";
+include "../main.pil";
 
-namespace avm_conversion(256);
+namespace conversion(256);
 
     pol commit clk;
 

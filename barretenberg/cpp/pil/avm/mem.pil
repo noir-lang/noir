@@ -1,6 +1,6 @@
-include "avm_main.pil";
+include "main.pil";
 
-namespace avm_mem(256);
+namespace mem(256);
     // ========= Table MEM-TR =================
     pol commit clk;
     pol commit tsp; // Timestamp derived form clk and sub-operation types (SUB_CLK)
@@ -15,18 +15,18 @@ namespace avm_mem(256);
     pol commit mem_sel; // Selector for every row pertaining to the memory trace
     pol commit rng_chk_sel; // Selector for row on which range-checks apply.
 
-    pol commit r_in_tag; // Instruction memory tag ("foreign key" pointing to avm_main.r_in_tag)
-    pol commit w_in_tag; // Instruction memory tag ("foreign key" pointing to avm_main.w_in_tag)
+    pol commit r_in_tag; // Instruction memory tag ("foreign key" pointing to main.r_in_tag)
+    pol commit w_in_tag; // Instruction memory tag ("foreign key" pointing to main.w_in_tag)
     pol commit skip_check_tag; // A boolean value which relaxes the consistency check in memory
                                // trace between tag and r_in_tag. Required for CMOV opcode.
 
-    // Indicator of the intermediate register pertaining to the memory operation (foreign key to avm_main.mem_op_XXX)
+    // Indicator of the intermediate register pertaining to the memory operation (foreign key to main.mem_op_XXX)
     pol commit op_a;
     pol commit op_b;
     pol commit op_c;
     pol commit op_d;
 
-    // Indicator of the indirect register pertaining to the memory operation (foreign key to avm_main.ind_op_XXX)
+    // Indicator of the indirect register pertaining to the memory operation (foreign key to main.ind_op_XXX)
     pol commit ind_op_a;
     pol commit ind_op_b;
     pol commit ind_op_c;
@@ -73,11 +73,11 @@ namespace avm_mem(256);
     // Enforce the memory entries to be contiguous, i.e., as soon as
     // mem_sel is disabled all subsequent rows have mem_sel disabled.
     #[MEM_CONTIGUOUS]
-    (1 - avm_main.first) * mem_sel' * (1 - mem_sel) = 0;
+    (1 - main.first) * mem_sel' * (1 - mem_sel) = 0;
 
     // Memory trace rows cannot start at first row
     #[MEM_FIRST_EMPTY]
-    avm_main.first * mem_sel = 0;
+    main.first * mem_sel = 0;
 
     // Definition of last, i.e., last row with mem_sel activated
     #[MEM_LAST]
@@ -105,13 +105,13 @@ namespace avm_mem(256);
     glob_addr = space_id * 2**32 + addr;
 
     #[LAST_ACCESS_FIRST_ROW]
-    avm_main.first * (1 - lastAccess) = 0;
+    main.first * (1 - lastAccess) = 0;
     // Remark: lastAccess == 1 on first row and therefore any relation with the
-    //         multiplicative term (1 - lastAccess) implicitly includes (1 - avm_main.first)
+    //         multiplicative term (1 - lastAccess) implicitly includes (1 - main.first)
     //         Similarly, this includes (1 - last) as well.
 
     // lastAccess == 0 ==> glob_addr' == glob_addr
-    // Optimization: We removed the term (1 - avm_main.first)
+    // Optimization: We removed the term (1 - main.first)
     #[MEM_LAST_ACCESS_DELIMITER]
     (1 - lastAccess) * (glob_addr' - glob_addr) = 0;
     
@@ -138,12 +138,12 @@ namespace avm_mem(256);
     // Note: in barretenberg, a shifted polynomial will be 0 on the last row (shift is not cyclic)
     // Note2: in barretenberg, if a poynomial is shifted, its non-shifted equivalent must be 0 on the first row
     
-    // Optimization: We removed the term (1 - avm_main.first) and (1 - last)
+    // Optimization: We removed the term (1 - main.first) and (1 - last)
     #[MEM_READ_WRITE_VAL_CONSISTENCY]
     (1 - lastAccess) * (1 - rw') * (val' - val) = 0;
     
     // lastAccess == 0 && rw' == 0 ==> tag == tag'
-    // Optimization: We removed the term (1 - avm_main.first) and (1 - last)
+    // Optimization: We removed the term (1 - main.first) and (1 - last)
     #[MEM_READ_WRITE_TAG_CONSISTENCY]
     (1 - lastAccess) * (1 - rw') * (tag' - tag) = 0;
 

@@ -82,17 +82,17 @@ void test_kernel_lookup(bool indirect,
 void expect_row(auto row, FF selector, FF ia, FF ind_a, FF mem_idx_a, AvmMemoryTag w_in_tag)
 {
     // Checks dependent on the opcode
-    EXPECT_EQ(row->avm_kernel_kernel_in_offset, selector);
-    EXPECT_EQ(row->avm_main_ia, ia);
-    EXPECT_EQ(row->avm_main_mem_idx_a, mem_idx_a);
+    EXPECT_EQ(row->kernel_kernel_in_offset, selector);
+    EXPECT_EQ(row->main_ia, ia);
+    EXPECT_EQ(row->main_mem_idx_a, mem_idx_a);
 
     // Checks that are fixed for kernel inputs
-    EXPECT_EQ(row->avm_main_rwa, FF(1));
-    EXPECT_EQ(row->avm_main_ind_a, ind_a);
-    EXPECT_EQ(row->avm_main_ind_op_a, FF(ind_a != 0));
-    EXPECT_EQ(row->avm_main_mem_op_a, FF(1));
-    EXPECT_EQ(row->avm_main_w_in_tag, static_cast<uint32_t>(w_in_tag));
-    EXPECT_EQ(row->avm_main_q_kernel_lookup, FF(1));
+    EXPECT_EQ(row->main_rwa, FF(1));
+    EXPECT_EQ(row->main_ind_a, ind_a);
+    EXPECT_EQ(row->main_ind_op_a, FF(ind_a != 0));
+    EXPECT_EQ(row->main_mem_op_a, FF(1));
+    EXPECT_EQ(row->main_w_in_tag, static_cast<uint32_t>(w_in_tag));
+    EXPECT_EQ(row->main_q_kernel_lookup, FF(1));
 }
 
 void expect_output_table_row(auto row,
@@ -105,19 +105,19 @@ void expect_output_table_row(auto row,
                              uint32_t rwa = 0)
 {
     // Checks dependent on the opcode
-    EXPECT_EQ(row->avm_kernel_kernel_out_offset, selector);
-    EXPECT_EQ(row->avm_main_ia, ia);
-    EXPECT_EQ(row->avm_main_mem_idx_a, mem_idx_a);
+    EXPECT_EQ(row->kernel_kernel_out_offset, selector);
+    EXPECT_EQ(row->main_ia, ia);
+    EXPECT_EQ(row->main_mem_idx_a, mem_idx_a);
 
     // Checks that are fixed for kernel inputs
-    EXPECT_EQ(row->avm_main_rwa, FF(rwa));
-    EXPECT_EQ(row->avm_main_ind_a, ind_a);
-    EXPECT_EQ(row->avm_main_ind_op_a, FF(ind_a != 0));
-    EXPECT_EQ(row->avm_main_mem_op_a, FF(1));
-    EXPECT_EQ(row->avm_main_r_in_tag, static_cast<uint32_t>(r_in_tag));
-    EXPECT_EQ(row->avm_main_q_kernel_output_lookup, FF(1));
+    EXPECT_EQ(row->main_rwa, FF(rwa));
+    EXPECT_EQ(row->main_ind_a, ind_a);
+    EXPECT_EQ(row->main_ind_op_a, FF(ind_a != 0));
+    EXPECT_EQ(row->main_mem_op_a, FF(1));
+    EXPECT_EQ(row->main_r_in_tag, static_cast<uint32_t>(r_in_tag));
+    EXPECT_EQ(row->main_q_kernel_output_lookup, FF(1));
 
-    EXPECT_EQ(row->avm_kernel_side_effect_counter, FF(side_effect_counter));
+    EXPECT_EQ(row->kernel_side_effect_counter, FF(side_effect_counter));
 }
 
 void expect_output_table_row_with_metadata(auto row,
@@ -135,16 +135,16 @@ void expect_output_table_row_with_metadata(auto row,
 {
     expect_output_table_row(row, selector, ia, mem_idx_a, ind_a, r_in_tag, side_effect_counter, rwa);
 
-    EXPECT_EQ(row->avm_main_ib, ib);
-    EXPECT_EQ(row->avm_main_mem_idx_b, mem_idx_b);
+    EXPECT_EQ(row->main_ib, ib);
+    EXPECT_EQ(row->main_mem_idx_b, mem_idx_b);
 
     // Checks that are fixed for kernel inputs
-    EXPECT_EQ(row->avm_main_rwb, FF(0));
+    EXPECT_EQ(row->main_rwb, FF(0));
 
     if (!no_b) {
-        EXPECT_EQ(row->avm_main_ind_b, ind_b);
-        EXPECT_EQ(row->avm_main_ind_op_b, FF(ind_b != 0));
-        EXPECT_EQ(row->avm_main_mem_op_b, FF(1));
+        EXPECT_EQ(row->main_ind_b, ind_b);
+        EXPECT_EQ(row->main_ind_op_b, FF(ind_b != 0));
+        EXPECT_EQ(row->main_mem_op_b, FF(1));
     }
 }
 
@@ -161,21 +161,21 @@ void expect_output_table_row_with_exists_metadata(auto row,
 {
     expect_output_table_row(row, selector, ia, mem_idx_a, ind_a, w_in_tag, side_effect_counter);
 
-    EXPECT_EQ(row->avm_main_ib, ib);
-    EXPECT_EQ(row->avm_main_mem_idx_b, mem_idx_b);
+    EXPECT_EQ(row->main_ib, ib);
+    EXPECT_EQ(row->main_mem_idx_b, mem_idx_b);
 
     // Checks that are fixed for kernel inputs
-    EXPECT_EQ(row->avm_main_rwb, FF(1));
-    EXPECT_EQ(row->avm_main_ind_b, ind_b);
-    EXPECT_EQ(row->avm_main_ind_op_b, FF(ind_b != 0));
-    EXPECT_EQ(row->avm_main_mem_op_b, FF(1));
+    EXPECT_EQ(row->main_rwb, FF(1));
+    EXPECT_EQ(row->main_ind_b, ind_b);
+    EXPECT_EQ(row->main_ind_op_b, FF(ind_b != 0));
+    EXPECT_EQ(row->main_mem_op_b, FF(1));
 }
 
 void check_kernel_outputs(const Row& row, FF value, FF side_effect_counter, FF metadata)
 {
-    EXPECT_EQ(row.avm_kernel_kernel_value_out, value);
-    EXPECT_EQ(row.avm_kernel_kernel_side_effect_out, side_effect_counter);
-    EXPECT_EQ(row.avm_kernel_kernel_metadata_out, metadata);
+    EXPECT_EQ(row.kernel_kernel_value_out, value);
+    EXPECT_EQ(row.kernel_kernel_side_effect_out, side_effect_counter);
+    EXPECT_EQ(row.kernel_kernel_metadata_out, metadata);
 }
 
 TEST_F(AvmKernelPositiveTests, kernelSender)
@@ -198,7 +198,7 @@ TEST_F(AvmKernelPositiveTests, kernelSender)
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_sender == FF(1); });
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sender == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_row(row,
@@ -232,7 +232,7 @@ TEST_F(AvmKernelPositiveTests, kernelAddress)
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto address_row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_address == FF(1); });
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_address == FF(1); });
         EXPECT_TRUE(address_row != trace.end());
 
         expect_row(address_row,
@@ -265,7 +265,7 @@ TEST_F(AvmKernelPositiveTests, kernelStorageAddress)
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto storage_address_row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_storage_address == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_storage_address == FF(1); });
         EXPECT_TRUE(storage_address_row != trace.end());
 
         expect_row(storage_address_row,
@@ -299,7 +299,7 @@ TEST_F(AvmKernelPositiveTests, kernelFeePerDa)
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto fee_row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_fee_per_da_gas == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_fee_per_da_gas == FF(1); });
         EXPECT_TRUE(fee_row != trace.end());
 
         expect_row(fee_row,
@@ -333,7 +333,7 @@ TEST_F(AvmKernelPositiveTests, kernelFeePerL2)
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto fee_row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_fee_per_l2_gas == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_fee_per_l2_gas == FF(1); });
         EXPECT_TRUE(fee_row != trace.end());
 
         expect_row(fee_row,
@@ -367,7 +367,7 @@ TEST_F(AvmKernelPositiveTests, kernelTransactionFee)
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto fee_row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_transaction_fee == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_transaction_fee == FF(1); });
         EXPECT_TRUE(fee_row != trace.end());
 
         expect_row(fee_row,
@@ -401,7 +401,7 @@ TEST_F(AvmKernelPositiveTests, kernelChainId)
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto fee_row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_chain_id == FF(1); });
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_chain_id == FF(1); });
         EXPECT_TRUE(fee_row != trace.end());
 
         expect_row(fee_row,
@@ -435,7 +435,7 @@ TEST_F(AvmKernelPositiveTests, kernelVersion)
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto fee_row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_version == FF(1); });
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_version == FF(1); });
         EXPECT_TRUE(fee_row != trace.end());
 
         expect_row(fee_row,
@@ -468,8 +468,8 @@ TEST_F(AvmKernelPositiveTests, kernelBlockNumber)
     };
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
-        auto fee_row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_block_number == FF(1); });
+        auto fee_row =
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_block_number == FF(1); });
         EXPECT_TRUE(fee_row != trace.end());
 
         expect_row(fee_row,
@@ -503,7 +503,7 @@ TEST_F(AvmKernelPositiveTests, kernelCoinbase)
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto fee_row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_coinbase == FF(1); });
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_coinbase == FF(1); });
         EXPECT_TRUE(fee_row != trace.end());
 
         expect_row(fee_row,
@@ -536,8 +536,8 @@ TEST_F(AvmKernelPositiveTests, kernelTimestamp)
     };
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
-        auto fee_row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_timestamp == FF(1); });
+        auto fee_row =
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_timestamp == FF(1); });
         EXPECT_TRUE(fee_row != trace.end());
 
         expect_row(fee_row,
@@ -578,7 +578,7 @@ void negative_test_incorrect_ia_kernel_lookup(OpcodesFunc apply_opcodes,
     // Change the first row, as that will be where each of the opcodes are in the test
     auto& ta = trace.at(1);
 
-    ta.avm_main_ia = incorrect_ia;
+    ta.main_ia = incorrect_ia;
 
     check_trace(/*indirect*/ false, trace);
 
@@ -596,7 +596,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaSender)
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_sender == FF(1); });
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sender == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_row(
@@ -622,7 +622,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaAddress)
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_address == FF(1); });
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_address == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_row(
@@ -648,7 +648,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaStorageAddress)
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_storage_address == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_storage_address == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_row(
@@ -674,7 +674,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaDaGas)
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_fee_per_da_gas == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_fee_per_da_gas == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_row(
@@ -700,7 +700,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIal2Gas)
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_fee_per_l2_gas == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_fee_per_l2_gas == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_row(
@@ -726,7 +726,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaTransactionFee)
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_transaction_fee == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_transaction_fee == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_row(
@@ -752,7 +752,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaChainId)
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_chain_id == FF(1); });
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_chain_id == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_row(
@@ -778,7 +778,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaVersion)
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_version == FF(1); });
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_version == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_row(
@@ -803,8 +803,8 @@ TEST_F(AvmKernelNegativeTests, incorrectIaBlockNumber)
         trace_builder.op_block_number(/*indirect*/ false, dst_offset);
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
-        auto row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_block_number == FF(1); });
+        auto row =
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_block_number == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_row(
@@ -829,8 +829,8 @@ TEST_F(AvmKernelNegativeTests, incorrectIaTimestamp)
         trace_builder.op_timestamp(/*indirect*/ false, dst_offset);
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
-        auto row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_timestamp == FF(1); });
+        auto row =
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_timestamp == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_row(
@@ -856,7 +856,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaCoinbase)
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_coinbase == FF(1); });
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_coinbase == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_row(
@@ -896,7 +896,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitNoteHash)
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_emit_note_hash == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_emit_note_hash == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_output_table_row(
@@ -938,7 +938,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitNullifier)
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_emit_nullifier == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_emit_nullifier == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_output_table_row(
@@ -988,7 +988,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitL2ToL1Msg)
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_emit_l2_to_l1_msg == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_emit_l2_to_l1_msg == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_output_table_row_with_metadata(
@@ -1033,7 +1033,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitUnencryptedLog)
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_emit_unencrypted_log == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_emit_unencrypted_log == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_output_table_row(
@@ -1071,8 +1071,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelSload)
         trace_builder.op_sload(indirect, slot_offset, size, dest_offset);
     };
     auto checks = [=]([[maybe_unused]] bool indirect, const std::vector<Row>& trace) {
-        auto row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_sload == FF(1); });
+        auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sload == FF(1); });
         ASSERT_TRUE(row != trace.end());
 
         // TODO: temporarily hardcoded to direct, resolved by dbanks12 / ilyas pr - use your changes
@@ -1114,7 +1113,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelSstore)
     };
     auto checks = [=]([[maybe_unused]] bool indirect, const std::vector<Row>& trace) {
         auto row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_sstore == FF(1); });
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sstore == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         // TODO: temporarily hardcoded to direct, resolved by dbanks12 / ilyas pr - use your changes
@@ -1164,7 +1163,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNoteHashExists)
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_note_hash_exists == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_note_hash_exists == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_output_table_row_with_exists_metadata(
@@ -1204,7 +1203,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNullifierExists)
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_nullifier_exists == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_nullifier_exists == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_output_table_row_with_exists_metadata(
@@ -1243,7 +1242,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNullifierNonExists)
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_nullifier_exists == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_nullifier_exists == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_output_table_row_with_exists_metadata(
@@ -1283,7 +1282,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelL1ToL2MsgExists)
     };
     auto checks = [=]([[maybe_unused]] bool indirect, const std::vector<Row>& trace) {
         auto row = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_l1_to_l2_msg_exists == FF(1); });
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_l1_to_l2_msg_exists == FF(1); });
         EXPECT_TRUE(row != trace.end());
 
         expect_output_table_row_with_exists_metadata(

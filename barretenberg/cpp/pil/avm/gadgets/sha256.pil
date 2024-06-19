@@ -1,6 +1,6 @@
-include "../avm_main.pil";
+include "../main.pil";
 
-namespace avm_sha256(256);
+namespace sha256(256);
 
     pol commit clk;
 

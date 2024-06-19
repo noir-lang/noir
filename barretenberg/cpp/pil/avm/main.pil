@@ -1,17 +1,17 @@
 
-include "avm_mem.pil";
-include "avm_alu.pil";
-include "avm_binary.pil";
+include "mem.pil";
+include "alu.pil";
+include "binary.pil";
 include "constants.pil";
-include "avm_kernel.pil";
-include "avm_gas.pil";
-include "gadgets/avm_conversion.pil";
-include "gadgets/avm_sha256.pil";
-include "gadgets/avm_poseidon2.pil";
-include "gadgets/avm_keccakf1600.pil";
-include "gadgets/avm_pedersen.pil";
+include "kernel.pil";
+include "gas.pil";
+include "gadgets/conversion.pil";
+include "gadgets/sha256.pil";
+include "gadgets/poseidon2.pil";
+include "gadgets/keccakf1600.pil";
+include "gadgets/pedersen.pil";
 
-namespace avm_main(256);
+namespace main(256);
     //===== CONSTANT POLYNOMIALS ==================================================
     pol constant clk(i) { i };
     pol constant first = [1] + [0]*; // Used mostly to toggle off the first row consisting
@@ -58,7 +58,7 @@ namespace avm_main(256);
     pol commit sel_op_sstore;
 
     //===== GAS ACCOUNTING ========================================================
-    // 1. The gas lookup table (in avm_gas.pil) is constant and maps the opcode value to L2/DA gas (fixed) cost.
+    // 1. The gas lookup table (in gas.pil) is constant and maps the opcode value to L2/DA gas (fixed) cost.
     // 2. Read gas_op from gas table based on the opcode value
     // 3. TODO(#6588): constrain gas start and gas end
 
@@ -113,7 +113,7 @@ namespace avm_main(256);
     #[LOOKUP_OPCODE_GAS]
     gas_cost_active {opcode_val, l2_gas_op, da_gas_op}
     in
-    avm_gas.gas_cost_sel {clk, avm_gas.l2_gas_fixed_table, avm_gas.da_gas_fixed_table};
+    gas.gas_cost_sel {clk, gas.l2_gas_fixed_table, gas.da_gas_fixed_table};
 
     #[RANGE_CHECK_L2_GAS_HI]
     gas_cost_active {abs_l2_rem_gas_hi} in sel_rng_16 {clk};
@@ -214,7 +214,7 @@ namespace avm_main(256);
 
     // Errors
     pol commit op_err; // Boolean flag pertaining to an operation error
-    pol commit tag_err; // Boolean flag (foreign key to avm_mem.tag_err)
+    pol commit tag_err; // Boolean flag (foreign key to mem.tag_err)
 
     // A helper witness being the inverse of some value
     // to show a non-zero equality
@@ -328,7 +328,7 @@ namespace avm_main(256);
     sel_cmov * ( 1 - sel_cmov) = 0;
 
     op_err * (1 - op_err) = 0;
-    tag_err * (1 - tag_err) = 0; // Potential optimization (boolean constraint derivation from equivalence check to avm_mem)?
+    tag_err * (1 - tag_err) = 0; // Potential optimization (boolean constraint derivation from equivalence check to mem)?
     id_zero * (1 - id_zero) = 0;
 
     // Might be removed if derived from opcode based on a lookup of constants
@@ -569,107 +569,107 @@ namespace avm_main(256);
 
     // CALL CONTEXT
     #[SENDER_KERNEL]
-    sel_op_sender * (avm_kernel.kernel_in_offset - constants.SENDER_SELECTOR) = 0;
+    sel_op_sender * (kernel.kernel_in_offset - constants.SENDER_SELECTOR) = 0;
 
     #[ADDRESS_KERNEL]
-    sel_op_address * (avm_kernel.kernel_in_offset - constants.ADDRESS_SELECTOR) = 0;
+    sel_op_address * (kernel.kernel_in_offset - constants.ADDRESS_SELECTOR) = 0;
 
     #[STORAGE_ADDRESS_KERNEL]
-    sel_op_storage_address * (avm_kernel.kernel_in_offset - constants.STORAGE_ADDRESS_SELECTOR) = 0;
+    sel_op_storage_address * (kernel.kernel_in_offset - constants.STORAGE_ADDRESS_SELECTOR) = 0;
 
     // FEES
     #[FEE_DA_GAS_KERNEL]
-    sel_op_fee_per_da_gas  * (avm_kernel.kernel_in_offset - constants.FEE_PER_DA_GAS_SELECTOR) = 0;
+    sel_op_fee_per_da_gas  * (kernel.kernel_in_offset - constants.FEE_PER_DA_GAS_SELECTOR) = 0;
 
     #[FEE_L2_GAS_KERNEL]
-    sel_op_fee_per_l2_gas  * (avm_kernel.kernel_in_offset - constants.FEE_PER_L2_GAS_SELECTOR) = 0;
+    sel_op_fee_per_l2_gas  * (kernel.kernel_in_offset - constants.FEE_PER_L2_GAS_SELECTOR) = 0;
 
     #[FEE_TRANSACTION_FEE_KERNEL]
-    sel_op_transaction_fee  * (avm_kernel.kernel_in_offset - constants.TRANSACTION_FEE_SELECTOR) = 0;
+    sel_op_transaction_fee  * (kernel.kernel_in_offset - constants.TRANSACTION_FEE_SELECTOR) = 0;
 
     // GLOBALS
     #[CHAIN_ID_KERNEL]
-    sel_op_chain_id * (avm_kernel.kernel_in_offset - constants.CHAIN_ID_SELECTOR) = 0;
+    sel_op_chain_id * (kernel.kernel_in_offset - constants.CHAIN_ID_SELECTOR) = 0;
 
     #[VERSION_KERNEL]
-    sel_op_version * (avm_kernel.kernel_in_offset - constants.VERSION_SELECTOR) = 0;
+    sel_op_version * (kernel.kernel_in_offset - constants.VERSION_SELECTOR) = 0;
 
     #[BLOCK_NUMBER_KERNEL]
-    sel_op_block_number * (avm_kernel.kernel_in_offset - constants.BLOCK_NUMBER_SELECTOR) = 0;
+    sel_op_block_number * (kernel.kernel_in_offset - constants.BLOCK_NUMBER_SELECTOR) = 0;
 
     #[COINBASE_KERNEL]
-    sel_op_coinbase * (avm_kernel.kernel_in_offset - constants.COINBASE_SELECTOR) = 0;
+    sel_op_coinbase * (kernel.kernel_in_offset - constants.COINBASE_SELECTOR) = 0;
 
     #[TIMESTAMP_KERNEL]
-    sel_op_timestamp * (avm_kernel.kernel_in_offset - constants.TIMESTAMP_SELECTOR) = 0;
+    sel_op_timestamp * (kernel.kernel_in_offset - constants.TIMESTAMP_SELECTOR) = 0;
 
     // OUTPUTS LOOKUPS
     // Constrain the value of kernel_out_offset to be the correct offset for the operation being performed
     #[NOTE_HASH_KERNEL_OUTPUT]
-    sel_op_note_hash_exists * (avm_kernel.kernel_out_offset - (avm_kernel.START_NOTE_HASH_EXISTS_WRITE_OFFSET + avm_kernel.note_hash_exist_write_offset)) = 0;
-    first * avm_kernel.note_hash_exist_write_offset = 0;
+    sel_op_note_hash_exists * (kernel.kernel_out_offset - (kernel.START_NOTE_HASH_EXISTS_WRITE_OFFSET + kernel.note_hash_exist_write_offset)) = 0;
+    first * kernel.note_hash_exist_write_offset = 0;
     
 
     #[EMIT_NOTE_HASH_KERNEL_OUTPUT]
-    sel_op_emit_note_hash * (avm_kernel.kernel_out_offset - (avm_kernel.START_EMIT_NOTE_HASH_WRITE_OFFSET + avm_kernel.emit_note_hash_write_offset)) = 0;
-    first * avm_kernel.emit_note_hash_write_offset = 0;
+    sel_op_emit_note_hash * (kernel.kernel_out_offset - (kernel.START_EMIT_NOTE_HASH_WRITE_OFFSET + kernel.emit_note_hash_write_offset)) = 0;
+    first * kernel.emit_note_hash_write_offset = 0;
 
     #[NULLIFIER_EXISTS_KERNEL_OUTPUT]
-    sel_op_nullifier_exists * (avm_kernel.kernel_out_offset - ((ib * (avm_kernel.START_NULLIFIER_EXISTS_OFFSET + avm_kernel.nullifier_exists_write_offset)) + ((1 - ib) * (avm_kernel.START_NULLIFIER_NON_EXISTS_OFFSET + avm_kernel.nullifier_non_exists_write_offset)))) = 0;
-    first * avm_kernel.nullifier_exists_write_offset = 0;
-    first * avm_kernel.nullifier_non_exists_write_offset = 0;
+    sel_op_nullifier_exists * (kernel.kernel_out_offset - ((ib * (kernel.START_NULLIFIER_EXISTS_OFFSET + kernel.nullifier_exists_write_offset)) + ((1 - ib) * (kernel.START_NULLIFIER_NON_EXISTS_OFFSET + kernel.nullifier_non_exists_write_offset)))) = 0;
+    first * kernel.nullifier_exists_write_offset = 0;
+    first * kernel.nullifier_non_exists_write_offset = 0;
 
     #[EMIT_NULLIFIER_KERNEL_OUTPUT]
-    sel_op_emit_nullifier * (avm_kernel.kernel_out_offset - (avm_kernel.START_EMIT_NULLIFIER_WRITE_OFFSET + avm_kernel.emit_nullifier_write_offset)) = 0;
-    first * avm_kernel.emit_nullifier_write_offset = 0;
+    sel_op_emit_nullifier * (kernel.kernel_out_offset - (kernel.START_EMIT_NULLIFIER_WRITE_OFFSET + kernel.emit_nullifier_write_offset)) = 0;
+    first * kernel.emit_nullifier_write_offset = 0;
 
     #[L1_TO_L2_MSG_EXISTS_KERNEL_OUTPUT]
-    sel_op_l1_to_l2_msg_exists * (avm_kernel.kernel_out_offset - (avm_kernel.START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET + avm_kernel.l1_to_l2_msg_exists_write_offset)) = 0;
-    first * avm_kernel.l1_to_l2_msg_exists_write_offset = 0;
+    sel_op_l1_to_l2_msg_exists * (kernel.kernel_out_offset - (kernel.START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET + kernel.l1_to_l2_msg_exists_write_offset)) = 0;
+    first * kernel.l1_to_l2_msg_exists_write_offset = 0;
 
     #[EMIT_UNENCRYPTED_LOG_KERNEL_OUTPUT]
-    sel_op_emit_unencrypted_log * (avm_kernel.kernel_out_offset - (avm_kernel.START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET + avm_kernel.emit_unencrypted_log_write_offset)) = 0;
-    first * avm_kernel.emit_unencrypted_log_write_offset = 0;
+    sel_op_emit_unencrypted_log * (kernel.kernel_out_offset - (kernel.START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET + kernel.emit_unencrypted_log_write_offset)) = 0;
+    first * kernel.emit_unencrypted_log_write_offset = 0;
 
     // TODO: Add the equivalent for GETCONTRACTINSTANCE?
 
     #[EMIT_L2_TO_L1_MSGS_KERNEL_OUTPUT]
-    sel_op_emit_l2_to_l1_msg * (avm_kernel.kernel_out_offset - (avm_kernel.START_EMIT_L2_TO_l1_MSG + avm_kernel.emit_l2_to_l1_msg_write_offset)) = 0;
-    first * avm_kernel.emit_l2_to_l1_msg_write_offset = 0;
+    sel_op_emit_l2_to_l1_msg * (kernel.kernel_out_offset - (kernel.START_EMIT_L2_TO_l1_MSG + kernel.emit_l2_to_l1_msg_write_offset)) = 0;
+    first * kernel.emit_l2_to_l1_msg_write_offset = 0;
 
     #[SLOAD_KERNEL_OUTPUT]
-    sel_op_sload * (avm_kernel.kernel_out_offset - (avm_kernel.START_SLOAD_WRITE_OFFSET + avm_kernel.sload_write_offset)) = 0;
-    first * avm_kernel.sload_write_offset = 0;
+    sel_op_sload * (kernel.kernel_out_offset - (kernel.START_SLOAD_WRITE_OFFSET + kernel.sload_write_offset)) = 0;
+    first * kernel.sload_write_offset = 0;
 
     #[SSTORE_KERNEL_OUTPUT]
-    sel_op_sstore * (avm_kernel.kernel_out_offset - (avm_kernel.START_SSTORE_WRITE_OFFSET + avm_kernel.sstore_write_offset)) = 0;
-    first * avm_kernel.sstore_write_offset = 0;
+    sel_op_sstore * (kernel.kernel_out_offset - (kernel.START_SSTORE_WRITE_OFFSET + kernel.sstore_write_offset)) = 0;
+    first * kernel.sstore_write_offset = 0;
 
     // When we encounter a state writing opcode
     // We increment the side effect counter by 1
-    KERNEL_OUTPUT_SELECTORS * (avm_kernel.side_effect_counter' - (avm_kernel.side_effect_counter + 1)) = 0;
+    KERNEL_OUTPUT_SELECTORS * (kernel.side_effect_counter' - (kernel.side_effect_counter + 1)) = 0;
 
     #[KERNEL_OUTPUT_LOOKUP]
-    q_kernel_output_lookup {avm_kernel.kernel_out_offset, ia, avm_kernel.side_effect_counter, ib} in avm_kernel.q_public_input_kernel_out_add_to_table {clk, avm_kernel.kernel_value_out, avm_kernel.kernel_side_effect_out, avm_kernel.kernel_metadata_out};
+    q_kernel_output_lookup {kernel.kernel_out_offset, ia, kernel.side_effect_counter, ib} in kernel.q_public_input_kernel_out_add_to_table {clk, kernel.kernel_value_out, kernel.kernel_side_effect_out, kernel.kernel_metadata_out};
 
     #[LOOKUP_INTO_KERNEL]
-    q_kernel_lookup { avm_main.ia, avm_kernel.kernel_in_offset } in avm_kernel.q_public_input_kernel_add_to_table { avm_kernel.kernel_inputs, clk };
+    q_kernel_lookup { main.ia, kernel.kernel_in_offset } in kernel.q_public_input_kernel_add_to_table { kernel.kernel_inputs, clk };
 
     //====== Inter-table Constraints ============================================
     #[INCL_MAIN_TAG_ERR]
-    avm_mem.tag_err {avm_mem.clk} in tag_err {clk};
+    mem.tag_err {mem.clk} in tag_err {clk};
 
     #[INCL_MEM_TAG_ERR]
-    tag_err {clk} in avm_mem.tag_err {avm_mem.clk};
+    tag_err {clk} in mem.tag_err {mem.clk};
 
     #[PERM_MAIN_ALU]
     alu_sel {clk, ia, ib, ic, sel_op_add, sel_op_sub,
              sel_op_mul, sel_op_div, sel_op_eq, sel_op_not, sel_op_cast,
              sel_op_lt, sel_op_lte, sel_op_shr, sel_op_shl, alu_in_tag}
     is
-    avm_alu.alu_sel {avm_alu.clk, avm_alu.ia, avm_alu.ib, avm_alu.ic, avm_alu.op_add, avm_alu.op_sub,
-                     avm_alu.op_mul, avm_alu.op_div, avm_alu.op_eq, avm_alu.op_not, avm_alu.op_cast,
-                     avm_alu.op_lt, avm_alu.op_lte, avm_alu.op_shr, avm_alu.op_shl, avm_alu.in_tag};
+    alu.alu_sel {alu.clk, alu.ia, alu.ib, alu.ic, alu.op_add, alu.op_sub,
+                     alu.op_mul, alu.op_div, alu.op_eq, alu.op_not, alu.op_cast,
+                     alu.op_lt, alu.op_lte, alu.op_shr, alu.op_shl, alu.in_tag};
 
     // Based on the boolean selectors, we derive the binary op id to lookup in the table;
     // TODO: Check if having 4 columns (op_id + 3 boolean selectors) is more optimal that just using the op_id
@@ -687,179 +687,179 @@ namespace avm_main(256);
     #[PERM_MAIN_BIN]
     bin_sel {clk, ia, ib, ic, bin_op_id, r_in_tag}
     is
-    avm_binary.start {avm_binary.clk, avm_binary.acc_ia, avm_binary.acc_ib, avm_binary.acc_ic, avm_binary.op_id, avm_binary.in_tag};
+    binary.start {binary.clk, binary.acc_ia, binary.acc_ib, binary.acc_ic, binary.op_id, binary.in_tag};
 
     #[PERM_MAIN_CONV]
     sel_op_radix_le {clk, ia, ic, id}
     is
-    avm_conversion.to_radix_le_sel {avm_conversion.clk, avm_conversion.input, avm_conversion.radix, avm_conversion.num_limbs};
+    conversion.to_radix_le_sel {conversion.clk, conversion.input, conversion.radix, conversion.num_limbs};
 
     // This will be enabled when we migrate just to sha256Compression, as getting sha256 to work with it is tricky.
     // #[PERM_MAIN_SHA256]
     // sel_op_sha256 {clk, ia, ib, ic}
     // is
-    // avm_sha256.sha256_compression_sel {avm_sha256.clk, avm_sha256.state, avm_sha256.input, avm_sha256.output};
+    // sha256.sha256_compression_sel {sha256.clk, sha256.state, sha256.input, sha256.output};
 
     #[PERM_MAIN_POS2_PERM]
     sel_op_poseidon2 {clk, ia, ib}
     is
-    avm_poseidon2.poseidon_perm_sel {avm_poseidon2.clk, avm_poseidon2.input, avm_poseidon2.output};
+    poseidon2.poseidon_perm_sel {poseidon2.clk, poseidon2.input, poseidon2.output};
 
     // This will be enabled when we migrate just to keccakf1600, as getting keccak to work with it is tricky.
     // #[PERM_MAIN_KECCAK]
     // sel_op_keccak {clk, ia, ic}
     // is
-    // avm_keccakf1600.keccakf1600_sel {avm_keccakf1600.clk, avm_keccakf1600.input, avm_keccakf1600.output};
+    // keccakf1600.keccakf1600_sel {keccakf1600.clk, keccakf1600.input, keccakf1600.output};
 
     #[PERM_MAIN_PEDERSEN]
     sel_op_pedersen {clk, ia}
     is
-    avm_pedersen.pedersen_sel {avm_pedersen.clk, avm_pedersen.input};
+    pedersen.pedersen_sel {pedersen.clk, pedersen.input};
 
     #[PERM_MAIN_MEM_A]
     mem_op_a {clk, space_id, mem_idx_a, ia, rwa
             , r_in_tag, w_in_tag, sel_mov_a, sel_cmov}
     is
-    avm_mem.op_a {avm_mem.clk, avm_mem.space_id, avm_mem.addr, avm_mem.val, avm_mem.rw
-                , avm_mem.r_in_tag, avm_mem.w_in_tag, avm_mem.sel_mov_a, avm_mem.sel_cmov};
+    mem.op_a {mem.clk, mem.space_id, mem.addr, mem.val, mem.rw
+                , mem.r_in_tag, mem.w_in_tag, mem.sel_mov_a, mem.sel_cmov};
 
     #[PERM_MAIN_MEM_B]
     mem_op_b {clk, space_id, mem_idx_b, ib, rwb
             , r_in_tag, w_in_tag, sel_mov_b, sel_cmov}
     is
-    avm_mem.op_b {avm_mem.clk, avm_mem.space_id, avm_mem.addr, avm_mem.val, avm_mem.rw
-                , avm_mem.r_in_tag, avm_mem.w_in_tag, avm_mem.sel_mov_b, avm_mem.sel_cmov};
+    mem.op_b {mem.clk, mem.space_id, mem.addr, mem.val, mem.rw
+                , mem.r_in_tag, mem.w_in_tag, mem.sel_mov_b, mem.sel_cmov};
 
     #[PERM_MAIN_MEM_C]
     mem_op_c {clk, space_id, mem_idx_c, ic, rwc
             , r_in_tag, w_in_tag}
     is
-    avm_mem.op_c {avm_mem.clk, avm_mem.space_id, avm_mem.addr, avm_mem.val, avm_mem.rw
-                , avm_mem.r_in_tag, avm_mem.w_in_tag};
+    mem.op_c {mem.clk, mem.space_id, mem.addr, mem.val, mem.rw
+                , mem.r_in_tag, mem.w_in_tag};
 
     #[PERM_MAIN_MEM_D]
     mem_op_d {clk, space_id, mem_idx_d, id, rwd
             , r_in_tag, w_in_tag, sel_cmov}
     is
-    avm_mem.op_d {avm_mem.clk, avm_mem.space_id, avm_mem.addr, avm_mem.val, avm_mem.rw
-                , avm_mem.r_in_tag, avm_mem.w_in_tag, avm_mem.sel_cmov};
+    mem.op_d {mem.clk, mem.space_id, mem.addr, mem.val, mem.rw
+                , mem.r_in_tag, mem.w_in_tag, mem.sel_cmov};
 
     #[PERM_MAIN_MEM_IND_A]
     ind_op_a {clk, space_id, ind_a, mem_idx_a}
     is
-    avm_mem.ind_op_a {avm_mem.clk, avm_mem.space_id, avm_mem.addr, avm_mem.val};
+    mem.ind_op_a {mem.clk, mem.space_id, mem.addr, mem.val};
 
     #[PERM_MAIN_MEM_IND_B]
     ind_op_b {clk, space_id, ind_b, mem_idx_b}
     is
-    avm_mem.ind_op_b {avm_mem.clk, avm_mem.space_id, avm_mem.addr, avm_mem.val};
+    mem.ind_op_b {mem.clk, mem.space_id, mem.addr, mem.val};
 
     #[PERM_MAIN_MEM_IND_C]
     ind_op_c {clk, space_id, ind_c, mem_idx_c}
     is
-    avm_mem.ind_op_c {avm_mem.clk, avm_mem.space_id, avm_mem.addr, avm_mem.val};
+    mem.ind_op_c {mem.clk, mem.space_id, mem.addr, mem.val};
 
     #[PERM_MAIN_MEM_IND_D]
     ind_op_d {clk, space_id, ind_d, mem_idx_d}
     is
-    avm_mem.ind_op_d {avm_mem.clk, avm_mem.space_id, avm_mem.addr, avm_mem.val};
+    mem.ind_op_d {mem.clk, mem.space_id, mem.addr, mem.val};
 
     #[LOOKUP_MEM_RNG_CHK_LO]
-    avm_mem.rng_chk_sel {avm_mem.diff_lo} in sel_rng_16 {clk};
+    mem.rng_chk_sel {mem.diff_lo} in sel_rng_16 {clk};
 
     #[LOOKUP_MEM_RNG_CHK_MID] 
-    avm_mem.rng_chk_sel {avm_mem.diff_mid} in sel_rng_16 {clk};
+    mem.rng_chk_sel {mem.diff_mid} in sel_rng_16 {clk};
 
     #[LOOKUP_MEM_RNG_CHK_HI]
-    avm_mem.rng_chk_sel {avm_mem.diff_hi} in sel_rng_8 {clk};
+    mem.rng_chk_sel {mem.diff_hi} in sel_rng_8 {clk};
 
     //====== Inter-table Shift Constraints (Lookups) ============================================
     // Currently only used for shift operations but can be generalised for other uses.
 
     // Lookup for 2**(ib)
     #[LOOKUP_POW_2_0]
-    avm_alu.shift_sel {avm_alu.ib, avm_alu.two_pow_s} in sel_rng_8 {clk, table_pow_2};
+    alu.shift_sel {alu.ib, alu.two_pow_s} in sel_rng_8 {clk, table_pow_2};
 
     // Lookup for 2**(t-ib)
     #[LOOKUP_POW_2_1]
-    avm_alu.shift_sel {avm_alu.t_sub_s_bits , avm_alu.two_pow_t_sub_s} in sel_rng_8 {clk, table_pow_2};
+    alu.shift_sel {alu.t_sub_s_bits , alu.two_pow_t_sub_s} in sel_rng_8 {clk, table_pow_2};
 
     //====== Inter-table Constraints (Range Checks) ============================================
     // TODO: Investigate optimising these range checks. Handling non-FF elements should require less range checks.
     //       One can increase the granularity based on the operation and tag. In the most extreme case,
     //       a specific selector per register might be introduced.
     #[LOOKUP_U8_0]
-    avm_alu.rng_chk_lookup_selector { avm_alu.u8_r0 } in sel_rng_8 { clk };
+    alu.rng_chk_lookup_selector { alu.u8_r0 } in sel_rng_8 { clk };
 
     #[LOOKUP_U8_1]
-    avm_alu.rng_chk_lookup_selector { avm_alu.u8_r1 } in sel_rng_8 { clk };
+    alu.rng_chk_lookup_selector { alu.u8_r1 } in sel_rng_8 { clk };
 
     #[LOOKUP_U16_0]
-    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r0 } in sel_rng_16 { clk };
+    alu.rng_chk_lookup_selector {alu.u16_r0 } in sel_rng_16 { clk };
 
     #[LOOKUP_U16_1]
-    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r1 } in sel_rng_16 { clk };
+    alu.rng_chk_lookup_selector {alu.u16_r1 } in sel_rng_16 { clk };
 
     #[LOOKUP_U16_2]
-    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r2 } in sel_rng_16 { clk };
+    alu.rng_chk_lookup_selector {alu.u16_r2 } in sel_rng_16 { clk };
 
     #[LOOKUP_U16_3]
-    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r3 } in sel_rng_16 { clk };
+    alu.rng_chk_lookup_selector {alu.u16_r3 } in sel_rng_16 { clk };
 
     #[LOOKUP_U16_4]
-    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r4 } in sel_rng_16 { clk };
+    alu.rng_chk_lookup_selector {alu.u16_r4 } in sel_rng_16 { clk };
 
     #[LOOKUP_U16_5]
-    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r5 } in sel_rng_16 { clk };
+    alu.rng_chk_lookup_selector {alu.u16_r5 } in sel_rng_16 { clk };
 
     #[LOOKUP_U16_6]
-    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r6 } in sel_rng_16 { clk };
+    alu.rng_chk_lookup_selector {alu.u16_r6 } in sel_rng_16 { clk };
 
     #[LOOKUP_U16_7]
-    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r7 } in sel_rng_16 { clk };
+    alu.rng_chk_lookup_selector {alu.u16_r7 } in sel_rng_16 { clk };
 
     #[LOOKUP_U16_8]
-    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r8 } in sel_rng_16 { clk };
+    alu.rng_chk_lookup_selector {alu.u16_r8 } in sel_rng_16 { clk };
 
     #[LOOKUP_U16_9]
-    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r9 } in sel_rng_16 { clk };
+    alu.rng_chk_lookup_selector {alu.u16_r9 } in sel_rng_16 { clk };
 
     #[LOOKUP_U16_10]
-    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r10 } in sel_rng_16 { clk };
+    alu.rng_chk_lookup_selector {alu.u16_r10 } in sel_rng_16 { clk };
 
     #[LOOKUP_U16_11]
-    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r11 } in sel_rng_16 { clk };
+    alu.rng_chk_lookup_selector {alu.u16_r11 } in sel_rng_16 { clk };
 
     #[LOOKUP_U16_12]
-    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r12 } in sel_rng_16 { clk };
+    alu.rng_chk_lookup_selector {alu.u16_r12 } in sel_rng_16 { clk };
 
     #[LOOKUP_U16_13]
-    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r13 } in sel_rng_16 { clk };
+    alu.rng_chk_lookup_selector {alu.u16_r13 } in sel_rng_16 { clk };
 
     #[LOOKUP_U16_14]
-    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r14 } in sel_rng_16 { clk };
+    alu.rng_chk_lookup_selector {alu.u16_r14 } in sel_rng_16 { clk };
 
     // ==== Additional row range checks for division
     #[LOOKUP_DIV_U16_0]
-    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r0} in sel_rng_16 { clk };
+    alu.div_rng_chk_selector {alu.div_u16_r0} in sel_rng_16 { clk };
 
     #[LOOKUP_DIV_U16_1]
-    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r1 } in sel_rng_16 { clk };
+    alu.div_rng_chk_selector {alu.div_u16_r1 } in sel_rng_16 { clk };
 
     #[LOOKUP_DIV_U16_2]
-    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r2 } in sel_rng_16 { clk };
+    alu.div_rng_chk_selector {alu.div_u16_r2 } in sel_rng_16 { clk };
 
     #[LOOKUP_DIV_U16_3]
-    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r3 } in sel_rng_16 { clk };
+    alu.div_rng_chk_selector {alu.div_u16_r3 } in sel_rng_16 { clk };
 
     #[LOOKUP_DIV_U16_4]
-    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r4 } in sel_rng_16 { clk };
+    alu.div_rng_chk_selector {alu.div_u16_r4 } in sel_rng_16 { clk };
 
     #[LOOKUP_DIV_U16_5]
-    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r5 } in sel_rng_16 { clk };
+    alu.div_rng_chk_selector {alu.div_u16_r5 } in sel_rng_16 { clk };
 
     #[LOOKUP_DIV_U16_6]
-    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r6 } in sel_rng_16 { clk };
+    alu.div_rng_chk_selector {alu.div_u16_r6 } in sel_rng_16 { clk };
 
     #[LOOKUP_DIV_U16_7]
-    avm_alu.div_rng_chk_selector {avm_alu.div_u16_r7 } in sel_rng_16 { clk };
+    alu.div_rng_chk_selector {alu.div_u16_r7 } in sel_rng_16 { clk };

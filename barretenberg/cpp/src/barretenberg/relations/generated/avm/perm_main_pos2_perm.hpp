@@ -23,7 +23,7 @@ class perm_main_pos2_perm_permutation_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_main_sel_op_poseidon2 == 1 || in.avm_poseidon2_poseidon_perm_sel == 1);
+        return (in.main_sel_op_poseidon2 == 1 || in.poseidon2_poseidon_perm_sel == 1);
     }
 
     /**
@@ -47,15 +47,15 @@ class perm_main_pos2_perm_permutation_settings {
     {
 
         return std::forward_as_tuple(in.perm_main_pos2_perm,
-                                     in.avm_main_sel_op_poseidon2,
-                                     in.avm_main_sel_op_poseidon2,
-                                     in.avm_poseidon2_poseidon_perm_sel,
-                                     in.avm_main_clk,
-                                     in.avm_main_ia,
-                                     in.avm_main_ib,
-                                     in.avm_poseidon2_clk,
-                                     in.avm_poseidon2_input,
-                                     in.avm_poseidon2_output);
+                                     in.main_sel_op_poseidon2,
+                                     in.main_sel_op_poseidon2,
+                                     in.poseidon2_poseidon_perm_sel,
+                                     in.main_clk,
+                                     in.main_ia,
+                                     in.main_ib,
+                                     in.poseidon2_clk,
+                                     in.poseidon2_input,
+                                     in.poseidon2_output);
     }
 
     /**
@@ -79,15 +79,15 @@ class perm_main_pos2_perm_permutation_settings {
     {
 
         return std::forward_as_tuple(in.perm_main_pos2_perm,
-                                     in.avm_main_sel_op_poseidon2,
-                                     in.avm_main_sel_op_poseidon2,
-                                     in.avm_poseidon2_poseidon_perm_sel,
-                                     in.avm_main_clk,
-                                     in.avm_main_ia,
-                                     in.avm_main_ib,
-                                     in.avm_poseidon2_clk,
-                                     in.avm_poseidon2_input,
-                                     in.avm_poseidon2_output);
+                                     in.main_sel_op_poseidon2,
+                                     in.main_sel_op_poseidon2,
+                                     in.poseidon2_poseidon_perm_sel,
+                                     in.main_clk,
+                                     in.main_ia,
+                                     in.main_ib,
+                                     in.poseidon2_clk,
+                                     in.poseidon2_input,
+                                     in.poseidon2_output);
     }
 };
 

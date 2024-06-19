@@ -87,7 +87,7 @@ class kernel_output_lookup_lookup_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_main_q_kernel_output_lookup == 1 || in.avm_kernel_q_public_input_kernel_out_add_to_table == 1);
+        return (in.main_q_kernel_output_lookup == 1 || in.kernel_q_public_input_kernel_out_add_to_table == 1);
     }
 
     /**
@@ -104,8 +104,8 @@ class kernel_output_lookup_lookup_settings {
     static inline auto compute_inverse_exists(const AllEntities& in)
     {
         using View = typename Accumulator::View;
-        const auto is_operation = View(in.avm_main_q_kernel_output_lookup);
-        const auto is_table_entry = View(in.avm_kernel_q_public_input_kernel_out_add_to_table);
+        const auto is_operation = View(in.main_q_kernel_output_lookup);
+        const auto is_table_entry = View(in.kernel_q_public_input_kernel_out_add_to_table);
         return (is_operation + is_table_entry - is_operation * is_table_entry);
     }
 
@@ -135,16 +135,16 @@ class kernel_output_lookup_lookup_settings {
 
         return std::forward_as_tuple(in.kernel_output_lookup,
                                      in.kernel_output_lookup_counts,
-                                     in.avm_main_q_kernel_output_lookup,
-                                     in.avm_kernel_q_public_input_kernel_out_add_to_table,
-                                     in.avm_kernel_kernel_out_offset,
-                                     in.avm_main_ia,
-                                     in.avm_kernel_side_effect_counter,
-                                     in.avm_main_ib,
-                                     in.avm_main_clk,
-                                     in.avm_kernel_kernel_value_out,
-                                     in.avm_kernel_kernel_side_effect_out,
-                                     in.avm_kernel_kernel_metadata_out);
+                                     in.main_q_kernel_output_lookup,
+                                     in.kernel_q_public_input_kernel_out_add_to_table,
+                                     in.kernel_kernel_out_offset,
+                                     in.main_ia,
+                                     in.kernel_side_effect_counter,
+                                     in.main_ib,
+                                     in.main_clk,
+                                     in.kernel_kernel_value_out,
+                                     in.kernel_kernel_side_effect_out,
+                                     in.kernel_kernel_metadata_out);
     }
 
     /**
@@ -159,16 +159,16 @@ class kernel_output_lookup_lookup_settings {
 
         return std::forward_as_tuple(in.kernel_output_lookup,
                                      in.kernel_output_lookup_counts,
-                                     in.avm_main_q_kernel_output_lookup,
-                                     in.avm_kernel_q_public_input_kernel_out_add_to_table,
-                                     in.avm_kernel_kernel_out_offset,
-                                     in.avm_main_ia,
-                                     in.avm_kernel_side_effect_counter,
-                                     in.avm_main_ib,
-                                     in.avm_main_clk,
-                                     in.avm_kernel_kernel_value_out,
-                                     in.avm_kernel_kernel_side_effect_out,
-                                     in.avm_kernel_kernel_metadata_out);
+                                     in.main_q_kernel_output_lookup,
+                                     in.kernel_q_public_input_kernel_out_add_to_table,
+                                     in.kernel_kernel_out_offset,
+                                     in.main_ia,
+                                     in.kernel_side_effect_counter,
+                                     in.main_ib,
+                                     in.main_clk,
+                                     in.kernel_kernel_value_out,
+                                     in.kernel_kernel_side_effect_out,
+                                     in.kernel_kernel_metadata_out);
     }
 };
 

@@ -23,7 +23,7 @@ class perm_main_conv_permutation_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_main_sel_op_radix_le == 1 || in.avm_conversion_to_radix_le_sel == 1);
+        return (in.main_sel_op_radix_le == 1 || in.conversion_to_radix_le_sel == 1);
     }
 
     /**
@@ -47,17 +47,17 @@ class perm_main_conv_permutation_settings {
     {
 
         return std::forward_as_tuple(in.perm_main_conv,
-                                     in.avm_main_sel_op_radix_le,
-                                     in.avm_main_sel_op_radix_le,
-                                     in.avm_conversion_to_radix_le_sel,
-                                     in.avm_main_clk,
-                                     in.avm_main_ia,
-                                     in.avm_main_ic,
-                                     in.avm_main_id,
-                                     in.avm_conversion_clk,
-                                     in.avm_conversion_input,
-                                     in.avm_conversion_radix,
-                                     in.avm_conversion_num_limbs);
+                                     in.main_sel_op_radix_le,
+                                     in.main_sel_op_radix_le,
+                                     in.conversion_to_radix_le_sel,
+                                     in.main_clk,
+                                     in.main_ia,
+                                     in.main_ic,
+                                     in.main_id,
+                                     in.conversion_clk,
+                                     in.conversion_input,
+                                     in.conversion_radix,
+                                     in.conversion_num_limbs);
     }
 
     /**
@@ -81,17 +81,17 @@ class perm_main_conv_permutation_settings {
     {
 
         return std::forward_as_tuple(in.perm_main_conv,
-                                     in.avm_main_sel_op_radix_le,
-                                     in.avm_main_sel_op_radix_le,
-                                     in.avm_conversion_to_radix_le_sel,
-                                     in.avm_main_clk,
-                                     in.avm_main_ia,
-                                     in.avm_main_ic,
-                                     in.avm_main_id,
-                                     in.avm_conversion_clk,
-                                     in.avm_conversion_input,
-                                     in.avm_conversion_radix,
-                                     in.avm_conversion_num_limbs);
+                                     in.main_sel_op_radix_le,
+                                     in.main_sel_op_radix_le,
+                                     in.conversion_to_radix_le_sel,
+                                     in.main_clk,
+                                     in.main_ia,
+                                     in.main_ic,
+                                     in.main_id,
+                                     in.conversion_clk,
+                                     in.conversion_input,
+                                     in.conversion_radix,
+                                     in.conversion_num_limbs);
     }
 };
 

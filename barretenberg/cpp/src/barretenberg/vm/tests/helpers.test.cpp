@@ -73,66 +73,66 @@ void mutate_ic_in_trace(std::vector<Row>& trace, std::function<bool(Row)>&& sele
     EXPECT_TRUE(row != trace.end());
 
     // Mutate the correct result in the main trace
-    row->avm_main_ic = newValue;
+    row->main_ic = newValue;
 
     // Optionally mutate the corresponding ic value in alu
     if (alu) {
-        auto const clk = row->avm_main_clk;
+        auto const clk = row->main_clk;
         // Find the relevant alu trace entry.
-        auto alu_row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) { return r.avm_alu_clk == clk; });
+        auto alu_row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) { return r.alu_clk == clk; });
 
         EXPECT_TRUE(alu_row != trace.end());
-        alu_row->avm_alu_ic = newValue;
+        alu_row->alu_ic = newValue;
     }
 
     // Adapt the memory trace to be consistent with the wrong result
-    auto const clk = row->avm_main_clk;
-    auto const addr = row->avm_main_mem_idx_c;
+    auto const clk = row->main_clk;
+    auto const addr = row->main_mem_idx_c;
 
     // Find the relevant memory trace entry.
     auto mem_row = std::ranges::find_if(
-        trace.begin(), trace.end(), [clk, addr](Row r) { return r.avm_mem_clk == clk && r.avm_mem_addr == addr; });
+        trace.begin(), trace.end(), [clk, addr](Row r) { return r.mem_clk == clk && r.mem_addr == addr; });
 
     EXPECT_TRUE(mem_row != trace.end());
-    mem_row->avm_mem_val = newValue;
+    mem_row->mem_val = newValue;
 };
 
 // TODO: Should be a cleaner way to do this
 void update_slice_registers(Row& row, uint256_t a)
 {
-    row.avm_alu_u8_r0 = static_cast<uint8_t>(a);
+    row.alu_u8_r0 = static_cast<uint8_t>(a);
     a >>= 8;
-    row.avm_alu_u8_r1 = static_cast<uint8_t>(a);
+    row.alu_u8_r1 = static_cast<uint8_t>(a);
     a >>= 8;
-    row.avm_alu_u16_r0 = static_cast<uint16_t>(a);
+    row.alu_u16_r0 = static_cast<uint16_t>(a);
     a >>= 16;
-    row.avm_alu_u16_r1 = static_cast<uint16_t>(a);
+    row.alu_u16_r1 = static_cast<uint16_t>(a);
     a >>= 16;
-    row.avm_alu_u16_r2 = static_cast<uint16_t>(a);
+    row.alu_u16_r2 = static_cast<uint16_t>(a);
     a >>= 16;
-    row.avm_alu_u16_r3 = static_cast<uint16_t>(a);
+    row.alu_u16_r3 = static_cast<uint16_t>(a);
     a >>= 16;
-    row.avm_alu_u16_r4 = static_cast<uint16_t>(a);
+    row.alu_u16_r4 = static_cast<uint16_t>(a);
     a >>= 16;
-    row.avm_alu_u16_r5 = static_cast<uint16_t>(a);
+    row.alu_u16_r5 = static_cast<uint16_t>(a);
     a >>= 16;
-    row.avm_alu_u16_r6 = static_cast<uint16_t>(a);
+    row.alu_u16_r6 = static_cast<uint16_t>(a);
     a >>= 16;
-    row.avm_alu_u16_r7 = static_cast<uint16_t>(a);
+    row.alu_u16_r7 = static_cast<uint16_t>(a);
     a >>= 16;
-    row.avm_alu_u16_r8 = static_cast<uint16_t>(a);
+    row.alu_u16_r8 = static_cast<uint16_t>(a);
     a >>= 16;
-    row.avm_alu_u16_r9 = static_cast<uint16_t>(a);
+    row.alu_u16_r9 = static_cast<uint16_t>(a);
     a >>= 16;
-    row.avm_alu_u16_r10 = static_cast<uint16_t>(a);
+    row.alu_u16_r10 = static_cast<uint16_t>(a);
     a >>= 16;
-    row.avm_alu_u16_r11 = static_cast<uint16_t>(a);
+    row.alu_u16_r11 = static_cast<uint16_t>(a);
     a >>= 16;
-    row.avm_alu_u16_r12 = static_cast<uint16_t>(a);
+    row.alu_u16_r12 = static_cast<uint16_t>(a);
     a >>= 16;
-    row.avm_alu_u16_r13 = static_cast<uint16_t>(a);
+    row.alu_u16_r13 = static_cast<uint16_t>(a);
     a >>= 16;
-    row.avm_alu_u16_r14 = static_cast<uint16_t>(a);
+    row.alu_u16_r14 = static_cast<uint16_t>(a);
 }
 
 // TODO: There has to be a better way to do.

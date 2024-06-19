@@ -26,40 +26,40 @@ void common_validate_op_not(std::vector<Row> const& trace,
 {
 
     // Find the first row enabling the not selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_not == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_not == FF(1); });
 
     // Use the row in the main trace to find the same operation in the alu trace.
-    FF clk = row->avm_main_clk;
-    auto alu_row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) { return r.avm_alu_clk == clk; });
+    FF clk = row->main_clk;
+    auto alu_row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) { return r.alu_clk == clk; });
 
     // Check that both rows were found
     EXPECT_TRUE(row != trace.end());
     EXPECT_TRUE(alu_row != trace.end());
 
     // Check that the correct result is stored at the expected memory location.
-    EXPECT_EQ(row->avm_main_ic, c);
-    EXPECT_EQ(row->avm_main_mem_idx_c, addr_c);
-    EXPECT_EQ(row->avm_main_mem_op_c, FF(1));
-    EXPECT_EQ(row->avm_main_rwc, FF(1));
+    EXPECT_EQ(row->main_ic, c);
+    EXPECT_EQ(row->main_mem_idx_c, addr_c);
+    EXPECT_EQ(row->main_mem_op_c, FF(1));
+    EXPECT_EQ(row->main_rwc, FF(1));
 
     // Check that ia register is correctly set with memory load operations.
-    EXPECT_EQ(row->avm_main_ia, a);
-    EXPECT_EQ(row->avm_main_mem_idx_a, addr_a);
-    EXPECT_EQ(row->avm_main_mem_op_a, FF(1));
-    EXPECT_EQ(row->avm_main_rwa, FF(0));
+    EXPECT_EQ(row->main_ia, a);
+    EXPECT_EQ(row->main_mem_idx_a, addr_a);
+    EXPECT_EQ(row->main_mem_op_a, FF(1));
+    EXPECT_EQ(row->main_rwa, FF(0));
 
     // Check the instruction tags
-    EXPECT_EQ(row->avm_main_r_in_tag, FF(static_cast<uint32_t>(tag)));
-    EXPECT_EQ(row->avm_main_w_in_tag, FF(static_cast<uint32_t>(tag)));
+    EXPECT_EQ(row->main_r_in_tag, FF(static_cast<uint32_t>(tag)));
+    EXPECT_EQ(row->main_w_in_tag, FF(static_cast<uint32_t>(tag)));
 
     // Check that intermediate registers are correctly copied in Alu trace
-    EXPECT_EQ(alu_row->avm_alu_ia, a);
-    EXPECT_EQ(alu_row->avm_alu_ib, FF(0));
-    EXPECT_EQ(alu_row->avm_alu_ic, c);
+    EXPECT_EQ(alu_row->alu_ia, a);
+    EXPECT_EQ(alu_row->alu_ib, FF(0));
+    EXPECT_EQ(alu_row->alu_ic, c);
 
     // Check that not selector is set.
-    EXPECT_EQ(row->avm_main_sel_op_not, FF(1));
-    EXPECT_EQ(alu_row->avm_alu_op_not, FF(1));
+    EXPECT_EQ(row->main_sel_op_not, FF(1));
+    EXPECT_EQ(alu_row->alu_op_not, FF(1));
     switch (tag) {
     // Handle the different mem_tags here since this is part of a
     // parameterised test
@@ -67,19 +67,19 @@ void common_validate_op_not(std::vector<Row> const& trace,
         FAIL() << "Unintialized Mem Tags Disallowed";
         break;
     case AvmMemoryTag::U8:
-        EXPECT_EQ(alu_row->avm_alu_u8_tag, FF(1));
+        EXPECT_EQ(alu_row->alu_u8_tag, FF(1));
         break;
     case AvmMemoryTag::U16:
-        EXPECT_EQ(alu_row->avm_alu_u16_tag, FF(1));
+        EXPECT_EQ(alu_row->alu_u16_tag, FF(1));
         break;
     case AvmMemoryTag::U32:
-        EXPECT_EQ(alu_row->avm_alu_u32_tag, FF(1));
+        EXPECT_EQ(alu_row->alu_u32_tag, FF(1));
         break;
     case AvmMemoryTag::U64:
-        EXPECT_EQ(alu_row->avm_alu_u64_tag, FF(1));
+        EXPECT_EQ(alu_row->alu_u64_tag, FF(1));
         break;
     case AvmMemoryTag::U128:
-        EXPECT_EQ(alu_row->avm_alu_u128_tag, FF(1));
+        EXPECT_EQ(alu_row->alu_u128_tag, FF(1));
         break;
     case AvmMemoryTag::FF:
         FAIL() << "FF Mem Tags Disallowed for bitwise";
@@ -97,40 +97,39 @@ void common_validate_shift_op(std::vector<Row> const& trace,
                               avm_trace::AvmMemoryTag const tag,
                               bool shr)
 {
-    auto row =
-        shr ? std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_shr == FF(1); })
-            : std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_shl == FF(1); });
+    auto row = shr ? std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_shr == FF(1); })
+                   : std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_shl == FF(1); });
     ASSERT_TRUE(row != trace.end());
-    FF clk = row->avm_main_clk;
-    auto alu_row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) { return r.avm_alu_clk == clk; });
+    FF clk = row->main_clk;
+    auto alu_row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) { return r.alu_clk == clk; });
     ASSERT_TRUE(alu_row != trace.end());
 
     // Check that the correct result is stored at the expected memory location.
-    EXPECT_EQ(row->avm_main_ic, c);
-    EXPECT_EQ(row->avm_main_mem_idx_c, addr_c);
-    EXPECT_EQ(row->avm_main_mem_op_c, FF(1));
-    EXPECT_EQ(row->avm_main_rwc, FF(1));
+    EXPECT_EQ(row->main_ic, c);
+    EXPECT_EQ(row->main_mem_idx_c, addr_c);
+    EXPECT_EQ(row->main_mem_op_c, FF(1));
+    EXPECT_EQ(row->main_rwc, FF(1));
 
     // Check that ia register is correctly set with memory load operations.
-    EXPECT_EQ(row->avm_main_ia, a);
-    EXPECT_EQ(row->avm_main_mem_idx_a, addr_a);
-    EXPECT_EQ(row->avm_main_mem_op_a, FF(1));
-    EXPECT_EQ(row->avm_main_rwa, FF(0));
+    EXPECT_EQ(row->main_ia, a);
+    EXPECT_EQ(row->main_mem_idx_a, addr_a);
+    EXPECT_EQ(row->main_mem_op_a, FF(1));
+    EXPECT_EQ(row->main_rwa, FF(0));
 
     // Check that ib register is correctly set with memory load operations.
-    EXPECT_EQ(row->avm_main_ib, b);
-    EXPECT_EQ(row->avm_main_mem_idx_b, addr_b);
-    EXPECT_EQ(row->avm_main_mem_op_b, FF(1));
-    EXPECT_EQ(row->avm_main_rwb, FF(0));
+    EXPECT_EQ(row->main_ib, b);
+    EXPECT_EQ(row->main_mem_idx_b, addr_b);
+    EXPECT_EQ(row->main_mem_op_b, FF(1));
+    EXPECT_EQ(row->main_rwb, FF(0));
 
     // Check the instruction tags
-    EXPECT_EQ(row->avm_main_r_in_tag, FF(static_cast<uint32_t>(tag)));
-    EXPECT_EQ(row->avm_main_w_in_tag, FF(static_cast<uint32_t>(tag)));
+    EXPECT_EQ(row->main_r_in_tag, FF(static_cast<uint32_t>(tag)));
+    EXPECT_EQ(row->main_w_in_tag, FF(static_cast<uint32_t>(tag)));
 
     // Check that start row is the same as what is copied into the main trace
-    EXPECT_EQ(alu_row->avm_alu_ia, a);
-    EXPECT_EQ(alu_row->avm_alu_ib, b);
-    EXPECT_EQ(alu_row->avm_alu_ic, c);
+    EXPECT_EQ(alu_row->alu_ia, a);
+    EXPECT_EQ(alu_row->alu_ib, b);
+    EXPECT_EQ(alu_row->alu_ic, c);
 }
 
 void common_validate_bit_op(std::vector<Row> const& trace,
@@ -144,52 +143,52 @@ void common_validate_bit_op(std::vector<Row> const& trace,
                             avm_trace::AvmMemoryTag const tag)
 {
 
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_xor == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_xor == FF(1); });
     if (op_id == 0) {
-        row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_and == FF(1); });
+        row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_and == FF(1); });
     } else if (op_id == 1) {
-        row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_or == FF(1); });
+        row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_or == FF(1); });
     }
 
     // Use the row in the main trace to find the same operation in the alu trace.
-    FF clk = row->avm_main_clk;
+    FF clk = row->main_clk;
     auto bin_row_start = std::ranges::find_if(
-        trace.begin(), trace.end(), [clk](Row r) { return r.avm_binary_clk == clk && r.avm_binary_start == FF(1); });
+        trace.begin(), trace.end(), [clk](Row r) { return r.binary_clk == clk && r.binary_start == FF(1); });
 
     // Check that both rows were found
     ASSERT_TRUE(bin_row_start != trace.end());
     ASSERT_TRUE(row != trace.end());
 
     // Check that the correct result is stored at the expected memory location.
-    EXPECT_EQ(row->avm_main_ic, c);
-    EXPECT_EQ(row->avm_main_mem_idx_c, addr_c);
-    EXPECT_EQ(row->avm_main_mem_op_c, FF(1));
-    EXPECT_EQ(row->avm_main_rwc, FF(1));
+    EXPECT_EQ(row->main_ic, c);
+    EXPECT_EQ(row->main_mem_idx_c, addr_c);
+    EXPECT_EQ(row->main_mem_op_c, FF(1));
+    EXPECT_EQ(row->main_rwc, FF(1));
 
     // Check that ia register is correctly set with memory load operations.
-    EXPECT_EQ(row->avm_main_ia, a);
-    EXPECT_EQ(row->avm_main_mem_idx_a, addr_a);
-    EXPECT_EQ(row->avm_main_mem_op_a, FF(1));
-    EXPECT_EQ(row->avm_main_rwa, FF(0));
+    EXPECT_EQ(row->main_ia, a);
+    EXPECT_EQ(row->main_mem_idx_a, addr_a);
+    EXPECT_EQ(row->main_mem_op_a, FF(1));
+    EXPECT_EQ(row->main_rwa, FF(0));
 
     // Check that ia register is correctly set with memory load operations.
-    EXPECT_EQ(row->avm_main_ib, b);
-    EXPECT_EQ(row->avm_main_mem_idx_b, addr_b);
-    EXPECT_EQ(row->avm_main_mem_op_b, FF(1));
-    EXPECT_EQ(row->avm_main_rwb, FF(0));
+    EXPECT_EQ(row->main_ib, b);
+    EXPECT_EQ(row->main_mem_idx_b, addr_b);
+    EXPECT_EQ(row->main_mem_op_b, FF(1));
+    EXPECT_EQ(row->main_rwb, FF(0));
 
     // Check the instruction tags
-    EXPECT_EQ(row->avm_main_r_in_tag, FF(static_cast<uint32_t>(tag)));
-    EXPECT_EQ(row->avm_main_w_in_tag, FF(static_cast<uint32_t>(tag)));
+    EXPECT_EQ(row->main_r_in_tag, FF(static_cast<uint32_t>(tag)));
+    EXPECT_EQ(row->main_w_in_tag, FF(static_cast<uint32_t>(tag)));
 
     // Check that start row is the same as what is copied into the main trace
-    EXPECT_EQ(bin_row_start->avm_binary_acc_ia, a);
-    EXPECT_EQ(bin_row_start->avm_binary_acc_ib, b);
-    EXPECT_EQ(bin_row_start->avm_binary_acc_ic, c);
+    EXPECT_EQ(bin_row_start->binary_acc_ia, a);
+    EXPECT_EQ(bin_row_start->binary_acc_ib, b);
+    EXPECT_EQ(bin_row_start->binary_acc_ic, c);
 
-    EXPECT_EQ(bin_row_start->avm_binary_op_id, op_id);
-    EXPECT_EQ(bin_row_start->avm_binary_bin_sel, FF(1));
-    EXPECT_EQ(bin_row_start->avm_binary_in_tag, static_cast<uint8_t>(tag));
+    EXPECT_EQ(bin_row_start->binary_op_id, op_id);
+    EXPECT_EQ(bin_row_start->binary_bin_sel, FF(1));
+    EXPECT_EQ(bin_row_start->binary_in_tag, static_cast<uint8_t>(tag));
 }
 
 // These are the potential failures we handle for the negative tests involving the binary trace.
@@ -216,48 +215,48 @@ std::tuple<std::vector<Row>, std::string> gen_mutated_trace_shift(std::vector<Ro
                                                                   bool shr = true)
 {
     auto main_trace_row = std::ranges::find_if(trace.begin(), trace.end(), select_row);
-    auto main_clk = main_trace_row->avm_main_clk;
+    auto main_clk = main_trace_row->main_clk;
     // The corresponding row in the alu trace as well as the row where start = 1
     auto alu_row =
-        std::ranges::find_if(trace.begin(), trace.end(), [main_clk](Row r) { return r.avm_alu_clk == main_clk; });
+        std::ranges::find_if(trace.begin(), trace.end(), [main_clk](Row r) { return r.alu_clk == main_clk; });
 
     std::string failure;
     switch (fail_mode) {
     case IncorrectShiftPastBitLength:
-        alu_row->avm_alu_shift_lt_bit_len = FF(0);
+        alu_row->alu_shift_lt_bit_len = FF(0);
         update_slice_registers(*alu_row, uint256_t{ 0 });
-        alu_row->avm_alu_a_lo = FF(0);
-        alu_row->avm_alu_a_hi = FF(0);
+        alu_row->alu_a_lo = FF(0);
+        alu_row->alu_a_hi = FF(0);
         failure = "SHIFT_LT_BIT_LEN";
         return std::make_tuple(trace, failure);
     case IncorrectInputDecomposition: {
         // Subtrace one from b_lo and update b_lo
-        uint256_t b_lo = alu_row->avm_alu_b_lo - 1;
-        uint256_t b_hi = alu_row->avm_alu_b_hi;
-        alu_row->avm_alu_b_lo = b_lo;
+        uint256_t b_lo = alu_row->alu_b_lo - 1;
+        uint256_t b_hi = alu_row->alu_b_hi;
+        alu_row->alu_b_lo = b_lo;
 
         // Update the range checks involving b_lo and b_hi so we dont throw an error about the range checks
         if (shr) {
-            uint256_t a_lo = (uint256_t(1) << alu_row->avm_alu_ib) - b_lo - 1;
-            uint256_t a_hi = (uint256_t(1) << (32 - uint8_t(alu_row->avm_alu_ib))) - b_hi - 1;
-            alu_row->avm_alu_a_lo = a_lo & ((uint256_t(1) << 128) - 1);
-            alu_row->avm_alu_a_hi = a_hi;
+            uint256_t a_lo = (uint256_t(1) << alu_row->alu_ib) - b_lo - 1;
+            uint256_t a_hi = (uint256_t(1) << (32 - uint8_t(alu_row->alu_ib))) - b_hi - 1;
+            alu_row->alu_a_lo = a_lo & ((uint256_t(1) << 128) - 1);
+            alu_row->alu_a_hi = a_hi;
             // Update slice registers
             update_slice_registers(*alu_row, a_lo + (a_hi << 128));
             failure = "SHR_INPUT_DECOMPOSITION";
             return std::make_tuple(trace, failure);
         }
-        uint256_t a_lo = (uint256_t(1) << (32 - uint8_t(alu_row->avm_alu_ib))) - b_lo - 1;
-        uint256_t a_hi = (uint256_t(1) << alu_row->avm_alu_ib) - b_hi - 1;
-        alu_row->avm_alu_a_lo = a_lo & ((uint256_t(1) << 128) - 1);
-        alu_row->avm_alu_a_hi = a_hi;
+        uint256_t a_lo = (uint256_t(1) << (32 - uint8_t(alu_row->alu_ib))) - b_lo - 1;
+        uint256_t a_hi = (uint256_t(1) << alu_row->alu_ib) - b_hi - 1;
+        alu_row->alu_a_lo = a_lo & ((uint256_t(1) << 128) - 1);
+        alu_row->alu_a_hi = a_hi;
         // Update slice registers
         update_slice_registers(*alu_row, a_lo + (a_hi << 128));
         failure = "SHL_INPUT_DECOMPOSITION";
         return std::make_tuple(trace, failure);
     }
     case ShiftOutputIncorrect:
-        alu_row->avm_alu_ic = c_mutated;
+        alu_row->alu_ic = c_mutated;
         failure = shr ? "SHR_OUTPUT" : "SHL_OUTPUT";
         return std::make_tuple(trace, failure);
     }
@@ -269,36 +268,36 @@ std::vector<Row> gen_mutated_trace_bit(std::vector<Row> trace,
                                        BIT_FAILURES fail_mode)
 {
     auto main_trace_row = std::ranges::find_if(trace.begin(), trace.end(), select_row);
-    auto main_clk = main_trace_row->avm_main_clk;
+    auto main_clk = main_trace_row->main_clk;
     // The corresponding row in the binary trace as well as the row where start = 1
     auto binary_row =
-        std::ranges::find_if(trace.begin(), trace.end(), [main_clk](Row r) { return r.avm_binary_clk == main_clk; });
+        std::ranges::find_if(trace.begin(), trace.end(), [main_clk](Row r) { return r.binary_clk == main_clk; });
     // The corresponding row in the binary trace where the computation ends.
     auto last_row = std::ranges::find_if(trace.begin(), trace.end(), [main_clk](Row r) {
-        return r.avm_binary_clk == main_clk && r.avm_binary_mem_tag_ctr == FF(0);
+        return r.binary_clk == main_clk && r.binary_mem_tag_ctr == FF(0);
     });
     switch (fail_mode) {
     case BitDecomposition: {
         // Incrementing the bytes should indicate an incorrect decomposition
         // The lookups are checked later so this will throw an error about decomposition
-        binary_row->avm_binary_ic_bytes++;
+        binary_row->binary_ic_bytes++;
         break;
     }
     case MemTagCtr: {
         // Increment instead of decrementing
-        binary_row->avm_binary_mem_tag_ctr++;
+        binary_row->binary_mem_tag_ctr++;
         break;
     }
     case IncorrectAcc: {
         // The lookups are checked later so this will throw an error about accumulation
-        binary_row->avm_binary_acc_ic++;
+        binary_row->binary_acc_ic++;
         break;
     }
     case InconsistentOpId: {
         // We don't update the first index as that is checked by the permutation check.
         // So we update the next op_id to be incorrect.
         auto first_index = static_cast<size_t>(std::distance(trace.begin(), binary_row));
-        trace.at(first_index + 1).avm_binary_op_id++;
+        trace.at(first_index + 1).binary_op_id++;
         break;
     }
     case ByteLookupError: {
@@ -307,8 +306,8 @@ std::vector<Row> gen_mutated_trace_bit(std::vector<Row> trace,
         // We intentionally select the mutated value to be 0-bytes everywhere else so we dont need to
         // update anything there or in the corresponding accumulators.
         mutate_ic_in_trace(trace, std::move(select_row), c_mutated, false);
-        binary_row->avm_binary_acc_ic = c_mutated;
-        binary_row->avm_binary_ic_bytes = static_cast<uint8_t>(uint128_t{ c_mutated });
+        binary_row->binary_acc_ic = c_mutated;
+        binary_row->binary_ic_bytes = static_cast<uint8_t>(uint128_t{ c_mutated });
         break;
     }
     case ByteLengthError: {
@@ -318,26 +317,26 @@ std::vector<Row> gen_mutated_trace_bit(std::vector<Row> trace,
         auto last_index = static_cast<size_t>(std::distance(trace.begin(), last_row));
         auto first_index = static_cast<size_t>(std::distance(trace.begin(), binary_row));
         for (size_t i = first_index; i <= last_index; i++) {
-            FF ctr = trace.at(i).avm_binary_mem_tag_ctr;
+            FF ctr = trace.at(i).binary_mem_tag_ctr;
             if (ctr == FF::one()) {
                 // If the tag is currently 1, it will be set to 0 which means we need to set bin_sel to 0.
-                trace.at(i).avm_binary_bin_sel = FF(0);
-                trace.at(i).avm_binary_mem_tag_ctr = FF(0);
-                trace.at(i).avm_binary_mem_tag_ctr_inv = FF(0);
+                trace.at(i).binary_bin_sel = FF(0);
+                trace.at(i).binary_mem_tag_ctr = FF(0);
+                trace.at(i).binary_mem_tag_ctr_inv = FF(0);
             } else if (ctr == FF::zero()) {
                 // Leave as zero instead of underflowing
-                trace.at(i).avm_binary_mem_tag_ctr = FF(0);
+                trace.at(i).binary_mem_tag_ctr = FF(0);
             } else {
                 // Replace the values with the next row's values
-                trace.at(i).avm_binary_mem_tag_ctr = trace.at(i + 1).avm_binary_mem_tag_ctr;
-                trace.at(i).avm_binary_mem_tag_ctr_inv = trace.at(i + 1).avm_binary_mem_tag_ctr_inv;
-                trace.at(i).avm_binary_bin_sel = trace.at(i + 1).avm_binary_bin_sel;
+                trace.at(i).binary_mem_tag_ctr = trace.at(i + 1).binary_mem_tag_ctr;
+                trace.at(i).binary_mem_tag_ctr_inv = trace.at(i + 1).binary_mem_tag_ctr_inv;
+                trace.at(i).binary_bin_sel = trace.at(i + 1).binary_bin_sel;
             }
         }
         break;
     }
     case IncorrectBinSelector:
-        binary_row->avm_binary_bin_sel = FF(0);
+        binary_row->binary_bin_sel = FF(0);
         break;
     }
     return trace;
@@ -368,7 +367,7 @@ class AvmBitwiseTests : public ::testing::Test {
         trace_builder.halt();
         auto trace = trace_builder.finalize();
 
-        auto select_row = [](Row r) { return r.avm_main_sel_op_not == FF(1); };
+        auto select_row = [](Row r) { return r.main_sel_op_not == FF(1); };
         mutate_ic_in_trace(trace, select_row, c_mutated, true);
 
         return trace;
@@ -632,7 +631,7 @@ TEST_P(AvmBitwiseNegativeTestsAnd, AllNegativeTests)
     trace_builder.op_and(0, 0, 1, 2, mem_tag);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
-    std::function<bool(Row)>&& select_row = [](Row r) { return r.avm_main_sel_op_and == FF(1); };
+    std::function<bool(Row)>&& select_row = [](Row r) { return r.main_sel_op_and == FF(1); };
     trace = gen_mutated_trace_bit(trace, std::move(select_row), output, failure_mode);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), failure_string);
 }
@@ -651,7 +650,7 @@ TEST_P(AvmBitwiseNegativeTestsOr, AllNegativeTests)
     trace_builder.op_or(0, 0, 1, 2, mem_tag);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
-    std::function<bool(Row)>&& select_row = [](Row r) { return r.avm_main_sel_op_or == FF(1); };
+    std::function<bool(Row)>&& select_row = [](Row r) { return r.main_sel_op_or == FF(1); };
     trace = gen_mutated_trace_bit(trace, std::move(select_row), output, failure_mode);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), failure_string);
 }
@@ -669,7 +668,7 @@ TEST_P(AvmBitwiseNegativeTestsXor, AllNegativeTests)
     trace_builder.op_xor(0, 0, 1, 2, mem_tag);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
-    std::function<bool(Row)>&& select_row = [](Row r) { return r.avm_main_sel_op_xor == FF(1); };
+    std::function<bool(Row)>&& select_row = [](Row r) { return r.main_sel_op_xor == FF(1); };
     trace = gen_mutated_trace_bit(trace, std::move(select_row), output, failure_mode);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), failure_string)
 }
@@ -687,7 +686,7 @@ TEST_P(AvmBitwiseNegativeTestsShr, AllNegativeTests)
     trace_builder.op_shr(0, 0, 1, 2, mem_tag);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
-    std::function<bool(Row)>&& select_row = [](Row r) { return r.avm_main_sel_op_shr == FF(1); };
+    std::function<bool(Row)>&& select_row = [](Row r) { return r.main_sel_op_shr == FF(1); };
 
     auto [mutated_trace, str] = gen_mutated_trace_shift(std::move(trace), std::move(select_row), output, failure, true);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(mutated_trace)), str);
@@ -706,7 +705,7 @@ TEST_P(AvmBitwiseNegativeTestsShl, AllNegativeTests)
     trace_builder.op_shl(0, 0, 1, 2, mem_tag);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
-    std::function<bool(Row)>&& select_row = [](Row r) { return r.avm_main_sel_op_shl == FF(1); };
+    std::function<bool(Row)>&& select_row = [](Row r) { return r.main_sel_op_shl == FF(1); };
 
     auto [mutated_trace, str] =
         gen_mutated_trace_shift(std::move(trace), std::move(select_row), output, failure, false);
@@ -730,14 +729,14 @@ TEST_F(AvmBitwiseNegativeTestsFF, UndefinedOverFF)
     // TODO(ilyas): When the SET opcodes applies relational constraints, this will fail
     // we will need to look at a new way of doing this test.
     for (size_t i = 1; i < 4; i++) {
-        trace.at(i).avm_mem_tag = FF(6);
-        trace.at(i).avm_mem_r_in_tag = FF(6);
-        trace.at(i).avm_mem_w_in_tag = FF(6);
-        trace.at(i).avm_alu_ff_tag = FF::one();
-        trace.at(i).avm_alu_u8_tag = FF::zero();
-        trace.at(i).avm_main_r_in_tag = FF(6);
-        trace.at(i).avm_main_w_in_tag = FF(6);
-        trace.at(i).avm_alu_in_tag = FF(6);
+        trace.at(i).mem_tag = FF(6);
+        trace.at(i).mem_r_in_tag = FF(6);
+        trace.at(i).mem_w_in_tag = FF(6);
+        trace.at(i).alu_ff_tag = FF::one();
+        trace.at(i).alu_u8_tag = FF::zero();
+        trace.at(i).main_r_in_tag = FF(6);
+        trace.at(i).main_w_in_tag = FF(6);
+        trace.at(i).alu_in_tag = FF(6);
     }
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "ALU_FF_NOT_XOR");

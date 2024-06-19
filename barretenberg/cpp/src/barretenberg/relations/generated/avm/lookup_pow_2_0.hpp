@@ -87,7 +87,7 @@ class lookup_pow_2_0_lookup_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_alu_shift_sel == 1 || in.avm_main_sel_rng_8 == 1);
+        return (in.alu_shift_sel == 1 || in.main_sel_rng_8 == 1);
     }
 
     /**
@@ -104,8 +104,8 @@ class lookup_pow_2_0_lookup_settings {
     static inline auto compute_inverse_exists(const AllEntities& in)
     {
         using View = typename Accumulator::View;
-        const auto is_operation = View(in.avm_alu_shift_sel);
-        const auto is_table_entry = View(in.avm_main_sel_rng_8);
+        const auto is_operation = View(in.alu_shift_sel);
+        const auto is_table_entry = View(in.main_sel_rng_8);
         return (is_operation + is_table_entry - is_operation * is_table_entry);
     }
 
@@ -135,12 +135,12 @@ class lookup_pow_2_0_lookup_settings {
 
         return std::forward_as_tuple(in.lookup_pow_2_0,
                                      in.lookup_pow_2_0_counts,
-                                     in.avm_alu_shift_sel,
-                                     in.avm_main_sel_rng_8,
-                                     in.avm_alu_ib,
-                                     in.avm_alu_two_pow_s,
-                                     in.avm_main_clk,
-                                     in.avm_main_table_pow_2);
+                                     in.alu_shift_sel,
+                                     in.main_sel_rng_8,
+                                     in.alu_ib,
+                                     in.alu_two_pow_s,
+                                     in.main_clk,
+                                     in.main_table_pow_2);
     }
 
     /**
@@ -155,12 +155,12 @@ class lookup_pow_2_0_lookup_settings {
 
         return std::forward_as_tuple(in.lookup_pow_2_0,
                                      in.lookup_pow_2_0_counts,
-                                     in.avm_alu_shift_sel,
-                                     in.avm_main_sel_rng_8,
-                                     in.avm_alu_ib,
-                                     in.avm_alu_two_pow_s,
-                                     in.avm_main_clk,
-                                     in.avm_main_table_pow_2);
+                                     in.alu_shift_sel,
+                                     in.main_sel_rng_8,
+                                     in.alu_ib,
+                                     in.alu_two_pow_s,
+                                     in.main_clk,
+                                     in.main_table_pow_2);
     }
 };
 

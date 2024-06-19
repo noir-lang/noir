@@ -1,13 +1,12 @@
+include "../main.pil";
 
-include "../avm_main.pil";
-
-namespace avm_pedersen(256);
+namespace poseidon2(256);
 
     pol commit clk;
 
-    // Selector for Pedersen Hash Operation
-    pol commit pedersen_sel;
-    pedersen_sel * (1 - pedersen_sel) = 0;
+    // Selector for Radix Operation
+    pol commit poseidon_perm_sel;
+    poseidon_perm_sel * (1 - poseidon_perm_sel) = 0;
 
     // These will all be arrays, but we just store the first element for permutation to the main trace for now
     pol commit input;

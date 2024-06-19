@@ -6,27 +6,27 @@
 
 namespace bb::Avm_vm {
 
-template <typename FF> struct Avm_binaryRow {
-    FF avm_binary_acc_ia{};
-    FF avm_binary_acc_ia_shift{};
-    FF avm_binary_acc_ib{};
-    FF avm_binary_acc_ib_shift{};
-    FF avm_binary_acc_ic{};
-    FF avm_binary_acc_ic_shift{};
-    FF avm_binary_bin_sel{};
-    FF avm_binary_ia_bytes{};
-    FF avm_binary_ib_bytes{};
-    FF avm_binary_ic_bytes{};
-    FF avm_binary_mem_tag_ctr{};
-    FF avm_binary_mem_tag_ctr_inv{};
-    FF avm_binary_mem_tag_ctr_shift{};
-    FF avm_binary_op_id{};
-    FF avm_binary_op_id_shift{};
+template <typename FF> struct BinaryRow {
+    FF binary_acc_ia{};
+    FF binary_acc_ia_shift{};
+    FF binary_acc_ib{};
+    FF binary_acc_ib_shift{};
+    FF binary_acc_ic{};
+    FF binary_acc_ic_shift{};
+    FF binary_bin_sel{};
+    FF binary_ia_bytes{};
+    FF binary_ib_bytes{};
+    FF binary_ic_bytes{};
+    FF binary_mem_tag_ctr{};
+    FF binary_mem_tag_ctr_inv{};
+    FF binary_mem_tag_ctr_shift{};
+    FF binary_op_id{};
+    FF binary_op_id_shift{};
 
     [[maybe_unused]] static std::vector<std::string> names();
 };
 
-inline std::string get_relation_label_avm_binary(int index)
+inline std::string get_relation_label_binary(int index)
 {
     switch (index) {
     case 1:
@@ -50,7 +50,7 @@ inline std::string get_relation_label_avm_binary(int index)
     return std::to_string(index);
 }
 
-template <typename FF_> class avm_binaryImpl {
+template <typename FF_> class binaryImpl {
   public:
     using FF = FF_;
 
@@ -69,7 +69,7 @@ template <typename FF_> class avm_binaryImpl {
         {
             Avm_DECLARE_VIEWS(0);
 
-            auto tmp = (avm_binary_bin_sel * (-avm_binary_bin_sel + FF(1)));
+            auto tmp = (binary_bin_sel * (-binary_bin_sel + FF(1)));
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
         }
@@ -77,7 +77,7 @@ template <typename FF_> class avm_binaryImpl {
         {
             Avm_DECLARE_VIEWS(1);
 
-            auto tmp = ((avm_binary_op_id_shift - avm_binary_op_id) * avm_binary_mem_tag_ctr);
+            auto tmp = ((binary_op_id_shift - binary_op_id) * binary_mem_tag_ctr);
             tmp *= scaling_factor;
             std::get<1>(evals) += tmp;
         }
@@ -85,7 +85,7 @@ template <typename FF_> class avm_binaryImpl {
         {
             Avm_DECLARE_VIEWS(2);
 
-            auto tmp = (((avm_binary_mem_tag_ctr_shift - avm_binary_mem_tag_ctr) + FF(1)) * avm_binary_mem_tag_ctr);
+            auto tmp = (((binary_mem_tag_ctr_shift - binary_mem_tag_ctr) + FF(1)) * binary_mem_tag_ctr);
             tmp *= scaling_factor;
             std::get<2>(evals) += tmp;
         }
@@ -93,10 +93,9 @@ template <typename FF_> class avm_binaryImpl {
         {
             Avm_DECLARE_VIEWS(3);
 
-            auto tmp =
-                ((avm_binary_mem_tag_ctr * (((-avm_binary_bin_sel + FF(1)) * (-avm_binary_mem_tag_ctr_inv + FF(1))) +
-                                            avm_binary_mem_tag_ctr_inv)) -
-                 avm_binary_bin_sel);
+            auto tmp = ((binary_mem_tag_ctr *
+                         (((-binary_bin_sel + FF(1)) * (-binary_mem_tag_ctr_inv + FF(1))) + binary_mem_tag_ctr_inv)) -
+                        binary_bin_sel);
             tmp *= scaling_factor;
             std::get<3>(evals) += tmp;
         }
@@ -104,7 +103,7 @@ template <typename FF_> class avm_binaryImpl {
         {
             Avm_DECLARE_VIEWS(4);
 
-            auto tmp = ((-avm_binary_bin_sel + FF(1)) * avm_binary_acc_ia);
+            auto tmp = ((-binary_bin_sel + FF(1)) * binary_acc_ia);
             tmp *= scaling_factor;
             std::get<4>(evals) += tmp;
         }
@@ -112,7 +111,7 @@ template <typename FF_> class avm_binaryImpl {
         {
             Avm_DECLARE_VIEWS(5);
 
-            auto tmp = ((-avm_binary_bin_sel + FF(1)) * avm_binary_acc_ib);
+            auto tmp = ((-binary_bin_sel + FF(1)) * binary_acc_ib);
             tmp *= scaling_factor;
             std::get<5>(evals) += tmp;
         }
@@ -120,7 +119,7 @@ template <typename FF_> class avm_binaryImpl {
         {
             Avm_DECLARE_VIEWS(6);
 
-            auto tmp = ((-avm_binary_bin_sel + FF(1)) * avm_binary_acc_ic);
+            auto tmp = ((-binary_bin_sel + FF(1)) * binary_acc_ic);
             tmp *= scaling_factor;
             std::get<6>(evals) += tmp;
         }
@@ -128,8 +127,7 @@ template <typename FF_> class avm_binaryImpl {
         {
             Avm_DECLARE_VIEWS(7);
 
-            auto tmp = (((avm_binary_acc_ia - avm_binary_ia_bytes) - (avm_binary_acc_ia_shift * FF(256))) *
-                        avm_binary_mem_tag_ctr);
+            auto tmp = (((binary_acc_ia - binary_ia_bytes) - (binary_acc_ia_shift * FF(256))) * binary_mem_tag_ctr);
             tmp *= scaling_factor;
             std::get<7>(evals) += tmp;
         }
@@ -137,8 +135,7 @@ template <typename FF_> class avm_binaryImpl {
         {
             Avm_DECLARE_VIEWS(8);
 
-            auto tmp = (((avm_binary_acc_ib - avm_binary_ib_bytes) - (avm_binary_acc_ib_shift * FF(256))) *
-                        avm_binary_mem_tag_ctr);
+            auto tmp = (((binary_acc_ib - binary_ib_bytes) - (binary_acc_ib_shift * FF(256))) * binary_mem_tag_ctr);
             tmp *= scaling_factor;
             std::get<8>(evals) += tmp;
         }
@@ -146,14 +143,13 @@ template <typename FF_> class avm_binaryImpl {
         {
             Avm_DECLARE_VIEWS(9);
 
-            auto tmp = (((avm_binary_acc_ic - avm_binary_ic_bytes) - (avm_binary_acc_ic_shift * FF(256))) *
-                        avm_binary_mem_tag_ctr);
+            auto tmp = (((binary_acc_ic - binary_ic_bytes) - (binary_acc_ic_shift * FF(256))) * binary_mem_tag_ctr);
             tmp *= scaling_factor;
             std::get<9>(evals) += tmp;
         }
     }
 };
 
-template <typename FF> using avm_binary = Relation<avm_binaryImpl<FF>>;
+template <typename FF> using binary = Relation<binaryImpl<FF>>;
 
 } // namespace bb::Avm_vm

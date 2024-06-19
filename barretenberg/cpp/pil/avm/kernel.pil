@@ -1,7 +1,7 @@
-include "avm_main.pil";
+include "main.pil";
 include "constants.pil";
 
-namespace avm_kernel(256);
+namespace kernel(256);
     pol public(/*idx=*/0) kernel_inputs;
 
     pol public(/*idx=*/1) kernel_value_out;
@@ -58,29 +58,29 @@ namespace avm_kernel(256);
     pol commit emit_l2_to_l1_msg_write_offset;
 
 
-    pol NOT_LAST = (1 - avm_main.last);
+    pol NOT_LAST = (1 - main.last);
 
     // Constraints to increase the offsets when the opcodes are found
     #[NOTE_HASH_EXISTS_INC_CONSISTENCY_CHECK]
-    NOT_LAST * (note_hash_exist_write_offset' - (note_hash_exist_write_offset + avm_main.sel_op_note_hash_exists)) = 0;
+    NOT_LAST * (note_hash_exist_write_offset' - (note_hash_exist_write_offset + main.sel_op_note_hash_exists)) = 0;
     #[EMIT_NOTE_HASH_INC_CONSISTENCY_CHECK]
-    NOT_LAST * (emit_note_hash_write_offset' - (emit_note_hash_write_offset + avm_main.sel_op_emit_note_hash)) = 0;
-    // if avm_main.ib is set on op_nullifier_exists, then the nullifier_exists_write_offset will be incremented by 1, otherwise non_exists will be incremented 
+    NOT_LAST * (emit_note_hash_write_offset' - (emit_note_hash_write_offset + main.sel_op_emit_note_hash)) = 0;
+    // if main.ib is set on op_nullifier_exists, then the nullifier_exists_write_offset will be incremented by 1, otherwise non_exists will be incremented 
     #[NULLIFIER_EXISTS_INC_CONSISTENCY_CHECK]
-    NOT_LAST * (nullifier_exists_write_offset' - (nullifier_exists_write_offset + (avm_main.sel_op_nullifier_exists * avm_main.ib))) = 0;
+    NOT_LAST * (nullifier_exists_write_offset' - (nullifier_exists_write_offset + (main.sel_op_nullifier_exists * main.ib))) = 0;
     #[NULLIFIER_NON_EXISTS_INC_CONSISTENCY_CHECK]
-    NOT_LAST * (nullifier_non_exists_write_offset' - (nullifier_non_exists_write_offset + (avm_main.sel_op_nullifier_exists * (1 - avm_main.ib)))) = 0;
+    NOT_LAST * (nullifier_non_exists_write_offset' - (nullifier_non_exists_write_offset + (main.sel_op_nullifier_exists * (1 - main.ib)))) = 0;
     #[EMIT_NULLIFIER_INC_CONSISTENCY_CHECK]
-    NOT_LAST * (emit_nullifier_write_offset' - (emit_nullifier_write_offset + avm_main.sel_op_emit_nullifier)) = 0;
+    NOT_LAST * (emit_nullifier_write_offset' - (emit_nullifier_write_offset + main.sel_op_emit_nullifier)) = 0;
     #[L1_TO_L2_MSG_EXISTS_INC_CONSISTENCY_CHECK]
-    NOT_LAST * (l1_to_l2_msg_exists_write_offset' - (l1_to_l2_msg_exists_write_offset + avm_main.sel_op_l1_to_l2_msg_exists)) = 0;
+    NOT_LAST * (l1_to_l2_msg_exists_write_offset' - (l1_to_l2_msg_exists_write_offset + main.sel_op_l1_to_l2_msg_exists)) = 0;
     #[EMIT_UNENCRYPTED_LOG_INC_CONSISTENCY_CHECK]
-    NOT_LAST * (emit_unencrypted_log_write_offset' - (emit_unencrypted_log_write_offset + avm_main.sel_op_emit_unencrypted_log)) = 0;
+    NOT_LAST * (emit_unencrypted_log_write_offset' - (emit_unencrypted_log_write_offset + main.sel_op_emit_unencrypted_log)) = 0;
     #[EMIT_L2_TO_L1_MSG_INC_CONSISTENCY_CHECK]
-    NOT_LAST * (emit_l2_to_l1_msg_write_offset' - (emit_l2_to_l1_msg_write_offset + avm_main.sel_op_emit_l2_to_l1_msg)) = 0;
+    NOT_LAST * (emit_l2_to_l1_msg_write_offset' - (emit_l2_to_l1_msg_write_offset + main.sel_op_emit_l2_to_l1_msg)) = 0;
 
 
     #[SLOAD_INC_CONSISTENCY_CHECK]
-    NOT_LAST * (sload_write_offset' - (sload_write_offset + avm_main.sel_op_sload)) = 0;
+    NOT_LAST * (sload_write_offset' - (sload_write_offset + main.sel_op_sload)) = 0;
     #[SSTORE_INC_CONSISTENCY_CHECK]
-    NOT_LAST * (sstore_write_offset' - (sstore_write_offset + avm_main.sel_op_sstore)) = 0;
+    NOT_LAST * (sstore_write_offset' - (sstore_write_offset + main.sel_op_sstore)) = 0;

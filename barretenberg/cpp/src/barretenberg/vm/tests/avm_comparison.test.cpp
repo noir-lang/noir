@@ -31,31 +31,31 @@ void common_validate_cmp(Row const& row,
 
     // Use the row in the main trace to find the same operation in the alu trace.
     // Check that the correct result is stored at the expected memory location.
-    EXPECT_EQ(row.avm_main_ic, c);
-    EXPECT_EQ(row.avm_main_mem_idx_c, addr_c);
-    EXPECT_EQ(row.avm_main_mem_op_c, FF(1));
-    EXPECT_EQ(row.avm_main_rwc, FF(1));
+    EXPECT_EQ(row.main_ic, c);
+    EXPECT_EQ(row.main_mem_idx_c, addr_c);
+    EXPECT_EQ(row.main_mem_op_c, FF(1));
+    EXPECT_EQ(row.main_rwc, FF(1));
 
     // Check that ia register is correctly set with memory load operations.
-    EXPECT_EQ(row.avm_main_ia, a);
-    EXPECT_EQ(row.avm_main_mem_idx_a, addr_a);
-    EXPECT_EQ(row.avm_main_mem_op_a, FF(1));
-    EXPECT_EQ(row.avm_main_rwa, FF(0));
+    EXPECT_EQ(row.main_ia, a);
+    EXPECT_EQ(row.main_mem_idx_a, addr_a);
+    EXPECT_EQ(row.main_mem_op_a, FF(1));
+    EXPECT_EQ(row.main_rwa, FF(0));
 
     // Check that ib register is correctly set with memory load operations.
-    EXPECT_EQ(row.avm_main_ib, b);
-    EXPECT_EQ(row.avm_main_mem_idx_b, addr_b);
-    EXPECT_EQ(row.avm_main_mem_op_b, FF(1));
-    EXPECT_EQ(row.avm_main_rwb, FF(0));
+    EXPECT_EQ(row.main_ib, b);
+    EXPECT_EQ(row.main_mem_idx_b, addr_b);
+    EXPECT_EQ(row.main_mem_op_b, FF(1));
+    EXPECT_EQ(row.main_rwb, FF(0));
 
     // Check the instruction tags
-    EXPECT_EQ(row.avm_main_r_in_tag, FF(static_cast<uint32_t>(tag)));
-    EXPECT_EQ(row.avm_main_w_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U8)));
+    EXPECT_EQ(row.main_r_in_tag, FF(static_cast<uint32_t>(tag)));
+    EXPECT_EQ(row.main_w_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U8)));
 
     // Check that intermediate registers are correctly copied in Alu trace
-    EXPECT_EQ(alu_row.avm_alu_ia, a);
-    EXPECT_EQ(alu_row.avm_alu_ib, b);
-    EXPECT_EQ(alu_row.avm_alu_ic, c);
+    EXPECT_EQ(alu_row.alu_ia, a);
+    EXPECT_EQ(alu_row.alu_ib, b);
+    EXPECT_EQ(alu_row.alu_ic, c);
 }
 } // namespace
 std::vector<ThreeOpParam> positive_op_lt_test_values = { { { FF(1), FF(1), FF(0) },
@@ -119,12 +119,12 @@ TEST_P(AvmCmpTestsLT, ParamTest)
     auto trace = trace_builder.finalize();
 
     // Get the row in the avm with the LT selector set
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_lt == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_lt == FF(1); });
 
     // Use the row in the main trace to find the same operation in the alu trace.
-    FF clk = row->avm_main_clk;
+    FF clk = row->main_clk;
     auto alu_row = std::ranges::find_if(
-        trace.begin(), trace.end(), [clk](Row r) { return r.avm_alu_clk == clk && r.avm_alu_op_lt == FF(1); });
+        trace.begin(), trace.end(), [clk](Row r) { return r.alu_clk == clk && r.alu_op_lt == FF(1); });
     // Check that both rows were found
     ASSERT_TRUE(row != trace.end());
     ASSERT_TRUE(alu_row != trace.end());
@@ -149,12 +149,12 @@ TEST_P(AvmCmpTestsLTE, ParamTest)
     trace_builder.op_lte(0, 0, 1, 2, mem_tag);
     trace_builder.return_op(0, 0, 0);
     auto trace = trace_builder.finalize();
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_lte == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_lte == FF(1); });
 
     // Use the row in the main trace to find the same operation in the alu trace.
-    FF clk = row->avm_main_clk;
-    auto alu_row = std::ranges::find_if(
-        trace.begin(), trace.end(), [clk](Row r) { return r.avm_alu_clk == clk && r.avm_alu_op_lte; });
+    FF clk = row->main_clk;
+    auto alu_row =
+        std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) { return r.alu_clk == clk && r.alu_op_lte; });
     // Check that both rows were found
     ASSERT_TRUE(row != trace.end());
     ASSERT_TRUE(alu_row != trace.end());
@@ -200,36 +200,36 @@ std::vector<Row> gen_mutated_trace_cmp(
     std::vector<Row> trace, std::function<bool(Row)> select_row, FF c_mutated, CMP_FAILURES fail_mode, bool is_lte)
 {
     auto main_trace_row = std::ranges::find_if(trace.begin(), trace.end(), select_row);
-    auto main_clk = main_trace_row->avm_main_clk;
+    auto main_clk = main_trace_row->main_clk;
     // The corresponding row in the alu trace as well as the row where start = 1
     auto alu_row =
-        std::ranges::find_if(trace.begin(), trace.end(), [main_clk](Row r) { return r.avm_alu_clk == main_clk; });
+        std::ranges::find_if(trace.begin(), trace.end(), [main_clk](Row r) { return r.alu_clk == main_clk; });
     // The corresponding row in the alu trace where the computation ends.
     auto range_check_row =
-        std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_alu_cmp_rng_ctr > FF(0); });
+        std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.alu_cmp_rng_ctr > FF(0); });
     switch (fail_mode) {
     case IncorrectInputDecomposition:
-        alu_row->avm_alu_a_lo = alu_row->avm_alu_a_lo + FF(1);
+        alu_row->alu_a_lo = alu_row->alu_a_lo + FF(1);
         break;
     case SubLoCheckFailed:
-        alu_row->avm_alu_p_a_borrow = FF::one() - alu_row->avm_alu_p_a_borrow;
+        alu_row->alu_p_a_borrow = FF::one() - alu_row->alu_p_a_borrow;
         break;
     case ResLoCheckFailed:
-        alu_row->avm_alu_res_lo = alu_row->avm_alu_res_lo - FF(1);
+        alu_row->alu_res_lo = alu_row->alu_res_lo - FF(1);
         break;
     case ResHiCheckFailed:
-        alu_row->avm_alu_res_hi = FF(1);
+        alu_row->alu_res_hi = FF(1);
         break;
     case CounterRelationFailed:
-        range_check_row->avm_alu_cmp_rng_ctr = FF(0);
+        range_check_row->alu_cmp_rng_ctr = FF(0);
         break;
     case CounterNonZeroCheckFailed:
-        range_check_row->avm_alu_rng_chk_sel = FF(0);
-        range_check_row->avm_alu_rng_chk_lookup_selector = FF(0);
+        range_check_row->alu_rng_chk_sel = FF(0);
+        range_check_row->alu_rng_chk_lookup_selector = FF(0);
         break;
     case ShiftRelationFailed:
-        range_check_row->avm_alu_a_lo = range_check_row->avm_alu_res_lo;
-        range_check_row->avm_alu_a_hi = range_check_row->avm_alu_res_hi;
+        range_check_row->alu_a_lo = range_check_row->alu_res_lo;
+        range_check_row->alu_a_hi = range_check_row->alu_res_hi;
         break;
     case RangeCheckFailed: // Canonicalisation check failure
         // TODO: We can probably refactor this to another function later as it is a bit verbose
@@ -241,62 +241,61 @@ std::vector<Row> gen_mutated_trace_cmp(
         mutate_ic_in_trace(trace, std::move(select_row), c_mutated, true);
 
         // Now we have to also update the value of res_lo = (A_SUB_B_LO * IS_GT + B_SUB_A_LO * (1 - IS_GT))
-        alu_row->avm_alu_borrow = FF(0);
-        FF mutated_res_lo =
-            alu_row->avm_alu_b_lo - alu_row->avm_alu_a_lo + alu_row->avm_alu_borrow * (uint256_t(1) << 128);
-        FF mutated_res_hi = alu_row->avm_alu_b_hi - alu_row->avm_alu_a_hi - alu_row->avm_alu_borrow;
+        alu_row->alu_borrow = FF(0);
+        FF mutated_res_lo = alu_row->alu_b_lo - alu_row->alu_a_lo + alu_row->alu_borrow * (uint256_t(1) << 128);
+        FF mutated_res_hi = alu_row->alu_b_hi - alu_row->alu_a_hi - alu_row->alu_borrow;
 
         if (is_lte) {
-            mutated_res_lo = alu_row->avm_alu_a_lo - alu_row->avm_alu_b_lo - FF::one() +
-                             alu_row->avm_alu_borrow * (uint256_t(1) << 128);
-            mutated_res_hi = alu_row->avm_alu_a_hi - alu_row->avm_alu_b_hi - alu_row->avm_alu_borrow;
+            mutated_res_lo =
+                alu_row->alu_a_lo - alu_row->alu_b_lo - FF::one() + alu_row->alu_borrow * (uint256_t(1) << 128);
+            mutated_res_hi = alu_row->alu_a_hi - alu_row->alu_b_hi - alu_row->alu_borrow;
         }
-        alu_row->avm_alu_res_lo = mutated_res_lo;
-        alu_row->avm_alu_res_hi = mutated_res_hi;
+        alu_row->alu_res_lo = mutated_res_lo;
+        alu_row->alu_res_hi = mutated_res_hi;
         // For each subsequent row that involve the range check, we need to update the shifted values
         auto next_row = alu_row + 1;
-        next_row->avm_alu_p_sub_b_lo = mutated_res_lo;
-        next_row->avm_alu_p_sub_b_hi = mutated_res_hi;
+        next_row->alu_p_sub_b_lo = mutated_res_lo;
+        next_row->alu_p_sub_b_hi = mutated_res_hi;
 
         next_row = alu_row + 2;
-        next_row->avm_alu_p_sub_a_lo = mutated_res_lo;
-        next_row->avm_alu_p_sub_a_hi = mutated_res_hi;
+        next_row->alu_p_sub_a_lo = mutated_res_lo;
+        next_row->alu_p_sub_a_hi = mutated_res_hi;
         next_row = alu_row + 3;
 
-        next_row->avm_alu_b_lo = mutated_res_lo;
-        next_row->avm_alu_b_hi = mutated_res_hi;
+        next_row->alu_b_lo = mutated_res_lo;
+        next_row->alu_b_hi = mutated_res_hi;
 
         // The final row contains the mutated res_x values at the a_x slots that will be range check.
         auto final_row = alu_row + 4;
         // To prevent a trivial range check failure, we need to clear the lookup counters for the
         // current value of res_lo stored in a_lo
-        clear_range_check_counters(trace, final_row->avm_alu_a_lo);
-        final_row->avm_alu_a_lo = mutated_res_lo;
-        final_row->avm_alu_a_hi = mutated_res_hi;
+        clear_range_check_counters(trace, final_row->alu_a_lo);
+        final_row->alu_a_lo = mutated_res_lo;
+        final_row->alu_a_hi = mutated_res_hi;
 
         uint256_t mutated_res_lo_u256 = mutated_res_lo;
         // We update range check lookup counters and the registers here
 
         // Assign the new u8 value that goes into the first slice register.
-        final_row->avm_alu_u8_r0 = static_cast<uint8_t>(mutated_res_lo_u256);
+        final_row->alu_u8_r0 = static_cast<uint8_t>(mutated_res_lo_u256);
         // Find the main row where the new u8 value in the first register WILL be looked up
         auto new_lookup_row = std::ranges::find_if(trace.begin(), trace.end(), [final_row](Row r) {
-            return r.avm_main_clk == final_row->avm_alu_u8_r0 && r.avm_main_sel_rng_8 == FF(1);
+            return r.main_clk == final_row->alu_u8_r0 && r.main_sel_rng_8 == FF(1);
         });
         // Increment the counter
         new_lookup_row->lookup_u8_0_counts = new_lookup_row->lookup_u8_0_counts + 1;
         mutated_res_lo_u256 >>= 8;
 
         // Assign the new u8 value that goes into the second slice register.
-        final_row->avm_alu_u8_r1 = static_cast<uint8_t>(mutated_res_lo_u256);
+        final_row->alu_u8_r1 = static_cast<uint8_t>(mutated_res_lo_u256);
         new_lookup_row = std::ranges::find_if(trace.begin(), trace.end(), [final_row](Row r) {
-            return r.avm_main_clk == final_row->avm_alu_u8_r1 && r.avm_main_sel_rng_8 == FF(1);
+            return r.main_clk == final_row->alu_u8_r1 && r.main_sel_rng_8 == FF(1);
         });
         new_lookup_row->lookup_u8_1_counts = new_lookup_row->lookup_u8_1_counts + 1;
         mutated_res_lo_u256 >>= 8;
 
         // Set the remaining bits (that are > 16) to the first u16 register to trigger the overflow
-        final_row->avm_alu_u16_r0 = mutated_res_lo_u256;
+        final_row->alu_u16_r0 = mutated_res_lo_u256;
 
         break;
     }
@@ -316,7 +315,7 @@ TEST_P(AvmCmpNegativeTestsLT, ParamTest)
     trace_builder.op_lt(0, 0, 1, 2, AvmMemoryTag::FF);
     trace_builder.return_op(0, 0, 0);
     auto trace = trace_builder.finalize();
-    std::function<bool(Row)> select_row = [](Row r) { return r.avm_main_sel_op_lt == FF(1); };
+    std::function<bool(Row)> select_row = [](Row r) { return r.main_sel_op_lt == FF(1); };
     trace = gen_mutated_trace_cmp(trace, select_row, output, failure_mode, false);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), failure_string);
 }
@@ -334,7 +333,7 @@ TEST_P(AvmCmpNegativeTestsLTE, ParamTest)
     trace_builder.op_lte(0, 0, 1, 2, AvmMemoryTag::FF);
     trace_builder.return_op(0, 0, 0);
     auto trace = trace_builder.finalize();
-    std::function<bool(Row)> select_row = [](Row r) { return r.avm_main_sel_op_lte == FF(1); };
+    std::function<bool(Row)> select_row = [](Row r) { return r.main_sel_op_lte == FF(1); };
     trace = gen_mutated_trace_cmp(trace, select_row, output, failure_mode, true);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), failure_string);
 }

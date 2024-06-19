@@ -87,7 +87,7 @@ class lookup_mem_rng_chk_lo_lookup_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_mem_rng_chk_sel == 1 || in.avm_main_sel_rng_16 == 1);
+        return (in.mem_rng_chk_sel == 1 || in.main_sel_rng_16 == 1);
     }
 
     /**
@@ -104,8 +104,8 @@ class lookup_mem_rng_chk_lo_lookup_settings {
     static inline auto compute_inverse_exists(const AllEntities& in)
     {
         using View = typename Accumulator::View;
-        const auto is_operation = View(in.avm_mem_rng_chk_sel);
-        const auto is_table_entry = View(in.avm_main_sel_rng_16);
+        const auto is_operation = View(in.mem_rng_chk_sel);
+        const auto is_table_entry = View(in.main_sel_rng_16);
         return (is_operation + is_table_entry - is_operation * is_table_entry);
     }
 
@@ -135,10 +135,10 @@ class lookup_mem_rng_chk_lo_lookup_settings {
 
         return std::forward_as_tuple(in.lookup_mem_rng_chk_lo,
                                      in.lookup_mem_rng_chk_lo_counts,
-                                     in.avm_mem_rng_chk_sel,
-                                     in.avm_main_sel_rng_16,
-                                     in.avm_mem_diff_lo,
-                                     in.avm_main_clk);
+                                     in.mem_rng_chk_sel,
+                                     in.main_sel_rng_16,
+                                     in.mem_diff_lo,
+                                     in.main_clk);
     }
 
     /**
@@ -153,10 +153,10 @@ class lookup_mem_rng_chk_lo_lookup_settings {
 
         return std::forward_as_tuple(in.lookup_mem_rng_chk_lo,
                                      in.lookup_mem_rng_chk_lo_counts,
-                                     in.avm_mem_rng_chk_sel,
-                                     in.avm_main_sel_rng_16,
-                                     in.avm_mem_diff_lo,
-                                     in.avm_main_clk);
+                                     in.mem_rng_chk_sel,
+                                     in.main_sel_rng_16,
+                                     in.mem_diff_lo,
+                                     in.main_clk);
     }
 };
 

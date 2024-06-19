@@ -1,8 +1,8 @@
 
-include "avm_byte_lookup.pil";
-include "avm_main.pil";
+include "byte_lookup.pil";
+include "main.pil";
 
-namespace avm_binary(256);
+namespace binary(256);
 
     pol commit clk;
 
@@ -30,7 +30,7 @@ namespace avm_binary(256);
     (op_id' - op_id) * mem_tag_ctr = 0;
 
     // Little Endian bitwise decomposition of accumulators (which are processed top-down),
-    // constrained to be U8 given by the lookup to the avm_byte_lookup
+    // constrained to be U8 given by the lookup to the byte_lookup
     pol commit ia_bytes;
     pol commit ib_bytes;
     pol commit ic_bytes;
@@ -65,12 +65,12 @@ namespace avm_binary(256);
     #[LOOKUP_BYTE_LENGTHS]
     start {in_tag, mem_tag_ctr}
     in 
-    avm_byte_lookup.bin_sel {avm_byte_lookup.table_in_tags, avm_byte_lookup.table_byte_lengths};
+    byte_lookup.bin_sel {byte_lookup.table_in_tags, byte_lookup.table_byte_lengths};
 
     #[LOOKUP_BYTE_OPERATIONS]
     bin_sel {op_id, ia_bytes, ib_bytes, ic_bytes}
     in 
-    avm_byte_lookup.bin_sel {avm_byte_lookup.table_op_id, avm_byte_lookup.table_input_a, avm_byte_lookup.table_input_b, avm_byte_lookup.table_output};
+    byte_lookup.bin_sel {byte_lookup.table_op_id, byte_lookup.table_input_a, byte_lookup.table_input_b, byte_lookup.table_output};
 
     #[ACC_REL_A]
     (acc_ia - ia_bytes - 256 * acc_ia') * mem_tag_ctr = 0;

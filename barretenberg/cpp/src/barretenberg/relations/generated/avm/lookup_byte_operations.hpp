@@ -87,7 +87,7 @@ class lookup_byte_operations_lookup_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_binary_bin_sel == 1 || in.avm_byte_lookup_bin_sel == 1);
+        return (in.binary_bin_sel == 1 || in.byte_lookup_bin_sel == 1);
     }
 
     /**
@@ -104,8 +104,8 @@ class lookup_byte_operations_lookup_settings {
     static inline auto compute_inverse_exists(const AllEntities& in)
     {
         using View = typename Accumulator::View;
-        const auto is_operation = View(in.avm_binary_bin_sel);
-        const auto is_table_entry = View(in.avm_byte_lookup_bin_sel);
+        const auto is_operation = View(in.binary_bin_sel);
+        const auto is_table_entry = View(in.byte_lookup_bin_sel);
         return (is_operation + is_table_entry - is_operation * is_table_entry);
     }
 
@@ -135,16 +135,16 @@ class lookup_byte_operations_lookup_settings {
 
         return std::forward_as_tuple(in.lookup_byte_operations,
                                      in.lookup_byte_operations_counts,
-                                     in.avm_binary_bin_sel,
-                                     in.avm_byte_lookup_bin_sel,
-                                     in.avm_binary_op_id,
-                                     in.avm_binary_ia_bytes,
-                                     in.avm_binary_ib_bytes,
-                                     in.avm_binary_ic_bytes,
-                                     in.avm_byte_lookup_table_op_id,
-                                     in.avm_byte_lookup_table_input_a,
-                                     in.avm_byte_lookup_table_input_b,
-                                     in.avm_byte_lookup_table_output);
+                                     in.binary_bin_sel,
+                                     in.byte_lookup_bin_sel,
+                                     in.binary_op_id,
+                                     in.binary_ia_bytes,
+                                     in.binary_ib_bytes,
+                                     in.binary_ic_bytes,
+                                     in.byte_lookup_table_op_id,
+                                     in.byte_lookup_table_input_a,
+                                     in.byte_lookup_table_input_b,
+                                     in.byte_lookup_table_output);
     }
 
     /**
@@ -159,16 +159,16 @@ class lookup_byte_operations_lookup_settings {
 
         return std::forward_as_tuple(in.lookup_byte_operations,
                                      in.lookup_byte_operations_counts,
-                                     in.avm_binary_bin_sel,
-                                     in.avm_byte_lookup_bin_sel,
-                                     in.avm_binary_op_id,
-                                     in.avm_binary_ia_bytes,
-                                     in.avm_binary_ib_bytes,
-                                     in.avm_binary_ic_bytes,
-                                     in.avm_byte_lookup_table_op_id,
-                                     in.avm_byte_lookup_table_input_a,
-                                     in.avm_byte_lookup_table_input_b,
-                                     in.avm_byte_lookup_table_output);
+                                     in.binary_bin_sel,
+                                     in.byte_lookup_bin_sel,
+                                     in.binary_op_id,
+                                     in.binary_ia_bytes,
+                                     in.binary_ib_bytes,
+                                     in.binary_ic_bytes,
+                                     in.byte_lookup_table_op_id,
+                                     in.byte_lookup_table_input_a,
+                                     in.byte_lookup_table_input_b,
+                                     in.byte_lookup_table_output);
     }
 };
 

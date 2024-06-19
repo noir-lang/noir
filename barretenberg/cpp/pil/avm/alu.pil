@@ -1,6 +1,6 @@
-include "avm_main.pil";
+include "main.pil";
 
-namespace avm_alu(256);
+namespace alu(256);
 
     // ========= Table ALU-TR =================================================
 
@@ -246,7 +246,7 @@ namespace avm_alu(256);
 
     // ========= EQUALITY Operation Constraints ===============================
     // TODO: Note this method differs from the approach taken for "equality to zero" checks
-    // in handling the error tags found in avm_main and avm_mem files. The predicted relation difference
+    // in handling the error tags found in main and mem files. The predicted relation difference
     // is minor and when we optimise we will harmonise the methods based on actual performance.
 
     // Equality of two elements is found by performing an "equality to zero" check.

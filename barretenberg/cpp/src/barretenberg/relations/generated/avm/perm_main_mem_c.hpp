@@ -23,7 +23,7 @@ class perm_main_mem_c_permutation_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_main_mem_op_c == 1 || in.avm_mem_op_c == 1);
+        return (in.main_mem_op_c == 1 || in.mem_op_c == 1);
     }
 
     /**
@@ -47,23 +47,23 @@ class perm_main_mem_c_permutation_settings {
     {
 
         return std::forward_as_tuple(in.perm_main_mem_c,
-                                     in.avm_main_mem_op_c,
-                                     in.avm_main_mem_op_c,
-                                     in.avm_mem_op_c,
-                                     in.avm_main_clk,
-                                     in.avm_main_space_id,
-                                     in.avm_main_mem_idx_c,
-                                     in.avm_main_ic,
-                                     in.avm_main_rwc,
-                                     in.avm_main_r_in_tag,
-                                     in.avm_main_w_in_tag,
-                                     in.avm_mem_clk,
-                                     in.avm_mem_space_id,
-                                     in.avm_mem_addr,
-                                     in.avm_mem_val,
-                                     in.avm_mem_rw,
-                                     in.avm_mem_r_in_tag,
-                                     in.avm_mem_w_in_tag);
+                                     in.main_mem_op_c,
+                                     in.main_mem_op_c,
+                                     in.mem_op_c,
+                                     in.main_clk,
+                                     in.main_space_id,
+                                     in.main_mem_idx_c,
+                                     in.main_ic,
+                                     in.main_rwc,
+                                     in.main_r_in_tag,
+                                     in.main_w_in_tag,
+                                     in.mem_clk,
+                                     in.mem_space_id,
+                                     in.mem_addr,
+                                     in.mem_val,
+                                     in.mem_rw,
+                                     in.mem_r_in_tag,
+                                     in.mem_w_in_tag);
     }
 
     /**
@@ -87,23 +87,23 @@ class perm_main_mem_c_permutation_settings {
     {
 
         return std::forward_as_tuple(in.perm_main_mem_c,
-                                     in.avm_main_mem_op_c,
-                                     in.avm_main_mem_op_c,
-                                     in.avm_mem_op_c,
-                                     in.avm_main_clk,
-                                     in.avm_main_space_id,
-                                     in.avm_main_mem_idx_c,
-                                     in.avm_main_ic,
-                                     in.avm_main_rwc,
-                                     in.avm_main_r_in_tag,
-                                     in.avm_main_w_in_tag,
-                                     in.avm_mem_clk,
-                                     in.avm_mem_space_id,
-                                     in.avm_mem_addr,
-                                     in.avm_mem_val,
-                                     in.avm_mem_rw,
-                                     in.avm_mem_r_in_tag,
-                                     in.avm_mem_w_in_tag);
+                                     in.main_mem_op_c,
+                                     in.main_mem_op_c,
+                                     in.mem_op_c,
+                                     in.main_clk,
+                                     in.main_space_id,
+                                     in.main_mem_idx_c,
+                                     in.main_ic,
+                                     in.main_rwc,
+                                     in.main_r_in_tag,
+                                     in.main_w_in_tag,
+                                     in.mem_clk,
+                                     in.mem_space_id,
+                                     in.mem_addr,
+                                     in.mem_val,
+                                     in.mem_rw,
+                                     in.mem_r_in_tag,
+                                     in.mem_w_in_tag);
     }
 };
 
