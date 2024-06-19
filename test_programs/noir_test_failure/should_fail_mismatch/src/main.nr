@@ -11,5 +11,5 @@ fn test_with_extra_space() {
 #[test(should_fail_with = "Not equal")]
 fn test_runtime_mismatch() {
     // We use a pedersen commitment here so that the assertion failure is only known at runtime.
-    assert_eq(dep::std::hash::pedersen_commitment([27]).x, 0, "Not equal ");
+    assert_eq(std::hash::pedersen_commitment([27]).x, 0, "Not equal ");
 }

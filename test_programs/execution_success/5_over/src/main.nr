@@ -1,4 +1,3 @@
-use dep::std;
 // Test unsafe integer arithmetic
 // Test odd bits integer
 fn main(mut x: u32, y: u32) {
