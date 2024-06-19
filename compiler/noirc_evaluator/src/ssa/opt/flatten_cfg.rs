@@ -819,7 +819,7 @@ mod test {
         ir::{
             dfg::DataFlowGraph,
             function::Function,
-            instruction::{BinaryOp, Instruction, TerminatorInstruction},
+            instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
             value::{Value, ValueId},

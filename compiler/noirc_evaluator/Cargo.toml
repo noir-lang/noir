@@ -24,5 +24,5 @@ chrono = "0.4.37"
 cfg-if.workspace = true
 
 [features]
-bn254 = ["dep:bn254_blackbox_solver", "noirc_frontend/bn254"]
+bn254 = ["noirc_frontend/bn254"]
 bls12_381= []

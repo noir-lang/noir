@@ -3,7 +3,7 @@ use std::{collections::VecDeque, rc::Rc};
 
 use acvm::{
     acir::{AcirField, BlackBoxFunc},
-    FieldElement,
+    BlackBoxResolutionError, FieldElement,
 };
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
@@ -496,10 +496,6 @@ fn simplify_black_box_func(
             acvm::blackbox_solver::ecdsa_secp256r1_verify,
         ),
 
-        BlackBoxFunc::PedersenCommitment => {
-            blackbox::simplify_pedersen_commitment(dfg, solver, arguments)
-        }
-        BlackBoxFunc::PedersenHash => blackbox::simplify_pedersen_hash(dfg, solver, arguments),
         BlackBoxFunc::EmbeddedCurveAdd => blackbox::simplify_ec_add(dfg, solver, arguments),
         BlackBoxFunc::MultiScalarMul => blackbox::simplify_msm(dfg, solver, arguments),
         BlackBoxFunc::SchnorrVerify => blackbox::simplify_schnorr_verify(dfg, solver, arguments),
