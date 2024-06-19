@@ -30,6 +30,7 @@ impl UintStrategy {
     /// Create a new strategy.
     /// # Arguments
     /// * `bits` - Size of uint in bits
+    /// * `fixtures` - Set of `FieldElements` representing values which the fuzzer weight towards testing.
     pub fn new(bits: usize, fixtures: HashSet<FieldElement>) -> Self {
         Self {
             bits,
