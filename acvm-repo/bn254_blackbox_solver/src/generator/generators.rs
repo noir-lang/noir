@@ -38,7 +38,7 @@ fn default_generators() -> &'static [Affine<GrumpkinParameters>; NUM_DEFAULT_GEN
 /// index-addressable generators.
 ///
 /// [hash_to_curve]: super::hash_to_curve::hash_to_curve
-pub(crate) fn derive_generators(
+pub fn derive_generators(
     domain_separator_bytes: &[u8],
     num_generators: u32,
     starting_index: u32,
