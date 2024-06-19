@@ -1,6 +1,0 @@
-[package]
-name = "brillig_array_eq"
-type = "bin"
-authors = [""]
-
-[dependencies]

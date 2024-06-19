@@ -56,7 +56,7 @@ pub(super) fn on_did_change_text_document(
     state.input_files.insert(params.text_document.uri.to_string(), text.clone());
 
     let (mut context, crate_id) = prepare_source(text, state);
-    let _ = check_crate(&mut context, crate_id, false, false);
+    let _ = check_crate(&mut context, crate_id, false, false, false);
 
     let workspace = match resolve_workspace_for_source_path(
         params.text_document.uri.to_file_path().unwrap().as_path(),
@@ -139,7 +139,7 @@ fn process_noir_document(
             let (mut context, crate_id) =
                 prepare_package(&workspace_file_manager, &parsed_files, package);
 
-            let file_diagnostics = match check_crate(&mut context, crate_id, false, false) {
+            let file_diagnostics = match check_crate(&mut context, crate_id, false, false, false) {
                 Ok(((), warnings)) => warnings,
                 Err(errors_and_warnings) => errors_and_warnings,
             };

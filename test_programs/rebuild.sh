@@ -6,6 +6,14 @@ process_dir() {
     local current_dir=$2
     local dir_name=$(basename "$dir")
 
+    if [[ ! -f "$dir/Nargo.toml" ]]; then
+      # This directory isn't a proper test but just hold some stale build artifacts
+      # We then delete it and carry on.
+      rm -rf $dir
+      return 0
+    fi
+
+
     if [[ ! -d "$current_dir/acir_artifacts/$dir_name" ]]; then
       mkdir -p $current_dir/acir_artifacts/$dir_name
     fi
@@ -14,13 +22,14 @@ process_dir() {
     if [ -d ./target/ ]; then
       rm -r ./target/
     fi
-    nargo compile --only-acir && nargo execute witness
+    nargo execute witness
 
     if [ -d "$current_dir/acir_artifacts/$dir_name/target" ]; then
       rm -r "$current_dir/acir_artifacts/$dir_name/target"
     fi
     mkdir $current_dir/acir_artifacts/$dir_name/target
 
+    mv ./target/$dir_name.json $current_dir/acir_artifacts/$dir_name/target/program.json
     mv ./target/*.gz $current_dir/acir_artifacts/$dir_name/target/
 
     cd $current_dir
@@ -44,19 +53,14 @@ for dir in $base_path/*; do
     dirs_to_process+=("$dir")
 done
 
-# Process each directory in parallel
-pids=()
-for dir in "${dirs_to_process[@]}"; do
-    process_dir "$dir" "$current_dir" &
-    pids+=($!)
+for dir in $current_dir/benchmarks/*; do
+    if [[ ! -d $dir ]]; then
+        continue
+    fi
+    dirs_to_process+=("$dir")
 done
 
-# Check the exit status of each background job.
-for pid in "${pids[@]}"; do
-    wait $pid || exit_status=$?
-done
 
-# Exit with a failure status if any job failed.
-if [ ! -z "$exit_status" ]; then
-    exit $exit_status
-fi
+parallel -j0  process_dir {} "$current_dir" ::: ${dirs_to_process[@]}
+
+echo "Rebuild Succeeded!"

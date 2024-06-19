@@ -1,9 +1,9 @@
 use chumsky::Parser;
 
 use crate::{
+    ast::ExpressionKind,
     parser::NoirParser,
     token::{Token, TokenKind},
-    ExpressionKind,
 };
 
 use super::primitives::token_kind;
@@ -22,10 +22,10 @@ pub(super) fn literal() -> impl NoirParser<ExpressionKind> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::ast::Literal;
     use crate::parser::parser::{
         expression, expression_no_constructors, fresh_statement, term, test_helpers::*,
     };
-    use crate::Literal;
 
     fn expr_to_lit(expr: ExpressionKind) -> Literal {
         match expr {
@@ -108,18 +108,18 @@ mod test {
             #[allow(clippy::needless_raw_string_hashes)]
             Case { source: r####"r###""###"####, expect: r####"r###""###"####, errors: 0 },
             // miscellaneous
-            Case { source: r##" r#\"foo\"# "##, expect: "plain::r", errors: 2 },
-            Case { source: r#" r\"foo\" "#, expect: "plain::r", errors: 1 },
+            Case { source: r##" r#\"foo\"# "##, expect: "r", errors: 2 },
+            Case { source: r#" r\"foo\" "#, expect: "r", errors: 1 },
             Case { source: r##" r##"foo"# "##, expect: "(none)", errors: 2 },
             // missing 'r' letter
             Case { source: r##" ##"foo"# "##, expect: r#""foo""#, errors: 2 },
-            Case { source: r#" #"foo" "#, expect: "plain::foo", errors: 2 },
+            Case { source: r#" #"foo" "#, expect: "foo", errors: 2 },
             // whitespace
-            Case { source: r##" r #"foo"# "##, expect: "plain::r", errors: 2 },
-            Case { source: r##" r# "foo"# "##, expect: "plain::r", errors: 3 },
+            Case { source: r##" r #"foo"# "##, expect: "r", errors: 2 },
+            Case { source: r##" r# "foo"# "##, expect: "r", errors: 3 },
             Case { source: r#" r#"foo" # "#, expect: "(none)", errors: 2 },
             // after identifier
-            Case { source: r##" bar#"foo"# "##, expect: "plain::bar", errors: 2 },
+            Case { source: r##" bar#"foo"# "##, expect: "bar", errors: 2 },
             // nested
             Case {
                 source: r###"r##"foo r#"bar"# r"baz" ### bye"##"###,

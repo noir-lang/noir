@@ -4,6 +4,7 @@ description = "Debugger for Noir"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 
 [build-dependencies]
@@ -17,6 +18,7 @@ noirc_frontend.workspace = true
 noirc_printable_type.workspace = true
 noirc_errors.workspace = true
 noirc_driver.workspace = true
+noirc_artifacts.workspace = true
 thiserror.workspace = true
 codespan-reporting.workspace = true
 dap.workspace = true

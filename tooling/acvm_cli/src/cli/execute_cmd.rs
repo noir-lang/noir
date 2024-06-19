@@ -2,15 +2,15 @@ use std::io::{self, Write};
 
 use acir::circuit::Program;
 use acir::native_types::{WitnessMap, WitnessStack};
+use acir::FieldElement;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
 use crate::cli::fs::inputs::{read_bytecode_from_file, read_inputs_from_file};
-use crate::cli::fs::witness::save_witness_to_dir;
 use crate::errors::CliError;
 use nargo::ops::{execute_program, DefaultForeignCallExecutor};
 
-use super::fs::witness::create_output_witness_string;
+use super::fs::witness::{create_output_witness_string, save_witness_to_dir};
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
@@ -46,9 +46,9 @@ fn run_command(args: ExecuteCommand) -> Result<String, CliError> {
     )?;
     if args.output_witness.is_some() {
         save_witness_to_dir(
-            &output_witness_string,
-            &args.working_directory,
+            output_witness,
             &args.output_witness.unwrap(),
+            &args.working_directory,
         )?;
     }
     Ok(output_witness_string)
@@ -64,17 +64,16 @@ pub(crate) fn run(args: ExecuteCommand) -> Result<String, CliError> {
 }
 
 pub(crate) fn execute_program_from_witness(
-    inputs_map: WitnessMap,
+    inputs_map: WitnessMap<FieldElement>,
     bytecode: &[u8],
     foreign_call_resolver_url: Option<&str>,
-) -> Result<WitnessStack, CliError> {
-    let blackbox_solver = Bn254BlackBoxSolver::new();
-    let program: Program = Program::deserialize_program(bytecode)
+) -> Result<WitnessStack<FieldElement>, CliError> {
+    let program: Program<FieldElement> = Program::deserialize_program(bytecode)
         .map_err(|_| CliError::CircuitDeserializationError())?;
     execute_program(
         &program,
         inputs_map,
-        &blackbox_solver,
+        &Bn254BlackBoxSolver,
         &mut DefaultForeignCallExecutor::new(true, foreign_call_resolver_url),
     )
     .map_err(CliError::CircuitExecutionError)

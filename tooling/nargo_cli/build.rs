@@ -1,21 +1,11 @@
-use rustc_version::{version, Version};
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
-fn check_rustc_version() {
-    assert!(
-        version().unwrap() >= Version::parse("1.73.0").unwrap(),
-        "The minimal supported rustc version is 1.73.0."
-    );
-}
-
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
 fn main() {
-    check_rustc_version();
-
     // Only use build_data if the environment variable isn't set.
     if std::env::var(GIT_COMMIT).is_err() {
         build_data::set_GIT_COMMIT();
@@ -48,6 +38,32 @@ fn main() {
     generate_compile_failure_tests(&mut test_file, &test_dir);
 }
 
+/// Some tests are explicitly ignored in brillig due to them failing.
+/// These should be fixed and removed from this list.
+const IGNORED_BRILLIG_TESTS: [&str; 11] = [
+    // Takes a very long time to execute as large loops do not get simplified.
+    "regression_4709",
+    // bit sizes for bigint operation doesn't match up.
+    "bigint",
+    // ICE due to looking for function which doesn't exist.
+    "fold_after_inlined_calls",
+    "fold_basic",
+    "fold_basic_nested_call",
+    "fold_call_witness_condition",
+    "fold_complex_outputs",
+    "fold_distinct_return",
+    "fold_fibonacci",
+    "fold_numeric_generic_poseidon",
+    // Expected to fail as test asserts on which runtime it is in.
+    "is_unconstrained",
+];
+
+/// Certain features are only available in the elaborator.
+/// We skip these tests for non-elaborator code since they are not
+/// expected to work there. This can be removed once the old code is removed.
+const IGNORED_NEW_FEATURE_TESTS: [&str; 3] =
+    ["macros", "wildcard_type", "type_definition_annotation"];
+
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_sub_dir = "execution_success";
     let test_data_dir = test_data_dir.join(test_sub_dir);
@@ -65,17 +81,46 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
         };
         let test_dir = &test_dir.path();
 
+        let brillig_ignored =
+            if IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()) { "\n#[ignore]" } else { "" };
+        let new_features_ignored = if IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) {
+            "\n#[ignore]"
+        } else {
+            ""
+        };
+
         write!(
             test_file,
             r#"
+#[test]{new_features_ignored}
+fn execution_success_legacy_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("execute").arg("--force").arg("--use-legacy");
+
+    cmd.assert().success();
+}}
+
 #[test]
 fn execution_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("execute").arg("--force");
+
+    cmd.assert().success();
+}}
+
+#[test]{brillig_ignored}
+fn execution_success_{test_name}_brillig() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("execute").arg("--force").arg("--force-brillig");
 
     cmd.assert().success();
 }}
@@ -107,11 +152,21 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             r#"
 #[test]
+fn execution_failure_legacy_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("execute").arg("--force").arg("--use-legacy");
+
+    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
+}}
+
+#[test]
 fn execution_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("execute").arg("--force");
 
@@ -145,11 +200,21 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             r#"
 #[test]
+fn noir_test_success_legacy_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("test").arg("--use-legacy");
+
+    cmd.assert().success();
+}}
+
+#[test]
 fn noir_test_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("test");
 
@@ -183,11 +248,21 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             r#"
 #[test]
+fn noir_test_failure_legacy_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("test").arg("--use-legacy");
+
+    cmd.assert().failure();
+}}
+
+#[test]
 fn noir_test_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("test");
 
@@ -217,18 +292,43 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
         };
         let test_dir = &test_dir.path();
 
+        let new_feature_ignored = if IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) {
+            "\n#[ignore]"
+        } else {
+            ""
+        };
+
         write!(
             test_file,
             r#"
-#[test]
-fn compile_success_empty_{test_name}() {{
-
-    // We use a mocked backend for this test as we do not rely on the returned circuit size
-    // but we must call a backend as part of querying the number of opcodes in the circuit.
-
+#[test]{new_feature_ignored}
+fn compile_success_empty_legacy_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("info");
+    cmd.arg("--json");
+    cmd.arg("--force");
+    cmd.arg("--use-legacy");
+
+    let output = cmd.output().expect("Failed to execute command");
+
+    if !output.status.success() {{
+        panic!("`nargo info` failed with: {{}}", String::from_utf8(output.stderr).unwrap_or_default());
+    }}
+
+    // `compile_success_empty` tests should be able to compile down to an empty circuit.
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|e| {{
+        panic!("JSON was not well-formatted {{:?}}\n\n{{:?}}", e, std::str::from_utf8(&output.stdout))
+    }});
+    let num_opcodes = &json["programs"][0]["functions"][0]["acir_opcodes"];
+    assert_eq!(num_opcodes.as_u64().expect("number of opcodes should fit in a u64"), 0);
+}}
+
+#[test]
+fn compile_success_empty_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("info");
     cmd.arg("--json");
@@ -244,7 +344,7 @@ fn compile_success_empty_{test_name}() {{
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|e| {{
         panic!("JSON was not well-formatted {{:?}}\n\n{{:?}}", e, std::str::from_utf8(&output.stdout))
     }});
-    let num_opcodes = &json["programs"][0]["acir_opcodes"];
+    let num_opcodes = &json["programs"][0]["functions"][0]["acir_opcodes"];
     assert_eq!(num_opcodes.as_u64().expect("number of opcodes should fit in a u64"), 0);
 }}
             "#,
@@ -275,11 +375,20 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             test_file,
             r#"
 #[test]
+fn compile_success_contract_legacy_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("compile").arg("--force").arg("--use-legacy");
+
+    cmd.assert().success();
+}}
+#[test]
 fn compile_success_contract_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile").arg("--force");
 
@@ -309,15 +418,30 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
         };
         let test_dir = &test_dir.path();
 
+        let new_feature_ignored = if IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) {
+            "\n#[ignore]"
+        } else {
+            ""
+        };
+
         write!(
             test_file,
             r#"
+#[test]{new_feature_ignored}
+fn compile_failure_legacy_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("compile").arg("--force").arg("--use-legacy");
+
+    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
+}}
 #[test]
 fn compile_failure_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile").arg("--force");
 

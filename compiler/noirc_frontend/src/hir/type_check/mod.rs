@@ -25,7 +25,7 @@ use crate::{
     Type, TypeBindings,
 };
 
-use self::errors::Source;
+pub use self::errors::Source;
 
 pub struct TypeChecker<'interner> {
     interner: &'interner mut NodeInterner,
@@ -49,10 +49,9 @@ pub struct TypeChecker<'interner> {
 pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<TypeCheckError> {
     let meta = interner.function_meta(&func_id);
     let declared_return_type = meta.return_type().clone();
-    let can_ignore_ret = meta.can_ignore_return_type();
+    let can_ignore_ret = meta.is_stub();
 
-    let function_body = interner.function(&func_id);
-    let function_body_id = function_body.as_expr();
+    let function_body_id = &interner.function(&func_id).as_expr();
 
     let mut type_checker = TypeChecker::new(interner);
     type_checker.current_function = Some(func_id);
@@ -90,7 +89,6 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     }
 
     let function_last_type = type_checker.check_function_body(function_body_id);
-
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let (expr_span, empty_function) = function_info(type_checker.interner, function_body_id);
@@ -143,8 +141,15 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     }
 
     // Verify any remaining trait constraints arising from the function body
-    for (constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
+    for (mut constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
         let span = type_checker.interner.expr_span(&expr_id);
+
+        if matches!(&constraint.typ, Type::MutableReference(_)) {
+            let (_, dereferenced_typ) =
+                type_checker.insert_auto_dereferences(expr_id, constraint.typ.clone());
+            constraint.typ = dereferenced_typ;
+        }
+
         type_checker.verify_trait_constraint(
             &constraint.typ,
             constraint.trait_id,
@@ -173,7 +178,9 @@ fn check_if_type_is_valid_for_program_input(
     errors: &mut Vec<TypeCheckError>,
 ) {
     let meta = type_checker.interner.function_meta(&func_id);
-    if (meta.is_entry_point || meta.should_fold) && !param.1.is_valid_for_program_input() {
+    if (meta.is_entry_point && !param.1.is_valid_for_program_input())
+        || (meta.has_inline_attribute && !param.1.is_valid_non_inlined_function_input())
+    {
         let span = param.0.span();
         errors.push(TypeCheckError::InvalidTypeForEntryPoint { span });
     }
@@ -230,7 +237,13 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 
     let impl_ =
         meta.trait_impl.expect("Trait impl function should have a corresponding trait impl");
-    let impl_ = interner.get_trait_implementation(impl_);
+
+    // If the trait implementation is not defined in the interner then there was a previous
+    // error in resolving the trait path and there is likely no trait for this impl.
+    let Some(impl_) = interner.try_get_trait_implementation(impl_) else {
+        return errors;
+    };
+
     let impl_ = impl_.borrow();
     let trait_info = interner.get_trait(impl_.trait_id);
 
@@ -424,20 +437,22 @@ impl<'interner> TypeChecker<'interner> {
 // XXX: These tests are all manual currently.
 /// We can either build a test apparatus or pass raw code through the resolver
 #[cfg(test)]
-mod test {
+pub mod test {
     use std::collections::{BTreeMap, HashMap};
     use std::vec;
 
     use fm::FileId;
-    use iter_extended::vecmap;
+    use iter_extended::btree_map;
     use noirc_errors::{Location, Span};
 
+    use crate::ast::{BinaryOpKind, FunctionKind, FunctionReturnType, Path, Visibility};
     use crate::graph::CrateId;
     use crate::hir::def_map::{ModuleData, ModuleId};
     use crate::hir::resolution::import::{
         PathResolution, PathResolutionError, PathResolutionResult,
     };
     use crate::hir_def::expr::HirIdent;
+    use crate::hir_def::function::FunctionBody;
     use crate::hir_def::stmt::HirLetStatement;
     use crate::hir_def::stmt::HirPattern::Identifier;
     use crate::hir_def::types::Type;
@@ -452,9 +467,8 @@ mod test {
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
             resolution::{path_resolver::PathResolver, resolver::Resolver},
         },
-        parse_program, FunctionKind, Path,
+        parse_program,
     };
-    use crate::{BinaryOpKind, Distinctness, FunctionReturnType, Visibility};
 
     #[test]
     fn basic_let() {
@@ -485,8 +499,8 @@ mod test {
         let z = HirIdent::non_trait_method(z_id, location);
 
         // Push x and y as expressions
-        let x_expr_id = interner.push_expr(HirExpression::Ident(x.clone()));
-        let y_expr_id = interner.push_expr(HirExpression::Ident(y.clone()));
+        let x_expr_id = interner.push_expr(HirExpression::Ident(x.clone(), None));
+        let y_expr_id = interner.push_expr(HirExpression::Ident(y.clone(), None));
 
         // Create Infix
         let operator = HirBinaryOp { location, kind: BinaryOpKind::Add };
@@ -504,6 +518,8 @@ mod test {
             pattern: Identifier(z),
             r#type: Type::FieldElement,
             expression: expr_id,
+            attributes: vec![],
+            comptime: false,
         };
         let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
         let expr_id = interner
@@ -534,14 +550,17 @@ mod test {
             ]
             .into(),
             return_visibility: Visibility::Private,
-            return_distinctness: Distinctness::DuplicationAllowed,
             has_body: true,
             trait_impl: None,
             return_type: FunctionReturnType::Default(Span::default()),
             trait_constraints: Vec::new(),
             direct_generics: Vec::new(),
             is_entry_point: true,
-            should_fold: false,
+            is_trait_function: false,
+            has_inline_attribute: false,
+            all_generics: Vec::new(),
+            parameter_idents: Vec::new(),
+            function_body: FunctionBody::Resolved,
         };
         interner.push_fn_meta(func_meta, func_id);
 
@@ -600,7 +619,7 @@ mod test {
 
         "#;
 
-        type_check_src_code(src, vec![String::from("main"), String::from("foo")]);
+        type_check_src_code(src, vec![String::from("main")]);
     }
     #[test]
     fn basic_closure() {
@@ -611,7 +630,7 @@ mod test {
             }
         "#;
 
-        type_check_src_code(src, vec![String::from("main"), String::from("foo")]);
+        type_check_src_code(src, vec![String::from("main")]);
     }
 
     #[test]
@@ -632,12 +651,23 @@ mod test {
             #[fold]
             fn fold(x: &mut Field) -> Field {
                 *x
-            }
+        }
         "#;
 
         type_check_src_code_errors_expected(src, vec![String::from("fold")], 1);
     }
 
+    #[test]
+    fn fold_numeric_generic() {
+        let src = r#"
+        #[fold]
+            fn fold<T>(x: T) -> T {
+                x
+            }
+        "#;
+
+        type_check_src_code(src, vec![String::from("fold")]);
+    }
     // This is the same Stub that is in the resolver, maybe we can pull this out into a test module and re-use?
     struct TestPathResolver(HashMap<String, ModuleDefId>);
 
@@ -657,7 +687,7 @@ mod test {
         }
 
         fn local_module_id(&self) -> LocalModuleId {
-            LocalModuleId(arena::Index::unsafe_zeroed())
+            LocalModuleId(noirc_arena::Index::unsafe_zeroed())
         }
 
         fn module_id(&self) -> ModuleId {
@@ -671,8 +701,8 @@ mod test {
         }
     }
 
-    fn type_check_src_code(src: &str, func_namespace: Vec<String>) {
-        type_check_src_code_errors_expected(src, func_namespace, 0);
+    pub fn type_check_src_code(src: &str, func_namespace: Vec<String>) -> (NodeInterner, FuncId) {
+        type_check_src_code_errors_expected(src, func_namespace, 0)
     }
 
     // This function assumes that there is only one function and this is the
@@ -681,7 +711,7 @@ mod test {
         src: &str,
         func_namespace: Vec<String>,
         expected_num_type_check_errs: usize,
-    ) {
+    ) -> (NodeInterner, FuncId) {
         let (program, errors) = parse_program(src);
         let mut interner = NodeInterner::default();
         interner.populate_dummy_operator_traits();
@@ -694,20 +724,22 @@ mod test {
             errors
         );
 
-        let main_id = interner.push_test_function_definition("main".into());
+        let func_ids = btree_map(&func_namespace, |name| {
+            (name.to_string(), interner.push_test_function_definition(name.into()))
+        });
 
-        let func_ids =
-            vecmap(&func_namespace, |name| interner.push_test_function_definition(name.into()));
+        let main_id =
+            *func_ids.get("main").unwrap_or_else(|| func_ids.first_key_value().unwrap().1);
 
         let mut path_resolver = TestPathResolver(HashMap::new());
-        for (name, id) in func_namespace.into_iter().zip(func_ids.clone()) {
-            path_resolver.insert_func(name.to_owned(), id);
+        for (name, id) in func_ids.iter() {
+            path_resolver.insert_func(name.to_owned(), *id);
         }
 
         let mut def_maps = BTreeMap::new();
         let file = FileId::default();
 
-        let mut modules = arena::Arena::default();
+        let mut modules = noirc_arena::Arena::default();
         let location = Location::new(Default::default(), file);
         modules.insert(ModuleData::new(None, location, false));
 
@@ -721,20 +753,24 @@ mod test {
             },
         );
 
-        let func_meta = vecmap(program.into_sorted().functions, |nf| {
+        for nf in program.into_sorted().functions {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, main_id);
-            assert_eq!(resolver_errors, vec![]);
-            (hir_func, func_meta)
-        });
 
-        for ((hir_func, meta), func_id) in func_meta.into_iter().zip(func_ids.clone()) {
-            interner.update_fn(func_id, hir_func);
-            interner.push_fn_meta(meta, func_id);
+            let function_id = *func_ids.get(nf.name()).unwrap();
+            let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, function_id);
+
+            interner.push_fn_meta(func_meta, function_id);
+            interner.update_fn(function_id, hir_func);
+            assert_eq!(resolver_errors, vec![]);
         }
 
         // Type check section
-        let errors = super::type_check_func(&mut interner, func_ids.first().cloned().unwrap());
+        let mut errors = Vec::new();
+
+        for function in func_ids.values() {
+            errors.extend(super::type_check_func(&mut interner, *function));
+        }
+
         assert_eq!(
             errors.len(),
             expected_num_type_check_errs,
@@ -743,5 +779,7 @@ mod test {
             errors.len(),
             errors
         );
+
+        (interner, main_id)
     }
 }

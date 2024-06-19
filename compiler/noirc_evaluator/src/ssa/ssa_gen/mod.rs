@@ -7,17 +7,13 @@ pub(crate) use program::Ssa;
 use context::SharedContext;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
-use noirc_frontend::{
-    monomorphization::ast::{self, Expression, Program},
-    Visibility,
-};
+use noirc_frontend::ast::{UnaryOp, Visibility};
+use noirc_frontend::hir_def::types::Type as HirType;
+use noirc_frontend::monomorphization::ast::{self, Expression, Program};
 
 use crate::{
-    errors::{InternalError, RuntimeError},
-    ssa::{
-        function_builder::data_bus::DataBusBuilder,
-        ir::{function::InlineType, instruction::Intrinsic},
-    },
+    errors::RuntimeError,
+    ssa::{function_builder::data_bus::DataBusBuilder, ir::instruction::Intrinsic},
 };
 
 use self::{
@@ -25,15 +21,18 @@ use self::{
     value::{Tree, Values},
 };
 
+use super::ir::instruction::error_selector_from_type;
 use super::{
     function_builder::data_bus::DataBus,
     ir::{
         function::RuntimeType,
-        instruction::{BinaryOp, ConstrainError, Instruction, TerminatorInstruction},
+        instruction::{BinaryOp, ConstrainError, TerminatorInstruction},
         types::Type,
         value::ValueId,
     },
 };
+
+pub(crate) const SSA_WORD_SIZE: u32 = 32;
 
 /// Generates SSA for the given monomorphized program.
 ///
@@ -61,9 +60,7 @@ pub(crate) fn generate_ssa(
         if force_brillig_runtime || main.unconstrained {
             RuntimeType::Brillig
         } else {
-            let main_inline_type =
-                if main.should_fold { InlineType::Fold } else { InlineType::Inline };
-            RuntimeType::Acir(main_inline_type)
+            RuntimeType::Acir(main.inline_type)
         },
         &context,
     );
@@ -151,8 +148,8 @@ impl<'a> FunctionContext<'a> {
             }
             Expression::Call(call) => self.codegen_call(call),
             Expression::Let(let_expr) => self.codegen_let(let_expr),
-            Expression::Constrain(expr, location, assert_message) => {
-                self.codegen_constrain(expr, *location, assert_message)
+            Expression::Constrain(expr, location, assert_payload) => {
+                self.codegen_constrain(expr, *location, assert_payload)
             }
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
@@ -241,6 +238,7 @@ impl<'a> FunctionContext<'a> {
 
                 Ok(Tree::Branch(vec![string, field_count.into(), fields]))
             }
+            ast::Literal::Unit => Ok(Self::unit_value()),
         }
     }
 
@@ -248,7 +246,7 @@ impl<'a> FunctionContext<'a> {
         let elements = vecmap(string.as_bytes(), |byte| {
             self.builder.numeric_constant(*byte as u128, Type::unsigned(8)).into()
         });
-        let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u64));
+        let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
         self.codegen_array(elements, typ)
     }
 
@@ -303,24 +301,24 @@ impl<'a> FunctionContext<'a> {
 
     fn codegen_unary(&mut self, unary: &ast::Unary) -> Result<Values, RuntimeError> {
         match unary.operator {
-            noirc_frontend::UnaryOp::Not => {
+            UnaryOp::Not => {
                 let rhs = self.codegen_expression(&unary.rhs)?;
                 let rhs = rhs.into_leaf().eval(self);
                 Ok(self.builder.insert_not(rhs).into())
             }
-            noirc_frontend::UnaryOp::Minus => {
+            UnaryOp::Minus => {
                 let rhs = self.codegen_expression(&unary.rhs)?;
                 let rhs = rhs.into_leaf().eval(self);
                 let typ = self.builder.type_of_value(rhs);
                 let zero = self.builder.numeric_constant(0u128, typ);
                 Ok(self.insert_binary(
                     zero,
-                    noirc_frontend::BinaryOpKind::Subtract,
+                    noirc_frontend::ast::BinaryOpKind::Subtract,
                     rhs,
                     unary.location,
                 ))
             }
-            noirc_frontend::UnaryOp::MutableReference => {
+            UnaryOp::MutableReference => {
                 Ok(self.codegen_reference(&unary.rhs)?.map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
@@ -335,7 +333,7 @@ impl<'a> FunctionContext<'a> {
                     }
                 }))
             }
-            noirc_frontend::UnaryOp::Dereference { .. } => {
+            UnaryOp::Dereference { .. } => {
                 let rhs = self.codegen_expression(&unary.rhs)?;
                 Ok(self.dereference(&rhs, &unary.result_type))
             }
@@ -404,7 +402,8 @@ impl<'a> FunctionContext<'a> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
         let type_size = Self::convert_type(element_type).size_of_type();
-        let type_size = self.builder.numeric_constant(type_size as u128, Type::unsigned(64));
+        let type_size =
+            self.builder.numeric_constant(type_size as u128, Type::unsigned(SSA_WORD_SIZE));
         let base_index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
 
@@ -452,7 +451,7 @@ impl<'a> FunctionContext<'a> {
         self.builder.insert_constrain(
             is_offset_out_of_bounds,
             true_const,
-            Some(Box::new("Index out of bounds".to_owned().into())),
+            Some("Index out of bounds".to_owned().into()),
         );
     }
 
@@ -679,7 +678,7 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         expr: &Expression,
         location: Location,
-        assert_message: &Option<Box<Expression>>,
+        assert_payload: &Option<Box<(Expression, HirType)>>,
     ) -> Result<Values, RuntimeError> {
         let expr = self.codegen_non_tuple_expression(expr)?;
         let true_literal = self.builder.numeric_constant(true, Type::bool());
@@ -687,9 +686,9 @@ impl<'a> FunctionContext<'a> {
         // Set the location here for any errors that may occur when we codegen the assert message
         self.builder.set_location(location);
 
-        let assert_message = self.codegen_constrain_error(assert_message)?;
+        let assert_payload = self.codegen_constrain_error(assert_payload)?;
 
-        self.builder.insert_constrain(expr, true_literal, assert_message);
+        self.builder.insert_constrain(expr, true_literal, assert_payload);
 
         Ok(Self::unit_value())
     }
@@ -700,40 +699,22 @@ impl<'a> FunctionContext<'a> {
     // inserted to the SSA as we want that instruction to be atomic in SSA with a constrain instruction.
     fn codegen_constrain_error(
         &mut self,
-        assert_message: &Option<Box<Expression>>,
-    ) -> Result<Option<Box<ConstrainError>>, RuntimeError> {
-        let Some(assert_message_expr) = assert_message else { return Ok(None) };
+        assert_message: &Option<Box<(Expression, HirType)>>,
+    ) -> Result<Option<ConstrainError>, RuntimeError> {
+        let Some(assert_message_payload) = assert_message else { return Ok(None) };
+        let (assert_message_expression, assert_message_typ) = assert_message_payload.as_ref();
 
-        if let ast::Expression::Literal(ast::Literal::Str(assert_message)) =
-            assert_message_expr.as_ref()
-        {
-            return Ok(Some(Box::new(ConstrainError::Static(assert_message.to_string()))));
-        }
+        let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
 
-        let ast::Expression::Call(call) = assert_message_expr.as_ref() else {
-            return Err(InternalError::Unexpected {
-                expected: "Expected a call expression".to_owned(),
-                found: "Instead found {expr:?}".to_owned(),
-                call_stack: self.builder.get_call_stack(),
+        let error_type_id = error_selector_from_type(assert_message_typ);
+        // Do not record string errors in the ABI
+        match assert_message_typ {
+            HirType::String(_) => {}
+            _ => {
+                self.builder.record_error_type(error_type_id, assert_message_typ.clone());
             }
-            .into());
         };
-
-        let func = self.codegen_non_tuple_expression(&call.func)?;
-        let mut arguments = Vec::with_capacity(call.arguments.len());
-
-        for argument in &call.arguments {
-            let mut values = self.codegen_expression(argument)?.into_value_list(self);
-            arguments.append(&mut values);
-        }
-
-        // If an array is passed as an argument we increase its reference count
-        for argument in &arguments {
-            self.builder.increment_array_reference_count(*argument);
-        }
-
-        let instr = Instruction::Call { func, arguments };
-        Ok(Some(Box::new(ConstrainError::Dynamic(instr))))
+        Ok(Some(ConstrainError::UserDefined(error_type_id, values)))
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {

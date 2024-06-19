@@ -124,12 +124,12 @@ fn dynamic_slice_merge_if(mut slice: [Field], x: Field) {
         assert(first_elem == 12);
         assert(rest_of_slice.len() == 6);
 
-        slice = rest_of_slice.insert(x as u64 - 2, 20);
+        slice = rest_of_slice.insert(x as u32 - 2, 20);
         assert(slice[2] == 20);
         assert(slice[6] == 30);
         assert(slice.len() == 7);
 
-        let (removed_slice, removed_elem) = slice.remove(x as u64 - 1);
+        let (removed_slice, removed_elem) = slice.remove(x as u32 - 1);
         // The deconstructed tuple assigns to the slice but is not seen outside of the if statement
         // without a direct assignment
         slice = removed_slice;

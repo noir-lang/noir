@@ -1,4 +1,4 @@
-use acvm::FieldElement;
+use acvm::acir::AcirField;
 use num_bigint::BigUint;
 
 /// Represents a bigint value in the form (id, modulus) where
@@ -11,12 +11,12 @@ pub(crate) struct BigIntId {
 }
 
 impl BigIntId {
-    pub(crate) fn bigint_id(&self) -> FieldElement {
-        FieldElement::from(self.bigint_id as u128)
+    pub(crate) fn bigint_id<F: From<u128>>(&self) -> F {
+        F::from(self.bigint_id as u128)
     }
 
-    pub(crate) fn modulus_id(&self) -> FieldElement {
-        FieldElement::from(self.modulus_id as u128)
+    pub(crate) fn modulus_id<F: From<u128>>(&self) -> F {
+        F::from(self.modulus_id as u128)
     }
 }
 
@@ -29,7 +29,7 @@ pub(crate) struct BigIntContext {
 
 impl BigIntContext {
     /// Creates a new BigIntId for the given modulus identifier and returns it.
-    pub(crate) fn new_big_int(&mut self, modulus_id: FieldElement) -> BigIntId {
+    pub(crate) fn new_big_int<F: AcirField>(&mut self, modulus_id: F) -> BigIntId {
         let id = self.big_integers.len() as u32;
         let result = BigIntId { bigint_id: id, modulus_id: modulus_id.to_u128() as u32 };
         self.big_integers.push(result);
@@ -37,12 +37,12 @@ impl BigIntContext {
     }
 
     /// Returns the modulus corresponding to the given modulus index
-    pub(crate) fn modulus(&self, idx: FieldElement) -> BigUint {
+    pub(crate) fn modulus<F: AcirField>(&self, idx: F) -> BigUint {
         self.modulus[idx.to_u128() as usize].clone()
     }
 
     /// Returns the BigIntId corresponding to the given identifier
-    pub(crate) fn get(&self, id: FieldElement) -> BigIntId {
+    pub(crate) fn get<F: AcirField>(&self, id: F) -> BigIntId {
         self.big_integers[id.to_u128() as usize]
     }
 

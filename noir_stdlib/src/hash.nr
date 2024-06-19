@@ -1,21 +1,16 @@
 mod poseidon;
 mod mimc;
 mod poseidon2;
-mod pedersen;
 
 use crate::default::Default;
 use crate::uint128::U128;
+use crate::sha256::{digest, sha256_var};
+use crate::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul};
 
 #[foreign(sha256)]
 // docs:start:sha256
 pub fn sha256<N>(input: [u8; N]) -> [u8; 32]
 // docs:end:sha256
-{}
-
-#[foreign(sha256)]
-// docs:start:sha256_slice
-pub fn sha256_slice(input: [u8]) -> [u8; 32]
-// docs:end:sha256_slice
 {}
 
 #[foreign(blake2s)]
@@ -24,55 +19,31 @@ pub fn blake2s<N>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake2s
 {}
 
-#[foreign(blake2s)]
-// docs:start:blake2s_slice
-pub fn blake2s_slice(input: [u8]) -> [u8; 32]
-// docs:end:blake2s_slice
-{}
-
 #[foreign(blake3)]
 // docs:start:blake3
 pub fn blake3<N>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake3
 {}
 
-#[foreign(blake3)]
-// docs:start:blake3_slice
-pub fn blake3_slice(input: [u8]) -> [u8; 32]
-// docs:end:blake3_slice
-{}
-
 // docs:start:pedersen_commitment
-struct PedersenPoint {
-   x : Field,
-   y : Field,
-}
-
-pub fn pedersen_commitment<N>(input: [Field; N]) -> PedersenPoint {
+pub fn pedersen_commitment<N>(input: [Field; N]) -> EmbeddedCurvePoint {
     // docs:end:pedersen_commitment
-    pedersen_commitment_with_separator(input, 0)
+    let value = pedersen_commitment_with_separator(input, 0);
+    if (value.x == 0) & (value.y == 0) {
+        EmbeddedCurvePoint { x: 0, y: 0, is_infinite: true }
+    } else {
+        EmbeddedCurvePoint { x: value.x, y: value.y, is_infinite: false }
+    }
 }
 
-// docs:start:pedersen_commitment_slice
-pub fn pedersen_commitment_slice(input: [Field]) -> PedersenPoint {
-    pedersen_commitment_with_separator_slice(input, 0)
-}
-// docs:end:pedersen_commitment_slice
-
-#[foreign(pedersen_commitment)]
-pub fn __pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> [Field; 2] {}
-
-#[foreign(pedersen_commitment)]
-pub fn __pedersen_commitment_with_separator_slice(input: [Field], separator: u32) -> [Field; 2] {}
-
-pub fn pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> PedersenPoint {
-    let values = __pedersen_commitment_with_separator(input, separator);
-    PedersenPoint { x: values[0], y: values[1] }
-}
-
-pub fn pedersen_commitment_with_separator_slice(input: [Field], separator: u32) -> PedersenPoint {
-    let values = __pedersen_commitment_with_separator_slice(input, separator);
-    PedersenPoint { x: values[0], y: values[1] }
+pub fn pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
+    let mut points = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N];
+    for i in 0..N {
+        points[i] = EmbeddedCurveScalar::from_field(input[i]);
+    }
+    let generators = derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
+    let values = multi_scalar_mul(generators, points);
+    EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: values[2] as bool }
 }
 
 // docs:start:pedersen_hash
@@ -82,43 +53,41 @@ pub fn pedersen_hash<N>(input: [Field; N]) -> Field
     pedersen_hash_with_separator(input, 0)
 }
 
-// docs:start:pedersen_hash_slice
-pub fn pedersen_hash_slice(input: [Field]) -> Field
-// docs:end:pedersen_hash_slice
-{
-    pedersen_hash_with_separator_slice(input, 0)
+#[field(bn254)]
+fn derive_generators<N, M>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {
+    crate::assert_constant(domain_separator_bytes);
+    crate::assert_constant(starting_index);
+    __derive_generators(domain_separator_bytes, starting_index)
 }
 
-#[foreign(pedersen_hash)]
-pub fn pedersen_hash_with_separator<N>(input: [Field; N], separator: u32) -> Field {}
+#[builtin(derive_pedersen_generators)]
+#[field(bn254)]
+fn __derive_generators<N, M>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {}
 
-#[foreign(pedersen_hash)]
-pub fn pedersen_hash_with_separator_slice(input: [Field], separator: u32) -> Field {}
+pub fn pedersen_hash_with_separator<N>(input: [Field; N], separator: u32) -> Field {
+    let v1 = pedersen_commitment(input);
+    let length_generator :[EmbeddedCurvePoint;1] = derive_generators("pedersen_hash_length".as_bytes(), separator);
+    multi_scalar_mul(
+        [length_generator[0], v1],
+        [EmbeddedCurveScalar { lo: N as Field, hi: 0 }, EmbeddedCurveScalar { lo: 1, hi: 0 }]
+    )[0]
+}
 
 pub fn hash_to_field(inputs: [Field]) -> Field {
-    let mut inputs_as_bytes = &[];
+    let mut sum = 0;
 
     for input in inputs {
-        let input_bytes = input.to_le_bytes(32);
-        for i in 0..32 {
-            inputs_as_bytes = inputs_as_bytes.push_back(input_bytes[i]);
-        }
+        let input_bytes: [u8; 32] = input.to_le_bytes(32).as_array();
+        sum += crate::field::bytes32_to_field(blake2s(input_bytes));
     }
 
-    let hashed_input = blake2s_slice(inputs_as_bytes);
-    crate::field::bytes32_to_field(hashed_input)
+    sum
 }
 
 #[foreign(keccak256)]
 // docs:start:keccak256
 pub fn keccak256<N>(input: [u8; N], message_size: u32) -> [u8; 32]
 // docs:end:keccak256
-{}
-
-#[foreign(keccak256)]
-// docs:start:keccak256_slice
-pub fn keccak256_slice(input: [u8], message_size: u32) -> [u8; 32]
-// docs:end:keccak256_slice
 {}
 
 #[foreign(poseidon2_permutation)]
@@ -140,7 +109,7 @@ trait Hash{
 trait Hasher{
     fn finish(self) -> Field;
     
-    fn write(&mut self, input: [Field]);
+    fn write(&mut self, input: Field);
 }
 
 // BuildHasher is a factory trait, responsible for production of specific Hasher.
@@ -170,49 +139,49 @@ where
 
 impl Hash for Field {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self]);
+        H::write(state, self);
     }
 }
 
 impl Hash for u8 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self as Field]);
+        H::write(state, self as Field);
     }
 }
 
 impl Hash for u32 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self as Field]);
+        H::write(state, self as Field);
     }
 }
 
 impl Hash for u64 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self as Field]);
+        H::write(state, self as Field);
     }
 }
 
 impl Hash for i8 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self as Field]);
+        H::write(state, self as Field);
     }
 }
 
 impl Hash for i32 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self as Field]);
+        H::write(state, self as Field);
     }
 }
 
 impl Hash for i64 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self as Field]);
+        H::write(state, self as Field);
     }
 }
 
 impl Hash for bool {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self as Field]);
+        H::write(state, self as Field);
     }
 }
 
@@ -222,7 +191,8 @@ impl Hash for () {
 
 impl Hash for U128 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, &[self.lo as Field, self.hi as Field]);
+        H::write(state, self.lo as Field);
+        H::write(state, self.hi as Field);
     }
 }
 

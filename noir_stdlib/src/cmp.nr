@@ -314,3 +314,55 @@ impl<A, B, C, D, E> Ord for (A, B, C, D, E) where A: Ord, B: Ord, C: Ord, D: Ord
         result
     }
 }
+
+// Compares and returns the maximum of two values.
+//
+// Returns the second argument if the comparison determines them to be equal.
+//
+// # Examples
+//
+// ```
+// use std::cmp;
+//
+// assert_eq(cmp::max(1, 2), 2);
+// assert_eq(cmp::max(2, 2), 2);
+// ```
+pub fn max<T>(v1: T, v2: T) -> T where T: Ord {
+    if v1 > v2 { v1 } else { v2 }
+}
+
+// Compares and returns the minimum of two values.
+//
+// Returns the first argument if the comparison determines them to be equal.
+//
+// # Examples
+//
+// ```
+// use std::cmp;
+//
+// assert_eq(cmp::min(1, 2), 1);
+// assert_eq(cmp::min(2, 2), 2);
+// ```
+pub fn min<T>(v1: T, v2: T) -> T where T: Ord {
+    if v1 > v2 { v2 } else { v1 }
+}
+
+mod cmp_tests {
+    use crate::cmp::{min, max};
+
+    #[test]
+    fn sanity_check_min() {
+        assert_eq(min(0 as u64, 1 as u64), 0);
+        assert_eq(min(0 as u64, 0 as u64), 0);
+        assert_eq(min(1 as u64, 1 as u64), 1);
+        assert_eq(min(255 as u8, 0 as u8), 0);
+    }
+
+    #[test]
+    fn sanity_check_max() {
+        assert_eq(max(0 as u64, 1 as u64), 1);
+        assert_eq(max(0 as u64, 0 as u64), 0);
+        assert_eq(max(1 as u64, 1 as u64), 1);
+        assert_eq(max(255 as u8, 0 as u8), 255);
+    }
+}

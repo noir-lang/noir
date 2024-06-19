@@ -1,13 +1,19 @@
-use acvm::acir::{
-    circuit::Program,
-    native_types::{Witness, WitnessMap},
+use acvm::{
+    acir::{
+        circuit::Program,
+        native_types::{Witness, WitnessMap},
+    },
+    FieldElement,
 };
 use js_sys::JsString;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::JsWitnessMap;
 
-fn extract_indices(witness_map: &WitnessMap, indices: Vec<Witness>) -> Result<WitnessMap, String> {
+pub(crate) fn extract_indices(
+    witness_map: &WitnessMap<FieldElement>,
+    indices: Vec<Witness>,
+) -> Result<WitnessMap<FieldElement>, String> {
     let mut extracted_witness_map = WitnessMap::new();
     for witness in indices {
         let witness_value = witness_map.get(&witness).ok_or(format!(
@@ -33,7 +39,7 @@ pub fn get_return_witness(
     witness_map: JsWitnessMap,
 ) -> Result<JsWitnessMap, JsString> {
     console_error_panic_hook::set_once();
-    let program: Program =
+    let program: Program<FieldElement> =
         Program::deserialize_program(&program).expect("Failed to deserialize circuit");
     let circuit = match program.functions.len() {
         0 => return Ok(JsWitnessMap::from(WitnessMap::new())),
@@ -44,7 +50,7 @@ pub fn get_return_witness(
     let witness_map = WitnessMap::from(witness_map);
 
     let return_witness =
-        extract_indices(&witness_map, circuit.return_values.0.clone().into_iter().collect())?;
+        extract_indices(&witness_map, circuit.return_values.0.iter().copied().collect())?;
 
     Ok(JsWitnessMap::from(return_witness))
 }
@@ -60,7 +66,7 @@ pub fn get_public_parameters_witness(
     solved_witness: JsWitnessMap,
 ) -> Result<JsWitnessMap, JsString> {
     console_error_panic_hook::set_once();
-    let program: Program =
+    let program: Program<FieldElement> =
         Program::deserialize_program(&program).expect("Failed to deserialize circuit");
     let circuit = match program.functions.len() {
         0 => return Ok(JsWitnessMap::from(WitnessMap::new())),
@@ -71,7 +77,7 @@ pub fn get_public_parameters_witness(
     let witness_map = WitnessMap::from(solved_witness);
 
     let public_params_witness =
-        extract_indices(&witness_map, circuit.public_parameters.0.clone().into_iter().collect())?;
+        extract_indices(&witness_map, circuit.public_parameters.0.iter().copied().collect())?;
 
     Ok(JsWitnessMap::from(public_params_witness))
 }
@@ -87,7 +93,7 @@ pub fn get_public_witness(
     solved_witness: JsWitnessMap,
 ) -> Result<JsWitnessMap, JsString> {
     console_error_panic_hook::set_once();
-    let program: Program =
+    let program: Program<FieldElement> =
         Program::deserialize_program(&program).expect("Failed to deserialize circuit");
     let circuit = match program.functions.len() {
         0 => return Ok(JsWitnessMap::from(WitnessMap::new())),

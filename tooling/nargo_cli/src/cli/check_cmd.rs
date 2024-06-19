@@ -1,4 +1,3 @@
-use crate::backends::Backend;
 use crate::errors::CliError;
 
 use clap::Args;
@@ -34,15 +33,15 @@ pub(crate) struct CheckCommand {
     #[clap(long, conflicts_with = "package")]
     workspace: bool,
 
+    /// Force overwrite of existing files
+    #[clap(long = "overwrite")]
+    allow_overwrite: bool,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(
-    _backend: &Backend,
-    args: CheckCommand,
-    config: NargoConfig,
-) -> Result<(), CliError> {
+pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -58,18 +57,29 @@ pub(crate) fn run(
     let parsed_files = parse_all(&workspace_file_manager);
 
     for package in &workspace {
-        check_package(&workspace_file_manager, &parsed_files, package, &args.compile_options)?;
-        println!("[{}] Constraint system successfully built!", package.name);
+        let any_file_written = check_package(
+            &workspace_file_manager,
+            &parsed_files,
+            package,
+            &args.compile_options,
+            args.allow_overwrite,
+        )?;
+        if any_file_written {
+            println!("[{}] Constraint system successfully built!", package.name);
+        }
     }
     Ok(())
 }
 
+/// Evaluates the necessity to create or update Prover.toml and Verifier.toml based on the allow_overwrite flag and files' existence.
+/// Returns `true` if any file was generated or updated, `false` otherwise.
 fn check_package(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
-) -> Result<(), CompileError> {
+    allow_overwrite: bool,
+) -> Result<bool, CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     check_crate_and_report_errors(
         &mut context,
@@ -77,31 +87,30 @@ fn check_package(
         compile_options.deny_warnings,
         compile_options.disable_macros,
         compile_options.silence_warnings,
+        compile_options.use_legacy,
     )?;
 
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
-        Ok(())
+        Ok(false)
     } else {
         // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-        if let Some((parameters, return_type)) = compute_function_abi(&context, &crate_id) {
+        if let Some((parameters, _)) = compute_function_abi(&context, &crate_id) {
             let path_to_prover_input = package.prover_input_path();
-            let path_to_verifier_input = package.verifier_input_path();
 
-            // If they are not available, then create them and populate them based on the ABI
-            if !path_to_prover_input.exists() {
+            // Before writing the file, check if it exists and whether overwrite is set
+            let should_write_prover = !path_to_prover_input.exists() || allow_overwrite;
+
+            if should_write_prover {
                 let prover_toml = create_input_toml_template(parameters.clone(), None);
                 write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
-            }
-            if !path_to_verifier_input.exists() {
-                let public_inputs =
-                    parameters.into_iter().filter(|param| param.is_public()).collect();
-
-                let verifier_toml = create_input_toml_template(public_inputs, return_type);
-                write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
+            } else {
+                eprintln!("Note: Prover.toml already exists. Use --overwrite to force overwrite.");
             }
 
-            Ok(())
+            let any_file_written = should_write_prover;
+
+            Ok(any_file_written)
         } else {
             Err(CompileError::MissingMainFunction(package.name.clone()))
         }
@@ -151,8 +160,9 @@ pub(crate) fn check_crate_and_report_errors(
     deny_warnings: bool,
     disable_macros: bool,
     silence_warnings: bool,
+    use_legacy: bool,
 ) -> Result<(), CompileError> {
-    let result = check_crate(context, crate_id, deny_warnings, disable_macros);
+    let result = check_crate(context, crate_id, deny_warnings, disable_macros, use_legacy);
     report_errors(result, &context.file_manager, deny_warnings, silence_warnings)
 }
 

@@ -20,7 +20,7 @@ In this guide, we will be pinned to 0.17.0.
 
 Make sure you have Node installed on your machine by opening a terminal and executing `node --version`. If you don't see a version, you should install [node](https://github.com/nvm-sh/nvm). You can also use `yarn` if you prefer that package manager over npm (which comes with node).
 
-First of all, follow the the [Nargo guide](../../getting_started/00_nargo_installation.md) to install nargo version 0.17.0 and create a new project with `nargo new circuit`. Once there, `cd` into the `circuit` folder. You should then be able to compile your circuit into `json` format and see it inside the `target` folder:
+First of all, follow the [Nargo guide](../../getting_started/00_nargo_installation.md) to install nargo version 0.17.0 and create a new project with `nargo new circuit`. Once there, `cd` into the `circuit` folder. You should then be able to compile your circuit into `json` format and see it inside the `target` folder:
 
 ```bash
 nargo compile

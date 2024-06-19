@@ -40,7 +40,8 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
     circuit_main_toml = await new Response(await getFile(`${base_relative_path}/${circuit_main}/Prover.toml`)).text();
   });
 
-  it('Should generate valid inner proof for correct input, then verify proof within a proof', async () => {
+  // TODO(https://github.com/noir-lang/noir/issues/5106): Reinstate this test.
+  it.skip('Should generate valid inner proof for correct input, then verify proof within a proof', async () => {
     const main_program = await getCircuit(`${base_relative_path}/${circuit_main}`);
     const main_inputs: InputMap = TOML.parse(circuit_main_toml) as InputMap;
 

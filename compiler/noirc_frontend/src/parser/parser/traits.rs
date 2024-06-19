@@ -1,18 +1,18 @@
 use chumsky::prelude::*;
 
-use super::{
-    block, expression, fresh_statement, function, function_declaration_parameters,
-    function_return_type,
-};
+use super::function::function_return_type;
+use super::{block, expression, fresh_statement, function, function_declaration_parameters};
 
+use crate::ast::{
+    Expression, ItemVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem, TraitItem,
+    UnresolvedTraitConstraint, UnresolvedType,
+};
 use crate::{
     parser::{
         ignore_then_commit, parenthesized, parser::primitives::keyword, NoirParser, ParserError,
         ParserErrorReason, TopLevelStatement,
     },
     token::{Keyword, Token},
-    Expression, ItemVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem, TraitItem,
-    UnresolvedTraitConstraint, UnresolvedType,
 };
 
 use super::{generic_type_args, parse_type, path, primitives::ident};

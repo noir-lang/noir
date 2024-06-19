@@ -5,11 +5,9 @@ use std::{
 
 use acvm::acir::circuit::ExpressionWidth;
 use async_lsp::{ErrorCode, ResponseError};
-use nargo::{
-    artifacts::debug::DebugArtifact, insert_all_files_for_workspace_into_file_manager,
-    ops::report_errors,
-};
+use nargo::{insert_all_files_for_workspace_into_file_manager, ops::report_errors};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING,
 };
@@ -84,9 +82,11 @@ fn on_profile_run_request_inner(
                 let compiled_program =
                     nargo::ops::transform_program(compiled_program, expression_width);
 
-                let span_opcodes = compiled_program.debug.count_span_opcodes();
-                let debug_artifact: DebugArtifact = compiled_program.clone().into();
-                opcodes_counts.extend(span_opcodes);
+                for function_debug in compiled_program.debug.iter() {
+                    let span_opcodes = function_debug.count_span_opcodes();
+                    opcodes_counts.extend(span_opcodes);
+                }
+                let debug_artifact: DebugArtifact = compiled_program.into();
                 file_map.extend(debug_artifact.file_map);
             }
 
@@ -94,14 +94,17 @@ fn on_profile_run_request_inner(
                 let compiled_contract =
                     nargo::ops::transform_contract(compiled_contract, expression_width);
 
-                let function_debug_info: Vec<_> =
-                    compiled_contract.functions.iter().map(|func| &func.debug).cloned().collect();
-                let debug_artifact: DebugArtifact = compiled_contract.into();
-                file_map.extend(debug_artifact.file_map);
+                let function_debug_info = compiled_contract
+                    .functions
+                    .iter()
+                    .flat_map(|func| &func.debug)
+                    .collect::<Vec<_>>();
                 for contract_function_debug in function_debug_info {
                     let span_opcodes = contract_function_debug.count_span_opcodes();
                     opcodes_counts.extend(span_opcodes);
                 }
+                let debug_artifact: DebugArtifact = compiled_contract.into();
+                file_map.extend(debug_artifact.file_map);
             }
 
             let result = NargoProfileRunResult { file_map, opcodes_counts };

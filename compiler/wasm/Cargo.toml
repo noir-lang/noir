@@ -3,6 +3,7 @@ name = "noir_wasm"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -12,13 +13,14 @@ license.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-acvm.workspace = true
+acvm = { workspace = true, features = ["bn254"] }
 fm.workspace = true
 nargo.workspace = true
 noirc_driver.workspace = true
-noirc_frontend.workspace = true
+noirc_frontend = { workspace = true, features = ["bn254"] }
 noirc_errors.workspace = true
 noirc_evaluator.workspace = true
+noirc_artifacts.workspace = true
 wasm-bindgen.workspace = true
 serde.workspace = true
 js-sys.workspace = true
