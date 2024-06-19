@@ -11,11 +11,10 @@ use crate::{
     },
     hir_def::{
         expr::{HirIdent, ImplKind},
-        function::FunctionBody,
         stmt::HirPattern,
     },
     macros_api::{HirExpression, Ident, Path, Pattern},
-    node_interner::{DefinitionId, DefinitionKind, DependencyId, ExprId, GlobalId, TraitImplKind},
+    node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, TraitImplKind},
     Shared, StructType, Type, TypeBindings,
 };
 
@@ -415,16 +414,6 @@ impl<'context> Elaborator<'context> {
                 match self.interner.definition(hir_ident.id).kind {
                     DefinitionKind::Function(id) => {
                         if let Some(current_item) = self.current_item {
-                            // Lazily evaluate functions found within globals if necessary.
-                            // Otherwise if we later attempt to evaluate the global it will
-                            // see an empty function body.
-                            if matches!(current_item, DependencyId::Global(_)) {
-                                let meta = self.interner.function_meta(&id);
-
-                                if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
-                                    self.elaborate_function(id);
-                                }
-                            }
                             self.interner.add_function_dependency(current_item, id);
                         }
                     }

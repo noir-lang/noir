@@ -15,6 +15,7 @@ members = [
     # Crates related to tooling built on top of the Noir compiler
     "tooling/lsp",
     "tooling/debugger",
+    "tooling/fuzzer",
     "tooling/nargo",
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
@@ -69,6 +70,7 @@ noirc_frontend = { path = "compiler/noirc_frontend" }
 noirc_printable_type = { path = "compiler/noirc_printable_type" }
 
 # Noir tooling workspace dependencies
+noir_fuzzer = { path = "tooling/fuzzer" }
 nargo = { path = "tooling/nargo" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_toml = { path = "tooling/nargo_toml" }

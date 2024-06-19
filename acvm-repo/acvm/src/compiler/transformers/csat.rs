@@ -432,7 +432,7 @@ fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> boo
         return true;
     }
 
-    // We now know that we have a single mul term. We also know that the mul term must match up with two other terms
+    // We now know that we have a single mul term. We also know that the mul term must match up with at least one of the other terms
     // A polynomial whose mul terms are non zero which do not match up with two terms in the fan-in cannot fit into one opcode
     // An example of this is: Axy + Bx + Cy + ...
     // Notice how the bivariate monomial xy has two univariate monomials with their respective coefficients
@@ -461,7 +461,25 @@ fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> boo
         }
     }
 
-    found_x & found_y
+    // If the multiplication is a squaring then we must assign the two witnesses to separate wires and so we
+    // can never get a zero contribution to the width.
+    let multiplication_is_squaring = mul_term.1 == mul_term.2;
+
+    let mul_term_width_contribution = if !multiplication_is_squaring && (found_x & found_y) {
+        // Both witnesses involved in the multiplication exist elsewhere in the expression.
+        // They both do not contribute to the width of the expression as this would be double-counting
+        // due to their appearance in the linear terms.
+        0
+    } else if found_x || found_y {
+        // One of the witnesses involved in the multiplication exists elsewhere in the expression.
+        // The multiplication then only contributes 1 new witness to the width.
+        1
+    } else {
+        // Worst case scenario, the multiplication is using completely unique witnesses so has a contribution of 2.
+        2
+    };
+
+    mul_term_width_contribution + expr.linear_combinations.len() <= width
 }
 
 #[cfg(test)]
@@ -572,5 +590,21 @@ mod tests {
         // Since b is not known, it cannot be put inside intermediate opcodes, so it must belong to the transformed opcode.
         let contains_b = got_optimized_opcode_a.linear_combinations.iter().any(|(_, w)| *w == b);
         assert!(contains_b);
+    }
+
+    #[test]
+    fn recognize_expr_with_single_shared_witness_which_fits_in_single_identity() {
+        // Regression test for an expression which Zac found which should have been preserved but
+        // was being split into two expressions.
+        let expr = Expression {
+            mul_terms: vec![(-FieldElement::from(555u128), Witness(8), Witness(10))],
+            linear_combinations: vec![
+                (FieldElement::one(), Witness(10)),
+                (FieldElement::one(), Witness(11)),
+                (-FieldElement::one(), Witness(13)),
+            ],
+            q_c: FieldElement::zero(),
+        };
+        assert!(fits_in_one_identity(&expr, 4));
     }
 }

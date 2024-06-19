@@ -28,7 +28,7 @@ use crate::{
         MethodCallExpression, PrefixExpression,
     },
     node_interner::{DefinitionKind, ExprId, FuncId},
-    Shared, StructType, Type,
+    QuotedType, Shared, StructType, Type,
 };
 
 use super::Elaborator;
@@ -650,7 +650,7 @@ impl<'context> Elaborator<'context> {
         let mut unquoted_exprs = Vec::new();
         self.find_unquoted_exprs_in_block(&mut block, &mut unquoted_exprs);
         let quoted = HirQuoted { quoted_block: block, unquoted_exprs };
-        (HirExpression::Quote(quoted), Type::Expr)
+        (HirExpression::Quote(quoted), Type::Quoted(QuotedType::Expr))
     }
 
     fn elaborate_comptime_block(&mut self, block: BlockExpression, span: Span) -> (ExprId, Type) {
@@ -716,9 +716,8 @@ impl<'context> Elaborator<'context> {
         location: Location,
         return_type: Type,
     ) -> Option<(HirExpression, Type)> {
-        self.unify(&return_type, &Type::Expr, || TypeCheckError::MacroReturningNonExpr {
-            typ: return_type.clone(),
-            span: location.span,
+        self.unify(&return_type, &Type::Quoted(QuotedType::Expr), || {
+            TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), span: location.span }
         });
 
         let function = match self.try_get_comptime_function(func, location) {

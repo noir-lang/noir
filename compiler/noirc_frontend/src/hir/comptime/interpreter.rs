@@ -104,18 +104,18 @@ impl<'a> Interpreter<'a> {
                 "array_len" => builtin::array_len(&arguments),
                 "as_slice" => builtin::as_slice(arguments),
                 _ => {
-                    let item = format!("Evaluation for builtin function {builtin}");
+                    let item = format!("Comptime evaluation for builtin function {builtin}");
                     Err(InterpreterError::Unimplemented { item, location })
                 }
             }
         } else if let Some(foreign) = func_attrs.foreign() {
-            let item = format!("Evaluation for foreign functions like {foreign}");
+            let item = format!("Comptime evaluation for foreign functions like {foreign}");
             Err(InterpreterError::Unimplemented { item, location })
         } else if let Some(oracle) = func_attrs.oracle() {
             if oracle == "print" {
                 self.print_oracle(arguments)
             } else {
-                let item = format!("Evaluation for oracle functions like {oracle}");
+                let item = format!("Comptime evaluation for oracle functions like {oracle}");
                 Err(InterpreterError::Unimplemented { item, location })
             }
         } else {
