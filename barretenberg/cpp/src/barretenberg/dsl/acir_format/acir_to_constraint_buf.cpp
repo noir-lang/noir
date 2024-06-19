@@ -484,14 +484,11 @@ BlockConstraint handle_memory_init(Program::Opcode::MemoryInit const& mem_init)
         });
     }
 
-    // Databus is only supported for Goblin, non Goblin builders will treat call_data and return_data as normal
-    // array.
-    if (IsMegaBuilder<Builder>) {
-        if (std::holds_alternative<Program::BlockType::CallData>(mem_init.block_type.value)) {
-            block.type = BlockType::CallData;
-        } else if (std::holds_alternative<Program::BlockType::ReturnData>(mem_init.block_type.value)) {
-            block.type = BlockType::ReturnData;
-        }
+    // Databus is only supported for Goblin, non Goblin builders will treat call_data and return_data as normal array.
+    if (std::holds_alternative<Program::BlockType::CallData>(mem_init.block_type.value)) {
+        block.type = BlockType::CallData;
+    } else if (std::holds_alternative<Program::BlockType::ReturnData>(mem_init.block_type.value)) {
+        block.type = BlockType::ReturnData;
     }
 
     return block;
@@ -557,7 +554,8 @@ AcirFormat circuit_serde_to_acir_format(Program::Circuit const& circuit, bool ho
             gate.value);
     }
     for (const auto& [block_id, block] : block_id_to_block_constraint) {
-        if (!block.first.trace.empty()) {
+        // Note: the trace will always be empty for ReturnData since it cannot be explicitly read from in noir
+        if (!block.first.trace.empty() || block.first.type == BlockType::ReturnData) {
             af.block_constraints.push_back(block.first);
             af.original_opcode_indices.block_constraints.push_back(block.second);
         }

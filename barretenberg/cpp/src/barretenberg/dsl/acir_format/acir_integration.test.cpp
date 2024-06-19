@@ -36,7 +36,7 @@ class AcirIntegrationTest : public ::testing::Test {
     }
 
     acir_format::AcirProgramStack get_program_stack_data_from_test_file(const std::string& test_program_name,
-                                                                        bool honk_recursion)
+                                                                        bool honk_recursion = false)
     {
         std::string base_path = "../../acir_tests/acir_tests/" + test_program_name + "/target";
         std::string bytecode_path = base_path + "/program.json";
@@ -45,7 +45,8 @@ class AcirIntegrationTest : public ::testing::Test {
         return acir_format::get_acir_program_stack(bytecode_path, witness_path, honk_recursion);
     }
 
-    acir_format::AcirProgram get_program_data_from_test_file(const std::string& test_program_name, bool honk_recursion)
+    acir_format::AcirProgram get_program_data_from_test_file(const std::string& test_program_name,
+                                                             bool honk_recursion = false)
     {
         auto program_stack = get_program_stack_data_from_test_file(test_program_name, honk_recursion);
         ASSERT(program_stack.size() == 1); // Otherwise this method will not return full stack data
@@ -427,6 +428,29 @@ TEST_P(AcirIntegrationFoldingTest, DISABLED_FoldAndVerifyProgramStack)
 INSTANTIATE_TEST_SUITE_P(AcirTests,
                          AcirIntegrationFoldingTest,
                          testing::Values("fold_basic", "fold_basic_nested_call"));
+
+/**
+ *@brief A basic test of a circuit generated in noir that makes use of the databus
+ *
+ */
+TEST_F(AcirIntegrationTest, DISABLED_Databus)
+{
+    using Flavor = MegaFlavor;
+    using Builder = Flavor::CircuitBuilder;
+
+    std::string test_name = "databus";
+    info("Test: ", test_name);
+    acir_format::AcirProgram acir_program = get_program_data_from_test_file(test_name);
+
+    // Construct a bberg circuit from the acir representation
+    Builder builder = acir_format::create_circuit<Builder>(acir_program.constraints, 0, acir_program.witness);
+
+    // This prints a summary of the types of gates in the circuit
+    builder.blocks.summarize();
+
+    // Construct and verify Honk proof
+    EXPECT_TRUE(prove_and_verify_honk<Flavor>(builder));
+}
 
 /**
  * @brief Ensure that adding gates post-facto to a circuit generated from acir still results in a valid circuit

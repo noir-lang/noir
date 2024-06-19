@@ -29,6 +29,24 @@ void create_block_constraints(Builder& builder,
                               const BlockConstraint& constraint,
                               bool has_valid_witness_assignments = true);
 
+template <typename Builder>
+void process_ROM_operations(Builder& builder,
+                            const BlockConstraint& constraint,
+                            bool has_valid_witness_assignments,
+                            std::vector<bb::stdlib::field_t<Builder>>& init);
+template <typename Builder>
+void process_RAM_operations(Builder& builder,
+                            const BlockConstraint& constraint,
+                            bool has_valid_witness_assignments,
+                            std::vector<bb::stdlib::field_t<Builder>>& init);
+template <typename Builder>
+void process_call_data_operations(Builder& builder,
+                                  const BlockConstraint& constraint,
+                                  bool has_valid_witness_assignments,
+                                  std::vector<bb::stdlib::field_t<Builder>>& init);
+template <typename Builder>
+void process_return_data_operations(const BlockConstraint& constraint, std::vector<bb::stdlib::field_t<Builder>>& init);
+
 template <typename B> inline void read(B& buf, MemOp& mem_op)
 {
     using serialize::read;
