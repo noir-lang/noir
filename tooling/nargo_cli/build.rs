@@ -83,12 +83,16 @@ fn read_test_cases(
     })
 }
 
-fn generate_test_case(test_file: &mut File, test_type: &str, test_name: &str, test_content: &str) {
+fn generate_test_case(test_file: &mut File, test_type: &str, test_name: &str, test_dir: &std::path::Display, test_content: &str) {
     write!(
         test_file,
         r#"
 #[test]
 fn {test_type}_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut nargo = Command::cargo_bin("nargo").unwrap();
+    nargo.arg("--program-dir").arg(test_program_dir);
     {test_content}
 }}
 "#
@@ -106,14 +110,12 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             test_type,
             &test_name,
+            &test_dir,
             &format!(
-                r#"let test_program_dir = PathBuf::from("{test_dir}");
-
-                let mut cmd = Command::cargo_bin("nargo").unwrap();
-                cmd.arg("--program-dir").arg(test_program_dir);
-                cmd.arg("execute").arg("--force");
+                r#"
+                nargo.arg("execute").arg("--force");
             
-                cmd.assert().success();"#,
+                nargo.assert().success();"#,
             ),
         );
 
@@ -122,14 +124,13 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
                 test_file,
                 test_type,
                 &format!("legacy_{test_name}"),
-                &format!(
-                    r#"let test_program_dir = PathBuf::from("{test_dir}");
+                &test_dir,
 
-                let mut cmd = Command::cargo_bin("nargo").unwrap();
-                cmd.arg("--program-dir").arg(test_program_dir);
-                cmd.arg("execute").arg("--force").arg("--use-legacy");
+                &format!(
+                    r#"
+                nargo.arg("execute").arg("--force").arg("--use-legacy");
             
-                cmd.assert().success();"#,
+                nargo.assert().success();"#,
                 ),
             );
         }
@@ -139,14 +140,13 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
                 test_file,
                 test_type,
                 &format!("{test_name}_brillig"),
-                &format!(
-                    r#"let test_program_dir = PathBuf::from("{test_dir}");
+                &test_dir,
 
-                let mut cmd = Command::cargo_bin("nargo").unwrap();
-                cmd.arg("--program-dir").arg(test_program_dir);
-                cmd.arg("execute").arg("--force").arg("--force-brillig");
+                &format!(
+                    r#"
+                nargo.arg("execute").arg("--force").arg("--force-brillig");
             
-                cmd.assert().success();"#,
+                nargo.assert().success();"#,
                 ),
             );
         }
@@ -163,14 +163,13 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             test_type,
             &test_name,
-            &format!(
-                r#"let test_program_dir = PathBuf::from("{test_dir}");
+            &test_dir,
 
-                let mut cmd = Command::cargo_bin("nargo").unwrap();
-                cmd.arg("--program-dir").arg(test_program_dir);
-                cmd.arg("execute").arg("--force");
+            &format!(
+                r#"
+                nargo.arg("execute").arg("--force");
             
-                cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
+                nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
             ),
         );
 
@@ -178,14 +177,13 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             test_type,
             &format!("legacy_{test_name}"),
-            &format!(
-                r#"let test_program_dir = PathBuf::from("{test_dir}");
+            &test_dir,
 
-                let mut cmd = Command::cargo_bin("nargo").unwrap();
-                cmd.arg("--program-dir").arg(test_program_dir);
-                cmd.arg("execute").arg("--force").arg("--use-legacy");
+            &format!(
+                r#"
+                nargo.arg("execute").arg("--force").arg("--use-legacy");
             
-                cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
+                nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
             ),
         );
     }
@@ -201,14 +199,13 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             test_type,
             &test_name,
-            &format!(
-                r#"let test_program_dir = PathBuf::from("{test_dir}");
+            &test_dir,
 
-        let mut cmd = Command::cargo_bin("nargo").unwrap();
-        cmd.arg("--program-dir").arg(test_program_dir);
-        cmd.arg("test");
+            &format!(
+                r#"
+        nargo.arg("test");
         
-        cmd.assert().success();"#,
+        nargo.assert().success();"#,
             ),
         );
 
@@ -216,14 +213,12 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             test_type,
             &format!("legacy_{test_name}"),
+            &test_dir,
             &format!(
-                r#"let test_program_dir = PathBuf::from("{test_dir}");
-
-        let mut cmd = Command::cargo_bin("nargo").unwrap();
-        cmd.arg("--program-dir").arg(test_program_dir);
-        cmd.arg("test").arg("--use-legacy");
+                r#"
+        nargo.arg("test").arg("--use-legacy");
         
-        cmd.assert().success();"#,
+        nargo.assert().success();"#,
             ),
         );
     }
@@ -238,14 +233,13 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             test_type,
             &test_name,
-            &format!(
-                r#"let test_program_dir = PathBuf::from("{test_dir}");
+            &test_dir,
 
-        let mut cmd = Command::cargo_bin("nargo").unwrap();
-        cmd.arg("--program-dir").arg(test_program_dir);
-        cmd.arg("test");
+            &format!(
+                r#"
+        nargo.arg("test");
         
-        cmd.assert().failure();"#,
+        nargo.assert().failure();"#,
             ),
         );
 
@@ -253,14 +247,13 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             test_file,
             test_type,
             &format!("legacy_{test_name}"),
-            &format!(
-                r#"let test_program_dir = PathBuf::from("{test_dir}");
+            &test_dir,
 
-        let mut cmd = Command::cargo_bin("nargo").unwrap();
-        cmd.arg("--program-dir").arg(test_program_dir);
-        cmd.arg("test").arg("--use-legacy");
+            &format!(
+                r#"
+        nargo.arg("test").arg("--use-legacy");
         
-        cmd.assert().failure();"#,
+        nargo.assert().failure();"#,
             ),
         );
     }
@@ -273,7 +266,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
         let test_dir = test_dir.display();
 
         let assert_zero_opcodes = r#"
-        let output = cmd.output().expect("Failed to execute command");
+        let output = nargo.output().expect("Failed to execute command");
 
         if !output.status.success() {{
             panic!("`nargo info` failed with: {}", String::from_utf8(output.stderr).unwrap_or_default());
@@ -291,13 +284,10 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             test_file,
             test_type,
             &test_name,
+            &test_dir,
             &format!(
-                r#"let test_program_dir = PathBuf::from("{test_dir}");
-                let mut cmd = Command::cargo_bin("nargo").unwrap();
-                cmd.arg("--program-dir").arg(test_program_dir);
-                cmd.arg("info");
-                cmd.arg("--json");
-                cmd.arg("--force");
+                r#"
+                nargo.arg("info").arg("--json").arg("--force");
                 
                 {assert_zero_opcodes}"#,
             ),
@@ -308,14 +298,10 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
                 test_file,
                 test_type,
                 &format!("legacy_{test_name}"),
+                &test_dir,
                 &format!(
-                    r#"let test_program_dir = PathBuf::from("{test_dir}");
-                let mut cmd = Command::cargo_bin("nargo").unwrap();
-                cmd.arg("--program-dir").arg(test_program_dir);
-                cmd.arg("info");
-                cmd.arg("--json");
-                cmd.arg("--force");
-                cmd.arg("--use-legacy");
+                    r#"
+                nargo.arg("info").arg("--json").arg("--force").arg("--use-legacy");
                 
                 {assert_zero_opcodes}"#,
                 ),
@@ -334,14 +320,12 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             test_file,
             test_type,
             &test_name,
+            &test_dir,
             &format!(
-                r#"let test_program_dir = PathBuf::from("{test_dir}");
-
-        let mut cmd = Command::cargo_bin("nargo").unwrap();
-        cmd.arg("--program-dir").arg(test_program_dir);
-        cmd.arg("compile").arg("--force");
+                r#"
+        nargo.arg("compile").arg("--force");
         
-        cmd.assert().success();"#,
+        nargo.assert().success();"#,
             ),
         );
 
@@ -349,14 +333,12 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             test_file,
             test_type,
             &format!("legacy_{test_name}"),
+            &test_dir,
             &format!(
-                r#"let test_program_dir = PathBuf::from("{test_dir}");
-
-        let mut cmd = Command::cargo_bin("nargo").unwrap();
-        cmd.arg("--program-dir").arg(test_program_dir);
-        cmd.arg("compile").arg("--force").arg("--use-legacy");
+                r#"
+        nargo.arg("compile").arg("--force").arg("--use-legacy");
         
-        cmd.assert().success();"#,
+        nargo.assert().success();"#,
             ),
         );
     }
@@ -372,29 +354,23 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
             test_file,
             test_type,
             &test_name,
+            &test_dir,
             &format!(
-                r#"let test_program_dir = PathBuf::from("{test_dir}");
-
-        let mut cmd = Command::cargo_bin("nargo").unwrap();
-        cmd.arg("--program-dir").arg(test_program_dir);
-        cmd.arg("compile").arg("--force");
+                r#"nargo.arg("compile").arg("--force");
         
-        cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
-            ),
-        );
+        nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
+        ));
 
         generate_test_case(
             test_file,
             test_type,
             &format!("legacy_{test_name}"),
+            &test_dir,
             &format!(
-                r#"let test_program_dir = PathBuf::from("{test_dir}");
-
-        let mut cmd = Command::cargo_bin("nargo").unwrap();
-        cmd.arg("--program-dir").arg(test_program_dir);
-        cmd.arg("compile").arg("--force").arg("--use-legacy");
+                r#"
+        nargo.arg("compile").arg("--force").arg("--use-legacy");
         
-        cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
+        nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
             ),
         );
     }
