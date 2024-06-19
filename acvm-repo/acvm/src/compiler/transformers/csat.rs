@@ -482,8 +482,6 @@ fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> boo
     mul_term_width_contribution + expr.linear_combinations.len() <= width
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
