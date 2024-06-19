@@ -177,21 +177,6 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyRecursiveVerifi
     // Compute ϕ
     fold_commitments(lagranges, instances, next_accumulator);
 
-    next_accumulator->public_inputs =
-        std::vector<FF>(static_cast<size_t>(next_accumulator->verification_key->num_public_inputs), 0);
-    size_t public_input_idx = 0;
-    for (auto& public_input : next_accumulator->public_inputs) {
-        size_t inst = 0;
-        for (auto& instance : instances) {
-            if (instance->verification_key->num_public_inputs >=
-                next_accumulator->verification_key->num_public_inputs) {
-                public_input += instance->public_inputs[public_input_idx] * lagranges[inst];
-                inst++;
-            };
-        }
-        public_input_idx++;
-    }
-
     size_t alpha_idx = 0;
     for (auto& alpha : next_accumulator->alphas) {
         alpha = FF(0);

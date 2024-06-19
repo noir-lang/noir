@@ -115,19 +115,7 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyVerifier_<Verif
     next_accumulator->verification_key->num_public_inputs = accumulator->verification_key->num_public_inputs;
     next_accumulator->public_inputs =
         std::vector<FF>(static_cast<size_t>(next_accumulator->verification_key->num_public_inputs), 0);
-    size_t public_input_idx = 0;
-    for (auto& public_input : next_accumulator->public_inputs) {
-        size_t inst = 0;
-        for (auto& instance : instances) {
-            // TODO(https://github.com/AztecProtocol/barretenberg/issues/830)
-            if (instance->verification_key->num_public_inputs >=
-                next_accumulator->verification_key->num_public_inputs) {
-                public_input += instance->public_inputs[public_input_idx] * lagranges[inst];
-                inst++;
-            }
-        }
-        public_input_idx++;
-    }
+
     next_accumulator->is_accumulator = true;
 
     // Compute next folding parameters

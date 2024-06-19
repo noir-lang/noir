@@ -104,22 +104,6 @@ std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverIns
         });
     }
 
-    // Fold the public inputs and send to the verifier
-    size_t el_idx = 0;
-    for (auto& el : next_accumulator->proving_key.public_inputs) {
-        el *= lagranges[0];
-        size_t inst = 0;
-        for (size_t inst_idx = 1; inst_idx < ProverInstances::NUM; inst_idx++) {
-            auto& instance = instances[inst_idx];
-            // TODO(https://github.com/AztecProtocol/barretenberg/issues/830)
-            if (instance->proving_key.num_public_inputs >= next_accumulator->proving_key.num_public_inputs) {
-                el += instance->proving_key.public_inputs[el_idx] * lagranges[inst];
-                inst++;
-            };
-        }
-        el_idx++;
-    }
-
     // Evaluate the combined batching  α_i univariate at challenge to obtain next α_i and send it to the
     // verifier, where i ∈ {0,...,NUM_SUBRELATIONS - 1}
     auto& folded_alphas = next_accumulator->alphas;

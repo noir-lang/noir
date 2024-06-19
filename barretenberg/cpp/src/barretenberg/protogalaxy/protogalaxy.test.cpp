@@ -311,6 +311,34 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
     }
 
     /**
+     * @brief Testing one valid round of folding followed by the decider.
+     * @brief For additional robustness we give one of the circuits more public inputs than the other
+     *
+     */
+    static void test_full_protogalaxy_simple()
+    {
+        // Construct a first circuit with some public inputs
+        Builder builder1;
+        construct_circuit(builder1);
+        bb::MockCircuits::add_arithmetic_gates_with_public_inputs(builder1, /*num_gates=*/4);
+
+        // Construct a second circuit with no public inputs
+        Builder builder2;
+        construct_circuit(builder2);
+
+        // Construct the prover/verifier instances for each
+        TupleOfInstances instances;
+        construct_prover_and_verifier_instance(instances, builder1);
+        construct_prover_and_verifier_instance(instances, builder2);
+
+        // Perform prover and verifier folding
+        auto [prover_accumulator, verifier_accumulator] = fold_and_verify(get<0>(instances), get<1>(instances));
+        check_accumulator_target_sum_manual(prover_accumulator, true);
+
+        decide_and_verify(prover_accumulator, verifier_accumulator, true);
+    }
+
+    /**
      * @brief Testing two valid rounds of folding followed by the decider.
      *
      */
@@ -487,6 +515,11 @@ TYPED_TEST(ProtoGalaxyTests, CombineRelationParameters)
 TYPED_TEST(ProtoGalaxyTests, CombineAlpha)
 {
     TestFixture::test_combine_alpha();
+}
+
+TYPED_TEST(ProtoGalaxyTests, FullProtogalaxySimple)
+{
+    TestFixture::test_full_protogalaxy_simple();
 }
 
 TYPED_TEST(ProtoGalaxyTests, FullProtogalaxyTest)
