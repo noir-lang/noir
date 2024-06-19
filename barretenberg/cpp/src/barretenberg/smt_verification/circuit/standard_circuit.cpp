@@ -814,7 +814,6 @@ std::pair<StandardCircuit, StandardCircuit> StandardCircuit::unique_witness_ext(
     const std::vector<std::string>& not_equal_at_the_same_time,
     bool optimizations)
 {
-    // TODO(alex): set optimizations to be true once they are confirmed
     StandardCircuit c1(circuit_info, s, type, "circuit1", optimizations);
     StandardCircuit c2(circuit_info, s, type, "circuit2", optimizations);
 
@@ -867,7 +866,6 @@ std::pair<StandardCircuit, StandardCircuit> StandardCircuit::unique_witness_ext(
 std::pair<StandardCircuit, StandardCircuit> StandardCircuit::unique_witness(
     CircuitSchema& circuit_info, Solver* s, TermType type, const std::vector<std::string>& equal, bool optimizations)
 {
-    // TODO(alex): set optimizations to be true once they are confirmed
     StandardCircuit c1(circuit_info, s, type, "circuit1", optimizations);
     StandardCircuit c2(circuit_info, s, type, "circuit2", optimizations);
 

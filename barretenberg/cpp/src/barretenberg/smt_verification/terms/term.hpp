@@ -8,10 +8,11 @@ using namespace smt_solver;
  * @brief Allows to define three types of symbolic terms
  * STerm - Symbolic Variables acting like a Finte Field elements
  * FFITerm - Symbolic Variables acting like integers modulo prime
+ * ITerm - Symbolic Variables acting like integers
  * BVTerm - Symbolic Variables acting like bitvectors modulo prime
  *
  */
-enum class TermType { FFTerm, FFITerm, BVTerm };
+enum class TermType { FFTerm, FFITerm, BVTerm, ITerm };
 std::ostream& operator<<(std::ostream& os, TermType type);
 
 enum class OpType : int32_t { ADD, SUB, MUL, DIV, NEG, XOR, AND, OR, GT, GE, LT, LE, MOD, RSH, LSH, ROTR, ROTL };
@@ -42,6 +43,17 @@ const std::unordered_map<TermType, std::unordered_map<OpType, cvc5::Kind>> typed
           { OpType::MOD, cvc5::Kind::INTS_MODULUS },
           // Just a placeholder that marks it supports division
           { OpType::DIV, cvc5::Kind::MULT } } },
+    { TermType::ITerm,
+      { { OpType::ADD, cvc5::Kind::ADD },
+        { OpType::SUB, cvc5::Kind::SUB },
+        { OpType::MUL, cvc5::Kind::MULT },
+        { OpType::NEG, cvc5::Kind::NEG },
+        { OpType::GT, cvc5::Kind::GT },
+        { OpType::GE, cvc5::Kind::GEQ },
+        { OpType::LT, cvc5::Kind::LT },
+        { OpType::LE, cvc5::Kind::LEQ },
+        { OpType::MOD, cvc5::Kind::INTS_MODULUS },
+        { OpType::DIV, cvc5::Kind::INTS_DIVISION } } },
     { TermType::BVTerm,
       {
 
@@ -59,7 +71,9 @@ const std::unordered_map<TermType, std::unordered_map<OpType, cvc5::Kind>> typed
           { OpType::RSH, cvc5::Kind::BITVECTOR_LSHR },
           { OpType::LSH, cvc5::Kind::BITVECTOR_SHL },
           { OpType::ROTL, cvc5::Kind::BITVECTOR_ROTATE_LEFT },
-          { OpType::ROTR, cvc5::Kind::BITVECTOR_ROTATE_RIGHT } } }
+          { OpType::ROTR, cvc5::Kind::BITVECTOR_ROTATE_RIGHT },
+          { OpType::MOD, cvc5::Kind::BITVECTOR_UREM },
+          { OpType::DIV, cvc5::Kind::BITVECTOR_UDIV } } }
 };
 
 /**
@@ -82,7 +96,6 @@ class STerm {
         , isBitVector(type == TermType::BVTerm)
         , type(type)
         , operations(typed_operations.at(type)){};
-    void mod();
 
   public:
     Solver* solver;
@@ -121,6 +134,8 @@ class STerm {
 
         *this = Const(tmp, s, 16, type);
     }
+
+    STerm mod() const;
 
     STerm& operator=(const STerm& right) = default;
     STerm& operator=(STerm&& right) = default;
@@ -189,8 +204,16 @@ class STerm {
      */
     static void in_table(std::vector<STerm>& entry, cvc5::Term& table)
     {
+        STerm entry0 = entry[0];
+        STerm entry1 = entry[1];
+        STerm entry2 = entry[2];
+
+        entry0 = entry0.type == TermType::FFITerm && entry0.term.getNumChildren() > 1 ? entry0.mod() : entry0;
+        entry1 = entry1.type == TermType::FFITerm && entry1.term.getNumChildren() > 1 ? entry1.mod() : entry1;
+        entry2 = entry2.type == TermType::FFITerm && entry2.term.getNumChildren() > 1 ? entry2.mod() : entry2;
+
         Solver* slv = entry[0].solver;
-        cvc5::Term sym_entry = slv->term_manager.mkTuple({ entry[0], entry[1], entry[2] });
+        cvc5::Term sym_entry = slv->term_manager.mkTuple({ entry0, entry1, entry2 });
         cvc5::Term inc = slv->term_manager.mkTerm(cvc5::Kind::SET_MEMBER, { sym_entry, table });
         slv->assertFormula(inc);
     }
@@ -236,6 +259,8 @@ STerm FFVar(const std::string& name, Solver* slv);
 STerm FFConst(const std::string& val, Solver* slv, uint32_t base = 16);
 STerm FFIVar(const std::string& name, Solver* slv);
 STerm FFIConst(const std::string& val, Solver* slv, uint32_t base = 16);
+STerm IVar(const std::string& name, Solver* slv);
+STerm IConst(const std::string& val, Solver* slv, uint32_t base = 16);
 STerm BVVar(const std::string& name, Solver* slv);
 STerm BVConst(const std::string& val, Solver* slv, uint32_t base = 16);
 

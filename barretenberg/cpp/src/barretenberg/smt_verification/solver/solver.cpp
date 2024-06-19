@@ -132,10 +132,13 @@ std::string Solver::stringify_term(const cvc5::Term& term, bool parenthesis)
         return res + ")";
     }
     if (term.getKind() == cvc5::Kind::INTERNAL_KIND) {
+        return "";
+    }
+    if (term.getKind() == cvc5::Kind::SET_INSERT) {
         return "set_" + std::to_string(this->tables[term]);
     }
-    if (term.getKind() == cvc5::Kind::SET_INSERT || term.getKind() == cvc5::Kind::SET_EMPTY) {
-        return "";
+    if (term.getKind() == cvc5::Kind::SET_EMPTY) {
+        return "{}";
     }
 
     std::string res;

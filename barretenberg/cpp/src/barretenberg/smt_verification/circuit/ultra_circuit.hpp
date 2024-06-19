@@ -56,10 +56,12 @@ class UltraCircuit : public CircuitBase {
         const std::vector<std::string>& equal = {},
         const std::vector<std::string>& not_equal = {},
         const std::vector<std::string>& equal_at_the_same_time = {},
-        const std::vector<std::string>& not_equal_at_the_same_time = {});
+        const std::vector<std::string>& not_equal_at_the_same_time = {},
+        bool optimizations = false);
     static std::pair<UltraCircuit, UltraCircuit> unique_witness(CircuitSchema& circuit_info,
                                                                 Solver* s,
                                                                 TermType type,
-                                                                const std::vector<std::string>& equal = {});
+                                                                const std::vector<std::string>& equal = {},
+                                                                bool optimizations = false);
 };
 }; // namespace smt_circuit

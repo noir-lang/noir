@@ -54,6 +54,9 @@ STerm::STerm(const std::string& t, Solver* slv, bool isconst, uint32_t base, Ter
             slv->assertFormula(ge);
             slv->assertFormula(lt);
             break;
+        case TermType::ITerm:
+            this->term = slv->term_manager.mkConst(slv->term_manager.getIntegerSort(), t);
+            break;
         case TermType::BVTerm:
             this->term = slv->term_manager.mkConst(slv->bv_sort, t);
             break;
@@ -68,7 +71,11 @@ STerm::STerm(const std::string& t, Solver* slv, bool isconst, uint32_t base, Ter
             // TODO(alex): CVC5 doesn't provide integer initialization from hex. Yet.
             strvalue = slv->term_manager.mkFiniteFieldElem(t, slv->ff_sort, base).getFiniteFieldValue();
             this->term = slv->term_manager.mkInteger(strvalue);
-            this->mod();
+            this->term = this->mod().term;
+            break;
+        case TermType::ITerm:
+            strvalue = slv->term_manager.mkFiniteFieldElem(t, slv->ff_sort, base).getFiniteFieldValue();
+            this->term = slv->term_manager.mkInteger(strvalue);
             break;
         case TermType::BVTerm:
             // it's better to have (-p/2, p/2) representation due to overflows
@@ -79,12 +86,15 @@ STerm::STerm(const std::string& t, Solver* slv, bool isconst, uint32_t base, Ter
     }
 }
 
-void STerm::mod()
+STerm STerm::mod() const
 {
-    if (this->type == TermType::FFITerm) {
-        cvc5::Term modulus = this->solver->term_manager.mkInteger(solver->modulus);
-        this->term = this->solver->term_manager.mkTerm(this->operations.at(OpType::MOD), { this->term, modulus });
+    if (!this->operations.contains(OpType::MOD)) {
+        info("Taking a remainder is not compatible with ", this->type);
+        return *this;
     }
+    cvc5::Term modulus = this->solver->term_manager.mkInteger(solver->modulus);
+    cvc5::Term res_s = this->solver->term_manager.mkTerm(this->operations.at(OpType::MOD), { this->term, modulus });
+    return { res_s, this->solver, this->type };
 }
 
 STerm STerm::operator+(const STerm& other) const
@@ -144,13 +154,18 @@ STerm STerm::operator/(const STerm& other) const
         info("Division is not compatible with ", this->type);
         return *this;
     }
+    if (this->type == TermType::FFTerm || this->type == TermType::FFITerm) {
+        other != bb::fr(0);
+        STerm res = Var("df8b586e3fa7a1224ec95a886e17a7da_div_" + static_cast<std::string>(*this) + "_" +
+                            static_cast<std::string>(other),
+                        this->solver,
+                        this->type);
+        res* other == *this;
+        return res;
+    }
     other != bb::fr(0);
-    STerm res = Var("df8b586e3fa7a1224ec95a886e17a7da_div_" + static_cast<std::string>(*this) + "_" +
-                        static_cast<std::string>(other),
-                    this->solver,
-                    this->type);
-    res* other == *this;
-    return res;
+    cvc5::Term res_s = this->solver->term_manager.mkTerm(this->operations.at(OpType::DIV), { this->term, other.term });
+    return { res_s, this->solver, this->type };
 }
 
 void STerm::operator/=(const STerm& other)
@@ -159,13 +174,17 @@ void STerm::operator/=(const STerm& other)
         info("Division is not compatible with ", this->type);
         return;
     }
+    if (this->type == TermType::FFTerm || this->type == TermType::FFITerm) {
+        other != bb::fr(0);
+        STerm res = Var("df8b586e3fa7a1224ec95a886e17a7da_div_" + static_cast<std::string>(*this) + "_" +
+                            static_cast<std::string>(other),
+                        this->solver,
+                        this->type);
+        res* other == *this;
+        this->term = res.term;
+    }
     other != bb::fr(0);
-    STerm res = Var("df8b586e3fa7a1224ec95a886e17a7da_div_" + static_cast<std::string>(*this) + "_" +
-                        static_cast<std::string>(other),
-                    this->solver,
-                    this->type);
-    res* other == *this;
-    this->term = res.term;
+    this->term = this->solver->term_manager.mkTerm(this->operations.at(OpType::DIV), { this->term, other.term });
 }
 
 /**
@@ -174,15 +193,12 @@ void STerm::operator/=(const STerm& other)
  */
 void STerm::operator==(const STerm& other) const
 {
-    STerm tmp1 = *this;
-    if (tmp1.term.getNumChildren() > 1) {
-        tmp1.mod();
-    }
-    STerm tmp2 = other;
-    if (tmp2.term.getNumChildren() > 1) {
-        tmp2.mod();
-    }
-    cvc5::Term eq = this->solver->term_manager.mkTerm(cvc5::Kind::EQUAL, { tmp1.term, tmp2.term });
+    STerm left = *this;
+    STerm right = other;
+    left = this->type == TermType::FFITerm && left.term.getNumChildren() > 1 ? left.mod() : left;
+    right = this->type == TermType::FFITerm && right.term.getNumChildren() > 1 ? right.mod() : right;
+
+    cvc5::Term eq = this->solver->term_manager.mkTerm(cvc5::Kind::EQUAL, { left.term, right.term });
     this->solver->assertFormula(eq);
 }
 
@@ -192,15 +208,12 @@ void STerm::operator==(const STerm& other) const
  */
 void STerm::operator!=(const STerm& other) const
 {
-    STerm tmp1 = *this;
-    if (tmp1.term.getNumChildren() > 1) {
-        tmp1.mod();
-    }
-    STerm tmp2 = other;
-    if (tmp2.term.getNumChildren() > 1) {
-        tmp2.mod();
-    }
-    cvc5::Term eq = this->solver->term_manager.mkTerm(cvc5::Kind::EQUAL, { tmp1.term, tmp2.term });
+    STerm left = *this;
+    STerm right = other;
+    left = this->type == TermType::FFITerm && left.term.getNumChildren() > 1 ? left.mod() : left;
+    right = this->type == TermType::FFITerm && right.term.getNumChildren() > 1 ? right.mod() : right;
+
+    cvc5::Term eq = this->solver->term_manager.mkTerm(cvc5::Kind::EQUAL, { left.term, right.term });
     eq = this->solver->term_manager.mkTerm(cvc5::Kind::NOT, { eq });
     this->solver->assertFormula(eq);
 }
@@ -379,8 +392,11 @@ STerm STerm::rotl(const uint32_t& n) const
  */
 void STerm::in(const cvc5::Term& table) const
 {
+    STerm left = *this;
+    left = this->type == TermType::FFITerm && left.term.getNumChildren() > 1 ? left.mod() : left;
+
     Solver* slv = this->solver;
-    cvc5::Term inc = slv->term_manager.mkTerm(cvc5::Kind::SET_MEMBER, { this->term, table });
+    cvc5::Term inc = slv->term_manager.mkTerm(cvc5::Kind::SET_MEMBER, { left.term, table });
     slv->assertFormula(inc);
 }
 
@@ -441,6 +457,9 @@ std::ostream& operator<<(std::ostream& os, const TermType type)
     case TermType::BVTerm:
         os << "BVTerm";
         break;
+    case TermType::ITerm:
+        os << "ITerm";
+        break;
     };
     return os;
 }
@@ -466,6 +485,16 @@ STerm FFIVar(const std::string& name, Solver* slv)
 STerm FFIConst(const std::string& val, Solver* slv, uint32_t base)
 {
     return STerm::Const(val, slv, base, TermType::FFITerm);
+}
+
+STerm IVar(const std::string& name, Solver* slv)
+{
+    return STerm::Var(name, slv, TermType::ITerm);
+}
+
+STerm IConst(const std::string& val, Solver* slv, uint32_t base)
+{
+    return STerm::Const(val, slv, base, TermType::ITerm);
 }
 
 STerm BVVar(const std::string& name, Solver* slv)

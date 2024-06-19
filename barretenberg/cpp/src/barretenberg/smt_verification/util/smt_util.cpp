@@ -42,13 +42,14 @@ void default_model(const std::vector<std::string>& special,
             myfile << "{" << mmap1[vname1] << ", " << mmap2[vname2] << "}";
             myfile << ",           // " << vname1 << ", " << vname2 << std::endl;
             if (mmap1[vname1] != mmap2[vname2]) {
-                info("{", mmap1[vname1], ", ", mmap2[vname2], "}", ",           // ", vname1, ", ", vname2);
+                info(RED, "{", mmap1[vname1], ", ", mmap2[vname2], "}", ",           // ", vname1, ", ", vname2, RESET);
             }
         } else {
             myfile << "{" << mmap1[vname1] << ", " + mmap2[vname2] << "}";
             myfile << ",           // " << vname1 << " ," << vname2 << " -> " << c1.real_variable_index[i] << std::endl;
             if (mmap1[vname1] != mmap2[vname2]) {
-                info("{",
+                info(RED,
+                     "{",
                      mmap1[vname1],
                      ", ",
                      mmap2[vname2],
@@ -58,7 +59,8 @@ void default_model(const std::vector<std::string>& special,
                      ", ",
                      vname2,
                      " -> ",
-                     c1.real_variable_index[i]);
+                     c1.real_variable_index[i],
+                     RESET);
             }
         }
     }
@@ -172,4 +174,24 @@ std::pair<std::vector<bb::fr>, std::vector<bb::fr>> base4(uint32_t el)
     std::reverse(limbs.begin(), limbs.end());
     std::reverse(accumulators.begin(), accumulators.end());
     return { limbs, accumulators };
+}
+
+/**
+ * @brief Fix the triples from range_lists in the witness
+ * @details Since we are not using the part of the witness, that
+ * contains range lists, they are set to 0 by the solver. We need to
+ * overwrite them to check the witness obtained by the solver.
+ *
+ * @param builder
+ */
+void fix_range_lists(bb::UltraCircuitBuilder& builder)
+{
+    for (auto list : builder.range_lists) {
+        uint64_t num_multiples_of_three = (list.first / bb::UltraCircuitBuilder::DEFAULT_PLOOKUP_RANGE_STEP_SIZE);
+        for (uint64_t i = 0; i <= num_multiples_of_three; i++) {
+            builder.variables[list.second.variable_indices[i]] =
+                i * bb::UltraCircuitBuilder::DEFAULT_PLOOKUP_RANGE_STEP_SIZE;
+        }
+        builder.variables[list.second.variable_indices[num_multiples_of_three + 1]] = list.first;
+    }
 }

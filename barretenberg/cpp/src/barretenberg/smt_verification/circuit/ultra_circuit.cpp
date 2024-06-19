@@ -26,12 +26,6 @@ UltraCircuit::UltraCircuit(
     , wires_idxs(circuit_info.wires)
     , lookup_tables(circuit_info.lookup_tables)
 {
-    info("Arithmetic gates: ", selectors[1].size());
-    info("Delta Range gates: ", selectors[2].size());
-    info("Elliptic gates: ", selectors[3].size());
-    info("Aux gates: ", selectors[4].size());
-    info("Lookup gates: ", selectors[5].size());
-
     // Perform all relaxations for gates or
     // add gate in its normal state to solver
 
@@ -193,6 +187,14 @@ size_t UltraCircuit::handle_lookup_relation(size_t cursor, size_t idx)
         this->cached_symbolic_tables.insert({ table_idx, this->solver->create_lookup_table(new_table) });
     }
 
+    // Sort of an optimization.
+    // However if we don't do this, solver will find a unique witness that corresponds to overflowed value.
+    if (this->type == TermType::BVTerm && q_r == -64 && q_m == -64 && q_c == -64) {
+        this->symbolic_vars[w_l_shift_idx] = this->symbolic_vars[w_l_idx] >> 6;
+        this->symbolic_vars[w_r_shift_idx] = this->symbolic_vars[w_r_idx] >> 6;
+        this->symbolic_vars[w_o_shift_idx] = this->symbolic_vars[w_o_idx] >> 6;
+    }
+
     STerm first_entry = this->symbolic_vars[w_l_idx] + q_r * this->symbolic_vars[w_l_shift_idx];
     STerm second_entry = this->symbolic_vars[w_r_idx] + q_m * this->symbolic_vars[w_r_shift_idx];
     STerm third_entry = this->symbolic_vars[w_o_idx] + q_c * this->symbolic_vars[w_o_shift_idx];
@@ -339,7 +341,7 @@ void UltraCircuit::handle_range_constraints()
         uint32_t tag = this->real_variable_tags[this->real_variable_index[i]];
         if (tag != 0 && this->range_tags.contains(tag)) {
             uint64_t range = this->range_tags[tag];
-            if ((this->type != TermType::FFITerm) && (this->type != TermType::BVTerm)) {
+            if (this->type == TermType::FFTerm || !this->optimizations) {
                 if (!this->cached_range_tables.contains(range)) {
                     std::vector<cvc5::Term> new_range_table;
                     for (size_t entry = 0; entry < range; entry++) {
@@ -352,6 +354,7 @@ void UltraCircuit::handle_range_constraints()
             } else {
                 this->symbolic_vars[i] <= range;
             }
+            optimized[i] = false;
         }
     }
 }
@@ -397,11 +400,11 @@ std::pair<UltraCircuit, UltraCircuit> UltraCircuit::unique_witness_ext(
     const std::vector<std::string>& equal,
     const std::vector<std::string>& not_equal,
     const std::vector<std::string>& equal_at_the_same_time,
-    const std::vector<std::string>& not_equal_at_the_same_time)
+    const std::vector<std::string>& not_equal_at_the_same_time,
+    bool optimizations)
 {
-    // TODO(alex): set optimizations to be true once they are confirmed
-    UltraCircuit c1(circuit_info, s, type, "circuit1", false);
-    UltraCircuit c2(circuit_info, s, type, "circuit2", false);
+    UltraCircuit c1(circuit_info, s, type, "circuit1", optimizations);
+    UltraCircuit c2(circuit_info, s, type, "circuit2", optimizations);
 
     for (const auto& term : equal) {
         c1[term] == c2[term];
@@ -449,14 +452,11 @@ std::pair<UltraCircuit, UltraCircuit> UltraCircuit::unique_witness_ext(
  * @param equal The list of names of variables which should be equal in both circuits(each is equal)
  * @return std::pair<Circuit, Circuit>
  */
-std::pair<UltraCircuit, UltraCircuit> UltraCircuit::unique_witness(CircuitSchema& circuit_info,
-                                                                   Solver* s,
-                                                                   TermType type,
-                                                                   const std::vector<std::string>& equal)
+std::pair<UltraCircuit, UltraCircuit> UltraCircuit::unique_witness(
+    CircuitSchema& circuit_info, Solver* s, TermType type, const std::vector<std::string>& equal, bool optimizations)
 {
-    // TODO(alex): set optimizations to be true once they are confirmed
-    UltraCircuit c1(circuit_info, s, type, "circuit1", false);
-    UltraCircuit c2(circuit_info, s, type, "circuit2", false);
+    UltraCircuit c1(circuit_info, s, type, "circuit1", optimizations);
+    UltraCircuit c2(circuit_info, s, type, "circuit2", optimizations);
 
     for (const auto& term : equal) {
         c1[term] == c2[term];
