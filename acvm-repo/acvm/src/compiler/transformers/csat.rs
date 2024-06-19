@@ -465,7 +465,7 @@ fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> boo
     // can never get a zero contribution to the width.
     let multiplication_is_squaring = mul_term.1 == mul_term.2;
 
-    let mul_term_width_contribution = if !multiplication_is_squaring && (found_x & found_x) {
+    let mul_term_width_contribution = if !multiplication_is_squaring && (found_x & found_y) {
         // Both witnesses involved in the multiplication exist elsewhere in the expression.
         // They both do not contribute to the width of the expression as this would be double-counting
         // due to their appearance in the linear terms.
@@ -605,6 +605,6 @@ mod tests {
             ],
             q_c: FieldElement::zero(),
         };
-        assert!(fits_in_one_identity(&expr, 4))
+        assert!(fits_in_one_identity(&expr, 4));
     }
 }
