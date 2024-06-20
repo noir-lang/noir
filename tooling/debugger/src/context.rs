@@ -8,8 +8,8 @@ use acvm::pwg::{
 };
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
-use codespan_reporting::files::{Files, SimpleFile};
-use fm::FileId;
+use codespan_reporting::files::{Error, Files, SimpleFile};
+use fm::{FileId, PathString};
 use nargo::errors::{ExecutionError, Location};
 use nargo::NargoError;
 use noirc_artifacts::debug::{DebugArtifact, StackFrame};
@@ -100,7 +100,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn get_call_stack(&self) -> Vec<OpcodeLocation> {
+    pub fn get_call_stack(&self) -> Vec<OpcodeLocation> {
         let instruction_pointer = self.acvm.instruction_pointer();
         if instruction_pointer >= self.get_opcodes().len() {
             vec![]
@@ -184,7 +184,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     /// the given opcode location cannot be mapped back to a source location
     /// (eg. it may be pure debug instrumentation code or other synthetically
     /// produced opcode by the compiler)
-    pub(super) fn get_source_location_for_opcode_location(
+    pub fn get_source_location_for_opcode_location(
         &self,
         opcode_location: &OpcodeLocation,
     ) -> Vec<Location> {
@@ -202,6 +202,14 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                     .collect()
             })
             .unwrap_or_default()
+    }
+
+    pub fn get_filepath_for_location(&self, location: Location) -> Result<PathString, Error> {
+        self.debug_artifact.name(location.file)
+    }
+
+    pub fn get_line_for_location(&self, location: Location) -> Result<usize, Error> {
+        self.debug_artifact.location_line_index(location)
     }
 
     /// Returns the current call stack with expanded source locations. In

@@ -2772,6 +2772,7 @@ name = "noir_tracer"
 version = "0.31.0"
 dependencies = [
  "acvm",
+ "fm",
  "nargo",
  "noir_debugger",
  "noirc_artifacts",

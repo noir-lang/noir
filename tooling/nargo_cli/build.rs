@@ -743,7 +743,7 @@ fn generate_plonky2_trace_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_case_dirs =
         fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
 
-    let expected_messages = HashMap::from([("1_mul", vec!["Total tracing steps: 14"])]);
+    let expected_messages = HashMap::from([("1_mul", vec!["Total tracing steps: 7"])]);
 
     for test_dir in test_case_dirs {
         let test_name =

@@ -10,6 +10,7 @@ repository.workspace = true
 
 [dependencies]
 acvm.workspace = true
+fm.workspace = true
 nargo.workspace = true
 noir_debugger.workspace = true
 noirc_artifacts.workspace = true
