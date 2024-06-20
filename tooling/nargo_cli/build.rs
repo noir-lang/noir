@@ -62,7 +62,7 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
 /// We skip these tests for non-elaborator code since they are not
 /// expected to work there. This can be removed once the old code is removed.
 const IGNORED_NEW_FEATURE_TESTS: [&str; 4] =
-    [ "comptime_slice_equality","macros", "wildcard_type", "type_definition_annotation"];
+    ["comptime_slice_equality", "macros", "wildcard_type", "type_definition_annotation"];
 
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_sub_dir = "execution_success";
