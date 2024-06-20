@@ -1,5 +1,10 @@
-use crate::{hir::def_collector::dc_crate::CompilationError, Type};
+use std::rc::Rc;
+
+use crate::{
+    hir::def_collector::dc_crate::CompilationError, parser::ParserError, token::Tokens, Type,
+};
 use acvm::{acir::AcirField, FieldElement};
+use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Location};
 
 use super::value::Value;
@@ -7,41 +12,144 @@ use super::value::Value;
 /// The possible errors that can halt the interpreter.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InterpreterError {
-    ArgumentCountMismatch { expected: usize, actual: usize, location: Location },
-    TypeMismatch { expected: Type, value: Value, location: Location },
-    NonComptimeVarReferenced { name: String, location: Location },
-    IntegerOutOfRangeForType { value: FieldElement, typ: Type, location: Location },
-    ErrorNodeEncountered { location: Location },
-    NonFunctionCalled { value: Value, location: Location },
-    NonBoolUsedInIf { value: Value, location: Location },
-    NonBoolUsedInConstrain { value: Value, location: Location },
-    FailingConstraint { message: Option<Value>, location: Location },
-    NoMethodFound { name: String, typ: Type, location: Location },
-    NonIntegerUsedInLoop { value: Value, location: Location },
-    NonPointerDereferenced { value: Value, location: Location },
-    NonTupleOrStructInMemberAccess { value: Value, location: Location },
-    NonArrayIndexed { value: Value, location: Location },
-    NonIntegerUsedAsIndex { value: Value, location: Location },
-    NonIntegerIntegerLiteral { typ: Type, location: Location },
-    NonIntegerArrayLength { typ: Type, location: Location },
-    NonNumericCasted { value: Value, location: Location },
-    IndexOutOfBounds { index: usize, length: usize, location: Location },
-    ExpectedStructToHaveField { value: Value, field_name: String, location: Location },
-    TypeUnsupported { typ: Type, location: Location },
-    InvalidValueForUnary { value: Value, operator: &'static str, location: Location },
-    InvalidValuesForBinary { lhs: Value, rhs: Value, operator: &'static str, location: Location },
-    CastToNonNumericType { typ: Type, location: Location },
-    QuoteInRuntimeCode { location: Location },
-    NonStructInConstructor { typ: Type, location: Location },
-    CannotInlineMacro { value: Value, location: Location },
-    UnquoteFoundDuringEvaluation { location: Location },
+    ArgumentCountMismatch {
+        expected: usize,
+        actual: usize,
+        location: Location,
+    },
+    TypeMismatch {
+        expected: Type,
+        value: Value,
+        location: Location,
+    },
+    NonComptimeVarReferenced {
+        name: String,
+        location: Location,
+    },
+    IntegerOutOfRangeForType {
+        value: FieldElement,
+        typ: Type,
+        location: Location,
+    },
+    ErrorNodeEncountered {
+        location: Location,
+    },
+    NonFunctionCalled {
+        value: Value,
+        location: Location,
+    },
+    NonBoolUsedInIf {
+        value: Value,
+        location: Location,
+    },
+    NonBoolUsedInConstrain {
+        value: Value,
+        location: Location,
+    },
+    FailingConstraint {
+        message: Option<Value>,
+        location: Location,
+    },
+    NoMethodFound {
+        name: String,
+        typ: Type,
+        location: Location,
+    },
+    NonIntegerUsedInLoop {
+        value: Value,
+        location: Location,
+    },
+    NonPointerDereferenced {
+        value: Value,
+        location: Location,
+    },
+    NonTupleOrStructInMemberAccess {
+        value: Value,
+        location: Location,
+    },
+    NonArrayIndexed {
+        value: Value,
+        location: Location,
+    },
+    NonIntegerUsedAsIndex {
+        value: Value,
+        location: Location,
+    },
+    NonIntegerIntegerLiteral {
+        typ: Type,
+        location: Location,
+    },
+    NonIntegerArrayLength {
+        typ: Type,
+        location: Location,
+    },
+    NonNumericCasted {
+        value: Value,
+        location: Location,
+    },
+    IndexOutOfBounds {
+        index: usize,
+        length: usize,
+        location: Location,
+    },
+    ExpectedStructToHaveField {
+        value: Value,
+        field_name: String,
+        location: Location,
+    },
+    TypeUnsupported {
+        typ: Type,
+        location: Location,
+    },
+    InvalidValueForUnary {
+        value: Value,
+        operator: &'static str,
+        location: Location,
+    },
+    InvalidValuesForBinary {
+        lhs: Value,
+        rhs: Value,
+        operator: &'static str,
+        location: Location,
+    },
+    CastToNonNumericType {
+        typ: Type,
+        location: Location,
+    },
+    QuoteInRuntimeCode {
+        location: Location,
+    },
+    NonStructInConstructor {
+        typ: Type,
+        location: Location,
+    },
+    CannotInlineMacro {
+        value: Value,
+        location: Location,
+    },
+    UnquoteFoundDuringEvaluation {
+        location: Location,
+    },
+    FailedToParseMacro {
+        error: ParserError,
+        tokens: Rc<Tokens>,
+        parse_rule: &'static str,
+        file: fm::FileId,
+    },
 
-    Unimplemented { item: String, location: Location },
+    Unimplemented {
+        item: String,
+        location: Location,
+    },
 
     // Perhaps this should be unreachable! due to type checking also preventing this error?
     // Currently it and the Continue variant are the only interpreter errors without a Location field
-    BreakNotInLoop { location: Location },
-    ContinueNotInLoop { location: Location },
+    BreakNotInLoop {
+        location: Location,
+    },
+    ContinueNotInLoop {
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -97,6 +205,9 @@ impl InterpreterError {
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::BreakNotInLoop { location, .. }
             | InterpreterError::ContinueNotInLoop { location, .. } => *location,
+            InterpreterError::FailedToParseMacro { error, file, .. } => {
+                Location::new(error.span(), *file)
+            }
             InterpreterError::Break | InterpreterError::Continue => {
                 panic!("Tried to get the location of Break/Continue error!")
             }
@@ -257,6 +368,31 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = "Unquote found during comptime evaluation".into();
                 let secondary = "This is a bug".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::FailedToParseMacro { error, tokens, parse_rule, file: _ } => {
+                let message = format!("Failed to parse macro's token stream into {parse_rule}");
+                let tokens = vecmap(&tokens.0, ToString::to_string).join(" ");
+
+                // 10 is an aribtrary number of tokens here chosen to fit roughly onto one line
+                let token_stream = if tokens.len() > 10 {
+                    format!("The resulting token stream was: {tokens}")
+                } else {
+                    format!(
+                        "The resulting token stream was: (stream starts on next line)\n  {tokens}"
+                    )
+                };
+
+                let push_the_problem_on_the_library_author = "To avoid this error in the future, try adding input validation to your macro. Erroring out early with an `assert` can be a good way to provide a user-friendly error message".into();
+
+                let mut diagnostic = CustomDiagnostic::from(error);
+                // Swap the parser's primary note to become the secondary note so that it is
+                // more clear this error originates from failing to parse a macro.
+                let secondary = std::mem::take(&mut diagnostic.message);
+                diagnostic.add_secondary(secondary, error.span());
+                diagnostic.message = message;
+                diagnostic.add_note(token_stream);
+                diagnostic.add_note(push_the_problem_on_the_library_author);
+                diagnostic
             }
             InterpreterError::Unimplemented { item, location } => {
                 let msg = format!("{item} is currently unimplemented");

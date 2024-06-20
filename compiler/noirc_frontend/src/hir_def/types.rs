@@ -190,7 +190,7 @@ impl Type {
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum QuotedType {
     Expr,
-    Symbol,
+    Quoted,
     TopLevelItem,
     Type,
     TypeDefinition,
@@ -1009,7 +1009,7 @@ impl std::fmt::Display for QuotedType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             QuotedType::Expr => write!(f, "Expr"),
-            QuotedType::Symbol => write!(f, "Symbol"),
+            QuotedType::Quoted => write!(f, "Quoted"),
             QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
             QuotedType::Type => write!(f, "Type"),
             QuotedType::TypeDefinition => write!(f, "TypeDefinition"),

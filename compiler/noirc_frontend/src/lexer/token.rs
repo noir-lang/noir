@@ -2,7 +2,7 @@ use acvm::{acir::AcirField, FieldElement};
 use noirc_errors::{Position, Span, Spanned};
 use std::{fmt, iter::Map, vec::IntoIter};
 
-use crate::lexer::errors::LexerErrorKind;
+use crate::{lexer::errors::LexerErrorKind, node_interner::ExprId};
 
 /// Represents a token in noir's grammar - a word, number,
 /// or symbol that can be used in noir's syntax. This is the
@@ -93,6 +93,11 @@ pub enum BorrowedToken<'input> {
     EOF,
 
     Whitespace(&'input str),
+
+    /// This is an implementation detail on how macros are implemented by quoting token streams.
+    /// This token marks where an unquote operation is performed. The ExprId argument is the
+    /// resolved variable which is being unquoted at this position in the token stream.
+    UnquoteMarker(ExprId),
 
     /// An invalid character is one that is not in noir's language or grammar.
     ///
@@ -188,6 +193,11 @@ pub enum Token {
 
     Whitespace(String),
 
+    /// This is an implementation detail on how macros are implemented by quoting token streams.
+    /// This token marks where an unquote operation is performed. The ExprId argument is the
+    /// resolved variable which is being unquoted at this position in the token stream.
+    UnquoteMarker(ExprId),
+
     /// An invalid character is one that is not in noir's language or grammar.
     ///
     /// We don't report invalid tokens in the source as errors until parsing to
@@ -246,6 +256,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::EOF => BorrowedToken::EOF,
         Token::Invalid(c) => BorrowedToken::Invalid(*c),
         Token::Whitespace(ref s) => BorrowedToken::Whitespace(s),
+        Token::UnquoteMarker(id) => BorrowedToken::UnquoteMarker(*id),
     }
 }
 
@@ -358,6 +369,7 @@ impl fmt::Display for Token {
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
             Token::Whitespace(ref s) => write!(f, "{s}"),
+            Token::UnquoteMarker(_) => write!(f, "(UnquoteMarker)"),
         }
     }
 }
@@ -860,12 +872,12 @@ pub enum Keyword {
     Mut,
     Pub,
     Quote,
+    Quoted,
     Return,
     ReturnData,
     String,
     Struct,
     Super,
-    Symbol,
     TopLevelItem,
     Trait,
     Type,
@@ -909,12 +921,12 @@ impl fmt::Display for Keyword {
             Keyword::Mut => write!(f, "mut"),
             Keyword::Pub => write!(f, "pub"),
             Keyword::Quote => write!(f, "quote"),
+            Keyword::Quoted => write!(f, "Quoted"),
             Keyword::Return => write!(f, "return"),
             Keyword::ReturnData => write!(f, "return_data"),
             Keyword::String => write!(f, "str"),
             Keyword::Struct => write!(f, "struct"),
             Keyword::Super => write!(f, "super"),
-            Keyword::Symbol => write!(f, "Symbol"),
             Keyword::TopLevelItem => write!(f, "TopLevelItem"),
             Keyword::Trait => write!(f, "trait"),
             Keyword::Type => write!(f, "type"),
@@ -961,12 +973,12 @@ impl Keyword {
             "mut" => Keyword::Mut,
             "pub" => Keyword::Pub,
             "quote" => Keyword::Quote,
+            "Quoted" => Keyword::Quoted,
             "return" => Keyword::Return,
             "return_data" => Keyword::ReturnData,
             "str" => Keyword::String,
             "struct" => Keyword::Struct,
             "super" => Keyword::Super,
-            "Symbol" => Keyword::Symbol,
             "TopLevelItem" => Keyword::TopLevelItem,
             "trait" => Keyword::Trait,
             "type" => Keyword::Type,
@@ -987,6 +999,7 @@ impl Keyword {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tokens(pub Vec<SpannedToken>);
 
 type TokenMapIter = Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>;

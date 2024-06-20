@@ -7,7 +7,7 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
-use crate::hir_def::expr::HirQuoted;
+use crate::token::Tokens;
 use crate::{
     hir_def::{
         expr::{
@@ -25,8 +25,6 @@ use crate::{
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
     Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
-
-use self::unquote::UnquoteArgs;
 
 use super::errors::{IResult, InterpreterError};
 use super::value::Value;
@@ -343,9 +341,9 @@ impl<'a> Interpreter<'a> {
             HirExpression::If(if_) => self.evaluate_if(if_, id),
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
-            HirExpression::Quote(block) => self.evaluate_quote(block, id),
+            HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
             HirExpression::Comptime(block) => self.evaluate_block(block),
-            HirExpression::Unquote(block) => {
+            HirExpression::Unquote(tokens) => {
                 // An Unquote expression being found is indicative of a macro being
                 // expanded within another comptime fn which we don't currently support.
                 let location = self.interner.expr_location(&id);
@@ -1136,13 +1134,10 @@ impl<'a> Interpreter<'a> {
         Ok(Value::Closure(lambda, environment, typ))
     }
 
-    fn evaluate_quote(&mut self, mut quoted: HirQuoted, expr_id: ExprId) -> IResult<Value> {
-        let file = self.interner.expr_location(&expr_id).file;
-        let values = try_vecmap(quoted.unquoted_exprs, |value| self.evaluate(value))?;
-        let args = UnquoteArgs { values, file };
-
-        self.substitute_unquoted_values_into_block(&mut quoted.quoted_block, &args);
-        Ok(Value::Code(Rc::new(quoted.quoted_block)))
+    fn evaluate_quote(&mut self, mut tokens: Tokens, expr_id: ExprId) -> IResult<Value> {
+        let location = self.interner.expr_location(&expr_id);
+        tokens = self.substitute_unquoted_values_into_tokens(tokens, location)?;
+        Ok(Value::Code(Rc::new(tokens)))
     }
 
     pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
