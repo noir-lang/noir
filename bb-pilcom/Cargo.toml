@@ -1,0 +1,28 @@
+[workspace]
+resolver = "2"
+members = [
+    "cli",
+    "bb-pil-backend",
+    "powdr/ast",
+    "powdr/number",
+    "powdr/parser",
+    "powdr/parser-util",
+    "powdr/pil-analyzer"
+]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+license = "MIT"
+homepage = "https://powdr.org"
+repository = "https://github.com/powdr-labs/powdr"
+
+
+[workspace.dependencies]
+bb-pil-backend = { path = "./bb-pil-backend" }
+cli = { path = "./cli" }
+powdr-ast = { path = "./powdr/ast" }
+powdr-number = { path = "./powdr/number" }
+powdr-parser = { path = "./powdr/parser" }
+powdr-parser-util = { path = "./powdr/parser-util" }
+powdr-pil-analyzer = { path = "./powdr/pil-analyzer" }

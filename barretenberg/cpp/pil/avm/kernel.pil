@@ -2,11 +2,11 @@ include "main.pil";
 include "constants.pil";
 
 namespace kernel(256);
-    pol public(/*idx=*/0) kernel_inputs;
+    pol public kernel_inputs;
 
-    pol public(/*idx=*/1) kernel_value_out;
-    pol public(/*idx=*/2) kernel_side_effect_out;
-    pol public(/*idx=*/3) kernel_metadata_out;
+    pol public kernel_value_out;
+    pol public kernel_side_effect_out;
+    pol public kernel_metadata_out;
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6463): just use one col for both of these
     pol commit kernel_in_offset;

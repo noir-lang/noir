@@ -70,6 +70,14 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
     }
 
     // Get commitments to VM wires
+    commitments.kernel_kernel_inputs =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.kernel_kernel_inputs);
+    commitments.kernel_kernel_value_out =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.kernel_kernel_value_out);
+    commitments.kernel_kernel_side_effect_out =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.kernel_kernel_side_effect_out);
+    commitments.kernel_kernel_metadata_out =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.kernel_kernel_metadata_out);
     commitments.alu_a_hi = transcript->template receive_from_prover<Commitment>(commitment_labels.alu_a_hi);
     commitments.alu_a_lo = transcript->template receive_from_prover<Commitment>(commitment_labels.alu_a_lo);
     commitments.alu_b_hi = transcript->template receive_from_prover<Commitment>(commitment_labels.alu_b_hi);
@@ -233,16 +241,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
         commitment_labels.kernel_emit_unencrypted_log_write_offset);
     commitments.kernel_kernel_in_offset =
         transcript->template receive_from_prover<Commitment>(commitment_labels.kernel_kernel_in_offset);
-    commitments.kernel_kernel_inputs =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.kernel_kernel_inputs);
-    commitments.kernel_kernel_metadata_out =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.kernel_kernel_metadata_out);
     commitments.kernel_kernel_out_offset =
         transcript->template receive_from_prover<Commitment>(commitment_labels.kernel_kernel_out_offset);
-    commitments.kernel_kernel_side_effect_out =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.kernel_kernel_side_effect_out);
-    commitments.kernel_kernel_value_out =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.kernel_kernel_value_out);
     commitments.kernel_l1_to_l2_msg_exists_write_offset =
         transcript->template receive_from_prover<Commitment>(commitment_labels.kernel_l1_to_l2_msg_exists_write_offset);
     commitments.kernel_note_hash_exist_write_offset =

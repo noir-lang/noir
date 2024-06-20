@@ -13,3 +13,7 @@
 [submodule "barretenberg/sol/lib/openzeppelin-contracts"]
 	path = barretenberg/sol/lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "bb-pilcom/powdr"]
+	path = bb-pilcom/powdr
+	url = https://github.com/AztecProtocol/powdr
+	branch = avm-minimal

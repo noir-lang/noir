@@ -4,6 +4,10 @@
     using View = typename Accumulator::View;                                                                           \
     [[maybe_unused]] auto main_clk = View(new_term.main_clk);                                                          \
     [[maybe_unused]] auto main_sel_first = View(new_term.main_sel_first);                                              \
+    [[maybe_unused]] auto kernel_kernel_inputs = View(new_term.kernel_kernel_inputs);                                  \
+    [[maybe_unused]] auto kernel_kernel_value_out = View(new_term.kernel_kernel_value_out);                            \
+    [[maybe_unused]] auto kernel_kernel_side_effect_out = View(new_term.kernel_kernel_side_effect_out);                \
+    [[maybe_unused]] auto kernel_kernel_metadata_out = View(new_term.kernel_kernel_metadata_out);                      \
     [[maybe_unused]] auto alu_a_hi = View(new_term.alu_a_hi);                                                          \
     [[maybe_unused]] auto alu_a_lo = View(new_term.alu_a_lo);                                                          \
     [[maybe_unused]] auto alu_b_hi = View(new_term.alu_b_hi);                                                          \
@@ -126,11 +130,7 @@
     [[maybe_unused]] auto kernel_emit_unencrypted_log_write_offset =                                                   \
         View(new_term.kernel_emit_unencrypted_log_write_offset);                                                       \
     [[maybe_unused]] auto kernel_kernel_in_offset = View(new_term.kernel_kernel_in_offset);                            \
-    [[maybe_unused]] auto kernel_kernel_inputs = View(new_term.kernel_kernel_inputs);                                  \
-    [[maybe_unused]] auto kernel_kernel_metadata_out = View(new_term.kernel_kernel_metadata_out);                      \
     [[maybe_unused]] auto kernel_kernel_out_offset = View(new_term.kernel_kernel_out_offset);                          \
-    [[maybe_unused]] auto kernel_kernel_side_effect_out = View(new_term.kernel_kernel_side_effect_out);                \
-    [[maybe_unused]] auto kernel_kernel_value_out = View(new_term.kernel_kernel_value_out);                            \
     [[maybe_unused]] auto kernel_l1_to_l2_msg_exists_write_offset =                                                    \
         View(new_term.kernel_l1_to_l2_msg_exists_write_offset);                                                        \
     [[maybe_unused]] auto kernel_note_hash_exist_write_offset = View(new_term.kernel_note_hash_exist_write_offset);    \

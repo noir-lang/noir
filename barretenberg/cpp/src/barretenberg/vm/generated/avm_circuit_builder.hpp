@@ -87,6 +87,10 @@ namespace bb {
 template <typename FF> struct AvmFullRow {
     FF main_clk{};
     FF main_sel_first{};
+    FF kernel_kernel_inputs{};
+    FF kernel_kernel_value_out{};
+    FF kernel_kernel_side_effect_out{};
+    FF kernel_kernel_metadata_out{};
     FF alu_a_hi{};
     FF alu_a_lo{};
     FF alu_b_hi{};
@@ -207,11 +211,7 @@ template <typename FF> struct AvmFullRow {
     FF kernel_emit_nullifier_write_offset{};
     FF kernel_emit_unencrypted_log_write_offset{};
     FF kernel_kernel_in_offset{};
-    FF kernel_kernel_inputs{};
-    FF kernel_kernel_metadata_out{};
     FF kernel_kernel_out_offset{};
-    FF kernel_kernel_side_effect_out{};
-    FF kernel_kernel_value_out{};
     FF kernel_l1_to_l2_msg_exists_write_offset{};
     FF kernel_note_hash_exist_write_offset{};
     FF kernel_nullifier_exists_write_offset{};
@@ -570,6 +570,10 @@ class AvmCircuitBuilder {
         for (size_t i = 0; i < rows.size(); i++) {
             polys.main_clk[i] = rows[i].main_clk;
             polys.main_sel_first[i] = rows[i].main_sel_first;
+            polys.kernel_kernel_inputs[i] = rows[i].kernel_kernel_inputs;
+            polys.kernel_kernel_value_out[i] = rows[i].kernel_kernel_value_out;
+            polys.kernel_kernel_side_effect_out[i] = rows[i].kernel_kernel_side_effect_out;
+            polys.kernel_kernel_metadata_out[i] = rows[i].kernel_kernel_metadata_out;
             polys.alu_a_hi[i] = rows[i].alu_a_hi;
             polys.alu_a_lo[i] = rows[i].alu_a_lo;
             polys.alu_b_hi[i] = rows[i].alu_b_hi;
@@ -690,11 +694,7 @@ class AvmCircuitBuilder {
             polys.kernel_emit_nullifier_write_offset[i] = rows[i].kernel_emit_nullifier_write_offset;
             polys.kernel_emit_unencrypted_log_write_offset[i] = rows[i].kernel_emit_unencrypted_log_write_offset;
             polys.kernel_kernel_in_offset[i] = rows[i].kernel_kernel_in_offset;
-            polys.kernel_kernel_inputs[i] = rows[i].kernel_kernel_inputs;
-            polys.kernel_kernel_metadata_out[i] = rows[i].kernel_kernel_metadata_out;
             polys.kernel_kernel_out_offset[i] = rows[i].kernel_kernel_out_offset;
-            polys.kernel_kernel_side_effect_out[i] = rows[i].kernel_kernel_side_effect_out;
-            polys.kernel_kernel_value_out[i] = rows[i].kernel_kernel_value_out;
             polys.kernel_l1_to_l2_msg_exists_write_offset[i] = rows[i].kernel_l1_to_l2_msg_exists_write_offset;
             polys.kernel_note_hash_exist_write_offset[i] = rows[i].kernel_note_hash_exist_write_offset;
             polys.kernel_nullifier_exists_write_offset[i] = rows[i].kernel_nullifier_exists_write_offset;

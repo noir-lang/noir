@@ -37,7 +37,7 @@ template <typename FF_> class keccakf1600Impl {
         {
             Avm_DECLARE_VIEWS(0);
 
-            auto tmp = (keccakf1600_sel_keccakf1600 * (-keccakf1600_sel_keccakf1600 + FF(1)));
+            auto tmp = ((keccakf1600_sel_keccakf1600 * (-keccakf1600_sel_keccakf1600 + FF(1))) - FF(0));
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
         }

@@ -256,6 +256,10 @@ class AvmFlavor {
     template <typename DataType> class WitnessEntities {
       public:
         DEFINE_FLAVOR_MEMBERS(DataType,
+                              kernel_kernel_inputs,
+                              kernel_kernel_value_out,
+                              kernel_kernel_side_effect_out,
+                              kernel_kernel_metadata_out,
                               alu_a_hi,
                               alu_a_lo,
                               alu_b_hi,
@@ -376,11 +380,7 @@ class AvmFlavor {
                               kernel_emit_nullifier_write_offset,
                               kernel_emit_unencrypted_log_write_offset,
                               kernel_kernel_in_offset,
-                              kernel_kernel_inputs,
-                              kernel_kernel_metadata_out,
                               kernel_kernel_out_offset,
-                              kernel_kernel_side_effect_out,
-                              kernel_kernel_value_out,
                               kernel_l1_to_l2_msg_exists_write_offset,
                               kernel_note_hash_exist_write_offset,
                               kernel_nullifier_exists_write_offset,
@@ -642,7 +642,11 @@ class AvmFlavor {
 
         RefVector<DataType> get_wires()
         {
-            return { alu_a_hi,
+            return { kernel_kernel_inputs,
+                     kernel_kernel_value_out,
+                     kernel_kernel_side_effect_out,
+                     kernel_kernel_metadata_out,
+                     alu_a_hi,
                      alu_a_lo,
                      alu_b_hi,
                      alu_b_lo,
@@ -762,11 +766,7 @@ class AvmFlavor {
                      kernel_emit_nullifier_write_offset,
                      kernel_emit_unencrypted_log_write_offset,
                      kernel_kernel_in_offset,
-                     kernel_kernel_inputs,
-                     kernel_kernel_metadata_out,
                      kernel_kernel_out_offset,
-                     kernel_kernel_side_effect_out,
-                     kernel_kernel_value_out,
                      kernel_l1_to_l2_msg_exists_write_offset,
                      kernel_note_hash_exist_write_offset,
                      kernel_nullifier_exists_write_offset,
@@ -1033,6 +1033,10 @@ class AvmFlavor {
         DEFINE_FLAVOR_MEMBERS(DataType,
                               main_clk,
                               main_sel_first,
+                              kernel_kernel_inputs,
+                              kernel_kernel_value_out,
+                              kernel_kernel_side_effect_out,
+                              kernel_kernel_metadata_out,
                               alu_a_hi,
                               alu_a_lo,
                               alu_b_hi,
@@ -1153,11 +1157,7 @@ class AvmFlavor {
                               kernel_emit_nullifier_write_offset,
                               kernel_emit_unencrypted_log_write_offset,
                               kernel_kernel_in_offset,
-                              kernel_kernel_inputs,
-                              kernel_kernel_metadata_out,
                               kernel_kernel_out_offset,
-                              kernel_kernel_side_effect_out,
-                              kernel_kernel_value_out,
                               kernel_l1_to_l2_msg_exists_write_offset,
                               kernel_note_hash_exist_write_offset,
                               kernel_nullifier_exists_write_offset,
@@ -1486,6 +1486,10 @@ class AvmFlavor {
         {
             return { main_clk,
                      main_sel_first,
+                     kernel_kernel_inputs,
+                     kernel_kernel_value_out,
+                     kernel_kernel_side_effect_out,
+                     kernel_kernel_metadata_out,
                      alu_a_hi,
                      alu_a_lo,
                      alu_b_hi,
@@ -1606,11 +1610,7 @@ class AvmFlavor {
                      kernel_emit_nullifier_write_offset,
                      kernel_emit_unencrypted_log_write_offset,
                      kernel_kernel_in_offset,
-                     kernel_kernel_inputs,
-                     kernel_kernel_metadata_out,
                      kernel_kernel_out_offset,
-                     kernel_kernel_side_effect_out,
-                     kernel_kernel_value_out,
                      kernel_l1_to_l2_msg_exists_write_offset,
                      kernel_note_hash_exist_write_offset,
                      kernel_nullifier_exists_write_offset,
@@ -1939,6 +1939,10 @@ class AvmFlavor {
         {
             return { main_clk,
                      main_sel_first,
+                     kernel_kernel_inputs,
+                     kernel_kernel_value_out,
+                     kernel_kernel_side_effect_out,
+                     kernel_kernel_metadata_out,
                      alu_a_hi,
                      alu_a_lo,
                      alu_b_hi,
@@ -2059,11 +2063,7 @@ class AvmFlavor {
                      kernel_emit_nullifier_write_offset,
                      kernel_emit_unencrypted_log_write_offset,
                      kernel_kernel_in_offset,
-                     kernel_kernel_inputs,
-                     kernel_kernel_metadata_out,
                      kernel_kernel_out_offset,
-                     kernel_kernel_side_effect_out,
-                     kernel_kernel_value_out,
                      kernel_l1_to_l2_msg_exists_write_offset,
                      kernel_note_hash_exist_write_offset,
                      kernel_nullifier_exists_write_offset,
@@ -2686,7 +2686,7 @@ class AvmFlavor {
             }
         }
 
-        [[nodiscard]] size_t get_polynomial_size() const { return alu_a_hi.size(); }
+        [[nodiscard]] size_t get_polynomial_size() const { return kernel_kernel_inputs.size(); }
         /**
          * @brief Returns the evaluations of all prover polynomials at one point on the boolean hypercube, which
          * represents one row in the execution trace.
@@ -2748,6 +2748,10 @@ class AvmFlavor {
         {
             Base::main_clk = "MAIN_CLK";
             Base::main_sel_first = "MAIN_SEL_FIRST";
+            Base::kernel_kernel_inputs = "KERNEL_KERNEL_INPUTS";
+            Base::kernel_kernel_value_out = "KERNEL_KERNEL_VALUE_OUT";
+            Base::kernel_kernel_side_effect_out = "KERNEL_KERNEL_SIDE_EFFECT_OUT";
+            Base::kernel_kernel_metadata_out = "KERNEL_KERNEL_METADATA_OUT";
             Base::alu_a_hi = "ALU_A_HI";
             Base::alu_a_lo = "ALU_A_LO";
             Base::alu_b_hi = "ALU_B_HI";
@@ -2868,11 +2872,7 @@ class AvmFlavor {
             Base::kernel_emit_nullifier_write_offset = "KERNEL_EMIT_NULLIFIER_WRITE_OFFSET";
             Base::kernel_emit_unencrypted_log_write_offset = "KERNEL_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET";
             Base::kernel_kernel_in_offset = "KERNEL_KERNEL_IN_OFFSET";
-            Base::kernel_kernel_inputs = "KERNEL_KERNEL_INPUTS";
-            Base::kernel_kernel_metadata_out = "KERNEL_KERNEL_METADATA_OUT";
             Base::kernel_kernel_out_offset = "KERNEL_KERNEL_OUT_OFFSET";
-            Base::kernel_kernel_side_effect_out = "KERNEL_KERNEL_SIDE_EFFECT_OUT";
-            Base::kernel_kernel_value_out = "KERNEL_KERNEL_VALUE_OUT";
             Base::kernel_l1_to_l2_msg_exists_write_offset = "KERNEL_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET";
             Base::kernel_note_hash_exist_write_offset = "KERNEL_NOTE_HASH_EXIST_WRITE_OFFSET";
             Base::kernel_nullifier_exists_write_offset = "KERNEL_NULLIFIER_EXISTS_WRITE_OFFSET";
@@ -3150,6 +3150,10 @@ class AvmFlavor {
       public:
         uint32_t circuit_size;
 
+        Commitment kernel_kernel_inputs;
+        Commitment kernel_kernel_value_out;
+        Commitment kernel_kernel_side_effect_out;
+        Commitment kernel_kernel_metadata_out;
         Commitment alu_a_hi;
         Commitment alu_a_lo;
         Commitment alu_b_hi;
@@ -3270,11 +3274,7 @@ class AvmFlavor {
         Commitment kernel_emit_nullifier_write_offset;
         Commitment kernel_emit_unencrypted_log_write_offset;
         Commitment kernel_kernel_in_offset;
-        Commitment kernel_kernel_inputs;
-        Commitment kernel_kernel_metadata_out;
         Commitment kernel_kernel_out_offset;
-        Commitment kernel_kernel_side_effect_out;
-        Commitment kernel_kernel_value_out;
         Commitment kernel_l1_to_l2_msg_exists_write_offset;
         Commitment kernel_note_hash_exist_write_offset;
         Commitment kernel_nullifier_exists_write_offset;
@@ -3552,6 +3552,10 @@ class AvmFlavor {
             circuit_size = deserialize_from_buffer<uint32_t>(proof_data, num_frs_read);
             size_t log_n = numeric::get_msb(circuit_size);
 
+            kernel_kernel_inputs = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            kernel_kernel_value_out = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            kernel_kernel_side_effect_out = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            kernel_kernel_metadata_out = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             alu_a_hi = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             alu_a_lo = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             alu_b_hi = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -3676,11 +3680,7 @@ class AvmFlavor {
             kernel_emit_unencrypted_log_write_offset =
                 deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             kernel_kernel_in_offset = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
-            kernel_kernel_inputs = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
-            kernel_kernel_metadata_out = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             kernel_kernel_out_offset = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
-            kernel_kernel_side_effect_out = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
-            kernel_kernel_value_out = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             kernel_l1_to_l2_msg_exists_write_offset =
                 deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             kernel_note_hash_exist_write_offset =
@@ -3970,6 +3970,10 @@ class AvmFlavor {
 
             serialize_to_buffer(circuit_size, Transcript::proof_data);
 
+            serialize_to_buffer<Commitment>(kernel_kernel_inputs, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(kernel_kernel_value_out, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(kernel_kernel_side_effect_out, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(kernel_kernel_metadata_out, Transcript::proof_data);
             serialize_to_buffer<Commitment>(alu_a_hi, Transcript::proof_data);
             serialize_to_buffer<Commitment>(alu_a_lo, Transcript::proof_data);
             serialize_to_buffer<Commitment>(alu_b_hi, Transcript::proof_data);
@@ -4090,11 +4094,7 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(kernel_emit_nullifier_write_offset, Transcript::proof_data);
             serialize_to_buffer<Commitment>(kernel_emit_unencrypted_log_write_offset, Transcript::proof_data);
             serialize_to_buffer<Commitment>(kernel_kernel_in_offset, Transcript::proof_data);
-            serialize_to_buffer<Commitment>(kernel_kernel_inputs, Transcript::proof_data);
-            serialize_to_buffer<Commitment>(kernel_kernel_metadata_out, Transcript::proof_data);
             serialize_to_buffer<Commitment>(kernel_kernel_out_offset, Transcript::proof_data);
-            serialize_to_buffer<Commitment>(kernel_kernel_side_effect_out, Transcript::proof_data);
-            serialize_to_buffer<Commitment>(kernel_kernel_value_out, Transcript::proof_data);
             serialize_to_buffer<Commitment>(kernel_l1_to_l2_msg_exists_write_offset, Transcript::proof_data);
             serialize_to_buffer<Commitment>(kernel_note_hash_exist_write_offset, Transcript::proof_data);
             serialize_to_buffer<Commitment>(kernel_nullifier_exists_write_offset, Transcript::proof_data);

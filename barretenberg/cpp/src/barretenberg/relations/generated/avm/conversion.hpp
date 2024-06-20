@@ -37,7 +37,7 @@ template <typename FF_> class conversionImpl {
         {
             Avm_DECLARE_VIEWS(0);
 
-            auto tmp = (conversion_sel_to_radix_le * (-conversion_sel_to_radix_le + FF(1)));
+            auto tmp = ((conversion_sel_to_radix_le * (-conversion_sel_to_radix_le + FF(1))) - FF(0));
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
         }

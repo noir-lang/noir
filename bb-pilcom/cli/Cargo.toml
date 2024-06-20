@@ -1,0 +1,26 @@
+
+[package]
+name = "cli"
+version = "0.1.0"
+authors = ["Aztec Labs"]
+edition = "2021"
+
+[[bin]]
+name = "bb_pil"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "^4.3", features = ["derive"] }
+num-bigint = "0.4.3"
+bb-pil-backend ={ path = "../bb-pil-backend" }
+
+powdr-pil-analyzer ={ path = "../powdr/pil-analyzer" }
+powdr-number = { path = "../powdr/number" }
+num-traits = "0.2.15"
+num-integer = "0.1.45"
+itertools = "^0.10"
+log = "0.4.17"
+rand = "0.8.5"
+powdr-ast = { path = "../powdr/ast" }
+
+
