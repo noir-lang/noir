@@ -137,7 +137,7 @@ pub(super) fn unconstrained_function_args(
     function_args
         .iter()
         .filter_map(|(typ, _, span)| {
-            if type_contains_mutable_reference(typ) {
+            if !typ.is_valid_for_unconstrained_boundary() {
                 Some(TypeCheckError::ConstrainedReferenceToUnconstrained { span: *span })
             } else {
                 None
@@ -153,15 +153,11 @@ pub(super) fn unconstrained_function_return(
 ) -> Option<TypeCheckError> {
     if return_type.contains_slice() {
         Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { span })
-    } else if type_contains_mutable_reference(return_type) {
+    } else if !return_type.is_valid_for_unconstrained_boundary() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { span })
     } else {
         None
     }
-}
-
-fn type_contains_mutable_reference(typ: &Type) -> bool {
-    matches!(&typ.follow_bindings(), Type::MutableReference(_))
 }
 
 /// Only entrypoint functions require a `pub` visibility modifier applied to their return types.
