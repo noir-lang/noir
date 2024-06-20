@@ -162,7 +162,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             memory.write(*result, verified.into());
             Ok(())
         }
-        BlackBoxOp::MultiScalarMul { points, scalars, outputs: result } => {
+        BlackBoxOp::MultiScalarMul { points, scalars, output_x, output_y, output_infinite } => {
             let points: Vec<F> = read_heap_vector(memory, points)
                 .iter()
                 .enumerate()
@@ -189,13 +189,12 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 }
             }
             let (x, y, is_infinite) = solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi)?;
-            memory.write_slice(
-                memory.read_ref(result.pointer),
-                &[
-                    MemoryValue::new_field(x),
-                    MemoryValue::new_field(y),
-                    MemoryValue::new_field(is_infinite),
-                ],
+
+            memory.write(*output_x, MemoryValue::new_field(x));
+            memory.write(*output_y, MemoryValue::new_field(y));
+            memory.write(
+                *output_infinite,
+                MemoryValue::new_integer(BigUint::from_bytes_be(&is_infinite.to_be_bytes()), 1),
             );
             Ok(())
         }
@@ -204,7 +203,9 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             input1_y,
             input2_x,
             input2_y,
-            result,
+            result_x,
+            result_y,
+            result_infinite,
             input1_infinite,
             input2_infinite,
         } => {
@@ -222,13 +223,11 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 &input2_y,
                 &input2_infinite.into(),
             )?;
-            memory.write_slice(
-                memory.read_ref(result.pointer),
-                &[
-                    MemoryValue::new_field(x),
-                    MemoryValue::new_field(y),
-                    MemoryValue::new_field(infinite),
-                ],
+            memory.write(*result_x, MemoryValue::new_field(x));
+            memory.write(*result_y, MemoryValue::new_field(y));
+            memory.write(
+                *result_infinite,
+                MemoryValue::new_integer(BigUint::from_bytes_be(&infinite.to_be_bytes()), 1),
             );
             Ok(())
         }

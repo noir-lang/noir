@@ -15,6 +15,6 @@ fn main(is_active: bool) {
             [a, bad],
             [EmbeddedCurveScalar { lo: 1, hi: 0 }, EmbeddedCurveScalar { lo: 1, hi: 0 }]
         );
-        assert(e[0] != d.x);
+        assert(e.x != d.x);
     }
 }
