@@ -40,7 +40,14 @@ use super::{lints, Elaborator};
 impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
     pub(super) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
-        self.resolve_type_inner(typ, &Kind::Normal)
+        let span = typ.span;
+        let resolved_type = self.resolve_type_inner(typ, &Kind::Normal);
+        if resolved_type.is_nested_slice() {
+            self.push_err(ResolverError::NestedSlices {
+                span: span.expect("Type should have span"),
+            });
+        }
+        resolved_type
     }
 
     /// Translates an UnresolvedType into a Type and appends any
@@ -55,6 +62,7 @@ impl<'context> Elaborator<'context> {
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
                 let mut size = self.convert_expression_type(size);
+                // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this once we only have explicit numeric generics
                 if let Type::NamedGeneric(type_var, name, _) = size {
                     size = Type::NamedGeneric(
                         type_var,
@@ -73,6 +81,7 @@ impl<'context> Elaborator<'context> {
             Bool => Type::Bool,
             String(size) => {
                 let mut resolved_size = self.convert_expression_type(size);
+                // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this once we only have explicit numeric generics
                 if let Type::NamedGeneric(type_var, name, _) = resolved_size {
                     resolved_size = Type::NamedGeneric(
                         type_var,
@@ -158,12 +167,6 @@ impl<'context> Elaborator<'context> {
                 self.errors.push((expected_typ_err, self.file));
                 return Type::Error;
             }
-        }
-
-        if resolved_type.is_nested_slice() {
-            self.push_err(ResolverError::NestedSlices {
-                span: span.expect("Type should have span"),
-            });
         }
 
         resolved_type
