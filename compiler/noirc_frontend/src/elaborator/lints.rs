@@ -151,7 +151,9 @@ pub(super) fn unconstrained_function_return(
     return_type: &Type,
     span: Span,
 ) -> Option<TypeCheckError> {
-    if !return_type.is_valid_for_unconstrained_boundary() {
+    if return_type.contains_slice() {
+        Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { span })
+    } else if !return_type.is_valid_for_unconstrained_boundary() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { span })
     } else {
         None

@@ -797,14 +797,14 @@ impl Type {
             | Type::Bool
             | Type::Unit
             | Type::Constant(_)
+            | Type::Slice(_)
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(_, _)
             | Type::Function(_, _, _)
             | Type::FmtString(_, _)
             | Type::Error => true,
 
-            Type::Slice(_)
-            | Type::MutableReference(_)
+            Type::MutableReference(_)
             | Type::Forall(_, _)
             | Type::Quoted(_)
             | Type::TraitAsType(..) => false,
