@@ -1309,7 +1309,7 @@ impl<'interner> Monomorphizer<'interner> {
         let typ = Type::Array(bytes_as_expr.len() as u32, Box::new(int_type));
 
         let arr_literal = ArrayLiteral { typ, contents: bytes_as_expr };
-        Expression::Literal(Literal::Array(arr_literal))
+        Expression::Literal(Literal::Slice(arr_literal))
     }
 
     fn queue_function(
