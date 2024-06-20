@@ -80,6 +80,7 @@ pub(crate) fn find_comment_end(slice: &str, is_last: bool) -> usize {
                 std::cmp::max(find_comment_end(slice) + block, separator_index + 1)
             }
             (_, Some(newline)) if newline > separator_index => newline + 1,
+            (None, None) => 0,
             _ => slice.len(),
         }
     } else if let Some(newline_index) = newline_index {
@@ -176,17 +177,17 @@ impl HasItem for UnresolvedGeneric {
     }
 
     fn format(self, visitor: &FmtVisitor, _shape: Shape) -> String {
-        visitor.slice(self.span()).into()
-    }
-
-    fn start(&self) -> u32 {
-        let start_offset = match self {
-            UnresolvedGeneric::Variable(_) => 0,
-            // We offset by 4 here to account for the `let` identifier
-            // and the extra space before the actual generic numeric type
-            UnresolvedGeneric::Numeric { .. } => 4,
-        };
-        self.span().start() - start_offset
+        match self {
+            UnresolvedGeneric::Variable(_) => visitor.slice(self.span()).into(),
+            UnresolvedGeneric::Numeric { ident, typ } => {
+                let mut result = "".to_owned();
+                result.push_str(&ident.0.contents);
+                result.push_str(": ");
+                let typ = rewrite::typ(visitor, _shape, typ);
+                result.push_str(&typ);
+                result
+            }
+        }
     }
 
     fn end(&self) -> u32 {
