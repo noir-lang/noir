@@ -1,4 +1,4 @@
-use dep::std::hash;
+use std::hash;
 
 global SIZE = 100;
 

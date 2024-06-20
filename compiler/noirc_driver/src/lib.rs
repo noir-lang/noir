@@ -3,7 +3,7 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-use abi_gen::value_from_hir_expression;
+use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use fm::{FileId, FileManager};
@@ -99,9 +99,9 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub force_brillig: bool,
 
-    /// Enable the experimental elaborator pass
+    /// Use the deprecated name resolution & type checking passes instead of the elaborator
     #[arg(long, hide = true)]
-    pub use_elaborator: bool,
+    pub use_legacy: bool,
 
     /// Skip loading the prelude (stdlib)
     #[arg(long, hide = true)]
@@ -261,15 +261,13 @@ pub fn check_crate(
     crate_id: CrateId,
     deny_warnings: bool,
     disable_macros: bool,
-    use_elaborator: bool,
-    skip_prelude: bool,
+    use_legacy: bool,
 ) -> CompilationResult<()> {
     let macros: &[&dyn MacroProcessor] =
         if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
 
     let mut errors = vec![];
-    let diagnostics =
-        CrateDefMap::collect_defs(crate_id, context, use_elaborator, skip_prelude, macros);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, use_legacy, macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic = CustomDiagnostic::from(&error);
         diagnostic.in_file(file_id)
@@ -306,8 +304,7 @@ pub fn compile_main(
         crate_id,
         options.deny_warnings,
         options.disable_macros,
-        options.use_elaborator,
-        options.skip_prelude,
+        options.use_legacy,
     )?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
@@ -348,8 +345,7 @@ pub fn compile_contract(
         crate_id,
         options.deny_warnings,
         options.disable_macros,
-        options.use_elaborator,
-        options.skip_prelude,
+        options.use_legacy,
     )?;
 
     // TODO: We probably want to error if contracts is empty
@@ -476,7 +472,7 @@ fn compile_contract_inner(
                         let typ = context.def_interner.get_struct(struct_id);
                         let typ = typ.borrow();
                         let fields = vecmap(typ.get_fields(&[]), |(name, typ)| {
-                            (name, AbiType::from_type(context, &typ))
+                            (name, abi_type_from_hir_type(context, &typ))
                         });
                         let path =
                             context.fully_qualified_struct_path(context.root_crate_id(), typ.id);

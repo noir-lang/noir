@@ -12,9 +12,10 @@ use crate::{
     hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
     macros_api::{
         Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
+        StructId,
     },
     node_interner::{ExprId, FuncId},
-    Shared, Type,
+    QuotedType, Shared, Type,
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -42,6 +43,7 @@ pub enum Value {
     Array(Vector<Value>, Type),
     Slice(Vector<Value>, Type),
     Code(Rc<BlockExpression>),
+    TypeDefinition(StructId),
 }
 
 impl Value {
@@ -70,7 +72,8 @@ impl Value {
             Value::Struct(_, typ) => return Cow::Borrowed(typ),
             Value::Array(_, typ) => return Cow::Borrowed(typ),
             Value::Slice(_, typ) => return Cow::Borrowed(typ),
-            Value::Code(_) => Type::Code,
+            Value::Code(_) => Type::Quoted(QuotedType::Expr),
+            Value::TypeDefinition(_) => Type::Quoted(QuotedType::TypeDefinition),
             Value::Pointer(element) => {
                 let element = element.borrow().get_type().into_owned();
                 Type::MutableReference(Box::new(element))
@@ -172,7 +175,7 @@ impl Value {
                 ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(elements)))
             }
             Value::Code(block) => ExpressionKind::Block(unwrap_rc(block)),
-            Value::Pointer(_) => {
+            Value::Pointer(_) | Value::TypeDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -273,7 +276,7 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
             Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
-            Value::Pointer(_) => {
+            Value::Pointer(_) | Value::TypeDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -348,7 +351,8 @@ impl Display for Value {
                 let values = vecmap(values, ToString::to_string);
                 write!(f, "&[{}]", values.join(", "))
             }
-            Value::Code(_) => todo!(),
+            Value::Code(block) => write!(f, "quote {block}"),
+            Value::TypeDefinition(_) => write!(f, "(type definition)"),
         }
     }
 }

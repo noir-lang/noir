@@ -85,6 +85,8 @@ pub enum BorrowedToken<'input> {
     Semicolon,
     /// !
     Bang,
+    /// $
+    DollarSign,
     /// =
     Assign,
     #[allow(clippy::upper_case_acronyms)]
@@ -179,6 +181,8 @@ pub enum Token {
     Bang,
     /// =
     Assign,
+    /// $
+    DollarSign,
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
@@ -238,6 +242,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Semicolon => BorrowedToken::Semicolon,
         Token::Assign => BorrowedToken::Assign,
         Token::Bang => BorrowedToken::Bang,
+        Token::DollarSign => BorrowedToken::DollarSign,
         Token::EOF => BorrowedToken::EOF,
         Token::Invalid(c) => BorrowedToken::Invalid(*c),
         Token::Whitespace(ref s) => BorrowedToken::Whitespace(s),
@@ -349,6 +354,7 @@ impl fmt::Display for Token {
             Token::Semicolon => write!(f, ";"),
             Token::Assign => write!(f, "="),
             Token::Bang => write!(f, "!"),
+            Token::DollarSign => write!(f, "$"),
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
             Token::Whitespace(ref s) => write!(f, "{s}"),
@@ -454,7 +460,7 @@ impl fmt::Display for IntType {
 
 impl IntType {
     // XXX: Result<Option<Token, LexerErrorKind>
-    // Is not the best API. We could split this into two functions. One that checks if the the
+    // Is not the best API. We could split this into two functions. One that checks if the
     // word is a integer, which only returns an Option
     pub(crate) fn lookup_int_type(word: &str) -> Result<Option<Token>, LexerErrorKind> {
         // Check if the first string is a 'u' or 'i'
@@ -840,6 +846,7 @@ pub enum Keyword {
     Crate,
     Dep,
     Else,
+    Expr,
     Field,
     Fn,
     For,
@@ -858,8 +865,11 @@ pub enum Keyword {
     String,
     Struct,
     Super,
+    TopLevelItem,
     Trait,
     Type,
+    TypeType,
+    TypeDefinition,
     Unchecked,
     Unconstrained,
     Use,
@@ -884,6 +894,7 @@ impl fmt::Display for Keyword {
             Keyword::Crate => write!(f, "crate"),
             Keyword::Dep => write!(f, "dep"),
             Keyword::Else => write!(f, "else"),
+            Keyword::Expr => write!(f, "Expr"),
             Keyword::Field => write!(f, "Field"),
             Keyword::Fn => write!(f, "fn"),
             Keyword::For => write!(f, "for"),
@@ -902,8 +913,11 @@ impl fmt::Display for Keyword {
             Keyword::String => write!(f, "str"),
             Keyword::Struct => write!(f, "struct"),
             Keyword::Super => write!(f, "super"),
+            Keyword::TopLevelItem => write!(f, "TopLevelItem"),
             Keyword::Trait => write!(f, "trait"),
             Keyword::Type => write!(f, "type"),
+            Keyword::TypeType => write!(f, "Type"),
+            Keyword::TypeDefinition => write!(f, "TypeDefinition"),
             Keyword::Unchecked => write!(f, "unchecked"),
             Keyword::Unconstrained => write!(f, "unconstrained"),
             Keyword::Use => write!(f, "use"),
@@ -931,6 +945,7 @@ impl Keyword {
             "crate" => Keyword::Crate,
             "dep" => Keyword::Dep,
             "else" => Keyword::Else,
+            "Expr" => Keyword::Expr,
             "Field" => Keyword::Field,
             "fn" => Keyword::Fn,
             "for" => Keyword::For,
@@ -949,8 +964,11 @@ impl Keyword {
             "str" => Keyword::String,
             "struct" => Keyword::Struct,
             "super" => Keyword::Super,
+            "TopLevelItem" => Keyword::TopLevelItem,
             "trait" => Keyword::Trait,
             "type" => Keyword::Type,
+            "Type" => Keyword::TypeType,
+            "TypeDefinition" => Keyword::TypeDefinition,
             "unchecked" => Keyword::Unchecked,
             "unconstrained" => Keyword::Unconstrained,
             "use" => Keyword::Use,

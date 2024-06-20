@@ -6,7 +6,7 @@ use std::{
 use crate::{
     ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
-        comptime::{self, Interpreter},
+        comptime::{self, Interpreter, Value},
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
@@ -62,6 +62,7 @@ mod scope;
 mod statements;
 mod traits;
 mod types;
+mod unquote;
 
 use fm::FileId;
 use iter_extended::vecmap;
@@ -204,10 +205,22 @@ impl<'context> Elaborator<'context> {
     pub fn elaborate(
         context: &'context mut Context,
         crate_id: CrateId,
-        mut items: CollectedItems,
+        items: CollectedItems,
     ) -> Vec<(CompilationError, FileId)> {
         let mut this = Self::new(context, crate_id);
 
+        // Filter out comptime items to execute their functions first if needed.
+        // This step is why comptime items can only refer to other comptime items
+        // in the same crate, but can refer to any item in dependencies. Trying to
+        // run these at the same time as other items would lead to them seeing empty
+        // function bodies from functions that have yet to be elaborated.
+        let (comptime_items, runtime_items) = Self::filter_comptime_items(items);
+        this.elaborate_items(comptime_items);
+        this.elaborate_items(runtime_items);
+        this.errors
+    }
+
+    fn elaborate_items(&mut self, mut items: CollectedItems) {
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
         //
@@ -215,61 +228,56 @@ impl<'context> Elaborator<'context> {
         // the values of integer globals as numeric generics.
         let (literal_globals, non_literal_globals) = filter_literal_globals(items.globals);
         for global in non_literal_globals {
-            this.unresolved_globals.insert(global.global_id, global);
+            self.unresolved_globals.insert(global.global_id, global);
         }
 
         for global in literal_globals {
-            this.elaborate_global(global);
+            self.elaborate_global(global);
         }
 
         for (alias_id, alias) in items.type_aliases {
-            this.define_type_alias(alias_id, alias);
+            self.define_type_alias(alias_id, alias);
         }
 
-        this.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
-        this.collect_traits(items.traits);
+        self.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
+        self.collect_traits(items.traits);
 
         // Must resolve structs before we resolve globals.
-        this.collect_struct_definitions(items.types);
-
-        // Bind trait impls to their trait. Collect trait functions, that have a
-        // default implementation, which hasn't been overridden.
-        for trait_impl in &mut items.trait_impls {
-            this.collect_trait_impl(trait_impl);
-        }
+        self.collect_struct_definitions(items.types);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
         // done during def collection since we need to be able to resolve the type of
         // the impl since that determines the module we should collect into.
-        //
-        // These are resolved after trait impls so that struct methods are chosen
-        // over trait methods if there are name conflicts.
         for ((_self_type, module), impls) in &mut items.impls {
-            this.collect_impls(*module, impls);
+            self.collect_impls(*module, impls);
+        }
+
+        // Bind trait impls to their trait. Collect trait functions, that have a
+        // default implementation, which hasn't been overridden.
+        for trait_impl in &mut items.trait_impls {
+            self.collect_trait_impl(trait_impl);
         }
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
-        // globals will need to reference the struct type they're initialized to to ensure they are valid.
-        while let Some((_, global)) = this.unresolved_globals.pop_first() {
-            this.elaborate_global(global);
+        // globals will need to reference the struct type they're initialized to ensure they are valid.
+        while let Some((_, global)) = self.unresolved_globals.pop_first() {
+            self.elaborate_global(global);
         }
 
         for functions in items.functions {
-            this.elaborate_functions(functions);
+            self.elaborate_functions(functions);
         }
 
         for impls in items.impls.into_values() {
-            this.elaborate_impls(impls);
+            self.elaborate_impls(impls);
         }
 
         for trait_impl in items.trait_impls {
-            this.elaborate_trait_impl(trait_impl);
+            self.elaborate_trait_impl(trait_impl);
         }
 
-        let cycle_errors = this.interner.check_for_dependency_cycles();
-        this.errors.extend(cycle_errors);
-        this.errors
+        self.errors.extend(self.interner.check_for_dependency_cycles());
     }
 
     /// Runs `f` and if it modifies `self.generics`, `self.generics` is truncated
@@ -311,6 +319,7 @@ impl<'context> Elaborator<'context> {
         let old_function = std::mem::replace(&mut self.current_function, Some(id));
 
         // Without this, impl methods can accidentally be placed in contracts. See #3254
+        let was_in_contract = self.in_contract;
         if self.self_type.is_some() {
             self.in_contract = false;
         }
@@ -404,8 +413,10 @@ impl<'context> Elaborator<'context> {
         meta.function_body = FunctionBody::Resolved;
 
         self.trait_bounds.clear();
+        self.type_variables.clear();
         self.in_unconstrained_fn = false;
         self.interner.update_fn(id, hir_func);
+        self.in_contract = was_in_contract;
         self.current_function = old_function;
         self.current_item = old_item;
     }
@@ -547,6 +558,7 @@ impl<'context> Elaborator<'context> {
         self.current_function = Some(func_id);
 
         // Without this, impl methods can accidentally be placed in contracts. See #3254
+        let was_in_contract = self.in_contract;
         if self.self_type.is_some() {
             self.in_contract = false;
         }
@@ -569,7 +581,6 @@ impl<'context> Elaborator<'context> {
         self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(func, elaborator.crate_id).map(Into::into)
         });
-        self.run_lint(|_| lints::test_function_with_args(func).map(Into::into));
         self.run_lint(|_| {
             lints::recursive_non_entrypoint_function(func, is_entry_point).map(Into::into)
         });
@@ -662,6 +673,7 @@ impl<'context> Elaborator<'context> {
         };
 
         self.interner.push_fn_meta(meta, func_id);
+        self.in_contract = was_in_contract;
         self.current_function = None;
         self.scopes.end_function();
         self.current_item = None;
@@ -860,9 +872,12 @@ impl<'context> Elaborator<'context> {
         self.self_type = None;
     }
 
-    fn get_module_mut(&mut self, module: ModuleId) -> &mut ModuleData {
+    fn get_module_mut(
+        def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
+        module: ModuleId,
+    ) -> &mut ModuleData {
         let message = "A crate should always be present for a given crate id";
-        &mut self.def_maps.get_mut(&module.krate).expect(message).modules[module.local_id.0]
+        &mut def_maps.get_mut(&module.krate).expect(message).modules[module.local_id.0]
     }
 
     fn declare_methods_on_struct(
@@ -890,7 +905,7 @@ impl<'context> Elaborator<'context> {
             // Grab the module defined by the struct type. Note that impls are a case
             // where the module the methods are added to is not the same as the module
             // they are resolved in.
-            let module = self.get_module_mut(struct_ref.id.module_id());
+            let module = Self::get_module_mut(self.def_maps, struct_ref.id.module_id());
 
             for (_, method_id, method) in &functions.functions {
                 // If this method was already declared, remove it from the module so it cannot
@@ -899,22 +914,37 @@ impl<'context> Elaborator<'context> {
                 // If not, that is specialization which is allowed.
                 let name = method.name_ident().clone();
                 if module.declare_function(name, ItemVisibility::Public, *method_id).is_err() {
-                    module.remove_function(method.name_ident());
+                    let existing = module.find_func_with_name(method.name_ident()).expect(
+                        "declare_function should only error if there is an existing function",
+                    );
+
+                    // Only remove the existing function from scope if it is from a trait impl as
+                    // well. If it is from a non-trait impl that should override trait impl methods
+                    // anyway so that Foo::bar always resolves to the non-trait impl version.
+                    if self.interner.function_meta(&existing).trait_impl.is_some() {
+                        module.remove_function(method.name_ident());
+                    }
                 }
             }
 
-            self.declare_struct_methods(self_type, &function_ids);
+            // Trait impl methods are already declared in NodeInterner::add_trait_implementation
+            if !is_trait_impl {
+                self.declare_methods(self_type, &function_ids);
+            }
         // We can define methods on primitive types only if we're in the stdlib
         } else if !is_trait_impl && *self_type != Type::Error {
             if self.crate_id.is_stdlib() {
-                self.declare_struct_methods(self_type, &function_ids);
+                // Trait impl methods are already declared in NodeInterner::add_trait_implementation
+                if !is_trait_impl {
+                    self.declare_methods(self_type, &function_ids);
+                }
             } else {
                 self.push_err(DefCollectorErrorKind::NonStructTypeInImpl { span });
             }
         }
     }
 
-    fn declare_struct_methods(&mut self, self_type: &Type, function_ids: &[FuncId]) {
+    fn declare_methods(&mut self, self_type: &Type, function_ids: &[FuncId]) {
         for method_id in function_ids {
             let method_name = self.interner.function_name(method_id).to_owned();
 
@@ -1064,15 +1094,20 @@ impl<'context> Elaborator<'context> {
 
         // Resolve each field in each struct.
         // Each struct should already be present in the NodeInterner after def collection.
-        for (type_id, typ) in structs {
+        for (type_id, mut typ) in structs {
             self.file = typ.file_id;
             self.local_module = typ.module_id;
+
+            let attributes = std::mem::take(&mut typ.struct_def.attributes);
+            let span = typ.struct_def.span;
             let (generics, fields) = self.resolve_struct_fields(typ.struct_def, type_id);
 
             self.interner.update_struct(type_id, |struct_def| {
                 struct_def.set_fields(fields);
                 struct_def.generics = generics;
             });
+
+            self.run_comptime_attributes_on_struct(attributes, type_id, span);
         }
 
         // Check whether the struct fields have nested slices
@@ -1080,6 +1115,7 @@ impl<'context> Elaborator<'context> {
         // make sure every struct's fields is accurately set.
         for id in struct_ids {
             let struct_type = self.interner.get_struct(id);
+
             // Only handle structs without generics as any generics args will be checked
             // after monomorphization when performing SSA codegen
             if struct_type.borrow().generics.is_empty() {
@@ -1090,6 +1126,38 @@ impl<'context> Elaborator<'context> {
                         self.file = location.file;
                         self.push_err(ResolverError::NestedSlices { span: location.span });
                     }
+                }
+            }
+        }
+    }
+
+    fn run_comptime_attributes_on_struct(
+        &mut self,
+        attributes: Vec<SecondaryAttribute>,
+        struct_id: StructId,
+        span: Span,
+    ) {
+        for attribute in attributes {
+            if let SecondaryAttribute::Custom(name) = attribute {
+                match self.lookup_global(Path::from_single(name, span)) {
+                    Ok(id) => {
+                        let definition = self.interner.definition(id);
+                        if let DefinitionKind::Function(function) = &definition.kind {
+                            let function = *function;
+                            let mut interpreter =
+                                Interpreter::new(self.interner, &mut self.comptime_scopes);
+
+                            let location = Location::new(span, self.file);
+                            let arguments = vec![(Value::TypeDefinition(struct_id), location)];
+                            let result = interpreter.call_function(function, arguments, location);
+                            if let Err(error) = result {
+                                self.errors.push(error.into_compilation_error_pair());
+                            }
+                        } else {
+                            self.push_err(ResolverError::NonFunctionInAnnotation { span });
+                        }
+                    }
+                    Err(_) => self.push_err(ResolverError::UnknownAnnotation { span }),
                 }
             }
         }
@@ -1114,8 +1182,9 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
-        self.local_module = global.module_id;
-        self.file = global.file_id;
+        let old_module = std::mem::replace(&mut self.local_module, global.module_id);
+        let old_file = std::mem::replace(&mut self.file, global.file_id);
+        let old_item = self.current_item.take();
 
         let global_id = global.global_id;
         self.current_item = Some(DependencyId::Global(global_id));
@@ -1147,6 +1216,9 @@ impl<'context> Elaborator<'context> {
         // Otherwise we may prematurely default to a Field inside the next function if this
         // global was unused there, even if it is consistently used as a u8 everywhere else.
         self.type_variables.clear();
+        self.local_module = old_module;
+        self.file = old_file;
+        self.current_item = old_item;
     }
 
     fn elaborate_comptime_global(&mut self, global_id: GlobalId) {
@@ -1186,11 +1258,13 @@ impl<'context> Elaborator<'context> {
             self.local_module = *local_module;
 
             for (generics, _, function_set) in function_sets {
+                self.file = function_set.file_id;
                 self.add_generics(generics);
                 let self_type = self.resolve_type(self_type.clone());
                 function_set.self_type = Some(self_type.clone());
                 self.self_type = Some(self_type);
                 self.define_function_metas_for_functions(function_set);
+                self.self_type = None;
                 self.generics.clear();
             }
         }
@@ -1205,10 +1279,10 @@ impl<'context> Elaborator<'context> {
 
             let trait_generics =
                 vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()));
+
             trait_impl.resolved_trait_generics = trait_generics;
 
             let self_type = self.resolve_type(unresolved_type.clone());
-
             self.self_type = Some(self_type.clone());
             trait_impl.methods.self_type = Some(self_type);
 
@@ -1228,9 +1302,60 @@ impl<'context> Elaborator<'context> {
 
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = *local_module;
+            let was_in_contract = self.in_contract;
+            self.in_contract = self.module_id().module(self.def_maps).is_contract;
             self.recover_generics(|this| {
                 this.define_function_meta(func, *id, false);
             });
+            self.in_contract = was_in_contract;
         }
+    }
+
+    /// Filters out comptime items from non-comptime items.
+    /// Returns a pair of (comptime items, non-comptime items)
+    fn filter_comptime_items(mut items: CollectedItems) -> (CollectedItems, CollectedItems) {
+        let mut function_sets = Vec::with_capacity(items.functions.len());
+        let mut comptime_function_sets = Vec::new();
+
+        for function_set in items.functions {
+            let mut functions = Vec::with_capacity(function_set.functions.len());
+            let mut comptime_functions = Vec::new();
+
+            for function in function_set.functions {
+                if function.2.def.is_comptime {
+                    comptime_functions.push(function);
+                } else {
+                    functions.push(function);
+                }
+            }
+
+            let file_id = function_set.file_id;
+            let self_type = function_set.self_type;
+            let trait_id = function_set.trait_id;
+
+            if !comptime_functions.is_empty() {
+                comptime_function_sets.push(UnresolvedFunctions {
+                    functions: comptime_functions,
+                    file_id,
+                    trait_id,
+                    self_type: self_type.clone(),
+                });
+            }
+
+            function_sets.push(UnresolvedFunctions { functions, file_id, trait_id, self_type });
+        }
+
+        let comptime = CollectedItems {
+            functions: comptime_function_sets,
+            types: BTreeMap::new(),
+            type_aliases: BTreeMap::new(),
+            traits: BTreeMap::new(),
+            trait_impls: Vec::new(),
+            globals: Vec::new(),
+            impls: std::collections::HashMap::new(),
+        };
+
+        items.functions = function_sets;
+        (comptime, items)
     }
 }

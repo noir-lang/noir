@@ -87,8 +87,7 @@ fn check_package(
         compile_options.deny_warnings,
         compile_options.disable_macros,
         compile_options.silence_warnings,
-        compile_options.use_elaborator,
-        compile_options.skip_prelude,
+        compile_options.use_legacy,
     )?;
 
     if package.is_library() || package.is_contract() {
@@ -161,11 +160,9 @@ pub(crate) fn check_crate_and_report_errors(
     deny_warnings: bool,
     disable_macros: bool,
     silence_warnings: bool,
-    use_elaborator: bool,
-    skip_prelude: bool,
+    use_legacy: bool,
 ) -> Result<(), CompileError> {
-    let result =
-        check_crate(context, crate_id, deny_warnings, disable_macros, use_elaborator, skip_prelude);
+    let result = check_crate(context, crate_id, deny_warnings, disable_macros, use_legacy);
     report_errors(result, &context.file_manager, deny_warnings, silence_warnings)
 }
 

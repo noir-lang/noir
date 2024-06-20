@@ -1,7 +1,6 @@
-[package]
-name = "overlapping_dep_and_mod"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.30.0"
-
-[dependencies]
+[workspace]
+members = [
+    "bin", 
+    "foo",
+]
+default-member = "bin"

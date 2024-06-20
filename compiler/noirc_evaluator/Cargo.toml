@@ -12,6 +12,7 @@ license.workspace = true
 noirc_frontend.workspace = true
 noirc_errors.workspace = true
 acvm.workspace = true
+bn254_blackbox_solver.workspace = true
 fxhash.workspace = true
 iter-extended.workspace = true
 thiserror.workspace = true
