@@ -1,5 +1,3 @@
-use dep::std;
-
 struct MyStruct {
     operation: fn (u32) -> u32,
 }

@@ -18,7 +18,6 @@ use crate::{
         types,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
-    token::FunctionAttribute,
     Type, TypeBinding, TypeBindings, TypeVariable, TypeVariableKind,
 };
 use acvm::{acir::AcirField, FieldElement};
@@ -216,18 +215,18 @@ impl<'interner> Monomorphizer<'interner> {
                 let attributes = self.interner.function_attributes(&id);
                 match self.interner.function_meta(&id).kind {
                     FunctionKind::LowLevel => {
-                        let attribute = attributes.function.clone().expect("all low level functions must contain a function attribute which contains the opcode which it links to");
+                        let attribute = attributes.function.as_ref().expect("all low level functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.foreign().expect(
                             "ice: function marked as foreign, but attribute kind does not match this",
                         );
-                        Definition::LowLevel(opcode)
+                        Definition::LowLevel(opcode.to_string())
                     }
                     FunctionKind::Builtin => {
-                        let attribute = attributes.function.clone().expect("all low level functions must contain a function  attribute which contains the opcode which it links to");
+                        let attribute = attributes.function.as_ref().expect("all builtin functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.builtin().expect(
                             "ice: function marked as builtin, but attribute kind does not match this",
                         );
-                        Definition::Builtin(opcode)
+                        Definition::Builtin(opcode.to_string())
                     }
                     FunctionKind::Normal => {
                         let id =
@@ -235,15 +234,11 @@ impl<'interner> Monomorphizer<'interner> {
                         Definition::Function(id)
                     }
                     FunctionKind::Oracle => {
-                        let attr = attributes
-                            .function
-                            .clone()
-                            .expect("Oracle function must have an oracle attribute");
-
-                        match attr {
-                            FunctionAttribute::Oracle(name) => Definition::Oracle(name),
-                            _ => unreachable!("Oracle function must have an oracle attribute"),
-                        }
+                        let attribute = attributes.function.as_ref().expect("all oracle functions must contain a function attribute which contains the opcode which it links to");
+                        let opcode = attribute.oracle().expect(
+                            "ice: function marked as builtin, but attribute kind does not match this",
+                        );
+                        Definition::Oracle(opcode.to_string())
                     }
                     FunctionKind::Recursive => {
                         unreachable!("Only main can be specified as recursive, which should already be checked");
@@ -1017,7 +1012,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
-            HirType::Code => unreachable!("Tried to translate Code type into runtime code"),
+            HirType::Quoted(_) => unreachable!("Tried to translate Code type into runtime code"),
         })
     }
 
@@ -1276,19 +1271,19 @@ impl<'interner> Monomorphizer<'interner> {
                     }
                     "modulus_le_bits" => {
                         let bits = FieldElement::modulus().to_radix_le(2);
-                        Some(self.modulus_array_literal(bits, IntegerBitSize::One, location))
+                        Some(self.modulus_slice_literal(bits, IntegerBitSize::One, location))
                     }
                     "modulus_be_bits" => {
                         let bits = FieldElement::modulus().to_radix_be(2);
-                        Some(self.modulus_array_literal(bits, IntegerBitSize::One, location))
+                        Some(self.modulus_slice_literal(bits, IntegerBitSize::One, location))
                     }
                     "modulus_be_bytes" => {
                         let bytes = FieldElement::modulus().to_bytes_be();
-                        Some(self.modulus_array_literal(bytes, IntegerBitSize::Eight, location))
+                        Some(self.modulus_slice_literal(bytes, IntegerBitSize::Eight, location))
                     }
                     "modulus_le_bytes" => {
                         let bytes = FieldElement::modulus().to_bytes_le();
-                        Some(self.modulus_array_literal(bytes, IntegerBitSize::Eight, location))
+                        Some(self.modulus_slice_literal(bytes, IntegerBitSize::Eight, location))
                     }
                     _ => None,
                 };
@@ -1297,7 +1292,7 @@ impl<'interner> Monomorphizer<'interner> {
         None
     }
 
-    fn modulus_array_literal(
+    fn modulus_slice_literal(
         &self,
         bytes: Vec<u8>,
         arr_elem_bits: IntegerBitSize,
@@ -1311,10 +1306,9 @@ impl<'interner> Monomorphizer<'interner> {
             Expression::Literal(Literal::Integer((byte as u128).into(), int_type.clone(), location))
         });
 
-        let typ = Type::Array(bytes_as_expr.len() as u32, Box::new(int_type));
-
+        let typ = Type::Slice(Box::new(int_type));
         let arr_literal = ArrayLiteral { typ, contents: bytes_as_expr };
-        Expression::Literal(Literal::Array(arr_literal))
+        Expression::Literal(Literal::Slice(arr_literal))
     }
 
     fn queue_function(

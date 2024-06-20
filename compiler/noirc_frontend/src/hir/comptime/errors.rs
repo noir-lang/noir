@@ -36,7 +36,7 @@ pub enum InterpreterError {
     CannotInlineMacro { value: Value, location: Location },
     UnquoteFoundDuringEvaluation { location: Location },
 
-    Unimplemented { item: &'static str, location: Location },
+    Unimplemented { item: String, location: Location },
 
     // Perhaps this should be unreachable! due to type checking also preventing this error?
     // Currently it and the Continue variant are the only interpreter errors without a Location field

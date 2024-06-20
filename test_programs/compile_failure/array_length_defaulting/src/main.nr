@@ -1,5 +1,5 @@
 fn main() {
-    let x = dep::std::unsafe_func::zeroed();
+    let x = std::unsafe_func::zeroed();
     foo(x);
 }
 

@@ -1,4 +1,4 @@
-use dep::std::test::OracleMock;
+use std::test::OracleMock;
 
 struct Point {
     x: Field,

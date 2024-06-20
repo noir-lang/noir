@@ -1,37 +1,123 @@
 use std::collections::BTreeMap;
 
 use acvm::acir::circuit::ErrorSelector;
-use acvm::acir::native_types::Witness;
-use iter_extended::{btree_map, vecmap};
-use noirc_abi::{Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue};
-use noirc_frontend::ast::Visibility;
+use acvm::AcirField;
+use iter_extended::vecmap;
+use noirc_abi::{
+    Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue, AbiVisibility, Sign,
+};
+use noirc_frontend::ast::{Signedness, Visibility};
 use noirc_frontend::{
     hir::Context,
     hir_def::{expr::HirArrayLiteral, function::Param, stmt::HirPattern, types::Type},
     macros_api::{HirExpression, HirLiteral},
     node_interner::{FuncId, NodeInterner},
 };
-use std::ops::Range;
+use noirc_frontend::{TypeBinding, TypeVariableKind};
 
 /// Arranges a function signature and a generated circuit's return witnesses into a
 /// `noirc_abi::Abi`.
 pub(super) fn gen_abi(
     context: &Context,
     func_id: &FuncId,
-    input_witnesses: Vec<Witness>,
-    return_witnesses: Vec<Witness>,
     return_visibility: Visibility,
     error_types: BTreeMap<ErrorSelector, Type>,
 ) -> Abi {
     let (parameters, return_type) = compute_function_abi(context, func_id);
-    let param_witnesses = param_witnesses_from_abi_param(&parameters, input_witnesses);
-    let return_type = return_type
-        .map(|typ| AbiReturnType { abi_type: typ, visibility: return_visibility.into() });
+    let return_type = return_type.map(|typ| AbiReturnType {
+        abi_type: typ,
+        visibility: to_abi_visibility(return_visibility),
+    });
     let error_types = error_types
         .into_iter()
-        .map(|(selector, typ)| (selector, AbiErrorType::from_type(context, &typ)))
+        .map(|(selector, typ)| (selector, build_abi_error_type(context, &typ)))
         .collect();
-    Abi { parameters, return_type, param_witnesses, return_witnesses, error_types }
+    Abi { parameters, return_type, error_types }
+}
+
+fn build_abi_error_type(context: &Context, typ: &Type) -> AbiErrorType {
+    match typ {
+        Type::FmtString(len, item_types) => {
+            let length = len.evaluate_to_u32().expect("Cannot evaluate fmt length");
+            let Type::Tuple(item_types) = item_types.as_ref() else {
+                unreachable!("FmtString items must be a tuple")
+            };
+            let item_types =
+                item_types.iter().map(|typ| abi_type_from_hir_type(context, typ)).collect();
+            AbiErrorType::FmtString { length, item_types }
+        }
+        _ => AbiErrorType::Custom(abi_type_from_hir_type(context, typ)),
+    }
+}
+
+pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
+    match typ {
+        Type::FieldElement => AbiType::Field,
+        Type::Array(size, typ) => {
+            let length = size
+                .evaluate_to_u32()
+                .expect("Cannot have variable sized arrays as a parameter to main");
+            let typ = typ.as_ref();
+            AbiType::Array { length, typ: Box::new(abi_type_from_hir_type(context, typ)) }
+        }
+        Type::Integer(sign, bit_width) => {
+            let sign = match sign {
+                Signedness::Unsigned => Sign::Unsigned,
+                Signedness::Signed => Sign::Signed,
+            };
+
+            AbiType::Integer { sign, width: (*bit_width).into() }
+        }
+        Type::TypeVariable(binding, TypeVariableKind::IntegerOrField)
+        | Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
+            TypeBinding::Bound(typ) => abi_type_from_hir_type(context, typ),
+            TypeBinding::Unbound(_) => {
+                abi_type_from_hir_type(context, &Type::default_int_or_field_type())
+            }
+        },
+        Type::Bool => AbiType::Boolean,
+        Type::String(size) => {
+            let size = size
+                .evaluate_to_u32()
+                .expect("Cannot have variable sized strings as a parameter to main");
+            AbiType::String { length: size }
+        }
+
+        Type::Struct(def, args) => {
+            let struct_type = def.borrow();
+            let fields = struct_type.get_fields(args);
+            let fields =
+                vecmap(fields, |(name, typ)| (name, abi_type_from_hir_type(context, &typ)));
+            // For the ABI, we always want to resolve the struct paths from the root crate
+            let path = context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
+            AbiType::Struct { fields, path }
+        }
+        Type::Alias(def, args) => abi_type_from_hir_type(context, &def.borrow().get_type(args)),
+        Type::Tuple(fields) => {
+            let fields = vecmap(fields, |typ| abi_type_from_hir_type(context, typ));
+            AbiType::Tuple { fields }
+        }
+        Type::Error
+        | Type::Unit
+        | Type::Constant(_)
+        | Type::TraitAsType(..)
+        | Type::TypeVariable(_, _)
+        | Type::NamedGeneric(..)
+        | Type::Forall(..)
+        | Type::Quoted(_)
+        | Type::Slice(_)
+        | Type::Function(_, _, _) => unreachable!("{typ} cannot be used in the abi"),
+        Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
+        Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
+    }
+}
+
+fn to_abi_visibility(value: Visibility) -> AbiVisibility {
+    match value {
+        Visibility::Public => AbiVisibility::Public,
+        Visibility::Private => AbiVisibility::Private,
+        Visibility::DataBus => AbiVisibility::DataBus,
+    }
 }
 
 pub(super) fn compute_function_abi(
@@ -42,7 +128,7 @@ pub(super) fn compute_function_abi(
 
     let (parameters, return_type) = func_meta.function_signature();
     let parameters = into_abi_params(context, parameters);
-    let return_type = return_type.map(|typ| AbiType::from_type(context, &typ));
+    let return_type = return_type.map(|typ| abi_type_from_hir_type(context, &typ));
     (parameters, return_type)
 }
 
@@ -62,58 +148,9 @@ fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiParameter> {
         let param_name = get_param_name(&pattern, &context.def_interner)
             .expect("Abi for tuple and struct parameters is unimplemented")
             .to_owned();
-        let as_abi = AbiType::from_type(context, &typ);
-        AbiParameter { name: param_name, typ: as_abi, visibility: vis.into() }
+        let as_abi = abi_type_from_hir_type(context, &typ);
+        AbiParameter { name: param_name, typ: as_abi, visibility: to_abi_visibility(vis) }
     })
-}
-
-// Takes each abi parameter and shallowly maps to the expected witness range in which the
-// parameter's constituent values live.
-fn param_witnesses_from_abi_param(
-    abi_params: &[AbiParameter],
-    input_witnesses: Vec<Witness>,
-) -> BTreeMap<String, Vec<Range<Witness>>> {
-    let mut idx = 0_usize;
-    if input_witnesses.is_empty() {
-        return BTreeMap::new();
-    }
-
-    btree_map(abi_params, |param| {
-        let num_field_elements_needed = param.typ.field_count() as usize;
-        let param_witnesses = &input_witnesses[idx..idx + num_field_elements_needed];
-
-        // It's likely that `param_witnesses` will consist of mostly incrementing witness indices.
-        // We then want to collapse these into `Range`s to save space.
-        let param_witnesses = collapse_ranges(param_witnesses);
-        idx += num_field_elements_needed;
-        (param.name.clone(), param_witnesses)
-    })
-}
-
-/// Takes a vector of [`Witnesses`][`Witness`] and collapses it into a vector of [`Range`]s of [`Witnesses`][`Witness`].
-fn collapse_ranges(witnesses: &[Witness]) -> Vec<Range<Witness>> {
-    if witnesses.is_empty() {
-        return Vec::new();
-    }
-    let mut wit = Vec::new();
-    let mut last_wit: Witness = witnesses[0];
-
-    for (i, witness) in witnesses.iter().enumerate() {
-        if i == 0 {
-            continue;
-        };
-        let witness_index = witness.witness_index();
-        let prev_witness_index = witnesses[i - 1].witness_index();
-        if witness_index != prev_witness_index + 1 {
-            wit.push(last_wit..Witness(prev_witness_index + 1));
-            last_wit = *witness;
-        };
-    }
-
-    let last_witness = witnesses.last().unwrap().witness_index();
-    wit.push(last_wit..Witness(last_witness + 1));
-
-    wit
 }
 
 pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpression) -> AbiValue {
@@ -161,46 +198,9 @@ pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpres
             },
             HirLiteral::Bool(value) => AbiValue::Boolean { value },
             HirLiteral::Str(value) => AbiValue::String { value },
-            HirLiteral::Integer(field, sign) => {
-                AbiValue::Integer { value: field.to_string(), sign }
-            }
+            HirLiteral::Integer(field, sign) => AbiValue::Integer { value: field.to_hex(), sign },
             _ => unreachable!("Literal cannot be used in the abi"),
         },
         _ => unreachable!("Type cannot be used in the abi {:?}", expression),
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use std::ops::Range;
-
-    use acvm::acir::native_types::Witness;
-
-    use super::collapse_ranges;
-
-    #[test]
-    fn collapses_single_range() {
-        let witnesses: Vec<_> = vec![1, 2, 3].into_iter().map(Witness::from).collect();
-
-        let collapsed_witnesses = collapse_ranges(&witnesses);
-
-        assert_eq!(collapsed_witnesses, vec![Range { start: Witness(1), end: Witness(4) },]);
-    }
-
-    #[test]
-    fn collapse_ranges_correctly() {
-        let witnesses: Vec<_> =
-            vec![1, 2, 3, 5, 6, 2, 3, 4].into_iter().map(Witness::from).collect();
-
-        let collapsed_witnesses = collapse_ranges(&witnesses);
-
-        assert_eq!(
-            collapsed_witnesses,
-            vec![
-                Range { start: Witness(1), end: Witness(4) },
-                Range { start: Witness(5), end: Witness(7) },
-                Range { start: Witness(2), end: Witness(5) }
-            ]
-        );
     }
 }

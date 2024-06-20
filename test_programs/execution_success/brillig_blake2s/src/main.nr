@@ -1,4 +1,3 @@
-use dep::std;
 // Tests a very simple program.
 // 
 // The features being tested is blake2s in brillig

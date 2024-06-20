@@ -1,4 +1,3 @@
-use dep::std;
 // Tests a very simple program.
 // 
 // The features being tested is hash_to_field in brillig

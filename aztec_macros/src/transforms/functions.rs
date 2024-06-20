@@ -216,12 +216,30 @@ pub fn export_fn_abi(
 ///
 /// Inserts the following code at the beginning of an unconstrained function
 /// ```noir
-/// let storage = Storage::init(Context::none());
+/// let context = UnconstrainedContext::new();
+/// let storage = Storage::init(context);
 /// ```
 ///
 /// This will allow developers to access their contract' storage struct in unconstrained functions
 pub fn transform_unconstrained(func: &mut NoirFunction, storage_struct_name: String) {
+    // let context = UnconstrainedContext::new();
+    let let_context = assignment(
+        "context", // Assigned to
+        call(
+            variable_path(chained_dep!(
+                "aztec",
+                "context",
+                "unconstrained_context",
+                "UnconstrainedContext",
+                "new"
+            )),
+            vec![],
+        ),
+    );
+
+    // We inject the statements at the beginning, in reverse order.
     func.def.body.statements.insert(0, abstract_storage(storage_struct_name, true));
+    func.def.body.statements.insert(0, let_context);
 }
 
 /// Helper function that returns what the private context would look like in the ast
@@ -597,7 +615,7 @@ fn abstract_return_values(func: &NoirFunction) -> Result<Option<Vec<Statement>>,
 /// ```noir
 /// #[aztec(private)]
 /// fn lol() {
-///     let storage = Storage::init(context);
+///     let storage = Storage::init(&mut context);
 /// }
 /// ```
 ///
@@ -605,22 +623,18 @@ fn abstract_return_values(func: &NoirFunction) -> Result<Option<Vec<Statement>>,
 /// ```noir
 /// #[aztec(public)]
 /// fn lol() {
-///    let storage = Storage::init(context);
+///    let storage = Storage::init(&mut context);
 /// }
 /// ```
 ///
 /// For unconstrained functions:
 /// ```noir
 /// unconstrained fn lol() {
-///   let storage = Storage::init(());
+///   let storage = Storage::init(context);
 /// }
 fn abstract_storage(storage_struct_name: String, unconstrained: bool) -> Statement {
-    let context_expr = if unconstrained {
-        // Note that the literal unit type (i.e. '()') is not the same as a tuple with zero elements
-        expression(ExpressionKind::Literal(Literal::Unit))
-    } else {
-        mutable_reference("context")
-    };
+    let context_expr =
+        if unconstrained { variable("context") } else { mutable_reference("context") };
 
     assignment(
         "storage", // Assigned to

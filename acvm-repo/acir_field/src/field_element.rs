@@ -174,10 +174,6 @@ impl<F: PrimeField> FieldElement<F> {
         self.0
     }
 
-    fn is_negative(&self) -> bool {
-        self.neg().num_bits() < self.num_bits()
-    }
-
     fn fits_in_u128(&self) -> bool {
         self.num_bits() <= 128
     }
@@ -195,15 +191,6 @@ impl<F: PrimeField> FieldElement<F> {
         Some(FieldElement(fr))
     }
 
-    // mask_to methods will not remove any bytes from the field
-    // they are simply zeroed out
-    // Whereas truncate_to will remove those bits and make the byte array smaller
-    fn mask_to_be_bytes(&self, num_bits: u32) -> Vec<u8> {
-        let mut bytes = self.to_be_bytes();
-        mask_vector_le(&mut bytes, num_bits as usize);
-        bytes
-    }
-
     fn bits(&self) -> Vec<bool> {
         fn byte_to_bit(byte: u8) -> Vec<bool> {
             let mut bits = Vec::with_capacity(8);
@@ -219,29 +206,6 @@ impl<F: PrimeField> FieldElement<F> {
             bits.extend(byte_to_bit(byte));
         }
         bits
-    }
-
-    fn and_xor(&self, rhs: &FieldElement<F>, num_bits: u32, is_xor: bool) -> FieldElement<F> {
-        // XXX: Gadgets like SHA256 need to have their input be a multiple of 8
-        // This is not a restriction caused by SHA256, as it works on bits
-        // but most backends assume bytes.
-        // We could implicitly pad, however this may not be intuitive for users.
-        // assert!(
-        //     num_bits % 8 == 0,
-        //     "num_bits is not a multiple of 8, it is {}",
-        //     num_bits
-        // );
-
-        let lhs_bytes = self.mask_to_be_bytes(num_bits);
-        let rhs_bytes = rhs.mask_to_be_bytes(num_bits);
-
-        let and_byte_arr: Vec<_> = lhs_bytes
-            .into_iter()
-            .zip(rhs_bytes)
-            .map(|(lhs, rhs)| if is_xor { lhs ^ rhs } else { lhs & rhs })
-            .collect();
-
-        FieldElement::from_be_bytes_reduce(&and_byte_arr)
     }
 }
 
@@ -310,7 +274,10 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     }
 
     fn to_i128(self) -> i128 {
-        let is_negative = self.is_negative();
+        // Negative integers are represented by the range [p + i128::MIN, p) whilst
+        // positive integers are represented by the range [0, i128::MAX).
+        // We can then differentiate positive from negative values by their MSB.
+        let is_negative = self.neg().num_bits() < self.num_bits();
         let bytes = if is_negative { self.neg() } else { self }.to_be_bytes();
         i128::from_be_bytes(bytes[16..32].try_into().unwrap()) * if is_negative { -1 } else { 1 }
     }
@@ -376,13 +343,6 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
 
         bytes[0..num_elements].to_vec()
     }
-
-    fn and(&self, rhs: &FieldElement<F>, num_bits: u32) -> FieldElement<F> {
-        self.and_xor(rhs, num_bits, false)
-    }
-    fn xor(&self, rhs: &FieldElement<F>, num_bits: u32) -> FieldElement<F> {
-        self.and_xor(rhs, num_bits, true)
-    }
 }
 
 impl<F: PrimeField> Neg for FieldElement<F> {
@@ -433,35 +393,6 @@ impl<F: PrimeField> SubAssign for FieldElement<F> {
     }
 }
 
-fn mask_vector_le(bytes: &mut [u8], num_bits: usize) {
-    // reverse to big endian format
-    bytes.reverse();
-
-    let mask_power = num_bits % 8;
-    let array_mask_index = num_bits / 8;
-
-    for (index, byte) in bytes.iter_mut().enumerate() {
-        match index.cmp(&array_mask_index) {
-            std::cmp::Ordering::Less => {
-                // do nothing if the current index is less than
-                // the array index.
-            }
-            std::cmp::Ordering::Equal => {
-                let mask = 2u8.pow(mask_power as u32) - 1;
-                // mask the byte
-                *byte &= mask;
-            }
-            std::cmp::Ordering::Greater => {
-                // Anything greater than the array index
-                // will be set to zero
-                *byte = 0;
-            }
-        }
-    }
-    // reverse back to little endian
-    bytes.reverse();
-}
-
 // For pretty printing powers
 fn superscript(n: u64) -> String {
     if n == 0 {
@@ -494,19 +425,7 @@ fn superscript(n: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::{AcirField, FieldElement};
-
-    #[test]
-    fn and() {
-        let max = 10_000u32;
-
-        let num_bits = (std::mem::size_of::<u32>() * 8) as u32 - max.leading_zeros();
-
-        for x in 0..max {
-            let x = FieldElement::<ark_bn254::Fr>::from(x as i128);
-            let res = x.and(&x, num_bits);
-            assert_eq!(res.to_be_bytes(), x.to_be_bytes());
-        }
-    }
+    use proptest::prelude::*;
 
     #[test]
     fn serialize_fixed_test_vectors() {
@@ -525,23 +444,35 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_even_and_odd_length_hex() {
-        // Test cases of (odd, even) length hex strings
-        let hex_strings =
-            vec![("0x0", "0x00"), ("0x1", "0x01"), ("0x002", "0x0002"), ("0x00003", "0x000003")];
-        for (i, case) in hex_strings.into_iter().enumerate() {
-            let i_field_element = FieldElement::<ark_bn254::Fr>::from(i as i128);
-            let odd_field_element = FieldElement::<ark_bn254::Fr>::from_hex(case.0).unwrap();
-            let even_field_element = FieldElement::<ark_bn254::Fr>::from_hex(case.1).unwrap();
-
-            assert_eq!(i_field_element, odd_field_element);
-            assert_eq!(odd_field_element, even_field_element);
-        }
-    }
-
-    #[test]
     fn max_num_bits_smoke() {
         let max_num_bits_bn254 = FieldElement::<ark_bn254::Fr>::max_num_bits();
         assert_eq!(max_num_bits_bn254, 254);
+    }
+
+    proptest! {
+        // This currently panics due to the fact that we allow inputs which are greater than the field modulus,
+        // automatically reducing them to fit within the canonical range.
+        #[test]
+        #[should_panic(expected = "serialized field element is not equal to input")]
+        fn recovers_original_hex_string(hex in "[0-9a-f]{64}") {
+            let fe: FieldElement::<ark_bn254::Fr> = FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string");
+            let output_hex = fe.to_hex();
+
+            prop_assert_eq!(hex, output_hex, "serialized field element is not equal to input");
+        }
+
+        #[test]
+        fn accepts_odd_length_hex_strings(hex in "(?:0x)[0-9a-fA-F]+") {
+            // Here we inject a "0" immediately after the "0x" (if it exists) to construct an equivalent
+            // hex string with the opposite parity length.
+            let insert_index = if hex.starts_with("0x") { 2 } else { 0 };
+            let mut opposite_parity_string = hex.to_string();
+            opposite_parity_string.insert(insert_index, '0');
+
+            let fe_1: FieldElement::<ark_bn254::Fr> = FieldElement::from_hex(&hex).unwrap();
+            let fe_2: FieldElement::<ark_bn254::Fr> = FieldElement::from_hex(&opposite_parity_string).unwrap();
+
+            prop_assert_eq!(fe_1, fe_2, "equivalent hex strings with opposite parity deserialized to different values");
+        }
     }
 }

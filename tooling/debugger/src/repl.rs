@@ -5,9 +5,10 @@ use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap};
 use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
+use nargo::NargoError;
 
 use crate::foreign_calls::DefaultDebugForeignCallExecutor;
-use nargo::{artifacts::debug::DebugArtifact, NargoError};
+use noirc_artifacts::debug::DebugArtifact;
 
 use easy_repl::{command, CommandStatus, Repl};
 use noirc_printable_type::PrintableValueDisplay;
@@ -382,7 +383,7 @@ pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
     debug_artifact: &DebugArtifact,
     initial_witness: WitnessMap<FieldElement>,
     unconstrained_functions: &[BrilligBytecode<FieldElement>],
-) -> Result<Option<WitnessMap<FieldElement>>, NargoError> {
+) -> Result<Option<WitnessMap<FieldElement>>, NargoError<FieldElement>> {
     let context = RefCell::new(ReplDebugger::new(
         blackbox_solver,
         circuit,

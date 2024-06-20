@@ -10,9 +10,9 @@ use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use codespan_reporting::files::{Files, SimpleFile};
 use fm::FileId;
-use nargo::artifacts::debug::{DebugArtifact, StackFrame};
 use nargo::errors::{ExecutionError, Location};
 use nargo::NargoError;
+use noirc_artifacts::debug::{DebugArtifact, StackFrame};
 use noirc_driver::DebugFile;
 
 use std::collections::BTreeMap;
@@ -23,7 +23,7 @@ pub(super) enum DebugCommandResult {
     Done,
     Ok,
     BreakpointReached(OpcodeLocation),
-    Error(NargoError),
+    Error(NargoError<FieldElement>),
 }
 
 pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
@@ -296,7 +296,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                 self.handle_foreign_call(foreign_call)
             }
             Err(err) => DebugCommandResult::Error(NargoError::ExecutionError(
-                // TODO: debugger does not not handle multiple acir calls
+                // TODO: debugger does not handle multiple acir calls
                 ExecutionError::SolvingError(err, None),
             )),
         }
@@ -340,7 +340,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                 }
             }
             ACVMStatus::Failure(error) => DebugCommandResult::Error(NargoError::ExecutionError(
-                // TODO: debugger does not not handle multiple acir calls
+                // TODO: debugger does not handle multiple acir calls
                 ExecutionError::SolvingError(error, None),
             )),
             ACVMStatus::RequiresForeignCall(_) => {
@@ -482,11 +482,11 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn get_variables(&self) -> Vec<StackFrame> {
+    pub(super) fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
         return self.foreign_call_executor.get_variables();
     }
 
-    pub(super) fn current_stack_frame(&self) -> Option<StackFrame> {
+    pub(super) fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>> {
         return self.foreign_call_executor.current_stack_frame();
     }
 
