@@ -565,12 +565,12 @@ impl<'context> Elaborator<'context> {
     fn resolve_trait_bound(&mut self, bound: &TraitBound, typ: Type) -> Option<TraitConstraint> {
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
 
-        let resolved_generics = &the_trait.generics;
+        let resolved_generics = &the_trait.generics.clone();
         assert_eq!(resolved_generics.len(), bound.trait_generics.len());
-        let trait_generics = vecmap(
-            resolved_generics.clone().iter().zip(&bound.trait_generics),
-            |(resolved_generic, typ)| self.resolve_type_inner(typ.clone(), &resolved_generic.kind),
-        );
+        let generics_with_types = resolved_generics.iter().zip(&bound.trait_generics);
+        let trait_generics = vecmap(generics_with_types, |(generic, typ)| {
+            self.resolve_type_inner(typ.clone(), &generic.kind)
+        });
 
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
         let trait_id = the_trait.id;
@@ -1184,12 +1184,12 @@ impl<'context> Elaborator<'context> {
                         if found_generic == generic.name.as_str() {
                             // TODO: might need the actual type here
                             generic.kind = Kind::Numeric { typ: Box::new(Type::FieldElement) };
-                            
-                            let ident = Ident::new(generic.name.to_string(), generic.span); 
+
+                            let ident = Ident::new(generic.name.to_string(), generic.span);
                             self.errors.push((
-                                CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric {
-                                    ident,
-                                }),
+                                CompilationError::ResolverError(
+                                    ResolverError::UseExplicitNumericGeneric { ident },
+                                ),
                                 self.file,
                             ));
 

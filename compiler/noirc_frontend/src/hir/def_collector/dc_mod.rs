@@ -312,9 +312,13 @@ impl<'a> ModCollector<'a> {
 
             // Create the corresponding module for the struct namespace
             let id = match self.push_child_module(&name, self.file_id, false, false) {
-                Ok(local_id) => {
-                    context.def_interner.new_struct(&unresolved, resolved_generics, krate, local_id, self.file_id)
-                }
+                Ok(local_id) => context.def_interner.new_struct(
+                    &unresolved,
+                    resolved_generics,
+                    krate,
+                    local_id,
+                    self.file_id,
+                ),
                 Err(error) => {
                     definition_errors.push((error.into(), self.file_id));
                     continue;
@@ -358,7 +362,8 @@ impl<'a> ModCollector<'a> {
                 type_alias_def: type_alias,
             };
             let resolved_generics = context.resolve_generics(&unresolved.type_alias_def.generics);
-            let type_alias_id = context.def_interner.push_type_alias(&unresolved, resolved_generics);
+            let type_alias_id =
+                context.def_interner.push_type_alias(&unresolved, resolved_generics);
 
             // Add the type alias to scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]

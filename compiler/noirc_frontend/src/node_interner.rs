@@ -547,7 +547,12 @@ impl NodeInterner {
         self.definition_to_type.insert(definition_id, typ);
     }
 
-    pub fn push_empty_trait(&mut self, type_id: TraitId, unresolved_trait: &UnresolvedTrait, generics: Generics) {
+    pub fn push_empty_trait(
+        &mut self,
+        type_id: TraitId,
+        unresolved_trait: &UnresolvedTrait,
+        generics: Generics,
+    ) {
         let self_type_typevar_id = self.next_type_variable_id();
 
         let new_trait = Trait {
@@ -588,7 +593,11 @@ impl NodeInterner {
         struct_id
     }
 
-    pub fn push_type_alias(&mut self, typ: &UnresolvedTypeAlias, generics: Generics) -> TypeAliasId {
+    pub fn push_type_alias(
+        &mut self,
+        typ: &UnresolvedTypeAlias,
+        generics: Generics,
+    ) -> TypeAliasId {
         let type_id = TypeAliasId(self.type_aliases.len());
 
         self.type_aliases.push(Shared::new(TypeAlias::new(

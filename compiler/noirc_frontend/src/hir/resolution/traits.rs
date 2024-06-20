@@ -17,8 +17,7 @@ use crate::{
     },
     hir_def::traits::{TraitConstant, TraitFunction, TraitImpl, TraitType},
     node_interner::{FuncId, NodeInterner, TraitId},
-    Shared, Type, TypeVariableKind,
-    GenericTypeVars
+    GenericTypeVars, Shared, Type, TypeVariableKind,
 };
 
 use super::{
@@ -51,8 +50,13 @@ pub(crate) fn resolve_traits(
         // 2. Trait Constants ( Trait's methods can use trait types & constants, therefore they should be after)
         let _ = resolve_trait_constants(context, crate_id, &unresolved_trait);
         // 3. Trait Methods
-        let (methods, errors) =
-            resolve_trait_methods(context, trait_id, crate_id, &unresolved_trait, &generic_type_vars);
+        let (methods, errors) = resolve_trait_methods(
+            context,
+            trait_id,
+            crate_id,
+            &unresolved_trait,
+            &generic_type_vars,
+        );
 
         all_errors.extend(errors);
 
