@@ -181,15 +181,19 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        match self.lookup(path) {
+        match self.lookup(path.clone()) {
             Ok(struct_id) => {
                 let struct_type = self.get_struct(struct_id);
                 let generics = struct_type.borrow().instantiate(self.interner);
                 Some(Type::Struct(struct_type, generics))
             }
             Err(error) => {
-                self.push_err(error);
-                None
+                if let Some(type_alias) = self.lookup_type_alias(path) {
+                    Some(type_alias.borrow().typ.clone())
+                } else {
+                    self.push_err(error);
+                    None
+                }
             }
         }
     }
