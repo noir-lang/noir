@@ -109,20 +109,15 @@ describe('can verify recursive proofs', () => {
       innerProof2,
       numPubInputs + 1 + 16, // +1 for public return +16 for hidden aggregation object
     );
+    console.log('innerProof2.publicInputs length = ', innerProof2.publicInputs.length);
     console.log('artifacts2.proof length = ', artifacts2.proofAsFields.length);
-    console.log('pub = ', innerProof2.publicInputs);
-    console.log('proof = ', artifacts2.proofAsFields);
-
-    pub_inputs.push(returnValue.toString()); // leaf returns sum
-    const pub_inputs2 = innerProof2.publicInputs.slice(0, 4); // take only public inputs
-    const proof2 = [...innerProof2.publicInputs.slice(4), ...artifacts2.proofAsFields]; // prepend 16 agg values to 93 proof (total 109)
 
     // Generate outer proof artifacts (S3: verify 4+5=9)
     outerParams = {
       verification_key: artifacts2.vkAsFields,
-      public_inputs: pub_inputs2,
+      public_inputs: innerProof2.publicInputs, // 20 = 4 public inputs + 16 aggregation bytes,
       key_hash: artifacts2.vkHash,
-      proof: proof2, // the proof size of a function that verifies another proof was expected to be 109 bytes, but was still 93
+      proof: artifacts2.proofAsFields, // 93 = 109 - 16 aggregation bytes in public inputs
     };
   });
 
