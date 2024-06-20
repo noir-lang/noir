@@ -6,7 +6,6 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
 use fm::FileManager;
-use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::CompileError;
 use nargo::ops::{compile_program, compile_program_with_debug_instrumenter, report_errors};
@@ -16,6 +15,7 @@ use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
+use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
 };

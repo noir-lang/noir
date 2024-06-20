@@ -10,9 +10,9 @@ use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use codespan_reporting::files::{Files, SimpleFile};
 use fm::FileId;
-use nargo::artifacts::debug::{DebugArtifact, StackFrame};
 use nargo::errors::{ExecutionError, Location};
 use nargo::NargoError;
+use noirc_artifacts::debug::{DebugArtifact, StackFrame};
 use noirc_driver::DebugFile;
 
 use std::collections::BTreeMap;

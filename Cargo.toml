@@ -15,11 +15,13 @@ members = [
     # Crates related to tooling built on top of the Noir compiler
     "tooling/lsp",
     "tooling/debugger",
+    "tooling/fuzzer",
     "tooling/tracer",
     "tooling/nargo",
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
+    "tooling/noirc_artifacts",
     "tooling/noirc_abi",
     "tooling/noirc_abi_wasm",
     "tooling/acvm_cli",
@@ -69,6 +71,7 @@ noirc_frontend = { path = "compiler/noirc_frontend" }
 noirc_printable_type = { path = "compiler/noirc_printable_type" }
 
 # Noir tooling workspace dependencies
+noir_fuzzer = { path = "tooling/fuzzer" }
 nargo = { path = "tooling/nargo" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_toml = { path = "tooling/nargo_toml" }
@@ -76,6 +79,7 @@ noir_lsp = { path = "tooling/lsp" }
 noir_debugger = { path = "tooling/debugger" }
 noir_tracer = { path = "tooling/tracer" }
 noirc_abi = { path = "tooling/noirc_abi" }
+noirc_artifacts = { path = "tooling/noirc_artifacts" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
 acvm_cli = { path = "tooling/acvm_cli" }
 

@@ -13,7 +13,7 @@ use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
-use nargo::artifacts::debug::DebugArtifact;
+use noirc_artifacts::debug::DebugArtifact;
 
 use nargo::NargoError;
 use noirc_driver::CompiledProgram;

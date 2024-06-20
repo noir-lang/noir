@@ -319,13 +319,12 @@ mod tests {
     use crate::uint128::{U128, pow64, pow63};
 
     #[test]
-    fn test_not() {
-        let num = U128::from_u64s_le(0, 0);
+    fn test_not(lo: u64, hi: u64) {
+        let num = U128::from_u64s_le(lo, hi);
         let not_num = num.not();
 
-        let max_u64: Field = pow64 - 1;
-        assert_eq(not_num.hi, max_u64);
-        assert_eq(not_num.lo, max_u64);
+        assert_eq(not_num.hi, (hi.not() as Field));
+        assert_eq(not_num.lo, (lo.not() as Field));
 
         let not_not_num = not_num.not();
         assert_eq(num, not_not_num);
@@ -493,6 +492,15 @@ mod tests {
         let end = a.to_integer();
         assert_eq(start, end);
     }
+
+    #[test]
+    fn integer_conversions_fuzz(lo: u64, hi: u64) {
+        let start: Field = (lo as Field) + pow64 * (hi as Field);
+        let a = U128::from_integer(start);
+        let end = a.to_integer();
+        assert_eq(start, end);
+    }
+
     #[test]
     fn test_wrapping_mul() {
         // 1*0==0

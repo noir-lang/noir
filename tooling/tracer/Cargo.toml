@@ -12,3 +12,4 @@ repository.workspace = true
 acvm.workspace = true
 nargo.workspace = true
 noir_debugger.workspace = true
+noirc_artifacts.workspace = true

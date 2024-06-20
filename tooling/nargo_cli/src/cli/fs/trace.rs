@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use nargo::artifacts::trace::TraceArtifact;
+use noirc_artifacts::trace::TraceArtifact;
 
 use crate::errors::FilesystemError;
 

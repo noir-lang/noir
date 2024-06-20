@@ -24,7 +24,7 @@ use dap::types::{
     Breakpoint, DisassembledInstruction, Scope, Source, StackFrame, SteppingGranularity,
     StoppedEventReason, Thread, Variable,
 };
-use nargo::artifacts::debug::DebugArtifact;
+use noirc_artifacts::debug::DebugArtifact;
 
 use fm::FileId;
 use noirc_driver::CompiledProgram;

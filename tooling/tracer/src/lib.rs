@@ -5,8 +5,8 @@ use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
 
-use nargo::artifacts::debug::DebugArtifact;
 use noir_debugger::foreign_calls::DefaultDebugForeignCallExecutor;
+use noirc_artifacts::debug::DebugArtifact;
 
 use nargo::NargoError;
 
