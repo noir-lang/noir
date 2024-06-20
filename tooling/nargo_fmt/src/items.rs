@@ -97,7 +97,7 @@ impl<'me, T> Items<'me, T> {
     pub(crate) fn trailing(&mut self, start: u32, end: u32, is_last: bool) -> String {
         let slice = self.visitor.slice(start..end);
         let comment_end = find_comment_end(slice, is_last);
-        let trailing = slice[..comment_end].trim_start_matches(',').trim();
+        let trailing = slice[..comment_end].trim_matches(',').trim();
         self.last_position = start + (comment_end as u32);
         trailing.to_string()
     }
