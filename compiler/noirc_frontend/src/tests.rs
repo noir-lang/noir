@@ -95,10 +95,6 @@ pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
     get_program(src, false).2
 }
 
-pub(crate) fn get_program_errors_elaborator(src: &str) -> Vec<(CompilationError, FileId)> {
-    get_program(src, false).2
-}
-
 #[test]
 fn check_trait_implemented_for_all_t() {
     let src = "
@@ -1467,7 +1463,7 @@ fn struct_numeric_generic() {
 
     fn bar<let N: Foo>() { }
     "#;
-    let errors = get_program_errors_elaborator(src);
+    let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
@@ -1486,7 +1482,7 @@ fn bool_numeric_generic() {
         }
     }
     "#;
-    let errors = get_program_errors_elaborator(src);
+    let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
@@ -1503,7 +1499,7 @@ fn numeric_generic_binary_operation_type_mismatch() {
         check
     }   
     "#;
-    let errors = get_program_errors_elaborator(src);
+    let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
@@ -1522,7 +1518,7 @@ fn bool_generic_as_loop_bound() {
         assert(fields[0] == 1);
     }
     "#;
-    let errors = get_program_errors_elaborator(src);
+    let errors = get_program_errors(src);
     assert_eq!(errors.len(), 2);
 
     assert!(matches!(
@@ -1546,7 +1542,7 @@ fn numeric_generic_in_function_signature() {
     let src = r#"
     fn foo<let N: u8>(arr: [Field; N]) -> [Field; N] { arr }
     "#;
-    let errors = get_program_errors_elaborator(src);
+    let errors = get_program_errors(src);
     assert!(errors.is_empty());
 }
 
@@ -1558,7 +1554,7 @@ fn numeric_generic_as_struct_field_type() {
         b: N,
     }
     "#;
-    let errors = get_program_errors_elaborator(src);
+    let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
@@ -1574,7 +1570,7 @@ fn numeric_generic_as_param_type() {
         x
     }
     "#;
-    let errors = get_program_errors_elaborator(src);
+    let errors = get_program_errors(src);
     assert_eq!(errors.len(), 3);
     // Error from the parameter type
     assert!(matches!(
@@ -1604,7 +1600,7 @@ fn numeric_generic_used_in_nested_type_fail() {
         inner: N
     }
     "#;
-    let errors = get_program_errors_elaborator(src);
+    let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
@@ -1625,7 +1621,7 @@ fn numeric_generic_used_in_nested_type_pass() {
         inner: [u64; N],
     }    
     "#;
-    let errors = get_program_errors_elaborator(src);
+    let errors = get_program_errors(src);
     assert!(errors.is_empty());
 }
 
@@ -1649,7 +1645,7 @@ fn numeric_generic_used_in_trait() {
         fn deserialize(fields: [Field; N], other: T) -> Self;
     }
     "#;
-    let errors = get_program_errors_elaborator(src);
+    let errors = get_program_errors(src);
     // We want to make sure that `N` in `impl<let N: u64, T> Deserialize<N, T>` does
     // not trigger `expected type, found numeric generic parameter N` as the trait
     // does in fact expect a numeric generic.
@@ -1670,7 +1666,10 @@ fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
         d: T,
     }
     
-    // Make sure that `T` is placed before `N` as we want to test the order is correctly maintained
+    // Make sure that `T` is placed before `N` as we want to test that the order of the generics is correctly maintained.
+    // `N` is used first in the trait impl generics (`Deserialize<N> for MyType<T>`).
+    // We want to make sure that the compiler correctly accounts for that `N` has a numeric kind
+    // while `T` has a normal kind. 
     impl<T, let N: u64> Deserialize<N> for MyType<T> where T: Default {
         fn deserialize(fields: [Field; N]) -> Self {
             MyType { a: fields[0], b: fields[1], c: fields[2], d: T::default() }
@@ -1681,7 +1680,7 @@ fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
         fn deserialize(fields: [Field; N]) -> Self;
     }
     "#;
-    let errors = get_program_errors_elaborator(src);
+    let errors = get_program_errors(src);
     assert!(errors.is_empty());
 }
 
@@ -1701,7 +1700,7 @@ fn numeric_generic_used_in_where_clause() {
         T::deserialize(fields)
     }
     "#;
-    let errors = get_program_errors_elaborator(src);
+    let errors = get_program_errors(src);
     assert!(errors.is_empty());
 }
 
@@ -1729,7 +1728,7 @@ fn implicit_numeric_generics_elaborator() {
         }
     }
     "#;
-    let errors = get_program_errors_elaborator(src);
+    let errors = get_program_errors(src);
 
     for error in errors.iter() {
         if let CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { ident }) =
@@ -1740,45 +1739,4 @@ fn implicit_numeric_generics_elaborator() {
             panic!("Expected ResolverError::UseExplicitNumericGeneric but got {:?}", error);
         }
     }
-}
-
-#[test]
-fn nested_generic_elaborator() {
-    let src = r#"
-    trait Default {
-        fn default() -> Self;
-    }
-
-    struct Option<T> {
-        _is_some: bool,
-        _value: T,
-    }
-
-    impl<T> Option<T> {
-        pub fn flatten(option: Option<Option<T>>) -> Option<T> where T: Default {
-            if option._is_some {
-                option._value
-            } else {
-                Self { _is_some: false, _value: T::default() }
-            }
-        }
-    }
-    "#;
-    let errors = get_program_errors_elaborator(src);
-    assert!(errors.is_empty());
-}
-
-#[test]
-fn single_parser_error_bad_numeric_generic() {
-    let src = r#"
-    fn id<let I>(x: [Field; I]) -> [Field; I] {
-        x
-    }
-    "#;
-    let errors = get_program_errors_elaborator(src);
-    assert!(has_parser_error(&errors));
-    // We want to make sure that each ill-formed numeric generic (e.g. `<let I>` or `<I:>`)
-    // returns a single parser error.
-    // We have this test to make sure we are not displaying deceiving errors to the user.
-    assert_eq!(errors.len(), 1);
 }
