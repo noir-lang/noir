@@ -4,7 +4,7 @@ struct Foo {
 
 type Bar = Foo;
 
-fn returns_a_foo() -> Foo {
+fn returns_a_foo() -> Bar {
     Bar { inner: 42 }
 }
 
