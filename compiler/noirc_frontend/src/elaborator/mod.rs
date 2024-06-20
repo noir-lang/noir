@@ -1183,7 +1183,6 @@ impl<'context> Elaborator<'context> {
                 for generic in struct_def.generics.iter_mut() {
                     for found_generic in found_names.iter() {
                         if found_generic == generic.name.as_str() {
-                            dbg!(generic.kind.clone());
                             if matches!(generic.kind, Kind::Normal) {
                                 let ident = Ident::new(generic.name.to_string(), generic.span);
                                 self.errors.push((
