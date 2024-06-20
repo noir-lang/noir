@@ -2837,6 +2837,7 @@ version = "0.31.0"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
+ "cfg-if 1.0.0",
  "chrono",
  "fxhash",
  "im",

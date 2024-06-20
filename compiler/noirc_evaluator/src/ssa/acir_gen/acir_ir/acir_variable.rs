@@ -10,7 +10,6 @@ use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::circuit::brillig::{BrilligInputs, BrilligOutputs};
 use acvm::acir::circuit::opcodes::{BlockId, BlockType, MemOp};
 use acvm::acir::circuit::{AssertionPayload, ExpressionOrMemory, Opcode};
-use acvm::blackbox_solver;
 use acvm::brillig_vm::{MemoryValue, VMStatus, VM};
 use acvm::{
     acir::AcirField,
@@ -1955,7 +1954,9 @@ fn execute_brillig<F: AcirField>(
     }
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
-    let mut vm = VM::new(calldata, code, Vec::new(), &blackbox_solver::StubbedBlackBoxSolver);
+
+    let solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
+    let mut vm = VM::new(calldata, code, Vec::new(), &solver);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

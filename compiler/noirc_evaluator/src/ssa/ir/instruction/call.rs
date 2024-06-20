@@ -1,7 +1,10 @@
 use fxhash::FxHashMap as HashMap;
 use std::{collections::VecDeque, rc::Rc};
 
-use acvm::{acir::AcirField, acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
+use acvm::{
+    acir::{AcirField, BlackBoxFunc},
+    BlackBoxResolutionError, FieldElement,
+};
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
@@ -19,6 +22,8 @@ use crate::ssa::{
 };
 
 use super::{Binary, BinaryOp, Endian, Instruction, SimplifyResult};
+
+mod blackbox;
 
 /// Try to simplify this call instruction. If the instruction can be simplified to a known value,
 /// that value is returned. Otherwise None is returned.
@@ -442,10 +447,23 @@ fn simplify_black_box_func(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
 ) -> SimplifyResult {
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "bn254")] {
+            let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
+        } else {
+            let solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
+        }
+    };
     match bb_func {
-        BlackBoxFunc::SHA256 => simplify_hash(dfg, arguments, acvm::blackbox_solver::sha256),
-        BlackBoxFunc::Blake2s => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s),
-        BlackBoxFunc::Blake3 => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake3),
+        BlackBoxFunc::SHA256 => {
+            blackbox::simplify_hash(dfg, arguments, acvm::blackbox_solver::sha256)
+        }
+        BlackBoxFunc::Blake2s => {
+            blackbox::simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s)
+        }
+        BlackBoxFunc::Blake3 => {
+            blackbox::simplify_hash(dfg, arguments, acvm::blackbox_solver::blake3)
+        }
         BlackBoxFunc::Keccakf1600 => SimplifyResult::None, //TODO(Guillaume)
         BlackBoxFunc::Keccak256 => {
             match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
@@ -467,19 +485,21 @@ fn simplify_black_box_func(
             }
         }
         BlackBoxFunc::Poseidon2Permutation => SimplifyResult::None, //TODO(Guillaume)
-        BlackBoxFunc::EcdsaSecp256k1 => {
-            simplify_signature(dfg, arguments, acvm::blackbox_solver::ecdsa_secp256k1_verify)
-        }
-        BlackBoxFunc::EcdsaSecp256r1 => {
-            simplify_signature(dfg, arguments, acvm::blackbox_solver::ecdsa_secp256r1_verify)
-        }
+        BlackBoxFunc::EcdsaSecp256k1 => blackbox::simplify_signature(
+            dfg,
+            arguments,
+            acvm::blackbox_solver::ecdsa_secp256k1_verify,
+        ),
+        BlackBoxFunc::EcdsaSecp256r1 => blackbox::simplify_signature(
+            dfg,
+            arguments,
+            acvm::blackbox_solver::ecdsa_secp256r1_verify,
+        ),
 
-        BlackBoxFunc::MultiScalarMul
-        | BlackBoxFunc::SchnorrVerify
-        | BlackBoxFunc::EmbeddedCurveAdd => {
-            // Currently unsolvable here as we rely on an implementation in the backend.
-            SimplifyResult::None
-        }
+        BlackBoxFunc::EmbeddedCurveAdd => blackbox::simplify_ec_add(dfg, solver, arguments),
+        BlackBoxFunc::MultiScalarMul => blackbox::simplify_msm(dfg, solver, arguments),
+        BlackBoxFunc::SchnorrVerify => blackbox::simplify_schnorr_verify(dfg, solver, arguments),
+
         BlackBoxFunc::BigIntAdd
         | BlackBoxFunc::BigIntSub
         | BlackBoxFunc::BigIntMul
