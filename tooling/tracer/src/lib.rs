@@ -12,10 +12,8 @@ use noirc_artifacts::trace::TraceArtifact;
 
 use nargo::NargoError;
 
-use std::cell::RefCell;
-
 pub struct TracingContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
-    context: DebugContext<'a, B>,
+    debug_context: DebugContext<'a, B>,
     trace_artifact: TraceArtifact, // The result of tracing, built incrementally.
     last_result: DebugCommandResult,
 }
@@ -30,7 +28,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
     ) -> Self {
         let foreign_call_executor =
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(nargo::PrintOutput::Stdout, debug_artifact));
-        let context = DebugContext::new(
+        let debug_context = DebugContext::new(
             blackbox_solver,
             circuit,
             debug_artifact,
@@ -38,7 +36,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             foreign_call_executor,
             unconstrained_functions,
         );
-        let last_result = if context.get_current_debug_location().is_none() {
+        let last_result = if debug_context.get_current_debug_location().is_none() {
             // handle circuit with no opcodes
             DebugCommandResult::Done
         } else {
@@ -47,57 +45,19 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
 
         let trace_artifact = TraceArtifact::new();
 
-        Self { context, trace_artifact, last_result }
+        Self { debug_context, trace_artifact, last_result }
     }
 
-    fn validate_in_progress(&self) -> bool {
-        match self.last_result {
-            DebugCommandResult::Ok | DebugCommandResult::BreakpointReached(..) => true,
-            DebugCommandResult::Done => {
-                println!("Execution finished");
-                false
-            }
-            DebugCommandResult::Error(ref error) => {
-                println!("ERROR: {}", error);
-                false
-            }
+    /// Performs one debugger step. This is equivalent to running `nargo debug` and using the `next`
+    /// command.
+    ///
+    /// Returns whether the debugger has more steps it can perform.
+    fn step_debugger(&mut self) -> &DebugCommandResult {
+        if let DebugCommandResult::Ok = self.last_result {
+            let result = self.debug_context.next_into();
+            self.last_result = result;
         }
-    }
-
-    fn handle_debug_command_result(&mut self, result: DebugCommandResult) {
-        match &result {
-            DebugCommandResult::BreakpointReached(location) => {
-                println!("Stopped at breakpoint in opcode {}", location);
-            }
-            DebugCommandResult::Error(error) => {
-                println!("ERROR: {}", error);
-            }
-            _ => (),
-        }
-        self.last_result = result;
-    }
-
-    fn next_into(&mut self) -> bool {
-        if self.validate_in_progress() {
-            let result = self.context.next_into();
-            let has_more_steps = match result {
-                DebugCommandResult::Done => false,
-                DebugCommandResult::Error(_) => false,
-                _ => true,
-            };
-            self.handle_debug_command_result(result);
-            has_more_steps
-        } else {
-            false
-        }
-    }
-
-    fn is_solved(&self) -> bool {
-        self.context.is_solved()
-    }
-
-    fn finalize(self) -> WitnessStack<FieldElement> {
-        self.context.finalize()
+        &self.last_result
     }
 }
 
@@ -108,7 +68,7 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
     initial_witness: WitnessMap<FieldElement>,
     unconstrained_functions: &[BrilligBytecode<FieldElement>],
 ) -> Result<TraceArtifact, NargoError<FieldElement>> {
-    let mut context = TracingContext::new(
+    let mut debug_context = TracingContext::new(
         blackbox_solver,
         circuit,
         debug_artifact,
@@ -117,10 +77,21 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
     );
 
     let mut steps = 0;
-    while context.next_into() {
-        steps += 1;
+    loop {
+        match debug_context.step_debugger() {
+            DebugCommandResult::Done => break,
+            DebugCommandResult::Ok => steps += 1,
+            DebugCommandResult::Error(err) => {
+                println!("Error: {err}");
+                break;
+            }
+            DebugCommandResult::BreakpointReached(loc) => {
+                println!("Error: Breakpoint unexpected in tracer; loc={loc}");
+                break;
+            }
+        }
     }
     println!("Total tracing steps: {steps}");
 
-    Ok(context.trace_artifact)
+    Ok(debug_context.trace_artifact)
 }
