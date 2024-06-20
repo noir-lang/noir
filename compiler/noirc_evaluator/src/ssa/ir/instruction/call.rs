@@ -2,6 +2,7 @@ use fxhash::FxHashMap as HashMap;
 use std::{collections::VecDeque, rc::Rc};
 
 use acvm::{acir::AcirField, acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
+use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
@@ -295,6 +296,13 @@ pub(super) fn simplify_call(
         }
         Intrinsic::AsWitness => SimplifyResult::None,
         Intrinsic::IsUnconstrained => SimplifyResult::None,
+        Intrinsic::DerivePedersenGenerators => {
+            if let Some(Type::Array(_, len)) = ctrl_typevars.unwrap().first() {
+                simplify_derive_generators(dfg, arguments, *len as u32)
+            } else {
+                unreachable!("Derive Pedersen Generators must return an array");
+            }
+        }
     }
 }
 
@@ -468,8 +476,6 @@ fn simplify_black_box_func(
 
         BlackBoxFunc::MultiScalarMul
         | BlackBoxFunc::SchnorrVerify
-        | BlackBoxFunc::PedersenCommitment
-        | BlackBoxFunc::PedersenHash
         | BlackBoxFunc::EmbeddedCurveAdd => {
             // Currently unsolvable here as we rely on an implementation in the backend.
             SimplifyResult::None
@@ -495,6 +501,8 @@ fn simplify_black_box_func(
         }
         BlackBoxFunc::Sha256Compression => SimplifyResult::None, //TODO(Guillaume)
         BlackBoxFunc::AES128Encrypt => SimplifyResult::None,
+        BlackBoxFunc::PedersenCommitment => todo!("Deprecated Blackbox"),
+        BlackBoxFunc::PedersenHash => todo!("Deprecated Blackbox"),
     }
 }
 
@@ -624,5 +632,49 @@ fn simplify_signature(
             SimplifyResult::SimplifiedTo(valid_signature)
         }
         _ => SimplifyResult::None,
+    }
+}
+
+fn simplify_derive_generators(
+    dfg: &mut DataFlowGraph,
+    arguments: &[ValueId],
+    num_generators: u32,
+) -> SimplifyResult {
+    if arguments.len() == 2 {
+        let domain_separator_string = dfg.get_array_constant(arguments[0]);
+        let starting_index = dfg.get_numeric_constant(arguments[1]);
+        if let (Some(domain_separator_string), Some(starting_index)) =
+            (domain_separator_string, starting_index)
+        {
+            let domain_separator_bytes = domain_separator_string
+                .0
+                .iter()
+                .map(|&x| dfg.get_numeric_constant(x).unwrap().to_u128() as u8)
+                .collect::<Vec<u8>>();
+            let generators = derive_generators(
+                &domain_separator_bytes,
+                num_generators,
+                starting_index.try_to_u32().expect("argument is declared as u32"),
+            );
+            let is_infinite = dfg.make_constant(FieldElement::zero(), Type::bool());
+            let mut results = Vec::new();
+            for gen in generators {
+                let x_big: BigUint = gen.x.into();
+                let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
+                let y_big: BigUint = gen.y.into();
+                let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
+                results.push(dfg.make_constant(x, Type::field()));
+                results.push(dfg.make_constant(y, Type::field()));
+                results.push(is_infinite);
+            }
+            let len = results.len();
+            let result =
+                dfg.make_array(results.into(), Type::Array(vec![Type::field()].into(), len));
+            SimplifyResult::SimplifiedTo(result)
+        } else {
+            SimplifyResult::None
+        }
+    } else {
+        unreachable!("Unexpected number of arguments to derive_generators");
     }
 }
