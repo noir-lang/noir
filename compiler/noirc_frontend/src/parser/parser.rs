@@ -23,7 +23,7 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
-use self::primitives::{keyword, mutable_reference, variable};
+use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
 use self::types::{generic_type_args, maybe_comp_time, parse_type};
 
 use super::{
@@ -1079,6 +1079,7 @@ where
         unquote(expr_parser.clone()),
         variable(),
         literal(),
+        macro_quote_marker(),
     ))
     .map_with_span(Expression::new)
     .or(parenthesized(expr_parser.clone()).map_with_span(|sub_expr, span| {

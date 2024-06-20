@@ -382,6 +382,7 @@ pub enum TokenKind {
     Literal,
     Keyword,
     Attribute,
+    UnquoteMarker,
 }
 
 impl fmt::Display for TokenKind {
@@ -392,13 +393,14 @@ impl fmt::Display for TokenKind {
             TokenKind::Literal => write!(f, "literal"),
             TokenKind::Keyword => write!(f, "keyword"),
             TokenKind::Attribute => write!(f, "attribute"),
+            TokenKind::UnquoteMarker => write!(f, "macro result"),
         }
     }
 }
 
 impl Token {
     pub fn kind(&self) -> TokenKind {
-        match *self {
+        match self {
             Token::Ident(_) => TokenKind::Ident,
             Token::Int(_)
             | Token::Bool(_)
@@ -407,7 +409,8 @@ impl Token {
             | Token::FmtStr(_) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             Token::Attribute(_) => TokenKind::Attribute,
-            ref tok => TokenKind::Token(tok.clone()),
+            Token::UnquoteMarker(_) => TokenKind::UnquoteMarker,
+            tok => TokenKind::Token(tok.clone()),
         }
     }
 
