@@ -307,7 +307,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
-            HirExpression::Quote(_) => Type::Code,
+            HirExpression::Quote(_) => Type::Quoted(crate::QuotedType::Expr),
             HirExpression::Comptime(block) => self.check_block(block),
 
             // Unquote should be inserted & removed by the comptime interpreter.
@@ -340,7 +340,7 @@ impl<'interner> TypeChecker<'interner> {
         // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
         if is_current_func_constrained && is_unconstrained_call {
             for (typ, _, _) in args.iter() {
-                if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
+                if !typ.is_valid_for_unconstrained_boundary() {
                     self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained { span });
                 }
             }

@@ -1,5 +1,5 @@
 // Regression test for issue #4561
-use dep::std::test::OracleMock;
+use std::test::OracleMock;
 
 type TReturnElem = [Field; 3];
 type TReturn = [TReturnElem; 2];
@@ -48,12 +48,14 @@ unconstrained fn foo_return() -> (Field, TReturn, TestTypeFoo) {}
 unconstrained fn foo_return_unconstrained() -> (Field, TReturn, TestTypeFoo) {
     foo_return()
 }
+
 struct TestTypeFoo {
     a: Field,
     b: [[[Field; 3]; 4]; 2],
     c: [TReturnElem; 2],
     d: TReturnElem,
 }
+
 #[test]
 fn complexe_struct_return() {
     OracleMock::mock("foo_return").returns(
@@ -69,8 +71,8 @@ fn complexe_struct_return() {
         [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[13, 14, 15], [16, 17, 18], [19, 20, 21], [22, 23, 24]]
     ]
     );
-    let a : TReturnElem= [1, 2, 3];
-    let b : TReturnElem = [4, 5, 6];
+    let a: TReturnElem = [1, 2, 3];
+    let b: TReturnElem = [4, 5, 6];
     assert_eq(foo_x.2.c, [a, b]);
     assert_eq(foo_x.2.d, a);
 }

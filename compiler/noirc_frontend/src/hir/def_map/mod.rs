@@ -73,7 +73,7 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
-        use_elaborator: bool,
+        use_legacy: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
@@ -122,7 +122,7 @@ impl CrateDefMap {
             context,
             ast,
             root_file_id,
-            use_elaborator,
+            use_legacy,
             macro_processors,
         ));
 

@@ -728,7 +728,11 @@ impl Display for LValue {
 impl Display for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let segments = vecmap(&self.segments, ToString::to_string);
-        write!(f, "{}::{}", self.kind, segments.join("::"))
+        if self.kind == PathKind::Plain {
+            write!(f, "{}", segments.join("::"))
+        } else {
+            write!(f, "{}::{}", self.kind, segments.join("::"))
+        }
     }
 }
 
