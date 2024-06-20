@@ -928,7 +928,7 @@ impl Type {
             | Type::Constant(_)
             | Type::Slice(_)
             | Type::TypeVariable(_, _)
-            | Type::NamedGeneric(_, _)
+            | Type::NamedGeneric(_, _, _)
             | Type::Function(_, _, _)
             | Type::FmtString(_, _)
             | Type::Error => true,
