@@ -1,5 +1,6 @@
 fn main() {
-    comptime {
+    comptime
+    {
         let ws: [Field; 3] = [1; 3];
         let ws_as_slice: [Field] = ws.as_slice();
 
