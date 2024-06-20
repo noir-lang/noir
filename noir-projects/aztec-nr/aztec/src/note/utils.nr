@@ -38,17 +38,9 @@ fn compute_unique_note_hash<Note, N, M>(note_with_header: Note) -> Field where N
 }
 
 fn compute_siloed_note_hash<Note, N, M>(note_with_header: Note) -> Field where Note: NoteInterface<N, M> {
+    let unique_note_hash = compute_note_hash_for_read_request(note_with_header);
+
     let header = note_with_header.get_header();
-
-    let unique_note_hash = if (header.nonce == 0) {
-        // If nonce is zero, that means we are reading a public note.
-        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
-        // Remove this once notes added from public also include nonces.
-        compute_inner_note_hash(note_with_header)
-    } else {
-        compute_unique_note_hash(note_with_header)
-    };
-
     compute_siloed_hash(header.contract_address, unique_note_hash)
 }
 
@@ -70,10 +62,14 @@ pub fn compute_note_hash_for_insertion<Note, N, M>(note: Note) -> Field where No
 pub fn compute_note_hash_for_read_request<Note, N, M>(note: Note) -> Field where Note: NoteInterface<N, M> {
     let header = note.get_header();
 
-    if (header.nonce != 0) {
-        compute_unique_note_hash(note)
+    let inner_note_hash = compute_inner_note_hash(note);
+
+    // TODO(#1386): This if-else can be nuked once we have nonces injected from public
+    if (header.nonce == 0) {
+        // If nonce is zero, that means we are reading a public note.
+        inner_note_hash
     } else {
-        compute_inner_note_hash(note)
+        compute_unique_hash(header.nonce, inner_note_hash)
     }
 }
 
@@ -112,8 +108,7 @@ pub fn compute_note_hash_and_optionally_a_nullifier<T, N, M, S>(
     serialized_note: [Field; S] // docs:end:compute_note_hash_and_optionally_a_nullifier_args
 ) -> [Field; 4] where T: NoteInterface<N, M> {
     let mut note = deserialize_content(arr_copy_slice(serialized_note, [0; N], 0));
-    // TODO: change this to note.set_header(header) once https://github.com/noir-lang/noir/issues/4095 is fixed
-    T::set_header((&mut note), note_header);
+    note.set_header(note_header);
 
     let inner_note_hash = compute_inner_note_hash(note);
 

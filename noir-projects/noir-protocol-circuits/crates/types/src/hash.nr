@@ -45,6 +45,8 @@ pub fn compute_note_hash_nonce(first_nullifier: Field, note_hash_index: u32) -> 
     )
 }
 
+// TODO(benesjan): some of these functions seem to be duplicate to the ones in
+// noir-projects/aztec-nr/aztec/src/note/utils.nr NUKE!
 fn compute_unique_note_hash(nonce: Field, note_hash: Field) -> Field {
     pedersen_hash(
         [
