@@ -12,6 +12,7 @@
 #include <vector>
 
 namespace tests_avm {
+
 using namespace bb;
 using namespace bb::avm_trace;
 
@@ -38,14 +39,14 @@ void common_validate_op_not(std::vector<Row> const& trace,
 
     // Check that the correct result is stored at the expected memory location.
     EXPECT_EQ(row->main_ic, c);
-    EXPECT_EQ(row->main_mem_idx_c, addr_c);
-    EXPECT_EQ(row->main_mem_op_c, FF(1));
+    EXPECT_EQ(row->main_mem_addr_c, addr_c);
+    EXPECT_EQ(row->main_sel_mem_op_c, FF(1));
     EXPECT_EQ(row->main_rwc, FF(1));
 
     // Check that ia register is correctly set with memory load operations.
     EXPECT_EQ(row->main_ia, a);
-    EXPECT_EQ(row->main_mem_idx_a, addr_a);
-    EXPECT_EQ(row->main_mem_op_a, FF(1));
+    EXPECT_EQ(row->main_mem_addr_a, addr_a);
+    EXPECT_EQ(row->main_sel_mem_op_a, FF(1));
     EXPECT_EQ(row->main_rwa, FF(0));
 
     // Check the instruction tags
@@ -106,20 +107,20 @@ void common_validate_shift_op(std::vector<Row> const& trace,
 
     // Check that the correct result is stored at the expected memory location.
     EXPECT_EQ(row->main_ic, c);
-    EXPECT_EQ(row->main_mem_idx_c, addr_c);
-    EXPECT_EQ(row->main_mem_op_c, FF(1));
+    EXPECT_EQ(row->main_mem_addr_c, addr_c);
+    EXPECT_EQ(row->main_sel_mem_op_c, FF(1));
     EXPECT_EQ(row->main_rwc, FF(1));
 
     // Check that ia register is correctly set with memory load operations.
     EXPECT_EQ(row->main_ia, a);
-    EXPECT_EQ(row->main_mem_idx_a, addr_a);
-    EXPECT_EQ(row->main_mem_op_a, FF(1));
+    EXPECT_EQ(row->main_mem_addr_a, addr_a);
+    EXPECT_EQ(row->main_sel_mem_op_a, FF(1));
     EXPECT_EQ(row->main_rwa, FF(0));
 
     // Check that ib register is correctly set with memory load operations.
     EXPECT_EQ(row->main_ib, b);
-    EXPECT_EQ(row->main_mem_idx_b, addr_b);
-    EXPECT_EQ(row->main_mem_op_b, FF(1));
+    EXPECT_EQ(row->main_mem_addr_b, addr_b);
+    EXPECT_EQ(row->main_sel_mem_op_b, FF(1));
     EXPECT_EQ(row->main_rwb, FF(0));
 
     // Check the instruction tags
@@ -161,20 +162,20 @@ void common_validate_bit_op(std::vector<Row> const& trace,
 
     // Check that the correct result is stored at the expected memory location.
     EXPECT_EQ(row->main_ic, c);
-    EXPECT_EQ(row->main_mem_idx_c, addr_c);
-    EXPECT_EQ(row->main_mem_op_c, FF(1));
+    EXPECT_EQ(row->main_mem_addr_c, addr_c);
+    EXPECT_EQ(row->main_sel_mem_op_c, FF(1));
     EXPECT_EQ(row->main_rwc, FF(1));
 
     // Check that ia register is correctly set with memory load operations.
     EXPECT_EQ(row->main_ia, a);
-    EXPECT_EQ(row->main_mem_idx_a, addr_a);
-    EXPECT_EQ(row->main_mem_op_a, FF(1));
+    EXPECT_EQ(row->main_mem_addr_a, addr_a);
+    EXPECT_EQ(row->main_sel_mem_op_a, FF(1));
     EXPECT_EQ(row->main_rwa, FF(0));
 
     // Check that ia register is correctly set with memory load operations.
     EXPECT_EQ(row->main_ib, b);
-    EXPECT_EQ(row->main_mem_idx_b, addr_b);
-    EXPECT_EQ(row->main_mem_op_b, FF(1));
+    EXPECT_EQ(row->main_mem_addr_b, addr_b);
+    EXPECT_EQ(row->main_sel_mem_op_b, FF(1));
     EXPECT_EQ(row->main_rwb, FF(0));
 
     // Check the instruction tags
@@ -187,7 +188,7 @@ void common_validate_bit_op(std::vector<Row> const& trace,
     EXPECT_EQ(bin_row_start->binary_acc_ic, c);
 
     EXPECT_EQ(bin_row_start->binary_op_id, op_id);
-    EXPECT_EQ(bin_row_start->binary_bin_sel, FF(1));
+    EXPECT_EQ(bin_row_start->binary_sel_bin, FF(1));
     EXPECT_EQ(bin_row_start->binary_in_tag, static_cast<uint8_t>(tag));
 }
 
@@ -320,7 +321,7 @@ std::vector<Row> gen_mutated_trace_bit(std::vector<Row> trace,
             FF ctr = trace.at(i).binary_mem_tag_ctr;
             if (ctr == FF::one()) {
                 // If the tag is currently 1, it will be set to 0 which means we need to set bin_sel to 0.
-                trace.at(i).binary_bin_sel = FF(0);
+                trace.at(i).binary_sel_bin = FF(0);
                 trace.at(i).binary_mem_tag_ctr = FF(0);
                 trace.at(i).binary_mem_tag_ctr_inv = FF(0);
             } else if (ctr == FF::zero()) {
@@ -330,13 +331,13 @@ std::vector<Row> gen_mutated_trace_bit(std::vector<Row> trace,
                 // Replace the values with the next row's values
                 trace.at(i).binary_mem_tag_ctr = trace.at(i + 1).binary_mem_tag_ctr;
                 trace.at(i).binary_mem_tag_ctr_inv = trace.at(i + 1).binary_mem_tag_ctr_inv;
-                trace.at(i).binary_bin_sel = trace.at(i + 1).binary_bin_sel;
+                trace.at(i).binary_sel_bin = trace.at(i + 1).binary_sel_bin;
             }
         }
         break;
     }
     case IncorrectBinSelector:
-        binary_row->binary_bin_sel = FF(0);
+        binary_row->binary_sel_bin = FF(0);
         break;
     }
     return trace;
@@ -604,7 +605,7 @@ std::vector<std::tuple<std::string, BIT_FAILURES>> bit_failures = {
     { "LOOKUP_BYTE_LENGTHS", BIT_FAILURES::ByteLengthError },
     { "LOOKUP_BYTE_OPERATIONS", BIT_FAILURES::ByteLookupError },
     { "OP_ID_REL", BIT_FAILURES::InconsistentOpId },
-    { "BIN_SEL_CTR_REL", BIT_FAILURES::IncorrectBinSelector },
+    { "SEL_BIN_CTR_REL", BIT_FAILURES::IncorrectBinSelector },
 };
 std::vector<SHIFT_FAILURES> shift_failures = { SHIFT_FAILURES::IncorrectShiftPastBitLength,
                                                SHIFT_FAILURES::IncorrectInputDecomposition,

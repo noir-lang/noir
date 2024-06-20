@@ -23,7 +23,7 @@ class perm_main_mem_c_permutation_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.main_mem_op_c == 1 || in.mem_op_c == 1);
+        return (in.main_sel_mem_op_c == 1 || in.mem_sel_op_c == 1);
     }
 
     /**
@@ -47,12 +47,12 @@ class perm_main_mem_c_permutation_settings {
     {
 
         return std::forward_as_tuple(in.perm_main_mem_c,
-                                     in.main_mem_op_c,
-                                     in.main_mem_op_c,
-                                     in.mem_op_c,
+                                     in.main_sel_mem_op_c,
+                                     in.main_sel_mem_op_c,
+                                     in.mem_sel_op_c,
                                      in.main_clk,
                                      in.main_space_id,
-                                     in.main_mem_idx_c,
+                                     in.main_mem_addr_c,
                                      in.main_ic,
                                      in.main_rwc,
                                      in.main_r_in_tag,
@@ -87,12 +87,12 @@ class perm_main_mem_c_permutation_settings {
     {
 
         return std::forward_as_tuple(in.perm_main_mem_c,
-                                     in.main_mem_op_c,
-                                     in.main_mem_op_c,
-                                     in.mem_op_c,
+                                     in.main_sel_mem_op_c,
+                                     in.main_sel_mem_op_c,
+                                     in.mem_sel_op_c,
                                      in.main_clk,
                                      in.main_space_id,
-                                     in.main_mem_idx_c,
+                                     in.main_mem_addr_c,
                                      in.main_ic,
                                      in.main_rwc,
                                      in.main_r_in_tag,

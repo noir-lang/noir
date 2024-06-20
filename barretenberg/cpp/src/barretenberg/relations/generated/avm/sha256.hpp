@@ -7,7 +7,7 @@
 namespace bb::Avm_vm {
 
 template <typename FF> struct Sha256Row {
-    FF sha256_sha256_compression_sel{};
+    FF sha256_sel_sha256_compression{};
 
     [[maybe_unused]] static std::vector<std::string> names();
 };
@@ -37,7 +37,7 @@ template <typename FF_> class sha256Impl {
         {
             Avm_DECLARE_VIEWS(0);
 
-            auto tmp = (sha256_sha256_compression_sel * (-sha256_sha256_compression_sel + FF(1)));
+            auto tmp = (sha256_sel_sha256_compression * (-sha256_sel_sha256_compression + FF(1)));
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
         }

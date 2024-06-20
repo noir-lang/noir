@@ -7,6 +7,7 @@
 #include <vector>
 
 namespace bb::avm_trace {
+
 class AvmSha256TraceBuilder {
   public:
     struct Sha256TraceEntry {
@@ -16,7 +17,7 @@ class AvmSha256TraceBuilder {
         std::array<uint32_t, 8> output{};
     };
 
-    AvmSha256TraceBuilder();
+    AvmSha256TraceBuilder() = default;
     void reset();
     // Finalize the trace
     std::vector<Sha256TraceEntry> finalize();

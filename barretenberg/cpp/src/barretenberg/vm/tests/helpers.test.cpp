@@ -87,7 +87,7 @@ void mutate_ic_in_trace(std::vector<Row>& trace, std::function<bool(Row)>&& sele
 
     // Adapt the memory trace to be consistent with the wrong result
     auto const clk = row->main_clk;
-    auto const addr = row->main_mem_idx_c;
+    auto const addr = row->main_mem_addr_c;
 
     // Find the relevant memory trace entry.
     auto mem_row = std::ranges::find_if(

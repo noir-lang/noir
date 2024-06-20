@@ -7,7 +7,7 @@
 namespace bb::Avm_vm {
 
 template <typename FF> struct Keccakf1600Row {
-    FF keccakf1600_keccakf1600_sel{};
+    FF keccakf1600_sel_keccakf1600{};
 
     [[maybe_unused]] static std::vector<std::string> names();
 };
@@ -37,7 +37,7 @@ template <typename FF_> class keccakf1600Impl {
         {
             Avm_DECLARE_VIEWS(0);
 
-            auto tmp = (keccakf1600_keccakf1600_sel * (-keccakf1600_keccakf1600_sel + FF(1)));
+            auto tmp = (keccakf1600_sel_keccakf1600 * (-keccakf1600_sel_keccakf1600 + FF(1)));
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
         }

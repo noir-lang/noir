@@ -1,12 +1,10 @@
-include "../main.pil";
-
 namespace sha256(256);
 
     pol commit clk;
 
     // Selector for Radix Operation
-    pol commit sha256_compression_sel;
-    sha256_compression_sel * (1 - sha256_compression_sel) = 0;
+    pol commit sel_sha256_compression;
+    sel_sha256_compression * (1 - sel_sha256_compression) = 0;
 
     // These will all be arrays, but we just store the first element for permutation to the main trace for now
     pol commit state;

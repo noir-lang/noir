@@ -12,31 +12,31 @@ namespace mem(256);
     pol commit rw; // Enum: 0 (read), 1 (write)
     pol commit lastAccess; // Boolean (1 when this row is the last of a given address)
     pol commit last; // Boolean indicating the last row of the memory trace (not execution trace)
-    pol commit mem_sel; // Selector for every row pertaining to the memory trace
-    pol commit rng_chk_sel; // Selector for row on which range-checks apply.
+    pol commit sel_mem; // Selector for every row pertaining to the memory trace
+    pol commit sel_rng_chk; // Selector for row on which range-checks apply.
 
     pol commit r_in_tag; // Instruction memory tag ("foreign key" pointing to main.r_in_tag)
     pol commit w_in_tag; // Instruction memory tag ("foreign key" pointing to main.w_in_tag)
     pol commit skip_check_tag; // A boolean value which relaxes the consistency check in memory
                                // trace between tag and r_in_tag. Required for CMOV opcode.
 
-    // Indicator of the intermediate register pertaining to the memory operation (foreign key to main.mem_op_XXX)
-    pol commit op_a;
-    pol commit op_b;
-    pol commit op_c;
-    pol commit op_d;
+    // Indicator of the intermediate register pertaining to the memory operation (foreign key to main.sel_mem_op_XXX)
+    pol commit sel_op_a;
+    pol commit sel_op_b;
+    pol commit sel_op_c;
+    pol commit sel_op_d;
 
-    // Indicator of the indirect register pertaining to the memory operation (foreign key to main.ind_op_XXX)
-    pol commit ind_op_a;
-    pol commit ind_op_b;
-    pol commit ind_op_c;
-    pol commit ind_op_d;
+    // Indicator of the indirect register pertaining to the memory operation (foreign key to main.sel_resolve_ind_addr_XXX)
+    pol commit sel_resolve_ind_addr_a;
+    pol commit sel_resolve_ind_addr_b;
+    pol commit sel_resolve_ind_addr_c;
+    pol commit sel_resolve_ind_addr_d;
 
     // Selectors related to MOV/CMOV opcodes (copied from main trace for loading operation on intermediated register ia/ib)
     // Boolean constraint is performed in main trace.
-    pol commit sel_mov_a;
-    pol commit sel_mov_b;
-    pol commit sel_cmov;
+    pol commit sel_mov_ia_to_ic;
+    pol commit sel_mov_ib_to_ic;
+    pol commit sel_op_cmov;
 
     // Error columns
     pol commit tag_err; // Boolean (1 if r_in_tag != tag is detected)
@@ -53,38 +53,39 @@ namespace mem(256);
     last * (1 - last) = 0;
     rw * (1 - rw) = 0;
     tag_err * (1 - tag_err) = 0;
-    op_a * (1 - op_a) = 0;
-    op_b * (1 - op_b) = 0;
-    op_c * (1 - op_c) = 0;
-    op_d * (1 - op_d) = 0;
-    ind_op_a * (1 - ind_op_a) = 0;
-    ind_op_b * (1 - ind_op_b) = 0;
-    ind_op_c * (1 - ind_op_c) = 0;
-    ind_op_d * (1 - ind_op_d) = 0;
+    sel_op_a * (1 - sel_op_a) = 0;
+    sel_op_b * (1 - sel_op_b) = 0;
+    sel_op_c * (1 - sel_op_c) = 0;
+    sel_op_d * (1 - sel_op_d) = 0;
+    sel_resolve_ind_addr_a * (1 - sel_resolve_ind_addr_a) = 0;
+    sel_resolve_ind_addr_b * (1 - sel_resolve_ind_addr_b) = 0;
+    sel_resolve_ind_addr_c * (1 - sel_resolve_ind_addr_c) = 0;
+    sel_resolve_ind_addr_d * (1 - sel_resolve_ind_addr_d) = 0;
 
     // TODO:  1) Ensure that addr is constrained to be 32 bits by the main trace and/or bytecode decomposition
     //        2) Ensure that tag, r_in_tag, w_in_tag are properly constrained by the main trace and/or bytecode decomposition
 
-    // Definition of mem_sel
-    mem_sel = op_a + op_b + op_c + op_d + ind_op_a + ind_op_b + ind_op_c + ind_op_d;
+    // Definition of sel_mem
+    sel_mem = sel_op_a + sel_op_b + sel_op_c + sel_op_d +
+              sel_resolve_ind_addr_a + sel_resolve_ind_addr_b + sel_resolve_ind_addr_c + sel_resolve_ind_addr_d;
     // Maximum one memory operation enabled per row
-    mem_sel * (mem_sel - 1) = 0; // TODO: might be infered by the main trace
+    sel_mem * (sel_mem - 1) = 0; // TODO: might be infered by the main trace
 
     // Enforce the memory entries to be contiguous, i.e., as soon as
-    // mem_sel is disabled all subsequent rows have mem_sel disabled.
+    // sel_mem is disabled all subsequent rows have sel_mem disabled.
     #[MEM_CONTIGUOUS]
-    (1 - main.first) * mem_sel' * (1 - mem_sel) = 0;
+    (1 - main.sel_first) * sel_mem' * (1 - sel_mem) = 0;
 
     // Memory trace rows cannot start at first row
     #[MEM_FIRST_EMPTY]
-    main.first * mem_sel = 0;
+    main.sel_first * sel_mem = 0;
 
-    // Definition of last, i.e., last row with mem_sel activated
+    // Definition of last, i.e., last row with sel_mem activated
     #[MEM_LAST]
-    (1 - last) * mem_sel * (1 - mem_sel') = 0;
+    (1 - last) * sel_mem * (1 - sel_mem') = 0;
 
-    // Definition of rng_chk_sel. It is a boolean as mem_sel and last are booleans.
-    rng_chk_sel = mem_sel * (1 - last);
+    // Definition of sel_rng_chk. It is a boolean as sel_mem and last are booleans.
+    sel_rng_chk = sel_mem * (1 - last);
 
     // sub_clk derivation
     // Current sub_clk range is [0,12) which is subdivided as follows:
@@ -94,9 +95,9 @@ namespace mem(256);
     // Each sub-range of 4 values correspond to registers ordered as a, b, c, d.
 
     pol NUM_SUB_CLK = 12;
-    pol IND_OP = ind_op_a + ind_op_b + ind_op_c + ind_op_d;
-    pol SUB_CLK = mem_sel * (ind_op_b + op_b + 2 * (ind_op_c + op_c) + 3 * (ind_op_d + op_d) + 4 * (1 - IND_OP + rw));
-    // We need the mem_sel factor as the right factor is not zero when all columns are zero.
+    pol IND_OP = sel_resolve_ind_addr_a + sel_resolve_ind_addr_b + sel_resolve_ind_addr_c + sel_resolve_ind_addr_d;
+    pol SUB_CLK = sel_mem * (sel_resolve_ind_addr_b + sel_op_b + 2 * (sel_resolve_ind_addr_c + sel_op_c) + 3 * (sel_resolve_ind_addr_d + sel_op_d) + 4 * (1 - IND_OP + rw));
+    // We need the sel_mem factor as the right factor is not zero when all columns are zero.
 
     #[TIMESTAMP]
     tsp = NUM_SUB_CLK * clk + SUB_CLK;
@@ -105,13 +106,13 @@ namespace mem(256);
     glob_addr = space_id * 2**32 + addr;
 
     #[LAST_ACCESS_FIRST_ROW]
-    main.first * (1 - lastAccess) = 0;
+    main.sel_first * (1 - lastAccess) = 0;
     // Remark: lastAccess == 1 on first row and therefore any relation with the
-    //         multiplicative term (1 - lastAccess) implicitly includes (1 - main.first)
+    //         multiplicative term (1 - lastAccess) implicitly includes (1 - main.sel_first)
     //         Similarly, this includes (1 - last) as well.
 
     // lastAccess == 0 ==> glob_addr' == glob_addr
-    // Optimization: We removed the term (1 - main.first)
+    // Optimization: We removed the term (1 - main.sel_first)
     #[MEM_LAST_ACCESS_DELIMITER]
     (1 - lastAccess) * (glob_addr' - glob_addr) = 0;
     
@@ -120,8 +121,8 @@ namespace mem(256);
     // This condition does not apply on the last row.
  
     // In addition, we need glob_addr' == glob_addr ==> tsp' > tsp
-    // For all rows pertaining to the memory trace (mem_sel == 1) except the last one,
-    // i.e., when rng_chk_sel == 1, we compute the difference:
+    // For all rows pertaining to the memory trace (sel_mem == 1) except the last one,
+    // i.e., when sel_rng_chk == 1, we compute the difference:
     // 1) glob_addr' - glob_addr if lastAccess == 1
     // 2) tsp' - tsp   if lastAccess == 0 (i.e., whenever glob_addr' == glob_addr)
     pol DIFF = lastAccess * (glob_addr' - glob_addr) + (1 - lastAccess) * (tsp' - tsp);
@@ -131,19 +132,19 @@ namespace mem(256);
     // Therefore, we ensure proper grouping of each global address and each memory access pertaining to a given
     // global address is sorted according the arrow of time.
     #[DIFF_RNG_CHK_DEC]
-    rng_chk_sel * (DIFF - diff_hi * 2**32 - diff_mid * 2**16 - diff_lo) = 0;
+    sel_rng_chk * (DIFF - diff_hi * 2**32 - diff_mid * 2**16 - diff_lo) = 0;
 
     // lastAccess == 0 && rw' == 0 ==> val == val'
     // This condition does not apply on the last row.
     // Note: in barretenberg, a shifted polynomial will be 0 on the last row (shift is not cyclic)
     // Note2: in barretenberg, if a poynomial is shifted, its non-shifted equivalent must be 0 on the first row
     
-    // Optimization: We removed the term (1 - main.first) and (1 - last)
+    // Optimization: We removed the term (1 - main.sel_first) and (1 - last)
     #[MEM_READ_WRITE_VAL_CONSISTENCY]
     (1 - lastAccess) * (1 - rw') * (val' - val) = 0;
     
     // lastAccess == 0 && rw' == 0 ==> tag == tag'
-    // Optimization: We removed the term (1 - main.first) and (1 - last)
+    // Optimization: We removed the term (1 - main.sel_first) and (1 - last)
     #[MEM_READ_WRITE_TAG_CONSISTENCY]
     (1 - lastAccess) * (1 - rw') * (tag' - tag) = 0;
 
@@ -155,7 +156,7 @@ namespace mem(256);
 
     // Skip check tag
     #[SKIP_CHECK_TAG]
-    skip_check_tag = sel_cmov * (op_d + op_a * (1-sel_mov_a) + op_b * (1-sel_mov_b));
+    skip_check_tag = sel_op_cmov * (sel_op_d + sel_op_a * (1-sel_mov_ia_to_ic) + sel_op_b * (1-sel_mov_ib_to_ic));
 
     // Memory tag consistency check for load operations, i.e., rw == 0.
     // We want to prove that r_in_tag == tag <==> tag_err == 0
@@ -191,16 +192,16 @@ namespace mem(256);
 
     //====== Indirect Memory Constraints =====================================
     // Enforce r_in_tag == 3, i.e., r_in_tag must be U32
-    ind_op_a * (r_in_tag - 3) = 0;
-    ind_op_b * (r_in_tag - 3) = 0;
-    ind_op_c * (r_in_tag - 3) = 0;
-    ind_op_d * (r_in_tag - 3) = 0;
+    sel_resolve_ind_addr_a * (r_in_tag - 3) = 0;
+    sel_resolve_ind_addr_b * (r_in_tag - 3) = 0;
+    sel_resolve_ind_addr_c * (r_in_tag - 3) = 0;
+    sel_resolve_ind_addr_d * (r_in_tag - 3) = 0;
 
     // Indirect operation is always a load
-    ind_op_a * rw = 0;
-    ind_op_b * rw = 0;
-    ind_op_c * rw = 0;
-    ind_op_d * rw = 0;
+    sel_resolve_ind_addr_a * rw = 0;
+    sel_resolve_ind_addr_b * rw = 0;
+    sel_resolve_ind_addr_c * rw = 0;
+    sel_resolve_ind_addr_d * rw = 0;
 
     //====== MOV/CMOV Opcode Tag Constraint =====================================
     // The following constraint ensures that the r_in_tag is set to tag for
@@ -210,4 +211,4 @@ namespace mem(256);
     // Constraint #[MOV_MAIN_SAME_TAG] copies r_in_tag to w_in_tag in the main
     // trace. Then, #[PERM_MAIN_MEM_C] copies w_in_tag for store operation from Ic.
     #[MOV_SAME_TAG]
-    (sel_mov_a + sel_mov_b) * tag_err = 0; // Equivalent to (sel_mov_a + sel_mov_b) * (r_in_tag - tag) = 0
+    (sel_mov_ia_to_ic + sel_mov_ib_to_ic) * tag_err = 0; // Equivalent to (sel_mov_ia_to_ic + sel_mov_ib_to_ic) * (r_in_tag - tag) = 0

@@ -7,7 +7,7 @@
 namespace bb::Avm_vm {
 
 template <typename FF> struct ConversionRow {
-    FF conversion_to_radix_le_sel{};
+    FF conversion_sel_to_radix_le{};
 
     [[maybe_unused]] static std::vector<std::string> names();
 };
@@ -37,7 +37,7 @@ template <typename FF_> class conversionImpl {
         {
             Avm_DECLARE_VIEWS(0);
 
-            auto tmp = (conversion_to_radix_le_sel * (-conversion_to_radix_le_sel + FF(1)));
+            auto tmp = (conversion_sel_to_radix_le * (-conversion_sel_to_radix_le + FF(1)));
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
         }

@@ -87,7 +87,7 @@ class lookup_byte_lengths_lookup_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.binary_start == 1 || in.byte_lookup_bin_sel == 1);
+        return (in.binary_start == 1 || in.byte_lookup_sel_bin == 1);
     }
 
     /**
@@ -105,7 +105,7 @@ class lookup_byte_lengths_lookup_settings {
     {
         using View = typename Accumulator::View;
         const auto is_operation = View(in.binary_start);
-        const auto is_table_entry = View(in.byte_lookup_bin_sel);
+        const auto is_table_entry = View(in.byte_lookup_sel_bin);
         return (is_operation + is_table_entry - is_operation * is_table_entry);
     }
 
@@ -136,7 +136,7 @@ class lookup_byte_lengths_lookup_settings {
         return std::forward_as_tuple(in.lookup_byte_lengths,
                                      in.lookup_byte_lengths_counts,
                                      in.binary_start,
-                                     in.byte_lookup_bin_sel,
+                                     in.byte_lookup_sel_bin,
                                      in.binary_in_tag,
                                      in.binary_mem_tag_ctr,
                                      in.byte_lookup_table_in_tags,
@@ -156,7 +156,7 @@ class lookup_byte_lengths_lookup_settings {
         return std::forward_as_tuple(in.lookup_byte_lengths,
                                      in.lookup_byte_lengths_counts,
                                      in.binary_start,
-                                     in.byte_lookup_bin_sel,
+                                     in.byte_lookup_sel_bin,
                                      in.binary_in_tag,
                                      in.binary_mem_tag_ctr,
                                      in.byte_lookup_table_in_tags,

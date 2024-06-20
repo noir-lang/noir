@@ -3,15 +3,6 @@
 namespace bb::avm_trace {
 
 /**
- * @brief Constructor of Alu trace builder of AVM. Only serves to set the capacity of the
- *        underlying trace.
- */
-AvmAluTraceBuilder::AvmAluTraceBuilder()
-{
-    alu_trace.reserve(AVM_TRACE_SIZE);
-}
-
-/**
  * @brief Resetting the internal state so that a new Alu trace can be rebuilt using the same object.
  *
  */

@@ -1,12 +1,10 @@
-include "../main.pil";
-
 namespace conversion(256);
 
     pol commit clk;
 
     // Selector for Radix Operation
-    pol commit to_radix_le_sel;
-    to_radix_le_sel * (1 - to_radix_le_sel) = 0;
+    pol commit sel_to_radix_le;
+    sel_to_radix_le * (1 - sel_to_radix_le) = 0;
 
     // ===== DRAFT: Planned Constraints for To Radix LE
     // Similar to the binary trace; multi-row decomposition of the input using the number of limbs specified as the row count.

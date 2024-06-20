@@ -1,6 +1,7 @@
 #include "avm_common.test.hpp"
 
 namespace tests_avm {
+
 using namespace bb;
 using namespace bb::avm_trace;
 
@@ -8,27 +9,27 @@ namespace {
 
 void validate_internal_call(Row const& row, uint32_t current_pc, uint32_t target_pc, uint32_t stack_ptr)
 {
-    EXPECT_EQ(row.main_sel_internal_call, FF(1));
+    EXPECT_EQ(row.main_sel_op_internal_call, FF(1));
     EXPECT_EQ(row.main_pc, FF(current_pc));
     EXPECT_EQ(row.main_ia, FF(target_pc));
     EXPECT_EQ(row.main_internal_return_ptr, FF(stack_ptr));
-    EXPECT_EQ(row.main_mem_op_b, FF(1));
+    EXPECT_EQ(row.main_sel_mem_op_b, FF(1));
     EXPECT_EQ(row.main_rwb, FF(1));
     EXPECT_EQ(row.main_ib, FF(current_pc + 1));
-    EXPECT_EQ(row.main_mem_idx_b, FF(stack_ptr));
+    EXPECT_EQ(row.main_mem_addr_b, FF(stack_ptr));
     EXPECT_EQ(row.main_w_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
     EXPECT_EQ(row.main_space_id, FF(INTERNAL_CALL_SPACE_ID));
 };
 
 void validate_internal_return(Row const& row, uint32_t current_pc, uint32_t return_pc, uint32_t stack_ptr)
 {
-    EXPECT_EQ(row.main_sel_internal_return, FF(1));
+    EXPECT_EQ(row.main_sel_op_internal_return, FF(1));
     EXPECT_EQ(row.main_pc, FF(current_pc));
     EXPECT_EQ(row.main_ia, FF(return_pc));
     EXPECT_EQ(row.main_internal_return_ptr, FF(stack_ptr));
-    EXPECT_EQ(row.main_mem_op_a, FF(1));
+    EXPECT_EQ(row.main_sel_mem_op_a, FF(1));
     EXPECT_EQ(row.main_rwa, FF(0));
-    EXPECT_EQ(row.main_mem_idx_a, FF(stack_ptr - 1));
+    EXPECT_EQ(row.main_mem_addr_a, FF(stack_ptr - 1));
     EXPECT_EQ(row.main_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
     EXPECT_EQ(row.main_space_id, FF(INTERNAL_CALL_SPACE_ID));
 };
@@ -74,8 +75,8 @@ TEST_F(AvmControlFlowTests, simpleCall)
 
     // Check call
     {
-        auto call_row_iter =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_internal_call == FF(1); });
+        auto call_row_iter = std::ranges::find_if(
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_internal_call == FF(1); });
         EXPECT_TRUE(call_row_iter != trace.end());
         auto& call_row = trace.at(static_cast<size_t>(call_row_iter - trace.begin()));
         validate_internal_call(call_row, 0, CALL_PC, 0);
@@ -84,7 +85,7 @@ TEST_F(AvmControlFlowTests, simpleCall)
     // Check halt
     {
         auto halt_row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_halt == FF(1); });
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_halt == FF(1); });
 
         // Check that the correct result is stored at the expected memory location.
         EXPECT_TRUE(halt_row != trace.end());
@@ -110,7 +111,7 @@ TEST_F(AvmControlFlowTests, simpleJump)
     // Check jump
     {
         auto call_row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_jump == FF(1); });
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_jump == FF(1); });
         EXPECT_TRUE(call_row != trace.end());
         EXPECT_EQ(call_row->main_pc, FF(0));
         EXPECT_EQ(call_row->main_ia, FF(JUMP_PC));
@@ -119,7 +120,7 @@ TEST_F(AvmControlFlowTests, simpleJump)
     // Check halt
     {
         auto halt_row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_halt == FF(1); });
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_halt == FF(1); });
 
         EXPECT_TRUE(halt_row != trace.end());
         EXPECT_EQ(halt_row->main_pc, FF(JUMP_PC));
@@ -144,8 +145,8 @@ TEST_F(AvmControlFlowTests, simpleCallAndReturn)
 
     // Check call
     {
-        auto call_row_iter =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_internal_call == FF(1); });
+        auto call_row_iter = std::ranges::find_if(
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_internal_call == FF(1); });
         EXPECT_TRUE(call_row_iter != trace.end());
         auto& call_row = trace.at(static_cast<size_t>(call_row_iter - trace.begin()));
         validate_internal_call(call_row, 0, CALL_PC, 0);
@@ -153,8 +154,8 @@ TEST_F(AvmControlFlowTests, simpleCallAndReturn)
 
     // Check return
     {
-        auto return_row_iter =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_internal_return == FF(1); });
+        auto return_row_iter = std::ranges::find_if(
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_internal_return == FF(1); });
 
         // Check that the correct result is stored at the expected memory location.
         EXPECT_TRUE(return_row_iter != trace.end());
@@ -165,7 +166,7 @@ TEST_F(AvmControlFlowTests, simpleCallAndReturn)
     // Check halt
     {
         auto halt_row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_halt == FF(1); });
+            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_halt == FF(1); });
 
         EXPECT_TRUE(halt_row != trace.end());
         EXPECT_EQ(halt_row->main_pc, FF(RETURN_PC));
@@ -210,8 +211,9 @@ TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
 
     // Check call 1
     {
-        auto call_1 = std::ranges::find_if(
-            trace.begin(), trace.end(), [](Row r) { return r.main_sel_internal_call == FF(1) && r.main_ib == FF(1); });
+        auto call_1 = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) {
+            return r.main_sel_op_internal_call == FF(1) && r.main_ib == FF(1);
+        });
         EXPECT_TRUE(call_1 != trace.end());
         auto& call_1_row = trace.at(static_cast<size_t>(call_1 - trace.begin()));
         validate_internal_call(call_1_row, 0, CALL_PC_1, 0);
@@ -220,7 +222,7 @@ TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
     // Call 2
     {
         auto call_2 = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) {
-            return r.main_sel_internal_call == FF(1) && r.main_pc == FF(CALL_PC_1);
+            return r.main_sel_op_internal_call == FF(1) && r.main_pc == FF(CALL_PC_1);
         });
         EXPECT_TRUE(call_2 != trace.end());
         auto& call_2_row = trace.at(static_cast<size_t>(call_2 - trace.begin()));
@@ -230,7 +232,7 @@ TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
     // Call 3
     {
         auto call_3 = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) {
-            return r.main_sel_internal_call == FF(1) && r.main_pc == FF(CALL_PC_2);
+            return r.main_sel_op_internal_call == FF(1) && r.main_pc == FF(CALL_PC_2);
         });
         EXPECT_TRUE(call_3 != trace.end());
         auto& call_3_row = trace.at(static_cast<size_t>(call_3 - trace.begin()));
@@ -239,8 +241,8 @@ TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
 
     // Return 1
     {
-        auto return_1 =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_internal_return == FF(1); });
+        auto return_1 = std::ranges::find_if(
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_internal_return == FF(1); });
         EXPECT_TRUE(return_1 != trace.end());
         auto& return_1_row = trace.at(static_cast<size_t>(return_1 - trace.begin()));
         validate_internal_return(return_1_row, CALL_PC_3, CALL_PC_2 + 1, 3);
@@ -249,7 +251,7 @@ TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
     // Call 4
     {
         auto call_4 = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) {
-            return r.main_sel_internal_call == FF(1) && r.main_pc == FF(CALL_PC_2 + 1);
+            return r.main_sel_op_internal_call == FF(1) && r.main_pc == FF(CALL_PC_2 + 1);
         });
         EXPECT_TRUE(call_4 != trace.end());
         auto& call_4_row = trace.at(static_cast<size_t>(call_4 - trace.begin()));
@@ -259,7 +261,7 @@ TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
     // Return 2
     {
         auto return_2 = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) {
-            return r.main_sel_internal_return == FF(1) && r.main_pc == FF(CALL_PC_4);
+            return r.main_sel_op_internal_return == FF(1) && r.main_pc == FF(CALL_PC_4);
         });
         EXPECT_TRUE(return_2 != trace.end());
         auto& return_2_row = trace.at(static_cast<size_t>(return_2 - trace.begin()));
@@ -269,7 +271,7 @@ TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
     // Jump 1
     {
         auto jump_1 = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) {
-            return r.main_sel_jump == FF(1) && r.main_pc == FF(CALL_PC_2 + 2);
+            return r.main_sel_op_jump == FF(1) && r.main_pc == FF(CALL_PC_2 + 2);
         });
         EXPECT_TRUE(jump_1 != trace.end());
         EXPECT_EQ(jump_1->main_ia, FF(JUMP_PC_1));
@@ -279,7 +281,7 @@ TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
     // Return 3
     {
         auto return_3 = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) {
-            return r.main_sel_internal_return == FF(1) && r.main_pc == FF(JUMP_PC_1);
+            return r.main_sel_op_internal_return == FF(1) && r.main_pc == FF(JUMP_PC_1);
         });
         EXPECT_TRUE(return_3 != trace.end());
         auto& return_3_row = trace.at(static_cast<size_t>(return_3 - trace.begin()));
@@ -289,7 +291,7 @@ TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
     // Return 4
     {
         auto return_4 = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) {
-            return r.main_sel_internal_return == FF(1) && r.main_pc == FF(CALL_PC_1 + 1);
+            return r.main_sel_op_internal_return == FF(1) && r.main_pc == FF(CALL_PC_1 + 1);
         });
         EXPECT_TRUE(return_4 != trace.end());
         auto& return_4_row = trace.at(static_cast<size_t>(return_4 - trace.begin()));
@@ -297,11 +299,12 @@ TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
     }
 
     // Halt row
-    auto halt_row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_halt == FF(1); });
+    auto halt_row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_halt == FF(1); });
 
     EXPECT_TRUE(halt_row != trace.end());
     EXPECT_EQ(halt_row->main_pc, FF(1));
 
     validate_trace(std::move(trace), public_inputs);
 }
+
 } // namespace tests_avm

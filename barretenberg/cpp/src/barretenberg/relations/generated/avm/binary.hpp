@@ -13,7 +13,6 @@ template <typename FF> struct BinaryRow {
     FF binary_acc_ib_shift{};
     FF binary_acc_ic{};
     FF binary_acc_ic_shift{};
-    FF binary_bin_sel{};
     FF binary_ia_bytes{};
     FF binary_ib_bytes{};
     FF binary_ic_bytes{};
@@ -22,6 +21,7 @@ template <typename FF> struct BinaryRow {
     FF binary_mem_tag_ctr_shift{};
     FF binary_op_id{};
     FF binary_op_id_shift{};
+    FF binary_sel_bin{};
 
     [[maybe_unused]] static std::vector<std::string> names();
 };
@@ -36,7 +36,7 @@ inline std::string get_relation_label_binary(int index)
         return "MEM_TAG_REL";
 
     case 3:
-        return "BIN_SEL_CTR_REL";
+        return "SEL_BIN_CTR_REL";
 
     case 7:
         return "ACC_REL_A";
@@ -69,7 +69,7 @@ template <typename FF_> class binaryImpl {
         {
             Avm_DECLARE_VIEWS(0);
 
-            auto tmp = (binary_bin_sel * (-binary_bin_sel + FF(1)));
+            auto tmp = (binary_sel_bin * (-binary_sel_bin + FF(1)));
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
         }
@@ -94,8 +94,8 @@ template <typename FF_> class binaryImpl {
             Avm_DECLARE_VIEWS(3);
 
             auto tmp = ((binary_mem_tag_ctr *
-                         (((-binary_bin_sel + FF(1)) * (-binary_mem_tag_ctr_inv + FF(1))) + binary_mem_tag_ctr_inv)) -
-                        binary_bin_sel);
+                         (((-binary_sel_bin + FF(1)) * (-binary_mem_tag_ctr_inv + FF(1))) + binary_mem_tag_ctr_inv)) -
+                        binary_sel_bin);
             tmp *= scaling_factor;
             std::get<3>(evals) += tmp;
         }
@@ -103,7 +103,7 @@ template <typename FF_> class binaryImpl {
         {
             Avm_DECLARE_VIEWS(4);
 
-            auto tmp = ((-binary_bin_sel + FF(1)) * binary_acc_ia);
+            auto tmp = ((-binary_sel_bin + FF(1)) * binary_acc_ia);
             tmp *= scaling_factor;
             std::get<4>(evals) += tmp;
         }
@@ -111,7 +111,7 @@ template <typename FF_> class binaryImpl {
         {
             Avm_DECLARE_VIEWS(5);
 
-            auto tmp = ((-binary_bin_sel + FF(1)) * binary_acc_ib);
+            auto tmp = ((-binary_sel_bin + FF(1)) * binary_acc_ib);
             tmp *= scaling_factor;
             std::get<5>(evals) += tmp;
         }
@@ -119,7 +119,7 @@ template <typename FF_> class binaryImpl {
         {
             Avm_DECLARE_VIEWS(6);
 
-            auto tmp = ((-binary_bin_sel + FF(1)) * binary_acc_ic);
+            auto tmp = ((-binary_sel_bin + FF(1)) * binary_acc_ic);
             tmp *= scaling_factor;
             std::get<6>(evals) += tmp;
         }

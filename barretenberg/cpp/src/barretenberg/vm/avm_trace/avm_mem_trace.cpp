@@ -228,7 +228,7 @@ AvmMemTraceBuilder::MemEntry AvmMemTraceBuilder::read_and_load_mov_opcode(uint8_
         .m_tag = mem_entry.tag,
         .r_in_tag = mem_entry.tag,
         .w_in_tag = mem_entry.tag,
-        .m_sel_mov_a = true,
+        .m_sel_mov_ia_to_ic = true,
     });
 
     return mem_entry;
@@ -271,7 +271,7 @@ std::array<AvmMemTraceBuilder::MemEntry, 3> AvmMemTraceBuilder::read_and_load_cm
         .m_tag = a_mem_entry.tag,
         .r_in_tag = r_w_in_tag,
         .w_in_tag = r_w_in_tag,
-        .m_sel_mov_a = !mov_b,
+        .m_sel_mov_ia_to_ic = !mov_b,
         .m_sel_cmov = true,
     });
 
@@ -284,7 +284,7 @@ std::array<AvmMemTraceBuilder::MemEntry, 3> AvmMemTraceBuilder::read_and_load_cm
         .m_tag = b_mem_entry.tag,
         .r_in_tag = r_w_in_tag,
         .w_in_tag = r_w_in_tag,
-        .m_sel_mov_b = mov_b,
+        .m_sel_mov_ib_to_ic = mov_b,
         .m_sel_cmov = true,
     });
 
@@ -481,6 +481,37 @@ void AvmMemTraceBuilder::write_into_memory(uint8_t space_id,
         mem_space.emplace(addr, memEntry);
     }
     store_in_mem_trace(space_id, clk, interm_reg, addr, val, r_in_tag, w_in_tag);
+}
+
+bool AvmMemTraceBuilder::MemoryTraceEntry::operator<(const AvmMemTraceBuilder::MemoryTraceEntry& other) const
+{
+    if (m_space_id < other.m_space_id) {
+        return true;
+    }
+
+    if (m_space_id > other.m_space_id) {
+        return false;
+    }
+
+    if (m_addr < other.m_addr) {
+        return true;
+    }
+
+    if (m_addr > other.m_addr) {
+        return false;
+    }
+
+    if (m_clk < other.m_clk) {
+        return true;
+    }
+
+    if (m_clk > other.m_clk) {
+        return false;
+    }
+
+    // No safeguard in case they are equal. The caller should ensure this property.
+    // Otherwise, relation will not be satisfied.
+    return m_sub_clk < other.m_sub_clk;
 }
 
 } // namespace bb::avm_trace

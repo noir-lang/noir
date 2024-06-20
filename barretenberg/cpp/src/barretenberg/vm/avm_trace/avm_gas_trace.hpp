@@ -109,6 +109,7 @@ static const inline std::unordered_map<OpCode, GasTableEntry> GAS_COST_TABLE = {
     // Sentinel
     // LAST_OPCODE_SENTINEL,
 };
+
 class AvmGasTraceBuilder {
   public:
     struct GasTraceEntry {
@@ -124,8 +125,7 @@ class AvmGasTraceBuilder {
     // opcode -> count
     std::unordered_map<OpCode, uint32_t> gas_opcode_lookup_counter;
 
-    // Constructor receives copy of kernel_inputs from the main trace builder
-    AvmGasTraceBuilder();
+    AvmGasTraceBuilder() = default;
 
     void reset();
     std::vector<GasTraceEntry> finalize();

@@ -2,12 +2,8 @@
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 
 namespace bb::avm_trace {
-using element = grumpkin::g1::affine_element;
 
-AvmEccTraceBuilder::AvmEccTraceBuilder()
-{
-    ecc_trace.reserve(AVM_TRACE_SIZE);
-}
+using element = grumpkin::g1::affine_element;
 
 std::vector<AvmEccTraceBuilder::EccTraceEntry> AvmEccTraceBuilder::finalize()
 {

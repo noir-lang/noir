@@ -14,6 +14,7 @@
 #include <vector>
 
 namespace tests_avm {
+
 using namespace bb;
 using namespace bb::avm_trace;
 namespace {
@@ -32,20 +33,20 @@ void common_validate_cmp(Row const& row,
     // Use the row in the main trace to find the same operation in the alu trace.
     // Check that the correct result is stored at the expected memory location.
     EXPECT_EQ(row.main_ic, c);
-    EXPECT_EQ(row.main_mem_idx_c, addr_c);
-    EXPECT_EQ(row.main_mem_op_c, FF(1));
+    EXPECT_EQ(row.main_mem_addr_c, addr_c);
+    EXPECT_EQ(row.main_sel_mem_op_c, FF(1));
     EXPECT_EQ(row.main_rwc, FF(1));
 
     // Check that ia register is correctly set with memory load operations.
     EXPECT_EQ(row.main_ia, a);
-    EXPECT_EQ(row.main_mem_idx_a, addr_a);
-    EXPECT_EQ(row.main_mem_op_a, FF(1));
+    EXPECT_EQ(row.main_mem_addr_a, addr_a);
+    EXPECT_EQ(row.main_sel_mem_op_a, FF(1));
     EXPECT_EQ(row.main_rwa, FF(0));
 
     // Check that ib register is correctly set with memory load operations.
     EXPECT_EQ(row.main_ib, b);
-    EXPECT_EQ(row.main_mem_idx_b, addr_b);
-    EXPECT_EQ(row.main_mem_op_b, FF(1));
+    EXPECT_EQ(row.main_mem_addr_b, addr_b);
+    EXPECT_EQ(row.main_sel_mem_op_b, FF(1));
     EXPECT_EQ(row.main_rwb, FF(0));
 
     // Check the instruction tags
@@ -224,8 +225,8 @@ std::vector<Row> gen_mutated_trace_cmp(
         range_check_row->alu_cmp_rng_ctr = FF(0);
         break;
     case CounterNonZeroCheckFailed:
-        range_check_row->alu_rng_chk_sel = FF(0);
-        range_check_row->alu_rng_chk_lookup_selector = FF(0);
+        range_check_row->alu_sel_rng_chk = FF(0);
+        range_check_row->alu_sel_rng_chk_lookup = FF(0);
         break;
     case ShiftRelationFailed:
         range_check_row->alu_a_lo = range_check_row->alu_res_lo;

@@ -68,10 +68,10 @@
 #include "barretenberg/relations/generated/avm/perm_main_mem_b.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_c.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_d.hpp"
-#include "barretenberg/relations/generated/avm/perm_main_mem_ind_a.hpp"
-#include "barretenberg/relations/generated/avm/perm_main_mem_ind_b.hpp"
-#include "barretenberg/relations/generated/avm/perm_main_mem_ind_c.hpp"
-#include "barretenberg/relations/generated/avm/perm_main_mem_ind_d.hpp"
+#include "barretenberg/relations/generated/avm/perm_main_mem_ind_addr_a.hpp"
+#include "barretenberg/relations/generated/avm/perm_main_mem_ind_addr_b.hpp"
+#include "barretenberg/relations/generated/avm/perm_main_mem_ind_addr_c.hpp"
+#include "barretenberg/relations/generated/avm/perm_main_mem_ind_addr_d.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_pedersen.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_pos2_perm.hpp"
 #include "barretenberg/relations/generated/avm/poseidon2.hpp"
@@ -86,18 +86,15 @@ namespace bb {
 
 template <typename FF> struct AvmFullRow {
     FF main_clk{};
-    FF main_first{};
+    FF main_sel_first{};
     FF alu_a_hi{};
     FF alu_a_lo{};
-    FF alu_alu_sel{};
     FF alu_b_hi{};
     FF alu_b_lo{};
     FF alu_borrow{};
     FF alu_cf{};
     FF alu_clk{};
     FF alu_cmp_rng_ctr{};
-    FF alu_cmp_sel{};
-    FF alu_div_rng_chk_selector{};
     FF alu_div_u16_r0{};
     FF alu_div_u16_r1{};
     FF alu_div_u16_r2{};
@@ -141,10 +138,13 @@ template <typename FF> struct AvmFullRow {
     FF alu_remainder{};
     FF alu_res_hi{};
     FF alu_res_lo{};
-    FF alu_rng_chk_lookup_selector{};
-    FF alu_rng_chk_sel{};
+    FF alu_sel_alu{};
+    FF alu_sel_cmp{};
+    FF alu_sel_div_rng_chk{};
+    FF alu_sel_rng_chk{};
+    FF alu_sel_rng_chk_lookup{};
+    FF alu_sel_shift_which{};
     FF alu_shift_lt_bit_len{};
-    FF alu_shift_sel{};
     FF alu_t_sub_s_bits{};
     FF alu_two_pow_s{};
     FF alu_two_pow_t_sub_s{};
@@ -173,7 +173,6 @@ template <typename FF> struct AvmFullRow {
     FF binary_acc_ia{};
     FF binary_acc_ib{};
     FF binary_acc_ic{};
-    FF binary_bin_sel{};
     FF binary_clk{};
     FF binary_ia_bytes{};
     FF binary_ib_bytes{};
@@ -182,8 +181,9 @@ template <typename FF> struct AvmFullRow {
     FF binary_mem_tag_ctr{};
     FF binary_mem_tag_ctr_inv{};
     FF binary_op_id{};
+    FF binary_sel_bin{};
     FF binary_start{};
-    FF byte_lookup_bin_sel{};
+    FF byte_lookup_sel_bin{};
     FF byte_lookup_table_byte_lengths{};
     FF byte_lookup_table_in_tags{};
     FF byte_lookup_table_input_a{};
@@ -194,14 +194,14 @@ template <typename FF> struct AvmFullRow {
     FF conversion_input{};
     FF conversion_num_limbs{};
     FF conversion_radix{};
-    FF conversion_to_radix_le_sel{};
+    FF conversion_sel_to_radix_le{};
     FF gas_da_gas_fixed_table{};
-    FF gas_gas_cost_sel{};
     FF gas_l2_gas_fixed_table{};
+    FF gas_sel_gas_cost{};
     FF keccakf1600_clk{};
     FF keccakf1600_input{};
-    FF keccakf1600_keccakf1600_sel{};
     FF keccakf1600_output{};
+    FF keccakf1600_sel_keccakf1600{};
     FF kernel_emit_l2_to_l1_msg_write_offset{};
     FF kernel_emit_note_hash_write_offset{};
     FF kernel_emit_nullifier_write_offset{};
@@ -226,68 +226,55 @@ template <typename FF> struct AvmFullRow {
     FF main_abs_l2_rem_gas_hi{};
     FF main_abs_l2_rem_gas_lo{};
     FF main_alu_in_tag{};
-    FF main_alu_sel{};
     FF main_bin_op_id{};
-    FF main_bin_sel{};
     FF main_call_ptr{};
-    FF main_da_gas_op{};
+    FF main_da_gas_op_cost{};
     FF main_da_gas_remaining{};
     FF main_da_out_of_gas{};
-    FF main_gas_cost_active{};
     FF main_ia{};
     FF main_ib{};
     FF main_ic{};
     FF main_id{};
     FF main_id_zero{};
-    FF main_ind_a{};
-    FF main_ind_b{};
-    FF main_ind_c{};
-    FF main_ind_d{};
-    FF main_ind_op_a{};
-    FF main_ind_op_b{};
-    FF main_ind_op_c{};
-    FF main_ind_op_d{};
+    FF main_ind_addr_a{};
+    FF main_ind_addr_b{};
+    FF main_ind_addr_c{};
+    FF main_ind_addr_d{};
     FF main_internal_return_ptr{};
     FF main_inv{};
-    FF main_l2_gas_op{};
+    FF main_l2_gas_op_cost{};
     FF main_l2_gas_remaining{};
     FF main_l2_out_of_gas{};
-    FF main_last{};
-    FF main_mem_idx_a{};
-    FF main_mem_idx_b{};
-    FF main_mem_idx_c{};
-    FF main_mem_idx_d{};
-    FF main_mem_op_a{};
-    FF main_mem_op_activate_gas{};
-    FF main_mem_op_b{};
-    FF main_mem_op_c{};
-    FF main_mem_op_d{};
+    FF main_mem_addr_a{};
+    FF main_mem_addr_b{};
+    FF main_mem_addr_c{};
+    FF main_mem_addr_d{};
     FF main_op_err{};
     FF main_opcode_val{};
     FF main_pc{};
-    FF main_q_kernel_lookup{};
-    FF main_q_kernel_output_lookup{};
     FF main_r_in_tag{};
     FF main_rwa{};
     FF main_rwb{};
     FF main_rwc{};
     FF main_rwd{};
-    FF main_sel_cmov{};
-    FF main_sel_external_call{};
-    FF main_sel_halt{};
-    FF main_sel_internal_call{};
-    FF main_sel_internal_return{};
-    FF main_sel_jump{};
-    FF main_sel_jumpi{};
-    FF main_sel_mov{};
-    FF main_sel_mov_a{};
-    FF main_sel_mov_b{};
+    FF main_sel_alu{};
+    FF main_sel_bin{};
+    FF main_sel_gas_accounting_active{};
+    FF main_sel_last{};
+    FF main_sel_mem_op_a{};
+    FF main_sel_mem_op_activate_gas{};
+    FF main_sel_mem_op_b{};
+    FF main_sel_mem_op_c{};
+    FF main_sel_mem_op_d{};
+    FF main_sel_mov_ia_to_ic{};
+    FF main_sel_mov_ib_to_ic{};
     FF main_sel_op_add{};
     FF main_sel_op_address{};
     FF main_sel_op_and{};
     FF main_sel_op_block_number{};
     FF main_sel_op_cast{};
     FF main_sel_op_chain_id{};
+    FF main_sel_op_cmov{};
     FF main_sel_op_coinbase{};
     FF main_sel_op_dagasleft{};
     FF main_sel_op_div{};
@@ -296,15 +283,22 @@ template <typename FF> struct AvmFullRow {
     FF main_sel_op_emit_nullifier{};
     FF main_sel_op_emit_unencrypted_log{};
     FF main_sel_op_eq{};
+    FF main_sel_op_external_call{};
     FF main_sel_op_fdiv{};
     FF main_sel_op_fee_per_da_gas{};
     FF main_sel_op_fee_per_l2_gas{};
     FF main_sel_op_get_contract_instance{};
+    FF main_sel_op_halt{};
+    FF main_sel_op_internal_call{};
+    FF main_sel_op_internal_return{};
+    FF main_sel_op_jump{};
+    FF main_sel_op_jumpi{};
     FF main_sel_op_keccak{};
     FF main_sel_op_l1_to_l2_msg_exists{};
     FF main_sel_op_l2gasleft{};
     FF main_sel_op_lt{};
     FF main_sel_op_lte{};
+    FF main_sel_op_mov{};
     FF main_sel_op_mul{};
     FF main_sel_op_not{};
     FF main_sel_op_note_hash_exists{};
@@ -325,6 +319,12 @@ template <typename FF> struct AvmFullRow {
     FF main_sel_op_transaction_fee{};
     FF main_sel_op_version{};
     FF main_sel_op_xor{};
+    FF main_sel_q_kernel_lookup{};
+    FF main_sel_q_kernel_output_lookup{};
+    FF main_sel_resolve_ind_addr_a{};
+    FF main_sel_resolve_ind_addr_b{};
+    FF main_sel_resolve_ind_addr_c{};
+    FF main_sel_resolve_ind_addr_d{};
     FF main_sel_rng_16{};
     FF main_sel_rng_8{};
     FF main_space_id{};
@@ -337,24 +337,24 @@ template <typename FF> struct AvmFullRow {
     FF mem_diff_lo{};
     FF mem_diff_mid{};
     FF mem_glob_addr{};
-    FF mem_ind_op_a{};
-    FF mem_ind_op_b{};
-    FF mem_ind_op_c{};
-    FF mem_ind_op_d{};
     FF mem_last{};
     FF mem_lastAccess{};
-    FF mem_mem_sel{};
     FF mem_one_min_inv{};
-    FF mem_op_a{};
-    FF mem_op_b{};
-    FF mem_op_c{};
-    FF mem_op_d{};
     FF mem_r_in_tag{};
-    FF mem_rng_chk_sel{};
     FF mem_rw{};
-    FF mem_sel_cmov{};
-    FF mem_sel_mov_a{};
-    FF mem_sel_mov_b{};
+    FF mem_sel_mem{};
+    FF mem_sel_mov_ia_to_ic{};
+    FF mem_sel_mov_ib_to_ic{};
+    FF mem_sel_op_a{};
+    FF mem_sel_op_b{};
+    FF mem_sel_op_c{};
+    FF mem_sel_op_cmov{};
+    FF mem_sel_op_d{};
+    FF mem_sel_resolve_ind_addr_a{};
+    FF mem_sel_resolve_ind_addr_b{};
+    FF mem_sel_resolve_ind_addr_c{};
+    FF mem_sel_resolve_ind_addr_d{};
+    FF mem_sel_rng_chk{};
     FF mem_skip_check_tag{};
     FF mem_space_id{};
     FF mem_tag{};
@@ -365,15 +365,15 @@ template <typename FF> struct AvmFullRow {
     FF pedersen_clk{};
     FF pedersen_input{};
     FF pedersen_output{};
-    FF pedersen_pedersen_sel{};
+    FF pedersen_sel_pedersen{};
     FF poseidon2_clk{};
     FF poseidon2_input{};
     FF poseidon2_output{};
-    FF poseidon2_poseidon_perm_sel{};
+    FF poseidon2_sel_poseidon_perm{};
     FF sha256_clk{};
     FF sha256_input{};
     FF sha256_output{};
-    FF sha256_sha256_compression_sel{};
+    FF sha256_sel_sha256_compression{};
     FF sha256_state{};
     FF perm_main_alu{};
     FF perm_main_bin{};
@@ -384,10 +384,10 @@ template <typename FF> struct AvmFullRow {
     FF perm_main_mem_b{};
     FF perm_main_mem_c{};
     FF perm_main_mem_d{};
-    FF perm_main_mem_ind_a{};
-    FF perm_main_mem_ind_b{};
-    FF perm_main_mem_ind_c{};
-    FF perm_main_mem_ind_d{};
+    FF perm_main_mem_ind_addr_a{};
+    FF perm_main_mem_ind_addr_b{};
+    FF perm_main_mem_ind_addr_c{};
+    FF perm_main_mem_ind_addr_d{};
     FF lookup_byte_lengths{};
     FF lookup_byte_operations{};
     FF lookup_opcode_gas{};
@@ -472,12 +472,9 @@ template <typename FF> struct AvmFullRow {
     FF lookup_div_u16_7_counts{};
     FF alu_a_hi_shift{};
     FF alu_a_lo_shift{};
-    FF alu_alu_sel_shift{};
     FF alu_b_hi_shift{};
     FF alu_b_lo_shift{};
     FF alu_cmp_rng_ctr_shift{};
-    FF alu_cmp_sel_shift{};
-    FF alu_div_rng_chk_selector_shift{};
     FF alu_div_u16_r0_shift{};
     FF alu_div_u16_r1_shift{};
     FF alu_div_u16_r2_shift{};
@@ -498,8 +495,11 @@ template <typename FF> struct AvmFullRow {
     FF alu_p_sub_a_lo_shift{};
     FF alu_p_sub_b_hi_shift{};
     FF alu_p_sub_b_lo_shift{};
-    FF alu_rng_chk_lookup_selector_shift{};
-    FF alu_rng_chk_sel_shift{};
+    FF alu_sel_alu_shift{};
+    FF alu_sel_cmp_shift{};
+    FF alu_sel_div_rng_chk_shift{};
+    FF alu_sel_rng_chk_lookup_shift{};
+    FF alu_sel_rng_chk_shift{};
     FF alu_u16_r0_shift{};
     FF alu_u16_r1_shift{};
     FF alu_u16_r2_shift{};
@@ -530,8 +530,8 @@ template <typename FF> struct AvmFullRow {
     FF main_l2_gas_remaining_shift{};
     FF main_pc_shift{};
     FF mem_glob_addr_shift{};
-    FF mem_mem_sel_shift{};
     FF mem_rw_shift{};
+    FF mem_sel_mem_shift{};
     FF mem_tag_shift{};
     FF mem_tsp_shift{};
     FF mem_val_shift{};
@@ -569,18 +569,15 @@ class AvmCircuitBuilder {
 
         for (size_t i = 0; i < rows.size(); i++) {
             polys.main_clk[i] = rows[i].main_clk;
-            polys.main_first[i] = rows[i].main_first;
+            polys.main_sel_first[i] = rows[i].main_sel_first;
             polys.alu_a_hi[i] = rows[i].alu_a_hi;
             polys.alu_a_lo[i] = rows[i].alu_a_lo;
-            polys.alu_alu_sel[i] = rows[i].alu_alu_sel;
             polys.alu_b_hi[i] = rows[i].alu_b_hi;
             polys.alu_b_lo[i] = rows[i].alu_b_lo;
             polys.alu_borrow[i] = rows[i].alu_borrow;
             polys.alu_cf[i] = rows[i].alu_cf;
             polys.alu_clk[i] = rows[i].alu_clk;
             polys.alu_cmp_rng_ctr[i] = rows[i].alu_cmp_rng_ctr;
-            polys.alu_cmp_sel[i] = rows[i].alu_cmp_sel;
-            polys.alu_div_rng_chk_selector[i] = rows[i].alu_div_rng_chk_selector;
             polys.alu_div_u16_r0[i] = rows[i].alu_div_u16_r0;
             polys.alu_div_u16_r1[i] = rows[i].alu_div_u16_r1;
             polys.alu_div_u16_r2[i] = rows[i].alu_div_u16_r2;
@@ -624,10 +621,13 @@ class AvmCircuitBuilder {
             polys.alu_remainder[i] = rows[i].alu_remainder;
             polys.alu_res_hi[i] = rows[i].alu_res_hi;
             polys.alu_res_lo[i] = rows[i].alu_res_lo;
-            polys.alu_rng_chk_lookup_selector[i] = rows[i].alu_rng_chk_lookup_selector;
-            polys.alu_rng_chk_sel[i] = rows[i].alu_rng_chk_sel;
+            polys.alu_sel_alu[i] = rows[i].alu_sel_alu;
+            polys.alu_sel_cmp[i] = rows[i].alu_sel_cmp;
+            polys.alu_sel_div_rng_chk[i] = rows[i].alu_sel_div_rng_chk;
+            polys.alu_sel_rng_chk[i] = rows[i].alu_sel_rng_chk;
+            polys.alu_sel_rng_chk_lookup[i] = rows[i].alu_sel_rng_chk_lookup;
+            polys.alu_sel_shift_which[i] = rows[i].alu_sel_shift_which;
             polys.alu_shift_lt_bit_len[i] = rows[i].alu_shift_lt_bit_len;
-            polys.alu_shift_sel[i] = rows[i].alu_shift_sel;
             polys.alu_t_sub_s_bits[i] = rows[i].alu_t_sub_s_bits;
             polys.alu_two_pow_s[i] = rows[i].alu_two_pow_s;
             polys.alu_two_pow_t_sub_s[i] = rows[i].alu_two_pow_t_sub_s;
@@ -656,7 +656,6 @@ class AvmCircuitBuilder {
             polys.binary_acc_ia[i] = rows[i].binary_acc_ia;
             polys.binary_acc_ib[i] = rows[i].binary_acc_ib;
             polys.binary_acc_ic[i] = rows[i].binary_acc_ic;
-            polys.binary_bin_sel[i] = rows[i].binary_bin_sel;
             polys.binary_clk[i] = rows[i].binary_clk;
             polys.binary_ia_bytes[i] = rows[i].binary_ia_bytes;
             polys.binary_ib_bytes[i] = rows[i].binary_ib_bytes;
@@ -665,8 +664,9 @@ class AvmCircuitBuilder {
             polys.binary_mem_tag_ctr[i] = rows[i].binary_mem_tag_ctr;
             polys.binary_mem_tag_ctr_inv[i] = rows[i].binary_mem_tag_ctr_inv;
             polys.binary_op_id[i] = rows[i].binary_op_id;
+            polys.binary_sel_bin[i] = rows[i].binary_sel_bin;
             polys.binary_start[i] = rows[i].binary_start;
-            polys.byte_lookup_bin_sel[i] = rows[i].byte_lookup_bin_sel;
+            polys.byte_lookup_sel_bin[i] = rows[i].byte_lookup_sel_bin;
             polys.byte_lookup_table_byte_lengths[i] = rows[i].byte_lookup_table_byte_lengths;
             polys.byte_lookup_table_in_tags[i] = rows[i].byte_lookup_table_in_tags;
             polys.byte_lookup_table_input_a[i] = rows[i].byte_lookup_table_input_a;
@@ -677,14 +677,14 @@ class AvmCircuitBuilder {
             polys.conversion_input[i] = rows[i].conversion_input;
             polys.conversion_num_limbs[i] = rows[i].conversion_num_limbs;
             polys.conversion_radix[i] = rows[i].conversion_radix;
-            polys.conversion_to_radix_le_sel[i] = rows[i].conversion_to_radix_le_sel;
+            polys.conversion_sel_to_radix_le[i] = rows[i].conversion_sel_to_radix_le;
             polys.gas_da_gas_fixed_table[i] = rows[i].gas_da_gas_fixed_table;
-            polys.gas_gas_cost_sel[i] = rows[i].gas_gas_cost_sel;
             polys.gas_l2_gas_fixed_table[i] = rows[i].gas_l2_gas_fixed_table;
+            polys.gas_sel_gas_cost[i] = rows[i].gas_sel_gas_cost;
             polys.keccakf1600_clk[i] = rows[i].keccakf1600_clk;
             polys.keccakf1600_input[i] = rows[i].keccakf1600_input;
-            polys.keccakf1600_keccakf1600_sel[i] = rows[i].keccakf1600_keccakf1600_sel;
             polys.keccakf1600_output[i] = rows[i].keccakf1600_output;
+            polys.keccakf1600_sel_keccakf1600[i] = rows[i].keccakf1600_sel_keccakf1600;
             polys.kernel_emit_l2_to_l1_msg_write_offset[i] = rows[i].kernel_emit_l2_to_l1_msg_write_offset;
             polys.kernel_emit_note_hash_write_offset[i] = rows[i].kernel_emit_note_hash_write_offset;
             polys.kernel_emit_nullifier_write_offset[i] = rows[i].kernel_emit_nullifier_write_offset;
@@ -710,68 +710,55 @@ class AvmCircuitBuilder {
             polys.main_abs_l2_rem_gas_hi[i] = rows[i].main_abs_l2_rem_gas_hi;
             polys.main_abs_l2_rem_gas_lo[i] = rows[i].main_abs_l2_rem_gas_lo;
             polys.main_alu_in_tag[i] = rows[i].main_alu_in_tag;
-            polys.main_alu_sel[i] = rows[i].main_alu_sel;
             polys.main_bin_op_id[i] = rows[i].main_bin_op_id;
-            polys.main_bin_sel[i] = rows[i].main_bin_sel;
             polys.main_call_ptr[i] = rows[i].main_call_ptr;
-            polys.main_da_gas_op[i] = rows[i].main_da_gas_op;
+            polys.main_da_gas_op_cost[i] = rows[i].main_da_gas_op_cost;
             polys.main_da_gas_remaining[i] = rows[i].main_da_gas_remaining;
             polys.main_da_out_of_gas[i] = rows[i].main_da_out_of_gas;
-            polys.main_gas_cost_active[i] = rows[i].main_gas_cost_active;
             polys.main_ia[i] = rows[i].main_ia;
             polys.main_ib[i] = rows[i].main_ib;
             polys.main_ic[i] = rows[i].main_ic;
             polys.main_id[i] = rows[i].main_id;
             polys.main_id_zero[i] = rows[i].main_id_zero;
-            polys.main_ind_a[i] = rows[i].main_ind_a;
-            polys.main_ind_b[i] = rows[i].main_ind_b;
-            polys.main_ind_c[i] = rows[i].main_ind_c;
-            polys.main_ind_d[i] = rows[i].main_ind_d;
-            polys.main_ind_op_a[i] = rows[i].main_ind_op_a;
-            polys.main_ind_op_b[i] = rows[i].main_ind_op_b;
-            polys.main_ind_op_c[i] = rows[i].main_ind_op_c;
-            polys.main_ind_op_d[i] = rows[i].main_ind_op_d;
+            polys.main_ind_addr_a[i] = rows[i].main_ind_addr_a;
+            polys.main_ind_addr_b[i] = rows[i].main_ind_addr_b;
+            polys.main_ind_addr_c[i] = rows[i].main_ind_addr_c;
+            polys.main_ind_addr_d[i] = rows[i].main_ind_addr_d;
             polys.main_internal_return_ptr[i] = rows[i].main_internal_return_ptr;
             polys.main_inv[i] = rows[i].main_inv;
-            polys.main_l2_gas_op[i] = rows[i].main_l2_gas_op;
+            polys.main_l2_gas_op_cost[i] = rows[i].main_l2_gas_op_cost;
             polys.main_l2_gas_remaining[i] = rows[i].main_l2_gas_remaining;
             polys.main_l2_out_of_gas[i] = rows[i].main_l2_out_of_gas;
-            polys.main_last[i] = rows[i].main_last;
-            polys.main_mem_idx_a[i] = rows[i].main_mem_idx_a;
-            polys.main_mem_idx_b[i] = rows[i].main_mem_idx_b;
-            polys.main_mem_idx_c[i] = rows[i].main_mem_idx_c;
-            polys.main_mem_idx_d[i] = rows[i].main_mem_idx_d;
-            polys.main_mem_op_a[i] = rows[i].main_mem_op_a;
-            polys.main_mem_op_activate_gas[i] = rows[i].main_mem_op_activate_gas;
-            polys.main_mem_op_b[i] = rows[i].main_mem_op_b;
-            polys.main_mem_op_c[i] = rows[i].main_mem_op_c;
-            polys.main_mem_op_d[i] = rows[i].main_mem_op_d;
+            polys.main_mem_addr_a[i] = rows[i].main_mem_addr_a;
+            polys.main_mem_addr_b[i] = rows[i].main_mem_addr_b;
+            polys.main_mem_addr_c[i] = rows[i].main_mem_addr_c;
+            polys.main_mem_addr_d[i] = rows[i].main_mem_addr_d;
             polys.main_op_err[i] = rows[i].main_op_err;
             polys.main_opcode_val[i] = rows[i].main_opcode_val;
             polys.main_pc[i] = rows[i].main_pc;
-            polys.main_q_kernel_lookup[i] = rows[i].main_q_kernel_lookup;
-            polys.main_q_kernel_output_lookup[i] = rows[i].main_q_kernel_output_lookup;
             polys.main_r_in_tag[i] = rows[i].main_r_in_tag;
             polys.main_rwa[i] = rows[i].main_rwa;
             polys.main_rwb[i] = rows[i].main_rwb;
             polys.main_rwc[i] = rows[i].main_rwc;
             polys.main_rwd[i] = rows[i].main_rwd;
-            polys.main_sel_cmov[i] = rows[i].main_sel_cmov;
-            polys.main_sel_external_call[i] = rows[i].main_sel_external_call;
-            polys.main_sel_halt[i] = rows[i].main_sel_halt;
-            polys.main_sel_internal_call[i] = rows[i].main_sel_internal_call;
-            polys.main_sel_internal_return[i] = rows[i].main_sel_internal_return;
-            polys.main_sel_jump[i] = rows[i].main_sel_jump;
-            polys.main_sel_jumpi[i] = rows[i].main_sel_jumpi;
-            polys.main_sel_mov[i] = rows[i].main_sel_mov;
-            polys.main_sel_mov_a[i] = rows[i].main_sel_mov_a;
-            polys.main_sel_mov_b[i] = rows[i].main_sel_mov_b;
+            polys.main_sel_alu[i] = rows[i].main_sel_alu;
+            polys.main_sel_bin[i] = rows[i].main_sel_bin;
+            polys.main_sel_gas_accounting_active[i] = rows[i].main_sel_gas_accounting_active;
+            polys.main_sel_last[i] = rows[i].main_sel_last;
+            polys.main_sel_mem_op_a[i] = rows[i].main_sel_mem_op_a;
+            polys.main_sel_mem_op_activate_gas[i] = rows[i].main_sel_mem_op_activate_gas;
+            polys.main_sel_mem_op_b[i] = rows[i].main_sel_mem_op_b;
+            polys.main_sel_mem_op_c[i] = rows[i].main_sel_mem_op_c;
+            polys.main_sel_mem_op_d[i] = rows[i].main_sel_mem_op_d;
+            polys.main_sel_mov_ia_to_ic[i] = rows[i].main_sel_mov_ia_to_ic;
+            polys.main_sel_mov_ib_to_ic[i] = rows[i].main_sel_mov_ib_to_ic;
             polys.main_sel_op_add[i] = rows[i].main_sel_op_add;
             polys.main_sel_op_address[i] = rows[i].main_sel_op_address;
             polys.main_sel_op_and[i] = rows[i].main_sel_op_and;
             polys.main_sel_op_block_number[i] = rows[i].main_sel_op_block_number;
             polys.main_sel_op_cast[i] = rows[i].main_sel_op_cast;
             polys.main_sel_op_chain_id[i] = rows[i].main_sel_op_chain_id;
+            polys.main_sel_op_cmov[i] = rows[i].main_sel_op_cmov;
             polys.main_sel_op_coinbase[i] = rows[i].main_sel_op_coinbase;
             polys.main_sel_op_dagasleft[i] = rows[i].main_sel_op_dagasleft;
             polys.main_sel_op_div[i] = rows[i].main_sel_op_div;
@@ -780,15 +767,22 @@ class AvmCircuitBuilder {
             polys.main_sel_op_emit_nullifier[i] = rows[i].main_sel_op_emit_nullifier;
             polys.main_sel_op_emit_unencrypted_log[i] = rows[i].main_sel_op_emit_unencrypted_log;
             polys.main_sel_op_eq[i] = rows[i].main_sel_op_eq;
+            polys.main_sel_op_external_call[i] = rows[i].main_sel_op_external_call;
             polys.main_sel_op_fdiv[i] = rows[i].main_sel_op_fdiv;
             polys.main_sel_op_fee_per_da_gas[i] = rows[i].main_sel_op_fee_per_da_gas;
             polys.main_sel_op_fee_per_l2_gas[i] = rows[i].main_sel_op_fee_per_l2_gas;
             polys.main_sel_op_get_contract_instance[i] = rows[i].main_sel_op_get_contract_instance;
+            polys.main_sel_op_halt[i] = rows[i].main_sel_op_halt;
+            polys.main_sel_op_internal_call[i] = rows[i].main_sel_op_internal_call;
+            polys.main_sel_op_internal_return[i] = rows[i].main_sel_op_internal_return;
+            polys.main_sel_op_jump[i] = rows[i].main_sel_op_jump;
+            polys.main_sel_op_jumpi[i] = rows[i].main_sel_op_jumpi;
             polys.main_sel_op_keccak[i] = rows[i].main_sel_op_keccak;
             polys.main_sel_op_l1_to_l2_msg_exists[i] = rows[i].main_sel_op_l1_to_l2_msg_exists;
             polys.main_sel_op_l2gasleft[i] = rows[i].main_sel_op_l2gasleft;
             polys.main_sel_op_lt[i] = rows[i].main_sel_op_lt;
             polys.main_sel_op_lte[i] = rows[i].main_sel_op_lte;
+            polys.main_sel_op_mov[i] = rows[i].main_sel_op_mov;
             polys.main_sel_op_mul[i] = rows[i].main_sel_op_mul;
             polys.main_sel_op_not[i] = rows[i].main_sel_op_not;
             polys.main_sel_op_note_hash_exists[i] = rows[i].main_sel_op_note_hash_exists;
@@ -809,6 +803,12 @@ class AvmCircuitBuilder {
             polys.main_sel_op_transaction_fee[i] = rows[i].main_sel_op_transaction_fee;
             polys.main_sel_op_version[i] = rows[i].main_sel_op_version;
             polys.main_sel_op_xor[i] = rows[i].main_sel_op_xor;
+            polys.main_sel_q_kernel_lookup[i] = rows[i].main_sel_q_kernel_lookup;
+            polys.main_sel_q_kernel_output_lookup[i] = rows[i].main_sel_q_kernel_output_lookup;
+            polys.main_sel_resolve_ind_addr_a[i] = rows[i].main_sel_resolve_ind_addr_a;
+            polys.main_sel_resolve_ind_addr_b[i] = rows[i].main_sel_resolve_ind_addr_b;
+            polys.main_sel_resolve_ind_addr_c[i] = rows[i].main_sel_resolve_ind_addr_c;
+            polys.main_sel_resolve_ind_addr_d[i] = rows[i].main_sel_resolve_ind_addr_d;
             polys.main_sel_rng_16[i] = rows[i].main_sel_rng_16;
             polys.main_sel_rng_8[i] = rows[i].main_sel_rng_8;
             polys.main_space_id[i] = rows[i].main_space_id;
@@ -821,24 +821,24 @@ class AvmCircuitBuilder {
             polys.mem_diff_lo[i] = rows[i].mem_diff_lo;
             polys.mem_diff_mid[i] = rows[i].mem_diff_mid;
             polys.mem_glob_addr[i] = rows[i].mem_glob_addr;
-            polys.mem_ind_op_a[i] = rows[i].mem_ind_op_a;
-            polys.mem_ind_op_b[i] = rows[i].mem_ind_op_b;
-            polys.mem_ind_op_c[i] = rows[i].mem_ind_op_c;
-            polys.mem_ind_op_d[i] = rows[i].mem_ind_op_d;
             polys.mem_last[i] = rows[i].mem_last;
             polys.mem_lastAccess[i] = rows[i].mem_lastAccess;
-            polys.mem_mem_sel[i] = rows[i].mem_mem_sel;
             polys.mem_one_min_inv[i] = rows[i].mem_one_min_inv;
-            polys.mem_op_a[i] = rows[i].mem_op_a;
-            polys.mem_op_b[i] = rows[i].mem_op_b;
-            polys.mem_op_c[i] = rows[i].mem_op_c;
-            polys.mem_op_d[i] = rows[i].mem_op_d;
             polys.mem_r_in_tag[i] = rows[i].mem_r_in_tag;
-            polys.mem_rng_chk_sel[i] = rows[i].mem_rng_chk_sel;
             polys.mem_rw[i] = rows[i].mem_rw;
-            polys.mem_sel_cmov[i] = rows[i].mem_sel_cmov;
-            polys.mem_sel_mov_a[i] = rows[i].mem_sel_mov_a;
-            polys.mem_sel_mov_b[i] = rows[i].mem_sel_mov_b;
+            polys.mem_sel_mem[i] = rows[i].mem_sel_mem;
+            polys.mem_sel_mov_ia_to_ic[i] = rows[i].mem_sel_mov_ia_to_ic;
+            polys.mem_sel_mov_ib_to_ic[i] = rows[i].mem_sel_mov_ib_to_ic;
+            polys.mem_sel_op_a[i] = rows[i].mem_sel_op_a;
+            polys.mem_sel_op_b[i] = rows[i].mem_sel_op_b;
+            polys.mem_sel_op_c[i] = rows[i].mem_sel_op_c;
+            polys.mem_sel_op_cmov[i] = rows[i].mem_sel_op_cmov;
+            polys.mem_sel_op_d[i] = rows[i].mem_sel_op_d;
+            polys.mem_sel_resolve_ind_addr_a[i] = rows[i].mem_sel_resolve_ind_addr_a;
+            polys.mem_sel_resolve_ind_addr_b[i] = rows[i].mem_sel_resolve_ind_addr_b;
+            polys.mem_sel_resolve_ind_addr_c[i] = rows[i].mem_sel_resolve_ind_addr_c;
+            polys.mem_sel_resolve_ind_addr_d[i] = rows[i].mem_sel_resolve_ind_addr_d;
+            polys.mem_sel_rng_chk[i] = rows[i].mem_sel_rng_chk;
             polys.mem_skip_check_tag[i] = rows[i].mem_skip_check_tag;
             polys.mem_space_id[i] = rows[i].mem_space_id;
             polys.mem_tag[i] = rows[i].mem_tag;
@@ -849,15 +849,15 @@ class AvmCircuitBuilder {
             polys.pedersen_clk[i] = rows[i].pedersen_clk;
             polys.pedersen_input[i] = rows[i].pedersen_input;
             polys.pedersen_output[i] = rows[i].pedersen_output;
-            polys.pedersen_pedersen_sel[i] = rows[i].pedersen_pedersen_sel;
+            polys.pedersen_sel_pedersen[i] = rows[i].pedersen_sel_pedersen;
             polys.poseidon2_clk[i] = rows[i].poseidon2_clk;
             polys.poseidon2_input[i] = rows[i].poseidon2_input;
             polys.poseidon2_output[i] = rows[i].poseidon2_output;
-            polys.poseidon2_poseidon_perm_sel[i] = rows[i].poseidon2_poseidon_perm_sel;
+            polys.poseidon2_sel_poseidon_perm[i] = rows[i].poseidon2_sel_poseidon_perm;
             polys.sha256_clk[i] = rows[i].sha256_clk;
             polys.sha256_input[i] = rows[i].sha256_input;
             polys.sha256_output[i] = rows[i].sha256_output;
-            polys.sha256_sha256_compression_sel[i] = rows[i].sha256_sha256_compression_sel;
+            polys.sha256_sel_sha256_compression[i] = rows[i].sha256_sel_sha256_compression;
             polys.sha256_state[i] = rows[i].sha256_state;
             polys.lookup_byte_lengths_counts[i] = rows[i].lookup_byte_lengths_counts;
             polys.lookup_byte_operations_counts[i] = rows[i].lookup_byte_operations_counts;
@@ -904,12 +904,9 @@ class AvmCircuitBuilder {
 
         polys.alu_a_hi_shift = Polynomial(polys.alu_a_hi.shifted());
         polys.alu_a_lo_shift = Polynomial(polys.alu_a_lo.shifted());
-        polys.alu_alu_sel_shift = Polynomial(polys.alu_alu_sel.shifted());
         polys.alu_b_hi_shift = Polynomial(polys.alu_b_hi.shifted());
         polys.alu_b_lo_shift = Polynomial(polys.alu_b_lo.shifted());
         polys.alu_cmp_rng_ctr_shift = Polynomial(polys.alu_cmp_rng_ctr.shifted());
-        polys.alu_cmp_sel_shift = Polynomial(polys.alu_cmp_sel.shifted());
-        polys.alu_div_rng_chk_selector_shift = Polynomial(polys.alu_div_rng_chk_selector.shifted());
         polys.alu_div_u16_r0_shift = Polynomial(polys.alu_div_u16_r0.shifted());
         polys.alu_div_u16_r1_shift = Polynomial(polys.alu_div_u16_r1.shifted());
         polys.alu_div_u16_r2_shift = Polynomial(polys.alu_div_u16_r2.shifted());
@@ -930,8 +927,11 @@ class AvmCircuitBuilder {
         polys.alu_p_sub_a_lo_shift = Polynomial(polys.alu_p_sub_a_lo.shifted());
         polys.alu_p_sub_b_hi_shift = Polynomial(polys.alu_p_sub_b_hi.shifted());
         polys.alu_p_sub_b_lo_shift = Polynomial(polys.alu_p_sub_b_lo.shifted());
-        polys.alu_rng_chk_lookup_selector_shift = Polynomial(polys.alu_rng_chk_lookup_selector.shifted());
-        polys.alu_rng_chk_sel_shift = Polynomial(polys.alu_rng_chk_sel.shifted());
+        polys.alu_sel_alu_shift = Polynomial(polys.alu_sel_alu.shifted());
+        polys.alu_sel_cmp_shift = Polynomial(polys.alu_sel_cmp.shifted());
+        polys.alu_sel_div_rng_chk_shift = Polynomial(polys.alu_sel_div_rng_chk.shifted());
+        polys.alu_sel_rng_chk_lookup_shift = Polynomial(polys.alu_sel_rng_chk_lookup.shifted());
+        polys.alu_sel_rng_chk_shift = Polynomial(polys.alu_sel_rng_chk.shifted());
         polys.alu_u16_r0_shift = Polynomial(polys.alu_u16_r0.shifted());
         polys.alu_u16_r1_shift = Polynomial(polys.alu_u16_r1.shifted());
         polys.alu_u16_r2_shift = Polynomial(polys.alu_u16_r2.shifted());
@@ -968,8 +968,8 @@ class AvmCircuitBuilder {
         polys.main_l2_gas_remaining_shift = Polynomial(polys.main_l2_gas_remaining.shifted());
         polys.main_pc_shift = Polynomial(polys.main_pc.shifted());
         polys.mem_glob_addr_shift = Polynomial(polys.mem_glob_addr.shifted());
-        polys.mem_mem_sel_shift = Polynomial(polys.mem_mem_sel.shifted());
         polys.mem_rw_shift = Polynomial(polys.mem_rw.shifted());
+        polys.mem_sel_mem_shift = Polynomial(polys.mem_sel_mem.shifted());
         polys.mem_tag_shift = Polynomial(polys.mem_tag.shifted());
         polys.mem_tsp_shift = Polynomial(polys.mem_tsp.shifted());
         polys.mem_val_shift = Polynomial(polys.mem_val.shifted());
@@ -1127,20 +1127,24 @@ class AvmCircuitBuilder {
             return evaluate_logderivative.template operator()<perm_main_mem_d_relation<FF>>("PERM_MAIN_MEM_D");
         };
 
-        auto perm_main_mem_ind_a = [=]() {
-            return evaluate_logderivative.template operator()<perm_main_mem_ind_a_relation<FF>>("PERM_MAIN_MEM_IND_A");
+        auto perm_main_mem_ind_addr_a = [=]() {
+            return evaluate_logderivative.template operator()<perm_main_mem_ind_addr_a_relation<FF>>(
+                "PERM_MAIN_MEM_IND_ADDR_A");
         };
 
-        auto perm_main_mem_ind_b = [=]() {
-            return evaluate_logderivative.template operator()<perm_main_mem_ind_b_relation<FF>>("PERM_MAIN_MEM_IND_B");
+        auto perm_main_mem_ind_addr_b = [=]() {
+            return evaluate_logderivative.template operator()<perm_main_mem_ind_addr_b_relation<FF>>(
+                "PERM_MAIN_MEM_IND_ADDR_B");
         };
 
-        auto perm_main_mem_ind_c = [=]() {
-            return evaluate_logderivative.template operator()<perm_main_mem_ind_c_relation<FF>>("PERM_MAIN_MEM_IND_C");
+        auto perm_main_mem_ind_addr_c = [=]() {
+            return evaluate_logderivative.template operator()<perm_main_mem_ind_addr_c_relation<FF>>(
+                "PERM_MAIN_MEM_IND_ADDR_C");
         };
 
-        auto perm_main_mem_ind_d = [=]() {
-            return evaluate_logderivative.template operator()<perm_main_mem_ind_d_relation<FF>>("PERM_MAIN_MEM_IND_D");
+        auto perm_main_mem_ind_addr_d = [=]() {
+            return evaluate_logderivative.template operator()<perm_main_mem_ind_addr_d_relation<FF>>(
+                "PERM_MAIN_MEM_IND_ADDR_D");
         };
 
         auto lookup_byte_lengths = [=]() {
@@ -1359,13 +1363,13 @@ class AvmCircuitBuilder {
 
         relation_futures.emplace_back(std::async(std::launch::async, perm_main_mem_d));
 
-        relation_futures.emplace_back(std::async(std::launch::async, perm_main_mem_ind_a));
+        relation_futures.emplace_back(std::async(std::launch::async, perm_main_mem_ind_addr_a));
 
-        relation_futures.emplace_back(std::async(std::launch::async, perm_main_mem_ind_b));
+        relation_futures.emplace_back(std::async(std::launch::async, perm_main_mem_ind_addr_b));
 
-        relation_futures.emplace_back(std::async(std::launch::async, perm_main_mem_ind_c));
+        relation_futures.emplace_back(std::async(std::launch::async, perm_main_mem_ind_addr_c));
 
-        relation_futures.emplace_back(std::async(std::launch::async, perm_main_mem_ind_d));
+        relation_futures.emplace_back(std::async(std::launch::async, perm_main_mem_ind_addr_d));
 
         relation_futures.emplace_back(std::async(std::launch::async, lookup_byte_lengths));
 
@@ -1496,13 +1500,13 @@ class AvmCircuitBuilder {
 
         perm_main_mem_d();
 
-        perm_main_mem_ind_a();
+        perm_main_mem_ind_addr_a();
 
-        perm_main_mem_ind_b();
+        perm_main_mem_ind_addr_b();
 
-        perm_main_mem_ind_c();
+        perm_main_mem_ind_addr_c();
 
-        perm_main_mem_ind_d();
+        perm_main_mem_ind_addr_d();
 
         lookup_byte_lengths();
 

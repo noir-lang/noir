@@ -58,7 +58,7 @@ namespace kernel(256);
     pol commit emit_l2_to_l1_msg_write_offset;
 
 
-    pol NOT_LAST = (1 - main.last);
+    pol NOT_LAST = (1 - main.sel_last);
 
     // Constraints to increase the offsets when the opcodes are found
     #[NOTE_HASH_EXISTS_INC_CONSISTENCY_CHECK]

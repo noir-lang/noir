@@ -28,19 +28,19 @@ class AvmMemTraceBuilder {
     std::map<uint32_t, uint32_t> m_tag_err_lookup_counts;
 
     struct MemoryTraceEntry {
-        uint8_t m_space_id{};
-        uint32_t m_clk{};
-        uint32_t m_sub_clk{};
-        uint32_t m_addr{};
+        uint8_t m_space_id = 0;
+        uint32_t m_clk = 0;
+        uint32_t m_sub_clk = 0;
+        uint32_t m_addr = 0;
         FF m_val{};
-        AvmMemoryTag m_tag{};
-        AvmMemoryTag r_in_tag{};
-        AvmMemoryTag w_in_tag{};
+        AvmMemoryTag m_tag;
+        AvmMemoryTag r_in_tag;
+        AvmMemoryTag w_in_tag;
         bool m_rw = false;
         bool m_tag_err = false;
         FF m_one_min_inv{};
-        bool m_sel_mov_a = false;
-        bool m_sel_mov_b = false;
+        bool m_sel_mov_ia_to_ic = false;
+        bool m_sel_mov_ib_to_ic = false;
         bool m_sel_cmov = false;
         bool m_tag_err_count_relevant = false;
 
@@ -48,36 +48,7 @@ class AvmMemTraceBuilder {
          * @brief A comparator on MemoryTraceEntry to be used by sorting algorithm. We sort first by
          *        ascending address (m_addr), then by clock (m_clk) and finally sub-clock (m_sub_clk).
          */
-        bool operator<(const MemoryTraceEntry& other) const
-        {
-            if (m_space_id < other.m_space_id) {
-                return true;
-            }
-
-            if (m_space_id > other.m_space_id) {
-                return false;
-            }
-
-            if (m_addr < other.m_addr) {
-                return true;
-            }
-
-            if (m_addr > other.m_addr) {
-                return false;
-            }
-
-            if (m_clk < other.m_clk) {
-                return true;
-            }
-
-            if (m_clk > other.m_clk) {
-                return false;
-            }
-
-            // No safeguard in case they are equal. The caller should ensure this property.
-            // Otherwise, relation will not be satisfied.
-            return m_sub_clk < other.m_sub_clk;
-        }
+        bool operator<(MemoryTraceEntry const& other) const;
     };
 
     // Structure representing an entry for the memory used in the simulation (not the trace).

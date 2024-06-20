@@ -26,65 +26,52 @@ template <typename FF> struct MainRow {
     FF main_abs_l2_rem_gas_hi{};
     FF main_abs_l2_rem_gas_lo{};
     FF main_alu_in_tag{};
-    FF main_alu_sel{};
     FF main_bin_op_id{};
-    FF main_bin_sel{};
     FF main_call_ptr{};
-    FF main_da_gas_op{};
+    FF main_da_gas_op_cost{};
     FF main_da_gas_remaining{};
     FF main_da_gas_remaining_shift{};
     FF main_da_out_of_gas{};
-    FF main_first{};
-    FF main_gas_cost_active{};
     FF main_ia{};
     FF main_ib{};
     FF main_ic{};
     FF main_id{};
     FF main_id_zero{};
-    FF main_ind_op_a{};
-    FF main_ind_op_b{};
-    FF main_ind_op_c{};
-    FF main_ind_op_d{};
     FF main_internal_return_ptr{};
     FF main_internal_return_ptr_shift{};
     FF main_inv{};
-    FF main_l2_gas_op{};
+    FF main_l2_gas_op_cost{};
     FF main_l2_gas_remaining{};
     FF main_l2_gas_remaining_shift{};
     FF main_l2_out_of_gas{};
-    FF main_mem_idx_a{};
-    FF main_mem_idx_b{};
-    FF main_mem_op_a{};
-    FF main_mem_op_activate_gas{};
-    FF main_mem_op_b{};
-    FF main_mem_op_c{};
-    FF main_mem_op_d{};
+    FF main_mem_addr_a{};
+    FF main_mem_addr_b{};
     FF main_op_err{};
     FF main_pc{};
     FF main_pc_shift{};
-    FF main_q_kernel_lookup{};
-    FF main_q_kernel_output_lookup{};
     FF main_r_in_tag{};
     FF main_rwa{};
     FF main_rwb{};
     FF main_rwc{};
     FF main_rwd{};
-    FF main_sel_cmov{};
-    FF main_sel_external_call{};
-    FF main_sel_halt{};
-    FF main_sel_internal_call{};
-    FF main_sel_internal_return{};
-    FF main_sel_jump{};
-    FF main_sel_jumpi{};
-    FF main_sel_mov{};
-    FF main_sel_mov_a{};
-    FF main_sel_mov_b{};
+    FF main_sel_alu{};
+    FF main_sel_bin{};
+    FF main_sel_first{};
+    FF main_sel_gas_accounting_active{};
+    FF main_sel_mem_op_a{};
+    FF main_sel_mem_op_activate_gas{};
+    FF main_sel_mem_op_b{};
+    FF main_sel_mem_op_c{};
+    FF main_sel_mem_op_d{};
+    FF main_sel_mov_ia_to_ic{};
+    FF main_sel_mov_ib_to_ic{};
     FF main_sel_op_add{};
     FF main_sel_op_address{};
     FF main_sel_op_and{};
     FF main_sel_op_block_number{};
     FF main_sel_op_cast{};
     FF main_sel_op_chain_id{};
+    FF main_sel_op_cmov{};
     FF main_sel_op_coinbase{};
     FF main_sel_op_dagasleft{};
     FF main_sel_op_div{};
@@ -93,15 +80,22 @@ template <typename FF> struct MainRow {
     FF main_sel_op_emit_nullifier{};
     FF main_sel_op_emit_unencrypted_log{};
     FF main_sel_op_eq{};
+    FF main_sel_op_external_call{};
     FF main_sel_op_fdiv{};
     FF main_sel_op_fee_per_da_gas{};
     FF main_sel_op_fee_per_l2_gas{};
     FF main_sel_op_get_contract_instance{};
+    FF main_sel_op_halt{};
+    FF main_sel_op_internal_call{};
+    FF main_sel_op_internal_return{};
+    FF main_sel_op_jump{};
+    FF main_sel_op_jumpi{};
     FF main_sel_op_keccak{};
     FF main_sel_op_l1_to_l2_msg_exists{};
     FF main_sel_op_l2gasleft{};
     FF main_sel_op_lt{};
     FF main_sel_op_lte{};
+    FF main_sel_op_mov{};
     FF main_sel_op_mul{};
     FF main_sel_op_not{};
     FF main_sel_op_note_hash_exists{};
@@ -122,6 +116,12 @@ template <typename FF> struct MainRow {
     FF main_sel_op_transaction_fee{};
     FF main_sel_op_version{};
     FF main_sel_op_xor{};
+    FF main_sel_q_kernel_lookup{};
+    FF main_sel_q_kernel_output_lookup{};
+    FF main_sel_resolve_ind_addr_a{};
+    FF main_sel_resolve_ind_addr_b{};
+    FF main_sel_resolve_ind_addr_c{};
+    FF main_sel_resolve_ind_addr_d{};
     FF main_space_id{};
     FF main_tag_err{};
     FF main_w_in_tag{};
@@ -323,8 +323,8 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(2);
 
-            auto tmp =
-                (main_gas_cost_active * ((main_l2_gas_remaining_shift - main_l2_gas_remaining) + main_l2_gas_op));
+            auto tmp = (main_sel_gas_accounting_active *
+                        ((main_l2_gas_remaining_shift - main_l2_gas_remaining) + main_l2_gas_op_cost));
             tmp *= scaling_factor;
             std::get<2>(evals) += tmp;
         }
@@ -332,8 +332,8 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(3);
 
-            auto tmp =
-                (main_gas_cost_active * ((main_da_gas_remaining_shift - main_da_gas_remaining) + main_da_gas_op));
+            auto tmp = (main_sel_gas_accounting_active *
+                        ((main_da_gas_remaining_shift - main_da_gas_remaining) + main_da_gas_op_cost));
             tmp *= scaling_factor;
             std::get<3>(evals) += tmp;
         }
@@ -341,7 +341,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(4);
 
-            auto tmp = ((-main_gas_cost_active + FF(1)) * main_l2_gas_op);
+            auto tmp = ((-main_sel_gas_accounting_active + FF(1)) * main_l2_gas_op_cost);
             tmp *= scaling_factor;
             std::get<4>(evals) += tmp;
         }
@@ -349,7 +349,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(5);
 
-            auto tmp = ((-main_gas_cost_active + FF(1)) * main_da_gas_op);
+            auto tmp = ((-main_sel_gas_accounting_active + FF(1)) * main_da_gas_op_cost);
             tmp *= scaling_factor;
             std::get<5>(evals) += tmp;
         }
@@ -357,10 +357,10 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(6);
 
-            auto tmp =
-                (main_gas_cost_active * ((((-(main_l2_out_of_gas * FF(2)) + FF(1)) * main_l2_gas_remaining_shift) -
-                                          (main_abs_l2_rem_gas_hi * FF(65536))) -
-                                         main_abs_l2_rem_gas_lo));
+            auto tmp = (main_sel_gas_accounting_active *
+                        ((((-(main_l2_out_of_gas * FF(2)) + FF(1)) * main_l2_gas_remaining_shift) -
+                          (main_abs_l2_rem_gas_hi * FF(65536))) -
+                         main_abs_l2_rem_gas_lo));
             tmp *= scaling_factor;
             std::get<6>(evals) += tmp;
         }
@@ -368,10 +368,10 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(7);
 
-            auto tmp =
-                (main_gas_cost_active * ((((-(main_da_out_of_gas * FF(2)) + FF(1)) * main_da_gas_remaining_shift) -
-                                          (main_abs_da_rem_gas_hi * FF(65536))) -
-                                         main_abs_da_rem_gas_lo));
+            auto tmp = (main_sel_gas_accounting_active *
+                        ((((-(main_da_out_of_gas * FF(2)) + FF(1)) * main_da_gas_remaining_shift) -
+                          (main_abs_da_rem_gas_hi * FF(65536))) -
+                         main_abs_da_rem_gas_lo));
             tmp *= scaling_factor;
             std::get<7>(evals) += tmp;
         }
@@ -723,7 +723,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(51);
 
-            auto tmp = (main_sel_internal_call * (-main_sel_internal_call + FF(1)));
+            auto tmp = (main_sel_op_internal_call * (-main_sel_op_internal_call + FF(1)));
             tmp *= scaling_factor;
             std::get<51>(evals) += tmp;
         }
@@ -731,7 +731,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(52);
 
-            auto tmp = (main_sel_internal_return * (-main_sel_internal_return + FF(1)));
+            auto tmp = (main_sel_op_internal_return * (-main_sel_op_internal_return + FF(1)));
             tmp *= scaling_factor;
             std::get<52>(evals) += tmp;
         }
@@ -739,7 +739,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(53);
 
-            auto tmp = (main_sel_jump * (-main_sel_jump + FF(1)));
+            auto tmp = (main_sel_op_jump * (-main_sel_op_jump + FF(1)));
             tmp *= scaling_factor;
             std::get<53>(evals) += tmp;
         }
@@ -747,7 +747,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(54);
 
-            auto tmp = (main_sel_jumpi * (-main_sel_jumpi + FF(1)));
+            auto tmp = (main_sel_op_jumpi * (-main_sel_op_jumpi + FF(1)));
             tmp *= scaling_factor;
             std::get<54>(evals) += tmp;
         }
@@ -755,7 +755,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(55);
 
-            auto tmp = (main_sel_halt * (-main_sel_halt + FF(1)));
+            auto tmp = (main_sel_op_halt * (-main_sel_op_halt + FF(1)));
             tmp *= scaling_factor;
             std::get<55>(evals) += tmp;
         }
@@ -763,7 +763,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(56);
 
-            auto tmp = (main_sel_external_call * (-main_sel_external_call + FF(1)));
+            auto tmp = (main_sel_op_external_call * (-main_sel_op_external_call + FF(1)));
             tmp *= scaling_factor;
             std::get<56>(evals) += tmp;
         }
@@ -771,7 +771,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(57);
 
-            auto tmp = (main_sel_mov * (-main_sel_mov + FF(1)));
+            auto tmp = (main_sel_op_mov * (-main_sel_op_mov + FF(1)));
             tmp *= scaling_factor;
             std::get<57>(evals) += tmp;
         }
@@ -779,7 +779,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(58);
 
-            auto tmp = (main_sel_cmov * (-main_sel_cmov + FF(1)));
+            auto tmp = (main_sel_op_cmov * (-main_sel_op_cmov + FF(1)));
             tmp *= scaling_factor;
             std::get<58>(evals) += tmp;
         }
@@ -811,7 +811,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(62);
 
-            auto tmp = (main_mem_op_a * (-main_mem_op_a + FF(1)));
+            auto tmp = (main_sel_mem_op_a * (-main_sel_mem_op_a + FF(1)));
             tmp *= scaling_factor;
             std::get<62>(evals) += tmp;
         }
@@ -819,7 +819,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(63);
 
-            auto tmp = (main_mem_op_b * (-main_mem_op_b + FF(1)));
+            auto tmp = (main_sel_mem_op_b * (-main_sel_mem_op_b + FF(1)));
             tmp *= scaling_factor;
             std::get<63>(evals) += tmp;
         }
@@ -827,7 +827,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(64);
 
-            auto tmp = (main_mem_op_c * (-main_mem_op_c + FF(1)));
+            auto tmp = (main_sel_mem_op_c * (-main_sel_mem_op_c + FF(1)));
             tmp *= scaling_factor;
             std::get<64>(evals) += tmp;
         }
@@ -835,7 +835,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(65);
 
-            auto tmp = (main_mem_op_d * (-main_mem_op_d + FF(1)));
+            auto tmp = (main_sel_mem_op_d * (-main_sel_mem_op_d + FF(1)));
             tmp *= scaling_factor;
             std::get<65>(evals) += tmp;
         }
@@ -875,7 +875,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(70);
 
-            auto tmp = (main_ind_op_a * (-main_ind_op_a + FF(1)));
+            auto tmp = (main_sel_resolve_ind_addr_a * (-main_sel_resolve_ind_addr_a + FF(1)));
             tmp *= scaling_factor;
             std::get<70>(evals) += tmp;
         }
@@ -883,7 +883,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(71);
 
-            auto tmp = (main_ind_op_b * (-main_ind_op_b + FF(1)));
+            auto tmp = (main_sel_resolve_ind_addr_b * (-main_sel_resolve_ind_addr_b + FF(1)));
             tmp *= scaling_factor;
             std::get<71>(evals) += tmp;
         }
@@ -891,7 +891,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(72);
 
-            auto tmp = (main_ind_op_c * (-main_ind_op_c + FF(1)));
+            auto tmp = (main_sel_resolve_ind_addr_c * (-main_sel_resolve_ind_addr_c + FF(1)));
             tmp *= scaling_factor;
             std::get<72>(evals) += tmp;
         }
@@ -899,7 +899,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(73);
 
-            auto tmp = (main_ind_op_d * (-main_ind_op_d + FF(1)));
+            auto tmp = (main_sel_resolve_ind_addr_d * (-main_sel_resolve_ind_addr_d + FF(1)));
             tmp *= scaling_factor;
             std::get<73>(evals) += tmp;
         }
@@ -972,7 +972,7 @@ template <typename FF_> class mainImpl {
                            main_sel_op_fee_per_l2_gas) +
                           main_sel_op_fee_per_da_gas) +
                          main_sel_op_transaction_fee) *
-                        (-main_q_kernel_lookup + FF(1)));
+                        (-main_sel_q_kernel_lookup + FF(1)));
             tmp *= scaling_factor;
             std::get<81>(evals) += tmp;
         }
@@ -986,7 +986,7 @@ template <typename FF_> class mainImpl {
                     main_sel_op_l1_to_l2_msg_exists) +
                    main_sel_op_emit_unencrypted_log) +
                   main_sel_op_emit_l2_to_l1_msg) *
-                 (-main_q_kernel_output_lookup + FF(1)));
+                 (-main_sel_q_kernel_output_lookup + FF(1)));
             tmp *= scaling_factor;
             std::get<82>(evals) += tmp;
         }
@@ -994,7 +994,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(83);
 
-            auto tmp = (main_sel_jump * (main_pc_shift - main_ia));
+            auto tmp = (main_sel_op_jump * (main_pc_shift - main_ia));
             tmp *= scaling_factor;
             std::get<83>(evals) += tmp;
         }
@@ -1002,8 +1002,8 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(84);
 
-            auto tmp = (main_sel_jumpi * (((-main_id_zero + FF(1)) * (main_pc_shift - main_ia)) +
-                                          (main_id_zero * ((main_pc_shift - main_pc) - FF(1)))));
+            auto tmp = (main_sel_op_jumpi * (((-main_id_zero + FF(1)) * (main_pc_shift - main_ia)) +
+                                             (main_id_zero * ((main_pc_shift - main_pc) - FF(1)))));
             tmp *= scaling_factor;
             std::get<84>(evals) += tmp;
         }
@@ -1011,7 +1011,8 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(85);
 
-            auto tmp = (main_sel_internal_call * (main_internal_return_ptr_shift - (main_internal_return_ptr + FF(1))));
+            auto tmp =
+                (main_sel_op_internal_call * (main_internal_return_ptr_shift - (main_internal_return_ptr + FF(1))));
             tmp *= scaling_factor;
             std::get<85>(evals) += tmp;
         }
@@ -1019,7 +1020,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(86);
 
-            auto tmp = (main_sel_internal_call * (main_internal_return_ptr - main_mem_idx_b));
+            auto tmp = (main_sel_op_internal_call * (main_internal_return_ptr - main_mem_addr_b));
             tmp *= scaling_factor;
             std::get<86>(evals) += tmp;
         }
@@ -1027,7 +1028,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(87);
 
-            auto tmp = (main_sel_internal_call * (main_pc_shift - main_ia));
+            auto tmp = (main_sel_op_internal_call * (main_pc_shift - main_ia));
             tmp *= scaling_factor;
             std::get<87>(evals) += tmp;
         }
@@ -1035,7 +1036,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(88);
 
-            auto tmp = (main_sel_internal_call * ((main_pc + FF(1)) - main_ib));
+            auto tmp = (main_sel_op_internal_call * ((main_pc + FF(1)) - main_ib));
             tmp *= scaling_factor;
             std::get<88>(evals) += tmp;
         }
@@ -1043,7 +1044,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(89);
 
-            auto tmp = (main_sel_internal_call * (main_rwb - FF(1)));
+            auto tmp = (main_sel_op_internal_call * (main_rwb - FF(1)));
             tmp *= scaling_factor;
             std::get<89>(evals) += tmp;
         }
@@ -1051,7 +1052,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(90);
 
-            auto tmp = (main_sel_internal_call * (main_mem_op_b - FF(1)));
+            auto tmp = (main_sel_op_internal_call * (main_sel_mem_op_b - FF(1)));
             tmp *= scaling_factor;
             std::get<90>(evals) += tmp;
         }
@@ -1060,7 +1061,7 @@ template <typename FF_> class mainImpl {
             Avm_DECLARE_VIEWS(91);
 
             auto tmp =
-                (main_sel_internal_return * (main_internal_return_ptr_shift - (main_internal_return_ptr - FF(1))));
+                (main_sel_op_internal_return * (main_internal_return_ptr_shift - (main_internal_return_ptr - FF(1))));
             tmp *= scaling_factor;
             std::get<91>(evals) += tmp;
         }
@@ -1068,7 +1069,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(92);
 
-            auto tmp = (main_sel_internal_return * ((main_internal_return_ptr - FF(1)) - main_mem_idx_a));
+            auto tmp = (main_sel_op_internal_return * ((main_internal_return_ptr - FF(1)) - main_mem_addr_a));
             tmp *= scaling_factor;
             std::get<92>(evals) += tmp;
         }
@@ -1076,7 +1077,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(93);
 
-            auto tmp = (main_sel_internal_return * (main_pc_shift - main_ia));
+            auto tmp = (main_sel_op_internal_return * (main_pc_shift - main_ia));
             tmp *= scaling_factor;
             std::get<93>(evals) += tmp;
         }
@@ -1084,7 +1085,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(94);
 
-            auto tmp = (main_sel_internal_return * main_rwa);
+            auto tmp = (main_sel_op_internal_return * main_rwa);
             tmp *= scaling_factor;
             std::get<94>(evals) += tmp;
         }
@@ -1092,7 +1093,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(95);
 
-            auto tmp = (main_sel_internal_return * (main_mem_op_a - FF(1)));
+            auto tmp = (main_sel_op_internal_return * (main_sel_mem_op_a - FF(1)));
             tmp *= scaling_factor;
             std::get<95>(evals) += tmp;
         }
@@ -1101,7 +1102,7 @@ template <typename FF_> class mainImpl {
             Avm_DECLARE_VIEWS(96);
 
             auto tmp =
-                (((((main_gas_cost_active -
+                (((((main_sel_gas_accounting_active -
                      (((((((main_sel_op_fdiv +
                             ((((((((((main_sel_op_add + main_sel_op_sub) + main_sel_op_mul) + main_sel_op_div) +
                                    main_sel_op_not) +
@@ -1112,7 +1113,7 @@ template <typename FF_> class mainImpl {
                               main_sel_op_shl) +
                              main_sel_op_cast)) +
                            ((main_sel_op_and + main_sel_op_or) + main_sel_op_xor)) +
-                          (main_sel_cmov + main_sel_mov)) +
+                          (main_sel_op_cmov + main_sel_op_mov)) +
                          ((((main_sel_op_radix_le + main_sel_op_sha256) + main_sel_op_poseidon2) + main_sel_op_keccak) +
                           main_sel_op_pedersen)) +
                         ((((((((((main_sel_op_sender + main_sel_op_address) + main_sel_op_storage_address) +
@@ -1131,10 +1132,11 @@ template <typename FF_> class mainImpl {
                          main_sel_op_emit_unencrypted_log) +
                         main_sel_op_emit_l2_to_l1_msg)) +
                       (main_sel_op_dagasleft + main_sel_op_l2gasleft))) -
-                    (((main_sel_jump + main_sel_jumpi) + main_sel_internal_call) + main_sel_internal_return)) -
+                    (((main_sel_op_jump + main_sel_op_jumpi) + main_sel_op_internal_call) +
+                     main_sel_op_internal_return)) -
                    main_sel_op_sload) -
                   main_sel_op_sstore) -
-                 main_mem_op_activate_gas);
+                 main_sel_mem_op_activate_gas);
             tmp *= scaling_factor;
             std::get<96>(evals) += tmp;
         }
@@ -1143,7 +1145,7 @@ template <typename FF_> class mainImpl {
             Avm_DECLARE_VIEWS(97);
 
             auto tmp =
-                ((((-main_first + FF(1)) * (-main_sel_halt + FF(1))) *
+                ((((-main_sel_first + FF(1)) * (-main_sel_op_halt + FF(1))) *
                   (((((((main_sel_op_fdiv +
                          ((((((((((main_sel_op_add + main_sel_op_sub) + main_sel_op_mul) + main_sel_op_div) +
                                 main_sel_op_not) +
@@ -1154,7 +1156,7 @@ template <typename FF_> class mainImpl {
                            main_sel_op_shl) +
                           main_sel_op_cast)) +
                         ((main_sel_op_and + main_sel_op_or) + main_sel_op_xor)) +
-                       (main_sel_cmov + main_sel_mov)) +
+                       (main_sel_op_cmov + main_sel_op_mov)) +
                       ((((main_sel_op_radix_le + main_sel_op_sha256) + main_sel_op_poseidon2) + main_sel_op_keccak) +
                        main_sel_op_pedersen)) +
                      ((((((((((main_sel_op_sender + main_sel_op_address) + main_sel_op_storage_address) +
@@ -1181,7 +1183,8 @@ template <typename FF_> class mainImpl {
             Avm_DECLARE_VIEWS(98);
 
             auto tmp =
-                ((-(((main_first + main_sel_internal_call) + main_sel_internal_return) + main_sel_halt) + FF(1)) *
+                ((-(((main_sel_first + main_sel_op_internal_call) + main_sel_op_internal_return) + main_sel_op_halt) +
+                  FF(1)) *
                  (main_internal_return_ptr_shift - main_internal_return_ptr));
             tmp *= scaling_factor;
             std::get<98>(evals) += tmp;
@@ -1190,7 +1193,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(99);
 
-            auto tmp = ((main_sel_internal_call + main_sel_internal_return) * (main_space_id - FF(255)));
+            auto tmp = ((main_sel_op_internal_call + main_sel_op_internal_return) * (main_space_id - FF(255)));
             tmp *= scaling_factor;
             std::get<99>(evals) += tmp;
         }
@@ -1209,7 +1212,7 @@ template <typename FF_> class mainImpl {
                           main_sel_op_shl) +
                          main_sel_op_cast)) +
                        ((main_sel_op_and + main_sel_op_or) + main_sel_op_xor)) +
-                      (main_sel_cmov + main_sel_mov)) +
+                      (main_sel_op_cmov + main_sel_op_mov)) +
                      ((((main_sel_op_radix_le + main_sel_op_sha256) + main_sel_op_poseidon2) + main_sel_op_keccak) +
                       main_sel_op_pedersen)) +
                     ((((((((((main_sel_op_sender + main_sel_op_address) + main_sel_op_storage_address) +
@@ -1235,7 +1238,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(101);
 
-            auto tmp = ((main_sel_cmov + main_sel_jumpi) * (((main_id * main_inv) - FF(1)) + main_id_zero));
+            auto tmp = ((main_sel_op_cmov + main_sel_op_jumpi) * (((main_id * main_inv) - FF(1)) + main_id_zero));
             tmp *= scaling_factor;
             std::get<101>(evals) += tmp;
         }
@@ -1243,7 +1246,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(102);
 
-            auto tmp = (((main_sel_cmov + main_sel_jumpi) * main_id_zero) * (-main_inv + FF(1)));
+            auto tmp = (((main_sel_op_cmov + main_sel_op_jumpi) * main_id_zero) * (-main_inv + FF(1)));
             tmp *= scaling_factor;
             std::get<102>(evals) += tmp;
         }
@@ -1251,7 +1254,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(103);
 
-            auto tmp = (main_sel_mov_a - (main_sel_mov + (main_sel_cmov * (-main_id_zero + FF(1)))));
+            auto tmp = (main_sel_mov_ia_to_ic - (main_sel_op_mov + (main_sel_op_cmov * (-main_id_zero + FF(1)))));
             tmp *= scaling_factor;
             std::get<103>(evals) += tmp;
         }
@@ -1259,7 +1262,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(104);
 
-            auto tmp = (main_sel_mov_b - (main_sel_cmov * main_id_zero));
+            auto tmp = (main_sel_mov_ib_to_ic - (main_sel_op_cmov * main_id_zero));
             tmp *= scaling_factor;
             std::get<104>(evals) += tmp;
         }
@@ -1267,7 +1270,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(105);
 
-            auto tmp = (main_sel_mov_a * (main_ia - main_ic));
+            auto tmp = (main_sel_mov_ia_to_ic * (main_ia - main_ic));
             tmp *= scaling_factor;
             std::get<105>(evals) += tmp;
         }
@@ -1275,7 +1278,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(106);
 
-            auto tmp = (main_sel_mov_b * (main_ib - main_ic));
+            auto tmp = (main_sel_mov_ib_to_ic * (main_ib - main_ic));
             tmp *= scaling_factor;
             std::get<106>(evals) += tmp;
         }
@@ -1283,7 +1286,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(107);
 
-            auto tmp = ((main_sel_mov + main_sel_cmov) * (main_r_in_tag - main_w_in_tag));
+            auto tmp = ((main_sel_op_mov + main_sel_op_cmov) * (main_r_in_tag - main_w_in_tag));
             tmp *= scaling_factor;
             std::get<107>(evals) += tmp;
         }
@@ -1292,7 +1295,7 @@ template <typename FF_> class mainImpl {
             Avm_DECLARE_VIEWS(108);
 
             auto tmp =
-                (main_alu_sel - ((((((((((((main_sel_op_add + main_sel_op_sub) + main_sel_op_mul) + main_sel_op_div) +
+                (main_sel_alu - ((((((((((((main_sel_op_add + main_sel_op_sub) + main_sel_op_mul) + main_sel_op_div) +
                                          main_sel_op_not) +
                                         main_sel_op_eq) +
                                        main_sel_op_lt) +
@@ -1445,7 +1448,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(125);
 
-            auto tmp = (main_first * kernel_note_hash_exist_write_offset);
+            auto tmp = (main_sel_first * kernel_note_hash_exist_write_offset);
             tmp *= scaling_factor;
             std::get<125>(evals) += tmp;
         }
@@ -1462,7 +1465,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(127);
 
-            auto tmp = (main_first * kernel_emit_note_hash_write_offset);
+            auto tmp = (main_sel_first * kernel_emit_note_hash_write_offset);
             tmp *= scaling_factor;
             std::get<127>(evals) += tmp;
         }
@@ -1481,7 +1484,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(129);
 
-            auto tmp = (main_first * kernel_nullifier_exists_write_offset);
+            auto tmp = (main_sel_first * kernel_nullifier_exists_write_offset);
             tmp *= scaling_factor;
             std::get<129>(evals) += tmp;
         }
@@ -1489,7 +1492,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(130);
 
-            auto tmp = (main_first * kernel_nullifier_non_exists_write_offset);
+            auto tmp = (main_sel_first * kernel_nullifier_non_exists_write_offset);
             tmp *= scaling_factor;
             std::get<130>(evals) += tmp;
         }
@@ -1506,7 +1509,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(132);
 
-            auto tmp = (main_first * kernel_emit_nullifier_write_offset);
+            auto tmp = (main_sel_first * kernel_emit_nullifier_write_offset);
             tmp *= scaling_factor;
             std::get<132>(evals) += tmp;
         }
@@ -1523,7 +1526,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(134);
 
-            auto tmp = (main_first * kernel_l1_to_l2_msg_exists_write_offset);
+            auto tmp = (main_sel_first * kernel_l1_to_l2_msg_exists_write_offset);
             tmp *= scaling_factor;
             std::get<134>(evals) += tmp;
         }
@@ -1540,7 +1543,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(136);
 
-            auto tmp = (main_first * kernel_emit_unencrypted_log_write_offset);
+            auto tmp = (main_sel_first * kernel_emit_unencrypted_log_write_offset);
             tmp *= scaling_factor;
             std::get<136>(evals) += tmp;
         }
@@ -1557,7 +1560,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(138);
 
-            auto tmp = (main_first * kernel_emit_l2_to_l1_msg_write_offset);
+            auto tmp = (main_sel_first * kernel_emit_l2_to_l1_msg_write_offset);
             tmp *= scaling_factor;
             std::get<138>(evals) += tmp;
         }
@@ -1573,7 +1576,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(140);
 
-            auto tmp = (main_first * kernel_sload_write_offset);
+            auto tmp = (main_sel_first * kernel_sload_write_offset);
             tmp *= scaling_factor;
             std::get<140>(evals) += tmp;
         }
@@ -1589,7 +1592,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(142);
 
-            auto tmp = (main_first * kernel_sstore_write_offset);
+            auto tmp = (main_sel_first * kernel_sstore_write_offset);
             tmp *= scaling_factor;
             std::get<142>(evals) += tmp;
         }
@@ -1619,7 +1622,7 @@ template <typename FF_> class mainImpl {
         {
             Avm_DECLARE_VIEWS(145);
 
-            auto tmp = (main_bin_sel - ((main_sel_op_and + main_sel_op_or) + main_sel_op_xor));
+            auto tmp = (main_sel_bin - ((main_sel_op_and + main_sel_op_or) + main_sel_op_xor));
             tmp *= scaling_factor;
             std::get<145>(evals) += tmp;
         }

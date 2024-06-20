@@ -87,7 +87,7 @@ class lookup_byte_operations_lookup_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.binary_bin_sel == 1 || in.byte_lookup_bin_sel == 1);
+        return (in.binary_sel_bin == 1 || in.byte_lookup_sel_bin == 1);
     }
 
     /**
@@ -104,8 +104,8 @@ class lookup_byte_operations_lookup_settings {
     static inline auto compute_inverse_exists(const AllEntities& in)
     {
         using View = typename Accumulator::View;
-        const auto is_operation = View(in.binary_bin_sel);
-        const auto is_table_entry = View(in.byte_lookup_bin_sel);
+        const auto is_operation = View(in.binary_sel_bin);
+        const auto is_table_entry = View(in.byte_lookup_sel_bin);
         return (is_operation + is_table_entry - is_operation * is_table_entry);
     }
 
@@ -135,8 +135,8 @@ class lookup_byte_operations_lookup_settings {
 
         return std::forward_as_tuple(in.lookup_byte_operations,
                                      in.lookup_byte_operations_counts,
-                                     in.binary_bin_sel,
-                                     in.byte_lookup_bin_sel,
+                                     in.binary_sel_bin,
+                                     in.byte_lookup_sel_bin,
                                      in.binary_op_id,
                                      in.binary_ia_bytes,
                                      in.binary_ib_bytes,
@@ -159,8 +159,8 @@ class lookup_byte_operations_lookup_settings {
 
         return std::forward_as_tuple(in.lookup_byte_operations,
                                      in.lookup_byte_operations_counts,
-                                     in.binary_bin_sel,
-                                     in.byte_lookup_bin_sel,
+                                     in.binary_sel_bin,
+                                     in.byte_lookup_sel_bin,
                                      in.binary_op_id,
                                      in.binary_ia_bytes,
                                      in.binary_ib_bytes,

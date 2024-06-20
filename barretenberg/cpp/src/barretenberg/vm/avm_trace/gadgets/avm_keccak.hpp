@@ -18,7 +18,7 @@ class AvmKeccakTraceBuilder {
         uint32_t output_size = 0;
     };
 
-    AvmKeccakTraceBuilder();
+    AvmKeccakTraceBuilder() = default;
     void reset();
     // Finalize the trace
     std::vector<KeccakTraceEntry> finalize();

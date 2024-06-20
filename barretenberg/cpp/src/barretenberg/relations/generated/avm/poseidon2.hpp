@@ -7,7 +7,7 @@
 namespace bb::Avm_vm {
 
 template <typename FF> struct Poseidon2Row {
-    FF poseidon2_poseidon_perm_sel{};
+    FF poseidon2_sel_poseidon_perm{};
 
     [[maybe_unused]] static std::vector<std::string> names();
 };
@@ -37,7 +37,7 @@ template <typename FF_> class poseidon2Impl {
         {
             Avm_DECLARE_VIEWS(0);
 
-            auto tmp = (poseidon2_poseidon_perm_sel * (-poseidon2_poseidon_perm_sel + FF(1)));
+            auto tmp = (poseidon2_sel_poseidon_perm * (-poseidon2_sel_poseidon_perm + FF(1)));
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
         }

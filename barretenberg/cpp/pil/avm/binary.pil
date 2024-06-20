@@ -7,8 +7,8 @@ namespace binary(256);
     pol commit clk;
 
     // Selector for Binary Operation
-    pol commit bin_sel;
-    bin_sel * (1 - bin_sel) = 0;
+    pol commit sel_bin;
+    sel_bin * (1 - sel_bin) = 0;
 
     // Byte recomposition column, the value in these columns are part of the equivalence
     // check to main wherever Start is set to 1.
@@ -46,31 +46,31 @@ namespace binary(256);
     #[MEM_TAG_REL]
     (mem_tag_ctr' - mem_tag_ctr + 1) * mem_tag_ctr = 0;
 
-    // Bin_sel is a boolean that is set to 1 if mem_tag_ctr != 0.
+    // sel_bin is a boolean that is set to 1 if mem_tag_ctr != 0.
     // This is checked by two relation conditions and utilising mem_tag_ctr_inv
     pol commit mem_tag_ctr_inv;
 
-    // bin_sel is set to 1 when mem_tag_ctr != 0, and 0 otherwise.
-    // we constrain it such that bin_sel = mem_tag_ctr * mem_tag_ctr_inv unless mem_tag_ctr = 0 the bin_sel = 0
+    // sel_bin is set to 1 when mem_tag_ctr != 0, and 0 otherwise.
+    // we constrain it such that sel_bin = mem_tag_ctr * mem_tag_ctr_inv unless mem_tag_ctr = 0 the sel_bin = 0
     // In here we use the consolidated equality relation because it doesnt require us to enforce
     // this additional relation: mem_tag_ctr_inv = 1 when mem_tag_ctr = 0. (allows default zero value in trace)
-    #[BIN_SEL_CTR_REL]
-    mem_tag_ctr * ((1 - bin_sel) * (1 - mem_tag_ctr_inv) + mem_tag_ctr_inv) - bin_sel = 0;
+    #[SEL_BIN_CTR_REL]
+    mem_tag_ctr * ((1 - sel_bin) * (1 - mem_tag_ctr_inv) + mem_tag_ctr_inv) - sel_bin = 0;
 
     // Forces accumulator to start at zero when mem_tag_ctr == 0
-    (1 - bin_sel) * acc_ia = 0;
-    (1 - bin_sel) * acc_ib = 0;
-    (1 - bin_sel) * acc_ic = 0;
+    (1 - sel_bin) * acc_ia = 0;
+    (1 - sel_bin) * acc_ib = 0;
+    (1 - sel_bin) * acc_ic = 0;
 
     #[LOOKUP_BYTE_LENGTHS]
     start {in_tag, mem_tag_ctr}
     in 
-    byte_lookup.bin_sel {byte_lookup.table_in_tags, byte_lookup.table_byte_lengths};
+    byte_lookup.sel_bin {byte_lookup.table_in_tags, byte_lookup.table_byte_lengths};
 
     #[LOOKUP_BYTE_OPERATIONS]
-    bin_sel {op_id, ia_bytes, ib_bytes, ic_bytes}
+    sel_bin {op_id, ia_bytes, ib_bytes, ic_bytes}
     in 
-    byte_lookup.bin_sel {byte_lookup.table_op_id, byte_lookup.table_input_a, byte_lookup.table_input_b, byte_lookup.table_output};
+    byte_lookup.sel_bin {byte_lookup.table_op_id, byte_lookup.table_input_a, byte_lookup.table_input_b, byte_lookup.table_output};
 
     #[ACC_REL_A]
     (acc_ia - ia_bytes - 256 * acc_ia') * mem_tag_ctr = 0;

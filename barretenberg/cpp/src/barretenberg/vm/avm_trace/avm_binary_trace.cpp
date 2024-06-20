@@ -10,11 +10,6 @@
 
 namespace bb::avm_trace {
 
-AvmBinaryTraceBuilder::AvmBinaryTraceBuilder()
-{
-    binary_trace.reserve(AVM_TRACE_SIZE);
-}
-
 std::vector<AvmBinaryTraceBuilder::BinaryTraceEntry> AvmBinaryTraceBuilder::finalize()
 {
     return std::move(binary_trace);

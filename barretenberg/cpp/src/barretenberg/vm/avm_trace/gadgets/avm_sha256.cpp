@@ -11,11 +11,6 @@
 
 namespace bb::avm_trace {
 
-AvmSha256TraceBuilder::AvmSha256TraceBuilder()
-{
-    sha256_trace.reserve(AVM_TRACE_SIZE);
-}
-
 std::vector<AvmSha256TraceBuilder::Sha256TraceEntry> AvmSha256TraceBuilder::finalize()
 {
     return std::move(sha256_trace);

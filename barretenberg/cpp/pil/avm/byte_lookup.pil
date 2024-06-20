@@ -8,7 +8,7 @@ namespace byte_lookup(256);
     pol commit table_output; // output = a AND/OR/XOR b
     // Selector to indicate when to utilise the lookup table
     // TODO: Support for 1-sided lookups may make this redundant.
-    pol commit bin_sel;
+    pol commit sel_bin;
 
     // These two columns are a mapping between instruction tags and their byte lengths
     // {U8: 1, U16: 2, ... , U128: 16}

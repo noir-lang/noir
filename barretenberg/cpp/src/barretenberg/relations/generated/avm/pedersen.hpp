@@ -7,7 +7,7 @@
 namespace bb::Avm_vm {
 
 template <typename FF> struct PedersenRow {
-    FF pedersen_pedersen_sel{};
+    FF pedersen_sel_pedersen{};
 
     [[maybe_unused]] static std::vector<std::string> names();
 };
@@ -37,7 +37,7 @@ template <typename FF_> class pedersenImpl {
         {
             Avm_DECLARE_VIEWS(0);
 
-            auto tmp = (pedersen_pedersen_sel * (-pedersen_pedersen_sel + FF(1)));
+            auto tmp = (pedersen_sel_pedersen * (-pedersen_sel_pedersen + FF(1)));
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
         }

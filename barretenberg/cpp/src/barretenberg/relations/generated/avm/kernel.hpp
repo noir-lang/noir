@@ -28,7 +28,7 @@ template <typename FF> struct KernelRow {
     FF kernel_sstore_write_offset{};
     FF kernel_sstore_write_offset_shift{};
     FF main_ib{};
-    FF main_last{};
+    FF main_sel_last{};
     FF main_sel_op_emit_l2_to_l1_msg{};
     FF main_sel_op_emit_note_hash{};
     FF main_sel_op_emit_nullifier{};
@@ -97,8 +97,9 @@ template <typename FF_> class kernelImpl {
         {
             Avm_DECLARE_VIEWS(0);
 
-            auto tmp = ((-main_last + FF(1)) * (kernel_note_hash_exist_write_offset_shift -
-                                                (kernel_note_hash_exist_write_offset + main_sel_op_note_hash_exists)));
+            auto tmp =
+                ((-main_sel_last + FF(1)) * (kernel_note_hash_exist_write_offset_shift -
+                                             (kernel_note_hash_exist_write_offset + main_sel_op_note_hash_exists)));
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
         }
@@ -106,8 +107,8 @@ template <typename FF_> class kernelImpl {
         {
             Avm_DECLARE_VIEWS(1);
 
-            auto tmp = ((-main_last + FF(1)) * (kernel_emit_note_hash_write_offset_shift -
-                                                (kernel_emit_note_hash_write_offset + main_sel_op_emit_note_hash)));
+            auto tmp = ((-main_sel_last + FF(1)) * (kernel_emit_note_hash_write_offset_shift -
+                                                    (kernel_emit_note_hash_write_offset + main_sel_op_emit_note_hash)));
             tmp *= scaling_factor;
             std::get<1>(evals) += tmp;
         }
@@ -115,7 +116,7 @@ template <typename FF_> class kernelImpl {
         {
             Avm_DECLARE_VIEWS(2);
 
-            auto tmp = ((-main_last + FF(1)) *
+            auto tmp = ((-main_sel_last + FF(1)) *
                         (kernel_nullifier_exists_write_offset_shift -
                          (kernel_nullifier_exists_write_offset + (main_sel_op_nullifier_exists * main_ib))));
             tmp *= scaling_factor;
@@ -126,7 +127,7 @@ template <typename FF_> class kernelImpl {
             Avm_DECLARE_VIEWS(3);
 
             auto tmp =
-                ((-main_last + FF(1)) *
+                ((-main_sel_last + FF(1)) *
                  (kernel_nullifier_non_exists_write_offset_shift -
                   (kernel_nullifier_non_exists_write_offset + (main_sel_op_nullifier_exists * (-main_ib + FF(1))))));
             tmp *= scaling_factor;
@@ -136,8 +137,8 @@ template <typename FF_> class kernelImpl {
         {
             Avm_DECLARE_VIEWS(4);
 
-            auto tmp = ((-main_last + FF(1)) * (kernel_emit_nullifier_write_offset_shift -
-                                                (kernel_emit_nullifier_write_offset + main_sel_op_emit_nullifier)));
+            auto tmp = ((-main_sel_last + FF(1)) * (kernel_emit_nullifier_write_offset_shift -
+                                                    (kernel_emit_nullifier_write_offset + main_sel_op_emit_nullifier)));
             tmp *= scaling_factor;
             std::get<4>(evals) += tmp;
         }
@@ -145,9 +146,9 @@ template <typename FF_> class kernelImpl {
         {
             Avm_DECLARE_VIEWS(5);
 
-            auto tmp =
-                ((-main_last + FF(1)) * (kernel_l1_to_l2_msg_exists_write_offset_shift -
-                                         (kernel_l1_to_l2_msg_exists_write_offset + main_sel_op_l1_to_l2_msg_exists)));
+            auto tmp = ((-main_sel_last + FF(1)) *
+                        (kernel_l1_to_l2_msg_exists_write_offset_shift -
+                         (kernel_l1_to_l2_msg_exists_write_offset + main_sel_op_l1_to_l2_msg_exists)));
             tmp *= scaling_factor;
             std::get<5>(evals) += tmp;
         }
@@ -155,7 +156,7 @@ template <typename FF_> class kernelImpl {
         {
             Avm_DECLARE_VIEWS(6);
 
-            auto tmp = ((-main_last + FF(1)) *
+            auto tmp = ((-main_sel_last + FF(1)) *
                         (kernel_emit_unencrypted_log_write_offset_shift -
                          (kernel_emit_unencrypted_log_write_offset + main_sel_op_emit_unencrypted_log)));
             tmp *= scaling_factor;
@@ -166,8 +167,8 @@ template <typename FF_> class kernelImpl {
             Avm_DECLARE_VIEWS(7);
 
             auto tmp =
-                ((-main_last + FF(1)) * (kernel_emit_l2_to_l1_msg_write_offset_shift -
-                                         (kernel_emit_l2_to_l1_msg_write_offset + main_sel_op_emit_l2_to_l1_msg)));
+                ((-main_sel_last + FF(1)) * (kernel_emit_l2_to_l1_msg_write_offset_shift -
+                                             (kernel_emit_l2_to_l1_msg_write_offset + main_sel_op_emit_l2_to_l1_msg)));
             tmp *= scaling_factor;
             std::get<7>(evals) += tmp;
         }
@@ -175,7 +176,7 @@ template <typename FF_> class kernelImpl {
         {
             Avm_DECLARE_VIEWS(8);
 
-            auto tmp = ((-main_last + FF(1)) *
+            auto tmp = ((-main_sel_last + FF(1)) *
                         (kernel_sload_write_offset_shift - (kernel_sload_write_offset + main_sel_op_sload)));
             tmp *= scaling_factor;
             std::get<8>(evals) += tmp;
@@ -184,7 +185,7 @@ template <typename FF_> class kernelImpl {
         {
             Avm_DECLARE_VIEWS(9);
 
-            auto tmp = ((-main_last + FF(1)) *
+            auto tmp = ((-main_sel_last + FF(1)) *
                         (kernel_sstore_write_offset_shift - (kernel_sstore_write_offset + main_sel_op_sstore)));
             tmp *= scaling_factor;
             std::get<9>(evals) += tmp;

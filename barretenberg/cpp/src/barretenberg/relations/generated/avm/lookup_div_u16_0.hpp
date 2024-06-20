@@ -87,7 +87,7 @@ class lookup_div_u16_0_lookup_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.alu_div_rng_chk_selector == 1 || in.main_sel_rng_16 == 1);
+        return (in.alu_sel_div_rng_chk == 1 || in.main_sel_rng_16 == 1);
     }
 
     /**
@@ -104,7 +104,7 @@ class lookup_div_u16_0_lookup_settings {
     static inline auto compute_inverse_exists(const AllEntities& in)
     {
         using View = typename Accumulator::View;
-        const auto is_operation = View(in.alu_div_rng_chk_selector);
+        const auto is_operation = View(in.alu_sel_div_rng_chk);
         const auto is_table_entry = View(in.main_sel_rng_16);
         return (is_operation + is_table_entry - is_operation * is_table_entry);
     }
@@ -135,7 +135,7 @@ class lookup_div_u16_0_lookup_settings {
 
         return std::forward_as_tuple(in.lookup_div_u16_0,
                                      in.lookup_div_u16_0_counts,
-                                     in.alu_div_rng_chk_selector,
+                                     in.alu_sel_div_rng_chk,
                                      in.main_sel_rng_16,
                                      in.alu_div_u16_r0,
                                      in.main_clk);
@@ -153,7 +153,7 @@ class lookup_div_u16_0_lookup_settings {
 
         return std::forward_as_tuple(in.lookup_div_u16_0,
                                      in.lookup_div_u16_0_counts,
-                                     in.alu_div_rng_chk_selector,
+                                     in.alu_sel_div_rng_chk,
                                      in.main_sel_rng_16,
                                      in.alu_div_u16_r0,
                                      in.main_clk);

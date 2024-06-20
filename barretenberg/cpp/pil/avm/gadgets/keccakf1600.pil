@@ -1,12 +1,10 @@
-include "../main.pil";
-
 namespace keccakf1600(256);
 
     pol commit clk;
 
     // Selector for Keccak Permutation Operation
-    pol commit keccakf1600_sel;
-    keccakf1600_sel * (1 - keccakf1600_sel) = 0;
+    pol commit sel_keccakf1600;
+    sel_keccakf1600 * (1 - sel_keccakf1600) = 0;
 
     // These will all be arrays, but we just store the first element for permutation to the main trace for now
     pol commit input;

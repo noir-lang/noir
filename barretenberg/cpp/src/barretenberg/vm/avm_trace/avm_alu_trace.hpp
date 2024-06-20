@@ -81,7 +81,7 @@ class AvmAluTraceBuilder {
     std::array<std::unordered_map<uint16_t, uint32_t>, 15> u16_range_chk_counters;
     std::array<std::unordered_map<uint16_t, uint32_t>, 8> div_u64_range_chk_counters;
 
-    AvmAluTraceBuilder();
+    AvmAluTraceBuilder() = default;
     void reset();
     std::vector<AluTraceEntry> finalize();
 

@@ -23,7 +23,7 @@ class perm_main_mem_a_permutation_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.main_mem_op_a == 1 || in.mem_op_a == 1);
+        return (in.main_sel_mem_op_a == 1 || in.mem_sel_op_a == 1);
     }
 
     /**
@@ -47,18 +47,18 @@ class perm_main_mem_a_permutation_settings {
     {
 
         return std::forward_as_tuple(in.perm_main_mem_a,
-                                     in.main_mem_op_a,
-                                     in.main_mem_op_a,
-                                     in.mem_op_a,
+                                     in.main_sel_mem_op_a,
+                                     in.main_sel_mem_op_a,
+                                     in.mem_sel_op_a,
                                      in.main_clk,
                                      in.main_space_id,
-                                     in.main_mem_idx_a,
+                                     in.main_mem_addr_a,
                                      in.main_ia,
                                      in.main_rwa,
                                      in.main_r_in_tag,
                                      in.main_w_in_tag,
-                                     in.main_sel_mov_a,
-                                     in.main_sel_cmov,
+                                     in.main_sel_mov_ia_to_ic,
+                                     in.main_sel_op_cmov,
                                      in.mem_clk,
                                      in.mem_space_id,
                                      in.mem_addr,
@@ -66,8 +66,8 @@ class perm_main_mem_a_permutation_settings {
                                      in.mem_rw,
                                      in.mem_r_in_tag,
                                      in.mem_w_in_tag,
-                                     in.mem_sel_mov_a,
-                                     in.mem_sel_cmov);
+                                     in.mem_sel_mov_ia_to_ic,
+                                     in.mem_sel_op_cmov);
     }
 
     /**
@@ -91,18 +91,18 @@ class perm_main_mem_a_permutation_settings {
     {
 
         return std::forward_as_tuple(in.perm_main_mem_a,
-                                     in.main_mem_op_a,
-                                     in.main_mem_op_a,
-                                     in.mem_op_a,
+                                     in.main_sel_mem_op_a,
+                                     in.main_sel_mem_op_a,
+                                     in.mem_sel_op_a,
                                      in.main_clk,
                                      in.main_space_id,
-                                     in.main_mem_idx_a,
+                                     in.main_mem_addr_a,
                                      in.main_ia,
                                      in.main_rwa,
                                      in.main_r_in_tag,
                                      in.main_w_in_tag,
-                                     in.main_sel_mov_a,
-                                     in.main_sel_cmov,
+                                     in.main_sel_mov_ia_to_ic,
+                                     in.main_sel_op_cmov,
                                      in.mem_clk,
                                      in.mem_space_id,
                                      in.mem_addr,
@@ -110,8 +110,8 @@ class perm_main_mem_a_permutation_settings {
                                      in.mem_rw,
                                      in.mem_r_in_tag,
                                      in.mem_w_in_tag,
-                                     in.mem_sel_mov_a,
-                                     in.mem_sel_cmov);
+                                     in.mem_sel_mov_ia_to_ic,
+                                     in.mem_sel_op_cmov);
     }
 };
 

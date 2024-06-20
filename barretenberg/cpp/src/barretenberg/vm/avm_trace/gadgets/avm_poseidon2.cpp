@@ -4,11 +4,6 @@
 
 namespace bb::avm_trace {
 
-AvmPoseidon2TraceBuilder::AvmPoseidon2TraceBuilder()
-{
-    poseidon2_trace.reserve(AVM_TRACE_SIZE);
-}
-
 std::vector<AvmPoseidon2TraceBuilder::Poseidon2TraceEntry> AvmPoseidon2TraceBuilder::finalize()
 {
     return std::move(poseidon2_trace);

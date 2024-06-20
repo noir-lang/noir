@@ -600,7 +600,7 @@ TEST_F(AvmExecutionTests, movOpcode)
     auto trace = gen_trace_from_instr(instructions);
 
     // Find the first row enabling the MOV selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_mov == 1; });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_mov == 1; });
     EXPECT_EQ(row->main_ia, 19);
     EXPECT_EQ(row->main_ic, 19);
 
@@ -654,7 +654,7 @@ TEST_F(AvmExecutionTests, cmovOpcode)
     auto trace = gen_trace_from_instr(instructions);
 
     // Find the first row enabling the CMOV selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_cmov == 1; });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_cmov == 1; });
     EXPECT_EQ(row->main_ia, 3);
     EXPECT_EQ(row->main_ib, 4);
     EXPECT_EQ(row->main_ic, 3);
@@ -704,7 +704,7 @@ TEST_F(AvmExecutionTests, indMovOpcode)
     auto trace = gen_trace_from_instr(instructions);
 
     // Find the first row enabling the MOV selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_mov == 1; });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_mov == 1; });
     EXPECT_EQ(row->main_ia, 255);
     EXPECT_EQ(row->main_ic, 255);
 
@@ -803,10 +803,10 @@ TEST_F(AvmExecutionTests, toRadixLeOpcode)
 
     // Find the first row enabling the TORADIXLE selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_radix_le == 1; });
-    EXPECT_EQ(row->main_ind_a, 17);
-    EXPECT_EQ(row->main_ind_b, 21);
-    EXPECT_EQ(row->main_mem_idx_a, 1);                // Indirect(17) -> 1
-    EXPECT_EQ(row->main_mem_idx_b, 5);                // Indirect(21) -> 5
+    EXPECT_EQ(row->main_ind_addr_a, 17);
+    EXPECT_EQ(row->main_ind_addr_b, 21);
+    EXPECT_EQ(row->main_mem_addr_a, 1);               // Indirect(17) -> 1
+    EXPECT_EQ(row->main_mem_addr_b, 5);               // Indirect(21) -> 5
     EXPECT_EQ(row->main_ia, FF(FF::modulus - FF(1))); //  Indirect(17) -> Direct(1) -> FF::modulus - FF(1)
     EXPECT_EQ(row->main_ib, 0);                       //  Indirect(21) -> 5 -> Unintialized memory
     EXPECT_EQ(row->main_ic, 2);
@@ -902,15 +902,15 @@ TEST_F(AvmExecutionTests, sha256CompressionOpcode)
 
     // Find the first row enabling the Sha256Compression selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sha256 == 1; });
-    EXPECT_EQ(row->main_ind_a, 34);
-    EXPECT_EQ(row->main_ind_b, 35);
-    EXPECT_EQ(row->main_ind_c, 36);
-    EXPECT_EQ(row->main_mem_idx_a, 1);   // Indirect(34) -> 9
-    EXPECT_EQ(row->main_mem_idx_b, 9);   // Indirect(35) -> 9
-    EXPECT_EQ(row->main_mem_idx_c, 256); // Indirect(36) -> 256
-    EXPECT_EQ(row->main_ia, 1);          // Trivially contains 0. (See avm_trace for explanation why)
-    EXPECT_EQ(row->main_ib, 1);          // Contains first element of the state
-    EXPECT_EQ(row->main_ic, 0);          // Contains first element of the input
+    EXPECT_EQ(row->main_ind_addr_a, 34);
+    EXPECT_EQ(row->main_ind_addr_b, 35);
+    EXPECT_EQ(row->main_ind_addr_c, 36);
+    EXPECT_EQ(row->main_mem_addr_a, 1);   // Indirect(34) -> 9
+    EXPECT_EQ(row->main_mem_addr_b, 9);   // Indirect(35) -> 9
+    EXPECT_EQ(row->main_mem_addr_c, 256); // Indirect(36) -> 256
+    EXPECT_EQ(row->main_ia, 1);           // Trivially contains 0. (See avm_trace for explanation why)
+    EXPECT_EQ(row->main_ib, 1);           // Contains first element of the state
+    EXPECT_EQ(row->main_ic, 0);           // Contains first element of the input
 
     EXPECT_EQ(returndata, expected_output);
 
@@ -993,17 +993,17 @@ TEST_F(AvmExecutionTests, sha256Opcode)
 
     // Find the first row enabling the sha256 selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sha256 == 1; });
-    EXPECT_EQ(row->main_ind_a, 36);      // Register A is indirect
-    EXPECT_EQ(row->main_ind_c, 35);      // Register C is indirect
-    EXPECT_EQ(row->main_mem_idx_a, 1);   // Indirect(36) -> 1
-    EXPECT_EQ(row->main_mem_idx_c, 256); // Indirect(35) -> 256
+    EXPECT_EQ(row->main_ind_addr_a, 36);  // Register A is indirect
+    EXPECT_EQ(row->main_ind_addr_c, 35);  // Register C is indirect
+    EXPECT_EQ(row->main_mem_addr_a, 1);   // Indirect(36) -> 1
+    EXPECT_EQ(row->main_mem_addr_c, 256); // Indirect(35) -> 256
     EXPECT_EQ(row->main_ia, 97);
     EXPECT_EQ(row->main_ic, 0);
     // Register b checks are done in the next row due to the difference in the memory tag
     std::advance(row, 1);
-    EXPECT_EQ(row->main_ind_b, 0);      // Register B is not
-    EXPECT_EQ(row->main_mem_idx_b, 37); // Load(37) -> input length
-    EXPECT_EQ(row->main_ib, 3);         // Input length
+    EXPECT_EQ(row->main_ind_addr_b, 0);  // Register B is not
+    EXPECT_EQ(row->main_mem_addr_b, 37); // Load(37) -> input length
+    EXPECT_EQ(row->main_ib, 3);          // Input length
 
     EXPECT_EQ(returndata, expected_output);
 
@@ -1069,10 +1069,10 @@ TEST_F(AvmExecutionTests, poseidon2PermutationOpCode)
 
     // Find the first row enabling the poseidon2 selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_poseidon2 == 1; });
-    EXPECT_EQ(row->main_ind_a, 36);
-    EXPECT_EQ(row->main_ind_b, 35);
-    EXPECT_EQ(row->main_mem_idx_a, 1); // Indirect(36) -> 1
-    EXPECT_EQ(row->main_mem_idx_b, 9); // Indirect(34) -> 9
+    EXPECT_EQ(row->main_ind_addr_a, 36);
+    EXPECT_EQ(row->main_ind_addr_b, 35);
+    EXPECT_EQ(row->main_mem_addr_a, 1); // Indirect(36) -> 1
+    EXPECT_EQ(row->main_mem_addr_b, 9); // Indirect(34) -> 9
     EXPECT_EQ(row->main_ia, FF(std::string("9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789")));
     EXPECT_EQ(row->main_ib, 0); // Contains first element of the output (trivially 0)
 
@@ -1164,17 +1164,17 @@ TEST_F(AvmExecutionTests, keccakf1600OpCode)
 
     // Find the first row enabling the keccak selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_keccak == 1; });
-    EXPECT_EQ(row->main_ind_a, 36);      // Register A is indirect
-    EXPECT_EQ(row->main_ind_c, 35);      // Register C is indirect
-    EXPECT_EQ(row->main_mem_idx_a, 1);   // Indirect(36) -> 1
-    EXPECT_EQ(row->main_mem_idx_c, 256); // Indirect(35) -> 256
+    EXPECT_EQ(row->main_ind_addr_a, 36);  // Register A is indirect
+    EXPECT_EQ(row->main_ind_addr_c, 35);  // Register C is indirect
+    EXPECT_EQ(row->main_mem_addr_a, 1);   // Indirect(36) -> 1
+    EXPECT_EQ(row->main_mem_addr_c, 256); // Indirect(35) -> 256
     EXPECT_EQ(row->main_ia, (0xF1258F7940E1DDE7LLU));
     EXPECT_EQ(row->main_ic, 0);
 
     std::advance(row, 1);
-    EXPECT_EQ(row->main_ind_b, 0);      // Register B is not
-    EXPECT_EQ(row->main_mem_idx_b, 37); // Load(37) -> input length
-    EXPECT_EQ(row->main_ib, 25);        // Input length
+    EXPECT_EQ(row->main_ind_addr_b, 0);  // Register B is not
+    EXPECT_EQ(row->main_mem_addr_b, 37); // Load(37) -> input length
+    EXPECT_EQ(row->main_ib, 25);         // Input length
     EXPECT_EQ(returndata, expected_output);
 
     validate_trace(std::move(trace), public_inputs);
@@ -1246,17 +1246,17 @@ TEST_F(AvmExecutionTests, keccakOpCode)
 
     // Find the first row enabling the keccak selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_keccak == 1; });
-    EXPECT_EQ(row->main_ind_a, 36);      // Register A is indirect
-    EXPECT_EQ(row->main_ind_c, 35);      // Register C is indirect
-    EXPECT_EQ(row->main_mem_idx_a, 1);   // Indirect(36) -> 1
-    EXPECT_EQ(row->main_mem_idx_c, 256); // Indirect(35) -> 256
+    EXPECT_EQ(row->main_ind_addr_a, 36);  // Register A is indirect
+    EXPECT_EQ(row->main_ind_addr_c, 35);  // Register C is indirect
+    EXPECT_EQ(row->main_mem_addr_a, 1);   // Indirect(36) -> 1
+    EXPECT_EQ(row->main_mem_addr_c, 256); // Indirect(35) -> 256
     EXPECT_EQ(row->main_ia, 189);
     EXPECT_EQ(row->main_ic, 0);
     // Register b checks are done in the next row due to the difference in the memory tag
     std::advance(row, 1);
-    EXPECT_EQ(row->main_ind_b, 0);      // Register B is not
-    EXPECT_EQ(row->main_mem_idx_b, 37); // Load(37) -> input length
-    EXPECT_EQ(row->main_ib, 1);         // Input length
+    EXPECT_EQ(row->main_ind_addr_b, 0);  // Register B is not
+    EXPECT_EQ(row->main_mem_addr_b, 37); // Load(37) -> input length
+    EXPECT_EQ(row->main_ib, 1);          // Input length
 
     EXPECT_EQ(returndata, expected_output);
 
@@ -1324,9 +1324,9 @@ TEST_F(AvmExecutionTests, pedersenHashOpCode)
 
     // Find the first row enabling the pedersen selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_pedersen == 1; });
-    EXPECT_EQ(row->main_ind_a, 4);     // Register A is indirect
-    EXPECT_EQ(row->main_mem_idx_a, 0); // Indirect(4) -> 1
-    EXPECT_EQ(row->main_ia, 1);        // The first input
+    EXPECT_EQ(row->main_ind_addr_a, 4); // Register A is indirect
+    EXPECT_EQ(row->main_mem_addr_a, 0); // Indirect(4) -> 1
+    EXPECT_EQ(row->main_ia, 1);         // The first input
     // The second row loads the U32 values
     std::advance(row, 1);
     EXPECT_EQ(row->main_ia, 2); // Input length is 2
@@ -1718,7 +1718,7 @@ TEST_F(AvmExecutionTests, l2GasLeft)
                                 GAS_COST_TABLE.at(OpCode::L2GASLEFT).l2_fixed_gas_cost;
 
     EXPECT_EQ(row->main_ia, expected_rem_gas);
-    EXPECT_EQ(row->main_mem_idx_a, 257); // Resolved direct address: 257
+    EXPECT_EQ(row->main_mem_addr_a, 257); // Resolved direct address: 257
 
     validate_trace(std::move(trace), public_inputs);
 }
@@ -1759,7 +1759,7 @@ TEST_F(AvmExecutionTests, daGasLeft)
                                 GAS_COST_TABLE.at(OpCode::DAGASLEFT).da_fixed_gas_cost;
 
     EXPECT_EQ(row->main_ia, expected_rem_gas);
-    EXPECT_EQ(row->main_mem_idx_a, 39);
+    EXPECT_EQ(row->main_mem_addr_a, 39);
 
     validate_trace(std::move(trace), public_inputs);
 }

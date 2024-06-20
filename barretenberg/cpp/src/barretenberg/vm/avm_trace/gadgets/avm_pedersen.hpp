@@ -15,7 +15,7 @@ class AvmPedersenTraceBuilder {
         FF output;
     };
 
-    AvmPedersenTraceBuilder();
+    AvmPedersenTraceBuilder() = default;
     void reset();
     // Finalize the trace
     std::vector<PedersenTraceEntry> finalize();

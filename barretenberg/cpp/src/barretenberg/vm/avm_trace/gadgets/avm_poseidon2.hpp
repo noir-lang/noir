@@ -7,6 +7,7 @@
 #include <vector>
 
 namespace bb::avm_trace {
+
 class AvmPoseidon2TraceBuilder {
   public:
     struct Poseidon2TraceEntry {
@@ -15,7 +16,7 @@ class AvmPoseidon2TraceBuilder {
         std::array<FF, 4> output;
     };
 
-    AvmPoseidon2TraceBuilder();
+    AvmPoseidon2TraceBuilder() = default;
     void reset();
     // Finalize the trace
     std::vector<Poseidon2TraceEntry> finalize();
@@ -25,4 +26,5 @@ class AvmPoseidon2TraceBuilder {
   private:
     std::vector<Poseidon2TraceEntry> poseidon2_trace;
 };
+
 } // namespace bb::avm_trace

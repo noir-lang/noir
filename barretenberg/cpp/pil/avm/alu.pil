@@ -1,5 +1,3 @@
-include "main.pil";
-
 namespace alu(256);
 
     // ========= Table ALU-TR =================================================
@@ -19,14 +17,14 @@ namespace alu(256);
     pol commit op_eq;
     pol commit op_cast;
     pol commit op_cast_prev; // Predicate on whether op_cast is enabled at previous row
-    pol commit alu_sel; // Predicate to activate the copy of intermediate registers to ALU table.
+    pol commit sel_alu; // Predicate to activate the copy of intermediate registers to ALU table.
     pol commit op_lt;
     pol commit op_lte;
-    pol commit cmp_sel; // Predicate if LT or LTE is set
-    pol commit rng_chk_sel; // Predicate representing a range check row.
+    pol commit sel_cmp; // Predicate if LT or LTE is set
+    pol commit sel_rng_chk; // Predicate representing a range check row.
     pol commit op_shl;
     pol commit op_shr;
-    pol commit shift_sel; // Predicate if SHR or SHR is set
+    pol commit sel_shift_which; // Predicate if SHR or SHR is set
 
     // Instruction tag (1: u8, 2: u16, 3: u32, 4: u64, 5: u128, 6: field) copied from Main table
     pol commit in_tag;
@@ -64,9 +62,9 @@ namespace alu(256);
     pol commit cf;
 
     // Compute predicate telling whether there is a row entry in the ALU table.
-    alu_sel = op_add + op_sub + op_mul + op_not + op_eq + op_cast + op_lt + op_lte + op_shr + op_shl + op_div;
-    cmp_sel = op_lt + op_lte;
-    shift_sel = op_shl + op_shr;
+    sel_alu = op_add + op_sub + op_mul + op_not + op_eq + op_cast + op_lt + op_lte + op_shr + op_shl + op_div;
+    sel_cmp = op_lt + op_lte;
+    sel_shift_which = op_shl + op_shr;
 
     // ========= Type Constraints =============================================
     // TODO: Range constraints
@@ -86,7 +84,7 @@ namespace alu(256);
     u128_tag * (1 - u128_tag) = 0;
 
     // Mutual exclusion of the flattened instruction tag.
-    alu_sel * (ff_tag + u8_tag + u16_tag + u32_tag + u64_tag + u128_tag - 1) = 0;
+    sel_alu * (ff_tag + u8_tag + u16_tag + u32_tag + u64_tag + u128_tag - 1) = 0;
 
     // Correct flattening of the instruction tag.
     in_tag = u8_tag + 2 * u16_tag + 3 * u32_tag + 4 * u64_tag + 5 * u128_tag + 6 * ff_tag;
@@ -227,9 +225,9 @@ namespace alu(256);
     // TODO decide if it is done here or in another trace
 
     // Do not allow ff_tag to be set if we are doing bitwise
-    pol BITWISE_SEL = op_not; // Add more bitwise operations
+    pol SEL_BITWISE = op_not; // Add more bitwise operations
     #[ALU_FF_NOT_XOR]
-    BITWISE_SEL * ff_tag = 0;
+    SEL_BITWISE * ff_tag = 0;
 
     // The value 2^k - 1
     pol UINT_MAX = u8_tag * 2**8 + 
@@ -264,9 +262,9 @@ namespace alu(256);
     // Need an additional helper that holds the inverse of the difference;
     pol commit op_eq_diff_inv;
 
-    // If EQ or CMP_SEL selector is set, ic needs to be boolean
+    // If EQ or sel_cmp selector is set, ic needs to be boolean
     #[ALU_RES_IS_BOOL]
-    (cmp_sel + op_eq) * (ic * (1 - ic)) = 0;
+    (sel_cmp + op_eq) * (ic * (1 - ic)) = 0;
 
     #[ALU_OP_EQ]
     op_eq * (DIFF * (ic * (1 - op_eq_diff_inv) + op_eq_diff_inv) - 1 + ic) = 0;
@@ -296,13 +294,13 @@ namespace alu(256);
     pol commit a_hi;
     // Check INPUT_IA is well formed from its lo and hi limbs
     #[INPUT_DECOMP_1]
-    INPUT_IA = (a_lo + 2 ** 128 * a_hi) * (cmp_sel + op_cast);
+    INPUT_IA = (a_lo + 2 ** 128 * a_hi) * (sel_cmp + op_cast);
 
     pol commit b_lo;
     pol commit b_hi;
     // Check INPUT_IB is well formed from its lo and hi limbs
     #[INPUT_DECOMP_2]
-    INPUT_IB = (b_lo + 2 ** 128 * b_hi) * cmp_sel;
+    INPUT_IB = (b_lo + 2 ** 128 * b_hi) * sel_cmp;
 
     pol commit p_sub_a_lo; // p_lo - a_lo
     pol commit p_sub_a_hi; // p_hi - a_hi
@@ -317,9 +315,9 @@ namespace alu(256);
     // First condition is if borrow = 0, second condition is if borrow = 1
     // This underflow check is done by the 128-bit check that is performed on each of these lo and hi limbs.
     #[SUB_LO_1]
-    (p_sub_a_lo  - (53438638232309528389504892708671455232 - a_lo + p_a_borrow * 2 ** 128)) * (cmp_sel + op_cast + op_div_std) = 0;
+    (p_sub_a_lo  - (53438638232309528389504892708671455232 - a_lo + p_a_borrow * 2 ** 128)) * (sel_cmp + op_cast + op_div_std) = 0;
     #[SUB_HI_1]
-    (p_sub_a_hi - (64323764613183177041862057485226039389 - a_hi - p_a_borrow)) * (cmp_sel + op_cast + op_div_std) = 0;
+    (p_sub_a_hi - (64323764613183177041862057485226039389 - a_hi - p_a_borrow)) * (sel_cmp + op_cast + op_div_std) = 0;
 
     pol commit p_sub_b_lo;
     pol commit p_sub_b_hi;
@@ -330,9 +328,9 @@ namespace alu(256);
     // This is achieved by checking (p_lo > b_lo && p_hi >= bhi) || (p_lo <= b_lo && p_hi > b_hi)
     // First condition is if borrow = 0, second condition is if borrow = 1;
     #[SUB_LO_2]
-    (p_sub_b_lo - (53438638232309528389504892708671455232 - b_lo + p_b_borrow * 2 ** 128)) * cmp_sel = 0;
+    (p_sub_b_lo - (53438638232309528389504892708671455232 - b_lo + p_b_borrow * 2 ** 128)) * sel_cmp = 0;
     #[SUB_HI_2]
-    (p_sub_b_hi - (64323764613183177041862057485226039389 - b_hi - p_b_borrow)) * cmp_sel = 0;
+    (p_sub_b_hi - (64323764613183177041862057485226039389 - b_hi - p_b_borrow)) * sel_cmp = 0;
 
     // Calculate the combined relation: (a - b - 1) * q + (b -a ) * (1-q)
     // Check that (a > b) by checking (a_lo > b_lo && a_hi >= bhi) || (alo <= b_lo && a_hi > b_hi)
@@ -410,9 +408,9 @@ namespace alu(256);
     pol commit res_lo;
     pol commit res_hi;
     #[RES_LO]
-    (res_lo - (A_SUB_B_LO * IS_GT + B_SUB_A_LO * (1 - IS_GT))) * cmp_sel = 0;
+    (res_lo - (A_SUB_B_LO * IS_GT + B_SUB_A_LO * (1 - IS_GT))) * sel_cmp = 0;
     #[RES_HI]
-    (res_hi - (A_SUB_B_HI * IS_GT + B_SUB_A_HI * (1 - IS_GT))) * cmp_sel = 0;
+    (res_hi - (A_SUB_B_HI * IS_GT + B_SUB_A_HI * (1 - IS_GT))) * sel_cmp = 0;
 
     // ========= RANGE OPERATIONS ===============================
 
@@ -426,25 +424,25 @@ namespace alu(256);
     // if this row is a comparison operation, the next range_check_remaining value is set to 4
     // it is not set to 5 since we do 1 as part of the comparison.
     #[CMP_CTR_REL_2]
-    (cmp_rng_ctr' - 4) * cmp_sel = 0;
+    (cmp_rng_ctr' - 4) * sel_cmp = 0;
     
-    rng_chk_sel * (1 - rng_chk_sel) = 0;
-    // If we have remaining range checks, we cannot have cmp_sel set. This prevents malicious truncating of the range
+    sel_rng_chk * (1 - sel_rng_chk) = 0;
+    // If we have remaining range checks, we cannot have sel_cmp set. This prevents malicious truncating of the range
     // checks by adding a new LT/LTE operation before all the range checks from the previous computation are complete.
-    rng_chk_sel * cmp_sel = 0;
+    sel_rng_chk * sel_cmp = 0;
 
-    // rng_chk_sel = 1 when cmp_rng_ctr != 0 and rng_chk_sel = 0 when cmp_rng_ctr = 0;
+    // sel_rng_chk = 1 when cmp_rng_ctr != 0 and sel_rng_chk = 0 when cmp_rng_ctr = 0;
     #[CTR_NON_ZERO_REL]
-    cmp_rng_ctr * ((1 - rng_chk_sel) * (1 -  op_eq_diff_inv) +  op_eq_diff_inv) - rng_chk_sel = 0;
+    cmp_rng_ctr * ((1 - sel_rng_chk) * (1 -  op_eq_diff_inv) +  op_eq_diff_inv) - sel_rng_chk = 0;
 
     // We perform a range check if we have some range checks remaining or we are performing a comparison op
-    pol RNG_CHK_OP = rng_chk_sel + cmp_sel + op_cast + op_cast_prev + shift_lt_bit_len + op_div;
+    pol RNG_CHK_OP = sel_rng_chk + sel_cmp + op_cast + op_cast_prev + shift_lt_bit_len + op_div;
 
-    pol commit rng_chk_lookup_selector;
+    pol commit sel_rng_chk_lookup;
     // TODO: Possible optimisation here if we swap the op_shl and op_shr with shift_lt_bit_len.
     // Shift_lt_bit_len is a more restrictive form therefore we can avoid performing redundant range checks when we know the result == 0.
     #[RNG_CHK_LOOKUP_SELECTOR]
-    rng_chk_lookup_selector' = cmp_sel' + rng_chk_sel' + op_add' + op_sub' + op_mul' + op_mul * u128_tag + op_cast' + op_cast_prev' + op_shl' + op_shr' + op_div';
+    sel_rng_chk_lookup' = sel_cmp' + sel_rng_chk' + op_add' + op_sub' + op_mul' + op_mul * u128_tag + op_cast' + op_cast_prev' + op_shl' + op_shr' + op_div';
 
     // Perform 128-bit range check on lo part
     #[LOWER_CMP_RNG_CHK]
@@ -463,17 +461,17 @@ namespace alu(256);
     // Briefly: given a > b and p > a and p > a - b - 1, it is sufficient confirm that p > b without a range check
     // To accomplish this we would likely change the order of the range_check so we can skip p_sub_b
     #[SHIFT_RELS_0]
-    (a_lo' - b_lo) * rng_chk_sel' = 0;
-    (a_hi' - b_hi) * rng_chk_sel' = 0;
+    (a_lo' - b_lo) * sel_rng_chk' = 0;
+    (a_hi' - b_hi) * sel_rng_chk' = 0;
     #[SHIFT_RELS_1]
-    (b_lo' - p_sub_a_lo) * rng_chk_sel' = 0;
-    (b_hi' - p_sub_a_hi) * rng_chk_sel' = 0;
+    (b_lo' - p_sub_a_lo) * sel_rng_chk' = 0;
+    (b_hi' - p_sub_a_hi) * sel_rng_chk' = 0;
     #[SHIFT_RELS_2]
-    (p_sub_a_lo' - p_sub_b_lo) * rng_chk_sel'= 0;
-    (p_sub_a_hi' - p_sub_b_hi) * rng_chk_sel'= 0;
+    (p_sub_a_lo' - p_sub_b_lo) * sel_rng_chk'= 0;
+    (p_sub_a_hi' - p_sub_b_hi) * sel_rng_chk'= 0;
     #[SHIFT_RELS_3]
-    (p_sub_b_lo' - res_lo) * rng_chk_sel'= 0;
-    (p_sub_b_hi' - res_hi) * rng_chk_sel'= 0;
+    (p_sub_b_lo' - res_lo) * sel_rng_chk'= 0;
+    (p_sub_b_hi' - res_hi) * sel_rng_chk'= 0;
 
     // ========= CAST Operation Constraints ===============================
     // We handle the input ia independently of its tag, i.e., we suppose it can take
@@ -514,7 +512,7 @@ namespace alu(256);
     // 128-bit multiplication and CAST need two rows in ALU trace. We need to ensure
     // that another ALU operation does not start in the second row.
     #[TWO_LINE_OP_NO_OVERLAP]
-    (op_mul * u128_tag + op_cast) * alu_sel' = 0;
+    (op_mul * u128_tag + op_cast) * sel_alu' = 0;
 
     // ========= SHIFT LEFT/RIGHT OPERATIONS ===============================
     // Given (1) an input b, within the range [0, 2**128-1], 
@@ -600,7 +598,7 @@ namespace alu(256);
     // There is no chance of an underflow involving ib to result in a t_sub_b_bits < 2**8 ib is range checked to be < 2**8
     // The range checking of t_sub_b_bits in the range [0, 2**8) is done by the lookup for 2**t_sub_s_bits
     #[SHIFT_LT_BIT_LEN]
-    t_sub_s_bits = shift_sel * (shift_lt_bit_len * (MAX_BITS - ib) + (1 - shift_lt_bit_len) * (ib - MAX_BITS));
+    t_sub_s_bits = sel_shift_which * (shift_lt_bit_len * (MAX_BITS - ib) + (1 - shift_lt_bit_len) * (ib - MAX_BITS));
 
     // ========= SHIFT RIGHT OPERATIONS ===============================
     // a_hi * 2**s + a_lo = a
@@ -699,7 +697,7 @@ namespace alu(256);
     (cmp_rng_ctr' - 2) * op_div_std = 0;
     
     // If we have more range checks left we cannot do more divisions operations that might truncate the steps
-    rng_chk_sel * op_div_std = 0;
+    sel_rng_chk * op_div_std = 0;
 
     // Check PRODUCT = ia - remainder
     #[DIVISION_RELATION]
@@ -710,10 +708,10 @@ namespace alu(256);
     // TODO: We need extra slice registers because we are performing an additional 64-bit range check in the same row, look into re-using old columns or refactoring
     // range checks to be more modular.
     // boolean to account for the division-specific 64-bit range checks.
-    pol commit div_rng_chk_selector; 
-    div_rng_chk_selector * (1 - div_rng_chk_selector) = 0;
-    // div_rng_chk_selector && div_rng_chk_selector' = 1 if op_div_std = 1
-    div_rng_chk_selector * div_rng_chk_selector' = op_div_std;
+    pol commit sel_div_rng_chk; 
+    sel_div_rng_chk * (1 - sel_div_rng_chk) = 0;
+    // sel_div_rng_chk && sel_div_rng_chk' = 1 if op_div_std = 1
+    sel_div_rng_chk * sel_div_rng_chk' = op_div_std;
 
     pol commit div_u16_r0;
     pol commit div_u16_r1;

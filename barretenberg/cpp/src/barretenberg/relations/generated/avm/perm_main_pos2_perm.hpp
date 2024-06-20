@@ -23,7 +23,7 @@ class perm_main_pos2_perm_permutation_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.main_sel_op_poseidon2 == 1 || in.poseidon2_poseidon_perm_sel == 1);
+        return (in.main_sel_op_poseidon2 == 1 || in.poseidon2_sel_poseidon_perm == 1);
     }
 
     /**
@@ -49,7 +49,7 @@ class perm_main_pos2_perm_permutation_settings {
         return std::forward_as_tuple(in.perm_main_pos2_perm,
                                      in.main_sel_op_poseidon2,
                                      in.main_sel_op_poseidon2,
-                                     in.poseidon2_poseidon_perm_sel,
+                                     in.poseidon2_sel_poseidon_perm,
                                      in.main_clk,
                                      in.main_ia,
                                      in.main_ib,
@@ -81,7 +81,7 @@ class perm_main_pos2_perm_permutation_settings {
         return std::forward_as_tuple(in.perm_main_pos2_perm,
                                      in.main_sel_op_poseidon2,
                                      in.main_sel_op_poseidon2,
-                                     in.poseidon2_poseidon_perm_sel,
+                                     in.poseidon2_sel_poseidon_perm,
                                      in.main_clk,
                                      in.main_ia,
                                      in.main_ib,

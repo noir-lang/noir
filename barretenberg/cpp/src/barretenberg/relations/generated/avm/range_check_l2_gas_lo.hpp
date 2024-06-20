@@ -87,7 +87,7 @@ class range_check_l2_gas_lo_lookup_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.main_gas_cost_active == 1 || in.main_sel_rng_16 == 1);
+        return (in.main_sel_gas_accounting_active == 1 || in.main_sel_rng_16 == 1);
     }
 
     /**
@@ -104,7 +104,7 @@ class range_check_l2_gas_lo_lookup_settings {
     static inline auto compute_inverse_exists(const AllEntities& in)
     {
         using View = typename Accumulator::View;
-        const auto is_operation = View(in.main_gas_cost_active);
+        const auto is_operation = View(in.main_sel_gas_accounting_active);
         const auto is_table_entry = View(in.main_sel_rng_16);
         return (is_operation + is_table_entry - is_operation * is_table_entry);
     }
@@ -135,7 +135,7 @@ class range_check_l2_gas_lo_lookup_settings {
 
         return std::forward_as_tuple(in.range_check_l2_gas_lo,
                                      in.range_check_l2_gas_lo_counts,
-                                     in.main_gas_cost_active,
+                                     in.main_sel_gas_accounting_active,
                                      in.main_sel_rng_16,
                                      in.main_abs_l2_rem_gas_lo,
                                      in.main_clk);
@@ -153,7 +153,7 @@ class range_check_l2_gas_lo_lookup_settings {
 
         return std::forward_as_tuple(in.range_check_l2_gas_lo,
                                      in.range_check_l2_gas_lo_counts,
-                                     in.main_gas_cost_active,
+                                     in.main_sel_gas_accounting_active,
                                      in.main_sel_rng_16,
                                      in.main_abs_l2_rem_gas_lo,
                                      in.main_clk);

@@ -87,7 +87,7 @@ class lookup_pow_2_1_lookup_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.alu_shift_sel == 1 || in.main_sel_rng_8 == 1);
+        return (in.alu_sel_shift_which == 1 || in.main_sel_rng_8 == 1);
     }
 
     /**
@@ -104,7 +104,7 @@ class lookup_pow_2_1_lookup_settings {
     static inline auto compute_inverse_exists(const AllEntities& in)
     {
         using View = typename Accumulator::View;
-        const auto is_operation = View(in.alu_shift_sel);
+        const auto is_operation = View(in.alu_sel_shift_which);
         const auto is_table_entry = View(in.main_sel_rng_8);
         return (is_operation + is_table_entry - is_operation * is_table_entry);
     }
@@ -135,7 +135,7 @@ class lookup_pow_2_1_lookup_settings {
 
         return std::forward_as_tuple(in.lookup_pow_2_1,
                                      in.lookup_pow_2_1_counts,
-                                     in.alu_shift_sel,
+                                     in.alu_sel_shift_which,
                                      in.main_sel_rng_8,
                                      in.alu_t_sub_s_bits,
                                      in.alu_two_pow_t_sub_s,
@@ -155,7 +155,7 @@ class lookup_pow_2_1_lookup_settings {
 
         return std::forward_as_tuple(in.lookup_pow_2_1,
                                      in.lookup_pow_2_1_counts,
-                                     in.alu_shift_sel,
+                                     in.alu_sel_shift_which,
                                      in.main_sel_rng_8,
                                      in.alu_t_sub_s_bits,
                                      in.alu_two_pow_t_sub_s,

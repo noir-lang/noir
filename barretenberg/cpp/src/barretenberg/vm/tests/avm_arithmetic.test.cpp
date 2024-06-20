@@ -8,6 +8,7 @@
 #include <cstdint>
 
 namespace tests_avm {
+
 using namespace bb;
 using namespace bb::avm_trace;
 
@@ -25,18 +26,18 @@ void common_validate_arithmetic_op(Row const& main_row,
 {
     // Check that the correct result is stored at the expected memory location.
     EXPECT_EQ(main_row.main_ic, c);
-    EXPECT_EQ(main_row.main_mem_idx_c, addr_c);
-    EXPECT_EQ(main_row.main_mem_op_c, FF(1));
+    EXPECT_EQ(main_row.main_mem_addr_c, addr_c);
+    EXPECT_EQ(main_row.main_sel_mem_op_c, FF(1));
     EXPECT_EQ(main_row.main_rwc, FF(1));
 
     // Check that ia and ib registers are correctly set with memory load operations.
     EXPECT_EQ(main_row.main_ia, a);
-    EXPECT_EQ(main_row.main_mem_idx_a, addr_a);
-    EXPECT_EQ(main_row.main_mem_op_a, FF(1));
+    EXPECT_EQ(main_row.main_mem_addr_a, addr_a);
+    EXPECT_EQ(main_row.main_sel_mem_op_a, FF(1));
     EXPECT_EQ(main_row.main_rwa, FF(0));
     EXPECT_EQ(main_row.main_ib, b);
-    EXPECT_EQ(main_row.main_mem_idx_b, addr_b);
-    EXPECT_EQ(main_row.main_mem_op_b, FF(1));
+    EXPECT_EQ(main_row.main_mem_addr_b, addr_b);
+    EXPECT_EQ(main_row.main_sel_mem_op_b, FF(1));
     EXPECT_EQ(main_row.main_rwb, FF(0));
 
     // Check the read instruction tag
@@ -463,8 +464,8 @@ TEST_F(AvmArithmeticTestsFF, fDivision)
     // Check that the correct result is stored at the expected memory location.
     EXPECT_TRUE(row != trace.end());
     EXPECT_EQ(row->main_ic, FF(21));
-    EXPECT_EQ(row->main_mem_idx_c, FF(2));
-    EXPECT_EQ(row->main_mem_op_c, FF(1));
+    EXPECT_EQ(row->main_mem_addr_c, FF(2));
+    EXPECT_EQ(row->main_sel_mem_op_c, FF(1));
     EXPECT_EQ(row->main_rwc, FF(1));
 
     validate_trace(std::move(trace), public_inputs);
@@ -486,8 +487,8 @@ TEST_F(AvmArithmeticTestsFF, fDivisionNumeratorZero)
     // Check that the correct result is stored at the expected memory location.
     EXPECT_TRUE(row != trace.end());
     EXPECT_EQ(row->main_ic, FF(0));
-    EXPECT_EQ(row->main_mem_idx_c, FF(0));
-    EXPECT_EQ(row->main_mem_op_c, FF(1));
+    EXPECT_EQ(row->main_mem_addr_c, FF(0));
+    EXPECT_EQ(row->main_sel_mem_op_c, FF(1));
     EXPECT_EQ(row->main_rwc, FF(1));
 
     validate_trace(std::move(trace), public_inputs);
@@ -510,8 +511,8 @@ TEST_F(AvmArithmeticTestsFF, fDivisionByZeroError)
     // Check that the correct result is stored at the expected memory location.
     EXPECT_TRUE(row != trace.end());
     EXPECT_EQ(row->main_ic, FF(0));
-    EXPECT_EQ(row->main_mem_idx_c, FF(2));
-    EXPECT_EQ(row->main_mem_op_c, FF(1));
+    EXPECT_EQ(row->main_mem_addr_c, FF(2));
+    EXPECT_EQ(row->main_sel_mem_op_c, FF(1));
     EXPECT_EQ(row->main_rwc, FF(1));
     EXPECT_EQ(row->main_op_err, FF(1));
 
@@ -533,8 +534,8 @@ TEST_F(AvmArithmeticTestsFF, fDivisionZeroByZeroError)
     // Check that the correct result is stored at the expected memory location.
     EXPECT_TRUE(row != trace.end());
     EXPECT_EQ(row->main_ic, FF(0));
-    EXPECT_EQ(row->main_mem_idx_c, FF(2));
-    EXPECT_EQ(row->main_mem_op_c, FF(1));
+    EXPECT_EQ(row->main_mem_addr_c, FF(2));
+    EXPECT_EQ(row->main_sel_mem_op_c, FF(1));
     EXPECT_EQ(row->main_rwc, FF(1));
     EXPECT_EQ(row->main_op_err, FF(1));
 
@@ -635,8 +636,8 @@ TEST_F(AvmArithmeticTests, DivisionByZeroError)
     // Check that the correct result is stored at the expected memory location.
     EXPECT_TRUE(row != trace.end());
     EXPECT_EQ(row->main_ic, FF(0));
-    EXPECT_EQ(row->main_mem_idx_c, FF(2));
-    EXPECT_EQ(row->main_mem_op_c, FF(1));
+    EXPECT_EQ(row->main_mem_addr_c, FF(2));
+    EXPECT_EQ(row->main_sel_mem_op_c, FF(1));
     EXPECT_EQ(row->main_rwc, FF(1));
     EXPECT_EQ(row->main_op_err, FF(1));
 
@@ -2314,7 +2315,7 @@ TEST_F(AvmArithmeticNegativeTestsU128, multiplicationSecondRowNoOp)
     auto alu_row_index = common_validate_mul(trace, FF(3), FF(4), FF(12), FF(0), FF(1), FF(2), AvmMemoryTag::U128);
 
     // We have to enable alu_sel otherwise another relation will fail.
-    trace.at(alu_row_index + 1).alu_alu_sel = 1;
+    trace.at(alu_row_index + 1).alu_sel_alu = 1;
 
     // Add an LTE selector in the next row (second part of U128 multiplication)
     auto trace_lte = trace;
@@ -2325,13 +2326,13 @@ TEST_F(AvmArithmeticNegativeTestsU128, multiplicationSecondRowNoOp)
     auto trace_sub = trace;
     trace_sub.at(alu_row_index + 1).alu_op_sub = 1;
     // Adjust to not violate #[RNG_CHK_LOOKUP_SELECTOR]
-    trace_sub.at(alu_row_index + 1).alu_rng_chk_lookup_selector = 2;
+    trace_sub.at(alu_row_index + 1).alu_sel_rng_chk_lookup = 2;
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace_sub)), "TWO_LINE_OP_NO_OVERLAP");
 
     // Try with another MUL selector.
     trace.at(alu_row_index + 1).alu_op_mul = 1;
     // Adjust to not violate #[RNG_CHK_LOOKUP_SELECTOR]
-    trace.at(alu_row_index + 1).alu_rng_chk_lookup_selector = 2;
+    trace.at(alu_row_index + 1).alu_sel_rng_chk_lookup = 2;
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "TWO_LINE_OP_NO_OVERLAP");
 }
 

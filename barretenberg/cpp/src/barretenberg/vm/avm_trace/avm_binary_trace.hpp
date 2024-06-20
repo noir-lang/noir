@@ -31,7 +31,7 @@ class AvmBinaryTraceBuilder {
     std::unordered_map<uint32_t, uint32_t> byte_operation_counter;
     std::unordered_map<uint32_t, uint32_t> byte_length_counter;
 
-    AvmBinaryTraceBuilder();
+    AvmBinaryTraceBuilder() = default;
     void reset();
     // Finalize the trace
     std::vector<BinaryTraceEntry> finalize();

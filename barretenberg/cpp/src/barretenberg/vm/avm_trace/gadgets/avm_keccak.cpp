@@ -7,11 +7,6 @@
 
 namespace bb::avm_trace {
 
-AvmKeccakTraceBuilder::AvmKeccakTraceBuilder()
-{
-    keccak_trace.reserve(AVM_TRACE_SIZE);
-}
-
 std::vector<AvmKeccakTraceBuilder::KeccakTraceEntry> AvmKeccakTraceBuilder::finalize()
 {
     return std::move(keccak_trace);

@@ -20,7 +20,7 @@ class AvmConversionTraceBuilder {
         std::vector<uint8_t> limbs;
     };
 
-    AvmConversionTraceBuilder();
+    AvmConversionTraceBuilder() = default;
     void reset();
     // Finalize the trace
     std::vector<ConversionTraceEntry> finalize();

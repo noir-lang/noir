@@ -3,8 +3,6 @@
 
 namespace bb::avm_trace {
 
-AvmGasTraceBuilder::AvmGasTraceBuilder() = default;
-
 void AvmGasTraceBuilder::reset()
 {
     gas_trace.clear();

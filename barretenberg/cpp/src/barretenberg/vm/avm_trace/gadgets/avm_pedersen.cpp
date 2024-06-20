@@ -4,11 +4,6 @@
 
 namespace bb::avm_trace {
 
-AvmPedersenTraceBuilder::AvmPedersenTraceBuilder()
-{
-    pedersen_trace.reserve(AVM_TRACE_SIZE);
-}
-
 std::vector<AvmPedersenTraceBuilder::PedersenTraceEntry> AvmPedersenTraceBuilder::finalize()
 {
     return std::move(pedersen_trace);

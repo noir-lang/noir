@@ -47,7 +47,7 @@ void test_gas(StartGas startGas, OpcodesFunc apply_opcodes, CheckFunc check_trac
 
     check_trace(trace);
 
-    log_avm_trace(trace, 0, 10);
+    // log_avm_trace(trace, 0, 10);
     validate_trace(std::move(trace), public_inputs);
 }
 

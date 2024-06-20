@@ -5,6 +5,7 @@
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 
 namespace bb::avm_trace {
+
 class AvmEccTraceBuilder {
   public:
     struct EccTraceEntry {
@@ -14,7 +15,7 @@ class AvmEccTraceBuilder {
         std::tuple<FF, FF, bool> result = { FF(0), FF(0), true };
     };
 
-    AvmEccTraceBuilder();
+    AvmEccTraceBuilder() = default;
     void reset();
     // Finalize the trace
     std::vector<EccTraceEntry> finalize();
