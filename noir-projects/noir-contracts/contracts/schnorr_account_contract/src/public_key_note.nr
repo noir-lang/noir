@@ -19,24 +19,26 @@ struct PublicKeyNote {
 }
 
 impl NoteInterface<PUBLIC_KEY_NOTE_LEN, PUBLIC_KEY_NOTE_BYTES_LEN> for PublicKeyNote {
-    fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
+    fn compute_note_hash_and_nullifier(self, context: &mut PrivateContext) -> (Field, Field) {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = context.request_nsk_app(self.npk_m_hash);
-        poseidon2_hash([
+        let nullifier = poseidon2_hash([
             note_hash_for_nullify,
             secret,
             GENERATOR_INDEX__NOTE_NULLIFIER as Field,
-        ])
+        ]);
+        (note_hash_for_nullify, nullifier)
     }
 
-    fn compute_nullifier_without_context(self) -> Field {
+    fn compute_note_hash_and_nullifier_without_context(self) -> (Field, Field) {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = get_nsk_app(self.npk_m_hash);
-        poseidon2_hash([
+        let nullifier = poseidon2_hash([
             note_hash_for_nullify,
             secret,
             GENERATOR_INDEX__NOTE_NULLIFIER as Field,
-        ])
+        ]);
+        (note_hash_for_nullify, nullifier)
     }
 }
 

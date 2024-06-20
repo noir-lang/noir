@@ -2,7 +2,7 @@ use dep::aztec::{
     prelude::{AztecAddress, NoteHeader, NoteInterface, PrivateContext},
     protocol_types::{constants::GENERATOR_INDEX__NOTE_NULLIFIER, grumpkin_point::GrumpkinPoint, hash::poseidon2_hash},
     note::utils::compute_note_hash_for_consumption, oracle::unsafe_rand::unsafe_rand,
-    note::note_emission::NoteEmission, keys::getters::get_nsk_app
+    keys::getters::get_nsk_app
 };
 
 trait OwnedNote {
@@ -26,25 +26,27 @@ struct TokenNote {
 
 impl NoteInterface<TOKEN_NOTE_LEN, TOKEN_NOTE_BYTES_LEN> for TokenNote {
     // docs:start:nullifier
-    fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
+    fn compute_note_hash_and_nullifier(self, context: &mut PrivateContext) -> (Field, Field) {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = context.request_nsk_app(self.npk_m_hash);
-        poseidon2_hash([
+        let nullifier = poseidon2_hash([
             note_hash_for_nullify,
             secret,
             GENERATOR_INDEX__NOTE_NULLIFIER as Field,
-        ])
+        ]);
+        (note_hash_for_nullify, nullifier)
     }
     // docs:end:nullifier
 
-    fn compute_nullifier_without_context(self) -> Field {
+    fn compute_note_hash_and_nullifier_without_context(self) -> (Field, Field) {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = get_nsk_app(self.npk_m_hash);
-        poseidon2_hash([
+        let nullifier = poseidon2_hash([
             note_hash_for_nullify,
             secret,
             GENERATOR_INDEX__NOTE_NULLIFIER as Field,
-        ])
+        ]);
+        (note_hash_for_nullify, nullifier)
     }
 }
 

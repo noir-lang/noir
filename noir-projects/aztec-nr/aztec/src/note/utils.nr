@@ -57,7 +57,7 @@ pub fn compute_siloed_nullifier<Note, N, M>(
     context: &mut PrivateContext
 ) -> Field where Note: NoteInterface<N, M> {
     let header = note_with_header.get_header();
-    let inner_nullifier = note_with_header.compute_nullifier(context);
+    let (_, inner_nullifier) = note_with_header.compute_note_hash_and_nullifier(context);
 
     let input = [header.contract_address.to_field(), inner_nullifier];
     pedersen_hash(input, GENERATOR_INDEX__OUTER_NULLIFIER)
@@ -128,7 +128,8 @@ pub fn compute_note_hash_and_optionally_a_nullifier<T, N, M, S>(
     let siloed_note_hash = compute_siloed_hash(note_header.contract_address, unique_note_hash);
 
     let inner_nullifier = if compute_nullifier {
-        note.compute_nullifier_without_context()
+        let (_, nullifier) = note.compute_note_hash_and_nullifier_without_context();
+        nullifier
     } else {
         0
     };

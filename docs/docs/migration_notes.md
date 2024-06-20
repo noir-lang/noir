@@ -6,6 +6,62 @@ keywords: [sandbox, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
+## TBD
+
+### [Aztec.nr] changes to `NoteInterface`
+`compute_nullifier` function was renamed to `compute_note_hash_and_nullifier` and now the function has to return not only the nullifier but also the note hash used to compute the nullifier.
+The same change was done to `compute_nullifier_without_context` function.
+These changes were done because having the note hash exposed allowed us to not having to re-compute it again in `destroy_note` function of Aztec.nr which led to significant decrease in gate counts (see the [optimization PR](https://github.com/AztecProtocol/aztec-packages/pull/7103) for more details).
+
+
+```diff
+- impl NoteInterface<VALUE_NOTE_LEN, VALUE_NOTE_BYTES_LEN> for ValueNote {
+-    fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
+-        let note_hash_for_nullify = compute_note_hash_for_consumption(self);
+-        let secret = context.request_nsk_app(self.npk_m_hash);
+-        poseidon2_hash([
+-            note_hash_for_nullify,
+-            secret,
+-            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
+-        ])
+-    }
+-
+-    fn compute_nullifier_without_context(self) -> Field {
+-        let note_hash_for_nullify = compute_note_hash_for_consumption(self);
+-        let secret = get_nsk_app(self.npk_m_hash);
+-        poseidon2_hash([
+-            note_hash_for_nullify,
+-            secret,
+-            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
+-        ])
+-    }
+- }
++ impl NoteInterface<VALUE_NOTE_LEN, VALUE_NOTE_BYTES_LEN> for ValueNote {
++    fn compute_note_hash_and_nullifier(self, context: &mut PrivateContext) -> (Field, Field) {
++        let note_hash_for_nullify = compute_note_hash_for_consumption(self);
++        let secret = context.request_nsk_app(self.npk_m_hash);
++        let nullifier = poseidon2_hash([
++            note_hash_for_nullify,
++            secret,
++            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
++        ]);
++        (note_hash_for_nullify, nullifier)
++    }
++
++    fn compute_note_hash_and_nullifier_without_context(self) -> (Field, Field) {
++        let note_hash_for_nullify = compute_note_hash_for_consumption(self);
++        let secret = get_nsk_app(self.npk_m_hash);
++        let nullifier = poseidon2_hash([
++            note_hash_for_nullify,
++            secret,
++            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
++        ]);
++        (note_hash_for_nullify, nullifier)
++    }
++ }
+```
+
+
 ## 0.43.0
 
 ### [Aztec.nr] break `token.transfer()` into `transfer` and `transferFrom`

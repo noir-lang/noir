@@ -38,7 +38,8 @@ contract Claim {
         // Note: Only the owner of the npk_m will be able to produce the nsk_app and compute this nullifier.
         // The nullifier is unique to the note and THIS contract because the protocol siloes all nullifiers with
         // the address of a contract it was emitted from.
-        context.push_new_nullifier(proof_note.compute_nullifier(&mut context), 0);
+        let (_, nullifier) = proof_note.compute_note_hash_and_nullifier(&mut context);
+        context.push_new_nullifier(nullifier, 0);
 
         // 4) Finally we mint the reward token to the sender of the transaction
         Token::at(storage.reward_token.read_private()).mint_public(recipient, proof_note.value).enqueue(&mut context);
