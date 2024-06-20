@@ -44,7 +44,6 @@ class MockCircuits {
      */
     template <typename Builder> static void add_arithmetic_gates(Builder& builder, const size_t num_gates = 4)
     {
-        // For good measure, include a gate with some public inputs
         for (size_t i = 0; i < num_gates; ++i) {
             FF a = FF::random_element(&engine);
             FF b = FF::random_element(&engine);
