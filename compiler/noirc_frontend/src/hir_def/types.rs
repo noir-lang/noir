@@ -243,8 +243,8 @@ pub struct StructType {
 }
 
 /// Corresponds to generic lists such as `<T, U>` in the source program.
-/// Used mainly for resolved types which no longer need the information
-/// that is checked during resolution/type checking.
+/// Used mainly for resolved types which no longer need information such
+/// as names or kinds.
 pub type GenericTypeVars = Vec<TypeVariable>;
 
 /// Corresponds to generic lists such as `<T, U>` with additional
