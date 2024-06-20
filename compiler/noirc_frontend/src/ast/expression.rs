@@ -228,6 +228,7 @@ impl Expression {
         // as a sequence of { if, tuple } rather than a function call. This behavior matches rust.
         let kind = if matches!(&lhs.kind, ExpressionKind::If(..)) {
             ExpressionKind::Block(BlockExpression {
+                is_unsafe: false,
                 statements: vec![
                     Statement { kind: StatementKind::Expression(lhs), span },
                     Statement {
@@ -505,6 +506,7 @@ pub struct IndexExpression {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BlockExpression {
+    pub is_unsafe: bool,
     pub statements: Vec<Statement>,
 }
 
@@ -606,7 +608,8 @@ impl Display for Literal {
 
 impl Display for BlockExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{{")?;
+        let safety = if self.is_unsafe { "unsafe " } else { "" };
+        writeln!(f, "{safety}{{")?;
         for statement in &self.statements {
             let statement = statement.kind.to_string();
             for line in statement.lines() {

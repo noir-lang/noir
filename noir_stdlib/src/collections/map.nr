@@ -168,7 +168,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
 
         for slot in self._table {
             if slot.is_valid() {
-                let (_, value) = slot.key_value_unchecked();
+                let (_, value) = unsafe {slot.key_value_unchecked()};
                 values.push(value);
             }
         }

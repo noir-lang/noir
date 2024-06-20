@@ -643,6 +643,7 @@ impl ForRange {
 
                 let block_span = block.span;
                 let new_block = BlockExpression {
+                    is_unsafe: false,
                     statements: vec![
                         let_elem,
                         Statement { kind: StatementKind::Expression(block), span: block_span },
@@ -660,10 +661,13 @@ impl ForRange {
                 };
 
                 let block = ExpressionKind::Block(BlockExpression {
+                    is_unsafe: false,
                     statements: vec![let_array, for_loop],
                 });
-                let kind = StatementKind::Expression(Expression::new(block, for_loop_span));
-                Statement { kind, span: for_loop_span }
+                Statement {
+                    kind: StatementKind::Expression(Expression::new(block, for_loop_span)),
+                    span: for_loop_span,
+                }
             }
         }
     }

@@ -323,7 +323,7 @@ impl<'a> Resolver<'a> {
                 typ: typ.clone(),
                 span: name.span(),
             }),
-            body: BlockExpression { statements: Vec::new() },
+            body: BlockExpression { is_unsafe: false, statements: Vec::new() },
             span: name.span(),
             where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
@@ -1986,7 +1986,7 @@ impl<'a> Resolver<'a> {
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirBlockExpression {
         let statements =
             self.in_new_scope(|this| vecmap(block_expr.statements, |stmt| this.intern_stmt(stmt)));
-        HirBlockExpression { statements }
+        HirBlockExpression { is_unsafe: block_expr.is_unsafe, statements }
     }
 
     pub fn intern_block(&mut self, block: BlockExpression) -> ExprId {

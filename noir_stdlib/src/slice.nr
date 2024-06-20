@@ -47,7 +47,7 @@ impl<T> [T] {
     pub fn as_array<N>(self) -> [T; N] {
         assert(self.len() == N);
 
-        let mut array = [crate::unsafe::zeroed(); N];
+        let mut array = [crate::unsafe_func::zeroed(); N];
         for i in 0..N {
             array[i] = self[i];
         }

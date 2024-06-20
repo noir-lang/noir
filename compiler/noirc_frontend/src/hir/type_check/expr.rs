@@ -339,6 +339,10 @@ impl<'interner> TypeChecker<'interner> {
 
         // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
         if is_current_func_constrained && is_unconstrained_call {
+            if !self.allow_unsafe {
+                self.errors.push(TypeCheckError::Unsafe { span });
+                return Type::Error;
+            }
             for (typ, _, _) in args.iter() {
                 if !typ.is_valid_for_unconstrained_boundary() {
                     self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained { span });
@@ -363,6 +367,13 @@ impl<'interner> TypeChecker<'interner> {
     fn check_block(&mut self, block: HirBlockExpression) -> Type {
         let mut block_type = Type::Unit;
 
+        // Before entering the block we cache the old value of `allow_unsafe` so it can be restored.
+        let old_allow_unsafe = self.allow_unsafe;
+
+        // If we're already in an unsafe block then entering a new block should preserve this even if
+        // the inner block isn't marked as unsafe.
+        self.allow_unsafe |= block.is_unsafe;
+
         let statements = block.statements();
         for (i, stmt) in statements.iter().enumerate() {
             let expr_type = self.check_statement(stmt);
@@ -381,6 +392,9 @@ impl<'interner> TypeChecker<'interner> {
                 block_type = expr_type;
             }
         }
+
+        // Finally, we restore the original value of `self.allow_unsafe`.
+        self.allow_unsafe = old_allow_unsafe;
 
         block_type
     }

@@ -42,7 +42,7 @@ pub enum HirExpression {
 impl HirExpression {
     /// Returns an empty block expression
     pub const fn empty_block() -> HirExpression {
-        HirExpression::Block(HirBlockExpression { statements: vec![] })
+        HirExpression::Block(HirBlockExpression { is_unsafe: false, statements: vec![] })
     }
 }
 
@@ -260,6 +260,7 @@ pub struct HirIndexExpression {
 
 #[derive(Debug, Clone)]
 pub struct HirBlockExpression {
+    pub is_unsafe: bool,
     pub statements: Vec<StmtId>,
 }
 

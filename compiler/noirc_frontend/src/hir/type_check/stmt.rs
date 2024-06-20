@@ -49,8 +49,12 @@ impl<'interner> TypeChecker<'interner> {
                 self.check_expression(&expr_id);
             }
             HirStatement::Let(let_stmt) => self.check_let_stmt(let_stmt),
-            HirStatement::Constrain(constrain_stmt) => self.check_constrain_stmt(constrain_stmt),
-            HirStatement::Assign(assign_stmt) => self.check_assign_stmt(assign_stmt, stmt_id),
+            HirStatement::Constrain(constrain_stmt) => {
+                self.check_constrain_stmt(constrain_stmt);
+            }
+            HirStatement::Assign(assign_stmt) => {
+                self.check_assign_stmt(assign_stmt, stmt_id);
+            }
             HirStatement::For(for_loop) => self.check_for_loop(for_loop),
             HirStatement::Comptime(statement) => return self.check_statement(&statement),
             HirStatement::Break | HirStatement::Continue | HirStatement::Error => (),
@@ -316,7 +320,14 @@ impl<'interner> TypeChecker<'interner> {
         let expr_span = self.interner.expr_span(&stmt.0);
 
         // Must type check the assertion message expression so that we instantiate bindings
-        stmt.2.map(|assert_msg_expr| self.check_expression(&assert_msg_expr));
+        if let Some(assert_msg_expr) = stmt.2 {
+            // We always allow unsafe calls for assert messages as these may be a dynamic assert message call.
+            // We then must restore the original value however.
+            let old_allow_unsafe = self.allow_unsafe;
+            self.allow_unsafe = true;
+            self.check_expression(&assert_msg_expr);
+            self.allow_unsafe = old_allow_unsafe;
+        };
 
         self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),
