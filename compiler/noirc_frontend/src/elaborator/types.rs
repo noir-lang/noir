@@ -108,7 +108,7 @@ impl<'context> Elaborator<'context> {
             Unspecified => Type::Error,
             Error => Type::Error,
             Named(path, args, _) => self.resolve_named_type(path, args),
-            TraitAsType(path, args) => self.resolve_trait_as_type(path, args, kind),
+            TraitAsType(path, args) => self.resolve_trait_as_type(path, args),
 
             Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, kind)))
@@ -277,16 +277,20 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn resolve_trait_as_type(
-        &mut self,
-        path: Path,
-        args: Vec<UnresolvedType>,
-        kind: &Kind,
-    ) -> Type {
-        let args = vecmap(args, |arg| self.resolve_type_inner(arg, kind));
+    fn resolve_trait_as_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
+        // Fetch information needed from the trait as the closure for resolving all the `args`
+        // requires exclusive access to `self`
+        let trait_as_type_info = self
+            .lookup_trait_or_error(path)
+            .map(|t| (t.id, Rc::new(t.name.to_string()), t.generics.clone()));
 
-        if let Some(t) = self.lookup_trait_or_error(path) {
-            Type::TraitAsType(t.id, Rc::new(t.name.to_string()), args)
+        if let Some((id, name, resolved_generics)) = trait_as_type_info {
+            assert_eq!(resolved_generics.len(), args.len());
+            let generics_with_types = resolved_generics.iter().zip(args);
+            let args = vecmap(generics_with_types, |(generic, typ)| {
+                self.resolve_type_inner(typ, &generic.kind)
+            });
+            Type::TraitAsType(id, Rc::new(name.to_string()), args)
         } else {
             Type::Error
         }
