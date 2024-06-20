@@ -42,7 +42,7 @@ mod test {
     };
 
     use crate::{
-        note::{note_header::NoteHeader, note_interface::NoteInterface, utils::compute_note_hash_for_consumption},
+        note::{note_header::NoteHeader, note_interface::NoteInterface},
         event::event_interface::EventInterface, oracle::unsafe_rand::unsafe_rand,
         context::PrivateContext
     };

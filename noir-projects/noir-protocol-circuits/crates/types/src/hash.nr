@@ -45,22 +45,15 @@ pub fn compute_note_hash_nonce(first_nullifier: Field, note_hash_index: u32) -> 
     )
 }
 
-// TODO(benesjan): some of these functions seem to be duplicate to the ones in
-// noir-projects/aztec-nr/aztec/src/note/utils.nr NUKE!
-fn compute_unique_note_hash(nonce: Field, note_hash: Field) -> Field {
-    pedersen_hash(
-        [
-        nonce,
-        note_hash
-    ],
-        GENERATOR_INDEX__UNIQUE_NOTE_HASH
-    )
+pub fn compute_unique_note_hash(nonce: Field, inner_note_hash: Field) -> Field {
+    let inputs = [nonce, inner_note_hash];
+    pedersen_hash(inputs, GENERATOR_INDEX__UNIQUE_NOTE_HASH)
 }
 
-pub fn compute_siloed_note_hash(address: AztecAddress, unique_note_hash: Field) -> Field {
+pub fn compute_siloed_note_hash(app: AztecAddress, unique_note_hash: Field) -> Field {
     pedersen_hash(
         [
-        address.to_field(),
+        app.to_field(),
         unique_note_hash
     ],
         GENERATOR_INDEX__SILOED_NOTE_HASH
@@ -77,10 +70,10 @@ pub fn silo_note_hash(note_hash: ScopedNoteHash, first_nullifier: Field, index: 
     }
 }
 
-pub fn compute_siloed_nullifier(address: AztecAddress, nullifier: Field) -> Field {
+pub fn compute_siloed_nullifier(app: AztecAddress, nullifier: Field) -> Field {
     pedersen_hash(
         [
-        address.to_field(),
+        app.to_field(),
         nullifier
     ],
         GENERATOR_INDEX__OUTER_NULLIFIER

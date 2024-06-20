@@ -14,7 +14,7 @@ use crate::hash::hash_args;
 
 use crate::note::{
     note_header::NoteHeader, note_interface::NoteInterface,
-    utils::{compute_note_hash_for_insertion, compute_note_hash_for_consumption}
+    utils::{compute_inner_note_hash, compute_note_hash_for_consumption}
 };
 use crate::oracle::notes::notify_created_note;
 
@@ -188,7 +188,7 @@ impl TestEnvironment {
         let header = NoteHeader { contract_address, storage_slot, nonce: 0, note_hash_counter };
         // TODO: change this to note.set_header(header) once https://github.com/noir-lang/noir/issues/4095 is fixed
         Note::set_header(note, header);
-        let inner_note_hash = compute_note_hash_for_insertion(*note);
+        let inner_note_hash = compute_inner_note_hash(*note);
 
         // TODO: Strong typing required because of https://github.com/noir-lang/noir/issues/4088
         let serialized_note: [Field; N] = Note::serialize_content(*note);
