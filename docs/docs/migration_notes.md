@@ -61,13 +61,6 @@ These changes were done because having the note hash exposed allowed us to not h
 + }
 ```
 
-
-## 0.43.0
-
-### [Aztec.nr] break `token.transfer()` into `transfer` and `transferFrom`
-Earlier we had just one function - `transfer()` which used authwits to handle the case where a contract/user wants to transfer funds on behalf of another user. 
-To reduce circuit sizes and proof times, we are breaking up `transfer` and introducing a dedicated `transferFrom()` function like in the ERC20 standard.
-
 ### [Aztec.nr] `note_getter` returns `BoundedVec`
 
 The `get_notes` and `view_notes` function no longer return an array of options (i.e. `[Option<Note>, N_NOTES]`) but instead a `BoundedVec<Note, N_NOTES>`. This better conveys the useful property the old array had of having all notes collapsed at the beginning of the array, which allows for powerful optimizations and gate count reduction when setting the `options.limit` value.
@@ -95,6 +88,12 @@ To further reduce gate count, you can iterate over `options.limit` instead of `m
 - for i in 0..notes.max_len() {
 + for i in 0..options.limit {
 ```
+
+## 0.43.0
+
+### [Aztec.nr] break `token.transfer()` into `transfer` and `transferFrom`
+Earlier we had just one function - `transfer()` which used authwits to handle the case where a contract/user wants to transfer funds on behalf of another user. 
+To reduce circuit sizes and proof times, we are breaking up `transfer` and introducing a dedicated `transferFrom()` function like in the ERC20 standard.
 
 ### [Aztec.nr] `options.limit` has to be constant
 
