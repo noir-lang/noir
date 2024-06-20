@@ -340,7 +340,7 @@ impl<'interner> TypeChecker<'interner> {
         // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
         if is_current_func_constrained && is_unconstrained_call {
             for (typ, _, _) in args.iter() {
-                if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
+                if !typ.is_valid_for_unconstrained_boundary() {
                     self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained { span });
                 }
             }

@@ -1406,9 +1406,12 @@ impl<'context> Elaborator<'context> {
 
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = *local_module;
+            let was_in_contract = self.in_contract;
+            self.in_contract = self.module_id().module(self.def_maps).is_contract;
             self.recover_generics(|this| {
                 this.define_function_meta(func, *id, false);
             });
+            self.in_contract = was_in_contract;
         }
     }
 

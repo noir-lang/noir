@@ -5,28 +5,22 @@ use proptest::prelude::*;
 use acvm::{AcirField, FieldElement};
 
 use noirc_abi::{input_parser::InputValue, Abi, AbiType, InputMap, Sign};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use uint::UintStrategy;
 
 mod int;
 mod uint;
 
-proptest::prop_compose! {
-    pub(super) fn arb_field_from_integer(bit_size: u32)(value: u128)-> FieldElement {
-        let width = (bit_size % 128).clamp(1, 127);
-        let max_value = 2u128.pow(width) - 1;
-        let value = value % max_value;
-        FieldElement::from(value)
-    }
-}
-
-pub(super) fn arb_value_from_abi_type(abi_type: &AbiType) -> SBoxedStrategy<InputValue> {
+pub(super) fn arb_value_from_abi_type(
+    abi_type: &AbiType,
+    dictionary: HashSet<FieldElement>,
+) -> SBoxedStrategy<InputValue> {
     match abi_type {
         AbiType::Field => vec(any::<u8>(), 32)
             .prop_map(|bytes| InputValue::Field(FieldElement::from_be_bytes_reduce(&bytes)))
             .sboxed(),
         AbiType::Integer { width, sign } if sign == &Sign::Unsigned => {
-            UintStrategy::new(*width as usize)
+            UintStrategy::new(*width as usize, dictionary)
                 .prop_map(|uint| InputValue::Field(uint.into()))
                 .sboxed()
         }
@@ -55,7 +49,7 @@ pub(super) fn arb_value_from_abi_type(abi_type: &AbiType) -> SBoxedStrategy<Inpu
         }
         AbiType::Array { length, typ } => {
             let length = *length as usize;
-            let elements = vec(arb_value_from_abi_type(typ), length..=length);
+            let elements = vec(arb_value_from_abi_type(typ, dictionary), length..=length);
 
             elements.prop_map(InputValue::Vec).sboxed()
         }
@@ -63,7 +57,9 @@ pub(super) fn arb_value_from_abi_type(abi_type: &AbiType) -> SBoxedStrategy<Inpu
         AbiType::Struct { fields, .. } => {
             let fields: Vec<SBoxedStrategy<(String, InputValue)>> = fields
                 .iter()
-                .map(|(name, typ)| (Just(name.clone()), arb_value_from_abi_type(typ)).sboxed())
+                .map(|(name, typ)| {
+                    (Just(name.clone()), arb_value_from_abi_type(typ, dictionary.clone())).sboxed()
+                })
                 .collect();
 
             fields
@@ -75,17 +71,23 @@ pub(super) fn arb_value_from_abi_type(abi_type: &AbiType) -> SBoxedStrategy<Inpu
         }
 
         AbiType::Tuple { fields } => {
-            let fields: Vec<_> = fields.iter().map(arb_value_from_abi_type).collect();
+            let fields: Vec<_> =
+                fields.iter().map(|typ| arb_value_from_abi_type(typ, dictionary.clone())).collect();
             fields.prop_map(InputValue::Vec).sboxed()
         }
     }
 }
 
-pub(super) fn arb_input_map(abi: &Abi) -> BoxedStrategy<InputMap> {
+pub(super) fn arb_input_map(
+    abi: &Abi,
+    dictionary: HashSet<FieldElement>,
+) -> BoxedStrategy<InputMap> {
     let values: Vec<_> = abi
         .parameters
         .iter()
-        .map(|param| (Just(param.name.clone()), arb_value_from_abi_type(&param.typ)))
+        .map(|param| {
+            (Just(param.name.clone()), arb_value_from_abi_type(&param.typ, dictionary.clone()))
+        })
         .collect();
 
     values

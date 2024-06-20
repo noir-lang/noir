@@ -917,6 +917,48 @@ impl Type {
         }
     }
 
+    /// Returns true if a value of this type can safely pass between constrained and
+    /// unconstrained functions (and vice-versa).
+    pub(crate) fn is_valid_for_unconstrained_boundary(&self) -> bool {
+        match self {
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Constant(_)
+            | Type::Slice(_)
+            | Type::TypeVariable(_, _)
+            | Type::NamedGeneric(_, _)
+            | Type::Function(_, _, _)
+            | Type::FmtString(_, _)
+            | Type::Error => true,
+
+            Type::MutableReference(_)
+            | Type::Forall(_, _)
+            | Type::Quoted(_)
+            | Type::TraitAsType(..) => false,
+
+            Type::Alias(alias, generics) => {
+                let alias = alias.borrow();
+                alias.get_type(generics).is_valid_for_unconstrained_boundary()
+            }
+
+            Type::Array(length, element) => {
+                length.is_valid_for_unconstrained_boundary()
+                    && element.is_valid_for_unconstrained_boundary()
+            }
+            Type::String(length) => length.is_valid_for_unconstrained_boundary(),
+            Type::Tuple(elements) => {
+                elements.iter().all(|elem| elem.is_valid_for_unconstrained_boundary())
+            }
+            Type::Struct(definition, generics) => definition
+                .borrow()
+                .get_fields(generics)
+                .into_iter()
+                .all(|(_, field)| field.is_valid_for_unconstrained_boundary()),
+        }
+    }
+
     /// Returns the number of `Forall`-quantified type variables on this type.
     /// Returns 0 if this is not a Type::Forall
     pub fn generic_count(&self) -> usize {
