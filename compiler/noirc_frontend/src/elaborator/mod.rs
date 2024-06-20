@@ -472,7 +472,7 @@ impl<'context> Elaborator<'context> {
             let ident = generic.ident();
             let span = ident.0.span();
 
-            // Declare numeric generic if it is specified
+            // Resolve the generic's kind
             let kind = self.resolve_generic_kind(generic);
 
             // Check for name collisions of this generic
@@ -787,8 +787,7 @@ impl<'context> Elaborator<'context> {
                     // ```
                     continue;
                 }
-                // TODO: check if we need this
-                *kind = Kind::Numeric { typ: Box::new(Type::FieldElement) };
+                *kind = Kind::Numeric { typ: Box::new(Type::default_int_type()) };
                 let ident = Ident::new(name.to_string(), *span);
                 let definition = DefinitionKind::GenericType(type_variable);
                 self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
@@ -1185,6 +1184,15 @@ impl<'context> Elaborator<'context> {
                         if found_generic == generic.name.as_str() {
                             // TODO: might need the actual type here
                             generic.kind = Kind::Numeric { typ: Box::new(Type::FieldElement) };
+                            
+                            let ident = Ident::new(generic.name.to_string(), generic.span); 
+                            self.errors.push((
+                                CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric {
+                                    ident,
+                                }),
+                                self.file,
+                            ));
+
                             break;
                         }
                     }

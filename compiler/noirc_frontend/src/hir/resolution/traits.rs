@@ -17,9 +17,9 @@ use crate::{
     },
     hir_def::traits::{TraitConstant, TraitFunction, TraitImpl, TraitType},
     node_interner::{FuncId, NodeInterner, TraitId},
-    Shared, Type, TypeVariable, TypeVariableKind,
+    Shared, Type, TypeVariableKind,
+    GenericTypeVars
 };
-use crate::{GenericTypeVars, ResolvedGeneric};
 
 use super::{
     functions, get_module_mut, get_struct_type,
@@ -37,14 +37,13 @@ pub(crate) fn resolve_traits(
     crate_id: CrateId,
 ) -> Vec<(CompilationError, FileId)> {
     for (trait_id, unresolved_trait) in &traits {
-        context.def_interner.push_empty_trait(*trait_id, unresolved_trait);
+        context.def_interner.push_empty_trait(*trait_id, unresolved_trait, vec![]);
     }
     let mut all_errors = Vec::new();
 
     for (trait_id, unresolved_trait) in traits {
-        let generics = vecmap(&unresolved_trait.trait_def.generics, |_| {
-            TypeVariable::unbound(context.def_interner.next_type_variable_id())
-        });
+        let generics = context.resolve_generics(&unresolved_trait.trait_def.generics);
+        let generic_type_vars = generics.iter().map(|generic| generic.type_var.clone()).collect();
 
         // Resolve order
         // 1. Trait Types ( Trait constants can have a trait type, therefore types before constants)
@@ -53,17 +52,13 @@ pub(crate) fn resolve_traits(
         let _ = resolve_trait_constants(context, crate_id, &unresolved_trait);
         // 3. Trait Methods
         let (methods, errors) =
-            resolve_trait_methods(context, trait_id, crate_id, &unresolved_trait, &generics);
+            resolve_trait_methods(context, trait_id, crate_id, &unresolved_trait, &generic_type_vars);
 
         all_errors.extend(errors);
 
         context.def_interner.update_trait(trait_id, |trait_def| {
             trait_def.set_methods(methods);
-            trait_def.generics = vecmap(generics, |type_var| {
-                let mut new_resolved = ResolvedGeneric::dummy();
-                new_resolved.type_var = type_var;
-                new_resolved
-            });
+            trait_def.generics = generics;
         });
 
         // This check needs to be after the trait's methods are set since

@@ -5,17 +5,20 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
+use crate::ast::UnresolvedGenerics;
 use crate::debug::DebugInstrumenter;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::parser::ParserError;
-use crate::ParsedModule;
+use crate::{Generics, ParsedModule, ResolvedGeneric, TypeVariable};
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
+use iter_extended::vecmap;
 use noirc_errors::Location;
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
+use std::rc::Rc;
 
 use self::def_map::TestFunction;
 
@@ -255,5 +258,23 @@ impl Context<'_, '_> {
 
     pub fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {
         module_id.module(&self.def_maps)
+    }
+
+    /// Generics need to be resolved before elaboration to distinguish
+    /// between normal and numeric generics.
+    /// This method is expected to be used during definition collection.
+    pub(crate) fn resolve_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
+        vecmap(generics, |generic| {
+            // Map the generic to a fresh type variable
+            let id = self.def_interner.next_type_variable_id();
+            let type_var = TypeVariable::unbound(id);
+            let ident = generic.ident();
+            let span = ident.0.span();
+
+            // Check for name collisions of this generic
+            let name = Rc::new(ident.0.contents.clone());
+
+            ResolvedGeneric { name, type_var, kind: generic.kind(), span }
+        })
     }
 }

@@ -76,6 +76,8 @@ impl UnresolvedGeneric {
     pub fn kind(&self) -> Kind {
         match self {
             UnresolvedGeneric::Variable(_) => Kind::Normal,
+            // The inner numeric type of the kind cannot be resolved from an `UnresolvedGeneric`
+            // on its own. It is expected that the inner type is updated during elaboration.
             UnresolvedGeneric::Numeric { .. } => Kind::Numeric { typ: Box::new(Type::Error) },
         }
     }

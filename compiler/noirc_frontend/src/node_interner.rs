@@ -34,7 +34,6 @@ use crate::hir_def::{
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::GenericTypeVars;
 use crate::Generics;
-use crate::ResolvedGeneric;
 use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind};
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -548,7 +547,7 @@ impl NodeInterner {
         self.definition_to_type.insert(definition_id, typ);
     }
 
-    pub fn push_empty_trait(&mut self, type_id: TraitId, unresolved_trait: &UnresolvedTrait) {
+    pub fn push_empty_trait(&mut self, type_id: TraitId, unresolved_trait: &UnresolvedTrait, generics: Generics) {
         let self_type_typevar_id = self.next_type_variable_id();
 
         let new_trait = Trait {
@@ -556,13 +555,7 @@ impl NodeInterner {
             name: unresolved_trait.trait_def.name.clone(),
             crate_id: unresolved_trait.crate_id,
             location: Location::new(unresolved_trait.trait_def.span, unresolved_trait.file_id),
-            generics: vecmap(&unresolved_trait.trait_def.generics, |_| {
-                // Temporary type variable ids before the trait is resolved to its actual ids.
-                // This lets us record how many arguments the type expects so that other types
-                // can refer to it with generic arguments before the generic parameters themselves
-                // are resolved.
-                ResolvedGeneric::dummy()
-            }),
+            generics,
             self_type_typevar_id,
             self_type_typevar: TypeVariable::unbound(self_type_typevar_id),
             methods: Vec::new(),
@@ -577,6 +570,7 @@ impl NodeInterner {
     pub fn new_struct(
         &mut self,
         typ: &UnresolvedStruct,
+        generics: Generics,
         krate: CrateId,
         local_id: LocalModuleId,
         file_id: FileId,
@@ -586,13 +580,6 @@ impl NodeInterner {
 
         // Fields will be filled in later
         let no_fields = Vec::new();
-        let generics = vecmap(&typ.struct_def.generics, |_| {
-            // Temporary type variable ids before the struct is resolved to its actual ids.
-            // This lets us record how many arguments the type expects so that other types
-            // can refer to it with generic arguments before the generic parameters themselves
-            // are resolved.
-            ResolvedGeneric::dummy()
-        });
 
         let location = Location::new(typ.struct_def.span, file_id);
         let new_struct = StructType::new(struct_id, name, location, no_fields, generics);
@@ -601,7 +588,7 @@ impl NodeInterner {
         struct_id
     }
 
-    pub fn push_type_alias(&mut self, typ: &UnresolvedTypeAlias) -> TypeAliasId {
+    pub fn push_type_alias(&mut self, typ: &UnresolvedTypeAlias, generics: Generics) -> TypeAliasId {
         let type_id = TypeAliasId(self.type_aliases.len());
 
         self.type_aliases.push(Shared::new(TypeAlias::new(
@@ -609,7 +596,7 @@ impl NodeInterner {
             typ.type_alias_def.name.clone(),
             Location::new(typ.type_alias_def.span, typ.file_id),
             Type::Error,
-            vecmap(&typ.type_alias_def.generics, |_| ResolvedGeneric::dummy()),
+            generics,
         )));
 
         type_id

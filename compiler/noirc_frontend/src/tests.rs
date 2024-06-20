@@ -1563,6 +1563,24 @@ fn numeric_generic_as_struct_field_type() {
 }
 
 #[test]
+fn normal_generic_as_array_length() {
+    let src = r#"
+    struct Foo<N> {
+        a: Field,
+        b: [Field; N],
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    // TODO(https://github.com/noir-lang/noir/issues/5156): This should be switched to a hard type error rather than 
+    // the `UseExplicitNumericGeneric` once implicit numeric generics are removed.
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. }),
+    ));
+}
+
+#[test]
 fn numeric_generic_as_param_type() {
     let src = r#"
     fn foo<let I: Field>(x: I) -> I {
@@ -1605,6 +1623,27 @@ fn numeric_generic_used_in_nested_type_fail() {
     assert!(matches!(
         errors[0].0,
         CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
+    ));
+}
+
+#[test]
+fn normal_generic_used_in_nested_array_length_fail() {
+    let src = r#"
+    struct Foo<N> {
+        a: Field,
+        b: Bar<N>,
+    }
+    struct Bar<let N: u32> {
+        inner: [Field; N]
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    // TODO(https://github.com/noir-lang/noir/issues/5156): This should be switched to a hard type error rather than 
+    // the `UseExplicitNumericGeneric` once implicit numeric generics are removed.
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. }),
     ));
 }
 
@@ -1687,7 +1726,6 @@ fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
 #[test]
 fn numeric_generic_used_in_where_clause() {
     let src = r#"
-
     trait Deserialize<let N: u32> {
         fn deserialize(fields: [Field; N]) -> Self;
     }
@@ -1704,6 +1742,46 @@ fn numeric_generic_used_in_where_clause() {
     assert!(errors.is_empty());
 }
 
+#[test]
+fn normal_generic_used_when_numeric_expected_in_where_clause() {
+    let src = r#"
+    trait Deserialize<let N: u32> {
+        fn deserialize(fields: [Field; N]) -> Self;
+    }
+
+    fn read<T, N>() -> T where T: Deserialize<N> {
+        T::deserialize([0, 1])
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }),
+    ));
+
+    let src = r#"
+    trait Deserialize<let N: u32> {
+        fn deserialize(fields: [Field; N]) -> Self;
+    }
+
+    fn read<T, N>() -> T where T: Deserialize<N> {
+        let mut fields: [Field; N] = [0; N];
+        for i in 0..N {
+            fields[i] = i as Field + 1;
+        }
+        T::deserialize(fields)
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::VariableNotDeclared {  .. }),
+    ));
+}
+
+// TODO(https://github.com/noir-lang/noir/issues/5156): Remove this test once we ban implicit numeric generics
 #[test]
 fn implicit_numeric_generics_elaborator() {
     let src = r#"
@@ -1729,6 +1807,7 @@ fn implicit_numeric_generics_elaborator() {
     }
     "#;
     let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 3);
 
     for error in errors.iter() {
         if let CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { ident }) =
