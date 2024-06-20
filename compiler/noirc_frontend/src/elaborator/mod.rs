@@ -338,7 +338,7 @@ impl<'context> Elaborator<'context> {
 
         // Introduce all numeric generics into scope
         for generic in &func_meta.all_generics {
-            if let Kind::Numeric { typ } = &generic.kind {
+            if let Kind::Numeric(typ) = &generic.kind {
                 let definition = DefinitionKind::GenericType(generic.type_var.clone());
                 let ident = Ident::new(generic.name.to_string(), generic.span);
                 let hir_ident =
@@ -509,7 +509,7 @@ impl<'context> Elaborator<'context> {
                     });
                 self.errors.push((unsupported_typ_err, self.file));
             }
-            Kind::Numeric { typ: Box::new(typ) }
+            Kind::Numeric(Box::new(typ))
         } else {
             Kind::Normal
         }
@@ -787,7 +787,7 @@ impl<'context> Elaborator<'context> {
                     // ```
                     continue;
                 }
-                *kind = Kind::Numeric { typ: Box::new(Type::default_int_type()) };
+                *kind = Kind::Numeric(Box::new(Type::default_int_type()));
                 let ident = Ident::new(name.to_string(), *span);
                 let definition = DefinitionKind::GenericType(type_variable);
                 self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
@@ -1191,8 +1191,7 @@ impl<'context> Elaborator<'context> {
                                     ),
                                     self.file,
                                 ));
-                                generic.kind =
-                                    Kind::Numeric { typ: Box::new(Type::default_int_type()) };
+                                generic.kind = Kind::Numeric(Box::new(Type::default_int_type()));
                             }
                             break;
                         }

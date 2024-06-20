@@ -196,15 +196,14 @@ impl Type {
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum Kind {
     Normal,
-    Numeric { typ: Box<Type> },
+    Numeric(Box<Type>),
 }
 
 impl std::fmt::Display for Kind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Kind::Normal => write!(f, "normal"),
-            // TODO(numeric generics): Use the typ of the numeric in the kind
-            Kind::Numeric { .. } => write!(f, "numeric"),
+            Kind::Numeric(typ) => write!(f, "numeric {}", typ),
         }
     }
 }
@@ -2127,7 +2126,7 @@ impl std::fmt::Debug for Type {
                 Kind::Normal => {
                     write!(f, "{} -> {:?}", name, binding)
                 }
-                Kind::Numeric { typ } => {
+                Kind::Numeric(typ) => {
                     write!(f, "({} : {}) -> {:?}", name, typ, binding)
                 }
             },

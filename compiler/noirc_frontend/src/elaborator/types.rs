@@ -67,7 +67,7 @@ impl<'context> Elaborator<'context> {
                     size = Type::NamedGeneric(
                         type_var,
                         name,
-                        Kind::Numeric { typ: Box::new(Type::default_int_type()) },
+                        Kind::Numeric(Box::new(Type::default_int_type())),
                     );
                 }
                 Type::Array(Box::new(size), elem)
@@ -86,7 +86,7 @@ impl<'context> Elaborator<'context> {
                     resolved_size = Type::NamedGeneric(
                         type_var,
                         name,
-                        Kind::Numeric { typ: Box::new(Type::default_int_type()) },
+                        Kind::Numeric(Box::new(Type::default_int_type())),
                     );
                 }
                 Type::String(Box::new(resolved_size))
@@ -97,7 +97,7 @@ impl<'context> Elaborator<'context> {
                     resolved_size = Type::NamedGeneric(
                         type_var,
                         name,
-                        Kind::Numeric { typ: Box::new(Type::default_int_type()) },
+                        Kind::Numeric(Box::new(Type::default_int_type())),
                     );
                 }
                 let fields = self.resolve_type_inner(*fields, kind);

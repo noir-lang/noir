@@ -76,15 +76,26 @@ impl UnresolvedGeneric {
     pub fn kind(&self) -> Kind {
         match self {
             UnresolvedGeneric::Variable(_) => Kind::Normal,
-            // The inner numeric type of the kind cannot be resolved from an `UnresolvedGeneric`
-            // on its own. It is expected that the inner type is updated during elaboration.
-            UnresolvedGeneric::Numeric { .. } => Kind::Numeric { typ: Box::new(Type::Error) },
+            UnresolvedGeneric::Numeric { typ, .. } => {
+                Kind::Numeric(Box::new(Self::resolve_numeric_kind_type(typ.clone())))
+            }
         }
     }
 
     pub(crate) fn ident(&self) -> &Ident {
         match self {
             UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } => ident,
+        }
+    }
+
+    fn resolve_numeric_kind_type(typ: UnresolvedType) -> Type {
+        use crate::ast::UnresolvedTypeData::{FieldElement, Integer};
+
+        match typ.typ {
+            FieldElement => Type::FieldElement,
+            Integer(sign, bits) => Type::Integer(sign, bits),
+            // Only fields and integers are supported for numeric kinds
+            _ => Type::Error,
         }
     }
 }
