@@ -1,5 +1,3 @@
-use acvm::acir::native_types::{WitnessMap, WitnessStack};
-use acvm::FieldElement;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
@@ -8,7 +6,7 @@ use noirc_artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_abi::input_parser::{Format, InputValue};
+use noirc_abi::input_parser::Format;
 use noirc_abi::InputMap;
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,

@@ -3331,6 +3331,7 @@ name = "noir_tracer"
 version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
+ "fm",
  "nargo",
  "noir_debugger",
  "noirc_artifacts",
