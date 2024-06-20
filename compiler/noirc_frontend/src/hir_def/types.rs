@@ -2123,7 +2123,14 @@ impl std::fmt::Debug for Type {
             }
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
-            Type::NamedGeneric(binding, name, kind) => write!(f, "{} {}{:?}", kind, name, binding),
+            Type::NamedGeneric(binding, name, kind) => match kind {
+                Kind::Normal => {
+                    write!(f, "{} -> {:?}", name, binding)
+                }
+                Kind::Numeric { typ } => {
+                    write!(f, "({} : {}) -> {:?}", name, typ, binding)
+                }
+            },
             Type::Constant(x) => x.fmt(f),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| format!("{:?}", var));

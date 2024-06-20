@@ -1638,13 +1638,8 @@ fn normal_generic_used_in_nested_array_length_fail() {
     }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-    // TODO(https://github.com/noir-lang/noir/issues/5156): This should be switched to a hard type error rather than
-    // the `UseExplicitNumericGeneric` once implicit numeric generics are removed.
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. }),
-    ));
+    // TODO(https://github.com/noir-lang/noir/issues/5156): This should be switched to a hard type error once implicit numeric generics are removed.
+    assert_eq!(errors.len(), 0);
 }
 
 #[test]
@@ -1652,11 +1647,11 @@ fn numeric_generic_used_in_nested_type_pass() {
     // The order of these structs should not be changed to make sure
     // that we are accurately resolving all struct generics before struct fields
     let src = r#"
-    struct NestedNumeric<let N: u64> {
+    struct NestedNumeric<let N: u32> {
         a: Field,
         b: InnerNumeric<N>
     }
-    struct InnerNumeric<let N: u64> {
+    struct InnerNumeric<let N: u32> {
         inner: [u64; N],
     }    
     "#;
@@ -1680,7 +1675,7 @@ fn numeric_generic_used_in_trait() {
         }
     }
     
-    trait Deserialize<let N: u64, T> {
+    trait Deserialize<let N: u32, T> {
         fn deserialize(fields: [Field; N], other: T) -> Self;
     }
     "#;
@@ -1709,13 +1704,13 @@ fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
     // `N` is used first in the trait impl generics (`Deserialize<N> for MyType<T>`).
     // We want to make sure that the compiler correctly accounts for that `N` has a numeric kind
     // while `T` has a normal kind. 
-    impl<T, let N: u64> Deserialize<N> for MyType<T> where T: Default {
+    impl<T, let N: u32> Deserialize<N> for MyType<T> where T: Default {
         fn deserialize(fields: [Field; N]) -> Self {
             MyType { a: fields[0], b: fields[1], c: fields[2], d: T::default() }
         }
     }
     
-    trait Deserialize<let N: u64> {
+    trait Deserialize<let N: u32> {
         fn deserialize(fields: [Field; N]) -> Self;
     }
     "#;
@@ -1807,7 +1802,7 @@ fn implicit_numeric_generics_elaborator() {
     }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 3);
+    assert_eq!(errors.len(), 4);
 
     for error in errors.iter() {
         if let CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { ident }) =

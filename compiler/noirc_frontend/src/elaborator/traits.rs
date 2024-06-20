@@ -25,7 +25,7 @@ impl<'context> Elaborator<'context> {
         for (trait_id, unresolved_trait) in traits {
             self.recover_generics(|this| {
                 let resolved_generics = this.interner.get_trait(trait_id).generics.clone();
-                this.add_existing_generics(
+                let generics = this.add_existing_generics(
                     &unresolved_trait.trait_def.generics,
                     &resolved_generics,
                 );
@@ -40,6 +40,7 @@ impl<'context> Elaborator<'context> {
 
                 this.interner.update_trait(trait_id, |trait_def| {
                     trait_def.set_methods(methods);
+                    trait_def.generics = generics;
                 });
             });
 

@@ -156,8 +156,8 @@ impl<'context> Elaborator<'context> {
 
         // Check that any types with a type kind match the expected type kind supplied to this function
         if let Type::NamedGeneric(_, name, resolved_kind) = &resolved_type {
-            // TODO: make this check more general with `*resolved_kind != kind`
-            // implicit numeric generics kind of messes up the check
+            // TODO(https://github.com/noir-lang/noir/issues/5156): make this check more general with `*resolved_kind != kind`
+            // as implicit numeric generics still existing makes this check more challenging to enforce
             if matches!(resolved_kind, Kind::Numeric { .. }) && matches!(kind, Kind::Normal) {
                 let expected_typ_err =
                     CompilationError::ResolverError(ResolverError::NumericGenericUsedForType {
@@ -1431,13 +1431,13 @@ impl<'context> Elaborator<'context> {
         &mut self,
         unresolved_generics: &UnresolvedGenerics,
         generics: &Generics,
-    ) {
+    ) -> Generics {
         assert_eq!(unresolved_generics.len(), generics.len());
 
-        for (unresolved_generic, generic) in unresolved_generics.iter().zip(generics) {
+        vecmap(unresolved_generics.iter().zip(generics), |(unresolved_generic, generic)| {
             let type_var = generic.type_var.clone();
-            self.add_existing_generic(unresolved_generic, unresolved_generic.span(), type_var);
-        }
+            self.add_existing_generic(unresolved_generic, unresolved_generic.span(), type_var)
+        })
     }
 
     pub fn add_existing_generic(
@@ -1445,11 +1445,17 @@ impl<'context> Elaborator<'context> {
         unresolved_generic: &UnresolvedGeneric,
         span: Span,
         typevar: TypeVariable,
-    ) {
+    ) -> ResolvedGeneric {
         let name = &unresolved_generic.ident().0.contents;
 
         // Check for name collisions of this generic
         let rc_name = Rc::new(name.clone());
+
+        // Resolved the generic's kind
+        let kind = self.resolve_generic_kind(unresolved_generic);
+
+        let resolved_generic =
+            ResolvedGeneric { name: rc_name.clone(), type_var: typevar.clone(), kind, span };
 
         if let Some(generic) = self.find_generic(&rc_name) {
             self.push_err(ResolverError::DuplicateDefinition {
@@ -1458,14 +1464,10 @@ impl<'context> Elaborator<'context> {
                 second_span: span,
             });
         } else {
-            // Declare numeric generic if it is specified
-            let kind = self.resolve_generic_kind(unresolved_generic);
-
-            let resolved_generic =
-                ResolvedGeneric { name: rc_name, type_var: typevar.clone(), kind, span };
-
-            self.generics.push(resolved_generic);
+            self.generics.push(resolved_generic.clone());
         }
+
+        resolved_generic
     }
 
     pub fn find_numeric_generics(

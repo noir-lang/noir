@@ -189,10 +189,6 @@ impl HasItem for UnresolvedGeneric {
             }
         }
     }
-
-    fn end(&self) -> u32 {
-        self.span().end()
-    }
 }
 
 pub(crate) fn first_line_width(exprs: &str) -> usize {
