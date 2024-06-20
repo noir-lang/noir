@@ -76,17 +76,6 @@ it('successfully processes complex brillig foreign call opcodes', async () => {
   expect(solved_witness).to.be.deep.eq(expectedWitnessMap);
 });
 
-it('successfully executes a Pedersen opcode', async function () {
-  this.timeout(10000);
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/pedersen');
-
-  const solvedWitness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, () => {
-    throw Error('unexpected oracle');
-  });
-
-  expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
-});
-
 it('successfully executes a MultiScalarMul opcode', async () => {
   const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/multi_scalar_mul');
 
@@ -115,25 +104,6 @@ it('successfully executes a MemoryOp opcode', async () => {
   });
 
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
-});
-
-it('successfully executes 500 pedersen circuits', async function () {
-  this.timeout(100000);
-
-  // Pedersen opcodes used to have a large upfront cost due to generator calculation
-  // so we'd need to pass around the blackbox solver in JS to avoid redoing this work.
-  //
-  // This test now shows that we don't need to do this anymore without a performance regression.
-
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/pedersen');
-
-  for (let i = 0; i < 500; i++) {
-    const solvedWitness = await executeCircuit(bytecode, initialWitnessMap, () => {
-      throw Error('unexpected oracle');
-    });
-
-    expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
-  }
 });
 
 /**

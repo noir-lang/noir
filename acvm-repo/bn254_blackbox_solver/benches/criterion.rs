@@ -13,22 +13,6 @@ fn bench_poseidon2(c: &mut Criterion) {
     c.bench_function("poseidon2", |b| b.iter(|| poseidon2_permutation(black_box(&inputs), 4)));
 }
 
-fn bench_pedersen_commitment(c: &mut Criterion) {
-    let inputs = [FieldElement::one(); 2];
-
-    c.bench_function("pedersen_commitment", |b| {
-        b.iter(|| Bn254BlackBoxSolver.pedersen_commitment(black_box(&inputs), 0))
-    });
-}
-
-fn bench_pedersen_hash(c: &mut Criterion) {
-    let inputs = [FieldElement::one(); 2];
-
-    c.bench_function("pedersen_hash", |b| {
-        b.iter(|| Bn254BlackBoxSolver.pedersen_hash(black_box(&inputs), 0))
-    });
-}
-
 fn bench_schnorr_verify(c: &mut Criterion) {
     let pub_key_x = FieldElement::from_hex(
         "0x04b260954662e97f00cab9adb773a259097f7a274b83b113532bce27fa3fb96a",
@@ -62,7 +46,7 @@ fn bench_schnorr_verify(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default().sample_size(40).measurement_time(Duration::from_secs(20)).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
-    targets = bench_poseidon2, bench_pedersen_commitment, bench_pedersen_hash, bench_schnorr_verify
+    targets = bench_poseidon2, bench_schnorr_verify
 );
 
 criterion_main!(benches);

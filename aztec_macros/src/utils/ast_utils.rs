@@ -47,12 +47,17 @@ pub fn method_call(
         object,
         method_name: ident(method_name),
         arguments,
+        is_macro_call: false,
         generics: None,
     })))
 }
 
 pub fn call(func: Expression, arguments: Vec<Expression>) -> Expression {
-    expression(ExpressionKind::Call(Box::new(CallExpression { func: Box::new(func), arguments })))
+    expression(ExpressionKind::Call(Box::new(CallExpression {
+        func: Box::new(func),
+        is_macro_call: false,
+        arguments,
+    })))
 }
 
 pub fn pattern(name: &str) -> Pattern {
@@ -156,7 +161,7 @@ macro_rules! chained_dep {
     ( $base:expr $(, $tail:expr)* ) => {
         {
             let mut base_path = ident_path($base);
-            base_path.kind = PathKind::Dep;
+            base_path.kind = PathKind::Plain;
             $(
                 base_path.segments.push(ident($tail));
             )*

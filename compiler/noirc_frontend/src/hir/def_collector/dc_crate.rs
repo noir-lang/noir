@@ -256,7 +256,7 @@ impl DefCollector {
         context: &mut Context,
         ast: SortedModule,
         root_file_id: FileId,
-        use_elaborator: bool,
+        use_legacy: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -273,7 +273,7 @@ impl DefCollector {
             errors.extend(CrateDefMap::collect_defs(
                 dep.crate_id,
                 context,
-                use_elaborator,
+                use_legacy,
                 macro_processors,
             ));
 
@@ -351,7 +351,7 @@ impl DefCollector {
             }
         }
 
-        if use_elaborator {
+        if !use_legacy {
             let mut more_errors = Elaborator::elaborate(context, crate_id, def_collector.items);
             errors.append(&mut more_errors);
             return errors;
@@ -404,7 +404,7 @@ impl DefCollector {
         resolved_module.errors.extend(collect_impls(context, crate_id, &def_collector.items.impls));
 
         // We must wait to resolve non-integer globals until after we resolve structs since struct
-        // globals will need to reference the struct type they're initialized to to ensure they are valid.
+        // globals will need to reference the struct type they're initialized to ensure they are valid.
         resolved_module.resolve_globals(context, other_globals, crate_id);
 
         // Resolve each function in the crate. This is now possible since imports have been resolved
@@ -468,7 +468,7 @@ fn inject_prelude(
 
         let path = Path {
             segments: segments.clone(),
-            kind: crate::ast::PathKind::Dep,
+            kind: crate::ast::PathKind::Plain,
             span: Span::default(),
         };
 
@@ -489,7 +489,7 @@ fn inject_prelude(
                     0,
                     ImportDirective {
                         module_id: crate_root,
-                        path: Path { segments, kind: PathKind::Dep, span: Span::default() },
+                        path: Path { segments, kind: PathKind::Plain, span: Span::default() },
                         alias: None,
                         is_prelude: true,
                     },

@@ -38,11 +38,11 @@ struct Outer {
 // If we don't take into account block parameter liveness, this function will need 5*500=2500 stack items
 unconstrained fn main(conditions: [bool; 5]) -> pub Outer {
     let out0 = if conditions[0] {
-        let mut outer: Outer = dep::std::unsafe::zeroed();
+        let mut outer: Outer = std::unsafe::zeroed();
         outer.middle_a.inner_a.a = 1;
         outer
     } else {
-        let mut outer: Outer= dep::std::unsafe::zeroed();
+        let mut outer: Outer= std::unsafe::zeroed();
         outer.middle_f.inner_c.d = 2;
         outer
     };

@@ -130,15 +130,6 @@ pub(super) fn recursive_non_entrypoint_function(
     }
 }
 
-/// Test functions cannot have arguments in order to be executable.
-pub(super) fn test_function_with_args(func: &NoirFunction) -> Option<ResolverError> {
-    if func.attributes().is_test_function() && !func.parameters().is_empty() {
-        Some(ResolverError::TestFunctionHasParameters { span: func.name_ident().span() })
-    } else {
-        None
-    }
-}
-
 /// Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime.
 pub(super) fn unconstrained_function_args(
     function_args: &[(Type, ExprId, Span)],
@@ -146,7 +137,7 @@ pub(super) fn unconstrained_function_args(
     function_args
         .iter()
         .filter_map(|(typ, _, span)| {
-            if type_contains_mutable_reference(typ) {
+            if !typ.is_valid_for_unconstrained_boundary() {
                 Some(TypeCheckError::ConstrainedReferenceToUnconstrained { span: *span })
             } else {
                 None
@@ -162,15 +153,11 @@ pub(super) fn unconstrained_function_return(
 ) -> Option<TypeCheckError> {
     if return_type.contains_slice() {
         Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { span })
-    } else if type_contains_mutable_reference(return_type) {
+    } else if !return_type.is_valid_for_unconstrained_boundary() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { span })
     } else {
         None
     }
-}
-
-fn type_contains_mutable_reference(typ: &Type) -> bool {
-    matches!(&typ.follow_bindings(), Type::MutableReference(_))
 }
 
 /// Only entrypoint functions require a `pub` visibility modifier applied to their return types.

@@ -1,5 +1,3 @@
-use dep::std;
-
 fn main(priv_key: Field, pub_x: pub Field, pub_y: pub Field) {
     let g1_y = 17631683881184975370165255887551781615748388533673675138860;
     let g1 = std::embedded_curve_ops::EmbeddedCurvePoint { x: 1, y: g1_y, is_infinite: false };
