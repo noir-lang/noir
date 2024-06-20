@@ -1440,7 +1440,7 @@ impl<'context> Elaborator<'context> {
         typevar: TypeVariable,
     ) {
         let name = &unresolved_generic.ident().0.contents;
-        dbg!(name.clone());
+
         // Check for name collisions of this generic
         let rc_name = Rc::new(name.clone());
 
@@ -1452,7 +1452,7 @@ impl<'context> Elaborator<'context> {
             });
         } else {
             // Declare numeric generic if it is specified
-            let kind = self.try_add_numeric_generic(unresolved_generic);
+            let kind = self.resolve_generic_kind(unresolved_generic);
 
             let resolved_generic =
                 ResolvedGeneric { name: rc_name, type_var: typevar.clone(), kind, span };

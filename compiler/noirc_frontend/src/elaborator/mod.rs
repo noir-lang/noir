@@ -473,7 +473,7 @@ impl<'context> Elaborator<'context> {
             let span = ident.0.span();
 
             // Declare numeric generic if it is specified
-            let kind = self.try_add_numeric_generic(generic);
+            let kind = self.resolve_generic_kind(generic);
 
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
@@ -495,8 +495,10 @@ impl<'context> Elaborator<'context> {
         })
     }
 
-    /// If a numeric generic has been specified, add it to the current scope.
-    pub(super) fn try_add_numeric_generic(&mut self, generic: &UnresolvedGeneric) -> Kind {
+    /// Return the kind of an unresolved generic.
+    /// If a numeric generic has been specified, resolve the annotated type to make
+    /// sure only primitive numeric types are being used.
+    pub(super) fn resolve_generic_kind(&mut self, generic: &UnresolvedGeneric) -> Kind {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let typ = self.resolve_type(typ.clone());
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
