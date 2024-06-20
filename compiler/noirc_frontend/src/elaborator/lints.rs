@@ -158,10 +158,6 @@ pub(super) fn unconstrained_function_return(
     }
 }
 
-fn type_contains_mutable_reference(typ: &Type) -> bool {
-    matches!(&typ.follow_bindings(), Type::MutableReference(_))
-}
-
 /// Only entrypoint functions require a `pub` visibility modifier applied to their return types.
 ///
 /// Application of `pub` to other functions is not meaningful and is a mistake.

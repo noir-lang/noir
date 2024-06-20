@@ -806,7 +806,7 @@ impl Type {
             Type::Slice(_)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
-            | Type::Code
+            | Type::Quoted(_)
             | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {
