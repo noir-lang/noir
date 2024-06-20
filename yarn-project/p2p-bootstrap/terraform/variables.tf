@@ -26,5 +26,11 @@ variable "P2P_MAX_PEERS" {
 }
 
 variable "DOCKERHUB_ACCOUNT" {
-  type = string
+  type    = string
+  default = "aztecprotocol"
+}
+
+variable "FULL_IMAGE" {
+  type    = string
+  default = "${var.DOCKERHUB_ACCOUNT}/aztec:${var.DEPLOY_TAG}"
 }

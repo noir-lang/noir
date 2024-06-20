@@ -1,0 +1,69 @@
+name: Deploy to devnet
+on:
+  push:
+    branches: [devnet]
+
+env:
+  DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+  GIT_COMMIT: ${{ github.sha }}
+  # TF Vars
+  TF_VAR_DOCKERHUB_ACCOUNT: aztecprotocol
+  TF_VAR_CHAIN_ID: 31337
+  TF_VAR_BOOTNODE_1_PRIVATE_KEY: ${{ secrets.BOOTNODE_1_PRIVATE_KEY }}
+  TF_VAR_BOOTNODE_2_PRIVATE_KEY: ${{ secrets.BOOTNODE_2_PRIVATE_KEY }}
+  TF_VAR_SEQ_1_PUBLISHER_PRIVATE_KEY: ${{ secrets.SEQ_1_PUBLISHER_PRIVATE_KEY }}
+  TF_VAR_SEQ_2_PUBLISHER_PRIVATE_KEY: ${{ secrets.SEQ_2_PUBLISHER_PRIVATE_KEY }}
+  TF_VAR_DEPLOY_TAG: devnet
+  TF_VAR_API_KEY: ${{ secrets.FORK_API_KEY }}
+
+jobs:
+  setup:
+    uses: ./.github/workflows/setup-runner.yml
+    with:
+      username: master
+      runner_type: builder-x86
+    secrets: inherit
+
+  build:
+    runs-on: ${{ github.actor }}-x86
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_key: build-release-artifacts-${{ github.actor }}
+      - name: "Build & Push images"
+        timeout-minutes: 40
+        # Run the build steps for each image with version and arch, push to dockerhub
+        run: |
+          earthly-ci --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=devnet
+
+  terraform_deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      - name: Deploy Bootstrap Nodes
+        working-directory: ./yarn-project/aztec/terraform/node
+        run: |
+          terraform init -input=false -backend-config="key=devnet/aztec-node"
+          terraform apply -input=false -auto-approve
+
+      - name: Deploy Aztec Nodes
+        working-directory: ./yarn-project/aztec/terraform/node
+        run: |
+          terraform init -input=false -backend-config="key=devnet/aztec-node"
+          terraform apply -input=false -auto-approve

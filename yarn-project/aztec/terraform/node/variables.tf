@@ -55,7 +55,7 @@ variable "SEQ_MIN_TX_PER_BLOCK" {
 
 variable "P2P_MIN_PEERS" {
   type    = string
-  default = 50
+  default = 5
 }
 
 variable "P2P_MAX_PEERS" {
@@ -85,5 +85,6 @@ variable "IMAGE_TAG" {
 }
 
 variable "FULL_IMAGE" {
-  type = string
+  type    = string
+  default = "${var.DOCKERHUB_ACCOUNT}/aztec:${var.IMAGE_TAG}"
 }

@@ -234,31 +234,31 @@ resource "aws_ecs_task_definition" "aztec-node" {
 
       {
         "name": "ROLLUP_CONTRACT_ADDRESS",
-        "value": "${var.ROLLUP_CONTRACT_ADDRESS}"
+        "value": "${data.terraform_remote_state.l1_contracts.outputs.rollup_contract_address}"
       },
       {
         "name": "INBOX_CONTRACT_ADDRESS",
-        "value": "${var.INBOX_CONTRACT_ADDRESS}"
+        "value": "${data.terraform_remote_state.l1_contracts.outputs.inbox_contract_address}"
       },
       {
         "name": "OUTBOX_CONTRACT_ADDRESS",
-        "value": "${var.OUTBOX_CONTRACT_ADDRESS}"
+        "value": "${data.terraform_remote_state.l1_contracts.outputs.outbox_contract_address}"
       },
       {
         "name": "REGISTRY_CONTRACT_ADDRESS",
-        "value": "${var.REGISTRY_CONTRACT_ADDRESS}"
+        "value": "${data.terraform_remote_state.l1_contracts.outputs.registry_contract_address}"
       },
       {
         "name": "AVAILABILITY_ORACLE_CONTRACT_ADDRESS",
-        "value": "${var.AVAILABILITY_ORACLE_CONTRACT_ADDRESS}"
+        "value": "${data.terraform_remote_state.l1_contracts.outputs.availability_oracle_contract_address}"
       },
       {
         "name": "GAS_TOKEN_CONTRACT_ADDRESS",
-        "value": "${var.GAS_TOKEN_CONTRACT_ADDRESS}"
+        "value": "${data.terraform_remote_state.l1_contracts.outputs.gas_token_contract_address}"
       },
       {
         "name": "GAS_PORTAL_CONTRACT_ADDRESS",
-        "value": "${var.GAS_PORTAL_CONTRACT_ADDRESS}"
+        "value": "${data.terraform_remote_state.l1_contracts.outputs.gas_portal_contract_address}"
       },
       {
         "name": "API_KEY",
