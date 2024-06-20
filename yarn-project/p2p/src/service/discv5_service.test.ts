@@ -1,3 +1,5 @@
+import { sleep } from '@aztec/foundation/sleep';
+
 import { jest } from '@jest/globals';
 import type { PeerId } from '@libp2p/interface';
 import { SemVer } from 'semver';
@@ -8,7 +10,7 @@ import { createLibP2PPeerId } from './libp2p_service.js';
 import { PeerDiscoveryState } from './service.js';
 
 const waitForPeers = (node: DiscV5Service, expectedCount: number): Promise<void> => {
-  const timeout = 5_000;
+  const timeout = 7_000;
   return new Promise((resolve, reject) => {
     const timeoutId = setTimeout(() => {
       reject(new Error(`Timeout: Failed to connect to ${expectedCount} peers within ${timeout} ms`));
@@ -67,7 +69,17 @@ describe('Discv5Service', () => {
     const node2 = await createNode(basePort);
     await node1.start();
     await node2.start();
-    await waitForPeers(node2, 2);
+    await Promise.all([
+      waitForPeers(node2, 2),
+      (async () => {
+        await sleep(2000); // wait for peer discovery to be able to start
+        for (let i = 0; i < 5; i++) {
+          await node1.runRandomNodesQuery();
+          await node2.runRandomNodesQuery();
+          await sleep(100);
+        }
+      })(),
+    ]);
 
     const node1Peers = await Promise.all(node1.getAllPeers().map(async peer => (await peer.peerId()).toString()));
     const node2Peers = await Promise.all(node2.getAllPeers().map(async peer => (await peer.peerId()).toString()));

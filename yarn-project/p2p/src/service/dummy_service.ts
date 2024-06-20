@@ -1,5 +1,6 @@
-import { type Tx, type TxHash } from '@aztec/circuit-types';
+import type { Tx, TxHash } from '@aztec/circuit-types';
 
+import type { PeerId } from '@libp2p/interface';
 import EventEmitter from 'events';
 
 import { type P2PService, type PeerDiscoveryService, PeerDiscoveryState } from './service.js';
@@ -64,6 +65,14 @@ export class DummyPeerDiscoveryService extends EventEmitter implements PeerDisco
    */
   public getAllPeers() {
     return [];
+  }
+
+  public runRandomNodesQuery(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  public isBootstrapPeer(_: PeerId): boolean {
+    return false;
   }
 
   public getStatus(): PeerDiscoveryState {

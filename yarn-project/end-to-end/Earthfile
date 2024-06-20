@@ -46,6 +46,9 @@ E2E_TEST:
   # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
   RUN docker run -e HARDWARE_CONCURRENCY=$hardware_concurrency --rm aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG $test || $allow_fail
 
+e2e-p2p:
+  DO +E2E_TEST --test=./src/e2e_p2p_network.test.ts
+
 e2e-2-pxes:
   DO +E2E_TEST --test=./src/e2e_2_pxes.test.ts
 

@@ -122,7 +122,11 @@ export class AztecNodeService implements AztecNode {
    * @param config - The configuration to be used by the aztec node.
    * @returns - A fully synced Aztec Node for use in development/testing.
    */
-  public static async createAndSync(config: AztecNodeConfig) {
+  public static async createAndSync(
+    config: AztecNodeConfig,
+    log = createDebugLogger('aztec:node'),
+    storeLog = createDebugLogger('aztec:node:lmdb'),
+  ) {
     const ethereumChain = createEthereumChain(config.rpcUrl, config.apiKey);
     //validate that the actual chain id matches that specified in configuration
     if (config.chainId !== ethereumChain.chainInfo.id) {
@@ -131,8 +135,6 @@ export class AztecNodeService implements AztecNode {
       );
     }
 
-    const log = createDebugLogger('aztec:node');
-    const storeLog = createDebugLogger('aztec:node:lmdb');
     const store = await initStoreForRollup(
       AztecLmdbStore.open(config.dataDirectory, false, storeLog),
       config.l1Contracts.rollupAddress,

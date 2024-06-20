@@ -194,7 +194,7 @@ export class P2PClient implements P2P {
     this.log.debug('Stopped block downloader');
     await this.runningPromise;
     this.setCurrentState(P2PClientState.STOPPED);
-    this.log.info('P2P client stopped...');
+    this.log.info('P2P client stopped.');
   }
 
   /**
@@ -278,7 +278,6 @@ export class P2PClient implements P2P {
     for (const block of blocks) {
       const txHashes = block.body.txEffects.map(txEffect => txEffect.txHash);
       await this.txPool.deleteTxs(txHashes);
-      this.p2pService.settledTxs(txHashes);
     }
   }
 

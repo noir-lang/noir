@@ -1,9 +1,8 @@
 import { createDebugLogger } from '@aztec/foundation/log';
-import { RunningPromise } from '@aztec/foundation/running-promise';
 import { sleep } from '@aztec/foundation/sleep';
 
 import { Discv5, type Discv5EventEmitter } from '@chainsafe/discv5';
-import { type ENR, SignableENR } from '@chainsafe/enr';
+import { ENR, SignableENR } from '@chainsafe/enr';
 import type { PeerId } from '@libp2p/interface';
 import { multiaddr } from '@multiformats/multiaddr';
 import EventEmitter from 'events';
@@ -13,6 +12,8 @@ import { convertToMultiaddr } from '../util.js';
 import { type PeerDiscoveryService, PeerDiscoveryState } from './service.js';
 
 export const AZTEC_ENR_KEY = 'aztec_network';
+
+const delayBeforeStart = 2000; // 2sec
 
 export enum AztecENR {
   devnet = 0x01,
@@ -33,11 +34,12 @@ export class DiscV5Service extends EventEmitter implements PeerDiscoveryService 
   /** This instance's ENR */
   private enr: SignableENR;
 
-  private runningPromise: RunningPromise;
-
   private currentState = PeerDiscoveryState.STOPPED;
 
   private bootstrapNodes: string[];
+  private bootstrapNodePeerIds: PeerId[] = [];
+
+  private startTime = 0;
 
   constructor(private peerId: PeerId, config: P2PConfig, private logger = createDebugLogger('aztec:discv5_service')) {
     super();
@@ -83,18 +85,17 @@ export class DiscV5Service extends EventEmitter implements PeerDiscoveryService 
       const multiAddrUdp = await enr.getFullMultiaddr('udp');
       this.logger.debug(`ENR multiaddr: ${multiAddrTcp?.toString()}, ${multiAddrUdp?.toString()}`);
     });
-
-    this.runningPromise = new RunningPromise(async () => {
-      await this.discv5.findRandomNode();
-    }, config.p2pPeerCheckIntervalMS);
   }
 
   public async start(): Promise<void> {
+    // Do this conversion once since it involves an async function call
+    this.bootstrapNodePeerIds = await Promise.all(this.bootstrapNodes.map(enr => ENR.decodeTxt(enr).peerId()));
     if (this.currentState === PeerDiscoveryState.RUNNING) {
       throw new Error('DiscV5Service already started');
     }
     this.logger.info('Starting DiscV5');
     await this.discv5.start();
+    this.startTime = Date.now();
 
     this.logger.info('DiscV5 started');
     this.currentState = PeerDiscoveryState.RUNNING;
@@ -110,12 +111,25 @@ export class DiscV5Service extends EventEmitter implements PeerDiscoveryService 
         this.logger.error(`Error adding bootnode ENRs: ${e}`);
       }
     }
+  }
+
+  public async runRandomNodesQuery(): Promise<void> {
+    if (this.currentState !== PeerDiscoveryState.RUNNING) {
+      throw new Error('DiscV5Service not running');
+    }
 
     // First, wait some time before starting the peer discovery
     // reference: https://github.com/ChainSafe/lodestar/issues/3423
-    await sleep(2000);
+    const msSinceStart = Date.now() - this.startTime;
+    if (Date.now() - this.startTime <= delayBeforeStart) {
+      await sleep(delayBeforeStart - msSinceStart);
+    }
 
-    this.runningPromise.start();
+    try {
+      await this.discv5.findRandomNode();
+    } catch (err) {
+      this.logger.error(`Error running discV5 random node query: ${err}`);
+    }
   }
 
   public getAllPeers(): ENR[] {
@@ -134,8 +148,11 @@ export class DiscV5Service extends EventEmitter implements PeerDiscoveryService 
     return this.currentState;
   }
 
+  public isBootstrapPeer(peerId: PeerId): boolean {
+    return this.bootstrapNodePeerIds.some(node => node.equals(peerId));
+  }
+
   public async stop(): Promise<void> {
-    await this.runningPromise.stop();
     await this.discv5.stop();
     this.currentState = PeerDiscoveryState.STOPPED;
   }
