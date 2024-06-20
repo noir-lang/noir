@@ -260,19 +260,6 @@ pub struct ResolvedGeneric {
     pub span: Span,
 }
 
-impl ResolvedGeneric {
-    // TODO(https://github.com/noir-lang/noir/issues/5231): Remove once we move to the elaborator.
-    // This is only used during collection in the old resolution process.
-    pub fn dummy() -> Self {
-        ResolvedGeneric {
-            name: Rc::default(),
-            type_var: TypeVariable::unbound(TypeVariableId(0)),
-            kind: Kind::Normal,
-            span: Span::default(),
-        }
-    }
-}
-
 impl std::hash::Hash for StructType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
