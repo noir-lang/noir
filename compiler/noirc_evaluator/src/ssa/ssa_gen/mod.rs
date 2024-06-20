@@ -216,6 +216,20 @@ impl<'a> FunctionContext<'a> {
                             self.codegen_array_checked(elements, typ[1].clone())?;
                         Tree::Branch(vec![slice_length.into(), slice_contents])
                     }
+                    ast::Type::Array(len, _) => {
+                        // A literal slice can be an array or a slice,
+                        // however we convert the array into a slice because printable types
+                        // do not handle slice array properly.
+                        let slice_type = if let Type::Array(first_type, _) = &typ[0] {
+                            Type::Slice(first_type.clone())
+                        } else {
+                            typ[0].clone()
+                        };
+                        let slice_length = self.builder.length_constant(len as u128);
+
+                        let slice_contents = self.codegen_array_checked(elements, slice_type)?;
+                        Tree::Branch(vec![slice_length.into(), slice_contents])
+                    }
                     _ => unreachable!("ICE: unexpected slice literal type, got {}", array.typ),
                 })
             }
