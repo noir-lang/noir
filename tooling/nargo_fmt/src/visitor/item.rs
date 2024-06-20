@@ -44,9 +44,9 @@ impl super::FmtVisitor<'_> {
 
         if !func.def.generics.is_empty() {
             let full_span = name_span.end()..params_open;
-
             let start = self.span_before(full_span.clone(), Token::Less).start();
             let end = self.span_after(full_span, Token::Greater).start();
+
             let generics = func.def.generics;
             let span = (start..end).into();
             let generics = format_seq(
