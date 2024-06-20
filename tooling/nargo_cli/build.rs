@@ -61,8 +61,8 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
 /// Certain features are only available in the elaborator.
 /// We skip these tests for non-elaborator code since they are not
 /// expected to work there. This can be removed once the old code is removed.
-const IGNORED_NEW_FEATURE_TESTS: [&str; 3] =
-    ["macros", "wildcard_type", "type_definition_annotation"];
+const IGNORED_NEW_FEATURE_TESTS: [&str; 4] =
+    ["macros", "wildcard_type", "type_alias_constructor", "type_definition_annotation"];
 
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_sub_dir = "execution_success";
