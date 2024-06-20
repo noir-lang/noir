@@ -4,9 +4,11 @@
 //! Code is used under the MIT license.
 
 use acvm::{blackbox_solver::StubbedBlackBoxSolver, FieldElement};
+use dictionary::build_dictionary_from_program;
 use noirc_abi::InputMap;
 use proptest::test_runner::{TestCaseError, TestError, TestRunner};
 
+mod dictionary;
 mod strategies;
 mod types;
 
@@ -37,7 +39,8 @@ impl FuzzedExecutor {
 
     /// Fuzzes the provided program.
     pub fn fuzz(&self) -> FuzzTestResult {
-        let strategy = strategies::arb_input_map(&self.program.abi);
+        let dictionary = build_dictionary_from_program(&self.program.bytecode);
+        let strategy = strategies::arb_input_map(&self.program.abi, dictionary);
 
         let run_result: Result<(), TestError<InputMap>> =
             self.runner.clone().run(&strategy, |input_map| {
