@@ -1461,13 +1461,15 @@ fn struct_numeric_generic() {
         inner: u64
     }
 
-    fn bar<let N: Foo>() { }
+    struct Bar<let N: Foo> { }
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
-        CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
+        CompilationError::DefinitionError(
+            DefCollectorErrorKind::UnsupportedNumericGenericType { .. }
+        ),
     ));
 }
 

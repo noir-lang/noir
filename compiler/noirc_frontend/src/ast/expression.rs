@@ -73,11 +73,12 @@ impl UnresolvedGeneric {
         }
     }
 
-    pub fn kind(&self) -> Kind {
+    pub fn kind(&self) -> Result<Kind, UnresolvedTypeData> {
         match self {
-            UnresolvedGeneric::Variable(_) => Kind::Normal,
+            UnresolvedGeneric::Variable(_) => Ok(Kind::Normal),
             UnresolvedGeneric::Numeric { typ, .. } => {
-                Kind::Numeric(Box::new(Self::resolve_numeric_kind_type(typ.clone())))
+                let typ = Self::resolve_numeric_kind_type(typ.clone())?;
+                Ok(Kind::Numeric(Box::new(typ)))
             }
         }
     }
@@ -88,14 +89,14 @@ impl UnresolvedGeneric {
         }
     }
 
-    fn resolve_numeric_kind_type(typ: UnresolvedType) -> Type {
+    fn resolve_numeric_kind_type(typ: UnresolvedType) -> Result<Type, UnresolvedTypeData> {
         use crate::ast::UnresolvedTypeData::{FieldElement, Integer};
 
         match typ.typ {
-            FieldElement => Type::FieldElement,
-            Integer(sign, bits) => Type::Integer(sign, bits),
+            FieldElement => Ok(Type::FieldElement),
+            Integer(sign, bits) => Ok(Type::Integer(sign, bits)),
             // Only fields and integers are supported for numeric kinds
-            _ => Type::Error,
+            _ => Err(typ.typ),
         }
     }
 }

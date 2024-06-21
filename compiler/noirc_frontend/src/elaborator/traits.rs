@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, rc::Rc};
 
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -15,7 +15,7 @@ use crate::{
     },
     node_interner::{FuncId, TraitId},
     token::Attributes,
-    Type, TypeVariableKind,
+    Kind, ResolvedGeneric, Type, TypeVariableKind,
 };
 
 use super::Elaborator;
@@ -96,7 +96,12 @@ impl<'context> Elaborator<'context> {
                     this.add_existing_generic(
                         &UnresolvedGeneric::Variable(Ident::from("Self")),
                         name_span,
-                        self_typevar,
+                        &ResolvedGeneric {
+                            name: Rc::new("Self".to_owned()),
+                            type_var: self_typevar,
+                            span: name_span,
+                            kind: Kind::Normal,
+                        },
                     );
                     this.self_type = Some(self_type.clone());
 

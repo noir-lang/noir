@@ -1435,8 +1435,7 @@ impl<'context> Elaborator<'context> {
         assert_eq!(unresolved_generics.len(), generics.len());
 
         vecmap(unresolved_generics.iter().zip(generics), |(unresolved_generic, generic)| {
-            let type_var = generic.type_var.clone();
-            self.add_existing_generic(unresolved_generic, unresolved_generic.span(), type_var)
+            self.add_existing_generic(unresolved_generic, unresolved_generic.span(), generic)
         })
     }
 
@@ -1444,20 +1443,11 @@ impl<'context> Elaborator<'context> {
         &mut self,
         unresolved_generic: &UnresolvedGeneric,
         span: Span,
-        typevar: TypeVariable,
+        resolved_generic: &ResolvedGeneric,
     ) -> ResolvedGeneric {
         let name = &unresolved_generic.ident().0.contents;
 
-        // Check for name collisions of this generic
-        let rc_name = Rc::new(name.clone());
-
-        // Resolved the generic's kind
-        let kind = self.resolve_generic_kind(unresolved_generic);
-
-        let resolved_generic =
-            ResolvedGeneric { name: rc_name.clone(), type_var: typevar.clone(), kind, span };
-
-        if let Some(generic) = self.find_generic(&rc_name) {
+        if let Some(generic) = self.find_generic(name) {
             self.push_err(ResolverError::DuplicateDefinition {
                 name: name.clone(),
                 first_span: generic.span,
@@ -1467,7 +1457,7 @@ impl<'context> Elaborator<'context> {
             self.generics.push(resolved_generic.clone());
         }
 
-        resolved_generic
+        resolved_generic.clone()
     }
 
     pub fn find_numeric_generics(

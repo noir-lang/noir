@@ -5,13 +5,13 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
-use crate::ast::UnresolvedGenerics;
+use crate::ast::{UnresolvedGenerics, UnresolvedTypeData};
 use crate::debug::DebugInstrumenter;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::parser::ParserError;
-use crate::{Generics, ParsedModule, ResolvedGeneric, TypeVariable};
+use crate::{Kind, ParsedModule, ResolvedGeneric, Type, TypeVariable};
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
 use iter_extended::vecmap;
@@ -263,7 +263,12 @@ impl Context<'_, '_> {
     /// Generics need to be resolved before elaboration to distinguish
     /// between normal and numeric generics.
     /// This method is expected to be used during definition collection.
-    pub(crate) fn resolve_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
+    /// Each result is returned in a list rather than returned as a single result as to allow
+    /// definition collection to provide an error for each ill-formed numeric generic.
+    pub(crate) fn resolve_generics(
+        &mut self,
+        generics: &UnresolvedGenerics,
+    ) -> Vec<Result<ResolvedGeneric, (ResolvedGeneric, UnresolvedTypeData)>> {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = self.def_interner.next_type_variable_id();
@@ -274,7 +279,15 @@ impl Context<'_, '_> {
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
 
-            ResolvedGeneric { name, type_var, kind: generic.kind(), span }
+            let mut resolved_generic = ResolvedGeneric {
+                name,
+                type_var,
+                kind: Kind::Numeric(Box::new(Type::Error)),
+                span,
+            };
+            let kind = generic.kind().map_err(|typ| (resolved_generic.clone(), typ))?;
+            resolved_generic.kind = kind;
+            Ok(resolved_generic)
         })
     }
 }

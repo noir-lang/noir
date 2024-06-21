@@ -953,7 +953,9 @@ impl<'a> Resolver<'a> {
             let resolved_generic = ResolvedGeneric {
                 name: rc_name,
                 type_var: typevar.clone(),
-                kind: unresolved_generic.kind(),
+                kind: unresolved_generic
+                    .kind()
+                    .expect("ICE: Deprecated code should only support normal kinds"),
                 span,
             };
             self.generics.push(resolved_generic);

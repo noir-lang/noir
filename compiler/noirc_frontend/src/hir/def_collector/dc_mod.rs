@@ -308,7 +308,24 @@ impl<'a> ModCollector<'a> {
                 struct_def: struct_definition,
             };
 
-            let resolved_generics = context.resolve_generics(&unresolved.struct_def.generics);
+            let generic_results = context.resolve_generics(&unresolved.struct_def.generics);
+            dbg!(generic_results.clone());
+            let mut resolved_generics = Vec::new();
+            for generic_result in generic_results.into_iter() {
+                match generic_result {
+                    Ok(resolved_generic) => resolved_generics.push(resolved_generic),
+                    Err((bad_generic, bad_type)) => {
+                        let err = DefCollectorErrorKind::UnsupportedNumericGenericType {
+                            ident: Ident::new(bad_generic.name.to_string(), bad_generic.span),
+                            typ: bad_type.clone(),
+                        };
+                        definition_errors.push((err.into(), self.file_id));
+                        // We still push the ill-formed generic as to continue definition collection and elaboration
+                        // without triggering any other compiler errors.
+                        resolved_generics.push(bad_generic);
+                    }
+                }
+            }
 
             // Create the corresponding module for the struct namespace
             let id = match self.push_child_module(&name, self.file_id, false, false) {
@@ -361,7 +378,25 @@ impl<'a> ModCollector<'a> {
                 module_id: self.module_id,
                 type_alias_def: type_alias,
             };
-            let resolved_generics = context.resolve_generics(&unresolved.type_alias_def.generics);
+
+            let generic_results = context.resolve_generics(&unresolved.type_alias_def.generics);
+            let mut resolved_generics = Vec::new();
+            for generic_result in generic_results.into_iter() {
+                match generic_result {
+                    Ok(resolved_generic) => resolved_generics.push(resolved_generic),
+                    Err((bad_generic, bad_type)) => {
+                        let err = DefCollectorErrorKind::UnsupportedNumericGenericType {
+                            ident: Ident::new(bad_generic.name.to_string(), bad_generic.span),
+                            typ: bad_type.clone(),
+                        };
+                        errors.push((err.into(), self.file_id));
+                        // We still push the ill-formed generic as to continue definition collection and elaboration
+                        // without triggering any other compiler errors.
+                        resolved_generics.push(bad_generic);
+                    }
+                }
+            }
+
             let type_alias_id =
                 context.def_interner.push_type_alias(&unresolved, resolved_generics);
 
@@ -523,7 +558,24 @@ impl<'a> ModCollector<'a> {
                 }
             }
 
-            let resolved_generics = context.resolve_generics(&trait_definition.generics);
+            let generic_results = context.resolve_generics(&trait_definition.generics);
+            let mut resolved_generics = Vec::new();
+            for generic_result in generic_results.into_iter() {
+                match generic_result {
+                    Ok(resolved_generic) => resolved_generics.push(resolved_generic),
+                    Err((bad_generic, bad_type)) => {
+                        let err = DefCollectorErrorKind::UnsupportedNumericGenericType {
+                            ident: Ident::new(bad_generic.name.to_string(), bad_generic.span),
+                            typ: bad_type.clone(),
+                        };
+                        errors.push((err.into(), self.file_id));
+                        // We still push the ill-formed generic as to continue definition collection and elaboration
+                        // without triggering any other compiler errors.
+                        resolved_generics.push(bad_generic);
+                    }
+                }
+            }
+
             // And store the TraitId -> TraitType mapping somewhere it is reachable
             let unresolved = UnresolvedTrait {
                 file_id: self.file_id,
