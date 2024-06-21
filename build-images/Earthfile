@@ -71,7 +71,7 @@ osxcross:
       && apt-get -y autoremove \
       && apt-get clean \
       && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-  RUN git clone --depth=1 https://github.com/tpoechtrager/osxcross.git \
+  RUN git clone https://github.com/tpoechtrager/osxcross.git \
       && cd /osxcross \
       && git reset --hard ff8d100f3f026b4ffbe4ce96d8aac4ce06f1278b \
       && export OSX_SDK="MacOSX14.0.sdk" \
@@ -116,7 +116,6 @@ foundry:
 # It acts as the base image for all CI builds, and we build on it to produce a developer box.
 build:
   BUILD +wasi-sdk
-  BUILD +osxcross
   BUILD +foundry
   FROM +base-build
   RUN apt update && \
@@ -153,11 +152,6 @@ build:
 
   # Install wasi-sdk.
   COPY +wasi-sdk/opt/wasi-sdk /opt/wasi-sdk
-
-  # Install osxcross. Requires developer to mount SDK from their mac host.
-  COPY +osxcross/opt/osxcross /opt/osxcross
-  ENV PATH="/opt/osxcross/bin:$PATH"
-  ENV LD_LIBRARY_PATH="/opt/osxcross/lib:$LD_LIBRARY_PATH"
 
   # Install foundry.
   COPY +foundry-build/opt/foundry /opt/foundry
@@ -204,6 +198,7 @@ build:
 # We want to produce downstream images: devbox and sysbox. This image is the base image for each.
 # It contains a suite of tools that developers might use to develop aztec.
 basebox:
+  BUILD +osxcross
   BUILD +build
   FROM +build
   RUN yes | unminimize
@@ -236,6 +231,11 @@ basebox:
   # Install earthly.
   RUN wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-$(dpkg --print-architecture) -O /usr/local/bin/earthly && \
       chmod +x /usr/local/bin/earthly
+
+  # Install osxcross. Requires developer to mount SDK from their mac host.
+  COPY +osxcross/opt/osxcross /opt/osxcross
+  ENV PATH="/opt/osxcross/bin:$PATH"
+  ENV LD_LIBRARY_PATH="/opt/osxcross/lib:$LD_LIBRARY_PATH"
 
   # Install gh (github cli).
   RUN mkdir -p -m 755 /etc/apt/keyrings && wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg > /etc/apt/keyrings/githubcli-archive-keyring.gpg \
