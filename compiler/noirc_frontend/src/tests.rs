@@ -1757,6 +1757,23 @@ fn numeric_generic_used_in_where_clause() {
 }
 
 #[test]
+fn numeric_generic_used_in_turbofish() {
+    let src = r#"
+    fn double<let N: u32>() -> u32 {
+        // Used as an expression
+        N * 2
+    }
+
+    fn double_numeric_generics_test() {
+        // Example usage of a numeric generic arguments.
+        assert(double::<9>() == 18);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+}
+
+#[test]
 fn normal_generic_used_when_numeric_expected_in_where_clause() {
     let src = r#"
     trait Deserialize<let N: u32> {
