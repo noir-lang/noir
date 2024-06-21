@@ -7,15 +7,13 @@ comptime fn derive_default(typ: TypeDefinition) -> Quoted {
     
     let fields = join(make_field_exprs(fields));
 
-    let result = quote {
+    quote {
         impl Default for $type_name {
             fn default() -> Self {
                 Self { $fields }
             }
         }
-    };
-    println(result);
-    result
+    }
 }
 
 #[derive_default]
