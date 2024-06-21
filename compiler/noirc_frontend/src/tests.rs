@@ -1775,9 +1775,11 @@ fn numeric_generic_used_in_turbofish() {
 }
 
 #[test]
-fn constant_used_with_implicit_generic() {
+fn constant_used_with_numeric_generic() {
     let src = r#"
-    struct ValueNote {}
+    struct ValueNote {
+        value: Field,
+    }
 
     trait Serialize<let N: u32> {
         fn serialize(self) -> [Field; N];
