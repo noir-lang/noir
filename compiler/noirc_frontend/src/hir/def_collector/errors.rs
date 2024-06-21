@@ -234,7 +234,7 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 let name = &ident.0.contents;
 
                 Diagnostic::simple_error(
-                    format!("{name} has a type of {typ}. The only supported types of numeric generics are integers, fields, and booleans."),
+                    format!("{name} has a type of {typ}. The only supported types of numeric generics are integers and fields"),
                     "Unsupported numeric generic type".to_string(),
                     ident.0.span(),
                 )

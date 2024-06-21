@@ -1455,7 +1455,24 @@ fn specify_method_types_with_turbofish() {
 }
 
 #[test]
-fn struct_numeric_generic() {
+fn struct_numeric_generic_in_function() {
+    let src = r#"
+    struct Foo {
+        inner: u64
+    }
+
+    fn bar<let N: Foo>() { }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
+    ));
+}
+
+#[test]
+fn struct_numeric_generic_in_struct() {
     let src = r#"
     struct Foo {
         inner: u64

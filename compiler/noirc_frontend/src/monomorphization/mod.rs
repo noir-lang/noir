@@ -889,7 +889,11 @@ impl<'interner> Monomorphizer<'interner> {
             DefinitionKind::Local(_) => match self.lookup_captured_expr(ident.id) {
                 Some(expr) => expr,
                 None => {
-                    let ident = self.local_ident(&ident)?.unwrap();
+                    let Some(ident) = self.local_ident(&ident)? else {
+                        let location = self.interner.id_location(expr_id);
+                        let message = "ICE: Variable not found during monomorphization";
+                        return Err(MonomorphizationError::InternalError { location, message });
+                    };
                     ast::Expression::Ident(ident)
                 }
             },

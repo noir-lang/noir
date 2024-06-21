@@ -40,7 +40,6 @@ impl<'context> Elaborator<'context> {
 
                 this.interner.update_trait(trait_id, |trait_def| {
                     trait_def.set_methods(methods);
-                    // trait_def.generics = generics;
                 });
             });
 

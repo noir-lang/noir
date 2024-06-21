@@ -5,6 +5,7 @@ use crate::ast::{
     Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
+use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::macros_api::StructId;
 use crate::node_interner::ExprId;
 use crate::token::{Attributes, Token};
@@ -73,19 +74,18 @@ impl UnresolvedGeneric {
         }
     }
 
-    pub fn kind(&self) -> Result<Kind, UnresolvedTypeData> {
+    pub fn kind(&self) -> Result<Kind, DefCollectorErrorKind> {
         match self {
             UnresolvedGeneric::Variable(_) => Ok(Kind::Normal),
-            UnresolvedGeneric::Numeric { typ, .. } => {
-                let typ = Self::resolve_numeric_kind_type(typ.clone())?;
+            UnresolvedGeneric::Numeric { ident, typ } => {
+                let typ = Self::resolve_numeric_kind_type(typ.clone()).map_err(|typ| {
+                    DefCollectorErrorKind::UnsupportedNumericGenericType {
+                        ident: ident.clone(),
+                        typ,
+                    }
+                })?;
                 Ok(Kind::Numeric(Box::new(typ)))
             }
-        }
-    }
-
-    pub(crate) fn ident(&self) -> &Ident {
-        match self {
-            UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } => ident,
         }
     }
 
@@ -97,6 +97,12 @@ impl UnresolvedGeneric {
             Integer(sign, bits) => Ok(Type::Integer(sign, bits)),
             // Only fields and integers are supported for numeric kinds
             _ => Err(typ.typ),
+        }
+    }
+
+    pub(crate) fn ident(&self) -> &Ident {
+        match self {
+            UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } => ident,
         }
     }
 }

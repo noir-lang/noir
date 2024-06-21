@@ -41,24 +41,12 @@ pub(crate) fn resolve_traits(
     let mut all_errors = Vec::new();
 
     for (trait_id, unresolved_trait) in traits {
-        let generic_results = context.resolve_generics(&unresolved_trait.trait_def.generics);
-        let mut generics = Vec::new();
-        for generic_result in generic_results.into_iter() {
-            match generic_result {
-                Ok(resolved_generic) => generics.push(resolved_generic),
-                Err((bad_generic, bad_type)) => {
-                    let err = DefCollectorErrorKind::UnsupportedNumericGenericType {
-                        ident: Ident::new(bad_generic.name.to_string(), bad_generic.span),
-                        typ: bad_type.clone(),
-                    };
-                    let file = context.def_maps[&crate_id].file_id(unresolved_trait.module_id);
-                    all_errors.push((err.into(), file));
-                    // We still push the ill-formed generic as to continue definition collection and elaboration
-                    // without triggering any other compiler errors.
-                    generics.push(bad_generic);
-                }
-            }
-        }
+        let file_id = context.def_maps[&crate_id].file_id(unresolved_trait.module_id);
+        let generics = context.resolve_generics(
+            &unresolved_trait.trait_def.generics,
+            &mut all_errors,
+            file_id,
+        );
         let generic_type_vars = generics.iter().map(|generic| generic.type_var.clone()).collect();
 
         // Resolve order
