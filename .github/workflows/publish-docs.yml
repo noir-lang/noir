@@ -29,3 +29,42 @@ jobs:
 
       - timeout-minutes: 25
         run: earthly-ci --no-output ./docs/+deploy-prod --NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }} --NETLIFY_SITE_ID=${{ secrets.NETLIFY_SITE_ID }} --COMMIT_TAG=${{ inputs.tag }}
+
+  pdf:
+    needs: setup
+    runs-on: master-x86
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
+          path: aztec-packages
+      - name: Install Prince
+        run: |
+          curl https://www.princexml.com/download/prince-14.2-linux-generic-x86_64.tar.gz -O
+          tar zxf prince-14.2-linux-generic-x86_64.tar.gz
+          cd prince-14.2-linux-generic-x86_64
+          yes "" | sudo ./install.sh
+      - name: Serve docs
+        run: |
+          cd aztec-packages/docs
+          yarn build
+          yarn serve &
+      - name: Checkout PDF repo
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
+          repository: AztecProtocol/protocol-specs-pdf
+          path: protocol-specs-pdf
+      - name: Generate PDF
+        run: |
+          npx docusaurus-prince-pdf -u http://localhost:3000/protocol-specs/intro --output protocol-specs-pdf/protocol-specs.pdf
+        timeout-minutes: 4
+      - name: Push to PDF repo
+        run: |
+          git config --global user.name AztecBot
+          git config --global user.email tech@aztecprotocol.com
+          cd protocol-specs-pdf
+          git add protocol-specs.pdf
+          git commit -m "chore: update protocol-specs.pdf"
+          git push origin main
