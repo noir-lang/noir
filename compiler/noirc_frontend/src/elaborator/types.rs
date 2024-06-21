@@ -157,6 +157,16 @@ impl<'context> Elaborator<'context> {
         // Check that any types with a type kind match the expected type kind supplied to this function
         // TODO(https://github.com/noir-lang/noir/issues/5156): make this named generic check more general with `*resolved_kind != kind`
         // as implicit numeric generics still existing makes this check more challenging to enforce
+        // An example of a more general check that we should switch to:
+        // if resolved_type.kind() != kind.clone() {
+        //     let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
+        //         expected_kind: kind.to_string(),
+        //         expr_kind: resolved_type.kind().to_string(),
+        //         expr_span: span.expect("Type should have span"),
+        //     });
+        //     self.errors.push((expected_typ_err, self.file));
+        //     return Type::Error;
+        // }
         if let Type::NamedGeneric(_, name, resolved_kind) = &resolved_type {
             if matches!(resolved_kind, Kind::Numeric { .. }) && matches!(kind, Kind::Normal) {
                 let expected_typ_err =
@@ -167,14 +177,6 @@ impl<'context> Elaborator<'context> {
                 self.errors.push((expected_typ_err, self.file));
                 return Type::Error;
             }
-        } else if resolved_type.kind() != kind.clone() {
-            let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
-                expected_kind: kind.to_string(),
-                expr_kind: resolved_type.kind().to_string(),
-                expr_span: span.expect("Type should have span"),
-            });
-            self.errors.push((expected_typ_err, self.file));
-            return Type::Error;
         }
 
         resolved_type
