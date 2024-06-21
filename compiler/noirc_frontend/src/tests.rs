@@ -1767,6 +1767,26 @@ fn numeric_generic_used_in_turbofish() {
     fn double_numeric_generics_test() {
         // Example usage of a numeric generic arguments.
         assert(double::<9>() == 18);
+        assert(double::<7 + 8>() == 30);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+}
+
+#[test]
+fn constant_used_with_implicit_generic() {
+    let src = r#"
+    struct ValueNote {}
+
+    trait Serialize<let N: u32> {
+        fn serialize(self) -> [Field; N];
+    }
+
+    impl Serialize<1> for ValueNote {
+        fn serialize(self) -> [Field; 1] {
+            [self.value]
+        }
     }
     "#;
     let errors = get_program_errors(src);
