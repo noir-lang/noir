@@ -5,8 +5,8 @@ use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
-use noirc_driver::CompiledProgram;
 use nargo::NargoError;
+use noirc_driver::CompiledProgram;
 
 use crate::foreign_calls::DefaultDebugForeignCallExecutor;
 use noirc_artifacts::debug::DebugArtifact;
