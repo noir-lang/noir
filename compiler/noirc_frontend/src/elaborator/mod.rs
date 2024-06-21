@@ -1174,7 +1174,6 @@ impl<'context> Elaborator<'context> {
             let fields = self.resolve_struct_fields(typ.struct_def, type_id);
             self.interner.update_struct(type_id, |struct_def| {
                 struct_def.set_fields(fields);
-                // struct_def.generics = generics;
 
                 // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this with implicit numeric generics
                 // This is only necessary for resolving named types when implicit numeric generics are used.
