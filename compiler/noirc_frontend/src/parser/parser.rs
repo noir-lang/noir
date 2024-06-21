@@ -191,6 +191,11 @@ fn module() -> impl NoirParser<ParsedModule> {
     })
 }
 
+/// This parser is used for parsing top level statements in macros
+pub fn top_level_item() -> impl NoirParser<TopLevelStatement> {
+    top_level_statement(module())
+}
+
 /// top_level_statement: function_definition
 ///                    | struct_definition
 ///                    | trait_definition

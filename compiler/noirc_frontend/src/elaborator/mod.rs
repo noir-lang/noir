@@ -30,7 +30,7 @@ use crate::{
     node_interner::{
         DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, TraitId, TypeAliasId,
     },
-    Shared, Type, TypeVariable,
+    Shared, Type, TypeVariable, parser::TopLevelStatement,
 };
 use crate::{
     ast::{TraitBound, UnresolvedGenerics},
@@ -1149,9 +1149,33 @@ impl<'context> Elaborator<'context> {
 
                             let location = Location::new(span, self.file);
                             let arguments = vec![(Value::TypeDefinition(struct_id), location)];
-                            let result = interpreter.call_function(function, arguments, location);
-                            if let Err(error) = result {
-                                self.errors.push(error.into_compilation_error_pair());
+
+                            match interpreter.call_function(function, arguments, location) {
+                                Ok(value) => {
+                                    match value.into_top_level_item(location) {
+                                        Ok(item) => {
+                                            match item {
+                                                TopLevelStatement::Function(_) => todo!(),
+                                                TopLevelStatement::Module(_) => todo!(),
+                                                TopLevelStatement::Import(_) => todo!(),
+                                                TopLevelStatement::Struct(_) => todo!(),
+                                                TopLevelStatement::Trait(_) => todo!(),
+                                                TopLevelStatement::TraitImpl(_) => todo!(),
+                                                TopLevelStatement::Impl(_) => todo!(),
+                                                TopLevelStatement::TypeAlias(_) => todo!(),
+                                                TopLevelStatement::SubModule(_) => todo!(),
+                                                TopLevelStatement::Global(_) => todo!(),
+                                                TopLevelStatement::Error => todo!(),
+                                            }
+                                        },
+                                        Err(error) => {
+                                            self.errors.push(error.into_compilation_error_pair());
+                                        }
+                                    }
+                                }
+                                Err(error) => {
+                                    self.errors.push(error.into_compilation_error_pair());
+                                }
                             }
                         } else {
                             self.push_err(ResolverError::NonFunctionInAnnotation { span });
