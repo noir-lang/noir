@@ -2,6 +2,7 @@ mod append_only_tree_snapshot;
 
 mod contract_class_function_leaf_preimage;
 
+mod event_selector;
 mod function_selector;
 mod function_data;
 

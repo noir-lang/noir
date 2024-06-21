@@ -15,8 +15,8 @@ impl<M> EncryptedLogIncomingBody<M> {
         EncryptedLogIncomingBody { plaintext }
     }
 
-    pub fn from_event<T>(event: T, randomness: Field) -> Self where T: EventInterface<M> {
-        let mut plaintext = event.to_be_bytes(randomness);
+    pub fn from_event<T, MR>(event: T, randomness: Field) -> Self where T: EventInterface<M, MR> {
+        let mut plaintext = event.private_to_be_bytes(randomness);
         EncryptedLogIncomingBody { plaintext }
     }
 
@@ -38,7 +38,7 @@ mod test {
     use dep::protocol_types::{
         address::AztecAddress, traits::Empty, constants::GENERATOR_INDEX__NOTE_NULLIFIER,
         grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint, traits::Serialize,
-        abis::function_selector::FunctionSelector
+        abis::event_selector::EventSelector
     };
 
     use crate::{
@@ -155,17 +155,18 @@ mod test {
 
     global TEST_EVENT_LEN: Field = 3;
     global TEST_EVENT_BYTES_LEN = 32 * 3 + 64;
+    global TEST_EVENT_BYTES_LEN_WITHOUT_RANDOMNESS = 32 * 3 + 32;
 
-    impl EventInterface<TEST_EVENT_BYTES_LEN> for TestEvent {
-        fn _selector(self) -> FunctionSelector {
-            FunctionSelector::from_signature("TestEvent(Field,Field,Field)")
+    impl EventInterface<TEST_EVENT_BYTES_LEN, TEST_EVENT_BYTES_LEN_WITHOUT_RANDOMNESS> for TestEvent {
+        fn get_event_type_id() -> EventSelector {
+            EventSelector::from_signature("TestEvent(Field,Field,Field)")
         }
 
-        fn to_be_bytes(self, randomness: Field) -> [u8; TEST_EVENT_BYTES_LEN] {
+        fn private_to_be_bytes(self, randomness: Field) -> [u8; TEST_EVENT_BYTES_LEN] {
             let mut buffer: [u8; TEST_EVENT_BYTES_LEN] = [0; TEST_EVENT_BYTES_LEN];
 
             let randomness_bytes = randomness.to_be_bytes(32);
-            let event_type_id_bytes = self._selector().to_field().to_be_bytes(32);
+            let event_type_id_bytes = TestEvent::get_event_type_id().to_field().to_be_bytes(32);
 
             for i in 0..32 {
                 buffer[i] = randomness_bytes[i];
@@ -182,6 +183,27 @@ mod test {
             }
 
             buffer
+        }
+
+        fn to_be_bytes(self) -> [u8; TEST_EVENT_BYTES_LEN_WITHOUT_RANDOMNESS] {
+             let mut buffer: [u8; TEST_EVENT_BYTES_LEN_WITHOUT_RANDOMNESS] = [0; TEST_EVENT_BYTES_LEN_WITHOUT_RANDOMNESS];
+
+             let event_type_id_bytes = TestEvent::get_event_type_id().to_field().to_be_bytes(32);
+
+             for i in 0..32 {
+                 buffer[i] = event_type_id_bytes[i];
+            }
+
+             let serialized_event = self.serialize();
+
+             for i in 0..serialized_event.len() {
+                 let bytes = serialized_event[i].to_be_bytes(32);
+                 for j in 0..32 {
+                     buffer[32 + i * 32 + j] = bytes[j];
+                }
+            }
+
+             buffer
         }
     }
 

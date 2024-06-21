@@ -190,19 +190,19 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
         }
 
         if !check_trait_method_implemented(trait_impl, "compute_note_content_hash") {
-            let get_header_fn =
+            let compute_note_content_hash_fn =
                 generate_compute_note_content_hash(&note_type, note_interface_impl_span)?;
-            trait_impl.items.push(TraitImplItem::Function(get_header_fn));
+            trait_impl.items.push(TraitImplItem::Function(compute_note_content_hash_fn));
         }
 
         if !check_trait_method_implemented(trait_impl, "to_be_bytes") {
-            let get_header_fn = generate_note_to_be_bytes(
+            let to_be_bytes_fn = generate_note_to_be_bytes(
                 &note_type,
                 note_bytes_len.as_str(),
                 note_serialized_len.as_str(),
                 note_interface_impl_span,
             )?;
-            trait_impl.items.push(TraitImplItem::Function(get_header_fn));
+            trait_impl.items.push(TraitImplItem::Function(to_be_bytes_fn));
         }
     }
 

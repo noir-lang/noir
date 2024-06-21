@@ -623,6 +623,15 @@ impl NodeInterner {
         f(&mut value);
     }
 
+    pub fn update_struct_attributes(
+        &mut self,
+        type_id: StructId,
+        f: impl FnOnce(&mut StructAttributes),
+    ) {
+        let value = self.struct_attributes.get_mut(&type_id).unwrap();
+        f(value);
+    }
+
     pub fn update_trait(&mut self, trait_id: TraitId, f: impl FnOnce(&mut Trait)) {
         let value = self.traits.get_mut(&trait_id).unwrap();
         f(value);

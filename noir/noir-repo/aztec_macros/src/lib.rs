@@ -7,7 +7,7 @@ use transforms::{
     contract_interface::{
         generate_contract_interface, stub_function, update_fn_signatures_in_contract_interface,
     },
-    events::{generate_selector_impl, transform_events},
+    events::{generate_event_impls, transform_event_abi},
     functions::{
         check_for_public_args, export_fn_abi, transform_function, transform_unconstrained,
     },
@@ -72,6 +72,7 @@ fn transform(
         }
     }
 
+    generate_event_impls(&mut ast).map_err(|err| (err.into(), file_id))?;
     generate_note_interface_impl(&mut ast).map_err(|err| (err.into(), file_id))?;
 
     Ok(ast)
@@ -99,13 +100,6 @@ fn transform_module(
             generate_storage_implementation(module, storage_struct_name)?;
         }
         generate_storage_layout(module, storage_struct_name.clone(), module_name)?;
-    }
-
-    for structure in module.types.iter_mut() {
-        if structure.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(event)")) {
-            module.impls.push(generate_selector_impl(structure));
-            has_transformed_module = true;
-        }
     }
 
     let has_initializer = module.functions.iter().any(|func| {
@@ -222,7 +216,7 @@ fn transform_hir(
     context: &mut HirContext,
 ) -> Result<(), (AztecMacroError, FileId)> {
     if has_aztec_dependency(crate_id, context) {
-        transform_events(crate_id, context)?;
+        transform_event_abi(crate_id, context)?;
         inject_compute_note_hash_and_optionally_a_nullifier(crate_id, context)?;
         assign_storage_slots(crate_id, context)?;
         inject_note_exports(crate_id, context)?;

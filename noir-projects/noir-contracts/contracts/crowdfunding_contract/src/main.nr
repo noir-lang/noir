@@ -17,14 +17,8 @@ contract Crowdfunding {
 
     #[aztec(event)]
     struct WithdrawalProcessed {
-        who: AztecAddress,
-        amount: u64,
-    }
-
-    impl Serialize<2> for WithdrawalProcessed {
-        fn serialize(self: Self) -> [Field; 2] {
-            [self.who.to_field(), self.amount as Field]
-        }
+        who: Field,
+        amount: Field,
     }
 
     // docs:start:storage
@@ -103,7 +97,7 @@ contract Crowdfunding {
         Token::at(storage.donation_token.read_private()).transfer(operator_address, amount as Field).call(&mut context);
 
         // 3) Emit an unencrypted event so that anyone can audit how much the operator has withdrawn
-        let event = WithdrawalProcessed { amount, who: operator_address };
+        let event = WithdrawalProcessed { amount: amount as Field, who: operator_address.to_field() };
         context.emit_unencrypted_log(event.serialize());
     }
     // docs:end:operator-withdrawals
