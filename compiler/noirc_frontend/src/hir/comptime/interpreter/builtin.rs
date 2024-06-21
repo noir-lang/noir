@@ -141,8 +141,9 @@ fn type_def_fields(
     Ok(Value::Slice(fields, typ))
 }
 
-/// This code is temporary. It will produce poor results for type variables
-/// and will result in incorrect spans on the returned tokens.
+/// FIXME(https://github.com/noir-lang/noir/issues/5309): This code is temporary.
+/// It will produce poor results for type variables and will result in incorrect
+/// spans on the returned tokens.
 fn type_to_tokens(typ: &Type) -> IResult<Tokens> {
     let (mut tokens, mut errors) = Lexer::lex(&typ.to_string());
 
