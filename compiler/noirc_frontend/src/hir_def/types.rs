@@ -985,6 +985,34 @@ impl Type {
             other => (Cow::Owned(GenericTypeVars::new()), other),
         }
     }
+
+    pub(crate) fn kind(&self) -> Kind {
+        match self {
+            Type::NamedGeneric(_, _, kind) => kind.clone(),
+            Type::Constant(_) => Kind::Numeric(Box::new(Type::Integer(
+                Signedness::Unsigned,
+                IntegerBitSize::ThirtyTwo,
+            ))),
+            Type::FieldElement
+            | Type::Array(_, _)
+            | Type::Slice(_)
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit
+            | Type::Tuple(_)
+            | Type::Struct(_, _)
+            | Type::Alias(_, _)
+            | Type::TypeVariable(_, _)
+            | Type::TraitAsType(_, _, _)
+            | Type::Function(_, _, _)
+            | Type::MutableReference(_)
+            | Type::Forall(_, _)
+            | Type::Quoted(_)
+            | Type::Error => Kind::Normal,
+        }
+    }
 }
 
 impl std::fmt::Display for Type {
