@@ -5,7 +5,6 @@ import {
   ExtendedNote,
   Fr,
   Note,
-  computeAuthWitMessageHash,
   computeSecretHash,
 } from '@aztec/aztec.js';
 import { LendingContract, PriceFeedContract, TokenContract } from '@aztec/noir-contracts.js';
@@ -320,17 +319,19 @@ describe('e2e_lending_contract', () => {
 
     it('Repay: 🍌 -> 🏦', async () => {
       const repayAmount = 20n;
-
       const nonce = Fr.random();
-      const messageHash = computeAuthWitMessageHash(
-        lendingContract.address,
-        wallet.getChainId(),
-        wallet.getVersion(),
-        stableCoin.methods.burn_public(lendingAccount.address, repayAmount, nonce).request(),
-      );
 
       // Add it to the wallet as approved
-      await wallet.setPublicAuthWit(messageHash, true).send().wait();
+      await wallet
+        .setPublicAuthWit(
+          {
+            caller: lendingContract.address,
+            action: stableCoin.methods.burn_public(lendingAccount.address, repayAmount, nonce).request(),
+          },
+          true,
+        )
+        .send()
+        .wait();
 
       await lendingSim.progressTime(TIME_JUMP);
       lendingSim.repayPublic(lendingAccount.address, lendingAccount.address.toField(), repayAmount);

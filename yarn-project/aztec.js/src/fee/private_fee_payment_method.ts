@@ -6,7 +6,6 @@ import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
 import { type Wallet } from '../account/wallet.js';
-import { computeAuthWitMessageHash } from '../utils/authwit.js';
 import { type FeePaymentMethod } from './fee_payment_method.js';
 
 /**
@@ -55,11 +54,9 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
   async getFunctionCalls(gasSettings: GasSettings): Promise<FunctionCall[]> {
     const nonce = Fr.random();
     const maxFee = gasSettings.getFeeLimit();
-    const messageHash = computeAuthWitMessageHash(
-      this.paymentContract,
-      this.wallet.getChainId(),
-      this.wallet.getVersion(),
-      {
+    await this.wallet.createAuthWit({
+      caller: this.paymentContract,
+      action: {
         name: 'unshield',
         args: [this.wallet.getCompleteAddress().address, this.paymentContract, maxFee, nonce],
         selector: FunctionSelector.fromSignature('unshield((Field),(Field),Field,Field)'),
@@ -68,8 +65,7 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
         to: this.asset,
         returnTypes: [],
       },
-    );
-    await this.wallet.createAuthWit(messageHash);
+    });
 
     const secretHashForRebate = computeSecretHash(this.rebateSecret);
 

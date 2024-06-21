@@ -49,6 +49,14 @@ export class Oracle {
     return toACVMField(await this.typedOracle.getContractAddress());
   }
 
+  async getVersion(): Promise<ACVMField> {
+    return toACVMField(await this.typedOracle.getVersion());
+  }
+
+  async getChainId(): Promise<ACVMField> {
+    return toACVMField(await this.typedOracle.getChainId());
+  }
+
   async getKeyValidationRequest([pkMHash]: ACVMField[]): Promise<ACVMField[]> {
     const { pkM, skApp } = await this.typedOracle.getKeyValidationRequest(fromACVMField(pkMHash));
 

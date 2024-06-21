@@ -111,10 +111,8 @@ describe('e2e_token_contract unshielding', () => {
         .withWallet(wallets[2])
         .methods.unshield(accounts[0].address, accounts[1].address, amount, nonce);
       const expectedMessageHash = computeAuthWitMessageHash(
-        accounts[2].address,
-        wallets[0].getChainId(),
-        wallets[0].getVersion(),
-        action.request(),
+        { caller: accounts[2].address, action },
+        { chainId: wallets[0].getChainId(), version: wallets[0].getVersion() },
       );
 
       // Both wallets are connected to same node and PXE so we could just insert directly

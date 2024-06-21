@@ -82,7 +82,8 @@ fn compute_public_keys_hash() {
     };
 
     let actual = keys.hash();
-    let expected_public_keys_hash = 0x1936abe4f6a920d16a9f6917f10a679507687e2cd935dd1f1cdcb1e908c027f3;
+    let expected_public_keys_hash = 0x2406c1c88b7afc13052335bb9af43fd35034b5ba0a9caab76eda2833cf8ec717;
+
     assert(actual.to_field() == expected_public_keys_hash);
 }
 

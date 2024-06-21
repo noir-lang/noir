@@ -9,7 +9,7 @@ contract SchnorrAccount {
     use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt;
     use dep::authwit::{
         entrypoint::{app::AppPayload, fee::FeePayload}, account::AccountActions,
-        auth_witness::get_auth_witness
+        auth_witness::get_auth_witness, auth::{compute_authwit_nullifier, compute_outer_authwit_hash}
     };
     use dep::aztec::hash::compute_siloed_nullifier;
     use dep::aztec::oracle::get_nullifier_membership_witness::get_low_nullifier_membership_witness;
@@ -50,15 +50,10 @@ contract SchnorrAccount {
 
     #[aztec(private)]
     #[aztec(noinitcheck)]
-    fn spend_private_authwit(inner_hash: Field) -> Field {
+    #[aztec(view)]
+    fn verify_private_authwit(inner_hash: Field) -> Field {
         let actions = AccountActions::init(&mut context, is_valid_impl);
-        actions.spend_private_authwit(inner_hash)
-    }
-
-    #[aztec(private)]
-    #[aztec(internal)]
-    fn cancel_authwit(outer_hash: Field) {
-        context.push_new_nullifier(outer_hash, 0);
+        actions.verify_private_authwit(inner_hash)
     }
 
     #[contract_library_method]
@@ -90,11 +85,15 @@ contract SchnorrAccount {
 
     /**
     * @notice Helper function to check validity of private authwitnesses
+    * @param consumer The address of the consumer of the message
     * @param message_hash The message hash of the message to check the validity
     * @return True if the message_hash can be consumed, false otherwise
     */
-    unconstrained fn lookup_validity(message_hash: Field) -> pub bool {
+    unconstrained fn lookup_validity(consumer: AztecAddress, inner_hash: Field) -> pub bool {
         let public_key = storage.signing_public_key.view_note();
+
+        let message_hash = compute_outer_authwit_hash(consumer, context.chain_id(), context.version(), inner_hash);
+
         let witness: [Field; 64] = get_auth_witness(message_hash);
         let mut signature: [u8; 64] = [0; 64];
         for i in 0..64 {
@@ -107,14 +106,12 @@ contract SchnorrAccount {
             message_hash.to_be_bytes(32)
         );
 
-        let block_number = context.block_number();
-        let myself = context.this_address();
-
         // Compute the nullifier and check if it is spent
         // This will BLINDLY TRUST the oracle, but the oracle is us, and
         // it is not as part of execution of the contract, so we are good.
-        let siloed_nullifier = compute_siloed_nullifier(myself, message_hash);
-        let lower_wit = get_low_nullifier_membership_witness(block_number, siloed_nullifier);
+        let nullifier = compute_authwit_nullifier(context.this_address(), inner_hash);
+        let siloed_nullifier = compute_siloed_nullifier(consumer, nullifier);
+        let lower_wit = get_low_nullifier_membership_witness(context.block_number(), siloed_nullifier);
         let is_spent = lower_wit.leaf_preimage.nullifier == siloed_nullifier;
 
         !is_spent & valid_in_private

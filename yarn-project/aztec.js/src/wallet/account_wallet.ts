@@ -1,4 +1,4 @@
-import { type AuthWitness, type FunctionCall, type PXE, type TxExecutionRequest } from '@aztec/circuit-types';
+import { type AuthWitness, type PXE, type TxExecutionRequest } from '@aztec/circuit-types';
 import { AztecAddress, CANONICAL_KEY_REGISTRY_ADDRESS, Fq, Fr, derivePublicKeyFromSecretKey } from '@aztec/circuits.js';
 import { type ABIParameterVisibility, type FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 import { AuthRegistryAddress } from '@aztec/protocol-contracts/auth-registry';
@@ -6,7 +6,12 @@ import { AuthRegistryAddress } from '@aztec/protocol-contracts/auth-registry';
 import { type AccountInterface } from '../account/interface.js';
 import { ContractFunctionInteraction } from '../contract/contract_function_interaction.js';
 import { type ExecutionRequestInit } from '../entrypoint/entrypoint.js';
-import { computeAuthWitMessageHash } from '../utils/authwit.js';
+import {
+  type IntentAction,
+  type IntentInnerHash,
+  computeAuthWitMessageHash,
+  computeInnerAuthWitHashFromAction,
+} from '../utils/authwit.js';
 import { BaseWallet } from './base_wallet.js';
 
 /**
@@ -30,28 +35,25 @@ export class AccountWallet extends BaseWallet {
   }
 
   /**
-   * Computes an authentication witness from either a message or a caller and an action.
-   * If a message is provided, it will create a witness for the message directly.
-   * Otherwise, it will compute the message using the caller and the action.
-   * @param messageHashOrIntent - The message or the caller and action to approve
+   * Computes an authentication witness from either a message hash or an intent.
+   *
+   * If a message hash is provided, it will create a witness for the hash directly.
+   * Otherwise, it will compute the message hash using the intent, along with the
+   * chain id and the version values provided by the wallet.
+   *
+   * @param messageHashOrIntent - The message hash of the intent to approve
    * @returns The authentication witness
    */
-  async createAuthWit(
-    messageHashOrIntent:
-      | Fr
-      | Buffer
-      | {
-          /** The caller to approve  */
-          caller: AztecAddress;
-          /** The action to approve */
-          action: ContractFunctionInteraction | FunctionCall;
-          /** The chain id to approve */
-          chainId?: Fr;
-          /** The version to approve  */
-          version?: Fr;
-        },
-  ): Promise<AuthWitness> {
-    const messageHash = this.getMessageHash(messageHashOrIntent);
+  async createAuthWit(messageHashOrIntent: Fr | Buffer | IntentAction | IntentInnerHash): Promise<AuthWitness> {
+    let messageHash: Fr;
+    if (Buffer.isBuffer(messageHashOrIntent)) {
+      messageHash = Fr.fromBuffer(messageHashOrIntent);
+    } else if (messageHashOrIntent instanceof Fr) {
+      messageHash = messageHashOrIntent;
+    } else {
+      messageHash = this.getMessageHash(messageHashOrIntent);
+    }
+
     const witness = await this.account.createAuthWit(messageHash);
     await this.pxe.addAuthWitness(witness);
     return witness;
@@ -59,129 +61,92 @@ export class AccountWallet extends BaseWallet {
 
   /**
    * Returns a function interaction to set a message hash as authorized or revoked in this account.
+   *
    * Public calls can then consume this authorization.
-   * @param messageHashOrIntent - The message or the caller and action to authorize/revoke
+   *
+   * @param messageHashOrIntent - The message hash or intent to authorize/revoke
    * @param authorized - True to authorize, false to revoke authorization.
    * @returns - A function interaction.
    */
   public setPublicAuthWit(
-    messageHashOrIntent:
-      | Fr
-      | Buffer
-      | {
-          /** The caller to approve  */
-          caller: AztecAddress;
-          /** The action to approve */
-          action: ContractFunctionInteraction | FunctionCall;
-          /** The chain id to approve */
-          chainId?: Fr;
-          /** The version to approve  */
-          version?: Fr;
-        },
+    messageHashOrIntent: Fr | Buffer | IntentInnerHash | IntentAction,
     authorized: boolean,
   ): ContractFunctionInteraction {
-    const message = this.getMessageHash(messageHashOrIntent);
+    let messageHash: Fr;
+    if (Buffer.isBuffer(messageHashOrIntent)) {
+      messageHash = Fr.fromBuffer(messageHashOrIntent);
+    } else if (messageHashOrIntent instanceof Fr) {
+      messageHash = messageHashOrIntent;
+    } else {
+      messageHash = this.getMessageHash(messageHashOrIntent);
+    }
+
     return new ContractFunctionInteraction(this, AuthRegistryAddress, this.getSetAuthorizedAbi(), [
-      message,
+      messageHash,
       authorized,
     ]);
   }
 
-  /**
-   * Returns a function interaction to cancel a message hash as authorized or revoked.
-   * @param messageHashOrIntent - The message or the caller and action to revoke
-   * @returns - A function interaction.
-   */
-  public cancelPublicAuthWit(
-    messageHashOrIntent:
-      | Fr
-      | Buffer
-      | {
-          /** The caller to approve  */
-          caller: AztecAddress;
-          /** The action to approve */
-          action: ContractFunctionInteraction | FunctionCall;
-          /** The chain id to approve */
-          chainId?: Fr;
-          /** The version to approve  */
-          version?: Fr;
-        },
-  ): ContractFunctionInteraction {
-    return this.setPublicAuthWit(messageHashOrIntent, false);
+  private getInnerHashAndConsumer(intent: IntentInnerHash | IntentAction): {
+    /** The inner hash */
+    innerHash: Fr;
+    /** The consumer of the authwit */
+    consumer: AztecAddress;
+  } {
+    if ('caller' in intent && 'action' in intent) {
+      const action = intent.action instanceof ContractFunctionInteraction ? intent.action.request() : intent.action;
+      return {
+        innerHash: computeInnerAuthWitHashFromAction(intent.caller, action),
+        consumer: action.to,
+      };
+    } else if (Buffer.isBuffer(intent.innerHash)) {
+      return { innerHash: Fr.fromBuffer(intent.innerHash), consumer: intent.consumer };
+    }
+    return { innerHash: intent.innerHash, consumer: intent.consumer };
   }
 
   /**
-   * Returns the message hash for the given message or authwit input.
-   * @param messageHashOrIntent - The message hash or the caller and action to authorize
+   * Returns the message hash for the given intent
+   *
+   * @param intent - A tuple of (consumer and inner hash) or (caller and action)
    * @returns The message hash
    */
-  private getMessageHash(
-    messageHashOrIntent:
-      | Fr
-      | Buffer
-      | {
-          /** The caller to approve  */
-          caller: AztecAddress;
-          /** The action to approve */
-          action: ContractFunctionInteraction | FunctionCall;
-          /** The chain id to approve */
-          chainId?: Fr;
-          /** The version to approve  */
-          version?: Fr;
-        },
-  ): Fr {
-    if (Buffer.isBuffer(messageHashOrIntent)) {
-      return Fr.fromBuffer(messageHashOrIntent);
-    } else if (messageHashOrIntent instanceof Fr) {
-      return messageHashOrIntent;
-    } else {
-      return computeAuthWitMessageHash(
-        messageHashOrIntent.caller,
-        messageHashOrIntent.chainId || this.getChainId(),
-        messageHashOrIntent.version || this.getVersion(),
-        messageHashOrIntent.action instanceof ContractFunctionInteraction
-          ? messageHashOrIntent.action.request()
-          : messageHashOrIntent.action,
-      );
-    }
+  private getMessageHash(intent: IntentInnerHash | IntentAction): Fr {
+    const chainId = this.getChainId();
+    const version = this.getVersion();
+    return computeAuthWitMessageHash(intent, { chainId, version });
   }
 
   /**
    * Lookup the validity of an authwit in private and public contexts.
-   * If the authwit have been consumed already (nullifier spent), will return false in both contexts.
-   * @param target - The target contract address
-   * @param messageHashOrIntent - The message hash or the caller and action to authorize/revoke
+   *
+   * Uses the chain id and version of the wallet.
+   *
+   * @param onBehalfOf - The address of the "approver"
+   * @param intent - The consumer and inner hash or the caller and action to lookup
+   *
    * @returns - A struct containing the validity of the authwit in private and public contexts.
    */
   async lookupValidity(
-    target: AztecAddress,
-    messageHashOrIntent:
-      | Fr
-      | Buffer
-      | {
-          /** The caller to approve  */
-          caller: AztecAddress;
-          /** The action to approve */
-          action: ContractFunctionInteraction | FunctionCall;
-          /** The chain id to approve */
-          chainId?: Fr;
-          /** The version to approve  */
-          version?: Fr;
-        },
+    onBehalfOf: AztecAddress,
+    intent: IntentInnerHash | IntentAction,
   ): Promise<{
     /** boolean flag indicating if the authwit is valid in private context */
     isValidInPrivate: boolean;
     /** boolean flag indicating if the authwit is valid in public context */
     isValidInPublic: boolean;
   }> {
-    const messageHash = this.getMessageHash(messageHashOrIntent);
+    const { innerHash, consumer } = this.getInnerHashAndConsumer(intent);
+
+    const messageHash = this.getMessageHash(intent);
     const results = { isValidInPrivate: false, isValidInPublic: false };
 
     // Check private
     const witness = await this.getAuthWitness(messageHash);
     if (witness !== undefined) {
-      results.isValidInPrivate = (await new ContractFunctionInteraction(this, target, this.getLookupValidityAbi(), [
-        messageHash,
+      results.isValidInPrivate = (await new ContractFunctionInteraction(this, onBehalfOf, this.getLookupValidityAbi(), [
+        consumer,
+        innerHash,
       ]).simulate()) as boolean;
     }
 
@@ -190,7 +155,7 @@ export class AccountWallet extends BaseWallet {
       this,
       AuthRegistryAddress,
       this.getIsConsumableAbi(),
-      [target, messageHash],
+      [onBehalfOf, messageHash],
     ).simulate()) as boolean;
 
     return results;
@@ -220,31 +185,6 @@ export class AccountWallet extends BaseWallet {
     await interaction.send().wait();
   }
 
-  /**
-   * Returns a function interaction to cancel a message hash as authorized in this account.
-   * @param messageHashOrIntent - The message or the caller and action to authorize/revoke
-   * @returns - A function interaction.
-   */
-  public cancelAuthWit(
-    messageHashOrIntent:
-      | Fr
-      | Buffer
-      | {
-          /** The caller to approve  */
-          caller: AztecAddress;
-          /** The action to approve */
-          action: ContractFunctionInteraction | FunctionCall;
-          /** The chain id to approve */
-          chainId?: Fr;
-          /** The version to approve  */
-          version?: Fr;
-        },
-  ): ContractFunctionInteraction {
-    const message = this.getMessageHash(messageHashOrIntent);
-    const args = [message];
-    return new ContractFunctionInteraction(this, this.getAddress(), this.getCancelAuthwitAbi(), args);
-  }
-
   /** Returns the complete address of the account that implements this wallet. */
   public getCompleteAddress() {
     return this.account.getCompleteAddress();
@@ -271,24 +211,6 @@ export class AccountWallet extends BaseWallet {
         {
           name: 'authorize',
           type: { kind: 'boolean' },
-          visibility: 'private' as ABIParameterVisibility,
-        },
-      ],
-      returnTypes: [],
-    };
-  }
-
-  private getCancelAuthwitAbi(): FunctionAbi {
-    return {
-      name: 'cancel_authwit',
-      isInitializer: false,
-      functionType: FunctionType.PRIVATE,
-      isInternal: true,
-      isStatic: false,
-      parameters: [
-        {
-          name: 'message_hash',
-          type: { kind: 'field' },
           visibility: 'private' as ABIParameterVisibility,
         },
       ],

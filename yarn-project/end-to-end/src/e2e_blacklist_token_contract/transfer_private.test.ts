@@ -136,10 +136,8 @@ describe('e2e_blacklist_token_contract transfer private', () => {
         .withWallet(wallets[1])
         .methods.transfer(wallets[0].getAddress(), wallets[1].getAddress(), amount, nonce);
       const messageHash = computeAuthWitMessageHash(
-        wallets[1].getAddress(),
-        wallets[0].getChainId(),
-        wallets[0].getVersion(),
-        action.request(),
+        { caller: wallets[1].getAddress(), action: action.request() },
+        { chainId: wallets[0].getChainId(), version: wallets[0].getVersion() },
       );
 
       await expect(action.prove()).rejects.toThrow(`Unknown auth witness for message hash ${messageHash.toString()}`);
@@ -156,10 +154,8 @@ describe('e2e_blacklist_token_contract transfer private', () => {
         .withWallet(wallets[2])
         .methods.transfer(wallets[0].getAddress(), wallets[1].getAddress(), amount, nonce);
       const expectedMessageHash = computeAuthWitMessageHash(
-        wallets[2].getAddress(),
-        wallets[0].getChainId(),
-        wallets[0].getVersion(),
-        action.request(),
+        { caller: wallets[2].getAddress(), action: action.request() },
+        { chainId: wallets[0].getChainId(), version: wallets[0].getVersion() },
       );
 
       const witness = await wallets[0].createAuthWit({ caller: wallets[1].getAddress(), action });

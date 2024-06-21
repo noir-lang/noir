@@ -847,7 +847,6 @@ describe('Private Execution test suite', () => {
       const secret = new Fr(1n);
       const secretHash = computeSecretHash(secret);
       const note = new Note([secretHash]);
-      // @todo @LHerskind (#6001) Need to investigate why this was working with `new Fr(5)` as the `example_set = 2` should have caused a failure.
       const storageSlot = TestContractArtifact.storageLayout['example_set'].slot;
       oracle.getNotes.mockResolvedValue([
         {

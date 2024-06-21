@@ -6,7 +6,6 @@ import {
   FunctionSelector,
   PublicFeePaymentMethod,
   TxStatus,
-  computeAuthWitMessageHash,
 } from '@aztec/aztec.js';
 import { Gas, GasSettings } from '@aztec/circuits.js';
 import { FunctionType } from '@aztec/foundation/abi';
@@ -234,25 +233,27 @@ class BuggedSetupFeePaymentMethod extends PublicFeePaymentMethod {
   override getFunctionCalls(gasSettings: GasSettings): Promise<FunctionCall[]> {
     const maxFee = gasSettings.getFeeLimit();
     const nonce = Fr.random();
-    const messageHash = computeAuthWitMessageHash(
-      this.paymentContract,
-      this.wallet.getChainId(),
-      this.wallet.getVersion(),
-      {
-        name: 'transfer_public',
-        args: [this.wallet.getAddress(), this.paymentContract, maxFee, nonce],
-        selector: FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
-        type: FunctionType.PUBLIC,
-        isStatic: false,
-        to: this.asset,
-        returnTypes: [],
-      },
-    );
 
     const tooMuchFee = new Fr(maxFee.toBigInt() * 2n);
 
     return Promise.resolve([
-      this.wallet.setPublicAuthWit(messageHash, true).request(),
+      this.wallet
+        .setPublicAuthWit(
+          {
+            caller: this.paymentContract,
+            action: {
+              name: 'transfer_public',
+              args: [this.wallet.getAddress(), this.paymentContract, maxFee, nonce],
+              selector: FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
+              type: FunctionType.PUBLIC,
+              isStatic: false,
+              to: this.asset,
+              returnTypes: [],
+            },
+          },
+          true,
+        )
+        .request(),
       {
         name: 'fee_entrypoint_public',
         to: this.paymentContract,

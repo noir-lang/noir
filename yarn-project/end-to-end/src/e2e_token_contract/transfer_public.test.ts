@@ -1,4 +1,4 @@
-import { Fr, computeAuthWitMessageHash } from '@aztec/aztec.js';
+import { Fr } from '@aztec/aztec.js';
 
 import { U128_UNDERFLOW_ERROR } from '../fixtures/fixtures.js';
 import { TokenContractTest } from './token_contract_test.js';
@@ -188,7 +188,7 @@ describe('e2e_token_contract transfer public', () => {
 
       await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, true).send().wait();
 
-      await wallets[0].cancelPublicAuthWit({ caller: accounts[1].address, action }).send().wait();
+      await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, false).send().wait();
 
       await expect(
         asset
@@ -212,40 +212,7 @@ describe('e2e_token_contract transfer public', () => {
 
       await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, false).send().wait();
 
-      await expect(
-        asset
-          .withWallet(wallets[1])
-          .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
-          .simulate(),
-      ).rejects.toThrowError(/unauthorized/);
-    });
-
-    it('transfer on behalf of other, cancelled authwit, flow 3', async () => {
-      const balance0 = await asset.methods.balance_of_public(accounts[0].address).simulate();
-      const amount = balance0 / 2n;
-      expect(amount).toBeGreaterThan(0n);
-      const nonce = Fr.random();
-
-      const action = asset
-        .withWallet(wallets[1])
-        .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce);
-      const messageHash = computeAuthWitMessageHash(
-        accounts[1].address,
-        wallets[0].getChainId(),
-        wallets[0].getVersion(),
-        action.request(),
-      );
-
-      await wallets[0].setPublicAuthWit(messageHash, true).send().wait();
-
-      await wallets[0].cancelPublicAuthWit(messageHash).send().wait();
-
-      await expect(
-        asset
-          .withWallet(wallets[1])
-          .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
-          .simulate(),
-      ).rejects.toThrow(/unauthorized/);
+      await expect(action.simulate()).rejects.toThrow(/unauthorized/);
     });
 
     it('transfer on behalf of other, invalid spend_public_authwit on "from"', async () => {

@@ -1,4 +1,10 @@
-import { AztecAddress, CompleteAddress, Fr, computeAuthWitMessageHash } from '@aztec/aztec.js';
+import {
+  AztecAddress,
+  CompleteAddress,
+  Fr,
+  computeAuthWitMessageHash,
+  computeInnerAuthWitHashFromAction,
+} from '@aztec/aztec.js';
 
 import { DUPLICATE_NULLIFIER_ERROR } from '../fixtures/fixtures.js';
 import { TokenContractTest } from './token_contract_test.js';
@@ -147,10 +153,11 @@ describe('e2e_token_contract transfer private', () => {
         .withWallet(wallets[1])
         .methods.transfer_from(accounts[0].address, accounts[1].address, amount, nonce);
       const messageHash = computeAuthWitMessageHash(
-        accounts[1].address,
-        wallets[0].getChainId(),
-        wallets[0].getVersion(),
-        action.request(),
+        { caller: accounts[1].address, action: action.request() },
+        {
+          chainId: wallets[0].getChainId(),
+          version: wallets[0].getVersion(),
+        },
       );
 
       await expect(action.simulate()).rejects.toThrow(
@@ -169,10 +176,11 @@ describe('e2e_token_contract transfer private', () => {
         .withWallet(wallets[2])
         .methods.transfer_from(accounts[0].address, accounts[1].address, amount, nonce);
       const expectedMessageHash = computeAuthWitMessageHash(
-        accounts[2].address,
-        wallets[0].getChainId(),
-        wallets[0].getVersion(),
-        action.request(),
+        { caller: accounts[2].address, action: action.request() },
+        {
+          chainId: wallets[0].getChainId(),
+          version: wallets[0].getVersion(),
+        },
       );
 
       const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
@@ -195,10 +203,23 @@ describe('e2e_token_contract transfer private', () => {
         .withWallet(wallets[1])
         .methods.transfer_from(accounts[0].address, accounts[1].address, amount, nonce);
 
-      const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
+      const intent = { caller: accounts[1].address, action };
+
+      const witness = await wallets[0].createAuthWit(intent);
       await wallets[1].addAuthWitness(witness);
 
-      await wallets[0].cancelAuthWit(witness.requestHash).send().wait();
+      expect(await wallets[0].lookupValidity(wallets[0].getAddress(), intent)).toEqual({
+        isValidInPrivate: true,
+        isValidInPublic: false,
+      });
+
+      const innerHash = computeInnerAuthWitHashFromAction(accounts[1].address, action.request());
+      await asset.withWallet(wallets[0]).methods.cancel_authwit(innerHash).send().wait();
+
+      expect(await wallets[0].lookupValidity(wallets[0].getAddress(), intent)).toEqual({
+        isValidInPrivate: false,
+        isValidInPublic: false,
+      });
 
       // Perform the transfer, should fail because nullifier already emitted
       const txCancelledAuthwit = asset
@@ -208,31 +229,7 @@ describe('e2e_token_contract transfer private', () => {
       await expect(txCancelledAuthwit.wait()).rejects.toThrowError(DUPLICATE_NULLIFIER_ERROR);
     });
 
-    it('transfer on behalf of other, cancelled authwit, flow 2', async () => {
-      const balance0 = await asset.methods.balance_of_private(accounts[0].address).simulate();
-      const amount = balance0 / 2n;
-      const nonce = Fr.random();
-      expect(amount).toBeGreaterThan(0n);
-
-      // We need to compute the message we want to sign and add it to the wallet as approved
-      const action = asset
-        .withWallet(wallets[1])
-        .methods.transfer_from(accounts[0].address, accounts[1].address, amount, nonce);
-
-      const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
-      await wallets[1].addAuthWitness(witness);
-
-      await wallets[0].cancelAuthWit({ caller: accounts[1].address, action }).send().wait();
-
-      // Perform the transfer, should fail because nullifier already emitted
-      const txCancelledAuthwit = asset
-        .withWallet(wallets[1])
-        .methods.transfer_from(accounts[0].address, accounts[1].address, amount, nonce)
-        .send();
-      await expect(txCancelledAuthwit.wait()).rejects.toThrow(DUPLICATE_NULLIFIER_ERROR);
-    });
-
-    it('transfer on behalf of other, invalid spend_private_authwit on "from"', async () => {
+    it('transfer on behalf of other, invalid verify_private_authwit on "from"', async () => {
       const nonce = Fr.random();
 
       // Should fail as the returned value from the badAccount is malformed

@@ -1,4 +1,4 @@
-import { computeInnerAuthWitHash, computeOuterAuthWitHash } from '@aztec/aztec.js';
+import { computeAuthWitMessageHash, computeInnerAuthWitHash } from '@aztec/aztec.js';
 import { type AuthWitnessProvider } from '@aztec/aztec.js/account';
 import { type EntrypointInterface, EntrypointPayload, type ExecutionRequestInit } from '@aztec/aztec.js/entrypoint';
 import { PackedValues, TxExecutionRequest } from '@aztec/circuit-types';
@@ -34,11 +34,9 @@ export class DefaultDappEntrypoint implements EntrypointInterface {
     const functionSelector = FunctionSelector.fromNameAndParameters(abi.name, abi.parameters);
 
     const innerHash = computeInnerAuthWitHash([Fr.ZERO, functionSelector.toField(), entrypointPackedArgs.hash]);
-    const outerHash = computeOuterAuthWitHash(
-      this.dappEntrypointAddress,
-      new Fr(this.chainId),
-      new Fr(this.version),
-      innerHash,
+    const outerHash = computeAuthWitMessageHash(
+      { consumer: this.dappEntrypointAddress, innerHash },
+      { chainId: new Fr(this.chainId), version: new Fr(this.version) },
     );
 
     const authWitness = await this.userAuthWitnessProvider.createAuthWit(outerHash);

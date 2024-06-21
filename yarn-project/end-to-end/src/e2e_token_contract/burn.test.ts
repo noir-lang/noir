@@ -187,10 +187,8 @@ describe('e2e_token_contract burn', () => {
         // We need to compute the message we want to sign and add it to the wallet as approved
         const action = asset.withWallet(wallets[1]).methods.burn(accounts[0].address, amount, nonce);
         const messageHash = computeAuthWitMessageHash(
-          accounts[1].address,
-          wallets[0].getChainId(),
-          wallets[0].getVersion(),
-          action.request(),
+          { caller: accounts[1].address, action: action.request() },
+          { chainId: wallets[0].getChainId(), version: wallets[0].getVersion() },
         );
 
         await expect(action.simulate()).rejects.toThrow(
@@ -207,10 +205,8 @@ describe('e2e_token_contract burn', () => {
         // We need to compute the message we want to sign and add it to the wallet as approved
         const action = asset.withWallet(wallets[2]).methods.burn(accounts[0].address, amount, nonce);
         const expectedMessageHash = computeAuthWitMessageHash(
-          accounts[2].address,
-          wallets[0].getChainId(),
-          wallets[0].getVersion(),
-          action.request(),
+          { caller: accounts[2].address, action: action.request() },
+          { chainId: wallets[0].getChainId(), version: wallets[0].getVersion() },
         );
 
         const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });

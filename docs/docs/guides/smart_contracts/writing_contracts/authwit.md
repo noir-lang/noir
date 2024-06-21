@@ -74,7 +74,7 @@ As part of `AuthWit` we are assuming that the `on_behalf_of` implements the priv
 
 ```rust
 #[aztec(private)]
-fn spend_private_authwit(inner_hash: Field) -> Field;
+fn verify_private_authwit(inner_hash: Field) -> Field;
 ```
 
 For public authwit, we have a shared registry that is used, there we are using a `consume` function.
@@ -101,10 +101,8 @@ To make it convenient to compute the message hashes in TypeScript, the `aztec.js
 
 For private calls where we allow execution on behalf of others, we generally want to check if the current call is authenticated by `on_behalf_of`. To easily do so, we can use the `assert_current_call_valid_authwit` which fetches information from the current context without us needing to provide much beyond the `on_behalf_of`.
 
-This function will then make a to `on_behalf_of` to execute the `spend_private_authwit` function which validates that the call is authenticated.
-The `on_behalf_of` should assert that we are indeed authenticated and then emit a nullifier when we are spending the authwit to prevent replay attacks.
-If the return value is not as expected, we throw an error.
-This is to cover the case where the `on_behalf_of` might implemented some function with the same selector as the `spend_private_authwit` that could be used to authenticate unintentionally.
+This function will then make a call to `on_behalf_of` to execute the `verify_private_authwit` function which validates that the call is authenticated.
+The `on_behalf_of` should assert that we are indeed authenticated and then return the `IS_VALID` selector. If the return value is not as expected, we throw an error. This is to cover the case where the `on_behalf_of` might implemented some function with the same selector as the `verify_private_authwit` that could be used to authenticate unintentionally.
 
 #### Example
 

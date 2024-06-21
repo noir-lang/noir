@@ -201,10 +201,11 @@ describe('e2e_cross_chain_messaging', () => {
     const withdrawAmount = 9n;
     const nonce = Fr.random();
     const expectedBurnMessageHash = computeAuthWitMessageHash(
-      l2Bridge.address,
-      user1Wallet.getChainId(),
-      user1Wallet.getVersion(),
-      l2Token.methods.burn(user1Wallet.getAddress(), withdrawAmount, nonce).request(),
+      {
+        caller: l2Bridge.address,
+        action: l2Token.methods.burn(user1Wallet.getAddress(), withdrawAmount, nonce).request(),
+      },
+      { chainId: user1Wallet.getChainId(), version: user1Wallet.getVersion() },
     );
     // Should fail as owner has not given approval to bridge burn their funds.
     await expect(

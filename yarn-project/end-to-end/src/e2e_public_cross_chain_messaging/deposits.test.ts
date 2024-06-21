@@ -1,4 +1,4 @@
-import { Fr, computeAuthWitMessageHash } from '@aztec/aztec.js';
+import { Fr } from '@aztec/aztec.js';
 
 import { NO_L1_TO_L2_MSG_ERROR } from '../fixtures/fixtures.js';
 import { PublicCrossChainMessagingContractTest } from './public_cross_chain_messaging_contract_test.js';
@@ -7,7 +7,6 @@ describe('e2e_public_cross_chain_messaging deposits', () => {
   const t = new PublicCrossChainMessagingContractTest('deposits');
 
   let {
-    wallets,
     crossChainTestHarness,
     ethAccount,
     aztecNode,
@@ -23,7 +22,7 @@ describe('e2e_public_cross_chain_messaging deposits', () => {
     await t.applyBaseSnapshots();
     await t.setup();
     // Have to destructure again to ensure we have latest refs.
-    ({ wallets, crossChainTestHarness, user1Wallet, user2Wallet } = t);
+    ({ crossChainTestHarness, user1Wallet, user2Wallet } = t);
 
     ethAccount = crossChainTestHarness.ethAccount;
     aztecNode = crossChainTestHarness.aztecNode;
@@ -75,13 +74,16 @@ describe('e2e_public_cross_chain_messaging deposits', () => {
     // 4. Give approval to bridge to burn owner's funds:
     const withdrawAmount = 9n;
     const nonce = Fr.random();
-    const burnMessageHash = computeAuthWitMessageHash(
-      l2Bridge.address,
-      wallets[0].getChainId(),
-      wallets[0].getVersion(),
-      l2Token.methods.burn_public(ownerAddress, withdrawAmount, nonce).request(),
-    );
-    await user1Wallet.setPublicAuthWit(burnMessageHash, true).send().wait();
+    await user1Wallet
+      .setPublicAuthWit(
+        {
+          caller: l2Bridge.address,
+          action: l2Token.methods.burn_public(ownerAddress, withdrawAmount, nonce).request(),
+        },
+        true,
+      )
+      .send()
+      .wait();
 
     // 5. Withdraw owner's funds from L2 to L1
     logger.verbose('5. Withdraw owner funds from L2 to L1');

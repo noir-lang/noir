@@ -90,6 +90,14 @@ export abstract class TypedOracle {
     throw new OracleMethodNotAvailableError('getContractAddress');
   }
 
+  getChainId(): Promise<Fr> {
+    throw new OracleMethodNotAvailableError('getChainId');
+  }
+
+  getVersion(): Promise<Fr> {
+    throw new OracleMethodNotAvailableError('getVersion');
+  }
+
   getKeyValidationRequest(_pkMHash: Fr): Promise<KeyValidationRequest> {
     throw new OracleMethodNotAvailableError('getKeyValidationRequest');
   }

@@ -67,6 +67,9 @@ export class TXE implements TypedOracle {
 
   private contractDataOracle: ContractDataOracle;
 
+  private version: Fr = Fr.ONE;
+  private chainId: Fr = Fr.ONE;
+
   constructor(
     private logger: Logger,
     private trees: MerkleTrees,
@@ -81,6 +84,22 @@ export class TXE implements TypedOracle {
   }
 
   // Utils
+
+  getChainId(): Promise<Fr> {
+    return Promise.resolve(this.chainId);
+  }
+
+  getVersion(): Promise<Fr> {
+    return Promise.resolve(this.version);
+  }
+
+  setChainId(chainId: Fr) {
+    this.chainId = chainId;
+  }
+
+  setVersion(version: Fr) {
+    this.version = version;
+  }
 
   getMsgSender() {
     return this.msgSender;

@@ -257,7 +257,8 @@ contract DocsExample {
     }
 
     #[aztec(private)]
-    fn spend_private_authwit(inner_hash: Field) -> Field {
+    #[aztec(view)]
+    fn verify_private_authwit(inner_hash: Field) -> Field {
         1
     }
 

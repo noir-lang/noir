@@ -3,6 +3,7 @@ import { type CompleteAddress, type Fq, type Fr } from '@aztec/circuits.js';
 
 import { DefaultEntrypoint } from '../entrypoint/default_entrypoint.js';
 import { type EntrypointInterface, type ExecutionRequestInit } from '../entrypoint/entrypoint.js';
+import { type IntentAction, type IntentInnerHash } from '../utils/authwit.js';
 import { BaseWallet } from './base_wallet.js';
 
 /**
@@ -12,7 +13,6 @@ export class SignerlessWallet extends BaseWallet {
   constructor(pxe: PXE, private entrypoint?: EntrypointInterface) {
     super(pxe);
   }
-
   async createTxExecutionRequest(execution: ExecutionRequestInit): Promise<TxExecutionRequest> {
     let entrypoint = this.entrypoint;
     if (!entrypoint) {
@@ -39,7 +39,7 @@ export class SignerlessWallet extends BaseWallet {
     throw new Error('SignerlessWallet: Method getCompleteAddress not implemented.');
   }
 
-  createAuthWit(_messageHash: Fr): Promise<AuthWitness> {
+  createAuthWit(_intent: Fr | Buffer | IntentInnerHash | IntentAction): Promise<AuthWitness> {
     throw new Error('SignerlessWallet: Method createAuthWit not implemented.');
   }
 

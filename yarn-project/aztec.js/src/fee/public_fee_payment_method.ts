@@ -4,7 +4,6 @@ import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
-import { computeAuthWitMessageHash } from '../utils/authwit.js';
 import { type AccountWallet } from '../wallet/account_wallet.js';
 import { type FeePaymentMethod } from './fee_payment_method.js';
 
@@ -47,23 +46,25 @@ export class PublicFeePaymentMethod implements FeePaymentMethod {
   getFunctionCalls(gasSettings: GasSettings): Promise<FunctionCall[]> {
     const nonce = Fr.random();
     const maxFee = gasSettings.getFeeLimit();
-    const messageHash = computeAuthWitMessageHash(
-      this.paymentContract,
-      this.wallet.getChainId(),
-      this.wallet.getVersion(),
-      {
-        name: 'transfer_public',
-        args: [this.wallet.getAddress(), this.paymentContract, maxFee, nonce],
-        selector: FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
-        type: FunctionType.PUBLIC,
-        isStatic: false,
-        to: this.asset,
-        returnTypes: [],
-      },
-    );
 
     return Promise.resolve([
-      this.wallet.setPublicAuthWit(messageHash, true).request(),
+      this.wallet
+        .setPublicAuthWit(
+          {
+            caller: this.paymentContract,
+            action: {
+              name: 'transfer_public',
+              args: [this.wallet.getAddress(), this.paymentContract, maxFee, nonce],
+              selector: FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
+              type: FunctionType.PUBLIC,
+              isStatic: false,
+              to: this.asset,
+              returnTypes: [],
+            },
+          },
+          true,
+        )
+        .request(),
       {
         name: 'fee_entrypoint_public',
         to: this.paymentContract,

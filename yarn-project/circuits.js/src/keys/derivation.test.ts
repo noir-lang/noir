@@ -11,7 +11,7 @@ describe('🔑', () => {
     const masterOutgoingViewingPublicKey = new Point(new Fr(5), new Fr(6));
     const masterTaggingPublicKey = new Point(new Fr(7), new Fr(8));
 
-    const expected = Fr.fromString('0x1936abe4f6a920d16a9f6917f10a679507687e2cd935dd1f1cdcb1e908c027f3');
+    const expected = Fr.fromString('0x2406c1c88b7afc13052335bb9af43fd35034b5ba0a9caab76eda2833cf8ec717');
     expect(
       new PublicKeys(
         masterNullifierPublicKey,
