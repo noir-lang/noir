@@ -1,5 +1,5 @@
 use crate::collections::vec::Vec;
-impl<N> str<N> {
+impl<let N: u32> str<N> {
     /// Converts the given string into a byte array
     #[builtin(str_as_bytes)]
     pub fn as_bytes(self) -> [u8; N] {}
