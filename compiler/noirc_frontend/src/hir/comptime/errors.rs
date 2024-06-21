@@ -41,7 +41,8 @@ pub enum InterpreterError {
     NonStructInConstructor { typ: Type, location: Location },
     CannotInlineMacro { value: Value, location: Location },
     UnquoteFoundDuringEvaluation { location: Location },
-    FailedToParseMacro { error: ParserError, tokens: Rc<Tokens>, parse_rule: String, file: FileId },
+    FailedToParseMacro { error: ParserError, tokens: Rc<Tokens>, rule: &'static str, file: FileId },
+
     Unimplemented { item: String, location: Location },
 
     // Perhaps this should be unreachable! due to type checking also preventing this error?
@@ -267,8 +268,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "This is a bug".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
-            InterpreterError::FailedToParseMacro { error, tokens, parse_rule, file: _ } => {
-                let message = format!("Failed to parse macro's token stream into {parse_rule}");
+            InterpreterError::FailedToParseMacro { error, tokens, rule, file: _ } => {
+                let message = format!("Failed to parse macro's token stream into {rule}");
                 let tokens = vecmap(&tokens.0, ToString::to_string).join(" ");
 
                 // 10 is an aribtrary number of tokens here chosen to fit roughly onto one line

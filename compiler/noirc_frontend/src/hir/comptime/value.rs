@@ -183,12 +183,12 @@ impl Value {
 
                 return match parser::expression().parse(tokens_to_parse) {
                     Ok(expr) => Ok(expr),
-                    Err(mut errors) => Err(InterpreterError::FailedToParseMacro {
-                        error: errors.swap_remove(0),
-                        file: location.file,
-                        tokens,
-                        parse_rule: "an expression",
-                    }),
+                    Err(mut errors) => {
+                        let error = errors.swap_remove(0);
+                        let file = location.file;
+                        let rule = "an expression";
+                        Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
+                    }
                 };
             }
             Value::Pointer(_) | Value::TypeDefinition(_) => {
