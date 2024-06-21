@@ -21,6 +21,14 @@
 namespace bb::avm_trace {
 
 using Row = bb::AvmFullRow<bb::fr>;
+enum class AddressingMode {
+    DIRECT,
+    INDIRECT,
+};
+struct AddressWithMode {
+    AddressingMode mode;
+    uint32_t offset;
+};
 
 // This is the internal context that we keep along the lifecycle of bytecode execution
 // to iteratively build the whole trace. This is effectively performing witness generation.
@@ -210,19 +218,16 @@ class AvmTraceBuilder {
                          uint32_t output_offset,
                          uint32_t point_length_offset);
 
-  private:
-    // Used for the standard indirect address resolution of three operands opcode.
-    struct IndirectThreeResolution {
-        bool tag_match = false;
-        uint32_t direct_a_offset;
-        uint32_t direct_b_offset;
-        uint32_t direct_c_offset;
-
-        bool indirect_flag_a = false;
-        bool indirect_flag_b = false;
-        bool indirect_flag_c = false;
+    struct MemOp {
+        bool is_indirect;
+        uint32_t indirect_address;
+        uint32_t direct_address;
+        AvmMemoryTag tag;
+        bool tag_match;
+        FF val;
     };
 
+  private:
     std::vector<Row> main_trace;
     AvmMemTraceBuilder mem_trace_builder;
     AvmAluTraceBuilder alu_trace_builder;
@@ -249,7 +254,7 @@ class AvmTraceBuilder {
      * @return Row
      */
     Row create_kernel_lookup_opcode(
-        bool indirect, uint32_t dst_offset, uint32_t selector, FF value, AvmMemoryTag w_tag);
+        uint8_t indirect, uint32_t dst_offset, uint32_t selector, FF value, AvmMemoryTag w_tag);
 
     /**
      * @brief Create a kernel output opcode object
@@ -321,9 +326,6 @@ class AvmTraceBuilder {
 
     void finalise_mem_trace_lookup_counts();
 
-    IndirectThreeResolution resolve_ind_three(
-        uint8_t space_id, uint32_t clk, uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t c_offset);
-
     uint32_t pc = 0;
     uint32_t internal_return_ptr =
         0; // After a nested call, it should be initialized with MAX_SIZE_INTERNAL_STACK * call_ptr
@@ -339,23 +341,37 @@ class AvmTraceBuilder {
     // Mapping of side effect counter -> value
     ExecutionHints execution_hints;
 
+    MemOp constrained_read_from_memory(uint8_t space_id,
+                                       uint32_t clk,
+                                       AddressWithMode addr,
+                                       AvmMemoryTag read_tag,
+                                       AvmMemoryTag write_tag,
+                                       IntermRegister reg);
+    MemOp constrained_write_to_memory(uint8_t space_id,
+                                      uint32_t clk,
+                                      AddressWithMode addr,
+                                      FF const& value,
+                                      AvmMemoryTag read_tag,
+                                      AvmMemoryTag write_tag,
+                                      IntermRegister reg);
+
     // TODO(ilyas: #6383): Temporary way to bulk read slices
     template <typename MEM>
     uint32_t read_slice_to_memory(uint8_t space_id,
                                   uint32_t clk,
-                                  uint32_t src_offset,
+                                  AddressWithMode addr,
                                   AvmMemoryTag r_tag,
                                   AvmMemoryTag w_tag,
                                   FF internal_return_ptr,
                                   size_t slice_len,
                                   std::vector<MEM>& slice);
-    void write_slice_to_memory(uint8_t space_id,
-                               uint32_t clk,
-                               uint32_t dst_offset,
-                               AvmMemoryTag r_tag,
-                               AvmMemoryTag w_tag,
-                               FF internal_return_ptr,
-                               std::vector<FF> const& slice);
+    uint32_t write_slice_to_memory(uint8_t space_id,
+                                   uint32_t clk,
+                                   AddressWithMode addr,
+                                   AvmMemoryTag r_tag,
+                                   AvmMemoryTag w_tag,
+                                   FF internal_return_ptr,
+                                   std::vector<FF> const& slice);
 };
 
 } // namespace bb::avm_trace

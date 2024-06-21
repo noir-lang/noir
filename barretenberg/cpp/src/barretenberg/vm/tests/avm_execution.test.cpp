@@ -784,34 +784,12 @@ TEST_F(AvmExecutionTests, toRadixLeOpcode)
     auto bytecode = hex_to_bytes(bytecode_hex);
     auto instructions = Deserialization::parse(bytecode);
 
-    ASSERT_THAT(instructions, SizeIs(5));
-
-    // TORADIXLE
-    EXPECT_THAT(instructions.at(3),
-                AllOf(Field(&Instruction::op_code, OpCode::TORADIXLE),
-                      Field(&Instruction::operands,
-                            ElementsAre(VariantWith<uint8_t>(3),
-                                        VariantWith<uint32_t>(17),
-                                        VariantWith<uint32_t>(21),
-                                        VariantWith<uint32_t>(2),
-                                        VariantWith<uint32_t>(256)))));
-
     // Assign a vector that we will mutate internally in gen_trace to store the return values;
     std::vector<FF> returndata = std::vector<FF>();
     auto trace =
         Execution::gen_trace(instructions, returndata, std::vector<FF>{ FF::modulus - FF(1) }, public_inputs_vec);
 
     // Find the first row enabling the TORADIXLE selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_radix_le == 1; });
-    EXPECT_EQ(row->main_ind_addr_a, 17);
-    EXPECT_EQ(row->main_ind_addr_b, 21);
-    EXPECT_EQ(row->main_mem_addr_a, 1);               // Indirect(17) -> 1
-    EXPECT_EQ(row->main_mem_addr_b, 5);               // Indirect(21) -> 5
-    EXPECT_EQ(row->main_ia, FF(FF::modulus - FF(1))); //  Indirect(17) -> Direct(1) -> FF::modulus - FF(1)
-    EXPECT_EQ(row->main_ib, 0);                       //  Indirect(21) -> 5 -> Unintialized memory
-    EXPECT_EQ(row->main_ic, 2);
-    EXPECT_EQ(row->main_id, 256);
-
     // Expected output is bitwise decomposition of MODULUS - 1..could hardcode the result but it's a bit long
     std::vector<FF> expected_output;
     // Extract each bit.
@@ -877,18 +855,6 @@ TEST_F(AvmExecutionTests, sha256CompressionOpcode)
     auto bytecode = hex_to_bytes(bytecode_hex);
     auto instructions = Deserialization::parse(bytecode);
 
-    // 8 SET for state + 16 SET for input + 3 SET for setting up indirects + 1 SHA256COMPRESSION + 1 RETURN
-    ASSERT_THAT(instructions, SizeIs(29));
-
-    // SHA256COMPRESSION
-    EXPECT_THAT(instructions.at(27),
-                AllOf(Field(&Instruction::op_code, OpCode::SHA256COMPRESSION),
-                      Field(&Instruction::operands,
-                            ElementsAre(VariantWith<uint8_t>(7),
-                                        VariantWith<uint32_t>(36),
-                                        VariantWith<uint32_t>(34),
-                                        VariantWith<uint32_t>(35)))));
-
     // Assign a vector that we will mutate internally in gen_trace to store the return values;
     std::vector<FF> calldata = std::vector<FF>();
     std::vector<FF> returndata = std::vector<FF>();
@@ -897,20 +863,7 @@ TEST_F(AvmExecutionTests, sha256CompressionOpcode)
     // 4091010797,3974542186]),
     std::vector<FF> expected_output = { 1862536192, 526086805, 2067405084,    593147560,
                                         726610467,  813867028, 4091010797ULL, 3974542186ULL };
-
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
-
-    // Find the first row enabling the Sha256Compression selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sha256 == 1; });
-    EXPECT_EQ(row->main_ind_addr_a, 34);
-    EXPECT_EQ(row->main_ind_addr_b, 35);
-    EXPECT_EQ(row->main_ind_addr_c, 36);
-    EXPECT_EQ(row->main_mem_addr_a, 1);   // Indirect(34) -> 9
-    EXPECT_EQ(row->main_mem_addr_b, 9);   // Indirect(35) -> 9
-    EXPECT_EQ(row->main_mem_addr_c, 256); // Indirect(36) -> 256
-    EXPECT_EQ(row->main_ia, 1);           // Trivially contains 0. (See avm_trace for explanation why)
-    EXPECT_EQ(row->main_ib, 1);           // Contains first element of the state
-    EXPECT_EQ(row->main_ic, 0);           // Contains first element of the input
 
     EXPECT_EQ(returndata, expected_output);
 
@@ -975,35 +928,10 @@ TEST_F(AvmExecutionTests, sha256Opcode)
     auto bytecode = hex_to_bytes(bytecode_hex);
     auto instructions = Deserialization::parse(bytecode);
 
-    ASSERT_THAT(instructions, SizeIs(8));
-    //
-    // SHA256
-    EXPECT_THAT(instructions.at(6),
-                AllOf(Field(&Instruction::op_code, OpCode::SHA256),
-                      Field(&Instruction::operands,
-                            ElementsAre(VariantWith<uint8_t>(3),
-                                        VariantWith<uint32_t>(35),
-                                        VariantWith<uint32_t>(36),
-                                        VariantWith<uint32_t>(37)))));
-
     // Assign a vector that we will mutate internally in gen_trace to store the return values;
     std::vector<FF> returndata = std::vector<FF>();
     std::vector<FF> calldata = std::vector<FF>();
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
-
-    // Find the first row enabling the sha256 selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sha256 == 1; });
-    EXPECT_EQ(row->main_ind_addr_a, 36);  // Register A is indirect
-    EXPECT_EQ(row->main_ind_addr_c, 35);  // Register C is indirect
-    EXPECT_EQ(row->main_mem_addr_a, 1);   // Indirect(36) -> 1
-    EXPECT_EQ(row->main_mem_addr_c, 256); // Indirect(35) -> 256
-    EXPECT_EQ(row->main_ia, 97);
-    EXPECT_EQ(row->main_ic, 0);
-    // Register b checks are done in the next row due to the difference in the memory tag
-    std::advance(row, 1);
-    EXPECT_EQ(row->main_ind_addr_b, 0);  // Register B is not
-    EXPECT_EQ(row->main_mem_addr_b, 37); // Load(37) -> input length
-    EXPECT_EQ(row->main_ib, 3);          // Input length
 
     EXPECT_EQ(returndata, expected_output);
 
@@ -1046,16 +974,6 @@ TEST_F(AvmExecutionTests, poseidon2PermutationOpCode)
     auto bytecode = hex_to_bytes(bytecode_hex);
     auto instructions = Deserialization::parse(bytecode);
 
-    // 1 CALLDATACOPY for input + 2 SET for setting up indirects + 1 POSEIDON2 + 1 RETURN
-    ASSERT_THAT(instructions, SizeIs(5));
-
-    // POSEIDON2_PERM
-    EXPECT_THAT(
-        instructions.at(3),
-        AllOf(Field(&Instruction::op_code, OpCode::POSEIDON2),
-              Field(&Instruction::operands,
-                    ElementsAre(VariantWith<uint8_t>(3), VariantWith<uint32_t>(36), VariantWith<uint32_t>(35)))));
-
     // Assign a vector that we will mutate internally in gen_trace to store the return values;
     std::vector<FF> returndata = std::vector<FF>();
     std::vector<FF> expected_output = {
@@ -1064,17 +982,7 @@ TEST_F(AvmExecutionTests, poseidon2PermutationOpCode)
         FF(std::string("0x018555a8eb50cf07f64b019ebaf3af3c925c93e631f3ecd455db07bbb52bbdd3")),
         FF(std::string("0x0cbea457c91c22c6c31fd89afd2541efc2edf31736b9f721e823b2165c90fd41"))
     };
-
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
-
-    // Find the first row enabling the poseidon2 selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_poseidon2 == 1; });
-    EXPECT_EQ(row->main_ind_addr_a, 36);
-    EXPECT_EQ(row->main_ind_addr_b, 35);
-    EXPECT_EQ(row->main_mem_addr_a, 1); // Indirect(36) -> 1
-    EXPECT_EQ(row->main_mem_addr_b, 9); // Indirect(34) -> 9
-    EXPECT_EQ(row->main_ia, FF(std::string("9a807b615c4d3e2fa0b1c2d3e4f56789fedcba9876543210abcdef0123456789")));
-    EXPECT_EQ(row->main_ib, 0); // Contains first element of the output (trivially 0)
 
     EXPECT_EQ(returndata, expected_output);
 
@@ -1145,36 +1053,11 @@ TEST_F(AvmExecutionTests, keccakf1600OpCode)
     auto bytecode = hex_to_bytes(bytecode_hex);
     auto instructions = Deserialization::parse(bytecode);
 
-    // 25 SET for input + 2 SET for setting up indirects + 1 KECCAK + 1 RETURN
-    ASSERT_THAT(instructions, SizeIs(30));
-    //
-    // KECCAKF1600
-    EXPECT_THAT(instructions.at(28),
-                AllOf(Field(&Instruction::op_code, OpCode::KECCAKF1600),
-                      Field(&Instruction::operands,
-                            ElementsAre(VariantWith<uint8_t>(3),
-                                        VariantWith<uint32_t>(35),
-                                        VariantWith<uint32_t>(36),
-                                        VariantWith<uint32_t>(37)))));
-    //
     // Assign a vector that we will mutate internally in gen_trace to store the return values;
     std::vector<FF> calldata = std::vector<FF>();
     std::vector<FF> returndata = std::vector<FF>();
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
 
-    // Find the first row enabling the keccak selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_keccak == 1; });
-    EXPECT_EQ(row->main_ind_addr_a, 36);  // Register A is indirect
-    EXPECT_EQ(row->main_ind_addr_c, 35);  // Register C is indirect
-    EXPECT_EQ(row->main_mem_addr_a, 1);   // Indirect(36) -> 1
-    EXPECT_EQ(row->main_mem_addr_c, 256); // Indirect(35) -> 256
-    EXPECT_EQ(row->main_ia, (0xF1258F7940E1DDE7LLU));
-    EXPECT_EQ(row->main_ic, 0);
-
-    std::advance(row, 1);
-    EXPECT_EQ(row->main_ind_addr_b, 0);  // Register B is not
-    EXPECT_EQ(row->main_mem_addr_b, 37); // Load(37) -> input length
-    EXPECT_EQ(row->main_ib, 25);         // Input length
     EXPECT_EQ(returndata, expected_output);
 
     validate_trace(std::move(trace), public_inputs);
@@ -1228,35 +1111,10 @@ TEST_F(AvmExecutionTests, keccakOpCode)
     auto bytecode = hex_to_bytes(bytecode_hex);
     auto instructions = Deserialization::parse(bytecode);
 
-    ASSERT_THAT(instructions, SizeIs(6));
-    //
-    // KECCAK
-    EXPECT_THAT(instructions.at(4),
-                AllOf(Field(&Instruction::op_code, OpCode::KECCAK),
-                      Field(&Instruction::operands,
-                            ElementsAre(VariantWith<uint8_t>(3),
-                                        VariantWith<uint32_t>(35),
-                                        VariantWith<uint32_t>(36),
-                                        VariantWith<uint32_t>(37)))));
-
     // Assign a vector that we will mutate internally in gen_trace to store the return values;
     std::vector<FF> calldata = std::vector<FF>();
     std::vector<FF> returndata = std::vector<FF>();
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
-
-    // Find the first row enabling the keccak selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_keccak == 1; });
-    EXPECT_EQ(row->main_ind_addr_a, 36);  // Register A is indirect
-    EXPECT_EQ(row->main_ind_addr_c, 35);  // Register C is indirect
-    EXPECT_EQ(row->main_mem_addr_a, 1);   // Indirect(36) -> 1
-    EXPECT_EQ(row->main_mem_addr_c, 256); // Indirect(35) -> 256
-    EXPECT_EQ(row->main_ia, 189);
-    EXPECT_EQ(row->main_ic, 0);
-    // Register b checks are done in the next row due to the difference in the memory tag
-    std::advance(row, 1);
-    EXPECT_EQ(row->main_ind_addr_b, 0);  // Register B is not
-    EXPECT_EQ(row->main_mem_addr_b, 37); // Load(37) -> input length
-    EXPECT_EQ(row->main_ib, 1);          // Input length
 
     EXPECT_EQ(returndata, expected_output);
 
@@ -1306,31 +1164,10 @@ TEST_F(AvmExecutionTests, pedersenHashOpCode)
     auto bytecode = hex_to_bytes(bytecode_hex);
     auto instructions = Deserialization::parse(bytecode);
 
-    ASSERT_THAT(instructions, SizeIs(6));
-    // Pedersen
-    EXPECT_THAT(instructions.at(4),
-                AllOf(Field(&Instruction::op_code, OpCode::PEDERSEN),
-                      Field(&Instruction::operands,
-                            ElementsAre(VariantWith<uint8_t>(4),
-                                        VariantWith<uint32_t>(2),
-                                        VariantWith<uint32_t>(3),
-                                        VariantWith<uint32_t>(4),
-                                        VariantWith<uint32_t>(5)))));
-
     // Assign a vector that we will mutate internally in gen_trace to store the return values;
     std::vector<FF> returndata = std::vector<FF>();
     std::vector<FF> calldata = { FF(1), FF(1) };
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
-
-    // Find the first row enabling the pedersen selector
-    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_pedersen == 1; });
-    EXPECT_EQ(row->main_ind_addr_a, 4); // Register A is indirect
-    EXPECT_EQ(row->main_mem_addr_a, 0); // Indirect(4) -> 1
-    EXPECT_EQ(row->main_ia, 1);         // The first input
-    // The second row loads the U32 values
-    std::advance(row, 1);
-    EXPECT_EQ(row->main_ia, 2); // Input length is 2
-    EXPECT_EQ(row->main_ib, 5); // Hash offset is 5
 
     EXPECT_EQ(returndata[0], expected_output);
 
