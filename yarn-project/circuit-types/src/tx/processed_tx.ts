@@ -160,9 +160,9 @@ export function makeProcessedTx(
     data: kernelOutput,
     proof,
     // TODO(4712): deal with non-revertible logs here
-    noteEncryptedLogs: revertReason ? EncryptedNoteTxL2Logs.empty() : tx.noteEncryptedLogs,
-    encryptedLogs: revertReason ? EncryptedTxL2Logs.empty() : tx.encryptedLogs,
-    unencryptedLogs: revertReason ? UnencryptedTxL2Logs.empty() : tx.unencryptedLogs,
+    noteEncryptedLogs: tx.noteEncryptedLogs,
+    encryptedLogs: tx.encryptedLogs,
+    unencryptedLogs: tx.unencryptedLogs,
     isEmpty: false,
     revertReason,
     publicProvingRequests,

@@ -47,6 +47,7 @@ export class AppLogicPhaseManager extends AbstractPhaseManager {
       // if so, this is removing contracts deployed in private setup
       await this.publicContractsDB.removeNewContracts(tx);
       await this.publicStateDB.rollbackToCheckpoint();
+      tx.filterRevertedLogs(kernelOutput);
     } else {
       tx.unencryptedLogs.addFunctionLogs(newUnencryptedLogs);
       // TODO(#6470): we should be adding contracts deployed in those logs to the publicContractsDB

@@ -37,9 +37,8 @@ export abstract class FunctionL2Logs<TLog extends UnencryptedL2Log | EncryptedL2
    * @returns Total length of serialized data.
    */
   public getSerializedLength(): number {
-    // Adding 4 to each log's length to account for the size stored in the serialized buffer and then one more time
     // adding 4 for the resulting buffer length.
-    return this.logs.reduce((acc, log) => acc + log.length + 4, 0) + 4;
+    return this.getKernelLength() + 4;
   }
 
   /**

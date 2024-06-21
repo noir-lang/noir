@@ -44,6 +44,7 @@ export class TeardownPhaseManager extends AbstractPhaseManager {
       );
     if (revertReason) {
       await this.publicStateDB.rollbackToCheckpoint();
+      tx.filterRevertedLogs(kernelOutput);
     } else {
       // TODO(#6464): Should we allow emitting contracts in the public teardown phase?
       // if so, we should insert them here

@@ -52,6 +52,10 @@ export class EncryptedL2NoteLog {
     return sha256Trunc(preimage);
   }
 
+  public getSiloedHash(): Buffer {
+    return this.hash();
+  }
+
   /**
    * Crates a random log.
    * @returns A random log.
