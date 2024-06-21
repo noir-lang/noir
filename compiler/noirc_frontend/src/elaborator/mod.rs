@@ -1171,10 +1171,10 @@ impl<'context> Elaborator<'context> {
             let attributes = std::mem::take(&mut typ.struct_def.attributes);
             let span = typ.struct_def.span;
 
-            let (fields, generics) = self.resolve_struct_fields(typ.struct_def, type_id);
+            let fields = self.resolve_struct_fields(typ.struct_def, type_id);
             self.interner.update_struct(type_id, |struct_def| {
                 struct_def.set_fields(fields);
-                struct_def.generics = generics;
+                // struct_def.generics = generics;
 
                 // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this with implicit numeric generics
                 // This is only necessary for resolving named types when implicit numeric generics are used.
@@ -1259,21 +1259,20 @@ impl<'context> Elaborator<'context> {
         &mut self,
         unresolved: NoirStruct,
         struct_id: StructId,
-    ) -> (Vec<(Ident, Type)>, Generics) {
+    ) -> Vec<(Ident, Type)> {
         self.recover_generics(|this| {
             this.current_item = Some(DependencyId::Struct(struct_id));
 
             this.resolving_ids.insert(struct_id);
 
             let struct_def = this.interner.get_struct(struct_id);
-            let generics =
-                this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
+            this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
             let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, this.resolve_type(typ)));
 
             this.resolving_ids.remove(&struct_id);
 
-            (fields, generics)
+            fields
         })
     }
 

@@ -1431,12 +1431,12 @@ impl<'context> Elaborator<'context> {
         &mut self,
         unresolved_generics: &UnresolvedGenerics,
         generics: &Generics,
-    ) -> Generics {
+    ) {
         assert_eq!(unresolved_generics.len(), generics.len());
 
-        vecmap(unresolved_generics.iter().zip(generics), |(unresolved_generic, generic)| {
-            self.add_existing_generic(unresolved_generic, unresolved_generic.span(), generic)
-        })
+        for (unresolved_generic, generic) in unresolved_generics.iter().zip(generics) {
+            self.add_existing_generic(unresolved_generic, unresolved_generic.span(), generic);
+        }
     }
 
     pub fn add_existing_generic(
@@ -1444,7 +1444,7 @@ impl<'context> Elaborator<'context> {
         unresolved_generic: &UnresolvedGeneric,
         span: Span,
         resolved_generic: &ResolvedGeneric,
-    ) -> ResolvedGeneric {
+    ) {
         let name = &unresolved_generic.ident().0.contents;
 
         if let Some(generic) = self.find_generic(name) {
@@ -1456,8 +1456,6 @@ impl<'context> Elaborator<'context> {
         } else {
             self.generics.push(resolved_generic.clone());
         }
-
-        resolved_generic.clone()
     }
 
     pub fn find_numeric_generics(
