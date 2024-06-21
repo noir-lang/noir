@@ -1703,11 +1703,7 @@ mod test {
         ];
         parse_all(quote(), cases);
 
-        let failing = vec![
-            "quote {}}",
-            "quote a",
-            "quote { { { } } } }"
-        ];
+        let failing = vec!["quote {}}", "quote a", "quote { { { } } } }"];
         parse_all_failing(quote(), failing);
     }
 }
