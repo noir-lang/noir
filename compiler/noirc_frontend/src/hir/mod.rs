@@ -5,15 +5,16 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
-use crate::ast::{UnresolvedGenerics, UnresolvedTypeData};
+use crate::ast::UnresolvedGenerics;
 use crate::debug::DebugInstrumenter;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::parser::ParserError;
-use crate::{Kind, ParsedModule, ResolvedGeneric, Type, TypeVariable};
+use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, Type, TypeVariable};
+use def_collector::dc_crate::CompilationError;
 use def_map::{Contract, CrateDefMap};
-use fm::FileManager;
+use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use std::borrow::Cow;
@@ -83,7 +84,7 @@ impl Context<'_, '_> {
         }
     }
 
-    pub fn parsed_file_results(&self, file_id: fm::FileId) -> (ParsedModule, Vec<ParserError>) {
+    pub fn parsed_file_results(&self, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
         self.parsed_files.get(&file_id).expect("noir file wasn't parsed").clone()
     }
 
@@ -268,7 +269,9 @@ impl Context<'_, '_> {
     pub(crate) fn resolve_generics(
         &mut self,
         generics: &UnresolvedGenerics,
-    ) -> Vec<Result<ResolvedGeneric, (ResolvedGeneric, UnresolvedTypeData)>> {
+        errors: &mut Vec<(CompilationError, FileId)>,
+        file_id: FileId,
+    ) -> Generics {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = self.def_interner.next_type_variable_id();
@@ -279,15 +282,12 @@ impl Context<'_, '_> {
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
 
-            let mut resolved_generic = ResolvedGeneric {
-                name,
-                type_var,
-                kind: Kind::Numeric(Box::new(Type::Error)),
-                span,
-            };
-            let kind = generic.kind().map_err(|typ| (resolved_generic.clone(), typ))?;
-            resolved_generic.kind = kind;
-            Ok(resolved_generic)
+            let kind = generic.kind().unwrap_or_else(|err| {
+                errors.push((err.into(), file_id));
+                Kind::Numeric(Box::new(Type::Error))
+            });
+
+            ResolvedGeneric { name, type_var, kind, span }
         })
     }
 }
