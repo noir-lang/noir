@@ -1,4 +1,3 @@
-
 fn main() {}
 
 #[my_comptime_fn]
