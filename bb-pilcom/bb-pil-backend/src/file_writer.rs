@@ -52,6 +52,7 @@ impl BBFiles {
         let _ = std::fs::create_dir_all(&base_path);
 
         let joined = format!("{}/{}", base_path, filename);
+        println!("Writing to: {}", joined);
         let mut file = File::create(joined).unwrap();
         file.write_all(contents.as_bytes()).unwrap();
     }
