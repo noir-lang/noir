@@ -45,7 +45,6 @@ pub enum Value {
     Slice(Vector<Value>, Type),
     Code(Rc<Tokens>),
     TypeDefinition(StructId),
-    Type(Type),
 }
 
 impl Value {
@@ -80,7 +79,6 @@ impl Value {
                 let element = element.borrow().get_type().into_owned();
                 Type::MutableReference(Box::new(element))
             }
-            Value::Type(_) => Type::Quoted(QuotedType::Type),
         })
     }
 

@@ -303,9 +303,7 @@ impl StructType {
     /// This method is almost never what is wanted for type checking or monomorphization,
     /// prefer to use `get_fields` whenever possible.
     pub fn get_fields_as_written(&self) -> Vec<(String, Type)> {
-        vecmap(&self.fields, |(name, typ)| {
-            (name.0.contents.clone(), typ.clone())
-        })
+        vecmap(&self.fields, |(name, typ)| (name.0.contents.clone(), typ.clone()))
     }
 
     pub fn field_names(&self) -> BTreeSet<Ident> {
@@ -821,9 +819,7 @@ impl Type {
             // environment is the interpreter. In this environment, they are valid.
             Type::Quoted(_) => true,
 
-            Type::MutableReference(_)
-            | Type::Forall(_, _)
-            | Type::TraitAsType(..) => false,
+            Type::MutableReference(_) | Type::Forall(_, _) | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();

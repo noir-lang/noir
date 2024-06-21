@@ -3,11 +3,19 @@ use std::rc::Rc;
 use noirc_errors::Location;
 
 use crate::{
-    hir::comptime::{errors::IResult, Value, InterpreterError},
-    Type, macros_api::{NodeInterner, NoirStruct}, QuotedType, token::{Tokens, SpannedToken, Token},
+    hir::comptime::{errors::IResult, InterpreterError, Value},
+    lexer::Lexer,
+    macros_api::NodeInterner,
+    token::{SpannedToken, Token, Tokens},
+    QuotedType, Type,
 };
 
-pub(super) fn call_builtin(interner: &mut NodeInterner, name: &str, arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+pub(super) fn call_builtin(
+    interner: &NodeInterner,
+    name: &str,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
     match name {
         "array_len" => array_len(&arguments),
         "as_slice" => as_slice(arguments),
@@ -41,11 +49,16 @@ fn as_slice(mut arguments: Vec<(Value, Location)>) -> IResult<Value> {
 }
 
 /// fn as_type(self) -> Quoted
-fn type_def_as_type(interner: &mut NodeInterner, mut arguments: Vec<(Value, Location)>) -> IResult<Value> {
+fn type_def_as_type(
+    interner: &NodeInterner,
+    mut arguments: Vec<(Value, Location)>,
+) -> IResult<Value> {
     assert_eq!(arguments.len(), 1, "ICE: `generics` should only receive a single argument");
     let (type_def, span) = match arguments.pop() {
         Some((Value::TypeDefinition(id), location)) => (id, location.span),
-        other => unreachable!("ICE: `as_type` expected a `TypeDefinition` argument, found {other:?}"),
+        other => {
+            unreachable!("ICE: `as_type` expected a `TypeDefinition` argument, found {other:?}")
+        }
     };
 
     let struct_def = interner.get_struct(type_def);
@@ -58,26 +71,36 @@ fn type_def_as_type(interner: &mut NodeInterner, mut arguments: Vec<(Value, Loca
         if i != 0 {
             tokens.push(SpannedToken::new(Token::Comma, span));
         }
-        tokens.push(make_token(generic.borrow().to_string()))
+        tokens.push(make_token(generic.borrow().to_string()));
     }
 
     Ok(Value::Code(Rc::new(Tokens(tokens))))
 }
 
 /// fn generics(self) -> [Quoted]
-fn type_def_generics(interner: &mut NodeInterner, mut arguments: Vec<(Value, Location)>) -> IResult<Value> {
+fn type_def_generics(
+    interner: &NodeInterner,
+    mut arguments: Vec<(Value, Location)>,
+) -> IResult<Value> {
     assert_eq!(arguments.len(), 1, "ICE: `generics` should only receive a single argument");
     let (type_def, span) = match arguments.pop() {
         Some((Value::TypeDefinition(id), location)) => (id, location.span),
-        other => unreachable!("ICE: `as_type` expected a `TypeDefinition` argument, found {other:?}"),
+        other => {
+            unreachable!("ICE: `as_type` expected a `TypeDefinition` argument, found {other:?}")
+        }
     };
 
     let struct_def = interner.get_struct(type_def);
 
-    let generics = struct_def.borrow().generics.iter().map(|generic| {
-        let name = SpannedToken::new(Token::Str(generic.borrow().to_string()), span);
-        Value::Code(Rc::new(Tokens(vec![name])))
-    }).collect();
+    let generics = struct_def
+        .borrow()
+        .generics
+        .iter()
+        .map(|generic| {
+            let name = SpannedToken::new(Token::Str(generic.borrow().to_string()), span);
+            Value::Code(Rc::new(Tokens(vec![name])))
+        })
+        .collect();
 
     let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Quoted)));
     Ok(Value::Slice(generics, typ))
@@ -85,11 +108,16 @@ fn type_def_generics(interner: &mut NodeInterner, mut arguments: Vec<(Value, Loc
 
 /// fn fields(self) -> [(Quoted, Quoted)]
 /// Returns (name, type) pairs of each field of this TypeDefinition
-fn type_def_fields(interner: &mut NodeInterner, mut arguments: Vec<(Value, Location)>) -> IResult<Value> {
+fn type_def_fields(
+    interner: &NodeInterner,
+    mut arguments: Vec<(Value, Location)>,
+) -> IResult<Value> {
     assert_eq!(arguments.len(), 1, "ICE: `generics` should only receive a single argument");
     let (type_def, span) = match arguments.pop() {
         Some((Value::TypeDefinition(id), location)) => (id, location.span),
-        other => unreachable!("ICE: `as_type` expected a `TypeDefinition` argument, found {other:?}"),
+        other => {
+            unreachable!("ICE: `as_type` expected a `TypeDefinition` argument, found {other:?}")
+        }
     };
 
     let struct_def = interner.get_struct(type_def);
@@ -102,7 +130,7 @@ fn type_def_fields(interner: &mut NodeInterner, mut arguments: Vec<(Value, Locat
 
     for (name, typ) in struct_def.get_fields_as_written() {
         let name = make_quoted(vec![make_token(name)]);
-        let typ = make_quoted(typ.as_tokens());
+        let typ = Value::Code(Rc::new(type_to_tokens(&typ)?));
         fields.push_back(Value::Tuple(vec![name, typ]));
     }
 
@@ -111,4 +139,22 @@ fn type_def_fields(interner: &mut NodeInterner, mut arguments: Vec<(Value, Locat
         Type::Quoted(QuotedType::Quoted),
     ])));
     Ok(Value::Slice(fields, typ))
+}
+
+/// This code is temporary. It will produce poor results for type variables
+/// and will result in incorrect spans on the returned tokens.
+fn type_to_tokens(typ: &Type) -> IResult<Tokens> {
+    let (mut tokens, mut errors) = Lexer::lex(&typ.to_string());
+
+    if let Some(last) = tokens.0.last() {
+        if matches!(last.token(), Token::EOF) {
+            tokens.0.pop();
+        }
+    }
+
+    if !errors.is_empty() {
+        let error = errors.swap_remove(0);
+        todo!("Got lexer error: {error}")
+    }
+    Ok(tokens)
 }
