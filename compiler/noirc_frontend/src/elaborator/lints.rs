@@ -10,7 +10,7 @@ use crate::{
         HirExpression, HirLiteral, NodeInterner, NoirFunction, UnaryOp, UnresolvedTypeData,
         Visibility,
     },
-    node_interner::{DefinitionKind, ExprId},
+    node_interner::{DefinitionKind, ExprId, FuncId},
     Type,
 };
 use acvm::AcirField;
@@ -41,7 +41,7 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
 /// as all unconstrained functions are not inlined and so
 /// associated attributes are disallowed.
 pub(super) fn inlining_attributes(func: &NoirFunction) -> Option<ResolverError> {
-    if !func.def.is_unconstrained {
+    if func.def.is_unconstrained {
         let attributes = func.attributes().clone();
 
         if attributes.is_no_predicates() {
@@ -72,6 +72,40 @@ pub(super) fn low_level_function_outside_stdlib(
     }
 }
 
+/// Oracle definitions (functions with the `#[oracle]` attribute) must be marked as unconstrained.
+pub(super) fn oracle_not_marked_unconstrained(func: &NoirFunction) -> Option<ResolverError> {
+    let is_oracle_function =
+        func.attributes().function.as_ref().map_or(false, |func| func.is_oracle());
+    if is_oracle_function && !func.def.is_unconstrained {
+        Some(ResolverError::OracleMarkedAsConstrained { ident: func.name_ident().clone() })
+    } else {
+        None
+    }
+}
+
+/// Oracle functions may not be called by constrained functions directly.
+///
+/// In order for a constrained function to call an oracle it must first call through an unconstrained function.
+pub(super) fn oracle_called_from_constrained_function(
+    interner: &NodeInterner,
+    called_func: &FuncId,
+    calling_from_constrained_runtime: bool,
+    span: Span,
+) -> Option<ResolverError> {
+    if !calling_from_constrained_runtime {
+        return None;
+    }
+
+    let function_attributes = interner.function_attributes(called_func);
+    let is_oracle_call =
+        function_attributes.function.as_ref().map_or(false, |func| func.is_oracle());
+    if is_oracle_call {
+        Some(ResolverError::UnconstrainedOracleReturnToConstrained { span })
+    } else {
+        None
+    }
+}
+
 /// `pub` is required on return types for entry point functions
 pub(super) fn missing_pub(func: &NoirFunction, is_entry_point: bool) -> Option<ResolverError> {
     if is_entry_point
@@ -96,15 +130,6 @@ pub(super) fn recursive_non_entrypoint_function(
     }
 }
 
-/// Test functions cannot have arguments in order to be executable.
-pub(super) fn test_function_with_args(func: &NoirFunction) -> Option<ResolverError> {
-    if func.attributes().is_test_function() && !func.parameters().is_empty() {
-        Some(ResolverError::TestFunctionHasParameters { span: func.name_ident().span() })
-    } else {
-        None
-    }
-}
-
 /// Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime.
 pub(super) fn unconstrained_function_args(
     function_args: &[(Type, ExprId, Span)],
@@ -112,7 +137,7 @@ pub(super) fn unconstrained_function_args(
     function_args
         .iter()
         .filter_map(|(typ, _, span)| {
-            if type_contains_mutable_reference(typ) {
+            if !typ.is_valid_for_unconstrained_boundary() {
                 Some(TypeCheckError::ConstrainedReferenceToUnconstrained { span: *span })
             } else {
                 None
@@ -128,15 +153,11 @@ pub(super) fn unconstrained_function_return(
 ) -> Option<TypeCheckError> {
     if return_type.contains_slice() {
         Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { span })
-    } else if type_contains_mutable_reference(return_type) {
+    } else if !return_type.is_valid_for_unconstrained_boundary() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { span })
     } else {
         None
     }
-}
-
-fn type_contains_mutable_reference(typ: &Type) -> bool {
-    matches!(&typ.follow_bindings(), Type::MutableReference(_))
 }
 
 /// Only entrypoint functions require a `pub` visibility modifier applied to their return types.

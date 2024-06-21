@@ -1,4 +1,4 @@
-use std::{borrow::Cow, rc::Rc};
+use std::{borrow::Cow, fmt::Display, rc::Rc};
 
 use acvm::{AcirField, FieldElement};
 use im::Vector;
@@ -12,9 +12,10 @@ use crate::{
     hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
     macros_api::{
         Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
+        StructId,
     },
     node_interner::{ExprId, FuncId},
-    Shared, Type,
+    QuotedType, Shared, Type,
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -42,6 +43,7 @@ pub enum Value {
     Array(Vector<Value>, Type),
     Slice(Vector<Value>, Type),
     Code(Rc<BlockExpression>),
+    TypeDefinition(StructId),
 }
 
 impl Value {
@@ -59,7 +61,7 @@ impl Value {
             Value::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
             Value::U64(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
             Value::String(value) => {
-                let length = Type::Constant(value.len() as u64);
+                let length = Type::Constant(value.len() as u32);
                 Type::String(Box::new(length))
             }
             Value::Function(_, typ) => return Cow::Borrowed(typ),
@@ -70,7 +72,8 @@ impl Value {
             Value::Struct(_, typ) => return Cow::Borrowed(typ),
             Value::Array(_, typ) => return Cow::Borrowed(typ),
             Value::Slice(_, typ) => return Cow::Borrowed(typ),
-            Value::Code(_) => Type::Code,
+            Value::Code(_) => Type::Quoted(QuotedType::Expr),
+            Value::TypeDefinition(_) => Type::Quoted(QuotedType::TypeDefinition),
             Value::Pointer(element) => {
                 let element = element.borrow().get_type().into_owned();
                 Type::MutableReference(Box::new(element))
@@ -135,7 +138,7 @@ impl Value {
             }
             Value::Closure(_lambda, _env, _typ) => {
                 // TODO: How should a closure's environment be inlined?
-                let item = "Returning closures from a comptime fn";
+                let item = "Returning closures from a comptime fn".into();
                 return Err(InterpreterError::Unimplemented { item, location });
             }
             Value::Tuple(fields) => {
@@ -172,7 +175,7 @@ impl Value {
                 ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(elements)))
             }
             Value::Code(block) => ExpressionKind::Block(unwrap_rc(block)),
-            Value::Pointer(_) => {
+            Value::Pointer(_) | Value::TypeDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -235,7 +238,7 @@ impl Value {
             }
             Value::Closure(_lambda, _env, _typ) => {
                 // TODO: How should a closure's environment be inlined?
-                let item = "Returning closures from a comptime fn";
+                let item = "Returning closures from a comptime fn".into();
                 return Err(InterpreterError::Unimplemented { item, location });
             }
             Value::Tuple(fields) => {
@@ -273,7 +276,7 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
             Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
-            Value::Pointer(_) => {
+            Value::Pointer(_) | Value::TypeDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -305,4 +308,51 @@ impl Value {
 /// Unwraps an Rc value without cloning the inner value if the reference count is 1. Clones otherwise.
 fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
     Rc::try_unwrap(rc).unwrap_or_else(|rc| (*rc).clone())
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Unit => write!(f, "()"),
+            Value::Bool(value) => {
+                let msg = if *value { "true" } else { "false" };
+                write!(f, "{msg}")
+            }
+            Value::Field(value) => write!(f, "{value}"),
+            Value::I8(value) => write!(f, "{value}"),
+            Value::I16(value) => write!(f, "{value}"),
+            Value::I32(value) => write!(f, "{value}"),
+            Value::I64(value) => write!(f, "{value}"),
+            Value::U8(value) => write!(f, "{value}"),
+            Value::U16(value) => write!(f, "{value}"),
+            Value::U32(value) => write!(f, "{value}"),
+            Value::U64(value) => write!(f, "{value}"),
+            Value::String(value) => write!(f, "{value}"),
+            Value::Function(_, _) => write!(f, "(function)"),
+            Value::Closure(_, _, _) => write!(f, "(closure)"),
+            Value::Tuple(fields) => {
+                let fields = vecmap(fields, ToString::to_string);
+                write!(f, "({})", fields.join(", "))
+            }
+            Value::Struct(fields, typ) => {
+                let typename = match typ.follow_bindings() {
+                    Type::Struct(def, _) => def.borrow().name.to_string(),
+                    other => other.to_string(),
+                };
+                let fields = vecmap(fields, |(name, value)| format!("{}: {}", name, value));
+                write!(f, "{typename} {{ {} }}", fields.join(", "))
+            }
+            Value::Pointer(value) => write!(f, "&mut {}", value.borrow()),
+            Value::Array(values, _) => {
+                let values = vecmap(values, ToString::to_string);
+                write!(f, "[{}]", values.join(", "))
+            }
+            Value::Slice(values, _) => {
+                let values = vecmap(values, ToString::to_string);
+                write!(f, "&[{}]", values.join(", "))
+            }
+            Value::Code(block) => write!(f, "quote {block}"),
+            Value::TypeDefinition(_) => write!(f, "(type definition)"),
+        }
+    }
 }

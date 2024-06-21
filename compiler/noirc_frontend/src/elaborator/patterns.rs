@@ -14,7 +14,7 @@ use crate::{
         stmt::HirPattern,
     },
     macros_api::{HirExpression, Ident, Path, Pattern},
-    node_interner::{DefinitionId, DefinitionKind, ExprId, TraitImplKind},
+    node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, TraitImplKind},
     Shared, StructType, Type, TypeBindings,
 };
 
@@ -27,7 +27,14 @@ impl<'context> Elaborator<'context> {
         expected_type: Type,
         definition_kind: DefinitionKind,
     ) -> HirPattern {
-        self.elaborate_pattern_mut(pattern, expected_type, definition_kind, None, &mut Vec::new())
+        self.elaborate_pattern_mut(
+            pattern,
+            expected_type,
+            definition_kind,
+            None,
+            &mut Vec::new(),
+            None,
+        )
     }
 
     /// Equivalent to `elaborate_pattern`, this version just also
@@ -38,8 +45,16 @@ impl<'context> Elaborator<'context> {
         expected_type: Type,
         definition_kind: DefinitionKind,
         created_ids: &mut Vec<HirIdent>,
+        global_id: Option<GlobalId>,
     ) -> HirPattern {
-        self.elaborate_pattern_mut(pattern, expected_type, definition_kind, None, created_ids)
+        self.elaborate_pattern_mut(
+            pattern,
+            expected_type,
+            definition_kind,
+            None,
+            created_ids,
+            global_id,
+        )
     }
 
     fn elaborate_pattern_mut(
@@ -49,6 +64,7 @@ impl<'context> Elaborator<'context> {
         definition: DefinitionKind,
         mutable: Option<Span>,
         new_definitions: &mut Vec<HirIdent>,
+        global_id: Option<GlobalId>,
     ) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
@@ -58,7 +74,14 @@ impl<'context> Elaborator<'context> {
                     (Some(_), DefinitionKind::Local(_)) => DefinitionKind::Local(None),
                     (_, other) => other,
                 };
-                let ident = self.add_variable_decl(name, mutable.is_some(), true, definition);
+                let ident = if let Some(global_id) = global_id {
+                    // Globals don't need to be added to scope, they're already in the def_maps
+                    let id = self.interner.get_global(global_id).definition_id;
+                    let location = Location::new(name.span(), self.file);
+                    HirIdent::non_trait_method(id, location)
+                } else {
+                    self.add_variable_decl(name, mutable.is_some(), true, definition)
+                };
                 self.interner.push_definition_type(ident.id, expected_type);
                 new_definitions.push(ident.clone());
                 HirPattern::Identifier(ident)
@@ -74,6 +97,7 @@ impl<'context> Elaborator<'context> {
                     definition,
                     Some(span),
                     new_definitions,
+                    global_id,
                 );
                 let location = Location::new(span, self.file);
                 HirPattern::Mutable(Box::new(pattern), location)
@@ -104,6 +128,7 @@ impl<'context> Elaborator<'context> {
                         definition.clone(),
                         mutable,
                         new_definitions,
+                        global_id,
                     )
                 });
                 let location = Location::new(span, self.file);
@@ -200,6 +225,7 @@ impl<'context> Elaborator<'context> {
                 definition.clone(),
                 mutable,
                 new_definitions,
+                None,
             );
 
             if unseen_fields.contains(&field) {
@@ -300,7 +326,7 @@ impl<'context> Elaborator<'context> {
         let mut global_id = None;
         let global = self.interner.get_all_globals();
         for global_info in global {
-            if global_info.ident == name && global_info.local_id == self.local_module {
+            if global_info.local_id == self.local_module && global_info.ident == name {
                 global_id = Some(global_info.id);
             }
         }
@@ -330,22 +356,6 @@ impl<'context> Elaborator<'context> {
             });
         }
         ident
-    }
-
-    // Checks for a variable having been declared before.
-    // (Variable declaration and definition cannot be separate in Noir.)
-    // Once the variable has been found, intern and link `name` to this definition,
-    // returning (the ident, the IdentId of `name`)
-    //
-    // If a variable is not found, then an error is logged and a dummy id
-    // is returned, for better error reporting UX
-    pub(super) fn find_variable_or_default(&mut self, name: &Ident) -> (HirIdent, usize) {
-        self.use_variable(name).unwrap_or_else(|error| {
-            self.push_err(error);
-            let id = DefinitionId::dummy_id();
-            let location = Location::new(name.span(), self.file);
-            (HirIdent::non_trait_method(id, location), 0)
-        })
     }
 
     /// Lookup and use the specified variable.
@@ -408,6 +418,9 @@ impl<'context> Elaborator<'context> {
                         }
                     }
                     DefinitionKind::Global(global_id) => {
+                        if let Some(global) = self.unresolved_globals.remove(&global_id) {
+                            self.elaborate_global(global);
+                        }
                         if let Some(current_item) = self.current_item {
                             self.interner.add_global_dependency(current_item, global_id);
                         }
@@ -555,7 +568,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn get_ident_from_path(&mut self, path: Path) -> (HirIdent, usize) {
+    pub fn get_ident_from_path(&mut self, path: Path) -> (HirIdent, usize) {
         let location = Location::new(path.span(), self.file);
 
         let error = match path.as_ident().map(|ident| self.use_variable(ident)) {

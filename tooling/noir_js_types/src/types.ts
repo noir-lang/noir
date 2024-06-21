@@ -38,9 +38,7 @@ export type WitnessMap = Map<number, string>;
 
 export type Abi = {
   parameters: AbiParameter[];
-  param_witnesses: Record<string, { start: number; end: number }[]>;
   return_type: { abi_type: AbiType; visibility: Visibility } | null;
-  return_witnesses: number[];
   error_types: Record<string, AbiErrorType>;
 };
 

@@ -35,7 +35,7 @@ pub fn verify_proof(verification_key: [Field], proof: [Field], public_inputs: [F
 
 :::info
 
-This is a black box function. Read [this section](./black_box_fns) to learn more about black box functions in Noir.
+This is a black box function. Read [this section](./black_box_fns.md) to learn more about black box functions in Noir.
 
 :::
 

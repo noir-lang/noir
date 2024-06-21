@@ -1,14 +1,14 @@
 // Tests may be checked against https://github.com/cfrg/draft-irtf-cfrg-hash-to-curve/tree/main/poc
-use dep::std::ec::tecurve::affine::Curve as AffineCurve;
-use dep::std::ec::tecurve::affine::Point as Gaffine;
-use dep::std::ec::tecurve::curvegroup::Curve;
-use dep::std::ec::tecurve::curvegroup::Point as G;
+use std::ec::tecurve::affine::Curve as AffineCurve;
+use std::ec::tecurve::affine::Point as Gaffine;
+use std::ec::tecurve::curvegroup::Curve;
+use std::ec::tecurve::curvegroup::Point as G;
 
-use dep::std::ec::swcurve::affine::Point as SWGaffine;
-use dep::std::ec::swcurve::curvegroup::Point as SWG;
+use std::ec::swcurve::affine::Point as SWGaffine;
+use std::ec::swcurve::curvegroup::Point as SWG;
 
-use dep::std::ec::montcurve::affine::Point as MGaffine;
-use dep::std::ec::montcurve::curvegroup::Point as MG;
+use std::ec::montcurve::affine::Point as MGaffine;
+use std::ec::montcurve::curvegroup::Point as MG;
 
 fn main() {
     // This test only makes sense if Field is the right prime field.

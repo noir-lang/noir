@@ -257,7 +257,7 @@ pub fn get_storage_serialized_length(
     traits: &[TraitId],
     typ: &Type,
     interner: &NodeInterner,
-) -> Result<u64, AztecMacroError> {
+) -> Result<u32, AztecMacroError> {
     let (struct_name, maybe_stored_in_state) = match typ {
         Type::Struct(struct_type, generics) => {
             Ok((struct_type.borrow().name.0.contents.clone(), generics.first()))
@@ -394,7 +394,7 @@ pub fn assign_storage_slots(
                 )),
             }?;
 
-            let mut storage_slot: u64 = 1;
+            let mut storage_slot: u32 = 1;
             for (index, (_, expr_id)) in storage_constructor_expression.fields.iter().enumerate() {
                 let fields = storage_struct
                     .borrow()
@@ -509,10 +509,10 @@ pub fn generate_storage_layout(
     let mut storable_fields_impl = vec![];
 
     definition.fields.iter().enumerate().for_each(|(index, (field_ident, field_type))| {
-        storable_fields.push(format!("{}: dep::aztec::prelude::Storable<N{}>", field_ident, index));
+        storable_fields.push(format!("{}: aztec::prelude::Storable<N{}>", field_ident, index));
         generic_args.push(format!("N{}", index));
         storable_fields_impl.push(format!(
-            "{}: dep::aztec::prelude::Storable {{ slot: 0, typ: \"{}\" }}",
+            "{}: aztec::prelude::Storable {{ slot: 0, typ: \"{}\" }}",
             field_ident,
             field_type.to_string().replace("plain::", "")
         ));

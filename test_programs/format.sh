@@ -2,7 +2,7 @@
 set -e
 
 # These tests are incompatible with gas reporting
-excluded_dirs=("workspace" "workspace_default_member" "workspace_reexport_bug")
+excluded_dirs=("workspace" "overlapping_dep_and_mod" "overlapping_dep_and_mod_fix" "workspace_default_member" "workspace_reexport_bug")
 
 # These tests cause failures in CI with a stack overflow for some reason.
 ci_excluded_dirs=("eddsa")

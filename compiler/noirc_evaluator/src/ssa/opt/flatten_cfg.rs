@@ -375,7 +375,6 @@ impl<'f> Context<'f> {
         let old_condition = *condition;
         let then_condition = self.inserter.resolve(old_condition);
 
-        let one = FieldElement::one();
         let old_stores = std::mem::take(&mut self.store_values);
         let old_allocations = std::mem::take(&mut self.local_allocations);
         let branch = ConditionalBranch {
@@ -393,15 +392,6 @@ impl<'f> Context<'f> {
         };
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
-        // Optimization: within the then branch we know the condition to be true, so replace
-        // any references of it within this branch with true. Likewise, do the same with false
-        // with the else branch. We must be careful not to replace the condition if it is a
-        // known constant, otherwise we can end up setting 1 = 0 or vice-versa.
-        if self.inserter.function.dfg.get_numeric_constant(old_condition).is_none() {
-            let known_value = self.inserter.function.dfg.make_constant(one, Type::bool());
-
-            self.inserter.map_value(old_condition, known_value);
-        }
         vec![self.branch_ends[if_entry], *else_destination, *then_destination]
     }
 
@@ -414,7 +404,6 @@ impl<'f> Context<'f> {
             self.insert_instruction(Instruction::Not(cond_context.condition), CallStack::new());
         let else_condition = self.link_condition(else_condition);
 
-        let zero = FieldElement::zero();
         // Make sure the else branch sees the previous values of each store
         // rather than any values created in the 'then' branch.
         let old_stores = std::mem::take(&mut cond_context.then_branch.store_values);
@@ -429,21 +418,12 @@ impl<'f> Context<'f> {
             local_allocations: old_allocations,
             last_block: *block,
         };
-        let old_condition = else_branch.old_condition;
         cond_context.then_branch.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
         self.condition_stack.push(cond_context);
 
         self.insert_current_side_effects_enabled();
-        // Optimization: within the then branch we know the condition to be true, so replace
-        // any references of it within this branch with true. Likewise, do the same with false
-        // with the else branch. We must be careful not to replace the condition if it is a
-        // known constant, otherwise we can end up setting 1 = 0 or vice-versa.
-        if self.inserter.function.dfg.get_numeric_constant(old_condition).is_none() {
-            let known_value = self.inserter.function.dfg.make_constant(zero, Type::bool());
 
-            self.inserter.map_value(old_condition, known_value);
-        }
         assert_eq!(self.cfg.successors(*block).len(), 1);
         vec![self.cfg.successors(*block).next().unwrap()]
     }
@@ -470,11 +450,6 @@ impl<'f> Context<'f> {
         // end, in addition to resetting the value of old_condition since it is set to
         // known to be true/false within the then/else branch respectively.
         self.insert_current_side_effects_enabled();
-
-        // We must map back to `then_condition` here. Mapping `old_condition` to itself would
-        // lose any previous mappings.
-        self.inserter
-            .map_value(cond_context.then_branch.old_condition, cond_context.then_branch.condition);
 
         // While there is a condition on the stack we don't compile outside the condition
         // until it is popped. This ensures we inline the full then and else branches
@@ -1404,28 +1379,28 @@ mod test {
     fn should_not_merge_incorrectly_to_false() {
         // Regression test for #1792
         // Tests that it does not simplify a true constraint an always-false constraint
-        // fn main f1 {
-        //   b0():
-        //     v4 = call pedersen([Field 0], u32 0)
-        //     v5 = array_get v4, index Field 0
-        //     v6 = cast v5 as u32
-        //     v8 = mod v6, u32 2
-        //     v9 = cast v8 as u1
-        //     v10 = allocate
-        //     store Field 0 at v10
-        //     jmpif v9 then: b1, else: b2
-        //   b1():
-        //     v14 = add v5, Field 1
-        //     store v14 at v10
-        //     jmp b3()
-        //   b3():
-        //     v12 = eq v9, u1 1
-        //     constrain v12
-        //     return
-        //   b2():
-        //     store Field 0 at v10
-        //     jmp b3()
-        // }
+        // acir(inline) fn main f1 {
+        //     b0(v0: [u8; 2]):
+        //       v4 = call keccak256(v0, u8 2)
+        //       v5 = array_get v4, index u8 0
+        //       v6 = cast v5 as u32
+        //       v8 = truncate v6 to 1 bits, max_bit_size: 32
+        //       v9 = cast v8 as u1
+        //       v10 = allocate
+        //       store u8 0 at v10
+        //       jmpif v9 then: b2, else: b3
+        //     b2():
+        //       v12 = cast v5 as Field
+        //       v13 = add v12, Field 1
+        //       store v13 at v10
+        //       jmp b4()
+        //     b4():
+        //       constrain v9 == u1 1
+        //       return
+        //     b3():
+        //       store u8 0 at v10
+        //       jmp b4()
+        //   }
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
@@ -1434,20 +1409,18 @@ mod test {
         let b2 = builder.insert_block();
         let b3 = builder.insert_block();
 
-        let element_type = Rc::new(vec![Type::field()]);
-        let array_type = Type::Array(element_type.clone(), 1);
+        let element_type = Rc::new(vec![Type::unsigned(8)]);
+        let array_type = Type::Array(element_type.clone(), 2);
+        let array = builder.add_parameter(array_type);
 
-        let zero = builder.field_constant(0_u128);
-        let zero_array = builder.array_constant(im::Vector::unit(zero), array_type);
-        let i_zero = builder.numeric_constant(0_u128, Type::unsigned(32));
-        let pedersen = builder
-            .import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::PedersenCommitment));
-        let v4 = builder.insert_call(
-            pedersen,
-            vec![zero_array, i_zero],
-            vec![Type::Array(element_type, 2)],
-        )[0];
-        let v5 = builder.insert_array_get(v4, zero, Type::field());
+        let zero = builder.numeric_constant(0_u128, Type::unsigned(8));
+        let two = builder.numeric_constant(2_u128, Type::unsigned(8));
+
+        let keccak =
+            builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccak256));
+        let v4 =
+            builder.insert_call(keccak, vec![array, two], vec![Type::Array(element_type, 32)])[0];
+        let v5 = builder.insert_array_get(v4, zero, Type::unsigned(8));
         let v6 = builder.insert_cast(v5, Type::unsigned(32));
         let i_two = builder.numeric_constant(2_u128, Type::unsigned(32));
         let v8 = builder.insert_binary(v6, BinaryOp::Mod, i_two);
@@ -1460,7 +1433,9 @@ mod test {
 
         builder.switch_to_block(b1);
         let one = builder.field_constant(1_u128);
-        let v14 = builder.insert_binary(v5, BinaryOp::Add, one);
+        let v5b = builder.insert_cast(v5, Type::field());
+        let v13: Id<Value> = builder.insert_binary(v5b, BinaryOp::Add, one);
+        let v14 = builder.insert_cast(v13, Type::unsigned(8));
         builder.insert_store(v10, v14);
         builder.terminate_with_jmp(b3, vec![]);
 
@@ -1474,8 +1449,9 @@ mod test {
         builder.insert_constrain(v12, v_true, None);
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish().flatten_cfg();
-        let main = ssa.main();
+        let ssa = builder.finish();
+        let flattened_ssa = ssa.flatten_cfg();
+        let main = flattened_ssa.main();
 
         // Now assert that there is not an always-false constraint after flattening:
         let mut constrain_count = 0;

@@ -16,11 +16,12 @@ pub(crate) struct FunctionInserter<'f> {
     pub(crate) function: &'f mut Function,
 
     values: HashMap<ValueId, ValueId>,
+    const_arrays: HashMap<im::Vector<ValueId>, ValueId>,
 }
 
 impl<'f> FunctionInserter<'f> {
     pub(crate) fn new(function: &'f mut Function) -> FunctionInserter<'f> {
-        Self { function, values: HashMap::default() }
+        Self { function, values: HashMap::default(), const_arrays: HashMap::default() }
     }
 
     /// Resolves a ValueId to its new, updated value.
@@ -34,10 +35,17 @@ impl<'f> FunctionInserter<'f> {
                 super::value::Value::Array { array, typ } => {
                     let array = array.clone();
                     let typ = typ.clone();
-                    let new_array = array.iter().map(|id| self.resolve(*id)).collect();
-                    let new_id = self.function.dfg.make_array(new_array, typ);
-                    self.values.insert(value, new_id);
-                    new_id
+                    let new_array: im::Vector<ValueId> =
+                        array.iter().map(|id| self.resolve(*id)).collect();
+                    if self.const_arrays.get(&new_array) == Some(&value) {
+                        value
+                    } else {
+                        let new_array_clone = new_array.clone();
+                        let new_id = self.function.dfg.make_array(new_array, typ);
+                        self.values.insert(value, new_id);
+                        self.const_arrays.insert(new_array_clone, new_id);
+                        new_id
+                    }
                 }
                 _ => value,
             },

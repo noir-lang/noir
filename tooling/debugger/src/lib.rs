@@ -13,7 +13,7 @@ use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
-use nargo::artifacts::debug::DebugArtifact;
+use noirc_artifacts::debug::DebugArtifact;
 
 use nargo::NargoError;
 use noirc_driver::CompiledProgram;
@@ -24,7 +24,7 @@ pub fn debug_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
     debug_artifact: DebugArtifact,
     initial_witness: WitnessMap<FieldElement>,
     unconstrained_functions: &[BrilligBytecode<FieldElement>],
-) -> Result<Option<WitnessMap<FieldElement>>, NargoError> {
+) -> Result<Option<WitnessMap<FieldElement>>, NargoError<FieldElement>> {
     repl::run(blackbox_solver, circuit, &debug_artifact, initial_witness, unconstrained_functions)
 }
 

@@ -14,6 +14,7 @@ export default {
   favicon: 'img/favicon.ico',
   url: 'https://noir-lang.org',
   baseUrl: '/',
+  trailingSlash: true,
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'throw',
   i18n: {
@@ -109,7 +110,7 @@ export default {
             },
             {
               label: 'Docs GitHub',
-              href: 'https://github.com/noir-lang/docs',
+              href: 'https://github.com/noir-lang/noir/tree/master/docs',
             },
           ],
         },

@@ -320,7 +320,7 @@ pub fn get_serialized_length(
     trait_name: &str,
     typ: &Type,
     interner: &NodeInterner,
-) -> Result<u64, MacroError> {
+) -> Result<u32, MacroError> {
     let serialized_trait_impl_kind = traits
         .iter()
         .find_map(|&trait_id| {
