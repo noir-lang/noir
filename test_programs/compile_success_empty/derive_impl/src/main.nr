@@ -1,10 +1,12 @@
 comptime fn derive_default(typ: TypeDefinition) -> Quoted {
     let generics: [Quoted] = typ.generics();
-    assert_eq(generics.len(), 0, "derive_default: Deriving Default on generic types is currently unimplemented");
+    assert_eq(
+        generics.len(), 0, "derive_default: Deriving Default on generic types is currently unimplemented"
+    );
 
     let type_name = typ.as_type();
     let fields = typ.fields();
-    
+
     let fields = join(make_field_exprs(fields));
 
     quote {
@@ -21,7 +23,6 @@ struct Foo {
     x: Field,
     y: u32,
 }
-
 
 comptime fn make_field_exprs(fields: [(Quoted, Quoted)]) -> [Quoted] {
     let mut result = &[];
@@ -40,4 +41,4 @@ comptime fn join(slice: [Quoted]) -> Quoted {
     result
 }
 
-fn main(){}
+fn main() {}
