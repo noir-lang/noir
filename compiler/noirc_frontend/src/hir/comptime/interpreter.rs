@@ -929,10 +929,14 @@ impl<'a> Interpreter<'a> {
             Value::Struct(fields, typ) => (fields, typ),
             Value::Tuple(fields) => {
                 let mut field_types = Vec::with_capacity(fields.len());
-                let fields = fields.into_iter().enumerate().map(|(i, field)| {
-                    field_types.push(field.get_type().into_owned());
-                    (Rc::new(i.to_string()), field)
-                }).collect();
+                let fields = fields
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, field)| {
+                        field_types.push(field.get_type().into_owned());
+                        (Rc::new(i.to_string()), field)
+                    })
+                    .collect();
                 (fields, Type::Tuple(field_types))
             }
             value => {
