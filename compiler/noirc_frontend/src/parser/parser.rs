@@ -1691,4 +1691,23 @@ mod test {
 
         check_cases_with_errors(&cases[..], block(fresh_statement()));
     }
+
+    #[test]
+    fn test_quote() {
+        let cases = vec![
+            "quote {}",
+            "quote { a.b }",
+            "quote { ) ( }", // invalid syntax is fine in a quote
+            "quote { { } }", // Nested `{` and `}` shouldn't close the quote as long as they are matched.
+            "quote { 1 { 2 { 3 { 4 { 5 } 4 4 } 3 3 } 2 2 } 1 1 }",
+        ];
+        parse_all(quote(), cases);
+
+        let failing = vec![
+            "quote {}}",
+            "quote a",
+            "quote { { { } } } }"
+        ];
+        parse_all_failing(quote(), failing);
+    }
 }
