@@ -57,7 +57,7 @@ fn slice_push_back(mut arguments: Vec<(Value, Location)>) -> IResult<Value> {
         Value::Slice(mut values, typ) => {
             values.push_back(element);
             Ok(Value::Slice(values, typ))
-        },
+        }
         // Type checking should prevent this branch being taken.
         _ => unreachable!("ICE: `slice_push_back` expects a slice as its first argument"),
     }
