@@ -173,7 +173,8 @@ class AvmMemOpcodeTests : public ::testing::Test {
                             uint32_t dst_offset,
                             AvmMemoryTag tag,
                             uint32_t dir_src_offset = 0,
-                            uint32_t dir_dst_offset = 0)
+                            uint32_t dir_dst_offset = 0,
+                            bool indirect_uninitialized = false)
     {
         compute_mov_indices(indirect);
         FF const val_ff = uint256_t::from_uint128(val);
@@ -220,7 +221,9 @@ class AvmMemOpcodeTests : public ::testing::Test {
             EXPECT_THAT(mem_ind_a_row,
                         AllOf(MEM_ROW_FIELD_EQ(tag_err, 0),
                               MEM_ROW_FIELD_EQ(r_in_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
-                              MEM_ROW_FIELD_EQ(tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
+                              MEM_ROW_FIELD_EQ(tag,
+                                               indirect_uninitialized ? static_cast<uint32_t>(AvmMemoryTag::U0)
+                                                                      : static_cast<uint32_t>(AvmMemoryTag::U32)),
                               MEM_ROW_FIELD_EQ(addr, src_offset),
                               MEM_ROW_FIELD_EQ(val, dir_src_offset),
                               MEM_ROW_FIELD_EQ(sel_resolve_ind_addr_a, 1)));
@@ -376,7 +379,7 @@ TEST_F(AvmMemOpcodeTests, indUninitializedValueMov)
     trace_builder.return_op(0, 0, 0);
     trace = trace_builder.finalize();
 
-    validate_mov_trace(true, 0, 2, 3, AvmMemoryTag::U0, 0, 1);
+    validate_mov_trace(true, 0, 2, 3, AvmMemoryTag::U0, 0, 1, true);
 }
 
 TEST_F(AvmMemOpcodeTests, indirectMov)

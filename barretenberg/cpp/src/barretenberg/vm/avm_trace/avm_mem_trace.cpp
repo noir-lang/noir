@@ -150,7 +150,7 @@ bool AvmMemTraceBuilder::load_from_mem_trace(uint8_t space_id,
     AvmMemoryTag m_tag = mem_space.contains(addr) ? mem_space.at(addr).tag : AvmMemoryTag::U0;
 
     if (m_tag == AvmMemoryTag::U0 || m_tag == r_in_tag) {
-        insert_in_mem_trace(space_id, clk, sub_clk, addr, val, r_in_tag, r_in_tag, w_in_tag, false);
+        insert_in_mem_trace(space_id, clk, sub_clk, addr, val, m_tag, r_in_tag, w_in_tag, false);
         return true;
     }
 

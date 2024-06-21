@@ -171,10 +171,14 @@ namespace mem(256);
     // instead of (r_in_tag - tag)^(-1) as this allows to store zero by default (i.e., when tag_err == 0).
     // The new column one_min_inv is set to 1 - (r_in_tag - tag)^(-1) when tag_err == 1
     // but must be set to 0 when tags are matching and tag_err = 0
+    // Relaxation: This relation is relaxed when skip_check_tag is enabled or for 
+    // uninitialized memory, i.e. tag == 0.
     #[MEM_IN_TAG_CONSISTENCY_1]
-    (1 - skip_check_tag) * (1 - rw) * ((r_in_tag - tag) * (1 - one_min_inv) - tag_err) = 0;
+    tag * (1 - skip_check_tag) * (1 - rw) * ((r_in_tag - tag) * (1 - one_min_inv) - tag_err) = 0;
+    // TODO: Try to decrease the degree of the above relation, e.g., skip_check_tag might be consolidated
+    // with tag == 0 and rw == 1.
     #[MEM_IN_TAG_CONSISTENCY_2]
-    (1 - tag_err) * one_min_inv = 0;
+    tag * (1 - tag_err) * one_min_inv = 0;
 
     #[NO_TAG_ERR_WRITE_OR_SKIP]
     (skip_check_tag + rw) * tag_err = 0;

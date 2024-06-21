@@ -487,6 +487,11 @@ namespace main(256);
     sel_gas_accounting_active - OPCODE_SELECTORS - SEL_ALL_CTRL_FLOW - sel_op_sload - sel_op_sstore - sel_mem_op_activate_gas = 0;
 
     // Program counter must increment if not jumping or returning
+    // TODO: support for muli-rows opcode in execution trace such as
+    // radix, hash gadgets operations. At the moment, we have to increment
+    // the pc in witness generation for all rows pertaining to the original
+    // opcode. This is misleading. Ultimately, we want the pc to be incremented
+    // just after the last row of a given opcode.
     #[PC_INCREMENT]
     (1 - sel_first) * (1 - sel_op_halt) * OPCODE_SELECTORS * (pc' - (pc + 1)) = 0;
 

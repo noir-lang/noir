@@ -2678,7 +2678,7 @@ void AvmTraceBuilder::op_call([[maybe_unused]] uint8_t indirect,
         .main_mem_addr_a = read_ind_gas_offset.val,
         .main_mem_addr_b = addr_offset,
         .main_mem_addr_c = read_ind_args_offset.val,
-        .main_pc = FF(pc++),
+        .main_pc = FF(pc),
         .main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
         .main_sel_mem_op_a = FF(1),
         .main_sel_mem_op_b = FF(1),
@@ -2725,10 +2725,13 @@ void AvmTraceBuilder::op_call([[maybe_unused]] uint8_t indirect,
                           AvmMemoryTag::FF,
                           internal_return_ptr,
                           hint.return_data);
-    clk++;
+
+    // The last call to write_slice_to_memory() might have written more than one row.
+    clk = static_cast<uint32_t>(main_trace.size()) + 1;
     write_slice_to_memory(
         call_ptr, clk, success_offset, AvmMemoryTag::U0, AvmMemoryTag::U8, internal_return_ptr, { hint.success });
     external_call_counter++;
+    pc++;
 }
 
 void AvmTraceBuilder::op_get_contract_instance(uint8_t indirect, uint32_t address_offset, uint32_t dst_offset)
@@ -3685,7 +3688,7 @@ void AvmTraceBuilder::op_variable_msm(uint8_t indirect,
         .main_internal_return_ptr = FF(internal_return_ptr),
         .main_mem_addr_a = FF(direct_points_offset),
         .main_mem_addr_b = FF(direct_scalars_offset),
-        .main_pc = FF(pc++),
+        .main_pc = FF(pc),
         .main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
         .main_sel_mem_op_a = FF(1),
         .main_sel_mem_op_b = FF(1),
@@ -3882,6 +3885,8 @@ void AvmTraceBuilder::op_variable_msm(uint8_t indirect,
         .main_sel_mem_op_a = FF(1),
         .main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U8)),
     });
+
+    pc++;
 }
 // Finalise Lookup Counts
 //
