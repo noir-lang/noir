@@ -296,6 +296,18 @@ impl StructType {
         })
     }
 
+    /// Returns the name and raw types of each field of this type.
+    /// This will not substitute any generic arguments so a generic field like `x`
+    /// in `struct Foo<T> { x: T }` will return a `("x", T)` pair.
+    ///
+    /// This method is almost never what is wanted for type checking or monomorphization,
+    /// prefer to use `get_fields` whenever possible.
+    pub fn get_fields_as_written(&self) -> Vec<(String, Type)> {
+        vecmap(&self.fields, |(name, typ)| {
+            (name.0.contents.clone(), typ.clone())
+        })
+    }
+
     pub fn field_names(&self) -> BTreeSet<Ident> {
         self.fields.iter().map(|(name, _)| name.clone()).collect()
     }
@@ -805,9 +817,12 @@ impl Type {
             | Type::FmtString(_, _)
             | Type::Error => true,
 
+            // Quoted objects only exist at compile-time where the only execution
+            // environment is the interpreter. In this environment, they are valid.
+            Type::Quoted(_) => true,
+
             Type::MutableReference(_)
             | Type::Forall(_, _)
-            | Type::Quoted(_)
             | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {

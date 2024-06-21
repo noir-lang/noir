@@ -98,14 +98,7 @@ impl<'a> Interpreter<'a> {
             .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to");
 
         if let Some(builtin) = func_attrs.builtin() {
-            match builtin.as_str() {
-                "array_len" => builtin::array_len(&arguments),
-                "as_slice" => builtin::as_slice(arguments),
-                _ => {
-                    let item = format!("Comptime evaluation for builtin function {builtin}");
-                    Err(InterpreterError::Unimplemented { item, location })
-                }
-            }
+            builtin::call_builtin(self.interner, builtin, arguments, location)
         } else if let Some(foreign) = func_attrs.foreign() {
             let item = format!("Comptime evaluation for foreign functions like {foreign}");
             Err(InterpreterError::Unimplemented { item, location })
