@@ -497,9 +497,13 @@ impl DataFlowGraph {
         }
     }
 
-    /// True if the given ValueId refers to a constant value
+    /// True if the given ValueId refers to a (recursively) constant value
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
-        !matches!(&self[self.resolve(argument)], Value::Instruction { .. } | Value::Param { .. })
+        match &self[self.resolve(argument)] {
+            Value::Instruction { .. } | Value::Param { .. } => false,
+            Value::Array { array, .. } => array.iter().all(|element| self.is_constant(*element)),
+            _ => true,
+        } 
     }
 }
 

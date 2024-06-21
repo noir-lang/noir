@@ -47,6 +47,7 @@ pub fn verify_proof<N>(verification_key: [Field], proof: [Field], public_inputs:
 // Useful for debugging for-loop bounds.
 #[builtin(assert_constant)]
 pub fn assert_constant<T>(x: T) {}
+
 // from_field and as_field are private since they are not valid for every type.
 // `as` should be the default for users to cast between primitive types, and in the future
 // traits can be used to work with generic types.

@@ -131,22 +131,24 @@ impl ExpressionKind {
         }))
     }
 
-    /// Returns true if the expression is a literal integer
-    pub fn is_integer(&self) -> bool {
-        self.as_integer().is_some()
-    }
+    // UNUSED
+    // /// Returns true if the expression is a literal integer
+    // pub fn is_integer(&self) -> bool {
+    //     self.as_integer().is_some()
+    // }
 
-    fn as_integer(&self) -> Option<FieldElement> {
-        let literal = match self {
-            ExpressionKind::Literal(literal) => literal,
-            _ => return None,
-        };
-
-        match literal {
-            Literal::Integer(integer, _) => Some(*integer),
-            _ => None,
-        }
-    }
+    // UNUSED
+    // fn as_integer(&self) -> Option<FieldElement> {
+    //     let literal = match self {
+    //         ExpressionKind::Literal(literal) => literal,
+    //         _ => return None,
+    //     };
+    //
+    //     match literal {
+    //         Literal::Integer(integer, _) => Some(*integer),
+    //         _ => None,
+    //     }
+    // }
 }
 
 impl Recoverable for ExpressionKind {

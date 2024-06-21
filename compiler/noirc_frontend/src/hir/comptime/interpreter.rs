@@ -59,7 +59,7 @@ impl<'a> Interpreter<'a> {
     pub(crate) fn call_function(
         &mut self,
         function: FuncId,
-        arguments: Vec<(Value, Location)>,
+        arguments: Vec<ExprId>,
         location: Location,
     ) -> IResult<Value> {
         let previous_state = self.enter_function();
@@ -78,6 +78,10 @@ impl<'a> Interpreter<'a> {
         }
 
         let parameters = meta.parameters.0.clone();
+        let arguments = try_vecmap(arguments, |arg| {
+            Ok((self.evaluate(arg)?, self.interner.expr_location(&arg)))
+        })?;
+
         for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
             self.define_pattern(parameter, typ, argument, arg_location)?;
         }
@@ -92,7 +96,7 @@ impl<'a> Interpreter<'a> {
     fn call_builtin(
         &mut self,
         function: FuncId,
-        arguments: Vec<(Value, Location)>,
+        arguments: Vec<ExprId>,
         location: Location,
     ) -> IResult<Value> {
         let attributes = self.interner.function_attributes(&function);
@@ -101,7 +105,19 @@ impl<'a> Interpreter<'a> {
 
         if let Some(builtin) = func_attrs.builtin() {
             match builtin.as_str() {
-                "array_len" => builtin::array_len(&arguments),
+
+                "array_len" => {
+                    assert_eq!(arguments.len(), 1, "ICE: `array_len` should only receive a single argument");
+
+                    // let arguments = try_vecmap(arguments, |arg| {
+                    //     Ok((arg)?, self.interner.expr_location(&arg)))
+                    // });
+                    //
+                    // Ok()
+
+                    self.evaluate_array_or_slice_len(arguments[0])
+
+                }
                 _ => {
                     let item = format!("Evaluation for builtin function {builtin}");
                     Err(InterpreterError::Unimplemented { item, location })
@@ -112,6 +128,9 @@ impl<'a> Interpreter<'a> {
             Err(InterpreterError::Unimplemented { item, location })
         } else if let Some(oracle) = func_attrs.oracle() {
             if oracle == "print" {
+                let arguments = try_vecmap(arguments, |arg| {
+                    Ok((self.evaluate(arg)?, self.interner.expr_location(&arg)))
+                })?;
                 self.print_oracle(arguments)
             } else {
                 let item = format!("Evaluation for oracle functions like {oracle}");
@@ -566,6 +585,40 @@ impl<'a> Interpreter<'a> {
         })
     }
 
+    fn evaluate_array_or_slice_len(&mut self, id: ExprId) -> IResult<Value> {
+        let array = match self.interner.expression(&id) {
+            HirExpression::Literal(literal) => {
+                match literal {
+                    HirLiteral::Array(array) => array,
+                    HirLiteral::Slice(array) => array,
+                    _ => {
+                        let location = self.interner.expr_location(&id);
+                        return Err(InterpreterError::InvalidArrayLenArgument { location })
+                    }
+                }
+            }
+            _ => {
+                let location = self.interner.expr_location(&id);
+                return Err(InterpreterError::InvalidArrayLenArgument { location })
+            }
+        };
+
+        match array {
+            HirArrayLiteral::Standard(elements) => {
+                Ok(Value::U32(elements.len() as u32))
+            }
+            HirArrayLiteral::Repeated { length, .. } => {
+                if let Some(length) = length.evaluate_to_u32() {
+                    Ok(Value::U32(length))
+                } else {
+                    let location = self.interner.expr_location(&id);
+                    Err(InterpreterError::NonIntegerArrayLength { typ: length, location })
+                }
+            }
+        }
+    }
+
+
     fn evaluate_prefix(&mut self, prefix: HirPrefixExpression, id: ExprId) -> IResult<Value> {
         let rhs = self.evaluate(prefix.rhs)?;
         match prefix.operator {
@@ -951,14 +1004,16 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
         let function = self.evaluate(call.func)?;
-        let arguments = try_vecmap(call.arguments, |arg| {
-            Ok((self.evaluate(arg)?, self.interner.expr_location(&arg)))
-        })?;
         let location = self.interner.expr_location(&id);
 
         match function {
-            Value::Function(function_id, _) => self.call_function(function_id, arguments, location),
-            Value::Closure(closure, env, _) => self.call_closure(closure, env, arguments, location),
+            Value::Function(function_id, _) => self.call_function(function_id, call.arguments, location),
+            Value::Closure(closure, env, _) => {
+                let arguments = try_vecmap(call.arguments, |arg| {
+                    Ok((self.evaluate(arg)?, self.interner.expr_location(&arg)))
+                })?;
+                self.call_closure(closure, env, arguments, location)
+            }
             value => Err(InterpreterError::NonFunctionCalled { value, location }),
         }
     }
@@ -969,9 +1024,6 @@ impl<'a> Interpreter<'a> {
         id: ExprId,
     ) -> IResult<Value> {
         let object = self.evaluate(call.object)?;
-        let arguments = try_vecmap(call.arguments, |arg| {
-            Ok((self.evaluate(arg)?, self.interner.expr_location(&arg)))
-        })?;
         let location = self.interner.expr_location(&id);
 
         let typ = object.get_type().follow_bindings();
@@ -986,7 +1038,7 @@ impl<'a> Interpreter<'a> {
         };
 
         if let Some(method) = method {
-            self.call_function(method, arguments, location)
+            self.call_function(method, call.arguments, location)
         } else {
             Err(InterpreterError::NoMethodFound { name: method_name.clone(), typ, location })
         }
@@ -1172,7 +1224,7 @@ impl<'a> Interpreter<'a> {
         Ok(Value::Unit)
     }
 
-    fn evaluate_constrain(&mut self, constrain: HirConstrainStatement) -> IResult<Value> {
+    pub(crate) fn evaluate_constrain(&mut self, constrain: HirConstrainStatement) -> IResult<Value> {
         match self.evaluate(constrain.0)? {
             Value::Bool(true) => Ok(Value::Unit),
             Value::Bool(false) => {

@@ -24,6 +24,7 @@ pub enum InterpreterError {
     NonIntegerUsedAsIndex { value: Value, location: Location },
     NonIntegerIntegerLiteral { typ: Type, location: Location },
     NonIntegerArrayLength { typ: Type, location: Location },
+    InvalidArrayLenArgument { location: Location },
     NonNumericCasted { value: Value, location: Location },
     IndexOutOfBounds { index: usize, length: usize, location: Location },
     ExpectedStructToHaveField { value: Value, field_name: String, location: Location },
@@ -83,6 +84,7 @@ impl InterpreterError {
             | InterpreterError::NonIntegerUsedAsIndex { location, .. }
             | InterpreterError::NonIntegerIntegerLiteral { location, .. }
             | InterpreterError::NonIntegerArrayLength { location, .. }
+            | InterpreterError::InvalidArrayLenArgument { location, .. }
             | InterpreterError::NonNumericCasted { location, .. }
             | InterpreterError::IndexOutOfBounds { location, .. }
             | InterpreterError::ExpectedStructToHaveField { location, .. }
@@ -205,6 +207,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::NonIntegerArrayLength { typ, location } => {
                 let msg = format!("Non-integer array length: `{typ}`");
                 let secondary = "Array lengths must be integers".into();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::InvalidArrayLenArgument { location } => {
+                let msg = format!("Invalid array length argument`");
+                let secondary = "Array .len() function only accepts arrays and slices".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::NonNumericCasted { value, location } => {

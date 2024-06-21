@@ -730,26 +730,14 @@ impl<'context> Elaborator<'context> {
         };
 
         let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
-
-        let mut comptime_args = Vec::new();
         let mut errors = Vec::new();
-
-        for argument in arguments {
-            match interpreter.evaluate(argument) {
-                Ok(arg) => {
-                    let location = interpreter.interner.expr_location(&argument);
-                    comptime_args.push((arg, location));
-                }
-                Err(error) => errors.push((error.into(), self.file)),
-            }
-        }
+        let result = interpreter.call_function(function, arguments, location);
 
         if !errors.is_empty() {
             self.errors.append(&mut errors);
             return None;
         }
 
-        let result = interpreter.call_function(function, comptime_args, location);
         let (expr_id, typ) = self.inline_comptime_value(result, location.span);
         Some((self.interner.expression(&expr_id), typ))
     }
