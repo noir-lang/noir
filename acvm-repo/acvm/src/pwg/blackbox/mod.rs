@@ -1,13 +1,13 @@
 use acir::{
     circuit::opcodes::{BlackBoxFuncCall, FunctionInput},
     native_types::{Witness, WitnessMap},
-    FieldElement,
+    AcirField,
 };
 use acvm_blackbox_solver::{blake2s, blake3, keccak256, keccakf1600, sha256};
 
 use self::{
     aes128::solve_aes128_encryption_opcode, bigint::AcvmBigIntSolver,
-    hash::solve_poseidon2_permutation_opcode, pedersen::pedersen_hash,
+    hash::solve_poseidon2_permutation_opcode,
 };
 
 use super::{insert_value, OpcodeNotSolvable, OpcodeResolutionError};
@@ -18,7 +18,6 @@ pub(crate) mod bigint;
 mod embedded_curve_ops;
 mod hash;
 mod logic;
-mod pedersen;
 mod range;
 mod signature;
 pub(crate) mod utils;
@@ -27,7 +26,6 @@ use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 // Hash functions should eventually be exposed for external consumers.
 use hash::{solve_generic_256_hash_opcode, solve_sha_256_permutation_opcode};
 use logic::{and, xor};
-use pedersen::pedersen;
 pub(crate) use range::solve_range_opcode;
 use signature::{
     ecdsa::{secp256k1_prehashed, secp256r1_prehashed},
@@ -37,8 +35,8 @@ use signature::{
 /// Check if all of the inputs to the function have assignments
 ///
 /// Returns the first missing assignment if any are missing
-fn first_missing_assignment(
-    witness_assignments: &WitnessMap,
+fn first_missing_assignment<F>(
+    witness_assignments: &WitnessMap<F>,
     inputs: &[FunctionInput],
 ) -> Option<Witness> {
     inputs.iter().find_map(|input| {
@@ -51,16 +49,16 @@ fn first_missing_assignment(
 }
 
 /// Check if all of the inputs to the function have assignments
-fn contains_all_inputs(witness_assignments: &WitnessMap, inputs: &[FunctionInput]) -> bool {
+fn contains_all_inputs<F>(witness_assignments: &WitnessMap<F>, inputs: &[FunctionInput]) -> bool {
     inputs.iter().all(|input| witness_assignments.contains_key(&input.witness))
 }
 
-pub(crate) fn solve(
-    backend: &impl BlackBoxFunctionSolver,
-    initial_witness: &mut WitnessMap,
+pub(crate) fn solve<F: AcirField>(
+    backend: &impl BlackBoxFunctionSolver<F>,
+    initial_witness: &mut WitnessMap<F>,
     bb_func: &BlackBoxFuncCall,
     bigint_solver: &mut AcvmBigIntSolver,
-) -> Result<(), OpcodeResolutionError> {
+) -> Result<(), OpcodeResolutionError<F>> {
     let inputs = bb_func.get_inputs_vec();
     if !contains_all_inputs(initial_witness, &inputs) {
         let unassigned_witness = first_missing_assignment(initial_witness, &inputs)
@@ -108,7 +106,7 @@ pub(crate) fn solve(
             }
             let output_state = keccakf1600(state)?;
             for (output_witness, value) in outputs.iter().zip(output_state.into_iter()) {
-                insert_value(output_witness, FieldElement::from(value as u128), initial_witness)?;
+                insert_value(output_witness, F::from(value as u128), initial_witness)?;
             }
             Ok(())
         }
@@ -127,12 +125,6 @@ pub(crate) fn solve(
             message,
             *output,
         ),
-        BlackBoxFuncCall::PedersenCommitment { inputs, domain_separator, outputs } => {
-            pedersen(backend, initial_witness, inputs, *domain_separator, *outputs)
-        }
-        BlackBoxFuncCall::PedersenHash { inputs, domain_separator, output } => {
-            pedersen_hash(backend, initial_witness, inputs, *domain_separator, *output)
-        }
         BlackBoxFuncCall::EcdsaSecp256k1 {
             public_key_x,
             public_key_y,
@@ -187,5 +179,7 @@ pub(crate) fn solve(
         BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len } => {
             solve_poseidon2_permutation_opcode(backend, initial_witness, inputs, outputs, *len)
         }
+        BlackBoxFuncCall::PedersenCommitment { .. } => todo!("Deprecated BlackBox"),
+        BlackBoxFuncCall::PedersenHash { .. } => todo!("Deprecated BlackBox"),
     }
 }

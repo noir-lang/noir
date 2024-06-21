@@ -1,8 +1,10 @@
 use std::{collections::HashMap, path::Path, vec};
 
-use acvm::acir::acir_field::FieldOptions;
+use acvm::{AcirField, FieldElement};
 use fm::{FileId, FileManager, FILE_EXTENSION};
 use noirc_errors::Location;
+use num_bigint::BigUint;
+use num_traits::Num;
 
 use crate::ast::{
     FunctionDefinition, Ident, ItemVisibility, LetStatement, ModuleDeclaration, NoirFunction,
@@ -144,6 +146,7 @@ impl<'a> ModCollector<'a> {
                 file_id: self.file_id,
                 functions: Vec::new(),
                 trait_id: None,
+                self_type: None,
             };
 
             for (method, _) in r#impl.methods {
@@ -187,8 +190,14 @@ impl<'a> ModCollector<'a> {
                 object_type: trait_impl.object_type,
                 generics: trait_impl.impl_generics,
                 where_clause: trait_impl.where_clause,
-                trait_id: None, // will be filled later
                 trait_generics: trait_impl.trait_generics,
+
+                // These last fields are filled later on
+                trait_id: None,
+                impl_id: None,
+                resolved_object_type: None,
+                resolved_generics: Vec::new(),
+                resolved_trait_generics: Vec::new(),
             };
 
             self.def_collector.items.trait_impls.push(unresolved_trait_impl);
@@ -201,8 +210,12 @@ impl<'a> ModCollector<'a> {
         trait_impl: &NoirTraitImpl,
         krate: CrateId,
     ) -> UnresolvedFunctions {
-        let mut unresolved_functions =
-            UnresolvedFunctions { file_id: self.file_id, functions: Vec::new(), trait_id: None };
+        let mut unresolved_functions = UnresolvedFunctions {
+            file_id: self.file_id,
+            functions: Vec::new(),
+            trait_id: None,
+            self_type: None,
+        };
 
         let module = ModuleId { krate, local_id: self.module_id };
 
@@ -224,8 +237,12 @@ impl<'a> ModCollector<'a> {
         functions: Vec<NoirFunction>,
         krate: CrateId,
     ) -> Vec<(CompilationError, FileId)> {
-        let mut unresolved_functions =
-            UnresolvedFunctions { file_id: self.file_id, functions: Vec::new(), trait_id: None };
+        let mut unresolved_functions = UnresolvedFunctions {
+            file_id: self.file_id,
+            functions: Vec::new(),
+            trait_id: None,
+            self_type: None,
+        };
         let mut errors = vec![];
 
         let module = ModuleId { krate, local_id: self.module_id };
@@ -233,7 +250,7 @@ impl<'a> ModCollector<'a> {
         for function in functions {
             // check if optional field attribute is compatible with native field
             if let Some(field) = function.attributes().get_field_attribute() {
-                if !FieldOptions::is_native_field(&field) {
+                if !is_native_field(&field) {
                     continue;
                 }
             }
@@ -398,6 +415,7 @@ impl<'a> ModCollector<'a> {
                 file_id: self.file_id,
                 functions: Vec::new(),
                 trait_id: None,
+                self_type: None,
             };
 
             let mut method_ids = HashMap::new();
@@ -507,6 +525,7 @@ impl<'a> ModCollector<'a> {
                 method_ids,
                 fns_with_default_impl: unresolved_functions,
             };
+            context.def_interner.push_empty_trait(trait_id, &unresolved);
             self.def_collector.items.traits.insert(trait_id, unresolved);
         }
         errors
@@ -718,6 +737,27 @@ fn should_check_siblings_for_module(module_path: &Path, parent_path: &Path) -> b
         // Alternatively, we could panic, but this is left to a different step where we
         // ideally have some source location to issue an error.
         true
+    }
+}
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "bls12_381")] {
+        pub const CHOSEN_FIELD: &str = "bls12_381";
+    } else {
+        pub const CHOSEN_FIELD: &str = "bn254";
+    }
+}
+
+fn is_native_field(str: &str) -> bool {
+    let big_num = if let Some(hex) = str.strip_prefix("0x") {
+        BigUint::from_str_radix(hex, 16)
+    } else {
+        BigUint::from_str_radix(str, 10)
+    };
+    if let Ok(big_num) = big_num {
+        big_num == FieldElement::modulus()
+    } else {
+        CHOSEN_FIELD == str
     }
 }
 

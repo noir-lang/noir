@@ -2,7 +2,6 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
-use acir::FieldElement;
 use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 mod embedded_curve_ops;
@@ -11,31 +10,18 @@ mod pedersen;
 mod poseidon2;
 mod schnorr;
 
-use ark_ec::AffineRepr;
 pub use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
+pub use generator::generators::derive_generators;
 pub use poseidon2::poseidon2_permutation;
 
+// Temporary hack, this ensure that we always use a bn254 field here
+// without polluting the feature flags of the `acir_field` crate.
+type FieldElement = acir::acir_field::GenericFieldElement<ark_bn254::Fr>;
+
+#[derive(Default)]
 pub struct Bn254BlackBoxSolver;
 
-impl Bn254BlackBoxSolver {
-    pub async fn initialize() -> Bn254BlackBoxSolver {
-        Bn254BlackBoxSolver
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn new() -> Bn254BlackBoxSolver {
-        Bn254BlackBoxSolver
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl Default for Bn254BlackBoxSolver {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
+impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
     fn schnorr_verify(
         &self,
         public_key_x: &FieldElement,
@@ -52,31 +38,6 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
             sig_e,
             message,
         ))
-    }
-
-    fn pedersen_commitment(
-        &self,
-        inputs: &[FieldElement],
-        domain_separator: u32,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        let inputs: Vec<grumpkin::Fq> = inputs.iter().map(|input| input.into_repr()).collect();
-        let result = pedersen::commitment::commit_native_with_index(&inputs, domain_separator);
-        let res_x =
-            FieldElement::from_repr(*result.x().expect("should not commit to point at infinity"));
-        let res_y =
-            FieldElement::from_repr(*result.y().expect("should not commit to point at infinity"));
-        Ok((res_x, res_y))
-    }
-
-    fn pedersen_hash(
-        &self,
-        inputs: &[FieldElement],
-        domain_separator: u32,
-    ) -> Result<FieldElement, BlackBoxResolutionError> {
-        let inputs: Vec<grumpkin::Fq> = inputs.iter().map(|input| input.into_repr()).collect();
-        let result = pedersen::hash::hash_with_index(&inputs, domain_separator);
-        let result = FieldElement::from_repr(result);
-        Ok(result)
     }
 
     fn multi_scalar_mul(

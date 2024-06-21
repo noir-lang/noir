@@ -45,7 +45,7 @@ where H: Hasher + Default {
     // Ensure S < Subgroup Order
     assert(signature_s.lt(bjj.suborder));
     // Calculate the h = H(R, A, msg)
-    let mut hasher: H = H::default();
+    let mut hasher = H::default();
     hasher.write(signature_r8_x);
     hasher.write(signature_r8_y);
     hasher.write(pub_key_x);

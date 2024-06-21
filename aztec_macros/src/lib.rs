@@ -3,7 +3,7 @@ mod utils;
 
 use noirc_errors::Location;
 use transforms::{
-    compute_note_hash_and_nullifier::inject_compute_note_hash_and_nullifier,
+    compute_note_hash_and_optionally_a_nullifier::inject_compute_note_hash_and_optionally_a_nullifier,
     contract_interface::{
         generate_contract_interface, stub_function, update_fn_signatures_in_contract_interface,
     },
@@ -134,7 +134,6 @@ fn transform_module(
     for func in module.functions.iter_mut() {
         let mut is_private = false;
         let mut is_public = false;
-        let mut is_public_vm = false;
         let mut is_initializer = false;
         let mut is_internal = false;
         let mut insert_init_check = has_initializer;
@@ -152,8 +151,6 @@ fn transform_module(
                 is_internal = true;
             } else if is_custom_attribute(&secondary_attribute, "aztec(public)") {
                 is_public = true;
-            } else if is_custom_attribute(&secondary_attribute, "aztec(public-vm)") {
-                is_public_vm = true;
             }
             if is_custom_attribute(&secondary_attribute, "aztec(view)") {
                 is_static = true;
@@ -161,14 +158,8 @@ fn transform_module(
         }
 
         // Apply transformations to the function based on collected attributes
-        if is_private || is_public || is_public_vm {
-            let fn_type = if is_private {
-                "Private"
-            } else if is_public_vm {
-                "Avm"
-            } else {
-                "Public"
-            };
+        if is_private || is_public {
+            let fn_type = if is_private { "Private" } else { "Public" };
             let stub_src = stub_function(fn_type, func, is_static);
             stubs.push((stub_src, Location { file: *file_id, span: func.name_ident().span() }));
 
@@ -245,7 +236,7 @@ fn transform_hir(
 ) -> Result<(), (AztecMacroError, FileId)> {
     if has_aztec_dependency(crate_id, context) {
         transform_events(crate_id, context)?;
-        inject_compute_note_hash_and_nullifier(crate_id, context)?;
+        inject_compute_note_hash_and_optionally_a_nullifier(crate_id, context)?;
         assign_storage_slots(crate_id, context)?;
         inject_note_exports(crate_id, context)?;
         update_fn_signatures_in_contract_interface(crate_id, context)

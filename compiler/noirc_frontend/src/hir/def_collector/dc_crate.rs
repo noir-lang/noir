@@ -5,6 +5,7 @@ use crate::graph::CrateId;
 use crate::hir::comptime::{Interpreter, InterpreterError};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
+use crate::{Type, TypeVariable};
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::resolution::{
@@ -18,7 +19,9 @@ use crate::hir::type_check::{
 use crate::hir::Context;
 
 use crate::macros_api::{MacroError, MacroProcessor};
-use crate::node_interner::{FuncId, GlobalId, NodeInterner, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{
+    FuncId, GlobalId, NodeInterner, StructId, TraitId, TraitImplId, TypeAliasId,
+};
 
 use crate::ast::{
     ExpressionKind, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
@@ -30,6 +33,7 @@ use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Span};
 use std::collections::{BTreeMap, HashMap};
 
+use std::rc::Rc;
 use std::vec;
 
 #[derive(Default)]
@@ -47,6 +51,9 @@ pub struct UnresolvedFunctions {
     pub file_id: FileId,
     pub functions: Vec<(LocalModuleId, FuncId, NoirFunction)>,
     pub trait_id: Option<TraitId>,
+
+    // The object type this set of functions was declared on, if there is one.
+    pub self_type: Option<Type>,
 }
 
 impl UnresolvedFunctions {
@@ -107,13 +114,22 @@ pub struct UnresolvedTrait {
 pub struct UnresolvedTraitImpl {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
-    pub trait_id: Option<TraitId>,
     pub trait_generics: Vec<UnresolvedType>,
     pub trait_path: Path,
     pub object_type: UnresolvedType,
     pub methods: UnresolvedFunctions,
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
+
+    // Every field after this line is filled in later in the elaborator
+    pub trait_id: Option<TraitId>,
+    pub impl_id: Option<TraitImplId>,
+    pub resolved_object_type: Option<Type>,
+    pub resolved_generics: Vec<(Rc<String>, TypeVariable, Span)>,
+
+    // The resolved generic on the trait itself. E.g. it is the `<C, D>` in
+    // `impl<A, B> Foo<C, D> for Bar<E, F> { ... }`
+    pub resolved_trait_generics: Vec<Type>,
 }
 
 #[derive(Clone)]
@@ -123,7 +139,7 @@ pub struct UnresolvedTypeAlias {
     pub type_alias_def: NoirTypeAlias,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct UnresolvedGlobal {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
@@ -240,7 +256,7 @@ impl DefCollector {
         context: &mut Context,
         ast: SortedModule,
         root_file_id: FileId,
-        use_elaborator: bool,
+        use_legacy: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -257,7 +273,7 @@ impl DefCollector {
             errors.extend(CrateDefMap::collect_defs(
                 dep.crate_id,
                 context,
-                use_elaborator,
+                use_legacy,
                 macro_processors,
             ));
 
@@ -335,9 +351,9 @@ impl DefCollector {
             }
         }
 
-        if use_elaborator {
+        if !use_legacy {
             let mut more_errors = Elaborator::elaborate(context, crate_id, def_collector.items);
-            more_errors.append(&mut errors);
+            errors.append(&mut more_errors);
             return errors;
         }
 
@@ -388,7 +404,7 @@ impl DefCollector {
         resolved_module.errors.extend(collect_impls(context, crate_id, &def_collector.items.impls));
 
         // We must wait to resolve non-integer globals until after we resolve structs since struct
-        // globals will need to reference the struct type they're initialized to to ensure they are valid.
+        // globals will need to reference the struct type they're initialized to ensure they are valid.
         resolved_module.resolve_globals(context, other_globals, crate_id);
 
         // Resolve each function in the crate. This is now possible since imports have been resolved
@@ -452,7 +468,7 @@ fn inject_prelude(
 
         let path = Path {
             segments: segments.clone(),
-            kind: crate::ast::PathKind::Dep,
+            kind: crate::ast::PathKind::Plain,
             span: Span::default(),
         };
 
@@ -473,7 +489,7 @@ fn inject_prelude(
                     0,
                     ImportDirective {
                         module_id: crate_root,
-                        path: Path { segments, kind: PathKind::Dep, span: Span::default() },
+                        path: Path { segments, kind: PathKind::Plain, span: Span::default() },
                         alias: None,
                         is_prelude: true,
                     },
@@ -486,7 +502,7 @@ fn inject_prelude(
 /// Separate the globals Vec into two. The first element in the tuple will be the
 /// literal globals, except for arrays, and the second will be all other globals.
 /// We exclude array literals as they can contain complex types
-fn filter_literal_globals(
+pub fn filter_literal_globals(
     globals: Vec<UnresolvedGlobal>,
 ) -> (Vec<UnresolvedGlobal>, Vec<UnresolvedGlobal>) {
     globals.into_iter().partition(|global| match &global.stmt_def.expression.kind {
@@ -532,7 +548,8 @@ impl ResolvedModule {
     /// Evaluate all `comptime` expressions in this module
     fn evaluate_comptime(&mut self, interner: &mut NodeInterner) {
         if self.count_errors() == 0 {
-            let mut interpreter = Interpreter::new(interner);
+            let mut scopes = vec![HashMap::default()];
+            let mut interpreter = Interpreter::new(interner, &mut scopes);
 
             for (_file, global) in &self.globals {
                 if let Err(error) = interpreter.scan_global(*global) {

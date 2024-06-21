@@ -1,3 +1,4 @@
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::ast;
@@ -319,12 +320,12 @@ pub fn get_serialized_length(
     trait_name: &str,
     typ: &Type,
     interner: &NodeInterner,
-) -> Result<u64, MacroError> {
+) -> Result<u32, MacroError> {
     let serialized_trait_impl_kind = traits
         .iter()
         .find_map(|&trait_id| {
             let r#trait = interner.get_trait(trait_id);
-            if r#trait.name.0.contents == trait_name && r#trait.generics.len() == 1 {
+            if r#trait.name.0.contents == trait_name {
                 interner.lookup_all_trait_implementations(typ, trait_id).into_iter().next()
             } else {
                 None

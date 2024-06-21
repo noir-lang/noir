@@ -102,10 +102,10 @@ pub enum Type {
 
     /// A type-level integer. Included to let an Array's size type variable
     /// bind to an integer without special checks to bind it to a non-type.
-    Constant(u64),
+    Constant(u32),
 
     /// The type of quoted code in macros. This is always a comptime-only type
-    Code,
+    Quoted(QuotedType),
 
     /// The result of some type error. Remembering type errors as their own type variant lets
     /// us avoid issuing repeat type errors for the same item. For example, a lambda with
@@ -121,10 +121,10 @@ impl Type {
             Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
             Type::Array(size, typ) => {
                 let length = size
-                    .evaluate_to_u64()
+                    .evaluate_to_u32()
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
-                (length as u32) * typ.field_count()
+                length * typ.field_count()
             }
             Type::Struct(def, args) => {
                 let struct_type = def.borrow();
@@ -135,12 +135,9 @@ impl Type {
             Type::Tuple(fields) => {
                 fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
             }
-            Type::String(size) => {
-                let size = size
-                    .evaluate_to_u64()
-                    .expect("Cannot have variable sized strings as a parameter to main");
-                size as u32
-            }
+            Type::String(size) => size
+                .evaluate_to_u32()
+                .expect("Cannot have variable sized strings as a parameter to main"),
             Type::FmtString(_, _)
             | Type::Unit
             | Type::TypeVariable(_, _)
@@ -150,7 +147,7 @@ impl Type {
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             | Type::Constant(_)
-            | Type::Code
+            | Type::Quoted(_)
             | Type::Slice(_)
             | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
         }
@@ -188,6 +185,14 @@ impl Type {
             _ => false,
         }
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+pub enum QuotedType {
+    Expr,
+    TypeDefinition,
+    TopLevelItem,
+    Type,
 }
 
 /// A list of TypeVariableIds to bind to a type. Storing the
@@ -457,7 +462,7 @@ pub enum TypeVariableKind {
     /// A potentially constant array size. This will only bind to itself or
     /// Type::Constant(n) with a matching size. This defaults to Type::Constant(n) if still unbound
     /// during monomorphization.
-    Constant(u64),
+    Constant(u32),
 }
 
 /// A TypeVariable is a mutable reference that is either
@@ -551,7 +556,7 @@ impl Type {
     }
 
     pub fn default_int_type() -> Type {
-        Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour)
+        Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
     }
 
     pub fn type_variable(id: TypeVariableId) -> Type {
@@ -561,7 +566,7 @@ impl Type {
 
     /// Returns a TypeVariable(_, TypeVariableKind::Constant(length)) to bind to
     /// a constant integer for e.g. an array length.
-    pub fn constant_variable(length: u64, interner: &mut NodeInterner) -> Type {
+    pub fn constant_variable(length: u32, interner: &mut NodeInterner) -> Type {
         let id = interner.next_type_variable_id();
         let kind = TypeVariableKind::Constant(length);
         let var = TypeVariable::unbound(id);
@@ -599,6 +604,10 @@ impl Type {
 
     pub fn is_field(&self) -> bool {
         matches!(self.follow_bindings(), Type::FieldElement)
+    }
+
+    pub fn is_bool(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Bool)
     }
 
     pub fn is_signed(&self) -> bool {
@@ -643,7 +652,7 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::Forall(_, _)
-            | Type::Code => false,
+            | Type::Quoted(_) => false,
 
             Type::TraitAsType(_, _, args) => {
                 args.iter().any(|generic| generic.contains_numeric_typevar(target_id))
@@ -709,7 +718,7 @@ impl Type {
             | Type::Function(_, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
-            | Type::Code
+            | Type::Quoted(_)
             | Type::Slice(_)
             | Type::TraitAsType(..) => false,
 
@@ -758,7 +767,7 @@ impl Type {
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             // TODO: probably can allow code as it is all compile time
-            | Type::Code
+            | Type::Quoted(_)
             | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {
@@ -776,6 +785,48 @@ impl Type {
                 .get_fields(generics)
                 .into_iter()
                 .all(|(_, field)| field.is_valid_non_inlined_function_input()),
+        }
+    }
+
+    /// Returns true if a value of this type can safely pass between constrained and
+    /// unconstrained functions (and vice-versa).
+    pub(crate) fn is_valid_for_unconstrained_boundary(&self) -> bool {
+        match self {
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Constant(_)
+            | Type::Slice(_)
+            | Type::TypeVariable(_, _)
+            | Type::NamedGeneric(_, _)
+            | Type::Function(_, _, _)
+            | Type::FmtString(_, _)
+            | Type::Error => true,
+
+            Type::MutableReference(_)
+            | Type::Forall(_, _)
+            | Type::Quoted(_)
+            | Type::TraitAsType(..) => false,
+
+            Type::Alias(alias, generics) => {
+                let alias = alias.borrow();
+                alias.get_type(generics).is_valid_for_unconstrained_boundary()
+            }
+
+            Type::Array(length, element) => {
+                length.is_valid_for_unconstrained_boundary()
+                    && element.is_valid_for_unconstrained_boundary()
+            }
+            Type::String(length) => length.is_valid_for_unconstrained_boundary(),
+            Type::Tuple(elements) => {
+                elements.iter().all(|elem| elem.is_valid_for_unconstrained_boundary())
+            }
+            Type::Struct(definition, generics) => definition
+                .borrow()
+                .get_fields(generics)
+                .into_iter()
+                .all(|(_, field)| field.is_valid_for_unconstrained_boundary()),
         }
     }
 
@@ -921,7 +972,7 @@ impl std::fmt::Display for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
             }
-            Type::Code => write!(f, "Code"),
+            Type::Quoted(quoted) => write!(f, "{}", quoted),
         }
     }
 }
@@ -953,6 +1004,17 @@ impl std::fmt::Display for TypeBinding {
     }
 }
 
+impl std::fmt::Display for QuotedType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QuotedType::Expr => write!(f, "Expr"),
+            QuotedType::TypeDefinition => write!(f, "TypeDefinition"),
+            QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
+            QuotedType::Type => write!(f, "Type"),
+        }
+    }
+}
+
 pub struct UnificationError;
 
 impl Type {
@@ -962,7 +1024,7 @@ impl Type {
     fn try_bind_to_maybe_constant(
         &self,
         var: &TypeVariable,
-        target_length: u64,
+        target_length: u32,
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
         let target_id = match &*var.borrow() {
@@ -1383,17 +1445,17 @@ impl Type {
     }
 
     /// If this type is a Type::Constant (used in array lengths), or is bound
-    /// to a Type::Constant, return the constant as a u64.
-    pub fn evaluate_to_u64(&self) -> Option<u64> {
+    /// to a Type::Constant, return the constant as a u32.
+    pub fn evaluate_to_u32(&self) -> Option<u32> {
         if let Some(binding) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
-                return binding.evaluate_to_u64();
+                return binding.evaluate_to_u32();
             }
         }
 
         match self {
             Type::TypeVariable(_, TypeVariableKind::Constant(size)) => Some(*size),
-            Type::Array(len, _elem) => len.evaluate_to_u64(),
+            Type::Array(len, _elem) => len.evaluate_to_u32(),
             Type::Constant(x) => Some(*x),
             _ => None,
         }
@@ -1642,7 +1704,7 @@ impl Type {
             | Type::Bool
             | Type::Constant(_)
             | Type::Error
-            | Type::Code
+            | Type::Quoted(_)
             | Type::Unit => self.clone(),
         }
     }
@@ -1685,7 +1747,7 @@ impl Type {
             | Type::Bool
             | Type::Constant(_)
             | Type::Error
-            | Type::Code
+            | Type::Quoted(_)
             | Type::Unit => false,
         }
     }
@@ -1742,7 +1804,9 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Code | Error => self.clone(),
+            FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Quoted(_) | Error => {
+                self.clone()
+            }
         }
     }
 
@@ -1787,7 +1851,7 @@ fn convert_array_expression_to_slice(
 
 impl BinaryTypeOperator {
     /// Return the actual rust numeric function associated with this operator
-    pub fn function(self) -> fn(u64, u64) -> u64 {
+    pub fn function(self) -> fn(u32, u32) -> u32 {
         match self {
             BinaryTypeOperator::Addition => |a, b| a.wrapping_add(b),
             BinaryTypeOperator::Subtraction => |a, b| a.wrapping_sub(b),
@@ -1824,7 +1888,7 @@ impl From<&Type> for PrintableType {
         match value {
             Type::FieldElement => PrintableType::Field,
             Type::Array(size, typ) => {
-                let length = size.evaluate_to_u64().expect("Cannot print variable sized arrays");
+                let length = size.evaluate_to_u32().expect("Cannot print variable sized arrays");
                 let typ = typ.as_ref();
                 PrintableType::Array { length, typ: Box::new(typ.into()) }
             }
@@ -1850,7 +1914,7 @@ impl From<&Type> for PrintableType {
             }
             Type::Bool => PrintableType::Boolean,
             Type::String(size) => {
-                let size = size.evaluate_to_u64().expect("Cannot print variable sized strings");
+                let size = size.evaluate_to_u32().expect("Cannot print variable sized strings");
                 PrintableType::String { length: size }
             }
             Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
@@ -1877,7 +1941,7 @@ impl From<&Type> for PrintableType {
             Type::MutableReference(typ) => {
                 PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
             }
-            Type::Code => unreachable!(),
+            Type::Quoted(_) => unreachable!(),
         }
     }
 }
@@ -1962,7 +2026,7 @@ impl std::fmt::Debug for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element:?}")
             }
-            Type::Code => write!(f, "Code"),
+            Type::Quoted(quoted) => write!(f, "{}", quoted),
         }
     }
 }

@@ -1,8 +1,7 @@
 use crate::native_types::Witness;
-use acir_field::FieldElement;
+use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-
 mod operators;
 mod ordering;
 
@@ -14,30 +13,26 @@ mod ordering;
 // In the multiplication polynomial
 // XXX: If we allow the degree of the quotient polynomial to be arbitrary, then we will need a vector of wire values
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
-pub struct Expression {
+pub struct Expression<F> {
     // To avoid having to create intermediate variables pre-optimization
     // We collect all of the multiplication terms in the assert-zero opcode
     // A multiplication term if of the form q_M * wL * wR
     // Hence this vector represents the following sum: q_M1 * wL1 * wR1 + q_M2 * wL2 * wR2 + .. +
-    pub mul_terms: Vec<(FieldElement, Witness, Witness)>,
+    pub mul_terms: Vec<(F, Witness, Witness)>,
 
-    pub linear_combinations: Vec<(FieldElement, Witness)>,
+    pub linear_combinations: Vec<(F, Witness)>,
     // TODO: rename q_c to `constant` moreover q_X is not clear to those who
     // TODO are not familiar with PLONK
-    pub q_c: FieldElement,
+    pub q_c: F,
 }
 
-impl Default for Expression {
-    fn default() -> Expression {
-        Expression {
-            mul_terms: Vec::new(),
-            linear_combinations: Vec::new(),
-            q_c: FieldElement::zero(),
-        }
+impl<F: AcirField> Default for Expression<F> {
+    fn default() -> Self {
+        Expression { mul_terms: Vec::new(), linear_combinations: Vec::new(), q_c: F::zero() }
     }
 }
 
-impl std::fmt::Display for Expression {
+impl<F: AcirField> std::fmt::Display for Expression<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(witness) = self.to_witness() {
             write!(f, "x{}", witness.witness_index())
@@ -47,41 +42,19 @@ impl std::fmt::Display for Expression {
     }
 }
 
-impl Expression {
-    // TODO: possibly remove, and move to noir repo.
-    pub const fn can_defer_constraint(&self) -> bool {
-        false
-    }
-
+impl<F> Expression<F> {
     /// Returns the number of multiplication terms
     pub fn num_mul_terms(&self) -> usize {
         self.mul_terms.len()
     }
 
-    pub fn from_field(q_c: FieldElement) -> Expression {
-        Self { q_c, ..Default::default() }
-    }
-
-    pub fn one() -> Expression {
-        Self::from_field(FieldElement::one())
-    }
-
-    pub fn zero() -> Expression {
-        Self::default()
-    }
-
     /// Adds a new linear term to the `Expression`.
-    pub fn push_addition_term(&mut self, coefficient: FieldElement, variable: Witness) {
+    pub fn push_addition_term(&mut self, coefficient: F, variable: Witness) {
         self.linear_combinations.push((coefficient, variable));
     }
 
     /// Adds a new quadratic term to the `Expression`.
-    pub fn push_multiplication_term(
-        &mut self,
-        coefficient: FieldElement,
-        lhs: Witness,
-        rhs: Witness,
-    ) {
+    pub fn push_multiplication_term(&mut self, coefficient: F, lhs: Witness, rhs: Witness) {
         self.mul_terms.push((coefficient, lhs, rhs));
     }
 
@@ -93,6 +66,19 @@ impl Expression {
     /// -  f(x,y) = 5 would return true, the degree is 0
     pub fn is_const(&self) -> bool {
         self.mul_terms.is_empty() && self.linear_combinations.is_empty()
+    }
+
+    /// Returns a `FieldElement` if the expression represents a constant polynomial.
+    /// Otherwise returns `None`.
+    ///
+    /// Examples:
+    /// - f(x,y) = x would return `None`
+    /// - f(x,y) = x + 6 would return `None`
+    /// - f(x,y) = 2*y + 6 would return `None`
+    /// - f(x,y) = x + y would return `None`
+    /// - f(x,y) = 5 would return `FieldElement(5)`
+    pub fn to_const(&self) -> Option<&F> {
+        self.is_const().then_some(&self.q_c)
     }
 
     /// Returns `true` if highest degree term in the expression is one or less.
@@ -132,21 +118,29 @@ impl Expression {
         self.is_linear() && self.linear_combinations.len() == 1
     }
 
+    /// Sorts opcode in a deterministic order
+    /// XXX: We can probably make this more efficient by sorting on each phase. We only care if it is deterministic
+    pub fn sort(&mut self) {
+        self.mul_terms.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)));
+        self.linear_combinations.sort_by(|a, b| a.1.cmp(&b.1));
+    }
+}
+
+impl<F: AcirField> Expression<F> {
+    pub fn from_field(q_c: F) -> Self {
+        Self { q_c, ..Default::default() }
+    }
+
+    pub fn zero() -> Self {
+        Self::default()
+    }
+
     pub fn is_zero(&self) -> bool {
         *self == Self::zero()
     }
 
-    /// Returns a `FieldElement` if the expression represents a constant polynomial.
-    /// Otherwise returns `None`.
-    ///
-    /// Examples:
-    /// - f(x,y) = x would return `None`
-    /// - f(x,y) = x + 6 would return `None`
-    /// - f(x,y) = 2*y + 6 would return `None`
-    /// - f(x,y) = x + y would return `None`
-    /// - f(x,y) = 5 would return `FieldElement(5)`
-    pub fn to_const(&self) -> Option<FieldElement> {
-        self.is_const().then_some(self.q_c)
+    pub fn one() -> Self {
+        Self::from_field(F::one())
     }
 
     /// Returns a `Witness` if the `Expression` can be represented as a degree-1
@@ -171,87 +165,20 @@ impl Expression {
         None
     }
 
-    /// Sorts opcode in a deterministic order
-    /// XXX: We can probably make this more efficient by sorting on each phase. We only care if it is deterministic
-    pub fn sort(&mut self) {
-        self.mul_terms.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)));
-        self.linear_combinations.sort_by(|a, b| a.1.cmp(&b.1));
-    }
-
-    /// Checks if this expression can fit into one arithmetic identity
-    /// TODO: This needs to be reworded, arithmetic identity only makes sense in the context
-    /// TODO of PLONK, whereas we want expressions to be generic.
-    /// TODO: We just need to reword it to say exactly what its doing and
-    /// TODO then reference the fact that this is what plonk will accept.
-    /// TODO alternatively, we can define arithmetic identity in the context of expressions
-    /// TODO and then reference that.
-    pub fn fits_in_one_identity(&self, width: usize) -> bool {
-        // A Polynomial with more than one mul term cannot fit into one opcode
-        if self.mul_terms.len() > 1 {
-            return false;
-        };
-        // A Polynomial with more terms than fan-in cannot fit within a single opcode
-        if self.linear_combinations.len() > width {
-            return false;
-        }
-
-        // A polynomial with no mul term and a fan-in that fits inside of the width can fit into a single opcode
-        if self.mul_terms.is_empty() {
-            return true;
-        }
-
-        // A polynomial with width-2 fan-in terms and a single non-zero mul term can fit into one opcode
-        // Example: Axy + Dz . Notice, that the mul term places a constraint on the first two terms, but not the last term
-        // XXX: This would change if our arithmetic polynomial equation was changed to Axyz for example, but for now it is not.
-        if self.linear_combinations.len() <= (width - 2) {
-            return true;
-        }
-
-        // We now know that we have a single mul term. We also know that the mul term must match up with two other terms
-        // A polynomial whose mul terms are non zero which do not match up with two terms in the fan-in cannot fit into one opcode
-        // An example of this is: Axy + Bx + Cy + ...
-        // Notice how the bivariate monomial xy has two univariate monomials with their respective coefficients
-        // XXX: note that if x or y is zero, then we could apply a further optimization, but this would be done in another algorithm.
-        // It would be the same as when we have zero coefficients - Can only work if wire is constrained to be zero publicly
-        let mul_term = &self.mul_terms[0];
-
-        // The coefficient should be non-zero, as this method is ran after the compiler removes all zero coefficient terms
-        assert_ne!(mul_term.0, FieldElement::zero());
-
-        let mut found_x = false;
-        let mut found_y = false;
-
-        for term in self.linear_combinations.iter() {
-            let witness = &term.1;
-            let x = &mul_term.1;
-            let y = &mul_term.2;
-            if witness == x {
-                found_x = true;
-            };
-            if witness == y {
-                found_y = true;
-            };
-            if found_x & found_y {
-                break;
-            }
-        }
-
-        found_x & found_y
-    }
-
     /// Returns `self + k*b`
-    pub fn add_mul(&self, k: FieldElement, b: &Expression) -> Expression {
+    pub fn add_mul(&self, k: F, b: &Self) -> Self {
         if k.is_zero() {
             return self.clone();
         } else if self.is_const() {
-            return self.q_c + (k * b);
+            let kb = b * k;
+            return kb + self.q_c;
         } else if b.is_const() {
             return self.clone() + (k * b.q_c);
         }
 
-        let mut mul_terms: Vec<(FieldElement, Witness, Witness)> =
+        let mut mul_terms: Vec<(F, Witness, Witness)> =
             Vec::with_capacity(self.mul_terms.len() + b.mul_terms.len());
-        let mut linear_combinations: Vec<(FieldElement, Witness)> =
+        let mut linear_combinations: Vec<(F, Witness)> =
             Vec::with_capacity(self.linear_combinations.len() + b.linear_combinations.len());
         let q_c = self.q_c + k * b.q_c;
 
@@ -338,7 +265,7 @@ impl Expression {
         while i2 < b.mul_terms.len() {
             let (b_c, b_wl, b_wr) = b.mul_terms[i2];
             let coeff = b_c * k;
-            if coeff != FieldElement::zero() {
+            if coeff != F::zero() {
                 mul_terms.push((coeff, b_wl, b_wr));
             }
             i2 += 1;
@@ -348,57 +275,63 @@ impl Expression {
     }
 }
 
-impl From<FieldElement> for Expression {
-    fn from(constant: FieldElement) -> Expression {
+impl<F: AcirField> From<F> for Expression<F> {
+    fn from(constant: F) -> Self {
         Expression { q_c: constant, linear_combinations: Vec::new(), mul_terms: Vec::new() }
     }
 }
 
-impl From<Witness> for Expression {
+impl<F: AcirField> From<Witness> for Expression<F> {
     /// Creates an Expression from a Witness.
     ///
     /// This is infallible since an `Expression` is
     /// a multi-variate polynomial and a `Witness`
     /// can be seen as a univariate polynomial
-    fn from(wit: Witness) -> Expression {
+    fn from(wit: Witness) -> Self {
         Expression {
-            q_c: FieldElement::zero(),
-            linear_combinations: vec![(FieldElement::one(), wit)],
+            q_c: F::zero(),
+            linear_combinations: vec![(F::one(), wit)],
             mul_terms: Vec::new(),
         }
     }
 }
 
-#[test]
-fn add_mul_smoketest() {
-    let a = Expression {
-        mul_terms: vec![(FieldElement::from(2u128), Witness(1), Witness(2))],
-        ..Default::default()
-    };
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acir_field::{AcirField, FieldElement};
 
-    let k = FieldElement::from(10u128);
+    #[test]
+    fn add_mul_smoketest() {
+        let a = Expression {
+            mul_terms: vec![(FieldElement::from(2u128), Witness(1), Witness(2))],
+            ..Default::default()
+        };
 
-    let b = Expression {
-        mul_terms: vec![
-            (FieldElement::from(3u128), Witness(0), Witness(2)),
-            (FieldElement::from(3u128), Witness(1), Witness(2)),
-            (FieldElement::from(4u128), Witness(4), Witness(5)),
-        ],
-        linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
-        q_c: FieldElement::one(),
-    };
+        let k = FieldElement::from(10u128);
 
-    let result = a.add_mul(k, &b);
-    assert_eq!(
-        result,
-        Expression {
+        let b = Expression {
             mul_terms: vec![
-                (FieldElement::from(30u128), Witness(0), Witness(2)),
-                (FieldElement::from(32u128), Witness(1), Witness(2)),
-                (FieldElement::from(40u128), Witness(4), Witness(5)),
+                (FieldElement::from(3u128), Witness(0), Witness(2)),
+                (FieldElement::from(3u128), Witness(1), Witness(2)),
+                (FieldElement::from(4u128), Witness(4), Witness(5)),
             ],
-            linear_combinations: vec![(FieldElement::from(40u128), Witness(4))],
-            q_c: FieldElement::from(10u128)
-        }
-    );
+            linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
+            q_c: FieldElement::one(),
+        };
+
+        let result = a.add_mul(k, &b);
+        assert_eq!(
+            result,
+            Expression {
+                mul_terms: vec![
+                    (FieldElement::from(30u128), Witness(0), Witness(2)),
+                    (FieldElement::from(32u128), Witness(1), Witness(2)),
+                    (FieldElement::from(40u128), Witness(4), Witness(5)),
+                ],
+                linear_combinations: vec![(FieldElement::from(40u128), Witness(4))],
+                q_c: FieldElement::from(10u128)
+            }
+        );
+    }
 }

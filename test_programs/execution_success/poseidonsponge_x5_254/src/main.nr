@@ -1,4 +1,4 @@
-use dep::std::hash::poseidon;
+use std::hash::poseidon;
 
 fn main(x: [Field; 7]) {
     // Test optimized sponge

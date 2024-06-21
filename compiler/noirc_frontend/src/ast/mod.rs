@@ -26,6 +26,7 @@ use crate::{
     token::IntType,
     BinaryTypeOperator,
 };
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
@@ -91,7 +92,7 @@ pub enum UnresolvedTypeData {
     Integer(Signedness, IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
     Expression(UnresolvedTypeExpression),
-    String(Option<UnresolvedTypeExpression>),
+    String(UnresolvedTypeExpression),
     FormatString(UnresolvedTypeExpression, Box<UnresolvedType>),
     Unit,
 
@@ -116,7 +117,7 @@ pub enum UnresolvedTypeData {
     ),
 
     // The type of quoted code for metaprogramming
-    Code,
+    Quoted(crate::QuotedType),
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
@@ -133,8 +134,16 @@ pub struct UnresolvedType {
 }
 
 /// Type wrapper for a member access
-pub(crate) type UnaryRhsMemberAccess =
-    (Ident, Option<(Option<Vec<UnresolvedType>>, Vec<Expression>)>);
+pub struct UnaryRhsMemberAccess {
+    pub method_or_field: Ident,
+    pub method_call: Option<UnaryRhsMethodCall>,
+}
+
+pub struct UnaryRhsMethodCall {
+    pub turbofish: Option<Vec<UnresolvedType>>,
+    pub macro_call: bool,
+    pub args: Vec<Expression>,
+}
 
 /// The precursor to TypeExpression, this is the type that the parser allows
 /// to be used in the length position of an array type. Only constants, variables,
@@ -142,7 +151,7 @@ pub(crate) type UnaryRhsMemberAccess =
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(u64, Span),
+    Constant(u32, Span),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
@@ -190,10 +199,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             }
             Expression(expression) => expression.fmt(f),
             Bool => write!(f, "bool"),
-            String(len) => match len {
-                None => write!(f, "str<_>"),
-                Some(len) => write!(f, "str<{len}>"),
-            },
+            String(len) => write!(f, "str<{len}>"),
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
             Function(args, ret, env) => {
                 let args = vecmap(args, ToString::to_string).join(", ");
@@ -210,7 +216,7 @@ impl std::fmt::Display for UnresolvedTypeData {
                 }
             }
             MutableReference(element) => write!(f, "&mut {element}"),
-            Code => write!(f, "Code"),
+            Quoted(quoted) => write!(f, "{}", quoted),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
@@ -309,7 +315,7 @@ impl UnresolvedTypeExpression {
         match expr.kind {
             ExpressionKind::Literal(Literal::Integer(int, sign)) => {
                 assert!(!sign, "Negative literal is not allowed here");
-                match int.try_to_u64() {
+                match int.try_to_u32() {
                     Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
                     None => Err(expr),
                 }
@@ -389,29 +395,6 @@ impl std::fmt::Display for Visibility {
             Self::Public => write!(f, "pub"),
             Self::Private => write!(f, "priv"),
             Self::DataBus => write!(f, "databus"),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-/// Represents whether the return value should compromise of unique witness indices such that no
-/// index occurs within the program's abi more than once.
-///
-/// This is useful for application stacks that require an uniform abi across across multiple
-/// circuits. When index duplication is allowed, the compiler may identify that a public input
-/// reaches the output unaltered and is thus referenced directly, causing the input and output
-/// witness indices to overlap. Similarly, repetitions of copied values in the output may be
-/// optimized away.
-pub enum Distinctness {
-    Distinct,
-    DuplicationAllowed,
-}
-
-impl std::fmt::Display for Distinctness {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Distinct => write!(f, "distinct"),
-            Self::DuplicationAllowed => write!(f, "duplication-allowed"),
         }
     }
 }

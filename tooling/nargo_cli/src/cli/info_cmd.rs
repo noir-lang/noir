@@ -3,11 +3,9 @@ use std::collections::HashMap;
 use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use iter_extended::vecmap;
-use nargo::{
-    artifacts::{debug::DebugArtifact, program::ProgramArtifact},
-    package::Package,
-};
+use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_artifacts::{debug::DebugArtifact, program::ProgramArtifact};
 use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::{debug_info::OpCodesCount, Location};
 use noirc_frontend::graph::CrateName;
@@ -94,7 +92,7 @@ pub(crate) fn run(args: InfoCommand, config: NargoConfig) -> Result<(), CliError
         })
         .collect();
 
-    let info_report = InfoReport { programs: program_info, contracts: Vec::new() };
+    let info_report = InfoReport { programs: program_info };
 
     if args.json {
         // Expose machine-readable JSON data.
@@ -102,7 +100,8 @@ pub(crate) fn run(args: InfoCommand, config: NargoConfig) -> Result<(), CliError
     } else {
         // Otherwise print human-readable table.
         if !info_report.programs.is_empty() {
-            let mut program_table = table!([Fm->"Package", Fm->"Function", Fm->"Expression Width", Fm->"ACIR Opcodes", Fm->"Backend Circuit Size"]);
+            let mut program_table =
+                table!([Fm->"Package", Fm->"Function", Fm->"Expression Width", Fm->"ACIR Opcodes"]);
 
             for program_info in info_report.programs {
                 let program_rows: Vec<Row> = program_info.into();
@@ -169,7 +168,6 @@ fn byte_index(string: &str, index: u32) -> usize {
 #[derive(Debug, Default, Serialize)]
 struct InfoReport {
     programs: Vec<ProgramInfo>,
-    contracts: Vec<ContractInfo>,
 }
 
 #[derive(Debug, Serialize)]
