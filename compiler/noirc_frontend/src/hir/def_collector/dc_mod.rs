@@ -309,7 +309,6 @@ impl<'a> ModCollector<'a> {
             };
 
             let generic_results = context.resolve_generics(&unresolved.struct_def.generics);
-            dbg!(generic_results.clone());
             let mut resolved_generics = Vec::new();
             for generic_result in generic_results.into_iter() {
                 match generic_result {
