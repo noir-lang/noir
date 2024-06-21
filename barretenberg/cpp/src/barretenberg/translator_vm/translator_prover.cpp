@@ -163,23 +163,28 @@ void TranslatorProver::execute_relation_check_rounds()
 }
 
 /**
- * @brief Execute the ZeroMorph protocol to prove the multilinear evaluations produced by Sumcheck
+ * @brief Execute the ZeroMorph protocol to produce an opening claim for the multilinear evaluations produced by
+ * Sumcheck and then produce an opening proof with a univariate PCS
  * @details See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the unrolled protocol.
  *
  * */
-void TranslatorProver::execute_zeromorph_rounds()
+void TranslatorProver::execute_pcs_rounds()
 {
-    using ZeroMorph = ZeroMorphProver_<PCS>;
-    ZeroMorph::prove(key->polynomials.get_unshifted_without_concatenated(),
-                     key->polynomials.get_to_be_shifted(),
-                     sumcheck_output.claimed_evaluations.get_unshifted_without_concatenated(),
-                     sumcheck_output.claimed_evaluations.get_shifted(),
-                     sumcheck_output.challenge,
-                     commitment_key,
-                     transcript,
-                     key->polynomials.get_concatenated_constraints(),
-                     sumcheck_output.claimed_evaluations.get_concatenated_constraints(),
-                     key->polynomials.get_concatenation_groups());
+    using Curve = typename Flavor::Curve;
+    using ZeroMorph = ZeroMorphProver_<Curve>;
+    auto prover_opening_claim =
+        ZeroMorph::prove(key->polynomials.get_unshifted_without_concatenated(),
+                         key->polynomials.get_to_be_shifted(),
+                         sumcheck_output.claimed_evaluations.get_unshifted_without_concatenated(),
+                         sumcheck_output.claimed_evaluations.get_shifted(),
+                         sumcheck_output.challenge,
+                         commitment_key,
+                         transcript,
+                         key->polynomials.get_concatenated_constraints(),
+                         sumcheck_output.claimed_evaluations.get_concatenated_constraints(),
+                         key->polynomials.get_concatenation_groups());
+    PCS::compute_opening_proof(
+        commitment_key, prover_opening_claim.opening_pair, prover_opening_claim.polynomial, transcript);
 }
 
 HonkProof TranslatorProver::export_proof()
@@ -208,7 +213,7 @@ HonkProof TranslatorProver::construct_proof()
 
     // Fiat-Shamir: rho, y, x, z
     // Execute Zeromorph multilinear PCS
-    execute_zeromorph_rounds();
+    execute_pcs_rounds();
 
     return export_proof();
 }

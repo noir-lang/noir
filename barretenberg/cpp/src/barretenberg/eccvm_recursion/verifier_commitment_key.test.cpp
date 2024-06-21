@@ -25,7 +25,7 @@ template <typename Curve> class RecursiveVeriferCommitmentKeyTest : public testi
         Builder builder;
         auto native_vk = std::make_shared<native_VK>(num_points);
         auto recursive_vk = std::make_shared<VK>(&builder, num_points, native_vk);
-        EXPECT_EQ(native_vk->get_first_g1(), recursive_vk->get_first_g1().get_value());
+        EXPECT_EQ(native_vk->get_g1_identity(), recursive_vk->get_g1_identity().get_value());
         auto* native_monomial_points = native_vk->get_monomial_points();
         auto recursive_monomial_points = recursive_vk->get_monomial_points();
 

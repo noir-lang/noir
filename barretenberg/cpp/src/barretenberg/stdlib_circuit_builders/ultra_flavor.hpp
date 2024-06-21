@@ -203,7 +203,6 @@ class UltraFlavor {
         auto get_sigmas() { return RefArray{ this->sigma_1, this->sigma_2, this->sigma_3, this->sigma_4 }; };
         auto get_ids() { return RefArray{ this->id_1, this->id_2, this->id_3, this->id_4 }; };
         auto get_tables() { return RefArray{ this->table_1, this->table_2, this->table_3, this->table_4 }; };
-        // Gemini-specific getters.
         auto get_unshifted()
         {
             return concatenate(PrecomputedEntities<DataType>::get_all(), WitnessEntities<DataType>::get_all());

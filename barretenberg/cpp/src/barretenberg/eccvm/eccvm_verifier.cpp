@@ -9,7 +9,8 @@ namespace bb {
  */
 bool ECCVMVerifier::verify_proof(const HonkProof& proof)
 {
-    using ZeroMorph = ZeroMorphVerifier_<PCS>;
+    using Curve = typename Flavor::Curve;
+    using ZeroMorph = ZeroMorphVerifier_<Curve>;
 
     RelationParameters<FF> relation_parameters;
     transcript = std::make_shared<Transcript>(proof);
@@ -57,13 +58,16 @@ bool ECCVMVerifier::verify_proof(const HonkProof& proof)
         return false;
     }
 
-    bool multivariate_opening_verified = ZeroMorph::verify(commitments.get_unshifted(),
-                                                           commitments.get_to_be_shifted(),
-                                                           claimed_evaluations.get_unshifted(),
-                                                           claimed_evaluations.get_shifted(),
-                                                           multivariate_challenge,
-                                                           key->pcs_verification_key,
-                                                           transcript);
+    auto multivariate_opening_claim = ZeroMorph::verify(commitments.get_unshifted(),
+                                                        commitments.get_to_be_shifted(),
+                                                        claimed_evaluations.get_unshifted(),
+                                                        claimed_evaluations.get_shifted(),
+                                                        multivariate_challenge,
+                                                        key->pcs_verification_key->get_g1_identity(),
+                                                        transcript);
+    bool multivariate_opening_verified =
+        PCS::reduce_verify(key->pcs_verification_key, multivariate_opening_claim, transcript);
+
     // Execute transcript consistency univariate opening round
     // TODO(#768): Find a better way to do this. See issue for details.
     bool univariate_opening_verified = false;

@@ -26,7 +26,7 @@ class MemVerifierCrs : public VerifierCrs<Grumpkin> {
     virtual ~MemVerifierCrs() = default;
     Grumpkin::AffineElement* get_monomial_points() const override { return monomials_.get(); }
     size_t get_monomial_size() const override { return num_points; }
-    Grumpkin::AffineElement get_first_g1() const override { return monomials_[0]; };
+    Grumpkin::AffineElement get_g1_identity() const override { return monomials_[0]; };
 
   private:
     size_t num_points;

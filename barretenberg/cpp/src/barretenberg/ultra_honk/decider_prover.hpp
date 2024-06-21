@@ -12,6 +12,7 @@ namespace bb {
 
 template <IsUltraFlavor Flavor> class DeciderProver_ {
     using FF = typename Flavor::FF;
+    using Curve = typename Flavor::Curve;
     using Commitment = typename Flavor::Commitment;
     using CommitmentKey = typename Flavor::CommitmentKey;
     using ProvingKey = typename Flavor::ProvingKey;
@@ -28,7 +29,7 @@ template <IsUltraFlavor Flavor> class DeciderProver_ {
                             const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
 
     BB_PROFILE void execute_relation_check_rounds();
-    BB_PROFILE void execute_zeromorph_rounds();
+    BB_PROFILE void execute_pcs_rounds();
 
     HonkProof export_proof();
     HonkProof construct_proof();
@@ -46,8 +47,6 @@ template <IsUltraFlavor Flavor> class DeciderProver_ {
     SumcheckOutput<Flavor> sumcheck_output;
 
     std::shared_ptr<CommitmentKey> commitment_key;
-
-    using ZeroMorph = ZeroMorphProver_<PCS>;
 
   private:
     HonkProof proof;

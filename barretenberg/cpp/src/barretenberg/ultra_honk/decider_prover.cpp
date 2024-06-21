@@ -34,19 +34,23 @@ template <IsUltraFlavor Flavor> void DeciderProver_<Flavor>::execute_relation_ch
 }
 
 /**
- * @brief Execute the ZeroMorph protocol to prove the multilinear evaluations produced by Sumcheck
+ * @brief Execute the ZeroMorph protocol to produce an opening claim for the multilinear evaluations produced by
+ * Sumcheck and then produce an opening proof with a univariate PCS.
  * @details See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the unrolled protocol.
  *
  * */
-template <IsUltraFlavor Flavor> void DeciderProver_<Flavor>::execute_zeromorph_rounds()
+template <IsUltraFlavor Flavor> void DeciderProver_<Flavor>::execute_pcs_rounds()
 {
-    ZeroMorph::prove(accumulator->proving_key.polynomials.get_unshifted(),
-                     accumulator->proving_key.polynomials.get_to_be_shifted(),
-                     sumcheck_output.claimed_evaluations.get_unshifted(),
-                     sumcheck_output.claimed_evaluations.get_shifted(),
-                     sumcheck_output.challenge,
-                     commitment_key,
-                     transcript);
+    using ZeroMorph = ZeroMorphProver_<Curve>;
+    auto prover_opening_claim = ZeroMorph::prove(accumulator->proving_key.polynomials.get_unshifted(),
+                                                 accumulator->proving_key.polynomials.get_to_be_shifted(),
+                                                 sumcheck_output.claimed_evaluations.get_unshifted(),
+                                                 sumcheck_output.claimed_evaluations.get_shifted(),
+                                                 sumcheck_output.challenge,
+                                                 commitment_key,
+                                                 transcript);
+    PCS::compute_opening_proof(
+        commitment_key, prover_opening_claim.opening_pair, prover_opening_claim.polynomial, transcript);
 }
 
 template <IsUltraFlavor Flavor> HonkProof DeciderProver_<Flavor>::export_proof()
@@ -64,7 +68,7 @@ template <IsUltraFlavor Flavor> HonkProof DeciderProver_<Flavor>::construct_proo
 
     // Fiat-Shamir: rho, y, x, z
     // Execute Zeromorph multilinear PCS
-    execute_zeromorph_rounds();
+    execute_pcs_rounds();
 
     return export_proof();
 }

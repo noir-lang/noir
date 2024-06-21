@@ -264,7 +264,7 @@ template <typename Curve> class ShplonkVerifier_ {
             }
 
             // [G] += G₀⋅[1] = [G] + (∑ⱼ ρʲ ⋅ vⱼ / ( r − xⱼ ))⋅[1]
-            G_commitment += vk->get_first_g1() * G_commitment_constant;
+            G_commitment += vk->get_g1_identity() * G_commitment_constant;
         }
 
         // Return opening pair (z, 0) and commitment [G]

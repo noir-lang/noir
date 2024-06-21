@@ -18,7 +18,7 @@ FileVerifierCrs<curve::BN254>::FileVerifierCrs(std::string const& path, const si
     srs::IO<curve::BN254>::read_transcript_g2(g2_x, path);
     bb::pairing::precompute_miller_lines(bb::g2::one, precomputed_g2_lines[0]);
     bb::pairing::precompute_miller_lines(g2_x, precomputed_g2_lines[1]);
-    first_g1 = point_buf[0];
+    g1_identity = point_buf[0];
 }
 
 FileVerifierCrs<curve::BN254>::~FileVerifierCrs()
@@ -33,7 +33,7 @@ FileVerifierCrs<curve::Grumpkin>::FileVerifierCrs(std::string const& path, const
     monomials_ = scalar_multiplication::point_table_alloc<Curve::AffineElement>(num_points);
     srs::IO<Curve>::read_transcript_g1(monomials_.get(), num_points, path);
     scalar_multiplication::generate_pippenger_point_table<Curve>(monomials_.get(), monomials_.get(), num_points);
-    first_g1 = monomials_[0];
+    g1_identity = monomials_[0];
 };
 
 curve::Grumpkin::AffineElement* FileVerifierCrs<curve::Grumpkin>::get_monomial_points() const

@@ -35,7 +35,7 @@ class ECCVMProver {
     BB_PROFILE void execute_log_derivative_commitments_round();
     BB_PROFILE void execute_grand_product_computation_round();
     BB_PROFILE void execute_relation_check_rounds();
-    BB_PROFILE void execute_zeromorph_rounds();
+    BB_PROFILE void execute_pcs_rounds();
     BB_PROFILE void execute_transcript_consistency_univariate_opening_round();
 
     HonkProof export_proof();

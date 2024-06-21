@@ -62,10 +62,10 @@ template <> class FileVerifierCrs<curve::BN254> : public VerifierCrs<curve::BN25
     virtual ~FileVerifierCrs();
     Curve::G2AffineElement get_g2x() const override { return g2_x; };
     pairing::miller_lines const* get_precomputed_g2_lines() const override { return precomputed_g2_lines; };
-    Curve::AffineElement get_first_g1() const override { return first_g1; };
+    Curve::AffineElement get_g1_identity() const override { return g1_identity; };
 
   private:
-    Curve::AffineElement first_g1;
+    Curve::AffineElement g1_identity;
     Curve::G2AffineElement g2_x;
     pairing::miller_lines* precomputed_g2_lines;
 };
@@ -78,10 +78,10 @@ template <> class FileVerifierCrs<curve::Grumpkin> : public VerifierCrs<curve::G
     virtual ~FileVerifierCrs() = default;
     Curve::AffineElement* get_monomial_points() const override;
     size_t get_monomial_size() const override;
-    Curve::AffineElement get_first_g1() const override { return first_g1; };
+    Curve::AffineElement get_g1_identity() const override { return g1_identity; };
 
   private:
-    Curve::AffineElement first_g1;
+    Curve::AffineElement g1_identity;
     size_t num_points;
     std::shared_ptr<Curve::AffineElement[]> monomials_;
 };

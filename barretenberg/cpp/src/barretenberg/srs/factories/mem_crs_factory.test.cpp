@@ -68,7 +68,7 @@ TEST(reference_string, DISABLED_mem_grumpkin_file_consistency)
     auto file_verifier_crs = file_crs.get_verifier_crs();
     auto mem_verifier_crs = file_crs.get_verifier_crs();
 
-    EXPECT_EQ(mem_verifier_crs->get_first_g1(), file_verifier_crs->get_first_g1());
+    EXPECT_EQ(mem_verifier_crs->get_g1_identity(), file_verifier_crs->get_g1_identity());
     EXPECT_EQ(memcmp(file_verifier_crs->get_monomial_points(),
                      mem_verifier_crs->get_monomial_points(),
                      sizeof(Grumpkin::AffineElement) * 1024 * 2),

@@ -43,7 +43,8 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const HonkP
 {
     using FF = typename Flavor::FF;
     using PCS = typename Flavor::PCS;
-    using ZeroMorph = ZeroMorphVerifier_<PCS>;
+    using Curve = typename Flavor::Curve;
+    using ZeroMorph = ZeroMorphVerifier_<Curve>;
     using VerifierCommitments = typename Flavor::VerifierCommitments;
 
     transcript = std::make_shared<Transcript>(proof);
@@ -72,14 +73,17 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const HonkP
         return false;
     }
 
-    // Execute ZeroMorph rounds and check the pcs verifier accumulator returned. See
+    // Execute ZeroMorph rounds to produce an opening claim and verify it with a univariate PCS. See
     // https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the unrolled protocol.
-    auto pairing_points = ZeroMorph::verify(commitments.get_unshifted(),
-                                            commitments.get_to_be_shifted(),
-                                            claimed_evaluations.get_unshifted(),
-                                            claimed_evaluations.get_shifted(),
-                                            multivariate_challenge,
-                                            transcript);
+    auto opening_claim = ZeroMorph::verify(commitments.get_unshifted(),
+                                           commitments.get_to_be_shifted(),
+                                           claimed_evaluations.get_unshifted(),
+                                           claimed_evaluations.get_shifted(),
+                                           multivariate_challenge,
+                                           Commitment::one(),
+                                           transcript);
+    auto pairing_points = PCS::reduce_verify(opening_claim, transcript);
+
     auto pcs_verified = key->pcs_verification_key->pairing_check(pairing_points[0], pairing_points[1]);
     return sumcheck_verified.value() && pcs_verified;
 }

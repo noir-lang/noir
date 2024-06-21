@@ -15,7 +15,8 @@ std::array<typename Flavor::GroupElement, 2> DeciderRecursiveVerifier_<Flavor>::
 {
     using Sumcheck = ::bb::SumcheckVerifier<Flavor>;
     using PCS = typename Flavor::PCS;
-    using ZeroMorph = ::bb::ZeroMorphVerifier_<PCS>;
+    using Curve = typename Flavor::Curve;
+    using ZeroMorph = ::bb::ZeroMorphVerifier_<Curve>;
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using Transcript = typename Flavor::Transcript;
 
@@ -32,12 +33,14 @@ std::array<typename Flavor::GroupElement, 2> DeciderRecursiveVerifier_<Flavor>::
 
     // Execute ZeroMorph rounds. See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the
     // unrolled protocol.
-    auto pairing_points = ZeroMorph::verify(commitments.get_unshifted(),
-                                            commitments.get_to_be_shifted(),
-                                            claimed_evaluations.get_unshifted(),
-                                            claimed_evaluations.get_shifted(),
-                                            multivariate_challenge,
-                                            transcript);
+    auto opening_claim = ZeroMorph::verify(commitments.get_unshifted(),
+                                           commitments.get_to_be_shifted(),
+                                           claimed_evaluations.get_unshifted(),
+                                           claimed_evaluations.get_shifted(),
+                                           multivariate_challenge,
+                                           Commitment::one(builder),
+                                           transcript);
+    auto pairing_points = PCS::reduce_verify(opening_claim, transcript);
 
     return pairing_points;
 }

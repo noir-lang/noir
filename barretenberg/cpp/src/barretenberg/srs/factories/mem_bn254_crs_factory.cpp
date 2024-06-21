@@ -28,10 +28,10 @@ class MemVerifierCrs : public VerifierCrs<curve::BN254> {
     g2::affine_element get_g2x() const { return g2_x; }
 
     pairing::miller_lines const* get_precomputed_g2_lines() const { return precomputed_g2_lines; }
-    g1::affine_element get_first_g1() const { return first_g1x; };
+    g1::affine_element get_g1_identity() const { return g1_identityx; };
 
   private:
-    g1::affine_element first_g1x;
+    g1::affine_element g1_identityx;
     g2::affine_element g2_x;
     pairing::miller_lines* precomputed_g2_lines;
 };

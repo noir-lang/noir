@@ -28,7 +28,8 @@ DeciderVerifier_<Flavor>::DeciderVerifier_()
 template <typename Flavor> bool DeciderVerifier_<Flavor>::verify_proof(const HonkProof& proof)
 {
     using PCS = typename Flavor::PCS;
-    using ZeroMorph = ZeroMorphVerifier_<PCS>;
+    using Curve = typename Flavor::Curve;
+    using ZeroMorph = ZeroMorphVerifier_<Curve>;
     using VerifierCommitments = typename Flavor::VerifierCommitments;
 
     transcript = std::make_shared<Transcript>(proof);
@@ -48,12 +49,14 @@ template <typename Flavor> bool DeciderVerifier_<Flavor>::verify_proof(const Hon
 
     // Execute ZeroMorph rounds. See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the
     // unrolled protocol.
-    auto pairing_points = ZeroMorph::verify(commitments.get_unshifted(),
-                                            commitments.get_to_be_shifted(),
-                                            claimed_evaluations.get_unshifted(),
-                                            claimed_evaluations.get_shifted(),
-                                            multivariate_challenge,
-                                            transcript);
+    auto opening_claim = ZeroMorph::verify(commitments.get_unshifted(),
+                                           commitments.get_to_be_shifted(),
+                                           claimed_evaluations.get_unshifted(),
+                                           claimed_evaluations.get_shifted(),
+                                           multivariate_challenge,
+                                           Commitment::one(),
+                                           transcript);
+    auto pairing_points = PCS::reduce_verify(opening_claim, transcript);
 
     auto verified = pcs_verification_key->pairing_check(pairing_points[0], pairing_points[1]);
 

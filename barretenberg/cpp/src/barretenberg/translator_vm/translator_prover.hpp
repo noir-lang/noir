@@ -36,7 +36,7 @@ class TranslatorProver {
     BB_PROFILE void execute_wire_and_sorted_constraints_commitments_round();
     BB_PROFILE void execute_grand_product_computation_round();
     BB_PROFILE void execute_relation_check_rounds();
-    BB_PROFILE void execute_zeromorph_rounds();
+    BB_PROFILE void execute_pcs_rounds();
     HonkProof export_proof();
     HonkProof construct_proof();
 

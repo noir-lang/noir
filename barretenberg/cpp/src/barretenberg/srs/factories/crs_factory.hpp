@@ -45,7 +45,7 @@ template <> class VerifierCrs<curve::BN254> {
      *  @brief Returns the first G_1 element from the CRS, used by the Shplonk verifier to compute the final
      * commtiment.
      */
-    virtual Curve::AffineElement get_first_g1() const = 0;
+    virtual Curve::AffineElement get_g1_identity() const = 0;
 };
 
 template <> class VerifierCrs<curve::Grumpkin> {
@@ -62,7 +62,7 @@ template <> class VerifierCrs<curve::Grumpkin> {
      * @brief Returns the first G_1 element from the CRS, used by the Shplonk verifier to compute the final
      * commtiment.
      */
-    virtual Curve::AffineElement get_first_g1() const = 0;
+    virtual Curve::AffineElement get_g1_identity() const = 0;
 };
 
 /**

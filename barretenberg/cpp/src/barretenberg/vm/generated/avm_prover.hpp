@@ -30,7 +30,7 @@ class AvmProver {
     void execute_wire_commitments_round();
     void execute_log_derivative_inverse_round();
     void execute_relation_check_rounds();
-    void execute_zeromorph_rounds();
+    void execute_pcs_rounds();
 
     HonkProof export_proof();
     HonkProof construct_proof();
@@ -54,8 +54,6 @@ class AvmProver {
     SumcheckOutput<Flavor> sumcheck_output;
 
     std::shared_ptr<PCSCommitmentKey> commitment_key;
-
-    using ZeroMorph = ZeroMorphProver_<PCS>;
 
   private:
     HonkProof proof;

@@ -53,6 +53,10 @@ void TranslatorVerifier::put_translation_data_in_relation_parameters(const uint2
  */
 bool TranslatorVerifier::verify_proof(const HonkProof& proof)
 {
+    using Curve = typename Flavor::Curve;
+    using PCS = typename Flavor::PCS;
+    using ZeroMorph = ::bb::ZeroMorphVerifier_<Curve>;
+
     batching_challenge_v = transcript->template get_challenge<BF>("Translation:batching_challenge");
 
     // Load the proof produced by the translator prover
@@ -108,15 +112,17 @@ bool TranslatorVerifier::verify_proof(const HonkProof& proof)
 
     // Execute ZeroMorph rounds. See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description ofthe
     // unrolled protocol.
-    auto pairing_points =
-        ZeroMorphVerifier_<Flavor::PCS>::verify(commitments.get_unshifted_without_concatenated(),
-                                                commitments.get_to_be_shifted(),
-                                                claimed_evaluations.get_unshifted_without_concatenated(),
-                                                claimed_evaluations.get_shifted(),
-                                                multivariate_challenge,
-                                                transcript,
-                                                commitments.get_concatenation_groups(),
-                                                claimed_evaluations.get_concatenated_constraints());
+
+    auto opening_claim = ZeroMorph::verify(commitments.get_unshifted_without_concatenated(),
+                                           commitments.get_to_be_shifted(),
+                                           claimed_evaluations.get_unshifted_without_concatenated(),
+                                           claimed_evaluations.get_shifted(),
+                                           multivariate_challenge,
+                                           Commitment::one(),
+                                           transcript,
+                                           commitments.get_concatenation_groups(),
+                                           claimed_evaluations.get_concatenated_constraints());
+    auto pairing_points = PCS::reduce_verify(opening_claim, transcript);
 
     auto verified = key->pcs_verification_key->pairing_check(pairing_points[0], pairing_points[1]);
 

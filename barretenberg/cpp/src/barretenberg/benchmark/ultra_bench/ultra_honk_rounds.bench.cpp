@@ -60,7 +60,7 @@ BB_PROFILE static void test_round_inner(State& state, MegaProver& prover, size_t
 
     DeciderProver_<MegaFlavor> decider_prover(prover.instance, prover.transcript);
     time_if_index(RELATION_CHECK, [&] { decider_prover.execute_relation_check_rounds(); });
-    time_if_index(ZEROMORPH, [&] { decider_prover.execute_zeromorph_rounds(); });
+    time_if_index(ZEROMORPH, [&] { decider_prover.execute_pcs_rounds(); });
 }
 BB_PROFILE static void test_round(State& state, size_t index) noexcept
 {

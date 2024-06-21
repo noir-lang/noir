@@ -25,7 +25,7 @@ template <typename Curve> class VerifierCommitmentKey {
     VerifierCommitmentKey([[maybe_unused]] Builder* builder,
                           size_t num_points,
                           std::shared_ptr<VerifierCommitmentKey<NativeEmbeddedCurve>>& native_pcs_verification_key)
-        : first_g1(Commitment(native_pcs_verification_key->get_first_g1()))
+        : g1_identity(Commitment(native_pcs_verification_key->get_g1_identity()))
     {
 
         auto* native_points = native_pcs_verification_key->get_monomial_points();
@@ -34,11 +34,11 @@ template <typename Curve> class VerifierCommitmentKey {
         }
     }
 
-    Commitment get_first_g1() { return first_g1; }
+    Commitment get_g1_identity() { return g1_identity; }
     std::vector<Commitment> get_monomial_points() { return monomial_points; }
 
   private:
-    Commitment first_g1;
+    Commitment g1_identity;
     std::vector<Commitment> monomial_points;
 };
 } // namespace bb

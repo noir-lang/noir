@@ -31,13 +31,13 @@ template <class FF> inline std::vector<FF> powers_of_challenge(const FF challeng
 /**
  * @brief Prover for ZeroMorph multilinear PCS
  *
- * @tparam PCS - The univariate PCS used inside ZeroMorph as a building block
+ * @tparam Curve - The curve used for arithmetising ZeroMorph
  */
-template <typename PCS> class ZeroMorphProver_ {
-    using Curve = typename PCS::Curve;
+template <typename Curve> class ZeroMorphProver_ {
     using FF = typename Curve::ScalarField;
     using Commitment = typename Curve::AffineElement;
     using Polynomial = bb::Polynomial<FF>;
+    using OpeningClaim = ProverOpeningClaim<Curve>;
 
     // TODO(#742): Set this N_max to be the number of G1 elements in the mocked zeromorph SRS once it's in place.
     // (Then, eventually, set it based on the real SRS). For now we set it to be larger then the Client IVC recursive
@@ -65,7 +65,8 @@ template <typename PCS> class ZeroMorphProver_ {
      * @param u_challenge Multivariate challenge u = (u_0, ..., u_{d-1})
      * @return std::vector<Polynomial> The quotients q_k
      */
-    static std::vector<Polynomial> compute_multilinear_quotients(Polynomial polynomial, std::span<const FF> u_challenge)
+    static std::vector<Polynomial> compute_multilinear_quotients(Polynomial& polynomial,
+                                                                 std::span<const FF> u_challenge)
     {
         size_t log_N = numeric::get_msb(polynomial.size());
         // The size of the multilinear challenge must equal the log of the polynomial size
@@ -310,8 +311,8 @@ template <typename PCS> class ZeroMorphProver_ {
     }
 
     /**
-     * @brief Prove a set of multilinear evaluation claims for unshifted polynomials f_i and to-be-shifted
-     * polynomials g_i
+     * @brief  * @brief Returns a univariate opening claim equivalent to a set of multilinear evaluation claims for
+     * unshifted polynomials f_i and to-be-shifted polynomials g_i to be subsequently proved with a univariate PCS
      *
      * @param f_polynomials Unshifted polynomials
      * @param g_polynomials To-be-shifted polynomials (of which the shifts h_i were evaluated by sumcheck)
@@ -319,17 +320,19 @@ template <typename PCS> class ZeroMorphProver_ {
      * @param multilinear_challenge Multilinear challenge point u
      * @param commitment_key
      * @param transcript
+     *
+     * @todo https://github.com/AztecProtocol/barretenberg/issues/1030: document concatenation trick
      */
-    static void prove(RefSpan<Polynomial> f_polynomials,
-                      RefSpan<Polynomial> g_polynomials,
-                      RefSpan<FF> f_evaluations,
-                      RefSpan<FF> g_shift_evaluations,
-                      std::span<FF> multilinear_challenge,
-                      const std::shared_ptr<CommitmentKey<Curve>>& commitment_key,
-                      const std::shared_ptr<NativeTranscript>& transcript,
-                      RefSpan<Polynomial> concatenated_polynomials = {},
-                      RefSpan<FF> concatenated_evaluations = {},
-                      const std::vector<RefVector<Polynomial>>& concatenation_groups = {})
+    static OpeningClaim prove(RefSpan<Polynomial> f_polynomials,
+                              RefSpan<Polynomial> g_polynomials,
+                              RefSpan<FF> f_evaluations,
+                              RefSpan<FF> g_shift_evaluations,
+                              std::span<FF> multilinear_challenge,
+                              const std::shared_ptr<CommitmentKey<Curve>>& commitment_key,
+                              const std::shared_ptr<NativeTranscript>& transcript,
+                              RefSpan<Polynomial> concatenated_polynomials = {},
+                              RefSpan<FF> concatenated_evaluations = {},
+                              const std::vector<RefVector<Polynomial>>& concatenation_groups = {})
     {
         // Generate batching challenge \rho and powers 1,...,\rho^{m-1}
         const FF rho = transcript->template get_challenge<FF>("rho");
@@ -428,22 +431,20 @@ template <typename PCS> class ZeroMorphProver_ {
 
         // Compute batched degree-check and ZM-identity quotient polynomial pi
         auto pi_polynomial = compute_batched_evaluation_and_degree_check_polynomial(zeta_x, Z_x, z_challenge);
-        // Compute opening proof for x_challenge using the underlying univariate PCS
-        PCS::compute_opening_proof(
-            commitment_key, { .challenge = x_challenge, .evaluation = FF(0) }, pi_polynomial, transcript);
+
+        // Returns the claim used to generate an opening proof for the univariate polynomial at x_challenge
+        return { pi_polynomial, { .challenge = x_challenge, .evaluation = FF(0) } };
     }
 };
 
 /**
  * @brief Verifier for ZeroMorph multilinear PCS
  *
- * @tparam Curve
+ * @tparam Curve - The Curve used to arithmetise ZeroMorph
  */
-template <typename PCS> class ZeroMorphVerifier_ {
-    using Curve = typename PCS::Curve;
+template <typename Curve> class ZeroMorphVerifier_ {
     using FF = typename Curve::ScalarField;
     using Commitment = typename Curve::AffineElement;
-    using VerifierAccumulator = typename PCS::VerifierAccumulator;
 
   public:
     /**
@@ -458,7 +459,10 @@ template <typename PCS> class ZeroMorphVerifier_ {
      * @param x_challenge
      * @return Commitment
      */
-    static Commitment compute_C_zeta_x(Commitment C_q, std::vector<Commitment>& C_q_k, FF y_challenge, FF x_challenge)
+    static Commitment compute_C_zeta_x(const Commitment& C_q,
+                                       std::vector<Commitment>& C_q_k,
+                                       FF y_challenge,
+                                       FF x_challenge)
     {
         size_t log_N = C_q_k.size();
         size_t N = 1 << log_N;
@@ -510,7 +514,7 @@ template <typename PCS> class ZeroMorphVerifier_ {
      *
      * @note The concatenation term arises from an implementation detail in the Translator and is not part of the
      * conventional ZM protocol
-     * @param first_g1 first element in the SRS
+     * @param g1_identity first element in the SRS
      * @param f_commitments Commitments to unshifted polynomials [f_i]
      * @param g_commitments Commitments to to-be-shifted polynomials [g_i]
      * @param C_q_k Commitments to q_k
@@ -521,7 +525,7 @@ template <typename PCS> class ZeroMorphVerifier_ {
      * @param concatenation_groups_commitments
      * @return Commitment
      */
-    static Commitment compute_C_Z_x(Commitment first_g1,
+    static Commitment compute_C_Z_x(const Commitment& g1_identity,
                                     RefSpan<Commitment> f_commitments,
                                     RefSpan<Commitment> g_commitments,
                                     std::span<Commitment> C_q_k,
@@ -544,7 +548,7 @@ template <typename PCS> class ZeroMorphVerifier_ {
         // Add contribution: -v * x * \Phi_n(x) * [1]_1
         scalars.emplace_back(FF(-1) * batched_evaluation * x_challenge * phi_n_x);
 
-        commitments.emplace_back(first_g1);
+        commitments.emplace_back(g1_identity);
 
         // Add contribution: x * \sum_{i=0}^{m-1} \rho^i*[f_i]
         auto rho_pow = FF(1);
@@ -625,30 +629,24 @@ template <typename PCS> class ZeroMorphVerifier_ {
     }
 
     /**
-     * @brief Compute the univariate opening claim used in the last step of Zeromorph to verify the univariate PCS
-     * evaluation.
+     * @brief Return the univariate opening claim used to verify, in a subsequent PCS, a set of multilinear evaluation
+     * claims for unshifted polynomials f_i and to-be-shifted polynomials g_i
      *
-     * @param unshifted_commitments
-     * @param to_be_shifted_commitments
-     * @param unshifted_evaluations
-     * @param shifted_evaluations
-     * @param multivariate_challenge
-     * @param first_g1
+     * @param commitments Commitments to polynomials f_i and g_i (unshifted and to-be-shifted)
+     * @param claimed_evaluations Claimed evaluations v_i = f_i(u) and w_i = h_i(u) = g_i_shifted(u)
+     * @param multivariate_challenge Challenge point u
      * @param transcript
-     * @param concatenation_group_commitments
-     * @param concatenated_evaluations
-     * @return OpeningClaim<Curve>
+     * @return VerifierAccumulator Inputs to the final PCS verification check that will be accumulated
      */
-    static OpeningClaim<Curve> compute_univariate_evaluation_opening_claim(
-        RefSpan<Commitment> unshifted_commitments,
-        RefSpan<Commitment> to_be_shifted_commitments,
-        RefSpan<FF> unshifted_evaluations,
-        RefSpan<FF> shifted_evaluations,
-        std::span<FF> multivariate_challenge,
-        Commitment first_g1,
-        auto& transcript,
-        const std::vector<RefVector<Commitment>>& concatenation_group_commitments = {},
-        RefSpan<FF> concatenated_evaluations = {})
+    static OpeningClaim<Curve> verify(RefSpan<Commitment> unshifted_commitments,
+                                      RefSpan<Commitment> to_be_shifted_commitments,
+                                      RefSpan<FF> unshifted_evaluations,
+                                      RefSpan<FF> shifted_evaluations,
+                                      std::span<FF> multivariate_challenge,
+                                      const Commitment& g1_identity,
+                                      auto& transcript,
+                                      const std::vector<RefVector<Commitment>>& concatenation_group_commitments = {},
+                                      RefSpan<FF> concatenated_evaluations = {})
     {
         size_t log_N = multivariate_challenge.size();
         FF rho = transcript->template get_challenge<FF>("rho");
@@ -689,7 +687,7 @@ template <typename PCS> class ZeroMorphVerifier_ {
         auto C_zeta_x = compute_C_zeta_x(C_q, C_q_k, y_challenge, x_challenge);
 
         // Compute commitment C_{Z_x}
-        Commitment C_Z_x = compute_C_Z_x(first_g1,
+        Commitment C_Z_x = compute_C_Z_x(g1_identity,
                                          unshifted_commitments,
                                          to_be_shifted_commitments,
                                          C_q_k,
@@ -713,82 +711,6 @@ template <typename PCS> class ZeroMorphVerifier_ {
         }
 
         return { .opening_pair = { .challenge = x_challenge, .evaluation = FF(0) }, .commitment = C_zeta_Z };
-    }
-
-    /**
-     * @brief Verify a set of multilinear evaluation claims for unshifted polynomials f_i and to-be-shifted
-     * polynomials g_i
-     *
-     * @param commitments Commitments to polynomials f_i and g_i (unshifted and to-be-shifted)
-     * @param claimed_evaluations Claimed evaluations v_i = f_i(u) and w_i = h_i(u) = g_i_shifted(u)
-     * @param multivariate_challenge Challenge point u
-     * @param transcript
-     * @return VerifierAccumulator Inputs to the final PCS verification check that will be accumulated
-     */
-    static VerifierAccumulator verify(RefSpan<Commitment> unshifted_commitments,
-                                      RefSpan<Commitment> to_be_shifted_commitments,
-                                      RefSpan<FF> unshifted_evaluations,
-                                      RefSpan<FF> shifted_evaluations,
-                                      std::span<FF> multivariate_challenge,
-                                      auto& transcript,
-                                      const std::vector<RefVector<Commitment>>& concatenation_group_commitments = {},
-                                      RefSpan<FF> concatenated_evaluations = {})
-    {
-        Commitment first_g1;
-
-        if constexpr (Curve::is_stdlib_type) {
-            auto builder = multivariate_challenge[0].get_context();
-            first_g1 = Commitment::one(builder);
-        } else {
-            first_g1 = Commitment::one();
-        }
-        auto opening_claim = compute_univariate_evaluation_opening_claim(unshifted_commitments,
-                                                                         to_be_shifted_commitments,
-                                                                         unshifted_evaluations,
-                                                                         shifted_evaluations,
-                                                                         multivariate_challenge,
-                                                                         first_g1,
-                                                                         transcript,
-                                                                         concatenation_group_commitments,
-                                                                         concatenated_evaluations);
-        return PCS::reduce_verify(opening_claim, transcript);
-    }
-
-    /**
-     * @brief Verify a set of multilinear evaluation claims for unshifted polynomials f_i and to-be-shifted
-     * polynomials g_i.
-     *
-     * @details Identical purpose as the function above but used when the verification of the PCS evaluation protocol
-     * requires the verification key prior to the last step that is accumulated.
-     *
-     * @param commitments Commitments to polynomials f_i and g_i (unshifted and to-be-shifted)
-     * @param claimed_evaluations Claimed evaluations v_i = f_i(u) and w_i = h_i(u) = g_i_shifted(u)
-     * @param multivariate_challenge Challenge point u
-     * @param transcript
-     * @return VerifierAccumulator Inputs to the final PCS verification check that will be accumulated
-     */
-    static VerifierAccumulator verify(RefSpan<Commitment> unshifted_commitments,
-                                      RefSpan<Commitment> to_be_shifted_commitments,
-                                      RefSpan<FF> unshifted_evaluations,
-                                      RefSpan<FF> shifted_evaluations,
-                                      std::span<FF> multivariate_challenge,
-                                      const std::shared_ptr<VerifierCommitmentKey<Curve>>& vk,
-                                      auto& transcript,
-                                      const std::vector<RefVector<Commitment>>& concatenation_group_commitments = {},
-                                      RefSpan<FF> concatenated_evaluations = {})
-    {
-        Commitment first_g1 = vk->get_first_g1();
-
-        auto opening_claim = compute_univariate_evaluation_opening_claim(unshifted_commitments,
-                                                                         to_be_shifted_commitments,
-                                                                         unshifted_evaluations,
-                                                                         shifted_evaluations,
-                                                                         multivariate_challenge,
-                                                                         first_g1,
-                                                                         transcript,
-                                                                         concatenation_group_commitments,
-                                                                         concatenated_evaluations);
-        return PCS::reduce_verify(vk, opening_claim, transcript);
     }
 };
 

@@ -16,10 +16,42 @@ template <class PCS> class ZeroMorphTest : public CommitmentTest<typename PCS::C
     using Commitment = typename Curve::AffineElement;
     using GroupElement = typename Curve::Element;
     using VerifierAccumulator = typename PCS::VerifierAccumulator;
-    using ZeroMorphProver = ZeroMorphProver_<PCS>;
-    using ZeroMorphVerifier = ZeroMorphVerifier_<PCS>;
+    using ZeroMorphProver = ZeroMorphProver_<Curve>;
+    using ZeroMorphVerifier = ZeroMorphVerifier_<Curve>;
 
-    // Evaluate Phi_k(x) = \sum_{i=0}^k x^i using the direct inefficent formula
+    using TupleOfConcatenationInputs = std::tuple<std::vector<std::vector<Polynomial>>,
+                                                  std::vector<Polynomial>,
+                                                  std::vector<Fr>,
+                                                  std::vector<std::vector<Commitment>>>;
+
+    /**
+     * @brief Data structure for encapsulating a set of multilinear polynomials used to test the protocol, their
+     * evaluations at the point that we want to create an evaluation proof for and
+     * their commitments. Alternatively, the polynomials and commitments can be the ones to-be-shifted, while the
+     * evaluations are for their shifted version.
+     *
+     */
+    struct PolynomialsEvaluationsCommitments {
+        std::vector<Polynomial> polynomials;
+        std::vector<Fr> evaluations;
+        std::vector<Commitment> commitments;
+    };
+
+    /**
+     * @brief Data structure used to test the protocol's alternative for Goblin Translator.
+     *
+     */
+    struct ConcatenationInputs {
+        std::vector<std::vector<Polynomial>> concatenation_groups;
+        std::vector<Polynomial> concatenated_polynomials;
+        std::vector<Fr> c_evaluations;
+        std::vector<std::vector<Commitment>> concatenation_groups_commitments;
+    };
+
+    /**
+     * @brief Evaluate Phi_k(x) = \sum_{i=0}^k x^i using the direct inefficent formula
+     *
+     */
     Fr Phi(Fr challenge, size_t subscript)
     {
         size_t length = 1 << subscript;
@@ -37,152 +69,91 @@ template <class PCS> class ZeroMorphTest : public CommitmentTest<typename PCS::C
      * polynomials), which are a subset of the f_i. This is what is encountered in practice. We accomplish this using
      * evaluations of h_i but commitments to only their unshifted counterparts g_i (which we get for "free" since
      * commitments [g_i] are contained in the set of commitments [f_i]).
-     *
      */
-    bool execute_zeromorph_protocol(size_t NUM_UNSHIFTED, size_t NUM_SHIFTED)
+    bool execute_zeromorph_protocol(size_t NUM_UNSHIFTED,
+                                    size_t NUM_SHIFTED,
+                                    [[maybe_unused]] size_t NUM_CONCATENATED = 0)
     {
         size_t N = 2;
         size_t log_N = numeric::get_msb(N);
 
         std::vector<Fr> u_challenge = this->random_evaluation_point(log_N);
 
-        // Construct some random multilinear polynomials f_i and their evaluations v_i = f_i(u)
-        std::vector<Polynomial> f_polynomials; // unshifted polynomials
-        std::vector<Fr> v_evaluations;
-        for (size_t i = 0; i < NUM_UNSHIFTED; ++i) {
-            f_polynomials.emplace_back(this->random_polynomial(N));
-            f_polynomials[i][0] = Fr(0); // ensure f is "shiftable"
-            v_evaluations.emplace_back(f_polynomials[i].evaluate_mle(u_challenge));
-        }
+        // Construct some random multilinear polynomials f_i, their commitments and their evaluations v_i = f_i(u)
+        PolynomialsEvaluationsCommitments unshifted_input =
+            polynomials_comms_and_evaluations(u_challenge, NUM_UNSHIFTED);
 
-        // Construct some "shifted" multilinear polynomials h_i as the left-shift-by-1 of f_i
-        std::vector<Polynomial> g_polynomials; // to-be-shifted polynomials
-        std::vector<Polynomial> h_polynomials; // shifts of the to-be-shifted polynomials
-        std::vector<Fr> w_evaluations;
-        for (size_t i = 0; i < NUM_SHIFTED; ++i) {
-            g_polynomials.emplace_back(f_polynomials[i]);
-            h_polynomials.emplace_back(g_polynomials[i].shifted());
-            w_evaluations.emplace_back(h_polynomials[i].evaluate_mle(u_challenge));
-            // ASSERT_EQ(w_evaluations[i], g_polynomials[i].evaluate_mle(u_challenge, /* shift = */ true));
-        }
+        // Construct polynomials and commitments from f_i that are to be shifted and compute their shifted evaluations
+        PolynomialsEvaluationsCommitments shifted_input =
+            to_be_shifted_polynomials_and_comms_and_shifted_evaluations(unshifted_input, u_challenge, NUM_SHIFTED);
 
-        // Compute commitments [f_i]
-        std::vector<Commitment> f_commitments;
-        for (size_t i = 0; i < NUM_UNSHIFTED; ++i) {
-            f_commitments.emplace_back(this->commit(f_polynomials[i]));
-        }
-
-        // Construct container of commitments of the "to-be-shifted" polynomials [g_i] (= [f_i])
-        std::vector<Commitment> g_commitments;
-        for (size_t i = 0; i < NUM_SHIFTED; ++i) {
-            g_commitments.emplace_back(f_commitments[i]);
-        }
-
-        // Initialize an empty NativeTranscript
-        auto prover_transcript = NativeTranscript::prover_init_empty();
-
-        // Execute Prover protocol
-        ZeroMorphProver::prove(RefVector(f_polynomials),
-                               RefVector(g_polynomials),
-                               RefVector(v_evaluations),
-                               RefVector(w_evaluations),
-                               u_challenge,
-                               this->commitment_key,
-                               prover_transcript);
-
-        auto verifier_transcript = NativeTranscript::verifier_init_empty(prover_transcript);
-
-        VerifierAccumulator result;
         bool verified = false;
-        if constexpr (std::same_as<PCS, KZG<curve::BN254>>) {
-            // Execute Verifier protocol without the need for vk prior the final check
-            result = ZeroMorphVerifier::verify(RefVector(f_commitments), // unshifted
-                                               RefVector(g_commitments), // to-be-shifted
-                                               RefVector(v_evaluations), // unshifted
-                                               RefVector(w_evaluations), // shifted
-                                               u_challenge,
-                                               verifier_transcript);
-            verified = this->vk()->pairing_check(result[0], result[1]);
+        if (NUM_CONCATENATED == 0) {
+            verified = prove_and_verify(unshifted_input, shifted_input, u_challenge);
         } else {
-            // Execute Verifier protocol with vk
-            result = ZeroMorphVerifier::verify(RefVector(f_commitments), // unshifted
-                                               RefVector(g_commitments), // to-be-shifted
-                                               RefVector(v_evaluations), // unshifted
-                                               RefVector(w_evaluations), // shifted
-                                               u_challenge,
-                                               this->vk(),
-                                               verifier_transcript);
-            verified = result;
+            verified =
+                prove_and_verify_with_concatenation(unshifted_input, shifted_input, u_challenge, NUM_CONCATENATED);
         }
-
-        // The prover and verifier manifests should agree
-        EXPECT_EQ(prover_transcript->get_manifest(), verifier_transcript->get_manifest());
 
         return verified;
     }
-};
-
-template <class PCS> class ZeroMorphWithConcatenationTest : public CommitmentTest<typename PCS::Curve> {
-  public:
-    using Curve = typename PCS::Curve;
-    using Fr = typename Curve::ScalarField;
-    using Polynomial = bb::Polynomial<Fr>;
-    using Commitment = typename Curve::AffineElement;
-    using GroupElement = typename Curve::Element;
-    using VerifierAccumulator = typename PCS::VerifierAccumulator;
-    using ZeroMorphProver = ZeroMorphProver_<PCS>;
-    using ZeroMorphVerifier = ZeroMorphVerifier_<PCS>;
-
-    // Evaluate Phi_k(x) = \sum_{i=0}^k x^i using the direct inefficent formula
-    Fr Phi(Fr challenge, size_t subscript)
-    {
-        size_t length = 1 << subscript;
-        auto result = Fr(0);
-        for (size_t idx = 0; idx < length; ++idx) {
-            result += challenge.pow(idx);
-        }
-        return result;
-    }
 
     /**
-     * @brief Construct and verify ZeroMorph proof of batched multilinear evaluation with shifts and concatenation
-     * @details The goal is to construct and verify a single batched multilinear evaluation proof for m polynomials f_i,
-     * l polynomials h_i and o groups of polynomials where each polynomial is concatenated from several shorter
-     * polynomials. It is assumed that the h_i are shifts of polynomials g_i (the "to-be-shifted" polynomials), which
-     * are a subset of the f_i. This is what is encountered in practice. We accomplish this using evaluations of h_i but
-     * commitments to only their unshifted counterparts g_i (which we get for "free" since commitments [g_i] are
-     * contained in the set of commitments [f_i]).
-     *
+     * @brief Generate some random multilinear polynomials and compute their evaluation at the set challenge as well as
+     * their commitments, returned as a tuple to be used in the subsequent protocol.
      */
-    bool execute_zeromorph_protocol(size_t NUM_UNSHIFTED, size_t NUM_SHIFTED, size_t NUM_CONCATENATED)
+    PolynomialsEvaluationsCommitments polynomials_comms_and_evaluations(std::vector<Fr> u_challenge,
+                                                                        size_t NUM_UNSHIFTED)
     {
-        bool verified = false;
-        size_t concatenation_index = 2;
-        size_t N = 64;
-        size_t MINI_CIRCUIT_N = N / concatenation_index;
-        size_t log_N = numeric::get_msb(N);
-
-        auto u_challenge = this->random_evaluation_point(log_N);
-
         // Construct some random multilinear polynomials f_i and their evaluations v_i = f_i(u)
         std::vector<Polynomial> f_polynomials; // unshifted polynomials
         std::vector<Fr> v_evaluations;
+        std::vector<Commitment> f_commitments;
+        size_t poly_length = 1 << u_challenge.size();
         for (size_t i = 0; i < NUM_UNSHIFTED; ++i) {
-            f_polynomials.emplace_back(this->random_polynomial(N));
+            f_polynomials.emplace_back(this->random_polynomial(poly_length));
             f_polynomials[i][0] = Fr(0); // ensure f is "shiftable"
             v_evaluations.emplace_back(f_polynomials[i].evaluate_mle(u_challenge));
+            f_commitments.emplace_back(this->commit(f_polynomials[i]));
         }
+        return { f_polynomials, v_evaluations, f_commitments };
+    }
 
-        // Construct some "shifted" multilinear polynomials h_i as the left-shift-by-1 of f_i
+    /**
+     * @brief Generate shifts of polynomials and compute their evaluation at the
+     * set challenge as well as their commitments, returned as a tuple to be used in the subsequent protocol.
+     */
+    PolynomialsEvaluationsCommitments to_be_shifted_polynomials_and_comms_and_shifted_evaluations(
+        PolynomialsEvaluationsCommitments unshifted_inputs, std::vector<Fr> u_challenge, size_t NUM_SHIFTED)
+    {
+        std::vector<Polynomial> f_polynomials = unshifted_inputs.polynomials;
+        std::vector<Commitment> f_commitments = unshifted_inputs.commitments;
+
         std::vector<Polynomial> g_polynomials; // to-be-shifted polynomials
         std::vector<Polynomial> h_polynomials; // shifts of the to-be-shifted polynomials
-        std::vector<Fr> w_evaluations;
+        std::vector<Fr> w_evaluations;         // shifted evaluations
+        std::vector<Commitment> g_commitments;
+
+        // For testing purposes, pick the first NUM_SHIFTED polynomials to be shifted
         for (size_t i = 0; i < NUM_SHIFTED; ++i) {
             g_polynomials.emplace_back(f_polynomials[i]);
             h_polynomials.emplace_back(g_polynomials[i].shifted());
             w_evaluations.emplace_back(h_polynomials[i].evaluate_mle(u_challenge));
-            // ASSERT_EQ(w_evaluations[i], g_polynomials[i].evaluate_mle(u_challenge, /* shift = */ true));
+            g_commitments.emplace_back(f_commitments[i]);
         }
+        return { g_polynomials, w_evaluations, g_commitments };
+    }
+
+    /**
+     * @brief Generate the tuple of concatenation inputs used to test Zeromorph special functionality that avoids high
+     * degrees in the Goblin Translator.
+     */
+    ConcatenationInputs concatenation_inputs(std::vector<Fr> u_challenge, size_t NUM_CONCATENATED)
+    {
+
+        size_t concatenation_index = 2;
+        size_t N = 1 << u_challenge.size();
+        size_t MINI_CIRCUIT_N = N / concatenation_index;
 
         // Polynomials "chunks" that are concatenated in the PCS
         std::vector<std::vector<Polynomial>> concatenation_groups;
@@ -221,18 +192,6 @@ template <class PCS> class ZeroMorphWithConcatenationTest : public CommitmentTes
             c_evaluations.emplace_back(concatenated_polynomial.evaluate_mle(u_challenge));
         }
 
-        // Compute commitments [f_i]
-        std::vector<Commitment> f_commitments;
-        for (size_t i = 0; i < NUM_UNSHIFTED; ++i) {
-            f_commitments.emplace_back(this->commit(f_polynomials[i]));
-        }
-
-        // Construct container of commitments of the "to-be-shifted" polynomials [g_i] (= [f_i])
-        std::vector<Commitment> g_commitments;
-        for (size_t i = 0; i < NUM_SHIFTED; ++i) {
-            g_commitments.emplace_back(f_commitments[i]);
-        }
-
         // Compute commitments of all polynomial chunks
         std::vector<std::vector<Commitment>> concatenation_groups_commitments;
         for (size_t i = 0; i < NUM_CONCATENATED; ++i) {
@@ -243,46 +202,106 @@ template <class PCS> class ZeroMorphWithConcatenationTest : public CommitmentTes
             concatenation_groups_commitments.emplace_back(concatenation_group_commitment);
         }
 
-        // Initialize an empty NativeTranscript
+        return { concatenation_groups, concatenated_polynomials, c_evaluations, concatenation_groups_commitments };
+    };
+
+    bool prove_and_verify(PolynomialsEvaluationsCommitments& unshifted,
+                          PolynomialsEvaluationsCommitments& shifted,
+                          std::vector<Fr> u_challenge)
+    {
         auto prover_transcript = NativeTranscript::prover_init_empty();
 
         // Execute Prover protocol
-        ZeroMorphProver::prove(RefVector(f_polynomials), // unshifted
-                               RefVector(g_polynomials), // to-be-shifted
-                               RefVector(v_evaluations), // unshifted
-                               RefVector(w_evaluations), // shifted
-                               u_challenge,
-                               this->commitment_key,
-                               prover_transcript,
-                               RefVector(concatenated_polynomials),
-                               RefVector(c_evaluations),
-                               to_vector_of_ref_vectors(concatenation_groups));
+        auto prover_opening_claim = ZeroMorphProver::prove(RefVector(unshifted.polynomials), // unshifted
+                                                           RefVector(shifted.polynomials),   // to-be shifted
+                                                           RefVector(unshifted.evaluations), // unshifted
+                                                           RefVector(shifted.evaluations),   // shifted
+                                                           u_challenge,
+                                                           this->commitment_key,
+                                                           prover_transcript);
+
+        PCS::compute_opening_proof(this->commitment_key,
+                                   prover_opening_claim.opening_pair,
+                                   prover_opening_claim.polynomial,
+                                   prover_transcript);
 
         auto verifier_transcript = NativeTranscript::verifier_init_empty(prover_transcript);
-        VerifierAccumulator result;
-        if constexpr (std::same_as<PCS, KZG<curve::BN254>>) {
-            // Execute Verifier protocol without the need for vk prior the final check
-            result = ZeroMorphVerifier::verify(RefVector(f_commitments), // unshifted
-                                               RefVector(g_commitments), // to-be-shifted
-                                               RefVector(v_evaluations), // unshifted
-                                               RefVector(w_evaluations), // shifted
-                                               u_challenge,
-                                               verifier_transcript,
-                                               to_vector_of_ref_vectors(concatenation_groups_commitments),
-                                               RefVector(c_evaluations));
-            verified = this->vk()->pairing_check(result[0], result[1]);
 
+        auto verifier_opening_claim = ZeroMorphVerifier::verify(RefVector(unshifted.commitments), // unshifted
+                                                                RefVector(shifted.commitments),   // to-be-shifted
+                                                                RefVector(unshifted.evaluations), // unshifted
+                                                                RefVector(shifted.evaluations),   // shifted
+                                                                u_challenge,
+                                                                this->vk()->get_g1_identity(),
+                                                                verifier_transcript);
+        VerifierAccumulator result;
+
+        bool verified = false;
+        if constexpr (std::same_as<PCS, KZG<curve::BN254>>) {
+
+            result = PCS::reduce_verify(verifier_opening_claim, verifier_transcript);
+            verified = this->vk()->pairing_check(result[0], result[1]);
         } else {
             // Execute Verifier protocol with vk
-            result = ZeroMorphVerifier::verify(RefVector(f_commitments), // unshifted
-                                               RefVector(g_commitments), // to-be-shifted
-                                               RefVector(v_evaluations), // unshifted
-                                               RefVector(w_evaluations), // shifted
-                                               u_challenge,
-                                               this->vk(),
-                                               verifier_transcript,
-                                               to_vector_of_ref_vectors(concatenation_groups_commitments),
-                                               RefVector(c_evaluations));
+            result = PCS::reduce_verify(this->vk(), verifier_opening_claim, verifier_transcript);
+
+            verified = result;
+        }
+
+        // The prover and verifier manifests should agree
+        EXPECT_EQ(prover_transcript->get_manifest(), verifier_transcript->get_manifest());
+        return verified;
+    };
+
+    bool prove_and_verify_with_concatenation(PolynomialsEvaluationsCommitments& unshifted,
+                                             PolynomialsEvaluationsCommitments& shifted,
+                                             std::vector<Fr> u_challenge,
+                                             size_t NUM_CONCATENATED)
+    {
+        ConcatenationInputs concatenation = concatenation_inputs(u_challenge, NUM_CONCATENATED);
+
+        auto prover_transcript = NativeTranscript::prover_init_empty();
+
+        // Execute Prover protocol
+        auto prover_opening_claim =
+            ZeroMorphProver::prove(RefVector(unshifted.polynomials), // unshifted
+                                   RefVector(shifted.polynomials),   // to-be-shifted
+                                   RefVector(unshifted.evaluations), // unshifted
+                                   RefVector(shifted.evaluations),   // shifted
+                                   u_challenge,
+                                   this->commitment_key,
+                                   prover_transcript,
+                                   RefVector(concatenation.concatenated_polynomials),
+                                   RefVector(concatenation.c_evaluations),
+                                   to_vector_of_ref_vectors(concatenation.concatenation_groups));
+        PCS::compute_opening_proof(this->commitment_key,
+                                   prover_opening_claim.opening_pair,
+                                   prover_opening_claim.polynomial,
+                                   prover_transcript);
+
+        auto verifier_transcript = NativeTranscript::verifier_init_empty(prover_transcript);
+
+        auto verifier_opening_claim =
+            ZeroMorphVerifier::verify(RefVector(unshifted.commitments), // unshifted
+                                      RefVector(shifted.commitments),   // to-be-shifted
+                                      RefVector(unshifted.evaluations), // unshifted
+                                      RefVector(shifted.evaluations),   // shifted
+                                      u_challenge,
+                                      this->vk()->get_g1_identity(),
+                                      verifier_transcript,
+                                      to_vector_of_ref_vectors(concatenation.concatenation_groups_commitments),
+                                      RefVector(concatenation.c_evaluations));
+        VerifierAccumulator result;
+
+        bool verified = false;
+        if constexpr (std::same_as<PCS, KZG<curve::BN254>>) {
+
+            result = PCS::reduce_verify(verifier_opening_claim, verifier_transcript);
+            verified = this->vk()->pairing_check(result[0], result[1]);
+        } else {
+            // Execute Verifier protocol with vk
+            result = PCS::reduce_verify(this->vk(), verifier_opening_claim, verifier_transcript);
+
             verified = result;
         }
 
@@ -294,7 +313,6 @@ template <class PCS> class ZeroMorphWithConcatenationTest : public CommitmentTes
 
 using PCSTypes = ::testing::Types<KZG<curve::BN254>, IPA<curve::Grumpkin>>;
 TYPED_TEST_SUITE(ZeroMorphTest, PCSTypes);
-TYPED_TEST_SUITE(ZeroMorphWithConcatenationTest, PCSTypes);
 
 /**
  * @brief Test method for computing q_k given multilinear f
@@ -307,8 +325,8 @@ TYPED_TEST_SUITE(ZeroMorphWithConcatenationTest, PCSTypes);
 TYPED_TEST(ZeroMorphTest, QuotientConstruction)
 {
     // Define some useful type aliases
-    using ZeroMorphProver = ZeroMorphProver_<TypeParam>;
     using Curve = typename TypeParam::Curve;
+    using ZeroMorphProver = ZeroMorphProver_<Curve>;
     using Fr = typename Curve::ScalarField;
     using Polynomial = bb::Polynomial<Fr>;
 
@@ -355,8 +373,8 @@ TYPED_TEST(ZeroMorphTest, QuotientConstruction)
 TYPED_TEST(ZeroMorphTest, BatchedLiftedDegreeQuotient)
 {
     // Define some useful type aliases
-    using ZeroMorphProver = ZeroMorphProver_<TypeParam>;
     using Curve = typename TypeParam::Curve;
+    using ZeroMorphProver = ZeroMorphProver_<Curve>;
     using Fr = typename Curve::ScalarField;
     using Polynomial = bb::Polynomial<Fr>;
 
@@ -400,8 +418,8 @@ TYPED_TEST(ZeroMorphTest, BatchedLiftedDegreeQuotient)
 TYPED_TEST(ZeroMorphTest, PartiallyEvaluatedQuotientZeta)
 {
     // Define some useful type aliases
-    using ZeroMorphProver = ZeroMorphProver_<TypeParam>;
     using Curve = typename TypeParam::Curve;
+    using ZeroMorphProver = ZeroMorphProver_<Curve>;
     using Fr = typename Curve::ScalarField;
     using Polynomial = bb::Polynomial<Fr>;
 
@@ -484,8 +502,8 @@ TYPED_TEST(ZeroMorphTest, PhiEvaluation)
 TYPED_TEST(ZeroMorphTest, PartiallyEvaluatedQuotientZ)
 {
     // Define some useful type aliases
-    using ZeroMorphProver = ZeroMorphProver_<TypeParam>;
     using Curve = typename TypeParam::Curve;
+    using ZeroMorphProver = ZeroMorphProver_<Curve>;
     using Fr = typename Curve::ScalarField;
     using Polynomial = bb::Polynomial<Fr>;
 
@@ -565,7 +583,7 @@ TYPED_TEST(ZeroMorphTest, ProveAndVerifyBatchedWithShifts)
  * @brief Test full Prover/Verifier protocol for proving single multilinear evaluation
  *
  */
-TYPED_TEST(ZeroMorphWithConcatenationTest, ProveAndVerify)
+TYPED_TEST(ZeroMorphTest, ProveAndVerifyWithConcatenation)
 {
     size_t num_unshifted = 1;
     size_t num_shifted = 0;

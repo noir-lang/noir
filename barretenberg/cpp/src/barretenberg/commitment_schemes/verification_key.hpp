@@ -40,7 +40,7 @@ template <> class VerifierCommitmentKey<curve::BN254> {
         srs = srs::get_crs_factory<Curve>()->get_verifier_crs();
     };
 
-    Commitment get_first_g1() { return srs->get_first_g1(); }
+    Commitment get_g1_identity() { return srs->get_g1_identity(); }
 
     /**
      * @brief verifies a pairing equation over 2 points using the verifier SRS
@@ -93,7 +93,7 @@ template <> class VerifierCommitmentKey<curve::Grumpkin> {
         srs = srs::get_crs_factory<Curve>()->get_verifier_crs(num_points);
     }
 
-    Commitment get_first_g1() { return srs->get_first_g1(); }
+    Commitment get_g1_identity() { return srs->get_g1_identity(); }
 
     Commitment* get_monomial_points() { return srs->get_monomial_points(); }
 
