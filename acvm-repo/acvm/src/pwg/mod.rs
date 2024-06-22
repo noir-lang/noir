@@ -13,6 +13,7 @@ use acir::{
     AcirField, BlackBoxFunc,
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
+use brillig_vm::MAX_ITERATIONS;
 
 use self::{
     arithmetic::ExpressionSolver, blackbox::bigint::AcvmBigIntSolver, directives::solve_directives,
@@ -179,6 +180,10 @@ pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
     // Each unconstrained function referenced in the program
     unconstrained_functions: &'a [BrilligBytecode<F>],
 
+    /// A counter maintained throughout an ACVM process that count
+    /// the number of ACVM 'execution steps' (one per ACIR and brillig opcode)
+    number_of_iterations: u64,
+
     assertion_payloads: &'a [(OpcodeLocation, AssertionPayload<F>)],
 }
 
@@ -204,6 +209,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             acir_call_results: Vec::default(),
             unconstrained_functions,
             assertion_payloads,
+            number_of_iterations: 0,
         }
     }
 
@@ -320,6 +326,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     }
 
     pub fn solve_opcode(&mut self) -> ACVMStatus<F> {
+        self.number_of_iterations += 1;
+        if self.number_of_iterations > MAX_ITERATIONS {
+            panic!("Execution exceeded the number of allowed iterations");
+        }
         let opcode = &self.opcodes[self.instruction_pointer];
 
         let resolution = match opcode {
@@ -491,8 +501,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             BrilligSolverStatus::InProgress => {
                 unreachable!("Brillig solver still in progress")
             }
-            BrilligSolverStatus::Finished => {
+            BrilligSolverStatus::Finished(iterations) => {
                 // Write execution outputs
+                self.number_of_iterations += iterations;
                 solver.finalize(&mut self.witness_map, outputs)?;
                 Ok(None)
             }
