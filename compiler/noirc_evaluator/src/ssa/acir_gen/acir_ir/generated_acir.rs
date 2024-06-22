@@ -431,7 +431,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         let inputs = vec![BrilligInputs::Single(expr)];
         let outputs = vec![BrilligOutputs::Simple(inverted_witness)];
         self.brillig_call(
-            Some(Expression::one()),
+            None,
             &inverse_code,
             inputs,
             outputs,
