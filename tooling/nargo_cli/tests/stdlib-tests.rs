@@ -1,7 +1,6 @@
 use std::io::Write;
 use std::{collections::BTreeMap, path::PathBuf};
 
-use acvm::blackbox_solver::StubbedBlackBoxSolver;
 use fm::FileManager;
 use noirc_driver::{check_crate, compile_no_check, file_manager_with_stdlib, CompileOptions};
 use noirc_frontend::hir::FunctionNameMatch;
@@ -56,7 +55,7 @@ fn run_stdlib_tests() {
 
             let status = if test_function_has_no_arguments {
                 run_test(
-                    &StubbedBlackBoxSolver,
+                    &bn254_blackbox_solver::Bn254BlackBoxSolver,
                     &mut context,
                     &test_function,
                     false,
