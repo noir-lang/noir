@@ -63,7 +63,10 @@ fn derive_generators<N, M>(domain_separator_bytes: [u8; M], starting_index: u32)
 
 #[builtin(derive_pedersen_generators)]
 #[field(bn254)]
-fn __derive_generators<N, M>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {}
+fn __derive_generators<N, M>(
+    domain_separator_bytes: [u8; M],
+    starting_index: u32
+) -> [EmbeddedCurvePoint; N] {}
 
 pub fn pedersen_hash_with_separator<N>(input: [Field; N], separator: u32) -> Field {
     let v1 = pedersen_commitment(input);
