@@ -168,7 +168,7 @@ pub(crate) fn rewrite(
             format!("{path_string}{turbofish}")
         }
         ExpressionKind::Lambda(_) => visitor.slice(span).to_string(),
-        ExpressionKind::Quote(_, block_span) => format!("quote {}", visitor.slice(block_span)),
+        ExpressionKind::Quote(_) => visitor.slice(span).to_string(),
         ExpressionKind::Comptime(block, block_span) => {
             format!("comptime {}", rewrite_block(visitor, block, block_span))
         }

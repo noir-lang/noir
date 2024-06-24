@@ -33,7 +33,7 @@ pub enum ExpressionKind {
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
-    Quote(Tokens, Span),
+    Quote(Tokens),
     Unquote(Box<Expression>),
     Comptime(BlockExpression, Span),
 
@@ -553,7 +553,7 @@ impl Display for ExpressionKind {
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),
             Unquote(expr) => write!(f, "$({expr})"),
-            Quote(tokens, _) => {
+            Quote(tokens) => {
                 let tokens = vecmap(&tokens.0, ToString::to_string);
                 write!(f, "quote {{ {} }}", tokens.join(" "))
             }

@@ -44,7 +44,7 @@ use crate::ast::{
 };
 use crate::lexer::{lexer::from_spanned_token_result, Lexer};
 use crate::parser::{force, ignore_then_commit, statement_recovery};
-use crate::token::{Keyword, SpannedToken, Token, TokenKind, Tokens};
+use crate::token::{Keyword, Token, TokenKind};
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
@@ -1103,66 +1103,17 @@ where
 }
 
 fn quote() -> impl NoirParser<ExpressionKind> {
-    keyword(Keyword::Quote).ignore_then(spanned(token_stream_block(false, true))).validate(
-        |(tokens, block_span), span, emit| {
-            emit(ParserError::with_reason(
-                ParserErrorReason::ExperimentalFeature("quoted expressions"),
-                span,
-            ));
-            ExpressionKind::Quote(Tokens(tokens), block_span)
-        },
-    )
-}
-
-/// Parses a stream of tokens terminated by '{' or '}'.
-/// - parse_braces: if true, parses '{' and '}' surrounding the token stream.
-/// - include_braces: if true, include the surrounding braces in the returned tokens vec
-fn token_stream_block(
-    include_braces: bool,
-    parse_braces: bool,
-) -> impl NoirParser<Vec<SpannedToken>> {
-    let append_vecs = |(mut vec1, mut vec2): (Vec<_>, _)| {
-        vec1.append(&mut vec2);
-        vec1
-    };
-
-    // Parse a stream of tokens ending in '{' or '}'.
-    // - If we ended with a '}': end
-    // - If we ended with a '{': recursively parse another token stream block
-    let inner_stream = spanned(none_of([Token::LeftBrace, Token::RightBrace]))
-        .map(|(token, span)| SpannedToken::new(token, span))
-        .repeated()
-        .then(one_of([Token::LeftBrace, Token::RightBrace]).rewind().then_with(move |end| {
-            match end {
-                Token::LeftBrace => token_stream_block(true, true)
-                    .then(token_stream_block(false, false))
-                    .map(append_vecs)
-                    .boxed(),
-                _ => empty().map(|_| Vec::new()).boxed(),
-            }
-        }))
-        .map(append_vecs);
-
-    if parse_braces {
-        spanned(just(Token::LeftBrace))
-            .then(inner_stream)
-            .then(spanned(just(Token::RightBrace)))
-            .map(move |((left_brace, mut stream), right_brace)| {
-                let mut ret = if include_braces {
-                    vec![SpannedToken::new(Token::LeftBrace, left_brace.1)]
-                } else {
-                    vec![]
-                };
-                ret.append(&mut stream);
-                if include_braces {
-                    ret.push(SpannedToken::new(Token::RightBrace, right_brace.1));
-                }
-                ret
-            })
-            .boxed()
-    } else {
-        inner_stream.boxed()
-    }
+    token_kind(TokenKind::Quote).validate(|token, span, emit| {
+        let tokens = match token {
+            Token::Quote(tokens) => tokens,
+            _ => unreachable!("token_kind(Quote) should guarantee parsing only a quote token"),
+        };
+        emit(ParserError::with_reason(
+            ParserErrorReason::ExperimentalFeature("quoted expressions"),
+            span,
+        ));
+        ExpressionKind::Quote(tokens)
+    })
 }
 
 /// unquote: '$' variable
