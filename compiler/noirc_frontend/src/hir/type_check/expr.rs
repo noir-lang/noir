@@ -307,13 +307,13 @@ impl<'interner> TypeChecker<'interner> {
 
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
-            HirExpression::Quote(_) => Type::Quoted(crate::QuotedType::Expr),
+            HirExpression::Quote(_) => Type::Quoted(crate::QuotedType::Quoted),
             HirExpression::Comptime(block) => self.check_block(block),
 
             // Unquote should be inserted & removed by the comptime interpreter.
             // Even if we allowed it here, we wouldn't know what type to give to the result.
             HirExpression::Unquote(block) => {
-                unreachable!("Unquote remaining during type checking {block}")
+                unreachable!("Unquote remaining during type checking {block:?}")
             }
         };
 
