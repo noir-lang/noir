@@ -1572,60 +1572,51 @@ void AvmTraceBuilder::op_sload(uint8_t indirect, uint32_t slot_offset, uint32_t 
     auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
     auto [resolved_slot, resolved_dest] = unpack_indirects<2>(indirect, { slot_offset, dest_offset });
-    auto read_dest_value = constrained_read_from_memory(
-        call_ptr, clk, resolved_dest, AvmMemoryTag::FF, AvmMemoryTag::FF, IntermRegister::IA);
     auto read_slot = constrained_read_from_memory(
-        call_ptr, clk, resolved_slot, AvmMemoryTag::FF, AvmMemoryTag::FF, IntermRegister::IB);
-    // TODO: Reenable tag_match
-    // bool tag_match = read_dest_value.tag_match && read_slot.tag_match;
+        call_ptr, clk, resolved_slot, AvmMemoryTag::FF, AvmMemoryTag::U0, IntermRegister::IA);
 
+    // Read the slot value that we will write hints to in a row
     main_trace.push_back(Row{
         .main_clk = clk,
-        .main_ia = read_dest_value.val,
-        .main_ib = read_slot.val,
-        .main_ind_addr_a = FF(read_dest_value.indirect_address),
-        .main_ind_addr_b = FF(read_slot.indirect_address),
+        .main_ia = read_slot.val,
+        .main_ind_addr_a = FF(read_slot.indirect_address),
         .main_internal_return_ptr = FF(internal_return_ptr),
-        .main_mem_addr_a = FF(read_dest_value.direct_address),
-        .main_mem_addr_b = FF(read_slot.direct_address),
+        .main_mem_addr_a = FF(read_slot.direct_address),
         .main_pc = pc, // No PC increment here since this is the same opcode as the rows created below
         .main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
         .main_sel_mem_op_a = FF(1),
-        .main_sel_mem_op_b = FF(1),
-        .main_sel_resolve_ind_addr_a = FF(static_cast<uint32_t>(read_dest_value.is_indirect)),
-        .main_sel_resolve_ind_addr_b = FF(static_cast<uint32_t>(read_slot.is_indirect)),
-        // .main_tag_err = FF(static_cast<uint32_t>(tag_match)),
-        .main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
+        .main_sel_resolve_ind_addr_a = FF(static_cast<uint32_t>(read_slot.is_indirect)),
+        .main_tag_err = FF(static_cast<uint32_t>(!read_slot.tag_match)),
     });
     clk++;
 
+    AddressWithMode write_dst = resolved_dest;
+    // Loop over the size and write the hints to memory
     for (uint32_t i = 0; i < size; i++) {
         FF value = execution_hints.get_side_effect_hints().at(side_effect_counter);
 
-        mem_trace_builder.write_into_memory(call_ptr,
-                                            clk,
-                                            IntermRegister::IA,
-                                            read_dest_value.direct_address + i,
-                                            value,
-                                            AvmMemoryTag::FF,
-                                            AvmMemoryTag::FF);
+        auto write_a = constrained_write_to_memory(
+            call_ptr, clk, write_dst, value, AvmMemoryTag::U0, AvmMemoryTag::FF, IntermRegister::IA);
 
         auto row = Row{
             .main_clk = clk,
             .main_ia = value,
             .main_ib = read_slot.val + i, // slot increments each time
+            .main_ind_addr_a = write_a.indirect_address,
             .main_internal_return_ptr = internal_return_ptr,
-            .main_mem_addr_a = read_dest_value.direct_address + i,
+            .main_mem_addr_a = write_a.direct_address, // direct address incremented at end of the loop
             .main_pc = pc, // No PC increment here since this is the same opcode for all loop iterations
-            .main_r_in_tag = static_cast<uint32_t>(AvmMemoryTag::FF),
             .main_rwa = 1,
             .main_sel_mem_op_a = 1,
             .main_sel_op_sload = FF(1),
             .main_sel_q_kernel_output_lookup = 1,
+            .main_sel_resolve_ind_addr_a = FF(static_cast<uint32_t>(write_a.is_indirect)),
+            .main_tag_err = FF(static_cast<uint32_t>(!write_a.tag_match)),
             .main_w_in_tag = static_cast<uint32_t>(AvmMemoryTag::FF),
         };
 
         // Output storage read to kernel outputs (performs lookup)
+        // Tuples of (slot, value) in the kernel lookup
         kernel_trace_builder.op_sload(clk, side_effect_counter, row.main_ib, row.main_ia);
 
         // Constrain gas cost
@@ -1634,6 +1625,9 @@ void AvmTraceBuilder::op_sload(uint8_t indirect, uint32_t slot_offset, uint32_t 
         main_trace.push_back(row);
         side_effect_counter++;
         clk++;
+
+        // After the first loop, all future write destinations are direct, increment the direct address
+        write_dst = AddressWithMode{ AddressingMode::DIRECT, write_a.direct_address + 1 };
     }
     pc++;
 }
@@ -1644,48 +1638,44 @@ void AvmTraceBuilder::op_sstore(uint8_t indirect, uint32_t src_offset, uint32_t 
 
     auto [resolved_src, resolved_slot] = unpack_indirects<2>(indirect, { src_offset, slot_offset });
 
-    auto read_src_value = constrained_read_from_memory(
-        call_ptr, clk, resolved_src, AvmMemoryTag::FF, AvmMemoryTag::FF, IntermRegister::IA);
     auto read_slot = constrained_read_from_memory(
-        call_ptr, clk, resolved_slot, AvmMemoryTag::FF, AvmMemoryTag::FF, IntermRegister::IB);
-    // TODO: Reenable tag_match
-    // bool tag_match = read_src_value.tag_match && read_slot.tag_match;
+        call_ptr, clk, resolved_slot, AvmMemoryTag::FF, AvmMemoryTag::FF, IntermRegister::IA);
 
     main_trace.push_back(Row{
         .main_clk = clk,
-        .main_ia = read_src_value.val,
-        .main_ib = read_slot.val,
-        .main_ind_addr_a = FF(read_src_value.indirect_address),
-        .main_ind_addr_b = FF(read_slot.indirect_address),
+        .main_ia = read_slot.val,
+        .main_ind_addr_a = FF(read_slot.indirect_address),
         .main_internal_return_ptr = FF(internal_return_ptr),
-        .main_mem_addr_a = FF(read_src_value.direct_address),
-        .main_mem_addr_b = FF(read_slot.direct_address),
+        .main_mem_addr_a = FF(read_slot.direct_address),
         .main_pc = pc, // No PC increment here since this is the same opcode as the rows created below
         .main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
         .main_sel_mem_op_a = FF(1),
-        .main_sel_mem_op_b = FF(1),
-        .main_sel_resolve_ind_addr_a = FF(static_cast<uint32_t>(read_src_value.is_indirect)),
-        .main_sel_resolve_ind_addr_b = FF(static_cast<uint32_t>(read_slot.is_indirect)),
-        // TODO: Reenable when tag_match is wokring sstore
-        // .main_tag_err = FF(static_cast<uint32_t>(tag_match)),
+        .main_sel_resolve_ind_addr_a = FF(static_cast<uint32_t>(read_slot.is_indirect)),
+        .main_tag_err = FF(static_cast<uint32_t>(!read_slot.tag_match)),
         .main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
     });
     clk++;
 
+    AddressWithMode read_src = resolved_src;
+
+    // This loop reads a _size_ number of elements from memory and places them into a tuple of (ele, slot)
+    // in the kernel lookup.
     for (uint32_t i = 0; i < size; i++) {
-        auto read_a = mem_trace_builder.read_and_load_from_memory(
-            call_ptr, clk, IntermRegister::IA, read_src_value.direct_address + i, AvmMemoryTag::FF, AvmMemoryTag::U0);
+        auto read_a = constrained_read_from_memory(
+            call_ptr, clk, read_src, AvmMemoryTag::FF, AvmMemoryTag::U0, IntermRegister::IA);
 
         Row row = Row{
             .main_clk = clk,
             .main_ia = read_a.val,
             .main_ib = read_slot.val + i, // slot increments each time
+            .main_ind_addr_a = read_a.indirect_address,
             .main_internal_return_ptr = internal_return_ptr,
-            .main_mem_addr_a = read_src_value.direct_address + i,
+            .main_mem_addr_a = read_a.direct_address, // direct address incremented at end of the loop
             .main_pc = pc,
             .main_r_in_tag = static_cast<uint32_t>(AvmMemoryTag::FF),
             .main_sel_mem_op_a = 1,
             .main_sel_q_kernel_output_lookup = 1,
+            .main_sel_resolve_ind_addr_a = FF(static_cast<uint32_t>(read_a.is_indirect)),
             .main_tag_err = FF(static_cast<uint32_t>(!read_a.tag_match)),
         };
         row.main_sel_op_sstore = FF(1);
@@ -1697,6 +1687,8 @@ void AvmTraceBuilder::op_sstore(uint8_t indirect, uint32_t src_offset, uint32_t 
         main_trace.push_back(row);
         side_effect_counter++;
         clk++;
+        // All future reads are direct, increment the direct address
+        read_src = AddressWithMode{ AddressingMode::DIRECT, read_a.direct_address + 1 };
     }
     pc++;
 }

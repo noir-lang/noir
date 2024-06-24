@@ -1723,13 +1723,12 @@ TEST_F(AvmExecutionTests, kernelOutputEmitOpcodes)
 TEST_F(AvmExecutionTests, kernelOutputStorageLoadOpcodeSimple)
 {
     // Sload from a value that has not previously been written to will require a hint to process
-    std::string bytecode_hex = to_hex(OpCode::SET) + // opcode SET
-                               "00"                  // Indirect flag
-                               "03"                  // U32
-                               "00000009"            // value 9
-                               "00000001"            // dst_offset 1
-                               // Cast set to field
-                               + to_hex(OpCode::CAST) +   // opcode CAST
+    std::string bytecode_hex = to_hex(OpCode::SET) +      // opcode SET
+                               "00"                       // Indirect flag
+                               "03"                       // U32
+                               "00000009"                 // value 9
+                               "00000001"                 // dst_offset 1
+                               + to_hex(OpCode::CAST) +   // opcode CAST (Cast set to field)
                                "00"                       // Indirect flag
                                "06"                       // tag field
                                "00000001"                 // dst 1
@@ -1737,7 +1736,7 @@ TEST_F(AvmExecutionTests, kernelOutputStorageLoadOpcodeSimple)
                                + to_hex(OpCode::SLOAD) +  // opcode SLOAD
                                "00"                       // Indirect flag
                                "00000001"                 // slot offset 1
-                               "00000001"                 // slot offset 1
+                               "00000001"                 // slot size 1
                                "00000002"                 // write storage value to offset 2
                                + to_hex(OpCode::RETURN) + // opcode RETURN
                                "00"                       // Indirect flag
@@ -1794,7 +1793,7 @@ TEST_F(AvmExecutionTests, kernelOutputStorageLoadOpcodeComplex)
                                + to_hex(OpCode::SLOAD) +  // opcode SLOAD
                                "00"                       // Indirect flag (second operand indirect - dest offset)
                                "00000001"                 // slot offset 1
-                               "00000002"                 // slot offset 2
+                               "00000002"                 // slot size 2
                                "00000002"                 // write storage value to offset 2
                                + to_hex(OpCode::RETURN) + // opcode RETURN
                                "00"                       // Indirect flag
