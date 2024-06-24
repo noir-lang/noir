@@ -259,9 +259,9 @@ impl<A, B, C, D, E> Hash for (A, B, C, D, E) where A: Hash, B: Hash, C: Hash, D:
 }
 
 #[test]
-fn assert_pedersen_noir(input: [Field; 10], separator: u32) {
-    assert_eq(pedersen_hash_with_separator(input, separator), pedersen_hash_with_separator_noir(input, separator));
+fn assert_pedersen_noir(input: [Field; 10]) {
+    assert_eq(pedersen_hash_with_separator(input, 4), pedersen_hash_with_separator_noir(input, 4));
     assert_eq(
-        pedersen_commitment_with_separator(input, separator), pedersen_commitment_with_separator_noir(input, separator)
+        pedersen_commitment_with_separator(input, 4), pedersen_commitment_with_separator_noir(input, 4)
     );
 }
