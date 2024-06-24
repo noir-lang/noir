@@ -145,6 +145,7 @@ impl<'a> Lexer<'a> {
             Some('"') => self.eat_string_literal(),
             Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('r') => self.eat_raw_string_or_alpha_numeric(),
+            Some('q') => self.eat_quote_or_alpha_numeric(),
             Some('#') => self.eat_attribute(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
@@ -310,14 +311,25 @@ impl<'a> Lexer<'a> {
     //XXX(low): Can increase performance if we use iterator semantic and utilize some of the methods on String. See below
     // https://doc.rust-lang.org/stable/std/primitive.str.html#method.rsplit
     fn eat_word(&mut self, initial_char: char) -> SpannedTokenResult {
-        let start = self.position;
+        let (start, word, end) = self.lex_word(initial_char);
+        self.lookup_word_token(word, start, end)
+    }
 
+    /// Lex the next word in the input stream. Returns (start position, word, end position)
+    fn lex_word(&mut self, initial_char: char) -> (Position, String, Position) {
+        let start = self.position;
         let word = self.eat_while(Some(initial_char), |ch| {
             ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_'
         });
+        (start, word, self.position)
+    }
 
-        let end = self.position;
-
+    fn lookup_word_token(
+        &self,
+        word: String,
+        start: Position,
+        end: Position,
+    ) -> SpannedTokenResult {
         // Check if word either an identifier or a keyword
         if let Some(keyword_token) = Keyword::lookup_keyword(&word) {
             return Ok(keyword_token.into_span(start, end));
@@ -509,6 +521,44 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn eat_quote_or_alpha_numeric(&mut self) -> SpannedTokenResult {
+        let (start, word, end) = self.lex_word('q');
+        if word != "quote" {
+            return self.lookup_word_token(word, start, end);
+        }
+
+        let delimiter = self.next_token()?;
+        let (start_delim, end_delim) = match delimiter.token() {
+            Token::LeftBrace => (Token::LeftBrace, Token::RightBrace),
+            Token::LeftBracket => (Token::LeftBracket, Token::RightBracket),
+            Token::LeftParen => (Token::LeftParen, Token::RightParen),
+            _ => return Err(LexerErrorKind::InvalidQuoteDelimiter { delimiter }),
+        };
+
+        let mut tokens = Vec::new();
+        let mut nested_delimiters = 1;
+
+        while nested_delimiters != 0 {
+            let token = self.next_token()?;
+
+            if *token.token() == start_delim {
+                nested_delimiters += 1;
+            } else if *token.token() == end_delim {
+                nested_delimiters -= 1;
+            }
+
+            tokens.push(token);
+        }
+
+        // Pop the closing delimiter from the token stream
+        if !tokens.is_empty() {
+            tokens.pop();
+        }
+
+        let end = self.position;
+        Ok(Token::Quote(Tokens(tokens)).into_span(start, end))
+    }
+
     fn parse_comment(&mut self, start: u32) -> SpannedTokenResult {
         let doc_style = match self.peek_char() {
             Some('!') => {
@@ -604,6 +654,8 @@ impl<'a> Iterator for Lexer<'a> {
 
 #[cfg(test)]
 mod tests {
+    use iter_extended::vecmap;
+
     use super::*;
     use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 
@@ -1229,6 +1281,34 @@ mod tests {
                         "expected token not found: {token_discriminator_opt:?}\noutput:\n{result_tokens:?}",
                     );
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn test_quote() {
+        // cases is a vector of pairs of (test string, expected # of tokens in token stream)
+        let cases = vec![
+            ("quote {}", 0),
+            ("quote { a.b }", 3),
+            ("quote { ) ( }", 2), // invalid syntax is fine in a quote
+            ("quote { { } }", 2), // Nested `{` and `}` shouldn't close the quote as long as they are matched.
+            ("quote { 1 { 2 { 3 { 4 { 5 } 4 4 } 3 3 } 2 2 } 1 1 }", 21),
+            ("quote [ } } ]", 2), // In addition to `{}`, `[]`, and `()` can also be used as delimiters.
+            ("quote [ } foo[] } ]", 5),
+            ("quote ( } () } )", 4),
+        ];
+
+        for (source, expected_stream_length) in cases {
+            let mut tokens = vecmap(Lexer::new(source), |result| result.unwrap().into_token());
+
+            // All examples should be a single TokenStream token followed by an EOF token.
+            assert_eq!(tokens.len(), 2, "Unexpected token count: {tokens:?}");
+
+            tokens.pop();
+            match tokens.pop().unwrap() {
+                Token::Quote(stream) => assert_eq!(stream.0.len(), expected_stream_length),
+                other => panic!("test_quote test failure! Expected a single TokenStream token, got {other} for input `{source}`")
             }
         }
     }
