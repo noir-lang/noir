@@ -5,8 +5,8 @@ services:
     # need to run bb for proofs and bb is only built for x86
     platform: linux/amd64
     environment:
-      LOG_LEVEL: info
-      DEBUG: aztec:*
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DEBUG: ${DEBUG:-aztec:*,-json-rpc:*,-aztec:circuits:artifact_hash,-aztec:randomness_singleton}
       DEBUG_COLORS: 1
       CHAIN_ID: 31337
       VERSION: 1
@@ -34,8 +34,8 @@ services:
     # need to run bb for proofs and bb is only built for x86
     platform: linux/amd64
     environment:
-      LOG_LEVEL: info
-      DEBUG: aztec:*
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DEBUG: ${DEBUG:-aztec:*,-json-rpc:*,-aztec:circuits:artifact_hash,-aztec:randomness_singleton,-aztec:avm_simulator:*}
       DEBUG_COLORS: 1
       CHAIN_ID: 31337
       VERSION: 1

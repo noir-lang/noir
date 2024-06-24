@@ -43,7 +43,6 @@
     "jest": "^29.6.4",
     "stream-browserify": "^3.0.0",
     "ts-loader": "^9.5.1",
-    "tty-browserify": "^0.0.1",
     "typescript": "^5.0.4",
     "util": "^0.12.5",
     "webpack": "^5.90.1",

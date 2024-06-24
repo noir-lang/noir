@@ -48,7 +48,6 @@ export default (_, argv) => ({
       util: require.resolve('util/'),
       stream: require.resolve('stream-browserify'),
       string_decoder: require.resolve('string_decoder/'),
-      tty: require.resolve('tty-browserify'),
     },
   },
   devServer: {

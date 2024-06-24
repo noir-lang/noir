@@ -79,7 +79,6 @@
     "ts-loader": "^9.4.4",
     "ts-node": "^10.9.1",
     "tslib": "^2.4.0",
-    "tty-browserify": "^0.0.1",
     "typescript": "^5.0.4",
     "util": "^0.12.5",
     "viem": "^2.7.15",

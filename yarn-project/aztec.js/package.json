@@ -86,7 +86,6 @@
     "stream-browserify": "^3.0.0",
     "ts-loader": "^9.4.4",
     "ts-node": "^10.9.1",
-    "tty-browserify": "^0.0.1",
     "typescript": "^5.0.4",
     "util": "^0.12.5",
     "webpack": "^5.88.2",

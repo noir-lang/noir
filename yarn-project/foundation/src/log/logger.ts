@@ -1,6 +1,4 @@
 import debug from 'debug';
-import isNode from 'detect-node';
-import { isatty } from 'tty';
 
 import { type LogData, type LogFn } from './log_fn.js';
 
@@ -14,6 +12,9 @@ export type LogLevel = (typeof LogLevels)[number];
 
 const envLogLevel = process.env.LOG_LEVEL?.toLowerCase() as LogLevel;
 const currentLevel = LogLevels.includes(envLogLevel) ? envLogLevel : DefaultLogLevel;
+
+const namespaces = process.env.DEBUG ?? 'aztec:*';
+debug.enable(namespaces);
 
 /** Log function that accepts an exception object */
 type ErrorLogFn = (msg: string, err?: Error | unknown, data?: LogData) => void;
@@ -38,9 +39,6 @@ export type DebugLogger = Logger;
  */
 export function createDebugLogger(name: string): DebugLogger {
   const debugLogger = debug(name);
-  if (currentLevel === 'debug') {
-    debugLogger.enabled = true;
-  }
 
   const logger = {
     silent: () => {},
@@ -78,40 +76,9 @@ function logWithDebug(debug: debug.Debugger, level: LogLevel, msg: string, data?
   }
 
   msg = data ? `${msg} ${fmtLogData(data)}` : msg;
-  if (debug.enabled) {
-    if (level !== 'debug') {
-      msg = `${level.toUpperCase()} ${msg}`;
-    }
-    debug(msg);
-  } else if (LogLevels.indexOf(level) <= LogLevels.indexOf(currentLevel)) {
-    printLog(`${getPrefix(debug, level)} ${msg}`);
+  if (debug.enabled && LogLevels.indexOf(level) <= LogLevels.indexOf(currentLevel)) {
+    debug('[%s] %s', level.toUpperCase(), msg);
   }
-}
-
-/**
- * Returns a log prefix that emulates that of npm debug. Uses colors if in node and in a tty.
- * @param debugLogger - Instance of npm debug logger.
- * @param level - Intended log level (printed out if strictly above current log level).
- * @returns Log prefix.
- */
-function getPrefix(debugLogger: debug.Debugger, level: LogLevel) {
-  const levelLabel = currentLevel !== level ? ` ${level.toUpperCase()}` : '';
-  const prefix = `${debugLogger.namespace.replace(/^aztec:/, '')}${levelLabel}`;
-  if ((!isNode || !isatty(process.stderr.fd)) && !process.env.DEBUG_COLORS) {
-    return prefix;
-  }
-  const colorIndex = debug.selectColor(debugLogger.namespace) as number;
-  const colorCode = '\u001B[3' + (colorIndex < 8 ? colorIndex : '8;5;' + colorIndex);
-  return `  ${colorCode};1m${prefix}\u001B[0m`;
-}
-
-/**
- * Outputs to console error.
- * @param msg - What to log.
- */
-function printLog(msg: string) {
-  // eslint-disable-next-line no-console
-  isNode ? process.stderr.write(msg + '\n') : console.error(msg);
 }
 
 /**
