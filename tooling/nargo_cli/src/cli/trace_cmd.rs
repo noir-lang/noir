@@ -1,7 +1,7 @@
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
+use std::path::Path;
 
-use noir_artifact_cli::fs::trace::save_trace_to_file;
 use noirc_artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::package::Package;
@@ -16,6 +16,8 @@ use noirc_frontend::graph::CrateName;
 use super::debug_cmd::compile_bin_package_for_debugging;
 use super::fs::inputs::read_inputs_from_file;
 use crate::errors::CliError;
+
+use runtime_tracing::Tracer;
 
 use super::NargoConfig;
 
@@ -94,18 +96,25 @@ pub(crate) fn trace_program(
         file_map: compiled_program.file_map.clone(),
     };
 
-    let trace_artifact = match noir_tracer::trace_circuit(
+    let mut tracer = Tracer::new("<program-name>", &vec![]);
+
+    match noir_tracer::trace_circuit(
         &Bn254BlackBoxSolver(pedantic_solving),
         &compiled_program.program.functions,
         &debug_artifact,
         initial_witness,
         &compiled_program.program.unconstrained_functions,
+        &mut tracer,
     ) {
         Err(error) => return Err(CliError::from(error)),
-        Ok(trace_artifact) => trace_artifact,
+        Ok(()) => (),
     };
 
-    save_trace_to_file(&trace_artifact, trace_dir);
+    let trace_path = Path::new(trace_dir).join("trace.json");
+    match tracer.store_trace_events(&trace_path) {
+        Ok(_) => println!("Saved trace to {:?}", trace_path),
+        Err(_) => (),
+    }
 
     Ok(())
 }

@@ -8,18 +8,18 @@ use acvm::acir::circuit::brillig::BrilligBytecode;
 
 use noir_debugger::foreign_calls::DefaultDebugForeignCallExecutor;
 use noirc_artifacts::debug::DebugArtifact;
-use noirc_artifacts::trace::TraceArtifact;
 
 use fm::PathString;
 use std::path::PathBuf;
+
+use runtime_tracing::{Line, Tracer};
 
 use nargo::NargoError;
 
 pub struct TracingContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     debug_context: DebugContext<'a, B>,
-    trace_artifact: TraceArtifact, // The result of tracing, built incrementally.
-    current_filepath: PathString,  // The path to the file currently pointed at by debugger.
-    current_line: isize,           // The line in the source code that the debugger has reached.
+    current_filepath: PathString, // The path to the file currently pointed at by debugger.
+    current_line: isize,          // The line in the source code that the debugger has reached.
 }
 
 impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
@@ -41,11 +41,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             unconstrained_functions,
         );
 
-        let trace_artifact = TraceArtifact::new();
-
         Self {
             debug_context,
-            trace_artifact,
             current_filepath: PathString::from_path(PathBuf::new()),
             current_line: -1isize,
         }
@@ -115,6 +112,14 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             return result;
         }
     }
+
+    /// Propagates information about the current execution state to `tracer`.
+    fn update_record(&mut self, tracer: &mut Tracer) {
+        tracer.register_step(
+            &PathBuf::from(self.current_filepath.to_string()),
+            Line(self.current_line as i64),
+        );
+    }
 }
 
 pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
@@ -123,7 +128,8 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
     debug_artifact: &DebugArtifact,
     initial_witness: WitnessMap<FieldElement>,
     unconstrained_functions: &[BrilligBytecode<FieldElement>],
-) -> Result<TraceArtifact, NargoError<FieldElement>> {
+    tracer: &mut Tracer,
+) -> Result<(), NargoError<FieldElement>> {
     let mut tracing_context = TracingContext::new(
         blackbox_solver,
         circuit,
@@ -133,11 +139,12 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
     );
 
     if tracing_context.debug_context.get_current_debug_location().is_none() {
-        println!("Warning: circuit contains no opcodes; generating empty trace");
-        return Ok(TraceArtifact::new());
+        println!("Warning: circuit contains no opcodes; generating no trace");
+        return Ok(());
     }
 
     let mut steps = 0;
+    tracer.start(&PathBuf::from(""), Line(-1));
     loop {
         match tracing_context.step_debugger() {
             DebugCommandResult::Done => break,
@@ -150,8 +157,10 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
                 panic!("Error: Breakpoint unexpected in tracer; loc={loc}");
             }
         }
+
+        tracing_context.update_record(tracer);
     }
     println!("Total tracing steps: {steps}");
 
-    Ok(tracing_context.trace_artifact)
+    Ok(())
 }

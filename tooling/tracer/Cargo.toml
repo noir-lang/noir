@@ -9,6 +9,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+runtime_tracing.workspace = true
 acvm.workspace = true
 fm.workspace = true
 nargo.workspace = true

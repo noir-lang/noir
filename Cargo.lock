@@ -3089,6 +3089,7 @@ dependencies = [
  "prettytable-rs",
  "proptest",
  "rayon",
+ "runtime_tracing",
  "serde",
  "serde_json",
  "sha2",
@@ -3335,6 +3336,7 @@ dependencies = [
  "nargo",
  "noir_debugger",
  "noirc_artifacts",
+ "runtime_tracing",
 ]
 
 [[package]]
@@ -3603,6 +3605,17 @@ name = "num-conv"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
+
+[[package]]
+name = "num-derive"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed3955f1a9c7c0c15e092f9c887db08b1fc683305fdf6eb6684f22555355e202"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
+]
 
 [[package]]
 name = "num-format"
@@ -4384,6 +4397,18 @@ name = "route-recognizer"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "afab94fb28594581f62d981211a9a4d53cc8130bbcbbb89a0440d9b8e81a7746"
+
+[[package]]
+name = "runtime_tracing"
+version = "0.5.4"
+source = "git+https://github.com/metacraft-labs/runtime_tracing.git?tag=0.5.4#2ff9445c4eb0826641401d5d06a319ff3248130f"
+dependencies = [
+ "num-derive",
+ "num-traits",
+ "serde",
+ "serde_json",
+ "serde_repr",
+]
 
 [[package]]
 name = "rust-embed"
