@@ -1874,6 +1874,7 @@ fn implicit_numeric_generics_elaborator() {
     }
 }
 
+#[test]
 fn quote_code_fragments() {
     // This test ensures we can quote (and unquote/splice) code fragments
     // which by themselves are not valid code. They only need to be valid
