@@ -1,6 +1,6 @@
 impl TypeDefinition {
     /// Return a syntactic version of this type definition as a type.
-    /// For example, as_type(`type Foo<A, B> { ... }`) would return `Foo<A, B>`
+    /// For example, `as_type(quote { type Foo<A, B> { ... } })` would return `Foo<A, B>`
     #[builtin(type_def_as_type)]
     fn as_type(self) -> Quoted {}
 

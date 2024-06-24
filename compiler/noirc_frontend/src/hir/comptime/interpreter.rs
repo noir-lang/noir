@@ -928,15 +928,15 @@ impl<'a> Interpreter<'a> {
         let (fields, struct_type) = match self.evaluate(access.lhs)? {
             Value::Struct(fields, typ) => (fields, typ),
             Value::Tuple(fields) => {
-                let mut field_types = Vec::with_capacity(fields.len());
-                let fields = fields
+                let (fields, field_types): (HashMap<Rc<String>, Value>, Vec<Type>) = fields
                     .into_iter()
                     .enumerate()
                     .map(|(i, field)| {
-                        field_types.push(field.get_type().into_owned());
-                        (Rc::new(i.to_string()), field)
+                        let field_type = field.get_type().into_owned();
+                        let key_val_pair = (Rc::new(i.to_string()), field);
+                        (key_val_pair, field_type)
                     })
-                    .collect();
+                    .unzip();
                 (fields, Type::Tuple(field_types))
             }
             value => {
