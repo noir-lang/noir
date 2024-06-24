@@ -241,7 +241,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 memory.read(*domain_separator).try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(
                         BlackBoxFunc::PedersenCommitment,
-                        "Invalid signature length".to_string(),
+                        "Invalid separator length".to_string(),
                     )
                 })?;
             let (x, y) = solver.pedersen_commitment(&inputs, domain_separator)?;
@@ -260,7 +260,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 memory.read(*domain_separator).try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(
                         BlackBoxFunc::PedersenCommitment,
-                        "Invalid signature length".to_string(),
+                        "Invalid separator length".to_string(),
                     )
                 })?;
             let hash = solver.pedersen_hash(&inputs, domain_separator)?;
