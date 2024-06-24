@@ -145,9 +145,15 @@ fn main() {
 }
 ```
 
+### Generic Implementations With Where Clauses
+
+Where clauses can be placed on struct implementations themselves to restrict generics.
+
+For example, while `impl<T> Foo` 
+
 ### Generic Trait Implementations With Where Clauses
 
-Where clauses can also be placed on trait implementations themselves to restrict generics in a similar way.
+Where clauses can be placed on trait implementations themselves to restrict generics in a similar way.
 For example, while `impl<T> Foo for T` implements the trait `Foo` for every type, `impl<T> Foo for T where T: Bar`
 will implement `Foo` only for types that also implement `Bar`. This is often used for implementing generic types.
 For example, here is the implementation for array equality:
@@ -165,6 +171,22 @@ impl<T, N> Eq for [T; N] where T: Eq {
         }
 
         result
+    }
+}
+```
+
+Where clauses can also be placed on struct implementations. 
+For example, here is a method utilizing a generic type that implements the equality trait.
+
+```rust
+struct Foo<T> {
+    a: u32,
+    b: T,
+}
+
+impl<T> Foo<T> where T: Eq {
+    fn eq(self, other: Self) -> bool {
+        (self.a == other.a) & self.b.eq(other.b)
     }
 }
 ```
