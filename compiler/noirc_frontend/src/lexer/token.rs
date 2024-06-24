@@ -2,7 +2,7 @@ use acvm::{acir::AcirField, FieldElement};
 use noirc_errors::{Position, Span, Spanned};
 use std::{fmt, iter::Map, vec::IntoIter};
 
-use crate::lexer::errors::LexerErrorKind;
+use crate::{lexer::errors::LexerErrorKind, node_interner::ExprId};
 
 /// Represents a token in noir's grammar - a word, number,
 /// or symbol that can be used in noir's syntax. This is the
@@ -23,6 +23,7 @@ pub enum BorrowedToken<'input> {
     Attribute(Attribute),
     LineComment(&'input str, Option<DocStyle>),
     BlockComment(&'input str, Option<DocStyle>),
+    Quote(&'input Tokens),
     /// <
     Less,
     /// <=
@@ -94,6 +95,11 @@ pub enum BorrowedToken<'input> {
 
     Whitespace(&'input str),
 
+    /// This is an implementation detail on how macros are implemented by quoting token streams.
+    /// This token marks where an unquote operation is performed. The ExprId argument is the
+    /// resolved variable which is being unquoted at this position in the token stream.
+    UnquoteMarker(ExprId),
+
     /// An invalid character is one that is not in noir's language or grammar.
     ///
     /// We don't report invalid tokens in the source as errors until parsing to
@@ -117,6 +123,8 @@ pub enum Token {
     Attribute(Attribute),
     LineComment(String, Option<DocStyle>),
     BlockComment(String, Option<DocStyle>),
+    // A `quote { ... }` along with the tokens in its token stream.
+    Quote(Tokens),
     /// <
     Less,
     /// <=
@@ -188,6 +196,11 @@ pub enum Token {
 
     Whitespace(String),
 
+    /// This is an implementation detail on how macros are implemented by quoting token streams.
+    /// This token marks where an unquote operation is performed. The ExprId argument is the
+    /// resolved variable which is being unquoted at this position in the token stream.
+    UnquoteMarker(ExprId),
+
     /// An invalid character is one that is not in noir's language or grammar.
     ///
     /// We don't report invalid tokens in the source as errors until parsing to
@@ -209,6 +222,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Attribute(ref a) => BorrowedToken::Attribute(a.clone()),
         Token::LineComment(ref s, _style) => BorrowedToken::LineComment(s, *_style),
         Token::BlockComment(ref s, _style) => BorrowedToken::BlockComment(s, *_style),
+        Token::Quote(stream) => BorrowedToken::Quote(stream),
         Token::IntType(ref i) => BorrowedToken::IntType(i.clone()),
         Token::Less => BorrowedToken::Less,
         Token::LessEqual => BorrowedToken::LessEqual,
@@ -246,6 +260,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::EOF => BorrowedToken::EOF,
         Token::Invalid(c) => BorrowedToken::Invalid(*c),
         Token::Whitespace(ref s) => BorrowedToken::Whitespace(s),
+        Token::UnquoteMarker(id) => BorrowedToken::UnquoteMarker(*id),
     }
 }
 
@@ -255,7 +270,7 @@ pub enum DocStyle {
     Inner,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct SpannedToken(Spanned<Token>);
 
 impl PartialEq<SpannedToken> for Token {
@@ -321,6 +336,13 @@ impl fmt::Display for Token {
             Token::Attribute(ref a) => write!(f, "{a}"),
             Token::LineComment(ref s, _style) => write!(f, "//{s}"),
             Token::BlockComment(ref s, _style) => write!(f, "/*{s}*/"),
+            Token::Quote(ref stream) => {
+                write!(f, "quote {{")?;
+                for token in stream.0.iter() {
+                    write!(f, " {token}")?;
+                }
+                write!(f, "}}")
+            }
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
@@ -358,6 +380,7 @@ impl fmt::Display for Token {
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
             Token::Whitespace(ref s) => write!(f, "{s}"),
+            Token::UnquoteMarker(_) => write!(f, "(UnquoteMarker)"),
         }
     }
 }
@@ -370,6 +393,8 @@ pub enum TokenKind {
     Literal,
     Keyword,
     Attribute,
+    Quote,
+    UnquoteMarker,
 }
 
 impl fmt::Display for TokenKind {
@@ -380,13 +405,15 @@ impl fmt::Display for TokenKind {
             TokenKind::Literal => write!(f, "literal"),
             TokenKind::Keyword => write!(f, "keyword"),
             TokenKind::Attribute => write!(f, "attribute"),
+            TokenKind::Quote => write!(f, "quote"),
+            TokenKind::UnquoteMarker => write!(f, "macro result"),
         }
     }
 }
 
 impl Token {
     pub fn kind(&self) -> TokenKind {
-        match *self {
+        match self {
             Token::Ident(_) => TokenKind::Ident,
             Token::Int(_)
             | Token::Bool(_)
@@ -395,7 +422,9 @@ impl Token {
             | Token::FmtStr(_) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             Token::Attribute(_) => TokenKind::Attribute,
-            ref tok => TokenKind::Token(tok.clone()),
+            Token::UnquoteMarker(_) => TokenKind::UnquoteMarker,
+            Token::Quote(_) => TokenKind::Quote,
+            tok => TokenKind::Token(tok.clone()),
         }
     }
 
@@ -859,7 +888,7 @@ pub enum Keyword {
     Mod,
     Mut,
     Pub,
-    Quote,
+    Quoted,
     Return,
     ReturnData,
     String,
@@ -907,7 +936,7 @@ impl fmt::Display for Keyword {
             Keyword::Mod => write!(f, "mod"),
             Keyword::Mut => write!(f, "mut"),
             Keyword::Pub => write!(f, "pub"),
-            Keyword::Quote => write!(f, "quote"),
+            Keyword::Quoted => write!(f, "Quoted"),
             Keyword::Return => write!(f, "return"),
             Keyword::ReturnData => write!(f, "return_data"),
             Keyword::String => write!(f, "str"),
@@ -958,7 +987,7 @@ impl Keyword {
             "mod" => Keyword::Mod,
             "mut" => Keyword::Mut,
             "pub" => Keyword::Pub,
-            "quote" => Keyword::Quote,
+            "Quoted" => Keyword::Quoted,
             "return" => Keyword::Return,
             "return_data" => Keyword::ReturnData,
             "str" => Keyword::String,
@@ -984,6 +1013,7 @@ impl Keyword {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Tokens(pub Vec<SpannedToken>);
 
 type TokenMapIter = Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>;
