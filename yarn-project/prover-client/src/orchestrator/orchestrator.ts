@@ -880,5 +880,9 @@ function extractAggregationObject(proof: Proof, numPublicInputs: number): Fr[] {
     Fr.SIZE_IN_BYTES * (numPublicInputs - AGGREGATION_OBJECT_LENGTH),
     Fr.SIZE_IN_BYTES * numPublicInputs,
   );
+  // TODO(#7159): Remove the following workaround
+  if (buffer.length === 0) {
+    return Array.from({ length: AGGREGATION_OBJECT_LENGTH }, () => Fr.ZERO);
+  }
   return BufferReader.asReader(buffer).readArray(AGGREGATION_OBJECT_LENGTH, Fr);
 }

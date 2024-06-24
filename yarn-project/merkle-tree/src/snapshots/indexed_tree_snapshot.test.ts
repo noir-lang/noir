@@ -44,7 +44,7 @@ describe('IndexedTreeSnapshotBuilder', () => {
 
   describe('getSnapshot', () => {
     it('returns historical leaf data', async () => {
-      await tree.appendLeaves([Buffer.from('a'), Buffer.from('b'), Buffer.from('c')]);
+      await tree.appendLeaves([Fr.random().toBuffer(), Fr.random().toBuffer(), Fr.random().toBuffer()]);
       await tree.commit();
       const expectedLeavesAtBlock1 = await Promise.all([
         tree.getLatestLeafPreimageCopy(0n, false),
@@ -59,7 +59,7 @@ describe('IndexedTreeSnapshotBuilder', () => {
 
       await snapshotBuilder.snapshot(1);
 
-      await tree.appendLeaves([Buffer.from('d'), Buffer.from('e'), Buffer.from('f')]);
+      await tree.appendLeaves([Fr.random().toBuffer(), Fr.random().toBuffer(), Fr.random().toBuffer()]);
       await tree.commit();
       const expectedLeavesAtBlock2 = [
         tree.getLatestLeafPreimageCopy(0n, false),
@@ -98,12 +98,12 @@ describe('IndexedTreeSnapshotBuilder', () => {
 
   describe('findIndexOfPreviousValue', () => {
     it('returns the index of the leaf with the closest value to the given value', async () => {
-      await tree.appendLeaves([Buffer.from('a'), Buffer.from('f'), Buffer.from('d')]);
+      await tree.appendLeaves([Fr.random().toBuffer(), Fr.random().toBuffer(), Fr.random().toBuffer()]);
       await tree.commit();
       const snapshot = await snapshotBuilder.snapshot(1);
       const historicalPrevValue = tree.findIndexOfPreviousKey(2n, false);
 
-      await tree.appendLeaves([Buffer.from('c'), Buffer.from('b'), Buffer.from('e')]);
+      await tree.appendLeaves([Fr.random().toBuffer(), Fr.random().toBuffer(), Fr.random().toBuffer()]);
       await tree.commit();
 
       expect(snapshot.findIndexOfPreviousKey(2n)).toEqual(historicalPrevValue);
