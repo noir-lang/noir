@@ -149,12 +149,9 @@ impl<'a> ModCollector<'a> {
                 self_type: None,
             };
 
-            for (method, _) in &mut r#impl.methods {
-                method.def.where_clause.extend(r#impl.where_clause.clone());
-            }
-
-            for (method, _) in r#impl.methods {
+            for (mut method, _) in r#impl.methods {
                 let func_id = context.def_interner.push_empty_fn();
+                method.def.where_clause.extend(r#impl.where_clause.clone());
                 let location = Location::new(method.span(), self.file_id);
                 context.def_interner.push_function(func_id, &method.def, module_id, location);
                 unresolved_functions.push_fn(self.module_id, func_id, method);
