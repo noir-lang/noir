@@ -431,10 +431,18 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
         let span = statement.span;
-        let (hir_statement, _typ) = self.elaborate_statement(statement);
+        let (stmt_id, _typ) = self.elaborate_statement(statement);
         let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
-        let value = interpreter.evaluate_statement(hir_statement);
+        let value = interpreter.evaluate_statement(stmt_id);
         let (expr, typ) = self.inline_comptime_value(value, span);
-        (HirStatement::Expression(expr), typ)
+
+        let hir_statement = self.interner.statement(&stmt_id);
+        if matches!(hir_statement, HirStatement::Let(_)) {
+            // A let statement needs to be returned, even if it is a comptime one.
+            // If not, the variable defined by the statement will be lost
+            (hir_statement, typ)
+        } else {
+            (HirStatement::Expression(expr), typ)
+        }
     }
 }
