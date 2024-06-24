@@ -13,4 +13,3 @@ pub mod contract;
 pub mod debug;
 mod debug_vars;
 pub mod program;
-pub mod trace;
