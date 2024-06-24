@@ -24,6 +24,7 @@ pub enum BorrowedToken<'input> {
     LineComment(&'input str, Option<DocStyle>),
     BlockComment(&'input str, Option<DocStyle>),
     Quote(&'input Tokens),
+    QuotedType(&'input Type),
     /// <
     Less,
     /// <=
@@ -125,6 +126,11 @@ pub enum Token {
     BlockComment(String, Option<DocStyle>),
     // A `quote { ... }` along with the tokens in its token stream.
     Quote(Tokens),
+    /// A quoted type resulting from a `Type` object in noir code being
+    /// spliced into a macro's token stream. We preserve the original type
+    /// to avoid having to tokenize it, re-parse it, and re-resolve it which
+    /// may change the underlying type.
+    QuotedType(Type),
     /// <
     Less,
     /// <=
@@ -223,6 +229,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::LineComment(ref s, _style) => BorrowedToken::LineComment(s, *_style),
         Token::BlockComment(ref s, _style) => BorrowedToken::BlockComment(s, *_style),
         Token::Quote(stream) => BorrowedToken::Quote(stream),
+        Token::QuotedType(ref typ) => BorrowedToken::QuotedType(typ),
         Token::IntType(ref i) => BorrowedToken::IntType(i.clone()),
         Token::Less => BorrowedToken::Less,
         Token::LessEqual => BorrowedToken::LessEqual,
@@ -343,6 +350,7 @@ impl fmt::Display for Token {
                 }
                 write!(f, "}}")
             }
+            Token::QuotedType(ref typ) => write!(f, "{typ}"),
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
@@ -394,6 +402,7 @@ pub enum TokenKind {
     Keyword,
     Attribute,
     Quote,
+    QuotedType,
     UnquoteMarker,
 }
 
@@ -406,6 +415,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Keyword => write!(f, "keyword"),
             TokenKind::Attribute => write!(f, "attribute"),
             TokenKind::Quote => write!(f, "quote"),
+            TokenKind::QuotedType => write!(f, "quoted type"),
             TokenKind::UnquoteMarker => write!(f, "macro result"),
         }
     }
@@ -424,6 +434,7 @@ impl Token {
             Token::Attribute(_) => TokenKind::Attribute,
             Token::UnquoteMarker(_) => TokenKind::UnquoteMarker,
             Token::Quote(_) => TokenKind::Quote,
+            Token::QuotedType(_) => TokenKind::QuotedType,
             tok => TokenKind::Token(tok.clone()),
         }
     }

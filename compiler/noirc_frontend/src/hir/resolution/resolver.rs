@@ -607,6 +607,7 @@ impl<'a> Resolver<'a> {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element)))
             }
             Parenthesized(typ) => self.resolve_type_inner(*typ),
+            Resolved(typ) => typ,
         };
 
         if let Type::Struct(_, _) = resolved_type {

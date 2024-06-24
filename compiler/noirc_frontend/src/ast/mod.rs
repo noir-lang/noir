@@ -119,6 +119,10 @@ pub enum UnresolvedTypeData {
     // The type of quoted code for metaprogramming
     Quoted(crate::QuotedType),
 
+    /// An already resolved type. These can only be parsed if they were present in the token stream
+    /// as a result of being spliced into a macro's token stream input.
+    Resolved(crate::Type),
+
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
 }
@@ -221,6 +225,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
             Parenthesized(typ) => write!(f, "({typ})"),
+            Resolved(typ) => write!(f, "{typ}"),
         }
     }
 }
