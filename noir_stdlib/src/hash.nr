@@ -36,7 +36,7 @@ pub fn pedersen_commitment<N>(input: [Field; N]) -> EmbeddedCurvePoint {
     }
 }
 
-pub fn pedersen_commitment_with_separator_noir<N>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
+fn pedersen_commitment_with_separator_noir<N>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
     let mut points = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N];
     for i in 0..N {
         points[i] = EmbeddedCurveScalar::from_field(input[i]);
@@ -69,9 +69,9 @@ fn derive_generators<N, M>(domain_separator_bytes: [u8; M], starting_index: u32)
 #[field(bn254)]
 fn __derive_generators<N, M>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {}
 
-pub fn pedersen_hash_with_separator_noir<N>(input: [Field; N], separator: u32) -> Field {
-    let v1 = pedersen_commitment(input);
-    let length_generator :[EmbeddedCurvePoint;1] = derive_generators("pedersen_hash_length".as_bytes(), separator);
+fn pedersen_hash_with_separator_noir<N>(input: [Field; N], separator: u32) -> Field {
+    let v1 = pedersen_commitment_with_separator(input, separator);
+    let length_generator : [EmbeddedCurvePoint; 1] = derive_generators("pedersen_hash_length".as_bytes(), 0);
     multi_scalar_mul(
         [length_generator[0], v1],
         [EmbeddedCurveScalar { lo: N as Field, hi: 0 }, EmbeddedCurveScalar { lo: 1, hi: 0 }]
@@ -260,7 +260,7 @@ impl<A, B, C, D, E> Hash for (A, B, C, D, E) where A: Hash, B: Hash, C: Hash, D:
 
 #[test]
 fn assert_pedersen_noir() {
-    //TODO: assert_eq(pedersen_hash_with_separator([1, 2, 3], 4), pedersen_hash_with_separator_noir([1, 2, 3], 4));
+    assert_eq(pedersen_hash_with_separator([1, 2, 3], 4), pedersen_hash_with_separator_noir([1, 2, 3], 4));
     assert_eq(
         pedersen_commitment_with_separator([1, 2, 3], 4), pedersen_commitment_with_separator_noir([1, 2, 3], 4)
     );
