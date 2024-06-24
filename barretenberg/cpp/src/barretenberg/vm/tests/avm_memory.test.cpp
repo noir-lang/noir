@@ -2,25 +2,21 @@
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 
 namespace tests_avm {
+
 using namespace bb;
 using namespace bb::avm_trace;
 
 class AvmMemoryTests : public ::testing::Test {
   public:
-    AvmTraceBuilder trace_builder;
-    VmPublicInputs public_inputs{};
-
-  protected:
-    // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
-    void SetUp() override
+    AvmMemoryTests()
+        : public_inputs(generate_base_public_inputs())
+        , trace_builder(AvmTraceBuilder(public_inputs))
     {
         srs::init_crs_factory("../srs_db/ignition");
-        std::array<FF, KERNEL_INPUTS_LENGTH> kernel_inputs{};
-        kernel_inputs.at(DA_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_DA_GAS;
-        kernel_inputs.at(L2_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_L2_GAS;
-        std::get<0>(public_inputs) = kernel_inputs;
-        trace_builder = AvmTraceBuilder(public_inputs);
-    };
+    }
+
+    VmPublicInputs public_inputs;
+    AvmTraceBuilder trace_builder;
 };
 
 /******************************************************************************

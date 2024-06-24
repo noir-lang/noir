@@ -13,24 +13,21 @@ using namespace bb::avm_trace;
 using namespace testing;
 
 class AvmCastTests : public ::testing::Test {
-  protected:
-    VmPublicInputs public_inputs{};
+  public:
+    AvmCastTests()
+        : public_inputs(generate_base_public_inputs())
+        , trace_builder(AvmTraceBuilder(public_inputs))
+    {
+        srs::init_crs_factory("../srs_db/ignition");
+    }
+
+    VmPublicInputs public_inputs;
     AvmTraceBuilder trace_builder;
+
     std::vector<Row> trace;
     size_t main_addr;
     size_t alu_addr;
     size_t mem_addr_c;
-
-    // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
-    void SetUp() override
-    {
-        srs::init_crs_factory("../srs_db/ignition");
-        std::array<FF, KERNEL_INPUTS_LENGTH> kernel_inputs{};
-        kernel_inputs.at(DA_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_DA_GAS;
-        kernel_inputs.at(L2_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_L2_GAS;
-        std::get<0>(public_inputs) = kernel_inputs;
-        trace_builder = AvmTraceBuilder(public_inputs);
-    };
 
     void gen_trace(
         uint128_t const& a, uint32_t src_address, uint32_t dst_address, AvmMemoryTag src_tag, AvmMemoryTag dst_tag)

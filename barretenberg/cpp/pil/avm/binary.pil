@@ -1,6 +1,4 @@
-
-include "byte_lookup.pil";
-include "main.pil";
+include "fixed/byte_lookup.pil";
 
 namespace binary(256);
 

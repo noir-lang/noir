@@ -261,7 +261,6 @@ template <typename FF> std::vector<std::string> AvmFullRow<FF>::names()
              "main_sel_rng_16",
              "main_sel_rng_8",
              "main_space_id",
-             "main_table_pow_2",
              "main_tag_err",
              "main_w_in_tag",
              "mem_addr",
@@ -303,6 +302,7 @@ template <typename FF> std::vector<std::string> AvmFullRow<FF>::names()
              "poseidon2_input",
              "poseidon2_output",
              "poseidon2_sel_poseidon_perm",
+             "powers_power_of_2",
              "sha256_clk",
              "sha256_input",
              "sha256_output",
@@ -541,38 +541,38 @@ template <typename FF> std::ostream& operator<<(std::ostream& os, AvmFullRow<FF>
            << field_to_string(row.main_sel_resolve_ind_addr_c) << ","
            << field_to_string(row.main_sel_resolve_ind_addr_d) << "," << field_to_string(row.main_sel_rng_16) << ","
            << field_to_string(row.main_sel_rng_8) << "," << field_to_string(row.main_space_id) << ","
-           << field_to_string(row.main_table_pow_2) << "," << field_to_string(row.main_tag_err) << ","
-           << field_to_string(row.main_w_in_tag) << "," << field_to_string(row.mem_addr) << ","
-           << field_to_string(row.mem_clk) << "," << field_to_string(row.mem_diff_hi) << ","
-           << field_to_string(row.mem_diff_lo) << "," << field_to_string(row.mem_diff_mid) << ","
-           << field_to_string(row.mem_glob_addr) << "," << field_to_string(row.mem_last) << ","
-           << field_to_string(row.mem_lastAccess) << "," << field_to_string(row.mem_one_min_inv) << ","
-           << field_to_string(row.mem_r_in_tag) << "," << field_to_string(row.mem_rw) << ","
-           << field_to_string(row.mem_sel_mem) << "," << field_to_string(row.mem_sel_mov_ia_to_ic) << ","
-           << field_to_string(row.mem_sel_mov_ib_to_ic) << "," << field_to_string(row.mem_sel_op_a) << ","
-           << field_to_string(row.mem_sel_op_b) << "," << field_to_string(row.mem_sel_op_c) << ","
-           << field_to_string(row.mem_sel_op_cmov) << "," << field_to_string(row.mem_sel_op_d) << ","
-           << field_to_string(row.mem_sel_resolve_ind_addr_a) << "," << field_to_string(row.mem_sel_resolve_ind_addr_b)
-           << "," << field_to_string(row.mem_sel_resolve_ind_addr_c) << ","
-           << field_to_string(row.mem_sel_resolve_ind_addr_d) << "," << field_to_string(row.mem_sel_rng_chk) << ","
-           << field_to_string(row.mem_skip_check_tag) << "," << field_to_string(row.mem_space_id) << ","
+           << field_to_string(row.main_tag_err) << "," << field_to_string(row.main_w_in_tag) << ","
+           << field_to_string(row.mem_addr) << "," << field_to_string(row.mem_clk) << ","
+           << field_to_string(row.mem_diff_hi) << "," << field_to_string(row.mem_diff_lo) << ","
+           << field_to_string(row.mem_diff_mid) << "," << field_to_string(row.mem_glob_addr) << ","
+           << field_to_string(row.mem_last) << "," << field_to_string(row.mem_lastAccess) << ","
+           << field_to_string(row.mem_one_min_inv) << "," << field_to_string(row.mem_r_in_tag) << ","
+           << field_to_string(row.mem_rw) << "," << field_to_string(row.mem_sel_mem) << ","
+           << field_to_string(row.mem_sel_mov_ia_to_ic) << "," << field_to_string(row.mem_sel_mov_ib_to_ic) << ","
+           << field_to_string(row.mem_sel_op_a) << "," << field_to_string(row.mem_sel_op_b) << ","
+           << field_to_string(row.mem_sel_op_c) << "," << field_to_string(row.mem_sel_op_cmov) << ","
+           << field_to_string(row.mem_sel_op_d) << "," << field_to_string(row.mem_sel_resolve_ind_addr_a) << ","
+           << field_to_string(row.mem_sel_resolve_ind_addr_b) << "," << field_to_string(row.mem_sel_resolve_ind_addr_c)
+           << "," << field_to_string(row.mem_sel_resolve_ind_addr_d) << "," << field_to_string(row.mem_sel_rng_chk)
+           << "," << field_to_string(row.mem_skip_check_tag) << "," << field_to_string(row.mem_space_id) << ","
            << field_to_string(row.mem_tag) << "," << field_to_string(row.mem_tag_err) << ","
            << field_to_string(row.mem_tsp) << "," << field_to_string(row.mem_val) << ","
            << field_to_string(row.mem_w_in_tag) << "," << field_to_string(row.pedersen_clk) << ","
            << field_to_string(row.pedersen_input) << "," << field_to_string(row.pedersen_output) << ","
            << field_to_string(row.pedersen_sel_pedersen) << "," << field_to_string(row.poseidon2_clk) << ","
            << field_to_string(row.poseidon2_input) << "," << field_to_string(row.poseidon2_output) << ","
-           << field_to_string(row.poseidon2_sel_poseidon_perm) << "," << field_to_string(row.sha256_clk) << ","
-           << field_to_string(row.sha256_input) << "," << field_to_string(row.sha256_output) << ","
-           << field_to_string(row.sha256_sel_sha256_compression) << "," << field_to_string(row.sha256_state) << ","
-           << field_to_string(row.perm_main_alu) << "," << field_to_string(row.perm_main_bin) << ","
-           << field_to_string(row.perm_main_conv) << "," << field_to_string(row.perm_main_pos2_perm) << ","
-           << field_to_string(row.perm_main_pedersen) << "," << field_to_string(row.perm_main_mem_a) << ","
-           << field_to_string(row.perm_main_mem_b) << "," << field_to_string(row.perm_main_mem_c) << ","
-           << field_to_string(row.perm_main_mem_d) << "," << field_to_string(row.perm_main_mem_ind_addr_a) << ","
-           << field_to_string(row.perm_main_mem_ind_addr_b) << "," << field_to_string(row.perm_main_mem_ind_addr_c)
-           << "," << field_to_string(row.perm_main_mem_ind_addr_d) << "," << field_to_string(row.lookup_byte_lengths)
-           << "," << field_to_string(row.lookup_byte_operations) << "," << field_to_string(row.lookup_opcode_gas) << ","
+           << field_to_string(row.poseidon2_sel_poseidon_perm) << "," << field_to_string(row.powers_power_of_2) << ","
+           << field_to_string(row.sha256_clk) << "," << field_to_string(row.sha256_input) << ","
+           << field_to_string(row.sha256_output) << "," << field_to_string(row.sha256_sel_sha256_compression) << ","
+           << field_to_string(row.sha256_state) << "," << field_to_string(row.perm_main_alu) << ","
+           << field_to_string(row.perm_main_bin) << "," << field_to_string(row.perm_main_conv) << ","
+           << field_to_string(row.perm_main_pos2_perm) << "," << field_to_string(row.perm_main_pedersen) << ","
+           << field_to_string(row.perm_main_mem_a) << "," << field_to_string(row.perm_main_mem_b) << ","
+           << field_to_string(row.perm_main_mem_c) << "," << field_to_string(row.perm_main_mem_d) << ","
+           << field_to_string(row.perm_main_mem_ind_addr_a) << "," << field_to_string(row.perm_main_mem_ind_addr_b)
+           << "," << field_to_string(row.perm_main_mem_ind_addr_c) << ","
+           << field_to_string(row.perm_main_mem_ind_addr_d) << "," << field_to_string(row.lookup_byte_lengths) << ","
+           << field_to_string(row.lookup_byte_operations) << "," << field_to_string(row.lookup_opcode_gas) << ","
            << field_to_string(row.range_check_l2_gas_hi) << "," << field_to_string(row.range_check_l2_gas_lo) << ","
            << field_to_string(row.range_check_da_gas_hi) << "," << field_to_string(row.range_check_da_gas_lo) << ","
            << field_to_string(row.kernel_output_lookup) << "," << field_to_string(row.lookup_into_kernel) << ","

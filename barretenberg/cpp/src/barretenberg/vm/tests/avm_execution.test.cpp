@@ -1,4 +1,9 @@
 #include "barretenberg/vm/avm_trace/avm_execution.hpp"
+
+#include <cstdint>
+#include <memory>
+#include <sys/types.h>
+
 #include "avm_common.test.hpp"
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/common/utils.hpp"
@@ -7,11 +12,10 @@
 #include "barretenberg/vm/avm_trace/avm_kernel_trace.hpp"
 #include "barretenberg/vm/avm_trace/avm_opcode.hpp"
 #include "barretenberg/vm/avm_trace/aztec_constants.hpp"
-#include <cstdint>
-#include <memory>
-#include <sys/types.h>
+#include "barretenberg/vm/avm_trace/fixed_gas.hpp"
 
 namespace tests_avm {
+
 using namespace bb;
 using namespace bb::avm_trace;
 using namespace testing;
@@ -27,6 +31,8 @@ class AvmExecutionTests : public ::testing::Test {
         : public_inputs_vec(PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH){};
 
   protected:
+    const FixedGasTable& GAS_COST_TABLE = FixedGasTable::get();
+
     // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
     void SetUp() override
     {
@@ -1551,8 +1557,9 @@ TEST_F(AvmExecutionTests, l2GasLeft)
     // Find the first row enabling the L2GASLEFT selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_l2gasleft == 1; });
 
-    uint32_t expected_rem_gas = DEFAULT_INITIAL_L2_GAS - GAS_COST_TABLE.at(OpCode::SET).l2_fixed_gas_cost -
-                                GAS_COST_TABLE.at(OpCode::L2GASLEFT).l2_fixed_gas_cost;
+    uint32_t expected_rem_gas = DEFAULT_INITIAL_L2_GAS -
+                                static_cast<uint32_t>(GAS_COST_TABLE.at(OpCode::SET).gas_l2_gas_fixed_table) -
+                                static_cast<uint32_t>(GAS_COST_TABLE.at(OpCode::L2GASLEFT).gas_l2_gas_fixed_table);
 
     EXPECT_EQ(row->main_ia, expected_rem_gas);
     EXPECT_EQ(row->main_mem_addr_a, 257); // Resolved direct address: 257
@@ -1592,8 +1599,9 @@ TEST_F(AvmExecutionTests, daGasLeft)
     // Find the first row enabling the DAGASLEFT selector
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_dagasleft == 1; });
 
-    uint32_t expected_rem_gas = DEFAULT_INITIAL_DA_GAS - GAS_COST_TABLE.at(OpCode::ADD).da_fixed_gas_cost -
-                                GAS_COST_TABLE.at(OpCode::DAGASLEFT).da_fixed_gas_cost;
+    uint32_t expected_rem_gas = DEFAULT_INITIAL_DA_GAS -
+                                static_cast<uint32_t>(GAS_COST_TABLE.at(OpCode::ADD).gas_da_gas_fixed_table) -
+                                static_cast<uint32_t>(GAS_COST_TABLE.at(OpCode::DAGASLEFT).gas_da_gas_fixed_table);
 
     EXPECT_EQ(row->main_ia, expected_rem_gas);
     EXPECT_EQ(row->main_mem_addr_a, 39);

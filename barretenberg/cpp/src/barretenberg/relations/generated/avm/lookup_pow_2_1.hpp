@@ -140,7 +140,7 @@ class lookup_pow_2_1_lookup_settings {
                                      in.alu_t_sub_s_bits,
                                      in.alu_two_pow_t_sub_s,
                                      in.main_clk,
-                                     in.main_table_pow_2);
+                                     in.powers_power_of_2);
     }
 
     /**
@@ -160,7 +160,7 @@ class lookup_pow_2_1_lookup_settings {
                                      in.alu_t_sub_s_bits,
                                      in.alu_two_pow_t_sub_s,
                                      in.main_clk,
-                                     in.main_table_pow_2);
+                                     in.powers_power_of_2);
     }
 };
 

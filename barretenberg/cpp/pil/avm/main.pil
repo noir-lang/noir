@@ -3,7 +3,8 @@ include "alu.pil";
 include "binary.pil";
 include "constants.pil";
 include "kernel.pil";
-include "gas.pil";
+include "fixed/gas.pil";
+include "fixed/powers.pil";
 include "gadgets/conversion.pil";
 include "gadgets/sha256.pil";
 include "gadgets/poseidon2.pil";
@@ -138,9 +139,6 @@ namespace main(256);
     // We re-use the clk column for the lookup values of 8-bit resp. 16-bit range check.
     pol commit sel_rng_8;  // Boolean selector for the  8-bit range check lookup
     pol commit sel_rng_16; // Boolean selector for the 16-bit range check lookup
-
-    //===== Lookup table powers of 2 =============================================
-    pol commit table_pow_2; // Table of powers of 2 for 8-bit numbers. 
 
     //===== CONTROL FLOW ==========================================================
     // Program counter
@@ -773,11 +771,11 @@ namespace main(256);
 
     // Lookup for 2**(ib)
     #[LOOKUP_POW_2_0]
-    alu.sel_shift_which {alu.ib, alu.two_pow_s} in sel_rng_8 {clk, table_pow_2};
+    alu.sel_shift_which {alu.ib, alu.two_pow_s} in sel_rng_8 {clk, powers.power_of_2};
 
     // Lookup for 2**(t-ib)
     #[LOOKUP_POW_2_1]
-    alu.sel_shift_which {alu.t_sub_s_bits , alu.two_pow_t_sub_s} in sel_rng_8 {clk, table_pow_2};
+    alu.sel_shift_which {alu.t_sub_s_bits , alu.two_pow_t_sub_s} in sel_rng_8 {clk, powers.power_of_2};
 
     //====== Inter-table Constraints (Range Checks) ============================================
     // TODO: Investigate optimising these range checks. Handling non-FF elements should require less range checks.

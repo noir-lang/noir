@@ -21,6 +21,8 @@
 #include "barretenberg/vm/avm_trace/avm_helper.hpp"
 #include "barretenberg/vm/avm_trace/avm_opcode.hpp"
 #include "barretenberg/vm/avm_trace/avm_trace.hpp"
+#include "barretenberg/vm/avm_trace/fixed_gas.hpp"
+#include "barretenberg/vm/avm_trace/fixed_powers.hpp"
 
 namespace bb::avm_trace {
 
@@ -3695,6 +3697,7 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
     auto pedersen_trace = pedersen_trace_builder.finalize();
     auto bin_trace = bin_trace_builder.finalize();
     auto gas_trace = gas_trace_builder.finalize();
+    const auto& fixed_gas_table = FixedGasTable::get();
     size_t mem_trace_size = mem_trace.size();
     size_t main_trace_size = main_trace.size();
     size_t alu_trace_size = alu_trace.size();
@@ -3716,11 +3719,11 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
     // 2**16 long)
     size_t const lookup_table_size = (bin_trace_size > 0 && range_check_required) ? 3 * (1 << 16) : 0;
     size_t const range_check_size = range_check_required ? UINT16_MAX + 1 : 0;
-    std::vector<size_t> trace_sizes = { mem_trace_size,     main_trace_size,      alu_trace_size,
-                                        range_check_size,   conv_trace_size,      lookup_table_size,
-                                        sha256_trace_size,  poseidon2_trace_size, pedersen_trace_size,
-                                        gas_trace_size + 1, KERNEL_INPUTS_LENGTH, KERNEL_OUTPUTS_LENGTH,
-                                        min_trace_size,     GAS_COST_TABLE.size() };
+    std::vector<size_t> trace_sizes = { mem_trace_size,     main_trace_size,       alu_trace_size,
+                                        range_check_size,   conv_trace_size,       lookup_table_size,
+                                        sha256_trace_size,  poseidon2_trace_size,  pedersen_trace_size,
+                                        gas_trace_size + 1, KERNEL_INPUTS_LENGTH,  KERNEL_OUTPUTS_LENGTH,
+                                        min_trace_size,     fixed_gas_table.size() };
     auto trace_size = std::max_element(trace_sizes.begin(), trace_sizes.end());
 
     // We only need to pad with zeroes to the size to the largest trace here, pow_2 padding is handled in the
@@ -4228,13 +4231,16 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
         r.incl_main_tag_err_counts = mem_trace_builder.m_tag_err_lookup_counts[static_cast<uint32_t>(counter)];
 
         if (counter <= UINT8_MAX) {
-            r.lookup_u8_0_counts = alu_trace_builder.u8_range_chk_counters[0][static_cast<uint8_t>(counter)];
-            r.lookup_u8_1_counts = alu_trace_builder.u8_range_chk_counters[1][static_cast<uint8_t>(counter)];
-            r.lookup_pow_2_0_counts = alu_trace_builder.u8_pow_2_counters[0][static_cast<uint8_t>(counter)];
-            r.lookup_pow_2_1_counts = alu_trace_builder.u8_pow_2_counters[1][static_cast<uint8_t>(counter)];
-            r.lookup_mem_rng_chk_hi_counts = mem_rng_check_hi_counts[static_cast<uint8_t>(counter)];
+            auto counter_u8 = static_cast<uint8_t>(counter);
+            r.lookup_u8_0_counts = alu_trace_builder.u8_range_chk_counters[0][counter_u8];
+            r.lookup_u8_1_counts = alu_trace_builder.u8_range_chk_counters[1][counter_u8];
+            r.lookup_pow_2_0_counts = alu_trace_builder.u8_pow_2_counters[0][counter_u8];
+            r.lookup_pow_2_1_counts = alu_trace_builder.u8_pow_2_counters[1][counter_u8];
+            r.lookup_mem_rng_chk_hi_counts = mem_rng_check_hi_counts[counter_u8];
             r.main_sel_rng_8 = FF(1);
-            r.main_table_pow_2 = uint256_t(1) << uint256_t(counter);
+
+            // Also merge the powers of 2 table.
+            merge_into(r, FixedPowersTable::get().at(counter));
         }
 
         if (counter <= UINT16_MAX) {
@@ -4457,12 +4463,8 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
 
     // Add the gas costs table to the main trace
     // For each opcode we write its l2 gas cost and da gas cost
-    for (auto const& [opcode, gas_entry] : GAS_COST_TABLE) {
-        auto& dest = main_trace.at(static_cast<size_t>(opcode));
-
-        dest.gas_sel_gas_cost = FF(1);
-        dest.gas_l2_gas_fixed_table = gas_entry.l2_fixed_gas_cost;
-        dest.gas_da_gas_fixed_table = gas_entry.da_fixed_gas_cost;
+    for (size_t i = 0; i < fixed_gas_table.size(); i++) {
+        merge_into(main_trace.at(i), fixed_gas_table.at(i));
     }
 
     // Finalise gas left lookup counts

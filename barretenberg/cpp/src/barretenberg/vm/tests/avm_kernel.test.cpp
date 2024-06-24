@@ -12,7 +12,6 @@ using namespace bb;
 using namespace bb::avm_trace;
 
 class AvmKernelTests : public ::testing::Test {
-
   protected:
     // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
     void SetUp() override { srs::init_crs_factory("../srs_db/ignition"); };

@@ -1,0 +1,9 @@
+// This table should eventually be fixed.
+// Contains 256 rows with the powers of 2 for 8-bit numbers.
+// power_of_2 = 1 << clk;
+namespace powers(256);
+    // clk will be the implicit power.
+    pol commit power_of_2;
+
+    // DUMMY RELATION to force creation of hpp.
+    power_of_2 - power_of_2 = 0;

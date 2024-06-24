@@ -19,6 +19,7 @@
 #include "barretenberg/relations/generated/avm/alu.hpp"
 #include "barretenberg/relations/generated/avm/binary.hpp"
 #include "barretenberg/relations/generated/avm/conversion.hpp"
+#include "barretenberg/relations/generated/avm/gas.hpp"
 #include "barretenberg/relations/generated/avm/incl_main_tag_err.hpp"
 #include "barretenberg/relations/generated/avm/incl_mem_tag_err.hpp"
 #include "barretenberg/relations/generated/avm/keccakf1600.hpp"
@@ -75,6 +76,7 @@
 #include "barretenberg/relations/generated/avm/perm_main_pedersen.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_pos2_perm.hpp"
 #include "barretenberg/relations/generated/avm/poseidon2.hpp"
+#include "barretenberg/relations/generated/avm/powers.hpp"
 #include "barretenberg/relations/generated/avm/range_check_da_gas_hi.hpp"
 #include "barretenberg/relations/generated/avm/range_check_da_gas_lo.hpp"
 #include "barretenberg/relations/generated/avm/range_check_l2_gas_hi.hpp"
@@ -328,7 +330,6 @@ template <typename FF> struct AvmFullRow {
     FF main_sel_rng_16{};
     FF main_sel_rng_8{};
     FF main_space_id{};
-    FF main_table_pow_2{};
     FF main_tag_err{};
     FF main_w_in_tag{};
     FF mem_addr{};
@@ -370,6 +371,7 @@ template <typename FF> struct AvmFullRow {
     FF poseidon2_input{};
     FF poseidon2_output{};
     FF poseidon2_sel_poseidon_perm{};
+    FF powers_power_of_2{};
     FF sha256_clk{};
     FF sha256_input{};
     FF sha256_output{};
@@ -812,7 +814,6 @@ class AvmCircuitBuilder {
             polys.main_sel_rng_16[i] = rows[i].main_sel_rng_16;
             polys.main_sel_rng_8[i] = rows[i].main_sel_rng_8;
             polys.main_space_id[i] = rows[i].main_space_id;
-            polys.main_table_pow_2[i] = rows[i].main_table_pow_2;
             polys.main_tag_err[i] = rows[i].main_tag_err;
             polys.main_w_in_tag[i] = rows[i].main_w_in_tag;
             polys.mem_addr[i] = rows[i].mem_addr;
@@ -854,6 +855,7 @@ class AvmCircuitBuilder {
             polys.poseidon2_input[i] = rows[i].poseidon2_input;
             polys.poseidon2_output[i] = rows[i].poseidon2_output;
             polys.poseidon2_sel_poseidon_perm[i] = rows[i].poseidon2_sel_poseidon_perm;
+            polys.powers_power_of_2[i] = rows[i].powers_power_of_2;
             polys.sha256_clk[i] = rows[i].sha256_clk;
             polys.sha256_input[i] = rows[i].sha256_input;
             polys.sha256_output[i] = rows[i].sha256_output;
@@ -1058,6 +1060,10 @@ class AvmCircuitBuilder {
                                                                                  Avm_vm::get_relation_label_conversion);
         };
 
+        auto gas = [=]() {
+            return evaluate_relation.template operator()<Avm_vm::gas<FF>>("gas", Avm_vm::get_relation_label_gas);
+        };
+
         auto keccakf1600 = [=]() {
             return evaluate_relation.template operator()<Avm_vm::keccakf1600<FF>>(
                 "keccakf1600", Avm_vm::get_relation_label_keccakf1600);
@@ -1084,6 +1090,11 @@ class AvmCircuitBuilder {
         auto poseidon2 = [=]() {
             return evaluate_relation.template operator()<Avm_vm::poseidon2<FF>>("poseidon2",
                                                                                 Avm_vm::get_relation_label_poseidon2);
+        };
+
+        auto powers = [=]() {
+            return evaluate_relation.template operator()<Avm_vm::powers<FF>>("powers",
+                                                                             Avm_vm::get_relation_label_powers);
         };
 
         auto sha256 = [=]() {
@@ -1331,6 +1342,8 @@ class AvmCircuitBuilder {
 
         relation_futures.emplace_back(std::async(std::launch::async, conversion));
 
+        relation_futures.emplace_back(std::async(std::launch::async, gas));
+
         relation_futures.emplace_back(std::async(std::launch::async, keccakf1600));
 
         relation_futures.emplace_back(std::async(std::launch::async, kernel));
@@ -1342,6 +1355,8 @@ class AvmCircuitBuilder {
         relation_futures.emplace_back(std::async(std::launch::async, pedersen));
 
         relation_futures.emplace_back(std::async(std::launch::async, poseidon2));
+
+        relation_futures.emplace_back(std::async(std::launch::async, powers));
 
         relation_futures.emplace_back(std::async(std::launch::async, sha256));
 
@@ -1468,6 +1483,8 @@ class AvmCircuitBuilder {
 
         conversion();
 
+        gas();
+
         keccakf1600();
 
         kernel();
@@ -1479,6 +1496,8 @@ class AvmCircuitBuilder {
         pedersen();
 
         poseidon2();
+
+        powers();
 
         sha256();
 

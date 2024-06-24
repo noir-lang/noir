@@ -6,3 +6,8 @@ namespace gas(256);
     // TODO(ISSUE_NUMBER): Constrain variable gas costs
     pol commit l2_gas_fixed_table;
     pol commit da_gas_fixed_table;
+
+    // DUMMY RELATIONS to force creation of hpp.
+    sel_gas_cost - sel_gas_cost = 0;
+    l2_gas_fixed_table - l2_gas_fixed_table = 0;
+    da_gas_fixed_table - da_gas_fixed_table = 0;

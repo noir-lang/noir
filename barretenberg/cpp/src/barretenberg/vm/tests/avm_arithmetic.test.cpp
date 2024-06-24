@@ -205,20 +205,15 @@ size_t common_validate_div(std::vector<Row> const& trace,
 
 class AvmArithmeticTests : public ::testing::Test {
   public:
-    AvmTraceBuilder trace_builder;
-    VmPublicInputs public_inputs{};
-
-  protected:
-    // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
-    void SetUp() override
+    AvmArithmeticTests()
+        : public_inputs(generate_base_public_inputs())
+        , trace_builder(AvmTraceBuilder(public_inputs))
     {
         srs::init_crs_factory("../srs_db/ignition");
-        std::array<FF, KERNEL_INPUTS_LENGTH> kernel_inputs{};
-        kernel_inputs.at(DA_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_DA_GAS;
-        kernel_inputs.at(L2_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_L2_GAS;
-        std::get<0>(public_inputs) = kernel_inputs;
-        trace_builder = AvmTraceBuilder(public_inputs);
-    };
+    }
+
+    VmPublicInputs public_inputs;
+    AvmTraceBuilder trace_builder;
 
     // Generate a trace with an EQ opcode operation.
     std::vector<Row> gen_trace_eq(uint128_t const& a,
@@ -1877,7 +1872,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, fDivisionWrongWInTag)
 
 // Test that error flag cannot be raised for a non-relevant operation such as
 // the addition, subtraction, multiplication.
-TEST_F(AvmArithmeticNegativeTestsFF, operationWithErrorFlag)
+TEST_F(AvmArithmeticNegativeTestsFF, operationWithErrorFlag1)
 {
     trace_builder.calldata_copy(0, 0, 3, 0, std::vector<FF>{ 37, 4, 11 });
 
@@ -1894,35 +1889,37 @@ TEST_F(AvmArithmeticNegativeTestsFF, operationWithErrorFlag)
     row->main_op_err = FF(1);
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "SUBOP_ERROR_RELEVANT_OP");
+}
 
-    trace_builder = AvmTraceBuilder(public_inputs);
-
+TEST_F(AvmArithmeticNegativeTestsFF, operationWithErrorFlag2)
+{
     trace_builder.calldata_copy(0, 0, 3, 0, std::vector<FF>{ 8, 4, 17 });
 
     //                             Memory layout:    [8,4,17,0,0,0,....]
     trace_builder.op_sub(0, 2, 0, 1, AvmMemoryTag::FF); // [8,9,17,0,0,0....]
     trace_builder.return_op(0, 0, 3);
-    trace = trace_builder.finalize();
+    auto trace = trace_builder.finalize();
 
     // Find the first row enabling the subtraction selector
-    row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sub == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sub == FF(1); });
 
     // Activate the operator error
     row->main_op_err = FF(1);
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "SUBOP_ERROR_RELEVANT_OP");
+}
 
-    trace_builder = AvmTraceBuilder(public_inputs);
-
+TEST_F(AvmArithmeticNegativeTestsFF, operationWithErrorFlag3)
+{
     trace_builder.calldata_copy(0, 0, 3, 0, std::vector<FF>{ 5, 0, 20 });
 
     //                             Memory layout:    [5,0,20,0,0,0,....]
     trace_builder.op_mul(0, 2, 0, 1, AvmMemoryTag::FF); // [5,100,20,0,0,0....]
     trace_builder.return_op(0, 0, 3);
-    trace = trace_builder.finalize();
+    auto trace = trace_builder.finalize();
 
     // Find the first row enabling the multiplication selector
-    row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_mul == FF(1); });
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_mul == FF(1); });
 
     // Activate the operator error
     row->main_op_err = FF(1);

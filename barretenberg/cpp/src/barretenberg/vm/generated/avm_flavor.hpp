@@ -16,6 +16,7 @@
 #include "barretenberg/relations/generated/avm/alu.hpp"
 #include "barretenberg/relations/generated/avm/binary.hpp"
 #include "barretenberg/relations/generated/avm/conversion.hpp"
+#include "barretenberg/relations/generated/avm/gas.hpp"
 #include "barretenberg/relations/generated/avm/incl_main_tag_err.hpp"
 #include "barretenberg/relations/generated/avm/incl_mem_tag_err.hpp"
 #include "barretenberg/relations/generated/avm/keccakf1600.hpp"
@@ -72,6 +73,7 @@
 #include "barretenberg/relations/generated/avm/perm_main_pedersen.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_pos2_perm.hpp"
 #include "barretenberg/relations/generated/avm/poseidon2.hpp"
+#include "barretenberg/relations/generated/avm/powers.hpp"
 #include "barretenberg/relations/generated/avm/range_check_da_gas_hi.hpp"
 #include "barretenberg/relations/generated/avm/range_check_da_gas_lo.hpp"
 #include "barretenberg/relations/generated/avm/range_check_l2_gas_hi.hpp"
@@ -162,12 +164,14 @@ class AvmFlavor {
     using Relations = std::tuple<Avm_vm::alu<FF>,
                                  Avm_vm::binary<FF>,
                                  Avm_vm::conversion<FF>,
+                                 Avm_vm::gas<FF>,
                                  Avm_vm::keccakf1600<FF>,
                                  Avm_vm::kernel<FF>,
                                  Avm_vm::main<FF>,
                                  Avm_vm::mem<FF>,
                                  Avm_vm::pedersen<FF>,
                                  Avm_vm::poseidon2<FF>,
+                                 Avm_vm::powers<FF>,
                                  Avm_vm::sha256<FF>,
                                  perm_main_alu_relation<FF>,
                                  perm_main_bin_relation<FF>,
@@ -497,7 +501,6 @@ class AvmFlavor {
                               main_sel_rng_16,
                               main_sel_rng_8,
                               main_space_id,
-                              main_table_pow_2,
                               main_tag_err,
                               main_w_in_tag,
                               mem_addr,
@@ -539,6 +542,7 @@ class AvmFlavor {
                               poseidon2_input,
                               poseidon2_output,
                               poseidon2_sel_poseidon_perm,
+                              powers_power_of_2,
                               sha256_clk,
                               sha256_input,
                               sha256_output,
@@ -883,7 +887,6 @@ class AvmFlavor {
                      main_sel_rng_16,
                      main_sel_rng_8,
                      main_space_id,
-                     main_table_pow_2,
                      main_tag_err,
                      main_w_in_tag,
                      mem_addr,
@@ -925,6 +928,7 @@ class AvmFlavor {
                      poseidon2_input,
                      poseidon2_output,
                      poseidon2_sel_poseidon_perm,
+                     powers_power_of_2,
                      sha256_clk,
                      sha256_input,
                      sha256_output,
@@ -1274,7 +1278,6 @@ class AvmFlavor {
                               main_sel_rng_16,
                               main_sel_rng_8,
                               main_space_id,
-                              main_table_pow_2,
                               main_tag_err,
                               main_w_in_tag,
                               mem_addr,
@@ -1316,6 +1319,7 @@ class AvmFlavor {
                               poseidon2_input,
                               poseidon2_output,
                               poseidon2_sel_poseidon_perm,
+                              powers_power_of_2,
                               sha256_clk,
                               sha256_input,
                               sha256_output,
@@ -1727,7 +1731,6 @@ class AvmFlavor {
                      main_sel_rng_16,
                      main_sel_rng_8,
                      main_space_id,
-                     main_table_pow_2,
                      main_tag_err,
                      main_w_in_tag,
                      mem_addr,
@@ -1769,6 +1772,7 @@ class AvmFlavor {
                      poseidon2_input,
                      poseidon2_output,
                      poseidon2_sel_poseidon_perm,
+                     powers_power_of_2,
                      sha256_clk,
                      sha256_input,
                      sha256_output,
@@ -2180,7 +2184,6 @@ class AvmFlavor {
                      main_sel_rng_16,
                      main_sel_rng_8,
                      main_space_id,
-                     main_table_pow_2,
                      main_tag_err,
                      main_w_in_tag,
                      mem_addr,
@@ -2222,6 +2225,7 @@ class AvmFlavor {
                      poseidon2_input,
                      poseidon2_output,
                      poseidon2_sel_poseidon_perm,
+                     powers_power_of_2,
                      sha256_clk,
                      sha256_input,
                      sha256_output,
@@ -2989,7 +2993,6 @@ class AvmFlavor {
             Base::main_sel_rng_16 = "MAIN_SEL_RNG_16";
             Base::main_sel_rng_8 = "MAIN_SEL_RNG_8";
             Base::main_space_id = "MAIN_SPACE_ID";
-            Base::main_table_pow_2 = "MAIN_TABLE_POW_2";
             Base::main_tag_err = "MAIN_TAG_ERR";
             Base::main_w_in_tag = "MAIN_W_IN_TAG";
             Base::mem_addr = "MEM_ADDR";
@@ -3031,6 +3034,7 @@ class AvmFlavor {
             Base::poseidon2_input = "POSEIDON2_INPUT";
             Base::poseidon2_output = "POSEIDON2_OUTPUT";
             Base::poseidon2_sel_poseidon_perm = "POSEIDON2_SEL_POSEIDON_PERM";
+            Base::powers_power_of_2 = "POWERS_POWER_OF_2";
             Base::sha256_clk = "SHA256_CLK";
             Base::sha256_input = "SHA256_INPUT";
             Base::sha256_output = "SHA256_OUTPUT";
@@ -3391,7 +3395,6 @@ class AvmFlavor {
         Commitment main_sel_rng_16;
         Commitment main_sel_rng_8;
         Commitment main_space_id;
-        Commitment main_table_pow_2;
         Commitment main_tag_err;
         Commitment main_w_in_tag;
         Commitment mem_addr;
@@ -3433,6 +3436,7 @@ class AvmFlavor {
         Commitment poseidon2_input;
         Commitment poseidon2_output;
         Commitment poseidon2_sel_poseidon_perm;
+        Commitment powers_power_of_2;
         Commitment sha256_clk;
         Commitment sha256_input;
         Commitment sha256_output;
@@ -3805,7 +3809,6 @@ class AvmFlavor {
             main_sel_rng_16 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             main_sel_rng_8 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             main_space_id = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
-            main_table_pow_2 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             main_tag_err = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             main_w_in_tag = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             mem_addr = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -3847,6 +3850,7 @@ class AvmFlavor {
             poseidon2_input = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             poseidon2_output = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             poseidon2_sel_poseidon_perm = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            powers_power_of_2 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             sha256_clk = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             sha256_input = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             sha256_output = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -4211,7 +4215,6 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(main_sel_rng_16, Transcript::proof_data);
             serialize_to_buffer<Commitment>(main_sel_rng_8, Transcript::proof_data);
             serialize_to_buffer<Commitment>(main_space_id, Transcript::proof_data);
-            serialize_to_buffer<Commitment>(main_table_pow_2, Transcript::proof_data);
             serialize_to_buffer<Commitment>(main_tag_err, Transcript::proof_data);
             serialize_to_buffer<Commitment>(main_w_in_tag, Transcript::proof_data);
             serialize_to_buffer<Commitment>(mem_addr, Transcript::proof_data);
@@ -4253,6 +4256,7 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(poseidon2_input, Transcript::proof_data);
             serialize_to_buffer<Commitment>(poseidon2_output, Transcript::proof_data);
             serialize_to_buffer<Commitment>(poseidon2_sel_poseidon_perm, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(powers_power_of_2, Transcript::proof_data);
             serialize_to_buffer<Commitment>(sha256_clk, Transcript::proof_data);
             serialize_to_buffer<Commitment>(sha256_input, Transcript::proof_data);
             serialize_to_buffer<Commitment>(sha256_output, Transcript::proof_data);

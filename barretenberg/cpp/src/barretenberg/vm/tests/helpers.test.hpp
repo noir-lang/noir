@@ -41,4 +41,6 @@ void update_slice_registers(Row& row, uint256_t a);
 std::vector<ThreeOpParamRow> gen_three_op_params(std::vector<std::array<FF, 3>> operands,
                                                  std::vector<bb::avm_trace::AvmMemoryTag> mem_tags);
 
+VmPublicInputs generate_base_public_inputs();
+
 } // namespace tests_avm

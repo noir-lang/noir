@@ -17,8 +17,15 @@ using namespace testing;
 
 class AvmMemOpcodeTests : public ::testing::Test {
   public:
+    AvmMemOpcodeTests()
+        : public_inputs(generate_base_public_inputs())
+        , trace_builder(AvmTraceBuilder(public_inputs))
+    {
+        srs::init_crs_factory("../srs_db/ignition");
+    }
+
+    VmPublicInputs public_inputs;
     AvmTraceBuilder trace_builder;
-    VmPublicInputs public_inputs{};
 
   protected:
     std::vector<Row> trace;
@@ -31,17 +38,6 @@ class AvmMemOpcodeTests : public ::testing::Test {
     size_t mem_ind_b_addr;
     size_t mem_ind_c_addr;
     size_t mem_ind_d_addr;
-
-    // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
-    void SetUp() override
-    {
-        srs::init_crs_factory("../srs_db/ignition");
-        std::array<FF, KERNEL_INPUTS_LENGTH> kernel_inputs{};
-        kernel_inputs.at(DA_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_DA_GAS;
-        kernel_inputs.at(L2_GAS_LEFT_CONTEXT_INPUTS_OFFSET) = DEFAULT_INITIAL_L2_GAS;
-        std::get<0>(public_inputs) = kernel_inputs;
-        trace_builder = AvmTraceBuilder(public_inputs);
-    };
 
     void build_mov_trace(bool indirect,
                          uint128_t const& val,
