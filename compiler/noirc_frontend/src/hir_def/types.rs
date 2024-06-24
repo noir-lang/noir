@@ -771,9 +771,11 @@ impl Type {
             | Type::Forall(_, _)
             | Type::Quoted(_) => {}
 
-            Type::TypeVariable(type_var, _) => if let TypeBinding::Bound(typ) = &*type_var.borrow() {
-                named_generic_is_numeric(typ, found_names);
-            },
+            Type::TypeVariable(type_var, _) => {
+                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
+                    named_generic_is_numeric(typ, found_names);
+                }
+            }
 
             Type::NamedGeneric(_, _, _) => {
                 named_generic_is_numeric(self, found_names);
