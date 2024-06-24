@@ -1662,8 +1662,7 @@ impl<F: AcirField> AcirContext<F> {
         Ok(())
     }
 
-    /// Recursively create acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
-    /// A singular array of witnesses is collected for a top level array, by deflattening the assigned witnesses at each level.
+    /// Recursively create zeroed-out acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
     fn zeroed_array_output(&mut self, element_types: &[AcirType], size: usize) -> AcirValue {
         let mut array_values = im::Vector::new();
         for _ in 0..size {
