@@ -1,6 +1,7 @@
 mod poseidon;
 mod mimc;
 mod poseidon2;
+mod keccak256;
 
 use crate::default::Default;
 use crate::uint128::U128;
