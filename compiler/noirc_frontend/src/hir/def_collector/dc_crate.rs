@@ -154,6 +154,7 @@ pub struct DefCollector {
     pub(crate) items: CollectedItems,
 }
 
+#[derive(Default)]
 pub struct CollectedItems {
     pub(crate) functions: Vec<UnresolvedFunctions>,
     pub(crate) types: BTreeMap<StructId, UnresolvedStruct>,
@@ -162,6 +163,18 @@ pub struct CollectedItems {
     pub(crate) globals: Vec<UnresolvedGlobal>,
     pub(crate) impls: ImplMap,
     pub(crate) trait_impls: Vec<UnresolvedTraitImpl>,
+}
+
+impl CollectedItems {
+    pub fn is_empty(&self) -> bool {
+        self.functions.is_empty()
+            && self.types.is_empty()
+            && self.type_aliases.is_empty()
+            && self.traits.is_empty()
+            && self.globals.is_empty()
+            && self.impls.is_empty()
+            && self.trait_impls.is_empty()
+    }
 }
 
 /// Maps the type and the module id in which the impl is defined to the functions contained in that

@@ -11,6 +11,7 @@ use crate::ast::{
     NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItem, TraitItem,
     TypeImpl,
 };
+use crate::macros_api::NodeInterner;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -168,11 +169,11 @@ impl<'a> ModCollector<'a> {
         impls: Vec<NoirTraitImpl>,
         krate: CrateId,
     ) {
-        for trait_impl in impls {
+        for mut trait_impl in impls {
             let trait_name = trait_impl.trait_name.clone();
 
             let mut unresolved_functions =
-                self.collect_trait_impl_function_overrides(context, &trait_impl, krate);
+                collect_trait_impl_functions(&mut context.def_interner, &mut trait_impl, krate, self.file_id, self.module_id);
 
             let module = ModuleId { krate, local_id: self.module_id };
 
@@ -202,33 +203,6 @@ impl<'a> ModCollector<'a> {
 
             self.def_collector.items.trait_impls.push(unresolved_trait_impl);
         }
-    }
-
-    fn collect_trait_impl_function_overrides(
-        &mut self,
-        context: &mut Context,
-        trait_impl: &NoirTraitImpl,
-        krate: CrateId,
-    ) -> UnresolvedFunctions {
-        let mut unresolved_functions = UnresolvedFunctions {
-            file_id: self.file_id,
-            functions: Vec::new(),
-            trait_id: None,
-            self_type: None,
-        };
-
-        let module = ModuleId { krate, local_id: self.module_id };
-
-        for item in &trait_impl.items {
-            if let TraitImplItem::Function(impl_method) = item {
-                let func_id = context.def_interner.push_empty_fn();
-                let location = Location::new(impl_method.span(), self.file_id);
-                context.def_interner.push_function(func_id, &impl_method.def, module, location);
-                unresolved_functions.push_fn(self.module_id, func_id, impl_method.clone());
-            }
-        }
-
-        unresolved_functions
     }
 
     fn collect_functions(
@@ -759,6 +733,34 @@ fn is_native_field(str: &str) -> bool {
     } else {
         CHOSEN_FIELD == str
     }
+}
+
+pub(crate) fn collect_trait_impl_functions(
+    interner: &mut NodeInterner,
+    trait_impl: &mut NoirTraitImpl,
+    krate: CrateId,
+    file_id: FileId,
+    local_id: LocalModuleId,
+) -> UnresolvedFunctions {
+    let mut unresolved_functions = UnresolvedFunctions {
+        file_id,
+        functions: Vec::new(),
+        trait_id: None,
+        self_type: None,
+    };
+
+    let module = ModuleId { krate, local_id };
+
+    for item in std::mem::take(&mut trait_impl.items) {
+        if let TraitImplItem::Function(impl_method) = item {
+            let func_id = interner.push_empty_fn();
+            let location = Location::new(impl_method.span(), file_id);
+            interner.push_function(func_id, &impl_method.def, module, location);
+            unresolved_functions.push_fn(local_id, func_id, impl_method);
+        }
+    }
+
+    unresolved_functions
 }
 
 #[cfg(test)]

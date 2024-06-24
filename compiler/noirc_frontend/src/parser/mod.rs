@@ -25,7 +25,7 @@ use noirc_errors::Span;
 pub use parser::{expression, parse_program, top_level_item};
 
 #[derive(Debug, Clone)]
-pub(crate) enum TopLevelStatement {
+pub enum TopLevelStatement {
     Function(NoirFunction),
     Module(ModuleDeclaration),
     Import(UseTree),
