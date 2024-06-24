@@ -141,7 +141,7 @@ impl<'a> ModCollector<'a> {
     fn collect_impls(&mut self, context: &mut Context, impls: Vec<TypeImpl>, krate: CrateId) {
         let module_id = ModuleId { krate, local_id: self.module_id };
 
-        for mut r#impl in impls {
+        for r#impl in impls {
             let mut unresolved_functions = UnresolvedFunctions {
                 file_id: self.file_id,
                 functions: Vec::new(),
