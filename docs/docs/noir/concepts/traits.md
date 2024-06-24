@@ -145,12 +145,6 @@ fn main() {
 }
 ```
 
-### Generic Implementations With Where Clauses
-
-Where clauses can be placed on struct implementations themselves to restrict generics.
-
-For example, while `impl<T> Foo` 
-
 ### Generic Trait Implementations With Where Clauses
 
 Where clauses can be placed on trait implementations themselves to restrict generics in a similar way.
