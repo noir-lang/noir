@@ -229,7 +229,6 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(just(Token::LeftBrace))
         .then(spanned(function::function_definition(true)).repeated())
         .then_ignore(just(Token::RightBrace))
-        // .map(|((generics, (object_type, type_span)), methods)| {
         .map(|args| {
             let ((other_args, where_clause), methods) = args;
             let (generics, (object_type, type_span)) = other_args;
