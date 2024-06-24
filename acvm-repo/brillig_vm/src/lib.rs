@@ -500,9 +500,14 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     match output {
                         ForeignCallParam::Array(values) => {
                             if values.len() != *size {
-                                return Err("Foreign call result array doesn't match expected size".to_string());
+                                // foreign call returning flattened values into a nested type, so the sizes do not match
+                               let destination = self.memory.read_ref(*pointer_index);
+                               let return_type = value_type;
+                               let mut flatten_values_idx = 0; //index of values read from flatten_values
+                               self.write_slice_of_values_to_memory(destination, &output.fields(), &mut flatten_values_idx, return_type)?;
+                            } else {
+                                self.write_values_to_memory_slice(*pointer_index, values, value_types)?;
                             }
-                            self.write_values_to_memory_slice(*pointer_index, values, value_types)?;
                         }
                         _ => {
                             return Err("Function result size does not match brillig bytecode size".to_string());
