@@ -2553,14 +2553,14 @@ uint32_t AvmTraceBuilder::read_slice_to_memory(uint8_t space_id,
  * stored
  * @param function_selector_offset An index in memory pointing to the function selector of the external call (TEMP)
  */
-void AvmTraceBuilder::op_call([[maybe_unused]] uint8_t indirect,
-                              [[maybe_unused]] uint32_t gas_offset,
-                              [[maybe_unused]] uint32_t addr_offset,
-                              [[maybe_unused]] uint32_t args_offset,
-                              [[maybe_unused]] uint32_t args_size,
-                              [[maybe_unused]] uint32_t ret_offset,
-                              [[maybe_unused]] uint32_t ret_size,
-                              [[maybe_unused]] uint32_t success_offset,
+void AvmTraceBuilder::op_call(uint8_t indirect,
+                              uint32_t gas_offset,
+                              uint32_t addr_offset,
+                              uint32_t args_offset,
+                              uint32_t args_size,
+                              uint32_t ret_offset,
+                              uint32_t ret_size,
+                              uint32_t success_offset,
                               [[maybe_unused]] uint32_t function_selector_offset)
 {
     auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
@@ -2568,7 +2568,7 @@ void AvmTraceBuilder::op_call([[maybe_unused]] uint8_t indirect,
 
     gas_trace_builder.constrain_gas_for_external_call(
         clk, static_cast<uint32_t>(hint.l2_gas_used), static_cast<uint32_t>(hint.da_gas_used));
-    // We can load up to 4 things per row
+
     auto [resolved_gas_offset,
           resolved_addr_offset,
           resolved_args_offset,
@@ -2577,70 +2577,52 @@ void AvmTraceBuilder::op_call([[maybe_unused]] uint8_t indirect,
           resolved_success_offset] =
         unpack_indirects<6>(indirect, { gas_offset, addr_offset, args_offset, args_size, ret_offset, success_offset });
 
-    // Should read the address next to read_gas as well (tuple of gas values)
-    auto read_gas = constrained_read_from_memory(
+    // Should read the address next to read_gas as well (tuple of gas values (l2Gas, daGas))
+    auto read_gas_l2 = constrained_read_from_memory(
         call_ptr, clk, resolved_gas_offset, AvmMemoryTag::FF, AvmMemoryTag::U0, IntermRegister::IA);
+    auto read_gas_da = mem_trace_builder.read_and_load_from_memory(
+        call_ptr, clk, IntermRegister::IB, read_gas_l2.direct_address + 1, AvmMemoryTag::FF, AvmMemoryTag::U0);
     auto read_addr = constrained_read_from_memory(
         call_ptr, clk, resolved_addr_offset, AvmMemoryTag::FF, AvmMemoryTag::U0, IntermRegister::IC);
     auto read_args = constrained_read_from_memory(
         call_ptr, clk, resolved_args_offset, AvmMemoryTag::FF, AvmMemoryTag::U0, IntermRegister::ID);
-    bool tag_match = read_gas.tag_match && read_addr.tag_match && read_args.tag_match;
+    bool tag_match = read_gas_l2.tag_match && read_gas_da.tag_match && read_addr.tag_match && read_args.tag_match;
 
     // We read the input and output addresses in one row as they should contain FF elements
     main_trace.push_back(Row{
         .main_clk = clk,
-        .main_ia = read_gas.val,  /* gas_offset */
-        .main_ic = read_addr.val, /* addr_offset */
-        .main_id = read_args.val, /* args_offset */
-        .main_ind_addr_a = FF(read_gas.indirect_address),
+        .main_ia = read_gas_l2.val, /* gas_offset_l2 */
+        .main_ib = read_gas_da.val, /* gas_offset_da */
+        .main_ic = read_addr.val,   /* addr_offset */
+        .main_id = read_args.val,   /* args_offset */
+        .main_ind_addr_a = FF(read_gas_l2.indirect_address),
         .main_ind_addr_c = FF(read_addr.indirect_address),
         .main_ind_addr_d = FF(read_args.indirect_address),
         .main_internal_return_ptr = FF(internal_return_ptr),
-        .main_mem_addr_a = FF(read_gas.direct_address),
+        .main_mem_addr_a = FF(read_gas_l2.direct_address),
+        .main_mem_addr_b = FF(read_gas_l2.direct_address + 1),
         .main_mem_addr_c = FF(read_addr.direct_address),
         .main_mem_addr_d = FF(read_args.direct_address),
         .main_pc = FF(pc),
         .main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
         .main_sel_mem_op_a = FF(1),
+        .main_sel_mem_op_b = FF(1),
         .main_sel_mem_op_c = FF(1),
         .main_sel_mem_op_d = FF(1),
         .main_sel_op_external_call = FF(1),
-        .main_sel_resolve_ind_addr_a = FF(static_cast<uint32_t>(read_gas.is_indirect)),
+        .main_sel_resolve_ind_addr_a = FF(static_cast<uint32_t>(read_gas_l2.is_indirect)),
         .main_sel_resolve_ind_addr_c = FF(static_cast<uint32_t>(read_addr.is_indirect)),
         .main_sel_resolve_ind_addr_d = FF(static_cast<uint32_t>(read_args.is_indirect)),
         .main_tag_err = FF(static_cast<uint32_t>(!tag_match)),
     });
     clk++;
-    // Read the rest on a separate line, remember that the 4th operand is indirect
-    auto read_ret = constrained_read_from_memory(
-        call_ptr, clk, resolved_ret_offset, AvmMemoryTag::FF, AvmMemoryTag::U0, IntermRegister::IA);
-    main_trace.push_back(Row{
-        .main_clk = clk,
-        .main_ia = read_ret.val, /* ret_offset */
-        .main_ind_addr_a = FF(read_ret.indirect_address),
-        .main_internal_return_ptr = FF(internal_return_ptr),
-        .main_mem_addr_a = FF(read_ret.direct_address),
-        .main_pc = FF(pc),
-        .main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
-        .main_sel_mem_op_a = FF(1),
-        .main_sel_resolve_ind_addr_a = FF(static_cast<uint32_t>(read_ret.is_indirect)),
-    });
-    clk++;
-    auto mem_read_success = constrained_read_from_memory(
-        call_ptr, clk, resolved_success_offset, AvmMemoryTag::U32, AvmMemoryTag::U0, IntermRegister::IA);
-    main_trace.push_back(Row{
-        .main_clk = clk,
-        .main_ia = mem_read_success.val, /* success_offset */
-        .main_internal_return_ptr = FF(internal_return_ptr),
-        .main_mem_addr_a = FF(success_offset),
-        .main_pc = FF(pc),
-        .main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
-        .main_sel_mem_op_a = FF(1),
-    });
-    clk++;
+    // The return data hint is used for now, we check it has the same length as the ret_size
+    ASSERT(hint.return_data.size() == ret_size);
+    // Write the return data to memory
     uint32_t num_rows = write_slice_to_memory(
         call_ptr, clk, resolved_ret_offset, AvmMemoryTag::U0, AvmMemoryTag::FF, internal_return_ptr, hint.return_data);
     clk += num_rows;
+    // Write the success flag to memory
     write_slice_to_memory(call_ptr,
                           clk,
                           resolved_success_offset,
