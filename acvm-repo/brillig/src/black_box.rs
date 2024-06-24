@@ -61,13 +61,13 @@ pub enum BlackBoxOp {
         signature: HeapVector,
         result: MemoryAddress,
     },
-    /// Deprecated. To be removed with a sync from aztec-packages
+    /// Will be deprecated
     PedersenCommitment {
         inputs: HeapVector,
         domain_separator: MemoryAddress,
         output: HeapArray,
     },
-    /// Deprecated. To be removed with a sync from aztec-packages
+    /// Will be deprecated
     PedersenHash {
         inputs: HeapVector,
         domain_separator: MemoryAddress,

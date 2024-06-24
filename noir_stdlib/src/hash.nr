@@ -36,7 +36,7 @@ pub fn pedersen_commitment<N>(input: [Field; N]) -> EmbeddedCurvePoint {
     }
 }
 
-pub fn pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
+pub fn pedersen_commitment_with_separator_noir<N>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
     let mut points = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N];
     for i in 0..N {
         points[i] = EmbeddedCurveScalar::from_field(input[i]);
@@ -44,6 +44,11 @@ pub fn pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) 
     let generators = derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
     let values = multi_scalar_mul(generators, points);
     EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: values[2] as bool }
+}
+
+pub fn pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
+    let values = __pedersen_commitment_with_separator(input, separator);
+    EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: false }
 }
 
 // docs:start:pedersen_hash
@@ -64,7 +69,7 @@ fn derive_generators<N, M>(domain_separator_bytes: [u8; M], starting_index: u32)
 #[field(bn254)]
 fn __derive_generators<N, M>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {}
 
-pub fn pedersen_hash_with_separator<N>(input: [Field; N], separator: u32) -> Field {
+pub fn pedersen_hash_with_separator_noir<N>(input: [Field; N], separator: u32) -> Field {
     let v1 = pedersen_commitment(input);
     let length_generator :[EmbeddedCurvePoint;1] = derive_generators("pedersen_hash_length".as_bytes(), separator);
     multi_scalar_mul(
@@ -72,6 +77,12 @@ pub fn pedersen_hash_with_separator<N>(input: [Field; N], separator: u32) -> Fie
         [EmbeddedCurveScalar { lo: N as Field, hi: 0 }, EmbeddedCurveScalar { lo: 1, hi: 0 }]
     )[0]
 }
+
+#[foreign(pedersen_hash)]
+pub fn pedersen_hash_with_separator<N>(input: [Field; N], separator: u32) -> Field {}
+
+#[foreign(pedersen_commitment)]
+pub fn __pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> [Field; 2] {}
 
 pub fn hash_to_field(inputs: [Field]) -> Field {
     let mut sum = 0;
@@ -245,4 +256,12 @@ impl<A, B, C, D, E> Hash for (A, B, C, D, E) where A: Hash, B: Hash, C: Hash, D:
         self.3.hash(state);
         self.4.hash(state);
     }
+}
+
+#[test]
+fn assert_pedersen_noir() {
+    assert_eq(pedersen_hash_with_separator([1, 2, 3], 4), pedersen_hash_with_separator_noir([1, 2, 3], 4));
+    assert_eq(
+        pedersen_commitment_with_separator([1, 2, 3], 4), pedersen_commitment_with_separator_noir([1, 2, 3], 4)
+    );
 }
