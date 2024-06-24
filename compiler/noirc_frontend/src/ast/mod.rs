@@ -259,6 +259,10 @@ impl UnresolvedType {
     pub fn unspecified() -> UnresolvedType {
         UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: None }
     }
+
+    pub(crate) fn is_type_expression(&self) -> bool {
+        matches!(&self.typ, UnresolvedTypeData::Expression(_))
+    }
 }
 
 impl UnresolvedTypeData {

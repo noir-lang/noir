@@ -500,7 +500,12 @@ impl<'context> Elaborator<'context> {
     /// sure only primitive numeric types are being used.
     pub(super) fn resolve_generic_kind(&mut self, generic: &UnresolvedGeneric) -> Kind {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
-            let typ = self.resolve_type(typ.clone());
+            let typ = typ.clone();
+            let typ = if typ.is_type_expression() {
+                self.resolve_type_inner(typ, &Kind::Numeric(Box::new(Type::default_int_type())))
+            } else {
+                self.resolve_type(typ.clone())
+            };
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
                 let unsupported_typ_err =
                     CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType {
