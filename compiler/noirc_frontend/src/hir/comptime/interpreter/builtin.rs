@@ -19,6 +19,7 @@ pub(super) fn call_builtin(
     match name {
         "array_len" => array_len(&arguments),
         "as_slice" => as_slice(arguments),
+        "slice_push_back" => slice_push_back(arguments),
         "type_def_as_type" => type_def_as_type(interner, arguments),
         "type_def_generics" => type_def_generics(interner, arguments),
         "type_def_fields" => type_def_fields(interner, arguments),
@@ -45,6 +46,20 @@ fn as_slice(mut arguments: Vec<(Value, Location)>) -> IResult<Value> {
         Value::Array(values, Type::Array(_, typ)) => Ok(Value::Slice(values, Type::Slice(typ))),
         // Type checking should prevent this branch being taken.
         _ => unreachable!("ICE: Cannot convert types other than arrays into slices"),
+    }
+}
+
+fn slice_push_back(mut arguments: Vec<(Value, Location)>) -> IResult<Value> {
+    assert_eq!(arguments.len(), 2, "ICE: `slice_push_back` should only receive two arguments");
+    let (element, _) = arguments.pop().unwrap();
+    let (slice, _) = arguments.pop().unwrap();
+    match slice {
+        Value::Slice(mut values, typ) => {
+            values.push_back(element);
+            Ok(Value::Slice(values, typ))
+        }
+        // Type checking should prevent this branch being taken.
+        _ => unreachable!("ICE: `slice_push_back` expects a slice as its first argument"),
     }
 }
 

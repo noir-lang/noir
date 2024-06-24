@@ -927,6 +927,18 @@ impl<'a> Interpreter<'a> {
     fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
         let (fields, struct_type) = match self.evaluate(access.lhs)? {
             Value::Struct(fields, typ) => (fields, typ),
+            Value::Tuple(fields) => {
+                let (fields, field_types): (HashMap<Rc<String>, Value>, Vec<Type>) = fields
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, field)| {
+                        let field_type = field.get_type().into_owned();
+                        let key_val_pair = (Rc::new(i.to_string()), field);
+                        (key_val_pair, field_type)
+                    })
+                    .unzip();
+                (fields, Type::Tuple(field_types))
+            }
             value => {
                 let location = self.interner.expr_location(&id);
                 return Err(InterpreterError::NonTupleOrStructInMemberAccess { value, location });
