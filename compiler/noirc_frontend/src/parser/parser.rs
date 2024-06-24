@@ -23,7 +23,7 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
-use self::primitives::{keyword, mutable_reference, variable};
+use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
 use self::types::{generic_type_args, maybe_comp_time, parse_type};
 
 use super::{
@@ -700,7 +700,7 @@ fn optional_visibility() -> impl NoirParser<Visibility> {
         })
 }
 
-fn expression() -> impl ExprParser {
+pub fn expression() -> impl ExprParser {
     recursive(|expr| {
         expression_with_precedence(
             Precedence::Lowest,
@@ -1083,11 +1083,12 @@ where
         },
         lambdas::lambda(expr_parser.clone()),
         block(statement.clone()).map(ExpressionKind::Block),
-        comptime_expr(statement.clone()),
-        quote(statement),
+        comptime_expr(statement),
+        quote(),
         unquote(expr_parser.clone()),
         variable(),
         literal(),
+        macro_quote_marker(),
     ))
     .map_with_span(Expression::new)
     .or(parenthesized(expr_parser.clone()).map_with_span(|sub_expr, span| {
@@ -1110,19 +1111,18 @@ where
         .labelled(ParsingRuleLabel::Atom)
 }
 
-fn quote<'a, P>(statement: P) -> impl NoirParser<ExpressionKind> + 'a
-where
-    P: NoirParser<StatementKind> + 'a,
-{
-    keyword(Keyword::Quote).ignore_then(spanned(block(statement))).validate(
-        |(block, block_span), span, emit| {
-            emit(ParserError::with_reason(
-                ParserErrorReason::ExperimentalFeature("quoted expressions"),
-                span,
-            ));
-            ExpressionKind::Quote(block, block_span)
-        },
-    )
+fn quote() -> impl NoirParser<ExpressionKind> {
+    token_kind(TokenKind::Quote).validate(|token, span, emit| {
+        let tokens = match token {
+            Token::Quote(tokens) => tokens,
+            _ => unreachable!("token_kind(Quote) should guarantee parsing only a quote token"),
+        };
+        emit(ParserError::with_reason(
+            ParserErrorReason::ExperimentalFeature("quoted expressions"),
+            span,
+        ));
+        ExpressionKind::Quote(tokens)
+    })
 }
 
 /// unquote: '$' variable
@@ -1650,5 +1650,20 @@ mod test {
         ];
 
         check_cases_with_errors(&cases[..], block(fresh_statement()));
+    }
+
+    #[test]
+    fn test_quote() {
+        let cases = vec![
+            "quote {}",
+            "quote { a.b }",
+            "quote { ) ( }", // invalid syntax is fine in a quote
+            "quote { { } }", // Nested `{` and `}` shouldn't close the quote as long as they are matched.
+            "quote { 1 { 2 { 3 { 4 { 5 } 4 4 } 3 3 } 2 2 } 1 1 }",
+        ];
+        parse_all(quote(), cases);
+
+        let failing = vec!["quote {}}", "quote a", "quote { { { } } } }"];
+        parse_all_failing(quote(), failing);
     }
 }

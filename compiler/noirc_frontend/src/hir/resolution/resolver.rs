@@ -17,7 +17,7 @@ use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCapturedVar,
     HirCastExpression, HirConstructorExpression, HirExpression, HirIdent, HirIfExpression,
     HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess,
-    HirMethodCallExpression, HirPrefixExpression, HirQuoted, ImplKind,
+    HirMethodCallExpression, HirPrefixExpression, ImplKind,
 };
 
 use crate::hir_def::function::FunctionBody;
@@ -1634,10 +1634,7 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Parenthesized(sub_expr) => return self.resolve_expression(*sub_expr),
 
             // The quoted expression isn't resolved since we don't want errors if variables aren't defined
-            ExpressionKind::Quote(block, _) => {
-                let quoted = HirQuoted { quoted_block: block, unquoted_exprs: Vec::new() };
-                HirExpression::Quote(quoted)
-            }
+            ExpressionKind::Quote(block) => HirExpression::Quote(block),
             ExpressionKind::Comptime(block, _) => {
                 HirExpression::Comptime(self.resolve_block(block))
             }
@@ -1647,9 +1644,6 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Unquote(_) => {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
                 HirExpression::Literal(HirLiteral::Unit)
-            }
-            ExpressionKind::UnquoteMarker(index) => {
-                unreachable!("UnquoteMarker({index}) remaining in runtime code")
             }
         };
 

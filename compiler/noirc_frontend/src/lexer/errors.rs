@@ -27,6 +27,10 @@ pub enum LexerErrorKind {
         "'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."
     )]
     InvalidEscape { escaped: char, span: Span },
+    #[error("Invalid quote delimiter `{delimiter}`, valid delimiters are `{{`, `[`, and `(`")]
+    InvalidQuoteDelimiter { delimiter: SpannedToken },
+    #[error("Expected `{end_delim}` to close this {start_delim}")]
+    UnclosedQuote { start_delim: SpannedToken, end_delim: Token },
 }
 
 impl From<LexerErrorKind> for ParserError {
@@ -47,6 +51,8 @@ impl LexerErrorKind {
             LexerErrorKind::UnterminatedBlockComment { span } => *span,
             LexerErrorKind::UnterminatedStringLiteral { span } => *span,
             LexerErrorKind::InvalidEscape { span, .. } => *span,
+            LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.to_span(),
+            LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.to_span(),
         }
     }
 
@@ -92,6 +98,12 @@ impl LexerErrorKind {
                 ("Unterminated string literal".to_string(), "Unterminated string literal".to_string(), *span),
             LexerErrorKind::InvalidEscape { escaped, span } =>
                 (format!("'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."), "Invalid escape sequence".to_string(), *span),
+            LexerErrorKind::InvalidQuoteDelimiter { delimiter } => {
+                (format!("Invalid quote delimiter `{delimiter}`"), "Valid delimiters are `{`, `[`, and `(`".to_string(), delimiter.to_span())
+            },
+            LexerErrorKind::UnclosedQuote { start_delim, end_delim } => {
+                ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.to_span())
+            }
         }
     }
 }

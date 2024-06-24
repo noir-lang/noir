@@ -7,7 +7,7 @@ use crate::ast::{
 };
 use crate::macros_api::StructId;
 use crate::node_interner::ExprId;
-use crate::token::{Attributes, Token};
+use crate::token::{Attributes, Token, Tokens};
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
@@ -33,17 +33,9 @@ pub enum ExpressionKind {
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
-    Quote(BlockExpression, Span),
+    Quote(Tokens),
     Unquote(Box<Expression>),
     Comptime(BlockExpression, Span),
-
-    /// Unquote expressions are replaced with UnquoteMarkers when Quoted
-    /// expressions are resolved. Since the expression being quoted remains an
-    /// ExpressionKind (rather than a resolved ExprId), the UnquoteMarker must be
-    /// here in the AST even though it is technically HIR-only.
-    /// Each usize in an UnquoteMarker is an index which corresponds to the index of the
-    /// expression in the Hir::Quote expression list to replace it with.
-    UnquoteMarker(usize),
 
     // This variant is only emitted when inlining the result of comptime
     // code. It is used to translate function values back into the AST while
@@ -557,12 +549,14 @@ impl Display for ExpressionKind {
             }
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
-            Quote(block, _) => write!(f, "quote {block}"),
             Comptime(block, _) => write!(f, "comptime {block}"),
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),
             Unquote(expr) => write!(f, "$({expr})"),
-            UnquoteMarker(index) => write!(f, "${index}"),
+            Quote(tokens) => {
+                let tokens = vecmap(&tokens.0, ToString::to_string);
+                write!(f, "quote {{ {} }}", tokens.join(" "))
+            }
         }
     }
 }

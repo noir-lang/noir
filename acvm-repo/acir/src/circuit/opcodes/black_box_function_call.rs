@@ -54,13 +54,13 @@ pub enum BlackBoxFuncCall {
         message: Vec<FunctionInput>,
         output: Witness,
     },
-    /// Deprecated. To be removed with a sync from aztec-packages
+    /// Will be deprecated
     PedersenCommitment {
         inputs: Vec<FunctionInput>,
         domain_separator: u32,
         outputs: (Witness, Witness),
     },
-    /// Deprecated. To be removed with a sync from aztec-packages
+    /// Will be deprecated
     PedersenHash {
         inputs: Vec<FunctionInput>,
         domain_separator: u32,
@@ -222,6 +222,8 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::Blake2s { inputs, .. }
             | BlackBoxFuncCall::Blake3 { inputs, .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
+            | BlackBoxFuncCall::PedersenCommitment { inputs, .. }
+            | BlackBoxFuncCall::PedersenHash { inputs, .. }
             | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
 
             BlackBoxFuncCall::Keccakf1600 { inputs, .. } => inputs.to_vec(),
@@ -318,8 +320,6 @@ impl BlackBoxFuncCall {
                 inputs.push(*key_hash);
                 inputs
             }
-            BlackBoxFuncCall::PedersenCommitment { .. } => todo!(),
-            BlackBoxFuncCall::PedersenHash { .. } => todo!(),
         }
     }
 
@@ -341,7 +341,9 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::XOR { output, .. }
             | BlackBoxFuncCall::SchnorrVerify { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
+            | BlackBoxFuncCall::PedersenHash { output, .. }
             | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
+            BlackBoxFuncCall::PedersenCommitment { outputs, .. } => vec![outputs.0, outputs.1],
             BlackBoxFuncCall::MultiScalarMul { outputs, .. }
             | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } => {
                 vec![outputs.0, outputs.1, outputs.2]
@@ -356,8 +358,6 @@ impl BlackBoxFuncCall {
                 vec![]
             }
             BlackBoxFuncCall::BigIntToLeBytes { outputs, .. } => outputs.to_vec(),
-            BlackBoxFuncCall::PedersenCommitment { .. } => todo!(),
-            BlackBoxFuncCall::PedersenHash { .. } => todo!(),
         }
     }
 }
