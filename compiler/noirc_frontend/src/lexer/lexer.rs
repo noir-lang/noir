@@ -536,15 +536,21 @@ impl<'a> Lexer<'a> {
         };
 
         let mut tokens = Vec::new();
-        let mut nested_delimiters = 1;
 
-        while nested_delimiters != 0 {
+        // Keep track of each nested delimiter we need to close.
+        let mut nested_delimiters = vec![delimiter];
+
+        while !nested_delimiters.is_empty() {
             let token = self.next_token()?;
 
             if *token.token() == start_delim {
-                nested_delimiters += 1;
+                nested_delimiters.push(token.clone());
             } else if *token.token() == end_delim {
-                nested_delimiters -= 1;
+                nested_delimiters.pop();
+            } else if *token.token() == Token::EOF {
+                let start_delim =
+                    nested_delimiters.pop().expect("If this were empty, we wouldn't be looping");
+                return Err(LexerErrorKind::UnclosedQuote { start_delim, end_delim });
             }
 
             tokens.push(token);
@@ -1309,6 +1315,19 @@ mod tests {
             match tokens.pop().unwrap() {
                 Token::Quote(stream) => assert_eq!(stream.0.len(), expected_stream_length),
                 other => panic!("test_quote test failure! Expected a single TokenStream token, got {other} for input `{source}`")
+            }
+        }
+    }
+
+    #[test]
+    fn test_unclosed_quote() {
+        let cases = vec!["quote {", "quote { {  }", "quote [ []", "quote (((((((())))"];
+
+        for source in cases {
+            // `quote` is not itself a keyword so if the token stream fails to
+            // parse we don't expect any valid tokens from the quote construct
+            for token in Lexer::new(source) {
+                assert!(token.is_err(), "Expected Err, found {token:?}");
             }
         }
     }
