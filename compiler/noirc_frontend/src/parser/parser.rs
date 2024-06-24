@@ -1123,8 +1123,7 @@ where
     P: ExprParser + 'a,
 {
     let unquote = variable().map_with_span(Expression::new).or(parenthesized(expr_parser));
-    // This will be updated to ExpressionKind::Unquote in a later PR
-    just(Token::DollarSign).ignore_then(unquote).map(|_| ExpressionKind::Error)
+    just(Token::DollarSign).ignore_then(unquote).map(|expr| ExpressionKind::Unquote(Box::new(expr)))
 }
 
 fn tuple<P>(expr_parser: P) -> impl NoirParser<Expression>
@@ -1446,7 +1445,7 @@ mod test {
             "use foo::{bar, hello}",
             "use foo::{bar as bar2, hello}",
             "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
-            "use dep::{std::println, bar::baz}",
+            "use std::{println, bar::baz}",
         ];
 
         let invalid_use_statements = [
@@ -1548,27 +1547,19 @@ mod test {
             Case { source: "let = 4 + 3", expect: "let $error: unspecified = (4 + 3)", errors: 1 },
             Case { source: "let = ", expect: "let $error: unspecified = Error", errors: 2 },
             Case { source: "let", expect: "let $error: unspecified = Error", errors: 3 },
-            Case { source: "foo = one two three", expect: "foo = plain::one", errors: 1 },
+            Case { source: "foo = one two three", expect: "foo = one", errors: 1 },
             Case { source: "constrain", expect: "constrain Error", errors: 2 },
             Case { source: "assert", expect: "constrain Error", errors: 1 },
-            Case { source: "constrain x ==", expect: "constrain (plain::x == Error)", errors: 2 },
-            Case { source: "assert(x ==)", expect: "constrain (plain::x == Error)", errors: 1 },
-            Case {
-                source: "assert(x == x, x)",
-                expect: "constrain (plain::x == plain::x)",
-                errors: 0,
-            },
+            Case { source: "constrain x ==", expect: "constrain (x == Error)", errors: 2 },
+            Case { source: "assert(x ==)", expect: "constrain (x == Error)", errors: 1 },
+            Case { source: "assert(x == x, x)", expect: "constrain (x == x)", errors: 0 },
             Case { source: "assert_eq(x,)", expect: "constrain (Error == Error)", errors: 1 },
             Case {
                 source: "assert_eq(x, x, x, x)",
                 expect: "constrain (Error == Error)",
                 errors: 1,
             },
-            Case {
-                source: "assert_eq(x, x, x)",
-                expect: "constrain (plain::x == plain::x)",
-                errors: 0,
-            },
+            Case { source: "assert_eq(x, x, x)", expect: "constrain (x == x)", errors: 0 },
         ];
 
         check_cases_with_errors(&cases[..], fresh_statement());
@@ -1610,7 +1601,7 @@ mod test {
                 source: "{ if structure { a: 1 } {} }",
                 expect: concat!(
                     "{\n",
-                    "    if plain::structure {\n",
+                    "    if structure {\n",
                     "        Error\n",
                     "    }\n",
                     "    {\n",
@@ -1621,22 +1612,17 @@ mod test {
             },
             Case {
                 source: "{ if ( structure { a: 1 } ) {} }",
-                expect: concat!("{\n", "    if ((plain::structure { a: 1 })) {\n", "    }\n", "}",),
+                expect: concat!("{\n", "    if ((structure { a: 1 })) {\n", "    }\n", "}",),
                 errors: 0,
             },
             Case {
                 source: "{ if ( structure {} ) {} }",
-                expect: concat!("{\n", "    if ((plain::structure {  })) {\n", "    }\n", "}"),
+                expect: concat!("{\n", "    if ((structure {  })) {\n", "    }\n", "}"),
                 errors: 0,
             },
             Case {
                 source: "{ if (a { x: 1 }, b { y: 2 }) {} }",
-                expect: concat!(
-                    "{\n",
-                    "    if ((plain::a { x: 1 }), (plain::b { y: 2 })) {\n",
-                    "    }\n",
-                    "}",
-                ),
+                expect: concat!("{\n", "    if ((a { x: 1 }), (b { y: 2 })) {\n", "    }\n", "}",),
                 errors: 0,
             },
             Case {
@@ -1644,8 +1630,8 @@ mod test {
                 expect: concat!(
                     "{\n",
                     "    if ({\n",
-                    "        let foo: unspecified = (plain::bar { baz: 42 })\n",
-                    "        (plain::foo == (plain::bar { baz: 42 }))\n",
+                    "        let foo: unspecified = (bar { baz: 42 })\n",
+                    "        (foo == (bar { baz: 42 }))\n",
                     "    }) {\n",
                     "    }\n",
                     "}",

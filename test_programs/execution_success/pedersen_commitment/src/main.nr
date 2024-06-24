@@ -1,5 +1,4 @@
 // docs:start:pedersen-commitment
-use dep::std;
 
 fn main(x: Field, y: Field, expected_commitment: std::embedded_curve_ops::EmbeddedCurvePoint) {
     let commitment = std::hash::pedersen_commitment([x, y]);

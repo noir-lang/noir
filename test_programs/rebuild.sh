@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-NO_PARALLEL=${1:-}
-
 process_dir() {
     local dir=$1
     local current_dir=$2
@@ -62,28 +60,7 @@ for dir in $current_dir/benchmarks/*; do
     dirs_to_process+=("$dir")
 done
 
-# Process each directory in parallel
-pids=()
-if [ -z $NO_PARALLEL ]; then
-for dir in "${dirs_to_process[@]}"; do
-    process_dir "$dir" "$current_dir" &
-    pids+=($!)
-done
-else
-for dir in "${dirs_to_process[@]}"; do
-    process_dir "$dir" "$current_dir"
-    pids+=($!)
-done
-fi
 
-# Check the exit status of each background job.
-for pid in "${pids[@]}"; do
-    wait $pid || exit_status=$?
-done
+parallel -j0  process_dir {} "$current_dir" ::: ${dirs_to_process[@]}
 
-# Exit with a failure status if any job failed.
-if [ ! -z "$exit_status" ]; then
-    echo "Rebuild failed!"
-    exit $exit_status
-fi
 echo "Rebuild Succeeded!"

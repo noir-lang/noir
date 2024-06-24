@@ -59,8 +59,8 @@ impl DebugToString for BrilligBinaryOp {
             BrilligBinaryOp::UnsignedDiv => "/".into(),
             BrilligBinaryOp::LessThan => "<".into(),
             BrilligBinaryOp::LessThanEquals => "<=".into(),
-            BrilligBinaryOp::And => "&&".into(),
-            BrilligBinaryOp::Or => "||".into(),
+            BrilligBinaryOp::And => "&".into(),
+            BrilligBinaryOp::Or => "|".into(),
             BrilligBinaryOp::Xor => "^".into(),
             BrilligBinaryOp::Shl => "<<".into(),
             BrilligBinaryOp::Shr => ">>".into(),
@@ -347,24 +347,6 @@ impl DebugShow {
                     result
                 );
             }
-            BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  PEDERSEN {} {} -> {}",
-                    inputs,
-                    domain_separator,
-                    output
-                );
-            }
-            BlackBoxOp::PedersenHash { inputs, domain_separator, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  PEDERSEN_HASH {} {} -> {}",
-                    inputs,
-                    domain_separator,
-                    output
-                );
-            }
             BlackBoxOp::SchnorrVerify {
                 public_key_x,
                 public_key_y,
@@ -462,6 +444,8 @@ impl DebugShow {
                     output
                 );
             }
+            BlackBoxOp::PedersenCommitment { .. } => todo!("Deprecated Blackbox"),
+            BlackBoxOp::PedersenHash { .. } => todo!("Deprecated Blackbox"),
         }
     }
 
