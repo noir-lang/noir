@@ -47,6 +47,46 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         }
     }
 
+    /// Extracts the current filepath and line in that file from the debugger, given that the
+    /// relevant debugging information is present.
+    ///
+    /// Otherwise, returns a &str containing a warning message about the missing data.
+    fn get_current_line_and_filepath(&self) -> Result<(isize, PathString), String> {
+        let call_stack = self.debug_context.get_call_stack();
+        let opcode_location = match call_stack.last() {
+            Some(location) => location,
+            None => {
+                return Err(String::from("Warning: no call stack"));
+            }
+        };
+
+        let locations = self.debug_context.get_source_location_for_opcode_location(opcode_location);
+        let source_location = match locations.last() {
+            Some(location) => location,
+            None => {
+                return Err(String::from("Warning: no source location mapped to opcode"));
+            }
+        };
+
+        let filepath = match self.debug_context.get_filepath_for_location(*source_location) {
+            Ok(filepath) => filepath,
+            Err(error) => {
+                return Err(format!(
+                    "Warning: could not get filepath for source location: {error}"
+                ));
+            }
+        };
+
+        let current_line = match self.debug_context.get_line_for_location(*source_location) {
+            Ok(line) => line as isize + 1,
+            Err(error) => {
+                return Err(format!("Warning: could not get line for source location: {error}"));
+            }
+        };
+
+        Ok((current_line, filepath))
+    }
+
     /// Steps the debugger until a new line is reached, or the debugger returns anything other than
     /// Ok.
     ///
@@ -62,37 +102,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
                 DebugCommandResult::Ok => (),
             }
 
-            let call_stack = self.debug_context.get_call_stack();
-            let opcode_location = match call_stack.last() {
-                Some(location) => location,
-                None => {
-                    println!("Warning: no call stack");
-                    continue;
-                }
-            };
-
-            let locations =
-                self.debug_context.get_source_location_for_opcode_location(opcode_location);
-            let source_location = match locations.last() {
-                Some(location) => location,
-                None => {
-                    println!("Warning: no source location mapped to opcode");
-                    continue;
-                }
-            };
-
-            let filepath = match self.debug_context.get_filepath_for_location(*source_location) {
-                Ok(filepath) => filepath,
-                Err(error) => {
-                    println!("Warning: could not get filepath for source location: {error}");
-                    continue;
-                }
-            };
-
-            let current_line = match self.debug_context.get_line_for_location(*source_location) {
-                Ok(line) => line as isize + 1,
-                Err(error) => {
-                    println!("Warning: could not get line for source location: {error}");
+            let (current_line, filepath) = match self.get_current_line_and_filepath() {
+                Ok(pair) => pair,
+                Err(warning) => {
+                    println!("{warning}");
                     continue;
                 }
             };
@@ -100,9 +113,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             if self.current_filepath == filepath && self.current_line == current_line {
                 // Continue stepping until a new line in the same file is reached, or the current file
                 // has changed.
-                //
-                // TODO(stanm): address potential bug, where a function call could switch file; switch
-                // back; and get an extra step on the original line containing the call.
+                // TODO(coda-bug/r916): a function call could result in an extra step
                 continue;
             }
 
