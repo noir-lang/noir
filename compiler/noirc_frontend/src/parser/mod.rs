@@ -197,7 +197,7 @@ fn parameter_name_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
 }
 
 fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatement> {
-    none_of([Token::Semicolon, Token::RightBrace, Token::EOF])
+    none_of([Token::RightBrace, Token::EOF])
         .repeated()
         .ignore_then(one_of([Token::Semicolon]))
         .map(|_| TopLevelStatement::Error)

@@ -309,11 +309,21 @@ impl<'a> ModCollector<'a> {
                 struct_def: struct_definition,
             };
 
+            let resolved_generics = context.resolve_generics(
+                &unresolved.struct_def.generics,
+                &mut definition_errors,
+                self.file_id,
+            );
+
             // Create the corresponding module for the struct namespace
             let id = match self.push_child_module(&name, self.file_id, false, false) {
-                Ok(local_id) => {
-                    context.def_interner.new_struct(&unresolved, krate, local_id, self.file_id)
-                }
+                Ok(local_id) => context.def_interner.new_struct(
+                    &unresolved,
+                    resolved_generics,
+                    krate,
+                    local_id,
+                    self.file_id,
+                ),
                 Err(error) => {
                     definition_errors.push((error.into(), self.file_id));
                     continue;
@@ -357,7 +367,14 @@ impl<'a> ModCollector<'a> {
                 type_alias_def: type_alias,
             };
 
-            let type_alias_id = context.def_interner.push_type_alias(&unresolved);
+            let resolved_generics = context.resolve_generics(
+                &unresolved.type_alias_def.generics,
+                &mut errors,
+                self.file_id,
+            );
+
+            let type_alias_id =
+                context.def_interner.push_type_alias(&unresolved, resolved_generics);
 
             // Add the type alias to scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
@@ -517,6 +534,9 @@ impl<'a> ModCollector<'a> {
                 }
             }
 
+            let resolved_generics =
+                context.resolve_generics(&trait_definition.generics, &mut errors, self.file_id);
+
             // And store the TraitId -> TraitType mapping somewhere it is reachable
             let unresolved = UnresolvedTrait {
                 file_id: self.file_id,
@@ -526,7 +546,8 @@ impl<'a> ModCollector<'a> {
                 method_ids,
                 fns_with_default_impl: unresolved_functions,
             };
-            context.def_interner.push_empty_trait(trait_id, &unresolved);
+            context.def_interner.push_empty_trait(trait_id, &unresolved, resolved_generics);
+
             self.def_collector.items.traits.insert(trait_id, unresolved);
         }
         errors

@@ -36,4 +36,3 @@ fn foo(mut s: MyStruct<2+1>) -> MyStruct<10/2-2> {
     s.data[0] = s.data[0] + 1;
     s
 }
-
