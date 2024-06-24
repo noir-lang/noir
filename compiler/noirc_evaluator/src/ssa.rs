@@ -48,7 +48,7 @@ pub mod ssa_gen;
 /// and Brillig functions for unconstrained execution.
 pub(crate) fn optimize_into_acir(
     program: Program,
-    options: SsaEvaluatorOptions,
+    options: &SsaEvaluatorOptions,
 ) -> Result<Artifacts, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
@@ -168,7 +168,7 @@ pub struct SsaEvaluatorOptions {
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn create_program(
     program: Program,
-    options: SsaEvaluatorOptions,
+    options: &SsaEvaluatorOptions,
 ) -> Result<SsaProgramArtifact, RuntimeError> {
     let debug_variables = program.debug_variables.clone();
     let debug_types = program.debug_types.clone();

@@ -552,7 +552,7 @@ pub fn compile_no_check(
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =
-        create_program(program, ssa_evaluator_options)?;
+        create_program(program, &ssa_evaluator_options)?;
 
     let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);
