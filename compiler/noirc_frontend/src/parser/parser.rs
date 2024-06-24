@@ -225,11 +225,21 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Impl)
         .ignore_then(function::generics())
         .then(parse_type().map_with_span(|typ, span| (typ, span)))
+        .then(where_clause())
         .then_ignore(just(Token::LeftBrace))
         .then(spanned(function::function_definition(true)).repeated())
         .then_ignore(just(Token::RightBrace))
-        .map(|((generics, (object_type, type_span)), methods)| {
-            TopLevelStatement::Impl(TypeImpl { generics, object_type, type_span, methods })
+        // .map(|((generics, (object_type, type_span)), methods)| {
+        .map(|args| {
+            let ((other_args, where_clause), methods) = args;
+            let (generics, (object_type, type_span)) = other_args;
+            TopLevelStatement::Impl(TypeImpl {
+                generics,
+                object_type,
+                type_span,
+                where_clause,
+                methods,
+            })
         })
 }
 

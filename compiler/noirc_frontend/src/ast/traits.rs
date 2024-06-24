@@ -49,6 +49,7 @@ pub struct TypeImpl {
     pub object_type: UnresolvedType,
     pub type_span: Span,
     pub generics: UnresolvedGenerics,
+    pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub methods: Vec<(NoirFunction, Span)>,
 }
 

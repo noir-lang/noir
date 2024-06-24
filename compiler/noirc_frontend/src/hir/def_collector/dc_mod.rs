@@ -141,13 +141,17 @@ impl<'a> ModCollector<'a> {
     fn collect_impls(&mut self, context: &mut Context, impls: Vec<TypeImpl>, krate: CrateId) {
         let module_id = ModuleId { krate, local_id: self.module_id };
 
-        for r#impl in impls {
+        for mut r#impl in impls {
             let mut unresolved_functions = UnresolvedFunctions {
                 file_id: self.file_id,
                 functions: Vec::new(),
                 trait_id: None,
                 self_type: None,
             };
+
+            for (method, _) in &mut r#impl.methods {
+                method.def.where_clause.append(&mut r#impl.where_clause);
+            }
 
             for (method, _) in r#impl.methods {
                 let func_id = context.def_interner.push_empty_fn();
