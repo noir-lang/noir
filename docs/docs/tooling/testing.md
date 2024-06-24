@@ -42,7 +42,7 @@ fn test_add() {
 }
 ```
 
-You can be more specific and make it fail with a specific reason by using `should_fail_with = "<the reason for failure>`:
+You can be more specific and make it fail with a specific reason by using `should_fail_with = "<the reason for failure>"`:
 
 ```rust
 fn main(african_swallow_avg_speed : Field) {
