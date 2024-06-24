@@ -150,7 +150,7 @@ impl<'a> ModCollector<'a> {
             };
 
             for (method, _) in &mut r#impl.methods {
-                method.def.where_clause.append(&mut r#impl.where_clause);
+                method.def.where_clause.extend(r#impl.where_clause.clone());
             }
 
             for (method, _) in r#impl.methods {
