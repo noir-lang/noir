@@ -28,6 +28,7 @@ use noirc_frontend::{
     hir_def::{function::FunctionSignature, types::Type as HirType},
     monomorphization::ast::Program,
 };
+use plonky2_gen::console_asm_writer::ConsoleAsmWriter;
 use tracing::{span, Level};
 
 use self::{
@@ -133,7 +134,7 @@ pub(crate) fn optimize_into_plonky2(
 
     drop(ssa_gen_span_guard);
 
-    Builder::new(print_plonky2).build(ssa, parameter_names, main_function_signature)
+    Builder::<ConsoleAsmWriter>::new(print_plonky2).build(ssa, parameter_names, main_function_signature)
 }
 
 // Helper to time SSA passes

@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 use std::marker::PhantomData;
 
-use super::config::{P2Builder, P2Field};
+use super::{asm_writer::AsmWriter, config::{P2Builder, P2Field}};
 use plonky2::{
     field::types::{Field, PrimeField64},
     iop::{
@@ -24,12 +24,12 @@ struct VariableIntDivGenerator {
 }
 
 impl VariableIntDivGenerator {
-    fn new(builder: &mut P2Builder, numerator: Target, denominator: Target) -> Self {
+    fn new(asm_writer: &mut impl AsmWriter, numerator: Target, denominator: Target) -> Self {
         Self {
             numerator,
             denominator,
-            quotient: builder.add_virtual_target(),
-            remainder: builder.add_virtual_target(),
+            quotient: asm_writer.get_mut_builder().add_virtual_target(),
+            remainder: asm_writer.get_mut_builder().add_virtual_target(),
             _phantom: PhantomData,
         }
     }
@@ -91,22 +91,22 @@ impl SimpleGenerator<P2Field, 2> for VariableIntDivGenerator {
 ///
 /// This uses a custom `SimpleGenerator` internally, which will have performance implications.
 pub(crate) fn add_div_mod(
-    builder: &mut P2Builder,
+    asm_writer: &mut impl AsmWriter,
     numerator: Target,
     denominator: Target,
 ) -> (Target, Target) {
-    let generator = VariableIntDivGenerator::new(builder, numerator, denominator);
-    builder.add_simple_generator(generator.clone());
+    let generator = VariableIntDivGenerator::new(asm_writer, numerator, denominator);
+    asm_writer.get_mut_builder().add_simple_generator(generator.clone());
 
-    let q_times_d = builder.mul(generator.quotient, denominator);
-    let q_times_d_plus_r = builder.add(q_times_d, generator.remainder);
-    let sanity = builder.is_equal(numerator, q_times_d_plus_r);
-    builder.assert_bool(sanity);
+    let q_times_d = asm_writer.mul(generator.quotient, denominator);
+    let q_times_d_plus_r = asm_writer.add(q_times_d, generator.remainder);
+    let sanity = asm_writer.is_equal(numerator, q_times_d_plus_r);
+    asm_writer.assert_bool(sanity);
 
-    let z = builder.zero();
-    let d_is_zero = builder.is_equal(denominator, z);
-    let d_is_not_zero = builder.not(d_is_zero);
-    builder.assert_bool(d_is_not_zero);
+    let z = asm_writer.zero();
+    let d_is_zero = asm_writer.is_equal(denominator, z);
+    let d_is_not_zero = asm_writer.not(d_is_zero);
+    asm_writer.assert_bool(d_is_not_zero);
 
     (generator.quotient, generator.remainder)
 }

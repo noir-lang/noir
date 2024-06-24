@@ -1,5 +1,7 @@
+mod asm_writer;
 mod circuit;
 mod config;
+pub mod console_asm_writer;
 mod div_generator;
 mod intrinsics;
 
@@ -11,6 +13,7 @@ use super::{
     ssa_gen::Ssa,
 };
 use acvm::{acir::BlackBoxFunc, AcirField, FieldElement};
+use asm_writer::AsmWriter;
 pub use circuit::Plonky2Circuit;
 use div_generator::add_div_mod;
 use noirc_frontend::{ast::Visibility, hir_def::function::FunctionSignature};
@@ -148,21 +151,21 @@ impl P2Value {
     }
 
     fn create_simple_constant(
-        builder: &mut P2Builder,
+        asm_writer: &mut impl AsmWriter,
         p2type: P2Type,
         constant: FieldElement,
     ) -> Result<P2Value, Plonky2GenError> {
         match p2type.clone() {
             P2Type::Field => {
-                let target = builder.constant(noir_to_plonky2_field(constant));
+                let target = asm_writer.constant(noir_to_plonky2_field(constant));
                 Ok(P2Value { target: P2Target::IntTarget(target), typ: p2type })
             }
             P2Type::Integer(_) => {
-                let target = builder.constant(noir_to_plonky2_field(constant));
+                let target = asm_writer.constant(noir_to_plonky2_field(constant));
                 Ok(P2Value { target: P2Target::IntTarget(target), typ: p2type })
             }
             P2Type::Boolean => {
-                let target = builder.constant_bool(constant.to_u128() != 0);
+                let target = asm_writer.constant_bool(constant.to_u128() != 0);
                 Ok(P2Value { target: P2Target::BoolTarget(target), typ: p2type })
             }
             _ => {
@@ -294,22 +297,32 @@ impl P2Target {
     }
 }
 
-pub(crate) struct Builder {
-    builder: P2Builder,
+pub(crate) struct Builder<TAsmWriter: AsmWriter> {
+    asm_writer: TAsmWriter,
     translation: HashMap<ValueId, P2Value>,
     dfg: DataFlowGraph,
     show_plonky2: bool,
 }
 
-impl Builder {
-    pub(crate) fn new(show_plonky2: bool) -> Builder {
+impl<TAsmWriter> Builder<TAsmWriter>
+where
+    TAsmWriter: AsmWriter,
+{
+    pub(crate) fn new(show_plonky2: bool) -> Builder<TAsmWriter> {
         let config = CircuitConfig::standard_recursion_config();
-        Builder {
-            builder: P2Builder::new(config),
+        Builder::<TAsmWriter> {
+            asm_writer: TAsmWriter::new(P2Builder::new(config), show_plonky2),
             translation: HashMap::new(),
             dfg: DataFlowGraph::default(),
             show_plonky2,
         }
+    }
+
+    fn get_builder(&self) -> &P2Builder {
+        self.asm_writer.get_builder()
+    }
+    fn get_mut_builder(&mut self) -> &mut P2Builder {
+        self.asm_writer.get_mut_builder()
     }
 
     pub(crate) fn build(
@@ -353,13 +366,13 @@ impl Builder {
         for (_, typ, vis) in main_function_signature.0 {
             let fields_for_param = typ.field_count() as usize;
             if vis == Visibility::Public {
-                self.builder.register_public_inputs(
+                self.get_mut_builder().register_public_inputs(
                     &parameters[next_param_idx..next_param_idx+fields_for_param]
                 );
             }
             next_param_idx += fields_for_param;
         }
-        let data = self.builder.build::<P2Config>();
+        let data = self.asm_writer.move_builder().build::<P2Config>();
         // println!("stanm: data={:?}", data);
         Ok(Plonky2Circuit { data, parameters, parameter_names })
     }
@@ -369,7 +382,7 @@ impl Builder {
         let p2value = match value {
             Value::Param { block: _, position: _, typ } => {
                 let p2type = P2Type::from_noir_type(typ)?;
-                P2Value::create_empty(&mut self.builder, p2type)
+                P2Value::create_empty(&mut self.get_mut_builder(), p2type)
             }
             _ => {
                 return Err(Plonky2GenError::ICE {
@@ -388,7 +401,7 @@ impl Builder {
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        p2builder_op: fn(&mut P2Builder, Target, Target) -> Target,
+        p2builder_op: fn(&mut TAsmWriter, Target, Target) -> Target,
     ) -> Result<P2Value, Plonky2GenError> {
         let (type_a, target_a) = self.get_integer(lhs)?;
         let (type_b, target_b) = self.get_integer(rhs)?;
@@ -397,7 +410,7 @@ impl Builder {
             return Err(Plonky2GenError::ICE { message });
         }
 
-        let target = p2builder_op(&mut self.builder, target_a, target_b);
+        let target = p2builder_op(&mut self.asm_writer, target_a, target_b);
 
         P2Value::make_integer(type_a, target)
     }
@@ -406,7 +419,7 @@ impl Builder {
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        p2builder_op: fn(&mut P2Builder, BoolTarget, BoolTarget) -> BoolTarget,
+        p2builder_op: fn(&mut TAsmWriter, BoolTarget, BoolTarget) -> BoolTarget,
         opname: &str,
     ) -> Result<P2Value, Plonky2GenError> {
         let typ = self.get_type(lhs)?;
@@ -425,8 +438,8 @@ impl Builder {
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        normal_op: fn(&mut P2Builder, Target, Target) -> Target,
-        boolean_op: fn(&mut P2Builder, BoolTarget, BoolTarget) -> BoolTarget,
+        normal_op: fn(&mut TAsmWriter, Target, Target) -> Target,
+        boolean_op: fn(&mut TAsmWriter, BoolTarget, BoolTarget) -> BoolTarget,
         opname: &str,
     ) -> Result<P2Value, Plonky2GenError> {
         let typ = self.get_type(lhs)?;
@@ -447,12 +460,12 @@ impl Builder {
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        p2builder_op: fn(&mut P2Builder, BoolTarget, BoolTarget) -> BoolTarget,
+        p2builder_op: fn(&mut TAsmWriter, BoolTarget, BoolTarget) -> BoolTarget,
     ) -> Result<P2Value, Plonky2GenError> {
         let target_a = self.get_boolean(lhs)?;
         let target_b = self.get_boolean(rhs)?;
 
-        let target = p2builder_op(&mut self.builder, target_a, target_b);
+        let target = p2builder_op(&mut self.asm_writer, target_a, target_b);
         Ok(P2Value::make_boolean(target))
     }
 
@@ -460,7 +473,7 @@ impl Builder {
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        single_bit_op: fn(&mut P2Builder, BoolTarget, BoolTarget) -> BoolTarget,
+        single_bit_op: fn(&mut TAsmWriter, BoolTarget, BoolTarget) -> BoolTarget,
     ) -> Result<P2Value, Plonky2GenError> {
         let (type_a, target_a) = self.get_integer(lhs)?;
         let (type_b, target_b) = self.get_integer(rhs)?;
@@ -476,26 +489,26 @@ impl Builder {
         })
         .unwrap();
 
-        let a_bits = self.builder.split_le(target_a, bit_size);
-        let b_bits = self.builder.split_le(target_b, bit_size);
+        let a_bits = self.asm_writer.split_le(target_a, bit_size);
+        let b_bits = self.asm_writer.split_le(target_b, bit_size);
 
         let mut result_bits = Vec::new();
         for (i, (a_bit, b_bit)) in a_bits.iter().zip(b_bits).enumerate() {
-            let result_bit = single_bit_op(&mut self.builder, *a_bit, b_bit);
+            let result_bit = single_bit_op(&mut self.asm_writer, *a_bit, b_bit);
 
-            let zero = self.builder.zero();
-            let one = self.builder.one();
-            let two = self.builder.two();
+            let zero = self.asm_writer.zero();
+            let one = self.asm_writer.one();
+            let two = self.asm_writer.two();
             let result_power_of_two = if i > 0 {
-                let bit = self.builder._if(result_bit, two, zero);
-                self.builder.exp_u64(bit, u64::try_from(i).unwrap())
+                let bit = self.asm_writer._if(result_bit, two, zero);
+                self.asm_writer.exp_u64(bit, u64::try_from(i).unwrap())
             } else {
-                self.builder._if(result_bit, one, zero)
+                self.asm_writer._if(result_bit, one, zero)
             };
             result_bits.push(result_power_of_two);
         }
 
-        let target = self.builder.add_many(result_bits);
+        let target = self.get_mut_builder().add_many(result_bits);
 
         P2Value::make_integer(type_a, target)
     }
@@ -516,12 +529,12 @@ impl Builder {
         };
         */
         let msg_len = u64::try_from(argument.1.len()).unwrap() * 8;
-        let sha256targets = make_sha256_circuit(&mut self.builder, msg_len);
+        let sha256targets = make_sha256_circuit(&mut self.get_mut_builder(), msg_len);
         let mut j = 0;
         for target in argument.1 {
-            let split_arg = self.builder.split_le(target.get_target()?, 8);
+            let split_arg = self.asm_writer.split_le(target.get_target()?, 8);
             for arg_bit in split_arg.iter().rev() {
-                self.builder.connect(arg_bit.target, sha256targets.message[j].target);
+                self.asm_writer.connect(arg_bit.target, sha256targets.message[j].target);
                 j += 1;
             }
         }
@@ -529,7 +542,7 @@ impl Builder {
         let mut result = Vec::new();
         while j < 256 {
             result.push(P2Target::IntTarget(
-                self.builder.le_sum(sha256targets.digest[j..j + 8].iter().rev()),
+                self.get_mut_builder().le_sum(sha256targets.digest[j..j + 8].iter().rev()),
             ));
             j += 8;
         }
@@ -547,8 +560,8 @@ impl Builder {
                     super::ir::instruction::BinaryOp::Mul => self.multi_convert_integer_op(
                         lhs,
                         rhs,
-                        P2Builder::mul,
-                        P2Builder::and,
+                        TAsmWriter::mul,
+                        TAsmWriter::and,
                         "Mul",
                     ),
 
@@ -559,27 +572,27 @@ impl Builder {
                     }
 
                     super::ir::instruction::BinaryOp::Mod => {
-                        self.convert_integer_op(lhs, rhs, |builder, t1, t2| {
-                            add_div_mod(builder, t1, t2).1
+                        self.convert_integer_op(lhs, rhs, |asm_writer, t1, t2| {
+                            add_div_mod(asm_writer, t1, t2).1
                         })
                     }
 
                     super::ir::instruction::BinaryOp::Add => self.multi_convert_integer_op(
                         lhs,
                         rhs,
-                        P2Builder::add,
-                        P2Builder::or,
+                        TAsmWriter::add,
+                        TAsmWriter::or,
                         "Add",
                     ),
 
                     super::ir::instruction::BinaryOp::Sub => {
-                        self.convert_integer_op(lhs, rhs, P2Builder::sub)
+                        self.convert_integer_op(lhs, rhs, TAsmWriter::sub)
                     }
 
                     super::ir::instruction::BinaryOp::Eq => {
                         let target_a = self.get_target(lhs)?;
                         let target_b = self.get_target(rhs)?;
-                        let target = self.builder.is_equal(target_a, target_b);
+                        let target = self.asm_writer.is_equal(target_a, target_b);
                         Ok(P2Value::make_boolean(target))
                     }
 
@@ -588,34 +601,34 @@ impl Builder {
                         let (bit_size_b, target_b) = self.get_integer(rhs)?;
                         assert!(bit_size_a == bit_size_b);
 
-                        let div = add_div_mod(&mut self.builder, target_a, target_b).0;
-                        let zero = self.builder.zero();
-                        let target = self.builder.is_equal(div, zero);
+                        let div = add_div_mod(&mut self.asm_writer, target_a, target_b).0;
+                        let zero = self.asm_writer.zero();
+                        let target = self.asm_writer.is_equal(div, zero);
                         Ok(P2Value::make_boolean(target))
                     }
 
                     super::ir::instruction::BinaryOp::Xor => {
                         fn one_bit_xor(
-                            builder: &mut P2Builder,
+                            asm_writer: &mut impl AsmWriter,
                             lhs: BoolTarget,
                             rhs: BoolTarget,
                         ) -> BoolTarget {
-                            let not_lhs = builder.not(lhs);
-                            let not_rhs = builder.not(rhs);
-                            let c = builder.and(lhs, not_rhs);
-                            let d = builder.and(not_lhs, rhs);
-                            builder.or(c, d)
+                            let not_lhs = asm_writer.not(lhs);
+                            let not_rhs = asm_writer.not(rhs);
+                            let c = asm_writer.and(lhs, not_rhs);
+                            let d = asm_writer.and(not_lhs, rhs);
+                            asm_writer.or(c, d)
                         }
 
                         self.multi_convert_boolean_op(lhs, rhs, one_bit_xor, "Xor")
                     }
 
                     super::ir::instruction::BinaryOp::And => {
-                        self.multi_convert_boolean_op(lhs, rhs, P2Builder::and, "And")
+                        self.multi_convert_boolean_op(lhs, rhs, TAsmWriter::and, "And")
                     }
 
                     super::ir::instruction::BinaryOp::Or => {
-                        self.multi_convert_boolean_op(lhs, rhs, P2Builder::or, "Or")
+                        self.multi_convert_boolean_op(lhs, rhs, TAsmWriter::or, "Or")
                     }
 
                     _ => {
@@ -635,7 +648,7 @@ impl Builder {
                 match typ {
                     P2Type::Boolean => {
                         let target = self.get_boolean(argument)?;
-                        let target = self.builder.not(target);
+                        let target = self.asm_writer.not(target);
                         let p2value = P2Value::make_boolean(target);
 
                         let destinations: Vec<_> =
@@ -653,12 +666,12 @@ impl Builder {
             Instruction::Constrain(lhs, rhs, _) => {
                 let a = self.get_target(lhs)?;
                 let b = self.get_target(rhs)?;
-                self.builder.connect(a, b);
+                self.asm_writer.connect(a, b);
             }
 
             Instruction::RangeCheck { value, max_bit_size, assert_message: _ } => {
                 let x = self.get_target(value)?;
-                self.builder.range_check(x, usize::try_from(max_bit_size).unwrap());
+                self.get_mut_builder().range_check(x, usize::try_from(max_bit_size).unwrap());
             }
 
             Instruction::ArrayGet { array, index } => {
@@ -699,11 +712,11 @@ impl Builder {
 
                 let mut new_values = Vec::new();
                 for i in 0..p2targets.len() {
-                    new_values.push(P2Value::create_empty(&mut self.builder, target_type.clone()));
+                    new_values.push(P2Value::create_empty(&mut self.get_mut_builder(), target_type.clone()));
                     if i == num_index {
-                        self.builder.connect(p2value.get_target()?, new_values[i].get_target()?);
+                        self.asm_writer.connect(p2value.get_target()?, new_values[i].get_target()?);
                     } else {
-                        self.builder
+                        self.asm_writer
                             .connect(p2targets[i].get_target()?, new_values[i].get_target()?);
                     }
                 }
@@ -779,9 +792,9 @@ impl Builder {
                 let target = p2value.get_target()?;
                 let typ = p2value.typ.clone();
                 let mut bits =
-                    self.builder.split_le(target, usize::try_from(max_bit_size).unwrap());
+                    self.asm_writer.split_le(target, usize::try_from(max_bit_size).unwrap());
                 bits.truncate(usize::try_from(bit_size).unwrap());
-                let result = self.builder.le_sum(bits.iter());
+                let result = self.get_mut_builder().le_sum(bits.iter());
                 // Note(stanm): truncate does not change the type of the input; it creates a value of the
                 // same type, that should then be passed to Cast.
                 let p2value = P2Value::make_integer(typ, result)?;
@@ -810,8 +823,8 @@ impl Builder {
                         return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
                     }
                 };
-                let new_target = self.builder.add_virtual_target();
-                self.builder.connect(target, new_target);
+                let new_target = self.get_mut_builder().add_virtual_target();
+                self.asm_writer.connect(target, new_target);
 
                 let p2value = P2Value::make_integer(P2Type::Integer(bit_size), new_target)?;
 
@@ -845,11 +858,11 @@ impl Builder {
         match value.clone() {
             Value::Param { typ, .. } => {
                 let p2type = P2Type::from_noir_type(typ)?;
-                Ok(P2Value::create_empty(&mut self.builder, p2type))
+                Ok(P2Value::create_empty(&mut self.get_mut_builder(), p2type))
             }
             Value::NumericConstant { constant, typ } => {
                 let p2type = P2Type::from_noir_type(typ)?;
-                P2Value::create_simple_constant(&mut self.builder, p2type, constant)
+                P2Value::create_simple_constant(&mut self.asm_writer, p2type, constant)
             }
             Value::Array { array, typ } => {
                 assert!(array.len() > 0, "empty array literal");
