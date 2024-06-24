@@ -62,6 +62,7 @@
     "@aztec/prover-client": "workspace:^",
     "@aztec/sequencer-client": "workspace:^",
     "@aztec/simulator": "workspace:^",
+    "@aztec/telemetry-client": "workspace:^",
     "@aztec/types": "workspace:^",
     "@aztec/world-state": "workspace:^",
     "koa": "^2.14.2",

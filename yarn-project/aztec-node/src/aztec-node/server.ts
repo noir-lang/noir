@@ -63,6 +63,8 @@ import { getCanonicalMultiCallEntrypointAddress } from '@aztec/protocol-contract
 import { TxProver } from '@aztec/prover-client';
 import { type GlobalVariableBuilder, SequencerClient, getGlobalVariableBuilder } from '@aztec/sequencer-client';
 import { PublicProcessorFactory, WASMSimulator } from '@aztec/simulator';
+import { type TelemetryClient } from '@aztec/telemetry-client';
+import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 import {
   type ContractClassPublic,
   type ContractDataSource,
@@ -104,6 +106,7 @@ export class AztecNodeService implements AztecNode {
     protected readonly merkleTreesDb: AztecKVStore,
     private readonly prover: ProverClient | undefined,
     private txValidator: TxValidator,
+    private telemetry: TelemetryClient,
     private log = createDebugLogger('aztec:node'),
   ) {
     this.packageVersion = getPackageInfo().version;
@@ -124,9 +127,11 @@ export class AztecNodeService implements AztecNode {
    */
   public static async createAndSync(
     config: AztecNodeConfig,
+    telemetry?: TelemetryClient,
     log = createDebugLogger('aztec:node'),
     storeLog = createDebugLogger('aztec:node:lmdb'),
-  ) {
+  ): Promise<AztecNodeService> {
+    telemetry ??= new NoopTelemetryClient();
     const ethereumChain = createEthereumChain(config.rpcUrl, config.apiKey);
     //validate that the actual chain id matches that specified in configuration
     if (config.chainId !== ethereumChain.chainInfo.id) {
@@ -145,7 +150,7 @@ export class AztecNodeService implements AztecNode {
     if (!config.archiverUrl) {
       // first create and sync the archiver
       const archiverStore = new KVArchiverDataStore(store, config.maxLogs);
-      archiver = await Archiver.createAndSync(config, archiverStore, true);
+      archiver = await Archiver.createAndSync(config, archiverStore, telemetry, true);
     } else {
       archiver = createArchiverClient(config.archiverUrl);
     }
@@ -155,7 +160,7 @@ export class AztecNodeService implements AztecNode {
     config.transactionProtocol = `/aztec/tx/${config.l1Contracts.rollupAddress.toString()}`;
 
     // create the tx pool and the p2p client, which will need the l2 block source
-    const p2pClient = await createP2PClient(store, config, new AztecKVTxPool(store), archiver);
+    const p2pClient = await createP2PClient(store, config, new AztecKVTxPool(store, telemetry), archiver);
 
     // now create the merkle trees and the world state synchronizer
     const merkleTrees = await MerkleTrees.new(store);
@@ -179,6 +184,7 @@ export class AztecNodeService implements AztecNode {
           config,
           await proofVerifier.getVerificationKeys(),
           worldStateSynchronizer,
+          telemetry,
           await archiver
             .getBlock(-1)
             .then(b => b?.header ?? worldStateSynchronizer.getCommitted().buildInitialHeader()),
@@ -218,6 +224,7 @@ export class AztecNodeService implements AztecNode {
       store,
       prover,
       txValidator,
+      telemetry,
       log,
     );
   }

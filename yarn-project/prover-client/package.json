@@ -57,6 +57,7 @@
     "@aztec/kv-store": "workspace:^",
     "@aztec/noir-protocol-circuits-types": "workspace:^",
     "@aztec/simulator": "workspace:^",
+    "@aztec/telemetry-client": "workspace:^",
     "@aztec/world-state": "workspace:^",
     "@noir-lang/types": "portal:../../noir/packages/types",
     "commander": "^9.0.0",

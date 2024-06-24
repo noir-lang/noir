@@ -176,7 +176,7 @@ export class BBNativeProofCreator implements ProofCreator {
       throw new Error(errorMessage);
     }
 
-    this.log.info(`Successfully verified ${circuitType} proof in ${Math.ceil(result.duration)} ms`);
+    this.log.info(`Successfully verified ${circuitType} proof in ${Math.ceil(result.durationMs)} ms`);
   }
 
   private async verifyProofFromKey(
@@ -339,7 +339,7 @@ export class BBNativeProofCreator implements ProofCreator {
       this.log.debug(`Generated proof`, {
         eventName: 'circuit-proving',
         circuitName: 'app-circuit',
-        duration: provingResult.duration,
+        duration: provingResult.durationMs,
         inputSize: compressedBincodedWitness.length,
         proofSize: proof.binaryProof.buffer.length,
         appCircuitName,
@@ -358,7 +358,7 @@ export class BBNativeProofCreator implements ProofCreator {
 
     this.log.debug(`Generated proof`, {
       circuitName: mapProtocolArtifactNameToCircuitName(circuitType),
-      duration: provingResult.duration,
+      duration: provingResult.durationMs,
       eventName: 'circuit-proving',
       inputSize: compressedBincodedWitness.length,
       proofSize: proof.binaryProof.buffer.length,

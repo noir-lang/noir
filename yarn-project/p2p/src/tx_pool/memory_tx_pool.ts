@@ -1,7 +1,9 @@
 import { Tx, TxHash } from '@aztec/circuit-types';
 import { type TxAddedToPoolStats } from '@aztec/circuit-types/stats';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { type TelemetryClient } from '@aztec/telemetry-client';
 
+import { TxPoolInstrumentation } from './instrumentation.js';
 import { type TxPool } from './tx_pool.js';
 
 /**
@@ -13,12 +15,15 @@ export class InMemoryTxPool implements TxPool {
    */
   private txs: Map<bigint, Tx>;
 
+  private metrics: TxPoolInstrumentation;
+
   /**
    * Class constructor for in-memory TxPool. Initiates our transaction pool as a JS Map.
    * @param log - A logger.
    */
-  constructor(private log = createDebugLogger('aztec:tx_pool')) {
+  constructor(telemetry: TelemetryClient, private log = createDebugLogger('aztec:tx_pool')) {
     this.txs = new Map<bigint, Tx>();
+    this.metrics = new TxPoolInstrumentation(telemetry, 'InMemoryTxPool');
   }
 
   /**
@@ -37,6 +42,7 @@ export class InMemoryTxPool implements TxPool {
    * @returns Empty promise.
    */
   public addTxs(txs: Tx[]): Promise<void> {
+    this.metrics.recordTxs(txs);
     for (const tx of txs) {
       const txHash = tx.getTxHash();
       this.log.debug(`Adding tx with id ${txHash.toString()}`, {
@@ -54,6 +60,7 @@ export class InMemoryTxPool implements TxPool {
    * @returns The number of transactions that was deleted from the pool.
    */
   public deleteTxs(txHashes: TxHash[]): Promise<void> {
+    this.metrics.removeTxs(txHashes.length);
     for (const txHash of txHashes) {
       this.txs.delete(txHash.toBigInt());
     }

@@ -46,6 +46,7 @@
     "@aztec/protocol-contracts": "workspace:^",
     "@aztec/prover-client": "workspace:^",
     "@aztec/pxe": "workspace:^",
+    "@aztec/telemetry-client": "workspace:^",
     "abitype": "^0.8.11",
     "commander": "^11.1.0",
     "koa": "^2.14.2",

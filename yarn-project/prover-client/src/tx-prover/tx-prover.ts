@@ -9,6 +9,7 @@ import {
 } from '@aztec/circuit-types/interfaces';
 import { type Fr, type GlobalVariables, type Header, type VerificationKeys } from '@aztec/circuits.js';
 import { NativeACVMSimulator } from '@aztec/simulator';
+import { type TelemetryClient } from '@aztec/telemetry-client';
 import { type WorldStateSynchronizer } from '@aztec/world-state';
 
 import { type ProverClientConfig } from '../config.js';
@@ -28,6 +29,7 @@ export class TxProver implements ProverClient {
     private config: ProverClientConfig,
     private worldStateSynchronizer: WorldStateSynchronizer,
     private vks: VerificationKeys,
+    private telemetry: TelemetryClient,
     private agent?: ProverAgent,
     initialHeader?: Header,
   ) {
@@ -43,7 +45,7 @@ export class TxProver implements ProverClient {
     }
 
     if (newConfig.realProofs !== this.config.realProofs && this.agent) {
-      const circuitProver = await TxProver.buildCircuitProver(newConfig);
+      const circuitProver = await TxProver.buildCircuitProver(newConfig, this.telemetry);
       this.agent.setCircuitProver(circuitProver);
     }
 
@@ -95,31 +97,35 @@ export class TxProver implements ProverClient {
     config: ProverClientConfig,
     vks: VerificationKeys,
     worldStateSynchronizer: WorldStateSynchronizer,
+    telemetry: TelemetryClient,
     initialHeader?: Header,
   ) {
     const agent = config.proverAgentEnabled
       ? new ProverAgent(
-          await TxProver.buildCircuitProver(config),
+          await TxProver.buildCircuitProver(config, telemetry),
           config.proverAgentConcurrency,
           config.proverAgentPollInterval,
         )
       : undefined;
 
-    const prover = new TxProver(config, worldStateSynchronizer, vks, agent, initialHeader);
+    const prover = new TxProver(config, worldStateSynchronizer, vks, telemetry, agent, initialHeader);
     await prover.start();
     return prover;
   }
 
-  private static async buildCircuitProver(config: ProverClientConfig): Promise<ServerCircuitProver> {
+  private static async buildCircuitProver(
+    config: ProverClientConfig,
+    telemetry: TelemetryClient,
+  ): Promise<ServerCircuitProver> {
     if (config.realProofs) {
-      return await BBNativeRollupProver.new(config);
+      return await BBNativeRollupProver.new(config, telemetry);
     }
 
     const simulationProvider = config.acvmBinaryPath
       ? new NativeACVMSimulator(config.acvmWorkingDirectory, config.acvmBinaryPath)
       : undefined;
 
-    return new TestCircuitProver(simulationProvider);
+    return new TestCircuitProver(telemetry, simulationProvider);
   }
 
   /**

@@ -169,6 +169,9 @@
     "nullifer",
     "offchain",
     "onchain",
+    "opentelemetry",
+    "otel",
+    "OTLP",
     "otterscan",
     "outdir",
     "overlayfs",
@@ -253,6 +256,7 @@
     "typegen",
     "typeparam",
     "undeployed",
+    "undici",
     "unexclude",
     "unexcluded",
     "unprefixed",
@@ -270,6 +274,7 @@
     "viem",
     "wasms",
     "webassembly",
+    "WITGEN",
     "workdir",
     "yamux",
     "yarnrc",
@@ -301,5 +306,7 @@
     "lib",
     "*.cmake"
   ],
-  "flagWords": ["anonymous"]
+  "flagWords": [
+    "anonymous"
+  ]
 }

@@ -187,7 +187,6 @@ export class BlockStore {
     }
 
     if (start < INITIAL_L2_BLOCK_NUM) {
-      this.#log.verbose(`Clamping start block ${start} to ${INITIAL_L2_BLOCK_NUM}`);
       start = INITIAL_L2_BLOCK_NUM;
     }
 

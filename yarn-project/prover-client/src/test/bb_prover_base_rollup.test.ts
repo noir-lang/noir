@@ -1,6 +1,7 @@
 import { BBNativeRollupProver, type BBProverConfig } from '@aztec/bb-prover';
 import { makePaddingProcessedTx } from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 
 import { TestContext } from '../mocks/test_context.js';
 import { buildBaseRollupInput } from '../orchestrator/block-building-helpers.js';
@@ -13,7 +14,7 @@ describe('prover/bb_prover/base-rollup', () => {
 
   beforeAll(async () => {
     const buildProver = async (bbConfig: BBProverConfig) => {
-      prover = await BBNativeRollupProver.new(bbConfig);
+      prover = await BBNativeRollupProver.new(bbConfig, new NoopTelemetryClient());
       return prover;
     };
     context = await TestContext.new(logger, 1, buildProver);

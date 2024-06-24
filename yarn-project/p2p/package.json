@@ -52,6 +52,7 @@
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/kv-store": "workspace:^",
+    "@aztec/telemetry-client": "workspace:^",
     "@chainsafe/discv5": "9.0.0",
     "@chainsafe/enr": "3.0.0",
     "@chainsafe/libp2p-gossipsub": "13.0.0",

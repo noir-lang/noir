@@ -1,0 +1,747 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Metrics relating to protocol circuits",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 3,
+      "panels": [],
+      "title": "Circuit proving",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "aztec-node-metrics"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "maxHeight": 600,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_proving_duration_seconds{aztec_circuit_protocol_circuit_name=\"base-parity\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Base parity",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_proving_duration_seconds{aztec_circuit_protocol_circuit_name=\"root-parity\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Root parity",
+          "range": true,
+          "refId": "B",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_proving_duration_seconds{aztec_circuit_protocol_circuit_name=\"base-rollup\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Base rollup",
+          "range": true,
+          "refId": "C",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_proving_duration_seconds{aztec_circuit_protocol_circuit_name=\"merge-rollup\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Merge rollup",
+          "range": true,
+          "refId": "D",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_proving_duration_seconds{aztec_circuit_protocol_circuit_name=\"root-rollup\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Root rollup",
+          "range": true,
+          "refId": "E",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_proving_duration_seconds{aztec_circuit_protocol_circuit_name=\"public-kernel-setup\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Public Kernel - Setup",
+          "range": true,
+          "refId": "F",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_proving_duration_seconds{aztec_circuit_protocol_circuit_name=\"public-kernel-app-logic\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Public Kernel - App logic",
+          "range": true,
+          "refId": "G",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_proving_duration_seconds{aztec_circuit_protocol_circuit_name=\"public-kernel-teardown\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Public Kernel - Teardown",
+          "range": true,
+          "refId": "H",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_proving_duration_seconds{aztec_circuit_protocol_circuit_name=\"public-kernel-tail\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Public Kernel - Tail",
+          "range": true,
+          "refId": "I",
+          "useBackend": false
+        }
+      ],
+      "title": "Circuit proving",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "aztec-node-metrics"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "maxHeight": 600,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_witness_generation_duration_seconds{aztec_circuit_protocol_circuit_name=\"base-parity\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Base parity",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_witness_generation_duration_seconds{aztec_circuit_protocol_circuit_name=\"root-parity\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Root parity",
+          "range": true,
+          "refId": "B",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_witness_generation_duration_seconds{aztec_circuit_protocol_circuit_name=\"base-rollup\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Base rollup",
+          "range": true,
+          "refId": "C",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_witness_generation_duration_seconds{aztec_circuit_protocol_circuit_name=\"merge-rollup\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Merge rollup",
+          "range": true,
+          "refId": "D",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_witness_generation_duration_seconds{aztec_circuit_protocol_circuit_name=\"root-rollup\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Root rollup",
+          "range": true,
+          "refId": "E",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_witness_generation_duration_seconds{aztec_circuit_protocol_circuit_name=\"public-kernel-setup\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Public Kernel - Setup",
+          "range": true,
+          "refId": "F",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_witness_generation_duration_seconds{aztec_circuit_protocol_circuit_name=\"public-kernel-app-logic\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Public Kernel - App logic",
+          "range": true,
+          "refId": "G",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_witness_generation_duration_seconds{aztec_circuit_protocol_circuit_name=\"public-kernel-teardown\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Public Kernel - Teardown",
+          "range": true,
+          "refId": "H",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "aztec_circuit_witness_generation_duration_seconds{aztec_circuit_protocol_circuit_name=\"public-kernel-tail\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "Public Kernel - Tail",
+          "range": true,
+          "refId": "I",
+          "useBackend": false
+        }
+      ],
+      "title": "Circuit witness generation",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 2,
+      "panels": [],
+      "title": "Circuit simulation",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "aztec-node-metrics"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "maxHeight": 600,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "rate(aztec_circuit_simulation_duration_seconds_sum{aztec_circuit_protocol_circuit_name=\"base-parity\"}[$__rate_interval]) / rate(aztec_circuit_simulation_duration_seconds_count{aztec_circuit_protocol_circuit_name=\"base-parity\"}[$__rate_interval])",
+          "instant": false,
+          "legendFormat": "Base paritiy",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "editorMode": "code",
+          "expr": "rate(aztec_circuit_simulation_duration_seconds_sum{aztec_circuit_protocol_circuit_name=\"root-parity\"}[$__rate_interval]) / rate(aztec_circuit_simulation_duration_seconds_count{aztec_circuit_protocol_circuit_name=\"root-parity\"}[$__rate_interval])",
+          "hide": true,
+          "instant": false,
+          "legendFormat": "Root paritiy",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "editorMode": "code",
+          "expr": "rate(aztec_circuit_simulation_duration_seconds_sum{aztec_circuit_protocol_circuit_name=\"base-rollup\"}[$__rate_interval]) / rate(aztec_circuit_simulation_duration_seconds_count{aztec_circuit_protocol_circuit_name=\"base-rollup\"}[$__rate_interval])",
+          "hide": true,
+          "instant": false,
+          "legendFormat": "Base rollup",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "editorMode": "code",
+          "expr": "rate(aztec_circuit_simulation_duration_seconds_sum{aztec_circuit_protocol_circuit_name=\"merge-rollup\"}[$__rate_interval]) / rate(aztec_circuit_simulation_duration_seconds_count{aztec_circuit_protocol_circuit_name=\"merge-rollup\"}[$__rate_interval])",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Merge rollup",
+          "range": true,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "editorMode": "code",
+          "expr": "rate(aztec_circuit_simulation_duration_seconds_sum{aztec_circuit_protocol_circuit_name=\"root-rollup\"}[$__rate_interval]) / rate(aztec_circuit_simulation_duration_seconds_count{aztec_circuit_protocol_circuit_name=\"root-rollup\"}[$__rate_interval])",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Root rollup",
+          "range": true,
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "editorMode": "code",
+          "expr": "rate(aztec_circuit_simulation_duration_seconds_sum{aztec_circuit_protocol_circuit_name=\"public-kernel-setup\"}[$__rate_interval]) / rate(aztec_circuit_simulation_duration_seconds_count{aztec_circuit_protocol_circuit_name=\"public-kernel-setup\"}[$__rate_interval])",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Public kernel  - Setup",
+          "range": true,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "editorMode": "code",
+          "expr": "rate(aztec_circuit_simulation_duration_seconds_sum{aztec_circuit_protocol_circuit_name=\"public-kernel-app-logic\"}[$__rate_interval]) / rate(aztec_circuit_simulation_duration_seconds_count{aztec_circuit_protocol_circuit_name=\"public-kernel-app-logic\"}[$__rate_interval])",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Public kernel  - App logic",
+          "range": true,
+          "refId": "H"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "editorMode": "code",
+          "expr": "rate(aztec_circuit_simulation_duration_seconds_sum{aztec_circuit_protocol_circuit_name=\"public-kernel-teardown\"}[$__rate_interval]) / rate(aztec_circuit_simulation_duration_seconds_count{aztec_circuit_protocol_circuit_name=\"public-kernel-teardown\"}[$__rate_interval])",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Public kernel  - Teardown",
+          "range": true,
+          "refId": "I"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "aztec-node-metrics"
+          },
+          "editorMode": "code",
+          "expr": "rate(aztec_circuit_simulation_duration_seconds_sum{aztec_circuit_protocol_circuit_name=\"public-kernel-tail\"}[$__rate_interval]) / rate(aztec_circuit_simulation_duration_seconds_count{aztec_circuit_protocol_circuit_name=\"public-kernel-tail\"}[$__rate_interval])",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Public kernel  - Tail",
+          "range": true,
+          "refId": "G"
+        }
+      ],
+      "title": "Circuit simulation (only when faking proofs)",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timeRangeUpdatedDuringEditOrView": false,
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Protocol circuits",
+  "uid": "ddp5sfpkscb9cf",
+  "version": 3,
+  "weekStart": ""
+}

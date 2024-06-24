@@ -29,6 +29,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
+import { type TelemetryClient } from '@aztec/telemetry-client';
 import {
   type ContractClassPublic,
   type ContractDataSource,
@@ -49,6 +50,7 @@ import {
   retrieveBlockMetadataFromRollup,
   retrieveL1ToL2Messages,
 } from './data_retrieval.js';
+import { ArchiverInstrumentation } from './instrumentation.js';
 
 /**
  * Helper interface to combine all sources this archiver implementation provides.
@@ -65,6 +67,9 @@ export class Archiver implements ArchiveSource {
    * A promise in which we will be continually fetching new L2 blocks.
    */
   private runningPromise?: RunningPromise;
+
+  /** Capture runtime metrics */
+  private instrumentation: ArchiverInstrumentation;
 
   /**
    * Creates a new instance of the Archiver.
@@ -84,8 +89,11 @@ export class Archiver implements ArchiveSource {
     private readonly registryAddress: EthAddress,
     private readonly store: ArchiverDataStore,
     private readonly pollingIntervalMs = 10_000,
+    telemetry: TelemetryClient,
     private readonly log: DebugLogger = createDebugLogger('aztec:archiver'),
-  ) {}
+  ) {
+    this.instrumentation = new ArchiverInstrumentation(telemetry);
+  }
 
   /**
    * Creates a new instance of the Archiver and blocks until it syncs from chain.
@@ -97,6 +105,7 @@ export class Archiver implements ArchiveSource {
   public static async createAndSync(
     config: ArchiverConfig,
     archiverStore: ArchiverDataStore,
+    telemetry: TelemetryClient,
     blockUntilSynced = true,
   ): Promise<Archiver> {
     const chain = createEthereumChain(config.rpcUrl, config.apiKey);
@@ -114,6 +123,7 @@ export class Archiver implements ArchiveSource {
       config.l1Contracts.registryAddress,
       archiverStore,
       config.archiverPollingIntervalMS,
+      telemetry,
     );
     await archiver.start(blockUntilSynced);
     return archiver;
@@ -286,6 +296,7 @@ export class Archiver implements ArchiveSource {
     );
 
     await this.store.addBlocks(retrievedBlocks);
+    this.instrumentation.processNewBlocks(retrievedBlocks.retrievedData);
   }
 
   /**

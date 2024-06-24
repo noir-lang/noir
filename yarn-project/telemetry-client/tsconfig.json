@@ -7,19 +7,7 @@
   },
   "references": [
     {
-      "path": "../circuit-types"
-    },
-    {
-      "path": "../circuits.js"
-    },
-    {
       "path": "../foundation"
-    },
-    {
-      "path": "../kv-store"
-    },
-    {
-      "path": "../telemetry-client"
     }
   ],
   "include": ["src"]

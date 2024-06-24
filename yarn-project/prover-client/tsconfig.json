@@ -28,6 +28,9 @@
       "path": "../simulator"
     },
     {
+      "path": "../telemetry-client"
+    },
+    {
       "path": "../world-state"
     }
   ],

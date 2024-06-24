@@ -13,6 +13,7 @@ import {
 } from '@aztec/aztec.js';
 import { type BootNodeConfig, BootstrapNode, createLibP2PPeerId } from '@aztec/p2p';
 import { type PXEService, createPXEService, getPXEServiceConfig as getRpcConfig } from '@aztec/pxe';
+import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 
 import fs from 'fs';
 import { mnemonicToAccount } from 'viem/accounts';
@@ -203,7 +204,11 @@ describe('e2e_p2p_network', () => {
       dataDirectory,
       bootstrapNodes: bootstrapNode ? [bootstrapNode] : [],
     };
-    return await AztecNodeService.createAndSync(newConfig, createDebugLogger(`aztec:node-${tcpListenPort}`));
+    return await AztecNodeService.createAndSync(
+      newConfig,
+      new NoopTelemetryClient(),
+      createDebugLogger(`aztec:node-${tcpListenPort}`),
+    );
   };
 
   // creates an instance of the PXE and submit a given number of transactions to it.

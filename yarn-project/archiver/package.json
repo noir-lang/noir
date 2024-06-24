@@ -57,6 +57,7 @@
     "@aztec/kv-store": "workspace:^",
     "@aztec/l1-artifacts": "workspace:^",
     "@aztec/protocol-contracts": "workspace:^",
+    "@aztec/telemetry-client": "workspace:^",
     "@aztec/types": "workspace:^",
     "debug": "^4.3.4",
     "lodash.groupby": "^4.6.0",

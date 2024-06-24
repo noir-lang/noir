@@ -2,7 +2,9 @@ import { Tx, TxHash } from '@aztec/circuit-types';
 import { type TxAddedToPoolStats } from '@aztec/circuit-types/stats';
 import { type Logger, createDebugLogger } from '@aztec/foundation/log';
 import { type AztecKVStore, type AztecMap } from '@aztec/kv-store';
+import { type TelemetryClient } from '@aztec/telemetry-client';
 
+import { TxPoolInstrumentation } from './instrumentation.js';
 import { type TxPool } from './tx_pool.js';
 
 /**
@@ -18,15 +20,18 @@ export class AztecKVTxPool implements TxPool {
 
   #log: Logger;
 
+  #metrics: TxPoolInstrumentation;
+
   /**
    * Class constructor for in-memory TxPool. Initiates our transaction pool as a JS Map.
    * @param store - A KV store.
    * @param log - A logger.
    */
-  constructor(store: AztecKVStore, log = createDebugLogger('aztec:tx_pool')) {
+  constructor(store: AztecKVStore, telemetry: TelemetryClient, log = createDebugLogger('aztec:tx_pool')) {
     this.#txs = store.openMap('txs');
     this.#store = store;
     this.#log = log;
+    this.#metrics = new TxPoolInstrumentation(telemetry, 'AztecKVTxPool');
   }
 
   /**
@@ -44,8 +49,8 @@ export class AztecKVTxPool implements TxPool {
    * @param txs - An array of txs to be added to the pool.
    * @returns Empty promise.
    */
-  public async addTxs(txs: Tx[]): Promise<void> {
-    const txHashes = await Promise.all(txs.map(tx => tx.getTxHash()));
+  public addTxs(txs: Tx[]): Promise<void> {
+    const txHashes = txs.map(tx => tx.getTxHash());
     return this.#store.transaction(() => {
       for (const [i, tx] of txs.entries()) {
         const txHash = txHashes[i];
@@ -56,6 +61,8 @@ export class AztecKVTxPool implements TxPool {
 
         void this.#txs.set(txHash.toString(), tx.toBuffer());
       }
+
+      this.#metrics.recordTxs(txs);
     });
   }
 
@@ -69,6 +76,8 @@ export class AztecKVTxPool implements TxPool {
       for (const hash of txHashes) {
         void this.#txs.delete(hash.toString());
       }
+
+      this.#metrics.removeTxs(txHashes.length);
     });
   }
 

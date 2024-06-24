@@ -31,6 +31,7 @@ import {
   WASMSimulator,
   type WorldStatePublicDB,
 } from '@aztec/simulator';
+import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 import { type MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
 import * as fs from 'fs/promises';
@@ -85,7 +86,7 @@ export class TestContext {
     logger: DebugLogger,
     proverCount = 4,
     createProver: (bbConfig: BBProverConfig) => Promise<ServerCircuitProver> = _ =>
-      Promise.resolve(new TestCircuitProver(new WASMSimulator())),
+      Promise.resolve(new TestCircuitProver(new NoopTelemetryClient(), new WASMSimulator())),
     blockNumber = 3,
   ) {
     const globalVariables = makeGlobals(blockNumber);
@@ -112,7 +113,7 @@ export class TestContext {
       acvmBinaryPath: config?.expectedAcvmPath,
     });
     if (!config) {
-      localProver = new TestCircuitProver(simulationProvider);
+      localProver = new TestCircuitProver(new NoopTelemetryClient(), simulationProvider);
     } else {
       const bbConfig: BBProverConfig = {
         acvmBinaryPath: config.expectedAcvmPath,

@@ -2,6 +2,7 @@ import { PROVING_STATUS, type ServerCircuitProver } from '@aztec/circuit-types';
 import { getMockVerificationKeys } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { WASMSimulator } from '@aztec/simulator';
+import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 
 import { jest } from '@jest/globals';
 
@@ -28,7 +29,7 @@ describe('prover/orchestrator/failures', () => {
     let mockProver: ServerCircuitProver;
 
     beforeEach(() => {
-      mockProver = new TestCircuitProver(new WASMSimulator());
+      mockProver = new TestCircuitProver(new NoopTelemetryClient(), new WASMSimulator());
       orchestrator = new ProvingOrchestrator(context.actualDb, mockProver);
     });
 

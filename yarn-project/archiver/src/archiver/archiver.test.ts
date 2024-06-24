@@ -10,6 +10,7 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { sleep } from '@aztec/foundation/sleep';
 import { AvailabilityOracleAbi, type InboxAbi, RollupAbi } from '@aztec/l1-artifacts';
+import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 
 import { type MockProxy, mock } from 'jest-mock-extended';
 import {
@@ -49,6 +50,7 @@ describe('Archiver', () => {
       registryAddress,
       archiverStore,
       1000,
+      new NoopTelemetryClient(),
     );
 
     let latestBlockNum = await archiver.getBlockNumber();
@@ -152,6 +154,7 @@ describe('Archiver', () => {
       registryAddress,
       archiverStore,
       1000,
+      new NoopTelemetryClient(),
     );
 
     let latestBlockNum = await archiver.getBlockNumber();

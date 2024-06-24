@@ -1,0 +1,67 @@
+{
+  "name": "@aztec/telemetry-client",
+  "inherits": [
+    "../package.common.json"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dest/index.js",
+    "./start": "./dest/start.js",
+    "./noop": "./dest/noop.js"
+  },
+  "scripts": {
+    "build": "yarn clean && tsc -b",
+    "build:dev": "tsc -b --watch",
+    "clean": "rm -rf ./dest .tsbuildinfo",
+    "formatting": "run -T prettier --check ./src && run -T eslint ./src",
+    "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dest",
+    "src",
+    "!*.test.*"
+  ],
+  "dependencies": {
+    "@aztec/foundation": "workspace:^",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.52.0",
+    "@opentelemetry/host-metrics": "^0.35.2",
+    "@opentelemetry/resources": "^1.25.0",
+    "@opentelemetry/sdk-metrics": "^1.25.0",
+    "@opentelemetry/semantic-conventions": "^1.25.0"
+  },
+  "devDependencies": {
+    "@jest/globals": "^29.5.0",
+    "@types/jest": "^29.5.0",
+    "jest": "^29.5.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.4"
+  },
+  "jest": {
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
+    "transform": {
+      "^.+\\.tsx?$": [
+        "@swc/jest"
+      ]
+    },
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.[cm]?js$": "$1"
+    },
+    "reporters": [
+      [
+        "default",
+        {
+          "summaryThreshold": 9999
+        }
+      ]
+    ],
+    "testRegex": "./src/.*\\.test\\.(js|mjs|ts)$",
+    "rootDir": "./src"
+  }
+}

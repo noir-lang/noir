@@ -20,6 +20,9 @@
     },
     {
       "path": "../simulator"
+    },
+    {
+      "path": "../telemetry-client"
     }
   ],
   "include": ["src"]

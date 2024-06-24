@@ -62,6 +62,9 @@
     },
     {
       "path": "../pxe"
+    },
+    {
+      "path": "../telemetry-client"
     }
   ],
   "include": ["src"]

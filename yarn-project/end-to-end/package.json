@@ -40,6 +40,7 @@
     "@aztec/pxe": "workspace:^",
     "@aztec/sequencer-client": "workspace:^",
     "@aztec/simulator": "workspace:^",
+    "@aztec/telemetry-client": "workspace:^",
     "@aztec/types": "workspace:^",
     "@aztec/world-state": "workspace:^",
     "@jest/globals": "^29.5.0",
