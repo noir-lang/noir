@@ -22,8 +22,8 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
     using ShplonkProver = ShplonkProver_<TypeParam>;
     using ShplonkVerifier = ShplonkVerifier_<TypeParam>;
     using Fr = typename TypeParam::ScalarField;
-    using Polynomial = typename bb::Polynomial<Fr>;
-    using OpeningPair = bb::OpeningPair<TypeParam>;
+    using ProverOpeningClaim = ProverOpeningClaim<TypeParam>;
+
     using OpeningClaim = OpeningClaim<TypeParam>;
 
     const size_t n = 16;
@@ -43,32 +43,23 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
     const auto commitment2 = this->commit(poly2);
 
     // Aggregate polynomials and their opening pairs
-    std::vector<OpeningPair> opening_pairs = { { r1, eval1 }, { r2, eval2 } };
-    std::vector<Polynomial> polynomials = { poly1.share(), poly2.share() };
+    std::vector<ProverOpeningClaim> prover_opening_claims = { { poly1, { r1, eval1 } }, { poly2, { r2, eval2 } } };
 
     // Execute the shplonk prover functionality
-    const Fr nu_challenge = prover_transcript->template get_challenge<Fr>("Shplonk:nu");
-    auto batched_quotient_Q = ShplonkProver::compute_batched_quotient(opening_pairs, polynomials, nu_challenge);
-    prover_transcript->send_to_verifier("Shplonk:Q", this->ck()->commit(batched_quotient_Q));
-
-    const Fr z_challenge = prover_transcript->template get_challenge<Fr>("Shplonk:z");
-    const auto [prover_opening_pair, shplonk_prover_witness] =
-        ShplonkProver::compute_partially_evaluated_batched_quotient(
-            opening_pairs, polynomials, std::move(batched_quotient_Q), nu_challenge, z_challenge);
-
+    const auto batched_opening_claim = ShplonkProver::prove(this->ck(), prover_opening_claims, prover_transcript);
     // An intermediate check to confirm the opening of the shplonk prover witness Q
-    this->verify_opening_pair(prover_opening_pair, shplonk_prover_witness);
+    this->verify_opening_pair(batched_opening_claim.opening_pair, batched_opening_claim.polynomial);
 
     // Aggregate polynomial commitments and their opening pairs
-    std::vector<OpeningClaim> opening_claims;
-    opening_claims.emplace_back(OpeningClaim{ opening_pairs[0], commitment1 });
-    opening_claims.emplace_back(OpeningClaim{ opening_pairs[1], commitment2 });
+    std::vector<OpeningClaim> verifier_opening_claims = { { { r1, eval1 }, commitment1 },
+                                                          { { r2, eval2 }, commitment2 } };
 
     auto verifier_transcript = NativeTranscript::verifier_init_empty(prover_transcript);
 
     // Execute the shplonk verifier functionality
-    const auto verifier_claim = ShplonkVerifier::reduce_verification(this->vk(), opening_claims, verifier_transcript);
+    const auto batched_verifier_claim = ShplonkVerifier::reduce_verification(
+        this->vk()->get_g1_identity(), verifier_opening_claims, verifier_transcript);
 
-    this->verify_opening_claim(verifier_claim, shplonk_prover_witness);
+    this->verify_opening_claim(batched_verifier_claim, batched_opening_claim.polynomial);
 }
 } // namespace bb

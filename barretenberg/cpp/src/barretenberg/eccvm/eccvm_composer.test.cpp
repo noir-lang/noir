@@ -15,7 +15,7 @@
 
 using namespace bb;
 
-class ECCVMComposerTests : public ::testing::Test {
+class ECCVMTests : public ::testing::Test {
   protected:
     void SetUp() override { srs::init_grumpkin_crs_factory("../srs_db/grumpkin"); };
 };
@@ -60,7 +60,7 @@ ECCVMCircuitBuilder generate_circuit(numeric::RNG* engine = nullptr)
     return builder;
 }
 
-TEST_F(ECCVMComposerTests, BaseCase)
+TEST_F(ECCVMTests, BaseCase)
 {
     ECCVMCircuitBuilder builder = generate_circuit(&engine);
     ECCVMProver prover(builder);
@@ -71,7 +71,7 @@ TEST_F(ECCVMComposerTests, BaseCase)
     ASSERT_TRUE(verified);
 }
 
-TEST_F(ECCVMComposerTests, EqFails)
+TEST_F(ECCVMTests, EqFails)
 {
     auto builder = generate_circuit(&engine);
     // Tamper with the eq op such that the expected value is incorect

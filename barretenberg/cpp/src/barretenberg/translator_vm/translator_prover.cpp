@@ -183,8 +183,7 @@ void TranslatorProver::execute_pcs_rounds()
                          key->polynomials.get_concatenated_constraints(),
                          sumcheck_output.claimed_evaluations.get_concatenated_constraints(),
                          key->polynomials.get_concatenation_groups());
-    PCS::compute_opening_proof(
-        commitment_key, prover_opening_claim.opening_pair, prover_opening_claim.polynomial, transcript);
+    PCS::compute_opening_proof(commitment_key, prover_opening_claim, transcript);
 }
 
 HonkProof TranslatorProver::export_proof()

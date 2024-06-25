@@ -130,10 +130,12 @@ template <typename Curve_> class IPA {
     */ 
    template <typename Transcript>
    static void compute_opening_proof_internal(const std::shared_ptr<CK>& ck,
-                                              const OpeningPair<Curve>& opening_pair,
-                                              const Polynomial& polynomial,
+                                              const ProverOpeningClaim<Curve>& opening_claim,
                                               const std::shared_ptr<Transcript>& transcript)
    {
+
+        Polynomial polynomial = opening_claim.polynomial;
+
         // clang-format on
         auto poly_length = static_cast<size_t>(polynomial.size());
 
@@ -184,6 +186,7 @@ template <typename Curve_> class IPA {
 
         // Step 5.
         // Compute vector b (vector of the powers of the challenge)
+        OpeningPair<Curve> opening_pair = opening_claim.opening_pair;
         std::vector<Fr> b_vec(poly_length);
         run_loop_in_parallel_if_effective(
             poly_length,
@@ -603,11 +606,10 @@ template <typename Curve_> class IPA {
      * compute_opening_proof_internal \endlink.
      */
     static void compute_opening_proof(const std::shared_ptr<CK>& ck,
-                                      const OpeningPair<Curve>& opening_pair,
-                                      const Polynomial& polynomial,
+                                      const ProverOpeningClaim<Curve>& opening_claim,
                                       const std::shared_ptr<NativeTranscript>& transcript)
     {
-        compute_opening_proof_internal(ck, opening_pair, polynomial, transcript);
+        compute_opening_proof_internal(ck, opening_claim, transcript);
     }
 
     /**

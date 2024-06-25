@@ -974,8 +974,7 @@ void AvmProver::execute_pcs_rounds()
                                                  sumcheck_output.challenge,
                                                  commitment_key,
                                                  transcript);
-    PCS::compute_opening_proof(
-        commitment_key, prover_opening_claim.opening_pair, prover_opening_claim.polynomial, transcript);
+    PCS::compute_opening_proof(commitment_key, prover_opening_claim, transcript);
 }
 
 HonkProof AvmProver::export_proof()

@@ -220,10 +220,7 @@ template <class PCS> class ZeroMorphTest : public CommitmentTest<typename PCS::C
                                                            this->commitment_key,
                                                            prover_transcript);
 
-        PCS::compute_opening_proof(this->commitment_key,
-                                   prover_opening_claim.opening_pair,
-                                   prover_opening_claim.polynomial,
-                                   prover_transcript);
+        PCS::compute_opening_proof(this->commitment_key, prover_opening_claim, prover_transcript);
 
         auto verifier_transcript = NativeTranscript::verifier_init_empty(prover_transcript);
 
@@ -274,10 +271,7 @@ template <class PCS> class ZeroMorphTest : public CommitmentTest<typename PCS::C
                                    RefVector(concatenation.concatenated_polynomials),
                                    RefVector(concatenation.c_evaluations),
                                    to_vector_of_ref_vectors(concatenation.concatenation_groups));
-        PCS::compute_opening_proof(this->commitment_key,
-                                   prover_opening_claim.opening_pair,
-                                   prover_opening_claim.polynomial,
-                                   prover_transcript);
+        PCS::compute_opening_proof(this->commitment_key, prover_opening_claim, prover_transcript);
 
         auto verifier_transcript = NativeTranscript::verifier_init_empty(prover_transcript);
 

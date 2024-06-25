@@ -21,11 +21,10 @@ class ProxyCaller {
   public:
     template <typename Transcript>
     static void compute_opening_proof_internal(const std::shared_ptr<CommitmentKey<Curve>>& ck,
-                                               const OpeningPair<Curve>& opening_pair,
-                                               const Polynomial<Curve::ScalarField>& polynomial,
+                                               const ProverOpeningClaim<Curve>& opening_claim,
                                                const std::shared_ptr<Transcript>& transcript)
     {
-        IPA<Curve>::compute_opening_proof_internal(ck, opening_pair, polynomial, transcript);
+        IPA<Curve>::compute_opening_proof_internal(ck, opening_claim, transcript);
     }
     template <typename Transcript>
     static bool verify_internal(const std::shared_ptr<VerifierCommitmentKey<Curve>>& vk,
@@ -145,7 +144,7 @@ extern "C" int LLVMFuzzerTestOneInput(const unsigned char* data, size_t size)
     }
     auto const opening_pair = OpeningPair<Curve>{ x, poly.evaluate(x) };
     auto const opening_claim = OpeningClaim<Curve>{ opening_pair, ck->commit(poly) };
-    ProxyCaller::compute_opening_proof_internal(ck, opening_pair, poly, transcript);
+    ProxyCaller::compute_opening_proof_internal(ck, { poly, opening_pair }, transcript);
 
     // Reset challenge indices
     transcript->reset_indices();

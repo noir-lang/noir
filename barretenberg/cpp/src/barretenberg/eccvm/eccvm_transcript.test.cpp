@@ -164,20 +164,6 @@ class ECCVMTranscriptTests : public ::testing::Test {
         manifest_expected.add_challenge(round, "ZM:x", "ZM:z");
 
         round++;
-        manifest_expected.add_entry(round, "IPA:poly_degree_plus_1", frs_per_uint32);
-        manifest_expected.add_challenge(round, "IPA:generator_challenge");
-
-        for (size_t i = 0; i < log_n; ++i) {
-            round++;
-            std::string idx = std::to_string(log_n - i - 1);
-            manifest_expected.add_entry(round, "IPA:L_" + idx, frs_per_G);
-            manifest_expected.add_entry(round, "IPA:R_" + idx, frs_per_G);
-            std::string label = "IPA:round_challenge_" + idx;
-            manifest_expected.add_challenge(round, label);
-        }
-
-        round++;
-        manifest_expected.add_entry(round, "IPA:a_0", frs_per_Fr);
         manifest_expected.add_entry(round, "Translation:hack_commitment", frs_per_G);
         manifest_expected.add_challenge(round, "Translation:evaluation_challenge_x");
 
@@ -189,6 +175,13 @@ class ECCVMTranscriptTests : public ::testing::Test {
         manifest_expected.add_entry(round, "Translation:z2", frs_per_Fr);
         manifest_expected.add_entry(round, "Translation:hack_evaluation", frs_per_Fr);
         manifest_expected.add_challenge(round, "Translation:ipa_batching_challenge");
+
+        round++;
+        manifest_expected.add_challenge(round, "Shplonk:nu");
+
+        round++;
+        manifest_expected.add_entry(round, "Shplonk:Q", frs_per_G);
+        manifest_expected.add_challenge(round, "Shplonk:z");
 
         round++;
         manifest_expected.add_entry(round, "IPA:poly_degree_plus_1", frs_per_uint32);
@@ -209,6 +202,7 @@ class ECCVMTranscriptTests : public ::testing::Test {
 
         return manifest_expected;
     }
+
     ECCVMCircuitBuilder generate_trace(numeric::RNG* engine = nullptr)
     {
         std::shared_ptr<ECCOpQueue> op_queue = std::make_shared<ECCOpQueue>();

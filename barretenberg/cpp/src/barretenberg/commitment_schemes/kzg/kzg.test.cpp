@@ -41,7 +41,7 @@ TYPED_TEST(KZGTest, single)
 
     auto prover_transcript = NativeTranscript::prover_init_empty();
 
-    KZG::compute_opening_proof(this->ck(), opening_pair, witness, prover_transcript);
+    KZG::compute_opening_proof(this->ck(), { witness, opening_pair }, prover_transcript);
 
     auto verifier_transcript = NativeTranscript::verifier_init_empty(prover_transcript);
     auto pairing_points = KZG::reduce_verify(opening_claim, verifier_transcript);
@@ -130,27 +130,23 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
     const auto [gemini_opening_pairs, gemini_witnesses] = GeminiProver::compute_fold_polynomial_evaluations(
         mle_opening_point, std::move(gemini_polynomials), r_challenge);
 
+    std::vector<ProverOpeningClaim<TypeParam>> opening_claims;
     for (size_t l = 0; l < log_n; ++l) {
         std::string label = "Gemini:a_" + std::to_string(l);
         const auto& evaluation = gemini_opening_pairs[l + 1].evaluation;
         prover_transcript->send_to_verifier(label, evaluation);
+        opening_claims.emplace_back(gemini_witnesses[l], gemini_opening_pairs[l]);
     }
+    opening_claims.emplace_back(gemini_witnesses[log_n], gemini_opening_pairs[log_n]);
 
     // Shplonk prover output:
     // - opening pair: (z_challenge, 0)
     // - witness: polynomial Q - Q_z
-    const Fr nu_challenge = prover_transcript->template get_challenge<Fr>("Shplonk:nu");
-    auto batched_quotient_Q =
-        ShplonkProver::compute_batched_quotient(gemini_opening_pairs, gemini_witnesses, nu_challenge);
-    prover_transcript->send_to_verifier("Shplonk:Q", this->ck()->commit(batched_quotient_Q));
-
-    const Fr z_challenge = prover_transcript->template get_challenge<Fr>("Shplonk:z");
-    const auto [shplonk_opening_pair, shplonk_witness] = ShplonkProver::compute_partially_evaluated_batched_quotient(
-        gemini_opening_pairs, gemini_witnesses, std::move(batched_quotient_Q), nu_challenge, z_challenge);
+    const auto opening_claim = ShplonkProver::prove(this->ck(), opening_claims, prover_transcript);
 
     // KZG prover:
     // - Adds commitment [W] to transcript
-    KZG::compute_opening_proof(this->ck(), shplonk_opening_pair, shplonk_witness, prover_transcript);
+    KZG::compute_opening_proof(this->ck(), opening_claim, prover_transcript);
 
     // Run the full verifier PCS protocol with genuine opening claims (genuine commitment, genuine evaluation)
 
@@ -166,7 +162,7 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
 
     // Shplonk verifier claim: commitment [Q] - [Q_z], opening point (z_challenge, 0)
     const auto shplonk_verifier_claim =
-        ShplonkVerifier::reduce_verification(this->vk(), gemini_verifier_claim, verifier_transcript);
+        ShplonkVerifier::reduce_verification(this->vk()->get_g1_identity(), gemini_verifier_claim, verifier_transcript);
 
     // KZG verifier:
     // aggregates inputs [Q] - [Q_z] and [W] into an 'accumulator' (can perform pairing check on result)

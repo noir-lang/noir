@@ -1,6 +1,7 @@
 #include "eccvm_prover.hpp"
 #include "barretenberg/commitment_schemes/claim.hpp"
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
+#include "barretenberg/commitment_schemes/shplonk/shplonk.hpp"
 #include "barretenberg/common/ref_array.hpp"
 #include "barretenberg/honk/proof_system/logderivative_library.hpp"
 #include "barretenberg/honk/proof_system/permutation_library.hpp"
@@ -104,72 +105,74 @@ void ECCVMProver::execute_relation_check_rounds()
 }
 
 /**
- * @brief Execute the ZeroMorph protocol to produce an opening claim for the multilinear evaluations produced by
- * Sumcheck and then produce an opening proof with a univariate PCS
- * @details See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the unrolled protocol.
+ * @brief Produce a univariate opening claim for the sumcheck multivariate evalutions and a batched univariate claim
+ * for the transcript polynomials (for the Translator consistency check). Reduce the two opening claims to a single one
+ * via Shplonk and produce an opening proof with the univariate PCS of choice (IPA when operating on Grumpkin).
+ * @details See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the unrolled ZeroMorph
+ * protocol.
  *
- * */
+ */
 void ECCVMProver::execute_pcs_rounds()
 {
     using Curve = typename Flavor::Curve;
     using ZeroMorph = ZeroMorphProver_<Curve>;
-    auto prover_opening_claim = ZeroMorph::prove(key->polynomials.get_unshifted(),
-                                                 key->polynomials.get_to_be_shifted(),
-                                                 sumcheck_output.claimed_evaluations.get_unshifted(),
-                                                 sumcheck_output.claimed_evaluations.get_shifted(),
-                                                 sumcheck_output.challenge,
-                                                 commitment_key,
-                                                 transcript);
-    PCS::compute_opening_proof(
-        commitment_key, prover_opening_claim.opening_pair, prover_opening_claim.polynomial, transcript);
-}
+    using Shplonk = ShplonkProver_<Curve>;
+    using OpeningClaim = ProverOpeningClaim<Curve>;
 
-/**
- * @brief Batch open the transcript polynomials as univariates for Translator consistency check
- * TODO(#768): Find a better way to do this. See issue for details.
- *
- * @tparam Flavor
- */
-void ECCVMProver::execute_transcript_consistency_univariate_opening_round()
-{
-    // Since IPA cannot currently handle polynomials for which the latter half of the coefficients are 0, we hackily
-    // batch the constant polynomial 1 in with the 5 transcript polynomials. See issue #768 for more details.
+    // Execute the ZeroMorph protocol to produce a univariate opening claim for the multilinear evaluations produced by
+    // Sumcheck
+    auto multivariate_to_univariate_opening_claim =
+        ZeroMorph::prove(key->polynomials.get_unshifted(),
+                         key->polynomials.get_to_be_shifted(),
+                         sumcheck_output.claimed_evaluations.get_unshifted(),
+                         sumcheck_output.claimed_evaluations.get_shifted(),
+                         sumcheck_output.challenge,
+                         commitment_key,
+                         transcript);
+
+    // Batch open the transcript polynomials as univariates for Translator consistency check. Since IPA cannot
+    // currently handle polynomials for which the latter half of the coefficients are 0, we hackily
+    // batch the constant polynomial 1 in with the 5 transcript polynomials.
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/768): fix IPA to avoid the need for the hack polynomial
     Polynomial hack(key->circuit_size);
     for (size_t idx = 0; idx < key->circuit_size; idx++) {
         hack[idx] = 1;
     }
     transcript->send_to_verifier("Translation:hack_commitment", commitment_key->commit(hack));
 
-    // Get the challenge at which we evaluate the polynomials as univariates
+    // Get the challenge at which we evaluate all transcript polynomials as univariates
     evaluation_challenge_x = transcript->template get_challenge<FF>("Translation:evaluation_challenge_x");
 
+    // Evaluate the transcript polynomials at the challenge
     translation_evaluations.op = key->polynomials.transcript_op.evaluate(evaluation_challenge_x);
     translation_evaluations.Px = key->polynomials.transcript_Px.evaluate(evaluation_challenge_x);
     translation_evaluations.Py = key->polynomials.transcript_Py.evaluate(evaluation_challenge_x);
     translation_evaluations.z1 = key->polynomials.transcript_z1.evaluate(evaluation_challenge_x);
     translation_evaluations.z2 = key->polynomials.transcript_z2.evaluate(evaluation_challenge_x);
 
-    // Add the univariate evaluations to the transcript
+    // Add the univariate evaluations to the transcript so the verifier can reconstruct the batched evaluation
     transcript->send_to_verifier("Translation:op", translation_evaluations.op);
     transcript->send_to_verifier("Translation:Px", translation_evaluations.Px);
     transcript->send_to_verifier("Translation:Py", translation_evaluations.Py);
     transcript->send_to_verifier("Translation:z1", translation_evaluations.z1);
     transcript->send_to_verifier("Translation:z2", translation_evaluations.z2);
-    transcript->send_to_verifier("Translation:hack_evaluation", hack.evaluate(evaluation_challenge_x));
 
-    // Get another challenge for batching the univariate claims
+    FF hack_evaluation = hack.evaluate(evaluation_challenge_x);
+    transcript->send_to_verifier("Translation:hack_evaluation", hack_evaluation);
+
+    // Get another challenge for batching the univariates and evaluations
     FF ipa_batching_challenge = transcript->template get_challenge<FF>("Translation:ipa_batching_challenge");
 
     // Collect the polynomials and evaluations to be batched
     RefArray univariate_polynomials{ key->polynomials.transcript_op, key->polynomials.transcript_Px,
                                      key->polynomials.transcript_Py, key->polynomials.transcript_z1,
                                      key->polynomials.transcript_z2, hack };
-    std::array<FF, univariate_polynomials.size()> univariate_evaluations;
-    for (auto [eval, polynomial] : zip_view(univariate_evaluations, univariate_polynomials)) {
-        eval = polynomial.evaluate(evaluation_challenge_x);
-    }
+    std::array<FF, univariate_polynomials.size()> univariate_evaluations{
+        translation_evaluations.op, translation_evaluations.Px, translation_evaluations.Py,
+        translation_evaluations.z1, translation_evaluations.z2, hack_evaluation
+    };
 
-    // Construct the batched polynomial and batched evaluation
+    // Construct the batched polynomial and batched evaluation to produce the batched opening claim
     Polynomial batched_univariate{ key->circuit_size };
     FF batched_evaluation{ 0 };
     auto batching_scalar = FF(1);
@@ -179,12 +182,17 @@ void ECCVMProver::execute_transcript_consistency_univariate_opening_round()
         batching_scalar *= ipa_batching_challenge;
     }
 
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/922): We are doing another round of IPA here with
-    // exactly the same labels and no domain separation so if/when labels are going to matter we are clashing.
-    PCS::compute_opening_proof(
-        commitment_key, { evaluation_challenge_x, batched_evaluation }, batched_univariate, transcript);
+    std::array<OpeningClaim, 2> opening_claims = { multivariate_to_univariate_opening_claim,
+                                                   { .polynomial = batched_univariate,
+                                                     .opening_pair = { evaluation_challenge_x, batched_evaluation } } };
 
-    // Get another challenge for batching the univariate claims
+    // Reduce the opening claims to a single opening claim via Shplonk
+    const OpeningClaim batched_opening_claim = Shplonk::prove(commitment_key, opening_claims, transcript);
+
+    // Compute the opening proof for the batched opening claim with the univariate PCS
+    PCS::compute_opening_proof(commitment_key, batched_opening_claim, transcript);
+
+    // Produce another challenge passed as input to the translator verifier
     translation_batching_challenge_v = transcript->template get_challenge<FF>("Translation:batching_challenge");
 }
 
@@ -209,8 +217,6 @@ HonkProof ECCVMProver::construct_proof()
     execute_relation_check_rounds();
 
     execute_pcs_rounds();
-
-    execute_transcript_consistency_univariate_opening_round();
 
     return export_proof();
 }
