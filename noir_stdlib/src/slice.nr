@@ -44,7 +44,7 @@ impl<T> [T] {
         self
     }
 
-    pub fn as_array<N>(self) -> [T; N] {
+    pub fn as_array<let N: u32>(self) -> [T; N] {
         assert(self.len() == N);
 
         let mut array = [crate::unsafe::zeroed(); N];
