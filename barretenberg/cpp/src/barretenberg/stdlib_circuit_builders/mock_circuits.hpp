@@ -59,6 +59,35 @@ class MockCircuits {
     }
 
     /**
+     * @brief Add lookup gates using the uint32 XOR lookup table (table size 4096)
+     * @brief Each iteration adds 6 lookup gates and results in a minimum circuit size of 4096
+     *
+     * @param builder
+     * @param num_gates
+     */
+    template <typename Builder> static void add_lookup_gates(Builder& builder, size_t num_iterations = 1)
+    {
+        auto UINT32_XOR = plookup::MultiTableId::UINT32_XOR;
+
+        // Each iteration adds 6 lookup gates (due to six 6-bit limbs); the first adds a table of size 4096
+        for (size_t i = 0; i < num_iterations; ++i) {
+            // define some arbitrary inputs to uint32 XOR
+            uint32_t left_value = engine.get_random_uint32();
+            uint32_t right_value = engine.get_random_uint32();
+
+            fr left = fr{ left_value, 0, 0, 0 }.to_montgomery_form();
+            fr right = fr{ right_value, 0, 0, 0 }.to_montgomery_form();
+
+            auto left_idx = builder.add_variable(left);
+            auto right_idx = builder.add_variable(right);
+
+            // perform lookups from the uint32 XOR table
+            auto accumulators = plookup::get_lookup_accumulators(UINT32_XOR, left, right, /*is_2_to_1_lookup*/ true);
+            builder.create_gates_from_plookup_accumulators(UINT32_XOR, accumulators, left_idx, right_idx);
+        }
+    }
+
+    /**
      * @brief Populate a builder with a specified number of arithmetic gates; includes a PI
      *
      * @param builder

@@ -48,7 +48,7 @@ void ensure_non_zero(auto& polynomial)
     ASSERT_TRUE(has_non_zero_coefficient);
 }
 
-class UltraHonkComposerTests : public ::testing::Test {
+class UltraHonkTests : public ::testing::Test {
   protected:
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 };
@@ -60,7 +60,7 @@ class UltraHonkComposerTests : public ::testing::Test {
  * to achieve non-zero polynomials
  *
  */
-TEST_F(UltraHonkComposerTests, ANonZeroPolynomialIsAGoodPolynomial)
+TEST_F(UltraHonkTests, ANonZeroPolynomialIsAGoodPolynomial)
 {
     auto circuit_builder = UltraCircuitBuilder();
 
@@ -86,7 +86,7 @@ TEST_F(UltraHonkComposerTests, ANonZeroPolynomialIsAGoodPolynomial)
  * @brief Test proof construction/verification for a structured execution trace
  *
  */
-TEST_F(UltraHonkComposerTests, StructuredTrace)
+TEST_F(UltraHonkTests, StructuredTrace)
 {
     auto builder = UltraCircuitBuilder();
     size_t num_gates = 3;
@@ -109,7 +109,7 @@ TEST_F(UltraHonkComposerTests, StructuredTrace)
  * @brief Test simple circuit with public inputs
  *
  */
-TEST_F(UltraHonkComposerTests, PublicInputs)
+TEST_F(UltraHonkTests, PublicInputs)
 {
     auto builder = UltraCircuitBuilder();
     size_t num_gates = 10;
@@ -120,7 +120,7 @@ TEST_F(UltraHonkComposerTests, PublicInputs)
     prove_and_verify(builder, /*expected_result=*/true);
 }
 
-TEST_F(UltraHonkComposerTests, XorConstraint)
+TEST_F(UltraHonkTests, XorConstraint)
 {
     auto circuit_builder = UltraCircuitBuilder();
 
@@ -147,7 +147,7 @@ TEST_F(UltraHonkComposerTests, XorConstraint)
     prove_and_verify(circuit_builder, /*expected_result=*/true);
 }
 
-TEST_F(UltraHonkComposerTests, create_gates_from_plookup_accumulators)
+TEST_F(UltraHonkTests, create_gates_from_plookup_accumulators)
 {
     auto circuit_builder = UltraCircuitBuilder();
 
@@ -207,7 +207,91 @@ TEST_F(UltraHonkComposerTests, create_gates_from_plookup_accumulators)
     prove_and_verify(circuit_builder, /*expected_result=*/true);
 }
 
-TEST_F(UltraHonkComposerTests, test_no_lookup_proof)
+/**
+ * @brief Test various failure modes for the lookup relation via bad input polynomials
+ *
+ */
+TEST_F(UltraHonkTests, LookupFailure)
+{
+    // Construct a circuit with lookup and arithmetic gates
+    auto construct_circuit_with_lookups = []() {
+        UltraCircuitBuilder builder;
+
+        MockCircuits::add_lookup_gates(builder);
+        MockCircuits::add_arithmetic_gates(builder);
+
+        return builder;
+    };
+
+    auto prove_and_verify = [](auto& instance) {
+        UltraProver prover(instance);
+        auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);
+        UltraVerifier verifier(verification_key);
+        auto proof = prover.construct_proof();
+        return verifier.verify_proof(proof);
+    };
+
+    // Ensure the unaltered test circuit is valid
+    {
+        auto builder = construct_circuit_with_lookups();
+
+        auto instance = std::make_shared<ProverInstance>(builder);
+
+        EXPECT_TRUE(prove_and_verify(instance));
+    }
+
+    // Failure mode 1: bad read counts/tags
+    {
+        auto builder = construct_circuit_with_lookups();
+
+        auto instance = std::make_shared<ProverInstance>(builder);
+        auto& polynomials = instance->proving_key.polynomials;
+
+        // Erroneously update the read counts/tags at an arbitrary index
+        // Note: updating only one or the other may not cause failure due to the design of the relation algebra. For
+        // example, the inverse is only computed if read tags is non-zero, otherwise the inverse at the row in question
+        // will be zero. So if read counts is incremented at some arbitrary index but read tags is not, the inverse will
+        // be 0 and the erroneous read_counts value will get multiplied by 0 in the relation. This is expected behavior.
+        polynomials.lookup_read_counts[25] = 1;
+        polynomials.lookup_read_tags[25] = 1;
+
+        EXPECT_FALSE(prove_and_verify(instance));
+    }
+
+    // Failure mode 2: bad lookup gate wire value
+    {
+        auto builder = construct_circuit_with_lookups();
+
+        auto instance = std::make_shared<ProverInstance>(builder);
+        auto& polynomials = instance->proving_key.polynomials;
+
+        // Find a lookup gate and alter one of the wire values
+        for (auto [q_lookup, wire_3] : zip_view(polynomials.q_lookup, polynomials.w_o)) {
+            if (!q_lookup.is_zero()) {
+                wire_3 += 1;
+                break;
+            }
+        }
+
+        EXPECT_FALSE(prove_and_verify(instance));
+    }
+
+    // Failure mode 3: erroneous lookup gate
+    {
+        auto builder = construct_circuit_with_lookups();
+
+        auto instance = std::make_shared<ProverInstance>(builder);
+        auto& polynomials = instance->proving_key.polynomials;
+
+        // Turn the lookup selector on for an arbitrary row where it is not already active
+        EXPECT_TRUE(polynomials.q_lookup[25] != 1);
+        polynomials.q_lookup[25] = 1;
+
+        EXPECT_FALSE(prove_and_verify(instance));
+    }
+}
+
+TEST_F(UltraHonkTests, test_no_lookup_proof)
 {
     auto circuit_builder = UltraCircuitBuilder();
 
@@ -229,7 +313,7 @@ TEST_F(UltraHonkComposerTests, test_no_lookup_proof)
     prove_and_verify(circuit_builder, /*expected_result=*/true);
 }
 
-TEST_F(UltraHonkComposerTests, test_elliptic_gate)
+TEST_F(UltraHonkTests, test_elliptic_gate)
 {
     typedef grumpkin::g1::affine_element affine_element;
     typedef grumpkin::g1::element element;
@@ -262,7 +346,7 @@ TEST_F(UltraHonkComposerTests, test_elliptic_gate)
     prove_and_verify(circuit_builder, /*expected_result=*/true);
 }
 
-TEST_F(UltraHonkComposerTests, non_trivial_tag_permutation)
+TEST_F(UltraHonkTests, non_trivial_tag_permutation)
 {
     auto circuit_builder = UltraCircuitBuilder();
     fr a = fr::random_element();
@@ -289,7 +373,7 @@ TEST_F(UltraHonkComposerTests, non_trivial_tag_permutation)
     prove_and_verify(circuit_builder, /*expected_result=*/true);
 }
 
-TEST_F(UltraHonkComposerTests, non_trivial_tag_permutation_and_cycles)
+TEST_F(UltraHonkTests, non_trivial_tag_permutation_and_cycles)
 {
     auto circuit_builder = UltraCircuitBuilder();
     fr a = fr::random_element();
@@ -326,7 +410,7 @@ TEST_F(UltraHonkComposerTests, non_trivial_tag_permutation_and_cycles)
     prove_and_verify(circuit_builder, /*expected_result=*/true);
 }
 
-TEST_F(UltraHonkComposerTests, bad_tag_permutation)
+TEST_F(UltraHonkTests, bad_tag_permutation)
 {
     {
         auto circuit_builder = UltraCircuitBuilder();
@@ -369,7 +453,7 @@ TEST_F(UltraHonkComposerTests, bad_tag_permutation)
     }
 }
 
-TEST_F(UltraHonkComposerTests, sort_widget)
+TEST_F(UltraHonkTests, sort_widget)
 {
     auto circuit_builder = UltraCircuitBuilder();
     fr a = fr::one();
@@ -386,7 +470,7 @@ TEST_F(UltraHonkComposerTests, sort_widget)
     prove_and_verify(circuit_builder, /*expected_result=*/true);
 }
 
-TEST_F(UltraHonkComposerTests, sort_with_edges_gate)
+TEST_F(UltraHonkTests, sort_with_edges_gate)
 {
     fr a = fr::one();
     fr b = fr(2);
@@ -476,7 +560,7 @@ TEST_F(UltraHonkComposerTests, sort_with_edges_gate)
     }
 }
 
-TEST_F(UltraHonkComposerTests, range_constraint)
+TEST_F(UltraHonkTests, range_constraint)
 {
     {
         auto circuit_builder = UltraCircuitBuilder();
@@ -545,7 +629,7 @@ TEST_F(UltraHonkComposerTests, range_constraint)
     }
 }
 
-TEST_F(UltraHonkComposerTests, range_with_gates)
+TEST_F(UltraHonkTests, range_with_gates)
 {
     auto circuit_builder = UltraCircuitBuilder();
     auto idx = add_variables(circuit_builder, { 1, 2, 3, 4, 5, 6, 7, 8 });
@@ -563,7 +647,7 @@ TEST_F(UltraHonkComposerTests, range_with_gates)
     prove_and_verify(circuit_builder, /*expected_result=*/true);
 }
 
-TEST_F(UltraHonkComposerTests, range_with_gates_where_range_is_not_a_power_of_two)
+TEST_F(UltraHonkTests, range_with_gates_where_range_is_not_a_power_of_two)
 {
     auto circuit_builder = UltraCircuitBuilder();
     auto idx = add_variables(circuit_builder, { 1, 2, 3, 4, 5, 6, 7, 8 });
@@ -581,7 +665,7 @@ TEST_F(UltraHonkComposerTests, range_with_gates_where_range_is_not_a_power_of_tw
     prove_and_verify(circuit_builder, /*expected_result=*/true);
 }
 
-TEST_F(UltraHonkComposerTests, sort_widget_complex)
+TEST_F(UltraHonkTests, sort_widget_complex)
 {
     {
 
@@ -607,7 +691,7 @@ TEST_F(UltraHonkComposerTests, sort_widget_complex)
     }
 }
 
-TEST_F(UltraHonkComposerTests, sort_widget_neg)
+TEST_F(UltraHonkTests, sort_widget_neg)
 {
     auto circuit_builder = UltraCircuitBuilder();
     fr a = fr::one();
@@ -624,7 +708,7 @@ TEST_F(UltraHonkComposerTests, sort_widget_neg)
     prove_and_verify(circuit_builder, /*expected_result=*/false);
 }
 
-TEST_F(UltraHonkComposerTests, composed_range_constraint)
+TEST_F(UltraHonkTests, composed_range_constraint)
 {
     auto circuit_builder = UltraCircuitBuilder();
     auto c = fr::random_element();
@@ -637,7 +721,7 @@ TEST_F(UltraHonkComposerTests, composed_range_constraint)
     prove_and_verify(circuit_builder, /*expected_result=*/true);
 }
 
-TEST_F(UltraHonkComposerTests, non_native_field_multiplication)
+TEST_F(UltraHonkTests, non_native_field_multiplication)
 {
     using fq = fq;
     auto circuit_builder = UltraCircuitBuilder();
@@ -693,7 +777,7 @@ TEST_F(UltraHonkComposerTests, non_native_field_multiplication)
     prove_and_verify(circuit_builder, /*expected_result=*/true);
 }
 
-TEST_F(UltraHonkComposerTests, rom)
+TEST_F(UltraHonkTests, rom)
 {
     auto circuit_builder = UltraCircuitBuilder();
 
@@ -734,7 +818,7 @@ TEST_F(UltraHonkComposerTests, rom)
     prove_and_verify(circuit_builder, /*expected_result=*/true);
 }
 
-TEST_F(UltraHonkComposerTests, ram)
+TEST_F(UltraHonkTests, ram)
 {
     auto circuit_builder = UltraCircuitBuilder();
 
@@ -797,7 +881,7 @@ TEST_F(UltraHonkComposerTests, ram)
     prove_and_verify(circuit_builder, /*expected_result=*/true);
 }
 
-TEST_F(UltraHonkComposerTests, range_checks_on_duplicates)
+TEST_F(UltraHonkTests, range_checks_on_duplicates)
 {
     auto circuit_builder = UltraCircuitBuilder();
 
@@ -836,7 +920,7 @@ TEST_F(UltraHonkComposerTests, range_checks_on_duplicates)
 // range constrained, do not break the set equivalence checks because of indices mismatch.
 // 2^14 is DEFAULT_PLOOKUP_RANGE_BITNUM i.e. the maximum size before a variable gets sliced
 // before range constraints are applied to it.
-TEST_F(UltraHonkComposerTests, range_constraint_small_variable)
+TEST_F(UltraHonkTests, range_constraint_small_variable)
 {
     auto circuit_builder = UltraCircuitBuilder();
 

@@ -87,15 +87,18 @@ template <IsUltraFlavor Flavor> void OinkVerifier<Flavor>::execute_wire_commitme
  */
 template <IsUltraFlavor Flavor> void OinkVerifier<Flavor>::execute_sorted_list_accumulator_round()
 {
-    // Get challenge for sorted list batching and wire four memory records
+    // Get eta challenges
     auto [eta, eta_two, eta_three] = transcript->template get_challenges<FF>(
         domain_separator + "eta", domain_separator + "eta_two", domain_separator + "eta_three");
     relation_parameters.eta = eta;
     relation_parameters.eta_two = eta_two;
     relation_parameters.eta_three = eta_three;
-    // Get commitments to sorted list accumulator and fourth wire
-    witness_comms.sorted_accum =
-        transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.sorted_accum);
+
+    // Get commitments to lookup argument polynomials and fourth wire
+    witness_comms.lookup_read_counts =
+        transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.lookup_read_counts);
+    witness_comms.lookup_read_tags =
+        transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.lookup_read_tags);
     witness_comms.w_4 = transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.w_4);
 }
 
@@ -109,6 +112,10 @@ template <IsUltraFlavor Flavor> void OinkVerifier<Flavor>::execute_log_derivativ
     auto [beta, gamma] = transcript->template get_challenges<FF>(domain_separator + "beta", domain_separator + "gamma");
     relation_parameters.beta = beta;
     relation_parameters.gamma = gamma;
+
+    witness_comms.lookup_inverses =
+        transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.lookup_inverses);
+
     // If Goblin (i.e. using DataBus) receive commitments to log-deriv inverses polynomials
     if constexpr (IsGoblinFlavor<Flavor>) {
         witness_comms.calldata_inverses =
@@ -137,8 +144,6 @@ template <IsUltraFlavor Flavor> void OinkVerifier<Flavor>::execute_grand_product
 
     // Get commitment to permutation and lookup grand products
     witness_comms.z_perm = transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.z_perm);
-    witness_comms.z_lookup =
-        transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.z_lookup);
 }
 
 template <IsUltraFlavor Flavor> typename Flavor::RelationSeparator OinkVerifier<Flavor>::generate_alphas_round()

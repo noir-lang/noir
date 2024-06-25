@@ -1,6 +1,7 @@
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 #include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
+#include "barretenberg/stdlib_circuit_builders/mock_circuits.hpp"
 #include "barretenberg/stdlib_circuit_builders/plookup_tables/fixed_base/fixed_base.hpp"
 
 #include <gtest/gtest.h>
@@ -102,6 +103,22 @@ TEST(ultra_circuit_constructor, create_gates_from_plookup_accumulators)
 
     bool result = CircuitChecker::check(circuit_builder);
     EXPECT_EQ(result, true);
+}
+
+TEST(ultra_circuit_constructor, bad_lookup_failure)
+{
+    UltraCircuitBuilder builder;
+    MockCircuits::add_lookup_gates(builder);
+
+    // Erroneously set a non-zero wire value to zero in one of the lookup gates
+    for (auto& wire_3_witness_idx : builder.blocks.lookup.w_o()) {
+        if (wire_3_witness_idx != builder.zero_idx) {
+            wire_3_witness_idx = builder.zero_idx;
+            break;
+        }
+    }
+
+    EXPECT_FALSE(CircuitChecker::check(builder));
 }
 
 TEST(ultra_circuit_constructor, base_case)

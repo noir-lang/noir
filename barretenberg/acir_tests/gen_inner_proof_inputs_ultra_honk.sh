@@ -3,7 +3,7 @@
 #   BIN: to specify a different binary to test with (e.g. bb.js or bb.js-dev).
 set -eu
 
-BIN=${BIN:-../cpp/build-debug/bin/bb}
+BIN=${BIN:-../cpp/build/bin/bb}
 CRS_PATH=~/.bb-crs
 BRANCH=master
 VERBOSE=${VERBOSE:-}

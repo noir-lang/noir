@@ -243,24 +243,24 @@ template <typename FF_> class DatabusLookupRelationImpl {
 
         const auto inverses = View(BusData<bus_idx, AllEntities>::inverses(in));       // Degree 1
         const auto read_counts = View(BusData<bus_idx, AllEntities>::read_counts(in)); // Degree 1
-        const auto read_term = compute_read_term<Accumulator>(in, params);             // Degree 1
-        const auto write_term = compute_write_term<Accumulator, bus_idx>(in, params);  // Degree 1
-        const auto inverse_exists = compute_inverse_exists<Accumulator, bus_idx>(in);  // Degree 1
+        const auto read_term = compute_read_term<Accumulator>(in, params);             // Degree 1 (2)
+        const auto write_term = compute_write_term<Accumulator, bus_idx>(in, params);  // Degree 1 (2)
+        const auto inverse_exists = compute_inverse_exists<Accumulator, bus_idx>(in);  // Degree 2
         const auto read_selector = get_read_selector<Accumulator, bus_idx>(in);        // Degree 2
-        const auto write_inverse = inverses * read_term;                               // Degree 2
-        const auto read_inverse = inverses * write_term;                               // Degree 2
+        const auto write_inverse = inverses * read_term;                               // Degree 2 (3)
+        const auto read_inverse = inverses * write_term;                               // Degree 2 (3)
 
         // Determine which pair of subrelations to update based on which bus column is being read
         constexpr size_t subrel_idx_1 = 2 * bus_idx;
         constexpr size_t subrel_idx_2 = 2 * bus_idx + 1;
 
         // Establish the correctness of the polynomial of inverses I. Note: inverses is computed so that the value is 0
-        // if !inverse_exists. Degree 3
+        // if !inverse_exists. Degree 3 (5)
         std::get<subrel_idx_1>(accumulator) += (read_term * write_term * inverses - inverse_exists) * scaling_factor;
 
         // Establish validity of the read. Note: no scaling factor here since this constraint is enforced across the
-        // entire trace, not on a per-row basis
-        std::get<subrel_idx_2>(accumulator) += read_selector * read_inverse - read_counts * write_inverse; // Degree 4
+        // entire trace, not on a per-row basis.
+        std::get<subrel_idx_2>(accumulator) += read_selector * read_inverse - read_counts * write_inverse; // Deg 4 (5)
     }
 
     /**

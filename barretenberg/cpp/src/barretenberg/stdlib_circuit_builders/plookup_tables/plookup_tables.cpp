@@ -143,14 +143,14 @@ const MultiTable& get_multitable(const MultiTableId id)
 
 /**
  * @brief Given a table ID and the key(s) for a key-value lookup, return the lookup accumulators
- * @details In general the number of bits in key/value is greater than what can be efficiently supported in lookup
- * tables. For this reason we actually perform lookups on the corresponding limbs. However, since we're interested in
- * the full values and not the limbs, its convenient to structure the witnesses of lookup gates to store the former.
- * This way we don't have to waste gates reaccumulating the limbs to compute the actual value of interest. The way to do
- * this is to populate the wires with 'accumulator' values such that the first gate in the series contains the full
- * accumulated values, and successive gates contain prior stages of the accumulator such that wire_i - r*wire_{i-1} =
- * v_i, where r = num limb bits and v_i is a limb that explicitly appears in one of the lookup tables. See the detailed
- * comment block below for more explanation.
+ * @details In general the number of bits in original key/value is greater than what can be efficiently supported in
+ * lookup tables. For this reason we actually perform lookups on the corresponding limbs. However, since we're
+ * interested in the original values and not the limbs, its convenient to structure the witnesses of lookup gates to
+ * store the former. This way we don't have to waste gates reaccumulating the limbs to compute the actual value of
+ * interest. The way to do this is to populate the wires with 'accumulator' values such that the first gate in the
+ * series contains the full accumulated values, and successive gates contain prior stages of the accumulator such that
+ * wire_i - r*wire_{i-1} = v_i, where r = num limb bits and v_i is a limb that explicitly appears in one of the lookup
+ * tables. See the detailed comment block below for more explanation.
  *
  * @param id
  * @param key_a
@@ -176,7 +176,7 @@ ReadData<bb::fr> get_lookup_accumulators(const MultiTableId id,
     std::vector<fr> column_3_raw_values;
 
     for (size_t i = 0; i < num_lookups; ++i) {
-        // compute the value(s) corresponding to the key(s) using on the i-th basic table query function
+        // compute the value(s) corresponding to the key(s) using the i-th basic table query function
         const auto values = multi_table.get_table_values[i]({ key_a_slices[i], key_b_slices[i] });
         // store all query data in raw columns and key entry
         column_1_raw_values.emplace_back(key_a_slices[i]);

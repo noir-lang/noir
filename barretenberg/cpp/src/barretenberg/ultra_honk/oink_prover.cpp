@@ -1,4 +1,5 @@
 #include "barretenberg/ultra_honk/oink_prover.hpp"
+#include "barretenberg/relations/logderiv_lookup_relation.hpp"
 
 namespace bb {
 
@@ -109,21 +110,25 @@ template <IsUltraFlavor Flavor> void OinkProver<Flavor>::execute_wire_commitment
  */
 template <IsUltraFlavor Flavor> void OinkProver<Flavor>::execute_sorted_list_accumulator_round()
 {
-
+    // Get eta challenges
     auto [eta, eta_two, eta_three] = transcript->template get_challenges<FF>(
         domain_separator + "eta", domain_separator + "eta_two", domain_separator + "eta_three");
     relation_parameters.eta = eta;
     relation_parameters.eta_two = eta_two;
     relation_parameters.eta_three = eta_three;
 
-    proving_key.compute_sorted_accumulator_polynomials(
+    proving_key.add_ram_rom_memory_records_to_wire_4(
         relation_parameters.eta, relation_parameters.eta_two, relation_parameters.eta_three);
-    // Commit to the sorted witness-table accumulator and the finalized (i.e. with memory records) fourth wire
-    // polynomial
-    witness_commitments.sorted_accum = commitment_key->commit(proving_key.polynomials.sorted_accum);
+
+    // Commit to lookup argument polynomials and the finalized (i.e. with memory records) fourth wire polynomial
+    witness_commitments.lookup_read_counts = commitment_key->commit(proving_key.polynomials.lookup_read_counts);
+    witness_commitments.lookup_read_tags = commitment_key->commit(proving_key.polynomials.lookup_read_tags);
     witness_commitments.w_4 = commitment_key->commit(proving_key.polynomials.w_4);
 
-    transcript->send_to_verifier(domain_separator + commitment_labels.sorted_accum, witness_commitments.sorted_accum);
+    transcript->send_to_verifier(domain_separator + commitment_labels.lookup_read_counts,
+                                 witness_commitments.lookup_read_counts);
+    transcript->send_to_verifier(domain_separator + commitment_labels.lookup_read_tags,
+                                 witness_commitments.lookup_read_tags);
     transcript->send_to_verifier(domain_separator + commitment_labels.w_4, witness_commitments.w_4);
 }
 
@@ -136,10 +141,16 @@ template <IsUltraFlavor Flavor> void OinkProver<Flavor>::execute_log_derivative_
     auto [beta, gamma] = transcript->template get_challenges<FF>(domain_separator + "beta", domain_separator + "gamma");
     relation_parameters.beta = beta;
     relation_parameters.gamma = gamma;
-    if constexpr (IsGoblinFlavor<Flavor>) {
-        // Compute and commit to the logderivative inverse used in DataBus
-        proving_key.compute_logderivative_inverse(relation_parameters);
 
+    // Compute the inverses used in log-derivative lookup relations
+    proving_key.compute_logderivative_inverses(relation_parameters);
+
+    witness_commitments.lookup_inverses = commitment_key->commit(proving_key.polynomials.lookup_inverses);
+    transcript->send_to_verifier(domain_separator + commitment_labels.lookup_inverses,
+                                 witness_commitments.lookup_inverses);
+
+    // If Mega, commit to the databus inverse polynomials and send
+    if constexpr (IsGoblinFlavor<Flavor>) {
         witness_commitments.calldata_inverses = commitment_key->commit(proving_key.polynomials.calldata_inverses);
         witness_commitments.return_data_inverses = commitment_key->commit(proving_key.polynomials.return_data_inverses);
         transcript->send_to_verifier(domain_separator + commitment_labels.calldata_inverses,
@@ -158,10 +169,8 @@ template <IsUltraFlavor Flavor> void OinkProver<Flavor>::execute_grand_product_c
     proving_key.compute_grand_product_polynomials(relation_parameters);
 
     witness_commitments.z_perm = commitment_key->commit(proving_key.polynomials.z_perm);
-    witness_commitments.z_lookup = commitment_key->commit(proving_key.polynomials.z_lookup);
 
     transcript->send_to_verifier(domain_separator + commitment_labels.z_perm, witness_commitments.z_perm);
-    transcript->send_to_verifier(domain_separator + commitment_labels.z_lookup, witness_commitments.z_lookup);
 }
 
 template <IsUltraFlavor Flavor> typename Flavor::RelationSeparator OinkProver<Flavor>::generate_alphas_round()

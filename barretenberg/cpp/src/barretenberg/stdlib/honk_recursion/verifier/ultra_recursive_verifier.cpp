@@ -91,18 +91,24 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
             transcript->template receive_from_prover<Commitment>(commitment_labels.return_data_read_counts);
     }
 
-    // Get challenge for sorted list batching and wire four memory records
+    // Get eta challenges; used in RAM/ROM memory records and log derivative lookup argument
     auto [eta, eta_two, eta_three] = transcript->template get_challenges<FF>("eta", "eta_two", "eta_three");
     relation_parameters.eta = eta;
     relation_parameters.eta_two = eta_two;
     relation_parameters.eta_three = eta_three;
 
-    // Get commitments to sorted list accumulator and fourth wire
-    commitments.sorted_accum = transcript->template receive_from_prover<Commitment>(commitment_labels.sorted_accum);
+    // Get commitments to lookup argument polynomials and fourth wire
+    commitments.lookup_read_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_read_counts);
+    commitments.lookup_read_tags =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_read_tags);
     commitments.w_4 = transcript->template receive_from_prover<Commitment>(commitment_labels.w_4);
 
     // Get permutation challenges
     auto [beta, gamma] = transcript->template get_challenges<FF>("beta", "gamma");
+
+    commitments.lookup_inverses =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_inverses);
 
     // If Goblin (i.e. using DataBus) receive commitments to log-deriv inverses polynomial
     if constexpr (IsGoblinFlavor<Flavor>) {
@@ -123,7 +129,6 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
 
     // Get commitment to permutation and lookup grand products
     commitments.z_perm = transcript->template receive_from_prover<Commitment>(commitment_labels.z_perm);
-    commitments.z_lookup = transcript->template receive_from_prover<Commitment>(commitment_labels.z_lookup);
 
     // Execute Sumcheck Verifier and extract multivariate opening point u = (u_0, ..., u_{d-1}) and purported
     // multivariate evaluations at u

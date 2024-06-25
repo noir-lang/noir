@@ -5,7 +5,6 @@
 #include "barretenberg/relations/auxiliary_relation.hpp"
 #include "barretenberg/relations/delta_range_constraint_relation.hpp"
 #include "barretenberg/relations/elliptic_relation.hpp"
-#include "barretenberg/relations/lookup_relation.hpp"
 #include "barretenberg/relations/permutation_relation.hpp"
 #include "barretenberg/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/stdlib_circuit_builders/plookup_tables/fixed_base/fixed_base.hpp"
@@ -157,9 +156,10 @@ TEST_F(SumcheckTestsRealCircuit, Ultra)
     instance->relation_parameters.beta = FF::random_element();
     instance->relation_parameters.gamma = FF::random_element();
 
-    instance->proving_key.compute_sorted_accumulator_polynomials(instance->relation_parameters.eta,
-                                                                 instance->relation_parameters.eta_two,
-                                                                 instance->relation_parameters.eta_three);
+    instance->proving_key.add_ram_rom_memory_records_to_wire_4(instance->relation_parameters.eta,
+                                                               instance->relation_parameters.eta_two,
+                                                               instance->relation_parameters.eta_three);
+    instance->proving_key.compute_logderivative_inverses(instance->relation_parameters);
     instance->proving_key.compute_grand_product_polynomials(instance->relation_parameters);
 
     auto prover_transcript = Transcript::prover_init_empty();

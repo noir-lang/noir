@@ -65,7 +65,7 @@ BENCHMARK(execute_relation_for_pg_univariates<UltraFlavor, UltraArithmeticRelati
 BENCHMARK(execute_relation_for_pg_univariates<UltraFlavor, DeltaRangeConstraintRelation<Fr>>);
 BENCHMARK(execute_relation_for_pg_univariates<UltraFlavor, EllipticRelation<Fr>>);
 BENCHMARK(execute_relation_for_pg_univariates<UltraFlavor, AuxiliaryRelation<Fr>>);
-BENCHMARK(execute_relation_for_pg_univariates<UltraFlavor, LookupRelation<Fr>>);
+BENCHMARK(execute_relation_for_pg_univariates<UltraFlavor, LogDerivLookupRelation<Fr>>);
 BENCHMARK(execute_relation_for_pg_univariates<UltraFlavor, UltraPermutationRelation<Fr>>);
 
 // Goblin-Ultra only relations (PG prover combiner work)
@@ -79,7 +79,7 @@ BENCHMARK(execute_relation_for_univariates<UltraFlavor, UltraArithmeticRelation<
 BENCHMARK(execute_relation_for_univariates<UltraFlavor, DeltaRangeConstraintRelation<Fr>>);
 BENCHMARK(execute_relation_for_univariates<UltraFlavor, EllipticRelation<Fr>>);
 BENCHMARK(execute_relation_for_univariates<UltraFlavor, AuxiliaryRelation<Fr>>);
-BENCHMARK(execute_relation_for_univariates<UltraFlavor, LookupRelation<Fr>>);
+BENCHMARK(execute_relation_for_univariates<UltraFlavor, LogDerivLookupRelation<Fr>>);
 BENCHMARK(execute_relation_for_univariates<UltraFlavor, UltraPermutationRelation<Fr>>);
 
 // Goblin-Ultra only relations (Sumcheck prover work)
@@ -93,7 +93,7 @@ BENCHMARK(execute_relation_for_values<UltraFlavor, UltraArithmeticRelation<Fr>>)
 BENCHMARK(execute_relation_for_values<UltraFlavor, DeltaRangeConstraintRelation<Fr>>);
 BENCHMARK(execute_relation_for_values<UltraFlavor, EllipticRelation<Fr>>);
 BENCHMARK(execute_relation_for_values<UltraFlavor, AuxiliaryRelation<Fr>>);
-BENCHMARK(execute_relation_for_values<UltraFlavor, LookupRelation<Fr>>);
+BENCHMARK(execute_relation_for_values<UltraFlavor, LogDerivLookupRelation<Fr>>);
 BENCHMARK(execute_relation_for_values<UltraFlavor, UltraPermutationRelation<Fr>>);
 
 // Goblin-Ultra only relations (verifier work)

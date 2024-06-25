@@ -227,7 +227,7 @@ template <typename RecursiveFlavor> class RecursiveVerifierTest : public testing
 
         // Arbitrarily tamper with the proof to be verified
         inner_prover.transcript->deserialize_full_transcript();
-        inner_prover.transcript->sorted_accum_comm = InnerCommitment::one() * InnerFF::random_element();
+        inner_prover.transcript->z_perm_comm = InnerCommitment::one() * InnerFF::random_element();
         inner_prover.transcript->serialize_full_transcript();
         inner_proof = inner_prover.export_proof();
 

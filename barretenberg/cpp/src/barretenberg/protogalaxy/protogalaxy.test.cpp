@@ -136,12 +136,10 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
         instance->relation_parameters.beta = FF::random_element();
         instance->relation_parameters.gamma = FF::random_element();
 
-        instance->proving_key.compute_sorted_accumulator_polynomials(instance->relation_parameters.eta,
-                                                                     instance->relation_parameters.eta_two,
-                                                                     instance->relation_parameters.eta_three);
-        if constexpr (IsGoblinFlavor<Flavor>) {
-            instance->proving_key.compute_logderivative_inverse(instance->relation_parameters);
-        }
+        instance->proving_key.add_ram_rom_memory_records_to_wire_4(instance->relation_parameters.eta,
+                                                                   instance->relation_parameters.eta_two,
+                                                                   instance->relation_parameters.eta_three);
+        instance->proving_key.compute_logderivative_inverses(instance->relation_parameters);
         instance->proving_key.compute_grand_product_polynomials(instance->relation_parameters);
 
         for (auto& alpha : instance->alphas) {
@@ -311,20 +309,93 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
     }
 
     /**
-     * @brief Testing one valid round of folding followed by the decider.
-     * @brief For additional robustness we give one of the circuits more public inputs than the other
+     * @brief Testing one valid round of folding (plus decider) for two inhomogeneous circuits
+     * @details For robustness we fold circuits with different numbers/types of gates (but the same dyadic size)
      *
      */
-    static void test_full_protogalaxy_simple()
+    static void test_protogalaxy_inhomogeneous()
     {
-        // Construct a first circuit with some public inputs
-        Builder builder1;
-        construct_circuit(builder1);
-        bb::MockCircuits::add_arithmetic_gates_with_public_inputs(builder1, /*num_gates=*/4);
+        auto check_fold_and_decide = [](Builder& circuit_1, Builder& circuit_2) {
+            // Construct the prover/verifier instances for each
+            TupleOfInstances instances;
+            construct_prover_and_verifier_instance(instances, circuit_1);
+            construct_prover_and_verifier_instance(instances, circuit_2);
 
-        // Construct a second circuit with no public inputs
+            // Perform prover and verifier folding
+            auto [prover_accumulator, verifier_accumulator] = fold_and_verify(get<0>(instances), get<1>(instances));
+            check_accumulator_target_sum_manual(prover_accumulator, true);
+
+            // Run decider
+            decide_and_verify(prover_accumulator, verifier_accumulator, true);
+        };
+
+        // One circuit has more arithmetic gates
+        {
+            // Construct two equivalent circuits
+            Builder builder1;
+            Builder builder2;
+            construct_circuit(builder1);
+            construct_circuit(builder2);
+
+            // Add some arithmetic gates
+            bb::MockCircuits::add_arithmetic_gates(builder1, /*num_gates=*/4);
+
+            check_fold_and_decide(builder1, builder2);
+        }
+
+        // One circuit has more arithmetic gates with public inputs
+        {
+            // Construct two equivalent circuits
+            Builder builder1;
+            Builder builder2;
+            construct_circuit(builder1);
+            construct_circuit(builder2);
+
+            // Add some arithmetic gates with public inputs to the first circuit
+            bb::MockCircuits::add_arithmetic_gates_with_public_inputs(builder1, /*num_gates=*/4);
+
+            check_fold_and_decide(builder1, builder2);
+        }
+
+        // One circuit has more lookup gates
+        {
+            // Construct two equivalent circuits
+            Builder builder1;
+            Builder builder2;
+            construct_circuit(builder1);
+            construct_circuit(builder2);
+
+            // Add a different number of lookup gates to each circuit
+            bb::MockCircuits::add_lookup_gates(builder1, /*num_iterations=*/2); // 12 gates plus 4096 table
+            bb::MockCircuits::add_lookup_gates(builder2, /*num_iterations=*/1); // 6 gates plus 4096 table
+
+            check_fold_and_decide(builder1, builder2);
+        }
+    }
+
+    /**
+     * @brief Ensure failure for a bad lookup gate in one of the circuits being folded
+     *
+     */
+    static void test_protogalaxy_bad_lookup_failure()
+    {
+        // Construct two equivalent circuits
+        Builder builder1;
         Builder builder2;
+        construct_circuit(builder1);
         construct_circuit(builder2);
+
+        // Add a different number of lookup gates to each circuit
+        bb::MockCircuits::add_lookup_gates(builder1, /*num_iterations=*/2); // 12 gates plus 4096 table
+        bb::MockCircuits::add_lookup_gates(builder2, /*num_iterations=*/1); // 6 gates plus 4096 table
+
+        // Erroneously set a non-zero wire value to zero in one of the lookup gates
+        for (auto& wire_3_witness_idx : builder1.blocks.lookup.w_o()) {
+            if (wire_3_witness_idx != builder1.zero_idx) {
+                wire_3_witness_idx = builder1.zero_idx;
+                break;
+            }
+        }
 
         // Construct the prover/verifier instances for each
         TupleOfInstances instances;
@@ -333,9 +404,11 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
 
         // Perform prover and verifier folding
         auto [prover_accumulator, verifier_accumulator] = fold_and_verify(get<0>(instances), get<1>(instances));
-        check_accumulator_target_sum_manual(prover_accumulator, true);
 
-        decide_and_verify(prover_accumulator, verifier_accumulator, true);
+        // Expect failure in manual target sum check and decider
+        bool expected_result = false;
+        check_accumulator_target_sum_manual(prover_accumulator, expected_result);
+        decide_and_verify(prover_accumulator, verifier_accumulator, expected_result);
     }
 
     /**
@@ -517,9 +590,9 @@ TYPED_TEST(ProtoGalaxyTests, CombineAlpha)
     TestFixture::test_combine_alpha();
 }
 
-TYPED_TEST(ProtoGalaxyTests, FullProtogalaxySimple)
+TYPED_TEST(ProtoGalaxyTests, ProtogalaxyInhomogeneous)
 {
-    TestFixture::test_full_protogalaxy_simple();
+    TestFixture::test_protogalaxy_inhomogeneous();
 }
 
 TYPED_TEST(ProtoGalaxyTests, FullProtogalaxyTest)
@@ -544,6 +617,11 @@ TYPED_TEST(ProtoGalaxyTests, TamperedCommitment)
 TYPED_TEST(ProtoGalaxyTests, TamperedAccumulatorPolynomial)
 {
     TestFixture::test_tampered_accumulator_polynomial();
+}
+
+TYPED_TEST(ProtoGalaxyTests, BadLookupFailure)
+{
+    TestFixture::test_protogalaxy_bad_lookup_failure();
 }
 
 // We only fold one instance currently due to significant compile time added by multiple instances

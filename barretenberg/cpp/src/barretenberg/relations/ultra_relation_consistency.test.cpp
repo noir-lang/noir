@@ -16,7 +16,6 @@
 #include "barretenberg/relations/auxiliary_relation.hpp"
 #include "barretenberg/relations/delta_range_constraint_relation.hpp"
 #include "barretenberg/relations/elliptic_relation.hpp"
-#include "barretenberg/relations/lookup_relation.hpp"
 #include "barretenberg/relations/permutation_relation.hpp"
 #include "barretenberg/relations/poseidon2_external_relation.hpp"
 #include "barretenberg/relations/poseidon2_internal_relation.hpp"
@@ -196,84 +195,6 @@ TEST_F(UltraRelationConsistency, UltraPermutationRelation)
 
         // Contribution 2
         auto contribution_2 = z_perm_shift * lagrange_last;
-        expected_values[1] = contribution_2;
-
-        validate_relation_execution<Relation>(expected_values, input_elements, parameters);
-    };
-    run_test(/*random_inputs=*/false);
-    run_test(/*random_inputs=*/true);
-};
-
-TEST_F(UltraRelationConsistency, LookupRelation)
-{
-    const auto run_test = [](bool random_inputs) {
-        using Relation = LookupRelation<FF>;
-        using SumcheckArrayOfValuesOverSubrelations = typename Relation::SumcheckArrayOfValuesOverSubrelations;
-
-        const InputElements input_elements = random_inputs ? InputElements::get_random() : InputElements::get_special();
-        const auto& w_1 = input_elements.w_l;
-        const auto& w_2 = input_elements.w_r;
-        const auto& w_3 = input_elements.w_o;
-
-        const auto& w_1_shift = input_elements.w_l_shift;
-        const auto& w_2_shift = input_elements.w_r_shift;
-        const auto& w_3_shift = input_elements.w_o_shift;
-
-        const auto& table_1 = input_elements.table_1;
-        const auto& table_2 = input_elements.table_2;
-        const auto& table_3 = input_elements.table_3;
-        const auto& table_4 = input_elements.table_4;
-
-        const auto& table_1_shift = input_elements.table_1_shift;
-        const auto& table_2_shift = input_elements.table_2_shift;
-        const auto& table_3_shift = input_elements.table_3_shift;
-        const auto& table_4_shift = input_elements.table_4_shift;
-
-        const auto& s_accum = input_elements.sorted_accum;
-        const auto& s_accum_shift = input_elements.sorted_accum_shift;
-        const auto& z_lookup = input_elements.z_lookup;
-        const auto& z_lookup_shift = input_elements.z_lookup_shift;
-
-        const auto& table_index = input_elements.q_o;
-        const auto& column_1_step_size = input_elements.q_r;
-        const auto& column_2_step_size = input_elements.q_m;
-        const auto& column_3_step_size = input_elements.q_c;
-        const auto& q_lookup = input_elements.q_lookup;
-
-        const auto& lagrange_first = input_elements.lagrange_first;
-        const auto& lagrange_last = input_elements.lagrange_last;
-
-        SumcheckArrayOfValuesOverSubrelations expected_values;
-
-        const auto parameters = RelationParameters<FF>::get_random();
-
-        const auto eta = parameters.eta;
-        const auto eta_two = parameters.eta_two;
-        const auto eta_three = parameters.eta_three;
-        const auto beta = parameters.beta;
-        const auto gamma = parameters.gamma;
-        auto grand_product_delta = parameters.lookup_grand_product_delta;
-
-        // Extract the extended edges for manual computation of relation contribution
-        auto one_plus_beta = FF::one() + beta;
-        auto gamma_by_one_plus_beta = gamma * one_plus_beta;
-
-        auto wire_accum = (w_1 + column_1_step_size * w_1_shift) + (w_2 + column_2_step_size * w_2_shift) * eta +
-                          (w_3 + column_3_step_size * w_3_shift) * eta_two + table_index * eta_three;
-
-        auto table_accum = table_1 + table_2 * eta + table_3 * eta_two + table_4 * eta_three;
-        auto table_accum_shift =
-            table_1_shift + table_2_shift * eta + table_3_shift * eta_two + table_4_shift * eta_three;
-
-        // Contribution 1
-        auto contribution_1 = (z_lookup + lagrange_first) * (q_lookup * wire_accum + gamma) *
-                              (table_accum + table_accum_shift * beta + gamma_by_one_plus_beta) * one_plus_beta;
-        contribution_1 -= (z_lookup_shift + lagrange_last * grand_product_delta) *
-                          (s_accum + s_accum_shift * beta + gamma_by_one_plus_beta);
-        expected_values[0] = contribution_1;
-
-        // Contribution 2
-        auto contribution_2 = z_lookup_shift * lagrange_last;
         expected_values[1] = contribution_2;
 
         validate_relation_execution<Relation>(expected_values, input_elements, parameters);

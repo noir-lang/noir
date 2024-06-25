@@ -364,7 +364,6 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
                                          const FF& scaling_factor)
     {
         using Relation = std::tuple_element_t<relation_idx, Relations>;
-        // WORKTODO: disable skipping for the combiner for now..
         //  Check if the relation is skippable to speed up accumulation
         if constexpr (!isSkippable<Relation, decltype(extended_univariates)>) {
             // If not, accumulate normally

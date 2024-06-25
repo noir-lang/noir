@@ -53,16 +53,25 @@ void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::receive_and_finalise_inst
             domain_separator + "_" + labels.return_data_read_counts);
     }
 
-    // Get challenge for sorted list batching and wire four memory records commitment
+    // Get eta challenges
     auto [eta, eta_two, eta_three] = transcript->template get_challenges<FF>(
         domain_separator + "_eta", domain_separator + "_eta_two", domain_separator + "_eta_three");
-    witness_commitments.sorted_accum =
-        transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.sorted_accum);
+
+    // Receive commitments to lookup argument polynomials
+    witness_commitments.lookup_read_counts =
+        transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.lookup_read_counts);
+    witness_commitments.lookup_read_tags =
+        transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.lookup_read_tags);
+
+    // Receive commitments to wire 4
     witness_commitments.w_4 = transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.w_4);
 
     // Get permutation challenges and commitment to permutation and lookup grand products
     auto [beta, gamma] =
         transcript->template get_challenges<FF>(domain_separator + "_beta", domain_separator + "_gamma");
+
+    witness_commitments.lookup_inverses = transcript->template receive_from_prover<Commitment>(
+        domain_separator + "_" + commitment_labels.lookup_inverses);
 
     // If Goblin (i.e. using DataBus) receive commitments to log-deriv inverses polynomial
     if constexpr (IsGoblinFlavor<Flavor>) {
@@ -74,8 +83,6 @@ void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::receive_and_finalise_inst
 
     witness_commitments.z_perm =
         transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.z_perm);
-    witness_commitments.z_lookup =
-        transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.z_lookup);
 
     // Compute correction terms for grand products
     const FF public_input_delta =

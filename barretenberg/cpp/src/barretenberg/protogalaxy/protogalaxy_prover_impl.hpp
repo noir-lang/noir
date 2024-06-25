@@ -187,7 +187,12 @@ FoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverInstanc
     BB_OP_COUNT_TIME_NAME("ProtogalaxyProver::fold_instances");
     // Ensure instances are all of the same size
     for (size_t idx = 0; idx < ProverInstances::NUM - 1; ++idx) {
-        ASSERT(instances[idx]->proving_key.circuit_size == instances[idx + 1]->proving_key.circuit_size);
+        if (instances[idx]->proving_key.circuit_size != instances[idx + 1]->proving_key.circuit_size) {
+            info("ProtogalaxyProver: circuit size mismatch!");
+            info("Instance ", idx, " size = ", instances[idx]->proving_key.circuit_size);
+            info("Instance ", idx + 1, " size = ", instances[idx + 1]->proving_key.circuit_size);
+            ASSERT(false);
+        }
     }
     preparation_round();
     perturbator_round();

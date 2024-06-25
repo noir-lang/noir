@@ -65,15 +65,16 @@ class MegaTranscriptTests : public ::testing::Test {
         manifest_expected.add_challenge(round, "eta", "eta_two", "eta_three");
 
         round++;
-        manifest_expected.add_entry(round, "SORTED_ACCUM", frs_per_G);
+        manifest_expected.add_entry(round, "LOOKUP_READ_COUNTS", frs_per_G);
+        manifest_expected.add_entry(round, "LOOKUP_READ_TAGS", frs_per_G);
         manifest_expected.add_entry(round, "W_4", frs_per_G);
         manifest_expected.add_challenge(round, "beta", "gamma");
 
         round++;
+        manifest_expected.add_entry(round, "LOOKUP_INVERSES", frs_per_G);
         manifest_expected.add_entry(round, "CALLDATA_INVERSES", frs_per_G);
         manifest_expected.add_entry(round, "RETURN_DATA_INVERSES", frs_per_G);
         manifest_expected.add_entry(round, "Z_PERM", frs_per_G);
-        manifest_expected.add_entry(round, "Z_LOOKUP", frs_per_G);
 
         for (size_t i = 0; i < NUM_SUBRELATIONS - 1; i++) {
             std::string label = "alpha_" + std::to_string(i);
@@ -242,7 +243,7 @@ TEST_F(MegaTranscriptTests, StructureTest)
 
     Flavor::Commitment one_group_val = Flavor::Commitment::one();
     FF rand_val = FF::random_element();
-    prover.transcript->sorted_accum_comm = one_group_val * rand_val; // choose random object to modify
+    prover.transcript->z_perm_comm = one_group_val * rand_val; // choose random object to modify
     EXPECT_TRUE(verifier.verify_proof(
         prover.export_proof())); // we have not serialized it back to the proof so it should still be fine
 
@@ -250,5 +251,5 @@ TEST_F(MegaTranscriptTests, StructureTest)
     EXPECT_FALSE(verifier.verify_proof(prover.export_proof())); // the proof is now wrong after serializing it
 
     prover.transcript->deserialize_full_transcript();
-    EXPECT_EQ(static_cast<Flavor::Commitment>(prover.transcript->sorted_accum_comm), one_group_val * rand_val);
+    EXPECT_EQ(static_cast<Flavor::Commitment>(prover.transcript->z_perm_comm), one_group_val * rand_val);
 }
