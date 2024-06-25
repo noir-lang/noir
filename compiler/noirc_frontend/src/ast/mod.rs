@@ -24,7 +24,7 @@ pub use type_alias::*;
 use crate::{
     parser::{ParserError, ParserErrorReason},
     token::IntType,
-    BinaryTypeOperator,
+    BinaryTypeOperator, node_interner::QuotedTypeId,
 };
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
@@ -121,7 +121,7 @@ pub enum UnresolvedTypeData {
 
     /// An already resolved type. These can only be parsed if they were present in the token stream
     /// as a result of being spliced into a macro's token stream input.
-    Resolved(crate::Type),
+    Resolved(QuotedTypeId),
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
@@ -225,7 +225,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
             Parenthesized(typ) => write!(f, "({typ})"),
-            Resolved(typ) => write!(f, "{typ}"),
+            Resolved(_) => write!(f, "(resolved type)"),
         }
     }
 }

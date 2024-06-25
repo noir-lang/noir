@@ -2,7 +2,7 @@ use acvm::{acir::AcirField, FieldElement};
 use noirc_errors::{Position, Span, Spanned};
 use std::{fmt, iter::Map, vec::IntoIter};
 
-use crate::{lexer::errors::LexerErrorKind, node_interner::ExprId};
+use crate::{lexer::errors::LexerErrorKind, node_interner::{ExprId, QuotedTypeId}};
 
 /// Represents a token in noir's grammar - a word, number,
 /// or symbol that can be used in noir's syntax. This is the
@@ -24,7 +24,7 @@ pub enum BorrowedToken<'input> {
     LineComment(&'input str, Option<DocStyle>),
     BlockComment(&'input str, Option<DocStyle>),
     Quote(&'input Tokens),
-    QuotedType(&'input Type),
+    QuotedType(QuotedTypeId),
     /// <
     Less,
     /// <=
@@ -130,7 +130,7 @@ pub enum Token {
     /// spliced into a macro's token stream. We preserve the original type
     /// to avoid having to tokenize it, re-parse it, and re-resolve it which
     /// may change the underlying type.
-    QuotedType(Type),
+    QuotedType(QuotedTypeId),
     /// <
     Less,
     /// <=
@@ -229,7 +229,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::LineComment(ref s, _style) => BorrowedToken::LineComment(s, *_style),
         Token::BlockComment(ref s, _style) => BorrowedToken::BlockComment(s, *_style),
         Token::Quote(stream) => BorrowedToken::Quote(stream),
-        Token::QuotedType(ref typ) => BorrowedToken::QuotedType(typ),
+        Token::QuotedType(id) => BorrowedToken::QuotedType(*id),
         Token::IntType(ref i) => BorrowedToken::IntType(i.clone()),
         Token::Less => BorrowedToken::Less,
         Token::LessEqual => BorrowedToken::LessEqual,
@@ -350,7 +350,8 @@ impl fmt::Display for Token {
                 }
                 write!(f, "}}")
             }
-            Token::QuotedType(ref typ) => write!(f, "{typ}"),
+            // Quoted types only have an ID so there is nothing to display
+            Token::QuotedType(_) => write!(f, "(type)"),
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),

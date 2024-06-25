@@ -109,7 +109,7 @@ impl<'context> Elaborator<'context> {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element)))
             }
             Parenthesized(typ) => self.resolve_type_inner(*typ),
-            Resolved(typ) => typ,
+            Resolved(id) => self.interner.get_quoted_type(id).clone(),
         };
 
         if let Type::Struct(_, _) = resolved_type {

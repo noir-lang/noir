@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub(super) fn call_builtin(
-    interner: &NodeInterner,
+    interner: &mut NodeInterner,
     name: &str,
     arguments: Vec<(Value, Location)>,
     location: Location,
@@ -123,7 +123,7 @@ fn type_def_generics(
 /// fn fields(self) -> [(Quoted, Quoted)]
 /// Returns (name, type) pairs of each field of this TypeDefinition
 fn type_def_fields(
-    interner: &NodeInterner,
+    interner: &mut NodeInterner,
     mut arguments: Vec<(Value, Location)>,
 ) -> IResult<Value> {
     assert_eq!(arguments.len(), 1, "ICE: `generics` should only receive a single argument");
@@ -144,7 +144,8 @@ fn type_def_fields(
 
     for (name, typ) in struct_def.get_fields_as_written() {
         let name = make_quoted(vec![make_token(name)]);
-        let typ = SpannedToken::new(Token::QuotedType(typ), span);
+        let id = interner.push_quoted_type(typ);
+        let typ = SpannedToken::new(Token::QuotedType(id), span);
         let typ = Value::Code(Rc::new(Tokens(vec![typ])));
         fields.push_back(Value::Tuple(vec![name, typ]));
     }
