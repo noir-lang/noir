@@ -1289,7 +1289,7 @@ impl<'context> Elaborator<'context> {
         self.current_item = Some(DependencyId::Global(global_id));
         let let_stmt = global.stmt_def;
 
-        if !self.in_contract
+        if !self.module_id().module(self.def_maps).is_contract
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
             let span = let_stmt.pattern.span();
