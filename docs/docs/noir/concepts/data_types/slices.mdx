@@ -191,3 +191,108 @@ fn main() {
     assert(array[1] == slice[1]);
 }
 ```
+
+### map
+
+Applies a function to each element of the slice, returning a new slice containing the mapped elements.
+
+```rust
+fn map<U>(self, f: fn(T) -> U) -> [U]
+```
+
+example
+
+```rust
+let a = &[1, 2, 3];
+let b = a.map(|a| a * 2); // b is now &[2, 4, 6]
+```
+
+### fold
+
+Applies a function to each element of the slice, returning the final accumulated value. The first
+parameter is the initial value.
+
+```rust
+fn fold<U>(self, mut accumulator: U, f: fn(U, T) -> U) -> U
+```
+
+This is a left fold, so the given function will be applied to the accumulator and first element of
+the slice, then the second, and so on. For a given call the expected result would be equivalent to:
+
+```rust
+let a1 = &[1];
+let a2 = &[1, 2];
+let a3 = &[1, 2, 3];
+
+let f = |a, b| a - b;
+a1.fold(10, f)  //=> f(10, 1)
+a2.fold(10, f)  //=> f(f(10, 1), 2)
+a3.fold(10, f)  //=> f(f(f(10, 1), 2), 3)
+```
+
+example:
+
+```rust
+
+fn main() {
+    let slice = &[2, 2, 2, 2, 2];
+    let folded = slice.fold(0, |a, b| a + b);
+    assert(folded == 10);
+}
+
+```
+
+### reduce
+
+Same as fold, but uses the first element as the starting element.
+
+```rust
+fn reduce(self, f: fn(T, T) -> T) -> T
+```
+
+example:
+
+```rust
+fn main() {
+    let slice = &[2, 2, 2, 2, 2];
+    let reduced = slice.reduce(|a, b| a + b);
+    assert(reduced == 10);
+}
+```
+
+### all
+
+Returns true if all the elements satisfy the given predicate
+
+```rust
+fn all(self, predicate: fn(T) -> bool) -> bool
+```
+
+example:
+
+```rust
+fn main() {
+    let slice = &[2, 2, 2, 2, 2];
+    let all = slice.all(|a| a == 2);
+    assert(all);
+}
+```
+
+### any
+
+Returns true if any of the elements satisfy the given predicate
+
+```rust
+fn any(self, predicate: fn(T) -> bool) -> bool
+```
+
+example:
+
+```rust
+fn main() {
+    let slice = &[2, 2, 2, 2, 5];
+    let any = slice.any(|a| a == 5);
+    assert(any);
+}
+
+```
