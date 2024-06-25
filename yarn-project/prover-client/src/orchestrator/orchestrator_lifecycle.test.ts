@@ -143,7 +143,7 @@ describe('prover/orchestrator/lifecycle', () => {
 
     it('cancels proving requests', async () => {
       const prover: ServerCircuitProver = new TestCircuitProver(new NoopTelemetryClient());
-      const orchestrator = new ProvingOrchestrator(context.actualDb, prover);
+      const orchestrator = new ProvingOrchestrator(context.actualDb, prover, new NoopTelemetryClient());
 
       const spy = jest.spyOn(prover, 'getBaseParityProof');
       const deferredPromises: PromiseWithResolvers<any>[] = [];

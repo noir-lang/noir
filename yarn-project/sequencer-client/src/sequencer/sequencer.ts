@@ -13,13 +13,14 @@ import {
   PROVING_STATUS,
 } from '@aztec/circuit-types/interfaces';
 import { type L2BlockBuiltStats } from '@aztec/circuit-types/stats';
-import { AztecAddress, EthAddress, type Proof } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, type GlobalVariables, type Header, type Proof } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { Timer, elapsed } from '@aztec/foundation/timer';
 import { type P2P } from '@aztec/p2p';
 import { type PublicProcessorFactory } from '@aztec/simulator';
+import { Attributes, type TelemetryClient, type Tracer, trackSpan } from '@aztec/telemetry-client';
 import { type WorldStateStatus, type WorldStateSynchronizer } from '@aztec/world-state';
 
 import { type GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
@@ -50,6 +51,8 @@ export class Sequencer {
   private allowedInTeardown: AllowedElement[] = [];
   private maxBlockSizeInBytes: number = 1024 * 1024;
 
+  public readonly tracer: Tracer;
+
   constructor(
     private publisher: L1Publisher,
     private globalsBuilder: GlobalVariableBuilder,
@@ -60,10 +63,12 @@ export class Sequencer {
     private l1ToL2MessageSource: L1ToL2MessageSource,
     private publicProcessorFactory: PublicProcessorFactory,
     private txValidatorFactory: TxValidatorFactory,
+    telemetry: TelemetryClient,
     config: SequencerConfig = {},
     private log = createDebugLogger('aztec:sequencer'),
   ) {
     this.updateConfig(config);
+    this.tracer = telemetry.getTracer('Sequencer');
     this.log.verbose(`Initialized sequencer with ${this.minTxsPerBLock}-${this.maxTxsPerBlock} txs per block.`);
   }
 
@@ -174,7 +179,6 @@ export class Sequencer {
         return;
       }
 
-      const workTimer = new Timer();
       this.state = SequencerState.WAITING_FOR_TXS;
 
       // Get txs to build the new block
@@ -183,19 +187,6 @@ export class Sequencer {
         return;
       }
       this.log.debug(`Retrieved ${pendingTxs.length} txs from P2P pool`);
-
-      /**
-       * We'll call this function before running expensive operations to avoid wasted work.
-       */
-      const assertBlockHeight = async () => {
-        const currentBlockNumber = await this.l2BlockSource.getBlockNumber();
-        if (currentBlockNumber + 1 !== newBlockNumber) {
-          throw new Error('New block was emitted while building block');
-        }
-        if (!(await this.publisher.isItMyTurnToSubmit(newBlockNumber))) {
-          throw new Error(`Not this sequencer turn to submit block`);
-        }
-      };
 
       const newGlobalVariables = await this.globalsBuilder.buildGlobalVariables(
         new Fr(newBlockNumber),
@@ -220,72 +211,7 @@ export class Sequencer {
         return;
       }
 
-      this.log.info(`Building block ${newBlockNumber} with ${validTxs.length} transactions`);
-      this.state = SequencerState.CREATING_BLOCK;
-
-      // Get l1 to l2 messages from the contract
-      this.log.debug('Requesting L1 to L2 messages from contract');
-      const l1ToL2Messages = await this.l1ToL2MessageSource.getL1ToL2Messages(BigInt(newBlockNumber));
-      this.log.verbose(`Retrieved ${l1ToL2Messages.length} L1 to L2 messages for block ${newBlockNumber}`);
-
-      // We create a fresh processor each time to reset any cached state (eg storage writes)
-      const processor = await this.publicProcessorFactory.create(historicalHeader, newGlobalVariables);
-
-      const blockBuildingTimer = new Timer();
-
-      // We must initialise the block to be a power of 2 in size
-      const numRealTxs = validTxs.length;
-      const pow2 = Math.log2(numRealTxs);
-      // TODO turn this back into a Math.ceil once we can pad blocks to the next-power-of-2 with empty txs
-      const totalTxs = 2 ** Math.ceil(pow2);
-      const blockSize = Math.max(2, totalTxs);
-      const blockTicket = await this.prover.startNewBlock(blockSize, newGlobalVariables, l1ToL2Messages);
-
-      const [publicProcessorDuration, [processedTxs, failedTxs]] = await elapsed(() =>
-        processor.process(validTxs, blockSize, this.prover, this.txValidatorFactory.validatorForProcessedTxs()),
-      );
-      if (failedTxs.length > 0) {
-        const failedTxData = failedTxs.map(fail => fail.tx);
-        this.log.debug(`Dropping failed txs ${Tx.getHashes(failedTxData).join(', ')}`);
-        await this.p2pClient.deleteTxs(Tx.getHashes(failedTxData));
-      }
-
-      if (processedTxs.length === 0) {
-        this.log.verbose('No txs processed correctly to build block. Exiting');
-        this.prover.cancelBlock();
-        return;
-      }
-
-      await assertBlockHeight();
-
-      // All real transactions have been added, set the block as full and complete the proving.
-      await this.prover.setBlockCompleted();
-
-      // Here we are now waiting for the block to be proven.
-      // TODO(@PhilWindle) We should probably periodically check for things like another
-      // block being published before ours instead of just waiting on our block
-      const result = await blockTicket.provingPromise;
-      if (result.status === PROVING_STATUS.FAILURE) {
-        throw new Error(`Block proving failed, reason: ${result.reason}`);
-      }
-
-      await assertBlockHeight();
-
-      // Block is proven, now finalise and publish!
-      const { block, aggregationObject, proof } = await this.prover.finaliseBlock();
-
-      await assertBlockHeight();
-
-      this.log.verbose(`Assembled block ${block.number}`, {
-        eventName: 'l2-block-built',
-        duration: workTimer.ms(),
-        publicProcessDuration: publicProcessorDuration,
-        rollupCircuitsDuration: blockBuildingTimer.ms(),
-        ...block.getStats(),
-      } satisfies L2BlockBuiltStats);
-
-      await this.publishL2Block(block, aggregationObject, proof);
-      this.log.info(`Submitted rollup block ${block.number} with ${processedTxs.length} transactions`);
+      await this.buildBlockAndPublish(validTxs, newGlobalVariables, historicalHeader);
     } catch (err) {
       if (BlockProofError.isBlockProofError(err)) {
         const txHashes = err.txHashes.filter(h => !h.isZero());
@@ -299,10 +225,100 @@ export class Sequencer {
     }
   }
 
+  @trackSpan('Sequencer.buildBlockAndPublish', (_validTxs, newGlobalVariables, _historicalHeader) => ({
+    [Attributes.BLOCK_NUMBER]: newGlobalVariables.blockNumber.toNumber(),
+  }))
+  private async buildBlockAndPublish(
+    validTxs: Tx[],
+    newGlobalVariables: GlobalVariables,
+    historicalHeader: Header | undefined,
+  ): Promise<void> {
+    const workTimer = new Timer();
+    this.state = SequencerState.CREATING_BLOCK;
+    this.log.info(`Building block ${newGlobalVariables.blockNumber.toNumber()} with ${validTxs.length} transactions`);
+
+    const assertBlockHeight = async () => {
+      const currentBlockNumber = await this.l2BlockSource.getBlockNumber();
+      if (currentBlockNumber + 1 !== newGlobalVariables.blockNumber.toNumber()) {
+        throw new Error('New block was emitted while building block');
+      }
+      if (!(await this.publisher.isItMyTurnToSubmit(newGlobalVariables.blockNumber.toNumber()))) {
+        throw new Error(`Not this sequencer turn to submit block`);
+      }
+    };
+
+    // Get l1 to l2 messages from the contract
+    this.log.debug('Requesting L1 to L2 messages from contract');
+    const l1ToL2Messages = await this.l1ToL2MessageSource.getL1ToL2Messages(newGlobalVariables.blockNumber.toBigInt());
+    this.log.verbose(
+      `Retrieved ${l1ToL2Messages.length} L1 to L2 messages for block ${newGlobalVariables.blockNumber.toNumber()}`,
+    );
+
+    // We create a fresh processor each time to reset any cached state (eg storage writes)
+    const processor = await this.publicProcessorFactory.create(historicalHeader, newGlobalVariables);
+
+    const numRealTxs = validTxs.length;
+    const pow2 = Math.log2(numRealTxs);
+    const totalTxs = 2 ** Math.ceil(pow2);
+    const blockSize = Math.max(2, totalTxs);
+
+    const blockBuildingTimer = new Timer();
+    const blockTicket = await this.prover.startNewBlock(blockSize, newGlobalVariables, l1ToL2Messages);
+
+    const [publicProcessorDuration, [processedTxs, failedTxs]] = await elapsed(() =>
+      processor.process(validTxs, blockSize, this.prover, this.txValidatorFactory.validatorForProcessedTxs()),
+    );
+    if (failedTxs.length > 0) {
+      const failedTxData = failedTxs.map(fail => fail.tx);
+      this.log.debug(`Dropping failed txs ${Tx.getHashes(failedTxData).join(', ')}`);
+      await this.p2pClient.deleteTxs(Tx.getHashes(failedTxData));
+    }
+
+    if (processedTxs.length === 0) {
+      this.log.verbose('No txs processed correctly to build block. Exiting');
+      this.prover.cancelBlock();
+      return;
+    }
+
+    await assertBlockHeight();
+
+    // All real transactions have been added, set the block as full and complete the proving.
+    await this.prover.setBlockCompleted();
+
+    // Here we are now waiting for the block to be proven.
+    // TODO(@PhilWindle) We should probably periodically check for things like another
+    // block being published before ours instead of just waiting on our block
+    const result = await blockTicket.provingPromise;
+    if (result.status === PROVING_STATUS.FAILURE) {
+      throw new Error(`Block proving failed, reason: ${result.reason}`);
+    }
+
+    await assertBlockHeight();
+
+    // Block is proven, now finalise and publish!
+    const { block, aggregationObject, proof } = await this.prover.finaliseBlock();
+
+    await assertBlockHeight();
+
+    this.log.verbose(`Assembled block ${block.number}`, {
+      eventName: 'l2-block-built',
+      duration: workTimer.ms(),
+      publicProcessDuration: publicProcessorDuration,
+      rollupCircuitsDuration: blockBuildingTimer.ms(),
+      ...block.getStats(),
+    } satisfies L2BlockBuiltStats);
+
+    await this.publishL2Block(block, aggregationObject, proof);
+    this.log.info(`Submitted rollup block ${block.number} with ${processedTxs.length} transactions`);
+  }
+
   /**
    * Publishes the L2Block to the rollup contract.
    * @param block - The L2Block to be published.
    */
+  @trackSpan('Sequencer.publishL2Block', block => ({
+    [Attributes.BLOCK_NUMBER]: block.number,
+  }))
   protected async publishL2Block(block: L2Block, aggregationObject: Fr[], proof: Proof) {
     // Publishes new block to the network and awaits the tx to be mined
     this.state = SequencerState.PUBLISHING_BLOCK;

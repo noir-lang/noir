@@ -6,6 +6,7 @@ import {
   type Histogram,
   Metrics,
   type TelemetryClient,
+  type Tracer,
   ValueType,
 } from '@aztec/telemetry-client';
 
@@ -24,8 +25,12 @@ export class ProverInstrumentation {
   private circuitSize: Gauge;
   private circuitPublicInputCount: Gauge;
 
+  public readonly tracer: Tracer;
+
   constructor(telemetry: TelemetryClient, name: string) {
+    this.tracer = telemetry.getTracer(name);
     const meter = telemetry.getMeter(name);
+
     this.simulationDuration = meter.createHistogram(Metrics.CIRCUIT_SIMULATION_DURATION, {
       description: 'Records how long it takes to simulate a circuit',
       unit: 's',

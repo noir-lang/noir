@@ -20,6 +20,7 @@ import { type Logger, createDebugLogger } from '@aztec/foundation/log';
 import { makeBackoff, retry } from '@aztec/foundation/retry';
 import { resolver, reviver } from '@aztec/foundation/serialize';
 import { type PXEService, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
+import { createAndStartTelemetryClient, getConfigEnvVars as getTelemetryConfig } from '@aztec/telemetry-client/start';
 
 import { type Anvil, createAnvil } from '@viem/anvil';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
@@ -270,8 +271,9 @@ async function setupFromFresh(statePath: string | undefined, logger: Logger): Pr
     aztecNodeConfig.bbWorkingDirectory = bbConfig.bbWorkingDirectory;
   }
 
+  const telemetry = createAndStartTelemetryClient(getTelemetryConfig());
   logger.verbose('Creating and synching an aztec node...');
-  const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig);
+  const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig, telemetry);
 
   logger.verbose('Creating pxe...');
   const pxeConfig = getPXEServiceConfig();
@@ -343,7 +345,8 @@ async function setupFromState(statePath: string, logger: Logger): Promise<Subsys
   const { publicClient, walletClient } = createL1Clients(aztecNodeConfig.rpcUrl, mnemonicToAccount(MNEMONIC));
 
   logger.verbose('Creating aztec node...');
-  const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig);
+  const telemetry = createAndStartTelemetryClient(getTelemetryConfig());
+  const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig, telemetry);
 
   logger.verbose('Creating pxe...');
   const pxeConfig = getPXEServiceConfig();

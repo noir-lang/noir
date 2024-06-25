@@ -20,7 +20,19 @@
   },
   "jest": {
     "extensionsToTreatAsEsm": [".ts"],
-    "transform": { "^.+\\.tsx?$": ["@swc/jest"] },
+    "transform": {
+      "^.+\\.tsx?$": [
+        "@swc/jest",
+        {
+          "jsc": {
+            "parser": {
+              "syntax": "typescript",
+              "decorators": true
+            }
+          }
+        }
+      ]
+    },
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.[cm]?js$": "$1"
     },

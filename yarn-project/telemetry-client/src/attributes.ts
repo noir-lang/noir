@@ -34,3 +34,16 @@ export const APP_CIRCUIT_NAME = 'aztec.circuit.app_circuit_name';
  * The type of app circuit being run: server or client
  */
 export const APP_CIRCUIT_TYPE = 'aztec.circuit.app_circuit_type';
+
+/** The block number */
+export const BLOCK_NUMBER = 'aztec.block.number';
+/** The parent's block number */
+export const BLOCK_PARENT = 'aztec.block.parent';
+/** How many txs are being processed to build this block */
+export const BLOCK_CANDIDATE_TXS_COUNT = 'aztec.block.candidate_txs_count';
+/** How many actual txs were included in this block */
+export const BLOCK_TXS_COUNT = 'aztec.block.txs_count';
+/** The block size (power of 2) */
+export const BLOCK_SIZE = 'aztec.block.size';
+/** The tx hash */
+export const TX_HASH = 'aztec.tx.hash';

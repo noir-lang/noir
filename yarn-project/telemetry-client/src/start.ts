@@ -4,24 +4,24 @@ import { type TelemetryClient } from './telemetry.js';
 
 export interface TelemetryClientConfig {
   collectorBaseUrl?: URL;
+  serviceName: string;
+  serviceVersion: string;
 }
 
-export function createAndStartTelemetryClient(
-  config: TelemetryClientConfig,
-  serviceName: string,
-  serviceVersion?: string,
-): TelemetryClient {
+export function createAndStartTelemetryClient(config: TelemetryClientConfig): TelemetryClient {
   if (config.collectorBaseUrl) {
-    return OpenTelemetryClient.createAndStart(serviceName, serviceVersion ?? '0.0.0', config.collectorBaseUrl);
+    return OpenTelemetryClient.createAndStart(config.serviceName, config.serviceVersion, config.collectorBaseUrl);
   } else {
     return new NoopTelemetryClient();
   }
 }
 
 export function getConfigEnvVars(): TelemetryClientConfig {
-  const { OTEL_COLLECTOR_BASE_URL } = process.env;
+  const { TEL_COLLECTOR_BASE_URL, TEL_SERVICE_NAME = 'aztec', TEL_SERVICE_VERSION = '0.0.0' } = process.env;
 
   return {
-    collectorBaseUrl: OTEL_COLLECTOR_BASE_URL ? new URL(OTEL_COLLECTOR_BASE_URL) : undefined,
+    collectorBaseUrl: TEL_COLLECTOR_BASE_URL ? new URL(TEL_COLLECTOR_BASE_URL) : undefined,
+    serviceName: TEL_SERVICE_NAME,
+    serviceVersion: TEL_SERVICE_VERSION,
   };
 }

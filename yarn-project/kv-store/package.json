@@ -28,7 +28,15 @@
     "workerThreads": true,
     "transform": {
       "^.+\\.tsx?$": [
-        "@swc/jest"
+        "@swc/jest",
+        {
+          "jsc": {
+            "parser": {
+              "syntax": "typescript",
+              "decorators": true
+            }
+          }
+        }
       ]
     },
     "extensionsToTreatAsEsm": [

@@ -61,7 +61,7 @@ services:
       P2P_ENABLED: true
       PEER_ID_PRIVATE_KEY:
       AZTEC_PORT: 8999
-      OTEL_COLLECTOR_BASE_URL: ${OTEL_COLLECTOR_BASE_URL:-http://otel-collector:4318}
+      TEL_COLLECTOR_BASE_URL: ${TEL_COLLECTOR_BASE_URL:-http://otel-collector:4318}
     secrets:
       - ethereum-host
       - p2p-boot-node
@@ -76,13 +76,13 @@ services:
         # if the stack is started with --profile metrics --profile node, give the collector a chance to start before the node
         i=0
         max=3
-        while ! curl --head --silent $$OTEL_COLLECTOR_BASE_URL > /dev/null; do
+        while ! curl --head --silent $$TEL_COLLECTOR_BASE_URL > /dev/null; do
           echo "OpenTelemetry collector not up. Retrying after 1s";
           sleep 1;
           i=$$((i+1));
           if [ $$i -eq $$max ]; then
-            echo "OpenTelemetry collector at $$OTEL_COLLECTOR_BASE_URL not up after $${max}s. Running without metrics";
-            unset OTEL_COLLECTOR_BASE_URL;
+            echo "OpenTelemetry collector at $$TEL_COLLECTOR_BASE_URL not up after $${max}s. Running without metrics";
+            unset TEL_COLLECTOR_BASE_URL;
             break
           fi;
         done;
@@ -143,6 +143,13 @@ services:
       - source: grafana-sources
         target: /etc/grafana/provisioning/datasources/default.yml
 
+  jaeger:
+    image: jaegertracing/all-in-one
+    ports:
+      - 16686:16686
+    profiles:
+      - metrics
+
 volumes:
   aztec:
   grafana:
@@ -187,9 +194,17 @@ configs:
         prometheus:
           endpoint: 0.0.0.0:8889
           metric_expiration: 5m
+        otlp/jaeger:
+            endpoint: "jaeger:4317"
+            tls:
+              insecure: true
 
       service:
         pipelines:
+          traces:
+            receivers: [otlp]
+            processors: [batch]
+            exporters: [otlp/jaeger]
           metrics:
             receivers: [otlp]
             processors: [batch]

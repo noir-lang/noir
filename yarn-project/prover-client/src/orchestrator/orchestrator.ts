@@ -9,6 +9,7 @@ import {
   type TxEffect,
   makeEmptyProcessedTx,
   makePaddingProcessedTx,
+  mapPublicKernelToCircuitName,
   toTxEffect,
 } from '@aztec/circuit-types';
 import {
@@ -20,6 +21,7 @@ import {
   type PublicInputsAndRecursiveProof,
   type ServerCircuitProver,
 } from '@aztec/circuit-types/interfaces';
+import { type CircuitName } from '@aztec/circuit-types/stats';
 import {
   AGGREGATION_OBJECT_LENGTH,
   AvmCircuitInputs,
@@ -53,6 +55,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { promiseWithResolvers } from '@aztec/foundation/promise';
 import { BufferReader, type Tuple } from '@aztec/foundation/serialize';
 import { pushTestData } from '@aztec/foundation/testing';
+import { Attributes, type TelemetryClient, type Tracer, trackSpan, wrapCallbackInSpan } from '@aztec/telemetry-client';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
 import { inspect } from 'util';
@@ -91,7 +94,16 @@ export class ProvingOrchestrator {
   private pendingProvingJobs: AbortController[] = [];
   private paddingTx: PaddingProcessedTx | undefined = undefined;
 
-  constructor(private db: MerkleTreeOperations, private prover: ServerCircuitProver, private initialHeader?: Header) {}
+  public readonly tracer: Tracer;
+
+  constructor(
+    private db: MerkleTreeOperations,
+    private prover: ServerCircuitProver,
+    telemetryClient: TelemetryClient,
+    private initialHeader?: Header,
+  ) {
+    this.tracer = telemetryClient.getTracer('ProvingOrchestrator');
+  }
 
   /**
    * Resets the orchestrator's cached padding tx.
@@ -108,6 +120,10 @@ export class ProvingOrchestrator {
    * @param verificationKeys - The private kernel verification keys
    * @returns A proving ticket, containing a promise notifying of proving completion
    */
+  @trackSpan('ProvingOrchestrator.startNewBlock', (numTxs, globalVariables) => ({
+    [Attributes.BLOCK_SIZE]: numTxs,
+    [Attributes.BLOCK_NUMBER]: globalVariables.blockNumber.toNumber(),
+  }))
   public async startNewBlock(
     numTxs: number,
     globalVariables: GlobalVariables,
@@ -193,6 +209,9 @@ export class ProvingOrchestrator {
    * The interface to add a simulated transaction to the scheduler
    * @param tx - The transaction to be proven
    */
+  @trackSpan('ProvingOrchestrator.addNewTx', tx => ({
+    [Attributes.TX_HASH]: tx.hash.toString(),
+  }))
   public async addNewTx(tx: ProcessedTx): Promise<void> {
     if (!this.provingState) {
       throw new Error(`Invalid proving state, call startNewBlock before adding transactions`);
@@ -213,6 +232,17 @@ export class ProvingOrchestrator {
   /**
    * Marks the block as full and pads it to the full power of 2 block size, no more transactions will be accepted.
    */
+  @trackSpan('ProvingOrchestrator.setBlockCompleted', function () {
+    if (!this.provingState) {
+      return {};
+    }
+
+    return {
+      [Attributes.BLOCK_NUMBER]: this.provingState!.globalVariables.blockNumber.toNumber(),
+      [Attributes.BLOCK_SIZE]: this.provingState!.totalNumTxs,
+      [Attributes.BLOCK_TXS_COUNT]: this.provingState!.transactionsReceived,
+    };
+  })
   public async setBlockCompleted() {
     if (!this.provingState) {
       throw new Error(`Invalid proving state, call startNewBlock before adding transactions or completing the block`);
@@ -264,18 +294,26 @@ export class ProvingOrchestrator {
     logger.debug(`Enqueuing deferred proving for padding txs to enqueue ${txInputs.length} paddings`);
     this.deferredProving(
       provingState,
-      signal =>
-        this.prover.getEmptyPrivateKernelProof(
-          {
-            // Chain id and version should not change even if the proving state does, so it's safe to use them for the padding tx
-            // which gets cached across multiple runs of the orchestrator with different proving states. If they were to change,
-            // we'd have to clear out the paddingTx here and regenerate it when they do.
-            chainId: unprovenPaddingTx.data.constants.txContext.chainId,
-            version: unprovenPaddingTx.data.constants.txContext.version,
-            header: unprovenPaddingTx.data.constants.historicalHeader,
-          },
-          signal,
-        ),
+      wrapCallbackInSpan(
+        this.tracer,
+        'ProvingOrchestrator.prover.getEmptyPrivateKernelProof',
+        {
+          [Attributes.PROTOCOL_CIRCUIT_TYPE]: 'server',
+          [Attributes.PROTOCOL_CIRCUIT_NAME]: 'private-kernel-empty' as CircuitName,
+        },
+        signal =>
+          this.prover.getEmptyPrivateKernelProof(
+            {
+              // Chain id and version should not change even if the proving state does, so it's safe to use them for the padding tx
+              // which gets cached across multiple runs of the orchestrator with different proving states. If they were to change,
+              // we'd have to clear out the paddingTx here and regenerate it when they do.
+              chainId: unprovenPaddingTx.data.constants.txContext.chainId,
+              version: unprovenPaddingTx.data.constants.txContext.version,
+              header: unprovenPaddingTx.data.constants.historicalHeader,
+            },
+            signal,
+          ),
+      ),
       result => {
         logger.debug(`Completed proof for padding tx, now enqueuing ${txInputs.length} padding txs`);
         this.paddingTx = makePaddingProcessedTx(result);
@@ -319,6 +357,13 @@ export class ProvingOrchestrator {
    * Performs the final tree update for the block and returns the fully proven block.
    * @returns The fully proven block and proof.
    */
+  @trackSpan('ProvingOrchestrator.finaliseBlock', function () {
+    return {
+      [Attributes.BLOCK_NUMBER]: this.provingState!.globalVariables.blockNumber.toNumber(),
+      [Attributes.BLOCK_TXS_COUNT]: this.provingState!.transactionsReceived,
+      [Attributes.BLOCK_SIZE]: this.provingState!.totalNumTxs,
+    };
+  })
   public async finaliseBlock() {
     try {
       if (
@@ -496,6 +541,9 @@ export class ProvingOrchestrator {
   }
 
   // Updates the merkle trees for a transaction. The first enqueued job for a transaction
+  @trackSpan('ProvingOrchestrator.prepareBaseRollupInputs', (_, tx) => ({
+    [Attributes.TX_HASH]: tx.hash.toString(),
+  }))
   private async prepareBaseRollupInputs(
     provingState: ProvingState | undefined,
     tx: ProcessedTx,
@@ -593,7 +641,16 @@ export class ProvingOrchestrator {
 
     this.deferredProving(
       provingState,
-      signal => this.prover.getBaseRollupProof(tx.baseRollupInputs, signal),
+      wrapCallbackInSpan(
+        this.tracer,
+        'ProvingOrchestrator.prover.getBaseRollupProof',
+        {
+          [Attributes.TX_HASH]: tx.processedTx.hash.toString(),
+          [Attributes.PROTOCOL_CIRCUIT_TYPE]: 'server',
+          [Attributes.PROTOCOL_CIRCUIT_NAME]: 'base-rollup' as CircuitName,
+        },
+        signal => this.prover.getBaseRollupProof(tx.baseRollupInputs, signal),
+      ),
       result => {
         logger.debug(`Completed proof for base rollup for tx ${tx.processedTx.hash.toString()}`);
         validatePartialState(result.inputs.end, tx.treeSnapshots);
@@ -622,7 +679,15 @@ export class ProvingOrchestrator {
 
     this.deferredProving(
       provingState,
-      signal => this.prover.getMergeRollupProof(inputs, signal),
+      wrapCallbackInSpan(
+        this.tracer,
+        'ProvingOrchestrator.prover.getMergeRollupProof',
+        {
+          [Attributes.PROTOCOL_CIRCUIT_TYPE]: 'server',
+          [Attributes.PROTOCOL_CIRCUIT_NAME]: 'merge-rollup' as CircuitName,
+        },
+        signal => this.prover.getMergeRollupProof(inputs, signal),
+      ),
       result => {
         this.storeAndExecuteNextMergeLevel(provingState, level, index, [
           result.inputs,
@@ -658,7 +723,15 @@ export class ProvingOrchestrator {
 
     this.deferredProving(
       provingState,
-      signal => this.prover.getRootRollupProof(inputs, signal),
+      wrapCallbackInSpan(
+        this.tracer,
+        'ProvingOrchestrator.prover.getRootRollupProof',
+        {
+          [Attributes.PROTOCOL_CIRCUIT_TYPE]: 'server',
+          [Attributes.PROTOCOL_CIRCUIT_NAME]: 'root-rollup' as CircuitName,
+        },
+        signal => this.prover.getRootRollupProof(inputs, signal),
+      ),
       result => {
         provingState.rootRollupPublicInputs = result.inputs;
         provingState.finalAggregationObject = extractAggregationObject(
@@ -680,7 +753,15 @@ export class ProvingOrchestrator {
   private enqueueBaseParityCircuit(provingState: ProvingState, inputs: BaseParityInputs, index: number) {
     this.deferredProving(
       provingState,
-      signal => this.prover.getBaseParityProof(inputs, signal),
+      wrapCallbackInSpan(
+        this.tracer,
+        'ProvingOrchestrator.prover.getBaseParityProof',
+        {
+          [Attributes.PROTOCOL_CIRCUIT_TYPE]: 'server',
+          [Attributes.PROTOCOL_CIRCUIT_NAME]: 'base-parity' as CircuitName,
+        },
+        signal => this.prover.getBaseParityProof(inputs, signal),
+      ),
       rootInput => {
         provingState.setRootParityInputs(rootInput, index);
         if (provingState.areRootParityInputsReady()) {
@@ -701,7 +782,15 @@ export class ProvingOrchestrator {
   private enqueueRootParityCircuit(provingState: ProvingState | undefined, inputs: RootParityInputs) {
     this.deferredProving(
       provingState,
-      signal => this.prover.getRootParityProof(inputs, signal),
+      wrapCallbackInSpan(
+        this.tracer,
+        'ProvingOrchestrator.prover.getRootParityProof',
+        {
+          [Attributes.PROTOCOL_CIRCUIT_TYPE]: 'server',
+          [Attributes.PROTOCOL_CIRCUIT_NAME]: 'root-parity' as CircuitName,
+        },
+        signal => this.prover.getRootParityProof(inputs, signal),
+      ),
       async rootInput => {
         provingState!.finalRootParityInput = rootInput;
         await this.checkAndEnqueueRootRollup(provingState);
@@ -770,26 +859,34 @@ export class ProvingOrchestrator {
     if (publicFunction.vmRequest) {
       // This function tries to do AVM proving. If there is a failure, it fakes the proof unless AVM_PROVING_STRICT is defined.
       // Nothing downstream depends on the AVM proof yet. So having this mode lets us incrementally build the AVM circuit.
-      const doAvmProving = async (signal: AbortSignal) => {
-        const inputs: AvmCircuitInputs = new AvmCircuitInputs(
-          publicFunction.vmRequest!.functionName,
-          publicFunction.vmRequest!.bytecode,
-          publicFunction.vmRequest!.calldata,
-          publicFunction.vmRequest!.kernelRequest.inputs.publicCall.callStackItem.publicInputs,
-          publicFunction.vmRequest!.avmHints,
-        );
-        try {
-          return await this.prover.getAvmProof(inputs, signal);
-        } catch (err) {
-          if (process.env.AVM_PROVING_STRICT) {
-            throw err;
-          } else {
-            logger.warn(`Error thrown when proving AVM circuit: ${err}`);
-            logger.warn(`AVM_PROVING_STRICT is off, faking AVM proof and carrying on...`);
-            return { proof: makeEmptyProof(), verificationKey: VerificationKeyData.makeFake() };
+      const doAvmProving = wrapCallbackInSpan(
+        this.tracer,
+        'ProvingOrchestrator.prover.getAvmProof',
+        {
+          [Attributes.TX_HASH]: txProvingState.processedTx.hash.toString(),
+          [Attributes.APP_CIRCUIT_NAME]: publicFunction.vmRequest!.functionName,
+        },
+        async (signal: AbortSignal) => {
+          const inputs: AvmCircuitInputs = new AvmCircuitInputs(
+            publicFunction.vmRequest!.functionName,
+            publicFunction.vmRequest!.bytecode,
+            publicFunction.vmRequest!.calldata,
+            publicFunction.vmRequest!.kernelRequest.inputs.publicCall.callStackItem.publicInputs,
+            publicFunction.vmRequest!.avmHints,
+          );
+          try {
+            return await this.prover.getAvmProof(inputs, signal);
+          } catch (err) {
+            if (process.env.AVM_PROVING_STRICT) {
+              throw err;
+            } else {
+              logger.warn(`Error thrown when proving AVM circuit: ${err}`);
+              logger.warn(`AVM_PROVING_STRICT is off, faking AVM proof and carrying on...`);
+              return { proof: makeEmptyProof(), verificationKey: VerificationKeyData.makeFake() };
+            }
           }
-        }
-      };
+        },
+      );
       this.deferredProving(provingState, doAvmProving, proofAndVk => {
         logger.debug(`Proven VM for function index ${functionIndex} of tx index ${txIndex}`);
         this.checkAndEnqueuePublicKernel(provingState, txIndex, functionIndex, proofAndVk.proof);
@@ -835,13 +932,25 @@ export class ProvingOrchestrator {
 
     this.deferredProving(
       provingState,
-      (signal): Promise<PublicInputsAndRecursiveProof<KernelCircuitPublicInputs | PublicKernelCircuitPublicInputs>> => {
-        if (request.type === PublicKernelType.TAIL) {
-          return this.prover.getPublicTailProof(request, signal);
-        } else {
-          return this.prover.getPublicKernelProof(request, signal);
-        }
-      },
+      wrapCallbackInSpan(
+        this.tracer,
+        request.type === PublicKernelType.TAIL
+          ? 'ProvingOrchestrator.prover.getPublicTailProof'
+          : 'ProvingOrchestrator.prover.getPublicKernelProof',
+        {
+          [Attributes.PROTOCOL_CIRCUIT_TYPE]: 'server',
+          [Attributes.PROTOCOL_CIRCUIT_NAME]: mapPublicKernelToCircuitName(request.type),
+        },
+        (
+          signal,
+        ): Promise<PublicInputsAndRecursiveProof<KernelCircuitPublicInputs | PublicKernelCircuitPublicInputs>> => {
+          if (request.type === PublicKernelType.TAIL) {
+            return this.prover.getPublicTailProof(request, signal);
+          } else {
+            return this.prover.getPublicKernelProof(request, signal);
+          }
+        },
+      ),
       result => {
         const nextKernelRequest = txProvingState.getNextPublicKernelFromKernelProof(
           functionIndex,

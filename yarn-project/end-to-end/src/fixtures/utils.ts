@@ -90,7 +90,7 @@ export { deployAndInitializeTokenAndBridgeContracts } from '../shared/cross_chai
 
 const { PXE_URL = '' } = process.env;
 
-const telemetry = createAndStartTelemetryClient(getTelemetryConfig(), 'aztec-test');
+const telemetry = createAndStartTelemetryClient(getTelemetryConfig());
 if (typeof afterAll === 'function') {
   afterAll(async () => {
     await telemetry.stop();

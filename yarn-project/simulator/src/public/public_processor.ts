@@ -30,6 +30,7 @@ import {
   computeFeePayerBalanceLeafSlot,
   computeFeePayerBalanceStorageSlot,
 } from '@aztec/simulator';
+import { Attributes, type TelemetryClient, type Tracer, trackSpan } from '@aztec/telemetry-client';
 import { type ContractDataSource } from '@aztec/types/contracts';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
@@ -47,6 +48,7 @@ export class PublicProcessorFactory {
     private merkleTree: MerkleTreeOperations,
     private contractDataSource: ContractDataSource,
     private simulator: SimulationProvider,
+    private telemetryClient: TelemetryClient,
   ) {}
 
   /**
@@ -74,6 +76,7 @@ export class PublicProcessorFactory {
       historicalHeader,
       publicContractsDB,
       worldStatePublicDB,
+      this.telemetryClient,
     );
   }
 }
@@ -83,6 +86,7 @@ export class PublicProcessorFactory {
  * any public function calls in them. Txs with private calls only are unaffected.
  */
 export class PublicProcessor {
+  public readonly tracer: Tracer;
   constructor(
     protected db: MerkleTreeOperations,
     protected publicExecutor: PublicExecutor,
@@ -91,9 +95,11 @@ export class PublicProcessor {
     protected historicalHeader: Header,
     protected publicContractsDB: ContractsDataSourcePublicDB,
     protected publicStateDB: PublicStateDB,
-
+    telemetryClient: TelemetryClient,
     private log = createDebugLogger('aztec:sequencer:public-processor'),
-  ) {}
+  ) {
+    this.tracer = telemetryClient.getTracer('PublicProcessor');
+  }
 
   /**
    * Run each tx through the public circuit and the public kernel circuit if needed.
@@ -208,6 +214,9 @@ export class PublicProcessor {
     return finalPublicDataUpdateRequests;
   }
 
+  @trackSpan('PublicProcessor.processTxWithPublicCalls', tx => ({
+    [Attributes.TX_HASH]: tx.getTxHash().toString(),
+  }))
   private async processTxWithPublicCalls(tx: Tx): Promise<[ProcessedTx, NestedProcessReturnValues[]]> {
     let returnValues: NestedProcessReturnValues[] = [];
     const publicProvingRequests: PublicProvingRequest[] = [];

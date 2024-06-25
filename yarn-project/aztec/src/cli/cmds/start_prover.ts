@@ -34,7 +34,7 @@ export const startProver: ServiceStarter = async (options, signalHandlers, logge
       ? parseInt(proverOptions.proverAgentPollInterval, 10)
       : proverOptions.proverAgentPollInterval;
 
-  const telemetry = createAndStartTelemetryClient(getTelemetryClientConfig(), 'aztec-prover');
+  const telemetry = createAndStartTelemetryClient(getTelemetryClientConfig());
   let circuitProver: ServerCircuitProver;
   if (proverOptions.realProofs) {
     if (!proverOptions.acvmBinaryPath || !proverOptions.bbBinaryPath) {

@@ -34,7 +34,7 @@ export const startArchiver = async (options: any, signalHandlers: (() => Promise
   );
   const archiverStore = new KVArchiverDataStore(store, archiverConfig.maxLogs);
 
-  const telemetry = createAndStartTelemetryClient(getTelemetryClientConfig(), 'aztec-archiver');
+  const telemetry = createAndStartTelemetryClient(getTelemetryClientConfig());
   const archiver = await Archiver.createAndSync(archiverConfig, archiverStore, telemetry, true);
   const archiverServer = createArchiverRpcServer(archiver);
   services.push({ archiver: archiverServer });

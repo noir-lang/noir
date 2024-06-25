@@ -35,6 +35,7 @@
     "@aztec/p2p": "workspace:^",
     "@aztec/protocol-contracts": "workspace:^",
     "@aztec/simulator": "workspace:^",
+    "@aztec/telemetry-client": "workspace:^",
     "@aztec/types": "workspace:^",
     "@aztec/world-state": "workspace:^",
     "@noir-lang/acvm_js": "portal:../../noir/packages/acvm_js",
@@ -78,7 +79,15 @@
     ],
     "transform": {
       "^.+\\.tsx?$": [
-        "@swc/jest"
+        "@swc/jest",
+        {
+          "jsc": {
+            "parser": {
+              "syntax": "typescript",
+              "decorators": true
+            }
+          }
+        }
       ]
     },
     "moduleNameMapper": {

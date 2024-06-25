@@ -96,6 +96,7 @@ export class TestContext {
     const publicWorldStateDB = mock<WorldStatePublicDB>();
     const publicKernel = new RealPublicKernelCircuitSimulator(new WASMSimulator());
     const actualDb = await MerkleTrees.new(openTmpStore()).then(t => t.asLatest());
+    const telemetry = new NoopTelemetryClient();
     const processor = new PublicProcessor(
       actualDb,
       publicExecutor,
@@ -104,6 +105,7 @@ export class TestContext {
       Header.empty(),
       publicContractsDB,
       publicWorldStateDB,
+      telemetry,
     );
 
     let localProver: ServerCircuitProver;
@@ -125,7 +127,7 @@ export class TestContext {
     }
 
     const queue = new MemoryProvingQueue();
-    const orchestrator = new ProvingOrchestrator(actualDb, queue);
+    const orchestrator = new ProvingOrchestrator(actualDb, queue, telemetry);
     const agent = new ProverAgent(localProver, proverCount);
 
     queue.start();

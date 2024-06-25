@@ -27,6 +27,8 @@ import {
   makeEmptyProof,
 } from '@aztec/circuits.js';
 
+import { type CircuitName } from '../stats/stats.js';
+
 /**
  * Used to communicate to the prover which type of circuit to prove
  */
@@ -303,4 +305,19 @@ function validateProcessedTxLogs(tx: ProcessedTx): void {
 export function validateProcessedTx(tx: ProcessedTx): void {
   validateProcessedTxLogs(tx);
   // TODO: validate other fields
+}
+
+export function mapPublicKernelToCircuitName(kernelType: PublicKernelRequest['type']): CircuitName {
+  switch (kernelType) {
+    case PublicKernelType.SETUP:
+      return 'public-kernel-setup';
+    case PublicKernelType.APP_LOGIC:
+      return 'public-kernel-app-logic';
+    case PublicKernelType.TEARDOWN:
+      return 'public-kernel-teardown';
+    case PublicKernelType.TAIL:
+      return 'public-kernel-tail';
+    default:
+      throw new Error(`Unknown kernel type: ${kernelType}`);
+  }
 }

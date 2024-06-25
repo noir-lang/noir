@@ -30,7 +30,7 @@ describe('prover/orchestrator/failures', () => {
 
     beforeEach(() => {
       mockProver = new TestCircuitProver(new NoopTelemetryClient(), new WASMSimulator());
-      orchestrator = new ProvingOrchestrator(context.actualDb, mockProver);
+      orchestrator = new ProvingOrchestrator(context.actualDb, mockProver, new NoopTelemetryClient());
     });
 
     it.each([

@@ -27,6 +27,7 @@ import { randomBytes } from '@aztec/foundation/crypto';
 import { type Writeable } from '@aztec/foundation/types';
 import { type P2P, P2PClientState } from '@aztec/p2p';
 import { type PublicProcessor, type PublicProcessorFactory } from '@aztec/simulator';
+import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 import { type ContractDataSource } from '@aztec/types/contracts';
 import { type MerkleTreeOperations, WorldStateRunningState, type WorldStateSynchronizer } from '@aztec/world-state';
 
@@ -115,6 +116,7 @@ describe('sequencer', () => {
       l1ToL2MessageSource,
       publicProcessorFactory,
       new TxValidatorFactory(merkleTreeOps, contractSource, false),
+      new NoopTelemetryClient(),
     );
   });
 
