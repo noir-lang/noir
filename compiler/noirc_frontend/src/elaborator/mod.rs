@@ -594,6 +594,14 @@ impl<'context> Elaborator<'context> {
     ) {
         self.current_function = Some(func_id);
 
+        let in_contract = if self.self_type.is_some() {
+            // Without this, impl methods can accidentally be placed in contracts.
+            // See: https://github.com/noir-lang/noir/issues/3254
+            false
+        } else {
+            self.in_contract()
+        };
+
         self.scopes.start_function();
         self.current_item = Some(DependencyId::Function(func_id));
 
@@ -601,12 +609,13 @@ impl<'context> Elaborator<'context> {
         let id = self.interner.function_definition_id(func_id);
         let name_ident = HirIdent::non_trait_method(id, location);
 
-        let is_entry_point = self.is_entry_point_function(func);
+        let is_entry_point = self.is_entry_point_function(func, in_contract);
 
         self.run_lint(|_| lints::inlining_attributes(func).map(Into::into));
         self.run_lint(|_| lints::missing_pub(func, is_entry_point).map(Into::into));
         self.run_lint(|elaborator| {
-            lints::unnecessary_pub_return(func, elaborator.pub_allowed(func)).map(Into::into)
+            lints::unnecessary_pub_return(func, elaborator.pub_allowed(func, in_contract))
+                .map(Into::into)
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func).map(Into::into));
         self.run_lint(|elaborator| {
@@ -622,7 +631,7 @@ impl<'context> Elaborator<'context> {
         let has_no_predicates_attribute = func.attributes().is_no_predicates();
         let should_fold = func.attributes().is_foldable();
         let has_inline_attribute = has_no_predicates_attribute || should_fold;
-        let is_pub_allowed = self.pub_allowed(func);
+        let is_pub_allowed = self.pub_allowed(func, in_contract);
         self.add_generics(&func.def.generics);
 
         let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
@@ -729,28 +738,23 @@ impl<'context> Elaborator<'context> {
 
     /// True if the `pub` keyword is allowed on parameters in this function
     /// `pub` on function parameters is only allowed for entry point functions
-    fn pub_allowed(&self, func: &NoirFunction) -> bool {
-        self.is_entry_point_function(func) || func.attributes().is_foldable()
+    fn pub_allowed(&self, func: &NoirFunction, in_contract: bool) -> bool {
+        self.is_entry_point_function(func, in_contract) || func.attributes().is_foldable()
     }
 
     /// Returns `true` if the current module is a contract.
+    ///
+    /// This is usually determined by `self.module_id()`, but it can
+    /// be overridden for impls. Impls are an odd case since the methods within resolve
+    /// as if they're in the parent module, but should be placed in a child module.
+    /// Since they should be within a child module, they should be elaborated as if
+    /// `in_contract` is `false` so we can still resolve them in the parent module without them being in a contract.
     fn in_contract(&self) -> bool {
-        // This is usually determined by `self.module_id()`, but it can
-        // be overridden for impls. Impls are an odd case since the methods within resolve
-        // as if they're in the parent module, but should be placed in a child module.
-        // Since they should be within a child module, we return `false` for these so
-        // we can still resolve them in the parent module without them being in a contract.
-        if self.self_type.is_some() {
-            // Without this, impl methods can accidentally be placed in contracts.
-            // See: https://github.com/noir-lang/noir/issues/3254
-            false
-        } else {
-            self.module_id().module(self.def_maps).is_contract
-        }
+        self.module_id().module(self.def_maps).is_contract
     }
 
-    fn is_entry_point_function(&self, func: &NoirFunction) -> bool {
-        if self.in_contract() {
+    fn is_entry_point_function(&self, func: &NoirFunction, in_contract: bool) -> bool {
+        if in_contract {
             func.attributes().is_contract_entry_point()
         } else {
             func.name() == MAIN_FUNCTION
@@ -1282,7 +1286,7 @@ impl<'context> Elaborator<'context> {
         self.current_item = Some(DependencyId::Global(global_id));
         let let_stmt = global.stmt_def;
 
-        if !self.in_contract
+        if !self.in_contract()
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
             let span = let_stmt.pattern.span();
