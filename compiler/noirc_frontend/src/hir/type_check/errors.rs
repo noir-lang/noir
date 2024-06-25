@@ -40,6 +40,8 @@ pub enum TypeCheckError {
     TypeMismatch { expected_typ: String, expr_typ: String, expr_span: Span },
     #[error("Expected type {expected} is not the same as {actual}")]
     TypeMismatchWithSource { expected: Type, actual: Type, span: Span, source: Source },
+    #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
+    TypeKindMismatch { expected_kind: String, expr_kind: String, expr_span: Span },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: usize, found: usize, span: Span },
     #[error("Return type in a function cannot be public")]
@@ -143,7 +145,7 @@ pub enum TypeCheckError {
     },
     #[error("Strings do not support indexed assignment")]
     StringIndexAssign { span: Span },
-    #[error("Macro calls may only return Expr values")]
+    #[error("Macro calls may only return `Quoted` values")]
     MacroReturningNonExpr { typ: Type, span: Span },
 }
 
@@ -174,6 +176,13 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_span } => {
                 Diagnostic::simple_error(
                     format!("Expected type {expected_typ}, found type {expr_typ}"),
+                    String::new(),
+                    *expr_span,
+                )
+            }
+            TypeCheckError::TypeKindMismatch { expected_kind, expr_kind, expr_span } => {
+                Diagnostic::simple_error(
+                    format!("Expected kind {expected_kind}, found kind {expr_kind}"),
                     String::new(),
                     *expr_span,
                 )
@@ -338,8 +347,8 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_error(msg, "".into(), *span)
             },
             TypeCheckError::MacroReturningNonExpr { typ, span } => Diagnostic::simple_error(
-                format!("Expected macro call to return an `Expr` but found a(n) {typ}"),
-                "Macro calls must return quoted expressions, otherwise there is no code to insert".into(),
+                format!("Expected macro call to return a `Quoted` but found a(n) `{typ}`"),
+                "Macro calls must return quoted values, otherwise there is no code to insert".into(),
                 *span,
                 ),
         }

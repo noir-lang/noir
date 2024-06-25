@@ -94,6 +94,13 @@ pub(super) fn variable_no_turbofish() -> impl NoirParser<ExpressionKind> {
     path().map(|path| ExpressionKind::Variable(path, None))
 }
 
+pub(super) fn macro_quote_marker() -> impl NoirParser<ExpressionKind> {
+    token_kind(TokenKind::UnquoteMarker).map(|token| match token {
+        Token::UnquoteMarker(expr_id) => ExpressionKind::Resolved(expr_id),
+        other => unreachable!("Non-unquote-marker parsed as an unquote marker: {other:?}"),
+    })
+}
+
 #[cfg(test)]
 mod test {
     use crate::parser::parser::{

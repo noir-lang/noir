@@ -80,7 +80,6 @@ extern {
         "mod" => BorrowedToken::Keyword(noir_token::Keyword::Mod),
         "mut" => BorrowedToken::Keyword(noir_token::Keyword::Mut),
         "pub" => BorrowedToken::Keyword(noir_token::Keyword::Pub),
-        "quote" => BorrowedToken::Keyword(noir_token::Keyword::Quote),
         "return" => BorrowedToken::Keyword(noir_token::Keyword::Return),
         "return_data" => BorrowedToken::Keyword(noir_token::Keyword::ReturnData),
         "str" => BorrowedToken::Keyword(noir_token::Keyword::String),

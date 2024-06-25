@@ -1,8 +1,7 @@
-use std::{collections::BTreeMap, rc::Rc};
+use std::collections::BTreeMap;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::Span;
 
 use crate::{
     graph::CrateId,
@@ -11,10 +10,10 @@ use crate::{
         def_map::{CrateDefMap, ModuleId},
     },
     node_interner::{FuncId, NodeInterner, TraitImplId},
-    Type, TypeVariable,
+    ResolvedGeneric, Type,
 };
 
-use super::{path_resolver::StandardPathResolver, resolver::Resolver};
+use super::{path_resolver::StandardPathResolver, Resolver};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn resolve_function_set(
@@ -24,7 +23,7 @@ pub(crate) fn resolve_function_set(
     mut unresolved_functions: UnresolvedFunctions,
     self_type: Option<Type>,
     trait_impl_id: Option<TraitImplId>,
-    impl_generics: Vec<(Rc<String>, TypeVariable, Span)>,
+    impl_generics: Vec<ResolvedGeneric>,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Vec<(FileId, FuncId)> {
     let file_id = unresolved_functions.file_id;

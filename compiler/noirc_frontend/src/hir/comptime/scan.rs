@@ -100,7 +100,7 @@ impl<'interner> Interpreter<'interner> {
             // missed it somehow. In the future we may allow users to manually write unquote
             // expressions in their code but for now this is unreachable.
             HirExpression::Unquote(block) => {
-                unreachable!("Found unquote block while scanning: {block}")
+                unreachable!("Found unquote block while scanning: {block:?}")
             }
         }
     }
