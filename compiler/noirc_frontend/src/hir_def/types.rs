@@ -211,9 +211,10 @@ impl std::fmt::Display for Kind {
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum QuotedType {
     Expr,
-    TypeDefinition,
+    Quoted,
     TopLevelItem,
     Type,
+    TypeDefinition,
 }
 
 /// A list of TypeVariableIds to bind to a type. Storing the
@@ -329,6 +330,16 @@ impl StructType {
             let name = name.0.contents.clone();
             (name, typ.substitute(&substitutions))
         })
+    }
+
+    /// Returns the name and raw types of each field of this type.
+    /// This will not substitute any generic arguments so a generic field like `x`
+    /// in `struct Foo<T> { x: T }` will return a `("x", T)` pair.
+    ///
+    /// This method is almost never what is wanted for type checking or monomorphization,
+    /// prefer to use `get_fields` whenever possible.
+    pub fn get_fields_as_written(&self) -> Vec<(String, Type)> {
+        vecmap(&self.fields, |(name, typ)| (name.0.contents.clone(), typ.clone()))
     }
 
     pub fn field_names(&self) -> BTreeSet<Ident> {
@@ -756,11 +767,19 @@ impl Type {
             | Type::Bool
             | Type::Unit
             | Type::Error
-            | Type::TypeVariable(_, _)
             | Type::Constant(_)
-            | Type::NamedGeneric(_, _, _)
             | Type::Forall(_, _)
             | Type::Quoted(_) => {}
+
+            Type::TypeVariable(type_var, _) => {
+                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
+                    named_generic_is_numeric(typ, found_names);
+                }
+            }
+
+            Type::NamedGeneric(_, _, _) => {
+                named_generic_is_numeric(self, found_names);
+            }
 
             Type::TraitAsType(_, _, args) => {
                 for arg in args.iter() {
@@ -919,10 +938,11 @@ impl Type {
             | Type::FmtString(_, _)
             | Type::Error => true,
 
-            Type::MutableReference(_)
-            | Type::Forall(_, _)
-            | Type::Quoted(_)
-            | Type::TraitAsType(..) => false,
+            // Quoted objects only exist at compile-time where the only execution
+            // environment is the interpreter. In this environment, they are valid.
+            Type::Quoted(_) => true,
+
+            Type::MutableReference(_) | Type::Forall(_, _) | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
@@ -1153,9 +1173,10 @@ impl std::fmt::Display for QuotedType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             QuotedType::Expr => write!(f, "Expr"),
-            QuotedType::TypeDefinition => write!(f, "TypeDefinition"),
+            QuotedType::Quoted => write!(f, "Quoted"),
             QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
             QuotedType::Type => write!(f, "Type"),
+            QuotedType::TypeDefinition => write!(f, "TypeDefinition"),
         }
     }
 }

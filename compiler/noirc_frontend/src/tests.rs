@@ -14,6 +14,7 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
+use crate::hir::comptime::InterpreterError;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::hir::def_map::ModuleData;
@@ -1871,4 +1872,27 @@ fn implicit_numeric_generics_elaborator() {
             panic!("Expected ResolverError::UseExplicitNumericGeneric but got {:?}", error);
         }
     }
+}
+
+#[test]
+fn quote_code_fragments() {
+    // This test ensures we can quote (and unquote/splice) code fragments
+    // which by themselves are not valid code. They only need to be valid
+    // by the time they are unquoted into the macro's call site.
+    let src = r#"
+        fn main() {
+            comptime {
+                concat!(quote { assert( }, quote { false); });
+            }
+        }
+
+        comptime fn concat(a: Quoted, b: Quoted) -> Quoted {
+            quote { $a $b }
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    use InterpreterError::FailingConstraint;
+    assert!(matches!(&errors[0].0, CompilationError::InterpreterError(FailingConstraint { .. })));
 }

@@ -1,10 +1,8 @@
-comptime fn my_macro(x: Field, y: Field) -> Expr {
+comptime fn my_macro(x: Field, y: Field) -> Quoted {
     // Current version of macros in Noir are not hygienic
     // so we can quote a and b here and expect them to resolve
     // to the a and b in main at the callsite of my_macro.
-    quote {
-        $x + $y + a + b
-    }
+    quote { $x + $y + a + b }
 }
 
 fn main() {

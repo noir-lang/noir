@@ -246,6 +246,8 @@ pub fn generate_storage_implementation(
         generics: vec![generic_context_ident.into()],
 
         methods: vec![(init, Span::default())],
+
+        where_clause: vec![],
     };
     module.impls.push(storage_impl);
 
