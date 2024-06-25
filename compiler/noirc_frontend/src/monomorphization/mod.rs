@@ -17,7 +17,6 @@ use crate::{
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
-    hir::comptime::{Interpreter, InterpreterError, Value},
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     Type, TypeBinding, TypeBindings, TypeVariable, TypeVariableKind,
 };
@@ -612,17 +611,7 @@ impl<'interner> Monomorphizer<'interner> {
                     .transpose()?
                     .map(Box::new);
 
-                // resolve constant assertions at compile-time
-                let mut scopes = vec![HashMap::default()];
-                let mut interpreter = Interpreter::new(self.interner, &mut scopes);
-                match interpreter.evaluate_constrain(constrain) {
-                    // TODO: remove this comment if empty block passes tests
-                    Ok(Value::Unit) => Ok(ast::Expression::nop()),
-                    Ok(_) => panic!("Interpreter::evaluate_constrain expected to return unit on success"),
-                    // this is expected when the expression is not constant
-                    Err(InterpreterError::NonComptimeVarReferenced { .. }) => Ok(ast::Expression::Constrain(Box::new(expr), location, assert_message)),
-                    Err(err) => Err(MonomorphizationError::InterpreterError(err)),
-                }
+                Ok(ast::Expression::Constrain(Box::new(expr), location, assert_message))
             }
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::For(for_loop) => {

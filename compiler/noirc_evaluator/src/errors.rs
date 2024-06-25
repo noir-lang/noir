@@ -35,6 +35,8 @@ pub enum RuntimeError {
     UnknownLoopBound { call_stack: CallStack },
     #[error("Argument is not constant")]
     AssertConstantFailed { call_stack: CallStack },
+    #[error("Argument is not constant or is false")]
+    StaticAssertFailed { call_stack: CallStack },
     #[error("Nested slices are not supported")]
     NestedSlice { call_stack: CallStack },
     #[error("Big Integer modulus do no match")]
@@ -120,6 +122,7 @@ impl RuntimeError {
             | RuntimeError::UnInitialized { call_stack, .. }
             | RuntimeError::UnknownLoopBound { call_stack }
             | RuntimeError::AssertConstantFailed { call_stack }
+            | RuntimeError::StaticAssertFailed { call_stack }
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
             | RuntimeError::NestedSlice { call_stack, .. }

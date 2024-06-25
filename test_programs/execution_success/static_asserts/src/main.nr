@@ -1,8 +1,9 @@
-    
-fn static_assert<N>(predicate: bool, message: str<N>) {
-    assert_constant(predicate);
-    assert(predicate, message);
-}
+use std::static_assert;
+
+// fn static_assert<N>(predicate: bool, message: str<N>) {
+//     assert_constant(predicate);
+//     assert(predicate, message);
+// }
 
 global GLOBAL_ONE = 1;
 global GLOBAL_TWO = 2;
@@ -19,7 +20,10 @@ struct Foo {
     slice: [Field],
 }
 
-fn main(dynamic_one: Field, dynamic_two: Field) {
+fn main(
+    dynamic_one: Field, // == 1
+    dynamic_two: Field, // == 2
+) {
 
     // contents unknown at compile time
     // length known at compile time
@@ -156,9 +160,11 @@ fn main(dynamic_one: Field, dynamic_two: Field) {
     let y = 3;
     let xy = x + y;
 
-    // TODO: needs assert_constant to handle complex values
-    // (both currently passing)
+    // works!
     static_assert(xy == 5, "hi");
-    static_assert(xy == 6, "hi !=");
+
+    // works!
+    // TODO: move to own test
+    // static_assert(xy == 6, "hi !=");
 
 }

@@ -150,6 +150,7 @@ impl Context {
 
                     Intrinsic::ArrayLen
                     | Intrinsic::AssertConstant
+                    | Intrinsic::StaticAssert
                     | Intrinsic::ApplyRangeConstraint
                     | Intrinsic::StrAsBytes
                     | Intrinsic::ToBits(_)

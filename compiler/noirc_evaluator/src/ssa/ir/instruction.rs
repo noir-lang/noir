@@ -52,6 +52,7 @@ pub(crate) enum Intrinsic {
     ArrayLen,
     AsSlice,
     AssertConstant,
+    StaticAssert,
     SlicePushBack,
     SlicePushFront,
     SlicePopBack,
@@ -75,6 +76,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::ArrayLen => write!(f, "array_len"),
             Intrinsic::AsSlice => write!(f, "as_slice"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
+            Intrinsic::StaticAssert => write!(f, "static_assert"),
             Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
             Intrinsic::SlicePushFront => write!(f, "slice_push_front"),
             Intrinsic::SlicePopBack => write!(f, "slice_pop_back"),
@@ -102,7 +104,7 @@ impl Intrinsic {
     /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
     pub(crate) fn has_side_effects(&self) -> bool {
         match self {
-            Intrinsic::AssertConstant | Intrinsic::ApplyRangeConstraint | Intrinsic::AsWitness => {
+            Intrinsic::AssertConstant | Intrinsic::StaticAssert | Intrinsic::ApplyRangeConstraint | Intrinsic::AsWitness => {
                 true
             }
 
@@ -139,6 +141,7 @@ impl Intrinsic {
             "array_len" => Some(Intrinsic::ArrayLen),
             "as_slice" => Some(Intrinsic::AsSlice),
             "assert_constant" => Some(Intrinsic::AssertConstant),
+            "static_assert" => Some(Intrinsic::StaticAssert),
             "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
             "slice_push_back" => Some(Intrinsic::SlicePushBack),
             "slice_push_front" => Some(Intrinsic::SlicePushFront),

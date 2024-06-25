@@ -245,6 +245,13 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::StaticAssert => {
+            if arguments.iter().all(|argument| dfg.is_constant_and_truthy(*argument)) {
+                SimplifyResult::Remove
+            } else {
+                SimplifyResult::None
+            }
+        }
         Intrinsic::ApplyRangeConstraint => {
             let value = arguments[0];
             let max_bit_size = dfg.get_numeric_constant(arguments[1]);
