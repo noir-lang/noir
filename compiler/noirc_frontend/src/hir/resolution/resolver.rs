@@ -1519,12 +1519,6 @@ impl<'a> Resolver<'a> {
                                     self.interner.add_function_dependency(current_item, func_id);
                                 }
 
-                                let visibility = self.interner.function_visibility(func_id);
-                                if visibility != FunctionVisibility::Public {
-                                    let span = hir_ident.location.span;
-                                    self.check_can_reference_function(func_id, span, visibility);
-                                }
-
                                 let variable = DependencyId::Variable(hir_ident.location);
                                 let function = DependencyId::Function(func_id);
                                 self.interner.add_reference(function, variable);
