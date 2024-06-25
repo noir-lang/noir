@@ -609,6 +609,7 @@ impl<'a> Interpreter<'a> {
         let rhs = self.evaluate(infix.rhs)?;
 
         // TODO: Need to account for operator overloading
+        // See https://github.com/noir-lang/noir/issues/4925
         if self.interner.get_selected_impl_for_expression(id).is_some() {
             return Err(InterpreterError::Unimplemented {
                 item: "Operator overloading in the interpreter".to_string(),
