@@ -60,8 +60,8 @@ describe('full_prover', () => {
       logger.info(`Verifying private kernel tail proof`);
       await expect(t.circuitProofVerifier?.verifyProof(privateTx)).resolves.not.toThrow();
 
-      const sentPrivateTx = privateInteraction.send();
-      const sentPublicTx = publicInteraction.send();
+      const sentPrivateTx = privateInteraction.send({ skipPublicSimulation: true });
+      const sentPublicTx = publicInteraction.send({ skipPublicSimulation: true });
       await Promise.all([
         sentPrivateTx.wait({ timeout: 1200, interval: 10 }),
         sentPublicTx.wait({ timeout: 1200, interval: 10 }),
