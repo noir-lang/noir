@@ -561,6 +561,7 @@ pub mod test {
             all_generics: Vec::new(),
             parameter_idents: Vec::new(),
             function_body: FunctionBody::Resolved,
+            source_crate: CrateId::dummy_id(),
         };
         interner.push_fn_meta(func_meta, func_id);
 
