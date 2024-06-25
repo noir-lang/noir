@@ -366,7 +366,7 @@ where
         for (_, typ, vis) in main_function_signature.0 {
             let fields_for_param = typ.field_count() as usize;
             if vis == Visibility::Public {
-                self.get_mut_builder().register_public_inputs(
+                self.asm_writer.register_public_inputs(
                     &parameters[next_param_idx..next_param_idx+fields_for_param]
                 );
             }

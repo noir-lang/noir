@@ -44,6 +44,23 @@ fn vecbooltarget2string(t: &Vec<BoolTarget>) -> String {
     result
 }
 
+fn targetslice2string(t: &[Target]) -> String {
+    let mut result = String::new();
+    write!(&mut result, "(");
+    let mut first = true;
+    for tt in t {
+        if first {
+            write!(&mut result, "{}", target2string(*tt));
+            first = false;
+        } else {
+            write!(&mut result, ",{}", target2string(*tt));
+        }
+    }
+    write!(&mut result, ")");
+    result
+
+}
+
 impl AsmWriter for ConsoleAsmWriter {
     fn get_builder(&self) -> &P2Builder {
         &self.builder
@@ -216,6 +233,13 @@ impl AsmWriter for ConsoleAsmWriter {
         self.builder.connect(x, y);
         if self.show_plonky2 {
             println!("connect\t{},{}", target2string(x), target2string(y));
+        }
+    }
+
+    fn register_public_inputs(&mut self, targets: &[Target]) {
+        self.builder.register_public_inputs(targets);
+        if self.show_plonky2 {
+            println!("register_public_inputs\t{}", targetslice2string(targets));
         }
     }
 }

@@ -26,4 +26,5 @@ pub trait AsmWriter {
     fn not(&mut self, b: BoolTarget) -> BoolTarget;
     fn assert_bool(&mut self, b: BoolTarget);
     fn connect(&mut self, x: Target, y: Target);
+    fn register_public_inputs(&mut self, targets: &[Target]);
 }
