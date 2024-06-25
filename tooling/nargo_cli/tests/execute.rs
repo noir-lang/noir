@@ -5,6 +5,7 @@ mod tests {
     use assert_cmd::prelude::*;
     use predicates::prelude::*;
 
+    use serde_json::Value;
     use std::collections::BTreeMap;
     use std::fs;
     use std::path::PathBuf;

@@ -1,1 +1,72 @@
-[{"Path":""},{"Function":{"path_id":0,"line":-1,"name":"<toplevel>"}},{"Call":{"function_id":0,"args":[]}},{"Type":{"kind":30,"lang_type":"None","specific_info":{"kind":"None"}}},{"Path":"/home/stan/code/repos/noir/test_programs/plonky2_trace/1_mul/src/main.nr"},{"Step":{"path_id":1,"line":3}},{"Step":{"path_id":1,"line":4}},{"Step":{"path_id":1,"line":5}},{"Step":{"path_id":1,"line":6}},{"Step":{"path_id":1,"line":7}},{"Step":{"path_id":1,"line":8}},{"Step":{"path_id":1,"line":9}}]
+[
+  {
+    "Path": ""
+  },
+  {
+    "Function": {
+      "path_id": 0,
+      "line": -1,
+      "name": "<toplevel>"
+    }
+  },
+  {
+    "Call": {
+      "function_id": 0,
+      "args": []
+    }
+  },
+  {
+    "Type": {
+      "kind": 30,
+      "lang_type": "None",
+      "specific_info": {
+        "kind": "None"
+      }
+    }
+  },
+  {
+    "Path": "/home/stan/code/repos/noir/test_programs/plonky2_trace/1_mul/src/main.nr"
+  },
+  {
+    "Step": {
+      "path_id": 1,
+      "line": 3
+    }
+  },
+  {
+    "Step": {
+      "path_id": 1,
+      "line": 4
+    }
+  },
+  {
+    "Step": {
+      "path_id": 1,
+      "line": 5
+    }
+  },
+  {
+    "Step": {
+      "path_id": 1,
+      "line": 6
+    }
+  },
+  {
+    "Step": {
+      "path_id": 1,
+      "line": 7
+    }
+  },
+  {
+    "Step": {
+      "path_id": 1,
+      "line": 8
+    }
+  },
+  {
+    "Step": {
+      "path_id": 1,
+      "line": 9
+    }
+  }
+]
