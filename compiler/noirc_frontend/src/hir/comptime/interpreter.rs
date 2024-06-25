@@ -98,7 +98,8 @@ impl<'a> Interpreter<'a> {
             .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to");
 
         if let Some(builtin) = func_attrs.builtin() {
-            builtin::call_builtin(self.interner, builtin, arguments, location)
+            let builtin = builtin.clone();
+            builtin::call_builtin(self.interner, &builtin, arguments, location)
         } else if let Some(foreign) = func_attrs.foreign() {
             let item = format!("Comptime evaluation for foreign functions like {foreign}");
             Err(InterpreterError::Unimplemented { item, location })
@@ -608,10 +609,13 @@ impl<'a> Interpreter<'a> {
         let rhs = self.evaluate(infix.rhs)?;
 
         // TODO: Need to account for operator overloading
-        assert!(
-            self.interner.get_selected_impl_for_expression(id).is_none(),
-            "Operator overloading is unimplemented in the interpreter"
-        );
+        // See https://github.com/noir-lang/noir/issues/4925
+        if self.interner.get_selected_impl_for_expression(id).is_some() {
+            return Err(InterpreterError::Unimplemented {
+                item: "Operator overloading in the interpreter".to_string(),
+                location: infix.operator.location,
+            });
+        }
 
         use InterpreterError::InvalidValuesForBinary;
         match infix.operator.kind {
