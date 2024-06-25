@@ -25,7 +25,7 @@ use crate::{
         types::{Generics, Kind, ResolvedGeneric},
     },
     macros_api::{
-        BlockExpression, Ident, NodeInterner, NoirFunction, NoirStruct, Pattern,
+        BlockExpression, Ident, MacroProcessor, NodeInterner, NoirFunction, NoirStruct, Pattern,
         SecondaryAttribute, StructId,
     },
     node_interner::{
