@@ -4,6 +4,7 @@ contract TestLog {
     use dep::value_note::value_note::ValueNote;
     use dep::aztec::encrypted_logs::incoming_body::EncryptedLogIncomingBody;
     use dep::aztec::event::event_interface::EventInterface;
+    use dep::aztec::encrypted_logs::encrypted_event_emission::{encode_and_encrypt_event, encode_and_encrypt_event_with_keys};
 
     #[aztec(event)]
     struct ExampleEvent0 {
@@ -40,44 +41,27 @@ contract TestLog {
     }
 
     #[aztec(private)]
-    fn emit_encrypted_log(randomness: Field, event_type_id: Field, preimage: [Field; 6]) {
-        let header = context.get_header();
-        let msg_sender_ivpk_m = header.get_ivpk_m(&mut context, context.msg_sender());
-        let msg_sender_ovpk_m = header.get_ovpk_m(&mut context, context.msg_sender());
-
-        context.encrypt_and_emit_event(
-            randomness,
-            event_type_id,
-            msg_sender_ovpk_m,
-            msg_sender_ivpk_m,
-            preimage
-        );
-    }
-
-    #[aztec(private)]
     fn emit_encrypted_events(randomness: [Field; 2], preimages: [Field; 4]) {
-        let header = context.get_header();
-        let msg_sender_ivpk_m = header.get_ivpk_m(&mut context, context.msg_sender());
-        let msg_sender_ovpk_m = header.get_ovpk_m(&mut context, context.msg_sender());
-
         let event0 = ExampleEvent0 { value0: preimages[0], value1: preimages[1] };
 
-        context.encrypt_and_emit_event(
-            randomness[0],
-            ExampleEvent0::get_event_type_id().to_field(),
-            msg_sender_ovpk_m,
-            msg_sender_ivpk_m,
-            event0.serialize()
+        event0.emit(
+            encode_and_encrypt_event(
+                &mut context,
+                randomness[0],
+                context.msg_sender(),
+                context.msg_sender()
+            )
         );
 
         let event1 = ExampleEvent1 { value2: preimages[2], value3: preimages[3] };
 
-        context.encrypt_and_emit_event(
-            randomness[1],
-            ExampleEvent1::get_event_type_id().to_field(),
-            msg_sender_ovpk_m,
-            msg_sender_ivpk_m,
-            event1.serialize()
+        event1.emit(
+            encode_and_encrypt_event(
+                &mut context,
+                randomness[1],
+                context.msg_sender(),
+                context.msg_sender()
+            )
         );
     }
 }

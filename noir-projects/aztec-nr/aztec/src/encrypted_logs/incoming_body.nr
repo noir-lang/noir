@@ -205,6 +205,10 @@ mod test {
 
              buffer
         }
+
+        fn emit<Env>(self, _emit: fn[Env](Self) -> ()) {
+            _emit(self);
+        }
     }
 
     #[test]

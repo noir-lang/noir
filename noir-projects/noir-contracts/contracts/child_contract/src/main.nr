@@ -6,7 +6,7 @@ contract Child {
         context::gas::GasOpts,
         protocol_types::{abis::call_context::CallContext, grumpkin_point::GrumpkinPoint},
         note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
-        encrypted_logs::encrypted_note_emission::encode_and_encrypt
+        encrypted_logs::encrypted_note_emission::encode_and_encrypt_note
     };
     use dep::value_note::value_note::ValueNote;
 
@@ -56,7 +56,7 @@ contract Child {
         let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
 
         let mut note = ValueNote::new(new_value, owner_npk_m_hash);
-        storage.a_map_with_private_values.at(owner).insert(&mut note).emit(encode_and_encrypt(&mut context, owner, owner));
+        storage.a_map_with_private_values.at(owner).insert(&mut note).emit(encode_and_encrypt_note(&mut context, owner, owner));
         new_value
     }
 

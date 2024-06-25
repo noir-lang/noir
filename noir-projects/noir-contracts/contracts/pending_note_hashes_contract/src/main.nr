@@ -8,7 +8,7 @@ contract PendingNoteHashes {
     use dep::value_note::{balance_utils, filter::filter_notes_min_sum, value_note::{VALUE_NOTE_LEN, ValueNote}};
     use dep::aztec::protocol_types::grumpkin_point::GrumpkinPoint;
     use dep::aztec::protocol_types::constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL};
-    use dep::aztec::encrypted_logs::encrypted_note_emission::{encode_and_encrypt, encode_and_encrypt_with_keys};
+    use dep::aztec::encrypted_logs::encrypted_note_emission::{encode_and_encrypt_note, encode_and_encrypt_note_with_keys};
     use dep::aztec::note::note_emission::NoteEmission;
 
     #[aztec(storage)]
@@ -36,7 +36,7 @@ contract PendingNoteHashes {
         let mut note = ValueNote::new(amount, owner_npk_m_hash);
 
         // Insert note
-        owner_balance.insert(&mut note).emit(encode_and_encrypt(&mut context, outgoing_viewer, owner));
+        owner_balance.insert(&mut note).emit(encode_and_encrypt_note(&mut context, outgoing_viewer, owner));
 
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, amount);
         // get note inserted above
@@ -71,7 +71,7 @@ contract PendingNoteHashes {
 
         // Insert note
         let mut note = ValueNote::new(amount, owner_npk_m_hash);
-        owner_balance.insert(&mut note).emit(encode_and_encrypt(&mut context, context.msg_sender(), owner));
+        owner_balance.insert(&mut note).emit(encode_and_encrypt_note(&mut context, context.msg_sender(), owner));
 
         0
     }
@@ -91,7 +91,7 @@ contract PendingNoteHashes {
         let mut note = ValueNote::new(amount, owner_npk_m_hash);
 
         // Insert note
-        owner_balance.insert(&mut note).emit(encode_and_encrypt(&mut context, outgoing_viewer, owner));
+        owner_balance.insert(&mut note).emit(encode_and_encrypt_note(&mut context, outgoing_viewer, owner));
     }
 
     // Nested/inner function to create and insert a note
@@ -112,7 +112,7 @@ contract PendingNoteHashes {
         note.randomness = 2;
 
         // Insert note
-        owner_balance.insert(&mut note).emit(encode_and_encrypt(&mut context, outgoing_viewer, owner));
+        owner_balance.insert(&mut note).emit(encode_and_encrypt_note(&mut context, outgoing_viewer, owner));
     }
 
     // Nested/inner function to create and insert a note
@@ -129,10 +129,10 @@ contract PendingNoteHashes {
         // Insert note
         let emission = owner_balance.insert(&mut note);
 
-        emission.emit(encode_and_encrypt(&mut context, outgoing_viewer, owner));
+        emission.emit(encode_and_encrypt_note(&mut context, outgoing_viewer, owner));
 
         // Emit note again
-        emission.emit(encode_and_encrypt(&mut context, outgoing_viewer, owner));
+        emission.emit(encode_and_encrypt_note(&mut context, outgoing_viewer, owner));
     }
 
     // Nested/inner function to get a note and confirm it matches the expected value
@@ -351,7 +351,7 @@ contract PendingNoteHashes {
         let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
         let mut good_note = ValueNote::new(10, owner_npk_m_hash);
         // Insert good note with real log
-        owner_balance.insert(&mut good_note).emit(encode_and_encrypt(&mut context, outgoing_viewer, owner));
+        owner_balance.insert(&mut good_note).emit(encode_and_encrypt_note(&mut context, outgoing_viewer, owner));
 
         // We will emit a note log with an incorrect preimage to ensure the pxe throws
         // This note has not been inserted...
@@ -360,7 +360,7 @@ contract PendingNoteHashes {
         let existing_note_header = good_note.get_header();
         bad_note.set_header(existing_note_header);
 
-        NoteEmission::new(bad_note).emit(encode_and_encrypt_with_keys(&mut context, outgoing_viewer_ovpk_m, owner_ivpk_m));
+        NoteEmission::new(bad_note).emit(encode_and_encrypt_note_with_keys(&mut context, outgoing_viewer_ovpk_m, owner_ivpk_m));
     }
 
     #[contract_library_method]
@@ -378,7 +378,7 @@ contract PendingNoteHashes {
 
         for i in 0..max_notes_per_call() {
             let mut note = ValueNote::new(i as Field, owner_npk_m_hash);
-            owner_balance.insert(&mut note).emit(encode_and_encrypt_with_keys(context, outgoing_viewer_ovpk_m, owner_ivpk_m));
+            owner_balance.insert(&mut note).emit(encode_and_encrypt_note_with_keys(context, outgoing_viewer_ovpk_m, owner_ivpk_m));
         }
     }
 

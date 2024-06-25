@@ -1,5 +1,3 @@
-use crate::encrypted_logs::{payload::compute_encrypted_note_log};
-
 use crate::{
     context::{inputs::PrivateContextInputs, packed_returns::PackedReturns},
     messaging::process_l1_to_l2_message,
@@ -10,7 +8,7 @@ use crate::{
     key_validation_request::get_key_validation_request, arguments, returns::pack_returns,
     call_private_function::call_private_function_internal, header::get_header_at,
     logs::{
-    emit_encrypted_note_log, emit_encrypted_event_log, compute_encrypted_event_log,
+    emit_encrypted_note_log, emit_encrypted_event_log,
     emit_contract_class_unencrypted_log_private_internal, emit_unencrypted_log_private_internal
 },
     logs_traits::{LensForEncryptedLog, ToBytesForUnencryptedLog},
@@ -276,10 +274,7 @@ impl PrivateContext {
     // --> might be a better approach to force devs to make a public function call that emits the log if needed then
     // it would be less easy to accidentally leak information.
     // If we decide to keep this function around would make sense to wait for traits and then merge it with emit_unencrypted_log.
-    pub fn emit_unencrypted_log<T, N, M>(
-        &mut self,
-        log: T
-    ) where T: ToBytesForUnencryptedLog<N, M> {
+    pub fn emit_unencrypted_log<T, N, M>(&mut self, log: T) where T: ToBytesForUnencryptedLog<N, M> {
         let event_selector = 5; // TODO: compute actual event selector.
         let contract_address = self.this_address();
         let counter = self.next_counter();
@@ -313,36 +308,7 @@ impl PrivateContext {
 
     // NB: A randomness value of 0 signals that the kernels should not mask the contract address
     // used in siloing later on e.g. 'handshaking' contract w/ known address.
-    pub fn encrypt_and_emit_event<N, M>(
-        &mut self,
-        randomness: Field, // Secret random value used later for masked_contract_address
-        event_type_id: Field,
-        ovpk_m: GrumpkinPoint,
-        ivpk_m: GrumpkinPoint,
-        preimage: [Field; N]
-    ) where [Field; N]: LensForEncryptedLog<N, M> {
-        let ovsk_app = self.request_ovsk_app(ovpk_m.hash());
-        let contract_address = self.this_address();
-
-        // We are currently just encrypting it unconstrained, but otherwise the same way as if it was a note.
-        let encrypted_log: [u8; M] = compute_encrypted_event_log(
-            contract_address,
-            randomness,
-            event_type_id,
-            ovsk_app,
-            ovpk_m,
-            ivpk_m,
-            preimage
-        );
-
-        self.emit_raw_event_log_with_masked_address(randomness, encrypted_log);
-    }
-
-    pub fn emit_raw_event_log_with_masked_address<M>(
-        &mut self,
-        randomness: Field,
-        encrypted_log: [u8; M]
-    ) {
+    pub fn emit_raw_event_log_with_masked_address<M>(&mut self, randomness: Field, encrypted_log: [u8; M]) {
         let counter = self.next_counter();
         let contract_address = self.this_address();
         let len = encrypted_log.len() as Field + 4;

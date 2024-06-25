@@ -33,7 +33,7 @@ fn emit_with_keys<Note, N, NB, M>(
     context.emit_raw_note_log(note_hash_counter, encrypted_log);
 }
 
-pub fn encode_and_encrypt<Note, N, NB, M>(
+pub fn encode_and_encrypt_note<Note, N, NB, M>(
     context: &mut PrivateContext,
     ov: AztecAddress,
     iv: AztecAddress
@@ -46,7 +46,7 @@ pub fn encode_and_encrypt<Note, N, NB, M>(
     }
 }
 
-pub fn encode_and_encrypt_with_keys<Note, N, NB, M>(
+pub fn encode_and_encrypt_note_with_keys<Note, N, NB, M>(
     context: &mut PrivateContext,
     ovpk: GrumpkinPoint,
     ivpk: GrumpkinPoint

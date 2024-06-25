@@ -30,30 +30,6 @@ describe('Logs', () => {
   afterAll(() => teardown());
 
   describe('functionality around emitting an encrypted log', () => {
-    it('emits a generic encrypted log and checks for correctness', async () => {
-      const randomness = Fr.random();
-      const eventTypeId = Fr.random();
-      const preimage = makeTuple(6, Fr.random);
-
-      const tx = await testLogContract.methods.emit_encrypted_log(randomness, eventTypeId, preimage).send().wait();
-
-      const txEffect = await node.getTxEffect(tx.txHash);
-
-      const encryptedLogs = txEffect!.encryptedLogs.unrollLogs();
-      expect(encryptedLogs.length).toBe(1);
-
-      const decryptedLog = TaggedLog.decryptAsIncoming(
-        encryptedLogs[0],
-        deriveMasterIncomingViewingSecretKey(wallets[0].getSecretKey()),
-        L1EventPayload,
-      );
-
-      expect(decryptedLog?.payload.contractAddress).toStrictEqual(testLogContract.address);
-      expect(decryptedLog?.payload.randomness).toStrictEqual(randomness);
-      expect(decryptedLog?.payload.eventTypeId).toStrictEqual(eventTypeId);
-      expect(decryptedLog?.payload.event.items).toStrictEqual(preimage);
-    });
-
     it('emits multiple events as encrypted logs and decodes them', async () => {
       const randomness = makeTuple(2, Fr.random);
       const preimage = makeTuple(4, Fr.random);

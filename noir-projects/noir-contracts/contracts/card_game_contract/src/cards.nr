@@ -6,7 +6,7 @@ use dep::aztec::{
     traits::{ToField, Serialize, FromField}, grumpkin_point::GrumpkinPoint,
     constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL
 },
-    encrypted_logs::encrypted_note_emission::encode_and_encrypt_with_keys,
+    encrypted_logs::encrypted_note_emission::encode_and_encrypt_note_with_keys,
     note::note_getter::view_notes, state_vars::PrivateSet, note::constants::MAX_NOTES_PER_PAGE
 };
 use dep::std;
@@ -114,7 +114,7 @@ impl Deck<&mut PrivateContext> {
         let mut inserted_cards = &[];
         for card in cards {
             let mut card_note = CardNote::from_card(card, owner_npk_m_hash);
-            self.set.insert(&mut card_note.note).emit(encode_and_encrypt_with_keys(self.set.context, msg_sender_ovpk_m, owner_ivpk_m));
+            self.set.insert(&mut card_note.note).emit(encode_and_encrypt_note_with_keys(self.set.context, msg_sender_ovpk_m, owner_ivpk_m));
             inserted_cards = inserted_cards.push_back(card_note);
         }
 

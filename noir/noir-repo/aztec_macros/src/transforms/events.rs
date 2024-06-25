@@ -67,6 +67,9 @@ pub fn generate_event_impls(module: &mut SortedModule) -> Result<(), AztecMacroE
             event_interface_trait_impl.items.push(TraitImplItem::Function(
                 generate_fn_to_be_bytes(event_type.as_str(), event_byte_len)?,
             ));
+            event_interface_trait_impl
+                .items
+                .push(TraitImplItem::Function(generate_fn_emit(event_type.as_str())?));
             submodule.contents.trait_impls.push(event_interface_trait_impl);
 
             let serialize_trait_impl =
@@ -290,6 +293,30 @@ fn generate_fn_to_be_bytes(
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementEventInterface {
             secondary_message: Some(format!("Failed to parse Noir macro code (fn to_be_bytes, implemented for EventInterface of {event_type}). This is either a bug in the compiler or the Noir macro code")),
+        });
+    }
+
+    let mut function_ast = function_ast.into_sorted();
+    let mut noir_fn = function_ast.functions.remove(0);
+    noir_fn.def.visibility = ItemVisibility::Public;
+    Ok(noir_fn)
+}
+
+fn generate_fn_emit(event_type: &str) -> Result<NoirFunction, AztecMacroError> {
+    let function_source = format!(
+        "
+        fn emit<Env>(self: {event_type}, _emit: fn[Env](Self) -> ()) {{
+            _emit(self);
+        }}
+    "
+    )
+    .to_string();
+
+    let (function_ast, errors) = parse_program(&function_source);
+    if !errors.is_empty() {
+        dbg!(errors);
+        return Err(AztecMacroError::CouldNotImplementEventInterface {
+            secondary_message: Some(format!("Failed to parse Noir macro code (fn emit, implemented for EventInterface of {event_type}). This is either a bug in the compiler or the Noir macro code")),
         });
     }
 

@@ -6,7 +6,7 @@ contract SchnorrAccount {
     use dep::std;
 
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, PrivateContext, PrivateImmutable};
-    use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt;
+    use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_note;
     use dep::authwit::{
         entrypoint::{app::AppPayload, fee::FeePayload}, account::AccountActions,
         auth_witness::get_auth_witness, auth::{compute_authwit_nullifier, compute_outer_authwit_hash}
@@ -36,7 +36,7 @@ contract SchnorrAccount {
 
         // docs:start:initialize
         let mut pub_key_note = PublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this_npk_m_hash);
-        storage.signing_public_key.initialize(&mut pub_key_note).emit(encode_and_encrypt(&mut context, this, this));
+        storage.signing_public_key.initialize(&mut pub_key_note).emit(encode_and_encrypt_note(&mut context, this, this));
         // docs:end:initialize
     }
 

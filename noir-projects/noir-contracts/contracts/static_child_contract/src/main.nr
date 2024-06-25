@@ -5,7 +5,7 @@ contract StaticChild {
     use dep::aztec::{
         context::{PublicContext, gas::GasOpts}, protocol_types::{abis::{call_context::CallContext}},
         note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
-        encrypted_logs::encrypted_note_emission::encode_and_encrypt
+        encrypted_logs::encrypted_note_emission::encode_and_encrypt_note
     };
     use dep::value_note::value_note::ValueNote;
 
@@ -43,7 +43,7 @@ contract StaticChild {
         let header = context.get_header();
         let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
         let mut note = ValueNote::new(new_value, owner_npk_m_hash);
-        storage.a_private_value.insert(&mut note).emit(encode_and_encrypt(&mut context, context.msg_sender(), owner));
+        storage.a_private_value.insert(&mut note).emit(encode_and_encrypt_note(&mut context, context.msg_sender(), owner));
         new_value
     }
 
@@ -57,7 +57,7 @@ contract StaticChild {
         let header = context.get_header();
         let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
         let mut note = ValueNote::new(new_value, owner_npk_m_hash);
-        storage.a_private_value.insert(&mut note).emit(encode_and_encrypt(&mut context, outgoing_viewer, owner));
+        storage.a_private_value.insert(&mut note).emit(encode_and_encrypt_note(&mut context, outgoing_viewer, owner));
         new_value
     }
 

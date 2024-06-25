@@ -7,12 +7,70 @@ use dep::std::{embedded_curve_ops::{embedded_curve_add, EmbeddedCurvePoint}, fie
 
 use crate::oracle::unsafe_rand::unsafe_rand;
 
+use crate::event::event_interface::EventInterface;
 use crate::note::note_interface::NoteInterface;
 
 use crate::encrypted_logs::{
     header::EncryptedLogHeader, incoming_body::EncryptedLogIncomingBody,
     outgoing_body::EncryptedLogOutgoingBody
 };
+
+pub fn compute_encrypted_event_log<Event, NB, MB, OB>(
+    contract_address: AztecAddress,
+    randomness: Field,
+    ovsk_app: Field,
+    ovpk: GrumpkinPoint,
+    ivpk: GrumpkinPoint,
+    event: Event
+) -> [u8; OB] where Event: EventInterface<NB, MB> {
+    // @todo Need to draw randomness from the full domain of Fq not only Fr
+    let eph_sk: GrumpkinPrivateKey = fr_to_private_key(unsafe_rand());
+    let eph_pk = eph_sk.derive_public_key();
+
+    // TODO: (#7177) This value needs to be populated!
+    let recipient = AztecAddress::from_field(0);
+
+    let ivpk_app = compute_ivpk_app(ivpk, contract_address);
+
+    let header = EncryptedLogHeader::new(contract_address);
+
+    let incoming_header_ciphertext: [u8; 48] = header.compute_ciphertext(eph_sk, ivpk);
+    let outgoing_Header_ciphertext: [u8; 48] = header.compute_ciphertext(eph_sk, ovpk);
+    let incoming_body_ciphertext = EncryptedLogIncomingBody::from_event(event, randomness).compute_ciphertext(eph_sk, ivpk_app);
+    let outgoing_body_ciphertext: [u8; 176] = EncryptedLogOutgoingBody::new(eph_sk, recipient, ivpk_app).compute_ciphertext(fr_to_private_key(ovsk_app), eph_pk);
+
+    let mut encrypted_bytes: [u8; OB] = [0; OB];
+    // @todo We ignore the tags for now 
+
+    let eph_pk_bytes = eph_pk.to_be_bytes();
+    for i in 0..64 {
+        encrypted_bytes[64 + i] = eph_pk_bytes[i];
+    }
+    for i in 0..48 {
+        encrypted_bytes[128 + i] = incoming_header_ciphertext[i];
+        encrypted_bytes[176 + i] = outgoing_Header_ciphertext[i];
+    }
+    for i in 0..176 {
+        encrypted_bytes[224 + i] = outgoing_body_ciphertext[i];
+    }
+    // Then we fill in the rest as the incoming body ciphertext
+    let size = OB - 400;
+    assert_eq(size, incoming_body_ciphertext.len(), "ciphertext length mismatch");
+    for i in 0..size {
+        encrypted_bytes[400 + i] = incoming_body_ciphertext[i];
+    }
+
+    // Current unoptimized size of the encrypted log
+    // incoming_tag (32 bytes)
+    // outgoing_tag (32 bytes)
+    // eph_pk (64 bytes)
+    // incoming_header (48 bytes)
+    // outgoing_header (48 bytes)
+    // outgoing_body (176 bytes)
+    // incoming_body_fixed (64 bytes)
+    // incoming_body_variable (N * 32 bytes + 16 bytes padding)
+    encrypted_bytes
+}
 
 pub fn compute_encrypted_note_log<Note, N, NB, M>(
     contract_address: AztecAddress,
@@ -26,7 +84,7 @@ pub fn compute_encrypted_note_log<Note, N, NB, M>(
     let eph_sk: GrumpkinPrivateKey = fr_to_private_key(unsafe_rand());
     let eph_pk = eph_sk.derive_public_key();
 
-    // @todo This value needs to be populated!
+    // TODO: (#7177) This value needs to be populated!
     let recipient = AztecAddress::from_field(0);
 
     let ivpk_app = compute_ivpk_app(ivpk, contract_address);
