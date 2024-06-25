@@ -57,7 +57,7 @@ pub(crate) fn rewrite(visitor: &FmtVisitor, _shape: Shape, typ: UnresolvedType) 
         }
         UnresolvedTypeData::Resolved(_) => {
             unreachable!("Unexpected macro expansion of a type in nargo fmt input")
-        },
+        }
 
         UnresolvedTypeData::Unspecified => todo!(),
         UnresolvedTypeData::FieldElement
