@@ -1,6 +1,6 @@
 ---
 title: "Docs contains dead links"
-assignees: signorecello catmcgee critesjosh jzaki Savio-Sou
+assignees: signorecello, catmcgee, critesjosh, jzaki, Savio-Sou
 labels: documentation
 ---
 

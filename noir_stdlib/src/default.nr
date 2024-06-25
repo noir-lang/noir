@@ -17,9 +17,15 @@ impl Default for i64 { fn default() -> i64 { 0 } }
 impl Default for () { fn default() -> () { () } }
 impl Default for bool { fn default() -> bool { false } }
 
-impl<T, N> Default for [T; N] where T: Default {
+impl<T, let N: u32> Default for [T; N] where T: Default {
     fn default() -> [T; N] {
         [T::default(); N]
+    }
+}
+
+impl<T> Default for [T] {
+    fn default() -> [T] {
+        &[]
     }
 }
 

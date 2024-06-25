@@ -1,5 +1,5 @@
-use dep::std::ops::{ Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, Shl, Shr };
-use dep::std::cmp::Ordering;
+use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, Shl, Shr};
+use std::cmp::Ordering;
 
 // x = 3, y = 9
 fn main(x: u32, y: u32) {
@@ -20,8 +20,8 @@ fn main(x: u32, y: u32) {
     assert((wx | wy).inner == (ex | ey));
     assert((wx ^ wy).inner == (ex ^ ey));
 
-    assert((wy << wx).inner == (ey << ex));
-    assert((wy >> wx).inner == (ey >> ex));
+    assert((wy << x as u8).inner == (ey << ex as u8));
+    assert((wy >> x as u8).inner == (ey >> ex as u8));
 
     assert((wx == wy) == (ex == ey));
     assert((wx < wy) == (ex < ey));
@@ -103,14 +103,14 @@ impl BitXor for Wrapper {
 }
 
 impl Shl for Wrapper {
-    fn shl(self, other: Self) -> Self {
-        Wrapper::new(self.inner << other.inner)
+    fn shl(self, other: u8) -> Self {
+        Wrapper::new(self.inner << other)
     }
 }
 
 impl Shr for Wrapper {
-    fn shr(self, other: Self) -> Self {
-        Wrapper::new(self.inner >> other.inner)
+    fn shr(self, other: u8) -> Self {
+        Wrapper::new(self.inner >> other)
     }
 }
 
@@ -125,10 +125,6 @@ impl Ord for Wrapper {
         self.inner.cmp(other.inner)
     }
 }
-
-
-
-
 
 struct Pair {
     x: Wrapper,

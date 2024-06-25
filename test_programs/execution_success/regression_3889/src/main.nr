@@ -17,7 +17,6 @@ mod Baz {
     use crate::Bar::NewType;
 }
 
-
 fn main(works: Baz::Works, fails: Baz::BarStruct, also_fails: Bar::NewType) -> pub Field {
     works.a + fails.a + also_fails.a
 }

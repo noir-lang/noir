@@ -32,6 +32,8 @@ impl Default for bool { .. }
 impl<T, N> Default for [T; N]
     where T: Default { .. }
 
+impl<T> Default for [T] { .. }
+
 impl<A, B> Default for (A, B)
     where A: Default, B: Default { .. }
 
@@ -46,7 +48,8 @@ impl<A, B, C, D, E> Default for (A, B, C, D, E)
 ```
 
 For primitive integer types, the return value of `default` is `0`. Container
-types such as arrays are filled with default values of their element type.
+types such as arrays are filled with default values of their element type,
+except slices whose length is unknown and thus defaulted to zero.
 
 
 ## `std::convert`
@@ -112,6 +115,9 @@ impl Eq for bool { .. }
 impl<T, N> Eq for [T; N]
     where T: Eq { .. }
 
+impl<T> Eq for [T]
+    where T: Eq { .. }
+
 impl<A, B> Eq for (A, B)
     where A: Eq, B: Eq { .. }
 
@@ -134,6 +140,8 @@ impl<A, B, C, D, E> Eq for (A, B, C, D, E)
 Implementing this trait on a type allows `<`, `<=`, `>`, and `>=` to be
 used on values of the type.
 
+`std::cmp` also provides `max` and `min` functions for any type which implements the `Ord` trait.
+
 Implementations:
 
 ```rust
@@ -152,6 +160,9 @@ impl Ord for () { .. }
 impl Ord for bool { .. }
 
 impl<T, N> Ord for [T; N]
+    where T: Ord { .. }
+
+impl<T> Ord for [T]
     where T: Ord { .. }
 
 impl<A, B> Ord for (A, B)
@@ -175,10 +186,10 @@ These traits abstract over addition, subtraction, multiplication, and division r
 Implementing these traits for a given type will also allow that type to be used with the corresponding operator
 for that trait (`+` for Add, etc) in addition to the normal method names.
 
-#include_code add-trait noir_stdlib/src/ops.nr rust
-#include_code sub-trait noir_stdlib/src/ops.nr rust
-#include_code mul-trait noir_stdlib/src/ops.nr rust
-#include_code div-trait noir_stdlib/src/ops.nr rust
+#include_code add-trait noir_stdlib/src/ops/arith.nr rust
+#include_code sub-trait noir_stdlib/src/ops/arith.nr rust
+#include_code mul-trait noir_stdlib/src/ops/arith.nr rust
+#include_code div-trait noir_stdlib/src/ops/arith.nr rust
 
 The implementations block below is given for the `Add` trait, but the same types that implement
 `Add` also implement `Sub`, `Mul`, and `Div`.
@@ -200,7 +211,7 @@ impl Add for u64 { .. }
 
 ### `std::ops::Rem`
 
-#include_code rem-trait noir_stdlib/src/ops.nr rust
+#include_code rem-trait noir_stdlib/src/ops/arith.nr rust
 
 `Rem::rem(a, b)` is the remainder function returning the result of what is
 left after dividing `a` and `b`. Implementing `Rem` allows the `%` operator
@@ -221,11 +232,29 @@ impl Rem for i32 { fn rem(self, other: i32) -> i32 { self % other } }
 impl Rem for i64 { fn rem(self, other: i64) -> i64 { self % other } }
 ```
 
+### `std::ops::Neg`
+
+#include_code neg-trait noir_stdlib/src/ops/arith.nr rust
+
+`Neg::neg` is equivalent to the unary negation operator `-`.
+
+Implementations:
+#include_code neg-trait-impls noir_stdlib/src/ops/arith.nr rust
+
+### `std::ops::Not`
+
+#include_code not-trait noir_stdlib/src/ops/bit.nr rust
+
+`Not::not` is equivalent to the unary bitwise NOT operator `!`.
+
+Implementations:
+#include_code not-trait-impls noir_stdlib/src/ops/bit.nr rust
+
 ### `std::ops::{ BitOr, BitAnd, BitXor }`
 
-#include_code bitor-trait noir_stdlib/src/ops.nr rust
-#include_code bitand-trait noir_stdlib/src/ops.nr rust
-#include_code bitxor-trait noir_stdlib/src/ops.nr rust
+#include_code bitor-trait noir_stdlib/src/ops/bit.nr rust
+#include_code bitand-trait noir_stdlib/src/ops/bit.nr rust
+#include_code bitxor-trait noir_stdlib/src/ops/bit.nr rust
 
 Traits for the bitwise operations `|`, `&`, and `^`.
 
@@ -252,8 +281,8 @@ impl BitOr for i64 { fn bitor(self, other: i64) -> i64 { self | other } }
 
 ### `std::ops::{ Shl, Shr }`
 
-#include_code shl-trait noir_stdlib/src/ops.nr rust
-#include_code shr-trait noir_stdlib/src/ops.nr rust
+#include_code shl-trait noir_stdlib/src/ops/bit.nr rust
+#include_code shr-trait noir_stdlib/src/ops/bit.nr rust
 
 Traits for a bit shift left and bit shift right.
 

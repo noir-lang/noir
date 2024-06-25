@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { getPaths } from '../../shared';
 import { expect } from '@esm-bundle/chai';
-import { compile, createFileManager } from '@noir-lang/noir_wasm';
+import { compile_program, compile_contract, createFileManager } from '@noir-lang/noir_wasm';
 import { ContractArtifact, ProgramArtifact } from '../../../src/types/noir_artifact';
 import { shouldCompileContractIdentically, shouldCompileProgramIdentically } from '../shared/compile.test';
 
@@ -33,7 +33,7 @@ describe('noir-compiler/browser', () => {
         await fm.writeFile(path, (await getFile(path)).body as ReadableStream<Uint8Array>);
       }
       const nargoArtifact = (await getPrecompiledSource(simpleScriptExpectedArtifact)) as ProgramArtifact;
-      const noirWasmArtifact = await compile(fm, '/fixtures/simple');
+      const noirWasmArtifact = await compile_program(fm, '/fixtures/simple');
 
       return { nargoArtifact, noirWasmArtifact };
     },
@@ -51,7 +51,7 @@ describe('noir-compiler/browser', () => {
         await fm.writeFile(path, (await getFile(path)).body as ReadableStream<Uint8Array>);
       }
       const nargoArtifact = (await getPrecompiledSource(depsScriptExpectedArtifact)) as ProgramArtifact;
-      const noirWasmArtifact = await compile(fm, '/fixtures/with-deps');
+      const noirWasmArtifact = await compile_program(fm, '/fixtures/with-deps');
 
       return { nargoArtifact, noirWasmArtifact };
     },
@@ -69,7 +69,7 @@ describe('noir-compiler/browser', () => {
         await fm.writeFile(path, (await getFile(path)).body as ReadableStream<Uint8Array>);
       }
       const nargoArtifact = (await getPrecompiledSource(contractExpectedArtifact)) as ContractArtifact;
-      const noirWasmArtifact = await compile(fm, '/fixtures/noir-contract');
+      const noirWasmArtifact = await compile_contract(fm, '/fixtures/noir-contract');
 
       return { nargoArtifact, noirWasmArtifact };
     },

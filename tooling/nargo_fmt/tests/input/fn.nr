@@ -23,7 +23,7 @@ fn main(tape: [Field; TAPE_LEN], initial_registers: [Field; REGISTER_COUNT], ini
 
 fn apply_binary_field_op<N>(lhs: RegisterIndex, rhs: RegisterIndex, result: RegisterIndex, op: u8, registers: &mut Registers<N>) -> bool {}
 
-fn main() -> distinct pub [Field;2] {}
+fn main() -> pub [Field;2] {}
 
 fn ret_normal_lambda1() -> ((fn() -> Field)) {}
 
@@ -44,3 +44,13 @@ fn main(
 ) {}
 
 pub fn from_baz(x: [Field; crate::foo::MAGIC_NUMBER]) {}
+
+fn id< T   ,    let  I :  Field > ( x :  [ Field ;  I ] )  -> [Field; I ]  {  }
+
+fn id_two<T, 
+let   I :    Field >(x: [Field ;  I])  ->   [ Field; I] {}
+
+fn whitespace_before_generics <    T   >  (foo: T) {}
+
+fn more_whitespace_before_generics   <    
+T   >  (foo: T) {}

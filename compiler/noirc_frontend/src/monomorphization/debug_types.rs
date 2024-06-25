@@ -3,7 +3,8 @@ use crate::{
     hir_def::types::Type,
 };
 use noirc_errors::debug_info::{
-    DebugTypeId, DebugTypes, DebugVarId, DebugVariable, DebugVariables,
+    DebugFnId, DebugFunction, DebugFunctions, DebugTypeId, DebugTypes, DebugVarId, DebugVariable,
+    DebugVariables,
 };
 use noirc_printable_type::PrintableType;
 use std::collections::HashMap;
@@ -30,7 +31,10 @@ pub struct DebugTypeTracker {
     // All instances of tracked variables
     variables: HashMap<DebugVarId, (SourceVarId, DebugTypeId)>,
 
-    // Types of tracked variables
+    // Function metadata collected during instrumentation injection
+    functions: HashMap<DebugFnId, DebugFunction>,
+
+    // Types of tracked variables and functions
     types: HashMap<DebugTypeId, PrintableType>,
     types_reverse: HashMap<PrintableType, DebugTypeId>,
 
@@ -43,34 +47,29 @@ impl DebugTypeTracker {
         DebugTypeTracker {
             source_variables: instrumenter.variables.clone(),
             source_field_names: instrumenter.field_names.clone(),
+            functions: instrumenter.functions.clone(),
             ..DebugTypeTracker::default()
         }
     }
 
-    pub fn extract_vars_and_types(&self) -> (DebugVariables, DebugTypes) {
+    pub fn extract_vars_and_types(&self) -> (DebugVariables, DebugFunctions, DebugTypes) {
         let debug_variables = self
             .variables
             .clone()
             .into_iter()
             .map(|(var_id, (source_var_id, type_id))| {
-                (
-                    var_id,
-                    DebugVariable {
-                        name: self.source_variables.get(&source_var_id).cloned().unwrap_or_else(
-                            || {
-                                unreachable!(
-                                    "failed to retrieve variable name for {source_var_id:?}"
-                                );
-                            },
-                        ),
-                        debug_type_id: type_id,
-                    },
-                )
+                let var_name =
+                    self.source_variables.get(&source_var_id).cloned().unwrap_or_else(|| {
+                        unreachable!("failed to retrieve variable name for {source_var_id:?}");
+                    });
+                (var_id, DebugVariable { name: var_name, debug_type_id: type_id })
             })
             .collect();
+
+        let debug_functions = self.functions.clone().into_iter().collect();
         let debug_types = self.types.clone().into_iter().collect();
 
-        (debug_variables, debug_types)
+        (debug_variables, debug_functions, debug_types)
     }
 
     pub fn resolve_field_index(
@@ -83,19 +82,24 @@ impl DebugTypeTracker {
             .and_then(|field_name| get_field(cursor_type, field_name))
     }
 
-    pub fn insert_var(&mut self, source_var_id: SourceVarId, var_type: Type) -> DebugVarId {
-        if !self.source_variables.contains_key(&source_var_id) {
-            unreachable!("cannot find source debug variable {source_var_id:?}");
-        }
-
-        let ptype: PrintableType = var_type.follow_bindings().into();
-        let type_id = self.types_reverse.get(&ptype).copied().unwrap_or_else(|| {
+    fn insert_type(&mut self, the_type: &Type) -> DebugTypeId {
+        let ptype: PrintableType = the_type.follow_bindings().into();
+        self.types_reverse.get(&ptype).copied().unwrap_or_else(|| {
             let type_id = DebugTypeId(self.next_type_id);
             self.next_type_id += 1;
             self.types_reverse.insert(ptype.clone(), type_id);
             self.types.insert(type_id, ptype);
             type_id
-        });
+        })
+    }
+
+    pub fn insert_var(&mut self, source_var_id: SourceVarId, var_type: &Type) -> DebugVarId {
+        if !self.source_variables.contains_key(&source_var_id) {
+            unreachable!("cannot find source debug variable {source_var_id:?}");
+        }
+
+        let type_id = self.insert_type(var_type);
+
         // check if we need to instantiate the var with a new type
         let existing_var_id = self.source_to_debug_vars.get(&source_var_id).and_then(|var_id| {
             let (_, existing_type_id) = self.variables.get(var_id).unwrap();

@@ -2,7 +2,9 @@ use crate::token::{Attribute, DocStyle};
 
 use super::{
     errors::LexerErrorKind,
-    token::{IntType, Keyword, SpannedToken, Token, Tokens},
+    token::{
+        token_to_borrowed_token, BorrowedToken, IntType, Keyword, SpannedToken, Token, Tokens,
+    },
 };
 use acvm::FieldElement;
 use noirc_errors::{Position, Span};
@@ -20,6 +22,21 @@ pub struct Lexer<'a> {
 }
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
+
+pub(crate) fn from_spanned_token_result(
+    token_result: &SpannedTokenResult,
+) -> Result<(usize, BorrowedToken<'_>, usize), LexerErrorKind> {
+    token_result
+        .as_ref()
+        .map(|spanned_token| {
+            (
+                spanned_token.to_span().start() as usize,
+                token_to_borrowed_token(spanned_token.into()),
+                spanned_token.to_span().end() as usize,
+            )
+        })
+        .map_err(Clone::clone)
+}
 
 impl<'a> Lexer<'a> {
     /// Given a source file of noir code, return all the tokens in the file
@@ -94,7 +111,7 @@ impl<'a> Lexer<'a> {
 
     fn next_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
-            Some(x) if x.is_whitespace() => {
+            Some(x) if Self::is_code_whitespace(x) => {
                 let spanned = self.eat_whitespace(x);
                 if self.skip_whitespaces {
                     self.next_token()
@@ -124,9 +141,11 @@ impl<'a> Lexer<'a> {
             Some('}') => self.single_char_token(Token::RightBrace),
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
+            Some('$') => self.single_char_token(Token::DollarSign),
             Some('"') => self.eat_string_literal(),
             Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('r') => self.eat_raw_string_or_alpha_numeric(),
+            Some('q') => self.eat_quote_or_alpha_numeric(),
             Some('#') => self.eat_attribute(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
@@ -292,14 +311,25 @@ impl<'a> Lexer<'a> {
     //XXX(low): Can increase performance if we use iterator semantic and utilize some of the methods on String. See below
     // https://doc.rust-lang.org/stable/std/primitive.str.html#method.rsplit
     fn eat_word(&mut self, initial_char: char) -> SpannedTokenResult {
-        let start = self.position;
+        let (start, word, end) = self.lex_word(initial_char);
+        self.lookup_word_token(word, start, end)
+    }
 
+    /// Lex the next word in the input stream. Returns (start position, word, end position)
+    fn lex_word(&mut self, initial_char: char) -> (Position, String, Position) {
+        let start = self.position;
         let word = self.eat_while(Some(initial_char), |ch| {
             ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_'
         });
+        (start, word, self.position)
+    }
 
-        let end = self.position;
-
+    fn lookup_word_token(
+        &self,
+        word: String,
+        start: Position,
+        end: Position,
+    ) -> SpannedTokenResult {
         // Check if word either an identifier or a keyword
         if let Some(keyword_token) = Keyword::lookup_keyword(&word) {
             return Ok(keyword_token.into_span(start, end));
@@ -491,6 +521,50 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn eat_quote_or_alpha_numeric(&mut self) -> SpannedTokenResult {
+        let (start, word, end) = self.lex_word('q');
+        if word != "quote" {
+            return self.lookup_word_token(word, start, end);
+        }
+
+        let delimiter = self.next_token()?;
+        let (start_delim, end_delim) = match delimiter.token() {
+            Token::LeftBrace => (Token::LeftBrace, Token::RightBrace),
+            Token::LeftBracket => (Token::LeftBracket, Token::RightBracket),
+            Token::LeftParen => (Token::LeftParen, Token::RightParen),
+            _ => return Err(LexerErrorKind::InvalidQuoteDelimiter { delimiter }),
+        };
+
+        let mut tokens = Vec::new();
+
+        // Keep track of each nested delimiter we need to close.
+        let mut nested_delimiters = vec![delimiter];
+
+        while !nested_delimiters.is_empty() {
+            let token = self.next_token()?;
+
+            if *token.token() == start_delim {
+                nested_delimiters.push(token.clone());
+            } else if *token.token() == end_delim {
+                nested_delimiters.pop();
+            } else if *token.token() == Token::EOF {
+                let start_delim =
+                    nested_delimiters.pop().expect("If this were empty, we wouldn't be looping");
+                return Err(LexerErrorKind::UnclosedQuote { start_delim, end_delim });
+            }
+
+            tokens.push(token);
+        }
+
+        // Pop the closing delimiter from the token stream
+        if !tokens.is_empty() {
+            tokens.pop();
+        }
+
+        let end = self.position;
+        Ok(Token::Quote(Tokens(tokens)).into_span(start, end))
+    }
+
     fn parse_comment(&mut self, start: u32) -> SpannedTokenResult {
         let doc_style = match self.peek_char() {
             Some('!') => {
@@ -560,16 +634,21 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn is_code_whitespace(c: char) -> bool {
+        c == '\t' || c == '\n' || c == '\r' || c == ' '
+    }
+
     /// Skips white space. They are not significant in the source language
     fn eat_whitespace(&mut self, initial_char: char) -> SpannedToken {
         let start = self.position;
-        let whitespace = self.eat_while(initial_char.into(), |ch| ch.is_whitespace());
+        let whitespace = self.eat_while(initial_char.into(), Self::is_code_whitespace);
         SpannedToken::new(Token::Whitespace(whitespace), Span::inclusive(start, self.position))
     }
 }
 
 impl<'a> Iterator for Lexer<'a> {
     type Item = SpannedTokenResult;
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
             None
@@ -578,10 +657,14 @@ impl<'a> Iterator for Lexer<'a> {
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
+    use iter_extended::vecmap;
+
     use super::*;
     use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
+
     #[test]
     fn test_single_double_char() {
         let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
@@ -724,6 +807,16 @@ mod tests {
             token.token(),
             &Token::Attribute(Attribute::Function(FunctionAttribute::Test(TestScope::None)))
         );
+    }
+
+    #[test]
+    fn fold_attribute() {
+        let input = r#"#[fold]"#;
+
+        let mut lexer = Lexer::new(input);
+        let token = lexer.next_token().unwrap();
+
+        assert_eq!(token.token(), &Token::Attribute(Attribute::Function(FunctionAttribute::Fold)));
     }
 
     #[test]
@@ -1085,6 +1178,157 @@ mod tests {
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
+        }
+    }
+
+    // returns a vector of:
+    //   (expected_token_discriminator, strings_to_lex)
+    // expected_token_discriminator matches a given token when
+    // std::mem::discriminant returns the same discriminant for both.
+    fn blns_base64_to_statements(base64_str: String) -> Vec<(Option<Token>, Vec<String>)> {
+        use base64::engine::general_purpose;
+        use std::borrow::Cow;
+        use std::io::Cursor;
+        use std::io::Read;
+
+        let mut wrapped_reader = Cursor::new(base64_str);
+        let mut decoder =
+            base64::read::DecoderReader::new(&mut wrapped_reader, &general_purpose::STANDARD);
+        let mut base64_decoded = Vec::new();
+        decoder.read_to_end(&mut base64_decoded).unwrap();
+
+        // NOTE: when successful, this is the same conversion method as used in
+        // noirc_driver::stdlib::stdlib_paths_with_source, viz.
+        //
+        // let source = std::str::from_utf8(..).unwrap().to_string();
+        let s: Cow<'_, str> = match std::str::from_utf8(&base64_decoded) {
+            Ok(s) => std::borrow::Cow::Borrowed(s),
+            Err(_err) => {
+                // recover as much of the string as possible
+                // when str::from_utf8 fails
+                String::from_utf8_lossy(&base64_decoded)
+            }
+        };
+
+        vec![
+            // Token::Ident(_)
+            (None, vec![format!("let \"{s}\" = ();")]),
+            (Some(Token::Str("".to_string())), vec![format!("let s = \"{s}\";")]),
+            (
+                Some(Token::RawStr("".to_string(), 0)),
+                vec![
+                    // let s = r"Hello world";
+                    format!("let s = r\"{s}\";"),
+                    // let s = r#"Simon says "hello world""#;
+                    format!("let s = r#\"{s}\"#;"),
+                    // // Any number of hashes may be used (>= 1) as long as the string also terminates with the same number of hashes
+                    // let s = r#####"One "#, Two "##, Three "###, Four "####, Five will end the string."#####;
+                    format!("let s = r##\"{s}\"##;"),
+                    format!("let s = r###\"{s}\"###;"),
+                    format!("let s = r####\"{s}\"####; "),
+                    format!("let s = r#####\"{s}\"#####;"),
+                ],
+            ),
+            (Some(Token::FmtStr("".to_string())), vec![format!("assert(x == y, f\"{s}\");")]),
+            // expected token not found
+            // (Some(Token::LineComment("".to_string(), None)), vec![
+            (None, vec![format!("//{s}"), format!("// {s}")]),
+            // expected token not found
+            // (Some(Token::BlockComment("".to_string(), None)), vec![
+            (None, vec![format!("/*{s}*/"), format!("/* {s} */"), format!("/*\n{s}\n*/")]),
+        ]
+    }
+
+    #[test]
+    fn test_big_list_of_naughty_strings() {
+        use std::mem::discriminant;
+
+        let blns_contents = include_str!("./blns/blns.base64.json");
+        let blns_base64: Vec<String> =
+            serde_json::from_str(blns_contents).expect("BLNS json invalid");
+        for blns_base64_str in blns_base64 {
+            let statements = blns_base64_to_statements(blns_base64_str);
+            for (token_discriminator_opt, blns_program_strs) in statements {
+                for blns_program_str in blns_program_strs {
+                    let mut expected_token_found = false;
+                    let mut lexer = Lexer::new(&blns_program_str);
+                    let mut result_tokens = Vec::new();
+                    loop {
+                        match lexer.next_token() {
+                            Ok(next_token) => {
+                                result_tokens.push(next_token.clone());
+                                expected_token_found |= token_discriminator_opt
+                                    .as_ref()
+                                    .map(|token_discriminator| {
+                                        discriminant(token_discriminator)
+                                            == discriminant(next_token.token())
+                                    })
+                                    .unwrap_or(true);
+
+                                if next_token == Token::EOF {
+                                    assert!(lexer.done, "lexer not done when EOF emitted!");
+                                    break;
+                                }
+                            }
+
+                            Err(LexerErrorKind::InvalidIntegerLiteral { .. })
+                            | Err(LexerErrorKind::UnexpectedCharacter { .. })
+                            | Err(LexerErrorKind::UnterminatedBlockComment { .. }) => {
+                                expected_token_found = true;
+                            }
+                            Err(err) => {
+                                panic!("Unexpected lexer error found: {:?}", err)
+                            }
+                        }
+                    }
+
+                    assert!(
+                        expected_token_found,
+                        "expected token not found: {token_discriminator_opt:?}\noutput:\n{result_tokens:?}",
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_quote() {
+        // cases is a vector of pairs of (test string, expected # of tokens in token stream)
+        let cases = vec![
+            ("quote {}", 0),
+            ("quote { a.b }", 3),
+            ("quote { ) ( }", 2), // invalid syntax is fine in a quote
+            ("quote { { } }", 2), // Nested `{` and `}` shouldn't close the quote as long as they are matched.
+            ("quote { 1 { 2 { 3 { 4 { 5 } 4 4 } 3 3 } 2 2 } 1 1 }", 21),
+            ("quote [ } } ]", 2), // In addition to `{}`, `[]`, and `()` can also be used as delimiters.
+            ("quote [ } foo[] } ]", 5),
+            ("quote ( } () } )", 4),
+        ];
+
+        for (source, expected_stream_length) in cases {
+            let mut tokens = vecmap(Lexer::new(source), |result| result.unwrap().into_token());
+
+            // All examples should be a single TokenStream token followed by an EOF token.
+            assert_eq!(tokens.len(), 2, "Unexpected token count: {tokens:?}");
+
+            tokens.pop();
+            match tokens.pop().unwrap() {
+                Token::Quote(stream) => assert_eq!(stream.0.len(), expected_stream_length),
+                other => panic!("test_quote test failure! Expected a single TokenStream token, got {other} for input `{source}`")
+            }
+        }
+    }
+
+    #[test]
+    fn test_unclosed_quote() {
+        let cases = vec!["quote {", "quote { {  }", "quote [ []", "quote (((((((())))"];
+
+        for source in cases {
+            // `quote` is not itself a keyword so if the token stream fails to
+            // parse we don't expect any valid tokens from the quote construct
+            for token in Lexer::new(source) {
+                assert!(token.is_err(), "Expected Err, found {token:?}");
+            }
         }
     }
 }

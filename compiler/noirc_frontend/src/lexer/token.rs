@@ -1,8 +1,8 @@
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use noirc_errors::{Position, Span, Spanned};
 use std::{fmt, iter::Map, vec::IntoIter};
 
-use crate::lexer::errors::LexerErrorKind;
+use crate::{lexer::errors::LexerErrorKind, node_interner::ExprId};
 
 /// Represents a token in noir's grammar - a word, number,
 /// or symbol that can be used in noir's syntax. This is the
@@ -10,11 +10,112 @@ use crate::lexer::errors::LexerErrorKind;
 /// items differently depending on the Tokens present but will
 /// never parse the same ordering of identical tokens differently.
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub enum BorrowedToken<'input> {
+    Ident(&'input str),
+    Int(FieldElement),
+    Bool(bool),
+    Str(&'input str),
+    /// the u8 is the number of hashes, i.e. r###..
+    RawStr(&'input str, u8),
+    FmtStr(&'input str),
+    Keyword(Keyword),
+    IntType(IntType),
+    Attribute(Attribute),
+    LineComment(&'input str, Option<DocStyle>),
+    BlockComment(&'input str, Option<DocStyle>),
+    Quote(&'input Tokens),
+    /// <
+    Less,
+    /// <=
+    LessEqual,
+    /// >
+    Greater,
+    /// >=
+    GreaterEqual,
+    /// ==
+    Equal,
+    /// !=
+    NotEqual,
+    /// +
+    Plus,
+    /// -
+    Minus,
+    /// *
+    Star,
+    /// /
+    Slash,
+    /// %
+    Percent,
+    /// &
+    Ampersand,
+    /// ^
+    Caret,
+    /// <<
+    ShiftLeft,
+    /// >>
+    ShiftRight,
+    /// .
+    Dot,
+    /// ..
+    DoubleDot,
+    /// (
+    LeftParen,
+    /// )
+    RightParen,
+    /// {
+    LeftBrace,
+    /// }
+    RightBrace,
+    /// [
+    LeftBracket,
+    /// ]
+    RightBracket,
+    /// ->
+    Arrow,
+    /// |
+    Pipe,
+    /// #
+    Pound,
+    /// ,
+    Comma,
+    /// :
+    Colon,
+    /// ::
+    DoubleColon,
+    /// ;
+    Semicolon,
+    /// !
+    Bang,
+    /// $
+    DollarSign,
+    /// =
+    Assign,
+    #[allow(clippy::upper_case_acronyms)]
+    EOF,
+
+    Whitespace(&'input str),
+
+    /// This is an implementation detail on how macros are implemented by quoting token streams.
+    /// This token marks where an unquote operation is performed. The ExprId argument is the
+    /// resolved variable which is being unquoted at this position in the token stream.
+    UnquoteMarker(ExprId),
+
+    /// An invalid character is one that is not in noir's language or grammar.
+    ///
+    /// We don't report invalid tokens in the source as errors until parsing to
+    /// avoid reporting the error twice (once while lexing, again when it is encountered
+    /// during parsing). Reporting during lexing then removing these from the token stream
+    /// would not be equivalent as it would change the resulting parse.
+    Invalid(char),
+}
+
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum Token {
     Ident(String),
     Int(FieldElement),
     Bool(bool),
     Str(String),
+    /// the u8 is the number of hashes, i.e. r###..
     RawStr(String, u8),
     FmtStr(String),
     Keyword(Keyword),
@@ -22,6 +123,8 @@ pub enum Token {
     Attribute(Attribute),
     LineComment(String, Option<DocStyle>),
     BlockComment(String, Option<DocStyle>),
+    // A `quote { ... }` along with the tokens in its token stream.
+    Quote(Tokens),
     /// <
     Less,
     /// <=
@@ -86,10 +189,17 @@ pub enum Token {
     Bang,
     /// =
     Assign,
+    /// $
+    DollarSign,
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
     Whitespace(String),
+
+    /// This is an implementation detail on how macros are implemented by quoting token streams.
+    /// This token marks where an unquote operation is performed. The ExprId argument is the
+    /// resolved variable which is being unquoted at this position in the token stream.
+    UnquoteMarker(ExprId),
 
     /// An invalid character is one that is not in noir's language or grammar.
     ///
@@ -100,13 +210,67 @@ pub enum Token {
     Invalid(char),
 }
 
+pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
+    match token {
+        Token::Ident(ref s) => BorrowedToken::Ident(s),
+        Token::Int(n) => BorrowedToken::Int(*n),
+        Token::Bool(b) => BorrowedToken::Bool(*b),
+        Token::Str(ref b) => BorrowedToken::Str(b),
+        Token::FmtStr(ref b) => BorrowedToken::FmtStr(b),
+        Token::RawStr(ref b, hashes) => BorrowedToken::RawStr(b, *hashes),
+        Token::Keyword(k) => BorrowedToken::Keyword(*k),
+        Token::Attribute(ref a) => BorrowedToken::Attribute(a.clone()),
+        Token::LineComment(ref s, _style) => BorrowedToken::LineComment(s, *_style),
+        Token::BlockComment(ref s, _style) => BorrowedToken::BlockComment(s, *_style),
+        Token::Quote(stream) => BorrowedToken::Quote(stream),
+        Token::IntType(ref i) => BorrowedToken::IntType(i.clone()),
+        Token::Less => BorrowedToken::Less,
+        Token::LessEqual => BorrowedToken::LessEqual,
+        Token::Greater => BorrowedToken::Greater,
+        Token::GreaterEqual => BorrowedToken::GreaterEqual,
+        Token::Equal => BorrowedToken::Equal,
+        Token::NotEqual => BorrowedToken::NotEqual,
+        Token::Plus => BorrowedToken::Plus,
+        Token::Minus => BorrowedToken::Minus,
+        Token::Star => BorrowedToken::Star,
+        Token::Slash => BorrowedToken::Slash,
+        Token::Percent => BorrowedToken::Percent,
+        Token::Ampersand => BorrowedToken::Ampersand,
+        Token::Caret => BorrowedToken::Caret,
+        Token::ShiftLeft => BorrowedToken::ShiftLeft,
+        Token::ShiftRight => BorrowedToken::ShiftRight,
+        Token::Dot => BorrowedToken::Dot,
+        Token::DoubleDot => BorrowedToken::DoubleDot,
+        Token::LeftParen => BorrowedToken::LeftParen,
+        Token::RightParen => BorrowedToken::RightParen,
+        Token::LeftBrace => BorrowedToken::LeftBrace,
+        Token::RightBrace => BorrowedToken::RightBrace,
+        Token::LeftBracket => BorrowedToken::LeftBracket,
+        Token::RightBracket => BorrowedToken::RightBracket,
+        Token::Arrow => BorrowedToken::Arrow,
+        Token::Pipe => BorrowedToken::Pipe,
+        Token::Pound => BorrowedToken::Pound,
+        Token::Comma => BorrowedToken::Comma,
+        Token::Colon => BorrowedToken::Colon,
+        Token::DoubleColon => BorrowedToken::DoubleColon,
+        Token::Semicolon => BorrowedToken::Semicolon,
+        Token::Assign => BorrowedToken::Assign,
+        Token::Bang => BorrowedToken::Bang,
+        Token::DollarSign => BorrowedToken::DollarSign,
+        Token::EOF => BorrowedToken::EOF,
+        Token::Invalid(c) => BorrowedToken::Invalid(*c),
+        Token::Whitespace(ref s) => BorrowedToken::Whitespace(s),
+        Token::UnquoteMarker(id) => BorrowedToken::UnquoteMarker(*id),
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub enum DocStyle {
     Outer,
     Inner,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct SpannedToken(Spanned<Token>);
 
 impl PartialEq<SpannedToken> for Token {
@@ -123,6 +287,12 @@ impl PartialEq<Token> for SpannedToken {
 impl From<SpannedToken> for Token {
     fn from(spt: SpannedToken) -> Self {
         spt.0.contents
+    }
+}
+
+impl<'a> From<&'a SpannedToken> for &'a Token {
+    fn from(spt: &'a SpannedToken) -> Self {
+        &spt.0.contents
     }
 }
 
@@ -166,6 +336,13 @@ impl fmt::Display for Token {
             Token::Attribute(ref a) => write!(f, "{a}"),
             Token::LineComment(ref s, _style) => write!(f, "//{s}"),
             Token::BlockComment(ref s, _style) => write!(f, "/*{s}*/"),
+            Token::Quote(ref stream) => {
+                write!(f, "quote {{")?;
+                for token in stream.0.iter() {
+                    write!(f, " {token}")?;
+                }
+                write!(f, "}}")
+            }
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
@@ -199,9 +376,11 @@ impl fmt::Display for Token {
             Token::Semicolon => write!(f, ";"),
             Token::Assign => write!(f, "="),
             Token::Bang => write!(f, "!"),
+            Token::DollarSign => write!(f, "$"),
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
             Token::Whitespace(ref s) => write!(f, "{s}"),
+            Token::UnquoteMarker(_) => write!(f, "(UnquoteMarker)"),
         }
     }
 }
@@ -214,6 +393,8 @@ pub enum TokenKind {
     Literal,
     Keyword,
     Attribute,
+    Quote,
+    UnquoteMarker,
 }
 
 impl fmt::Display for TokenKind {
@@ -224,13 +405,15 @@ impl fmt::Display for TokenKind {
             TokenKind::Literal => write!(f, "literal"),
             TokenKind::Keyword => write!(f, "keyword"),
             TokenKind::Attribute => write!(f, "attribute"),
+            TokenKind::Quote => write!(f, "quote"),
+            TokenKind::UnquoteMarker => write!(f, "macro result"),
         }
     }
 }
 
 impl Token {
     pub fn kind(&self) -> TokenKind {
-        match *self {
+        match self {
             Token::Ident(_) => TokenKind::Ident,
             Token::Int(_)
             | Token::Bool(_)
@@ -239,7 +422,9 @@ impl Token {
             | Token::FmtStr(_) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             Token::Attribute(_) => TokenKind::Attribute,
-            ref tok => TokenKind::Token(tok.clone()),
+            Token::UnquoteMarker(_) => TokenKind::UnquoteMarker,
+            Token::Quote(_) => TokenKind::Quote,
+            tok => TokenKind::Token(tok.clone()),
         }
     }
 
@@ -262,8 +447,8 @@ impl Token {
         [Plus, Minus, Star, Slash, Percent, Ampersand, Caret, ShiftLeft, ShiftRight, Pipe]
     }
 
-    pub fn try_into_binary_op(self, span: Span) -> Option<Spanned<crate::BinaryOpKind>> {
-        use crate::BinaryOpKind::*;
+    pub fn try_into_binary_op(self, span: Span) -> Option<Spanned<crate::ast::BinaryOpKind>> {
+        use crate::ast::BinaryOpKind::*;
         let binary_op = match self {
             Token::Plus => Add,
             Token::Ampersand => And,
@@ -304,7 +489,7 @@ impl fmt::Display for IntType {
 
 impl IntType {
     // XXX: Result<Option<Token, LexerErrorKind>
-    // Is not the best API. We could split this into two functions. One that checks if the the
+    // Is not the best API. We could split this into two functions. One that checks if the
     // word is a integer, which only returns an Option
     pub(crate) fn lookup_int_type(word: &str) -> Result<Option<Token>, LexerErrorKind> {
         // Check if the first string is a 'u' or 'i'
@@ -427,6 +612,14 @@ impl Attributes {
         }
         None
     }
+
+    pub fn is_foldable(&self) -> bool {
+        self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_foldable())
+    }
+
+    pub fn is_no_predicates(&self) -> bool {
+        self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_no_predicates())
+    }
 }
 
 /// An Attribute can be either a Primary Attribute or a Secondary Attribute
@@ -486,6 +679,8 @@ impl Attribute {
             }
             ["test"] => Attribute::Function(FunctionAttribute::Test(TestScope::None)),
             ["recursive"] => Attribute::Function(FunctionAttribute::Recursive),
+            ["fold"] => Attribute::Function(FunctionAttribute::Fold),
+            ["no_predicates"] => Attribute::Function(FunctionAttribute::NoPredicates),
             ["test", name] => {
                 validate(name)?;
                 let malformed_scope =
@@ -504,7 +699,7 @@ impl Attribute {
             ["contract_library_method"] => {
                 Attribute::Secondary(SecondaryAttribute::ContractLibraryMethod)
             }
-            ["event"] => Attribute::Secondary(SecondaryAttribute::Event),
+            ["abi", tag] => Attribute::Secondary(SecondaryAttribute::Abi(tag.to_string())),
             ["export"] => Attribute::Secondary(SecondaryAttribute::Export),
             ["deprecated", name] => {
                 if !name.starts_with('"') && !name.ends_with('"') {
@@ -537,19 +732,28 @@ pub enum FunctionAttribute {
     Oracle(String),
     Test(TestScope),
     Recursive,
+    Fold,
+    NoPredicates,
 }
 
 impl FunctionAttribute {
-    pub fn builtin(self) -> Option<String> {
+    pub fn builtin(&self) -> Option<&String> {
         match self {
             FunctionAttribute::Builtin(name) => Some(name),
             _ => None,
         }
     }
 
-    pub fn foreign(self) -> Option<String> {
+    pub fn foreign(&self) -> Option<&String> {
         match self {
             FunctionAttribute::Foreign(name) => Some(name),
+            _ => None,
+        }
+    }
+
+    pub fn oracle(&self) -> Option<&String> {
+        match self {
+            FunctionAttribute::Oracle(name) => Some(name),
             _ => None,
         }
     }
@@ -565,6 +769,17 @@ impl FunctionAttribute {
     pub fn is_low_level(&self) -> bool {
         matches!(self, FunctionAttribute::Foreign(_) | FunctionAttribute::Builtin(_))
     }
+
+    pub fn is_foldable(&self) -> bool {
+        matches!(self, FunctionAttribute::Fold)
+    }
+
+    /// Check whether we have an `inline` attribute
+    /// Although we also do not want to inline foldable functions,
+    /// we keep the two attributes distinct for clarity.
+    pub fn is_no_predicates(&self) -> bool {
+        matches!(self, FunctionAttribute::NoPredicates)
+    }
 }
 
 impl fmt::Display for FunctionAttribute {
@@ -575,6 +790,8 @@ impl fmt::Display for FunctionAttribute {
             FunctionAttribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             FunctionAttribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
             FunctionAttribute::Recursive => write!(f, "#[recursive]"),
+            FunctionAttribute::Fold => write!(f, "#[fold]"),
+            FunctionAttribute::NoPredicates => write!(f, "#[no_predicates]"),
         }
     }
 }
@@ -589,10 +806,10 @@ pub enum SecondaryAttribute {
     // is a helper method for a contract and should not be seen as
     // the entry point.
     ContractLibraryMethod,
-    Event,
     Export,
     Field(String),
     Custom(String),
+    Abi(String),
 }
 
 impl fmt::Display for SecondaryAttribute {
@@ -604,9 +821,9 @@ impl fmt::Display for SecondaryAttribute {
             }
             SecondaryAttribute::Custom(ref k) => write!(f, "#[{k}]"),
             SecondaryAttribute::ContractLibraryMethod => write!(f, "#[contract_library_method]"),
-            SecondaryAttribute::Event => write!(f, "#[event]"),
             SecondaryAttribute::Export => write!(f, "#[export]"),
             SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
+            SecondaryAttribute::Abi(ref k) => write!(f, "#[abi({k})]"),
         }
     }
 }
@@ -619,6 +836,8 @@ impl AsRef<str> for FunctionAttribute {
             FunctionAttribute::Oracle(string) => string,
             FunctionAttribute::Test { .. } => "",
             FunctionAttribute::Recursive => "",
+            FunctionAttribute::Fold => "",
+            FunctionAttribute::NoPredicates => "",
         }
     }
 }
@@ -628,9 +847,11 @@ impl AsRef<str> for SecondaryAttribute {
         match self {
             SecondaryAttribute::Deprecated(Some(string)) => string,
             SecondaryAttribute::Deprecated(None) => "",
-            SecondaryAttribute::Custom(string) | SecondaryAttribute::Field(string) => string,
+            SecondaryAttribute::Custom(string)
+            | SecondaryAttribute::Field(string)
+            | SecondaryAttribute::Abi(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
-            SecondaryAttribute::Event | SecondaryAttribute::Export => "",
+            SecondaryAttribute::Export => "",
         }
     }
 }
@@ -644,15 +865,17 @@ pub enum Keyword {
     Assert,
     AssertEq,
     Bool,
+    Break,
     CallData,
     Char,
-    CompTime,
+    Comptime,
     Constrain,
+    Continue,
     Contract,
     Crate,
     Dep,
-    Distinct,
     Else,
+    Expr,
     Field,
     Fn,
     For,
@@ -661,18 +884,22 @@ pub enum Keyword {
     If,
     Impl,
     In,
-    Internal,
     Let,
     Mod,
     Mut,
-    Open,
     Pub,
+    Quoted,
     Return,
     ReturnData,
     String,
     Struct,
+    Super,
+    TopLevelItem,
     Trait,
     Type,
+    TypeType,
+    TypeDefinition,
+    Unchecked,
     Unconstrained,
     Use,
     Where,
@@ -686,15 +913,17 @@ impl fmt::Display for Keyword {
             Keyword::Assert => write!(f, "assert"),
             Keyword::AssertEq => write!(f, "assert_eq"),
             Keyword::Bool => write!(f, "bool"),
+            Keyword::Break => write!(f, "break"),
             Keyword::Char => write!(f, "char"),
             Keyword::CallData => write!(f, "call_data"),
-            Keyword::CompTime => write!(f, "comptime"),
+            Keyword::Comptime => write!(f, "comptime"),
             Keyword::Constrain => write!(f, "constrain"),
+            Keyword::Continue => write!(f, "continue"),
             Keyword::Contract => write!(f, "contract"),
             Keyword::Crate => write!(f, "crate"),
             Keyword::Dep => write!(f, "dep"),
-            Keyword::Distinct => write!(f, "distinct"),
             Keyword::Else => write!(f, "else"),
+            Keyword::Expr => write!(f, "Expr"),
             Keyword::Field => write!(f, "Field"),
             Keyword::Fn => write!(f, "fn"),
             Keyword::For => write!(f, "for"),
@@ -703,18 +932,22 @@ impl fmt::Display for Keyword {
             Keyword::If => write!(f, "if"),
             Keyword::Impl => write!(f, "impl"),
             Keyword::In => write!(f, "in"),
-            Keyword::Internal => write!(f, "internal"),
             Keyword::Let => write!(f, "let"),
             Keyword::Mod => write!(f, "mod"),
             Keyword::Mut => write!(f, "mut"),
-            Keyword::Open => write!(f, "open"),
             Keyword::Pub => write!(f, "pub"),
+            Keyword::Quoted => write!(f, "Quoted"),
             Keyword::Return => write!(f, "return"),
             Keyword::ReturnData => write!(f, "return_data"),
             Keyword::String => write!(f, "str"),
             Keyword::Struct => write!(f, "struct"),
+            Keyword::Super => write!(f, "super"),
+            Keyword::TopLevelItem => write!(f, "TopLevelItem"),
             Keyword::Trait => write!(f, "trait"),
             Keyword::Type => write!(f, "type"),
+            Keyword::TypeType => write!(f, "Type"),
+            Keyword::TypeDefinition => write!(f, "TypeDefinition"),
+            Keyword::Unchecked => write!(f, "unchecked"),
             Keyword::Unconstrained => write!(f, "unconstrained"),
             Keyword::Use => write!(f, "use"),
             Keyword::Where => write!(f, "where"),
@@ -731,15 +964,17 @@ impl Keyword {
             "assert" => Keyword::Assert,
             "assert_eq" => Keyword::AssertEq,
             "bool" => Keyword::Bool,
+            "break" => Keyword::Break,
             "call_data" => Keyword::CallData,
             "char" => Keyword::Char,
-            "comptime" => Keyword::CompTime,
+            "comptime" => Keyword::Comptime,
             "constrain" => Keyword::Constrain,
+            "continue" => Keyword::Continue,
             "contract" => Keyword::Contract,
             "crate" => Keyword::Crate,
             "dep" => Keyword::Dep,
-            "distinct" => Keyword::Distinct,
             "else" => Keyword::Else,
+            "Expr" => Keyword::Expr,
             "Field" => Keyword::Field,
             "fn" => Keyword::Fn,
             "for" => Keyword::For,
@@ -748,18 +983,22 @@ impl Keyword {
             "if" => Keyword::If,
             "impl" => Keyword::Impl,
             "in" => Keyword::In,
-            "internal" => Keyword::Internal,
             "let" => Keyword::Let,
             "mod" => Keyword::Mod,
             "mut" => Keyword::Mut,
-            "open" => Keyword::Open,
             "pub" => Keyword::Pub,
+            "Quoted" => Keyword::Quoted,
             "return" => Keyword::Return,
             "return_data" => Keyword::ReturnData,
             "str" => Keyword::String,
             "struct" => Keyword::Struct,
+            "super" => Keyword::Super,
+            "TopLevelItem" => Keyword::TopLevelItem,
             "trait" => Keyword::Trait,
             "type" => Keyword::Type,
+            "Type" => Keyword::TypeType,
+            "TypeDefinition" => Keyword::TypeDefinition,
+            "unchecked" => Keyword::Unchecked,
             "unconstrained" => Keyword::Unconstrained,
             "use" => Keyword::Use,
             "where" => Keyword::Where,
@@ -774,6 +1013,7 @@ impl Keyword {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Tokens(pub Vec<SpannedToken>);
 
 type TokenMapIter = Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>;

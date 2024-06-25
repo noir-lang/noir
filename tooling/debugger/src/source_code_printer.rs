@@ -1,5 +1,5 @@
 use codespan_reporting::files::Files;
-use nargo::artifacts::debug::DebugArtifact;
+use noirc_artifacts::debug::DebugArtifact;
 use noirc_errors::Location;
 use owo_colors::OwoColorize;
 use std::ops::Range;
@@ -30,7 +30,7 @@ struct LocationPrintContext {
 // Given a DebugArtifact and an OpcodeLocation, prints all the source code
 // locations the OpcodeLocation maps to, with some surrounding context and
 // visual aids to highlight the location itself.
-pub(crate) fn print_source_code_location(debug_artifact: &DebugArtifact, locations: &[Location]) {
+pub(super) fn print_source_code_location(debug_artifact: &DebugArtifact, locations: &[Location]) {
     let locations = locations.iter();
 
     for loc in locations {
@@ -143,7 +143,7 @@ fn render_line(
 //
 // Consider for example the file (line numbers added to facilitate this doc):
 // ```
-// 1 use dep::std::hash::poseidon;
+// 1 use std::hash::poseidon;
 // 2
 // 3 fn main(x1: [Field; 2], y1: pub Field, x2: [Field; 4], y2: pub Field) {
 // 4    let hash1 = poseidon::bn254::hash_2(x1);
@@ -157,7 +157,7 @@ fn render_line(
 //
 // If the location to render is `poseidon::bn254::hash_2(x1)`, we'll render the file as:
 // ```
-// 1   use dep::std::hash::poseidon;
+// 1   use std::hash::poseidon;
 // 2
 // 3   fn main(x1: [Field; 2], y1: pub Field, x2: [Field; 4], y2: pub Field) {
 // 4      let hash1 = <b>poseidon::bn254::hash_2(x1)</b>;
@@ -224,7 +224,7 @@ mod tests {
     use crate::source_code_printer::PrintedLine::Content;
     use acvm::acir::circuit::OpcodeLocation;
     use fm::FileManager;
-    use nargo::artifacts::debug::DebugArtifact;
+    use noirc_artifacts::debug::DebugArtifact;
     use noirc_errors::{debug_info::DebugInfo, Location, Span};
     use std::collections::BTreeMap;
     use std::ops::Range;
@@ -269,8 +269,12 @@ mod tests {
         let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
         opcode_locations.insert(OpcodeLocation::Acir(42), vec![loc]);
 
-        let debug_symbols =
-            vec![DebugInfo::new(opcode_locations, BTreeMap::default(), BTreeMap::default())];
+        let debug_symbols = vec![DebugInfo::new(
+            opcode_locations,
+            BTreeMap::default(),
+            BTreeMap::default(),
+            BTreeMap::default(),
+        )];
         let debug_artifact = DebugArtifact::new(debug_symbols, &fm);
 
         let location_rendered: Vec<_> = render_location(&debug_artifact, &loc).collect();

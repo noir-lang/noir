@@ -1,6 +1,6 @@
-use dep::std::option::Option;
+use std::option::Option;
 
-trait MyDeserialize<N> {
+trait MyDeserialize<let N: u32> {
     fn deserialize(fields: [Field; N]) -> Self;
 }
 
@@ -10,18 +10,18 @@ impl MyDeserialize<1> for Field {
     }
 }
 
-pub fn storage_read<N>() -> [Field; N] {
-    dep::std::unsafe::zeroed()
+pub fn storage_read<let N: u32>() -> [Field; N] {
+    std::unsafe::zeroed()
 }
 
-struct PublicState<T> {
+struct PublicMutable<T> {
     storage_slot: Field,
 }
 
-impl<T> PublicState<T> {
+impl<T> PublicMutable<T> {
     pub fn new(storage_slot: Field) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
-        PublicState { storage_slot }
+        PublicMutable { storage_slot }
     }
 
     pub fn read<T_SERIALIZED_LEN>(_self: Self) -> T where T: MyDeserialize<T_SERIALIZED_LEN> {
@@ -32,7 +32,7 @@ impl<T> PublicState<T> {
 }
 
 fn main(value: Field) {
-    let ps: PublicState<Field> = PublicState::new(27);
+    let ps: PublicMutable<Field> = PublicMutable::new(27);
 
     // error here
     assert(ps.read() == value);

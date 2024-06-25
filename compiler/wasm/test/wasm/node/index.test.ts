@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import { join, resolve } from 'path';
 import { expect } from 'chai';
 
-import { compile, PathToFileSourceMap, compile_, CompilerContext } from '../../../build/cjs';
+import { compile_program, PathToFileSourceMap, compile_program_, CompilerContext } from '../../../build/cjs';
 
 const basePath = resolve(join(__dirname, '../../'));
 const {
@@ -26,7 +26,7 @@ describe('noir wasm compilation', () => {
     it('matching nargos compilation', async () => {
       const sourceMap = new PathToFileSourceMap();
       sourceMap.add_source_code(simpleScriptSourcePath, readFileSync(simpleScriptSourcePath, 'utf-8'));
-      const wasmCircuit = compile(simpleScriptSourcePath, undefined, undefined, sourceMap);
+      const wasmCircuit = compile_program(simpleScriptSourcePath, undefined, sourceMap);
       const cliCircuit = await getPrecompiledSource(simpleScriptExpectedArtifact);
 
       if (!('program' in wasmCircuit)) {
@@ -49,9 +49,8 @@ describe('noir wasm compilation', () => {
     });
 
     it('matching nargos compilation', async () => {
-      const wasmCircuit = compile(
+      const wasmCircuit = compile_program(
         'script/main.nr',
-        false,
         {
           root_dependencies: ['lib_a'],
           library_dependencies: {
@@ -123,9 +122,8 @@ describe('noir wasm compilation', () => {
     }).timeout(60 * 20e3);
 
     it('matching nargos compilation - context-implementation-compile-api', async () => {
-      const wasmCircuit = await compile_(
+      const wasmCircuit = await compile_program_(
         'script/main.nr',
-        false,
         {
           root_dependencies: ['lib_a'],
           library_dependencies: {

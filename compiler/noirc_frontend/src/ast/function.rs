@@ -3,8 +3,8 @@ use std::fmt::Display;
 use noirc_errors::Span;
 
 use crate::{
+    ast::{FunctionReturnType, Ident, Param, Visibility},
     token::{Attributes, FunctionAttribute, SecondaryAttribute},
-    FunctionReturnType, Ident, Param, Visibility,
 };
 
 use super::{FunctionDefinition, UnresolvedType, UnresolvedTypeData};
@@ -30,6 +30,15 @@ pub enum FunctionKind {
     Normal,
     Oracle,
     Recursive,
+}
+
+impl FunctionKind {
+    pub fn can_ignore_return_type(self) -> bool {
+        match self {
+            FunctionKind::LowLevel | FunctionKind::Builtin | FunctionKind::Oracle => true,
+            FunctionKind::Normal | FunctionKind::Recursive => false,
+        }
+    }
 }
 
 impl NoirFunction {
@@ -83,7 +92,7 @@ impl NoirFunction {
         &mut self.def
     }
     pub fn number_of_statements(&self) -> usize {
-        self.def.body.0.len()
+        self.def.body.statements.len()
     }
     pub fn span(&self) -> Span {
         self.def.span
@@ -108,6 +117,8 @@ impl From<FunctionDefinition> for NoirFunction {
             Some(FunctionAttribute::Test { .. }) => FunctionKind::Normal,
             Some(FunctionAttribute::Oracle(_)) => FunctionKind::Oracle,
             Some(FunctionAttribute::Recursive) => FunctionKind::Recursive,
+            Some(FunctionAttribute::Fold) => FunctionKind::Normal,
+            Some(FunctionAttribute::NoPredicates) => FunctionKind::Normal,
             None => FunctionKind::Normal,
         };
 

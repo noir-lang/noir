@@ -7,7 +7,7 @@ use crate::ssa::{
         basic_block::{BasicBlock, BasicBlockId},
         dfg::DataFlowGraph,
         function::Function,
-        instruction::{Instruction, InstructionId},
+        instruction::{Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
         value::{Value, ValueId},
     },
@@ -44,7 +44,7 @@ fn dead_instruction_elimination(function: &mut Function) {
         context.remove_unused_instructions_in_block(function, *block);
     }
 
-    context.remove_increment_rc_instructions(&mut function.dfg);
+    context.remove_rc_instructions(&mut function.dfg);
 }
 
 /// Per function context for tracking unused values and which instructions to remove.
@@ -53,10 +53,10 @@ struct Context {
     used_values: HashSet<ValueId>,
     instructions_to_remove: HashSet<InstructionId>,
 
-    /// IncrementRc instructions must be revisited after the main DIE pass since
+    /// IncrementRc & DecrementRc instructions must be revisited after the main DIE pass since
     /// they technically contain side-effects but we still want to remove them if their
     /// `value` parameter is not used elsewhere.
-    increment_rc_instructions: Vec<(InstructionId, BasicBlockId)>,
+    rc_instructions: Vec<(InstructionId, BasicBlockId)>,
 }
 
 impl Context {
@@ -85,8 +85,9 @@ impl Context {
             } else {
                 let instruction = &function.dfg[*instruction_id];
 
-                if let Instruction::IncrementRc { .. } = instruction {
-                    self.increment_rc_instructions.push((*instruction_id, block_id));
+                use Instruction::*;
+                if matches!(instruction, IncrementRc { .. } | DecrementRc { .. }) {
+                    self.rc_instructions.push((*instruction_id, block_id));
                 } else {
                     instruction.for_each_value(|value| {
                         self.mark_used_instruction_results(&function.dfg, value);
@@ -107,12 +108,16 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        if instruction.has_side_effects(&function.dfg) {
-            // If the instruction has side effects we should never remove it.
-            false
-        } else {
+        if instruction.can_eliminate_if_unused(&function.dfg) {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
+        } else if let Instruction::Call { func, arguments } = instruction {
+            // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
+            let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
+            as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
+        } else {
+            // If the instruction has side effects we should never remove it.
+            false
         }
     }
 
@@ -145,16 +150,19 @@ impl Context {
         }
     }
 
-    fn remove_increment_rc_instructions(self, dfg: &mut DataFlowGraph) {
-        for (increment_rc, block) in self.increment_rc_instructions {
-            let value = match &dfg[increment_rc] {
+    fn remove_rc_instructions(self, dfg: &mut DataFlowGraph) {
+        for (rc, block) in self.rc_instructions {
+            let value = match &dfg[rc] {
                 Instruction::IncrementRc { value } => *value,
-                other => unreachable!("Expected IncrementRc instruction, found {other:?}"),
+                Instruction::DecrementRc { value } => *value,
+                other => {
+                    unreachable!("Expected IncrementRc or DecrementRc instruction, found {other:?}")
+                }
             };
 
-            // This could be more efficient if we have to remove multiple IncrementRcs in a single block
+            // This could be more efficient if we have to remove multiple instructions in a single block
             if !self.used_values.contains(&value) {
-                dfg[block].instructions_mut().retain(|instruction| *instruction != increment_rc);
+                dfg[block].instructions_mut().retain(|instruction| *instruction != rc);
             }
         }
     }
@@ -165,7 +173,6 @@ mod test {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            function::RuntimeType,
             instruction::{BinaryOp, Intrinsic},
             map::Id,
             types::Type,
@@ -195,7 +202,7 @@ mod test {
         let main_id = Id::test_new(0);
 
         // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::field());
         let b1 = builder.insert_block();
 
@@ -252,5 +259,48 @@ mod test {
 
         assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
         assert_eq!(main.dfg[b1].instructions().len(), 6);
+    }
+
+    #[test]
+    fn as_witness_die() {
+        // fn main f0 {
+        //   b0(v0: Field):
+        //     v1 = add v0, Field 1
+        //     v2 = add v0, Field 2
+        //     call as_witness(v2)
+        //     return v1
+        // }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let v0 = builder.add_parameter(Type::field());
+
+        let one = builder.field_constant(1u128);
+        let two = builder.field_constant(2u128);
+
+        let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
+        let v2 = builder.insert_binary(v0, BinaryOp::Add, two);
+        let as_witness = builder.import_intrinsic("as_witness").unwrap();
+        builder.insert_call(as_witness, vec![v2], Vec::new());
+        builder.terminate_with_return(vec![v1]);
+
+        let ssa = builder.finish();
+        let main = ssa.main();
+
+        // The instruction count never includes the terminator instruction
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
+
+        // Expected output:
+        //
+        // acir(inline) fn main f0 {
+        //    b0(v0: Field):
+        //      v3 = add v0, Field 1
+        //      return v3
+        //  }
+        let ssa = ssa.dead_instruction_elimination();
+        let main = ssa.main();
+
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
     }
 }

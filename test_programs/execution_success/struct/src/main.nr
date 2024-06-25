@@ -9,8 +9,8 @@ struct Pair {
 }
 
 impl Foo {
-    fn default(x: Field,y: Field) -> Self {
-        Self { bar: 0, array: [x,y] }
+    fn default(x: Field, y: Field) -> Self {
+        Self { bar: 0, array: [x, y] }
     }
 }
 

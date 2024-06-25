@@ -147,7 +147,7 @@ fn main() {
 
 ### Generic Trait Implementations With Where Clauses
 
-Where clauses can also be placed on trait implementations themselves to restrict generics in a similar way.
+Where clauses can be placed on trait implementations themselves to restrict generics in a similar way.
 For example, while `impl<T> Foo for T` implements the trait `Foo` for every type, `impl<T> Foo for T where T: Bar`
 will implement `Foo` only for types that also implement `Bar`. This is often used for implementing generic types.
 For example, here is the implementation for array equality:
@@ -165,6 +165,22 @@ impl<T, N> Eq for [T; N] where T: Eq {
         }
 
         result
+    }
+}
+```
+
+Where clauses can also be placed on struct implementations. 
+For example, here is a method utilizing a generic type that implements the equality trait.
+
+```rust
+struct Foo<T> {
+    a: u32,
+    b: T,
+}
+
+impl<T> Foo<T> where T: Eq {
+    fn eq(self, other: Self) -> bool {
+        (self.a == other.a) & self.b.eq(other.b)
     }
 }
 ```
@@ -372,13 +388,13 @@ impls for any trait we need on it.
 
 ```rust
 struct Wrapper {
-    foo: dep::some_library::Foo,
+    foo: some_library::Foo,
 }
 
 impl Default for Wrapper {
     fn default() -> Wrapper {
         Wrapper {
-            foo: dep::some_library::Foo::new(),
+            foo: some_library::Foo::new(),
         }
     }
 }

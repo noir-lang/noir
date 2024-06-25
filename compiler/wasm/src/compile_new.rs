@@ -1,8 +1,10 @@
 use crate::compile::{
-    file_manager_with_source_map, generate_contract_artifact, generate_program_artifact, parse_all,
-    JsCompileResult, PathToFileSourceMap,
+    file_manager_with_source_map, JsCompileContractResult, JsCompileProgramResult,
+    PathToFileSourceMap,
 };
 use crate::errors::{CompileError, JsCompileError};
+use acvm::acir::circuit::ExpressionWidth;
+use nargo::parse_all;
 use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
 };
@@ -92,12 +94,15 @@ impl CompilerContext {
     pub fn compile_program(
         mut self,
         program_width: usize,
-    ) -> Result<JsCompileResult, JsCompileError> {
-        let compile_options = CompileOptions::default();
-        let np_language = acvm::acir::circuit::ExpressionWidth::Bounded { width: program_width };
+    ) -> Result<JsCompileProgramResult, JsCompileError> {
+        let expression_width = if program_width == 0 {
+            ExpressionWidth::Unbounded
+        } else {
+            ExpressionWidth::Bounded { width: 4 }
+        };
+        let compile_options = CompileOptions { expression_width, ..CompileOptions::default() };
 
         let root_crate_id = *self.context.root_crate_id();
-
         let compiled_program =
             compile_main(&mut self.context, root_crate_id, &compile_options, None)
                 .map_err(|errs| {
@@ -109,20 +114,25 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_program = nargo::ops::transform_program(compiled_program, np_language);
+        let optimized_program =
+            nargo::ops::transform_program(compiled_program, compile_options.expression_width);
+        let warnings = optimized_program.warnings.clone();
 
-        let compile_output = generate_program_artifact(optimized_program);
-        Ok(JsCompileResult::new(compile_output))
+        Ok(JsCompileProgramResult::new(optimized_program.into(), warnings))
     }
 
     pub fn compile_contract(
         mut self,
         program_width: usize,
-    ) -> Result<JsCompileResult, JsCompileError> {
-        let compile_options = CompileOptions::default();
-        let np_language = acvm::acir::circuit::ExpressionWidth::Bounded { width: program_width };
-        let root_crate_id = *self.context.root_crate_id();
+    ) -> Result<JsCompileContractResult, JsCompileError> {
+        let expression_width = if program_width == 0 {
+            ExpressionWidth::Unbounded
+        } else {
+            ExpressionWidth::Bounded { width: 4 }
+        };
+        let compile_options = CompileOptions { expression_width, ..CompileOptions::default() };
 
+        let root_crate_id = *self.context.root_crate_id();
         let compiled_contract =
             compile_contract(&mut self.context, root_crate_id, &compile_options)
                 .map_err(|errs| {
@@ -134,25 +144,56 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_contract = nargo::ops::transform_contract(compiled_contract, np_language);
+        let optimized_contract =
+            nargo::ops::transform_contract(compiled_contract, compile_options.expression_width);
+        let warnings = optimized_contract.warnings.clone();
 
-        let compile_output = generate_contract_artifact(optimized_contract);
-        Ok(JsCompileResult::new(compile_output))
+        Ok(JsCompileContractResult::new(optimized_contract.into(), warnings))
     }
 }
 
 /// This is a method that exposes the same API as `compile`
 /// But uses the Context based APi internally
 #[wasm_bindgen]
-pub fn compile_(
+pub fn compile_program_(
     entry_point: String,
-    contracts: Option<bool>,
     dependency_graph: Option<crate::compile::JsDependencyGraph>,
     file_source_map: PathToFileSourceMap,
-) -> Result<JsCompileResult, JsCompileError> {
-    use std::collections::HashMap;
-
+) -> Result<JsCompileProgramResult, JsCompileError> {
     console_error_panic_hook::set_once();
+
+    let compiler_context =
+        prepare_compiler_context(entry_point, dependency_graph, file_source_map)?;
+    let program_width = 4;
+
+    compiler_context.compile_program(program_width)
+}
+
+/// This is a method that exposes the same API as `compile`
+/// But uses the Context based APi internally
+#[wasm_bindgen]
+pub fn compile_contract_(
+    entry_point: String,
+    dependency_graph: Option<crate::compile::JsDependencyGraph>,
+    file_source_map: PathToFileSourceMap,
+) -> Result<JsCompileContractResult, JsCompileError> {
+    console_error_panic_hook::set_once();
+
+    let compiler_context =
+        prepare_compiler_context(entry_point, dependency_graph, file_source_map)?;
+    let program_width = 4;
+
+    compiler_context.compile_contract(program_width)
+}
+
+/// This is a method that exposes the same API as `prepare_context`
+/// But uses the Context based API internally
+fn prepare_compiler_context(
+    entry_point: String,
+    dependency_graph: Option<crate::compile::JsDependencyGraph>,
+    file_source_map: PathToFileSourceMap,
+) -> Result<CompilerContext, JsCompileError> {
+    use std::collections::HashMap;
 
     let dependency_graph: crate::compile::DependencyGraph =
         if let Some(dependency_graph) = dependency_graph {
@@ -218,22 +259,16 @@ pub fn compile_(
         }
     }
 
-    let is_contract = contracts.unwrap_or(false);
-    let program_width = 3;
-
-    if is_contract {
-        compiler_context.compile_contract(program_width)
-    } else {
-        compiler_context.compile_program(program_width)
-    }
+    Ok(compiler_context)
 }
 
 #[cfg(test)]
 mod test {
+    use nargo::parse_all;
     use noirc_driver::prepare_crate;
     use noirc_frontend::hir::Context;
 
-    use crate::compile::{file_manager_with_source_map, parse_all, PathToFileSourceMap};
+    use crate::compile::{file_manager_with_source_map, PathToFileSourceMap};
 
     use std::path::Path;
 

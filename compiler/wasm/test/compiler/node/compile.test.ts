@@ -2,7 +2,7 @@ import { join, resolve } from 'path';
 import { getPaths } from '../../shared';
 
 import { expect } from 'chai';
-import { compile, createFileManager } from '@noir-lang/noir_wasm';
+import { compile_program, compile_contract, createFileManager } from '@noir-lang/noir_wasm';
 import { readFile } from 'fs/promises';
 import { ContractArtifact, ProgramArtifact } from '../../../src/types/noir_artifact';
 import { shouldCompileContractIdentically, shouldCompileProgramIdentically } from '../shared/compile.test';
@@ -15,7 +15,7 @@ describe('noir-compiler/node', () => {
 
     const fm = createFileManager(simpleScriptProjectPath);
     const nargoArtifact = JSON.parse((await readFile(simpleScriptExpectedArtifact)).toString()) as ProgramArtifact;
-    const noirWasmArtifact = await compile(fm);
+    const noirWasmArtifact = await compile_program(fm);
     return { nargoArtifact, noirWasmArtifact };
   }, expect);
 
@@ -24,7 +24,7 @@ describe('noir-compiler/node', () => {
 
     const fm = createFileManager(depsScriptProjectPath);
     const nargoArtifact = JSON.parse((await readFile(depsScriptExpectedArtifact)).toString()) as ProgramArtifact;
-    const noirWasmArtifact = await compile(fm);
+    const noirWasmArtifact = await compile_program(fm);
     return { nargoArtifact, noirWasmArtifact };
   }, expect);
 
@@ -33,7 +33,7 @@ describe('noir-compiler/node', () => {
 
     const fm = createFileManager(contractProjectPath);
     const nargoArtifact = JSON.parse((await readFile(contractExpectedArtifact)).toString()) as ContractArtifact;
-    const noirWasmArtifact = await compile(fm);
+    const noirWasmArtifact = await compile_contract(fm);
     return { nargoArtifact, noirWasmArtifact };
   }, expect);
 });

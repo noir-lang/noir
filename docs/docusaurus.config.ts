@@ -14,6 +14,7 @@ export default {
   favicon: 'img/favicon.ico',
   url: 'https://noir-lang.org',
   baseUrl: '/',
+  trailingSlash: true,
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'throw',
   i18n: {
@@ -38,7 +39,7 @@ export default {
             },
           },
           editUrl: ({ versionDocsDirPath, docPath }) =>
-            `https://github.com/noir-lang/noir/edit/master/docs/${versionDocsDirPath}/${docPath}`,
+            `https://github.com/noir-lang/noir/edit/master/docs/${versionDocsDirPath.replace('processed-docs', 'docs')}/${docPath}`,
         },
         blog: false,
         theme: {
@@ -47,7 +48,9 @@ export default {
       },
     ],
   ],
-
+  customFields: {
+    MATOMO_ENV: process.env.MATOMO_ENV,
+  },
   themeConfig: {
     colorMode: {
       respectPrefersColorScheme: true,
@@ -107,7 +110,7 @@ export default {
             },
             {
               label: 'Docs GitHub',
-              href: 'https://github.com/noir-lang/docs',
+              href: 'https://github.com/noir-lang/noir/tree/master/docs',
             },
           ],
         },

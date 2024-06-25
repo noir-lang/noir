@@ -73,6 +73,8 @@ impl AstPrinter {
                 self.print_expr(expr, f)?;
                 write!(f, ";")
             }
+            Expression::Break => write!(f, "break"),
+            Expression::Continue => write!(f, "continue"),
         }
     }
 
@@ -95,6 +97,11 @@ impl AstPrinter {
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
+            super::ast::Literal::Slice(array) => {
+                write!(f, "&[")?;
+                self.print_comma_separated(&array.contents, f)?;
+                write!(f, "]")
+            }
             super::ast::Literal::Integer(x, _, _) => x.fmt(f),
             super::ast::Literal::Bool(x) => x.fmt(f),
             super::ast::Literal::Str(s) => s.fmt(f),
@@ -102,6 +109,9 @@ impl AstPrinter {
                 write!(f, "f\"")?;
                 s.fmt(f)?;
                 write!(f, "\"")
+            }
+            super::ast::Literal::Unit => {
+                write!(f, "()")
             }
         }
     }

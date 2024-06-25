@@ -1,10 +1,12 @@
+use std::borrow::Cow;
+
 use crate::items::HasItem;
 use crate::rewrite;
 use crate::visitor::{FmtVisitor, Shape};
+use noirc_frontend::ast::{Expression, Ident, Param, UnresolvedGeneric, Visibility};
 use noirc_frontend::hir::resolution::errors::Span;
 use noirc_frontend::lexer::Lexer;
 use noirc_frontend::token::Token;
-use noirc_frontend::{Expression, Ident, Param, Visibility};
 
 pub(crate) fn changed_comment_content(original: &str, new: &str) -> bool {
     comments(original).ne(comments(new))
@@ -78,6 +80,7 @@ pub(crate) fn find_comment_end(slice: &str, is_last: bool) -> usize {
                 std::cmp::max(find_comment_end(slice) + block, separator_index + 1)
             }
             (_, Some(newline)) if newline > separator_index => newline + 1,
+            (None, None) => 0,
             _ => slice.len(),
         }
     } else if let Some(newline_index) = newline_index {
@@ -143,7 +146,7 @@ impl HasItem for Param {
     fn format(self, visitor: &FmtVisitor, shape: Shape) -> String {
         let pattern = visitor.slice(self.pattern.span());
         let visibility = match self.visibility {
-            Visibility::Public => "pub ",
+            Visibility::Public => "pub",
             Visibility::Private => "",
             Visibility::DataBus => "call_data",
         };
@@ -152,6 +155,7 @@ impl HasItem for Param {
             pattern.to_string()
         } else {
             let ty = rewrite::typ(visitor, shape, self.typ);
+            let visibility = append_space_if_nonempty(visibility.into());
             format!("{pattern}: {visibility}{ty}")
         }
     }
@@ -164,6 +168,26 @@ impl HasItem for Ident {
 
     fn format(self, visitor: &FmtVisitor, _shape: Shape) -> String {
         visitor.slice(self.span()).into()
+    }
+}
+
+impl HasItem for UnresolvedGeneric {
+    fn span(&self) -> Span {
+        self.span()
+    }
+
+    fn format(self, visitor: &FmtVisitor, _shape: Shape) -> String {
+        match self {
+            UnresolvedGeneric::Variable(_) => visitor.slice(self.span()).into(),
+            UnresolvedGeneric::Numeric { ident, typ } => {
+                let mut result = "".to_owned();
+                result.push_str(&ident.0.contents);
+                result.push_str(": ");
+                let typ = rewrite::typ(visitor, _shape, typ);
+                result.push_str(&typ);
+                result
+            }
+        }
     }
 }
 
@@ -181,6 +205,15 @@ pub(crate) fn is_single_line(s: &str) -> bool {
 
 pub(crate) fn last_line_contains_single_line_comment(s: &str) -> bool {
     s.lines().last().map_or(false, |line| line.contains("//"))
+}
+
+pub(crate) fn append_space_if_nonempty(mut string: Cow<str>) -> Cow<str> {
+    if !string.is_empty() {
+        let inner = string.to_mut();
+        inner.push(' ');
+    }
+
+    string
 }
 
 pub(crate) fn last_line_used_width(s: &str, offset: usize) -> usize {

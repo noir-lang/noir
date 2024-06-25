@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use iter_extended::vecmap;
+use noirc_frontend::monomorphization::ast::InlineType;
 
 use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
@@ -12,9 +13,22 @@ use super::value::ValueId;
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub(crate) enum RuntimeType {
     // A noir function, to be compiled in ACIR and executed by ACVM
-    Acir,
+    Acir(InlineType),
     // Unconstrained function, to be compiled to brillig and executed by the Brillig VM
     Brillig,
+}
+
+impl RuntimeType {
+    /// Returns whether the runtime type represents an entry point.
+    /// We return `false` for InlineType::Inline on default, which is true
+    /// in all cases except for main. `main` should be supported with special
+    /// handling in any places where this function determines logic.
+    pub(crate) fn is_entry_point(&self) -> bool {
+        match self {
+            RuntimeType::Acir(inline_type) => inline_type.is_entry_point(),
+            RuntimeType::Brillig => true,
+        }
+    }
 }
 
 /// A function holds a list of instructions.
@@ -47,7 +61,14 @@ impl Function {
     pub(crate) fn new(name: String, id: FunctionId) -> Self {
         let mut dfg = DataFlowGraph::default();
         let entry_block = dfg.make_block();
-        Self { name, id, entry_block, dfg, runtime: RuntimeType::Acir }
+        Self { name, id, entry_block, dfg, runtime: RuntimeType::Acir(InlineType::default()) }
+    }
+
+    /// Creates a new function as a clone of the one passed in with the passed in id.
+    pub(crate) fn clone_with_id(id: FunctionId, another: &Function) -> Self {
+        let dfg = another.dfg.clone();
+        let entry_block = another.entry_block;
+        Self { name: another.name.clone(), id, entry_block, dfg, runtime: another.runtime }
     }
 
     /// The name of the function.
@@ -69,6 +90,13 @@ impl Function {
     /// Set runtime type of the function.
     pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
         self.runtime = runtime;
+    }
+
+    pub(crate) fn is_no_predicates(&self) -> bool {
+        match self.runtime() {
+            RuntimeType::Acir(inline_type) => matches!(inline_type, InlineType::NoPredicates),
+            RuntimeType::Brillig => false,
+        }
     }
 
     /// Retrieves the entry block of a function.
@@ -129,7 +157,7 @@ impl Function {
 impl std::fmt::Display for RuntimeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RuntimeType::Acir => write!(f, "acir"),
+            RuntimeType::Acir(inline_type) => write!(f, "acir({inline_type})"),
             RuntimeType::Brillig => write!(f, "brillig"),
         }
     }

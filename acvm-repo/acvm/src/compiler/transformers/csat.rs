@@ -2,7 +2,7 @@ use std::{cmp::Ordering, collections::HashSet};
 
 use acir::{
     native_types::{Expression, Witness},
-    FieldElement,
+    AcirField,
 };
 use indexmap::IndexMap;
 
@@ -30,7 +30,7 @@ impl CSatTransformer {
     }
 
     /// Check if the equation 'expression=0' can be solved, and if yes, add the solved witness to set of solvable witness
-    fn try_solve(&mut self, opcode: &Expression) {
+    fn try_solve<F>(&mut self, opcode: &Expression<F>) {
         let mut unresolved = Vec::new();
         for (_, w1, w2) in &opcode.mul_terms {
             if !self.solvable_witness.contains(w1) {
@@ -64,12 +64,12 @@ impl CSatTransformer {
     // Still missing dead witness optimization.
     // To do this, we will need the whole set of assert-zero opcodes
     // I think it can also be done before the local optimization seen here, as dead variables will come from the user
-    pub(crate) fn transform(
+    pub(crate) fn transform<F: AcirField>(
         &mut self,
-        opcode: Expression,
-        intermediate_variables: &mut IndexMap<Expression, (FieldElement, Witness)>,
+        opcode: Expression<F>,
+        intermediate_variables: &mut IndexMap<Expression<F>, (F, Witness)>,
         num_witness: &mut u32,
-    ) -> Expression {
+    ) -> Expression<F> {
         // Here we create intermediate variables and constrain them to be equal to any subset of the polynomial that can be represented as a full opcode
         let opcode =
             self.full_opcode_scan_optimization(opcode, intermediate_variables, num_witness);
@@ -107,12 +107,12 @@ impl CSatTransformer {
     // The polynomial now looks like so t + t2
     // We can no longer extract another full opcode, hence the algorithm terminates. Creating two intermediate variables t and t2.
     // This stage of preprocessing does not guarantee that all polynomials can fit into a opcode. It only guarantees that all full opcodes have been extracted from each polynomial
-    fn full_opcode_scan_optimization(
+    fn full_opcode_scan_optimization<F: AcirField>(
         &mut self,
-        mut opcode: Expression,
-        intermediate_variables: &mut IndexMap<Expression, (FieldElement, Witness)>,
+        mut opcode: Expression<F>,
+        intermediate_variables: &mut IndexMap<Expression<F>, (F, Witness)>,
         num_witness: &mut u32,
-    ) -> Expression {
+    ) -> Expression<F> {
         // We pass around this intermediate variable IndexMap, so that we do not create intermediate variables that we have created before
         // One instance where this might happen is t1 = wL * wR and t2 = wR * wL
 
@@ -210,16 +210,16 @@ impl CSatTransformer {
                             }
                         } else {
                             // No more usable elements left in the old opcode
-                            opcode.linear_combinations = remaining_linear_terms;
                             break;
                         }
                     }
+                    opcode.linear_combinations.extend(remaining_linear_terms);
+
                     // Constraint this intermediate_opcode to be equal to the temp variable by adding it into the IndexMap
                     // We need a unique name for our intermediate variable
                     // XXX: Another optimization, which could be applied in another algorithm
                     // If two opcodes have a large fan-in/out and they share a few common terms, then we should create intermediate variables for them
                     // Do some sort of subset matching algorithm for this on the terms of the polynomial
-
                     let inter_var = Self::get_or_create_intermediate_vars(
                         intermediate_variables,
                         intermediate_opcode,
@@ -245,7 +245,7 @@ impl CSatTransformer {
     /// Normalize an expression by dividing it by its first coefficient
     /// The first coefficient here means coefficient of the first linear term, or of the first quadratic term if no linear terms exist.
     /// The function panic if the input expression is constant
-    fn normalize(mut expr: Expression) -> (FieldElement, Expression) {
+    fn normalize<F: AcirField>(mut expr: Expression<F>) -> (F, Expression<F>) {
         expr.sort();
         let a = if !expr.linear_combinations.is_empty() {
             expr.linear_combinations[0].0
@@ -259,11 +259,11 @@ impl CSatTransformer {
     /// The sets of previously generated witness and their (normalized) expression is cached in the intermediate_variables map
     /// If there is no cache hit, we generate a new witness (and add the expression to the cache)
     /// else, we return the cached witness along with the scaling factor so it is equal to the provided expression
-    fn get_or_create_intermediate_vars(
-        intermediate_variables: &mut IndexMap<Expression, (FieldElement, Witness)>,
-        expr: Expression,
+    fn get_or_create_intermediate_vars<F: AcirField>(
+        intermediate_variables: &mut IndexMap<Expression<F>, (F, Witness)>,
+        expr: Expression<F>,
         num_witness: &mut u32,
-    ) -> (FieldElement, Witness) {
+    ) -> (F, Witness) {
         let (k, normalized_expr) = Self::normalize(expr);
 
         if intermediate_variables.contains_key(&normalized_expr) {
@@ -274,7 +274,7 @@ impl CSatTransformer {
             *num_witness += 1;
             // Add intermediate opcode and variable to map
             intermediate_variables.insert(normalized_expr, (k, inter_var));
-            (FieldElement::one(), inter_var)
+            (F::one(), inter_var)
         }
     }
 
@@ -315,18 +315,18 @@ impl CSatTransformer {
     // Also remember that since we did full opcode scan, there is no way we can have a non-zero mul term along with the wL and wR terms being non-zero
     //
     // Cases, a lot of mul terms, a lot of fan-in terms, 50/50
-    fn partial_opcode_scan_optimization(
+    fn partial_opcode_scan_optimization<F: AcirField>(
         &mut self,
-        mut opcode: Expression,
-        intermediate_variables: &mut IndexMap<Expression, (FieldElement, Witness)>,
+        mut opcode: Expression<F>,
+        intermediate_variables: &mut IndexMap<Expression<F>, (F, Witness)>,
         num_witness: &mut u32,
-    ) -> Expression {
+    ) -> Expression<F> {
         // We will go for the easiest route, which is to convert all multiplications into additions using intermediate variables
         // Then use intermediate variables again to squash the fan-in, so that it can fit into the appropriate width
 
         // First check if this polynomial actually needs a partial opcode optimization
         // There is the chance that it fits perfectly within the assert-zero opcode
-        if opcode.fits_in_one_identity(self.width) {
+        if fits_in_one_identity(&opcode, self.width) {
             return opcode;
         }
 
@@ -409,101 +409,202 @@ impl CSatTransformer {
     }
 }
 
-#[test]
-fn simple_reduction_smoke_test() {
-    let a = Witness(0);
-    let b = Witness(1);
-    let c = Witness(2);
-    let d = Witness(3);
+/// Checks if this expression can fit into one arithmetic identity
+fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> bool {
+    // A Polynomial with more than one mul term cannot fit into one opcode
+    if expr.mul_terms.len() > 1 {
+        return false;
+    };
+    // A Polynomial with more terms than fan-in cannot fit within a single opcode
+    if expr.linear_combinations.len() > width {
+        return false;
+    }
 
-    // a = b + c + d;
-    let opcode_a = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![
-            (FieldElement::one(), a),
-            (-FieldElement::one(), b),
-            (-FieldElement::one(), c),
-            (-FieldElement::one(), d),
-        ],
-        q_c: FieldElement::zero(),
+    // A polynomial with no mul term and a fan-in that fits inside of the width can fit into a single opcode
+    if expr.mul_terms.is_empty() {
+        return true;
+    }
+
+    // A polynomial with width-2 fan-in terms and a single non-zero mul term can fit into one opcode
+    // Example: Axy + Dz . Notice, that the mul term places a constraint on the first two terms, but not the last term
+    // XXX: This would change if our arithmetic polynomial equation was changed to Axyz for example, but for now it is not.
+    if expr.linear_combinations.len() <= (width - 2) {
+        return true;
+    }
+
+    // We now know that we have a single mul term. We also know that the mul term must match up with at least one of the other terms
+    // A polynomial whose mul terms are non zero which do not match up with two terms in the fan-in cannot fit into one opcode
+    // An example of this is: Axy + Bx + Cy + ...
+    // Notice how the bivariate monomial xy has two univariate monomials with their respective coefficients
+    // XXX: note that if x or y is zero, then we could apply a further optimization, but this would be done in another algorithm.
+    // It would be the same as when we have zero coefficients - Can only work if wire is constrained to be zero publicly
+    let mul_term = &expr.mul_terms[0];
+
+    // The coefficient should be non-zero, as this method is ran after the compiler removes all zero coefficient terms
+    assert_ne!(mul_term.0, F::zero());
+
+    let mut found_x = false;
+    let mut found_y = false;
+
+    for term in expr.linear_combinations.iter() {
+        let witness = &term.1;
+        let x = &mul_term.1;
+        let y = &mul_term.2;
+        if witness == x {
+            found_x = true;
+        };
+        if witness == y {
+            found_y = true;
+        };
+        if found_x & found_y {
+            break;
+        }
+    }
+
+    // If the multiplication is a squaring then we must assign the two witnesses to separate wires and so we
+    // can never get a zero contribution to the width.
+    let multiplication_is_squaring = mul_term.1 == mul_term.2;
+
+    let mul_term_width_contribution = if !multiplication_is_squaring && (found_x & found_y) {
+        // Both witnesses involved in the multiplication exist elsewhere in the expression.
+        // They both do not contribute to the width of the expression as this would be double-counting
+        // due to their appearance in the linear terms.
+        0
+    } else if found_x || found_y {
+        // One of the witnesses involved in the multiplication exists elsewhere in the expression.
+        // The multiplication then only contributes 1 new witness to the width.
+        1
+    } else {
+        // Worst case scenario, the multiplication is using completely unique witnesses so has a contribution of 2.
+        2
     };
 
-    let mut intermediate_variables: IndexMap<Expression, (FieldElement, Witness)> = IndexMap::new();
-
-    let mut num_witness = 4;
-
-    let mut optimizer = CSatTransformer::new(3);
-    optimizer.mark_solvable(b);
-    optimizer.mark_solvable(c);
-    optimizer.mark_solvable(d);
-    let got_optimized_opcode_a =
-        optimizer.transform(opcode_a, &mut intermediate_variables, &mut num_witness);
-
-    // a = b + c + d => a - b - c - d = 0
-    // For width3, the result becomes:
-    // a - d + e = 0
-    // - c - b  - e = 0
-    //
-    // a - b + e = 0
-    let e = Witness(4);
-    let expected_optimized_opcode_a = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![
-            (FieldElement::one(), a),
-            (-FieldElement::one(), d),
-            (FieldElement::one(), e),
-        ],
-        q_c: FieldElement::zero(),
-    };
-    assert_eq!(expected_optimized_opcode_a, got_optimized_opcode_a);
-
-    assert_eq!(intermediate_variables.len(), 1);
-
-    // e = - c - b
-    let expected_intermediate_opcode = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![(-FieldElement::one(), c), (-FieldElement::one(), b)],
-        q_c: FieldElement::zero(),
-    };
-    let (_, normalized_opcode) = CSatTransformer::normalize(expected_intermediate_opcode);
-    assert!(intermediate_variables.contains_key(&normalized_opcode));
-    assert_eq!(intermediate_variables[&normalized_opcode].1, e);
+    mul_term_width_contribution + expr.linear_combinations.len() <= width
 }
 
-#[test]
-fn stepwise_reduction_test() {
-    let a = Witness(0);
-    let b = Witness(1);
-    let c = Witness(2);
-    let d = Witness(3);
-    let e = Witness(4);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acir::{AcirField, FieldElement};
 
-    // a = b + c + d + e;
-    let opcode_a = Expression {
-        mul_terms: vec![],
-        linear_combinations: vec![
-            (-FieldElement::one(), a),
-            (FieldElement::one(), b),
-            (FieldElement::one(), c),
-            (FieldElement::one(), d),
-            (FieldElement::one(), e),
-        ],
-        q_c: FieldElement::zero(),
-    };
+    #[test]
+    fn simple_reduction_smoke_test() {
+        let a = Witness(0);
+        let b = Witness(1);
+        let c = Witness(2);
+        let d = Witness(3);
 
-    let mut intermediate_variables: IndexMap<Expression, (FieldElement, Witness)> = IndexMap::new();
+        // a = b + c + d;
+        let opcode_a = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![
+                (FieldElement::one(), a),
+                (-FieldElement::one(), b),
+                (-FieldElement::one(), c),
+                (-FieldElement::one(), d),
+            ],
+            q_c: FieldElement::zero(),
+        };
 
-    let mut num_witness = 4;
+        let mut intermediate_variables: IndexMap<
+            Expression<FieldElement>,
+            (FieldElement, Witness),
+        > = IndexMap::new();
 
-    let mut optimizer = CSatTransformer::new(3);
-    optimizer.mark_solvable(a);
-    optimizer.mark_solvable(c);
-    optimizer.mark_solvable(d);
-    optimizer.mark_solvable(e);
-    let got_optimized_opcode_a =
-        optimizer.transform(opcode_a, &mut intermediate_variables, &mut num_witness);
+        let mut num_witness = 4;
 
-    // Since b is not known, it cannot be put inside intermediate opcodes, so it must belong to the transformed opcode.
-    let contains_b = got_optimized_opcode_a.linear_combinations.iter().any(|(_, w)| *w == b);
-    assert!(contains_b);
+        let mut optimizer = CSatTransformer::new(3);
+        optimizer.mark_solvable(b);
+        optimizer.mark_solvable(c);
+        optimizer.mark_solvable(d);
+        let got_optimized_opcode_a =
+            optimizer.transform(opcode_a, &mut intermediate_variables, &mut num_witness);
+
+        // a = b + c + d => a - b - c - d = 0
+        // For width3, the result becomes:
+        // a - d + e = 0
+        // - c - b  - e = 0
+        //
+        // a - b + e = 0
+        let e = Witness(4);
+        let expected_optimized_opcode_a = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![
+                (FieldElement::one(), a),
+                (-FieldElement::one(), d),
+                (FieldElement::one(), e),
+            ],
+            q_c: FieldElement::zero(),
+        };
+        assert_eq!(expected_optimized_opcode_a, got_optimized_opcode_a);
+
+        assert_eq!(intermediate_variables.len(), 1);
+
+        // e = - c - b
+        let expected_intermediate_opcode = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![(-FieldElement::one(), c), (-FieldElement::one(), b)],
+            q_c: FieldElement::zero(),
+        };
+        let (_, normalized_opcode) = CSatTransformer::normalize(expected_intermediate_opcode);
+        assert!(intermediate_variables.contains_key(&normalized_opcode));
+        assert_eq!(intermediate_variables[&normalized_opcode].1, e);
+    }
+
+    #[test]
+    fn stepwise_reduction_test() {
+        let a = Witness(0);
+        let b = Witness(1);
+        let c = Witness(2);
+        let d = Witness(3);
+        let e = Witness(4);
+
+        // a = b + c + d + e;
+        let opcode_a = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![
+                (-FieldElement::one(), a),
+                (FieldElement::one(), b),
+                (FieldElement::one(), c),
+                (FieldElement::one(), d),
+                (FieldElement::one(), e),
+            ],
+            q_c: FieldElement::zero(),
+        };
+
+        let mut intermediate_variables: IndexMap<
+            Expression<FieldElement>,
+            (FieldElement, Witness),
+        > = IndexMap::new();
+
+        let mut num_witness = 4;
+
+        let mut optimizer = CSatTransformer::new(3);
+        optimizer.mark_solvable(a);
+        optimizer.mark_solvable(c);
+        optimizer.mark_solvable(d);
+        optimizer.mark_solvable(e);
+        let got_optimized_opcode_a =
+            optimizer.transform(opcode_a, &mut intermediate_variables, &mut num_witness);
+
+        // Since b is not known, it cannot be put inside intermediate opcodes, so it must belong to the transformed opcode.
+        let contains_b = got_optimized_opcode_a.linear_combinations.iter().any(|(_, w)| *w == b);
+        assert!(contains_b);
+    }
+
+    #[test]
+    fn recognize_expr_with_single_shared_witness_which_fits_in_single_identity() {
+        // Regression test for an expression which Zac found which should have been preserved but
+        // was being split into two expressions.
+        let expr = Expression {
+            mul_terms: vec![(-FieldElement::from(555u128), Witness(8), Witness(10))],
+            linear_combinations: vec![
+                (FieldElement::one(), Witness(10)),
+                (FieldElement::one(), Witness(11)),
+                (-FieldElement::one(), Witness(13)),
+            ],
+            q_c: FieldElement::zero(),
+        };
+        assert!(fits_in_one_identity(&expr, 4));
+    }
 }

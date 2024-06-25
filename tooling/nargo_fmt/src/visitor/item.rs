@@ -1,14 +1,17 @@
+use crate::{
+    rewrite::{self, UseTree},
+    utils::{
+        append_space_if_nonempty, last_line_contains_single_line_comment, last_line_used_width,
+        FindToken,
+    },
+    visitor::expr::{format_seq, NewlineMode},
+};
+use noirc_frontend::ast::{NoirFunction, Visibility};
 use noirc_frontend::{
     hir::resolution::errors::Span,
     parser::{Item, ItemKind},
     token::{Keyword, Token},
-    Distinctness, NoirFunction, ParsedModule, Visibility,
-};
-
-use crate::{
-    rewrite::{self, UseTree},
-    utils::{last_line_contains_single_line_comment, last_line_used_width, FindToken},
-    visitor::expr::{format_seq, NewlineMode},
+    ParsedModule,
 };
 
 use super::{
@@ -41,7 +44,7 @@ impl super::FmtVisitor<'_> {
 
         if !func.def.generics.is_empty() {
             let full_span = name_span.end()..params_open;
-            let start = name_span.end();
+            let start = self.span_before(full_span.clone(), Token::Less).start();
             let end = self.span_after(full_span, Token::Greater).start();
 
             let generics = func.def.generics;
@@ -115,13 +118,12 @@ impl super::FmtVisitor<'_> {
         if let Some(span) = return_type_span {
             result.push_str(" -> ");
 
-            if let Distinctness::Distinct = func.def.return_distinctness {
-                result.push_str("distinct ");
-            }
-
-            if let Visibility::Public = func.def.return_visibility {
-                result.push_str("pub ");
-            }
+            let visibility = match func.def.return_visibility {
+                Visibility::Public => "pub",
+                Visibility::DataBus => "return_data",
+                Visibility::Private => "",
+            };
+            result.push_str(&append_space_if_nonempty(visibility.into()));
 
             let typ = rewrite::typ(self, self.shape(), func.return_type());
             result.push_str(&typ);
@@ -186,8 +188,8 @@ impl super::FmtVisitor<'_> {
                         continue;
                     }
 
-                    let slice =
-                        self.slice(self.last_position..impl_.object_type.span.unwrap().end());
+                    let before_brace = self.span_before(span, Token::LeftBrace).start();
+                    let slice = self.slice(self.last_position..before_brace).trim();
                     let after_brace = self.span_after(span, Token::LeftBrace).start();
                     self.last_position = after_brace;
 

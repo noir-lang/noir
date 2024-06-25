@@ -18,10 +18,10 @@ mod compile;
 mod compile_new;
 mod errors;
 
-pub use compile::compile;
+pub use compile::{compile_contract, compile_program};
 
 // Expose the new Context-Centric API
-pub use compile_new::{compile_, CompilerContext, CrateIDWrapper};
+pub use compile_new::{compile_contract_, compile_program_, CompilerContext, CrateIDWrapper};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 #[derive(Serialize, Deserialize)]

@@ -60,7 +60,7 @@ fn on_test_run_request_inner(
         Some(package) => {
             let (mut context, crate_id) =
                 prepare_package(&workspace_file_manager, &parsed_files, package);
-            if check_crate(&mut context, crate_id, false, false).is_err() {
+            if check_crate(&mut context, crate_id, false, false, false).is_err() {
                 let result = NargoTestRunResult {
                     id: params.id.clone(),
                     result: "error".to_string(),
@@ -84,7 +84,7 @@ fn on_test_run_request_inner(
             let test_result = run_test(
                 &state.solver,
                 &mut context,
-                test_function,
+                &test_function,
                 false,
                 None,
                 &CompileOptions::default(),

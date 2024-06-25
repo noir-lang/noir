@@ -1,4 +1,3 @@
-use dep::std;
 // Tests a very simple program.
 // 
 // The features being tested is hash_to_field in brillig
@@ -7,5 +6,5 @@ fn main(input: Field) -> pub Field {
 }
 
 unconstrained fn hash_to_field(input: Field) -> Field {
-    std::hash::hash_to_field([input])
+    std::hash::hash_to_field(&[input])
 }

@@ -1,21 +1,22 @@
-import { CompilationResult, inflateDebugSymbols } from '@noir-lang/noir_wasm';
+import { inflateDebugSymbols } from '@noir-lang/noir_wasm';
 import { type expect as Expect } from 'chai';
 import {
   ContractArtifact,
   ContractCompilationArtifacts,
   DebugFileMap,
   DebugInfo,
+  ProgramDebugInfo,
   NoirFunctionEntry,
   ProgramArtifact,
   ProgramCompilationArtifacts,
 } from '../../../src/types/noir_artifact';
 
 export function shouldCompileProgramIdentically(
-  compileFn: () => Promise<{ nargoArtifact: ProgramArtifact; noirWasmArtifact: CompilationResult }>,
+  compileFn: () => Promise<{ nargoArtifact: ProgramArtifact; noirWasmArtifact: ProgramCompilationArtifacts }>,
   expect: typeof Expect,
   timeout = 5000,
 ) {
-  it('both nargo and noir_wasm should compile identically', async () => {
+  it('both nargo and noir_wasm should compile program identically', async () => {
     // Compile!
     const { nargoArtifact, noirWasmArtifact } = await compileFn();
 
@@ -24,7 +25,7 @@ export function shouldCompileProgramIdentically(
     normalizeVersion(nargoArtifact);
 
     // Prepare noir-wasm artifact
-    const noirWasmProgram = (noirWasmArtifact as unknown as ProgramCompilationArtifacts).program;
+    const noirWasmProgram = noirWasmArtifact.program;
     expect(noirWasmProgram).not.to.be.undefined;
     const [_noirWasmDebugInfos, norWasmFileMap] = deleteProgramDebugMetadata(noirWasmProgram);
     normalizeVersion(noirWasmProgram);
@@ -47,11 +48,11 @@ export function shouldCompileProgramIdentically(
 }
 
 export function shouldCompileContractIdentically(
-  compileFn: () => Promise<{ nargoArtifact: ContractArtifact; noirWasmArtifact: CompilationResult }>,
+  compileFn: () => Promise<{ nargoArtifact: ContractArtifact; noirWasmArtifact: ContractCompilationArtifacts }>,
   expect: typeof Expect,
   timeout = 5000,
 ) {
-  it('both nargo and noir_wasm should compile identically', async () => {
+  it('both nargo and noir_wasm should compile contract identically', async () => {
     // Compile!
     const { nargoArtifact, noirWasmArtifact } = await compileFn();
 
@@ -60,7 +61,7 @@ export function shouldCompileContractIdentically(
     normalizeVersion(nargoArtifact);
 
     // Prepare noir-wasm artifact
-    const noirWasmContract = (noirWasmArtifact as unknown as ContractCompilationArtifacts).contract;
+    const noirWasmContract = noirWasmArtifact.contract;
     expect(noirWasmContract).not.to.be.undefined;
     const [noirWasmDebugInfos, norWasmFileMap] = deleteContractDebugMetadata(noirWasmContract);
     normalizeVersion(noirWasmContract);
@@ -90,7 +91,7 @@ function extractDebugInfos(fns: NoirFunctionEntry[]) {
   return fns.map((fn) => {
     const debugSymbols = inflateDebugSymbols(fn.debug_symbols);
     delete (fn as Partial<NoirFunctionEntry>).debug_symbols;
-    clearFileIdentifiers(debugSymbols);
+    clearFileIdentifiersProgram(debugSymbols);
     return debugSymbols;
   });
 }
@@ -111,6 +112,12 @@ function deleteContractDebugMetadata(contract: ContractArtifact) {
   const fileMap = contract.file_map;
   delete (contract as Partial<ContractArtifact>).file_map;
   return [extractDebugInfos(contract.functions), fileMap];
+}
+
+function clearFileIdentifiersProgram(debugSymbols: ProgramDebugInfo) {
+  debugSymbols.debug_infos.map((debug_info) => {
+    clearFileIdentifiers(debug_info);
+  });
 }
 
 /** Clears file identifiers from a set of debug symbols. */

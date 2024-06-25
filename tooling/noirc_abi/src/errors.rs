@@ -1,4 +1,7 @@
-use crate::{input_parser::InputValue, AbiParameter, AbiType};
+use crate::{
+    input_parser::{InputTypecheckingError, InputValue},
+    AbiType,
+};
 use acvm::acir::native_types::Witness;
 use thiserror::Error;
 
@@ -38,8 +41,8 @@ impl From<serde_json::Error> for InputParserError {
 pub enum AbiError {
     #[error("Received parameters not expected by ABI: {0:?}")]
     UnexpectedParams(Vec<String>),
-    #[error("The parameter {} is expected to be a {:?} but found incompatible value {value:?}", .param.name, .param.typ)]
-    TypeMismatch { param: AbiParameter, value: InputValue },
+    #[error("The value passed for parameter `{}` does not match the specified type:\n{0}", .0.path())]
+    TypeMismatch(#[from] InputTypecheckingError),
     #[error("ABI expects the parameter `{0}`, but this was not found")]
     MissingParam(String),
     #[error(
