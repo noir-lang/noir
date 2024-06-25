@@ -636,9 +636,13 @@ fn trace_{test_name}() {{
             r#"
 
     let expected_trace_path = test_program_dir.join("expected_trace.json");
-    let mut diff_cmd = Command::new("diff");
-    diff_cmd.arg(trace_file_path).arg(expected_trace_path);
-    diff_cmd.assert().success();
+    let expected_trace = fs::read_to_string(expected_trace_path).unwrap();
+    let expected_json: Value = serde_json::from_str(&expected_trace).unwrap();
+
+    let actual_trace = fs::read_to_string(trace_file_path).unwrap();
+    let actual_json: Value = serde_json::from_str(&actual_trace).unwrap();
+
+    assert_eq!(expected_json, actual_json);
 }}
 "#
         )
