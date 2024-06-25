@@ -22,9 +22,10 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::{
+    node_interner::QuotedTypeId,
     parser::{ParserError, ParserErrorReason},
     token::IntType,
-    BinaryTypeOperator, node_interner::QuotedTypeId,
+    BinaryTypeOperator,
 };
 use acvm::acir::AcirField;
 use iter_extended::vecmap;

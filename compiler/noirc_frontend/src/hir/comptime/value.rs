@@ -14,7 +14,7 @@ use crate::{
         StructId,
     },
     node_interner::{ExprId, FuncId},
-    parser::{self, TopLevelStatement, NoirParser},
+    parser::{self, NoirParser, TopLevelStatement},
     token::{SpannedToken, Token, Tokens},
     QuotedType, Shared, Type,
 };

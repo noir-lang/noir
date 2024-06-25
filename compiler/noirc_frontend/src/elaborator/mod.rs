@@ -12,7 +12,8 @@ use crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
                 UnresolvedStruct, UnresolvedTypeAlias,
             },
-            errors::DuplicateType, dc_mod::collect_trait_impl_functions,
+            dc_mod::collect_trait_impl_functions,
+            errors::DuplicateType,
         },
         resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext},
         scope::ScopeForest as GenericScopeForest,
@@ -31,7 +32,8 @@ use crate::{
     node_interner::{
         DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, TraitId, TypeAliasId,
     },
-    Shared, Type, TypeVariable, parser::TopLevelStatement,
+    parser::TopLevelStatement,
+    Shared, Type, TypeVariable,
 };
 use crate::{
     ast::{TraitBound, UnresolvedGeneric, UnresolvedGenerics},
@@ -1172,7 +1174,10 @@ impl<'context> Elaborator<'context> {
         self.generics.clear();
     }
 
-    fn collect_struct_definitions(&mut self, structs: BTreeMap<StructId, UnresolvedStruct>) -> CollectedItems {
+    fn collect_struct_definitions(
+        &mut self,
+        structs: BTreeMap<StructId, UnresolvedStruct>,
+    ) -> CollectedItems {
         // This is necessary to avoid cloning the entire struct map
         // when adding checks after each struct field is resolved.
         let struct_ids = structs.keys().copied().collect::<Vec<_>>();
@@ -1252,7 +1257,9 @@ impl<'context> Elaborator<'context> {
     ) {
         for attribute in attributes {
             if let SecondaryAttribute::Custom(name) = attribute {
-                if let Err(error) = self.run_comptime_attribute_on_struct(name, struct_id, span, generated_items) {
+                if let Err(error) =
+                    self.run_comptime_attribute_on_struct(name, struct_id, span, generated_items)
+                {
                     self.errors.push(error);
                 }
             }
@@ -1266,7 +1273,8 @@ impl<'context> Elaborator<'context> {
         span: Span,
         generated_items: &mut CollectedItems,
     ) -> Result<(), (CompilationError, FileId)> {
-        let id = self.lookup_global(Path::from_single(attribute, span))
+        let id = self
+            .lookup_global(Path::from_single(attribute, span))
             .map_err(|_| (ResolverError::UnknownAnnotation { span }.into(), self.file))?;
 
         let definition = self.interner.definition(id);
@@ -1280,13 +1288,15 @@ impl<'context> Elaborator<'context> {
         let location = Location::new(span, self.file);
         let arguments = vec![(Value::TypeDefinition(struct_id), location)];
 
-        let value = interpreter.call_function(function, arguments, location)
+        let value = interpreter
+            .call_function(function, arguments, location)
             .map_err(|error| error.into_compilation_error_pair())?;
 
         if value != Value::Unit {
-            let item = value.into_top_level_item(location)
+            let item = value
+                .into_top_level_item(location)
                 .map_err(|error| error.into_compilation_error_pair())?;
-            
+
             self.add_item(item, generated_items, location);
         }
 
@@ -1509,7 +1519,12 @@ impl<'context> Elaborator<'context> {
         (comptime, items)
     }
 
-    fn add_item(&mut self, item: TopLevelStatement, generated_items: &mut CollectedItems, location: Location) {
+    fn add_item(
+        &mut self,
+        item: TopLevelStatement,
+        generated_items: &mut CollectedItems,
+        location: Location,
+    ) {
         match item {
             TopLevelStatement::Function(function) => {
                 let id = self.interner.push_empty_fn();
@@ -1521,14 +1536,20 @@ impl<'context> Elaborator<'context> {
                     functions,
                     trait_id: None,
                     self_type: None,
-                })
-            },
+                });
+            }
             TopLevelStatement::Module(_) => todo!(),
             TopLevelStatement::Import(_) => todo!(),
             TopLevelStatement::Struct(_) => todo!(),
             TopLevelStatement::Trait(_) => todo!(),
             TopLevelStatement::TraitImpl(mut trait_impl) => {
-                let methods = collect_trait_impl_functions(self.interner, &mut trait_impl, self.crate_id, self.file, self.local_module);
+                let methods = collect_trait_impl_functions(
+                    self.interner,
+                    &mut trait_impl,
+                    self.crate_id,
+                    self.file,
+                    self.local_module,
+                );
 
                 generated_items.trait_impls.push(UnresolvedTraitImpl {
                     file_id: self.file,
@@ -1546,8 +1567,8 @@ impl<'context> Elaborator<'context> {
                     resolved_object_type: None,
                     resolved_generics: Vec::new(),
                     resolved_trait_generics: Vec::new(),
-                })
-            },
+                });
+            }
             TopLevelStatement::Impl(_) => todo!(),
             TopLevelStatement::TypeAlias(_) => todo!(),
             TopLevelStatement::SubModule(_) => todo!(),

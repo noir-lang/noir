@@ -173,8 +173,13 @@ impl<'a> ModCollector<'a> {
         for mut trait_impl in impls {
             let trait_name = trait_impl.trait_name.clone();
 
-            let mut unresolved_functions =
-                collect_trait_impl_functions(&mut context.def_interner, &mut trait_impl, krate, self.file_id, self.module_id);
+            let mut unresolved_functions = collect_trait_impl_functions(
+                &mut context.def_interner,
+                &mut trait_impl,
+                krate,
+                self.file_id,
+                self.module_id,
+            );
 
             let module = ModuleId { krate, local_id: self.module_id };
 
@@ -764,12 +769,8 @@ pub(crate) fn collect_trait_impl_functions(
     file_id: FileId,
     local_id: LocalModuleId,
 ) -> UnresolvedFunctions {
-    let mut unresolved_functions = UnresolvedFunctions {
-        file_id,
-        functions: Vec::new(),
-        trait_id: None,
-        self_type: None,
-    };
+    let mut unresolved_functions =
+        UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
 
     let module = ModuleId { krate, local_id };
 

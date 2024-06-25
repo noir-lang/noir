@@ -2,7 +2,10 @@ use acvm::{acir::AcirField, FieldElement};
 use noirc_errors::{Position, Span, Spanned};
 use std::{fmt, iter::Map, vec::IntoIter};
 
-use crate::{lexer::errors::LexerErrorKind, node_interner::{ExprId, QuotedTypeId}};
+use crate::{
+    lexer::errors::LexerErrorKind,
+    node_interner::{ExprId, QuotedTypeId},
+};
 
 /// Represents a token in noir's grammar - a word, number,
 /// or symbol that can be used in noir's syntax. This is the
