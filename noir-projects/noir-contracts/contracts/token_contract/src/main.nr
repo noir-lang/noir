@@ -1,6 +1,7 @@
 // docs:start:token_all
 // docs:start:imports
 mod types;
+mod test;
 
 // Minimal token implementation that supports `AuthWit` accounts.
 // The auth message follows a similar pattern to the cross-chain message and includes a designated caller.
@@ -406,75 +407,5 @@ contract Token {
         storage.balances.balance_of(owner).to_field()
     }
     // docs:end:balance_of_private
-
-    use dep::aztec::test::{helpers::{cheatcodes, test_environment::TestEnvironment}};
-    use dep::aztec::protocol_types::storage::map::derive_storage_slot_in_map;
-    use dep::aztec::note::note_getter::{MAX_NOTES_PER_PAGE, view_notes};
-    use dep::aztec::note::note_viewer_options::NoteViewerOptions;
-
-    #[test]
-    fn test_private_transfer() {
-        // Setup env, generate keys
-        let mut env = TestEnvironment::new();
-        let owner = env.create_account();
-        let recipient = env.create_account();
-        let mint_amount = 10000;
-
-        // Start the test in the account contract address
-        cheatcodes::set_contract_address(owner);
-
-        // Deploy token contract
-        let initializer_call_interface = Token::interface().constructor(
-            owner,
-            "TestToken0000000000000000000000",
-            "TT00000000000000000000000000000",
-            18
-        );
-        let token_contract_address = env.deploy("@aztec/noir-contracts.js/Token").with_public_initializer(initializer_call_interface);
-        env.advance_block_by(1);
-
-        // Mint some tokens
-        let secret = 1;
-        let secret_hash = compute_secret_hash(secret);
-        let mint_private_call_interface = Token::at(token_contract_address).mint_private(mint_amount, secret_hash);
-        env.call_public(mint_private_call_interface);
-
-        // Time travel so we can read keys from the registry
-        env.advance_block_by(6);
-
-        // Store a note in the cache so we can redeem it
-        env.store_note_in_cache(
-            &mut TransparentNote::new(mint_amount, secret_hash),
-            Token::storage().pending_shields.slot,
-            token_contract_address
-        );
-
-        // Redeem our shielded tokens
-        let redeem_shield_call_interface = Token::at(token_contract_address).redeem_shield(owner, mint_amount, secret);
-        env.call_private_void(redeem_shield_call_interface);
-
-        // Not really sure why this is needed? Nullifier inclusion in contract initializer fails otherwise. 
-        // If it were to fail, it should do it at line 443, investigation required
-        env.advance_block_by(1);
-
-        // Transfer tokens
-        let transfer_amount = 1000;
-        let private_token_transfer_call_interface = Token::at(token_contract_address).transfer(recipient, transfer_amount);
-        env.call_private_void(private_token_transfer_call_interface);
-
-        // Check balances
-        cheatcodes::set_contract_address(token_contract_address);
-
-        let balances_slot = Token::storage().balances.slot;
-        let recipient_slot = derive_storage_slot_in_map(balances_slot, recipient);
-        let mut options = NoteViewerOptions::new();
-        let notes: BoundedVec<TokenNote, MAX_NOTES_PER_PAGE> = view_notes(recipient_slot, options);
-        assert(notes.get(0).amount.to_field() == transfer_amount);
-
-        let owner_slot = derive_storage_slot_in_map(balances_slot, owner);
-        let mut options = NoteViewerOptions::new();
-        let notes: BoundedVec<TokenNote, MAX_NOTES_PER_PAGE> = view_notes(owner_slot, options);
-        assert(notes.get(0).amount.to_field() == mint_amount - transfer_amount);
-    }
 }
 // docs:end:token_all

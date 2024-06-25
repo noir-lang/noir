@@ -1,4 +1,5 @@
 import {
+  AuthWitness,
   L1NotePayload,
   MerkleTreeId,
   Note,
@@ -11,9 +12,11 @@ import {
 } from '@aztec/circuit-types';
 import { type CircuitWitnessGenerationStats } from '@aztec/circuit-types/stats';
 import {
-  type CompleteAddress,
+  CallContext,
   FunctionData,
-  type Header,
+  Gas,
+  GlobalVariables,
+  Header,
   type KeyValidationRequest,
   NULLIFIER_SUBTREE_HEIGHT,
   type NULLIFIER_TREE_HEIGHT,
@@ -23,14 +26,15 @@ import {
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
   PrivateContextInputs,
-  type PublicCallRequest,
+  PublicCallRequest,
   PublicDataTreeLeaf,
   type PublicDataTreeLeafPreimage,
+  TxContext,
   computeContractClassId,
   deriveKeys,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
-import { Aes128 } from '@aztec/circuits.js/barretenberg';
+import { Aes128, Schnorr } from '@aztec/circuits.js/barretenberg';
 import { computePublicDataTreeLeafSlot, siloNoteHash, siloNullifier } from '@aztec/circuits.js/hash';
 import { type ContractArtifact, type FunctionAbi, FunctionSelector, countArgumentsSize } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -40,13 +44,16 @@ import { Timer } from '@aztec/foundation/timer';
 import { type KeyStore } from '@aztec/key-store';
 import { ContractDataOracle } from '@aztec/pxe';
 import {
+  ContractsDataSourcePublicDB,
   ExecutionError,
   type ExecutionNoteCache,
   type MessageLoadOracleInputs,
   type NoteData,
   Oracle,
   type PackedValuesCache,
+  PublicExecutor,
   type TypedOracle,
+  WorldStateDB,
   acvm,
   createSimulationError,
   extractCallStack,
@@ -58,12 +65,15 @@ import { type ContractInstance, type ContractInstanceWithAddress } from '@aztec/
 import { MerkleTreeSnapshotOperationsFacade, type MerkleTrees } from '@aztec/world-state';
 
 import { type TXEDatabase } from '../util/txe_database.js';
+import { TXEPublicContractDataSource } from '../util/txe_public_contract_data_source.js';
+import { TXEPublicStateDB } from '../util/txe_public_state_db.js';
 
 export class TXE implements TypedOracle {
   private blockNumber = 0;
   private sideEffectsCounter = 0;
   private contractAddress: AztecAddress;
   private msgSender: AztecAddress;
+  private functionSelector = FunctionSelector.fromField(new Fr(0));
 
   private contractDataOracle: ContractDataOracle;
 
@@ -85,20 +95,12 @@ export class TXE implements TypedOracle {
 
   // Utils
 
-  getChainId(): Promise<Fr> {
+  getChainId() {
     return Promise.resolve(this.chainId);
   }
 
-  getVersion(): Promise<Fr> {
+  getVersion() {
     return Promise.resolve(this.version);
-  }
-
-  setChainId(chainId: Fr) {
-    this.chainId = chainId;
-  }
-
-  setVersion(version: Fr) {
-    this.version = version;
   }
 
   getMsgSender() {
@@ -107,6 +109,10 @@ export class TXE implements TypedOracle {
 
   setMsgSender(msgSender: Fr) {
     this.msgSender = msgSender;
+  }
+
+  setFunctionSelector(functionSelector: FunctionSelector) {
+    this.functionSelector = functionSelector;
   }
 
   getSideEffectsCounter() {
@@ -129,6 +135,10 @@ export class TXE implements TypedOracle {
     return this.trees;
   }
 
+  getContractDataOracle() {
+    return this.contractDataOracle;
+  }
+
   getTXEDatabase() {
     return this.txeDatabase;
   }
@@ -146,16 +156,24 @@ export class TXE implements TypedOracle {
     await this.txeDatabase.addContractArtifact(computeContractClassId(contractClass), artifact);
   }
 
-  async getPrivateContextInputs(blockNumber: number, sideEffectsCounter = this.sideEffectsCounter) {
+  async getPrivateContextInputs(
+    blockNumber: number,
+    sideEffectsCounter = this.sideEffectsCounter,
+    isStaticCall = false,
+    isDelegateCall = false,
+  ) {
     const trees = this.getTrees();
-    const stateReference = await trees.getStateReference(true);
+    const stateReference = await trees.getStateReference(false);
     const inputs = PrivateContextInputs.empty();
     inputs.historicalHeader.globalVariables.blockNumber = new Fr(blockNumber);
     inputs.historicalHeader.state = stateReference;
     inputs.callContext.msgSender = this.msgSender;
     inputs.callContext.storageContractAddress = this.contractAddress;
     inputs.callContext.sideEffectCounter = sideEffectsCounter;
+    inputs.callContext.isStaticCall = isStaticCall;
+    inputs.callContext.isDelegateCall = isDelegateCall;
     inputs.startSideEffectCounter = sideEffectsCounter;
+    inputs.callContext.functionSelector = this.functionSelector;
     return inputs;
   }
 
@@ -196,13 +214,35 @@ export class TXE implements TypedOracle {
     return deriveKeys(secret);
   }
 
+  async addAuthWitness(address: AztecAddress, messageHash: Fr) {
+    const account = this.txeDatabase.getAccount(address);
+    const privateKey = await this.keyStore.getMasterSecretKey(account.publicKeys.masterIncomingViewingPublicKey);
+    const schnorr = new Schnorr();
+    const signature = schnorr.constructSignature(messageHash.toBuffer(), privateKey).toBuffer();
+    const authWitness = new AuthWitness(messageHash, [...signature]);
+    return this.txeDatabase.addAuthWitness(authWitness.requestHash, authWitness.witness);
+  }
+
+  async addNullifiers(contractAddress: AztecAddress, nullifiers: Fr[]) {
+    const db = this.trees.asLatest();
+    const siloedNullifiers = nullifiers.map(nullifier => siloNullifier(contractAddress, nullifier).toBuffer());
+
+    await db.batchInsert(MerkleTreeId.NULLIFIER_TREE, siloedNullifiers, NULLIFIER_SUBTREE_HEIGHT);
+  }
+
+  async addNoteHashes(contractAddress: AztecAddress, innerNoteHashes: Fr[]) {
+    const db = this.trees.asLatest();
+    const siloedNoteHashes = innerNoteHashes.map(innerNoteHash => siloNoteHash(contractAddress, innerNoteHash));
+    await db.appendLeaves(MerkleTreeId.NOTE_HASH_TREE, siloedNoteHashes);
+  }
+
   // TypedOracle
 
-  getBlockNumber(): Promise<number> {
+  getBlockNumber() {
     return Promise.resolve(this.blockNumber);
   }
 
-  getContractAddress(): Promise<AztecAddress> {
+  getContractAddress() {
     return Promise.resolve(this.contractAddress);
   }
 
@@ -210,15 +250,15 @@ export class TXE implements TypedOracle {
     return Fr.random();
   }
 
-  packArgumentsArray(args: Fr[]): Promise<Fr> {
+  packArgumentsArray(args: Fr[]) {
     return Promise.resolve(this.packedValuesCache.pack(args));
   }
 
-  packReturns(returns: Fr[]): Promise<Fr> {
+  packReturns(returns: Fr[]) {
     return Promise.resolve(this.packedValuesCache.pack(returns));
   }
 
-  unpackReturns(returnsHash: Fr): Promise<Fr[]> {
+  unpackReturns(returnsHash: Fr) {
     return Promise.resolve(this.packedValuesCache.unpack(returnsHash));
   }
 
@@ -227,11 +267,11 @@ export class TXE implements TypedOracle {
   }
 
   async getContractInstance(address: AztecAddress): Promise<ContractInstance> {
-    const contractInstance = await this.txeDatabase.getContractInstance(address);
+    const contractInstance = await this.contractDataOracle.getContractInstance(address);
     if (!contractInstance) {
       throw new Error(`Contract instance not found for address ${address}`);
     }
-    return Promise.resolve(contractInstance);
+    return contractInstance;
   }
 
   getMembershipWitness(_blockNumber: number, _treeId: MerkleTreeId, _leafValue: Fr): Promise<Fr[] | undefined> {
@@ -298,12 +338,12 @@ export class TXE implements TypedOracle {
     throw new Error('Method not implemented.');
   }
 
-  getCompleteAddress(account: AztecAddress): Promise<CompleteAddress> {
+  getCompleteAddress(account: AztecAddress) {
     return Promise.resolve(this.txeDatabase.getAccount(account));
   }
 
-  getAuthWitness(_messageHash: Fr): Promise<Fr[] | undefined> {
-    throw new Error('Method not implemented.');
+  getAuthWitness(messageHash: Fr) {
+    return this.txeDatabase.getAuthWitness(messageHash);
   }
 
   popCapsule(): Promise<Fr[]> {
@@ -352,7 +392,7 @@ export class TXE implements TypedOracle {
     return Promise.resolve(notes);
   }
 
-  async notifyCreatedNote(storageSlot: Fr, noteTypeId: Fr, noteItems: Fr[], innerNoteHash: Fr, counter: number) {
+  notifyCreatedNote(storageSlot: Fr, noteTypeId: Fr, noteItems: Fr[], innerNoteHash: Fr, counter: number) {
     const note = new Note(noteItems);
     this.noteCache.addNewNote(
       {
@@ -365,16 +405,11 @@ export class TXE implements TypedOracle {
       },
       counter,
     );
-    const db = this.trees.asLatest();
-    const noteHash = siloNoteHash(this.contractAddress, innerNoteHash);
-    await db.appendLeaves(MerkleTreeId.NOTE_HASH_TREE, [noteHash]);
+    return Promise.resolve();
   }
 
-  async notifyNullifiedNote(innerNullifier: Fr, innerNoteHash: Fr, _counter: number) {
+  notifyNullifiedNote(innerNullifier: Fr, innerNoteHash: Fr, _counter: number) {
     this.noteCache.nullifyNote(this.contractAddress, innerNullifier, innerNoteHash);
-    const db = this.trees.asLatest();
-    const siloedNullifier = siloNullifier(this.contractAddress, innerNullifier);
-    await db.batchInsert(MerkleTreeId.NULLIFIER_TREE, [siloedNullifier.toBuffer()], NULLIFIER_SUBTREE_HEIGHT);
     return Promise.resolve();
   }
 
@@ -461,7 +496,7 @@ export class TXE implements TypedOracle {
   }
 
   emitUnencryptedLog(_log: UnencryptedL2Log, _counter: number): void {
-    throw new Error('Method not implemented.');
+    return;
   }
 
   emitContractClassUnencryptedLog(_log: UnencryptedL2Log, _counter: number): Fr {
@@ -473,69 +508,97 @@ export class TXE implements TypedOracle {
     functionSelector: FunctionSelector,
     argsHash: Fr,
     sideEffectCounter: number,
-    _isStaticCall: boolean,
-    _isDelegateCall: boolean,
+    isStaticCall: boolean,
+    isDelegateCall: boolean,
   ): Promise<PrivateCallStackItem> {
-    this.logger.debug(
-      `Calling private function ${targetContractAddress}:${functionSelector} from ${this.contractAddress}`,
+    this.logger.verbose(
+      `Executing external function ${targetContractAddress}:${functionSelector}(${await this.getDebugFunctionName(
+        targetContractAddress,
+        functionSelector,
+      )}) isStaticCall=${isStaticCall} isDelegateCall=${isDelegateCall}`,
     );
+
     // Store and modify env
     const currentContractAddress = AztecAddress.fromField(this.contractAddress);
     const currentMessageSender = AztecAddress.fromField(this.msgSender);
+    const currentFunctionSelector = FunctionSelector.fromField(this.functionSelector.toField());
     this.setMsgSender(this.contractAddress);
     this.setContractAddress(targetContractAddress);
+    this.setFunctionSelector(functionSelector);
 
     const artifact = await this.contractDataOracle.getFunctionArtifact(targetContractAddress, functionSelector);
 
     const acir = artifact.bytecode;
-    const initialWitness = await this.getInitialWitness(artifact, argsHash, sideEffectCounter);
+    const initialWitness = await this.getInitialWitness(
+      artifact,
+      argsHash,
+      sideEffectCounter,
+      isStaticCall,
+      isDelegateCall,
+    );
     const acvmCallback = new Oracle(this);
     const timer = new Timer();
-    const acirExecutionResult = await acvm(acir, initialWitness, acvmCallback).catch((err: Error) => {
-      const execError = new ExecutionError(
-        err.message,
-        {
-          contractAddress: targetContractAddress,
-          functionSelector,
-        },
-        extractCallStack(err, artifact.debug),
-        { cause: err },
+    try {
+      const acirExecutionResult = await acvm(acir, initialWitness, acvmCallback).catch((err: Error) => {
+        const execError = new ExecutionError(
+          err.message,
+          {
+            contractAddress: targetContractAddress,
+            functionSelector,
+          },
+          extractCallStack(err, artifact.debug),
+          { cause: err },
+        );
+        this.logger.debug(`Error executing private function ${targetContractAddress}:${functionSelector}`);
+        throw createSimulationError(execError);
+      });
+      const duration = timer.ms();
+      const returnWitness = witnessMapToFields(acirExecutionResult.returnWitness);
+      const publicInputs = PrivateCircuitPublicInputs.fromFields(returnWitness);
+
+      const initialWitnessSize = witnessMapToFields(initialWitness).length * Fr.SIZE_IN_BYTES;
+      this.logger.debug(`Ran external function ${targetContractAddress.toString()}:${functionSelector}`, {
+        circuitName: 'app-circuit',
+        duration,
+        eventName: 'circuit-witness-generation',
+        inputSize: initialWitnessSize,
+        outputSize: publicInputs.toBuffer().length,
+        appCircuitName: 'noname',
+      } satisfies CircuitWitnessGenerationStats);
+
+      const callStackItem = new PrivateCallStackItem(
+        targetContractAddress,
+        new FunctionData(functionSelector, true),
+        publicInputs,
       );
-      this.logger.debug(
-        `Error executing private function ${targetContractAddress}:${functionSelector}\n${createSimulationError(
-          execError,
-        )}`,
+      // Apply side effects
+      this.sideEffectsCounter = publicInputs.endSideEffectCounter.toNumber();
+
+      await this.addNullifiers(
+        targetContractAddress,
+        publicInputs.newNullifiers.filter(nullifier => !nullifier.isEmpty()).map(nullifier => nullifier.value),
       );
-      throw execError;
-    });
-    const duration = timer.ms();
-    const returnWitness = witnessMapToFields(acirExecutionResult.returnWitness);
-    const publicInputs = PrivateCircuitPublicInputs.fromFields(returnWitness);
 
-    const initialWitnessSize = witnessMapToFields(initialWitness).length * Fr.SIZE_IN_BYTES;
-    this.logger.debug(`Ran external function ${targetContractAddress.toString()}:${functionSelector}`, {
-      circuitName: 'app-circuit',
-      duration,
-      eventName: 'circuit-witness-generation',
-      inputSize: initialWitnessSize,
-      outputSize: publicInputs.toBuffer().length,
-      appCircuitName: 'noname',
-    } satisfies CircuitWitnessGenerationStats);
+      await this.addNoteHashes(
+        targetContractAddress,
+        publicInputs.newNoteHashes.filter(noteHash => !noteHash.isEmpty()).map(noteHash => noteHash.value),
+      );
 
-    const callStackItem = new PrivateCallStackItem(
-      targetContractAddress,
-      new FunctionData(functionSelector, true),
-      publicInputs,
-    );
-    // Apply side effects
-    this.sideEffectsCounter += publicInputs.endSideEffectCounter.toNumber();
-    this.setContractAddress(currentContractAddress);
-    this.setMsgSender(currentMessageSender);
-
-    return callStackItem;
+      return callStackItem;
+    } finally {
+      this.setContractAddress(currentContractAddress);
+      this.setMsgSender(currentMessageSender);
+      this.setFunctionSelector(currentFunctionSelector);
+    }
   }
 
-  async getInitialWitness(abi: FunctionAbi, argsHash: Fr, sideEffectCounter: number) {
+  async getInitialWitness(
+    abi: FunctionAbi,
+    argsHash: Fr,
+    sideEffectCounter: number,
+    isStaticCall: boolean,
+    isDelegateCall: boolean,
+  ) {
     const argumentsSize = countArgumentsSize(abi);
 
     const args = this.packedValuesCache.unpack(argsHash);
@@ -544,33 +607,220 @@ export class TXE implements TypedOracle {
       throw new Error('Invalid arguments size');
     }
 
-    const privateContextInputs = await this.getPrivateContextInputs(this.blockNumber - 1, sideEffectCounter);
+    const privateContextInputs = await this.getPrivateContextInputs(
+      this.blockNumber - 1,
+      sideEffectCounter,
+      isStaticCall,
+      isDelegateCall,
+    );
 
     const fields = [...privateContextInputs.toFields(), ...args];
 
     return toACVMWitness(0, fields);
   }
 
-  callPublicFunction(
-    _targetContractAddress: AztecAddress,
-    _functionSelector: FunctionSelector,
-    _argsHash: Fr,
-    _sideEffectCounter: number,
-    _isStaticCall: boolean,
-    _isDelegateCall: boolean,
-  ): Promise<Fr[]> {
-    throw new Error('Method not implemented.');
+  public async getDebugFunctionName(address: AztecAddress, selector: FunctionSelector): Promise<string | undefined> {
+    const instance = await this.contractDataOracle.getContractInstance(address);
+    if (!instance) {
+      return undefined;
+    }
+    const artifact = await this.contractDataOracle.getContractArtifact(instance!.contractClassId);
+    if (!artifact) {
+      return undefined;
+    }
+
+    const f = artifact.functions.find(f =>
+      FunctionSelector.fromNameAndParameters(f.name, f.parameters).equals(selector),
+    );
+    if (!f) {
+      return undefined;
+    }
+
+    return `${artifact.name}:${f.name}`;
   }
 
-  enqueuePublicFunctionCall(
-    _targetContractAddress: AztecAddress,
-    _functionSelector: FunctionSelector,
-    _argsHash: Fr,
-    _sideEffectCounter: number,
-    _isStaticCall: boolean,
-    _isDelegateCall: boolean,
+  async executePublicFunction(
+    targetContractAddress: AztecAddress,
+    functionSelector: FunctionSelector,
+    args: Fr[],
+    callContext: CallContext,
+  ) {
+    const header = Header.empty();
+    header.state = await this.trees.getStateReference(true);
+    header.globalVariables.blockNumber = new Fr(await this.getBlockNumber());
+    header.state.partial.nullifierTree.root = Fr.fromBuffer(
+      (await this.trees.getTreeInfo(MerkleTreeId.NULLIFIER_TREE, true)).root,
+    );
+    header.state.partial.noteHashTree.root = Fr.fromBuffer(
+      (await this.trees.getTreeInfo(MerkleTreeId.NOTE_HASH_TREE, true)).root,
+    );
+    header.state.partial.publicDataTree.root = Fr.fromBuffer(
+      (await this.trees.getTreeInfo(MerkleTreeId.PUBLIC_DATA_TREE, true)).root,
+    );
+    header.state.l1ToL2MessageTree.root = Fr.fromBuffer(
+      (await this.trees.getTreeInfo(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, true)).root,
+    );
+    const executor = new PublicExecutor(
+      new TXEPublicStateDB(this),
+      new ContractsDataSourcePublicDB(new TXEPublicContractDataSource(this)),
+      new WorldStateDB(this.trees.asLatest()),
+      header,
+    );
+    const execution = {
+      contractAddress: targetContractAddress,
+      functionSelector,
+      args,
+      callContext,
+    };
+
+    return executor.simulate(
+      execution,
+      GlobalVariables.empty(),
+      Gas.test(),
+      TxContext.empty(),
+      /* pendingNullifiers */ [],
+      /* transactionFee */ Fr.ZERO,
+      callContext.sideEffectCounter,
+    );
+  }
+
+  async avmOpcodeCall(
+    targetContractAddress: AztecAddress,
+    functionSelector: FunctionSelector,
+    args: Fr[],
+    isStaticCall: boolean,
+    isDelegateCall: boolean,
+  ) {
+    // Store and modify env
+    const currentContractAddress = AztecAddress.fromField(this.contractAddress);
+    const currentMessageSender = AztecAddress.fromField(this.msgSender);
+    const currentFunctionSelector = FunctionSelector.fromField(this.functionSelector.toField());
+    this.setMsgSender(this.contractAddress);
+    this.setContractAddress(targetContractAddress);
+    this.setFunctionSelector(functionSelector);
+
+    const callContext = CallContext.empty();
+    callContext.msgSender = this.msgSender;
+    callContext.functionSelector = this.functionSelector;
+    callContext.sideEffectCounter = this.sideEffectsCounter;
+    callContext.storageContractAddress = targetContractAddress;
+    callContext.isStaticCall = isStaticCall;
+    callContext.isDelegateCall = isDelegateCall;
+
+    const executionResult = await this.executePublicFunction(
+      targetContractAddress,
+      functionSelector,
+      args,
+      callContext,
+    );
+
+    // Apply side effects
+    if (!executionResult.reverted) {
+      this.sideEffectsCounter += executionResult.endSideEffectCounter.toNumber();
+    }
+    this.setContractAddress(currentContractAddress);
+    this.setMsgSender(currentMessageSender);
+    this.setFunctionSelector(currentFunctionSelector);
+
+    return executionResult;
+  }
+
+  async callPublicFunction(
+    targetContractAddress: AztecAddress,
+    functionSelector: FunctionSelector,
+    argsHash: Fr,
+    sideEffectCounter: number,
+    isStaticCall: boolean,
+    isDelegateCall: boolean,
+  ): Promise<Fr[]> {
+    // Store and modify env
+    const currentContractAddress = AztecAddress.fromField(this.contractAddress);
+    const currentMessageSender = AztecAddress.fromField(this.msgSender);
+    const currentFunctionSelector = FunctionSelector.fromField(this.functionSelector.toField());
+    this.setMsgSender(this.contractAddress);
+    this.setContractAddress(targetContractAddress);
+    this.setFunctionSelector(functionSelector);
+
+    const callContext = CallContext.empty();
+    callContext.msgSender = this.msgSender;
+    callContext.functionSelector = this.functionSelector;
+    callContext.sideEffectCounter = sideEffectCounter;
+    callContext.storageContractAddress = targetContractAddress;
+    callContext.isStaticCall = isStaticCall;
+    callContext.isDelegateCall = isDelegateCall;
+
+    const args = this.packedValuesCache.unpack(argsHash);
+
+    const executionResult = await this.executePublicFunction(
+      targetContractAddress,
+      functionSelector,
+      args,
+      callContext,
+    );
+
+    // Apply side effects
+    this.sideEffectsCounter = executionResult.endSideEffectCounter.toNumber();
+    this.setContractAddress(currentContractAddress);
+    this.setMsgSender(currentMessageSender);
+    this.setFunctionSelector(currentFunctionSelector);
+
+    return executionResult.returnValues;
+  }
+
+  async enqueuePublicFunctionCall(
+    targetContractAddress: AztecAddress,
+    functionSelector: FunctionSelector,
+    argsHash: Fr,
+    sideEffectCounter: number,
+    isStaticCall: boolean,
+    isDelegateCall: boolean,
   ): Promise<PublicCallRequest> {
-    throw new Error('Method not implemented.');
+    // Store and modify env
+    const currentContractAddress = AztecAddress.fromField(this.contractAddress);
+    const currentMessageSender = AztecAddress.fromField(this.msgSender);
+    const currentFunctionSelector = FunctionSelector.fromField(this.functionSelector.toField());
+    this.setMsgSender(this.contractAddress);
+    this.setContractAddress(targetContractAddress);
+    this.setFunctionSelector(functionSelector);
+
+    const callContext = CallContext.empty();
+    callContext.msgSender = this.msgSender;
+    callContext.functionSelector = this.functionSelector;
+    callContext.sideEffectCounter = sideEffectCounter;
+    callContext.storageContractAddress = targetContractAddress;
+    callContext.isStaticCall = isStaticCall;
+    callContext.isDelegateCall = isDelegateCall;
+
+    const args = this.packedValuesCache.unpack(argsHash);
+
+    const executionResult = await this.executePublicFunction(
+      targetContractAddress,
+      functionSelector,
+      args,
+      callContext,
+    );
+
+    // Apply side effects
+    this.sideEffectsCounter += executionResult.endSideEffectCounter.toNumber();
+    this.setContractAddress(currentContractAddress);
+    this.setMsgSender(currentMessageSender);
+    this.setFunctionSelector(currentFunctionSelector);
+
+    const parentCallContext = CallContext.empty();
+    parentCallContext.msgSender = currentMessageSender;
+    parentCallContext.functionSelector = currentFunctionSelector;
+    parentCallContext.sideEffectCounter = sideEffectCounter;
+    parentCallContext.storageContractAddress = currentContractAddress;
+    parentCallContext.isStaticCall = isStaticCall;
+    parentCallContext.isDelegateCall = isDelegateCall;
+
+    return PublicCallRequest.from({
+      parentCallContext,
+      contractAddress: targetContractAddress,
+      functionSelector,
+      callContext,
+      args,
+    });
   }
 
   setPublicTeardownFunctionCall(

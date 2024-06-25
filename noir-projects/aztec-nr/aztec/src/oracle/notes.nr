@@ -145,8 +145,7 @@ unconstrained pub fn get_notes<Note, N, NB, M, S, NS>(
             let header = NoteHeader { contract_address, nonce, storage_slot, note_hash_counter };
             let serialized_note = arr_copy_slice(fields, [0; N], read_offset + 2);
             let mut note = Note::deserialize_content(serialized_note);
-            // TODO: change this to note.set_header(header) once https://github.com/noir-lang/noir/issues/4095 is fixed
-            Note::set_header(&mut note, header);
+            note.set_header(header);
             placeholder_opt_notes[i] = Option::some(note);
         };
     }

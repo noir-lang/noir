@@ -44,15 +44,19 @@ contract Counter {
     use dep::aztec::note::note_viewer_options::NoteViewerOptions;
 
     #[test]
-    fn test_initialize() {
+    fn test_increment() {
         // Setup env, generate keys
         let mut env = TestEnvironment::new();
         let owner = env.create_account();
         let outgoing_viewer = env.create_account();
+        let initial_value: Field = 5;
+        cheatcodes::set_contract_address(owner);
 
         // Deploy contract and initialize 
-        let initializer = Counter::interface().initialize(5, owner, outgoing_viewer);
-        let contract_address = env.deploy("@aztec/noir-contracts.js/Counter").with_private_initializer(initializer);
+        let initializer = Counter::interface().initialize(initial_value as u64, owner, outgoing_viewer);
+        let counter_contract = env.deploy("@aztec/noir-contracts.js/Counter").with_private_initializer(initializer);
+        let contract_address = counter_contract.to_address();
+
         // Read the stored value in the note
 
         cheatcodes::set_contract_address(contract_address);
@@ -60,6 +64,18 @@ contract Counter {
         let owner_slot = derive_storage_slot_in_map(counter_slot, owner);
         let mut options = NoteViewerOptions::new();
         let notes: BoundedVec<ValueNote, MAX_NOTES_PER_PAGE> = view_notes(owner_slot, options);
-        assert(notes.get(0).value == 5);
+        let initial_note_value = notes.get(0).value;
+        assert(
+            initial_note_value == initial_value, f"Expected {initial_value} but got {initial_note_value}"
+        );
+
+        // Increment the counter
+        let increment_call_interface = Counter::at(contract_address).increment(owner, outgoing_viewer);
+        env.call_private_void(increment_call_interface);
+        let current_value_for_owner = get_counter(owner);
+        let expected_current_value = initial_value + 1;
+        assert(
+            expected_current_value == current_value_for_owner, f"Expected {expected_current_value} but got {current_value_for_owner}"
+        );
     }
 }

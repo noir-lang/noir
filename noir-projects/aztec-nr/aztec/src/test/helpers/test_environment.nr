@@ -8,9 +8,9 @@ use crate::context::inputs::{PublicContextInputs, PrivateContextInputs};
 use crate::context::{packed_returns::PackedReturns, call_interfaces::CallInterface};
 
 use crate::context::{PrivateContext, PublicContext, PrivateVoidCallInterface};
-use crate::test::helpers::{cheatcodes, types::{Deployer, TestAccount}, keys};
+use crate::test::helpers::{cheatcodes, utils::{apply_side_effects_private, Deployer, TestAccount}, keys};
 use crate::keys::constants::{NULLIFIER_INDEX, INCOMING_INDEX, OUTGOING_INDEX, TAGGING_INDEX};
-use crate::hash::hash_args;
+use crate::hash::{hash_args, hash_args_array};
 
 use crate::note::{
     note_header::NoteHeader, note_interface::NoteInterface,
@@ -18,16 +18,12 @@ use crate::note::{
 };
 use crate::oracle::notes::notify_created_note;
 
-struct TestEnvironment {
-    contract_address: Option<AztecAddress>,
-    args_hash: Option<Field>,
-    function_selector: Option<FunctionSelector>
-}
+struct TestEnvironment {}
 
 impl TestEnvironment {
     fn new() -> Self {
         cheatcodes::reset();
-        Self { contract_address: Option::none(), args_hash: Option::none(), function_selector: Option::none() }
+        Self {}
     }
 
     fn block_number(self) -> u32 {
@@ -40,7 +36,7 @@ impl TestEnvironment {
     }
 
     fn advance_block_by(&mut self, blocks: u32) {
-        cheatcodes::advance_blocks(blocks);
+        cheatcodes::advance_blocks_by(blocks);
     }
 
     fn public(self) -> PublicContext {
@@ -74,26 +70,41 @@ impl TestEnvironment {
         test_account.address
     }
 
-    fn create_account_contract(self, secret: Field) -> AztecAddress {
+    fn create_account_contract(&mut self, secret: Field) -> AztecAddress {
         let public_keys = cheatcodes::derive_keys(secret);
-        let args = &[public_keys.ivpk_m.x, public_keys.ivpk_m.y];
-        let address = cheatcodes::deploy(
+        let args = [public_keys.ivpk_m.x, public_keys.ivpk_m.y];
+        let instance = cheatcodes::deploy(
             "@aztec/noir-contracts.js/SchnorrAccount",
             "constructor",
-            args,
+            args.as_slice(),
             public_keys.hash().to_field()
         );
-        cheatcodes::advance_blocks(1);
-        let test_account = cheatcodes::add_account(secret, PartialAddress::from_field(address.to_field()));
-        let address = test_account.address;
+        cheatcodes::advance_blocks_by(1);
+        let test_account = cheatcodes::add_account(
+            secret,
+            PartialAddress::compute(
+                instance.contract_class_id,
+                instance.salt,
+                instance.initialization_hash,
+                instance.deployer
+            )
+        );
         let keys = test_account.keys;
+
+        let address = instance.to_address();
 
         keys::store_master_key(NULLIFIER_INDEX, address, keys.npk_m);
         keys::store_master_key(INCOMING_INDEX, address, keys.ivpk_m);
         keys::store_master_key(OUTGOING_INDEX, address, keys.ovpk_m);
         keys::store_master_key(TAGGING_INDEX, address, keys.tpk_m);
 
-        test_account.address
+        let selector = FunctionSelector::from_signature("constructor(Field,Field)");
+
+        let mut context = self.private_at(cheatcodes::get_block_number());
+
+        let _ = context.call_private_function(address, selector, args);
+
+        address
     }
 
     fn deploy<N>(self, path: str<N>) -> Deployer<N> {
@@ -113,7 +124,9 @@ impl TestEnvironment {
         cheatcodes::set_msg_sender(original_contract_address);
         let mut inputs = cheatcodes::get_private_context_inputs(cheatcodes::get_block_number() - 1);
         inputs.call_context.function_selector = call_interface.get_selector();
+        inputs.call_context.is_static_call = call_interface.get_is_static();
         let public_inputs = original_fn(inputs);
+        apply_side_effects_private(target_address, public_inputs);
 
         cheatcodes::set_contract_address(original_contract_address);
         cheatcodes::set_msg_sender(original_msg_sender);
@@ -133,7 +146,9 @@ impl TestEnvironment {
         cheatcodes::set_msg_sender(original_contract_address);
         let mut inputs = cheatcodes::get_private_context_inputs(cheatcodes::get_block_number() - 1);
         inputs.call_context.function_selector = call_interface.get_selector();
+        inputs.call_context.is_static_call = call_interface.get_is_static();
         let public_inputs = original_fn(inputs);
+        apply_side_effects_private(target_address, public_inputs);
 
         cheatcodes::set_contract_address(original_contract_address);
         cheatcodes::set_msg_sender(original_msg_sender);
@@ -151,6 +166,7 @@ impl TestEnvironment {
         let mut inputs = cheatcodes::get_public_context_inputs();
         inputs.selector = call_interface.get_selector().to_field();
         inputs.args_hash = hash_args(call_interface.get_args());
+        inputs.is_static_call = call_interface.get_is_static();
         let result = original_fn(inputs);
 
         cheatcodes::set_contract_address(original_contract_address);
@@ -158,21 +174,23 @@ impl TestEnvironment {
         result
     }
 
-    fn call_public_void<C, M, Env, N>(self, call_interface: C) where C: CallInterface<M, PublicContextInputs, (), Env> {
-        let original_fn = call_interface.get_original();
-        let original_msg_sender = cheatcodes::get_msg_sender();
-        let original_contract_address = cheatcodes::get_contract_address();
-        let target_address = call_interface.get_contract_address();
+    fn assert_public_call_fails<C, M, T, Env, N>(self, call_interface: C) where C: CallInterface<M, PublicContextInputs, T, Env> {
+        cheatcodes::assert_public_call_fails(
+            call_interface.get_contract_address(),
+            call_interface.get_selector(),
+            call_interface.get_args()
+        );
+    }
 
-        cheatcodes::set_contract_address(target_address);
-        cheatcodes::set_msg_sender(original_contract_address);
-        let mut inputs = cheatcodes::get_public_context_inputs();
-        inputs.selector = call_interface.get_selector().to_field();
-        inputs.args_hash = hash_args(call_interface.get_args());
-        original_fn(inputs);
-
-        cheatcodes::set_contract_address(original_contract_address);
-        cheatcodes::set_msg_sender(original_msg_sender);
+    fn assert_private_call_fails<C, M, T, Env, N>(self, call_interface: C) where C: CallInterface<M, PrivateContextInputs, T, Env> {
+        cheatcodes::assert_private_call_fails(
+            call_interface.get_contract_address(),
+            call_interface.get_selector(),
+            hash_args(call_interface.get_args()),
+            cheatcodes::get_side_effects_counter() as Field,
+            call_interface.get_is_static(),
+            false
+        );
     }
 
     pub fn store_note_in_cache<Note, N, M>(
@@ -186,12 +204,9 @@ impl TestEnvironment {
         let note_hash_counter = cheatcodes::get_side_effects_counter();
 
         let header = NoteHeader { contract_address, storage_slot, nonce: 0, note_hash_counter };
-        // TODO: change this to note.set_header(header) once https://github.com/noir-lang/noir/issues/4095 is fixed
-        Note::set_header(note, header);
+        note.set_header(header);
         let inner_note_hash = compute_inner_note_hash(*note);
-
-        // TODO: Strong typing required because of https://github.com/noir-lang/noir/issues/4088
-        let serialized_note: [Field; N] = Note::serialize_content(*note);
+        let serialized_note = Note::serialize_content(*note);
         assert(
             notify_created_note(
             storage_slot,

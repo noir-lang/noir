@@ -16,6 +16,7 @@ trait CallInterface<N, T, P, Env> {
     fn get_selector(self) -> FunctionSelector;
     fn get_name(self) -> str<N>;
     fn get_contract_address(self) -> AztecAddress;
+    fn get_is_static(self) -> bool;
 }
 
 impl<N, T, P, Env> CallInterface<N, PrivateContextInputs, PrivateCircuitPublicInputs, Env> for PrivateCallInterface<N, T, Env> {
@@ -38,6 +39,10 @@ impl<N, T, P, Env> CallInterface<N, PrivateContextInputs, PrivateCircuitPublicIn
     fn get_contract_address(self) -> AztecAddress {
         self.target_contract
     }
+
+    fn get_is_static(self) -> bool {
+        self.is_static
+    }
 }
 
 struct PrivateCallInterface<N, T, Env> {
@@ -46,7 +51,8 @@ struct PrivateCallInterface<N, T, Env> {
     name: str<N>,
     args_hash: Field,
     args: [Field],
-    original: fn[Env](PrivateContextInputs) -> PrivateCircuitPublicInputs
+    original: fn[Env](PrivateContextInputs) -> PrivateCircuitPublicInputs,
+    is_static: bool
 }
 
 impl<N, T, Env> PrivateCallInterface<N, T, Env> {
@@ -93,6 +99,10 @@ impl<N, T, P, Env> CallInterface<N, PrivateContextInputs, PrivateCircuitPublicIn
     fn get_contract_address(self) -> AztecAddress {
         self.target_contract
     }
+
+    fn get_is_static(self) -> bool {
+        self.is_static
+    }
 }
 
 struct PrivateVoidCallInterface<N, Env> {
@@ -101,7 +111,8 @@ struct PrivateVoidCallInterface<N, Env> {
     name: str<N>,
     args_hash: Field,
     args: [Field],
-    original: fn[Env](PrivateContextInputs) -> PrivateCircuitPublicInputs
+    original: fn[Env](PrivateContextInputs) -> PrivateCircuitPublicInputs,
+    is_static: bool
 }
 
 impl<N, Env> PrivateVoidCallInterface<N, Env> {
@@ -144,6 +155,10 @@ impl<N, T, P, Env> CallInterface<N, PrivateContextInputs, PrivateCircuitPublicIn
     fn get_contract_address(self) -> AztecAddress {
         self.target_contract
     }
+
+    fn get_is_static(self) -> bool {
+        self.is_static
+    }
 }
 
 struct PrivateStaticCallInterface<N, T, Env> {
@@ -152,7 +167,8 @@ struct PrivateStaticCallInterface<N, T, Env> {
     name: str<N>,
     args_hash: Field,
     args: [Field],
-    original: fn[Env](PrivateContextInputs) -> PrivateCircuitPublicInputs
+    original: fn[Env](PrivateContextInputs) -> PrivateCircuitPublicInputs,
+    is_static: bool
 }
 
 impl<N, T, Env> PrivateStaticCallInterface<N, T, Env> {
@@ -182,6 +198,10 @@ impl<N, T, P, Env> CallInterface<N, PrivateContextInputs, PrivateCircuitPublicIn
     fn get_contract_address(self) -> AztecAddress {
         self.target_contract
     }
+
+    fn get_is_static(self) -> bool {
+        self.is_static
+    }
 }
 
 struct PrivateStaticVoidCallInterface<N, Env> {
@@ -190,7 +210,8 @@ struct PrivateStaticVoidCallInterface<N, Env> {
     name: str<N>,
     args_hash: Field,
     args: [Field],
-    original: fn[Env](PrivateContextInputs) -> PrivateCircuitPublicInputs
+    original: fn[Env](PrivateContextInputs) -> PrivateCircuitPublicInputs,
+    is_static: bool
 }
 
 impl<N, Env> PrivateStaticVoidCallInterface<N, Env> {
@@ -219,6 +240,10 @@ impl<N, T, P, Env> CallInterface<N, PublicContextInputs, T, Env> for PublicCallI
     fn get_contract_address(self) -> AztecAddress {
         self.target_contract
     }
+
+    fn get_is_static(self) -> bool {
+        self.is_static
+    }
 }
 
 struct PublicCallInterface<N, T, Env> {
@@ -227,7 +252,8 @@ struct PublicCallInterface<N, T, Env> {
     name: str<N>,
     args: [Field],
     gas_opts: GasOpts,
-    original: fn[Env](PublicContextInputs) -> T
+    original: fn[Env](PublicContextInputs) -> T,
+    is_static: bool
 }
 
 impl<N, T, Env> PublicCallInterface<N, T, Env> {
@@ -308,6 +334,10 @@ impl<N, T, P, Env> CallInterface<N, PublicContextInputs, (), Env> for PublicVoid
     fn get_contract_address(self) -> AztecAddress {
         self.target_contract
     }
+
+    fn get_is_static(self) -> bool {
+        self.is_static
+    }
 }
 
 struct PublicVoidCallInterface<N, Env> {
@@ -316,7 +346,8 @@ struct PublicVoidCallInterface<N, Env> {
     name: str<N>,
     args: [Field],
     gas_opts: GasOpts,
-    original: fn[Env](PublicContextInputs) -> ()
+    original: fn[Env](PublicContextInputs) -> (),
+    is_static: bool
 }
 
 impl<N, Env> PublicVoidCallInterface<N, Env> {
@@ -378,7 +409,7 @@ impl<N, Env> PublicVoidCallInterface<N, Env> {
 }
 
 impl<N, T, P, Env> CallInterface<N, PublicContextInputs, T, Env> for PublicStaticCallInterface<N, T, Env> {
-  fn get_args(self) -> [Field] {
+    fn get_args(self) -> [Field] {
         self.args
     }
 
@@ -397,6 +428,10 @@ impl<N, T, P, Env> CallInterface<N, PublicContextInputs, T, Env> for PublicStati
     fn get_contract_address(self) -> AztecAddress {
         self.target_contract
     }
+
+    fn get_is_static(self) -> bool {
+        self.is_static
+    }
 }
 
 struct PublicStaticCallInterface<N, T, Env> {
@@ -405,7 +440,8 @@ struct PublicStaticCallInterface<N, T, Env> {
     name: str<N>,
     args: [Field],
     gas_opts: GasOpts,
-    original: fn[Env](PublicContextInputs) -> T
+    original: fn[Env](PublicContextInputs) -> T,
+    is_static: bool
 }
 
 impl<N, T, Env> PublicStaticCallInterface<N, T, Env> {
@@ -453,6 +489,10 @@ impl<N, T, P, Env> CallInterface<N, PublicContextInputs, (), Env> for PublicStat
     fn get_contract_address(self) -> AztecAddress {
         self.target_contract
     }
+
+    fn get_is_static(self) -> bool {
+        self.is_static
+    }
 }
 
 struct PublicStaticVoidCallInterface<N, Env> {
@@ -461,7 +501,8 @@ struct PublicStaticVoidCallInterface<N, Env> {
     name: str<N>,
     args: [Field],
     gas_opts: GasOpts,
-    original: fn[Env](PublicContextInputs) -> ()
+    original: fn[Env](PublicContextInputs) -> (),
+    is_static: bool
 }
 
 impl<N, Env> PublicStaticVoidCallInterface<N, Env> {

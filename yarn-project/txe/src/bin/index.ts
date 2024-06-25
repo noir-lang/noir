@@ -1,4 +1,5 @@
 #!/usr/bin/env -S node --no-warnings
+import { Fr } from '@aztec/foundation/fields';
 import { JsonRpcServer } from '@aztec/foundation/json-rpc/server';
 import { type Logger, createDebugLogger } from '@aztec/foundation/log';
 
@@ -32,25 +33,20 @@ class TXEDispatcher {
     function: functionName,
     inputs,
   }: TXEForeignCallInput): Promise<ForeignCallResult> {
-    this.logger.debug(
-      `Calling ${functionName} with inputs: ${JSON.stringify(inputs, null, 2)} on session ${sessionId}`,
-    );
+    this.logger.debug(`Calling ${functionName} on session ${sessionId}`);
 
     if (!TXESessions.has(sessionId) && functionName != 'reset') {
-      this.logger.debug(`Creating new session ${sessionId}`);
+      this.logger.info(`Creating new session ${sessionId}`);
       TXESessions.set(sessionId, await TXEService.init(logger));
     }
 
     if (functionName === 'reset') {
       TXESessions.delete(sessionId) &&
-        this.logger.debug(`Called reset on session ${sessionId}, yeeting it out of existence`);
+        this.logger.info(`Called reset on session ${sessionId}, yeeting it out of existence`);
       return toForeignCallResult([]);
     } else {
       const txeService = TXESessions.get(sessionId);
       const response = await (txeService as any)[functionName](...inputs);
-      this.logger.debug(
-        `${sessionId}:${functionName}(${JSON.stringify(inputs, null, 2)}) -> ${JSON.stringify(response, null, 2)}`,
-      );
       return response;
     }
   }
@@ -63,10 +59,11 @@ class TXEDispatcher {
  * @returns A running http server.
  */
 export function startTXEHttpServer(dispatcher: TXEDispatcher, port: string | number): http.Server {
-  const txeServer = new JsonRpcServer(dispatcher, {}, {}, ['init']);
+  const txeServer = new JsonRpcServer(dispatcher, { Fr }, {}, ['init']);
 
   const app = txeServer.getApp();
   const httpServer = http.createServer(app.callback());
+  httpServer.timeout = 1e3 * 60 * 5; // 5 minutes
   httpServer.listen(port);
 
   return httpServer;

@@ -1,6 +1,7 @@
 use dep::protocol_types::{
     traits::{Deserialize, Serialize}, address::AztecAddress,
-    abis::{function_selector::FunctionSelector, private_circuit_public_inputs::PrivateCircuitPublicInputs}
+    abis::{function_selector::FunctionSelector, private_circuit_public_inputs::PrivateCircuitPublicInputs},
+    contract_instance::ContractInstance
 };
 
 use crate::context::inputs::{PublicContextInputs, PrivateContextInputs};
@@ -8,6 +9,25 @@ use crate::context::call_interfaces::CallInterface;
 use crate::test::helpers::cheatcodes;
 use crate::keys::public_keys::{PUBLIC_KEYS_LENGTH, PublicKeys};
 use crate::hash::hash_args;
+
+use crate::oracle::notes::notify_nullified_note;
+
+pub fn apply_side_effects_private(contract_address: AztecAddress, public_inputs: PrivateCircuitPublicInputs) {
+    let mut nullifiers = &[];
+    for nullifier in public_inputs.new_nullifiers {
+        if nullifier.value != 0 {
+            nullifiers = nullifiers.push_back(nullifier.value);
+        }
+    }
+    cheatcodes::add_nullifiers(contract_address, nullifiers);
+    let mut note_hashes = &[];
+    for note_hash in public_inputs.new_note_hashes {
+        if note_hash.value != 0 {
+            note_hashes = note_hashes.push_back(note_hash.value);
+        }
+    }
+    cheatcodes::add_note_hashes(contract_address, note_hashes);
+}
 
 struct Deployer<N> {
         path: str<N>,
@@ -18,14 +38,15 @@ impl<N> Deployer<N> {
     pub fn with_private_initializer<C, M, Env>(
         self,
         call_interface: C
-    ) -> AztecAddress where C: CallInterface<M, PrivateContextInputs, PrivateCircuitPublicInputs, Env> {
-        let address = cheatcodes::deploy(
+    ) -> ContractInstance where C: CallInterface<M, PrivateContextInputs, PrivateCircuitPublicInputs, Env> {
+        let instance = cheatcodes::deploy(
             self.path,
             call_interface.get_name(),
             call_interface.get_args(),
             self.public_keys_hash
         );
-        cheatcodes::advance_blocks(1);
+        let address = instance.to_address();
+        cheatcodes::advance_blocks_by(1);
         let block_number = cheatcodes::get_block_number();
         let original_fn = call_interface.get_original();
         let original_msg_sender = cheatcodes::get_msg_sender();
@@ -35,29 +56,30 @@ impl<N> Deployer<N> {
         cheatcodes::set_msg_sender(original_contract_address);
         let mut inputs = cheatcodes::get_private_context_inputs(block_number - 1);
         inputs.call_context.function_selector = call_interface.get_selector();
-        let _result = original_fn(inputs);
-
+        let public_inputs = original_fn(inputs);
+        apply_side_effects_private(address, public_inputs);
+        cheatcodes::advance_blocks_by(1);
         cheatcodes::set_contract_address(original_contract_address);
         cheatcodes::set_msg_sender(original_msg_sender);
-        address
+        instance
     }
 
     pub fn with_public_initializer<C, M, T, Env>(
         self,
         call_interface: C
-    ) -> AztecAddress where C: CallInterface<M, PublicContextInputs, T, Env> {
-        let address = cheatcodes::deploy(
+    ) -> ContractInstance where C: CallInterface<M, PublicContextInputs, T, Env> {
+        let instance = cheatcodes::deploy(
             self.path,
             call_interface.get_name(),
             call_interface.get_args(),
             self.public_keys_hash
         );
-        cheatcodes::advance_blocks(1);
+        cheatcodes::advance_blocks_by(1);
         let original_fn = call_interface.get_original();
         let original_msg_sender = cheatcodes::get_msg_sender();
         let original_contract_address = cheatcodes::get_contract_address();
 
-        cheatcodes::set_contract_address(address);
+        cheatcodes::set_contract_address(instance.to_address());
         cheatcodes::set_msg_sender(original_contract_address);
         let mut inputs = cheatcodes::get_public_context_inputs();
         inputs.selector = call_interface.get_selector().to_field();
@@ -66,12 +88,11 @@ impl<N> Deployer<N> {
 
         cheatcodes::set_contract_address(original_contract_address);
         cheatcodes::set_msg_sender(original_msg_sender);
-        address
+        instance
     }
 
-    pub fn without_initializer(self) -> AztecAddress {
-        let address = cheatcodes::deploy(self.path, "", &[], self.public_keys_hash);
-        address
+    pub fn without_initializer(self) -> ContractInstance {
+        cheatcodes::deploy(self.path, "", &[], self.public_keys_hash)
     }
 }
 
