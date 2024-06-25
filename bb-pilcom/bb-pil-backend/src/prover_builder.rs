@@ -25,6 +25,8 @@ impl ProverBuilder for BBFiles {
         using Flavor = {name}Flavor;
         using FF = Flavor::FF;
         using PCS = Flavor::PCS;
+        using Curve = Flavor::Curve;
+        using ZeroMorph = ZeroMorphProver_<Curve>;
         using PCSCommitmentKey = Flavor::CommitmentKey;
         using ProvingKey = Flavor::ProvingKey;
         using Polynomial = Flavor::Polynomial;
@@ -39,7 +41,7 @@ impl ProverBuilder for BBFiles {
         void execute_wire_commitments_round();
         void execute_log_derivative_inverse_round();
         void execute_relation_check_rounds();
-        void execute_zeromorph_rounds();
+        void execute_pcs_rounds();
     
         HonkProof export_proof();
         HonkProof construct_proof();
@@ -63,8 +65,6 @@ impl ProverBuilder for BBFiles {
         SumcheckOutput<Flavor> sumcheck_output;
     
         std::shared_ptr<PCSCommitmentKey> commitment_key;
-    
-        using ZeroMorph = ZeroMorphProver_<PCS>;
     
       private:
         HonkProof proof;
@@ -190,16 +190,16 @@ impl ProverBuilder for BBFiles {
      * @details See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the unrolled protocol.
      *
      * */
-     void {name}Prover::execute_zeromorph_rounds()
+     void {name}Prover::execute_pcs_rounds()
     {{
-        ZeroMorph::prove(prover_polynomials.get_unshifted(),
-                         prover_polynomials.get_to_be_shifted(),
-                         sumcheck_output.claimed_evaluations.get_unshifted(),
-                         sumcheck_output.claimed_evaluations.get_shifted(),
-                         sumcheck_output.challenge,
-                         commitment_key,
-                         transcript);
-
+        auto prover_opening_claim = ZeroMorph::prove(prover_polynomials.get_unshifted(),
+                                                     prover_polynomials.get_to_be_shifted(),
+                                                     sumcheck_output.claimed_evaluations.get_unshifted(),
+                                                     sumcheck_output.claimed_evaluations.get_shifted(),
+                                                     sumcheck_output.challenge,
+                                                     commitment_key,
+                                                     transcript);
+        PCS::compute_opening_proof(commitment_key, prover_opening_claim, transcript);
     }}
 
     
@@ -226,7 +226,7 @@ impl ProverBuilder for BBFiles {
     
         // Fiat-Shamir: rho, y, x, z
         // Execute Zeromorph multilinear PCS
-        execute_zeromorph_rounds();
+        execute_pcs_rounds();
     
         return export_proof();
     }}
@@ -271,7 +271,6 @@ fn includes_cpp(name: &str) -> String {
     #include \"barretenberg/honk/proof_system/permutation_library.hpp\"
     #include \"barretenberg/plonk_honk_shared/library/grand_product_library.hpp\"
     #include \"barretenberg/polynomials/polynomial.hpp\"
-    #include \"barretenberg/relations/lookup_relation.hpp\"
     #include \"barretenberg/relations/permutation_relation.hpp\"
     #include \"barretenberg/sumcheck/sumcheck.hpp\"
     "

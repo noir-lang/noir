@@ -16,6 +16,8 @@ class AvmProver {
     using Flavor = AvmFlavor;
     using FF = Flavor::FF;
     using PCS = Flavor::PCS;
+    using Curve = Flavor::Curve;
+    using ZeroMorph = ZeroMorphProver_<Curve>;
     using PCSCommitmentKey = Flavor::CommitmentKey;
     using ProvingKey = Flavor::ProvingKey;
     using Polynomial = Flavor::Polynomial;

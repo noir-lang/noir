@@ -41,7 +41,7 @@ template <typename FF_> class gasImpl {
         {
             Avm_DECLARE_VIEWS(0);
 
-            auto tmp = (gas_sel_gas_cost - gas_sel_gas_cost);
+            auto tmp = ((gas_sel_gas_cost - gas_sel_gas_cost) - FF(0));
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
         }
@@ -49,7 +49,7 @@ template <typename FF_> class gasImpl {
         {
             Avm_DECLARE_VIEWS(1);
 
-            auto tmp = (gas_l2_gas_fixed_table - gas_l2_gas_fixed_table);
+            auto tmp = ((gas_l2_gas_fixed_table - gas_l2_gas_fixed_table) - FF(0));
             tmp *= scaling_factor;
             std::get<1>(evals) += tmp;
         }
@@ -57,7 +57,7 @@ template <typename FF_> class gasImpl {
         {
             Avm_DECLARE_VIEWS(2);
 
-            auto tmp = (gas_da_gas_fixed_table - gas_da_gas_fixed_table);
+            auto tmp = ((gas_da_gas_fixed_table - gas_da_gas_fixed_table) - FF(0));
             tmp *= scaling_factor;
             std::get<2>(evals) += tmp;
         }

@@ -37,7 +37,7 @@ template <typename FF_> class powersImpl {
         {
             Avm_DECLARE_VIEWS(0);
 
-            auto tmp = (powers_power_of_2 - powers_power_of_2);
+            auto tmp = ((powers_power_of_2 - powers_power_of_2) - FF(0));
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
         }
