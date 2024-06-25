@@ -611,7 +611,7 @@ impl<'a> Interpreter<'a> {
         // TODO: Need to account for operator overloading
         if self.interner.get_selected_impl_for_expression(id).is_some() {
             return Err(InterpreterError::Unimplemented {
-                item: "Operator overloading is unimplemented in the interpreter. See https://github.com/noir-lang/noir/issues/4925".to_string(),
+                item: "Operator overloading in the interpreter".to_string(),
                 location: infix.operator.location,
             });
         }
