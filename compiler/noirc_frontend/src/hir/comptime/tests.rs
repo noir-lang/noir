@@ -15,7 +15,7 @@ fn interpret_helper(src: &str, func_namespace: Vec<String>) -> Result<Value, Int
     let mut interpreter = Interpreter::new(&mut interner, &mut scopes);
 
     let no_location = Location::dummy();
-    interpreter.call_function(main_id, Vec::new(), no_location)
+    interpreter.call_function(main_id, Vec::new(), HashMap::new(), no_location)
 }
 
 fn interpret(src: &str, func_namespace: Vec<String>) -> Value {
@@ -195,4 +195,19 @@ fn non_deterministic_recursion() {
     }";
     let result = interpret(program, vec!["main".into(), "fib".into()]);
     assert_eq!(result, Value::U64(55));
+}
+
+#[test]
+fn generic_functions() {
+    let program = "
+    fn main() -> pub u8 {
+        apply(1, |x| x + 1)
+    }
+
+    fn apply<T, Env, U>(x: T, f: fn[Env](T) -> U) -> U {
+        f(x)
+    }
+    ";
+    let result = interpret(program, vec!["main".into(), "apply".into()]);
+    assert!(matches!(result, Value::U8(2)));
 }

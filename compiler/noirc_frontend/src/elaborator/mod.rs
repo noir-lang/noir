@@ -31,7 +31,7 @@ use crate::{
     node_interner::{
         DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, TraitId, TypeAliasId,
     },
-    Shared, Type, TypeVariable,
+    Shared, Type, TypeBindings, TypeVariable,
 };
 use crate::{
     ast::{TraitBound, UnresolvedGeneric, UnresolvedGenerics},
@@ -1242,7 +1242,12 @@ impl<'context> Elaborator<'context> {
 
                             let location = Location::new(span, self.file);
                             let arguments = vec![(Value::TypeDefinition(struct_id), location)];
-                            let result = interpreter.call_function(function, arguments, location);
+                            let result = interpreter.call_function(
+                                function,
+                                arguments,
+                                TypeBindings::new(),
+                                location,
+                            );
                             if let Err(error) = result {
                                 self.errors.push(error.into_compilation_error_pair());
                             }

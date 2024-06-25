@@ -7,6 +7,7 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
+use crate::monomorphization::{perform_instantiation_bindings, undo_instantiation_bindings};
 use crate::token::Tokens;
 use crate::{
     hir_def::{
@@ -27,7 +28,7 @@ use crate::{
 };
 
 use super::errors::{IResult, InterpreterError};
-use super::value::Value;
+use super::value::{unwrap_rc, Value};
 
 mod builtin;
 mod unquote;
@@ -55,6 +56,19 @@ impl<'a> Interpreter<'a> {
     }
 
     pub(crate) fn call_function(
+        &mut self,
+        function: FuncId,
+        arguments: Vec<(Value, Location)>,
+        instantiation_bindings: TypeBindings,
+        location: Location,
+    ) -> IResult<Value> {
+        perform_instantiation_bindings(&instantiation_bindings);
+        let result = self.call_function_inner(function, arguments, location);
+        undo_instantiation_bindings(instantiation_bindings);
+        result
+    }
+
+    fn call_function_inner(
         &mut self,
         function: FuncId,
         arguments: Vec<(Value, Location)>,
@@ -355,7 +369,8 @@ impl<'a> Interpreter<'a> {
         match &definition.kind {
             DefinitionKind::Function(function_id) => {
                 let typ = self.interner.id_type(id);
-                Ok(Value::Function(*function_id, typ))
+                let bindings = Rc::new(self.interner.get_instantiation_bindings(id).clone());
+                Ok(Value::Function(*function_id, typ, bindings))
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
@@ -961,7 +976,10 @@ impl<'a> Interpreter<'a> {
         let location = self.interner.expr_location(&id);
 
         match function {
-            Value::Function(function_id, _) => self.call_function(function_id, arguments, location),
+            Value::Function(function_id, _, bindings) => {
+                let bindings = unwrap_rc(bindings);
+                self.call_function(function_id, arguments, bindings, location)
+            }
             Value::Closure(closure, env, _) => self.call_closure(closure, env, arguments, location),
             value => Err(InterpreterError::NonFunctionCalled { value, location }),
         }
@@ -990,7 +1008,7 @@ impl<'a> Interpreter<'a> {
         };
 
         if let Some(method) = method {
-            self.call_function(method, arguments, location)
+            self.call_function(method, arguments, TypeBindings::new(), location)
         } else {
             Err(InterpreterError::NoMethodFound { name: method_name.clone(), typ, location })
         }
