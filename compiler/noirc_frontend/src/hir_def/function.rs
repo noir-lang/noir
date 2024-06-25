@@ -9,7 +9,7 @@ use super::traits::TraitConstraint;
 use crate::ast::{FunctionKind, FunctionReturnType, Visibility};
 use crate::macros_api::BlockExpression;
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
-use crate::{Type, TypeVariable};
+use crate::{ResolvedGeneric, Type, TypeVariable};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -118,7 +118,7 @@ pub struct FuncMeta {
     /// from outer scopes, such as those introduced by an impl.
     /// This is stored when the FuncMeta is first created to later be used to set the current
     /// generics when the function's body is later resolved.
-    pub all_generics: Vec<(Rc<String>, TypeVariable, Span)>,
+    pub all_generics: Vec<ResolvedGeneric>,
 
     pub location: Location,
 

@@ -83,6 +83,7 @@ pub fn generate_selector_impl(structure: &mut NoirStruct) -> TypeImpl {
         type_span: structure.span,
         generics: vec![],
         methods: vec![(NoirFunction::normal(selector_fn_def), Span::default())],
+        where_clause: vec![],
     }
 }
 

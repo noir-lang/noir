@@ -1,6 +1,7 @@
 [package]
-name = "impl_with_where_clause"
+name = "derive_impl"
 type = "bin"
 authors = [""]
+compiler_version = ">=0.30.0"
 
 [dependencies]

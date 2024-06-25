@@ -2,7 +2,7 @@ use crate::cmp::Ord;
 
 // TODO: Once we fully move to the new SSA pass this module can be removed and replaced
 // by the methods in the `slice` module
-impl<T, N> [T; N] {
+impl<T, let N: u32> [T; N] {
     #[builtin(array_len)]
     pub fn len(self) -> u32 {}
 
@@ -110,7 +110,7 @@ impl<T, N> [T; N] {
 
 // helper function used to look up the position of a value in an array of Field
 // Note that function returns 0 if the value is not found
-unconstrained fn find_index<N>(a: [u32; N], find: u32) -> u32 {
+unconstrained fn find_index<let N: u32>(a: [u32; N], find: u32) -> u32 {
     let mut result = 0;
     for i in 0..a.len() {
         if a[i] == find {

@@ -5,7 +5,7 @@ use crate::graph::CrateId;
 use crate::hir::comptime::{Interpreter, InterpreterError};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
-use crate::{Type, TypeVariable};
+use crate::{ResolvedGeneric, Type};
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::resolution::{
@@ -33,7 +33,6 @@ use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Span};
 use std::collections::{BTreeMap, HashMap};
 
-use std::rc::Rc;
 use std::vec;
 
 #[derive(Default)]
@@ -125,7 +124,7 @@ pub struct UnresolvedTraitImpl {
     pub trait_id: Option<TraitId>,
     pub impl_id: Option<TraitImplId>,
     pub resolved_object_type: Option<Type>,
-    pub resolved_generics: Vec<(Rc<String>, TypeVariable, Span)>,
+    pub resolved_generics: Vec<ResolvedGeneric>,
 
     // The resolved generic on the trait itself. E.g. it is the `<C, D>` in
     // `impl<A, B> Foo<C, D> for Bar<E, F> { ... }`
@@ -386,6 +385,7 @@ impl DefCollector {
             def_collector.items.traits,
             crate_id,
         ));
+
         // Must resolve structs before we resolve globals.
         resolved_module.errors.extend(resolve_structs(
             context,
