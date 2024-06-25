@@ -202,7 +202,7 @@ anvil:
     FROM ../build-images+build
     SAVE ARTIFACT /opt/foundry/bin/anvil
 
-end-to-end:
+end-to-end-base:
     FROM ubuntu:noble
     # add repository for chromium
     RUN apt-get update && apt-get install -y software-properties-common \
@@ -221,10 +221,15 @@ end-to-end:
     ENV ACVM_BINARY_PATH=/usr/src/noir/noir-repo/target/release/acvm
     ENV PROVER_AGENT_CONCURRENCY=8
     RUN mkdir -p $BB_WORKING_DIRECTORY $ACVM_WORKING_DIRECTORY
+
+    RUN ln -s /usr/src/yarn-project/.yarn/releases/yarn-3.6.3.cjs /usr/local/bin/yarn
+
+end-to-end:
+    FROM +end-to-end-base
+
     COPY +anvil/anvil /opt/foundry/bin/anvil
     COPY +end-to-end-prod/usr/src /usr/src
     WORKDIR /usr/src/yarn-project/end-to-end
-    RUN ln -s /usr/src/yarn-project/.yarn/releases/yarn-3.6.3.cjs /usr/local/bin/yarn
     ENTRYPOINT ["yarn", "test"]
 
 scripts-prod:
