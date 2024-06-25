@@ -24,3 +24,4 @@ yarn-error.log*
 
 docs/reference/aztecjs
 docs/reference/smart_contract_reference/aztec-nr
+test-results

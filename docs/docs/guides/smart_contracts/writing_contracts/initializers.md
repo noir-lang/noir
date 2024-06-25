@@ -27,4 +27,4 @@ Initializers are commonly used to set an admin, such as this example:
 
 Here, the initializer is calling a public function. It can also call a private function. Learn more about calling functions from functions [here](./call_functions.md).
 
-To see constructors in action, check out the [Aztec.nr getting started guide](../../../getting_started/aztecnr-getting-started.md).
+To see an initializer in action, check out the [Counter Contract Tutorial](../../../tutorials/contract_tutorials/counter_contract.md).

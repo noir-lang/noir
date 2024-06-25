@@ -1,6 +1,6 @@
 ---
 title: "Private token contract"
-sidebar_position: 1
+sidebar_position: 4
 ---
 
 In this tutorial we will go through writing an L2 native token contract

@@ -11,11 +11,11 @@ if ! grep -q "PXE_URL" ~/.bashrc; then
 fi
 
 if ! grep -q "alias sandbox" ~/.bashrc; then
-    echo "alias sandbox=\"npx create-aztec-app sandbox\"" >> ~/.bashrc
+    echo "alias sandbox=\"npx aztec-app sandbox\"" >> ~/.bashrc
 fi
 
 source ~/.bashrc
-yes | npx create-aztec-app -t $TYPE -n $NAME -s
+yes | npx aztec-app -t $TYPE -n $NAME -s
 mv $NAME/* $NAME/.* .
 rm -rf $NAME
 

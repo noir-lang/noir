@@ -1,6 +1,6 @@
 ---
 title: "Private voting contract"
-sidebar_position: 0
+sidebar_position: 1
 ---
 
 import Image from '@theme/IdealImage';
@@ -164,12 +164,11 @@ Once it is compiled you can [deploy](../../reference/sandbox_reference/index.md)
 aztec-builder target -o src/artifacts
 ```
 
-Once it is compiled you can [deploy](../../guides/smart_contracts/how_to_deploy_contract.md) it to the sandbox. This is out of scope for this tutorial but you can learn how to do this in the [Aztec.js getting-started guide](../../getting_started/aztecjs-getting-started.md).
+Once it is compiled you can [deploy](../../guides/smart_contracts/how_to_deploy_contract.md) it to the sandbox just like you did in the [counter contract tutorial](./counter_contract.md).
 
 ## Next steps
 
 Now you have learned the foundations of Aztec smart contracts, you can start to play around with some more advanced features. Some ideas:
 
 - Add some more features into this contract, like the admin can distribute votes, people can delegate their votes, or voteIds can have more data like names, descriptions, etc
-- Create a frontend for this contract using [Aztec.js](../../getting_started/aztecjs-getting-started.md).
 - Go to the [next tutorial](token_contract.md) and learn how to write a token contract

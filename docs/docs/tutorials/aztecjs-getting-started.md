@@ -357,4 +357,4 @@ That's it! We have successfully deployed a token contract to an instance of the 
 
 ## Next Steps
 
-Write your first smart contract on the [next page](./aztecnr-getting-started.md).
+Write your first account contract on the [next page](./write_accounts_contract.md).

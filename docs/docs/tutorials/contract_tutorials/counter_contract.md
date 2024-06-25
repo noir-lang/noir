@@ -1,15 +1,15 @@
 ---
-title: Writing Your First Smart Contract
-sidebar_position: 2
+title: Counter Contract
+sidebar_position: 0
 ---
 
 In this guide, we will create our first Aztec.nr smart contract. We will build a simple private counter. This contract will get you started with the basic setup and syntax of Aztec.nr, but doesn't showcase the awesome stuff Aztec is capable of.
 
-If you already have some experience with Noir and want to build a cooler contract that utilizes both private and public state, you might want to check out the [token contract tutorial instead](../tutorials/contract_tutorials/token_contract.md).
+If you already have some experience with Noir and want to build a cooler contract that utilizes both private and public state, you might want to check out the [token contract tutorial instead](../../tutorials/contract_tutorials/token_contract.md).
 
 ## Prerequisites
 
-- You have followed the [quickstart](../getting_started.md)
+- You have followed the [quickstart](../../getting_started.md)
 - Running Aztec Sandbox
 
 ## Set up a project
@@ -116,7 +116,7 @@ Let’s create a constructor method to run on deployment that assigns an initial
 
 This function accesses the counts from storage. Then it assigns the passed initial counter to the `owner`'s counter privately using `at().add()`.
 
-We have annotated this and other functions with `#[aztec(private)]` which are ABI macros so the compiler understands it will handle private inputs. Learn more about functions and annotations [here](../aztec/concepts/smart_contracts/functions/index.md).
+We have annotated this and other functions with `#[aztec(private)]` which are ABI macros so the compiler understands it will handle private inputs. Learn more about functions and annotations [here](../../aztec/concepts/smart_contracts/functions/index.md).
 
 ## Incrementing our counter
 
@@ -160,28 +160,4 @@ In the same directory, run this:
 aztec-builder codegen -o src/artifacts target
 ```
 
-You can now use the artifact and/or the TS class in your Aztec.js! If you skipped the Aztec.js getting-started guide, you can follow it [here](aztecjs-getting-started.md). This will teach you about deploying and calling contracts in Aztec.js.
-
-## Install Noir LSP (recommended)
-
-Install the [Noir Language Support extension](https://marketplace.visualstudio.com/items?itemName=noir-lang.vscode-noir) to get syntax highlighting, syntax error detection and go-to definitions for your Aztec contracts.
-
-Once the extension is installed, check your nargo binary by hovering over `Nargo` in the status bar on the bottom right of the application window. Click to choose the path to `aztec-nargo` (or regular `nargo`, if you have that installed).
-
-You can print the path of your `aztec-nargo` executable by running:
-
-```bash
-which aztec-nargo
-```
-
-To specify a custom nargo executable, go to the VSCode settings and search for "noir", or click extension settings on the `noir-lang` LSP plugin.
-Update the `Noir: Nargo Path` field to point to your desired `aztec-nargo` executable.
-
-## What's next?
-
-The next recommmended steps are follow the tutorials in order. They will teach you more about contracts, Aztec.js, and how Aztec works in general.
-
-To follow the series of tutorials, start with the private voting contract [here](../tutorials/contract_tutorials/private_voting_contract.md).
-
-Alternatively, you can read about the high level architecture on the [Core Components page](../aztec/concepts/state_model/index.md) and [the lifecycle of a transaction](../aztec/concepts/transactions.md).
-
+You can now use the artifact and/or the TS class in your Aztec.js!

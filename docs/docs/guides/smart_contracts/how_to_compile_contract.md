@@ -222,7 +222,7 @@ export class TokenContract extends ContractBase {
 }
 ```
 
-Read more about interacting with contracts using `aztec.js` [here](../../getting_started/aztecjs-getting-started.md).
+Read more about interacting with contracts using `aztec.js` [here](../../tutorials/aztecjs-getting-started.md).
 
 ### Aztec.nr interfaces
 
