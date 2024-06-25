@@ -88,6 +88,10 @@ TEST_F(ClientIVCRecursionTests, Basic)
     // Generate the recursive verification circuit
     verifier.verify(proof);
 
+    info("Recursive Verifier: num gates = ", builder->num_gates);
+
+    EXPECT_EQ(builder->failed(), false) << builder->err();
+
     EXPECT_TRUE(CircuitChecker::check(*builder));
 }
 
