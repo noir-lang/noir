@@ -85,7 +85,7 @@ fn type_def_as_type(
         if i != 0 {
             tokens.push(SpannedToken::new(Token::Comma, span));
         }
-        tokens.push(make_token(generic.borrow().to_string()));
+        tokens.push(make_token(generic.type_var.borrow().to_string()));
     }
 
     Ok(Value::Code(Rc::new(Tokens(tokens))))
@@ -111,7 +111,7 @@ fn type_def_generics(
         .generics
         .iter()
         .map(|generic| {
-            let name = SpannedToken::new(Token::Str(generic.borrow().to_string()), span);
+            let name = SpannedToken::new(Token::Str(generic.type_var.borrow().to_string()), span);
             Value::Code(Rc::new(Tokens(vec![name])))
         })
         .collect();

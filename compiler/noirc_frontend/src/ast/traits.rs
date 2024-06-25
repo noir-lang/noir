@@ -14,7 +14,7 @@ use crate::node_interner::TraitId;
 #[derive(Clone, Debug)]
 pub struct NoirTrait {
     pub name: Ident,
-    pub generics: Vec<Ident>,
+    pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub span: Span,
     pub items: Vec<TraitItem>,
@@ -26,7 +26,7 @@ pub struct NoirTrait {
 pub enum TraitItem {
     Function {
         name: Ident,
-        generics: Vec<Ident>,
+        generics: UnresolvedGenerics,
         parameters: Vec<(Ident, UnresolvedType)>,
         return_type: FunctionReturnType,
         where_clause: Vec<UnresolvedTraitConstraint>,
@@ -49,6 +49,7 @@ pub struct TypeImpl {
     pub object_type: UnresolvedType,
     pub type_span: Span,
     pub generics: UnresolvedGenerics,
+    pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub methods: Vec<(NoirFunction, Span)>,
 }
 

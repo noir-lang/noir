@@ -91,7 +91,7 @@ pub fn inject_context_in_storage(module: &mut SortedModule) -> Result<(), AztecM
             r#struct.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(storage)"))
         })
         .unwrap();
-    storage_struct.generics.push(ident("Context"));
+    storage_struct.generics.push(ident("Context").into());
     storage_struct
         .fields
         .iter_mut()
@@ -243,9 +243,11 @@ pub fn generate_storage_implementation(
             span: Some(Span::default()),
         },
         type_span: Span::default(),
-        generics: vec![generic_context_ident],
+        generics: vec![generic_context_ident.into()],
 
         methods: vec![(init, Span::default())],
+
+        where_clause: vec![],
     };
     module.impls.push(storage_impl);
 
