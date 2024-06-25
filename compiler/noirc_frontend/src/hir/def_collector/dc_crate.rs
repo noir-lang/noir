@@ -351,7 +351,8 @@ impl DefCollector {
         }
 
         if !use_legacy {
-            let mut more_errors = Elaborator::elaborate(context, crate_id, def_collector.items);
+            let mut more_errors =
+                Elaborator::elaborate(context, crate_id, def_collector.items, macro_processors);
             errors.append(&mut more_errors);
             return errors;
         }

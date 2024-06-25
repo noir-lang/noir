@@ -206,6 +206,7 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         items: CollectedItems,
+        macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut this = Self::new(context, crate_id);
 
@@ -217,6 +218,14 @@ impl<'context> Elaborator<'context> {
         let (comptime_items, runtime_items) = Self::filter_comptime_items(items);
         this.elaborate_items(comptime_items);
         this.elaborate_items(runtime_items);
+
+        for macro_processor in macro_processors {
+            macro_processor.process_typed_ast(&crate_id, context).unwrap_or_else(
+                |(macro_err, file_id)| {
+                    this.push_err((macro_err.into(), file_id));
+                },
+            );
+        }
         this.errors
     }
 
