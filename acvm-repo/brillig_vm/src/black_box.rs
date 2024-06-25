@@ -232,6 +232,41 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             );
             Ok(())
         }
+        BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {
+            let inputs: Vec<F> = read_heap_vector(memory, inputs)
+                .iter()
+                .map(|x| *x.extract_field().unwrap())
+                .collect();
+            let domain_separator: u32 =
+                memory.read(*domain_separator).try_into().map_err(|_| {
+                    BlackBoxResolutionError::Failed(
+                        BlackBoxFunc::PedersenCommitment,
+                        "Invalid separator length".to_string(),
+                    )
+                })?;
+            let (x, y) = solver.pedersen_commitment(&inputs, domain_separator)?;
+            memory.write_slice(
+                memory.read_ref(output.pointer),
+                &[MemoryValue::new_field(x), MemoryValue::new_field(y)],
+            );
+            Ok(())
+        }
+        BlackBoxOp::PedersenHash { inputs, domain_separator, output } => {
+            let inputs: Vec<F> = read_heap_vector(memory, inputs)
+                .iter()
+                .map(|x| *x.extract_field().unwrap())
+                .collect();
+            let domain_separator: u32 =
+                memory.read(*domain_separator).try_into().map_err(|_| {
+                    BlackBoxResolutionError::Failed(
+                        BlackBoxFunc::PedersenCommitment,
+                        "Invalid separator length".to_string(),
+                    )
+                })?;
+            let hash = solver.pedersen_hash(&inputs, domain_separator)?;
+            memory.write(*output, MemoryValue::new_field(hash));
+            Ok(())
+        }
         BlackBoxOp::BigIntAdd { lhs, rhs, output } => {
             let lhs = memory.read(*lhs).try_into().unwrap();
             let rhs = memory.read(*rhs).try_into().unwrap();
@@ -343,8 +378,6 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
 
             Ok(())
         }
-        BlackBoxOp::PedersenCommitment { .. } => todo!("Deprecated Blackbox"),
-        BlackBoxOp::PedersenHash { .. } => todo!("Deprecated Blackbox"),
     }
 }
 
