@@ -6,13 +6,13 @@ use std::{
 use crate::{
     ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
-        comptime::{self, Interpreter, Value},
+        comptime::{self, Interpreter, InterpreterError, Value},
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
                 UnresolvedStruct, UnresolvedTypeAlias,
             },
-            dc_mod::collect_trait_impl_functions,
+            dc_mod,
             errors::DuplicateType,
         },
         resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext},
@@ -1538,12 +1538,8 @@ impl<'context> Elaborator<'context> {
                     self_type: None,
                 });
             }
-            TopLevelStatement::Module(_) => todo!(),
-            TopLevelStatement::Import(_) => todo!(),
-            TopLevelStatement::Struct(_) => todo!(),
-            TopLevelStatement::Trait(_) => todo!(),
             TopLevelStatement::TraitImpl(mut trait_impl) => {
-                let methods = collect_trait_impl_functions(
+                let methods = dc_mod::collect_trait_impl_functions(
                     self.interner,
                     &mut trait_impl,
                     self.crate_id,
@@ -1569,11 +1565,34 @@ impl<'context> Elaborator<'context> {
                     resolved_trait_generics: Vec::new(),
                 });
             }
-            TopLevelStatement::Impl(_) => todo!(),
-            TopLevelStatement::TypeAlias(_) => todo!(),
-            TopLevelStatement::SubModule(_) => todo!(),
-            TopLevelStatement::Global(_) => todo!(),
-            TopLevelStatement::Error => todo!(),
+            TopLevelStatement::Global(global) => {
+                let (global, error) = dc_mod::collect_global(
+                    self.interner,
+                    self.def_maps.get_mut(&self.crate_id).unwrap(),
+                    global,
+                    self.file,
+                    self.local_module,
+                );
+
+                generated_items.globals.push(global);
+                if let Some(error) = error {
+                    self.errors.push(error);
+                }
+            }
+            // Assume that an error has already been issued
+            TopLevelStatement::Error => (),
+
+            TopLevelStatement::Module(_)
+            | TopLevelStatement::Import(_)
+            | TopLevelStatement::Struct(_)
+            | TopLevelStatement::Trait(_)
+            | TopLevelStatement::Impl(_)
+            | TopLevelStatement::TypeAlias(_)
+            | TopLevelStatement::SubModule(_) => {
+                let item = item.to_string();
+                let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
+                self.errors.push(error.into_compilation_error_pair());
+            }
         }
     }
 }

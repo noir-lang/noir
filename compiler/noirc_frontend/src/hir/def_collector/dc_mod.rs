@@ -27,7 +27,7 @@ use super::{
     },
     errors::{DefCollectorErrorKind, DuplicateType},
 };
-use crate::hir::def_map::{LocalModuleId, ModuleData, ModuleId};
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleId};
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
 
@@ -106,35 +106,19 @@ impl<'a> ModCollector<'a> {
     ) -> Vec<(CompilationError, fm::FileId)> {
         let mut errors = vec![];
         for global in globals {
-            let name = global.pattern.name_ident().clone();
-
-            let global_id = context.def_interner.push_empty_global(
-                name.clone(),
-                self.module_id,
+            let (global, error) = collect_global(
+                &mut context.def_interner,
+                &mut self.def_collector.def_map,
+                global,
                 self.file_id,
-                global.attributes.clone(),
-                matches!(global.pattern, Pattern::Mutable { .. }),
+                self.module_id,
             );
 
-            // Add the statement to the scope so its path can be looked up later
-            let result = self.def_collector.def_map.modules[self.module_id.0]
-                .declare_global(name, global_id);
-
-            if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::Duplicate {
-                    typ: DuplicateType::Global,
-                    first_def,
-                    second_def,
-                };
-                errors.push((err.into(), self.file_id));
+            if let Some(error) = error {
+                errors.push(error);
             }
 
-            self.def_collector.items.globals.push(UnresolvedGlobal {
-                file_id: self.file_id,
-                module_id: self.module_id,
-                global_id,
-                stmt_def: global,
-            });
+            self.def_collector.items.globals.push(global);
         }
         errors
     }
@@ -784,6 +768,36 @@ pub(crate) fn collect_trait_impl_functions(
     }
 
     unresolved_functions
+}
+
+pub(crate) fn collect_global(
+    interner: &mut NodeInterner,
+    def_map: &mut CrateDefMap,
+    global: LetStatement,
+    file_id: FileId,
+    module_id: LocalModuleId,
+) -> (UnresolvedGlobal, Option<(CompilationError, FileId)>) {
+    let name = global.pattern.name_ident().clone();
+
+    let global_id = interner.push_empty_global(
+        name.clone(),
+        module_id,
+        file_id,
+        global.attributes.clone(),
+        matches!(global.pattern, Pattern::Mutable { .. }),
+    );
+
+    // Add the statement to the scope so its path can be looked up later
+    let result = def_map.modules[module_id.0].declare_global(name, global_id);
+
+    let error = result.err().map(|(first_def, second_def)| {
+        let err =
+            DefCollectorErrorKind::Duplicate { typ: DuplicateType::Global, first_def, second_def };
+        (err.into(), file_id)
+    });
+
+    let global = UnresolvedGlobal { file_id, module_id, global_id, stmt_def: global };
+    (global, error)
 }
 
 #[cfg(test)]
