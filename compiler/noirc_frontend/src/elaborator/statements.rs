@@ -206,7 +206,10 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_jump(&mut self, is_break: bool, span: noirc_errors::Span) -> (HirStatement, Type) {
-        if !self.in_unconstrained_fn {
+        let in_constrained_function = self
+            .current_function
+            .map_or(true, |func_id| !self.interner.function_modifiers(&func_id).is_unconstrained);
+        if in_constrained_function {
             self.push_err(ResolverError::JumpInConstrainedFn { is_break, span });
         }
         if self.nested_loops == 0 {
