@@ -75,6 +75,8 @@ impl<'a> Interpreter<'a> {
 
         let is_comptime = self.interner.function_modifiers(&function).is_comptime;
         if !is_comptime && meta.source_crate == self.crate_id {
+            // Calling non-comptime functions from within the current crate is restricted
+            // as non-comptime items will have not been elaborated yet.
             let function = self.interner.function_name(&function).to_owned();
             return Err(InterpreterError::NonComptimeFnCallInSameCrate { function, location });
         }
