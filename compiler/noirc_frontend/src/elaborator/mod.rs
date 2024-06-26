@@ -484,12 +484,11 @@ impl<'context> Elaborator<'context> {
                 self.resolve_type(typ.clone())
             };
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
-                let unsupported_typ_err =
-                    CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType {
-                        ident: ident.clone(),
-                        typ: typ.clone(),
-                    });
-                self.errors.push((unsupported_typ_err, self.file));
+                let unsupported_typ_err = ResolverError::UnsupportedNumericGenericType {
+                    ident: ident.clone(),
+                    typ: typ.clone(),
+                };
+                self.push_err(unsupported_typ_err);
             }
             Kind::Numeric(Box::new(typ))
         } else {
@@ -788,12 +787,7 @@ impl<'context> Elaborator<'context> {
                 let definition = DefinitionKind::GenericType(type_variable);
                 self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
 
-                self.errors.push((
-                    CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric {
-                        ident,
-                    }),
-                    self.file,
-                ));
+                self.push_err(ResolverError::UseExplicitNumericGeneric { ident });
             }
         }
     }
