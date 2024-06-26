@@ -1,0 +1,43 @@
+[package]
+name = "noir_profiler"
+description = "Profiler for noir circuits"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "noir-profiler"
+path = "src/main.rs"
+
+[dependencies]
+color-eyre.workspace = true
+clap.workspace = true
+noirc_artifacts.workspace = true
+nargo.workspace = true
+const_format.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+fm.workspace = true
+codespan-reporting.workspace = true
+inferno = "0.11.19"
+im.workspace = true
+acir.workspace = true
+noirc_errors.workspace = true
+
+# Logs
+tracing-subscriber.workspace = true
+tracing-appender = "0.2.3"
+
+[dev-dependencies]
+noirc_abi.workspace = true
+noirc_driver.workspace = true
+tempfile.workspace = true
+
+[features]
+default = ["bn254"]
+bn254 = ["acir/bn254"]

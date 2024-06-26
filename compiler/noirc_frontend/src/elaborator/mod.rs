@@ -90,7 +90,6 @@ pub struct Elaborator<'context> {
 
     file: FileId,
 
-    in_unconstrained_fn: bool,
     nested_loops: usize,
 
     /// Contains a mapping of the current struct or functions's generics to
@@ -173,7 +172,6 @@ impl<'context> Elaborator<'context> {
             interner: &mut context.def_interner,
             def_maps: &mut context.def_maps,
             file: FileId::dummy(),
-            in_unconstrained_fn: false,
             nested_loops: 0,
             generics: Vec::new(),
             lambda_stack: Vec::new(),
@@ -317,10 +315,6 @@ impl<'context> Elaborator<'context> {
 
         self.trait_bounds = func_meta.trait_constraints.clone();
 
-        if self.interner.function_modifiers(&id).is_unconstrained {
-            self.in_unconstrained_fn = true;
-        }
-
         // Introduce all numeric generics into scope
         for generic in &func_meta.all_generics {
             if let Kind::Numeric(typ) = &generic.kind {
@@ -412,7 +406,6 @@ impl<'context> Elaborator<'context> {
 
         self.trait_bounds.clear();
         self.type_variables.clear();
-        self.in_unconstrained_fn = false;
         self.interner.update_fn(id, hir_func);
         self.current_function = old_function;
         self.current_item = old_item;
@@ -491,12 +484,11 @@ impl<'context> Elaborator<'context> {
                 self.resolve_type(typ.clone())
             };
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
-                let unsupported_typ_err =
-                    CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType {
-                        ident: ident.clone(),
-                        typ: typ.clone(),
-                    });
-                self.errors.push((unsupported_typ_err, self.file));
+                let unsupported_typ_err = ResolverError::UnsupportedNumericGenericType {
+                    ident: ident.clone(),
+                    typ: typ.clone(),
+                };
+                self.push_err(unsupported_typ_err);
             }
             Kind::Numeric(Box::new(typ))
         } else {
@@ -795,12 +787,7 @@ impl<'context> Elaborator<'context> {
                 let definition = DefinitionKind::GenericType(type_variable);
                 self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
 
-                self.errors.push((
-                    CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric {
-                        ident,
-                    }),
-                    self.file,
-                ));
+                self.push_err(ResolverError::UseExplicitNumericGeneric { ident });
             }
         }
     }
