@@ -73,7 +73,7 @@ exceptions = [
     { allow = ["CC0-1.0"], name = "tiny-keccak" },
     { allow = ["MPL-2.0"], name = "sized-chunks" },
     { allow = ["MPL-2.0"], name = "webpki-roots" },
-
+    { allow = ["CDDL-1.0"], name = "inferno" },
 ]
 
 [[licenses.clarify]]
