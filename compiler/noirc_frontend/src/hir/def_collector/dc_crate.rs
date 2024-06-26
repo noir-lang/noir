@@ -460,7 +460,7 @@ impl DefCollector {
         resolved_module.type_check(context);
 
         if !cycles_present {
-            resolved_module.evaluate_comptime(&mut context.def_interner);
+            resolved_module.evaluate_comptime(&mut context.def_interner, crate_id);
         }
 
         resolved_module.errors
@@ -559,10 +559,10 @@ impl ResolvedModule {
     }
 
     /// Evaluate all `comptime` expressions in this module
-    fn evaluate_comptime(&mut self, interner: &mut NodeInterner) {
+    fn evaluate_comptime(&mut self, interner: &mut NodeInterner, crate_id: CrateId) {
         if self.count_errors() == 0 {
             let mut scopes = vec![HashMap::default()];
-            let mut interpreter = Interpreter::new(interner, &mut scopes);
+            let mut interpreter = Interpreter::new(interner, &mut scopes, crate_id);
 
             for (_file, global) in &self.globals {
                 if let Err(error) = interpreter.scan_global(*global) {

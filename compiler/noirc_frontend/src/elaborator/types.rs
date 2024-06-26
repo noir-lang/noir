@@ -255,8 +255,7 @@ impl<'context> Elaborator<'context> {
                 }
 
                 let expected_generic_count = struct_type.borrow().generics.len();
-
-                if !self.in_contract
+                if !self.in_contract()
                     && self
                         .interner
                         .struct_attributes(&struct_type.borrow().id)

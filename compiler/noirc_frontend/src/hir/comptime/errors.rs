@@ -43,6 +43,7 @@ pub enum InterpreterError {
     UnquoteFoundDuringEvaluation { location: Location },
     FailedToParseMacro { error: ParserError, tokens: Rc<Tokens>, rule: &'static str, file: FileId },
     UnsupportedTopLevelItemUnquote { item: String, location: Location },
+    NonComptimeFnCallInSameCrate { function: String, location: Location },
 
     Unimplemented { item: String, location: Location },
 
@@ -103,6 +104,7 @@ impl InterpreterError {
             | InterpreterError::CannotInlineMacro { location, .. }
             | InterpreterError::UnquoteFoundDuringEvaluation { location, .. }
             | InterpreterError::UnsupportedTopLevelItemUnquote { location, .. }
+            | InterpreterError::NonComptimeFnCallInSameCrate { location, .. }
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::BreakNotInLoop { location, .. }
             | InterpreterError::ContinueNotInLoop { location, .. } => *location,
@@ -303,6 +305,12 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let mut error = CustomDiagnostic::simple_error(msg, secondary, location.span);
                 error.add_note(format!("Unquoted item was:\n{item}"));
                 error
+            }
+            InterpreterError::NonComptimeFnCallInSameCrate { function, location } => {
+                let msg = format!("`{function}` cannot be called in a `comptime` context here");
+                let secondary =
+                    "This function must be `comptime` or in a separate crate to be called".into();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::Unimplemented { item, location } => {
                 let msg = format!("{item} is currently unimplemented");

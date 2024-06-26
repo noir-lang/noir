@@ -7,6 +7,7 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
+use crate::graph::CrateId;
 use crate::token::Tokens;
 use crate::{
     hir_def::{
@@ -42,6 +43,8 @@ pub struct Interpreter<'interner> {
     /// up all currently visible definitions.
     scopes: &'interner mut Vec<HashMap<DefinitionId, Value>>,
 
+    crate_id: CrateId,
+
     in_loop: bool,
 }
 
@@ -50,8 +53,9 @@ impl<'a> Interpreter<'a> {
     pub(crate) fn new(
         interner: &'a mut NodeInterner,
         scopes: &'a mut Vec<HashMap<DefinitionId, Value>>,
+        crate_id: CrateId,
     ) -> Self {
-        Self { interner, scopes, in_loop: false }
+        Self { interner, scopes, crate_id, in_loop: false }
     }
 
     pub(crate) fn call_function(
@@ -67,6 +71,14 @@ impl<'a> Interpreter<'a> {
                 actual: arguments.len(),
                 location,
             });
+        }
+
+        let is_comptime = self.interner.function_modifiers(&function).is_comptime;
+        if !is_comptime && meta.source_crate == self.crate_id {
+            // Calling non-comptime functions from within the current crate is restricted
+            // as non-comptime items will have not been elaborated yet.
+            let function = self.interner.function_name(&function).to_owned();
+            return Err(InterpreterError::NonComptimeFnCallInSameCrate { function, location });
         }
 
         if meta.kind != FunctionKind::Normal {
@@ -609,10 +621,13 @@ impl<'a> Interpreter<'a> {
         let rhs = self.evaluate(infix.rhs)?;
 
         // TODO: Need to account for operator overloading
-        assert!(
-            self.interner.get_selected_impl_for_expression(id).is_none(),
-            "Operator overloading is unimplemented in the interpreter"
-        );
+        // See https://github.com/noir-lang/noir/issues/4925
+        if self.interner.get_selected_impl_for_expression(id).is_some() {
+            return Err(InterpreterError::Unimplemented {
+                item: "Operator overloading in the interpreter".to_string(),
+                location: infix.operator.location,
+            });
+        }
 
         use InterpreterError::InvalidValuesForBinary;
         match infix.operator.kind {
