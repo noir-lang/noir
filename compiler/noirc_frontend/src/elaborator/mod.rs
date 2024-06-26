@@ -6,7 +6,7 @@ use std::{
 use crate::{
     ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
-        comptime::{self, Interpreter, Value},
+        comptime::{self, Interpreter, InterpreterError, Value},
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
@@ -1235,7 +1235,7 @@ impl<'context> Elaborator<'context> {
                             let arguments = vec![(Value::TypeDefinition(struct_id), location)];
                             let result = interpreter.call_function(function, arguments, location);
                             if let Err(error) = result {
-                                self.errors.push(error.into_compilation_error_pair());
+                                self.try_push_interpreter_error(error);
                             }
                         } else {
                             self.push_err(ResolverError::NonFunctionInAnnotation { span });
@@ -1244,6 +1244,12 @@ impl<'context> Elaborator<'context> {
                     Err(_) => self.push_err(ResolverError::UnknownAnnotation { span }),
                 }
             }
+        }
+    }
+
+    fn try_push_interpreter_error(&mut self, error: InterpreterError) {
+        if !matches!(&error, InterpreterError::SilentFail) {
+            self.errors.push(error.into_compilation_error_pair());
         }
     }
 
@@ -1322,7 +1328,7 @@ impl<'context> Elaborator<'context> {
             Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
 
         if let Err(error) = interpreter.evaluate_let(let_statement) {
-            self.errors.push(error.into_compilation_error_pair());
+            self.try_push_interpreter_error(error);
         } else {
             let value = interpreter
                 .lookup_id(definition_id, location)

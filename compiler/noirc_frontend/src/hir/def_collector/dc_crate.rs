@@ -553,7 +553,9 @@ impl ResolvedModule {
 
             for (_file, global) in &self.globals {
                 if let Err(error) = interpreter.scan_global(*global) {
-                    self.errors.push(error.into_compilation_error_pair());
+                    if !matches!(&error, InterpreterError::SilentFail) {
+                        self.errors.push(error.into_compilation_error_pair());
+                    }
                 }
             }
 
@@ -561,7 +563,9 @@ impl ResolvedModule {
                 // The file returned by the error may be different than the file the
                 // function is in so only use the error's file id.
                 if let Err(error) = interpreter.scan_function(*function) {
-                    self.errors.push(error.into_compilation_error_pair());
+                    if !matches!(&error, InterpreterError::SilentFail) {
+                        self.errors.push(error.into_compilation_error_pair());
+                    }
                 }
             }
         }

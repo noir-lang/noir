@@ -577,11 +577,7 @@ impl<'a> Interpreter<'a> {
                 Value::U16(value) => Ok(Value::U16(0 - value)),
                 Value::U32(value) => Ok(Value::U32(0 - value)),
                 Value::U64(value) => Ok(Value::U64(0 - value)),
-                value => {
-                    let location = self.interner.expr_location(&id);
-                    let operator = "minus";
-                    Err(InterpreterError::InvalidValueForUnary { value, location, operator })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             crate::ast::UnaryOp::Not => match rhs {
                 Value::Bool(value) => Ok(Value::Bool(!value)),
@@ -593,10 +589,7 @@ impl<'a> Interpreter<'a> {
                 Value::U16(value) => Ok(Value::U16(!value)),
                 Value::U32(value) => Ok(Value::U32(!value)),
                 Value::U64(value) => Ok(Value::U64(!value)),
-                value => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InterpreterError::InvalidValueForUnary { value, location, operator: "not" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             crate::ast::UnaryOp::MutableReference => Ok(Value::Pointer(Shared::new(rhs))),
             crate::ast::UnaryOp::Dereference { implicitly_added: _ } => match rhs {
@@ -619,7 +612,6 @@ impl<'a> Interpreter<'a> {
             });
         }
 
-        use InterpreterError::InvalidValuesForBinary;
         match infix.operator.kind {
             BinaryOpKind::Add => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs + rhs)),
@@ -631,10 +623,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs + rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs + rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs + rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "+" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             BinaryOpKind::Subtract => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs - rhs)),
@@ -646,10 +635,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs - rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs - rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs - rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "-" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             BinaryOpKind::Multiply => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs * rhs)),
@@ -661,10 +647,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs * rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs * rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs * rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "*" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             BinaryOpKind::Divide => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs / rhs)),
@@ -676,10 +659,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs / rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs / rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs / rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "/" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             BinaryOpKind::Equal => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs == rhs)),
@@ -691,10 +671,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs == rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "==" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             BinaryOpKind::NotEqual => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs != rhs)),
@@ -706,10 +683,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs != rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "!=" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             BinaryOpKind::Less => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs < rhs)),
@@ -721,10 +695,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs < rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "<" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             BinaryOpKind::LessEqual => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs <= rhs)),
@@ -736,10 +707,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs <= rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "<=" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             BinaryOpKind::Greater => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs > rhs)),
@@ -751,10 +719,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs > rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: ">" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             BinaryOpKind::GreaterEqual => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs >= rhs)),
@@ -766,10 +731,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs >= rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: ">=" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             BinaryOpKind::And => match (lhs, rhs) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs & rhs)),
@@ -781,10 +743,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs & rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs & rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs & rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "&" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             BinaryOpKind::Or => match (lhs, rhs) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs | rhs)),
@@ -796,10 +755,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs | rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs | rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs | rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "|" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             BinaryOpKind::Xor => match (lhs, rhs) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs ^ rhs)),
@@ -811,10 +767,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs ^ rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs ^ rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs ^ rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "^" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             BinaryOpKind::ShiftRight => match (lhs, rhs) {
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs >> rhs)),
@@ -825,10 +778,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs >> rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs >> rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs >> rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: ">>" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             BinaryOpKind::ShiftLeft => match (lhs, rhs) {
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs << rhs)),
@@ -839,10 +789,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs << rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs << rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs << rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "<<" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
             BinaryOpKind::Modulo => match (lhs, rhs) {
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs % rhs)),
@@ -853,10 +800,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs % rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs % rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs % rhs)),
-                (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "%" })
-                }
+                _ => Err(InterpreterError::SilentFail),
             },
         }
     }

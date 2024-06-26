@@ -57,17 +57,6 @@ pub enum InterpreterError {
         typ: Type,
         location: Location,
     },
-    InvalidValueForUnary {
-        value: Value,
-        operator: &'static str,
-        location: Location,
-    },
-    InvalidValuesForBinary {
-        lhs: Value,
-        rhs: Value,
-        operator: &'static str,
-        location: Location,
-    },
     QuoteInRuntimeCode {
         location: Location,
     },
@@ -92,6 +81,7 @@ pub enum InterpreterError {
     /// SilentFail is for silently failing without reporting an error. This is used to avoid
     /// issuing repeated errors, e.g. for cases the type checker is already expected to catch.
     SilentFail,
+
     Unimplemented {
         item: String,
         location: Location,
@@ -139,8 +129,6 @@ impl InterpreterError {
             | InterpreterError::NonNumericCasted { location, .. }
             | InterpreterError::IndexOutOfBounds { location, .. }
             | InterpreterError::TypeUnsupported { location, .. }
-            | InterpreterError::InvalidValueForUnary { location, .. }
-            | InterpreterError::InvalidValuesForBinary { location, .. }
             | InterpreterError::QuoteInRuntimeCode { location, .. }
             | InterpreterError::CannotInlineMacro { location, .. }
             | InterpreterError::UnquoteFoundDuringEvaluation { location, .. }
@@ -222,16 +210,6 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::TypeUnsupported { typ, location } => {
                 let msg =
                     format!("The type `{typ}` is currently unsupported in comptime expressions");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
-            }
-            InterpreterError::InvalidValueForUnary { value, operator, location } => {
-                let msg = format!("`{}` cannot be used with unary {operator}", value.get_type());
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
-            }
-            InterpreterError::InvalidValuesForBinary { lhs, rhs, operator, location } => {
-                let lhs = lhs.get_type();
-                let rhs = rhs.get_type();
-                let msg = format!("No implementation for `{lhs}` {operator} `{rhs}`",);
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
             InterpreterError::QuoteInRuntimeCode { location } => {
