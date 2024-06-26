@@ -91,7 +91,7 @@ For our purposes here (not building a wallet), the most important part of the li
 
 ### General utilities
 
-The primary general utility is the `compute_call_authwit_hash` function which computes the action hash from its components. This is useful for when you need to generate a hash that is not for the current call, such as when you want to update a public approval state value that is later used for [authentication in public](#updating-approval-state-in-noir). You can view the implementation of this function [here](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/aztec-nr/authwit/src/auth.nr).
+The primary general utility is the `compute_authwit_message_hash_from_call` function which computes the action hash from its components. This is useful for when you need to generate a hash that is not for the current call, such as when you want to update a public approval state value that is later used for [authentication in public](#updating-approval-state-in-noir). You can view the implementation of this function [here](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/aztec-nr/authwit/src/auth.nr).
 
 #### TypeScript utilities
 
@@ -174,7 +174,7 @@ In the snippet below, this is done as a separate contract call, but can also be 
 
 We have cases where we need a non-wallet contract to approve an action to be executed by another contract. One of the cases could be when making more complex defi where funds are passed along. When doing so, we need the intermediate contracts to support approving of actions on their behalf.
 
-This is fairly straight forward to do using the `auth` library which include logic for updating values in the public auth registry. Namely, you can prepare the `message_hash` using `compute_call_authwit_hash` and then simply feed it into the `set_authorized` function (both are in `auth` library) to update the value. 
+This is fairly straight forward to do using the `auth` library which includes logic for updating values in the public auth registry. Namely, you can prepare the `message_hash` using `compute_authwit_message_hash_from_call` and then simply feed it into the `set_authorized` function (both are in `auth` library) to update the value. 
 
 When another contract later is consuming the authwit using `assert_current_call_valid_authwit_public` it will be calling the registry, and spend that authwit.
 

@@ -9,8 +9,8 @@ contract Uniswap {
     use dep::aztec::context::gas::GasOpts;
 
     use dep::authwit::auth::{
-        IS_VALID_SELECTOR, assert_current_call_valid_authwit_public, compute_call_authwit_hash,
-        compute_outer_authwit_hash, set_authorized
+        IS_VALID_SELECTOR, assert_current_call_valid_authwit_public, compute_authwit_message_hash_from_call,
+        compute_authwit_message_hash, set_authorized
     };
 
     use dep::token::Token;
@@ -166,7 +166,7 @@ contract Uniswap {
         let nonce = 0xdeadbeef;
 
         let selector = FunctionSelector::from_signature("burn_public((Field),Field,Field)");
-        let message_hash = compute_call_authwit_hash(
+        let message_hash = compute_authwit_message_hash_from_call(
             token_bridge,
             token,
             context.chain_id(),

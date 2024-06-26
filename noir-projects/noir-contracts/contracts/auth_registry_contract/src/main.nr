@@ -1,6 +1,6 @@
 contract AuthRegistry {
     use dep::aztec::{state_vars::{PublicMutable, Map}, protocol_types::address::AztecAddress};
-    use dep::authwit::auth::{IS_VALID_SELECTOR, compute_outer_authwit_hash, assert_current_call_valid_authwit};
+    use dep::authwit::auth::{IS_VALID_SELECTOR, compute_authwit_message_hash, assert_current_call_valid_authwit};
 
     #[aztec(storage)]
     struct Storage {
@@ -46,7 +46,7 @@ contract AuthRegistry {
     fn consume(on_behalf_of: AztecAddress, inner_hash: Field) -> Field {
         assert_eq(false, storage.reject_all.at(on_behalf_of).read(), "rejecting all");
 
-        let message_hash = compute_outer_authwit_hash(
+        let message_hash = compute_authwit_message_hash(
             context.msg_sender(),
             context.chain_id(),
             context.version(),

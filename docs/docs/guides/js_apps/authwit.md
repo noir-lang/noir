@@ -15,7 +15,6 @@ These are all the libraries you might need for using authwits in Aztec.js:
 import {
   computeAuthWitMessageHash,
   computeInnerAuthWitHash,
-  computeOuterAuthWitHash,
 } from "@aztec/aztec.js";
 ```
 
@@ -63,9 +62,9 @@ You can hash your own authwit message by creating an inner hash with the data, l
 
 #include_code compute_inner_authwit_hash yarn-project/end-to-end/src/e2e_authwit.test.ts typescript
 
-Then create the outer hash by hashing the inner hash with the authwit receiver address, chainId, and version:
+Then create the message hash by hashing the inner hash with the authwit receiver address, chainId, and version:
 
-#include_code compute_outer_authwit_hash yarn-project/end-to-end/src/e2e_authwit.test.ts typescript
+#include_code compute_arbitrary_authwit_hash yarn-project/end-to-end/src/e2e_authwit.test.ts typescript
 
 ## Create the authwit
 
@@ -89,9 +88,9 @@ In this example,
 - `wallets[1]` is the authwit reciever and caller of the function
 - `action` was [defined previously](#define-the-action)
 
-If you created an artbitrary message, you can create the authwit by replacing these params with the outer hash:
+If you created an arbitrary message, you can create the authwit by replacing these params with the outer hash:
 
-#include_code compute_outer_authwit_hash yarn-project/end-to-end/src/e2e_authwit.test.ts typescript
+#include_code compute_arbitrary_authwit_hash yarn-project/end-to-end/src/e2e_authwit.test.ts typescript
 
 Then add it to the wallet of the authwit receiver (the caller of the function):
 
