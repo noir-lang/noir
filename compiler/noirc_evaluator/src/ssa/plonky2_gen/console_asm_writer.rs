@@ -80,6 +80,22 @@ where
     result
 }
 
+fn booltargetiter2string(t: impl Iterator<Item = impl Borrow<BoolTarget>>) -> String {
+    let mut result = String::new();
+    write!(&mut result, "(");
+    let mut first = true;
+    for tt in t {
+        if first {
+            write!(&mut result, "{}", booltarget2string(tt.borrow()));
+            first = false;
+        } else {
+            write!(&mut result, ",{}", booltarget2string(tt.borrow()));
+        }
+    }
+    write!(&mut result, ")");
+    result
+}
+
 impl AsmWriter for ConsoleAsmWriter {
     fn get_builder(&self) -> &P2Builder {
         &self.builder
@@ -272,6 +288,16 @@ impl AsmWriter for ConsoleAsmWriter {
             result
         } else {
             self.builder.add_many(terms)
+        }
+    }
+
+    fn le_sum(&mut self, bits: impl Iterator<Item = impl Borrow<BoolTarget>> + Clone) -> Target {
+        if self.show_plonky2 {
+            let result = self.builder.le_sum(bits.clone());
+            println!("le_sum\t{},{}", booltargetiter2string(bits), target2string(result));
+            result
+        } else {
+            self.builder.le_sum(bits)
         }
     }
 }

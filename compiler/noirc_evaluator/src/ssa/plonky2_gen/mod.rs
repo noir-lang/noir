@@ -542,7 +542,7 @@ where
         let mut result = Vec::new();
         while j < 256 {
             result.push(P2Target::IntTarget(
-                self.get_mut_builder().le_sum(sha256targets.digest[j..j + 8].iter().rev()),
+                self.asm_writer.le_sum(sha256targets.digest[j..j + 8].iter().rev()),
             ));
             j += 8;
         }
@@ -794,7 +794,7 @@ where
                 let mut bits =
                     self.asm_writer.split_le(target, usize::try_from(max_bit_size).unwrap());
                 bits.truncate(usize::try_from(bit_size).unwrap());
-                let result = self.get_mut_builder().le_sum(bits.iter());
+                let result = self.asm_writer.le_sum(bits.iter());
                 // Note(stanm): truncate does not change the type of the input; it creates a value of the
                 // same type, that should then be passed to Cast.
                 let p2value = P2Value::make_integer(typ, result)?;

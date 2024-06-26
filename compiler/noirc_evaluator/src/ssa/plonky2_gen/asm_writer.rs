@@ -32,4 +32,5 @@ pub trait AsmWriter {
     fn add_many<T>(&mut self, terms: impl IntoIterator<Item = T> + Clone) -> Target
     where
         T: Borrow<Target>;
+    fn le_sum(&mut self, bits: impl Iterator<Item = impl Borrow<BoolTarget>> + Clone) -> Target;
 }
