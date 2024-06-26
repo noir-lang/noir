@@ -1343,24 +1343,17 @@ M[dstOffset:dstOffset+CONTRACT_INSTANCE_SIZE+1] = [
     Category: "Accrued Substate - Logging",
     Flags: [{ name: "indirect", description: INDIRECT_FLAG_DESCRIPTION }],
     Args: [
-      {
-        name: "eventSelectorOffset",
-        description: "memory offset of the event selector",
-      },
       { name: "logOffset", description: "memory offset of the data to log" },
       {
-        name: "logSize",
-        description: "number of words to log",
-        mode: "immediate",
-        type: "u32",
+        name: "logSizeOffset",
+        description: "memory offset to number of words to log",
       },
     ],
     Expression: `
 context.accruedSubstate.unencryptedLogs.append(
     UnencryptedLog {
         address: context.environment.address,
-        eventSelector: M[eventSelectorOffset],
-        log: M[logOffset:logOffset+logSize],
+        log: M[logOffset:logOffset+M[logSizeOffset]],
     }
 )
 `,

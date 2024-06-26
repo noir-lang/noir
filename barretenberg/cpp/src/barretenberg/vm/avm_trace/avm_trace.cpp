@@ -1504,10 +1504,14 @@ void AvmTraceBuilder::op_emit_l2_to_l1_msg(uint8_t indirect, uint32_t recipient_
     side_effect_counter++;
 }
 
-void AvmTraceBuilder::op_emit_unencrypted_log(uint8_t indirect, uint32_t log_offset)
+void AvmTraceBuilder::op_emit_unencrypted_log(uint8_t indirect,
+                                              uint32_t log_offset,
+                                              [[maybe_unused]] uint32_t log_size_offset)
 {
     auto const clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
+    // FIXME: read (and constrain) log_size_offset
+    // FIXME: we need to constrain the log_size_offset mem read (and tag check), not just one field!
     Row row = create_kernel_output_opcode(indirect, clk, log_offset);
     kernel_trace_builder.op_emit_unencrypted_log(clk, side_effect_counter, row.main_ia);
     row.main_sel_op_emit_unencrypted_log = FF(1);

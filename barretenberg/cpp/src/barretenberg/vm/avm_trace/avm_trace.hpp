@@ -116,7 +116,7 @@ class AvmTraceBuilder {
     // With single output values
     void op_emit_note_hash(uint8_t indirect, uint32_t note_hash_offset);
     void op_emit_nullifier(uint8_t indirect, uint32_t nullifier_offset);
-    void op_emit_unencrypted_log(uint8_t indirect, uint32_t log_offset);
+    void op_emit_unencrypted_log(uint8_t indirect, uint32_t log_offset, uint32_t log_size_offset);
     void op_emit_l2_to_l1_msg(uint8_t indirect, uint32_t msg_offset, uint32_t recipient_offset);
     void op_get_contract_instance(uint8_t indirect, uint32_t address_offset, uint32_t dst_offset);
 

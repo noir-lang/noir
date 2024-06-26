@@ -1650,6 +1650,7 @@ TEST_F(AvmExecutionTests, kernelOutputEmitOpcodes)
                                + to_hex(OpCode::EMITUNENCRYPTEDLOG) + // opcode EMITUNENCRYPTEDLOG
                                "00"                                   // Indirect flag
                                "00000001"                             // src offset 1
+                               "00000002"                             // src size offset
                                + to_hex(OpCode::SENDL2TOL1MSG) +      // opcode SENDL2TOL1MSG
                                "00"                                   // Indirect flag
                                "00000001"                             // src offset 1

@@ -533,7 +533,8 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
             break;
         case OpCode::EMITUNENCRYPTEDLOG:
             trace_builder.op_emit_unencrypted_log(std::get<uint8_t>(inst.operands.at(0)),
-                                                  std::get<uint32_t>(inst.operands.at(1)));
+                                                  std::get<uint32_t>(inst.operands.at(1)),
+                                                  std::get<uint32_t>(inst.operands.at(2)));
             break;
         case OpCode::SENDL2TOL1MSG:
             trace_builder.op_emit_l2_to_l1_msg(std::get<uint8_t>(inst.operands.at(0)),

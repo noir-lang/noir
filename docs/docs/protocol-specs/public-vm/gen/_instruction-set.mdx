@@ -434,8 +434,7 @@ if exists:
 {`context.accruedSubstate.unencryptedLogs.append(
     UnencryptedLog {
         address: context.environment.address,
-        eventSelector: M[eventSelectorOffset],
-        log: M[logOffset:logOffset+logSize],
+        log: M[logOffset:logOffset+M[logSizeOffset]],
     }
 )`}
 	</CodeBlock></td>
@@ -1605,20 +1604,18 @@ Emit an unencrypted log
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
-	- **eventSelectorOffset**: memory offset of the event selector
 	- **logOffset**: memory offset of the data to log
-	- **logSize**: number of words to log
+	- **logSizeOffset**: memory offset to number of words to log
 - **Expression**: 
 <CodeBlock language="jsx">
 {`context.accruedSubstate.unencryptedLogs.append(
     UnencryptedLog {
         address: context.environment.address,
-        eventSelector: M[eventSelectorOffset],
-        log: M[logOffset:logOffset+logSize],
+        log: M[logOffset:logOffset+M[logSizeOffset]],
     }
 )`}
 </CodeBlock>
-- **Bit-size**: 120
+- **Bit-size**: 88
 
 [![](/img/protocol-specs/public-vm/bit-formats/EMITUNENCRYPTEDLOG.png)](/img/protocol-specs/public-vm/bit-formats/EMITUNENCRYPTEDLOG.png)
 

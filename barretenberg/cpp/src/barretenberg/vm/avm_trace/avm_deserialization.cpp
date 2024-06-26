@@ -67,9 +67,22 @@ const std::unordered_map<OpCode, std::vector<OperandType>> OPCODE_WIRE_FORMAT = 
 
     { OpCode::GETCONTRACTINSTANCE, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32 } },
     // TODO: ordering inline with spec
-    { OpCode::EMITNOTEHASH, getter_format },  // TODO: new format for these
-    { OpCode::EMITNULLIFIER, getter_format }, // TODO: new format for these
-    { OpCode::EMITUNENCRYPTEDLOG, getter_format },
+    { OpCode::EMITNOTEHASH,
+      {
+          OperandType::INDIRECT,
+          OperandType::UINT32,
+      } }, // TODO: new format for these
+    { OpCode::EMITNULLIFIER,
+      {
+          OperandType::INDIRECT,
+          OperandType::UINT32,
+      } }, // TODO: new format for these
+    { OpCode::EMITUNENCRYPTEDLOG,
+      {
+          OperandType::INDIRECT,
+          OperandType::UINT32,
+          OperandType::UINT32,
+      } },
     { OpCode::SENDL2TOL1MSG, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32 } },
     { OpCode::SLOAD, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32 } },
     { OpCode::SSTORE, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32 } },

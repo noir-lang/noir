@@ -1022,12 +1022,12 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitUnencryptedLog)
     // We write the note hash into memory
     auto direct_apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, 1234, direct_offset, AvmMemoryTag::FF);
-        trace_builder.op_emit_unencrypted_log(/*indirect=*/false, direct_offset);
+        trace_builder.op_emit_unencrypted_log(/*indirect=*/false, direct_offset, /*log_size_offset=*/0);
     };
     auto indirect_apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, 1234, direct_offset, AvmMemoryTag::FF);
         trace_builder.op_set(0, direct_offset, indirect_offset, AvmMemoryTag::U32);
-        trace_builder.op_emit_unencrypted_log(/*indirect=*/true, indirect_offset);
+        trace_builder.op_emit_unencrypted_log(/*indirect=*/true, indirect_offset, /*log_size_offset=*/0);
     };
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
