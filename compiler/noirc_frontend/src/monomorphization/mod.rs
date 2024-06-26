@@ -24,7 +24,8 @@ use acvm::{acir::AcirField, FieldElement};
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
-use num_traits::Signed;
+use num_bigint::BigInt;
+use num_traits::Zero;
 use std::{
     collections::{BTreeMap, HashMap, VecDeque},
     unreachable,
@@ -418,22 +419,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Literal(HirLiteral::Integer(value)) => {
                 let location = self.interner.id_location(expr);
                 let typ = Self::convert_type(&self.interner.id_type(expr), location)?;
-                let negative = value.is_negative();
-                let field = crate::utils::field_element_from_big_int(&value);
-
-                if negative {
-                    match typ {
-                        ast::Type::Field => Literal(Integer(-field, typ, location)),
-                        ast::Type::Integer(_, bit_size) => {
-                            let bit_size: u32 = bit_size.into();
-                            let base = 1_u128 << bit_size;
-                            Literal(Integer(FieldElement::from(base) - field, typ, location))
-                        }
-                        _ => unreachable!("Integer literal must be numeric"),
-                    }
-                } else {
-                    Literal(Integer(field, typ, location))
-                }
+                Literal(Integer(value, typ, location))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
                 HirArrayLiteral::Standard(array) => self.standard_array(expr, array, false)?,
@@ -910,10 +896,9 @@ impl<'interner> Monomorphizer<'interner> {
                     }),
                 };
 
-                let value = FieldElement::from(value as u128);
                 let location = self.interner.id_location(expr_id);
                 let typ = Self::convert_type(&typ, ident.location)?;
-                ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
+                ast::Expression::Literal(ast::Literal::Integer(value.into(), typ, location))
             }
         };
 
@@ -1744,7 +1729,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // of the fact the Ordering struct contains a single Field type, and our SSA
                 // pass will automatically unpack tuple values.
                 let ordering_value = if matches!(operator.kind, Less | GreaterEqual) {
-                    FieldElement::zero() // Ordering::Less
+                    BigInt::zero() // Ordering::Less
                 } else {
                     2u128.into() // Ordering::Greater
                 };

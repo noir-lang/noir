@@ -7,9 +7,9 @@
 //! An Error of the former is a user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
+use num_bigint::BigInt;
 use thiserror::Error;
 
 use crate::ssa::ir::{dfg::CallStack, types::NumericType};
@@ -24,7 +24,7 @@ pub enum RuntimeError {
     #[error("Range constraint of {num_bits} bits is too large for the Field size")]
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
     #[error("{value} does not fit within the type bounds for {typ}")]
-    IntegerOutOfBounds { value: FieldElement, typ: NumericType, call_stack: CallStack },
+    IntegerOutOfBounds { value: BigInt, typ: NumericType, call_stack: CallStack },
     #[error("Expected array index to fit into a u64")]
     TypeConversion { from: String, into: String, call_stack: CallStack },
     #[error("{name:?} is not initialized")]

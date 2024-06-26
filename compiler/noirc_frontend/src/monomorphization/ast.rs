@@ -1,9 +1,9 @@
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{
     debug_info::{DebugFunctions, DebugTypes, DebugVariables},
     Location,
 };
+use num_bigint::BigInt;
 
 use crate::hir_def::function::FunctionSignature;
 use crate::{
@@ -93,7 +93,7 @@ pub struct For {
 pub enum Literal {
     Array(ArrayLiteral),
     Slice(ArrayLiteral),
-    Integer(FieldElement, Type, Location),
+    Integer(BigInt, Type, Location),
     Bool(bool),
     Unit,
     Str(String),

@@ -222,7 +222,7 @@ impl<'a> FunctionContext<'a> {
             ast::Literal::Integer(value, typ, location) => {
                 self.builder.set_location(*location);
                 let typ = Self::convert_non_tuple_type(typ);
-                self.checked_numeric_constant(*value, typ).map(Into::into)
+                self.checked_numeric_constant(value, typ).map(Into::into)
             }
             ast::Literal::Bool(value) => {
                 // Don't need to call checked_numeric_constant here since `value` can only be true or false

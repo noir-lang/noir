@@ -7,6 +7,7 @@ use noirc_errors::Location;
 use noirc_frontend::ast::{BinaryOpKind, Signedness};
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
+use num_bigint::BigInt;
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
@@ -18,6 +19,7 @@ use crate::ssa::ir::instruction::Instruction;
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
+use num_traits::sign::Signed;
 
 use super::value::{Tree, Value, Values};
 use super::SSA_WORD_SIZE;
@@ -265,21 +267,38 @@ impl<'a> FunctionContext<'a> {
     /// otherwise values like 2^128 can be assigned to a u8 without error or wrapping.
     pub(super) fn checked_numeric_constant(
         &mut self,
-        value: impl Into<FieldElement>,
+        value: &BigInt,
         typ: Type,
     ) -> Result<ValueId, RuntimeError> {
-        let value = value.into();
+        let negative = value.is_negative();
+        let field = noirc_frontend::utils::field_element_from_big_int(value);
 
-        if let Type::Numeric(typ) = typ {
-            if !typ.value_is_within_limits(value) {
+        if let Type::Numeric(numeric_type) = typ {
+            if !numeric_type.value_is_within_limits(value) {
                 let call_stack = self.builder.get_call_stack();
-                return Err(RuntimeError::IntegerOutOfBounds { value, typ, call_stack });
+                return Err(RuntimeError::IntegerOutOfBounds {
+                    value: value.clone(),
+                    typ: numeric_type,
+                    call_stack,
+                });
             }
+
+            let field = if negative {
+                match numeric_type {
+                    NumericType::NativeField => -field,
+                    NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
+                        let base = 1_u128 << bit_size;
+                        FieldElement::from(base) - field
+                    }
+                }
+            } else {
+                field
+            };
+
+            Ok(self.builder.numeric_constant(field, typ))
         } else {
             panic!("Expected type for numeric constant to be a numeric type, found {typ}");
         }
-
-        Ok(self.builder.numeric_constant(value, typ))
     }
 
     /// helper function which add instructions to the block computing the absolute value of the

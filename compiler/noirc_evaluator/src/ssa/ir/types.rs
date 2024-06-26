@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
+use num_bigint::BigInt;
 
 use crate::ssa::ssa_gen::SSA_WORD_SIZE;
 
@@ -31,11 +32,10 @@ impl NumericType {
 
     /// Returns true if the given Field value is within the numeric limits
     /// for the current NumericType.
-    pub(crate) fn value_is_within_limits(self, field: FieldElement) -> bool {
+    pub(crate) fn value_is_within_limits(self, value: &BigInt) -> bool {
         match self {
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                let max = 2u128.pow(bit_size) - 1;
-                field <= max.into()
+                value.bits() <= bit_size.into()
             }
             NumericType::NativeField => true,
         }
