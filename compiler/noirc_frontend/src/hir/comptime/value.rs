@@ -5,7 +5,7 @@ use chumsky::Parser;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
-use num_bigint::{BigInt, Sign};
+use num_bigint::{BigInt, BigUint, Sign};
 
 use crate::{
     ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness},
@@ -92,8 +92,9 @@ impl Value {
             Value::Unit => ExpressionKind::Literal(Literal::Unit),
             Value::Bool(value) => ExpressionKind::Literal(Literal::Bool(value)),
             Value::Field(value) => {
-                let value = BigInt::from_bytes_be(Sign::NoSign, &value.to_be_bytes());
-                ExpressionKind::Literal(Literal::Integer(value))
+                let big_uint = BigUint::from_bytes_be(&value.to_be_bytes());
+                let big_int = BigInt::from_biguint(Sign::Plus, big_uint);
+                ExpressionKind::Literal(Literal::Integer(big_int))
             }
             Value::I8(value) => ExpressionKind::Literal(Literal::Integer(value.into())),
             Value::I16(value) => ExpressionKind::Literal(Literal::Integer(value.into())),
