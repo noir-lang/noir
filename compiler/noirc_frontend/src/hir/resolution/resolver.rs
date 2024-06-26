@@ -612,6 +612,7 @@ impl<'a> Resolver<'a> {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element)))
             }
             Parenthesized(typ) => self.resolve_type_inner(*typ),
+            Resolved(id) => self.interner.get_quoted_type(id).clone(),
         };
 
         if let Type::Struct(_, _) = resolved_type {
@@ -1113,6 +1114,7 @@ impl<'a> Resolver<'a> {
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
             is_entry_point: self.is_entry_point_function(func),
             has_inline_attribute,
+            source_crate: self.path_resolver.module_id().krate,
 
             // These fields are only used by the elaborator
             all_generics: Vec::new(),

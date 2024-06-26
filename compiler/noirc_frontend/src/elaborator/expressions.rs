@@ -664,7 +664,8 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_comptime_block(&mut self, block: BlockExpression, span: Span) -> (ExprId, Type) {
         let (block, _typ) = self.elaborate_block_expression(block);
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        let mut interpreter =
+            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
         let value = interpreter.evaluate_block(block);
         self.inline_comptime_value(value, span)
     }
@@ -737,7 +738,8 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        let mut interpreter =
+            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
 
         let mut comptime_args = Vec::new();
         let mut errors = Vec::new();

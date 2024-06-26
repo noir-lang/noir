@@ -710,6 +710,7 @@ impl<'context> Elaborator<'context> {
             is_entry_point,
             is_trait_function,
             has_inline_attribute,
+            source_crate: self.crate_id,
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.span),
         };
 
@@ -1237,8 +1238,11 @@ impl<'context> Elaborator<'context> {
                         let definition = self.interner.definition(id);
                         if let DefinitionKind::Function(function) = &definition.kind {
                             let function = *function;
-                            let mut interpreter =
-                                Interpreter::new(self.interner, &mut self.comptime_scopes);
+                            let mut interpreter = Interpreter::new(
+                                self.interner,
+                                &mut self.comptime_scopes,
+                                self.crate_id,
+                            );
 
                             let location = Location::new(span, self.file);
                             let arguments = vec![(Value::TypeDefinition(struct_id), location)];
@@ -1332,7 +1336,8 @@ impl<'context> Elaborator<'context> {
         let definition_id = global.definition_id;
         let location = global.location;
 
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        let mut interpreter =
+            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
 
         if let Err(error) = interpreter.evaluate_let(let_statement) {
             self.errors.push(error.into_compilation_error_pair());
