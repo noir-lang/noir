@@ -1,4 +1,4 @@
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use fm::FileId;
 use noirc_errors::Location;
 use num_bigint::{BigInt, Sign};
@@ -118,8 +118,8 @@ pub enum HirLiteral {
 impl HirLiteral {
     pub fn from_big_int(big_int: &BigInt) -> Self {
         let is_negative = big_int.sign() == Sign::Minus;
-        let field = FieldElement::try_from_str(&big_int.to_string())
-            .expect("ice: failed to convert BigInt to FieldElement");
+        let big_uint = big_int.magnitude();
+        let field = FieldElement::from_be_bytes_reduce(&big_uint.to_bytes_be());
         HirLiteral::Integer(field, is_negative)
     }
 }
