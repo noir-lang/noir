@@ -10,10 +10,9 @@ use crate::{
     GENERATOR_INDEX__VK, GENERATOR_INDEX__NOTE_HASH_NONCE, GENERATOR_INDEX__UNIQUE_NOTE_HASH,
     MAX_ENCRYPTED_LOGS_PER_TX, MAX_NOTE_ENCRYPTED_LOGS_PER_TX
 },
-    contract_class_id::ContractClassId, merkle_tree::root::root_from_sibling_path,
-    messaging::l2_to_l1_message::{L2ToL1Message, ScopedL2ToL1Message},
-    recursion::verification_key::VerificationKey, traits::{Hash, is_empty},
-    utils::{uint256::U256, field::field_from_bytes_32_trunc}
+    merkle_tree::root::root_from_sibling_path, messaging::l2_to_l1_message::ScopedL2ToL1Message,
+    recursion::verification_key::VerificationKey, traits::is_empty,
+    utils::field::field_from_bytes_32_trunc
 };
 use dep::std::hash::{pedersen_hash_with_separator, sha256};
 
@@ -35,11 +34,12 @@ pub fn private_functions_root_from_siblings(
     root_from_sibling_path(function_leaf, function_leaf_index, function_leaf_sibling_path)
 }
 
-pub fn compute_note_hash_nonce(first_nullifier: Field, note_hash_index: u32) -> Field {
+fn compute_note_hash_nonce(tx_hash: Field, note_index_in_tx: u32) -> Field {
+    // Hashing tx hash with note index in tx is guaranteed to be unique
     pedersen_hash(
         [
-        first_nullifier,
-        note_hash_index as Field
+        tx_hash,
+        note_index_in_tx as Field
     ],
         GENERATOR_INDEX__NOTE_HASH_NONCE
     )
@@ -60,11 +60,11 @@ pub fn compute_siloed_note_hash(app: AztecAddress, unique_note_hash: Field) -> F
     )
 }
 
-pub fn silo_note_hash(note_hash: ScopedNoteHash, first_nullifier: Field, index: u32) -> Field {
+pub fn silo_note_hash(note_hash: ScopedNoteHash, tx_hash: Field, note_index_in_tx: u32) -> Field {
     if note_hash.contract_address.is_zero() {
         0
     } else {
-        let nonce = compute_note_hash_nonce(first_nullifier, index);
+        let nonce = compute_note_hash_nonce(tx_hash, note_index_in_tx);
         let unique_note_hash = compute_unique_note_hash(nonce, note_hash.value());
         compute_siloed_note_hash(note_hash.contract_address, unique_note_hash)
     }

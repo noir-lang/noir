@@ -70,11 +70,11 @@ impl KernelCircuitOutputValidator {
     }
 
     fn validate_propagated_sorted_siloed_values(self, hints: Hints) {
-        // new_note_hashes
-        let first_nullifier = self.output.end.new_nullifiers[0];
+        // First nullifier is tx hash.
+        let tx_hash = self.output.end.new_nullifiers[0];
         let unsiloed_note_hashes = self.previous_kernel.end.new_note_hashes;
         for i in 0..unsiloed_note_hashes.len() {
-            let siloed_note_hash = silo_note_hash(unsiloed_note_hashes[i], first_nullifier, i);
+            let siloed_note_hash = silo_note_hash(unsiloed_note_hashes[i], tx_hash, i);
             assert_eq(hints.siloed_note_hashes[i], siloed_note_hash, "mismatch siloed note hashes");
         }
 

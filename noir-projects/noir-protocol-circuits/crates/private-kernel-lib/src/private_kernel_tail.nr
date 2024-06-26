@@ -123,10 +123,11 @@ mod tests {
         // A helper function that uses the first nullifer in the previous kernel to compute the unique siloed
         // note_hashes for the given note_hashes.
         pub fn compute_output_note_hashes<N>(self, note_hashes: [ScopedNoteHash; N]) -> [Field; N] {
-            let first_nullifier = self.previous_kernel.new_nullifiers.get_unchecked(0).value();
+            // First nullifier is tx hash.
+            let tx_hash = self.previous_kernel.new_nullifiers.get_unchecked(0).value();
             let mut output = [0; N];
             for i in 0..N {
-                output[i] = silo_note_hash(note_hashes[i], first_nullifier, i);
+                output[i] = silo_note_hash(note_hashes[i], tx_hash, i);
             }
             output
         }

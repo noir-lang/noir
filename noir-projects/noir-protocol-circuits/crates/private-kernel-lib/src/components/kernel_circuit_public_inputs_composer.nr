@@ -129,15 +129,14 @@ impl KernelCircuitPublicInputsComposer {
     }
 
     fn silo_note_hashes(&mut self) {
-        let first_nullifier = self.public_inputs.end.new_nullifiers.get_unchecked(0).value();
-        // This check is unnecessary. The 0th nullifier will always be set a non-zero value in private_kernel_init.
-        // assert(first_nullifier != 0, "The 0th nullifier in the accumulated nullifier array is zero");
+        // First nullifier is tx hash.
+        let tx_hash = self.public_inputs.end.new_nullifiers.get_unchecked(0).value();
 
         let note_hashes = self.public_inputs.end.new_note_hashes.storage;
         for i in 0..note_hashes.len() {
             self.public_inputs.end.new_note_hashes.storage[i].note_hash.value = silo_note_hash(
                 note_hashes[i],
-                first_nullifier,
+                tx_hash,
                 i
             );
         }

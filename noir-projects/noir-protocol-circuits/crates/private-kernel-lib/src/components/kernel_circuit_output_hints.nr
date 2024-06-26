@@ -44,10 +44,12 @@ unconstrained pub fn generate_hints(previous_kernel: PrivateKernelCircuitPublicI
     let sorted_note_hash_hints = sort_get_order_hints_asc(previous_kernel.end.new_note_hashes);
 
     let mut siloed_note_hashes = [0; MAX_NEW_NOTE_HASHES_PER_TX];
-    let first_nullifier = previous_kernel.end.new_nullifiers[0].value();
+
+    // First nullifier is tx hash.
+    let tx_hash = previous_kernel.end.new_nullifiers[0].value();
     let unsiloed_note_hashes = previous_kernel.end.new_note_hashes;
     for i in 0..unsiloed_note_hashes.len() {
-        siloed_note_hashes[i] = silo_note_hash(unsiloed_note_hashes[i], first_nullifier, i);
+        siloed_note_hashes[i] = silo_note_hash(unsiloed_note_hashes[i], tx_hash, i);
     }
 
     // nullifiers

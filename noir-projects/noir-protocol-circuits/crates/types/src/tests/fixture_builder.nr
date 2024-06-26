@@ -430,10 +430,11 @@ impl FixtureBuilder {
     }
 
     pub fn add_siloed_note_hash(&mut self, value: Field) {
-        let first_nullifier = self.new_nullifiers.get(0).value();
+        // First nullifier is tx hash.
+        let tx_hash = self.new_nullifiers.get(0).value();
         let index = self.new_note_hashes.len();
         let note_hash = NoteHash { value, counter: 0 }.scope(0, self.storage_contract_address);
-        let siloed_value = silo_note_hash(note_hash, first_nullifier, index);
+        let siloed_value = silo_note_hash(note_hash, tx_hash, index);
         self.add_new_note_hash(siloed_value, 0);
     }
 
