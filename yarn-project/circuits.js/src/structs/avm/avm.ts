@@ -243,6 +243,7 @@ export class AvmContractInstanceHint {
   }
 }
 
+// TODO(dbanks12): rename AvmCircuitHints
 export class AvmExecutionHints {
   public readonly storageValues: Vector<AvmKeyValueHint>;
   public readonly noteHashExists: Vector<AvmKeyValueHint>;
@@ -265,6 +266,14 @@ export class AvmExecutionHints {
     this.l1ToL2MessageExists = new Vector(l1ToL2MessageExists);
     this.externalCalls = new Vector(externalCalls);
     this.contractInstances = new Vector(contractInstances);
+  }
+
+  /**
+   * Return an empty instance.
+   * @returns an empty instance.
+   */
+  empty() {
+    return new AvmExecutionHints([], [], [], [], [], []);
   }
 
   /**

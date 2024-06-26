@@ -28,6 +28,13 @@ export class PublicStorage {
   }
 
   /**
+   * Create a new public storage manager forked from this one
+   */
+  public fork() {
+    return new PublicStorage(this.hostPublicStorage, this);
+  }
+
+  /**
    * Get the pending storage.
    */
   public getCache() {
@@ -71,6 +78,9 @@ export class PublicStorage {
     // Finally try the host's Aztec state (a trip to the database)
     if (!value) {
       value = await this.hostPublicStorage.storageRead(storageAddress, slot);
+      // TODO(dbanks12): if value retrieved from host storage, we can cache it here
+      // any future reads to the same slot can read from cache instead of more expensive
+      // DB access
     } else {
       cached = true;
     }

@@ -9,17 +9,29 @@ import type { CommitmentsDB } from '../../index.js';
  * Maintains a nullifier cache, and ensures that existence checks fall back to the correct source.
  * When a contract call completes, its cached nullifier set can be merged into its parent's.
  */
-export class Nullifiers {
-  /** Cached nullifiers. */
-  public cache: NullifierCache;
-
+export class NullifierManager {
   constructor(
     /** Reference to node storage. Checked on parent cache-miss. */
     private readonly hostNullifiers: CommitmentsDB,
-    /** Parent's nullifiers. Checked on this' cache-miss. */
-    private readonly parent?: Nullifiers | undefined,
-  ) {
-    this.cache = new NullifierCache();
+    /** Cached nullifiers. */
+    private readonly cache: NullifierCache = new NullifierCache(),
+    /** Parent nullifier manager to fall back on */
+    private readonly parent?: NullifierManager,
+  ) {}
+
+  /**
+   * Create a new nullifiers manager with some preloaded pending siloed nullifiers
+   */
+  public static newWithPendingSiloedNullifiers(hostNullifiers: CommitmentsDB, pendingSiloedNullifiers: Fr[]) {
+    const cache = new NullifierCache(pendingSiloedNullifiers);
+    return new NullifierManager(hostNullifiers, cache);
+  }
+
+  /**
+   * Create a new nullifiers manager forked from this one
+   */
+  public fork() {
+    return new NullifierManager(this.hostNullifiers, new NullifierCache(), this);
   }
 
   /**
@@ -92,7 +104,7 @@ export class Nullifiers {
    *
    * @param incomingNullifiers - the incoming cached nullifiers to merge into this instance's
    */
-  public acceptAndMerge(incomingNullifiers: Nullifiers) {
+  public acceptAndMerge(incomingNullifiers: NullifierManager) {
     this.cache.acceptAndMerge(incomingNullifiers.cache);
   }
 }
@@ -110,6 +122,15 @@ export class NullifierCache {
    */
   private cachePerContract: Map<bigint, Set<bigint>> = new Map();
   private siloedNullifiers: Set<bigint> = new Set();
+
+  /**
+   * @parem siloedNullifierFrs: optional list of pending siloed nullifiers to initialize this cache with
+   */
+  constructor(siloedNullifierFrs?: Fr[]) {
+    if (siloedNullifierFrs !== undefined) {
+      siloedNullifierFrs.forEach(nullifier => this.siloedNullifiers.add(nullifier.toBigInt()));
+    }
+  }
 
   /**
    * Check whether a nullifier exists in the cache.
@@ -145,10 +166,6 @@ export class NullifierCache {
       this.cachePerContract.set(storageAddress.toBigInt(), nullifiersForContract);
     }
     nullifiersForContract.add(nullifier.toBigInt());
-  }
-
-  public appendSiloed(siloedNullifier: Fr) {
-    this.siloedNullifiers.add(siloedNullifier.toBigInt());
   }
 
   /**

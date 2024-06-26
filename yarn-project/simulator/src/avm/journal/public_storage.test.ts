@@ -44,7 +44,7 @@ describe('avm public storage', () => {
       const slot = new Fr(2);
       const storedValue = new Fr(420);
       // ensure that fallback to host gets a value
-      publicDb.storageRead.mockResolvedValue(Promise.resolve(storedValue));
+      publicDb.storageRead.mockResolvedValue(storedValue);
 
       const { exists, value: gotValue, cached } = await publicStorage.read(contractAddress, slot);
       // it exists in the host, so it must've been written before
@@ -90,7 +90,7 @@ describe('avm public storage', () => {
       const parentValue = new Fr(69);
       const cachedValue = new Fr(1337);
 
-      publicDb.storageRead.mockResolvedValue(Promise.resolve(storedValue));
+      publicDb.storageRead.mockResolvedValue(storedValue);
       const childStorage = new PublicStorage(publicDb, publicStorage);
 
       // Cache miss falls back to host

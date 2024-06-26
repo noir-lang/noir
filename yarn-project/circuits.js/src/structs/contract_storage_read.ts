@@ -23,30 +23,19 @@ export class ContractStorageRead {
     /**
      * Side effect counter tracking position of this event in tx execution.
      */
-    public readonly sideEffectCounter: number,
+    public readonly counter: number,
+    /**
+     * Contract address whose storage is being read.
+     */
     public contractAddress?: AztecAddress, // TODO: Should not be optional. This is a temporary hack to silo the storage slot with the correct address for nested executions.
   ) {}
 
-  static from(args: {
-    /**
-     * Storage slot we are reading from.
-     */
-    storageSlot: Fr;
-    /**
-     * Value read from the storage slot.
-     */
-    currentValue: Fr;
-    /**
-     * Side effect counter tracking position of this event in tx execution.
-     */
-    sideEffectCounter: number;
-    contractAddress?: AztecAddress;
-  }) {
-    return new ContractStorageRead(args.storageSlot, args.currentValue, args.sideEffectCounter, args.contractAddress);
+  static from(args: { storageSlot: Fr; currentValue: Fr; counter: number; contractAddress?: AztecAddress }) {
+    return new ContractStorageRead(args.storageSlot, args.currentValue, args.counter, args.contractAddress);
   }
 
   toBuffer() {
-    return serializeToBuffer(this.storageSlot, this.currentValue, new Fr(this.sideEffectCounter));
+    return serializeToBuffer(this.storageSlot, this.currentValue, new Fr(this.counter));
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {
@@ -59,7 +48,7 @@ export class ContractStorageRead {
   }
 
   isEmpty() {
-    return this.storageSlot.isZero() && this.currentValue.isZero() && this.sideEffectCounter == 0;
+    return this.storageSlot.isZero() && this.currentValue.isZero() && this.counter == 0;
   }
 
   toFriendlyJSON() {
@@ -67,7 +56,7 @@ export class ContractStorageRead {
   }
 
   toFields(): Fr[] {
-    const fields = [this.storageSlot, this.currentValue, new Fr(this.sideEffectCounter)];
+    const fields = [this.storageSlot, this.currentValue, new Fr(this.counter)];
     if (fields.length !== CONTRACT_STORAGE_READ_LENGTH) {
       throw new Error(
         `Invalid number of fields for ContractStorageRead. Expected ${CONTRACT_STORAGE_READ_LENGTH}, got ${fields.length}`,
@@ -81,8 +70,8 @@ export class ContractStorageRead {
 
     const storageSlot = reader.readField();
     const currentValue = reader.readField();
-    const sideEffectCounter = reader.readField().toNumber();
+    const counter = reader.readField().toNumber();
 
-    return new ContractStorageRead(storageSlot, currentValue, sideEffectCounter);
+    return new ContractStorageRead(storageSlot, currentValue, counter);
   }
 }

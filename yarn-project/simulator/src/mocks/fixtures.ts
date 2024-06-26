@@ -143,7 +143,7 @@ export class PublicExecutionResultBuilder {
       endGasLeft: Gas.test(),
       transactionFee: Fr.ZERO,
       calldata: [],
-      avmHints: AvmExecutionHints.empty(),
+      avmCircuitHints: AvmExecutionHints.empty(),
       functionName: 'unknown',
       ...overrides,
     };

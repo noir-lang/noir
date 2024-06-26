@@ -16,6 +16,7 @@ describe('Avm Context', () => {
       allSameExcept(context.environment, {
         address: newAddress,
         storageAddress: newAddress,
+        contractCallDepth: Fr.ONE,
         // Calldata also includes AvmContextInputs
         calldata: anyAvmContextInputs().concat(newCalldata),
         isStaticCall: false,
@@ -46,6 +47,7 @@ describe('Avm Context', () => {
       allSameExcept(context.environment, {
         address: newAddress,
         storageAddress: newAddress,
+        contractCallDepth: Fr.ONE,
         // Calldata also includes AvmContextInputs
         calldata: anyAvmContextInputs().concat(newCalldata),
         isStaticCall: true,

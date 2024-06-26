@@ -1,21 +1,31 @@
-import { AztecAddress, Fr } from '@aztec/circuits.js';
-import { type ContractInstanceWithAddress } from '@aztec/types/contracts';
+import { randomContractInstanceWithAddress } from '@aztec/circuit-types';
+import { AztecAddress } from '@aztec/circuits.js';
+import { SerializableContractInstance } from '@aztec/types/contracts';
 
 import { mock } from 'jest-mock-extended';
 
-import { type PublicContractsDB } from '../../public/db_interfaces.js';
+import { type PublicSideEffectTraceInterface } from '../../public/side_effect_trace_interface.js';
 import { type AvmContext } from '../avm_context.js';
 import { Field } from '../avm_memory_types.js';
-import { initContext, initHostStorage } from '../fixtures/index.js';
-import { AvmPersistableStateManager } from '../journal/journal.js';
+import { initContext, initHostStorage, initPersistableStateManager } from '../fixtures/index.js';
+import { type HostStorage } from '../journal/host_storage.js';
+import { type AvmPersistableStateManager } from '../journal/journal.js';
+import { mockGetContractInstance } from '../test_utils.js';
 import { GetContractInstance } from './contract.js';
 
 describe('Contract opcodes', () => {
-  let context: AvmContext;
   const address = AztecAddress.random();
 
-  beforeEach(async () => {
-    context = initContext();
+  let hostStorage: HostStorage;
+  let trace: PublicSideEffectTraceInterface;
+  let persistableState: AvmPersistableStateManager;
+  let context: AvmContext;
+
+  beforeEach(() => {
+    hostStorage = initHostStorage();
+    trace = mock<PublicSideEffectTraceInterface>();
+    persistableState = initPersistableStateManager({ hostStorage, trace });
+    context = initContext({ persistableState });
   });
 
   describe('GETCONTRACTINSTANCE', () => {
@@ -37,22 +47,10 @@ describe('Contract opcodes', () => {
     });
 
     it('should copy contract instance to memory if found', async () => {
+      const contractInstance = randomContractInstanceWithAddress(/*(base instance) opts=*/ {}, /*address=*/ address);
+      mockGetContractInstance(hostStorage, contractInstance);
+
       context.machineState.memory.set(0, new Field(address.toField()));
-
-      const contractInstance = {
-        address: address,
-        version: 1 as const,
-        salt: new Fr(20),
-        contractClassId: new Fr(30),
-        initializationHash: new Fr(40),
-        publicKeysHash: new Fr(50),
-        deployer: AztecAddress.random(),
-      } as ContractInstanceWithAddress;
-
-      const contractsDb = mock<PublicContractsDB>();
-      contractsDb.getContractInstance.mockResolvedValue(Promise.resolve(contractInstance));
-      context.persistableState = new AvmPersistableStateManager(initHostStorage({ contractsDb }));
-
       await new GetContractInstance(/*indirect=*/ 0, /*addressOffset=*/ 0, /*dstOffset=*/ 1).execute(context);
 
       const actual = context.machineState.memory.getSlice(1, 6);
@@ -64,9 +62,13 @@ describe('Contract opcodes', () => {
         new Field(contractInstance.initializationHash),
         new Field(contractInstance.publicKeysHash),
       ]);
+
+      expect(trace.traceGetContractInstance).toHaveBeenCalledTimes(1);
+      expect(trace.traceGetContractInstance).toHaveBeenCalledWith({ exists: true, ...contractInstance });
     });
 
     it('should return zeroes if not found', async () => {
+      const emptyContractInstance = SerializableContractInstance.empty().withAddress(address);
       context.machineState.memory.set(0, new Field(address.toField()));
 
       await new GetContractInstance(/*indirect=*/ 0, /*addressOffset=*/ 0, /*dstOffset=*/ 1).execute(context);
@@ -80,6 +82,9 @@ describe('Contract opcodes', () => {
         new Field(0),
         new Field(0),
       ]);
+
+      expect(trace.traceGetContractInstance).toHaveBeenCalledTimes(1);
+      expect(trace.traceGetContractInstance).toHaveBeenCalledWith({ exists: false, ...emptyContractInstance });
     });
   });
 });

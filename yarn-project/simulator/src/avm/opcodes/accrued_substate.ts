@@ -201,7 +201,11 @@ export class L1ToL2MessageExists extends Instruction {
 
     const msgHash = memory.get(msgHashOffset).toFr();
     const msgLeafIndex = memory.get(msgLeafIndexOffset).toFr();
-    const exists = await context.persistableState.checkL1ToL2MessageExists(msgHash, msgLeafIndex);
+    const exists = await context.persistableState.checkL1ToL2MessageExists(
+      context.environment.address,
+      msgHash,
+      msgLeafIndex,
+    );
     memory.set(existsOffset, exists ? new Uint8(1) : new Uint8(0));
 
     memory.assert(memoryOperations);
@@ -252,7 +256,7 @@ export class EmitUnencryptedLog extends Instruction {
     const memoryOperations = { reads: 2 + logSize, indirect: this.indirect };
     context.machineState.consumeGas(this.gasCost(memoryOperations));
     const log = memory.getSlice(logOffset, logSize).map(f => f.toFr());
-    context.persistableState.writeLog(contractAddress, event, log);
+    context.persistableState.writeUnencryptedLog(contractAddress, event, log);
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();
@@ -285,7 +289,7 @@ export class SendL2ToL1Message extends Instruction {
 
     const recipient = memory.get(recipientOffset).toFr();
     const content = memory.get(contentOffset).toFr();
-    context.persistableState.writeL1Message(recipient, content);
+    context.persistableState.writeL2ToL1Message(recipient, content);
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();

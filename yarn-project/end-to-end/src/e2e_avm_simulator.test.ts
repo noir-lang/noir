@@ -38,7 +38,7 @@ describe('e2e_avm_simulator', () => {
       });
       it('PXE processes failed assertions and fills in the error message with the expression (even complex ones)', async () => {
         await expect(avmContract.methods.assert_nullifier_exists(123).simulate()).rejects.toThrow(
-          "Assertion failed: Nullifier doesn't exist! 'context.nullifier_exists(nullifier, context.this_address())'",
+          "Assertion failed: Nullifier doesn't exist! 'context.nullifier_exists(nullifier, context.storage_address())'",
         );
       });
     });

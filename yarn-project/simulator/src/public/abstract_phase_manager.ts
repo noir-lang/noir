@@ -266,13 +266,15 @@ export abstract class AbstractPhaseManager {
         const isExecutionRequest = !isPublicExecutionResult(current);
         const result = isExecutionRequest
           ? await this.publicExecutor.simulate(
-              current,
+              /*executionRequest=*/ current,
               this.globalVariables,
               /*availableGas=*/ this.getAvailableGas(tx, kernelPublicOutput),
               tx.data.constants.txContext,
               /*pendingNullifiers=*/ this.getSiloedPendingNullifiers(kernelPublicOutput),
               transactionFee,
               /*startSideEffectCounter=*/ AbstractPhaseManager.getMaxSideEffectCounter(kernelPublicOutput) + 1,
+              // NOTE: startSideEffectCounter is not the same as the executionRequest's sideEffectCounter
+              // (which counts the request itself)
             )
           : current;
 
@@ -320,7 +322,7 @@ export abstract class AbstractPhaseManager {
           calldata: result.calldata,
           bytecode: result.bytecode!,
           inputs: privateInputs,
-          avmHints: result.avmHints,
+          avmHints: result.avmCircuitHints,
         };
         provingInformationList.push(publicProvingInformation);
 

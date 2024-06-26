@@ -16,6 +16,7 @@ describe('Execution Environment', () => {
       allSameExcept(executionEnvironment, {
         address: newAddress,
         storageAddress: newAddress,
+        contractCallDepth: Fr.ONE,
         // Calldata also includes AvmContextInputs
         calldata: anyAvmContextInputs().concat(calldata),
       }),
@@ -30,6 +31,7 @@ describe('Execution Environment', () => {
     expect(newExecutionEnvironment).toEqual(
       allSameExcept(executionEnvironment, {
         address: newAddress,
+        contractCallDepth: Fr.ONE,
         isDelegateCall: true,
         // Calldata also includes AvmContextInputs
         calldata: anyAvmContextInputs().concat(calldata),
@@ -49,6 +51,7 @@ describe('Execution Environment', () => {
       allSameExcept(executionEnvironment, {
         address: newAddress,
         storageAddress: newAddress,
+        contractCallDepth: Fr.ONE,
         isStaticCall: true,
         // Calldata also includes AvmContextInputs
         calldata: anyAvmContextInputs().concat(calldata),

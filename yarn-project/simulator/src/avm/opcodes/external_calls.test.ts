@@ -1,16 +1,16 @@
 import { Fr } from '@aztec/foundation/fields';
 
-import { jest } from '@jest/globals';
 import { mock } from 'jest-mock-extended';
 
-import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from '../../index.js';
+import { type PublicSideEffectTraceInterface } from '../../public/side_effect_trace_interface.js';
 import { markBytecodeAsAvm } from '../../public/transitional_adaptors.js';
 import { type AvmContext } from '../avm_context.js';
 import { Field, Uint8, Uint32 } from '../avm_memory_types.js';
-import { adjustCalldataIndex, initContext } from '../fixtures/index.js';
-import { HostStorage } from '../journal/host_storage.js';
-import { AvmPersistableStateManager } from '../journal/journal.js';
+import { adjustCalldataIndex, initContext, initHostStorage, initPersistableStateManager } from '../fixtures/index.js';
+import { type HostStorage } from '../journal/host_storage.js';
+import { type AvmPersistableStateManager } from '../journal/journal.js';
 import { encodeToBytecode } from '../serialization/bytecode_serialization.js';
+import { mockGetBytecode, mockTraceFork } from '../test_utils.js';
 import { L2GasLeft } from './context_getters.js';
 import { Call, Return, Revert, StaticCall } from './external_calls.js';
 import { type Instruction } from './instruction.js';
@@ -19,14 +19,16 @@ import { SStore } from './storage.js';
 
 describe('External Calls', () => {
   let context: AvmContext;
+  let hostStorage: HostStorage;
+  let trace: PublicSideEffectTraceInterface;
+  let persistableState: AvmPersistableStateManager;
 
   beforeEach(() => {
-    const contractsDb = mock<PublicContractsDB>();
-    const commitmentsDb = mock<CommitmentsDB>();
-    const publicStateDb = mock<PublicStateDB>();
-    const hostStorage = new HostStorage(publicStateDb, contractsDb, commitmentsDb);
-    const journal = new AvmPersistableStateManager(hostStorage);
-    context = initContext({ persistableState: journal });
+    hostStorage = initHostStorage();
+    trace = mock<PublicSideEffectTraceInterface>();
+    persistableState = initPersistableStateManager({ hostStorage, trace });
+    context = initContext({ persistableState: persistableState });
+    mockTraceFork(trace); // make sure trace.fork() works on nested call
   });
 
   describe('Call', () => {
@@ -66,11 +68,16 @@ describe('External Calls', () => {
       const addrOffset = 2;
       const addr = new Fr(123456n);
       const argsOffset = 3;
-      const args = [new Field(1n), new Field(2n), new Field(3n)];
+      const valueToStore = new Fr(42);
+      const valueOffset = 0; // 0th entry in calldata to nested call
+      const slot = new Fr(100);
+      const slotOffset = 1; // 1st entry in calldata to nested call
+      const args = [new Field(valueToStore), new Field(slot), new Field(3n)];
       const argsSize = args.length;
       const argsSizeOffset = 20;
       const retOffset = 7;
       const retSize = 2;
+      const expectedRetValue = args.slice(0, retSize);
       const successOffset = 6;
 
       // const otherContextInstructionsL2GasCost = 780; // Includes the cost of the call itself
@@ -82,10 +89,11 @@ describe('External Calls', () => {
             /*copySize=*/ argsSize,
             /*dstOffset=*/ 0,
           ),
-          new SStore(/*indirect=*/ 0, /*srcOffset=*/ 0, /*size=*/ 1, /*slotOffset=*/ 0),
+          new SStore(/*indirect=*/ 0, /*srcOffset=*/ valueOffset, /*size=*/ 1, /*slotOffset=*/ slotOffset),
           new Return(/*indirect=*/ 0, /*retOffset=*/ 0, /*size=*/ 2),
         ]),
       );
+      mockGetBytecode(hostStorage, otherContextInstructionsBytecode);
 
       const { l2GasLeft: initialL2Gas, daGasLeft: initialDaGas } = context.machineState;
 
@@ -94,9 +102,6 @@ describe('External Calls', () => {
       context.machineState.memory.set(2, new Field(addr));
       context.machineState.memory.set(argsSizeOffset, new Uint32(argsSize));
       context.machineState.memory.setSlice(3, args);
-      jest
-        .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
-        .mockReturnValue(Promise.resolve(otherContextInstructionsBytecode));
 
       const instruction = new Call(
         /*indirect=*/ 0,
@@ -115,18 +120,10 @@ describe('External Calls', () => {
       expect(successValue).toEqual(new Uint8(1n));
 
       const retValue = context.machineState.memory.getSlice(retOffset, retSize);
-      expect(retValue).toEqual([new Field(1n), new Field(2n)]);
+      expect(retValue).toEqual(expectedRetValue);
 
       // Check that the storage call has been merged into the parent journal
-      const { currentStorageValue } = context.persistableState.flush();
-      expect(currentStorageValue.size).toEqual(1);
-
-      const nestedContractWrites = currentStorageValue.get(addr.toBigInt());
-      expect(nestedContractWrites).toBeDefined();
-
-      const slotNumber = 1n;
-      const expectedStoredValue = new Fr(1n);
-      expect(nestedContractWrites!.get(slotNumber)).toEqual(expectedStoredValue);
+      expect(await context.persistableState.peekStorage(addr, slot)).toEqual(valueToStore);
 
       expect(context.machineState.l2GasLeft).toBeLessThan(initialL2Gas);
       expect(context.machineState.daGasLeft).toEqual(initialDaGas);
@@ -150,6 +147,7 @@ describe('External Calls', () => {
           new Return(/*indirect=*/ 0, /*retOffset=*/ 0, /*size=*/ 1),
         ]),
       );
+      mockGetBytecode(hostStorage, otherContextInstructionsBytecode);
 
       const { l2GasLeft: initialL2Gas, daGasLeft: initialDaGas } = context.machineState;
 
@@ -157,9 +155,6 @@ describe('External Calls', () => {
       context.machineState.memory.set(1, new Field(daGas));
       context.machineState.memory.set(2, new Field(addr));
       context.machineState.memory.set(argsSizeOffset, new Uint32(argsSize));
-      jest
-        .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
-        .mockReturnValue(Promise.resolve(otherContextInstructionsBytecode));
 
       const instruction = new Call(
         /*indirect=*/ 0,
@@ -239,10 +234,7 @@ describe('External Calls', () => {
       ];
 
       const otherContextInstructionsBytecode = markBytecodeAsAvm(encodeToBytecode(otherContextInstructions));
-
-      jest
-        .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
-        .mockReturnValue(Promise.resolve(otherContextInstructionsBytecode));
+      mockGetBytecode(hostStorage, otherContextInstructionsBytecode);
 
       const instruction = new StaticCall(
         /*indirect=*/ 0,

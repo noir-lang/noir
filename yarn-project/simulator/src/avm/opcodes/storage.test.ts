@@ -12,13 +12,13 @@ import { SLoad, SStore } from './storage.js';
 
 describe('Storage Instructions', () => {
   let context: AvmContext;
-  let journal: MockProxy<AvmPersistableStateManager>;
+  let persistableState: MockProxy<AvmPersistableStateManager>;
   const address = AztecAddress.random();
 
   beforeEach(async () => {
-    journal = mock<AvmPersistableStateManager>();
+    persistableState = mock<AvmPersistableStateManager>();
     context = initContext({
-      persistableState: journal,
+      persistableState: persistableState,
       env: initExecutionEnvironment({ address, storageAddress: address }),
     });
   });
@@ -52,12 +52,12 @@ describe('Storage Instructions', () => {
 
       await new SStore(/*indirect=*/ 0, /*srcOffset=*/ 1, /*size=*/ 1, /*slotOffset=*/ 0).execute(context);
 
-      expect(journal.writeStorage).toHaveBeenCalledWith(address, new Fr(a.toBigInt()), new Fr(b.toBigInt()));
+      expect(persistableState.writeStorage).toHaveBeenCalledWith(address, new Fr(a.toBigInt()), new Fr(b.toBigInt()));
     });
 
     it('Should not be able to write to storage in a static call', async () => {
       context = initContext({
-        persistableState: journal,
+        persistableState: persistableState,
         env: initExecutionEnvironment({ address, storageAddress: address, isStaticCall: true }),
       });
 
@@ -96,7 +96,7 @@ describe('Storage Instructions', () => {
     it('Sload should Read into storage', async () => {
       // Mock response
       const expectedResult = new Fr(1n);
-      journal.readStorage.mockReturnValueOnce(Promise.resolve(expectedResult));
+      persistableState.readStorage.mockResolvedValueOnce(expectedResult);
 
       const a = new Field(1n);
       const b = new Field(2n);
@@ -106,7 +106,7 @@ describe('Storage Instructions', () => {
 
       await new SLoad(/*indirect=*/ 0, /*slotOffset=*/ 0, /*size=*/ 1, /*dstOffset=*/ 1).execute(context);
 
-      expect(journal.readStorage).toHaveBeenCalledWith(address, new Fr(a.toBigInt()));
+      expect(persistableState.readStorage).toHaveBeenCalledWith(address, new Fr(a.toBigInt()));
 
       const actual = context.machineState.memory.get(1);
       expect(actual).toEqual(new Field(expectedResult));

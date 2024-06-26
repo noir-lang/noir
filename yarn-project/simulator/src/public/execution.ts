@@ -20,16 +20,37 @@ import { type Gas } from '../avm/avm_gas.js';
 export interface PublicExecutionResult {
   /** The execution that triggered this result. */
   execution: PublicExecution;
-  /** The return values of the function. */
-  returnValues: Fr[];
-  /** The new note hashes to be inserted into the note hashes tree. */
-  newNoteHashes: NoteHash[];
-  /** The new l2 to l1 messages generated in this call. */
-  newL2ToL1Messages: L2ToL1Message[];
+
   /** The side effect counter at the start of the function call. */
   startSideEffectCounter: Fr;
   /** The side effect counter after executing this function call */
   endSideEffectCounter: Fr;
+  /** How much gas was available for this public execution. */
+  startGasLeft: Gas;
+  /** How much gas was left after this public execution. */
+  endGasLeft: Gas;
+  /** Transaction fee set for this tx. */
+  transactionFee: Fr;
+
+  /** Bytecode used for this execution. */
+  bytecode?: Buffer;
+  /** Calldata used for this execution. */
+  calldata: Fr[];
+  /** The return values of the function. */
+  returnValues: Fr[];
+  /** Whether the execution reverted. */
+  reverted: boolean;
+  /** The revert reason if the execution reverted. */
+  revertReason?: SimulationError;
+
+  /** The contract storage reads performed by the function. */
+  contractStorageReads: ContractStorageRead[];
+  /** The contract storage update requests performed by the function. */
+  contractStorageUpdateRequests: ContractStorageUpdateRequest[];
+  /** The new note hashes to be inserted into the note hashes tree. */
+  newNoteHashes: NoteHash[];
+  /** The new l2 to l1 messages generated in this call. */
+  newL2ToL1Messages: L2ToL1Message[];
   /** The new nullifiers to be inserted into the nullifier tree. */
   newNullifiers: Nullifier[];
   /** The note hash read requests emitted in this call. */
@@ -40,12 +61,6 @@ export interface PublicExecutionResult {
   nullifierNonExistentReadRequests: ReadRequest[];
   /** L1 to L2 message read requests emitted in this call. */
   l1ToL2MsgReadRequests: ReadRequest[];
-  /** The contract storage reads performed by the function. */
-  contractStorageReads: ContractStorageRead[];
-  /** The contract storage update requests performed by the function. */
-  contractStorageUpdateRequests: ContractStorageUpdateRequest[];
-  /** The results of nested calls. */
-  nestedExecutions: this[];
   /**
    * The hashed logs with side effect counter.
    * Note: required as we don't track the counter anywhere else.
@@ -61,22 +76,15 @@ export interface PublicExecutionResult {
    * Useful for maintaining correct ordering in ts.
    */
   allUnencryptedLogs: UnencryptedFunctionL2Logs;
-  /** Whether the execution reverted. */
-  reverted: boolean;
-  /** The revert reason if the execution reverted. */
-  revertReason?: SimulationError;
-  /** How much gas was available for this public execution. */
-  startGasLeft: Gas;
-  /** How much gas was left after this public execution. */
-  endGasLeft: Gas;
-  /** Transaction fee set for this tx. */
-  transactionFee: Fr;
-  /** Bytecode used for this execution. */
-  bytecode?: Buffer;
-  /** Calldata used for this execution. */
-  calldata: Fr[];
+
+  // TODO(dbanks12): add contract instance read requests
+
+  /** The results of nested calls. */
+  nestedExecutions: this[];
+
   /** Hints for proving AVM execution. */
-  avmHints: AvmExecutionHints;
+  avmCircuitHints: AvmExecutionHints;
+
   /** The name of the function that was executed. Only used for logging. */
   functionName: string;
 }

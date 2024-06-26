@@ -22,14 +22,17 @@ export class ContractStorageUpdateRequest {
      */
     public readonly newValue: Fr,
     /**
-     * Optional side effect counter tracking position of this event in tx execution.
+     * Side effect counter tracking position of this event in tx execution.
      */
-    public readonly sideEffectCounter: number,
+    public readonly counter: number,
+    /**
+     * Contract address whose storage is being read.
+     */
     public contractAddress?: AztecAddress, // TODO: Should not be optional. This is a temporary hack to silo the storage slot with the correct address for nested executions.
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.storageSlot, this.newValue, this.sideEffectCounter);
+    return serializeToBuffer(this.storageSlot, this.newValue, this.counter);
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {
@@ -52,7 +55,7 @@ export class ContractStorageUpdateRequest {
    * @returns The array.
    */
   static getFields(fields: FieldsOf<ContractStorageUpdateRequest>) {
-    return [fields.storageSlot, fields.newValue, fields.sideEffectCounter, fields.contractAddress] as const;
+    return [fields.storageSlot, fields.newValue, fields.counter, fields.contractAddress] as const;
   }
 
   static empty() {
@@ -65,12 +68,12 @@ export class ContractStorageUpdateRequest {
 
   toFriendlyJSON() {
     return `Slot=${this.storageSlot.toFriendlyJSON()}: ${this.newValue.toFriendlyJSON()}, sideEffectCounter=${
-      this.sideEffectCounter
+      this.counter
     }`;
   }
 
   toFields(): Fr[] {
-    const fields = [this.storageSlot, this.newValue, new Fr(this.sideEffectCounter)];
+    const fields = [this.storageSlot, this.newValue, new Fr(this.counter)];
     if (fields.length !== CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH) {
       throw new Error(
         `Invalid number of fields for ContractStorageUpdateRequest. Expected ${CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH}, got ${fields.length}`,

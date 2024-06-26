@@ -30,6 +30,7 @@ impl Hash for PublicCallStackItem {
 
 impl PublicCallStackItem {
     fn as_execution_request(self) -> Self {
+        // WARNING: if updating, see comment in public_call_stack_item.ts's `PublicCallStackItem.hash()`
         let public_inputs = self.public_inputs;
         let mut request_public_inputs = PublicCircuitPublicInputs::empty();
         request_public_inputs.call_context = public_inputs.call_context;

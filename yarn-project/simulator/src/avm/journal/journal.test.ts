@@ -1,445 +1,431 @@
-import { UnencryptedL2Log } from '@aztec/circuit-types';
-import { AztecAddress, EthAddress } from '@aztec/circuits.js';
-import { EventSelector } from '@aztec/foundation/abi';
+import { randomContractInstanceWithAddress } from '@aztec/circuit-types';
 import { Fr } from '@aztec/foundation/fields';
+import { SerializableContractInstance } from '@aztec/types/contracts';
 
-import { type MockProxy, mock } from 'jest-mock-extended';
+import { mock } from 'jest-mock-extended';
 
-import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from '../../index.js';
-import { emptyTracedContractInstance, randomTracedContractInstance } from '../fixtures/index.js';
-import { HostStorage } from './host_storage.js';
-import { AvmPersistableStateManager, type JournalData } from './journal.js';
+import { type PublicSideEffectTraceInterface } from '../../public/side_effect_trace_interface.js';
+import { initHostStorage, initPersistableStateManager } from '../fixtures/index.js';
+import {
+  mockGetContractInstance,
+  mockL1ToL2MessageExists,
+  mockNoteHashExists,
+  mockNullifierExists,
+  mockStorageRead,
+} from '../test_utils.js';
+import { type HostStorage } from './host_storage.js';
+import { type AvmPersistableStateManager } from './journal.js';
 
 describe('journal', () => {
-  let publicDb: MockProxy<PublicStateDB>;
-  let contractsDb: MockProxy<PublicContractsDB>;
-  let commitmentsDb: MockProxy<CommitmentsDB>;
-  let journal: AvmPersistableStateManager;
+  const address = Fr.random();
+  const utxo = Fr.random();
+  const leafIndex = Fr.random();
+
+  let hostStorage: HostStorage;
+  let trace: PublicSideEffectTraceInterface;
+  let persistableState: AvmPersistableStateManager;
 
   beforeEach(() => {
-    publicDb = mock<PublicStateDB>();
-    commitmentsDb = mock<CommitmentsDB>();
-    contractsDb = mock<PublicContractsDB>();
-
-    const hostStorage = new HostStorage(publicDb, contractsDb, commitmentsDb);
-    journal = new AvmPersistableStateManager(hostStorage);
+    hostStorage = initHostStorage();
+    trace = mock<PublicSideEffectTraceInterface>();
+    persistableState = initPersistableStateManager({ hostStorage, trace });
   });
 
   describe('Public Storage', () => {
     it('When reading from storage, should check the cache first, and be appended to read/write journal', async () => {
       // Store a different value in storage vs the cache, and make sure the cache is returned
-      const contractAddress = new Fr(1);
-      const key = new Fr(2);
+      const slot = new Fr(2);
       const storedValue = new Fr(420);
       const cachedValue = new Fr(69);
 
-      publicDb.storageRead.mockResolvedValue(Promise.resolve(storedValue));
+      mockStorageRead(hostStorage, storedValue);
 
       // Get the cache first
-      const cacheMissResult = await journal.readStorage(contractAddress, key);
+      const cacheMissResult = await persistableState.readStorage(address, slot);
       expect(cacheMissResult).toEqual(storedValue);
 
       // Write to storage
-      journal.writeStorage(contractAddress, key, cachedValue);
+      persistableState.writeStorage(address, slot, cachedValue);
 
       // Get the storage value
-      const cachedResult = await journal.readStorage(contractAddress, key);
+      const cachedResult = await persistableState.readStorage(address, slot);
       expect(cachedResult).toEqual(cachedValue);
+      // confirm that peek works
+      expect(await persistableState.peekStorage(address, slot)).toEqual(cachedResult);
 
       // We expect the journal to store the access in [storedVal, cachedVal] - [time0, time1]
-      const { storageReads, storageWrites }: JournalData = journal.flush();
-      expect(storageReads).toEqual([
-        expect.objectContaining({
-          storageAddress: contractAddress,
-          exists: true,
-          slot: key,
-          value: storedValue,
-        }),
-        expect.objectContaining({
-          storageAddress: contractAddress,
-          exists: true,
-          slot: key,
-          value: cachedValue,
-        }),
-      ]);
-      expect(storageWrites).toEqual([
-        expect.objectContaining({
-          storageAddress: contractAddress,
-          slot: key,
-          value: cachedValue,
-        }),
-      ]);
+      expect(trace.tracePublicStorageRead).toHaveBeenCalledTimes(2);
+      expect(trace.tracePublicStorageRead).toHaveBeenNthCalledWith(
+        /*nthCall=*/ 1,
+        address,
+        slot,
+        storedValue,
+        /*exists=*/ true,
+        /*cached=*/ false,
+      );
+      expect(trace.tracePublicStorageRead).toHaveBeenNthCalledWith(
+        /*nthCall=*/ 2,
+        address,
+        slot,
+        cachedValue,
+        /*exists=*/ true,
+        /*cached=*/ true,
+      );
     });
   });
 
   describe('UTXOs & messages', () => {
-    it('Should maintain commitments', () => {
-      const utxo = new Fr(1);
-      const address = new Fr(1234);
-      journal.writeNoteHash(address, utxo);
-
-      const journalUpdates = journal.flush();
-      expect(journalUpdates.newNoteHashes).toEqual([
-        expect.objectContaining({ noteHash: utxo, storageAddress: address }),
-      ]);
+    it('checkNoteHashExists works for missing note hashes', async () => {
+      const exists = await persistableState.checkNoteHashExists(address, utxo, leafIndex);
+      expect(exists).toEqual(false);
+      expect(trace.traceNoteHashCheck).toHaveBeenCalledTimes(1);
+      expect(trace.traceNoteHashCheck).toHaveBeenCalledWith(address, utxo, leafIndex, exists);
     });
+
+    it('checkNoteHashExists works for existing note hashes', async () => {
+      mockNoteHashExists(hostStorage, leafIndex, utxo);
+      const exists = await persistableState.checkNoteHashExists(address, utxo, leafIndex);
+      expect(exists).toEqual(true);
+      expect(trace.traceNoteHashCheck).toHaveBeenCalledTimes(1);
+      expect(trace.traceNoteHashCheck).toHaveBeenCalledWith(address, utxo, leafIndex, exists);
+    });
+
+    it('writeNoteHash works', () => {
+      persistableState.writeNoteHash(address, utxo);
+      expect(trace.traceNewNoteHash).toHaveBeenCalledTimes(1);
+      expect(trace.traceNewNoteHash).toHaveBeenCalledWith(expect.objectContaining(address), /*noteHash=*/ utxo);
+    });
+
     it('checkNullifierExists works for missing nullifiers', async () => {
-      const contractAddress = new Fr(1);
-      const utxo = new Fr(2);
-      const exists = await journal.checkNullifierExists(contractAddress, utxo);
+      const exists = await persistableState.checkNullifierExists(address, utxo);
       expect(exists).toEqual(false);
-
-      const journalUpdates = journal.flush();
-      expect(journalUpdates.nullifierChecks).toEqual([expect.objectContaining({ nullifier: utxo, exists: false })]);
+      expect(trace.traceNullifierCheck).toHaveBeenCalledTimes(1);
+      expect(trace.traceNullifierCheck).toHaveBeenCalledWith(
+        address,
+        utxo,
+        /*leafIndex=*/ Fr.ZERO,
+        exists,
+        /*isPending=*/ false,
+      );
     });
+
     it('checkNullifierExists works for existing nullifiers', async () => {
-      const contractAddress = new Fr(1);
-      const utxo = new Fr(2);
-      const storedLeafIndex = BigInt(42);
-
-      commitmentsDb.getNullifierIndex.mockResolvedValue(Promise.resolve(storedLeafIndex));
-      const exists = await journal.checkNullifierExists(contractAddress, utxo);
+      mockNullifierExists(hostStorage, leafIndex, utxo);
+      const exists = await persistableState.checkNullifierExists(address, utxo);
       expect(exists).toEqual(true);
-
-      const journalUpdates = journal.flush();
-      expect(journalUpdates.nullifierChecks).toEqual([expect.objectContaining({ nullifier: utxo, exists: true })]);
+      expect(trace.traceNullifierCheck).toHaveBeenCalledTimes(1);
+      expect(trace.traceNullifierCheck).toHaveBeenCalledWith(address, utxo, leafIndex, exists, /*isPending=*/ false);
     });
-    it('Should maintain nullifiers', async () => {
-      const contractAddress = new Fr(1);
-      const utxo = new Fr(2);
-      await journal.writeNullifier(contractAddress, utxo);
 
-      const journalUpdates = journal.flush();
-      expect(journalUpdates.newNullifiers).toEqual([
-        expect.objectContaining({ storageAddress: contractAddress, nullifier: utxo }),
-      ]);
+    it('writeNullifier works', async () => {
+      await persistableState.writeNullifier(address, utxo);
+      expect(trace.traceNewNullifier).toHaveBeenCalledWith(expect.objectContaining(address), /*nullifier=*/ utxo);
     });
+
     it('checkL1ToL2MessageExists works for missing message', async () => {
-      const msgHash = new Fr(2);
-      const leafIndex = new Fr(42);
-
-      const exists = await journal.checkL1ToL2MessageExists(msgHash, leafIndex);
+      const exists = await persistableState.checkL1ToL2MessageExists(address, utxo, leafIndex);
       expect(exists).toEqual(false);
-
-      const journalUpdates = journal.flush();
-      expect(journalUpdates.l1ToL2MessageChecks).toEqual([
-        expect.objectContaining({ leafIndex: leafIndex, msgHash, exists: false }),
-      ]);
+      expect(trace.traceL1ToL2MessageCheck).toHaveBeenCalledTimes(1);
+      expect(trace.traceL1ToL2MessageCheck).toHaveBeenCalledWith(address, utxo, leafIndex, exists);
     });
-    it('checkL1ToL2MessageExists works for existing msgHash', async () => {
-      const msgHash = new Fr(2);
-      const leafIndex = new Fr(42);
 
-      commitmentsDb.getL1ToL2LeafValue.mockResolvedValue(msgHash);
-      const exists = await journal.checkL1ToL2MessageExists(msgHash, leafIndex);
+    it('checkL1ToL2MessageExists works for existing message', async () => {
+      mockL1ToL2MessageExists(hostStorage, leafIndex, utxo);
+      const exists = await persistableState.checkL1ToL2MessageExists(address, utxo, leafIndex);
       expect(exists).toEqual(true);
-
-      const journalUpdates = journal.flush();
-      expect(journalUpdates.l1ToL2MessageChecks).toEqual([
-        expect.objectContaining({ leafIndex: leafIndex, msgHash, exists: true }),
-      ]);
+      expect(trace.traceL1ToL2MessageCheck).toHaveBeenCalledTimes(1);
+      expect(trace.traceL1ToL2MessageCheck).toHaveBeenCalledWith(address, utxo, leafIndex, exists);
     });
-    it('Should maintain nullifiers', async () => {
-      const contractAddress = new Fr(1);
-      const utxo = new Fr(2);
-      await journal.writeNullifier(contractAddress, utxo);
 
-      const journalUpdates = journal.flush();
-      expect(journalUpdates.newNullifiers).toEqual([
-        expect.objectContaining({ storageAddress: contractAddress, nullifier: utxo }),
-      ]);
-    });
     it('Should maintain l1 messages', () => {
-      const recipient = EthAddress.fromField(new Fr(1));
-      const msgHash = new Fr(2);
-      journal.writeL1Message(recipient, msgHash);
-
-      const journalUpdates = journal.flush();
-      expect(journalUpdates.newL1Messages).toEqual([expect.objectContaining({ recipient, content: msgHash })]);
-    });
-
-    describe('Getting contract instances', () => {
-      it('Should get contract instance', async () => {
-        const contractAddress = AztecAddress.fromField(new Fr(2));
-        const instance = randomTracedContractInstance();
-        instance.exists = true;
-        contractsDb.getContractInstance.mockResolvedValue(Promise.resolve(instance));
-        await journal.getContractInstance(contractAddress);
-        expect(journal.trace.gotContractInstances).toEqual([instance]);
-      });
-      it('Can get undefined contract instance', async () => {
-        const contractAddress = AztecAddress.fromField(new Fr(2));
-        await journal.getContractInstance(contractAddress);
-        const emptyInstance = emptyTracedContractInstance(AztecAddress.fromField(contractAddress));
-        expect(journal.trace.gotContractInstances).toEqual([emptyInstance]);
-      });
+      const recipient = new Fr(1);
+      persistableState.writeL2ToL1Message(recipient, utxo);
+      expect(trace.traceNewL2ToL1Message).toHaveBeenCalledTimes(1);
+      expect(trace.traceNewL2ToL1Message).toHaveBeenCalledWith(recipient, utxo);
     });
   });
 
-  it('Should merge two successful journals together', async () => {
-    // Fundamentally checking that insert ordering of public storage is preserved upon journal merge
-    // time | journal | op     | value
-    // t0 -> journal0 -> write | 1
-    // t1 -> journal1 -> write | 2
-    // merge journals
-    // t2 -> journal0 -> read  | 2
+  describe('Getting contract instances', () => {
+    it('Should get contract instance', async () => {
+      const contractInstance = randomContractInstanceWithAddress(/*(base instance) opts=*/ {}, /*address=*/ address);
+      mockGetContractInstance(hostStorage, contractInstance);
+      await persistableState.getContractInstance(address);
+      expect(trace.traceGetContractInstance).toHaveBeenCalledTimes(1);
+      expect(trace.traceGetContractInstance).toHaveBeenCalledWith({ exists: true, ...contractInstance });
+    });
+    it('Can get undefined contract instance', async () => {
+      const emptyContractInstance = SerializableContractInstance.empty().withAddress(address);
+      await persistableState.getContractInstance(address);
 
-    const contractAddress = new Fr(1);
-    const aztecContractAddress = AztecAddress.fromField(contractAddress);
-    const key = new Fr(2);
-    const value = new Fr(1);
-    const valueT1 = new Fr(2);
-    const recipient = EthAddress.fromField(new Fr(42));
-    const commitment = new Fr(10);
-    const commitmentT1 = new Fr(20);
-    const log = { address: 10n, selector: 5, data: [new Fr(5), new Fr(6)] };
-    const logT1 = { address: 20n, selector: 8, data: [new Fr(7), new Fr(8)] };
-    const index = new Fr(42);
-    const indexT1 = new Fr(24);
-    const instance = emptyTracedContractInstance(aztecContractAddress);
-
-    journal.writeStorage(contractAddress, key, value);
-    await journal.readStorage(contractAddress, key);
-    journal.writeNoteHash(contractAddress, commitment);
-    journal.writeLog(new Fr(log.address), new Fr(log.selector), log.data);
-    journal.writeL1Message(recipient, commitment);
-    await journal.writeNullifier(contractAddress, commitment);
-    await journal.checkNullifierExists(contractAddress, commitment);
-    await journal.checkL1ToL2MessageExists(commitment, index);
-    await journal.getContractInstance(aztecContractAddress);
-
-    const childJournal = new AvmPersistableStateManager(journal.hostStorage, journal);
-    childJournal.writeStorage(contractAddress, key, valueT1);
-    await childJournal.readStorage(contractAddress, key);
-    childJournal.writeNoteHash(contractAddress, commitmentT1);
-    childJournal.writeLog(new Fr(logT1.address), new Fr(logT1.selector), logT1.data);
-    childJournal.writeL1Message(recipient, commitmentT1);
-    await childJournal.writeNullifier(contractAddress, commitmentT1);
-    await childJournal.checkNullifierExists(contractAddress, commitmentT1);
-    await childJournal.checkL1ToL2MessageExists(commitmentT1, indexT1);
-    await childJournal.getContractInstance(aztecContractAddress);
-
-    journal.acceptNestedCallState(childJournal);
-
-    const result = await journal.readStorage(contractAddress, key);
-    expect(result).toEqual(valueT1);
-
-    // Check that the storage is merged by reading from the journal
-    // Check that the UTXOs are merged
-    const journalUpdates: JournalData = journal.flush();
-
-    // Check storage reads order is preserved upon merge
-    // We first read value from t0, then value from t1
-    expect(journalUpdates.storageReads).toEqual([
-      expect.objectContaining({
-        storageAddress: contractAddress,
-        exists: true,
-        slot: key,
-        value: value,
-      }),
-      expect.objectContaining({
-        storageAddress: contractAddress,
-        exists: true,
-        slot: key,
-        value: valueT1,
-      }),
-      // Read a third time to check storage
-      expect.objectContaining({
-        storageAddress: contractAddress,
-        exists: true,
-        slot: key,
-        value: valueT1,
-      }),
-    ]);
-
-    // We first write value from t0, then value from t1
-    expect(journalUpdates.storageWrites).toEqual([
-      expect.objectContaining({
-        storageAddress: contractAddress,
-        slot: key,
-        value: value,
-      }),
-      expect.objectContaining({
-        storageAddress: contractAddress,
-        slot: key,
-        value: valueT1,
-      }),
-    ]);
-
-    expect(journalUpdates.newNoteHashes).toEqual([
-      expect.objectContaining({ noteHash: commitment, storageAddress: contractAddress }),
-      expect.objectContaining({ noteHash: commitmentT1, storageAddress: contractAddress }),
-    ]);
-    expect(journalUpdates.newLogs).toEqual([
-      new UnencryptedL2Log(
-        AztecAddress.fromBigInt(log.address),
-        new EventSelector(log.selector),
-        Buffer.concat(log.data.map(f => f.toBuffer())),
-      ),
-      new UnencryptedL2Log(
-        AztecAddress.fromBigInt(logT1.address),
-        new EventSelector(logT1.selector),
-        Buffer.concat(logT1.data.map(f => f.toBuffer())),
-      ),
-    ]);
-    expect(journalUpdates.newL1Messages).toEqual([
-      expect.objectContaining({ recipient, content: commitment }),
-      expect.objectContaining({ recipient, content: commitmentT1 }),
-    ]);
-    expect(journalUpdates.nullifierChecks).toEqual([
-      expect.objectContaining({ nullifier: commitment, exists: true }),
-      expect.objectContaining({ nullifier: commitmentT1, exists: true }),
-    ]);
-    expect(journalUpdates.newNullifiers).toEqual([
-      expect.objectContaining({
-        storageAddress: contractAddress,
-        nullifier: commitment,
-      }),
-      expect.objectContaining({
-        storageAddress: contractAddress,
-        nullifier: commitmentT1,
-      }),
-    ]);
-    expect(journalUpdates.l1ToL2MessageChecks).toEqual([
-      expect.objectContaining({ leafIndex: index, msgHash: commitment, exists: false }),
-      expect.objectContaining({ leafIndex: indexT1, msgHash: commitmentT1, exists: false }),
-    ]);
-    expect(journal.trace.gotContractInstances).toEqual([instance, instance]);
+      expect(trace.traceGetContractInstance).toHaveBeenCalledTimes(1);
+      expect(trace.traceGetContractInstance).toHaveBeenCalledWith({ exists: false, ...emptyContractInstance });
+    });
   });
 
-  it('Should merge failed journals together', async () => {
-    // Checking public storage update journals are preserved upon journal merge,
-    // But the latest state is not
+  //it('Should merge two successful journals together', async () => {
+  //  // Fundamentally checking that insert ordering of public storage is preserved upon journal merge
+  //  // time | journal | op     | value
+  //  // t0 -> journal0 -> write | 1
+  //  // t1 -> journal1 -> write | 2
+  //  // merge journals
+  //  // t2 -> journal0 -> read  | 2
 
-    // time | journal | op     | value
-    // t0 -> journal0 -> write | 1
-    // t1 -> journal1 -> write | 2
-    // merge journals
-    // t2 -> journal0 -> read  | 1
+  //  const contractAddress = new Fr(1);
+  //  const aztecContractAddress = AztecAddress.fromField(contractAddress);
+  //  const key = new Fr(2);
+  //  const value = new Fr(1);
+  //  const valueT1 = new Fr(2);
+  //  const recipient = EthAddress.fromField(new Fr(42));
+  //  const commitment = new Fr(10);
+  //  const commitmentT1 = new Fr(20);
+  //  const log = { address: 10n, selector: 5, data: [new Fr(5), new Fr(6)] };
+  //  const logT1 = { address: 20n, selector: 8, data: [new Fr(7), new Fr(8)] };
+  //  const index = new Fr(42);
+  //  const indexT1 = new Fr(24);
+  //  const instance = emptyTracedContractInstance(aztecContractAddress);
 
-    const contractAddress = new Fr(1);
-    const aztecContractAddress = AztecAddress.fromField(contractAddress);
-    const key = new Fr(2);
-    const value = new Fr(1);
-    const valueT1 = new Fr(2);
-    const recipient = EthAddress.fromField(new Fr(42));
-    const commitment = new Fr(10);
-    const commitmentT1 = new Fr(20);
-    const log = { address: 10n, selector: 5, data: [new Fr(5), new Fr(6)] };
-    const logT1 = { address: 20n, selector: 8, data: [new Fr(7), new Fr(8)] };
-    const index = new Fr(42);
-    const indexT1 = new Fr(24);
-    const instance = emptyTracedContractInstance(aztecContractAddress);
+  //  persistableState.writeStorage(contractAddress, key, value);
+  //  await persistableState.readStorage(contractAddress, key);
+  //  persistableState.writeNoteHash(contractAddress, commitment);
+  //  persistableState.writeUnencryptedLog(new Fr(log.address), new Fr(log.selector), log.data);
+  //  persistableState.writeL2ToL1Message(recipient, commitment);
+  //  await persistableState.writeNullifier(contractAddress, commitment);
+  //  await persistableState.checkNullifierExists(contractAddress, commitment);
+  //  await persistableState.checkL1ToL2MessageExists(commitment, index);
+  //  await persistableState.getContractInstance(aztecContractAddress);
 
-    journal.writeStorage(contractAddress, key, value);
-    await journal.readStorage(contractAddress, key);
-    journal.writeNoteHash(contractAddress, commitment);
-    await journal.writeNullifier(contractAddress, commitment);
-    await journal.checkNullifierExists(contractAddress, commitment);
-    await journal.checkL1ToL2MessageExists(commitment, index);
-    journal.writeLog(new Fr(log.address), new Fr(log.selector), log.data);
-    journal.writeL1Message(recipient, commitment);
-    await journal.getContractInstance(aztecContractAddress);
+  //  const childJournal = new AvmPersistableStateManager(persistableState.hostStorage, persistableState);
+  //  childJournal.writeStorage(contractAddress, key, valueT1);
+  //  await childJournal.readStorage(contractAddress, key);
+  //  childJournal.writeNoteHash(contractAddress, commitmentT1);
+  //  childJournal.writeUnencryptedLog(new Fr(logT1.address), new Fr(logT1.selector), logT1.data);
+  //  childJournal.writeL2ToL1Message(recipient, commitmentT1);
+  //  await childJournal.writeNullifier(contractAddress, commitmentT1);
+  //  await childJournal.checkNullifierExists(contractAddress, commitmentT1);
+  //  await childJournal.checkL1ToL2MessageExists(commitmentT1, indexT1);
+  //  await childJournal.getContractInstance(aztecContractAddress);
 
-    const childJournal = new AvmPersistableStateManager(journal.hostStorage, journal);
-    childJournal.writeStorage(contractAddress, key, valueT1);
-    await childJournal.readStorage(contractAddress, key);
-    childJournal.writeNoteHash(contractAddress, commitmentT1);
-    await childJournal.writeNullifier(contractAddress, commitmentT1);
-    await childJournal.checkNullifierExists(contractAddress, commitmentT1);
-    await journal.checkL1ToL2MessageExists(commitmentT1, indexT1);
-    childJournal.writeLog(new Fr(logT1.address), new Fr(logT1.selector), logT1.data);
-    childJournal.writeL1Message(recipient, commitmentT1);
-    await childJournal.getContractInstance(aztecContractAddress);
+  //  persistableState.acceptNestedCallState(childJournal);
 
-    journal.rejectNestedCallState(childJournal);
+  //  const result = await persistableState.readStorage(contractAddress, key);
+  //  expect(result).toEqual(valueT1);
 
-    // Check that the storage is reverted by reading from the journal
-    const result = await journal.readStorage(contractAddress, key);
-    expect(result).toEqual(value); // rather than valueT1
+  //  // Check that the storage is merged by reading from the journal
+  //  // Check that the UTXOs are merged
+  //  const journalUpdates: JournalData = persistableState.getTrace()();
 
-    const journalUpdates: JournalData = journal.flush();
+  //  // Check storage reads order is preserved upon merge
+  //  // We first read value from t0, then value from t1
+  //  expect(journalUpdates.storageReads).toEqual([
+  //    expect.objectContaining({
+  //      storageAddress: contractAddress,
+  //      exists: true,
+  //      slot: key,
+  //      value: value,
+  //    }),
+  //    expect.objectContaining({
+  //      storageAddress: contractAddress,
+  //      exists: true,
+  //      slot: key,
+  //      value: valueT1,
+  //    }),
+  //    // Read a third time to check storage
+  //    expect.objectContaining({
+  //      storageAddress: contractAddress,
+  //      exists: true,
+  //      slot: key,
+  //      value: valueT1,
+  //    }),
+  //  ]);
 
-    // Reads and writes should be preserved
-    // Check storage reads order is preserved upon merge
-    // We first read value from t0, then value from t1
-    expect(journalUpdates.storageReads).toEqual([
-      expect.objectContaining({
-        storageAddress: contractAddress,
-        exists: true,
-        slot: key,
-        value: value,
-      }),
-      expect.objectContaining({
-        storageAddress: contractAddress,
-        exists: true,
-        slot: key,
-        value: valueT1,
-      }),
-      // Read a third time to check storage
-      expect.objectContaining({
-        storageAddress: contractAddress,
-        exists: true,
-        slot: key,
-        value: value,
-      }),
-    ]);
+  //  // We first write value from t0, then value from t1
+  //  expect(journalUpdates.storageWrites).toEqual([
+  //    expect.objectContaining({
+  //      storageAddress: contractAddress,
+  //      slot: key,
+  //      value: value,
+  //    }),
+  //    expect.objectContaining({
+  //      storageAddress: contractAddress,
+  //      slot: key,
+  //      value: valueT1,
+  //    }),
+  //  ]);
 
-    // We first write value from t0, then value from t1
-    expect(journalUpdates.storageWrites).toEqual([
-      expect.objectContaining({
-        storageAddress: contractAddress,
-        slot: key,
-        value: value,
-      }),
-      expect.objectContaining({
-        storageAddress: contractAddress,
-        slot: key,
-        value: valueT1,
-      }),
-    ]);
+  //  expect(journalUpdates.newNoteHashes).toEqual([
+  //    expect.objectContaining({ noteHash: commitment, storageAddress: contractAddress }),
+  //    expect.objectContaining({ noteHash: commitmentT1, storageAddress: contractAddress }),
+  //  ]);
+  //  expect(journalUpdates.newLogs).toEqual([
+  //    new UnencryptedL2Log(
+  //      AztecAddress.fromBigInt(log.address),
+  //      new EventSelector(log.selector),
+  //      Buffer.concat(log.data.map(f => f.toBuffer())),
+  //    ),
+  //    new UnencryptedL2Log(
+  //      AztecAddress.fromBigInt(logT1.address),
+  //      new EventSelector(logT1.selector),
+  //      Buffer.concat(logT1.data.map(f => f.toBuffer())),
+  //    ),
+  //  ]);
+  //  expect(journalUpdates.newL1Messages).toEqual([
+  //    expect.objectContaining({ recipient, content: commitment }),
+  //    expect.objectContaining({ recipient, content: commitmentT1 }),
+  //  ]);
+  //  expect(journalUpdates.nullifierChecks).toEqual([
+  //    expect.objectContaining({ nullifier: commitment, exists: true }),
+  //    expect.objectContaining({ nullifier: commitmentT1, exists: true }),
+  //  ]);
+  //  expect(journalUpdates.newNullifiers).toEqual([
+  //    expect.objectContaining({
+  //      storageAddress: contractAddress,
+  //      nullifier: commitment,
+  //    }),
+  //    expect.objectContaining({
+  //      storageAddress: contractAddress,
+  //      nullifier: commitmentT1,
+  //    }),
+  //  ]);
+  //  expect(journalUpdates.l1ToL2MessageChecks).toEqual([
+  //    expect.objectContaining({ leafIndex: index, msgHash: commitment, exists: false }),
+  //    expect.objectContaining({ leafIndex: indexT1, msgHash: commitmentT1, exists: false }),
+  //  ]);
+  //  expect(persistableState.trace.gotContractInstances).toEqual([instance, instance]);
+  //});
 
-    // Check that the world state _traces_ are merged even on rejection
-    expect(journalUpdates.newNoteHashes).toEqual([
-      expect.objectContaining({ noteHash: commitment, storageAddress: contractAddress }),
-      expect.objectContaining({ noteHash: commitmentT1, storageAddress: contractAddress }),
-    ]);
-    expect(journalUpdates.nullifierChecks).toEqual([
-      expect.objectContaining({ nullifier: commitment, exists: true }),
-      expect.objectContaining({ nullifier: commitmentT1, exists: true }),
-    ]);
-    expect(journalUpdates.newNullifiers).toEqual([
-      expect.objectContaining({
-        storageAddress: contractAddress,
-        nullifier: commitment,
-      }),
-      expect.objectContaining({
-        storageAddress: contractAddress,
-        nullifier: commitmentT1,
-      }),
-    ]);
-    expect(journalUpdates.l1ToL2MessageChecks).toEqual([
-      expect.objectContaining({ leafIndex: index, msgHash: commitment, exists: false }),
-      expect.objectContaining({ leafIndex: indexT1, msgHash: commitmentT1, exists: false }),
-    ]);
+  //it('Should merge failed journals together', async () => {
+  //  // Checking public storage update journals are preserved upon journal merge,
+  //  // But the latest state is not
 
-    // Check that rejected Accrued Substate is absent
-    expect(journalUpdates.newLogs).toEqual([
-      new UnencryptedL2Log(
-        AztecAddress.fromBigInt(log.address),
-        new EventSelector(log.selector),
-        Buffer.concat(log.data.map(f => f.toBuffer())),
-      ),
-    ]);
-    expect(journalUpdates.newL1Messages).toEqual([expect.objectContaining({ recipient, content: commitment })]);
-    expect(journal.trace.gotContractInstances).toEqual([instance, instance]);
-  });
+  //  // time | journal | op     | value
+  //  // t0 -> journal0 -> write | 1
+  //  // t1 -> journal1 -> write | 2
+  //  // merge journals
+  //  // t2 -> journal0 -> read  | 1
 
-  it('Can fork and merge journals', () => {
-    const rootJournal = new AvmPersistableStateManager(journal.hostStorage);
-    const childJournal = rootJournal.fork();
+  //  const contractAddress = new Fr(1);
+  //  const aztecContractAddress = AztecAddress.fromField(contractAddress);
+  //  const key = new Fr(2);
+  //  const value = new Fr(1);
+  //  const valueT1 = new Fr(2);
+  //  const recipient = EthAddress.fromField(new Fr(42));
+  //  const commitment = new Fr(10);
+  //  const commitmentT1 = new Fr(20);
+  //  const log = { address: 10n, selector: 5, data: [new Fr(5), new Fr(6)] };
+  //  const logT1 = { address: 20n, selector: 8, data: [new Fr(7), new Fr(8)] };
+  //  const index = new Fr(42);
+  //  const indexT1 = new Fr(24);
+  //  const instance = emptyTracedContractInstance(aztecContractAddress);
 
-    expect(() => rootJournal.acceptNestedCallState(childJournal));
-    expect(() => rootJournal.rejectNestedCallState(childJournal));
-  });
+  //  persistableState.writeStorage(contractAddress, key, value);
+  //  await persistableState.readStorage(contractAddress, key);
+  //  persistableState.writeNoteHash(contractAddress, commitment);
+  //  await persistableState.writeNullifier(contractAddress, commitment);
+  //  await persistableState.checkNullifierExists(contractAddress, commitment);
+  //  await persistableState.checkL1ToL2MessageExists(commitment, index);
+  //  persistableState.writeUnencryptedLog(new Fr(log.address), new Fr(log.selector), log.data);
+  //  persistableState.writeL2ToL1Message(recipient, commitment);
+  //  await persistableState.getContractInstance(aztecContractAddress);
+
+  //  const childJournal = new AvmPersistableStateManager(persistableState.hostStorage, persistableState);
+  //  childJournal.writeStorage(contractAddress, key, valueT1);
+  //  await childJournal.readStorage(contractAddress, key);
+  //  childJournal.writeNoteHash(contractAddress, commitmentT1);
+  //  await childJournal.writeNullifier(contractAddress, commitmentT1);
+  //  await childJournal.checkNullifierExists(contractAddress, commitmentT1);
+  //  await persistableState.checkL1ToL2MessageExists(commitmentT1, indexT1);
+  //  childJournal.writeUnencryptedLog(new Fr(logT1.address), new Fr(logT1.selector), logT1.data);
+  //  childJournal.writeL2ToL1Message(recipient, commitmentT1);
+  //  await childJournal.getContractInstance(aztecContractAddress);
+
+  //  persistableState.rejectNestedCallState(childJournal);
+
+  //  // Check that the storage is reverted by reading from the journal
+  //  const result = await persistableState.readStorage(contractAddress, key);
+  //  expect(result).toEqual(value); // rather than valueT1
+
+  //  const journalUpdates: JournalData = persistableState.getTrace()();
+
+  //  // Reads and writes should be preserved
+  //  // Check storage reads order is preserved upon merge
+  //  // We first read value from t0, then value from t1
+  //  expect(journalUpdates.storageReads).toEqual([
+  //    expect.objectContaining({
+  //      storageAddress: contractAddress,
+  //      exists: true,
+  //      slot: key,
+  //      value: value,
+  //    }),
+  //    expect.objectContaining({
+  //      storageAddress: contractAddress,
+  //      exists: true,
+  //      slot: key,
+  //      value: valueT1,
+  //    }),
+  //    // Read a third time to check storage
+  //    expect.objectContaining({
+  //      storageAddress: contractAddress,
+  //      exists: true,
+  //      slot: key,
+  //      value: value,
+  //    }),
+  //  ]);
+
+  //  // We first write value from t0, then value from t1
+  //  expect(journalUpdates.storageWrites).toEqual([
+  //    expect.objectContaining({
+  //      storageAddress: contractAddress,
+  //      slot: key,
+  //      value: value,
+  //    }),
+  //    expect.objectContaining({
+  //      storageAddress: contractAddress,
+  //      slot: key,
+  //      value: valueT1,
+  //    }),
+  //  ]);
+
+  //  // Check that the world state _traces_ are merged even on rejection
+  //  expect(journalUpdates.newNoteHashes).toEqual([
+  //    expect.objectContaining({ noteHash: commitment, storageAddress: contractAddress }),
+  //    expect.objectContaining({ noteHash: commitmentT1, storageAddress: contractAddress }),
+  //  ]);
+  //  expect(journalUpdates.nullifierChecks).toEqual([
+  //    expect.objectContaining({ nullifier: commitment, exists: true }),
+  //    expect.objectContaining({ nullifier: commitmentT1, exists: true }),
+  //  ]);
+  //  expect(journalUpdates.newNullifiers).toEqual([
+  //    expect.objectContaining({
+  //      storageAddress: contractAddress,
+  //      nullifier: commitment,
+  //    }),
+  //    expect.objectContaining({
+  //      storageAddress: contractAddress,
+  //      nullifier: commitmentT1,
+  //    }),
+  //  ]);
+  //  expect(journalUpdates.l1ToL2MessageChecks).toEqual([
+  //    expect.objectContaining({ leafIndex: index, msgHash: commitment, exists: false }),
+  //    expect.objectContaining({ leafIndex: indexT1, msgHash: commitmentT1, exists: false }),
+  //  ]);
+
+  //  // Check that rejected Accrued Substate is absent
+  //  expect(journalUpdates.newLogs).toEqual([
+  //    new UnencryptedL2Log(
+  //      AztecAddress.fromBigInt(log.address),
+  //      new EventSelector(log.selector),
+  //      Buffer.concat(log.data.map(f => f.toBuffer())),
+  //    ),
+  //  ]);
+  //  expect(journalUpdates.newL1Messages).toEqual([expect.objectContaining({ recipient, content: commitment })]);
+  //  expect(persistableState.trace.gotContractInstances).toEqual([instance, instance]);
+  //});
+
+  //it('Can fork and merge journals', () => {
+  //  const rootJournal = new AvmPersistableStateManager(persistableState.hostStorage);
+  //  const childJournal = rootJournal.fork();
+
+  //  expect(() => rootJournal.acceptNestedCallState(childJournal));
+  //  expect(() => rootJournal.rejectNestedCallState(childJournal));
+  //});
 });

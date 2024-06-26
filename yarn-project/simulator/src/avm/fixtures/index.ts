@@ -4,20 +4,21 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { AvmTestContractArtifact } from '@aztec/noir-contracts.js';
-import { SerializableContractInstance } from '@aztec/types/contracts';
 
 import { strict as assert } from 'assert';
 import { mock } from 'jest-mock-extended';
 import merge from 'lodash.merge';
 
 import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from '../../index.js';
+import { type PublicSideEffectTraceInterface } from '../../public/side_effect_trace_interface.js';
 import { AvmContext } from '../avm_context.js';
 import { AvmContextInputs, AvmExecutionEnvironment } from '../avm_execution_environment.js';
 import { AvmMachineState } from '../avm_machine_state.js';
 import { Field, Uint8 } from '../avm_memory_types.js';
 import { HostStorage } from '../journal/host_storage.js';
 import { AvmPersistableStateManager } from '../journal/journal.js';
-import { type TracedContractInstance } from '../journal/trace_types.js';
+import { NullifierManager } from '../journal/nullifiers.js';
+import { PublicStorage } from '../journal/public_storage.js';
 
 /**
  * Create a new AVM context with default values.
@@ -28,7 +29,7 @@ export function initContext(overrides?: {
   machineState?: AvmMachineState;
 }): AvmContext {
   return new AvmContext(
-    overrides?.persistableState || initMockPersistableStateManager(),
+    overrides?.persistableState || initPersistableStateManager(),
     overrides?.env || initExecutionEnvironment(),
     overrides?.machineState || initMachineState(),
   );
@@ -47,9 +48,20 @@ export function initHostStorage(overrides?: {
   );
 }
 
-/** Creates an empty state manager with mocked storage. */
-export function initMockPersistableStateManager(): AvmPersistableStateManager {
-  return new AvmPersistableStateManager(initHostStorage());
+/** Creates an empty state manager with mocked host storage. */
+export function initPersistableStateManager(overrides?: {
+  hostStorage?: HostStorage;
+  trace?: PublicSideEffectTraceInterface;
+  publicStorage?: PublicStorage;
+  nullifiers?: NullifierManager;
+}): AvmPersistableStateManager {
+  const hostStorage = overrides?.hostStorage || initHostStorage();
+  return new AvmPersistableStateManager(
+    hostStorage,
+    overrides?.trace || mock<PublicSideEffectTraceInterface>(),
+    overrides?.publicStorage || new PublicStorage(hostStorage.publicStateDb),
+    overrides?.nullifiers || new NullifierManager(hostStorage.commitmentsDb),
+  );
 }
 
 /**
@@ -137,15 +149,4 @@ export function getAvmTestContractBytecode(functionName: string): Buffer {
     `No bytecode found for function ${functionName}. Try re-running bootstrap.sh on the repository root.`,
   );
   return artifact.bytecode;
-}
-
-export function randomTracedContractInstance(): TracedContractInstance {
-  const instance = SerializableContractInstance.random();
-  const address = AztecAddress.random();
-  return { exists: true, ...instance, address };
-}
-
-export function emptyTracedContractInstance(withAddress?: AztecAddress): TracedContractInstance {
-  const instance = SerializableContractInstance.empty().withAddress(withAddress ?? AztecAddress.zero());
-  return { exists: false, ...instance };
 }

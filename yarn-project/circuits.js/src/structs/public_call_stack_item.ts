@@ -90,15 +90,24 @@ export class PublicCallStackItem {
    * @returns Hash.
    */
   public hash() {
+    let publicInputsToHash = this.publicInputs;
     if (this.isExecutionRequest) {
+      // An execution request (such as an enqueued call from private) is hashed with
+      // only the publicInput members present in a PublicCallRequest.
+      // This allows us to check that the request (which is created/hashed before
+      // side-effects and output info are unknown for public calls) matches the call
+      // being processed by a kernel iteration.
+      // WARNING: This subset of publicInputs that is set here must align with
+      // `parse_public_call_stack_item_from_oracle` in enqueue_public_function_call.nr
+      // and `PublicCallStackItem::as_execution_request()` in public_call_stack_item.ts
       const { callContext, argsHash } = this.publicInputs;
-      this.publicInputs = PublicCircuitPublicInputs.empty();
-      this.publicInputs.callContext = callContext;
-      this.publicInputs.argsHash = argsHash;
+      publicInputsToHash = PublicCircuitPublicInputs.empty();
+      publicInputsToHash.callContext = callContext;
+      publicInputsToHash.argsHash = argsHash;
     }
 
     return pedersenHash(
-      [this.contractAddress, this.functionData.hash(), this.publicInputs.hash()],
+      [this.contractAddress, this.functionData.hash(), publicInputsToHash.hash()],
       GeneratorIndex.CALL_STACK_ITEM,
     );
   }

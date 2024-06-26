@@ -79,6 +79,7 @@ pub fn parse_public_call_stack_item_from_oracle(fields: [Field; ENQUEUE_PUBLIC_F
 
     // Note: Not using PublicCirclePublicInputs::deserialize here, because everything below args_hash is 0 and
     // there is no more data in fields because there is only ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_SIZE fields!
+    // WARNING: if updating, see comment in public_call_stack_item.ts's PublicCallStackItem.hash()
     let item = PublicCallStackItem {
         contract_address: AztecAddress::from_field(reader.read()),
         function_data: FunctionData { selector: FunctionSelector::from_field(reader.read()), is_private: false },

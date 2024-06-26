@@ -3,15 +3,15 @@ import { Fr } from '@aztec/foundation/fields';
 import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { type CommitmentsDB } from '../../index.js';
-import { Nullifiers } from './nullifiers.js';
+import { NullifierManager } from './nullifiers.js';
 
 describe('avm nullifier caching', () => {
   let commitmentsDb: MockProxy<CommitmentsDB>;
-  let nullifiers: Nullifiers;
+  let nullifiers: NullifierManager;
 
   beforeEach(() => {
     commitmentsDb = mock<CommitmentsDB>();
-    nullifiers = new Nullifiers(commitmentsDb);
+    nullifiers = new NullifierManager(commitmentsDb);
   });
 
   describe('Nullifier caching and existence checks', () => {
@@ -42,7 +42,7 @@ describe('avm nullifier caching', () => {
       const nullifier = new Fr(2);
       const storedLeafIndex = BigInt(420);
 
-      commitmentsDb.getNullifierIndex.mockResolvedValue(Promise.resolve(storedLeafIndex));
+      commitmentsDb.getNullifierIndex.mockResolvedValue(storedLeafIndex);
 
       const [exists, isPending, gotIndex] = await nullifiers.checkExists(contractAddress, nullifier);
       // exists (in host), not pending, tree index retrieved from host
@@ -53,7 +53,7 @@ describe('avm nullifier caching', () => {
     it('Existence check works on fallback to parent (gets value, exists, is pending)', async () => {
       const contractAddress = new Fr(1);
       const nullifier = new Fr(2);
-      const childNullifiers = new Nullifiers(commitmentsDb, nullifiers);
+      const childNullifiers = nullifiers.fork();
 
       // Write to parent cache
       await nullifiers.append(contractAddress, nullifier);
@@ -67,8 +67,8 @@ describe('avm nullifier caching', () => {
     it('Existence check works on fallback to grandparent (gets value, exists, is pending)', async () => {
       const contractAddress = new Fr(1);
       const nullifier = new Fr(2);
-      const childNullifiers = new Nullifiers(commitmentsDb, nullifiers);
-      const grandChildNullifiers = new Nullifiers(commitmentsDb, childNullifiers);
+      const childNullifiers = nullifiers.fork();
+      const grandChildNullifiers = childNullifiers.fork();
 
       // Write to parent cache
       await nullifiers.append(contractAddress, nullifier);
@@ -99,7 +99,7 @@ describe('avm nullifier caching', () => {
 
       // Append a nullifier to parent
       await nullifiers.append(contractAddress, nullifier);
-      const childNullifiers = new Nullifiers(commitmentsDb, nullifiers);
+      const childNullifiers = nullifiers.fork();
       // Can't append again in child
       await expect(childNullifiers.append(contractAddress, nullifier)).rejects.toThrow(
         `Nullifier ${nullifier} at contract ${contractAddress} already exists in parent cache or host.`,
@@ -111,7 +111,7 @@ describe('avm nullifier caching', () => {
       const storedLeafIndex = BigInt(420);
 
       // Nullifier exists in host
-      commitmentsDb.getNullifierIndex.mockResolvedValue(Promise.resolve(storedLeafIndex));
+      commitmentsDb.getNullifierIndex.mockResolvedValue(storedLeafIndex);
       // Can't append to cache
       await expect(nullifiers.append(contractAddress, nullifier)).rejects.toThrow(
         `Nullifier ${nullifier} at contract ${contractAddress} already exists in parent cache or host.`,
@@ -128,7 +128,7 @@ describe('avm nullifier caching', () => {
       // Append a nullifier to parent
       await nullifiers.append(contractAddress, nullifier0);
 
-      const childNullifiers = new Nullifiers(commitmentsDb, nullifiers);
+      const childNullifiers = nullifiers.fork();
       // Append a nullifier to child
       await childNullifiers.append(contractAddress, nullifier1);
 
@@ -149,7 +149,7 @@ describe('avm nullifier caching', () => {
       await nullifiers.append(contractAddress, nullifier);
 
       // Create child cache, don't derive from parent so we can concoct a collision on merge
-      const childNullifiers = new Nullifiers(commitmentsDb);
+      const childNullifiers = new NullifierManager(commitmentsDb);
       // Append a nullifier to child
       await childNullifiers.append(contractAddress, nullifier);
 

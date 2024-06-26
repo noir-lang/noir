@@ -35,6 +35,7 @@ import {
   initContext,
   initExecutionEnvironment,
   initHostStorage,
+  initPersistableStateManager,
 } from '@aztec/simulator/avm/fixtures';
 
 import { jest } from '@jest/globals';
@@ -43,11 +44,7 @@ import fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'path';
 
-import { AvmPersistableStateManager } from '../../simulator/src/avm/journal/journal.js';
-import {
-  convertAvmResultsToPxResult,
-  createPublicExecution,
-} from '../../simulator/src/public/transitional_adaptors.js';
+import { PublicSideEffectTrace } from '../../simulator/src/public/side_effect_trace.js';
 import { SerializableContractInstance } from '../../types/src/contracts/contract_instance.js';
 import { type BBSuccess, BB_RESULT, generateAvmProof, verifyAvmProof } from './bb/execute.js';
 import { extractVkData } from './verification_key/verification_key_data.js';
@@ -224,15 +221,13 @@ const proveAndVerifyAvmTestContract = async (
   storageDb.storageRead.mockResolvedValue(Promise.resolve(storageValue));
 
   const hostStorage = initHostStorage({ contractsDb });
-  const persistableState = new AvmPersistableStateManager(hostStorage);
+  const trace = new PublicSideEffectTrace(startSideEffectCounter);
+  const persistableState = initPersistableStateManager({ hostStorage, trace });
   const context = initContext({ env: environment, persistableState });
   const nestedCallBytecode = getAvmTestContractBytecode('add_args_return');
-  jest
-    .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
-    .mockReturnValue(Promise.resolve(nestedCallBytecode));
+  jest.spyOn(hostStorage.contractsDb, 'getBytecode').mockResolvedValue(nestedCallBytecode);
 
   const startGas = new Gas(context.machineState.gasLeft.daGas, context.machineState.gasLeft.l2Gas);
-  const oldPublicExecution = createPublicExecution(startSideEffectCounter, environment, calldata);
 
   const internalLogger = createDebugLogger('aztec:avm-proving-test');
   const logger = (msg: string, _data?: any) => internalLogger.verbose(msg);
@@ -255,25 +250,21 @@ const proveAndVerifyAvmTestContract = async (
     expect(avmResult.revertReason?.message).toContain(assertionErrString);
   }
 
-  const pxResult = convertAvmResultsToPxResult(
-    avmResult,
-    startSideEffectCounter,
-    oldPublicExecution,
+  const pxResult = trace.toPublicExecutionResult(
+    environment,
     startGas,
-    context,
-    simulator.getBytecode(),
+    /*endGasLeft=*/ Gas.from(context.machineState.gasLeft),
+    /*bytecode=*/ simulator.getBytecode()!,
+    avmResult,
     functionName,
   );
-  // TODO(dbanks12): public inputs should not be empty.... Need to construct them from AvmContext?
-  const uncompressedBytecode = simulator.getBytecode()!;
-  const publicInputs = getPublicInputs(pxResult);
 
   const avmCircuitInputs = new AvmCircuitInputs(
     functionName,
-    uncompressedBytecode,
-    context.environment.calldata,
-    publicInputs,
-    pxResult.avmHints,
+    /*bytecode=*/ simulator.getBytecode()!, // uncompressed bytecode
+    /*calldata=*/ context.environment.calldata,
+    /*publicInputs=*/ getPublicInputs(pxResult),
+    /*avmHints=*/ pxResult.avmCircuitHints,
   );
 
   // Then we prove.

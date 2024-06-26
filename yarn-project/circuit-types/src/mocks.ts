@@ -203,8 +203,10 @@ export const randomContractArtifact = (): ContractArtifact => ({
   notes: {},
 });
 
-export const randomContractInstanceWithAddress = (opts: { contractClassId?: Fr } = {}): ContractInstanceWithAddress =>
-  SerializableContractInstance.random(opts).withAddress(AztecAddress.random());
+export const randomContractInstanceWithAddress = (
+  opts: { contractClassId?: Fr } = {},
+  address: AztecAddress = AztecAddress.random(),
+): ContractInstanceWithAddress => SerializableContractInstance.random(opts).withAddress(address);
 
 export const randomDeployedContract = () => {
   const artifact = randomContractArtifact();

@@ -572,7 +572,7 @@ export function convertSimulatedPublicSetupInputsToWitnessMap(inputs: PublicKern
 }
 
 /**
- * Converts the inputs of the public setup circuit into a witness map
+ * Converts the inputs of the public app logic circuit into a witness map
  * @param inputs - The public kernel inputs.
  * @returns The witness map
  */

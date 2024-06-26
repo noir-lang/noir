@@ -29,10 +29,9 @@ export class AvmSimulator {
    * Fetch the bytecode and execute it in the current context.
    */
   public async execute(): Promise<AvmContractCallResults> {
-    const selector = this.context.environment.temporaryFunctionSelector;
-    const bytecode = await this.context.persistableState.hostStorage.contractsDb.getBytecode(
+    const bytecode = await this.context.persistableState.getBytecode(
       this.context.environment.address,
-      selector,
+      this.context.environment.temporaryFunctionSelector,
     );
 
     // This assumes that we will not be able to send messages to accounts without code

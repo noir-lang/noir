@@ -19,6 +19,7 @@ export class AvmContextInputs {
  */
 // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3992): gas not implemented
 export class AvmExecutionEnvironment {
+  private readonly calldataPrefixLength;
   constructor(
     public readonly address: AztecAddress,
     public readonly storageAddress: AztecAddress,
@@ -45,8 +46,9 @@ export class AvmExecutionEnvironment {
       temporaryFunctionSelector.toField(),
       computeVarArgsHash(calldata),
       isStaticCall,
-    );
-    this.calldata = [...inputs.toFields(), ...calldata];
+    ).toFields();
+    this.calldata = [...inputs, ...calldata];
+    this.calldataPrefixLength = inputs.length;
   }
 
   private deriveEnvironmentForNestedCallInternal(
@@ -62,7 +64,7 @@ export class AvmExecutionEnvironment {
       /*sender=*/ this.address,
       this.feePerL2Gas,
       this.feePerDaGas,
-      this.contractCallDepth,
+      this.contractCallDepth.add(Fr.ONE),
       this.header,
       this.globals,
       isStaticCall,
@@ -108,5 +110,10 @@ export class AvmExecutionEnvironment {
     _functionSelector: FunctionSelector,
   ): AvmExecutionEnvironment {
     throw new Error('Delegate calls not supported!');
+  }
+
+  public getCalldataWithoutPrefix(): Fr[] {
+    // clip off the first few entries
+    return this.calldata.slice(this.calldataPrefixLength);
   }
 }
