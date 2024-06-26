@@ -1,5 +1,5 @@
 fn main() {
-    foo(1234)
+    foo(256)
 }
 
 fn foo(_x: u8) {}
