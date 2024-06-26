@@ -206,7 +206,7 @@ pub struct SsaCircuitArtifact {
 }
 
 fn convert_generated_acir_into_circuit(
-    mut generated_acir: GeneratedAcir,
+    mut generated_acir: GeneratedAcir<FieldElement>,
     func_sig: FunctionSignature,
     recursive: bool,
     debug_variables: DebugVariables,
