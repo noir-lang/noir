@@ -14,7 +14,7 @@ use crate::{
         StructId,
     },
     node_interner::{ExprId, FuncId},
-    parser,
+    parser::{self, NoirParser, TopLevelStatement},
     token::{SpannedToken, Token, Tokens},
     QuotedType, Shared, Type, TypeBindings,
 };
@@ -325,11 +325,29 @@ impl Value {
             _ => None,
         }
     }
+
+    pub(crate) fn into_top_level_item(self, location: Location) -> IResult<TopLevelStatement> {
+        match self {
+            Value::Code(tokens) => parse_tokens(tokens, parser::top_level_item(), location.file),
+            value => Err(InterpreterError::CannotInlineMacro { value, location }),
+        }
+    }
 }
 
 /// Unwraps an Rc value without cloning the inner value if the reference count is 1. Clones otherwise.
 pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
     Rc::try_unwrap(rc).unwrap_or_else(|rc| (*rc).clone())
+}
+
+fn parse_tokens<T>(tokens: Rc<Tokens>, parser: impl NoirParser<T>, file: fm::FileId) -> IResult<T> {
+    match parser.parse(tokens.as_ref().clone()) {
+        Ok(expr) => Ok(expr),
+        Err(mut errors) => {
+            let error = errors.swap_remove(0);
+            let rule = "an expression";
+            Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
+        }
+    }
 }
 
 impl Display for Value {

@@ -7,6 +7,7 @@ use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
 use crate::ast::{FunctionKind, FunctionReturnType, Visibility};
+use crate::graph::CrateId;
 use crate::macros_api::BlockExpression;
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
 use crate::{ResolvedGeneric, Type, TypeVariable};
@@ -145,6 +146,9 @@ pub struct FuncMeta {
     pub has_inline_attribute: bool,
 
     pub function_body: FunctionBody,
+
+    /// The crate this function was defined in
+    pub source_crate: CrateId,
 }
 
 #[derive(Debug, Clone)]
