@@ -269,7 +269,7 @@ impl Value {
     }
 
     pub(crate) fn field_from_big_int(big_int: &BigInt) -> Self {
-        Self::Field(crate::utils::big_int_to_field_element(&big_int))
+        Self::Field(crate::utils::big_int_to_field_element(big_int))
     }
 }
 

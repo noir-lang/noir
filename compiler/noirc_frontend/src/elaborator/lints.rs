@@ -207,14 +207,13 @@ pub(crate) fn overflowing_uint(
 
     let mut errors = Vec::with_capacity(2);
     match expr {
-        // TODO(ary): check if the "not negative" check is really needed here
         HirExpression::Literal(HirLiteral::Integer(ref value)) if !value.is_negative() => {
             if let Type::Integer(_, bit_count) = annotated_type {
                 let bit_count: u32 = (*bit_count).into();
                 if value.bits() > bit_count.into() {
                     let max = 1 << bit_count;
                     errors.push(TypeCheckError::OverflowingAssignment {
-                        expr: value.clone(), // TODO:(ary) check if this clone can be removed
+                        expr: value.clone(),
                         ty: annotated_type.clone(),
                         range: format!("0..={}", max - 1),
                         span,

@@ -138,10 +138,10 @@ impl<'interner> Monomorphizer<'interner> {
             if let Some(HirExpression::Literal(HirLiteral::Integer(value_i))) =
                 hir_arguments.get(DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i)
             {
-                let fe_i = crate::utils::big_int_to_field_element(&value_i);
+                let fe_i = crate::utils::big_int_to_field_element(value_i);
                 let i_neg = value_i.is_negative();
 
-                // TODO(ary): check if there's a way to turn BigInt into i128 without going through FieldElement
+                // TODO: check if there's a way to turn BigInt into i128 without going through FieldElement
                 let index = fe_i.to_i128().unsigned_abs();
                 if i_neg {
                     // We use negative indices at instrumentation time to indicate
