@@ -33,7 +33,7 @@ use crate::{
         DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, TraitId, TypeAliasId,
     },
     parser::TopLevelStatement,
-    Shared, Type, TypeVariable,
+    Shared, Type, TypeBindings, TypeVariable,
 };
 use crate::{
     ast::{TraitBound, UnresolvedGeneric, UnresolvedGenerics},
@@ -1273,7 +1273,7 @@ impl<'context> Elaborator<'context> {
         let arguments = vec![(Value::TypeDefinition(struct_id), location)];
 
         let value = interpreter
-            .call_function(function, arguments, location)
+            .call_function(function, arguments, TypeBindings::new(), location)
             .map_err(|error| error.into_compilation_error_pair())?;
 
         if value != Value::Unit {

@@ -16,7 +16,7 @@ use crate::{
     node_interner::{ExprId, FuncId},
     parser::{self, NoirParser, TopLevelStatement},
     token::{SpannedToken, Token, Tokens},
-    QuotedType, Shared, Type,
+    QuotedType, Shared, Type, TypeBindings,
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -36,7 +36,7 @@ pub enum Value {
     U32(u32),
     U64(u64),
     String(Rc<String>),
-    Function(FuncId, Type),
+    Function(FuncId, Type, Rc<TypeBindings>),
     Closure(HirLambda, Vec<Value>, Type),
     Tuple(Vec<Value>),
     Struct(HashMap<Rc<String>, Value>, Type),
@@ -65,7 +65,7 @@ impl Value {
                 let length = Type::Constant(value.len() as u32);
                 Type::String(Box::new(length))
             }
-            Value::Function(_, typ) => return Cow::Borrowed(typ),
+            Value::Function(_, typ, _) => return Cow::Borrowed(typ),
             Value::Closure(_, _, typ) => return Cow::Borrowed(typ),
             Value::Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| field.get_type().into_owned()))
@@ -128,13 +128,14 @@ impl Value {
                 ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
             }
             Value::String(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
-            Value::Function(id, typ) => {
+            Value::Function(id, typ, bindings) => {
                 let id = interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
                 let ident = HirIdent { location, id, impl_kind };
                 let expr_id = interner.push_expr(HirExpression::Ident(ident, None));
                 interner.push_expr_location(expr_id, location.span, location.file);
                 interner.push_expr_type(expr_id, typ);
+                interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 ExpressionKind::Resolved(expr_id)
             }
             Value::Closure(_lambda, _env, _typ) => {
@@ -247,10 +248,15 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
             }
             Value::String(value) => HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
-            Value::Function(id, _typ) => {
+            Value::Function(id, typ, bindings) => {
                 let id = interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
-                HirExpression::Ident(HirIdent { location, id, impl_kind }, None)
+                let ident = HirIdent { location, id, impl_kind };
+                let expr_id = interner.push_expr(HirExpression::Ident(ident, None));
+                interner.push_expr_location(expr_id, location.span, location.file);
+                interner.push_expr_type(expr_id, typ);
+                interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
+                return Ok(expr_id);
             }
             Value::Closure(_lambda, _env, _typ) => {
                 // TODO: How should a closure's environment be inlined?
@@ -362,7 +368,7 @@ impl Display for Value {
             Value::U32(value) => write!(f, "{value}"),
             Value::U64(value) => write!(f, "{value}"),
             Value::String(value) => write!(f, "{value}"),
-            Value::Function(_, _) => write!(f, "(function)"),
+            Value::Function(..) => write!(f, "(function)"),
             Value::Closure(_, _, _) => write!(f, "(closure)"),
             Value::Tuple(fields) => {
                 let fields = vecmap(fields, ToString::to_string);
