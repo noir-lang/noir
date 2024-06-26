@@ -1,7 +1,6 @@
-use acvm::{AcirField, FieldElement};
 use fm::FileId;
 use noirc_errors::Location;
-use num_bigint::{BigInt, BigUint, Sign};
+use num_bigint::BigInt;
 
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId};
