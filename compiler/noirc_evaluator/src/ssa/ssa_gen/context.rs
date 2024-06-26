@@ -271,7 +271,7 @@ impl<'a> FunctionContext<'a> {
         typ: Type,
     ) -> Result<ValueId, RuntimeError> {
         let negative = value.is_negative();
-        let field = noirc_frontend::utils::field_element_from_big_int(value);
+        let field = noirc_frontend::utils::big_int_to_field_element(value);
 
         if let Type::Numeric(numeric_type) = typ {
             if !numeric_type.value_is_within_limits(value) {
