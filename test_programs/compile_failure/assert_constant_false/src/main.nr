@@ -1,3 +1,3 @@
 fn main() {
-    assert(false);
+    std::static_assert(false, "");
 }

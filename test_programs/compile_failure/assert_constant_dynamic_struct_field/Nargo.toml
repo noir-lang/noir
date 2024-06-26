@@ -1,5 +1,5 @@
 [package]
-name = "static_asserts"
+name = "assert_constant_dynamic_struct_field"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.31.0"

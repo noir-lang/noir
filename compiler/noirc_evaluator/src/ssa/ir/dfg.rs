@@ -40,10 +40,7 @@ pub(crate) struct DataFlowGraph {
 
     /// Storage for all of the values defined in this
     /// function.
-    
-    // TODO: revert pub
-    // values: DenseMap<Value>,
-    pub(crate) values: DenseMap<Value>,
+    values: DenseMap<Value>,
 
     /// Each constant is unique, attempting to insert the same constant
     /// twice will return the same ValueId.
@@ -511,9 +508,7 @@ impl DataFlowGraph {
 
     /// True if `is_constant` and if a NumericConstant, then is non-zero
     pub(crate) fn is_constant_and_truthy(&self, argument: ValueId) -> bool {
-        match &self[self.resolve(argument)] {
-            Value::Instruction { .. } | Value::Param { .. } => false,
-            Value::Array { array, .. } => array.iter().all(|element| self.is_constant(*element)),
+        self.is_constant(argument) && match &self[self.resolve(argument)] {
             Value::NumericConstant { constant, .. } => !constant.is_zero(),
             _ => true,
         }

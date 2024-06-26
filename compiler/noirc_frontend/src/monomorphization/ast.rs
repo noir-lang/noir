@@ -45,13 +45,6 @@ pub enum Expression {
     Continue,
 }
 
-impl Expression {
-    /// No-op(eration)
-    pub(crate) fn nop() -> Self {
-        Self::Block(vec![])
-    }
-}
-
 /// A definition is either a local (variable), function, or is a built-in
 /// function that will be generated or referenced by the compiler later.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
