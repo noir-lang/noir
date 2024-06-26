@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.44.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.43.0...aztec-package-v0.44.0) (2024-06-26)
+
+
+### Features
+
+* Add OpenTelemetry to node ([#7102](https://github.com/AztecProtocol/aztec-packages/issues/7102)) ([6bf2b72](https://github.com/AztecProtocol/aztec-packages/commit/6bf2b7269fddb5bd7fe4c567710146b4969d2845))
+* Devnet deployments ([#7024](https://github.com/AztecProtocol/aztec-packages/issues/7024)) ([fa70876](https://github.com/AztecProtocol/aztec-packages/commit/fa70876a17b981e6ffa4bece390186b1231ba4fe))
+* Track spans ([#7129](https://github.com/AztecProtocol/aztec-packages/issues/7129)) ([924c3f8](https://github.com/AztecProtocol/aztec-packages/commit/924c3f8809b30d16e81eed5e467aa79ee7074f77))
+
 ## [0.43.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.42.0...aztec-package-v0.43.0) (2024-06-18)
 
 

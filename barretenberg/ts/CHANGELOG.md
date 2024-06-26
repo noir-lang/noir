@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.44.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.43.0...barretenberg.js-v0.44.0) (2024-06-26)
+
+
+### Bug Fixes
+
+* False decryption fix ([#7066](https://github.com/AztecProtocol/aztec-packages/issues/7066)) ([48d9df4](https://github.com/AztecProtocol/aztec-packages/commit/48d9df4ff227c08a6e66f21c0286bc6349151671))
+
 ## [0.43.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.42.0...barretenberg.js-v0.43.0) (2024-06-18)
 
 
