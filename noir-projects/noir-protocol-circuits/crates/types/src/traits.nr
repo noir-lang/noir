@@ -1,4 +1,3 @@
-use dep::std::cmp::Eq;
 use crate::utils::field::field_from_bytes;
 
 // Trait: is_empty

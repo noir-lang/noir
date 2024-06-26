@@ -19,6 +19,6 @@ impl Bar for u64 {
 }
 
 fn main() {
-    dep::std::println(1.foo());
-    dep::std::println(1.bar());
+    std::println(1.foo());
+    std::println(1.bar());
 }

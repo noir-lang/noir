@@ -82,7 +82,7 @@ mod tests {
     },
         tests::merkle_tree_utils::NonEmptyMerkleTree
     };
-    use dep::std::hash::pedersen_hash;
+    use std::hash::pedersen_hash;
 
     struct TestLeafPreimage {
         value: Field,

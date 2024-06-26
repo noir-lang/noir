@@ -1,4 +1,3 @@
-use dep::std::cmp::Eq;
 use crate::{
     constants::KEY_VALIDATION_REQUEST_LENGTH, traits::{Empty, Serialize, Deserialize},
     grumpkin_point::GrumpkinPoint

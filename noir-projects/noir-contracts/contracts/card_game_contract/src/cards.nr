@@ -9,8 +9,6 @@ use dep::aztec::{
     encrypted_logs::encrypted_note_emission::encode_and_encrypt_note_with_keys,
     note::note_getter::view_notes, state_vars::PrivateSet, note::constants::MAX_NOTES_PER_PAGE
 };
-use dep::std;
-use dep::std::{option::Option};
 use dep::value_note::{value_note::{ValueNote, VALUE_NOTE_LEN}};
 
 struct Card {

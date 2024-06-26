@@ -1,5 +1,3 @@
-use dep::std::cmp::Eq;
-
 struct AppendOnlyTreeSnapshot {
     root : Field,
     // TODO(Alvaro) change this to a u64

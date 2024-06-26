@@ -24,7 +24,7 @@ contract AvmTest {
     global big_field_136_bits: Field = 0x991234567890abcdef1234567890abcdef;
 
     // Libs
-    use dep::std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul};
+    use std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul};
     use dep::aztec::protocol_types::constants::CONTRACT_INSTANCE_LENGTH;
     use dep::aztec::prelude::{Map, Deserialize};
     use dep::aztec::state_vars::PublicMutable;
@@ -76,7 +76,7 @@ contract AvmTest {
     fn set_storage_map(to: AztecAddress, amount: u32) -> Field {
         storage.map.at(to).write(amount);
         // returns storage slot for key
-        dep::std::hash::pedersen_hash([storage.map.storage_slot, to.to_field()])
+        std::hash::pedersen_hash([storage.map.storage_slot, to.to_field()])
     }
 
     #[aztec(public)]
@@ -84,7 +84,7 @@ contract AvmTest {
         let new_balance = storage.map.at(to).read().add(amount);
         storage.map.at(to).write(new_balance);
         // returns storage slot for key
-        dep::std::hash::pedersen_hash([storage.map.storage_slot, to.to_field()])
+        std::hash::pedersen_hash([storage.map.storage_slot, to.to_field()])
     }
 
     #[aztec(public)]
@@ -209,27 +209,27 @@ contract AvmTest {
      ************************************************************************/
     #[aztec(public)]
     fn keccak_hash(data: [u8; 10]) -> [u8; 32] {
-        dep::std::hash::keccak256(data, data.len() as u32)
+        std::hash::keccak256(data, data.len() as u32)
     }
 
     #[aztec(public)]
     fn poseidon2_hash(data: [Field; 10]) -> Field {
-        dep::std::hash::poseidon2::Poseidon2::hash(data, data.len())
+        std::hash::poseidon2::Poseidon2::hash(data, data.len())
     }
 
     #[aztec(public)]
     fn sha256_hash(data: [u8; 10]) -> [u8; 32] {
-        dep::std::hash::sha256(data)
+        std::hash::sha256(data)
     }
 
     #[aztec(public)]
     fn pedersen_hash(data: [Field; 10]) -> Field {
-        dep::std::hash::pedersen_hash(data)
+        std::hash::pedersen_hash(data)
     }
 
     #[aztec(public)]
     fn pedersen_hash_with_index(data: [Field; 10]) -> Field {
-        dep::std::hash::pedersen_hash_with_separator(data, /*index=*/ 20)
+        std::hash::pedersen_hash_with_separator(data, /*index=*/ 20)
     }
 
     /************************************************************************

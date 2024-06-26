@@ -26,7 +26,7 @@ impl Hash for NullifierLeafPreimage {
         if self.is_empty() {
             0
         } else {
-            dep::std::hash::pedersen_hash(self.serialize())
+            std::hash::pedersen_hash(self.serialize())
         }
     }
 }

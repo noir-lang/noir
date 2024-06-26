@@ -1,4 +1,4 @@
-use dep::std::{schnorr::verify_signature_slice};
+use std::{schnorr::verify_signature_slice};
 use dep::aztec::prelude::AztecAddress;
 use crate::auth_oracle::AuthWitness;
 

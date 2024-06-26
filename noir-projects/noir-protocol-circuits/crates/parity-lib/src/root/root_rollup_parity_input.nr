@@ -23,7 +23,7 @@ impl Empty for RootRollupParityInput {
 impl Verifiable for RootRollupParityInput {
   fn verify(self) {
     let inputs = ParityPublicInputs::serialize(self.public_inputs);
-    dep::std::verify_proof(
+    std::verify_proof(
         self.verification_key.key.as_slice(),
         self.proof.fields.as_slice(),
         inputs.as_slice(),

@@ -1,4 +1,3 @@
-use dep::std::cmp::Eq;
 use crate::{
     address::{AztecAddress, EthAddress}, abis::gas_fees::GasFees,
     constants::{GENERATOR_INDEX__GLOBAL_VARIABLES, GLOBAL_VARIABLES_LENGTH},

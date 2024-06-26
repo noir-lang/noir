@@ -1,4 +1,3 @@
-use dep::std::cmp::Eq;
 use dep::types::{
     abis::{global_variables::GlobalVariables, append_only_tree_snapshot::AppendOnlyTreeSnapshot},
     traits::{Empty, Serialize, Deserialize}, constants::CONSTANT_ROLLUP_DATA_LENGTH,

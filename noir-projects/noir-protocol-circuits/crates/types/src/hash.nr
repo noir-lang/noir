@@ -14,7 +14,7 @@ use crate::{
     recursion::verification_key::VerificationKey, traits::is_empty,
     utils::field::field_from_bytes_32_trunc
 };
-use dep::std::hash::{pedersen_hash_with_separator, sha256};
+use std::hash::{pedersen_hash_with_separator, sha256};
 
 pub fn sha256_to_field<N>(bytes_to_hash: [u8; N]) -> Field {
     let sha256_hashed = sha256(bytes_to_hash);
@@ -249,11 +249,11 @@ pub fn compute_tx_note_logs_hash(logs: [LogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX]
 }
 
 pub fn pedersen_hash<N>(inputs: [Field; N], hash_index: u32) -> Field {
-    dep::std::hash::pedersen_hash_with_separator(inputs, hash_index)
+    std::hash::pedersen_hash_with_separator(inputs, hash_index)
 }
 
 pub fn poseidon2_hash<N>(inputs: [Field; N]) -> Field {
-    dep::std::hash::poseidon2::Poseidon2::hash(inputs, N)
+    std::hash::poseidon2::Poseidon2::hash(inputs, N)
 }
 
 #[test]

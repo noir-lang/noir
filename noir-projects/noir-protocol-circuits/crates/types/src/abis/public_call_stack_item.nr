@@ -20,7 +20,7 @@ impl Hash for PublicCallStackItem {
             self
         };
 
-        dep::std::hash::pedersen_hash_with_separator([
+        std::hash::pedersen_hash_with_separator([
             item.contract_address.to_field(),
             item.function_data.hash(),
             item.public_inputs.hash(),

@@ -1,5 +1,4 @@
 use crate::{abis::read_request::ScopedReadRequest, address::AztecAddress};
-use dep::std::cmp::Eq;
 
 trait Ordered {
     fn counter(self) -> u32;

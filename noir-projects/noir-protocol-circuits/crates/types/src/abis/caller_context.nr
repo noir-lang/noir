@@ -1,5 +1,4 @@
 use crate::address::AztecAddress;
-use dep::std::cmp::Eq;
 use crate::traits::{Empty, Serialize, Deserialize};
 use crate::constants::CALLER_CONTEXT_LENGTH;
 use crate::utils::reader::Reader;

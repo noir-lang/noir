@@ -41,7 +41,7 @@ impl ContractClassId {
         private_functions_root: Field,
         public_bytecode_commitment: Field
     ) -> Self {
-        let hash = dep::std::hash::pedersen_hash_with_separator(
+        let hash = std::hash::pedersen_hash_with_separator(
             [
             artifact_hash,
             private_functions_root,

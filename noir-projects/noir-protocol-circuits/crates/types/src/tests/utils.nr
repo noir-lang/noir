@@ -1,4 +1,3 @@
-use dep::std::cmp::Eq;
 use crate::traits::{Empty, is_empty};
 
 fn count_non_empty_elements<T, N>(array: [T; N]) -> u64 where T: Empty + Eq {

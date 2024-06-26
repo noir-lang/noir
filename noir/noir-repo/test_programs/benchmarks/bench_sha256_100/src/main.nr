@@ -1,4 +1,3 @@
-use dep::std;
 
 global SIZE = 100;
 

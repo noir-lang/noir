@@ -7,7 +7,7 @@ struct Bar<T> {
 
 impl<T> Bar<T> {
     fn zeroed<A>(_self: Self) -> A {
-        dep::std::unsafe::zeroed()
+        std::unsafe::zeroed()
     }
 }
 

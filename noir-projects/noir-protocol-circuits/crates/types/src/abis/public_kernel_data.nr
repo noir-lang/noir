@@ -13,7 +13,7 @@ struct PublicKernelData {
 impl Verifiable for PublicKernelData {
   fn verify(self) {
     let inputs = PublicKernelCircuitPublicInputs::serialize(self.public_inputs);
-    dep::std::verify_proof(
+    std::verify_proof(
         self.vk.key.as_slice(),
         self.proof.fields.as_slice(),
         inputs.as_slice(),

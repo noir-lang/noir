@@ -3,8 +3,7 @@ use dep::protocol_types::{
     constants::GENERATOR_INDEX__SYMMETRIC_KEY, hash::poseidon2_hash
 };
 
-use dep::std::aes128::aes128_encrypt;
-use dep::std::println;
+use std::aes128::aes128_encrypt;
 
 use crate::keys::point_to_symmetric_key::point_to_symmetric_key;
 

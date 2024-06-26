@@ -1,4 +1,4 @@
-use dep::std::merkle::compute_merkle_root;
+use std::merkle::compute_merkle_root;
 use dep::protocol_types::header::Header;
 
 use crate::{

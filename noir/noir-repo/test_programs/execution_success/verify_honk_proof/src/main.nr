@@ -1,4 +1,3 @@
-use dep::std;
 
 // This circuit aggregates a single Honk proof from `assert_statement_recursive`.
 fn main(

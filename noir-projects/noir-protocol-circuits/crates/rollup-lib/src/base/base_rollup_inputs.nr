@@ -1056,7 +1056,7 @@ mod tests {
         let outputs = BaseRollupInputsBuilder::new().execute();
 
         let hash_input_flattened = [0; TX_EFFECTS_HASH_INPUT_FIELDS * 32];
-        let sha_digest = dep::std::hash::sha256(hash_input_flattened);
+        let sha_digest = std::hash::sha256(hash_input_flattened);
         let expected_tx_effects_hash = field_from_bytes_32_trunc(sha_digest);
         assert_eq(outputs.txs_effects_hash, expected_tx_effects_hash);
     }
@@ -1067,7 +1067,7 @@ mod tests {
         // For now setting an empty out hash to be H(0,0) to keep consistent
         // with prev work.
         let hash_input_flattened = [0; 64];
-        let sha_digest = dep::std::hash::sha256(hash_input_flattened);
+        let sha_digest = std::hash::sha256(hash_input_flattened);
         let expected_out_hash = field_from_bytes_32_trunc(sha_digest);
         assert_eq(outputs.out_hash, expected_out_hash);
     }

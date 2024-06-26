@@ -47,13 +47,13 @@ impl PrivateKernelInitCircuitPrivateInputs {
         private_call_data_validator.validate_as_first_call(self.hints.first_revertible_private_call_request_index);
         private_call_data_validator.validate_against_tx_request(self.tx_request);
         private_call_data_validator.validate(output.end.new_note_hashes);
-        if !dep::std::runtime::is_unconstrained() {
+        if !std::runtime::is_unconstrained() {
             // verify/aggregate the private call proof
             self.private_call.verify();
         }
 
         // Validate output.
-        if !dep::std::runtime::is_unconstrained() {
+        if !std::runtime::is_unconstrained() {
             PrivateKernelCircuitOutputValidator::new(output).validate_as_first_call(
                 self.tx_request,
                 self.private_call.call_stack_item.public_inputs,

@@ -1,7 +1,7 @@
 use dep::protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint};
 use crate::{context::PrivateContext, state_vars::private_mutable::PrivateMutable};
 use crate::test::{mocks::mock_note::MockNote, helpers::{cheatcodes, test_environment::TestEnvironment}};
-use dep::std::{unsafe::zeroed, test::OracleMock};
+use std::{unsafe::zeroed, test::OracleMock};
 
 global storage_slot = 17;
 

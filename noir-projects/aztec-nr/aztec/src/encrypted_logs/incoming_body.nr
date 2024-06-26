@@ -2,7 +2,7 @@ use crate::note::note_interface::NoteInterface;
 use crate::event::event_interface::EventInterface;
 use dep::protocol_types::{grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint};
 
-use dep::std::aes128::aes128_encrypt;
+use std::aes128::aes128_encrypt;
 use crate::keys::point_to_symmetric_key::point_to_symmetric_key;
 
 struct EncryptedLogIncomingBody<M> {

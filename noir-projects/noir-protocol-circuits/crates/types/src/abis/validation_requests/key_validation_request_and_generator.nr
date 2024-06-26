@@ -1,4 +1,3 @@
-use dep::std::cmp::Eq;
 use crate::{
     address::AztecAddress,
     abis::validation_requests::{

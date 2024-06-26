@@ -4,7 +4,6 @@ use crate::{
     constants::{NOTE_HASH_LENGTH, SCOPED_NOTE_HASH_LENGTH}, traits::{Empty, Serialize, Deserialize},
     utils::{arrays::array_concat, reader::Reader}
 };
-use dep::std::cmp::Eq;
 
 struct NoteHash {
     value: Field,

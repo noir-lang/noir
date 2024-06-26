@@ -1,4 +1,3 @@
-use dep::std::cmp::Eq;
 use crate::{
     abis::{caller_context::CallerContext, side_effect::Ordered}, address::AztecAddress,
     constants::CALL_REQUEST_LENGTH, traits::{Empty, Serialize, Deserialize}, utils::reader::Reader

@@ -1,4 +1,3 @@
-use dep::std::cmp::Eq;
 use crate::constants::{PUBLIC_DATA_UPDATE_REQUEST_LENGTH, GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST};
 use crate::traits::{Empty, Hash, Serialize, Deserialize};
 use crate::public_data_tree_leaf::PublicDataTreeLeaf;
@@ -57,7 +56,7 @@ impl Empty for PublicDataUpdateRequest {
 
 impl Hash for PublicDataUpdateRequest {
     fn hash(self) -> Field {
-        dep::std::hash::pedersen_hash_with_separator([
+        std::hash::pedersen_hash_with_separator([
             self.leaf_slot,
             self.new_value
         ], GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST)

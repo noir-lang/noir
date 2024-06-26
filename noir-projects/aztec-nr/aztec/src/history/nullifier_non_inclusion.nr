@@ -1,4 +1,4 @@
-use dep::std::merkle::compute_merkle_root;
+use std::merkle::compute_merkle_root;
 use dep::protocol_types::{header::Header, utils::field::{full_field_less_than, full_field_greater_than}};
 use crate::{
     context::PrivateContext, note::{utils::compute_siloed_nullifier, note_interface::NoteInterface},

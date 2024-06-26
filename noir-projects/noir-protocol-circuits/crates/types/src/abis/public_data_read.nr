@@ -1,5 +1,4 @@
 use crate::constants::{GENERATOR_INDEX__PUBLIC_DATA_READ, PUBLIC_DATA_READ_LENGTH};
-use dep::std::cmp::Eq;
 use crate::traits::{Empty, Hash, Serialize, Deserialize};
 use crate::contrakt::storage_read::StorageRead;
 use crate::data::hash::{compute_public_data_tree_value, compute_public_data_tree_index};
@@ -39,7 +38,7 @@ impl Empty for PublicDataRead {
 
 impl Hash for PublicDataRead {
     fn hash(self) -> Field {
-        dep::std::hash::pedersen_hash_with_separator([
+        std::hash::pedersen_hash_with_separator([
             self.leaf_slot,
             self.value,
         ], GENERATOR_INDEX__PUBLIC_DATA_READ)

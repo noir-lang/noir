@@ -10,7 +10,7 @@ struct EmptyNestedCircuitPublicInputs {
 
 impl Verifiable for EmptyNestedCircuitPublicInputs {
   fn verify(self) {
-    dep::std::verify_proof(
+    std::verify_proof(
         self.vk.key.as_slice(),
         self.proof.fields.as_slice(),
         &[],

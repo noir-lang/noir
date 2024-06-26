@@ -1,4 +1,3 @@
-use dep::std::cmp::Eq;
 use crate::{
     abis::{caller_context::CallerContext, side_effect::{Ordered, RangeOrdered, Scoped}},
     address::AztecAddress, constants::{PRIVATE_CALL_REQUEST_LENGTH, SCOPED_PRIVATE_CALL_REQUEST_LENGTH},

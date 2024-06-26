@@ -3,7 +3,7 @@ use crate::{
     oracle::get_l1_to_l2_membership_witness::get_l1_to_l2_membership_witness
 };
 
-use dep::std::merkle::compute_merkle_root;
+use std::merkle::compute_merkle_root;
 use dep::protocol_types::{constants::L1_TO_L2_MSG_TREE_HEIGHT, address::{AztecAddress, EthAddress}, utils::arr_copy_slice};
 
 pub fn process_l1_to_l2_message(

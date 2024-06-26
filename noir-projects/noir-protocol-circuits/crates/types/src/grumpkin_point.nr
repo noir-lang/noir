@@ -1,5 +1,4 @@
 use crate::{traits::{Serialize, Deserialize, Hash}, hash::poseidon2_hash};
-use dep::std::cmp::Eq;
 
 global GRUMPKIN_POINT_SERIALIZED_LEN: Field = 2;
 

@@ -3,7 +3,6 @@ use crate::{
     address::AztecAddress, constants::{READ_REQUEST_LENGTH, SCOPED_READ_REQUEST_LEN},
     utils::{arrays::array_concat, reader::Reader}
 };
-use dep::std::cmp::Eq;
 
 struct ReadRequest {
     value: Field,

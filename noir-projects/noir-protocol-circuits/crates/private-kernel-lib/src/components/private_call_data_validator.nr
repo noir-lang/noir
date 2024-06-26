@@ -207,8 +207,8 @@ impl PrivateCallDataValidator {
         let private_call_vk_hash = stdlib_recursion_verification_key_compress_native_vk(self.data.vk);
 
         assert(!contract_address.is_zero(), "contract address cannot be zero");
-        // std::println(f"contract_address={contract_address}");
-        // std::println(f"private_call_vk_hash={private_call_vk_hash}");
+        // println(f"contract_address={contract_address}");
+        // println(f"private_call_vk_hash={private_call_vk_hash}");
 
         // Recompute the contract class id
         let computed_private_functions_root = private_functions_root_from_siblings(
@@ -217,24 +217,24 @@ impl PrivateCallDataValidator {
             self.data.function_leaf_membership_witness.leaf_index,
             self.data.function_leaf_membership_witness.sibling_path
         );
-        // std::println(f"computed_private_functions_root={computed_private_functions_root}");
+        // println(f"computed_private_functions_root={computed_private_functions_root}");
 
         let computed_contract_class_id = ContractClassId::compute(
             self.data.contract_class_artifact_hash,
             computed_private_functions_root,
             self.data.contract_class_public_bytecode_commitment
         );
-        // std::println(f"computed_contract_class_id={computed_contract_class_id}");
+        // println(f"computed_contract_class_id={computed_contract_class_id}");
 
         // Recompute contract address using the preimage which includes the class_id
         let computed_partial_address = PartialAddress::compute_from_salted_initialization_hash(
             computed_contract_class_id,
             self.data.salted_initialization_hash
         );
-        // std::println(f"computed_partial_address={computed_partial_address}");
+        // println(f"computed_partial_address={computed_partial_address}");
 
         let computed_address = AztecAddress::compute(self.data.public_keys_hash, computed_partial_address);
-        // std::println(f"computed_address={computed_address}");
+        // println(f"computed_address={computed_address}");
 
         assert(
             computed_address.eq(contract_address), "computed contract address does not match expected one"

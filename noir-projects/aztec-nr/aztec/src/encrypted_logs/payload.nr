@@ -3,7 +3,7 @@ use dep::protocol_types::{
     constants::{GENERATOR_INDEX__IVSK_M, GENERATOR_INDEX__OVSK_M}, hash::poseidon2_hash
 };
 
-use dep::std::{embedded_curve_ops::{embedded_curve_add, EmbeddedCurvePoint}, field::bytes32_to_field};
+use std::{embedded_curve_ops::{embedded_curve_add, EmbeddedCurvePoint}, field::bytes32_to_field};
 
 use crate::oracle::unsafe_rand::unsafe_rand;
 

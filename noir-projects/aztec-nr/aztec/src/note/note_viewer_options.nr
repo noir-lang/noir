@@ -1,4 +1,4 @@
-use dep::std::option::Option;
+use std::option::Option;
 use crate::note::note_getter_options::{PropertySelector, Select, Sort, Comparator, NoteStatus};
 use dep::protocol_types::traits::ToField;
 use crate::note::note_interface::NoteInterface;

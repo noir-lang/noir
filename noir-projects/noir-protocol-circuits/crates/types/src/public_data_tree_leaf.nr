@@ -1,5 +1,4 @@
 use crate::traits::Empty;
-use dep::std::cmp::Eq;
 
 struct PublicDataTreeLeaf {
     slot: Field,

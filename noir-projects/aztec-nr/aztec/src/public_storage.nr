@@ -26,7 +26,7 @@ pub fn write<T, N>(storage_slot: Field, value: T) where T: Serialize<N> {
 // }
 
 mod tests {
-    use dep::std::test::OracleMock;
+    use std::test::OracleMock;
     use dep::protocol_types::traits::{Deserialize, Serialize};
     use crate::public_storage;
 
