@@ -13,88 +13,32 @@ use super::value::Value;
 /// The possible errors that can halt the interpreter.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InterpreterError {
-    ArgumentCountMismatch {
-        expected: usize,
-        actual: usize,
-        location: Location,
-    },
-    TypeMismatch {
-        expected: Type,
-        value: Value,
-        location: Location,
-    },
-    NonComptimeVarReferenced {
-        name: String,
-        location: Location,
-    },
-    IntegerOutOfRangeForType {
-        value: FieldElement,
-        typ: Type,
-        location: Location,
-    },
-    ErrorNodeEncountered {
-        location: Location,
-    },
-    FailingConstraint {
-        message: Option<Value>,
-        location: Location,
-    },
-    NoMethodFound {
-        name: String,
-        typ: Type,
-        location: Location,
-    },
-    NonNumericCasted {
-        value: Value,
-        location: Location,
-    },
-    IndexOutOfBounds {
-        index: usize,
-        length: usize,
-        location: Location,
-    },
-    TypeUnsupported {
-        typ: Type,
-        location: Location,
-    },
-    QuoteInRuntimeCode {
-        location: Location,
-    },
-    CannotInlineMacro {
-        value: Value,
-        location: Location,
-    },
-    UnquoteFoundDuringEvaluation {
-        location: Location,
-    },
-    FailedToParseMacro {
-        error: ParserError,
-        tokens: Rc<Tokens>,
-        rule: &'static str,
-        file: FileId,
-    },
-    NonComptimeFnCallInSameCrate {
-        function: String,
-        location: Location,
-    },
+    ArgumentCountMismatch { expected: usize, actual: usize, location: Location },
+    TypeMismatch { expected: Type, value: Value, location: Location },
+    NonComptimeVarReferenced { name: String, location: Location },
+    IntegerOutOfRangeForType { value: FieldElement, typ: Type, location: Location },
+    ErrorNodeEncountered { location: Location },
+    FailingConstraint { message: Option<Value>, location: Location },
+    NoMethodFound { name: String, typ: Type, location: Location },
+    NonNumericCasted { value: Value, location: Location },
+    IndexOutOfBounds { index: usize, length: usize, location: Location },
+    TypeUnsupported { typ: Type, location: Location },
+    QuoteInRuntimeCode { location: Location },
+    CannotInlineMacro { value: Value, location: Location },
+    UnquoteFoundDuringEvaluation { location: Location },
+    FailedToParseMacro { error: ParserError, tokens: Rc<Tokens>, rule: &'static str, file: FileId },
+    NonComptimeFnCallInSameCrate { function: String, location: Location },
 
-    /// SilentFail is for silently failing without reporting an error. This is used to avoid
-    /// issuing repeated errors, e.g. for cases the type checker is already expected to catch.
+    // SilentFail is for silently failing without reporting an error. This is used to avoid
+    // issuing repeated errors, e.g. for cases the type checker is already expected to catch.
     SilentFail,
 
-    Unimplemented {
-        item: String,
-        location: Location,
-    },
+    Unimplemented { item: String, location: Location },
 
     // Perhaps this should be unreachable! due to type checking also preventing this error?
     // Currently it and the Continue variant are the only interpreter errors without a Location field
-    BreakNotInLoop {
-        location: Location,
-    },
-    ContinueNotInLoop {
-        location: Location,
-    },
+    BreakNotInLoop { location: Location },
+    ContinueNotInLoop { location: Location },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
