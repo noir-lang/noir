@@ -1,6 +1,6 @@
-use dep::std::option::Option;
+use std::option::Option;
 
-trait MyDeserialize<N> {
+trait MyDeserialize<let N: u32> {
     fn deserialize(fields: [Field; N]) -> Self;
 }
 
@@ -10,8 +10,8 @@ impl MyDeserialize<1> for Field {
     }
 }
 
-pub fn storage_read<N>() -> [Field; N] {
-    dep::std::unsafe::zeroed()
+pub fn storage_read<let N: u32>() -> [Field; N] {
+    std::unsafe::zeroed()
 }
 
 struct PublicMutable<T> {

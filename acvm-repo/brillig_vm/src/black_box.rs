@@ -241,7 +241,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 memory.read(*domain_separator).try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(
                         BlackBoxFunc::PedersenCommitment,
-                        "Invalid signature length".to_string(),
+                        "Invalid separator length".to_string(),
                     )
                 })?;
             let (x, y) = solver.pedersen_commitment(&inputs, domain_separator)?;
@@ -260,7 +260,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 memory.read(*domain_separator).try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(
                         BlackBoxFunc::PedersenCommitment,
-                        "Invalid signature length".to_string(),
+                        "Invalid separator length".to_string(),
                     )
                 })?;
             let hash = solver.pedersen_hash(&inputs, domain_separator)?;
@@ -392,8 +392,6 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
         BlackBoxOp::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
         BlackBoxOp::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
-        BlackBoxOp::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
-        BlackBoxOp::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
         BlackBoxOp::MultiScalarMul { .. } => BlackBoxFunc::MultiScalarMul,
         BlackBoxOp::EmbeddedCurveAdd { .. } => BlackBoxFunc::EmbeddedCurveAdd,
         BlackBoxOp::BigIntAdd { .. } => BlackBoxFunc::BigIntAdd,
@@ -405,6 +403,8 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::Poseidon2Permutation { .. } => BlackBoxFunc::Poseidon2Permutation,
         BlackBoxOp::Sha256Compression { .. } => BlackBoxFunc::Sha256Compression,
         BlackBoxOp::ToRadix { .. } => unreachable!("ToRadix is not an ACIR BlackBoxFunc"),
+        BlackBoxOp::PedersenCommitment { .. } => BlackBoxFunc::PedersenCommitment,
+        BlackBoxOp::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
     }
 }
 

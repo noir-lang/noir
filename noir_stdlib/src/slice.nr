@@ -44,7 +44,7 @@ impl<T> [T] {
         self
     }
 
-    pub fn as_array<N>(self) -> [T; N] {
+    pub fn as_array<let N: u32>(self) -> [T; N] {
         assert(self.len() == N);
 
         let mut array = [crate::unsafe::zeroed(); N];
@@ -52,5 +52,54 @@ impl<T> [T] {
             array[i] = self[i];
         }
         array
+    }
+
+    // Apply a function to each element of the slice, returning a new slice
+    // containing the mapped elements.
+    pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> [U] {
+        let mut ret = &[];
+        for elem in self {
+            ret = ret.push_back(f(elem));
+        }
+        ret
+    }
+
+    // Apply a function to each element of the slice and an accumulator value,
+    // returning the final accumulated value. This function is also sometimes
+    // called `foldl`, `fold_left`, `reduce`, or `inject`.
+    pub fn fold<U, Env>(self, mut accumulator: U, f: fn[Env](U, T) -> U) -> U {
+        for elem in self {
+            accumulator = f(accumulator, elem);
+        }
+        accumulator
+    }
+
+    // Apply a function to each element of the slice and an accumulator value,
+    // returning the final accumulated value. Unlike fold, reduce uses the first
+    // element of the given slice as its starting accumulator value.
+    pub fn reduce<Env>(self, f: fn[Env](T, T) -> T) -> T {
+        let mut accumulator = self[0];
+        for i in 1..self.len() {
+            accumulator = f(accumulator, self[i]);
+        }
+        accumulator
+    }
+
+    // Returns true if all elements in the slice satisfy the predicate
+    pub fn all<Env>(self, predicate: fn[Env](T) -> bool) -> bool {
+        let mut ret = true;
+        for elem in self {
+            ret &= predicate(elem);
+        }
+        ret
+    }
+
+    // Returns true if any element in the slice satisfies the predicate
+    pub fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool {
+        let mut ret = false;
+        for elem in self {
+            ret |= predicate(elem);
+        }
+        ret
     }
 }

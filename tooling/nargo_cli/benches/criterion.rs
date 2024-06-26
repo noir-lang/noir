@@ -28,16 +28,10 @@ macro_rules! criterion_command {
     };
 }
 criterion_command!(execution, "execute");
-criterion_command!(prove, "prove");
 
 criterion_group! {
     name = execution_benches;
     config = Criterion::default().sample_size(20).measurement_time(Duration::from_secs(20)).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = criterion_selected_tests_execution
 }
-criterion_group! {
-    name = prove_benches;
-    config = Criterion::default().sample_size(10).measurement_time(Duration::from_secs(20)).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
-    targets = criterion_selected_tests_prove
-}
-criterion_main!(execution_benches, prove_benches);
+criterion_main!(execution_benches);

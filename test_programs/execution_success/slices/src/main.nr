@@ -1,5 +1,4 @@
-use dep::std::slice;
-use dep::std;
+use std::slice;
 
 fn main(x: Field, y: pub Field) {
     let mut slice = &[0; 2];
@@ -45,6 +44,14 @@ fn main(x: Field, y: pub Field) {
     assert(append.len() == 5);
     assert(append[0] == 1);
     assert(append[4] == 5);
+
+    let mapped = &[1, 2].map(|x| x + 1);
+    assert_eq(mapped, &[2, 3]);
+
+    assert_eq(&[1, 2, 3].fold(0, |acc, x| acc + x), 6);
+    assert_eq(&[1, 2, 3].reduce(|acc, x| acc + x), 6);
+    assert(&[2, 4, 6].all(|x| x > 0));
+    assert(&[2, 4, 6].any(|x| x > 5));
 
     regression_2083();
     // The parameters to this function must come from witness values (inputs to main)

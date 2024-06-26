@@ -7,7 +7,8 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
-use crate::hir_def::expr::HirQuoted;
+use crate::graph::CrateId;
+use crate::token::Tokens;
 use crate::{
     hir_def::{
         expr::{
@@ -26,11 +27,10 @@ use crate::{
     Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
 
-use self::unquote::UnquoteArgs;
-
 use super::errors::{IResult, InterpreterError};
 use super::value::Value;
 
+mod builtin;
 mod unquote;
 
 #[allow(unused)]
@@ -43,6 +43,8 @@ pub struct Interpreter<'interner> {
     /// up all currently visible definitions.
     scopes: &'interner mut Vec<HashMap<DefinitionId, Value>>,
 
+    crate_id: CrateId,
+
     in_loop: bool,
 }
 
@@ -51,8 +53,9 @@ impl<'a> Interpreter<'a> {
     pub(crate) fn new(
         interner: &'a mut NodeInterner,
         scopes: &'a mut Vec<HashMap<DefinitionId, Value>>,
+        crate_id: CrateId,
     ) -> Self {
-        Self { interner, scopes, in_loop: false }
+        Self { interner, scopes, crate_id, in_loop: false }
     }
 
     pub(crate) fn call_function(
@@ -61,8 +64,6 @@ impl<'a> Interpreter<'a> {
         arguments: Vec<(Value, Location)>,
         location: Location,
     ) -> IResult<Value> {
-        let previous_state = self.enter_function();
-
         let meta = self.interner.function_meta(&function);
         if meta.parameters.len() != arguments.len() {
             return Err(InterpreterError::ArgumentCountMismatch {
@@ -72,11 +73,21 @@ impl<'a> Interpreter<'a> {
             });
         }
 
+        let is_comptime = self.interner.function_modifiers(&function).is_comptime;
+        if !is_comptime && meta.source_crate == self.crate_id {
+            // Calling non-comptime functions from within the current crate is restricted
+            // as non-comptime items will have not been elaborated yet.
+            let function = self.interner.function_name(&function).to_owned();
+            return Err(InterpreterError::NonComptimeFnCallInSameCrate { function, location });
+        }
+
         if meta.kind != FunctionKind::Normal {
             return self.call_builtin(function, arguments, location);
         }
 
         let parameters = meta.parameters.0.clone();
+        let previous_state = self.enter_function();
+
         for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
             self.define_pattern(parameter, typ, argument, arg_location)?;
         }
@@ -99,16 +110,16 @@ impl<'a> Interpreter<'a> {
             .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to");
 
         if let Some(builtin) = func_attrs.builtin() {
-            let item = format!("Evaluation for builtin functions like {builtin}");
-            Err(InterpreterError::Unimplemented { item, location })
+            let builtin = builtin.clone();
+            builtin::call_builtin(self.interner, &builtin, arguments, location)
         } else if let Some(foreign) = func_attrs.foreign() {
-            let item = format!("Evaluation for foreign functions like {foreign}");
+            let item = format!("Comptime evaluation for foreign functions like {foreign}");
             Err(InterpreterError::Unimplemented { item, location })
         } else if let Some(oracle) = func_attrs.oracle() {
             if oracle == "print" {
                 self.print_oracle(arguments)
             } else {
-                let item = format!("Evaluation for oracle functions like {oracle}");
+                let item = format!("Comptime evaluation for oracle functions like {oracle}");
                 Err(InterpreterError::Unimplemented { item, location })
             }
         } else {
@@ -336,9 +347,9 @@ impl<'a> Interpreter<'a> {
             HirExpression::If(if_) => self.evaluate_if(if_, id),
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
-            HirExpression::Quote(block) => self.evaluate_quote(block, id),
+            HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
             HirExpression::Comptime(block) => self.evaluate_block(block),
-            HirExpression::Unquote(block) => {
+            HirExpression::Unquote(tokens) => {
                 // An Unquote expression being found is indicative of a macro being
                 // expanded within another comptime fn which we don't currently support.
                 let location = self.interner.expr_location(&id);
@@ -610,10 +621,13 @@ impl<'a> Interpreter<'a> {
         let rhs = self.evaluate(infix.rhs)?;
 
         // TODO: Need to account for operator overloading
-        assert!(
-            self.interner.get_selected_impl_for_expression(id).is_none(),
-            "Operator overloading is unimplemented in the interpreter"
-        );
+        // See https://github.com/noir-lang/noir/issues/4925
+        if self.interner.get_selected_impl_for_expression(id).is_some() {
+            return Err(InterpreterError::Unimplemented {
+                item: "Operator overloading in the interpreter".to_string(),
+                location: infix.operator.location,
+            });
+        }
 
         use InterpreterError::InvalidValuesForBinary;
         match infix.operator.kind {
@@ -929,6 +943,18 @@ impl<'a> Interpreter<'a> {
     fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
         let (fields, struct_type) = match self.evaluate(access.lhs)? {
             Value::Struct(fields, typ) => (fields, typ),
+            Value::Tuple(fields) => {
+                let (fields, field_types): (HashMap<Rc<String>, Value>, Vec<Type>) = fields
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, field)| {
+                        let field_type = field.get_type().into_owned();
+                        let key_val_pair = (Rc::new(i.to_string()), field);
+                        (key_val_pair, field_type)
+                    })
+                    .unzip();
+                (fields, Type::Tuple(field_types))
+            }
             value => {
                 let location = self.interner.expr_location(&id);
                 return Err(InterpreterError::NonTupleOrStructInMemberAccess { value, location });
@@ -1129,13 +1155,10 @@ impl<'a> Interpreter<'a> {
         Ok(Value::Closure(lambda, environment, typ))
     }
 
-    fn evaluate_quote(&mut self, mut quoted: HirQuoted, expr_id: ExprId) -> IResult<Value> {
-        let file = self.interner.expr_location(&expr_id).file;
-        let values = try_vecmap(quoted.unquoted_exprs, |value| self.evaluate(value))?;
-        let args = UnquoteArgs { values, file };
-
-        self.substitute_unquoted_values_into_block(&mut quoted.quoted_block, &args);
-        Ok(Value::Code(Rc::new(quoted.quoted_block)))
+    fn evaluate_quote(&mut self, mut tokens: Tokens, expr_id: ExprId) -> IResult<Value> {
+        let location = self.interner.expr_location(&expr_id);
+        tokens = self.substitute_unquoted_values_into_tokens(tokens, location)?;
+        Ok(Value::Code(Rc::new(tokens)))
     }
 
     pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {

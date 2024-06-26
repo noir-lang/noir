@@ -1,5 +1,3 @@
-use dep::std;
-
 fn main(
     verification_key: [Field; 114],
     proof: [Field; 93],

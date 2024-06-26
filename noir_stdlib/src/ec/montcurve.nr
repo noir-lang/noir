@@ -114,7 +114,7 @@ mod affine {
 
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
-        fn bit_mul<N>(self, bits: [u1; N], p: Point) -> Point {
+        fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
             self.into_tecurve().bit_mul(bits, p.into_tecurve()).into_montcurve()
         }
 
@@ -124,7 +124,7 @@ mod affine {
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
-        fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
+        fn msm<let N: u32>(self, n: [Field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {
@@ -315,7 +315,7 @@ mod curvegroup {
 
         // Scalar multiplication with scalar represented by a bit array (little-endian convention).
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
-        fn bit_mul<N>(self, bits: [u1; N], p: Point) -> Point {
+        fn bit_mul<let N: u32>(self, bits: [u1; N], p: Point) -> Point {
             self.into_tecurve().bit_mul(bits, p.into_tecurve()).into_montcurve()
         }
 
@@ -325,7 +325,7 @@ mod curvegroup {
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
-        fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
+        fn msm<let N: u32>(self, n: [Field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {

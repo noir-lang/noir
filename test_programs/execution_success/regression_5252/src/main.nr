@@ -1,4 +1,4 @@
-use dep::std::hash::{mimc, poseidon, poseidon2::Poseidon2};
+use std::hash::{mimc, poseidon, poseidon2::Poseidon2};
 
 global NUM_HASHES = 3;
 global HASH_LENGTH = 20;

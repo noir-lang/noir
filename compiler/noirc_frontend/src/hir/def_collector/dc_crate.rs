@@ -5,7 +5,7 @@ use crate::graph::CrateId;
 use crate::hir::comptime::{Interpreter, InterpreterError};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
-use crate::{Type, TypeVariable};
+use crate::{ResolvedGeneric, Type};
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::resolution::{
@@ -33,7 +33,6 @@ use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Span};
 use std::collections::{BTreeMap, HashMap};
 
-use std::rc::Rc;
 use std::vec;
 
 #[derive(Default)]
@@ -125,7 +124,7 @@ pub struct UnresolvedTraitImpl {
     pub trait_id: Option<TraitId>,
     pub impl_id: Option<TraitImplId>,
     pub resolved_object_type: Option<Type>,
-    pub resolved_generics: Vec<(Rc<String>, TypeVariable, Span)>,
+    pub resolved_generics: Vec<ResolvedGeneric>,
 
     // The resolved generic on the trait itself. E.g. it is the `<C, D>` in
     // `impl<A, B> Foo<C, D> for Bar<E, F> { ... }`
@@ -256,7 +255,7 @@ impl DefCollector {
         context: &mut Context,
         ast: SortedModule,
         root_file_id: FileId,
-        use_elaborator: bool,
+        use_legacy: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -273,7 +272,7 @@ impl DefCollector {
             errors.extend(CrateDefMap::collect_defs(
                 dep.crate_id,
                 context,
-                use_elaborator,
+                use_legacy,
                 macro_processors,
             ));
 
@@ -351,7 +350,7 @@ impl DefCollector {
             }
         }
 
-        if use_elaborator {
+        if !use_legacy {
             let mut more_errors = Elaborator::elaborate(context, crate_id, def_collector.items);
             errors.append(&mut more_errors);
             return errors;
@@ -379,6 +378,7 @@ impl DefCollector {
             def_collector.items.traits,
             crate_id,
         ));
+
         // Must resolve structs before we resolve globals.
         resolved_module.errors.extend(resolve_structs(
             context,
@@ -447,7 +447,7 @@ impl DefCollector {
         resolved_module.type_check(context);
 
         if !cycles_present {
-            resolved_module.evaluate_comptime(&mut context.def_interner);
+            resolved_module.evaluate_comptime(&mut context.def_interner, crate_id);
         }
 
         resolved_module.errors
@@ -468,7 +468,7 @@ fn inject_prelude(
 
         let path = Path {
             segments: segments.clone(),
-            kind: crate::ast::PathKind::Dep,
+            kind: crate::ast::PathKind::Plain,
             span: Span::default(),
         };
 
@@ -489,7 +489,7 @@ fn inject_prelude(
                     0,
                     ImportDirective {
                         module_id: crate_root,
-                        path: Path { segments, kind: PathKind::Dep, span: Span::default() },
+                        path: Path { segments, kind: PathKind::Plain, span: Span::default() },
                         alias: None,
                         is_prelude: true,
                     },
@@ -546,10 +546,10 @@ impl ResolvedModule {
     }
 
     /// Evaluate all `comptime` expressions in this module
-    fn evaluate_comptime(&mut self, interner: &mut NodeInterner) {
+    fn evaluate_comptime(&mut self, interner: &mut NodeInterner, crate_id: CrateId) {
         if self.count_errors() == 0 {
             let mut scopes = vec![HashMap::default()];
-            let mut interpreter = Interpreter::new(interner, &mut scopes);
+            let mut interpreter = Interpreter::new(interner, &mut scopes, crate_id);
 
             for (_file, global) in &self.globals {
                 if let Err(error) = interpreter.scan_global(*global) {

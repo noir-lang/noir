@@ -7,7 +7,7 @@ use acvm_blackbox_solver::{blake2s, blake3, keccak256, keccakf1600, sha256};
 
 use self::{
     aes128::solve_aes128_encryption_opcode, bigint::AcvmBigIntSolver,
-    hash::solve_poseidon2_permutation_opcode, pedersen::pedersen_hash,
+    hash::solve_poseidon2_permutation_opcode,
 };
 
 use super::{insert_value, OpcodeNotSolvable, OpcodeResolutionError};
@@ -27,7 +27,7 @@ use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 // Hash functions should eventually be exposed for external consumers.
 use hash::{solve_generic_256_hash_opcode, solve_sha_256_permutation_opcode};
 use logic::{and, xor};
-use pedersen::pedersen;
+use pedersen::{pedersen, pedersen_hash};
 pub(crate) use range::solve_range_opcode;
 use signature::{
     ecdsa::{secp256k1_prehashed, secp256r1_prehashed},
