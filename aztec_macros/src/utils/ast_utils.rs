@@ -47,6 +47,7 @@ pub fn method_call(
         object,
         method_name: ident(method_name),
         arguments,
+        is_macro_call: false,
         generics: None,
     })))
 }
