@@ -15,7 +15,7 @@ pub use expression::*;
 pub use function::*;
 
 use noirc_errors::Span;
-use num_bigint::Sign;
+use num_traits::Signed;
 use serde::{Deserialize, Serialize};
 pub use statement::*;
 pub use structure::*;
@@ -324,7 +324,7 @@ impl UnresolvedTypeExpression {
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
             ExpressionKind::Literal(Literal::Integer(ref int)) => {
-                assert!(int.sign() != Sign::Minus, "Negative literal is not allowed here");
+                assert!(!int.is_negative(), "Negative literal is not allowed here");
                 match int.try_into() {
                     Ok(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
                     Err(_) => Err(expr),

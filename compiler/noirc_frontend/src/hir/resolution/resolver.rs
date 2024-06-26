@@ -11,8 +11,6 @@
 // XXX: Change mentions of intern to resolve. In regards to the above comment
 //
 // XXX: Resolver does not check for unused functions
-use acvm::acir::AcirField;
-
 use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCapturedVar,
     HirCastExpression, HirConstructorExpression, HirExpression, HirIdent, HirIfExpression,
@@ -24,6 +22,7 @@ use crate::hir_def::function::FunctionBody;
 use crate::hir_def::traits::{Trait, TraitConstraint};
 use crate::macros_api::SecondaryAttribute;
 use crate::token::Attributes;
+use num_traits::ToPrimitive;
 use regex::Regex;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::rc::Rc;
@@ -1487,7 +1486,7 @@ impl<'a> Resolver<'a> {
                 Literal::Slice(array_literal) => {
                     HirLiteral::Slice(self.resolve_array_literal(array_literal))
                 }
-                Literal::Integer(integer) => HirLiteral::from_big_int(integer),
+                Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
                 Literal::RawStr(str, _) => HirLiteral::Str(str),
                 Literal::FmtStr(str) => self.resolve_fmt_str_literal(str, expr.span),
@@ -2080,8 +2079,8 @@ impl<'a> Resolver<'a> {
         }
 
         match self.interner.expression(&rhs) {
-            HirExpression::Literal(HirLiteral::Integer(int, false)) => {
-                int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
+            HirExpression::Literal(HirLiteral::Integer(int)) => {
+                int.to_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
             HirExpression::Ident(ident, _) => {
                 let definition = self.interner.definition(ident.id);

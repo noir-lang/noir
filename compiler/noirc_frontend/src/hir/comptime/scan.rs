@@ -140,7 +140,7 @@ impl<'interner> Interpreter<'interner> {
                 }
             },
             HirLiteral::Bool(_)
-            | HirLiteral::Integer(_, _)
+            | HirLiteral::Integer(_)
             | HirLiteral::Str(_)
             | HirLiteral::FmtStr(_, _)
             | HirLiteral::Unit => Ok(()),

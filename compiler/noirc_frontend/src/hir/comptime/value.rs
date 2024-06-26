@@ -186,43 +186,15 @@ impl Value {
         let expression = match self {
             Value::Unit => HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
-            Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value, false)),
-            Value::I8(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
-            }
-            Value::I16(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
-            }
-            Value::I32(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
-            }
-            Value::I64(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
-            }
-            Value::U8(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
-            }
-            Value::U16(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
-            }
-            Value::U32(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
-            }
-            Value::U64(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
-            }
+            Value::Field(value) => HirExpression::Literal(HirLiteral::from_field_element(&value)),
+            Value::I8(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::I16(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::I32(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::I64(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::U8(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::U16(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::U32(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::U64(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Value::String(value) => HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
             Value::Function(id, _typ) => {
                 let id = interner.function_definition_id(id);
@@ -295,6 +267,10 @@ impl Value {
             Self::U64(value) => Some(*value as u128),
             _ => None,
         }
+    }
+
+    pub(crate) fn field_from_big_int(big_int: &BigInt) -> Self {
+        Self::Field(crate::utils::field_element_from_big_int(&big_int))
     }
 }
 

@@ -1,7 +1,7 @@
 use acvm::{AcirField, FieldElement};
 use fm::FileId;
 use noirc_errors::Location;
-use num_bigint::{BigInt, Sign};
+use num_bigint::{BigInt, BigUint, Sign};
 
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId};
@@ -109,18 +109,17 @@ pub enum HirLiteral {
     Array(HirArrayLiteral),
     Slice(HirArrayLiteral),
     Bool(bool),
-    Integer(FieldElement, bool), //true for negative integer and false for positive
+    Integer(BigInt),
     Str(String),
     FmtStr(String, Vec<ExprId>),
     Unit,
 }
 
 impl HirLiteral {
-    pub fn from_big_int(big_int: BigInt) -> Self {
-        let is_negative = big_int.sign() == Sign::Minus;
-        let big_uint = big_int.magnitude();
-        let field = FieldElement::from_be_bytes_reduce(&big_uint.to_bytes_be());
-        HirLiteral::Integer(field, is_negative)
+    pub fn from_field_element(field: &FieldElement) -> Self {
+        let big_uint = BigUint::from_bytes_be(&field.to_be_bytes());
+        let big_int = BigInt::from_biguint(Sign::Plus, big_uint);
+        Self::Integer(big_int)
     }
 }
 

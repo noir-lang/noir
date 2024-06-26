@@ -1,4 +1,4 @@
-use acvm::acir::AcirField;
+use acvm::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::debug_info::DebugVarId;
 use noirc_errors::Location;
@@ -10,6 +10,7 @@ use crate::node_interner::ExprId;
 
 use super::ast::{Expression, Ident};
 use super::{MonomorphizationError, Monomorphizer};
+use num_traits::Signed;
 
 const DEBUG_MEMBER_ASSIGN_PREFIX: &str = "__debug_member_assign_";
 const DEBUG_VAR_ID_ARG_SLOT: usize = 0;
@@ -68,14 +69,14 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<(), MonomorphizationError> {
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
         let var_id_arg = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT);
-        let Some(HirExpression::Literal(HirLiteral::Integer(source_var_id, _))) = var_id_arg else {
+        let Some(HirExpression::Literal(HirLiteral::Integer(source_var_id))) = var_id_arg else {
             unreachable!("Missing source_var_id in __debug_var_assign call");
         };
 
         // instantiate tracked variable for the value type and associate it with
         // the ID used by the injected instrumentation code
         let var_type = self.interner.id_type(call.arguments[DEBUG_VALUE_ARG_SLOT]);
-        let source_var_id = source_var_id.to_u128().into();
+        let source_var_id = crate::utils::truncate_big_int_to_u128(source_var_id).into();
         // then update the ID used for tracking at runtime
         let var_id = self.debug_type_tracker.insert_var(source_var_id, &var_type);
         let interned_var_id = self.intern_var_id(var_id, &call.location);
@@ -93,11 +94,11 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<(), MonomorphizationError> {
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
         let var_id_arg = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT);
-        let Some(HirExpression::Literal(HirLiteral::Integer(source_var_id, _))) = var_id_arg else {
+        let Some(HirExpression::Literal(HirLiteral::Integer(source_var_id))) = var_id_arg else {
             unreachable!("Missing source_var_id in __debug_var_drop call");
         };
         // update variable ID for tracked drops (ie. when the var goes out of scope)
-        let source_var_id = source_var_id.to_u128().into();
+        let source_var_id = crate::utils::truncate_big_int_to_u128(source_var_id).into();
         let var_id = self
             .debug_type_tracker
             .get_var_id(source_var_id)
@@ -121,11 +122,11 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<(), MonomorphizationError> {
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
         let var_id_arg = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT);
-        let Some(HirExpression::Literal(HirLiteral::Integer(source_var_id, _))) = var_id_arg else {
+        let Some(HirExpression::Literal(HirLiteral::Integer(source_var_id))) = var_id_arg else {
             unreachable!("Missing source_var_id in __debug_member_assign call");
         };
         // update variable member assignments
-        let source_var_id = source_var_id.to_u128().into();
+        let source_var_id = crate::utils::truncate_big_int_to_u128(source_var_id).into();
 
         let var_type = self
             .debug_type_tracker
@@ -134,11 +135,15 @@ impl<'interner> Monomorphizer<'interner> {
             .clone();
         let mut cursor_type = &var_type;
         for i in 0..arity {
-            if let Some(HirExpression::Literal(HirLiteral::Integer(fe_i, i_neg))) =
+            if let Some(HirExpression::Literal(HirLiteral::Integer(value_i))) =
                 hir_arguments.get(DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i)
             {
+                let fe_i = crate::utils::field_element_from_big_int(&value_i);
+                let i_neg = value_i.is_negative();
+
+                // TODO(ary): check if there's a way to turn BigInt into i128 without going through FieldElement
                 let index = fe_i.to_i128().unsigned_abs();
-                if *i_neg {
+                if i_neg {
                     // We use negative indices at instrumentation time to indicate
                     // and reference member accesses by name which cannot be
                     // resolved until we have a type. This strategy is also used
@@ -152,9 +157,9 @@ impl<'interner> Monomorphizer<'interner> {
                         });
 
                     cursor_type = element_type_at_index(cursor_type, field_index);
-                    let index_id = self.interner.push_expr(HirExpression::Literal(
-                        HirLiteral::Integer(field_index.into(), false),
-                    ));
+                    let index_id = self
+                        .interner
+                        .push_expr(HirExpression::Literal(HirLiteral::Integer(field_index.into())));
                     self.interner.push_expr_type(index_id, crate::Type::FieldElement);
                     self.interner.push_expr_location(
                         index_id,
@@ -182,7 +187,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn intern_var_id(&mut self, var_id: DebugVarId, location: &Location) -> ExprId {
-        let var_id_literal = HirLiteral::Integer((var_id.0 as u128).into(), false);
+        let var_id_literal = HirLiteral::Integer(var_id.0.into());
         let expr_id = self.interner.push_expr(HirExpression::Literal(var_id_literal));
         self.interner.push_expr_type(expr_id, crate::Type::FieldElement);
         self.interner.push_expr_location(expr_id, location.span, location.file);

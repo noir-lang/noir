@@ -3,10 +3,10 @@ use std::rc::Rc;
 use crate::{
     hir::def_collector::dc_crate::CompilationError, parser::ParserError, token::Tokens, Type,
 };
-use acvm::{acir::AcirField, FieldElement};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Location};
+use num_bigint::BigInt;
 
 use super::value::Value;
 
@@ -16,7 +16,7 @@ pub enum InterpreterError {
     ArgumentCountMismatch { expected: usize, actual: usize, location: Location },
     TypeMismatch { expected: Type, value: Value, location: Location },
     NonComptimeVarReferenced { name: String, location: Location },
-    IntegerOutOfRangeForType { value: FieldElement, typ: Type, location: Location },
+    IntegerOutOfRangeForType { value: BigInt, typ: Type, location: Location },
     ErrorNodeEncountered { location: Location },
     NonFunctionCalled { value: Value, location: Location },
     NonBoolUsedInIf { value: Value, location: Location },
@@ -142,11 +142,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::IntegerOutOfRangeForType { value, typ, location } => {
-                let int = match value.try_into_u128() {
-                    Some(int) => int.to_string(),
-                    None => value.to_string(),
-                };
-                let msg = format!("{int} is outside the range of the {typ} type");
+                let msg = format!("{value} is outside the range of the {typ} type");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
             InterpreterError::ErrorNodeEncountered { location } => {

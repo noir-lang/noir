@@ -1,4 +1,3 @@
-use acvm::acir::AcirField;
 use noirc_errors::Span;
 use noirc_frontend::ast::{
     BlockExpression, Expression, ExpressionKind, FunctionDefinition, Ident, NoirFunction,
@@ -6,9 +5,7 @@ use noirc_frontend::ast::{
 };
 use noirc_frontend::{
     graph::CrateId,
-    macros_api::{
-        FieldElement, FileId, HirContext, HirExpression, HirLiteral, HirStatement, NodeInterner,
-    },
+    macros_api::{FileId, HirContext, HirExpression, HirLiteral, HirStatement, NodeInterner},
     node_interner::TraitId,
     parse_program,
     parser::SortedModule,
@@ -416,7 +413,9 @@ pub fn assign_storage_slots(
                     context.def_interner.expression(&new_call_expression.arguments[1]);
 
                 let current_storage_slot = match slot_arg_expression {
-                    HirExpression::Literal(HirLiteral::Integer(slot, _)) => Ok(slot.to_u128()),
+                    HirExpression::Literal(HirLiteral::Integer(slot)) => {
+                        Ok(noirc_frontend::utils::truncate_big_int_to_u128(&slot))
+                    }
                     _ => Err((
                         AztecMacroError::CouldNotAssignStorageSlots {
                             secondary_message: Some(
@@ -472,17 +471,11 @@ pub fn assign_storage_slots(
                         .map_err(|err| (err, file_id))?;
 
                 context.def_interner.update_expression(new_call_expression.arguments[1], |expr| {
-                    *expr = HirExpression::Literal(HirLiteral::Integer(
-                        FieldElement::from(new_storage_slot),
-                        false,
-                    ))
+                    *expr = HirExpression::Literal(HirLiteral::Integer(new_storage_slot.into()))
                 });
 
                 context.def_interner.update_expression(storage_layout_slot_expr_id, |expr| {
-                    *expr = HirExpression::Literal(HirLiteral::Integer(
-                        FieldElement::from(new_storage_slot),
-                        false,
-                    ))
+                    *expr = HirExpression::Literal(HirLiteral::Integer(new_storage_slot.into()))
                 });
 
                 storage_slot += type_serialized_len;

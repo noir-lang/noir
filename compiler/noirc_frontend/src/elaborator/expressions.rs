@@ -128,7 +128,7 @@ impl<'context> Elaborator<'context> {
             Literal::Unit => (Lit(HirLiteral::Unit), Type::Unit),
             Literal::Bool(b) => (Lit(HirLiteral::Bool(b)), Type::Bool),
             Literal::Integer(integer) => {
-                let int = HirLiteral::from_big_int(integer);
+                let int = HirLiteral::Integer(integer);
                 (Lit(int), self.polymorphic_integer_or_field())
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {

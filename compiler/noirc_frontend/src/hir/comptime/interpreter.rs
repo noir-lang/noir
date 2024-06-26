@@ -4,6 +4,9 @@ use acvm::{acir::AcirField, FieldElement};
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
+use num_bigint::BigInt;
+use num_traits::Signed;
+use num_traits::ToPrimitive;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
@@ -391,7 +394,7 @@ impl<'a> Interpreter<'a> {
 
                 if let Some(value) = value {
                     let typ = self.interner.id_type(id);
-                    self.evaluate_integer((value as u128).into(), false, id)
+                    self.evaluate_integer((value as u128).into(), id)
                 } else {
                     let location = self.interner.expr_location(&id);
                     let typ = Type::TypeVariable(type_variable.clone(), TypeVariableKind::Normal);
@@ -405,9 +408,7 @@ impl<'a> Interpreter<'a> {
         match literal {
             HirLiteral::Unit => Ok(Value::Unit),
             HirLiteral::Bool(value) => Ok(Value::Bool(value)),
-            HirLiteral::Integer(value, is_negative) => {
-                self.evaluate_integer(value, is_negative, id)
-            }
+            HirLiteral::Integer(value) => self.evaluate_integer(value, id),
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
             HirLiteral::FmtStr(_, _) => {
                 let item = "format strings in a comptime context".into();
@@ -419,41 +420,35 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_integer(
-        &self,
-        value: FieldElement,
-        is_negative: bool,
-        id: ExprId,
-    ) -> IResult<Value> {
+    fn evaluate_integer(&self, value: BigInt, id: ExprId) -> IResult<Value> {
         let typ = self.interner.id_type(id).follow_bindings();
         let location = self.interner.expr_location(&id);
+        let is_negative = value.is_negative();
 
         if let Type::FieldElement = &typ {
-            Ok(Value::Field(value))
+            Ok(Value::field_from_big_int(&value))
         } else if let Type::Integer(sign, bit_size) = &typ {
             match (sign, bit_size) {
                 (Signedness::Unsigned, IntegerBitSize::One) => {
                     return Err(InterpreterError::TypeUnsupported { typ, location });
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => {
-                    let value: u8 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
+                    let value: u8 = value.to_u64().and_then(|value| value.try_into().ok()).ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     let value = if is_negative { 0u8.wrapping_sub(value) } else { value };
                     Ok(Value::U8(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
-                    let value: u16 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
+                    let value: u16 = value.to_u64().and_then(|value| value.try_into().ok()).ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     let value = if is_negative { 0u16.wrapping_sub(value) } else { value };
                     Ok(Value::U16(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
                     let value: u32 =
-                        value.try_to_u32().ok_or(InterpreterError::IntegerOutOfRangeForType {
+                        value.to_u32().ok_or(InterpreterError::IntegerOutOfRangeForType {
                             value,
                             typ,
                             location,
@@ -463,7 +458,7 @@ impl<'a> Interpreter<'a> {
                 }
                 (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
                     let value: u64 =
-                        value.try_to_u64().ok_or(InterpreterError::IntegerOutOfRangeForType {
+                        value.to_u64().ok_or(InterpreterError::IntegerOutOfRangeForType {
                             value,
                             typ,
                             location,
@@ -475,44 +470,42 @@ impl<'a> Interpreter<'a> {
                     return Err(InterpreterError::TypeUnsupported { typ, location });
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => {
-                    let value: i8 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
+                    let value: i8 = value.to_u64().and_then(|value| value.try_into().ok()).ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     let value = if is_negative { -value } else { value };
                     Ok(Value::I8(value))
                 }
                 (Signedness::Signed, IntegerBitSize::Sixteen) => {
-                    let value: i16 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
+                    let value: i16 = value.to_u64().and_then(|value| value.try_into().ok()).ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     let value = if is_negative { -value } else { value };
                     Ok(Value::I16(value))
                 }
                 (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
-                    let value: i32 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
+                    let value: i32 = value.to_u64().and_then(|value| value.try_into().ok()).ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     let value = if is_negative { -value } else { value };
                     Ok(Value::I32(value))
                 }
                 (Signedness::Signed, IntegerBitSize::SixtyFour) => {
-                    let value: i64 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
+                    let value: i64 = value.to_u64().and_then(|value| value.try_into().ok()).ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     let value = if is_negative { -value } else { value };
                     Ok(Value::I64(value))
                 }
             }
         } else if let Type::TypeVariable(variable, TypeVariableKind::IntegerOrField) = &typ {
-            Ok(Value::Field(value))
+            Ok(Value::field_from_big_int(&value))
         } else if let Type::TypeVariable(variable, TypeVariableKind::Integer) = &typ {
-            let value: u64 = value
-                .try_to_u64()
-                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+            let value: u64 = value.to_u64().ok_or(InterpreterError::IntegerOutOfRangeForType {
+                value,
+                typ,
+                location,
+            })?;
             let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
             Ok(Value::U64(value))
         } else {

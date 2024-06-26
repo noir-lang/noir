@@ -1,8 +1,8 @@
 use std::{collections::BTreeMap, rc::Rc};
 
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
+use num_traits::ToPrimitive;
 
 use crate::{
     ast::{
@@ -533,8 +533,8 @@ impl<'context> Elaborator<'context> {
         }
 
         match self.interner.expression(&rhs) {
-            HirExpression::Literal(HirLiteral::Integer(int, false)) => {
-                int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
+            HirExpression::Literal(HirLiteral::Integer(int)) => {
+                int.to_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
             HirExpression::Ident(ident, _) => {
                 let definition = self.interner.definition(ident.id);

@@ -1,4 +1,3 @@
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::ast;
@@ -373,8 +372,8 @@ pub fn get_global_numberic_const(
                 if let Some(let_stmt) = stmt {
                     let expression = context.def_interner.expression(&let_stmt.expression);
                     match expression {
-                        HirExpression::Literal(HirLiteral::Integer(value, _)) => {
-                            Some(value.to_u128())
+                        HirExpression::Literal(HirLiteral::Integer(value)) => {
+                            Some(noirc_frontend::utils::truncate_big_int_to_u128(&value))
                         }
                         _ => None,
                     }

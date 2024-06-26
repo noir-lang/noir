@@ -129,7 +129,7 @@ impl<'interner> TypeChecker<'interner> {
                     }
                 }
                 HirLiteral::Bool(_) => Type::Bool,
-                HirLiteral::Integer(_, _) => self.polymorphic_integer_or_field(),
+                HirLiteral::Integer(_) => self.polymorphic_integer_or_field(),
                 HirLiteral::Str(string) => {
                     let len = Type::Constant(string.len() as u32);
                     Type::String(Box::new(len))

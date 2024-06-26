@@ -1,4 +1,3 @@
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
@@ -13,6 +12,7 @@ use crate::node_interner::{DefinitionId, ExprId, StmtId};
 
 use super::errors::{Source, TypeCheckError};
 use super::TypeChecker;
+use num_traits::Signed;
 
 impl<'interner> TypeChecker<'interner> {
     /// Type checks a statement and all expressions/statements contained within.
@@ -361,12 +361,11 @@ impl<'interner> TypeChecker<'interner> {
         let expr = self.interner.expression(rhs_expr);
         let span = self.interner.expr_span(rhs_expr);
         match expr {
-            HirExpression::Literal(HirLiteral::Integer(value, false)) => {
-                let v = value.to_u128();
+            HirExpression::Literal(HirLiteral::Integer(value)) if !value.is_negative() => {
                 if let Type::Integer(_, bit_count) = annotated_type {
                     let bit_count: u32 = (*bit_count).into();
-                    let max = 1 << bit_count;
-                    if v >= max {
+                    if value.bits() > bit_count.into() {
+                        let max = 1 << bit_count;
                         self.errors.push(TypeCheckError::OverflowingAssignment {
                             expr: value,
                             ty: annotated_type.clone(),

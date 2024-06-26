@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
 use acvm::acir::circuit::ErrorSelector;
-use acvm::AcirField;
 use iter_extended::vecmap;
 use noirc_abi::{
     Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue, AbiVisibility, Sign,
@@ -14,6 +13,7 @@ use noirc_frontend::{
     node_interner::{FuncId, NodeInterner},
 };
 use noirc_frontend::{TypeBinding, TypeVariableKind};
+use num_traits::sign::Signed;
 
 /// Arranges a function signature and a generated circuit's return witnesses into a
 /// `noirc_abi::Abi`.
@@ -198,7 +198,10 @@ pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpres
             },
             HirLiteral::Bool(value) => AbiValue::Boolean { value },
             HirLiteral::Str(value) => AbiValue::String { value },
-            HirLiteral::Integer(field, sign) => AbiValue::Integer { value: field.to_hex(), sign },
+            HirLiteral::Integer(value) => {
+                let str = value.abs().to_str_radix(16);
+                AbiValue::Integer { value: str, sign: value.is_negative() }
+            }
             _ => unreachable!("Literal cannot be used in the abi"),
         },
         _ => unreachable!("Type cannot be used in the abi {:?}", expression),

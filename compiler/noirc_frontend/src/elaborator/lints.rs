@@ -13,9 +13,9 @@ use crate::{
     node_interner::{DefinitionKind, ExprId, FuncId},
     Type,
 };
-use acvm::AcirField;
 
 use noirc_errors::Span;
+use num_traits::Signed;
 
 pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Option<TypeCheckError> {
     let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
@@ -207,14 +207,14 @@ pub(crate) fn overflowing_uint(
 
     let mut errors = Vec::with_capacity(2);
     match expr {
-        HirExpression::Literal(HirLiteral::Integer(value, false)) => {
-            let v = value.to_u128();
+        // TODO(ary): check if the "not negative" check is really needed here
+        HirExpression::Literal(HirLiteral::Integer(ref value)) if !value.is_negative() => {
             if let Type::Integer(_, bit_count) = annotated_type {
                 let bit_count: u32 = (*bit_count).into();
-                let max = 1 << bit_count;
-                if v >= max {
+                if value.bits() > bit_count.into() {
+                    let max = 1 << bit_count;
                     errors.push(TypeCheckError::OverflowingAssignment {
-                        expr: value,
+                        expr: value.clone(), // TODO:(ary) check if this clone can be removed
                         ty: annotated_type.clone(),
                         range: format!("0..={}", max - 1),
                         span,

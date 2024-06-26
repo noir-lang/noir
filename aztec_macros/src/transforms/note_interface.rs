@@ -729,7 +729,7 @@ pub fn inject_note_exports(
             let note_id_value = match note_id_statement {
                 HirStatement::Expression(expression_id) => {
                     match context.def_interner.expression(&expression_id) {
-                        HirExpression::Literal(HirLiteral::Integer(value, _)) => Ok(value),
+                        HirExpression::Literal(HirLiteral::Integer(value)) => Ok(value),
                         _ => Err((
                             AztecMacroError::CouldNotExportStorageLayout {
                                 span: None,
