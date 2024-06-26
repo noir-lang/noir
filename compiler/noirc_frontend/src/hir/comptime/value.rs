@@ -185,7 +185,9 @@ impl Value {
         let expression = match self {
             Value::Unit => HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
-            Value::Field(value) => HirExpression::Literal(HirLiteral::from_field_element(&value)),
+            Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(
+                crate::utils::field_element_to_big_int(&value),
+            )),
             Value::I8(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Value::I16(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Value::I32(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),

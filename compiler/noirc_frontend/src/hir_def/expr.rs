@@ -115,14 +115,6 @@ pub enum HirLiteral {
     Unit,
 }
 
-impl HirLiteral {
-    pub fn from_field_element(field: &FieldElement) -> Self {
-        let big_uint = BigUint::from_bytes_be(&field.to_be_bytes());
-        let big_int = BigInt::from_biguint(Sign::Plus, big_uint);
-        Self::Integer(big_int)
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum HirArrayLiteral {
     Standard(Vec<ExprId>),
