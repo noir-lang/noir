@@ -1281,7 +1281,8 @@ impl<'context> Elaborator<'context> {
         };
 
         let function = *function;
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
+        let mut interpreter =
+            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
 
         let location = Location::new(span, self.file);
         let arguments = vec![(Value::TypeDefinition(struct_id), location)];
