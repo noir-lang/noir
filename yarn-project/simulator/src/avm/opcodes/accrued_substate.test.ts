@@ -305,16 +305,10 @@ describe('Accrued Substate', () => {
       const buf = Buffer.from([
         EmitUnencryptedLog.opcode, // opcode
         0x01, // indirect
-        ...Buffer.from('02345678', 'hex'), // event selector offset
         ...Buffer.from('12345678', 'hex'), // log offset
         ...Buffer.from('a2345678', 'hex'), // length offset
       ]);
-      const inst = new EmitUnencryptedLog(
-        /*indirect=*/ 0x01,
-        /*eventSelectorOffset=*/ 0x02345678,
-        /*offset=*/ 0x12345678,
-        /*lengthOffset=*/ 0xa2345678,
-      );
+      const inst = new EmitUnencryptedLog(/*indirect=*/ 0x01, /*offset=*/ 0x12345678, /*lengthOffset=*/ 0xa2345678);
 
       expect(EmitUnencryptedLog.deserialize(buf)).toEqual(inst);
       expect(inst.serialize()).toEqual(buf);
@@ -322,8 +316,6 @@ describe('Accrued Substate', () => {
 
     it('Should append unencrypted logs correctly', async () => {
       const startOffset = 0;
-      const eventSelector = new Fr(5);
-      const eventSelectorOffset = 10;
       const logSizeOffset = 20;
 
       const values = [new Fr(69n), new Fr(420n), new Fr(Fr.MODULUS - 1n)];
@@ -331,18 +323,12 @@ describe('Accrued Substate', () => {
         startOffset,
         values.map(f => new Field(f)),
       );
-      context.machineState.memory.set(eventSelectorOffset, new Field(eventSelector));
       context.machineState.memory.set(logSizeOffset, new Uint32(values.length));
 
-      await new EmitUnencryptedLog(
-        /*indirect=*/ 0,
-        eventSelectorOffset,
-        /*offset=*/ startOffset,
-        logSizeOffset,
-      ).execute(context);
+      await new EmitUnencryptedLog(/*indirect=*/ 0, /*offset=*/ startOffset, logSizeOffset).execute(context);
 
       expect(trace.traceUnencryptedLog).toHaveBeenCalledTimes(1);
-      expect(trace.traceUnencryptedLog).toHaveBeenCalledWith(address, eventSelector, values);
+      expect(trace.traceUnencryptedLog).toHaveBeenCalledWith(address, values);
     });
   });
 
@@ -386,7 +372,7 @@ describe('Accrued Substate', () => {
     const instructions = [
       new EmitNoteHash(/*indirect=*/ 0, /*offset=*/ 0),
       new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0),
-      new EmitUnencryptedLog(/*indirect=*/ 0, /*eventSelector=*/ 0, /*offset=*/ 0, /*logSizeOffset=*/ 0),
+      new EmitUnencryptedLog(/*indirect=*/ 0, /*offset=*/ 0, /*logSizeOffset=*/ 0),
       new SendL2ToL1Message(/*indirect=*/ 0, /*recipientOffset=*/ 0, /*contentOffset=*/ 1),
     ];
 

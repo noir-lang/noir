@@ -17,7 +17,7 @@ export interface PublicSideEffectTraceInterface {
   traceL1ToL2MessageCheck(contractAddress: Fr, msgHash: Fr, msgLeafIndex: Fr, exists: boolean): void;
   // TODO(dbanks12): should new message accept contract address as arg?
   traceNewL2ToL1Message(recipient: Fr, content: Fr): void;
-  traceUnencryptedLog(contractAddress: Fr, event: Fr, log: Fr[]): void;
+  traceUnencryptedLog(contractAddress: Fr, log: Fr[]): void;
   // TODO(dbanks12): odd that getContractInstance is a one-off in that it accepts an entire object instead of components
   traceGetContractInstance(instance: TracedContractInstance): void;
   traceNestedCall(

@@ -173,11 +173,12 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
     this.incrementSideEffectCounter();
   }
 
-  public traceUnencryptedLog(contractAddress: Fr, event: Fr, log: Fr[]) {
+  public traceUnencryptedLog(contractAddress: Fr, log: Fr[]) {
     // TODO(4805): check if some threshold is reached for max logs
     const ulog = new UnencryptedL2Log(
       AztecAddress.fromField(contractAddress),
-      EventSelector.fromField(event),
+      // TODO(#7198): Remove event selector from UnencryptedL2Log
+      EventSelector.fromField(new Fr(0)),
       Buffer.concat(log.map(f => f.toBuffer())),
     );
     const basicLogHash = Fr.fromBuffer(ulog.hash());

@@ -25,21 +25,13 @@ impl PublicContext {
     }
     /**
     * Emit a log with the given event selector and message.
-    *
     * @param event_selector The event selector for the log.
     * @param message The message to emit in the log.
     */
-    pub fn emit_unencrypted_log_with_selector<T, N>(
-        &mut self,
-        event_selector: Field,
-        log: T
-    ) where T: Serialize<N> {
-        emit_unencrypted_log(event_selector, Serialize::serialize(log).as_slice());
-    }
-    // For compatibility with the selector-less API. We'll probably rename the above one.
     pub fn emit_unencrypted_log<T, N>(&mut self, log: T) where T: Serialize<N> {
-        self.emit_unencrypted_log_with_selector(/*event_selector=*/ 5, log);
+        emit_unencrypted_log(Serialize::serialize(log).as_slice());
     }
+
     pub fn note_hash_exists(self, note_hash: Field, leaf_index: Field) -> bool {
         note_hash_exists(note_hash, leaf_index) == 1
     }
@@ -241,8 +233,8 @@ unconstrained fn nullifier_exists(nullifier: Field, address: Field) -> u8 {
 unconstrained fn emit_nullifier(nullifier: Field) {
     emit_nullifier_opcode(nullifier)
 }
-unconstrained fn emit_unencrypted_log(event_selector: Field, message: [Field]) {
-    emit_unencrypted_log_opcode(event_selector, message)
+unconstrained fn emit_unencrypted_log(message: [Field]) {
+    emit_unencrypted_log_opcode(message)
 }
 unconstrained fn l1_to_l2_msg_exists(msg_hash: Field, msg_leaf_index: Field) -> u8 {
     l1_to_l2_msg_exists_opcode(msg_hash, msg_leaf_index)
@@ -325,8 +317,8 @@ unconstrained fn nullifier_exists_opcode(nullifier: Field, address: Field) -> u8
 #[oracle(avmOpcodeEmitNullifier)]
 unconstrained fn emit_nullifier_opcode(nullifier: Field) {}
 
-#[oracle(amvOpcodeEmitUnencryptedLog)]
-unconstrained fn emit_unencrypted_log_opcode(event_selector: Field, message: [Field]) {}
+#[oracle(avmOpcodeEmitUnencryptedLog)]
+unconstrained fn emit_unencrypted_log_opcode(message: [Field]) {}
 
 #[oracle(avmOpcodeL1ToL2MsgExists)]
 unconstrained fn l1_to_l2_msg_exists_opcode(msg_hash: Field, msg_leaf_index: Field) -> u8 {}

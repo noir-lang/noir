@@ -558,7 +558,6 @@ describe('AVM simulator: transpiled Noir contracts', () => {
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
         expect(results.reverted).toBe(false);
 
-        const eventSelector = new Fr(5);
         const expectedFields = [new Fr(10), new Fr(20), new Fr(30)];
         const expectedString = 'Hello, world!'.split('').map(c => new Fr(c.charCodeAt(0)));
         const expectedCompressedString = [
@@ -567,9 +566,9 @@ describe('AVM simulator: transpiled Noir contracts', () => {
         ].map(s => new Fr(Buffer.from(s)));
 
         expect(trace.traceUnencryptedLog).toHaveBeenCalledTimes(3);
-        expect(trace.traceUnencryptedLog).toHaveBeenCalledWith(address, eventSelector, expectedFields);
-        expect(trace.traceUnencryptedLog).toHaveBeenCalledWith(address, eventSelector, expectedString);
-        expect(trace.traceUnencryptedLog).toHaveBeenCalledWith(address, eventSelector, expectedCompressedString);
+        expect(trace.traceUnencryptedLog).toHaveBeenCalledWith(address, expectedFields);
+        expect(trace.traceUnencryptedLog).toHaveBeenCalledWith(address, expectedString);
+        expect(trace.traceUnencryptedLog).toHaveBeenCalledWith(address, expectedCompressedString);
       });
     });
 

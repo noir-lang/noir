@@ -197,9 +197,9 @@ export class AvmPersistableStateManager {
    * @param event - log event selector
    * @param log - log contents
    */
-  public writeUnencryptedLog(contractAddress: Fr, event: Fr, log: Fr[]) {
-    this.log.debug(`UnencryptedL2Log(${contractAddress}) += event ${event} with ${log.length} fields.`);
-    this.trace.traceUnencryptedLog(contractAddress, event, log);
+  public writeUnencryptedLog(contractAddress: Fr, log: Fr[]) {
+    this.log.debug(`UnencryptedL2Log(${contractAddress}) += event with ${log.length} fields.`);
+    this.trace.traceUnencryptedLog(contractAddress, log);
   }
 
   /**

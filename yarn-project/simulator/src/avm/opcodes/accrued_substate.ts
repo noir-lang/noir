@@ -217,20 +217,9 @@ export class EmitUnencryptedLog extends Instruction {
   static type: string = 'EMITUNENCRYPTEDLOG';
   static readonly opcode: Opcode = Opcode.EMITUNENCRYPTEDLOG;
   // Informs (de)serialization. See Instruction.deserialize.
-  static readonly wireFormat = [
-    OperandType.UINT8,
-    OperandType.UINT8,
-    OperandType.UINT32,
-    OperandType.UINT32,
-    OperandType.UINT32,
-  ];
+  static readonly wireFormat = [OperandType.UINT8, OperandType.UINT8, OperandType.UINT32, OperandType.UINT32];
 
-  constructor(
-    private indirect: number,
-    private eventSelectorOffset: number,
-    private logOffset: number,
-    private logSizeOffset: number,
-  ) {
+  constructor(private indirect: number, private logOffset: number, private logSizeOffset: number) {
     super();
   }
 
@@ -241,22 +230,20 @@ export class EmitUnencryptedLog extends Instruction {
 
     const memory = context.machineState.memory.track(this.type);
 
-    const [eventSelectorOffset, logOffset, logSizeOffset] = Addressing.fromWire(this.indirect).resolve(
-      [this.eventSelectorOffset, this.logOffset, this.logSizeOffset],
+    const [logOffset, logSizeOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.logOffset, this.logSizeOffset],
       memory,
     );
-    memory.checkTag(TypeTag.FIELD, eventSelectorOffset);
     memory.checkTag(TypeTag.UINT32, logSizeOffset);
     const logSize = memory.get(logSizeOffset).toNumber();
     memory.checkTagsRange(TypeTag.FIELD, logOffset, logSize);
 
     const contractAddress = context.environment.address;
-    const event = memory.get(eventSelectorOffset).toFr();
 
-    const memoryOperations = { reads: 2 + logSize, indirect: this.indirect };
+    const memoryOperations = { reads: 1 + logSize, indirect: this.indirect };
     context.machineState.consumeGas(this.gasCost(memoryOperations));
     const log = memory.getSlice(logOffset, logSize).map(f => f.toFr());
-    context.persistableState.writeUnencryptedLog(contractAddress, event, log);
+    context.persistableState.writeUnencryptedLog(contractAddress, log);
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();

@@ -247,7 +247,7 @@ fn handle_foreign_call(
         "avmOpcodeStaticCall" => {
             handle_external_call(avm_instrs, destinations, inputs, AvmOpcode::STATICCALL);
         }
-        "amvOpcodeEmitUnencryptedLog" => {
+        "avmOpcodeEmitUnencryptedLog" => {
             handle_emit_unencrypted_log(avm_instrs, destinations, inputs);
         }
         "avmOpcodeNoteHashExists" => handle_note_hash_exists(avm_instrs, destinations, inputs),
@@ -435,32 +435,25 @@ fn handle_emit_unencrypted_log(
     destinations: &Vec<ValueOrArray>,
     inputs: &Vec<ValueOrArray>,
 ) {
-    if !destinations.is_empty() || inputs.len() != 3 {
+    if !destinations.is_empty() || inputs.len() != 2 {
         panic!(
-            "Transpiler expects ForeignCall::EMITUNENCRYPTEDLOG to have 0 destinations and 3 inputs, got {} and {}",
+            "Transpiler expects ForeignCall::EMITUNENCRYPTEDLOG to have 0 destinations and 2 inputs, got {} and {}",
             destinations.len(),
             inputs.len()
         );
     }
-    let event_offset = match &inputs[0] {
-        ValueOrArray::MemoryAddress(offset) => offset.to_usize() as u32,
-        _ => panic!(
-            "Unexpected inputs[0] (event) for ForeignCall::EMITUNENCRYPTEDLOG: {:?}",
-            inputs[0]
-        ),
-    };
+
     // The fields are a slice, and this is represented as a (length: Field, slice: HeapVector).
     // The length field is redundant and we skipt it.
-    let (message_offset, message_size_offset) = match &inputs[2] {
+    let (message_offset, message_size_offset) = match &inputs[1] {
         ValueOrArray::HeapVector(vec) => (vec.pointer.to_usize() as u32, vec.size.0 as u32),
         _ => panic!("Unexpected inputs for ForeignCall::EMITUNENCRYPTEDLOG: {:?}", inputs),
     };
     avm_instrs.push(AvmInstruction {
         opcode: AvmOpcode::EMITUNENCRYPTEDLOG,
         // The message array from Brillig is indirect.
-        indirect: Some(FIRST_OPERAND_INDIRECT),
+        indirect: Some(ZEROTH_OPERAND_INDIRECT),
         operands: vec![
-            AvmOperand::U32 { value: event_offset },
             AvmOperand::U32 { value: message_offset },
             AvmOperand::U32 { value: message_size_offset },
         ],
