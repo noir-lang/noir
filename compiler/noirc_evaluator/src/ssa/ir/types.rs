@@ -5,6 +5,7 @@ use iter_extended::vecmap;
 use num_bigint::BigInt;
 
 use crate::ssa::ssa_gen::SSA_WORD_SIZE;
+use num_traits::{FromPrimitive, Signed};
 
 /// A numeric type in the Intermediate representation
 /// Note: we class NativeField as a numeric type
@@ -30,12 +31,17 @@ impl NumericType {
         }
     }
 
-    /// Returns true if the given Field value is within the numeric limits
+    /// Returns true if the given BigInt value is within the numeric limits
     /// for the current NumericType.
     pub(crate) fn value_is_within_limits(self, value: &BigInt) -> bool {
         match self {
-            NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                value.bits() <= bit_size.into()
+            NumericType::Signed { bit_size } => {
+                let min: BigInt = -BigInt::from_i128(1_i128 << (bit_size - 1)).unwrap();
+                let max: BigInt = BigInt::from_i128(1_i128 << (bit_size - 1)).unwrap() - 1;
+                min <= *value && *value <= max
+            }
+            NumericType::Unsigned { bit_size } => {
+                !value.is_negative() && value.bits() <= bit_size.into()
             }
             NumericType::NativeField => true,
         }
@@ -208,5 +214,31 @@ impl std::fmt::Display for NumericType {
             NumericType::Unsigned { bit_size } => write!(f, "u{bit_size}"),
             NumericType::NativeField => write!(f, "Field"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use num_traits::FromPrimitive;
+
+    use super::*;
+
+    #[test]
+    fn test_u8_is_within_limits() {
+        let u8 = NumericType::Unsigned { bit_size: 8 };
+        assert!(!u8.value_is_within_limits(&BigInt::from_i32(-1).unwrap()));
+        assert!(u8.value_is_within_limits(&BigInt::from_i32(0).unwrap()));
+        assert!(u8.value_is_within_limits(&BigInt::from_i32(255).unwrap()));
+        assert!(!u8.value_is_within_limits(&BigInt::from_i32(256).unwrap()));
+    }
+
+    #[test]
+    fn test_i8_is_within_limits() {
+        let i8 = NumericType::Signed { bit_size: 8 };
+        assert!(!i8.value_is_within_limits(&BigInt::from_i32(-129).unwrap()));
+        assert!(i8.value_is_within_limits(&BigInt::from_i32(-128).unwrap()));
+        assert!(i8.value_is_within_limits(&BigInt::from_i32(0).unwrap()));
+        assert!(i8.value_is_within_limits(&BigInt::from_i32(127).unwrap()));
+        assert!(!i8.value_is_within_limits(&BigInt::from_i32(128).unwrap()));
     }
 }
