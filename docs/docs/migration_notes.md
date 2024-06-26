@@ -6,7 +6,34 @@ keywords: [sandbox, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
-## TBD
+## 0.44.0
+### [Aztec.nr] Autogenerate Serialize methods for events
+```diff
+#[aztec(event)]
+struct WithdrawalProcessed {
+    who: Field,
+    amount: Field,
+}
+
+-impl Serialize<2> for WithdrawalProcessed {
+-    fn serialize(self: Self) -> [Field; 2] {
+-        [self.who.to_field(), self.amount as Field]
+-    }
+}
+```
+
+### [Aztec.nr] rename `encode_and_encrypt_with_keys` to `encode_and_encrypt_note_with_keys`
+```diff
+contract XYZ {
+-   use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_with_keys;
++   use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_note_with_keys;    
+....
+
+-    numbers.at(owner).initialize(&mut new_number).emit(encode_and_encrypt_with_keys(&mut context, owner_ovpk_m, owner_ivpk_m));
++    numbers.at(owner).initialize(&mut new_number).emit(encode_and_encrypt_note_with_keys(&mut context, owner_ovpk_m, owner_ivpk_m));
+
+}
+
 
 ### [Aztec.nr] changes to `NoteInterface`
 
