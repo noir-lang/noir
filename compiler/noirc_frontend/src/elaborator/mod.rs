@@ -904,7 +904,7 @@ impl<'context> Elaborator<'context> {
                 .where_clause
                 .iter()
                 .flat_map(|item| self.resolve_trait_constraint(item))
-                .collect();
+                .collect::<Vec<_>>();
 
             let trait_generics = trait_impl.resolved_trait_generics.clone();
 
