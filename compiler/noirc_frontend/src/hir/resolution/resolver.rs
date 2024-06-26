@@ -1487,7 +1487,7 @@ impl<'a> Resolver<'a> {
                 Literal::Slice(array_literal) => {
                     HirLiteral::Slice(self.resolve_array_literal(array_literal))
                 }
-                Literal::Integer(ref integer) => HirLiteral::from_big_int(integer),
+                Literal::Integer(integer) => HirLiteral::from_big_int(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
                 Literal::RawStr(str, _) => HirLiteral::Str(str),
                 Literal::FmtStr(str) => self.resolve_fmt_str_literal(str, expr.span),

@@ -116,7 +116,7 @@ pub enum HirLiteral {
 }
 
 impl HirLiteral {
-    pub fn from_big_int(big_int: &BigInt) -> Self {
+    pub fn from_big_int(big_int: BigInt) -> Self {
         let is_negative = big_int.sign() == Sign::Minus;
         let big_uint = big_int.magnitude();
         let field = FieldElement::from_be_bytes_reduce(&big_uint.to_bytes_be());

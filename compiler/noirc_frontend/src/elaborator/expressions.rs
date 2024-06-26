@@ -127,7 +127,7 @@ impl<'context> Elaborator<'context> {
         match literal {
             Literal::Unit => (Lit(HirLiteral::Unit), Type::Unit),
             Literal::Bool(b) => (Lit(HirLiteral::Bool(b)), Type::Bool),
-            Literal::Integer(ref integer) => {
+            Literal::Integer(integer) => {
                 let int = HirLiteral::from_big_int(integer);
                 (Lit(int), self.polymorphic_integer_or_field())
             }
