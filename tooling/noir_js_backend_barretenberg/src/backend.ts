@@ -46,7 +46,10 @@ export class BarretenbergVerifierBackend implements VerifierBackend {
       const api = await Barretenberg.new(this.options);
 
       const honkRecursion = false;
-      const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(this.acirUncompressedBytecode, honkRecursion);
+      const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(
+        this.acirUncompressedBytecode,
+        honkRecursion,
+      );
       const crs = await Crs.new(subgroupSize + 1);
       await api.commonInitSlabAllocator(subgroupSize);
       await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));

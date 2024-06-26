@@ -1,3 +1,4 @@
+use super::primitives::token_kind;
 use super::{
     expression_with_precedence, keyword, nothing, parenthesized, path, NoirParser, ParserError,
     ParserErrorReason, Precedence,
@@ -6,7 +7,7 @@ use crate::ast::{Recoverable, UnresolvedType, UnresolvedTypeData, UnresolvedType
 use crate::QuotedType;
 
 use crate::parser::labels::ParsingRuleLabel;
-use crate::token::{Keyword, Token};
+use crate::token::{Keyword, Token, TokenKind};
 
 use chumsky::prelude::*;
 use noirc_errors::Span;
@@ -28,6 +29,7 @@ pub(super) fn parse_type_inner<'a>(
         top_level_item_type(),
         type_of_quoted_types(),
         quoted_type(),
+        resolved_type(),
         format_string_type(recursive_type_parser.clone()),
         named_type(recursive_type_parser.clone()),
         named_trait(recursive_type_parser.clone()),
@@ -103,6 +105,16 @@ fn type_of_quoted_types() -> impl NoirParser<UnresolvedType> {
 fn quoted_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::Quoted)
         .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Quoted).with_span(span))
+}
+
+/// This is the type of an already resolved type.
+/// The only way this can appear in the token input is if an already resolved `Type` object
+/// was spliced into a macro's token stream via the `$` operator.
+fn resolved_type() -> impl NoirParser<UnresolvedType> {
+    token_kind(TokenKind::QuotedType).map_with_span(|token, span| match token {
+        Token::QuotedType(id) => UnresolvedTypeData::Resolved(id).with_span(span),
+        _ => unreachable!("token_kind(QuotedType) guarantees we parse a quoted type"),
+    })
 }
 
 pub(super) fn string_type() -> impl NoirParser<UnresolvedType> {

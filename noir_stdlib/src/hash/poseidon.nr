@@ -6,7 +6,7 @@ use crate::default::Default;
 // A config struct defining the parameters of the Poseidon instance to use.
 //
 // A thorough writeup of this method (along with an unoptimized method) can be found at: https://spec.filecoin.io/algorithms/crypto/poseidon/
-struct PoseidonConfig<T, N, X> { 
+struct PoseidonConfig<let T: u32, let N: u32, let X: u32> { 
     // State width, should be equal to `T`
     t: Field,
     // Number of full rounds. should be even
@@ -28,7 +28,7 @@ struct PoseidonConfig<T, N, X> {
     sparse_mds: [Field; X],
 }
 
-pub fn config<T, N, X>(
+pub fn config<let T: u32, let N: u32, let X: u32>(
     t: Field,
     rf: u8,
     rp: u8,
@@ -40,14 +40,17 @@ pub fn config<T, N, X>(
 ) -> PoseidonConfig<T, N, X> {
     // Input checks
     assert_eq(rf & 1, 0);
-    assert_eq((t as u8) * rf + rp, N);
-    assert_eq(t, T);
+    assert_eq((t as u8) * rf + rp, N as u8);
+    assert_eq(t, T as Field);
     assert(alpha != 0);
 
     PoseidonConfig { t, rf, rp, alpha, round_constants, mds, presparse_mds, sparse_mds }
 }
 
-pub fn permute<T, N, X>(pos_conf: PoseidonConfig<T, N, X>, mut state: [Field; T]) -> [Field; T] {
+pub fn permute<let T: u32, let N: u32, let X: u32>(
+    pos_conf: PoseidonConfig<T, N, X>,
+    mut state: [Field; T]
+) -> [Field; T] {
     let PoseidonConfig {t, rf, rp, alpha, round_constants, mds, presparse_mds, sparse_mds } = pos_conf;
 
     for i in 0..state.len() {
@@ -109,7 +112,7 @@ pub fn permute<T, N, X>(pos_conf: PoseidonConfig<T, N, X>, mut state: [Field; T]
 }
 
 // Performs matrix multiplication on a vector
-fn apply_matrix<N>(matrix: [[Field; N]; N], vec: [Field; N]) -> [Field; N] {
+fn apply_matrix<let N: u32>(matrix: [[Field; N]; N], vec: [Field; N]) -> [Field; N] {
     let mut out = [0; N];
 
     for i in 0..N {
@@ -122,7 +125,7 @@ fn apply_matrix<N>(matrix: [[Field; N]; N], vec: [Field; N]) -> [Field; N] {
 }
 
 // Corresponding absorption.
-fn absorb<T, N, X, O>(
+fn absorb<let T: u32, let N: u32, let X: u32, let O: u32>(
     pos_conf: PoseidonConfig<T, N, X>,
     // Initial state; usually [0; O]
     mut state: [Field; T],
@@ -152,7 +155,7 @@ fn absorb<T, N, X, O>(
     state
 }
 
-fn sigma<O>(x: [Field; O]) -> [Field; O] {
+fn sigma<let O: u32>(x: [Field; O]) -> [Field; O] {
     let mut y = x;
     for i in 0..O {
         let t = y[i];
