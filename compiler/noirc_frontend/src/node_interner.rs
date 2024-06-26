@@ -636,6 +636,15 @@ impl NodeInterner {
         f(value);
     }
 
+    pub fn update_struct_attributes(
+        &mut self,
+        type_id: StructId,
+        f: impl FnOnce(&mut StructAttributes),
+    ) {
+        let value = self.struct_attributes.get_mut(&type_id).unwrap();
+        f(value);
+    }
+
     pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
         let type_alias_type = &mut self.type_aliases[type_id.0];
         type_alias_type.borrow_mut().set_type_and_generics(typ, generics);
