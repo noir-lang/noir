@@ -36,7 +36,13 @@ import {
 } from '@aztec/circuits.js';
 import { Aes128, Schnorr } from '@aztec/circuits.js/barretenberg';
 import { computePublicDataTreeLeafSlot, siloNoteHash, siloNullifier } from '@aztec/circuits.js/hash';
-import { type ContractArtifact, type FunctionAbi, FunctionSelector, countArgumentsSize } from '@aztec/foundation/abi';
+import {
+  type ContractArtifact,
+  type FunctionAbi,
+  FunctionSelector,
+  type NoteSelector,
+  countArgumentsSize,
+} from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, GrumpkinScalar, type Point } from '@aztec/foundation/fields';
 import { type Logger, applyStringFormatting } from '@aztec/foundation/log';
@@ -392,7 +398,7 @@ export class TXE implements TypedOracle {
     return Promise.resolve(notes);
   }
 
-  notifyCreatedNote(storageSlot: Fr, noteTypeId: Fr, noteItems: Fr[], innerNoteHash: Fr, counter: number) {
+  notifyCreatedNote(storageSlot: Fr, noteTypeId: NoteSelector, noteItems: Fr[], innerNoteHash: Fr, counter: number) {
     const note = new Note(noteItems);
     this.noteCache.addNewNote(
       {
@@ -479,7 +485,7 @@ export class TXE implements TypedOracle {
   computeEncryptedNoteLog(
     contractAddress: AztecAddress,
     storageSlot: Fr,
-    noteTypeId: Fr,
+    noteTypeId: NoteSelector,
     ovKeys: KeyValidationRequest,
     ivpkM: Point,
     preimage: Fr[],

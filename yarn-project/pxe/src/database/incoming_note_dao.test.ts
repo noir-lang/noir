@@ -1,5 +1,6 @@
 import { Note, randomTxHash } from '@aztec/circuit-types';
 import { AztecAddress, Fr, Point } from '@aztec/circuits.js';
+import { NoteSelector } from '@aztec/foundation/abi';
 
 import { IncomingNoteDao } from './incoming_note_dao.js';
 
@@ -8,7 +9,7 @@ export const randomIncomingNoteDao = ({
   contractAddress = AztecAddress.random(),
   txHash = randomTxHash(),
   storageSlot = Fr.random(),
-  noteTypeId = Fr.random(),
+  noteTypeId = NoteSelector.random(),
   nonce = Fr.random(),
   innerNoteHash = Fr.random(),
   siloedNullifier = Fr.random(),

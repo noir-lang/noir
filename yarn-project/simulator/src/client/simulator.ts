@@ -5,6 +5,7 @@ import {
   type FunctionArtifact,
   FunctionSelector,
   FunctionType,
+  type NoteSelector,
   encodeArguments,
 } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -140,7 +141,7 @@ export class AcirSimulator {
     contractAddress: AztecAddress,
     nonce: Fr,
     storageSlot: Fr,
-    noteTypeId: Fr,
+    noteTypeId: NoteSelector,
     computeNullifier: boolean,
     note: Note,
   ) {
@@ -210,7 +211,12 @@ export class AcirSimulator {
    * @param note - The note.
    * @returns The note hash.
    */
-  public async computeInnerNoteHash(contractAddress: AztecAddress, storageSlot: Fr, noteTypeId: Fr, note: Note) {
+  public async computeInnerNoteHash(
+    contractAddress: AztecAddress,
+    storageSlot: Fr,
+    noteTypeId: NoteSelector,
+    note: Note,
+  ) {
     const { innerNoteHash } = await this.computeNoteHashAndOptionallyANullifier(
       contractAddress,
       Fr.ZERO,

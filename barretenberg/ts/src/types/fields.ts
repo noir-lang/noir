@@ -15,7 +15,7 @@ export class Fr {
     const valueBigInt = typeof value === 'bigint' ? value : toBigIntBE(value);
 
     if (valueBigInt > Fr.MAX_VALUE) {
-      throw new Error(`Fr out of range: ${valueBigInt}`);
+      throw new Error(`Value 0x${valueBigInt.toString(16)} is greater or equal to field modulus.`);
     }
 
     this.value = typeof value === 'bigint' ? toBufferBE(value) : value;

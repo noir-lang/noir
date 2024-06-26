@@ -2,6 +2,7 @@ import { inflate } from 'pako';
 
 import { type Fr } from '../fields/fields.js';
 import { type FunctionSelector } from './function_selector.js';
+import { type NoteSelector } from './note_selector.js';
 
 /**
  * A basic value.
@@ -275,7 +276,7 @@ export type ContractNote = {
   /**
    * Note identifier
    */
-  id: Fr;
+  id: NoteSelector;
   /**
    * Type of the note (e.g., 'TransparentNote')
    */

@@ -33,7 +33,13 @@ import {
 } from '@aztec/circuits.js';
 import { computeNoteHashNonce, computeSecretHash, computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { makeHeader } from '@aztec/circuits.js/testing';
-import { type FunctionArtifact, FunctionSelector, encodeArguments, getFunctionArtifact } from '@aztec/foundation/abi';
+import {
+  type FunctionArtifact,
+  FunctionSelector,
+  type NoteSelector,
+  encodeArguments,
+  getFunctionArtifact,
+} from '@aztec/foundation/abi';
 import { asyncMap } from '@aztec/foundation/async-map';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { times } from '@aztec/foundation/collection';
@@ -326,7 +332,7 @@ describe('Private Execution test suite', () => {
     const mockFirstNullifier = new Fr(1111);
     let currentNoteIndex = 0n;
 
-    const buildNote = (amount: bigint, ownerNpkMHash: Fr, storageSlot: Fr, noteTypeId: Fr) => {
+    const buildNote = (amount: bigint, ownerNpkMHash: Fr, storageSlot: Fr, noteTypeId: NoteSelector) => {
       // WARNING: this is not actually how nonces are computed!
       // For the purpose of this test we use a mocked firstNullifier and and a random number
       // to compute the nonce. Proper nonces are only enforced later by the kernel/later circuits

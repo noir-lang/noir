@@ -1,5 +1,6 @@
 import { Note, TxHash } from '@aztec/circuit-types';
 import { AztecAddress, Fr, Point, type PublicKey, Vector } from '@aztec/circuits.js';
+import { NoteSelector } from '@aztec/foundation/abi';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 /**
@@ -18,7 +19,7 @@ export class DeferredNoteDao {
     /** The specific storage location of the note on the contract. */
     public storageSlot: Fr,
     /** The type ID of the note on the contract. */
-    public noteTypeId: Fr,
+    public noteTypeId: NoteSelector,
     /** The hash of the tx the note was created in. Equal to the first nullifier */
     public txHash: TxHash,
     /** New note hashes in this transaction, one of which belongs to this note */
@@ -46,7 +47,7 @@ export class DeferredNoteDao {
       reader.readObject(Note),
       reader.readObject(AztecAddress),
       reader.readObject(Fr),
-      reader.readObject(Fr),
+      reader.readObject(NoteSelector),
       reader.readObject(TxHash),
       reader.readVector(Fr),
       reader.readNumber(),

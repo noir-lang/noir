@@ -19,7 +19,7 @@ import {
   makeCombinedConstantData,
   makePublicCallRequest,
 } from '@aztec/circuits.js/testing';
-import { type ContractArtifact } from '@aztec/foundation/abi';
+import { type ContractArtifact, NoteSelector } from '@aztec/foundation/abi';
 import { makeTuple } from '@aztec/foundation/array';
 import { times } from '@aztec/foundation/collection';
 import { randomBytes } from '@aztec/foundation/crypto';
@@ -220,7 +220,7 @@ export const randomExtendedNote = ({
   contractAddress = AztecAddress.random(),
   txHash = randomTxHash(),
   storageSlot = Fr.random(),
-  noteTypeId = Fr.random(),
+  noteTypeId = NoteSelector.random(),
 }: Partial<ExtendedNote> = {}) => {
   return new ExtendedNote(note, owner, contractAddress, storageSlot, noteTypeId, txHash);
 };

@@ -60,7 +60,9 @@ mod test {
     impl NoteInterface<ADDRESS_NOTE_LEN, ADDRESS_NOTE_BYTES_LEN> for AddressNote {
         fn compute_note_content_hash(self) -> Field {1}
 
-        fn get_note_type_id() -> Field {1}
+        fn get_note_type_id() -> Field {
+            1
+        }
 
         fn get_header(self) -> NoteHeader { self.header}
 

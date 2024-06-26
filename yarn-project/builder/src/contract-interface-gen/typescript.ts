@@ -225,7 +225,7 @@ function generateNotesGetter(input: ContractArtifact) {
     .map(
       ([name, { id }]) =>
         `${name}: {
-          id: new Fr(${id.toBigInt()}n),
+          id: new NoteSelector(${id.value}),
         }`,
     )
     .join(',\n');
@@ -281,11 +281,7 @@ function generateEvents(events: any[] | undefined) {
       if (payload === undefined) {
         return undefined;
       }
-      if (
-        !eventSelector.equals(
-          EventSelector.fromField(payload.eventTypeId),
-        )
-      ) {
+      if (!eventSelector.equals(payload.eventTypeId)) {
         return undefined;
       }
       if (payload.event.items.length !== fieldsLength) {
@@ -349,14 +345,14 @@ import {
   DeployMethod,
   EthAddress,
   EthAddressLike,
+  EventSelector,
   FieldLike,
   Fr,
-  EventSelector,
-  FunctionSelector,
   FunctionSelectorLike,
   L1EventPayload,
   loadContractArtifact,
   NoirCompiledContract,
+  NoteSelector,
   Point,
   PublicKey,
   Wallet,

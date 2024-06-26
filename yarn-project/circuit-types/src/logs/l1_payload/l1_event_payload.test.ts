@@ -1,4 +1,5 @@
 import { AztecAddress, KeyValidationRequest, computeOvskApp, derivePublicKeyFromSecretKey } from '@aztec/circuits.js';
+import { EventSelector } from '@aztec/foundation/abi';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 
@@ -29,7 +30,7 @@ describe('L1 Event Payload', () => {
       randomness = Fr.random();
       maskedContractAddress = pedersenHash([contractAddress, randomness], 0);
 
-      payload = new L1EventPayload(Event.random(), contractAddress, randomness, Fr.random());
+      payload = new L1EventPayload(Event.random(), contractAddress, randomness, EventSelector.random());
 
       ovskM = GrumpkinScalar.random();
       ivskM = GrumpkinScalar.random();

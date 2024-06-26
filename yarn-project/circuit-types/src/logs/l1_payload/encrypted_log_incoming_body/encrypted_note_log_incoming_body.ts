@@ -1,11 +1,12 @@
 import { Fr, type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
+import { NoteSelector } from '@aztec/foundation/abi';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { Note } from '../payload.js';
 import { EncryptedLogIncomingBody } from './encrypted_log_incoming_body.js';
 
 export class EncryptedNoteLogIncomingBody extends EncryptedLogIncomingBody {
-  constructor(public storageSlot: Fr, public noteTypeId: Fr, public note: Note) {
+  constructor(public storageSlot: Fr, public noteTypeId: NoteSelector, public note: Note) {
     super();
   }
 
@@ -16,7 +17,8 @@ export class EncryptedNoteLogIncomingBody extends EncryptedLogIncomingBody {
    */
   public toBuffer(): Buffer {
     const noteBufferWithoutLength = this.note.toBuffer().subarray(4);
-    return serializeToBuffer(this.storageSlot, this.noteTypeId, noteBufferWithoutLength);
+    // Note: We serialize note type to field first because that's how it's done in Noir
+    return serializeToBuffer(this.storageSlot, this.noteTypeId.toField(), noteBufferWithoutLength);
   }
 
   /**
@@ -28,7 +30,7 @@ export class EncryptedNoteLogIncomingBody extends EncryptedLogIncomingBody {
   public static fromBuffer(buf: Buffer): EncryptedNoteLogIncomingBody {
     const reader = BufferReader.asReader(buf);
     const storageSlot = Fr.fromBuffer(reader);
-    const noteTypeId = Fr.fromBuffer(reader);
+    const noteTypeId = NoteSelector.fromField(Fr.fromBuffer(reader));
 
     // 2 Fields (storage slot and note type id) are not included in the note buffer
     const fieldsInNote = reader.getLength() / 32 - 2;

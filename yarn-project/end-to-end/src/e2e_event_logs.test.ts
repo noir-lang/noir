@@ -1,5 +1,6 @@
 import { type AccountWalletWithSecretKey, type AztecNode, Fr, L1EventPayload, TaggedLog } from '@aztec/aztec.js';
 import { deriveMasterIncomingViewingSecretKey } from '@aztec/circuits.js';
+import { EventSelector } from '@aztec/foundation/abi';
 import { makeTuple } from '@aztec/foundation/array';
 import { type Tuple } from '@aztec/foundation/serialize';
 import { type ExampleEvent0, type ExampleEvent1, TestLogContract } from '@aztec/noir-contracts.js';
@@ -50,7 +51,7 @@ describe('Logs', () => {
       expect(decryptedLog0?.payload.contractAddress).toStrictEqual(testLogContract.address);
       expect(decryptedLog0?.payload.randomness).toStrictEqual(randomness[0]);
       expect(decryptedLog0?.payload.eventTypeId).toStrictEqual(
-        new Fr(0x00000000000000000000000000000000000000000000000000000000aa533f60),
+        EventSelector.fromField(new Fr(0x00000000000000000000000000000000000000000000000000000000aa533f60)),
       );
 
       // We decode our event into the event type
@@ -73,7 +74,7 @@ describe('Logs', () => {
       expect(decryptedLog1?.payload.contractAddress).toStrictEqual(testLogContract.address);
       expect(decryptedLog1?.payload.randomness).toStrictEqual(randomness[1]);
       expect(decryptedLog1?.payload.eventTypeId).toStrictEqual(
-        new Fr(0x00000000000000000000000000000000000000000000000000000000d1be0447),
+        EventSelector.fromField(new Fr(0x00000000000000000000000000000000000000000000000000000000d1be0447)),
       );
 
       // We check our second event, which is a different type

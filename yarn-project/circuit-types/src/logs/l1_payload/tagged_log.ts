@@ -78,8 +78,6 @@ export class TaggedLog<Payload extends L1NotePayload | L1EventPayload> {
     ivsk: GrumpkinPrivateKey,
     payloadType: typeof L1NotePayload | typeof L1EventPayload = L1NotePayload,
   ): TaggedLog<L1NotePayload | L1EventPayload> | undefined {
-    // Right now heavily abusing that we will likely fail if bad decryption
-    // as some field will likely end up not being in the field etc.
     try {
       if (payloadType === L1EventPayload) {
         const reader = BufferReader.asReader((data as EncryptedL2Log).data);
@@ -96,7 +94,17 @@ export class TaggedLog<Payload extends L1NotePayload | L1EventPayload> {
         const payload = L1NotePayload.decryptAsIncoming(reader.readToEnd(), ivsk);
         return new TaggedLog(payload, incomingTag, outgoingTag);
       }
-    } catch (e) {
+    } catch (e: any) {
+      // Following error messages are expected to occur when decryption fails
+      if (
+        !e.message.endsWith('is greater or equal to field modulus.') &&
+        !e.message.startsWith('Invalid AztecAddress length') &&
+        !e.message.startsWith('Selector must fit in') &&
+        !e.message.startsWith('Attempted to read beyond buffer length')
+      ) {
+        // If we encounter an unexpected error, we rethrow it
+        throw e;
+      }
       return;
     }
   }
@@ -116,8 +124,6 @@ export class TaggedLog<Payload extends L1NotePayload | L1EventPayload> {
     ovsk: GrumpkinPrivateKey,
     payloadType: typeof L1NotePayload | typeof L1EventPayload = L1NotePayload,
   ) {
-    // Right now heavily abusing that we will likely fail if bad decryption
-    // as some field will likely end up not being in the field etc.
     try {
       if (payloadType === L1EventPayload) {
         const reader = BufferReader.asReader((data as EncryptedL2Log).data);
@@ -133,7 +139,17 @@ export class TaggedLog<Payload extends L1NotePayload | L1EventPayload> {
         const payload = L1NotePayload.decryptAsOutgoing(reader.readToEnd(), ovsk);
         return new TaggedLog(payload, incomingTag, outgoingTag);
       }
-    } catch (e) {
+    } catch (e: any) {
+      // Following error messages are expected to occur when decryption fails
+      if (
+        !e.message.endsWith('is greater or equal to field modulus.') &&
+        !e.message.startsWith('Invalid AztecAddress length') &&
+        !e.message.startsWith('Selector must fit in') &&
+        !e.message.startsWith('Attempted to read beyond buffer length')
+      ) {
+        // If we encounter an unexpected error, we rethrow it
+        throw e;
+      }
       return;
     }
   }

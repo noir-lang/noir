@@ -1,4 +1,5 @@
 import { AztecAddress, type GrumpkinPrivateKey, type KeyValidationRequest, type PublicKey } from '@aztec/circuits.js';
+import { NoteSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -28,7 +29,7 @@ export class L1NotePayload extends L1Payload {
     /**
      * Type identifier for the underlying note, required to determine how to compute its hash and nullifier.
      */
-    public noteTypeId: Fr,
+    public noteTypeId: NoteSelector,
   ) {
     super();
   }
@@ -44,7 +45,7 @@ export class L1NotePayload extends L1Payload {
       reader.readObject(Note),
       reader.readObject(AztecAddress),
       Fr.fromBuffer(reader),
-      Fr.fromBuffer(reader),
+      reader.readObject(NoteSelector),
     );
   }
 
@@ -62,7 +63,7 @@ export class L1NotePayload extends L1Payload {
    * @returns A random L1NotePayload object.
    */
   static random(contract = AztecAddress.random()) {
-    return new L1NotePayload(Note.random(), contract, Fr.random(), Fr.random());
+    return new L1NotePayload(Note.random(), contract, Fr.random(), NoteSelector.random());
   }
 
   public encrypt(ephSk: GrumpkinPrivateKey, recipient: AztecAddress, ivpk: PublicKey, ovKeys: KeyValidationRequest) {

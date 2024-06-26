@@ -25,10 +25,12 @@ const pageLogger = createDebugLogger('aztec:e2e_aztec_browser.js:web:page');
  *    2) go to `yarn-project/end-to-end` and build the web packed package with `yarn build:web`,
  *    3) start anvil: `anvil`,
  *    4) if you intend to use a remotely running environment then export the URL of your PXE e.g. `export PXE_URL='http://localhost:8080'`
- *    7) go to `yarn-project/end-to-end` and run the test: `yarn test aztec_js_browser`
+ *    5) go to `yarn-project/end-to-end` and run the test: `yarn test aztec_js_browser`
+ *    6) If you get dependency error run `apt install libssn3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libxdamage1 libxkbcommon0 libpango-1.0-0 libcairo2`.
  *
- * NOTE: If you see the logs spammed with unexpected logs there is probably a chrome process with a webpage
+ * NOTE 1: If you see the logs spammed with unexpected logs there is probably a chrome process with a webpage
  *       unexpectedly running in the background. Kill it with `killall chrome`
+ * NOTE 2: Don't forget to run `yarn build:web` once you make changes!
  */
 
 const setupApp = async () => {

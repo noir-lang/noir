@@ -142,7 +142,7 @@ export async function inspectTx(
 function inspectNote(note: ExtendedNote, artifactMap: ArtifactMap, log: LogFn, text = 'Note') {
   const artifact = artifactMap[note.contractAddress.toString()];
   const contract = artifact?.name ?? note.contractAddress.toString();
-  const type = artifact?.notes[note.noteTypeId.toString()]?.typ ?? note.noteTypeId.toShortString();
+  const type = artifact?.notes[note.noteTypeId.toString()]?.typ ?? note.noteTypeId.toField().toShortString();
   log(`  ${text} type ${type} at ${contract}`);
   log(`    Owner: ${toFriendlyAddress(note.owner, artifactMap)}`);
   for (const field of note.note.items) {

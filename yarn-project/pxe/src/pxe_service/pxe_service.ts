@@ -35,13 +35,7 @@ import {
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
 import { computeNoteHashNonce, siloNullifier } from '@aztec/circuits.js/hash';
-import {
-  type ContractArtifact,
-  type DecodedReturn,
-  EventSelector,
-  FunctionSelector,
-  encodeArguments,
-} from '@aztec/foundation/abi';
+import { type ContractArtifact, type DecodedReturn, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { type Fq, Fr, type Point } from '@aztec/foundation/fields';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
@@ -859,7 +853,7 @@ export class PXEService implements PXE {
         if (visibleEvent.payload === undefined) {
           return undefined;
         }
-        if (!EventSelector.fromField(visibleEvent.payload.eventTypeId).equals(eventMetadata.eventSelector)) {
+        if (!visibleEvent.payload.eventTypeId.equals(eventMetadata.eventSelector)) {
           return undefined;
         }
         if (visibleEvent.payload.event.items.length !== eventMetadata.fieldNames.length) {

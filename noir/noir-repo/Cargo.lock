@@ -451,6 +451,7 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "regex",
+ "tiny-keccak",
 ]
 
 [[package]]

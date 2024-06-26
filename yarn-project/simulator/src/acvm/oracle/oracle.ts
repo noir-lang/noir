@@ -1,6 +1,6 @@
 import { MerkleTreeId, UnencryptedL2Log } from '@aztec/circuit-types';
 import { KeyValidationRequest } from '@aztec/circuits.js';
-import { EventSelector, FunctionSelector } from '@aztec/foundation/abi';
+import { EventSelector, FunctionSelector, NoteSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 
@@ -252,7 +252,7 @@ export class Oracle {
   ): ACVMField {
     this.typedOracle.notifyCreatedNote(
       fromACVMField(storageSlot),
-      fromACVMField(noteTypeId),
+      NoteSelector.fromField(fromACVMField(noteTypeId)),
       note.map(fromACVMField),
       fromACVMField(innerNoteHash),
       +counter,
@@ -365,7 +365,7 @@ export class Oracle {
     const encLog = this.typedOracle.computeEncryptedNoteLog(
       AztecAddress.fromString(contractAddress),
       Fr.fromString(storageSlot),
-      Fr.fromString(noteTypeId),
+      NoteSelector.fromField(Fr.fromString(noteTypeId)),
       ovKeys,
       ivpkM,
       preimage.map(fromACVMField),
