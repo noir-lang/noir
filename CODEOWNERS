@@ -1,17 +1,31 @@
 /build-images/ @charlielye
 
-# Notify the AVM team of any changes to public oracle.
-/yarn-project/simulator/src/public/public_execution_context.ts @Maddiaa0 @fcarreiro @dbanks12
-
-# Notify the AVM team of changes to generated PIL code
-barretenberg/cpp/src/barretenberg/**/generated/* @Maddiaa0 @jeanmon @IlyasRidhuan
-
-# Notify the AVM team of any changes to public context or avm context.
-/noir-projects/aztec-nr/aztec/src/context/inputs/public_context_inputs.nr @fcarreiro @dbanks12
-/noir-projects/aztec-nr/aztec/src/context/inputs/avm_context_inputs.nr @fcarreiro @dbanks12
-/noir-projects/aztec-nr/aztec/src/context/public_context.nr @fcarreiro @dbanks12
-/noir-projects/aztec-nr/aztec/src/context/avm_context.nr @fcarreiro @dbanks12
-/noir-projects/aztec-nr/aztec/src/context/interface.nr @fcarreiro @dbanks12
-
 # Notify the Noir team of any changes to ACIR serialization
 /noir/noir-repo/acvm-repo/acir/codegen/* @TomAFrench @vezenovm @guipublic
+
+#####################################################
+# Notify the AVM team
+#
+# on changes to PIL code-generator
+/bb-pilcom @Maddiaa0 @jeanmon @IlyasRidhuan @fcarreiro
+# on changes to PIL code (AVM circuit)
+/barretenberg/cpp/pil @Maddiaa0 @jeanmon @IlyasRidhuan @fcarreiro
+# on changes to PIL-generated C++
+/barretenberg/cpp/src/barretenberg/**/generated @jeanmon @IlyasRidhuan @fcarreiro
+# on changes to AVM trace (C++ witness generator)
+/barretenberg/cpp/src/barretenberg/vm/avm_trace @jeanmon @IlyasRidhuan @fcarreiro
+# on changes to public context in aztec-nr
+/noir-projects/aztec-nr/aztec/src/context/inputs/public_context_inputs.nr @fcarreiro @dbanks12
+/noir-projects/aztec-nr/aztec/src/context/public_context.nr @fcarreiro @dbanks12
+# on changes to the AVM simulator and supporting modules
+/yarn-project/simulator/src/avm @fcarreiro @dbanks12
+/yarn-project/simulator/src/public/execution.ts @fcarreiro @dbanks12
+/yarn-project/simulator/src/public/executor.ts @fcarreiro @dbanks12
+/yarn-project/simulator/src/public/side_effect_trace.test.ts @fcarreiro @dbanks12
+/yarn-project/simulator/src/public/side_effect_trace.ts @fcarreiro @dbanks12
+/yarn-project/simulator/src/public/side_effect_trace_interface.ts @fcarreiro @dbanks12
+/yarn-project/simulator/src/public/transitional_adaptors.ts @fcarreiro @dbanks12
+# on changes to the AVM transpiler
+/avm-transpiler/src @fcarreiro @dbanks12
+#####################################################
+
