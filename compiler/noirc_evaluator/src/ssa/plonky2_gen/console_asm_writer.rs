@@ -300,4 +300,11 @@ impl AsmWriter for ConsoleAsmWriter {
             self.builder.le_sum(bits)
         }
     }
+
+    fn range_check(&mut self, x: Target, n_log: usize) {
+        self.builder.range_check(x, n_log);
+        if self.show_plonky2 {
+            println!("range_check\t{},{}", target2string(x), n_log);
+        }
+    }
 }

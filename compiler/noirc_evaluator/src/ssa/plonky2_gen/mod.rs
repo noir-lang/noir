@@ -671,7 +671,7 @@ where
 
             Instruction::RangeCheck { value, max_bit_size, assert_message: _ } => {
                 let x = self.get_target(value)?;
-                self.get_mut_builder().range_check(x, usize::try_from(max_bit_size).unwrap());
+                self.asm_writer.range_check(x, usize::try_from(max_bit_size).unwrap());
             }
 
             Instruction::ArrayGet { array, index } => {

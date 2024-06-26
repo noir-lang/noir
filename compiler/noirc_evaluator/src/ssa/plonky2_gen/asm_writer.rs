@@ -33,4 +33,5 @@ pub trait AsmWriter {
     where
         T: Borrow<Target>;
     fn le_sum(&mut self, bits: impl Iterator<Item = impl Borrow<BoolTarget>> + Clone) -> Target;
+    fn range_check(&mut self, x: Target, n_log: usize);
 }
