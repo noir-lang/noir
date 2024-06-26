@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use plonky2::iop::target::{BoolTarget, Target};
 
 use super::config::{P2Builder, P2Field};
@@ -27,4 +29,7 @@ pub trait AsmWriter {
     fn assert_bool(&mut self, b: BoolTarget);
     fn connect(&mut self, x: Target, y: Target);
     fn register_public_inputs(&mut self, targets: &[Target]);
+    fn add_many<T>(&mut self, terms: impl IntoIterator<Item = T> + Clone) -> Target
+    where
+        T: Borrow<Target>;
 }

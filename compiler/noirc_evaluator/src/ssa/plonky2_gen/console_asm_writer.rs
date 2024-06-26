@@ -1,4 +1,4 @@
-use std::fmt::Write;
+use std::{borrow::Borrow, fmt::Write};
 
 use plonky2::iop::{
     target::{BoolTarget, Target},
@@ -59,6 +59,25 @@ fn targetslice2string(t: &[Target]) -> String {
     write!(&mut result, ")");
     result
 
+}
+
+fn targetiter2string<T>(t: impl IntoIterator<Item = T>) -> String
+where
+    T: Borrow<Target>,
+{
+    let mut result = String::new();
+    write!(&mut result, "(");
+    let mut first = true;
+    for tt in t {
+        if first {
+            write!(&mut result, "{}", target2string(*tt.borrow()));
+            first = false;
+        } else {
+            write!(&mut result, ",{}", target2string(*tt.borrow()));
+        }
+    }
+    write!(&mut result, ")");
+    result
 }
 
 impl AsmWriter for ConsoleAsmWriter {
@@ -240,6 +259,19 @@ impl AsmWriter for ConsoleAsmWriter {
         self.builder.register_public_inputs(targets);
         if self.show_plonky2 {
             println!("register_public_inputs\t{}", targetslice2string(targets));
+        }
+    }
+
+    fn add_many<T>(&mut self, terms: impl IntoIterator<Item = T> + Clone) -> Target
+    where
+        T: Borrow<Target>,
+    {
+        if self.show_plonky2 {
+            let result = self.builder.add_many(terms.clone());
+            println!("add_many\t{}", targetiter2string(terms));
+            result
+        } else {
+            self.builder.add_many(terms)
         }
     }
 }

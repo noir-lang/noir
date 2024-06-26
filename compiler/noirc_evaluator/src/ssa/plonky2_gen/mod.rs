@@ -508,7 +508,7 @@ where
             result_bits.push(result_power_of_two);
         }
 
-        let target = self.get_mut_builder().add_many(result_bits);
+        let target = self.asm_writer.add_many(result_bits);
 
         P2Value::make_integer(type_a, target)
     }
