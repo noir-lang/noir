@@ -2206,8 +2206,13 @@ TEST_F(AvmExecutionTests, opCallOpcodes)
     std::vector<FF> returndata = {};
 
     // Generate Hint for call operation
-    auto execution_hints = ExecutionHints().with_externalcall_hints(
-        { { .success = 1, .return_data = { 9, 8 }, .l2_gas_used = 0, .da_gas_used = 0 } });
+    auto execution_hints = ExecutionHints().with_externalcall_hints({ {
+        .success = 1,
+        .return_data = { 9, 8 },
+        .l2_gas_used = 0,
+        .da_gas_used = 0,
+        .end_side_effect_counter = 0,
+    } });
 
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
     EXPECT_EQ(returndata, std::vector<FF>({ 9, 8, 1 })); // The 1 represents the success

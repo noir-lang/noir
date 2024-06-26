@@ -11,7 +11,7 @@ const DefaultLogLevel = process.env.NODE_ENV === 'test' ? ('silent' as const) : 
 export type LogLevel = (typeof LogLevels)[number];
 
 const envLogLevel = process.env.LOG_LEVEL?.toLowerCase() as LogLevel;
-const currentLevel = LogLevels.includes(envLogLevel) ? envLogLevel : DefaultLogLevel;
+export const currentLevel = LogLevels.includes(envLogLevel) ? envLogLevel : DefaultLogLevel;
 
 const namespaces = process.env.DEBUG ?? 'aztec:*';
 debug.enable(namespaces);

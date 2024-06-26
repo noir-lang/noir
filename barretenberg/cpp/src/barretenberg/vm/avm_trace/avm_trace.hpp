@@ -117,11 +117,11 @@ class AvmTraceBuilder {
     void op_emit_note_hash(uint8_t indirect, uint32_t note_hash_offset);
     void op_emit_nullifier(uint8_t indirect, uint32_t nullifier_offset);
     void op_emit_unencrypted_log(uint8_t indirect, uint32_t log_offset, uint32_t log_size_offset);
-    void op_emit_l2_to_l1_msg(uint8_t indirect, uint32_t msg_offset, uint32_t recipient_offset);
+    void op_emit_l2_to_l1_msg(uint8_t indirect, uint32_t recipient_offset, uint32_t content_offset);
     void op_get_contract_instance(uint8_t indirect, uint32_t address_offset, uint32_t dst_offset);
 
     // With additional metadata output
-    void op_l1_to_l2_msg_exists(uint8_t indirect, uint32_t msg_offset, uint32_t dest_offset);
+    void op_l1_to_l2_msg_exists(uint8_t indirect, uint32_t log_offset, uint32_t dest_offset);
     void op_note_hash_exists(uint8_t indirect, uint32_t note_hash_offset, uint32_t dest_offset);
     void op_nullifier_exists(uint8_t indirect, uint32_t nullifier_offset, uint32_t dest_offset);
 

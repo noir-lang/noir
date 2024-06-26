@@ -47,6 +47,7 @@ struct ExternalCallHint {
     std::vector<FF> return_data;
     uint32_t l2_gas_used;
     uint32_t da_gas_used;
+    FF end_side_effect_counter;
 };
 
 // Add support for deserialization of ExternalCallHint. This is implicitly used by serialize::read
@@ -58,6 +59,7 @@ inline void read(uint8_t const*& it, ExternalCallHint& hint)
     read(it, hint.return_data);
     read(it, hint.l2_gas_used);
     read(it, hint.da_gas_used);
+    read(it, hint.end_side_effect_counter);
 }
 
 struct ContractInstanceHint {

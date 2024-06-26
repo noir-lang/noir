@@ -1,6 +1,6 @@
 import { type AvmCircuitInputs } from '@aztec/circuits.js';
 import { sha256 } from '@aztec/foundation/crypto';
-import { type LogFn } from '@aztec/foundation/log';
+import { type LogFn, currentLevel as currentLogLevel } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
 import { type NoirCompiledCircuit } from '@aztec/types/noir';
 
@@ -335,6 +335,7 @@ export async function generateAvmProof(
       avmHintsPath,
       '-o',
       outputPath,
+      currentLogLevel == 'debug' ? '-d' : 'verbose' ? '-v' : '',
     ];
     const timer = new Timer();
     const logFunction = (message: string) => {

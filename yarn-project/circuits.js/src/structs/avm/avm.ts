@@ -80,8 +80,14 @@ export class AvmExternalCallHint {
    * @param success whether the external call was successful (= did NOT revert).
    * @param returnData the data returned by the external call.
    * @param gasUsed gas used by the external call (not including the cost of the CALL opcode itself).
+   * @param endSideEffectCounter value of side effect counter at the end of the external call.
    */
-  constructor(public readonly success: Fr, returnData: Fr[], public readonly gasUsed: Gas) {
+  constructor(
+    public readonly success: Fr,
+    returnData: Fr[],
+    public readonly gasUsed: Gas,
+    public readonly endSideEffectCounter: Fr,
+  ) {
     this.returnData = new Vector(returnData);
   }
 
@@ -106,7 +112,12 @@ export class AvmExternalCallHint {
    * @returns whether all members are empty.
    */
   isEmpty(): boolean {
-    return this.success.isZero() && this.returnData.items.length == 0 && this.gasUsed.isEmpty();
+    return (
+      this.success.isZero() &&
+      this.returnData.items.length == 0 &&
+      this.gasUsed.isEmpty() &&
+      this.endSideEffectCounter.isZero()
+    );
   }
 
   /**
@@ -115,7 +126,12 @@ export class AvmExternalCallHint {
    * @returns A new AvmHint instance.
    */
   static from(fields: FieldsOf<AvmExternalCallHint>): AvmExternalCallHint {
-    return new AvmExternalCallHint(fields.success, fields.returnData.items, fields.gasUsed);
+    return new AvmExternalCallHint(
+      fields.success,
+      fields.returnData.items,
+      fields.gasUsed,
+      fields.endSideEffectCounter,
+    );
   }
 
   /**
@@ -124,7 +140,7 @@ export class AvmExternalCallHint {
    * @returns An array of fields.
    */
   static getFields(fields: FieldsOf<AvmExternalCallHint>) {
-    return [fields.success, fields.returnData, fields.gasUsed] as const;
+    return [fields.success, fields.returnData, fields.gasUsed, fields.endSideEffectCounter] as const;
   }
 
   /**
@@ -134,7 +150,12 @@ export class AvmExternalCallHint {
    */
   static fromBuffer(buff: Buffer | BufferReader): AvmExternalCallHint {
     const reader = BufferReader.asReader(buff);
-    return new AvmExternalCallHint(Fr.fromBuffer(reader), reader.readVector(Fr), reader.readObject<Gas>(Gas));
+    return new AvmExternalCallHint(
+      Fr.fromBuffer(reader),
+      reader.readVector(Fr),
+      reader.readObject<Gas>(Gas),
+      Fr.fromBuffer(reader),
+    );
   }
 
   /**

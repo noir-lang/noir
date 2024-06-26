@@ -18,6 +18,7 @@ import {
 } from '@aztec/circuits.js';
 import { EventSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { type ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { type AvmExecutionEnvironment } from '../avm/avm_execution_environment.js';
@@ -29,6 +30,8 @@ import { type PublicSideEffectTraceInterface } from './side_effect_trace_interfa
 export type TracedContractInstance = { exists: boolean } & ContractInstanceWithAddress;
 
 export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
+  public logger = createDebugLogger('aztec:side-effects');
+
   /** The side effect counter increments with every call to the trace. */
   private sideEffectCounter: number; // kept as number until finalized for efficiency
 
@@ -85,6 +88,7 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
     this.avmCircuitHints.storageValues.items.push(
       new AvmKeyValueHint(/*key=*/ new Fr(this.sideEffectCounter), /*value=*/ value),
     );
+    this.logger.debug(`SLOAD cnt: ${this.sideEffectCounter} val: ${value} slot: ${slot}`);
     this.incrementSideEffectCounter();
   }
 
@@ -94,6 +98,7 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
     this.contractStorageUpdateRequests.push(
       new ContractStorageUpdateRequest(slot, value, this.sideEffectCounter, storageAddress),
     );
+    this.logger.debug(`SSTORE cnt: ${this.sideEffectCounter} val: ${value} slot: ${slot}`);
     this.incrementSideEffectCounter();
   }
 
@@ -106,6 +111,7 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
     this.avmCircuitHints.noteHashExists.items.push(
       new AvmKeyValueHint(/*key=*/ new Fr(this.sideEffectCounter), /*value=*/ new Fr(exists ? 1 : 0)),
     );
+    this.logger.debug(`NOTE_HASH_CHECK cnt: ${this.sideEffectCounter}`);
     this.incrementSideEffectCounter();
   }
 
@@ -117,6 +123,7 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
     // the noteHash against the one provided by the user code to determine what to return to the user (exists or not),
     // and will then propagate the actually-present noteHash to its public inputs.
     this.newNoteHashes.push(new NoteHash(noteHash, this.sideEffectCounter));
+    this.logger.debug(`NEW_NOTE_HASH cnt: ${this.sideEffectCounter}`);
     this.incrementSideEffectCounter();
   }
 
@@ -133,6 +140,7 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
     this.avmCircuitHints.nullifierExists.items.push(
       new AvmKeyValueHint(/*key=*/ new Fr(this.sideEffectCounter), /*value=*/ new Fr(exists ? 1 : 0)),
     );
+    this.logger.debug(`NULLIFIER_EXISTS cnt: ${this.sideEffectCounter}`);
     this.incrementSideEffectCounter();
   }
 
@@ -140,6 +148,7 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
     // TODO(4805): check if some threshold is reached for max new nullifier
     // NOTE: storageAddress is unused but will be important when an AVM circuit processes an entire enqueued call
     this.newNullifiers.push(new Nullifier(nullifier, this.sideEffectCounter, /*noteHash=*/ Fr.ZERO));
+    this.logger.debug(`NEW_NULLIFIER cnt: ${this.sideEffectCounter}`);
     this.incrementSideEffectCounter();
   }
 
@@ -152,6 +161,7 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
     this.avmCircuitHints.l1ToL2MessageExists.items.push(
       new AvmKeyValueHint(/*key=*/ new Fr(this.sideEffectCounter), /*value=*/ new Fr(exists ? 1 : 0)),
     );
+    this.logger.debug(`L1_TO_L2_MSG_CHECK cnt: ${this.sideEffectCounter}`);
     this.incrementSideEffectCounter();
   }
 
@@ -159,6 +169,7 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
     // TODO(4805): check if some threshold is reached for max messages
     const recipientAddress = EthAddress.fromField(recipient);
     this.newL2ToL1Messages.push(new L2ToL1Message(recipientAddress, content, this.sideEffectCounter));
+    this.logger.debug(`NEW_L2_TO_L1_MSG cnt: ${this.sideEffectCounter}`);
     this.incrementSideEffectCounter();
   }
 
@@ -174,6 +185,7 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
     this.allUnencryptedLogs.push(ulog);
     // TODO(6578): explain magic number 4 here
     this.unencryptedLogsHashes.push(new LogHash(basicLogHash, this.sideEffectCounter, new Fr(ulog.length + 4)));
+    this.logger.debug(`NEW_UNENCRYPTED_LOG cnt: ${this.sideEffectCounter}`);
     this.incrementSideEffectCounter();
   }
 
@@ -191,6 +203,7 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
         instance.publicKeysHash,
       ),
     );
+    this.logger.debug(`CONTRACT_INSTANCE cnt: ${this.sideEffectCounter}`);
     this.incrementSideEffectCounter();
   }
 
@@ -234,7 +247,12 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
       result.startGasLeft.l2Gas - result.endGasLeft.l2Gas,
     );
     this.avmCircuitHints.externalCalls.items.push(
-      new AvmExternalCallHint(/*success=*/ new Fr(result.reverted ? 0 : 1), result.returnValues, gasUsed),
+      new AvmExternalCallHint(
+        /*success=*/ new Fr(result.reverted ? 0 : 1),
+        result.returnValues,
+        gasUsed,
+        result.endSideEffectCounter,
+      ),
     );
   }
 

@@ -258,6 +258,7 @@ export class AvmPersistableStateManager {
         nestedEnvironment.address,
         nestedEnvironment.temporaryFunctionSelector,
       )) ?? `${nestedEnvironment.address}:${nestedEnvironment.temporaryFunctionSelector}`;
+    this.log.verbose(`[AVM] Calling nested function ${functionName}`);
     this.trace.traceNestedCall(
       nestedState.trace,
       nestedEnvironment,

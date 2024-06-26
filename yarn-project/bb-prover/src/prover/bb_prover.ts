@@ -632,7 +632,7 @@ export class BBNativeRollupProver implements ServerCircuitProver {
       await fs.writeFile(verificationKeyPath, verificationKey.keyAsBytes);
 
       const logFunction = (message: string) => {
-        logger.debug(`BB out - ${message}`);
+        logger.verbose(`BB out - ${message}`);
       };
 
       const result = await verificationFunction(
@@ -647,7 +647,7 @@ export class BBNativeRollupProver implements ServerCircuitProver {
         throw new Error(errorMessage);
       }
 
-      logger.debug(`Successfully verified proof from key in ${result.durationMs} ms`);
+      logger.info(`Successfully verified proof from key in ${result.durationMs} ms`);
     };
 
     await runInDirectory(this.config.bbWorkingDirectory, operation);

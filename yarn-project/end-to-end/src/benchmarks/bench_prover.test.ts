@@ -18,6 +18,9 @@ jest.setTimeout(1_800_000);
 
 const txTimeoutSec = 3600;
 
+// This makes AVM proving throw if there's a failure.
+process.env.AVM_PROVING_STRICT = '1';
+
 describe('benchmarks/proving', () => {
   let ctx: EndToEndContext;
 
