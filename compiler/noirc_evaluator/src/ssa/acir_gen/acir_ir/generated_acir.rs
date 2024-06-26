@@ -439,7 +439,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         let inputs = vec![BrilligInputs::Single(expr)];
         let outputs = vec![BrilligOutputs::Simple(inverted_witness)];
         self.brillig_call(
-            Some(Expression::one()),
+            None,
             &inverse_code,
             inputs,
             outputs,
@@ -709,6 +709,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::Poseidon2Permutation => None,
 
         BlackBoxFunc::Sha256Compression => Some(8),
+
         // Pedersen commitment returns a point
         BlackBoxFunc::PedersenCommitment => Some(2),
 

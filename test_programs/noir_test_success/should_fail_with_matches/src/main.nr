@@ -3,6 +3,11 @@ fn test_should_fail_with_match() {
     assert_eq(0, 1, "Not equal");
 }
 
+#[test(should_fail_with = "Not equal")]
+fn test_should_fail_with_match_partial_match() {
+    assert_eq(0, 1, "Definitely Not equal!");
+}
+
 #[test(should_fail)]
 fn test_should_fail_without_match() {
     assert_eq(0, 1);
@@ -46,6 +51,11 @@ fn test_should_fail_with_struct_fmt_string() {
 #[test(should_fail_with = "Not equal")]
 unconstrained fn unconstrained_test_should_fail_with_match() {
     assert_eq(0, 1, "Not equal");
+}
+
+#[test(should_fail_with = "Not equal")]
+unconstrained fn unconstrained_test_should_fail_with_match_partial_match() {
+    assert_eq(0, 1, "Definitely Not equal!");
 }
 
 #[test(should_fail)]

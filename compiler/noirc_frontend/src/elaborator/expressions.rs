@@ -18,7 +18,7 @@ use crate::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstructorExpression, HirIfExpression, HirIndexExpression, HirInfixExpression,
             HirLambda, HirMemberAccess, HirMethodCallExpression, HirMethodReference,
-            HirPrefixExpression, HirQuoted,
+            HirPrefixExpression,
         },
         traits::TraitConstraint,
     },
@@ -28,7 +28,8 @@ use crate::{
         MethodCallExpression, PrefixExpression,
     },
     node_interner::{DefinitionKind, ExprId, FuncId},
-    Shared, StructType, Type,
+    token::Tokens,
+    Kind, QuotedType, Shared, StructType, Type,
 };
 
 use super::Elaborator;
@@ -51,14 +52,27 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::If(if_) => self.elaborate_if(*if_),
             ExpressionKind::Variable(variable, generics) => {
                 let generics = generics.map(|option_inner| {
-                    option_inner.into_iter().map(|generic| self.resolve_type(generic)).collect()
+                    option_inner
+                        .into_iter()
+                        .map(|generic| {
+                            // All type expressions should resolve to a `Type::Constant`
+                            if generic.is_type_expression() {
+                                self.resolve_type_inner(
+                                    generic,
+                                    &Kind::Numeric(Box::new(Type::default_int_type())),
+                                )
+                            } else {
+                                self.resolve_type(generic)
+                            }
+                        })
+                        .collect()
                 });
                 return self.elaborate_variable(variable, generics);
             }
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
             ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda),
             ExpressionKind::Parenthesized(expr) => return self.elaborate_expression(*expr),
-            ExpressionKind::Quote(quote, _) => self.elaborate_quote(quote),
+            ExpressionKind::Quote(quote) => self.elaborate_quote(quote),
             ExpressionKind::Comptime(comptime, _) => {
                 return self.elaborate_comptime_block(comptime, expr.span)
             }
@@ -67,9 +81,6 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Unquote(_) => {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
                 (HirExpression::Error, Type::Error)
-            }
-            ExpressionKind::UnquoteMarker(index) => {
-                unreachable!("UnquoteMarker({index}) remaining in runtime code")
             }
         };
         let id = self.interner.push_expr(hir_expr);
@@ -646,16 +657,15 @@ impl<'context> Elaborator<'context> {
         (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type)))
     }
 
-    fn elaborate_quote(&mut self, mut block: BlockExpression) -> (HirExpression, Type) {
-        let mut unquoted_exprs = Vec::new();
-        self.find_unquoted_exprs_in_block(&mut block, &mut unquoted_exprs);
-        let quoted = HirQuoted { quoted_block: block, unquoted_exprs };
-        (HirExpression::Quote(quoted), Type::Expr)
+    fn elaborate_quote(&mut self, mut tokens: Tokens) -> (HirExpression, Type) {
+        tokens = self.find_unquoted_exprs_tokens(tokens);
+        (HirExpression::Quote(tokens), Type::Quoted(QuotedType::Quoted))
     }
 
     fn elaborate_comptime_block(&mut self, block: BlockExpression, span: Span) -> (ExprId, Type) {
         let (block, _typ) = self.elaborate_block_expression(block);
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        let mut interpreter =
+            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
         let value = interpreter.evaluate_block(block);
         self.inline_comptime_value(value, span)
     }
@@ -716,9 +726,8 @@ impl<'context> Elaborator<'context> {
         location: Location,
         return_type: Type,
     ) -> Option<(HirExpression, Type)> {
-        self.unify(&return_type, &Type::Expr, || TypeCheckError::MacroReturningNonExpr {
-            typ: return_type.clone(),
-            span: location.span,
+        self.unify(&return_type, &Type::Quoted(QuotedType::Quoted), || {
+            TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), span: location.span }
         });
 
         let function = match self.try_get_comptime_function(func, location) {
@@ -729,15 +738,28 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        let mut interpreter =
+            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
+
+        let mut comptime_args = Vec::new();
         let mut errors = Vec::new();
-        let result = interpreter.call_function(function, arguments, location);
+
+        for argument in arguments {
+            match interpreter.evaluate(argument) {
+                Ok(arg) => {
+                    let location = interpreter.interner.expr_location(&argument);
+                    comptime_args.push((arg, location));
+                }
+                Err(error) => errors.push((error.into(), self.file)),
+            }
+        }
 
         if !errors.is_empty() {
             self.errors.append(&mut errors);
             return None;
         }
 
+        let result = interpreter.call_function(function, comptime_args, location);
         let (expr_id, typ) = self.inline_comptime_value(result, location.span);
         Some((self.interner.expression(&expr_id), typ))
     }

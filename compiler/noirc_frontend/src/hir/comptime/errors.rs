@@ -1,5 +1,11 @@
-use crate::{hir::def_collector::dc_crate::CompilationError, Type};
+use std::rc::Rc;
+
+use crate::{
+    hir::def_collector::dc_crate::CompilationError, parser::ParserError, token::Tokens, Type,
+};
 use acvm::{acir::AcirField, FieldElement};
+use fm::FileId;
+use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Location};
 
 use super::value::Value;
@@ -24,7 +30,6 @@ pub enum InterpreterError {
     NonIntegerUsedAsIndex { value: Value, location: Location },
     NonIntegerIntegerLiteral { typ: Type, location: Location },
     NonIntegerArrayLength { typ: Type, location: Location },
-    InvalidArrayLenArgument { location: Location },
     NonNumericCasted { value: Value, location: Location },
     IndexOutOfBounds { index: usize, length: usize, location: Location },
     ExpectedStructToHaveField { value: Value, field_name: String, location: Location },
@@ -36,6 +41,8 @@ pub enum InterpreterError {
     NonStructInConstructor { typ: Type, location: Location },
     CannotInlineMacro { value: Value, location: Location },
     UnquoteFoundDuringEvaluation { location: Location },
+    FailedToParseMacro { error: ParserError, tokens: Rc<Tokens>, rule: &'static str, file: FileId },
+    NonComptimeFnCallInSameCrate { function: String, location: Location },
 
     Unimplemented { item: String, location: Location },
 
@@ -84,7 +91,6 @@ impl InterpreterError {
             | InterpreterError::NonIntegerUsedAsIndex { location, .. }
             | InterpreterError::NonIntegerIntegerLiteral { location, .. }
             | InterpreterError::NonIntegerArrayLength { location, .. }
-            | InterpreterError::InvalidArrayLenArgument { location, .. }
             | InterpreterError::NonNumericCasted { location, .. }
             | InterpreterError::IndexOutOfBounds { location, .. }
             | InterpreterError::ExpectedStructToHaveField { location, .. }
@@ -96,9 +102,13 @@ impl InterpreterError {
             | InterpreterError::NonStructInConstructor { location, .. }
             | InterpreterError::CannotInlineMacro { location, .. }
             | InterpreterError::UnquoteFoundDuringEvaluation { location, .. }
+            | InterpreterError::NonComptimeFnCallInSameCrate { location, .. }
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::BreakNotInLoop { location, .. }
             | InterpreterError::ContinueNotInLoop { location, .. } => *location,
+            InterpreterError::FailedToParseMacro { error, file, .. } => {
+                Location::new(error.span(), *file)
+            }
             InterpreterError::Break | InterpreterError::Continue => {
                 panic!("Tried to get the location of Break/Continue error!")
             }
@@ -209,11 +219,6 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "Array lengths must be integers".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
-            InterpreterError::InvalidArrayLenArgument { location } => {
-                let msg = format!("Invalid array length argument`");
-                let secondary = "Array .len() function only accepts arrays and slices".into();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
-            }
             InterpreterError::NonNumericCasted { value, location } => {
                 let msg = "Only numeric types may be casted".into();
                 let secondary = format!("`{}` is non-numeric", value.get_type());
@@ -263,6 +268,37 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::UnquoteFoundDuringEvaluation { location } => {
                 let msg = "Unquote found during comptime evaluation".into();
                 let secondary = "This is a bug".into();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::FailedToParseMacro { error, tokens, rule, file: _ } => {
+                let message = format!("Failed to parse macro's token stream into {rule}");
+                let tokens = vecmap(&tokens.0, ToString::to_string).join(" ");
+
+                // 10 is an aribtrary number of tokens here chosen to fit roughly onto one line
+                let token_stream = if tokens.len() > 10 {
+                    format!("The resulting token stream was: {tokens}")
+                } else {
+                    format!(
+                        "The resulting token stream was: (stream starts on next line)\n  {tokens}"
+                    )
+                };
+
+                let push_the_problem_on_the_library_author = "To avoid this error in the future, try adding input validation to your macro. Erroring out early with an `assert` can be a good way to provide a user-friendly error message".into();
+
+                let mut diagnostic = CustomDiagnostic::from(error);
+                // Swap the parser's primary note to become the secondary note so that it is
+                // more clear this error originates from failing to parse a macro.
+                let secondary = std::mem::take(&mut diagnostic.message);
+                diagnostic.add_secondary(secondary, error.span());
+                diagnostic.message = message;
+                diagnostic.add_note(token_stream);
+                diagnostic.add_note(push_the_problem_on_the_library_author);
+                diagnostic
+            }
+            InterpreterError::NonComptimeFnCallInSameCrate { function, location } => {
+                let msg = format!("`{function}` cannot be called in a `comptime` context here");
+                let secondary =
+                    "This function must be `comptime` or in a separate crate to be called".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::Unimplemented { item, location } => {
