@@ -1086,7 +1086,7 @@ impl<'context> Elaborator<'context> {
                     let func_meta = self.interner.function_meta(func_id);
                     for override_trait_constraint in func_meta.trait_constraints.clone() {
                         // We allow where clauses on impls but during definition collection they are included as part of the where
-                        // clause of each function. This check is necessary so we do not error about a
+                        // clause of each function. This check is necessary so we do not unnecessary error on trait impl where clauses.
                         let override_constraint_is_from_impl =
                             trait_impl_where_clause.iter().any(|impl_constraint| {
                                 impl_constraint.trait_id == override_trait_constraint.trait_id
