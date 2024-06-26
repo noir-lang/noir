@@ -561,6 +561,7 @@ pub mod test {
             all_generics: Vec::new(),
             parameter_idents: Vec::new(),
             function_body: FunctionBody::Resolved,
+            source_crate: CrateId::dummy_id(),
         };
         interner.push_fn_meta(func_meta, func_id);
 
@@ -716,13 +717,15 @@ pub mod test {
         let mut interner = NodeInterner::default();
         interner.populate_dummy_operator_traits();
 
-        assert_eq!(
-            errors.len(),
-            0,
-            "expected 0 parser errors, but got {}, errors: {:?}",
-            errors.len(),
-            errors
-        );
+        if !errors.iter().all(|error| error.is_warning()) {
+            assert_eq!(
+                errors.len(),
+                0,
+                "expected 0 parser errors, but got {}, errors: {:?}",
+                errors.len(),
+                errors
+            );
+        }
 
         let func_ids = btree_map(&func_namespace, |name| {
             (name.to_string(), interner.push_test_function_definition(name.into()))
