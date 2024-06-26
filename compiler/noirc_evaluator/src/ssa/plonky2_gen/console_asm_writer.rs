@@ -284,7 +284,7 @@ impl AsmWriter for ConsoleAsmWriter {
     {
         if self.show_plonky2 {
             let result = self.builder.add_many(terms.clone());
-            println!("add_many\t{}", targetiter2string(terms));
+            println!("add_many\t{},{}", targetiter2string(terms), target2string(result));
             result
         } else {
             self.builder.add_many(terms)
