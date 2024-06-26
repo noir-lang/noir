@@ -1,6 +1,7 @@
 use acvm::FieldElement;
 use fm::FileId;
 use noirc_errors::Location;
+use num_bigint::{BigInt, Sign};
 
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId};
@@ -112,6 +113,15 @@ pub enum HirLiteral {
     Str(String),
     FmtStr(String, Vec<ExprId>),
     Unit,
+}
+
+impl HirLiteral {
+    pub fn from_big_int(big_int: &BigInt) -> Self {
+        let is_negative = big_int.sign() == Sign::Minus;
+        let field = FieldElement::try_from_str(&big_int.to_string())
+            .expect("ice: failed to convert BigInt to FieldElement");
+        HirLiteral::Integer(field, is_negative)
+    }
 }
 
 #[derive(Debug, Clone)]

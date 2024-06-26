@@ -1,8 +1,6 @@
 use std::fmt::Display;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use acvm::acir::AcirField;
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
@@ -577,7 +575,7 @@ impl ForRange {
             }
             ForRange::Array(array) => {
                 let array_span = array.span;
-                let start_range = ExpressionKind::integer(FieldElement::zero());
+                let start_range = ExpressionKind::zero();
                 let start_range = Expression::new(start_range, array_span);
 
                 let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);

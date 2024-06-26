@@ -10,9 +10,10 @@ use crate::macros_api::StructId;
 use crate::node_interner::ExprId;
 use crate::token::{Attributes, Token, Tokens};
 use crate::{Kind, Type};
-use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
+use num_bigint::BigInt;
+use num_traits::Zero;
 
 use super::UnaryRhsMemberAccess;
 
@@ -44,6 +45,12 @@ pub enum ExpressionKind {
     // guaranteeing they have the same instantiated type and definition id without resolving again.
     Resolved(ExprId),
     Error,
+}
+
+impl ExpressionKind {
+    pub fn zero() -> Self {
+        ExpressionKind::Literal(Literal::zero())
+    }
 }
 
 /// A Vec of unresolved names for type variables.
@@ -134,8 +141,8 @@ impl ExpressionKind {
         match (operator, &rhs) {
             (
                 UnaryOp::Minus,
-                Expression { kind: ExpressionKind::Literal(Literal::Integer(field, sign)), .. },
-            ) => ExpressionKind::Literal(Literal::Integer(*field, !sign)),
+                Expression { kind: ExpressionKind::Literal(Literal::Integer(value)), .. },
+            ) => ExpressionKind::Literal(Literal::Integer(-value)),
             _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
         }
     }
@@ -162,8 +169,8 @@ impl ExpressionKind {
         }))
     }
 
-    pub fn integer(contents: FieldElement) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Integer(contents, false))
+    pub fn integer(contents: BigInt) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Integer(contents))
     }
 
     pub fn boolean(contents: bool) -> ExpressionKind {
@@ -195,14 +202,14 @@ impl ExpressionKind {
         self.as_integer().is_some()
     }
 
-    fn as_integer(&self) -> Option<FieldElement> {
+    fn as_integer(&self) -> Option<&BigInt> {
         let literal = match self {
             ExpressionKind::Literal(literal) => literal,
             _ => return None,
         };
 
         match literal {
-            Literal::Integer(integer, _) => Some(*integer),
+            Literal::Integer(integer) => Some(integer),
             _ => None,
         }
     }
@@ -433,11 +440,17 @@ pub enum Literal {
     Array(ArrayLiteral),
     Slice(ArrayLiteral),
     Bool(bool),
-    Integer(FieldElement, /*sign*/ bool), // false for positive integer and true for negative
+    Integer(BigInt),
     Str(String),
     RawStr(String, u8),
     FmtStr(String),
     Unit,
+}
+
+impl Literal {
+    pub fn zero() -> Literal {
+        Literal::Integer(BigInt::zero())
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -646,12 +659,8 @@ impl Display for Literal {
                 write!(f, "&[{repeated_element}; {length}]")
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
-            Literal::Integer(integer, sign) => {
-                if *sign {
-                    write!(f, "-{}", integer.to_u128())
-                } else {
-                    write!(f, "{}", integer.to_u128())
-                }
+            Literal::Integer(integer) => {
+                write!(f, "{}", integer)
             }
             Literal::Str(string) => write!(f, "\"{string}\""),
             Literal::RawStr(string, num_hashes) => {

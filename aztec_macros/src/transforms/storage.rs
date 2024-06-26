@@ -1,7 +1,7 @@
 use acvm::acir::AcirField;
 use noirc_errors::Span;
 use noirc_frontend::ast::{
-    BlockExpression, Expression, ExpressionKind, FunctionDefinition, Ident, Literal, NoirFunction,
+    BlockExpression, Expression, ExpressionKind, FunctionDefinition, Ident, NoirFunction,
     NoirStruct, Pattern, StatementKind, TypeImpl, UnresolvedType, UnresolvedTypeData,
 };
 use noirc_frontend::{
@@ -201,10 +201,7 @@ pub fn generate_storage_implementation(
         .find(|r#struct| r#struct.name.0.contents == *storage_struct_name)
         .unwrap();
 
-    let slot_zero = expression(ExpressionKind::Literal(Literal::Integer(
-        FieldElement::from(i128::from(0)),
-        false,
-    )));
+    let slot_zero = expression(ExpressionKind::zero());
 
     let field_constructors = definition
         .fields

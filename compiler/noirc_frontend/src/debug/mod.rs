@@ -721,15 +721,9 @@ fn id_expr(id: &ast::Ident) -> ast::Expression {
 }
 
 fn uint_expr(x: u128, span: Span) -> ast::Expression {
-    ast::Expression {
-        kind: ast::ExpressionKind::Literal(ast::Literal::Integer(x.into(), false)),
-        span,
-    }
+    ast::Expression { kind: ast::ExpressionKind::Literal(ast::Literal::Integer(x.into())), span }
 }
 
 fn sint_expr(x: i128, span: Span) -> ast::Expression {
-    ast::Expression {
-        kind: ast::ExpressionKind::Literal(ast::Literal::Integer(x.abs().into(), x < 0)),
-        span,
-    }
+    ast::Expression { kind: ast::ExpressionKind::Literal(ast::Literal::Integer(x.into())), span }
 }

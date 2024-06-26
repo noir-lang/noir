@@ -8,7 +8,7 @@ use noirc_frontend::ast::{
     UnresolvedTypeData, Visibility,
 };
 
-use noirc_frontend::{macros_api::FieldElement, parse_program};
+use noirc_frontend::parse_program;
 
 use crate::utils::ast_utils::member_access;
 use crate::{
@@ -754,13 +754,7 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
 
     // `for i in 0..{ident}.len()`
     make_statement(StatementKind::For(ForLoopStatement {
-        range: ForRange::Range(
-            expression(ExpressionKind::Literal(Literal::Integer(
-                FieldElement::from(i128::from(0)),
-                false,
-            ))),
-            end_range_expression,
-        ),
+        range: ForRange::Range(expression(ExpressionKind::zero()), end_range_expression),
         identifier: ident("i"),
         block: for_loop_block,
         span,

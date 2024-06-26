@@ -113,7 +113,7 @@ pub(crate) fn rewrite(
             NewlineMode::Normal,
         ),
         ExpressionKind::Literal(literal) => match literal {
-            Literal::Integer(_, _)
+            Literal::Integer(_)
             | Literal::Bool(_)
             | Literal::Str(_)
             | Literal::RawStr(..)

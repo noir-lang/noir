@@ -5,6 +5,7 @@ use chumsky::Parser;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
+use num_bigint::{BigInt, Sign};
 
 use crate::{
     ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness},
@@ -90,43 +91,18 @@ impl Value {
         let kind = match self {
             Value::Unit => ExpressionKind::Literal(Literal::Unit),
             Value::Bool(value) => ExpressionKind::Literal(Literal::Bool(value)),
-            Value::Field(value) => ExpressionKind::Literal(Literal::Integer(value, false)),
-            Value::I8(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                ExpressionKind::Literal(Literal::Integer(value, negative))
+            Value::Field(value) => {
+                let value = BigInt::from_bytes_be(Sign::NoSign, &value.to_be_bytes());
+                ExpressionKind::Literal(Literal::Integer(value))
             }
-            Value::I16(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                ExpressionKind::Literal(Literal::Integer(value, negative))
-            }
-            Value::I32(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                ExpressionKind::Literal(Literal::Integer(value, negative))
-            }
-            Value::I64(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                ExpressionKind::Literal(Literal::Integer(value, negative))
-            }
-            Value::U8(value) => {
-                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
-            }
-            Value::U16(value) => {
-                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
-            }
-            Value::U32(value) => {
-                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
-            }
-            Value::U64(value) => {
-                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
-            }
+            Value::I8(value) => ExpressionKind::Literal(Literal::Integer(value.into())),
+            Value::I16(value) => ExpressionKind::Literal(Literal::Integer(value.into())),
+            Value::I32(value) => ExpressionKind::Literal(Literal::Integer(value.into())),
+            Value::I64(value) => ExpressionKind::Literal(Literal::Integer(value.into())),
+            Value::U8(value) => ExpressionKind::Literal(Literal::Integer(value.into())),
+            Value::U16(value) => ExpressionKind::Literal(Literal::Integer(value.into())),
+            Value::U32(value) => ExpressionKind::Literal(Literal::Integer(value.into())),
+            Value::U64(value) => ExpressionKind::Literal(Literal::Integer(value.into())),
             Value::String(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
             Value::Function(id, typ) => {
                 let id = interner.function_definition_id(id);

@@ -15,6 +15,7 @@ pub use expression::*;
 pub use function::*;
 
 use noirc_errors::Span;
+use num_bigint::Sign;
 use serde::{Deserialize, Serialize};
 pub use statement::*;
 pub use structure::*;
@@ -27,7 +28,6 @@ use crate::{
     token::IntType,
     BinaryTypeOperator,
 };
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
@@ -323,11 +323,11 @@ impl UnresolvedTypeExpression {
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
-            ExpressionKind::Literal(Literal::Integer(int, sign)) => {
-                assert!(!sign, "Negative literal is not allowed here");
-                match int.try_to_u32() {
-                    Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
-                    None => Err(expr),
+            ExpressionKind::Literal(Literal::Integer(ref int)) => {
+                assert!(int.sign() != Sign::Minus, "Negative literal is not allowed here");
+                match int.try_into() {
+                    Ok(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
+                    Err(_) => Err(expr),
                 }
             }
             ExpressionKind::Variable(path, _) => Ok(UnresolvedTypeExpression::Variable(path)),

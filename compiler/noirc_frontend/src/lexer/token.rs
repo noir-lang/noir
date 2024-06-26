@@ -1,5 +1,5 @@
-use acvm::{acir::AcirField, FieldElement};
 use noirc_errors::{Position, Span, Spanned};
+use num_bigint::BigInt;
 use std::{fmt, iter::Map, vec::IntoIter};
 
 use crate::{
@@ -15,7 +15,7 @@ use crate::{
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum BorrowedToken<'input> {
     Ident(&'input str),
-    Int(FieldElement),
+    Int(&'input BigInt),
     Bool(bool),
     Str(&'input str),
     /// the u8 is the number of hashes, i.e. r###..
@@ -116,7 +116,7 @@ pub enum BorrowedToken<'input> {
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum Token {
     Ident(String),
-    Int(FieldElement),
+    Int(BigInt),
     Bool(bool),
     Str(String),
     /// the u8 is the number of hashes, i.e. r###..
@@ -222,7 +222,7 @@ pub enum Token {
 pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
     match token {
         Token::Ident(ref s) => BorrowedToken::Ident(s),
-        Token::Int(n) => BorrowedToken::Int(*n),
+        Token::Int(ref n) => BorrowedToken::Int(n),
         Token::Bool(b) => BorrowedToken::Bool(*b),
         Token::Str(ref b) => BorrowedToken::Str(b),
         Token::FmtStr(ref b) => BorrowedToken::FmtStr(b),
@@ -334,7 +334,7 @@ impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Token::Ident(ref s) => write!(f, "{s}"),
-            Token::Int(n) => write!(f, "{}", n.to_u128()),
+            Token::Int(ref n) => write!(f, "{}", n),
             Token::Bool(b) => write!(f, "{b}"),
             Token::Str(ref b) => write!(f, "{b}"),
             Token::FmtStr(ref b) => write!(f, "f{b}"),

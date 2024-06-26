@@ -6,9 +6,10 @@ use super::{
         token_to_borrowed_token, BorrowedToken, IntType, Keyword, SpannedToken, Token, Tokens,
     },
 };
-use acvm::FieldElement;
 use noirc_errors::{Position, Span};
-use std::str::CharIndices;
+use num_bigint::BigInt;
+use num_traits::Num;
+use std::str::{CharIndices, FromStr};
 
 /// The job of the lexer is to transform an iterator of characters (`char_iter`)
 /// into an iterator of `SpannedToken`. Each `Token` corresponds roughly to 1 word or operator.
@@ -373,17 +374,22 @@ impl<'a> Lexer<'a> {
             });
         }
 
-        // Underscores needs to be stripped out before the literal can be converted to a `FieldElement.
+        // Underscores needs to be stripped out before the literal can be converted to a `BigInt`.
         let integer_str = integer_str.replace('_', "");
+        let parse_result = if integer_str.starts_with("0x") {
+            BigInt::from_str_radix(&integer_str[2..], 16)
+        } else {
+            BigInt::from_str(&integer_str)
+        };
 
-        let integer = match FieldElement::try_from_str(&integer_str) {
-            None => {
+        let integer = match parse_result {
+            Err(_) => {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
                     span: Span::inclusive(start, end),
                     found: integer_str,
                 })
             }
-            Some(integer) => integer,
+            Ok(integer) => integer,
         };
 
         let integer_token = Token::Int(integer);
@@ -943,7 +949,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128)),
+            Token::Int(5.into()),
         ];
 
         let mut lexer = Lexer::new(input);
@@ -965,7 +971,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128)),
+            Token::Int(5.into()),
         ];
 
         let mut lexer = Lexer::new(input);
@@ -1013,7 +1019,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128)),
+            Token::Int(5.into()),
         ];
 
         let mut lexer = Lexer::new(input);
