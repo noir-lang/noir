@@ -497,6 +497,7 @@ pub fn assign_storage_slots(
 pub fn generate_storage_layout(
     module: &mut SortedModule,
     storage_struct_name: String,
+    module_name: &str,
 ) -> Result<(), AztecMacroError> {
     let definition = module
         .types
@@ -504,33 +505,28 @@ pub fn generate_storage_layout(
         .find(|r#struct| r#struct.name.0.contents == *storage_struct_name)
         .unwrap();
 
-    let mut generic_args = vec![];
     let mut storable_fields = vec![];
     let mut storable_fields_impl = vec![];
 
-    definition.fields.iter().enumerate().for_each(|(index, (field_ident, field_type))| {
-        storable_fields.push(format!("{}: dep::aztec::prelude::Storable<N{}>", field_ident, index));
-        generic_args.push(format!("N{}", index));
-        storable_fields_impl.push(format!(
-            "{}: dep::aztec::prelude::Storable {{ slot: 0, typ: \"{}\" }}",
-            field_ident,
-            field_type.to_string().replace("plain::", "")
-        ));
+    definition.fields.iter().for_each(|(field_ident, _)| {
+        storable_fields.push(format!("{}: dep::aztec::prelude::Storable", field_ident));
+        storable_fields_impl
+            .push(format!("{}: dep::aztec::prelude::Storable {{ slot: 0 }}", field_ident,));
     });
 
     let storage_fields_source = format!(
         "
-        struct StorageLayout<{}> {{
+        struct StorageLayout {{
             {}
         }}
 
         #[abi(storage)]
-        global STORAGE_LAYOUT = StorageLayout {{
+        global {}_STORAGE_LAYOUT = StorageLayout {{
             {}
         }};
     ",
-        generic_args.join(", "),
         storable_fields.join(",\n"),
+        module_name,
         storable_fields_impl.join(",\n")
     );
 
