@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, fmt::Write};
+use std::{borrow::Borrow, fmt::Display};
 
 use plonky2::iop::{
     target::{BoolTarget, Target},
@@ -8,92 +8,132 @@ use plonky2::iop::{
 use super::config::P2Field;
 use super::{asm_writer::AsmWriter, config::P2Builder};
 
+struct TargetDisplay {
+    t: Target,
+}
+
+impl Display for TargetDisplay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.t {
+            Target::VirtualTarget { index } => {
+                write!(f, "v{}", index)
+            }
+            Target::Wire(Wire { row, column }) => {
+                write!(f, "r{}c{}", row, column)
+            }
+        }
+    }
+}
+
+struct BoolTargetDisplay {
+    t: BoolTarget,
+}
+
+impl Display for BoolTargetDisplay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", TargetDisplay { t: self.t.target })
+    }
+}
+
+struct VecBoolTargetDisplay<'a> {
+    t: &'a Vec<BoolTarget>,
+}
+
+impl<'a> Display for VecBoolTargetDisplay<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(")?;
+        let mut first = true;
+        for bt in self.t {
+            if first {
+                write!(f, "{}", BoolTargetDisplay { t: *bt })?;
+                first = false;
+            } else {
+                write!(f, ",{}", BoolTargetDisplay { t: *bt })?;
+            }
+        }
+        write!(f, ")")?;
+        Ok(())
+    }
+}
+
+struct TargetSliceDisplay<'a> {
+    t: &'a [Target],
+}
+
+impl<'a> Display for TargetSliceDisplay<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(")?;
+        let mut first = true;
+        for tt in self.t {
+            if first {
+                write!(f, "{}", TargetDisplay { t: *tt })?;
+                first = false;
+            } else {
+                write!(f, ",{}", TargetDisplay { t: *tt })?;
+            }
+        }
+        write!(f, ")")?;
+        Ok(())
+    }
+}
+
+struct TargetIntoIteratorDisplay<T, TIter>
+where
+    TIter: IntoIterator<Item = T> + Clone,
+    T: Borrow<Target>,
+{
+    t: TIter,
+}
+
+impl<TIter: IntoIterator<Item = T> + Clone, T: Borrow<Target>> Display
+    for TargetIntoIteratorDisplay<T, TIter>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(")?;
+        let mut first = true;
+        for tt in self.t.clone() {
+            if first {
+                write!(f, "{}", TargetDisplay { t: *tt.borrow() })?;
+                first = false;
+            } else {
+                write!(f, ",{}", TargetDisplay { t: *tt.borrow() })?;
+            }
+        }
+        write!(f, ")")?;
+        Ok(())
+    }
+}
+
+struct BoolTargetIteratorDisplay<T, TIter>
+where
+    TIter: Iterator<Item = T> + Clone,
+    T: Borrow<BoolTarget>,
+{
+    t: TIter,
+}
+
+impl<TIter: Iterator<Item = T> + Clone, T: Borrow<BoolTarget>> Display
+    for BoolTargetIteratorDisplay<T, TIter>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(")?;
+        let mut first = true;
+        for tt in self.t.clone() {
+            if first {
+                write!(f, "{}", BoolTargetDisplay { t: *tt.borrow() })?;
+                first = false;
+            } else {
+                write!(f, ",{}", BoolTargetDisplay { t: *tt.borrow() })?;
+            }
+        }
+        write!(f, ")")?;
+        Ok(())
+    }
+}
+
 pub(crate) struct ConsoleAsmWriter {
     pub builder: P2Builder,
     pub show_plonky2: bool,
-}
-
-fn target2string(t: Target) -> String {
-    match t {
-        Target::VirtualTarget { index } => {
-            format!("v{}", index)
-        }
-        Target::Wire(Wire { row, column }) => {
-            format!("r{}c{}", row, column)
-        }
-    }
-}
-
-fn booltarget2string(t: &BoolTarget) -> String {
-    target2string(t.target)
-}
-
-fn vecbooltarget2string(t: &Vec<BoolTarget>) -> String {
-    let mut result = String::new();
-    write!(&mut result, "(");
-    let mut first = true;
-    for bt in t {
-        if first {
-            write!(&mut result, "{}", booltarget2string(bt));
-            first = false;
-        } else {
-            write!(&mut result, ",{}", booltarget2string(bt));
-        }
-    }
-    write!(&mut result, ")");
-    result
-}
-
-fn targetslice2string(t: &[Target]) -> String {
-    let mut result = String::new();
-    write!(&mut result, "(");
-    let mut first = true;
-    for tt in t {
-        if first {
-            write!(&mut result, "{}", target2string(*tt));
-            first = false;
-        } else {
-            write!(&mut result, ",{}", target2string(*tt));
-        }
-    }
-    write!(&mut result, ")");
-    result
-
-}
-
-fn targetiter2string<T>(t: impl IntoIterator<Item = T>) -> String
-where
-    T: Borrow<Target>,
-{
-    let mut result = String::new();
-    write!(&mut result, "(");
-    let mut first = true;
-    for tt in t {
-        if first {
-            write!(&mut result, "{}", target2string(*tt.borrow()));
-            first = false;
-        } else {
-            write!(&mut result, ",{}", target2string(*tt.borrow()));
-        }
-    }
-    write!(&mut result, ")");
-    result
-}
-
-fn booltargetiter2string(t: impl Iterator<Item = impl Borrow<BoolTarget>>) -> String {
-    let mut result = String::new();
-    write!(&mut result, "(");
-    let mut first = true;
-    for tt in t {
-        if first {
-            write!(&mut result, "{}", booltarget2string(tt.borrow()));
-            first = false;
-        } else {
-            write!(&mut result, ",{}", booltarget2string(tt.borrow()));
-        }
-    }
-    write!(&mut result, ")");
-    result
 }
 
 impl AsmWriter for ConsoleAsmWriter {
@@ -116,9 +156,9 @@ impl AsmWriter for ConsoleAsmWriter {
         if self.show_plonky2 {
             println!(
                 "is_equal\t{},{},{}",
-                target2string(x),
-                target2string(y),
-                booltarget2string(&result)
+                TargetDisplay { t: x },
+                TargetDisplay { t: y },
+                BoolTargetDisplay { t: result },
             );
         }
         result
@@ -127,7 +167,7 @@ impl AsmWriter for ConsoleAsmWriter {
     fn zero(&mut self) -> Target {
         let result = self.builder.zero();
         if self.show_plonky2 {
-            println!("zero\t{}", target2string(result));
+            println!("zero\t{}", TargetDisplay { t: result });
         }
         result
     }
@@ -135,7 +175,7 @@ impl AsmWriter for ConsoleAsmWriter {
     fn one(&mut self) -> Target {
         let result = self.builder.one();
         if self.show_plonky2 {
-            println!("one\t{}", target2string(result));
+            println!("one\t{}", TargetDisplay { t: result });
         }
         result
     }
@@ -143,7 +183,7 @@ impl AsmWriter for ConsoleAsmWriter {
     fn two(&mut self) -> Target {
         let result = self.builder.two();
         if self.show_plonky2 {
-            println!("two\t{}", target2string(result));
+            println!("two\t{}", TargetDisplay { t: result });
         }
         result
     }
@@ -153,9 +193,9 @@ impl AsmWriter for ConsoleAsmWriter {
         if self.show_plonky2 {
             println!(
                 "split_le\t{},{},{}",
-                target2string(integer),
+                TargetDisplay { t: integer },
                 num_bits,
-                vecbooltarget2string(&result)
+                VecBoolTargetDisplay { t: &result }
             );
         }
         result
@@ -166,10 +206,10 @@ impl AsmWriter for ConsoleAsmWriter {
         if self.show_plonky2 {
             println!(
                 "if\t{},{},{},{}",
-                booltarget2string(&b),
-                target2string(x),
-                target2string(y),
-                target2string(result)
+                BoolTargetDisplay { t: b },
+                TargetDisplay { t: x },
+                TargetDisplay { t: y },
+                TargetDisplay { t: result }
             );
         }
         result
@@ -178,7 +218,12 @@ impl AsmWriter for ConsoleAsmWriter {
     fn exp_u64(&mut self, base: Target, exponent: u64) -> Target {
         let result = self.builder.exp_u64(base, exponent);
         if self.show_plonky2 {
-            println!("exp_u64\t{},{},{}", target2string(base), exponent, target2string(result));
+            println!(
+                "exp_u64\t{},{},{}",
+                TargetDisplay { t: base },
+                exponent,
+                TargetDisplay { t: result }
+            );
         }
         result
     }
@@ -186,7 +231,7 @@ impl AsmWriter for ConsoleAsmWriter {
     fn constant(&mut self, c: P2Field) -> Target {
         let result = self.builder.constant(c);
         if self.show_plonky2 {
-            println!("constant\t{},{}", c, target2string(result));
+            println!("constant\t{},{}", c, TargetDisplay { t: result });
         }
         result
     }
@@ -194,7 +239,7 @@ impl AsmWriter for ConsoleAsmWriter {
     fn constant_bool(&mut self, b: bool) -> BoolTarget {
         let result = self.builder.constant_bool(b);
         if self.show_plonky2 {
-            println!("constant_bool\t{},{}", b, booltarget2string(&result));
+            println!("constant_bool\t{},{}", b, BoolTargetDisplay { t: result });
         }
         result
     }
@@ -202,7 +247,12 @@ impl AsmWriter for ConsoleAsmWriter {
     fn mul(&mut self, x: Target, y: Target) -> Target {
         let result = self.builder.mul(x, y);
         if self.show_plonky2 {
-            println!("mul\t{},{},{}", target2string(x), target2string(y), target2string(result));
+            println!(
+                "mul\t{},{},{}",
+                TargetDisplay { t: x },
+                TargetDisplay { t: y },
+                TargetDisplay { t: result }
+            );
         }
         result
     }
@@ -212,9 +262,9 @@ impl AsmWriter for ConsoleAsmWriter {
         if self.show_plonky2 {
             println!(
                 "and\t{},{},{}",
-                booltarget2string(&b1),
-                booltarget2string(&b2),
-                booltarget2string(&result)
+                BoolTargetDisplay { t: b1 },
+                BoolTargetDisplay { t: b2 },
+                BoolTargetDisplay { t: result }
             );
         }
         result
@@ -225,9 +275,9 @@ impl AsmWriter for ConsoleAsmWriter {
         if self.show_plonky2 {
             println!(
                 "or\t{},{},{}",
-                booltarget2string(&b1),
-                booltarget2string(&b2),
-                booltarget2string(&result)
+                BoolTargetDisplay { t: b1 },
+                BoolTargetDisplay { t: b2 },
+                BoolTargetDisplay { t: result }
             );
         }
         result
@@ -236,7 +286,12 @@ impl AsmWriter for ConsoleAsmWriter {
     fn add(&mut self, x: Target, y: Target) -> Target {
         let result = self.builder.add(x, y);
         if self.show_plonky2 {
-            println!("add\t{},{},{}", target2string(x), target2string(y), target2string(result));
+            println!(
+                "add\t{},{},{}",
+                TargetDisplay { t: x },
+                TargetDisplay { t: y },
+                TargetDisplay { t: result }
+            );
         }
         result
     }
@@ -244,7 +299,12 @@ impl AsmWriter for ConsoleAsmWriter {
     fn sub(&mut self, x: Target, y: Target) -> Target {
         let result = self.builder.sub(x, y);
         if self.show_plonky2 {
-            println!("sub\t{},{},{}", target2string(x), target2string(y), target2string(result));
+            println!(
+                "sub\t{},{},{}",
+                TargetDisplay { t: x },
+                TargetDisplay { t: y },
+                TargetDisplay { t: result }
+            );
         }
         result
     }
@@ -252,7 +312,7 @@ impl AsmWriter for ConsoleAsmWriter {
     fn not(&mut self, b: BoolTarget) -> BoolTarget {
         let result = self.builder.not(b);
         if self.show_plonky2 {
-            println!("not\t{},{}", booltarget2string(&b), booltarget2string(&result));
+            println!("not\t{},{}", BoolTargetDisplay { t: b }, BoolTargetDisplay { t: result });
         }
         result
     }
@@ -260,21 +320,21 @@ impl AsmWriter for ConsoleAsmWriter {
     fn assert_bool(&mut self, b: BoolTarget) {
         self.builder.assert_bool(b);
         if self.show_plonky2 {
-            println!("assert_bool\t{}", booltarget2string(&b));
+            println!("assert_bool\t{}", BoolTargetDisplay { t: b });
         }
     }
 
     fn connect(&mut self, x: Target, y: Target) {
         self.builder.connect(x, y);
         if self.show_plonky2 {
-            println!("connect\t{},{}", target2string(x), target2string(y));
+            println!("connect\t{},{}", TargetDisplay { t: x }, TargetDisplay { t: y });
         }
     }
 
     fn register_public_inputs(&mut self, targets: &[Target]) {
         self.builder.register_public_inputs(targets);
         if self.show_plonky2 {
-            println!("register_public_inputs\t{}", targetslice2string(targets));
+            println!("register_public_inputs\t{}", TargetSliceDisplay { t: targets });
         }
     }
 
@@ -284,7 +344,11 @@ impl AsmWriter for ConsoleAsmWriter {
     {
         if self.show_plonky2 {
             let result = self.builder.add_many(terms.clone());
-            println!("add_many\t{},{}", targetiter2string(terms), target2string(result));
+            println!(
+                "add_many\t{},{}",
+                TargetIntoIteratorDisplay { t: terms },
+                TargetDisplay { t: result }
+            );
             result
         } else {
             self.builder.add_many(terms)
@@ -294,7 +358,11 @@ impl AsmWriter for ConsoleAsmWriter {
     fn le_sum(&mut self, bits: impl Iterator<Item = impl Borrow<BoolTarget>> + Clone) -> Target {
         if self.show_plonky2 {
             let result = self.builder.le_sum(bits.clone());
-            println!("le_sum\t{},{}", booltargetiter2string(bits), target2string(result));
+            println!(
+                "le_sum\t{},{}",
+                BoolTargetIteratorDisplay { t: bits },
+                TargetDisplay { t: result }
+            );
             result
         } else {
             self.builder.le_sum(bits)
@@ -304,7 +372,7 @@ impl AsmWriter for ConsoleAsmWriter {
     fn range_check(&mut self, x: Target, n_log: usize) {
         self.builder.range_check(x, n_log);
         if self.show_plonky2 {
-            println!("range_check\t{},{}", target2string(x), n_log);
+            println!("range_check\t{},{}", TargetDisplay { t: x }, n_log);
         }
     }
 }
