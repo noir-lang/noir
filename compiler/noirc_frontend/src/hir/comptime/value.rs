@@ -154,7 +154,7 @@ impl Value {
 
                 let struct_type = match typ.follow_bindings() {
                     Type::Struct(def, _) => Some(def.borrow().id),
-                    _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
+                    typ => unreachable!("Value::Struct has non-struct type `{typ:?}`"),
                 };
 
                 // Since we've provided the struct_type, the path should be ignored.
@@ -270,7 +270,7 @@ impl Value {
 
                 let (r#type, struct_generics) = match typ.follow_bindings() {
                     Type::Struct(def, generics) => (def, generics),
-                    _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
+                    typ => unreachable!("Value::Struct has non-struct type `{typ:?}`"),
                 };
 
                 HirExpression::Constructor(HirConstructorExpression {

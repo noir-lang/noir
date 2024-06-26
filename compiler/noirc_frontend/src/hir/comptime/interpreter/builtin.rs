@@ -30,26 +30,33 @@ pub(super) fn call_builtin(
 }
 
 fn array_len(arguments: &[(Value, Location)]) -> IResult<Value> {
-    assert_eq!(arguments.len(), 1, "ICE: `array_len` should only receive a single argument");
+    if arguments.len() != 1 {
+        return Err(InterpreterError::SilentFail);
+    }
+
     match &arguments[0].0 {
         Value::Array(values, _) | Value::Slice(values, _) => Ok(Value::U32(values.len() as u32)),
-        // Type checking should prevent this branch being taken.
-        _ => unreachable!("ICE: Cannot query length of types other than arrays or slices"),
+        _ => Err(InterpreterError::SilentFail),
     }
 }
 
 fn as_slice(mut arguments: Vec<(Value, Location)>) -> IResult<Value> {
-    assert_eq!(arguments.len(), 1, "ICE: `as_slice` should only receive a single argument");
+    if arguments.len() != 1 {
+        return Err(InterpreterError::SilentFail);
+    }
+
     let (array, _) = arguments.pop().unwrap();
     match array {
         Value::Array(values, Type::Array(_, typ)) => Ok(Value::Slice(values, Type::Slice(typ))),
-        // Type checking should prevent this branch being taken.
-        _ => unreachable!("ICE: Cannot convert types other than arrays into slices"),
+        _ => Err(InterpreterError::SilentFail),
     }
 }
 
 fn slice_push_back(mut arguments: Vec<(Value, Location)>) -> IResult<Value> {
-    assert_eq!(arguments.len(), 2, "ICE: `slice_push_back` should only receive two arguments");
+    if arguments.len() != 2 {
+        return Err(InterpreterError::SilentFail);
+    }
+
     let (element, _) = arguments.pop().unwrap();
     let (slice, _) = arguments.pop().unwrap();
     match slice {
@@ -57,8 +64,7 @@ fn slice_push_back(mut arguments: Vec<(Value, Location)>) -> IResult<Value> {
             values.push_back(element);
             Ok(Value::Slice(values, typ))
         }
-        // Type checking should prevent this branch being taken.
-        _ => unreachable!("ICE: `slice_push_back` expects a slice as its first argument"),
+        _ => Err(InterpreterError::SilentFail),
     }
 }
 
@@ -67,12 +73,12 @@ fn type_def_as_type(
     interner: &NodeInterner,
     mut arguments: Vec<(Value, Location)>,
 ) -> IResult<Value> {
-    assert_eq!(arguments.len(), 1, "ICE: `generics` should only receive a single argument");
+    if arguments.len() != 1 {
+        return Err(InterpreterError::SilentFail);
+    }
     let (type_def, span) = match arguments.pop() {
         Some((Value::TypeDefinition(id), location)) => (id, location.span),
-        other => {
-            unreachable!("ICE: `as_type` expected a `TypeDefinition` argument, found {other:?}")
-        }
+        _ => return Err(InterpreterError::SilentFail),
     };
 
     let struct_def = interner.get_struct(type_def);
@@ -96,12 +102,12 @@ fn type_def_generics(
     interner: &NodeInterner,
     mut arguments: Vec<(Value, Location)>,
 ) -> IResult<Value> {
-    assert_eq!(arguments.len(), 1, "ICE: `generics` should only receive a single argument");
+    if arguments.len() != 1 {
+        return Err(InterpreterError::SilentFail);
+    }
     let (type_def, span) = match arguments.pop() {
         Some((Value::TypeDefinition(id), location)) => (id, location.span),
-        other => {
-            unreachable!("ICE: `as_type` expected a `TypeDefinition` argument, found {other:?}")
-        }
+        _ => return Err(InterpreterError::SilentFail),
     };
 
     let struct_def = interner.get_struct(type_def);
@@ -126,12 +132,12 @@ fn type_def_fields(
     interner: &mut NodeInterner,
     mut arguments: Vec<(Value, Location)>,
 ) -> IResult<Value> {
-    assert_eq!(arguments.len(), 1, "ICE: `generics` should only receive a single argument");
+    if arguments.len() != 1 {
+        return Err(InterpreterError::SilentFail);
+    }
     let (type_def, span) = match arguments.pop() {
         Some((Value::TypeDefinition(id), location)) => (id, location.span),
-        other => {
-            unreachable!("ICE: `as_type` expected a `TypeDefinition` argument, found {other:?}")
-        }
+        _ => return Err(InterpreterError::SilentFail),
     };
 
     let struct_def = interner.get_struct(type_def);

@@ -228,13 +228,9 @@ impl<'a> Interpreter<'a> {
                 let res = match argument {
                     Value::Struct(fields, struct_type) if fields.len() == pattern_fields.len() => {
                         for (field_name, field_pattern) in pattern_fields {
-                            let field = fields.get(&field_name.0.contents).ok_or_else(|| {
-                                InterpreterError::ExpectedStructToHaveField {
-                                    value: Value::Struct(fields.clone(), struct_type.clone()),
-                                    field_name: field_name.0.contents.clone(),
-                                    location,
-                                }
-                            })?;
+                            let field = fields
+                                .get(&field_name.0.contents)
+                                .ok_or_else(|| InterpreterError::SilentFail)?;
 
                             let field_type = field.get_type().into_owned();
                             self.define_pattern(
@@ -393,9 +389,7 @@ impl<'a> Interpreter<'a> {
                     let typ = self.interner.id_type(id);
                     self.evaluate_integer((value as u128).into(), false, id)
                 } else {
-                    let location = self.interner.expr_location(&id);
-                    let typ = Type::TypeVariable(type_variable.clone(), TypeVariableKind::Normal);
-                    Err(InterpreterError::NonIntegerArrayLength { typ, location })
+                    Err(InterpreterError::SilentFail)
                 }
             }
         }
@@ -516,7 +510,7 @@ impl<'a> Interpreter<'a> {
             let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
             Ok(Value::U64(value))
         } else {
-            Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
+            Err(InterpreterError::SilentFail)
         }
     }
 
@@ -557,8 +551,7 @@ impl<'a> Interpreter<'a> {
                     let elements = (0..length).map(|_| element.clone()).collect();
                     Ok(Value::Array(elements, typ))
                 } else {
-                    let location = self.interner.expr_location(&id);
-                    Err(InterpreterError::NonIntegerArrayLength { typ: length, location })
+                    Err(InterpreterError::SilentFail)
                 }
             }
         }
@@ -608,10 +601,7 @@ impl<'a> Interpreter<'a> {
             crate::ast::UnaryOp::MutableReference => Ok(Value::Pointer(Shared::new(rhs))),
             crate::ast::UnaryOp::Dereference { implicitly_added: _ } => match rhs {
                 Value::Pointer(element) => Ok(element.borrow().clone()),
-                value => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InterpreterError::NonPointerDereferenced { value, location })
-                }
+                value => Err(InterpreterError::SilentFail),
             },
         }
     }
@@ -892,9 +882,7 @@ impl<'a> Interpreter<'a> {
         let collection = match array {
             Value::Array(array, _) => array,
             Value::Slice(array, _) => array,
-            value => {
-                return Err(InterpreterError::NonArrayIndexed { value, location });
-            }
+            value => return Err(InterpreterError::SilentFail),
         };
 
         let index = match index {
@@ -909,9 +897,7 @@ impl<'a> Interpreter<'a> {
             Value::U16(value) => value as usize,
             Value::U32(value) => value as usize,
             Value::U64(value) => value as usize,
-            value => {
-                return Err(InterpreterError::NonIntegerUsedAsIndex { value, location });
-            }
+            value => return Err(InterpreterError::SilentFail),
         };
 
         if index >= collection.len() {
@@ -955,18 +941,10 @@ impl<'a> Interpreter<'a> {
                     .unzip();
                 (fields, Type::Tuple(field_types))
             }
-            value => {
-                let location = self.interner.expr_location(&id);
-                return Err(InterpreterError::NonTupleOrStructInMemberAccess { value, location });
-            }
+            _ => return Err(InterpreterError::SilentFail),
         };
 
-        fields.get(&access.rhs.0.contents).cloned().ok_or_else(|| {
-            let location = self.interner.expr_location(&id);
-            let value = Value::Struct(fields, struct_type);
-            let field_name = access.rhs.0.contents;
-            InterpreterError::ExpectedStructToHaveField { value, field_name, location }
-        })
+        fields.get(&access.rhs.0.contents).cloned().ok_or_else(|| InterpreterError::SilentFail)
     }
 
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
@@ -979,7 +957,7 @@ impl<'a> Interpreter<'a> {
         match function {
             Value::Function(function_id, _) => self.call_function(function_id, arguments, location),
             Value::Closure(closure, env, _) => self.call_closure(closure, env, arguments, location),
-            value => Err(InterpreterError::NonFunctionCalled { value, location }),
+            _ => Err(InterpreterError::SilentFail),
         }
     }
 
@@ -1105,20 +1083,14 @@ impl<'a> Interpreter<'a> {
                 }
             },
             Type::Bool => Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
-            typ => {
-                let location = interner.expr_location(&id);
-                Err(InterpreterError::CastToNonNumericType { typ, location })
-            }
+            _ => Err(InterpreterError::SilentFail),
         }
     }
 
     fn evaluate_if(&mut self, if_: HirIfExpression, id: ExprId) -> IResult<Value> {
         let condition = match self.evaluate(if_.condition)? {
             Value::Bool(value) => value,
-            value => {
-                let location = self.interner.expr_location(&id);
-                return Err(InterpreterError::NonBoolUsedInIf { value, location });
-            }
+            value => return Err(InterpreterError::SilentFail),
         };
 
         self.push_scope();
@@ -1197,10 +1169,7 @@ impl<'a> Interpreter<'a> {
                 let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
                 Err(InterpreterError::FailingConstraint { location, message })
             }
-            value => {
-                let location = self.interner.expr_location(&constrain.0);
-                Err(InterpreterError::NonBoolUsedInConstrain { value, location })
-            }
+            value => Err(InterpreterError::SilentFail),
         }
     }
 
@@ -1221,7 +1190,7 @@ impl<'a> Interpreter<'a> {
                         *value.borrow_mut() = rhs;
                         Ok(())
                     }
-                    value => Err(InterpreterError::NonPointerDereferenced { value, location }),
+                    _ => Err(InterpreterError::SilentFail),
                 }
             }
             HirLValue::MemberAccess { object, field_name, field_index, typ: _, location } => {
@@ -1235,9 +1204,7 @@ impl<'a> Interpreter<'a> {
                         fields.insert(Rc::new(field_name.0.contents), rhs);
                         self.store_lvalue(*object, Value::Struct(fields, typ))
                     }
-                    value => {
-                        Err(InterpreterError::NonTupleOrStructInMemberAccess { value, location })
-                    }
+                    _ => Err(InterpreterError::SilentFail),
                 }
             }
             HirLValue::Index { array, index, typ: _, location } => {
@@ -1264,9 +1231,7 @@ impl<'a> Interpreter<'a> {
             HirLValue::Dereference { lvalue, element_type: _, location } => {
                 match self.evaluate_lvalue(lvalue)? {
                     Value::Pointer(value) => Ok(value.borrow().clone()),
-                    value => {
-                        Err(InterpreterError::NonPointerDereferenced { value, location: *location })
-                    }
+                    _ => Err(InterpreterError::SilentFail),
                 }
             }
             HirLValue::MemberAccess { object, field_name, field_index, typ: _, location } => {
@@ -1275,10 +1240,7 @@ impl<'a> Interpreter<'a> {
                 match self.evaluate_lvalue(object)? {
                     Value::Tuple(mut values) => Ok(values.swap_remove(index)),
                     Value::Struct(fields, _) => Ok(fields[&field_name.0.contents].clone()),
-                    value => Err(InterpreterError::NonTupleOrStructInMemberAccess {
-                        value,
-                        location: *location,
-                    }),
+                    _ => Err(InterpreterError::SilentFail),
                 }
             }
             HirLValue::Index { array, index, typ: _, location } => {
@@ -1302,10 +1264,7 @@ impl<'a> Interpreter<'a> {
                 Value::U16(value) => Ok((value as i128, |i| Value::U16(i as u16))),
                 Value::U32(value) => Ok((value as i128, |i| Value::U32(i as u32))),
                 Value::U64(value) => Ok((value as i128, |i| Value::U64(i as u64))),
-                value => {
-                    let location = this.interner.expr_location(&expr);
-                    Err(InterpreterError::NonIntegerUsedInLoop { value, location })
-                }
+                _ => Err(InterpreterError::SilentFail),
             }
         };
 
@@ -1353,8 +1312,10 @@ impl<'a> Interpreter<'a> {
         self.evaluate_statement(statement)
     }
 
-    fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
-        assert_eq!(arguments.len(), 2);
+    fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> IResult<Value> {
+        if arguments.len() != 2 {
+            return Err(InterpreterError::SilentFail);
+        }
 
         let print_newline = arguments[0].0 == Value::Bool(true);
         if print_newline {
