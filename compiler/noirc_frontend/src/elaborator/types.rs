@@ -142,6 +142,7 @@ impl<'context> Elaborator<'context> {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, kind)))
             }
             Parenthesized(typ) => self.resolve_type_inner(*typ, kind),
+            Resolved(id) => self.interner.get_quoted_type(id).clone(),
         };
 
         if let Type::Struct(_, _) = resolved_type {
@@ -254,8 +255,7 @@ impl<'context> Elaborator<'context> {
                 }
 
                 let expected_generic_count = struct_type.borrow().generics.len();
-
-                if !self.in_contract
+                if !self.in_contract()
                     && self
                         .interner
                         .struct_attributes(&struct_type.borrow().id)
