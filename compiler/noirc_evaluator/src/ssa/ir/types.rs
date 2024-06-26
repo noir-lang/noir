@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
-use num_bigint::BigInt;
+use num_bigint::{BigInt, Sign};
 
 use crate::ssa::ssa_gen::SSA_WORD_SIZE;
 use num_traits::{FromPrimitive, Signed};
@@ -43,7 +43,16 @@ impl NumericType {
             NumericType::Unsigned { bit_size } => {
                 !value.is_negative() && value.bits() <= bit_size.into()
             }
-            NumericType::NativeField => true,
+            NumericType::NativeField => {
+                let modulus = FieldElement::modulus();
+                let modulus_big_int = BigInt::from_biguint(Sign::Plus, modulus);
+
+                if value.is_positive() {
+                    value < &modulus_big_int
+                } else {
+                    value >= &(-modulus_big_int)
+                }
+            }
         }
     }
 }
@@ -219,9 +228,10 @@ impl std::fmt::Display for NumericType {
 
 #[cfg(test)]
 mod tests {
-    use num_traits::FromPrimitive;
-
     use super::*;
+    use num_bigint::Sign;
+    use num_traits::FromPrimitive;
+    use num_traits::Zero;
 
     #[test]
     fn test_u8_is_within_limits() {
@@ -240,5 +250,22 @@ mod tests {
         assert!(i8.value_is_within_limits(&BigInt::from_i32(0).unwrap()));
         assert!(i8.value_is_within_limits(&BigInt::from_i32(127).unwrap()));
         assert!(!i8.value_is_within_limits(&BigInt::from_i32(128).unwrap()));
+    }
+
+    #[test]
+    fn test_native_field_is_within_limits() {
+        let field = NumericType::NativeField;
+        assert!(field.value_is_within_limits(&BigInt::zero()));
+
+        let modulus = FieldElement::modulus();
+        let modulus_big_int = BigInt::from_biguint(Sign::Plus, modulus);
+
+        // For positive values, check that right before modulus it's fine, but at modulus it's not
+        assert!(field.value_is_within_limits(&(&modulus_big_int - 1)));
+        assert!(!field.value_is_within_limits(&modulus_big_int));
+
+        // For negative values, check that right at the (negative) modulus it's fine, but before that it's not
+        assert!(field.value_is_within_limits(&(-&modulus_big_int)));
+        assert!(!field.value_is_within_limits(&(-&modulus_big_int - 1)));
     }
 }
