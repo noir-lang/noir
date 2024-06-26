@@ -42,6 +42,7 @@ pub enum InterpreterError {
     CannotInlineMacro { value: Value, location: Location },
     UnquoteFoundDuringEvaluation { location: Location },
     FailedToParseMacro { error: ParserError, tokens: Rc<Tokens>, rule: &'static str, file: FileId },
+    NonComptimeFnCallInSameCrate { function: String, location: Location },
 
     Unimplemented { item: String, location: Location },
 
@@ -101,6 +102,7 @@ impl InterpreterError {
             | InterpreterError::NonStructInConstructor { location, .. }
             | InterpreterError::CannotInlineMacro { location, .. }
             | InterpreterError::UnquoteFoundDuringEvaluation { location, .. }
+            | InterpreterError::NonComptimeFnCallInSameCrate { location, .. }
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::BreakNotInLoop { location, .. }
             | InterpreterError::ContinueNotInLoop { location, .. } => *location,
@@ -292,6 +294,12 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 diagnostic.add_note(token_stream);
                 diagnostic.add_note(push_the_problem_on_the_library_author);
                 diagnostic
+            }
+            InterpreterError::NonComptimeFnCallInSameCrate { function, location } => {
+                let msg = format!("`{function}` cannot be called in a `comptime` context here");
+                let secondary =
+                    "This function must be `comptime` or in a separate crate to be called".into();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::Unimplemented { item, location } => {
                 let msg = format!("{item} is currently unimplemented");

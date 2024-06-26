@@ -90,16 +90,7 @@ pub struct Elaborator<'context> {
 
     file: FileId,
 
-    in_unconstrained_fn: bool,
     nested_loops: usize,
-
-    /// True if the current module is a contract.
-    /// This is usually determined by self.path_resolver.module_id(), but it can
-    /// be overridden for impls. Impls are an odd case since the methods within resolve
-    /// as if they're in the parent module, but should be placed in a child module.
-    /// Since they should be within a child module, in_contract is manually set to false
-    /// for these so we can still resolve them in the parent module without them being in a contract.
-    in_contract: bool,
 
     /// Contains a mapping of the current struct or functions's generics to
     /// unique type variables if we're resolving a struct. Empty otherwise.
@@ -181,9 +172,7 @@ impl<'context> Elaborator<'context> {
             interner: &mut context.def_interner,
             def_maps: &mut context.def_maps,
             file: FileId::dummy(),
-            in_unconstrained_fn: false,
             nested_loops: 0,
-            in_contract: false,
             generics: Vec::new(),
             lambda_stack: Vec::new(),
             self_type: None,
@@ -319,22 +308,12 @@ impl<'context> Elaborator<'context> {
 
         let old_function = std::mem::replace(&mut self.current_function, Some(id));
 
-        // Without this, impl methods can accidentally be placed in contracts. See #3254
-        let was_in_contract = self.in_contract;
-        if self.self_type.is_some() {
-            self.in_contract = false;
-        }
-
         self.scopes.start_function();
         let old_item = std::mem::replace(&mut self.current_item, Some(DependencyId::Function(id)));
 
         let func_meta = func_meta.clone();
 
         self.trait_bounds = func_meta.trait_constraints.clone();
-
-        if self.interner.function_modifiers(&id).is_unconstrained {
-            self.in_unconstrained_fn = true;
-        }
 
         // Introduce all numeric generics into scope
         for generic in &func_meta.all_generics {
@@ -427,9 +406,7 @@ impl<'context> Elaborator<'context> {
 
         self.trait_bounds.clear();
         self.type_variables.clear();
-        self.in_unconstrained_fn = false;
         self.interner.update_fn(id, hir_func);
-        self.in_contract = was_in_contract;
         self.current_function = old_function;
         self.current_item = old_item;
     }
@@ -507,12 +484,11 @@ impl<'context> Elaborator<'context> {
                 self.resolve_type(typ.clone())
             };
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
-                let unsupported_typ_err =
-                    CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType {
-                        ident: ident.clone(),
-                        typ: typ.clone(),
-                    });
-                self.errors.push((unsupported_typ_err, self.file));
+                let unsupported_typ_err = ResolverError::UnsupportedNumericGenericType {
+                    ident: ident.clone(),
+                    typ: typ.clone(),
+                };
+                self.push_err(unsupported_typ_err);
             }
             Kind::Numeric(Box::new(typ))
         } else {
@@ -610,11 +586,13 @@ impl<'context> Elaborator<'context> {
     ) {
         self.current_function = Some(func_id);
 
-        // Without this, impl methods can accidentally be placed in contracts. See #3254
-        let was_in_contract = self.in_contract;
-        if self.self_type.is_some() {
-            self.in_contract = false;
-        }
+        let in_contract = if self.self_type.is_some() {
+            // Without this, impl methods can accidentally be placed in contracts.
+            // See: https://github.com/noir-lang/noir/issues/3254
+            false
+        } else {
+            self.in_contract()
+        };
 
         self.scopes.start_function();
         self.current_item = Some(DependencyId::Function(func_id));
@@ -623,12 +601,13 @@ impl<'context> Elaborator<'context> {
         let id = self.interner.function_definition_id(func_id);
         let name_ident = HirIdent::non_trait_method(id, location);
 
-        let is_entry_point = self.is_entry_point_function(func);
+        let is_entry_point = self.is_entry_point_function(func, in_contract);
 
         self.run_lint(|_| lints::inlining_attributes(func).map(Into::into));
         self.run_lint(|_| lints::missing_pub(func, is_entry_point).map(Into::into));
         self.run_lint(|elaborator| {
-            lints::unnecessary_pub_return(func, elaborator.pub_allowed(func)).map(Into::into)
+            lints::unnecessary_pub_return(func, elaborator.pub_allowed(func, in_contract))
+                .map(Into::into)
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func).map(Into::into));
         self.run_lint(|elaborator| {
@@ -644,7 +623,7 @@ impl<'context> Elaborator<'context> {
         let has_no_predicates_attribute = func.attributes().is_no_predicates();
         let should_fold = func.attributes().is_foldable();
         let has_inline_attribute = has_no_predicates_attribute || should_fold;
-        let is_pub_allowed = self.pub_allowed(func);
+        let is_pub_allowed = self.pub_allowed(func, in_contract);
         self.add_generics(&func.def.generics);
 
         let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
@@ -723,11 +702,11 @@ impl<'context> Elaborator<'context> {
             is_entry_point,
             is_trait_function,
             has_inline_attribute,
+            source_crate: self.crate_id,
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.span),
         };
 
         self.interner.push_fn_meta(meta, func_id);
-        self.in_contract = was_in_contract;
         self.current_function = None;
         self.scopes.end_function();
         self.current_item = None;
@@ -752,12 +731,23 @@ impl<'context> Elaborator<'context> {
 
     /// True if the `pub` keyword is allowed on parameters in this function
     /// `pub` on function parameters is only allowed for entry point functions
-    fn pub_allowed(&self, func: &NoirFunction) -> bool {
-        self.is_entry_point_function(func) || func.attributes().is_foldable()
+    fn pub_allowed(&self, func: &NoirFunction, in_contract: bool) -> bool {
+        self.is_entry_point_function(func, in_contract) || func.attributes().is_foldable()
     }
 
-    fn is_entry_point_function(&self, func: &NoirFunction) -> bool {
-        if self.in_contract {
+    /// Returns `true` if the current module is a contract.
+    ///
+    /// This is usually determined by `self.module_id()`, but it can
+    /// be overridden for impls. Impls are an odd case since the methods within resolve
+    /// as if they're in the parent module, but should be placed in a child module.
+    /// Since they should be within a child module, they should be elaborated as if
+    /// `in_contract` is `false` so we can still resolve them in the parent module without them being in a contract.
+    fn in_contract(&self) -> bool {
+        self.module_id().module(self.def_maps).is_contract
+    }
+
+    fn is_entry_point_function(&self, func: &NoirFunction, in_contract: bool) -> bool {
+        if in_contract {
             func.attributes().is_contract_entry_point()
         } else {
             func.name() == MAIN_FUNCTION
@@ -797,12 +787,7 @@ impl<'context> Elaborator<'context> {
                 let definition = DefinitionKind::GenericType(type_variable);
                 self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
 
-                self.errors.push((
-                    CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric {
-                        ident,
-                    }),
-                    self.file,
-                ));
+                self.push_err(ResolverError::UseExplicitNumericGeneric { ident });
             }
         }
     }
@@ -1270,8 +1255,11 @@ impl<'context> Elaborator<'context> {
                         let definition = self.interner.definition(id);
                         if let DefinitionKind::Function(function) = &definition.kind {
                             let function = *function;
-                            let mut interpreter =
-                                Interpreter::new(self.interner, &mut self.comptime_scopes);
+                            let mut interpreter = Interpreter::new(
+                                self.interner,
+                                &mut self.comptime_scopes,
+                                self.crate_id,
+                            );
 
                             let location = Location::new(span, self.file);
                             let arguments = vec![(Value::TypeDefinition(struct_id), location)];
@@ -1319,7 +1307,7 @@ impl<'context> Elaborator<'context> {
         self.current_item = Some(DependencyId::Global(global_id));
         let let_stmt = global.stmt_def;
 
-        if !self.module_id().module(self.def_maps).is_contract
+        if !self.in_contract()
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
             let span = let_stmt.pattern.span();
@@ -1360,7 +1348,8 @@ impl<'context> Elaborator<'context> {
         let definition_id = global.definition_id;
         let location = global.location;
 
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        let mut interpreter =
+            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
 
         if let Err(error) = interpreter.evaluate_let(let_statement) {
             self.errors.push(error.into_compilation_error_pair());
@@ -1448,12 +1437,9 @@ impl<'context> Elaborator<'context> {
 
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = *local_module;
-            let was_in_contract = self.in_contract;
-            self.in_contract = self.module_id().module(self.def_maps).is_contract;
             self.recover_generics(|this| {
                 this.define_function_meta(func, *id, false);
             });
-            self.in_contract = was_in_contract;
         }
     }
 

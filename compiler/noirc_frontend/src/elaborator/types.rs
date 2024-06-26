@@ -11,7 +11,6 @@ use crate::{
     },
     hir::{
         comptime::{Interpreter, Value},
-        def_collector::dc_crate::CompilationError,
         def_map::ModuleDefId,
         resolution::{
             errors::ResolverError,
@@ -142,6 +141,7 @@ impl<'context> Elaborator<'context> {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, kind)))
             }
             Parenthesized(typ) => self.resolve_type_inner(*typ, kind),
+            Resolved(id) => self.interner.get_quoted_type(id).clone(),
         };
 
         if let Type::Struct(_, _) = resolved_type {
@@ -169,12 +169,11 @@ impl<'context> Elaborator<'context> {
         // }
         if let Type::NamedGeneric(_, name, resolved_kind) = &resolved_type {
             if matches!(resolved_kind, Kind::Numeric { .. }) && matches!(kind, Kind::Normal) {
-                let expected_typ_err =
-                    CompilationError::ResolverError(ResolverError::NumericGenericUsedForType {
-                        name: name.to_string(),
-                        span: span.expect("Type should have span"),
-                    });
-                self.errors.push((expected_typ_err, self.file));
+                let expected_typ_err = ResolverError::NumericGenericUsedForType {
+                    name: name.to_string(),
+                    span: span.expect("Type should have span"),
+                };
+                self.push_err(expected_typ_err);
                 return Type::Error;
             }
         }
@@ -254,8 +253,7 @@ impl<'context> Elaborator<'context> {
                 }
 
                 let expected_generic_count = struct_type.borrow().generics.len();
-
-                if !self.in_contract
+                if !self.in_contract()
                     && self
                         .interner
                         .struct_attributes(&struct_type.borrow().id)

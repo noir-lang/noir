@@ -22,6 +22,7 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::{
+    node_interner::QuotedTypeId,
     parser::{ParserError, ParserErrorReason},
     token::IntType,
     BinaryTypeOperator,
@@ -118,6 +119,10 @@ pub enum UnresolvedTypeData {
 
     // The type of quoted code for metaprogramming
     Quoted(crate::QuotedType),
+
+    /// An already resolved type. These can only be parsed if they were present in the token stream
+    /// as a result of being spliced into a macro's token stream input.
+    Resolved(QuotedTypeId),
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
@@ -221,6 +226,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
             Parenthesized(typ) => write!(f, "({typ})"),
+            Resolved(_) => write!(f, "(resolved type)"),
         }
     }
 }
