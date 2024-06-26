@@ -248,15 +248,11 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 )
             }
             DefCollectorErrorKind::ImplIsStricterThanTrait { constraint_typ, constraint_name: constraint, constraint_span, trait_method_name, trait_method_span } => {
-                // let constraint_name = &constraint_name.0.contents;
-                // let bound_name = bound_name;
-
                 let mut diag = Diagnostic::simple_error(
                     "impl has stricter requirements than trait".to_string(),
                     format!("impl has extra requirement `{constraint_typ}: {constraint}`"),
                     *constraint_span,
                 );
-                // diag.add_note(message)
                 diag.add_secondary(format!("definition of `{trait_method_name}` from trait"), *trait_method_span);
                 diag
             }
