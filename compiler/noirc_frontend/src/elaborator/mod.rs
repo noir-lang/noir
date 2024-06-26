@@ -1276,11 +1276,9 @@ impl<'context> Elaborator<'context> {
             .map_err(|_| (ResolverError::UnknownAnnotation { span }.into(), self.file))?;
 
         let definition = self.interner.definition(id);
-        let DefinitionKind::Function(function) = &definition.kind else {
+        let DefinitionKind::Function(function) = definition.kind else {
             return Err((ResolverError::NonFunctionInAnnotation { span }.into(), self.file));
         };
-
-        let function = *function;
         let mut interpreter =
             Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
 
