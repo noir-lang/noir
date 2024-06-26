@@ -1930,7 +1930,7 @@ fn impl_stricter_than_trait() {
     }
 
     impl<T> MyType<T> {
-        fn do_thing_with_serialization_with_extra_steps<N>(self) -> Field {
+        fn do_thing_with_serialization_with_extra_steps(self) -> Field {
             process_array(serialize_thing(self))
         }
     }
@@ -1976,7 +1976,7 @@ fn impl_not_found_for_inner_impl() {
     }
 
     impl<T> MyType<T> {
-        fn do_thing_with_serialization_with_extra_steps<N>(self) -> Field {
+        fn do_thing_with_serialization_with_extra_steps(self) -> Field {
             process_array(serialize_thing(self))
         }
     }
