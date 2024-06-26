@@ -17,6 +17,7 @@ path = "src/main.rs"
 [dependencies]
 color-eyre.workspace = true
 clap.workspace = true
+noirc_artifacts.workspace = true
 nargo.workspace = true
 const_format.workspace = true
 serde.workspace = true

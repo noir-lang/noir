@@ -7,12 +7,12 @@ use clap::Args;
 use codespan_reporting::files::Files;
 use color_eyre::eyre::{self, Context};
 use inferno::flamegraph::{from_lines, Options};
-use nargo::artifacts::debug::DebugArtifact;
 use serde::{Deserialize, Serialize};
 
 use acir::circuit::OpcodeLocation;
-use nargo::artifacts::program::ProgramArtifact;
 use nargo::errors::Location;
+use noirc_artifacts::debug::DebugArtifact;
+use noirc_artifacts::program::ProgramArtifact;
 use noirc_errors::reporter::line_and_column_from_span;
 
 #[derive(Debug, Clone, Args)]
@@ -262,7 +262,7 @@ mod tests {
     use acir::circuit::{OpcodeLocation, Program};
     use color_eyre::eyre::{self};
     use fm::{FileId, FileManager};
-    use nargo::artifacts::program::ProgramArtifact;
+    use noirc_artifacts::program::ProgramArtifact;
     use noirc_driver::DebugFile;
     use noirc_errors::{
         debug_info::{DebugInfo, ProgramDebugInfo},
