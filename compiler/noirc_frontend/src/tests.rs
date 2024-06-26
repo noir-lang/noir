@@ -1898,10 +1898,9 @@ fn quote_code_fragments() {
 }
 
 #[test]
-fn impl_not_found_for_trait_impl_method_trait_constraint() {
-    // This test ensures that we still error with that no matching impl was found
-    // if a where clause referencing an impl generic only exists on a trait impl's
-    // methods.
+fn impl_stricter_than_trait() {
+    // This test ensures that the error we get from the where clause on the trait impl method
+    // is a `DefCollectorErrorKind::ImplIsStricterThanTrait` error.
     let src = r#"
     trait Serialize<let N: u32> {
         fn serialize(self) -> [Field; N];
@@ -1926,6 +1925,52 @@ fn impl_not_found_for_trait_impl_method_trait_constraint() {
 
     impl<T> Serialize<2> for MyType<T> {
         fn serialize(self) -> [Field; 2] where T: ToField {
+            [ self.a.to_field(), self.b.to_field() ]
+        }
+    }
+
+    impl<T> MyType<T> {
+        fn do_thing_with_serialization_with_extra_steps<N>(self) -> Field {
+            process_array(serialize_thing(self))
+        }
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait { .. })
+    ));
+}
+
+#[test]
+fn impl_not_found_for_inner_impl() {
+    // We want to guarantee that we get a no impl found error
+    let src = r#"
+    trait Serialize<let N: u32> {
+        fn serialize(self) -> [Field; N];
+    }
+
+    trait ToField {
+        fn to_field(self) -> Field;
+    }
+
+    fn process_array<let N: u32>(array: [Field; N]) -> Field {
+        array[0]
+    }
+
+    fn serialize_thing<A, let N: u32>(thing: A) -> [Field; N] where A: Serialize<N> {
+        thing.serialize()
+    }
+
+    struct MyType<T> {
+        a: T,
+        b: T,
+    }
+
+    impl<T> Serialize<2> for MyType<T> where T: ToField {
+        fn serialize(self) -> [Field; 2] {
             [ self.a.to_field(), self.b.to_field() ]
         }
     }

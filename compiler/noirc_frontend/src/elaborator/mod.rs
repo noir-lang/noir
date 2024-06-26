@@ -595,7 +595,7 @@ impl<'context> Elaborator<'context> {
             });
         }
 
-        Some(TraitConstraint { typ, trait_id, trait_generics })
+        Some(TraitConstraint { typ, trait_id, trait_generics, span })
     }
 
     /// Extract metadata from a NoirFunction
@@ -890,7 +890,14 @@ impl<'context> Elaborator<'context> {
 
         if let Some(trait_id) = trait_impl.trait_id {
             self.generics = trait_impl.resolved_generics.clone();
-            self.collect_trait_impl_methods(trait_id, trait_impl);
+
+            let where_clause = trait_impl
+                .where_clause
+                .iter()
+                .flat_map(|item| self.resolve_trait_constraint(item))
+                .collect::<Vec<_>>();
+
+            self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
             let span = trait_impl.object_type.span.expect("All trait self types should have spans");
             self.declare_methods_on_struct(true, &mut trait_impl.methods, span);
@@ -899,12 +906,6 @@ impl<'context> Elaborator<'context> {
             for func_id in &methods {
                 self.interner.set_function_trait(*func_id, self_type.clone(), trait_id);
             }
-
-            let where_clause = trait_impl
-                .where_clause
-                .iter()
-                .flat_map(|item| self.resolve_trait_constraint(item))
-                .collect::<Vec<_>>();
 
             let trait_generics = trait_impl.resolved_trait_generics.clone();
 
@@ -1040,6 +1041,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         trait_id: TraitId,
         trait_impl: &mut UnresolvedTraitImpl,
+        trait_impl_where_clause: &[TraitConstraint],
     ) {
         self.local_module = trait_impl.module_id;
         self.file = trait_impl.file_id;
@@ -1096,6 +1098,34 @@ impl<'context> Elaborator<'context> {
                 }
             } else {
                 for (_, func_id, _) in &overrides {
+                    let func_meta = self.interner.function_meta(func_id);
+                    for override_trait_constraint in func_meta.trait_constraints.clone() {
+                        // We allow where clauses on impls but during definition collection they are included as part of the where
+                        // clause of each function. This check is necessary so we do not error about a
+                        let override_constraint_is_from_impl =
+                            trait_impl_where_clause.iter().any(|impl_constraint| {
+                                impl_constraint.trait_id == override_trait_constraint.trait_id
+                            });
+                        if override_constraint_is_from_impl {
+                            continue;
+                        }
+
+                        let override_constraint_is_on_trait_method =
+                            method.trait_constraints.iter().any(|method_constraint| {
+                                method_constraint.trait_id == override_trait_constraint.trait_id
+                            });
+                        if !override_constraint_is_on_trait_method {
+                            let the_trait =
+                                self.interner.get_trait(override_trait_constraint.trait_id);
+                            self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
+                                constraint_typ: override_trait_constraint.typ,
+                                constraint_name: the_trait.name.0.contents.clone(),
+                                constraint_span: override_trait_constraint.span,
+                                trait_method_name: method.name.0.contents.clone(),
+                                trait_method_span: method.location.span,
+                            });
+                        }
+                    }
                     func_ids_in_trait.insert(*func_id);
                 }
 

@@ -68,6 +68,14 @@ pub enum DefCollectorErrorKind {
     MacroError(MacroError),
     #[error("The only supported types of numeric generics are integers, fields, and booleans")]
     UnsupportedNumericGenericType { ident: Ident, typ: UnresolvedTypeData },
+    #[error("impl has stricer requirements than trait")]
+    ImplIsStricterThanTrait {
+        constraint_typ: crate::Type,
+        constraint_name: String,
+        constraint_span: Span,
+        trait_method_name: String,
+        trait_method_span: Span,
+    },
 }
 
 /// An error struct that macro processors can return.
@@ -238,6 +246,19 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                     "Unsupported numeric generic type".to_string(),
                     ident.0.span(),
                 )
+            }
+            DefCollectorErrorKind::ImplIsStricterThanTrait { constraint_typ, constraint_name: constraint, constraint_span, trait_method_name, trait_method_span } => {
+                // let constraint_name = &constraint_name.0.contents;
+                // let bound_name = bound_name;
+
+                let mut diag = Diagnostic::simple_error(
+                    "impl has stricter requirements than trait".to_string(),
+                    format!("impl has extra requirement `{constraint_typ}: {constraint}`"),
+                    *constraint_span,
+                );
+                // diag.add_note(message)
+                diag.add_secondary(format!("definition of {trait_method_name} from trait"), *trait_method_span);
+                diag
             }
         }
     }

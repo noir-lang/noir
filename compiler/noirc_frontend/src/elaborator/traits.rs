@@ -145,6 +145,7 @@ impl<'context> Elaborator<'context> {
                         location: Location::new(name.span(), unresolved_trait.file_id),
                         default_impl,
                         default_impl_module_id: unresolved_trait.module_id,
+                        trait_constraints: func_meta.trait_constraints.clone(),
                     });
                 });
             }

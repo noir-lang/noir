@@ -11,7 +11,6 @@ use crate::ast::{
     NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItem, TraitItem,
     TypeImpl,
 };
-use crate::macros_api::UnresolvedTypeData;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -170,7 +169,7 @@ impl<'a> ModCollector<'a> {
         impls: Vec<NoirTraitImpl>,
         krate: CrateId,
     ) {
-        for mut trait_impl in impls {
+        for trait_impl in impls {
             let trait_name = trait_impl.trait_name.clone();
 
             let mut unresolved_functions =
@@ -181,23 +180,6 @@ impl<'a> ModCollector<'a> {
             for (_, func_id, noir_function) in &mut unresolved_functions.functions {
                 // Attach any trait constraints on the impl to the function
                 noir_function.def.where_clause.append(&mut trait_impl.where_clause.clone());
-
-                // If there are trait constraints on the trait impl methods that reference the impl generics
-                // they can be viewed as a constraint on the trait impl itself.
-                for generic in trait_impl.impl_generics.iter() {
-                    let impl_generic_name = &generic.ident().0.contents;
-                    for func_trait_constraint in noir_function.def.where_clause.iter() {
-                        if let UnresolvedTypeData::Named(path, _, _) =
-                            &func_trait_constraint.typ.typ
-                        {
-                            let trait_constraint_name = &path.last_segment().0.contents;
-                            if trait_constraint_name == impl_generic_name {
-                                trait_impl.where_clause.push(func_trait_constraint.clone());
-                            }
-                        }
-                    }
-                }
-
                 let location = Location::new(noir_function.def.span, self.file_id);
                 context.def_interner.push_function(*func_id, &noir_function.def, module, location);
             }
