@@ -4,7 +4,7 @@ use dep::aztec::{
     hash::hash_args
 };
 
-use crate::auth::{compute_inner_authwit_hash, compute_outer_authwit_hash, set_authorized};
+use crate::auth::{compute_inner_authwit_hash, compute_authwit_message_hash, set_authorized};
 
 pub fn add_private_authwit_from_call_interface<C, M, T, P, Env>(
     on_behalf_of: AztecAddress,
@@ -18,7 +18,7 @@ pub fn add_private_authwit_from_call_interface<C, M, T, P, Env>(
     let args_hash = hash_args(call_interface.get_args());
     let selector = call_interface.get_selector();
     let inner_hash = compute_inner_authwit_hash([caller.to_field(), selector.to_field(), args_hash]);
-    let message_hash = compute_outer_authwit_hash(target, chain_id, version, inner_hash);
+    let message_hash = compute_authwit_message_hash(target, chain_id, version, inner_hash);
     cheatcodes::add_authwit(on_behalf_of, message_hash);
 }
 
@@ -36,7 +36,7 @@ pub fn add_public_authwit_from_call_interface<C, M, T, P, Env>(
     let args_hash = hash_args(call_interface.get_args());
     let selector = call_interface.get_selector();
     let inner_hash = compute_inner_authwit_hash([caller.to_field(), selector.to_field(), args_hash]);
-    let message_hash = compute_outer_authwit_hash(target, chain_id, version, inner_hash);
+    let message_hash = compute_authwit_message_hash(target, chain_id, version, inner_hash);
     let mut inputs = cheatcodes::get_public_context_inputs();
     let mut context = PublicContext::new(inputs);
     set_authorized(&mut context, message_hash, true);

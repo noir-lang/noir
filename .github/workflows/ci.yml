@@ -362,7 +362,7 @@ jobs:
   noir-format:
     needs: [setup, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
-    if: ${{ needs.changes.outputs.noir == 'true' }}
+    if: ${{ needs.changes.outputs.noir == 'true' || needs.changes.outputs.noir-projects == 'true' }}
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ env.GIT_COMMIT }}" }
