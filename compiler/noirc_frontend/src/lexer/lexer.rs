@@ -376,10 +376,9 @@ impl<'a> Lexer<'a> {
 
         // Underscores needs to be stripped out before the literal can be converted to a `BigInt`.
         let integer_str = integer_str.replace('_', "");
-        let parse_result = if integer_str.starts_with("0x") {
-            BigInt::from_str_radix(&integer_str[2..], 16)
-        } else {
-            BigInt::from_str(&integer_str)
+        let parse_result = match integer_str.strip_prefix("0x") {
+            Some(integer_str) => BigInt::from_str_radix(integer_str, 16),
+            None => BigInt::from_str(&integer_str),
         };
 
         let integer = match parse_result {
