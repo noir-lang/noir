@@ -22,7 +22,9 @@ impl Ssa {
     /// since we must go through every instruction to find all references to `assert_constant`
     /// while loop unrolling only touches blocks with loops in them.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn evaluate_static_assert_and_assert_constant(mut self) -> Result<Ssa, RuntimeError> {
+    pub(crate) fn evaluate_static_assert_and_assert_constant(
+        mut self,
+    ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
             for block in function.reachable_blocks() {
                 // Unfortunately we can't just use instructions.retain(...) here since
