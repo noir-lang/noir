@@ -88,15 +88,12 @@ pub fn resolve_import(
     import_directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
 ) -> Result<ResolvedImport, PathResolutionError> {
-    let allow_contracts =
-        allow_referencing_contracts(def_maps, crate_id, import_directive.module_id);
-
     let module_scope = import_directive.module_id;
     let NamespaceResolution {
         module_id: resolved_module,
         namespace: resolved_namespace,
         mut error,
-    } = resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps, allow_contracts)?;
+    } = resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps)?;
 
     let name = resolve_path_name(import_directive);
 
@@ -129,20 +126,11 @@ pub fn resolve_import(
     })
 }
 
-fn allow_referencing_contracts(
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    krate: CrateId,
-    local_id: LocalModuleId,
-) -> bool {
-    ModuleId { krate, local_id }.module(def_maps).is_contract
-}
-
 fn resolve_path_to_ns(
     import_directive: &ImportDirective,
     crate_id: CrateId,
     importing_crate: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    allow_contracts: bool,
 ) -> NamespaceResolutionResult {
     let import_path = &import_directive.path.segments;
     let def_map = &def_maps[&crate_id];
@@ -150,13 +138,7 @@ fn resolve_path_to_ns(
     match import_directive.path.kind {
         crate::ast::PathKind::Crate => {
             // Resolve from the root of the crate
-            resolve_path_from_crate_root(
-                crate_id,
-                importing_crate,
-                import_path,
-                def_maps,
-                allow_contracts,
-            )
+            resolve_path_from_crate_root(crate_id, importing_crate, import_path, def_maps)
         }
         crate::ast::PathKind::Plain => {
             // There is a possibility that the import path is empty
@@ -168,7 +150,6 @@ fn resolve_path_to_ns(
                     import_path,
                     import_directive.module_id,
                     def_maps,
-                    allow_contracts,
                 );
             }
 
@@ -177,13 +158,7 @@ fn resolve_path_to_ns(
             let first_segment = import_path.first().expect("ice: could not fetch first segment");
             if current_mod.find_name(first_segment).is_none() {
                 // Resolve externally when first segment is unresolved
-                return resolve_external_dep(
-                    def_map,
-                    import_directive,
-                    def_maps,
-                    allow_contracts,
-                    importing_crate,
-                );
+                return resolve_external_dep(def_map, import_directive, def_maps, importing_crate);
             }
 
             resolve_name_in_module(
@@ -192,17 +167,12 @@ fn resolve_path_to_ns(
                 import_path,
                 import_directive.module_id,
                 def_maps,
-                allow_contracts,
             )
         }
 
-        crate::ast::PathKind::Dep => resolve_external_dep(
-            def_map,
-            import_directive,
-            def_maps,
-            allow_contracts,
-            importing_crate,
-        ),
+        crate::ast::PathKind::Dep => {
+            resolve_external_dep(def_map, import_directive, def_maps, importing_crate)
+        }
     }
 }
 
@@ -212,7 +182,6 @@ fn resolve_path_from_crate_root(
 
     import_path: &[Ident],
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    allow_contracts: bool,
 ) -> NamespaceResolutionResult {
     resolve_name_in_module(
         crate_id,
@@ -220,7 +189,6 @@ fn resolve_path_from_crate_root(
         import_path,
         def_maps[&crate_id].root,
         def_maps,
-        allow_contracts,
     )
 }
 
@@ -230,7 +198,6 @@ fn resolve_name_in_module(
     import_path: &[Ident],
     starting_mod: LocalModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    allow_contracts: bool,
 ) -> NamespaceResolutionResult {
     let def_map = &def_maps[&krate];
     let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
@@ -293,10 +260,6 @@ fn resolve_name_in_module(
             return Err(PathResolutionError::Unresolved(current_segment.clone()));
         }
 
-        // Check if it is a contract and we're calling from a non-contract context
-        if current_mod.is_contract && !allow_contracts {
-            return Err(PathResolutionError::ExternalContractUsed(current_segment.clone()));
-        }
         current_ns = found_ns;
     }
 
@@ -314,7 +277,6 @@ fn resolve_external_dep(
     current_def_map: &CrateDefMap,
     directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    allow_contracts: bool,
     importing_crate: CrateId,
 ) -> NamespaceResolutionResult {
     // Use extern_prelude to get the dep
@@ -344,7 +306,7 @@ fn resolve_external_dep(
         is_prelude: false,
     };
 
-    resolve_path_to_ns(&dep_directive, dep_module.krate, importing_crate, def_maps, allow_contracts)
+    resolve_path_to_ns(&dep_directive, dep_module.krate, importing_crate, def_maps)
 }
 
 // Issue an error if the given private function is being called from a non-child module, or
