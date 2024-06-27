@@ -9,22 +9,6 @@ pub fn write<T, N>(storage_slot: Field, value: T) where T: Serialize<N> {
     storage_write(storage_slot, value.serialize());
 }
 
-// Ideally we'd do the following, but we cannot because of https://github.com/noir-lang/noir/issues/4633
-// pub fn read_historical<T, N>(
-//     storage_slot: Field,
-//     context: PrivateContext
-// ) -> T where T: Deserialize<N> {
-//     let mut fields = [0; N];
-//     for i in 0..N {
-//         fields[i] = public_storage_historical_read(
-//                 context,
-//                 storage_slot + i as Field,
-//                 context.this_address()
-//             );
-//     }
-//     T::deserialize(fields)
-// }
-
 mod tests {
     use std::test::OracleMock;
     use dep::protocol_types::traits::{Deserialize, Serialize};
