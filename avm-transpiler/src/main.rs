@@ -20,12 +20,17 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let in_contract_artifact_path = &args[1];
     let out_transpiled_artifact_path = &args[2];
+    let json_parse_error = format!(
+        "Unable to parse json for: {in_contract_artifact_path}
+    This is probably a stale json file with a different wire format.
+    You might need to recompile the contract or delete the json file"
+    );
 
     // Parse original (pre-transpile) contract.
-    let contract_json =
-        fs::read_to_string(Path::new(in_contract_artifact_path)).expect("Unable to read file");
+    let contract_json = fs::read_to_string(Path::new(in_contract_artifact_path))
+        .expect(&format!("Unable to read file: {in_contract_artifact_path}"));
     let raw_json_obj: serde_json::Value =
-        serde_json::from_str(&contract_json).expect("Unable to parse json");
+        serde_json::from_str(&contract_json).expect(&json_parse_error);
 
     // Skip if contract has "transpiled: true" flag!
     if let Some(serde_json::Value::Bool(true)) = raw_json_obj.get("transpiled") {
@@ -33,16 +38,18 @@ fn main() {
         return;
     }
 
-    // Backup the original file.
-    std::fs::copy(
-        Path::new(in_contract_artifact_path),
-        Path::new(&(in_contract_artifact_path.clone() + ".bak")),
-    )
-    .expect("Unable to backup file");
+    // Backup the output file if it already exists.
+    if Path::new(out_transpiled_artifact_path).exists() {
+        std::fs::copy(
+            Path::new(out_transpiled_artifact_path),
+            Path::new(&(out_transpiled_artifact_path.clone() + ".bak")),
+        )
+        .expect(&format!("Unable to backup file: {out_transpiled_artifact_path}"));
+    }
 
     // Parse json into contract object
     let contract: CompiledAcirContractArtifact =
-        serde_json::from_str(&contract_json).expect("Unable to parse json");
+        serde_json::from_str(&contract_json).expect(&json_parse_error);
 
     // Transpile contract to AVM bytecode
     let transpiled_contract = TranspiledContractArtifact::from(contract);
