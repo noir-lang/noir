@@ -226,7 +226,7 @@ class AvmArithmeticTests : public ::testing::Test {
         trace_builder.op_set(0, a, addr_a, tag);
         trace_builder.op_set(0, b, addr_b, tag);
         trace_builder.op_eq(0, addr_a, addr_b, addr_c, tag);
-        trace_builder.return_op(0, 0, 0);
+        trace_builder.op_return(0, 0, 0);
         return trace_builder.finalize();
     }
 
@@ -368,11 +368,11 @@ std::vector<std::array<FF, 3>> positive_op_div_test_values = { {
 // Test on basic addition over finite field type.
 TEST_F(AvmArithmeticTestsFF, addition)
 {
-    trace_builder.calldata_copy(0, 0, 3, 0, std::vector<FF>{ 37, 4, 11 });
+    trace_builder.op_calldata_copy(0, 0, 3, 0, std::vector<FF>{ 37, 4, 11 });
 
     //                             Memory layout:    [37,4,11,0,0,0,....]
     trace_builder.op_add(0, 0, 1, 4, AvmMemoryTag::FF); // [37,4,11,0,41,0,....]
-    trace_builder.return_op(0, 0, 5);
+    trace_builder.op_return(0, 0, 5);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_add(trace, FF(37), FF(4), FF(41), FF(0), FF(1), FF(4), AvmMemoryTag::FF);
@@ -387,11 +387,11 @@ TEST_F(AvmArithmeticTestsFF, addition)
 // Test on basic subtraction over finite field type.
 TEST_F(AvmArithmeticTestsFF, subtraction)
 {
-    trace_builder.calldata_copy(0, 0, 3, 0, std::vector<FF>{ 8, 4, 17 });
+    trace_builder.op_calldata_copy(0, 0, 3, 0, std::vector<FF>{ 8, 4, 17 });
 
     //                             Memory layout:    [8,4,17,0,0,0,....]
     trace_builder.op_sub(0, 2, 0, 1, AvmMemoryTag::FF); // [8,9,17,0,0,0....]
-    trace_builder.return_op(0, 0, 3);
+    trace_builder.op_return(0, 0, 3);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_sub(trace, FF(17), FF(8), FF(9), FF(2), FF(0), FF(1), AvmMemoryTag::FF);
@@ -406,11 +406,11 @@ TEST_F(AvmArithmeticTestsFF, subtraction)
 // Test on basic multiplication over finite field type.
 TEST_F(AvmArithmeticTestsFF, multiplication)
 {
-    trace_builder.calldata_copy(0, 0, 3, 0, std::vector<FF>{ 5, 0, 20 });
+    trace_builder.op_calldata_copy(0, 0, 3, 0, std::vector<FF>{ 5, 0, 20 });
 
     //                             Memory layout:    [5,0,20,0,0,0,....]
     trace_builder.op_mul(0, 2, 0, 1, AvmMemoryTag::FF); // [5,100,20,0,0,0....]
-    trace_builder.return_op(0, 0, 3);
+    trace_builder.op_return(0, 0, 3);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_mul(trace, FF(20), FF(5), FF(100), FF(2), FF(0), FF(1), AvmMemoryTag::FF);
@@ -426,11 +426,11 @@ TEST_F(AvmArithmeticTestsFF, multiplication)
 // Test on multiplication by zero over finite field type.
 TEST_F(AvmArithmeticTestsFF, multiplicationByZero)
 {
-    trace_builder.calldata_copy(0, 0, 1, 0, std::vector<FF>{ 127 });
+    trace_builder.op_calldata_copy(0, 0, 1, 0, std::vector<FF>{ 127 });
 
     //                             Memory layout:    [127,0,0,0,0,0,....]
     trace_builder.op_mul(0, 0, 1, 2, AvmMemoryTag::FF); // [127,0,0,0,0,0....]
-    trace_builder.return_op(0, 0, 3);
+    trace_builder.op_return(0, 0, 3);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_mul(trace, FF(127), FF(0), FF(0), FF(0), FF(1), FF(2), AvmMemoryTag::FF);
@@ -446,11 +446,11 @@ TEST_F(AvmArithmeticTestsFF, multiplicationByZero)
 // Test on basic division over finite field type.
 TEST_F(AvmArithmeticTestsFF, fDivision)
 {
-    trace_builder.calldata_copy(0, 0, 2, 0, std::vector<FF>{ 15, 315 });
+    trace_builder.op_calldata_copy(0, 0, 2, 0, std::vector<FF>{ 15, 315 });
 
     //                  Memory layout:    [15,315,0,0,0,0,....]
     trace_builder.op_fdiv(0, 1, 0, 2); // [15,315,21,0,0,0....]
-    trace_builder.return_op(0, 0, 3);
+    trace_builder.op_return(0, 0, 3);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the fdiv selector
@@ -469,11 +469,11 @@ TEST_F(AvmArithmeticTestsFF, fDivision)
 // Test on division with zero numerator over finite field type.
 TEST_F(AvmArithmeticTestsFF, fDivisionNumeratorZero)
 {
-    trace_builder.calldata_copy(0, 0, 1, 0, std::vector<FF>{ 15 });
+    trace_builder.op_calldata_copy(0, 0, 1, 0, std::vector<FF>{ 15 });
 
     //                  Memory layout:    [15,0,0,0,0,0,....]
     trace_builder.op_fdiv(0, 1, 0, 0); // [0,0,0,0,0,0....]
-    trace_builder.return_op(0, 0, 3);
+    trace_builder.op_return(0, 0, 3);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the fdiv selector
@@ -493,7 +493,7 @@ TEST_F(AvmArithmeticTestsFF, fDivisionNumeratorZero)
 // We check that the operator error flag is raised.
 TEST_F(AvmArithmeticTestsFF, fDivisionByZeroError)
 {
-    trace_builder.calldata_copy(0, 0, 1, 0, std::vector<FF>{ 15 });
+    trace_builder.op_calldata_copy(0, 0, 1, 0, std::vector<FF>{ 15 });
 
     //                  Memory layout:    [15,0,0,0,0,0,....]
     trace_builder.op_fdiv(0, 0, 1, 2); // [15,0,0,0,0,0....]
@@ -543,7 +543,7 @@ TEST_F(AvmArithmeticTestsFF, fDivisionZeroByZeroError)
 // No check on the evaluation is performed here.
 TEST_F(AvmArithmeticTestsFF, mixedOperationsWithError)
 {
-    trace_builder.calldata_copy(0, 0, 3, 2, std::vector<FF>{ 45, 23, 12 });
+    trace_builder.op_calldata_copy(0, 0, 3, 2, std::vector<FF>{ 45, 23, 12 });
 
     //                             Memory layout:    [0,0,45,23,12,0,0,0,....]
     trace_builder.op_add(0, 2, 3, 4, AvmMemoryTag::FF); // [0,0,45,23,68,0,0,0,....]
@@ -566,9 +566,9 @@ TEST_F(AvmArithmeticTestsFF, equality)
 {
     // Pick a field-sized number
     FF elem = FF::modulus - FF(1);
-    trace_builder.calldata_copy(0, 0, 3, 0, std::vector<FF>{ elem, elem, 1 });
+    trace_builder.op_calldata_copy(0, 0, 3, 0, std::vector<FF>{ elem, elem, 1 });
     trace_builder.op_eq(0, 0, 1, 2, AvmMemoryTag::FF); // Memory Layout [q - 1, q -1, 1,0..]
-    trace_builder.return_op(0, 0, 3);
+    trace_builder.op_return(0, 0, 3);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_eq(trace, elem, elem, FF(1), FF(0), FF(1), FF(2), AvmMemoryTag::FF);
@@ -583,9 +583,9 @@ TEST_F(AvmArithmeticTestsFF, equality)
 TEST_F(AvmArithmeticTestsFF, nonEquality)
 {
     FF elem = FF::modulus - FF(1);
-    trace_builder.calldata_copy(0, 0, 3, 0, std::vector<FF>{ elem, elem + FF(1), 0 });
+    trace_builder.op_calldata_copy(0, 0, 3, 0, std::vector<FF>{ elem, elem + FF(1), 0 });
     trace_builder.op_eq(0, 0, 1, 2, AvmMemoryTag::FF); // Memory Layout [q - 1, q, 1,0..]
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_eq(trace, elem, FF(0), FF(0), FF(0), FF(1), FF(2), AvmMemoryTag::FF);
@@ -603,7 +603,7 @@ TEST_P(AvmArithmeticTestsDiv, division)
     trace_builder.op_set(0, uint128_t(a), 0, mem_tag);
     trace_builder.op_set(0, uint128_t(b), 1, mem_tag);
     trace_builder.op_div(0, 0, 1, 2, mem_tag);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     common_validate_div(trace, a, b, output, 0, 1, 2, mem_tag);
@@ -652,7 +652,7 @@ TEST_F(AvmArithmeticTestsU8, addition)
 
     //                             Memory layout:    [62,29,0,0,0,....]
     trace_builder.op_add(0, 0, 1, 2, AvmMemoryTag::U8); // [62,29,91,0,0,....]
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_add(trace, FF(62), FF(29), FF(91), FF(0), FF(1), FF(2), AvmMemoryTag::U8);
@@ -673,7 +673,7 @@ TEST_F(AvmArithmeticTestsU8, additionCarry)
 
     //                             Memory layout:    [159,100,0,0,0,....]
     trace_builder.op_add(0, 0, 1, 2, AvmMemoryTag::U8); // [159,100,3,0,0,....]
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_add(trace, FF(159), FF(100), FF(3), FF(0), FF(1), FF(2), AvmMemoryTag::U8);
@@ -695,7 +695,7 @@ TEST_F(AvmArithmeticTestsU8, subtraction)
 
     //                             Memory layout:    [162,29,0,0,0,....]
     trace_builder.op_sub(0, 0, 1, 2, AvmMemoryTag::U8); // [162,29,133,0,0,....]
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_sub(trace, FF(162), FF(29), FF(133), FF(0), FF(1), FF(2), AvmMemoryTag::U8);
@@ -717,7 +717,7 @@ TEST_F(AvmArithmeticTestsU8, subtractionCarry)
 
     //                             Memory layout:    [5,29,0,0,0,....]
     trace_builder.op_sub(0, 0, 1, 2, AvmMemoryTag::U8); // [5,29,232,0,0,....]
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_sub(trace, FF(5), FF(29), FF(232), FF(0), FF(1), FF(2), AvmMemoryTag::U8);
@@ -745,7 +745,7 @@ TEST_F(AvmArithmeticTestsU8, multiplication)
     trace_builder.op_set(0, 15, 1, AvmMemoryTag::U8);
 
     trace_builder.op_mul(0, 0, 1, 2, AvmMemoryTag::U8);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_mul(trace, FF(13), FF(15), FF(195), FF(0), FF(1), FF(2), AvmMemoryTag::U8);
@@ -768,7 +768,7 @@ TEST_F(AvmArithmeticTestsU8, multiplicationOverflow)
     trace_builder.op_set(0, 170, 1, AvmMemoryTag::U8);
 
     trace_builder.op_mul(0, 0, 1, 2, AvmMemoryTag::U8);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_mul(trace, FF(200), FF(170), FF(208), FF(0), FF(1), FF(2), AvmMemoryTag::U8);
@@ -822,7 +822,7 @@ TEST_F(AvmArithmeticTestsU16, addition)
     trace_builder.op_set(0, 33005, 546, AvmMemoryTag::U16);
 
     trace_builder.op_add(0, 546, 119, 5, AvmMemoryTag::U16);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row =
@@ -844,7 +844,7 @@ TEST_F(AvmArithmeticTestsU16, additionCarry)
     trace_builder.op_set(0, 1000, 1, AvmMemoryTag::U16);
 
     trace_builder.op_add(0, 1, 0, 0, AvmMemoryTag::U16);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row =
@@ -866,7 +866,7 @@ TEST_F(AvmArithmeticTestsU16, subtraction)
     trace_builder.op_set(0, 33005, 546, AvmMemoryTag::U16);
 
     trace_builder.op_sub(0, 546, 119, 5, AvmMemoryTag::U16);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row =
@@ -890,7 +890,7 @@ TEST_F(AvmArithmeticTestsU16, subtractionCarry)
     trace_builder.op_set(0, 1000, 1, AvmMemoryTag::U16);
 
     trace_builder.op_sub(0, 1, 0, 0, AvmMemoryTag::U16);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row =
@@ -919,7 +919,7 @@ TEST_F(AvmArithmeticTestsU16, multiplication)
     trace_builder.op_set(0, 245, 1, AvmMemoryTag::U16);
 
     trace_builder.op_mul(0, 0, 1, 2, AvmMemoryTag::U16);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index =
@@ -944,7 +944,7 @@ TEST_F(AvmArithmeticTestsU16, multiplicationOverflow)
     trace_builder.op_set(0, 1024, 1, AvmMemoryTag::U16);
 
     trace_builder.op_mul(0, 0, 1, 2, AvmMemoryTag::U16);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_mul(trace, FF(512), FF(1024), FF(0), FF(0), FF(1), FF(2), AvmMemoryTag::U16);
@@ -1000,7 +1000,7 @@ TEST_F(AvmArithmeticTestsU32, addition)
     trace_builder.op_set(0, 1234567891, 9, AvmMemoryTag::U32);
 
     trace_builder.op_add(0, 8, 9, 0, AvmMemoryTag::U32);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_add(
@@ -1023,7 +1023,7 @@ TEST_F(AvmArithmeticTestsU32, additionCarry)
     trace_builder.op_set(0, 2293, 9, AvmMemoryTag::U32);
 
     trace_builder.op_add(0, 8, 9, 0, AvmMemoryTag::U32);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row =
@@ -1045,7 +1045,7 @@ TEST_F(AvmArithmeticTestsU32, subtraction)
     trace_builder.op_set(0, 1234567891, 9, AvmMemoryTag::U32);
 
     trace_builder.op_sub(0, 8, 9, 0, AvmMemoryTag::U32);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_sub(
@@ -1072,7 +1072,7 @@ TEST_F(AvmArithmeticTestsU32, subtractionCarry)
     trace_builder.op_set(0, 3210987654, 9, AvmMemoryTag::U32);
 
     trace_builder.op_sub(0, 9, 8, 0, AvmMemoryTag::U32);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_sub(
@@ -1103,7 +1103,7 @@ TEST_F(AvmArithmeticTestsU32, multiplication)
     trace_builder.op_set(0, 11111, 1, AvmMemoryTag::U32);
 
     trace_builder.op_mul(0, 0, 1, 2, AvmMemoryTag::U32);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index =
@@ -1132,7 +1132,7 @@ TEST_F(AvmArithmeticTestsU32, multiplicationOverflow)
     trace_builder.op_set(0, 13 << 22, 1, AvmMemoryTag::U32);
 
     trace_builder.op_mul(0, 0, 1, 2, AvmMemoryTag::U32);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index =
@@ -1197,7 +1197,7 @@ TEST_F(AvmArithmeticTestsU64, addition)
     trace_builder.op_set(0, b, 9, AvmMemoryTag::U64);
 
     trace_builder.op_add(0, 8, 9, 9, AvmMemoryTag::U64);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_add(trace, FF(a), FF(b), FF(c), FF(8), FF(9), FF(9), AvmMemoryTag::U64);
@@ -1227,7 +1227,7 @@ TEST_F(AvmArithmeticTestsU64, additionCarry)
     trace_builder.op_set(0, b, 1, AvmMemoryTag::U64);
 
     trace_builder.op_add(0, 0, 1, 0, AvmMemoryTag::U64);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_add(trace, FF(a), FF(b), FF(c), FF(0), FF(1), FF(0), AvmMemoryTag::U64);
@@ -1255,7 +1255,7 @@ TEST_F(AvmArithmeticTestsU64, subtraction)
     trace_builder.op_set(0, b, 9, AvmMemoryTag::U64);
 
     trace_builder.op_sub(0, 8, 9, 9, AvmMemoryTag::U64);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_sub(trace, FF(a), FF(b), FF(c), FF(8), FF(9), FF(9), AvmMemoryTag::U64);
@@ -1287,7 +1287,7 @@ TEST_F(AvmArithmeticTestsU64, subtractionCarry)
     trace_builder.op_set(0, b, 1, AvmMemoryTag::U64);
 
     trace_builder.op_sub(0, 0, 1, 0, AvmMemoryTag::U64);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_sub(trace, FF(a), FF(b), FF(c), FF(0), FF(1), FF(0), AvmMemoryTag::U64);
@@ -1315,7 +1315,7 @@ TEST_F(AvmArithmeticTestsU64, multiplication)
     trace_builder.op_set(0, 555444333, 1, AvmMemoryTag::U64);
 
     trace_builder.op_mul(0, 0, 1, 2, AvmMemoryTag::U64);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_mul(
@@ -1348,7 +1348,7 @@ TEST_F(AvmArithmeticTestsU64, multiplicationOverflow)
     trace_builder.op_set(0, b, 1, AvmMemoryTag::U64);
 
     trace_builder.op_mul(0, 0, 1, 2, AvmMemoryTag::U64);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_mul(trace, FF(a), FF(b), FF(1), FF(0), FF(1), FF(2), AvmMemoryTag::U64);
@@ -1414,7 +1414,7 @@ TEST_F(AvmArithmeticTestsU128, addition)
     trace_builder.op_set(0, b, 9, AvmMemoryTag::U128);
 
     trace_builder.op_add(0, 8, 9, 9, AvmMemoryTag::U128);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_add(trace,
@@ -1454,7 +1454,7 @@ TEST_F(AvmArithmeticTestsU128, additionCarry)
     trace_builder.op_set(0, b, 9, AvmMemoryTag::U128);
 
     trace_builder.op_add(0, 8, 9, 9, AvmMemoryTag::U128);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_add(trace,
@@ -1493,7 +1493,7 @@ TEST_F(AvmArithmeticTestsU128, subtraction)
     trace_builder.op_set(0, b, 9, AvmMemoryTag::U128);
 
     trace_builder.op_sub(0, 8, 9, 9, AvmMemoryTag::U128);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_sub(trace,
@@ -1535,7 +1535,7 @@ TEST_F(AvmArithmeticTestsU128, subtractionCarry)
     trace_builder.op_set(0, b, 9, AvmMemoryTag::U128);
 
     trace_builder.op_sub(0, 8, 9, 9, AvmMemoryTag::U128);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row = common_validate_sub(trace,
@@ -1573,7 +1573,7 @@ TEST_F(AvmArithmeticTestsU128, multiplication)
     FF c{ uint256_t{ 0xA7DDA0BAE60CA3A5, 0x70289AEB0, 0, 0 } };
 
     trace_builder.op_mul(0, 0, 1, 2, AvmMemoryTag::U128);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_mul(
@@ -1612,7 +1612,7 @@ TEST_F(AvmArithmeticTestsU128, multiplicationOverflow)
     trace_builder.op_set(0, b, 1, AvmMemoryTag::U128);
 
     trace_builder.op_mul(0, 0, 1, 2, AvmMemoryTag::U128);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_mul(trace,
@@ -1758,7 +1758,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, multiplication)
 // Test on basic incorrect division over finite field type.
 TEST_F(AvmArithmeticNegativeTestsFF, fDivision)
 {
-    trace_builder.calldata_copy(0, 0, 2, 0, std::vector<FF>{ 15, 315 });
+    trace_builder.op_calldata_copy(0, 0, 2, 0, std::vector<FF>{ 15, 315 });
 
     //                  Memory layout:    [15,315,0,0,0,0,....]
     trace_builder.op_fdiv(0, 1, 0, 2); // [15,315,21,0,0,0....]
@@ -1775,7 +1775,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, fDivision)
 // in the trace.
 TEST_F(AvmArithmeticNegativeTestsFF, fDivisionNoZeroButError)
 {
-    trace_builder.calldata_copy(0, 0, 2, 0, std::vector<FF>{ 15, 315 });
+    trace_builder.op_calldata_copy(0, 0, 2, 0, std::vector<FF>{ 15, 315 });
 
     //                  Memory layout:    [15,315,0,0,0,0,....]
     trace_builder.op_fdiv(0, 1, 0, 2); // [15,315,21,0,0,0....]
@@ -1801,7 +1801,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, fDivisionNoZeroButError)
 // Test with finite field division by zero occurs and no error is raised (remove error flag)
 TEST_F(AvmArithmeticNegativeTestsFF, fDivisionByZeroNoError)
 {
-    trace_builder.calldata_copy(0, 0, 1, 0, std::vector<FF>{ 15 });
+    trace_builder.op_calldata_copy(0, 0, 1, 0, std::vector<FF>{ 15 });
 
     //                  Memory layout:    [15,0,0,0,0,0,....]
     trace_builder.op_fdiv(0, 0, 1, 2); // [15,0,0,0,0,0....]
@@ -1837,7 +1837,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, fDivisionZeroByZeroNoError)
 // Test with finite field division using a wrong read instruction tag
 TEST_F(AvmArithmeticNegativeTestsFF, fDivisionWrongRInTag)
 {
-    trace_builder.calldata_copy(0, 0, 1, 0, std::vector<FF>{ 18, 6 });
+    trace_builder.op_calldata_copy(0, 0, 1, 0, std::vector<FF>{ 18, 6 });
     //                  Memory layout:    [18,6,0,0,0,0,....]
     trace_builder.op_fdiv(0, 0, 1, 2); // [18,6,3,0,0,0....]
     trace_builder.halt();
@@ -1855,7 +1855,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, fDivisionWrongRInTag)
 // Test with finite field division using a wrong write instruction tag
 TEST_F(AvmArithmeticNegativeTestsFF, fDivisionWrongWInTag)
 {
-    trace_builder.calldata_copy(0, 0, 1, 0, std::vector<FF>{ 18, 6 });
+    trace_builder.op_calldata_copy(0, 0, 1, 0, std::vector<FF>{ 18, 6 });
     //                  Memory layout:    [18,6,0,0,0,0,....]
     trace_builder.op_fdiv(0, 0, 1, 2); // [18,6,3,0,0,0....]
     trace_builder.halt();
@@ -1874,11 +1874,11 @@ TEST_F(AvmArithmeticNegativeTestsFF, fDivisionWrongWInTag)
 // the addition, subtraction, multiplication.
 TEST_F(AvmArithmeticNegativeTestsFF, operationWithErrorFlag1)
 {
-    trace_builder.calldata_copy(0, 0, 3, 0, std::vector<FF>{ 37, 4, 11 });
+    trace_builder.op_calldata_copy(0, 0, 3, 0, std::vector<FF>{ 37, 4, 11 });
 
     //                             Memory layout:    [37,4,11,0,0,0,....]
     trace_builder.op_add(0, 0, 1, 4, AvmMemoryTag::FF); // [37,4,11,0,41,0,....]
-    trace_builder.return_op(0, 0, 5);
+    trace_builder.op_return(0, 0, 5);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
 
@@ -1893,11 +1893,11 @@ TEST_F(AvmArithmeticNegativeTestsFF, operationWithErrorFlag1)
 
 TEST_F(AvmArithmeticNegativeTestsFF, operationWithErrorFlag2)
 {
-    trace_builder.calldata_copy(0, 0, 3, 0, std::vector<FF>{ 8, 4, 17 });
+    trace_builder.op_calldata_copy(0, 0, 3, 0, std::vector<FF>{ 8, 4, 17 });
 
     //                             Memory layout:    [8,4,17,0,0,0,....]
     trace_builder.op_sub(0, 2, 0, 1, AvmMemoryTag::FF); // [8,9,17,0,0,0....]
-    trace_builder.return_op(0, 0, 3);
+    trace_builder.op_return(0, 0, 3);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the subtraction selector
@@ -1911,11 +1911,11 @@ TEST_F(AvmArithmeticNegativeTestsFF, operationWithErrorFlag2)
 
 TEST_F(AvmArithmeticNegativeTestsFF, operationWithErrorFlag3)
 {
-    trace_builder.calldata_copy(0, 0, 3, 0, std::vector<FF>{ 5, 0, 20 });
+    trace_builder.op_calldata_copy(0, 0, 3, 0, std::vector<FF>{ 5, 0, 20 });
 
     //                             Memory layout:    [5,0,20,0,0,0,....]
     trace_builder.op_mul(0, 2, 0, 1, AvmMemoryTag::FF); // [5,100,20,0,0,0....]
-    trace_builder.return_op(0, 0, 3);
+    trace_builder.op_return(0, 0, 3);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the multiplication selector
@@ -1954,9 +1954,9 @@ TEST_F(AvmArithmeticNegativeTestsFF, nonBooleanEq)
 TEST_F(AvmArithmeticNegativeTestsFF, eqOutputWrongTag)
 {
     FF elem = FF::modulus - FF(15);
-    trace_builder.calldata_copy(0, 0, 2, 0, std::vector<FF>{ elem, elem });
+    trace_builder.op_calldata_copy(0, 0, 2, 0, std::vector<FF>{ elem, elem });
     trace_builder.op_eq(0, 0, 1, 2, AvmMemoryTag::FF); // Memory Layout [elem, elem, 1, 0..]
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the eq selector
@@ -2306,7 +2306,7 @@ TEST_F(AvmArithmeticNegativeTestsU128, multiplicationSecondRowNoOp)
     trace_builder.op_set(0, 4, 1, AvmMemoryTag::U128);
 
     trace_builder.op_mul(0, 0, 1, 2, AvmMemoryTag::U128);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_mul(trace, FF(3), FF(4), FF(12), FF(0), FF(1), FF(2), AvmMemoryTag::U128);

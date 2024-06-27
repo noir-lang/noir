@@ -1888,7 +1888,7 @@ void AvmTraceBuilder::op_div(
  * @param dst_offset The starting index of memory where calldata will be copied to.
  * @param call_data_mem The vector containing calldata.
  */
-void AvmTraceBuilder::calldata_copy(
+void AvmTraceBuilder::op_calldata_copy(
     uint8_t indirect, uint32_t cd_offset, uint32_t copy_size, uint32_t dst_offset, std::vector<FF> const& call_data_mem)
 {
     // We parallelize storing memory operations in chunk of 3, i.e., 1 per intermediate register.
@@ -1998,7 +1998,7 @@ void AvmTraceBuilder::calldata_copy(
 // Credit to SEAN for coming up with this revert opcode
 std::vector<FF> AvmTraceBuilder::op_revert(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size)
 {
-    return return_op(indirect, ret_offset, ret_size);
+    return op_return(indirect, ret_offset, ret_size);
 }
 
 /**
@@ -2016,7 +2016,7 @@ std::vector<FF> AvmTraceBuilder::op_revert(uint8_t indirect, uint32_t ret_offset
  * @param ret_size The number of elements to be returned.
  * @return The returned memory region as a std::vector.
  */
-std::vector<FF> AvmTraceBuilder::return_op(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size)
+std::vector<FF> AvmTraceBuilder::op_return(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size)
 {
     if (ret_size == 0) {
         halt();
@@ -2212,7 +2212,7 @@ void AvmTraceBuilder::op_dagasleft(uint8_t indirect, uint32_t dst_offset)
  *
  * @param jmp_dest - The destination to jump to
  */
-void AvmTraceBuilder::jump(uint32_t jmp_dest)
+void AvmTraceBuilder::op_jump(uint32_t jmp_dest)
 {
     auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
@@ -2242,7 +2242,7 @@ void AvmTraceBuilder::jump(uint32_t jmp_dest)
  * @param jmp_dest The destination to jump to
  * @param cond_offset Offset of the condition
  */
-void AvmTraceBuilder::jumpi(uint8_t indirect, uint32_t jmp_dest, uint32_t cond_offset)
+void AvmTraceBuilder::op_jumpi(uint8_t indirect, uint32_t jmp_dest, uint32_t cond_offset)
 {
     auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
@@ -2304,7 +2304,7 @@ void AvmTraceBuilder::jumpi(uint8_t indirect, uint32_t jmp_dest, uint32_t cond_o
  *
  * @param jmp_dest - The destination to jump to
  */
-void AvmTraceBuilder::internal_call(uint32_t jmp_dest)
+void AvmTraceBuilder::op_internal_call(uint32_t jmp_dest)
 {
     auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
 
@@ -2350,7 +2350,7 @@ void AvmTraceBuilder::internal_call(uint32_t jmp_dest)
  *  TODO(https://github.com/AztecProtocol/aztec-packages/issues/3740): This function MUST come after a call
  * instruction.
  */
-void AvmTraceBuilder::internal_return()
+void AvmTraceBuilder::op_internal_return()
 {
     auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
 

@@ -140,17 +140,17 @@ class AvmTraceBuilder {
     void op_dagasleft(uint8_t indirect, uint32_t dst_offset);
 
     // Jump to a given program counter.
-    void jump(uint32_t jmp_dest);
+    void op_jump(uint32_t jmp_dest);
 
     // Jump conditionally to a given program counter.
-    void jumpi(uint8_t indirect, uint32_t jmp_dest, uint32_t cond_offset);
+    void op_jumpi(uint8_t indirect, uint32_t jmp_dest, uint32_t cond_offset);
 
     // Jump to a given program counter; storing the return location on a call stack.
     // TODO(md): this program counter MUST be an operand to the OPCODE.
-    void internal_call(uint32_t jmp_dest);
+    void op_internal_call(uint32_t jmp_dest);
 
     // Return from a jump.
-    void internal_return();
+    void op_internal_return();
 
     // Halt -> stop program execution.
     void halt();
@@ -158,18 +158,18 @@ class AvmTraceBuilder {
     // CALLDATACOPY opcode with direct/indirect memory access, i.e.,
     // direct: M[dst_offset:dst_offset+copy_size] = calldata[cd_offset:cd_offset+copy_size]
     // indirect: M[M[dst_offset]:M[dst_offset]+copy_size] = calldata[cd_offset:cd_offset+copy_size]
-    void calldata_copy(uint8_t indirect,
-                       uint32_t cd_offset,
-                       uint32_t copy_size,
-                       uint32_t dst_offset,
-                       std::vector<FF> const& call_data_mem);
+    void op_calldata_copy(uint8_t indirect,
+                          uint32_t cd_offset,
+                          uint32_t copy_size,
+                          uint32_t dst_offset,
+                          std::vector<FF> const& call_data_mem);
 
     // REVERT Opcode (that just call return under the hood for now)
     std::vector<FF> op_revert(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size);
     // RETURN opcode with direct and indirect memory access, i.e.,
     // direct:   return(M[ret_offset:ret_offset+ret_size])
     // indirect: return(M[M[ret_offset]:M[ret_offset]+ret_size])
-    std::vector<FF> return_op(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size);
+    std::vector<FF> op_return(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size);
 
     // Calls
     void op_call(uint8_t indirect,

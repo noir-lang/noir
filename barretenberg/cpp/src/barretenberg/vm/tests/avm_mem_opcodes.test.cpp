@@ -56,7 +56,7 @@ class AvmMemOpcodeTests : public ::testing::Test {
         }
 
         trace_builder.op_mov(indirect ? 3 : 0, src_offset, dst_offset);
-        trace_builder.return_op(0, 0, 0);
+        trace_builder.op_return(0, 0, 0);
         trace = trace_builder.finalize();
     }
 
@@ -67,7 +67,7 @@ class AvmMemOpcodeTests : public ::testing::Test {
         trace_builder.op_set(0, mov_a ? 9871 : 0, 20, AvmMemoryTag::U64); // Non-zero/zero condition value (we move a/b)
 
         trace_builder.op_cmov(0, 10, 11, 20, 12);
-        trace_builder.return_op(0, 0, 0);
+        trace_builder.op_return(0, 0, 0);
         trace = trace_builder.finalize();
 
         compute_cmov_indices(0);
@@ -361,7 +361,7 @@ TEST_F(AvmMemOpcodeTests, uninitializedValueMov)
 {
     trace_builder.op_set(0, 4, 1, AvmMemoryTag::U32);
     trace_builder.op_mov(0, 0, 1);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
 
     validate_mov_trace(false, 0, 0, 1, AvmMemoryTag::U0);
@@ -372,7 +372,7 @@ TEST_F(AvmMemOpcodeTests, indUninitializedValueMov)
     trace_builder.op_set(0, 1, 3, AvmMemoryTag::U32);
     trace_builder.op_set(0, 4, 1, AvmMemoryTag::U32);
     trace_builder.op_mov(3, 2, 3);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
 
     validate_mov_trace(true, 0, 2, 3, AvmMemoryTag::U0, 0, 1, true);
@@ -390,7 +390,7 @@ TEST_F(AvmMemOpcodeTests, indirectMovInvalidAddressTag)
     trace_builder.op_set(0, 16, 101, AvmMemoryTag::U128); // This will make the indirect load failing.
     trace_builder.op_set(0, 5, 15, AvmMemoryTag::FF);
     trace_builder.op_mov(3, 100, 101);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
 
     compute_mov_indices(true);
@@ -417,7 +417,7 @@ TEST_F(AvmMemOpcodeTests, allDirectCMovA)
     trace_builder.op_set(0, 8, 12, AvmMemoryTag::U32);      // Target, should be overwritten
 
     trace_builder.op_cmov(0, 10, 11, 20, 12);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
 
     compute_cmov_indices(0);
@@ -434,7 +434,7 @@ TEST_F(AvmMemOpcodeTests, allDirectCMovB)
     trace_builder.op_set(0, 8, 12, AvmMemoryTag::U32);   // Target, should be overwritten
 
     trace_builder.op_cmov(0, 10, 11, 20, 12);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
 
     compute_cmov_indices(0);
@@ -451,7 +451,7 @@ TEST_F(AvmMemOpcodeTests, allDirectCMovConditionUninitialized)
                                                          // value. It will be therefore zero. (we move b)
 
     trace_builder.op_cmov(0, 10, 11, 20, 12);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
 
     compute_cmov_indices(0);
@@ -467,7 +467,7 @@ TEST_F(AvmMemOpcodeTests, allDirectCMovOverwriteA)
     trace_builder.op_set(0, 0, 20, AvmMemoryTag::U64);   // Zero condition value (we move b)
 
     trace_builder.op_cmov(0, 10, 11, 20, 10);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
 
     compute_cmov_indices(0);
@@ -494,7 +494,7 @@ TEST_F(AvmMemOpcodeTests, allIndirectCMovA)
     trace_builder.op_set(0, 8, 12, AvmMemoryTag::U32);      // Target, should be overwritten
 
     trace_builder.op_cmov(15, 110, 111, 120, 112);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
 
     compute_cmov_indices(15);
@@ -506,7 +506,7 @@ TEST_F(AvmMemOpcodeTests, allIndirectCMovA)
 TEST_F(AvmMemOpcodeTests, allIndirectCMovAllUnitialized)
 {
     trace_builder.op_cmov(15, 10, 11, 20, 10);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
 
     compute_cmov_indices(15);
@@ -521,7 +521,7 @@ TEST_F(AvmMemOpcodeTests, allIndirectCMovAllUnitialized)
 TEST_F(AvmMemOpcodeTests, directSet)
 {
     trace_builder.op_set(0, 5683, 99, AvmMemoryTag::U128);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
 
     compute_index_c(1, false);
@@ -549,7 +549,7 @@ TEST_F(AvmMemOpcodeTests, indirectSet)
 {
     trace_builder.op_set(0, 100, 10, AvmMemoryTag::U32);
     trace_builder.op_set(1, 1979, 10, AvmMemoryTag::U64); // Set 1979 at memory index 100
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
 
     compute_index_c(2, true);
@@ -589,7 +589,7 @@ TEST_F(AvmMemOpcodeTests, indirectSetWrongTag)
 {
     trace_builder.op_set(0, 100, 10, AvmMemoryTag::U8);   // The address 100 has incorrect tag U8.
     trace_builder.op_set(1, 1979, 10, AvmMemoryTag::U64); // Set 1979 at memory index 100
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
 
     compute_index_c(2, true);

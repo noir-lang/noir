@@ -433,11 +433,11 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
             break;
             // Execution Environment - Calldata
         case OpCode::CALLDATACOPY:
-            trace_builder.calldata_copy(std::get<uint8_t>(inst.operands.at(0)),
-                                        std::get<uint32_t>(inst.operands.at(1)),
-                                        std::get<uint32_t>(inst.operands.at(2)),
-                                        std::get<uint32_t>(inst.operands.at(3)),
-                                        calldata);
+            trace_builder.op_calldata_copy(std::get<uint8_t>(inst.operands.at(0)),
+                                           std::get<uint32_t>(inst.operands.at(1)),
+                                           std::get<uint32_t>(inst.operands.at(2)),
+                                           std::get<uint32_t>(inst.operands.at(3)),
+                                           calldata);
             break;
         // Machine State - Gas
         case OpCode::L2GASLEFT:
@@ -543,18 +543,18 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
             break;
             // Machine State - Internal Control Flow
         case OpCode::JUMP:
-            trace_builder.jump(std::get<uint32_t>(inst.operands.at(0)));
+            trace_builder.op_jump(std::get<uint32_t>(inst.operands.at(0)));
             break;
         case OpCode::JUMPI:
-            trace_builder.jumpi(std::get<uint8_t>(inst.operands.at(0)),
-                                std::get<uint32_t>(inst.operands.at(1)),
-                                std::get<uint32_t>(inst.operands.at(2)));
+            trace_builder.op_jumpi(std::get<uint8_t>(inst.operands.at(0)),
+                                   std::get<uint32_t>(inst.operands.at(1)),
+                                   std::get<uint32_t>(inst.operands.at(2)));
             break;
         case OpCode::INTERNALCALL:
-            trace_builder.internal_call(std::get<uint32_t>(inst.operands.at(0)));
+            trace_builder.op_internal_call(std::get<uint32_t>(inst.operands.at(0)));
             break;
         case OpCode::INTERNALRETURN:
-            trace_builder.internal_return();
+            trace_builder.op_internal_return();
             break;
             // Machine State - Memory
         case OpCode::SET: {
@@ -599,7 +599,7 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
             break;
             // Control Flow - Contract Calls
         case OpCode::RETURN: {
-            auto ret = trace_builder.return_op(std::get<uint8_t>(inst.operands.at(0)),
+            auto ret = trace_builder.op_return(std::get<uint8_t>(inst.operands.at(0)),
                                                std::get<uint32_t>(inst.operands.at(1)),
                                                std::get<uint32_t>(inst.operands.at(2)));
             returndata.insert(returndata.end(), ret.begin(), ret.end());
@@ -609,7 +609,7 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
         case OpCode::DEBUGLOG:
             // We want a noop, but we need to execute something that both advances the PC,
             // and adds a valid row to the trace.
-            trace_builder.jump(pc + 1);
+            trace_builder.op_jump(pc + 1);
             break;
         case OpCode::CALL:
             trace_builder.op_call(std::get<uint8_t>(inst.operands.at(0)),

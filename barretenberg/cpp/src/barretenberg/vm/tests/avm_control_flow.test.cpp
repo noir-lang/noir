@@ -63,7 +63,7 @@ TEST_F(AvmControlFlowTests, simpleCall)
     // pc   opcode
     // 0    INTERNAL_CALL(pc=4)
     // 4    HALT
-    trace_builder.internal_call(CALL_PC);
+    trace_builder.op_internal_call(CALL_PC);
     trace_builder.halt();
 
     auto trace = trace_builder.finalize();
@@ -98,7 +98,7 @@ TEST_F(AvmControlFlowTests, simpleJump)
     // pc   opcode
     // 0    JUMP(pc=4)
     // 4    HALT
-    trace_builder.jump(JUMP_PC);
+    trace_builder.op_jump(JUMP_PC);
     trace_builder.halt();
 
     auto trace = trace_builder.finalize();
@@ -132,8 +132,8 @@ TEST_F(AvmControlFlowTests, simpleCallAndReturn)
     // 0    INTERNAL_CALL(pc=20)
     // 20   INTERNAL_RETURN
     // 1    HALT
-    trace_builder.internal_call(CALL_PC);
-    trace_builder.internal_return();
+    trace_builder.op_internal_call(CALL_PC);
+    trace_builder.op_internal_return();
     trace_builder.halt();
 
     auto trace = trace_builder.finalize();
@@ -191,15 +191,15 @@ TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
     // 22    INTERNAL_RETURN
     // 421   INTERNAL_RETURN
     // 1     HALT
-    trace_builder.internal_call(CALL_PC_1);
-    trace_builder.internal_call(CALL_PC_2);
-    trace_builder.internal_call(CALL_PC_3);
-    trace_builder.internal_return();
-    trace_builder.internal_call(CALL_PC_4);
-    trace_builder.internal_return();
-    trace_builder.jump(JUMP_PC_1);
-    trace_builder.internal_return();
-    trace_builder.internal_return();
+    trace_builder.op_internal_call(CALL_PC_1);
+    trace_builder.op_internal_call(CALL_PC_2);
+    trace_builder.op_internal_call(CALL_PC_3);
+    trace_builder.op_internal_return();
+    trace_builder.op_internal_call(CALL_PC_4);
+    trace_builder.op_internal_return();
+    trace_builder.op_jump(JUMP_PC_1);
+    trace_builder.op_internal_return();
+    trace_builder.op_internal_return();
     trace_builder.halt();
 
     auto trace = trace_builder.finalize();

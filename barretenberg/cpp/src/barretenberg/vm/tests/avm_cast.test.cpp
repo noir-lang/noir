@@ -34,7 +34,7 @@ class AvmCastTests : public ::testing::Test {
     {
         trace_builder.op_set(0, a, src_address, src_tag);
         trace_builder.op_cast(0, src_address, dst_address, dst_tag);
-        trace_builder.return_op(0, 0, 0);
+        trace_builder.op_return(0, 0, 0);
         trace = trace_builder.finalize();
         gen_indices();
     }
@@ -171,9 +171,9 @@ TEST_F(AvmCastTests, noTruncationFFToU32)
 
 TEST_F(AvmCastTests, truncationFFToU16ModMinus1)
 {
-    trace_builder.calldata_copy(0, 0, 1, 0, { FF(FF::modulus - 1) });
+    trace_builder.op_calldata_copy(0, 0, 1, 0, { FF(FF::modulus - 1) });
     trace_builder.op_cast(0, 0, 1, AvmMemoryTag::U16);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
     gen_indices();
 
@@ -182,9 +182,9 @@ TEST_F(AvmCastTests, truncationFFToU16ModMinus1)
 
 TEST_F(AvmCastTests, truncationFFToU16ModMinus2)
 {
-    trace_builder.calldata_copy(0, 0, 1, 0, { FF(FF::modulus_minus_two) });
+    trace_builder.op_calldata_copy(0, 0, 1, 0, { FF(FF::modulus_minus_two) });
     trace_builder.op_cast(0, 0, 1, AvmMemoryTag::U16);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
     gen_indices();
 
@@ -208,7 +208,7 @@ TEST_F(AvmCastTests, indirectAddrTruncationU64ToU8)
     trace_builder.op_set(0, 11, 1, AvmMemoryTag::U32);
     trace_builder.op_set(0, 256'000'000'203UL, 10, AvmMemoryTag::U64);
     trace_builder.op_cast(3, 0, 1, AvmMemoryTag::U8);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
     gen_indices();
 
@@ -223,7 +223,7 @@ TEST_F(AvmCastTests, indirectAddrWrongResolutionU64ToU8)
     trace_builder.op_set(0, 11, 6, AvmMemoryTag::U32);
     trace_builder.op_set(0, 4234, 10, AvmMemoryTag::U64);
     trace_builder.op_cast(3, 5, 6, AvmMemoryTag::U8);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
 
     auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_cast == FF(1); });
@@ -291,9 +291,9 @@ TEST_F(AvmCastNegativeTests, wrongOutputAluIc)
 
 TEST_F(AvmCastNegativeTests, wrongLimbDecompositionInput)
 {
-    trace_builder.calldata_copy(0, 0, 1, 0, { FF(FF::modulus_minus_two) });
+    trace_builder.op_calldata_copy(0, 0, 1, 0, { FF(FF::modulus_minus_two) });
     trace_builder.op_cast(0, 0, 1, AvmMemoryTag::U16);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
     gen_indices();
 
@@ -314,9 +314,9 @@ TEST_F(AvmCastNegativeTests, wrongPSubALo)
 
 TEST_F(AvmCastNegativeTests, wrongPSubAHi)
 {
-    trace_builder.calldata_copy(0, 0, 1, 0, { FF(FF::modulus_minus_two - 987) });
+    trace_builder.op_calldata_copy(0, 0, 1, 0, { FF(FF::modulus_minus_two - 987) });
     trace_builder.op_cast(0, 0, 1, AvmMemoryTag::U16);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
     gen_indices();
 
@@ -352,9 +352,9 @@ TEST_F(AvmCastNegativeTests, wrongRangeCheckDecompositionLo)
 
 TEST_F(AvmCastNegativeTests, wrongRangeCheckDecompositionHi)
 {
-    trace_builder.calldata_copy(0, 0, 1, 0, { FF(FF::modulus_minus_two - 987) });
+    trace_builder.op_calldata_copy(0, 0, 1, 0, { FF(FF::modulus_minus_two - 987) });
     trace_builder.op_cast(0, 0, 1, AvmMemoryTag::U16);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
     gen_indices();
 
@@ -396,9 +396,9 @@ TEST_F(AvmCastNegativeTests, wrongCopySubLoForRangeCheck)
 
 TEST_F(AvmCastNegativeTests, wrongCopySubHiForRangeCheck)
 {
-    trace_builder.calldata_copy(0, 0, 1, 0, { FF(FF::modulus_minus_two - 972836) });
+    trace_builder.op_calldata_copy(0, 0, 1, 0, { FF(FF::modulus_minus_two - 972836) });
     trace_builder.op_cast(0, 0, 1, AvmMemoryTag::U128);
-    trace_builder.return_op(0, 0, 0);
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
     gen_indices();
 

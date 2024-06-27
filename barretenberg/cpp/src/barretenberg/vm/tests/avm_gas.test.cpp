@@ -61,7 +61,7 @@ TEST_F(AvmGasPositiveTests, gasAdd)
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         // trace_builder.set()
         trace_builder.op_add(0, 1, 2, 3, AvmMemoryTag::FF);
-        trace_builder.return_op(0, 0, 0);
+        trace_builder.op_return(0, 0, 0);
     };
 
     auto checks = [=](const std::vector<Row>& trace) {
