@@ -47,7 +47,7 @@ fn on_prepare_rename_inner(
         interner = def_interner;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, false);
+        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, true);
         interner = &context.def_interner;
     }
 
@@ -109,7 +109,7 @@ fn on_rename_inner(
         interner = def_interner;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, false);
+        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, true);
         interner = &context.def_interner;
     }
 
@@ -159,4 +159,145 @@ fn on_rename_inner(
         WorkspaceEdit { changes: rename_changes, document_changes: None, change_annotations: None };
 
     Ok(Some(response))
+}
+
+#[cfg(test)]
+mod rename_tests {
+    use super::*;
+    use acvm::blackbox_solver::StubbedBlackBoxSolver;
+    use async_lsp::ClientSocket;
+    use lsp_types::{Position, Range, WorkDoneProgressParams};
+    use tokio::test;
+
+    async fn setup() -> (LspState, Url) {
+        let client = ClientSocket::new_closed();
+        let mut state = LspState::new(&client, StubbedBlackBoxSolver);
+
+        let root_path = std::env::current_dir()
+            .unwrap()
+            .join("../../test_programs/execution_success/7_function")
+            .canonicalize()
+            .expect("Could not resolve root path");
+        let noir_text_document = Url::from_file_path(root_path.join("src/main.nr").as_path())
+            .expect("Could not convert text document path to URI");
+        let root_uri = Some(
+            Url::from_file_path(root_path.as_path()).expect("Could not convert root path to URI"),
+        );
+
+        #[allow(deprecated)]
+        let initialize_params = lsp_types::InitializeParams {
+            process_id: Default::default(),
+            root_path: None,
+            root_uri,
+            initialization_options: None,
+            capabilities: Default::default(),
+            trace: Some(lsp_types::TraceValue::Verbose),
+            workspace_folders: None,
+            client_info: None,
+            locale: None,
+        };
+
+        let _initialize_response = crate::requests::on_initialize(&mut state, initialize_params)
+            .await
+            .expect("Could not initialize LSP server");
+
+        (state, noir_text_document)
+    }
+
+    #[test]
+    async fn test_on_prepare_rename_request_cannot_be_applied() {
+        let (mut state, noir_text_document) = setup().await;
+
+        let params = TextDocumentPositionParams {
+            text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
+            position: lsp_types::Position { line: 0, character: 0 }, // This is at the "f" of an "fn" keyword
+        };
+
+        let response = on_prepare_rename_request(&mut state, params)
+            .await
+            .expect("Could not execute on_prepare_rename_request");
+
+        assert_eq!(
+            response,
+            Some(PrepareRenameResponse::DefaultBehavior { default_behavior: false })
+        );
+    }
+
+    #[test]
+    async fn test_on_prepare_rename_request_can_be_applied_at_function_declaration() {
+        let (mut state, noir_text_document) = setup().await;
+
+        let params = TextDocumentPositionParams {
+            text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
+            position: lsp_types::Position { line: 70, character: 3 }, // This is at the "t" of "test_multiple4"
+        };
+
+        let response = on_prepare_rename_request(&mut state, params)
+            .await
+            .expect("Could not execute on_prepare_rename_request");
+
+        assert_eq!(
+            response,
+            Some(PrepareRenameResponse::DefaultBehavior { default_behavior: true })
+        );
+    }
+
+    #[test]
+    async fn test_on_prepare_rename_request_can_be_applied_at_function_reference() {
+        let (mut state, noir_text_document) = setup().await;
+
+        let params = TextDocumentPositionParams {
+            text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
+            position: lsp_types::Position { line: 79, character: 4 }, // This is at the "t" of "test_multiple4"
+        };
+
+        let response = on_prepare_rename_request(&mut state, params)
+            .await
+            .expect("Could not execute on_prepare_rename_request");
+
+        assert_eq!(
+            response,
+            Some(PrepareRenameResponse::DefaultBehavior { default_behavior: true })
+        );
+    }
+
+    #[test]
+    async fn test_on_rename_request() {
+        let (mut state, noir_text_document) = setup().await;
+
+        let params = RenameParams {
+            text_document_position: TextDocumentPositionParams {
+                text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
+                position: lsp_types::Position { line: 79, character: 4 }, // This is at the "t" of "test_multiple4"
+            },
+            new_name: "renamed_test_multiple4".to_string(),
+            work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+        };
+
+        let response = on_rename_request(&mut state, params)
+            .await
+            .expect("Could not execute on_prepare_rename_request")
+            .unwrap();
+
+        let changes = response.changes.expect("Expected to find rename changes");
+        let mut changes: Vec<Range> = changes.values().flatten().map(|edit| edit.range).collect();
+        changes.sort_by_key(|range| range.start.line);
+        assert_eq!(
+            changes,
+            vec![
+                Range {
+                    start: Position { line: 70, character: 3 },
+                    end: Position { line: 70, character: 17 },
+                },
+                Range {
+                    start: Position { line: 79, character: 4 },
+                    end: Position { line: 79, character: 18 },
+                },
+                Range {
+                    start: Position { line: 94, character: 4 },
+                    end: Position { line: 94, character: 18 },
+                },
+            ]
+        );
+    }
 }
