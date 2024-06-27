@@ -53,9 +53,7 @@ impl<'interner> Interpreter<'interner> {
     /// Otherwise, scan through its expression for any comptime blocks to evaluate.
     pub fn scan_global(&mut self, global: GlobalId) -> IResult<()> {
         if let Some(let_) = self.interner.get_global_let_statement(global) {
-            // dbg!(let_.clone());
             if let_.comptime {
-                dbg!("got here");
                 self.evaluate_let(let_)?;
             } else {
                 self.scan_expression(let_.expression)?;
@@ -102,7 +100,7 @@ impl<'interner> Interpreter<'interner> {
             // missed it somehow. In the future we may allow users to manually write unquote
             // expressions in their code but for now this is unreachable.
             HirExpression::Unquote(block) => {
-                unreachable!("Found unquote block while scanning: {block}")
+                unreachable!("Found unquote block while scanning: {block:?}")
             }
         }
     }

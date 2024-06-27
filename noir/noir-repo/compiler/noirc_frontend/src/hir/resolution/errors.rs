@@ -98,6 +98,16 @@ pub enum ResolverError {
     FoldAttributeOnUnconstrained { ident: Ident },
     #[error("Invalid array length construction")]
     ArrayLengthInterpreter { error: InterpreterError },
+    #[error("The unquote operator '$' can only be used within a quote expression")]
+    UnquoteUsedOutsideQuote { span: Span },
+    #[error("Invalid syntax in macro call")]
+    InvalidSyntaxInMacroCall { span: Span },
+    #[error("Macros must be comptime functions")]
+    MacroIsNotComptime { span: Span },
+    #[error("Annotation name must refer to a comptime function")]
+    NonFunctionInAnnotation { span: Span },
+    #[error("Unknown annotation")]
+    UnknownAnnotation { span: Span },
 }
 
 impl ResolverError {
@@ -312,7 +322,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 ident.span(),
             ),
-            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_error(
+            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_warning(
                 error.to_string(),
                 "Oracle functions must have the `unconstrained` keyword applied".into(),
                 ident.span(),
@@ -384,6 +394,41 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag
             }
             ResolverError::ArrayLengthInterpreter { error } => Diagnostic::from(error),
+            ResolverError::UnquoteUsedOutsideQuote { span } => {
+                Diagnostic::simple_error(
+                    "The unquote operator '$' can only be used within a quote expression".into(),
+                    "".into(),
+                    *span,
+                )
+            },
+            ResolverError::InvalidSyntaxInMacroCall { span } => {
+                Diagnostic::simple_error(
+                    "Invalid syntax in macro call".into(),
+                    "Macro calls must call a comptime function directly, they cannot use higher-order functions".into(),
+                    *span,
+                )
+            },
+            ResolverError::MacroIsNotComptime { span } => {
+                Diagnostic::simple_error(
+                    "This macro call is to a non-comptime function".into(),
+                    "Macro calls must be to comptime functions".into(),
+                    *span,
+                )
+            },
+            ResolverError::NonFunctionInAnnotation { span } => {
+                Diagnostic::simple_error(
+                    "Unknown annotation".into(),
+                    "The name of an annotation must refer to a comptime function".into(),
+                    *span,
+                )
+            },
+            ResolverError::UnknownAnnotation { span } => {
+                Diagnostic::simple_warning(
+                    "Unknown annotation".into(),
+                    "No matching comptime function found in scope".into(),
+                    *span,
+                )
+            },
         }
     }
 }

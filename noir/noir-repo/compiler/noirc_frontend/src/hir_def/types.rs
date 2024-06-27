@@ -105,7 +105,7 @@ pub enum Type {
     Constant(u32),
 
     /// The type of quoted code in macros. This is always a comptime-only type
-    Code,
+    Quoted(QuotedType),
 
     /// The result of some type error. Remembering type errors as their own type variant lets
     /// us avoid issuing repeat type errors for the same item. For example, a lambda with
@@ -147,7 +147,7 @@ impl Type {
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             | Type::Constant(_)
-            | Type::Code
+            | Type::Quoted(_)
             | Type::Slice(_)
             | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
         }
@@ -185,6 +185,15 @@ impl Type {
             _ => false,
         }
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+pub enum QuotedType {
+    Expr,
+    Quoted,
+    TopLevelItem,
+    Type,
+    TypeDefinition,
 }
 
 /// A list of TypeVariableIds to bind to a type. Storing the
@@ -285,6 +294,16 @@ impl StructType {
             let name = name.0.contents.clone();
             (name, typ.substitute(&substitutions))
         })
+    }
+
+    /// Returns the name and raw types of each field of this type.
+    /// This will not substitute any generic arguments so a generic field like `x`
+    /// in `struct Foo<T> { x: T }` will return a `("x", T)` pair.
+    ///
+    /// This method is almost never what is wanted for type checking or monomorphization,
+    /// prefer to use `get_fields` whenever possible.
+    pub fn get_fields_as_written(&self) -> Vec<(String, Type)> {
+        vecmap(&self.fields, |(name, typ)| (name.0.contents.clone(), typ.clone()))
     }
 
     pub fn field_names(&self) -> BTreeSet<Ident> {
@@ -644,7 +663,7 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::Forall(_, _)
-            | Type::Code => false,
+            | Type::Quoted(_) => false,
 
             Type::TraitAsType(_, _, args) => {
                 args.iter().any(|generic| generic.contains_numeric_typevar(target_id))
@@ -710,7 +729,7 @@ impl Type {
             | Type::Function(_, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
-            | Type::Code
+            | Type::Quoted(_)
             | Type::Slice(_)
             | Type::TraitAsType(..) => false,
 
@@ -759,7 +778,7 @@ impl Type {
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             // TODO: probably can allow code as it is all compile time
-            | Type::Code
+            | Type::Quoted(_)
             | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {
@@ -777,6 +796,49 @@ impl Type {
                 .get_fields(generics)
                 .into_iter()
                 .all(|(_, field)| field.is_valid_non_inlined_function_input()),
+        }
+    }
+
+    /// Returns true if a value of this type can safely pass between constrained and
+    /// unconstrained functions (and vice-versa).
+    pub(crate) fn is_valid_for_unconstrained_boundary(&self) -> bool {
+        match self {
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Constant(_)
+            | Type::Slice(_)
+            | Type::TypeVariable(_, _)
+            | Type::NamedGeneric(_, _)
+            | Type::Function(_, _, _)
+            | Type::FmtString(_, _)
+            | Type::Error => true,
+
+            // Quoted objects only exist at compile-time where the only execution
+            // environment is the interpreter. In this environment, they are valid.
+            Type::Quoted(_) => true,
+
+            Type::MutableReference(_) | Type::Forall(_, _) | Type::TraitAsType(..) => false,
+
+            Type::Alias(alias, generics) => {
+                let alias = alias.borrow();
+                alias.get_type(generics).is_valid_for_unconstrained_boundary()
+            }
+
+            Type::Array(length, element) => {
+                length.is_valid_for_unconstrained_boundary()
+                    && element.is_valid_for_unconstrained_boundary()
+            }
+            Type::String(length) => length.is_valid_for_unconstrained_boundary(),
+            Type::Tuple(elements) => {
+                elements.iter().all(|elem| elem.is_valid_for_unconstrained_boundary())
+            }
+            Type::Struct(definition, generics) => definition
+                .borrow()
+                .get_fields(generics)
+                .into_iter()
+                .all(|(_, field)| field.is_valid_for_unconstrained_boundary()),
         }
     }
 
@@ -922,7 +984,7 @@ impl std::fmt::Display for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
             }
-            Type::Code => write!(f, "Code"),
+            Type::Quoted(quoted) => write!(f, "{}", quoted),
         }
     }
 }
@@ -950,6 +1012,18 @@ impl std::fmt::Display for TypeBinding {
         match self {
             TypeBinding::Bound(typ) => typ.fmt(f),
             TypeBinding::Unbound(id) => id.fmt(f),
+        }
+    }
+}
+
+impl std::fmt::Display for QuotedType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QuotedType::Expr => write!(f, "Expr"),
+            QuotedType::Quoted => write!(f, "Quoted"),
+            QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
+            QuotedType::Type => write!(f, "Type"),
+            QuotedType::TypeDefinition => write!(f, "TypeDefinition"),
         }
     }
 }
@@ -1643,7 +1717,7 @@ impl Type {
             | Type::Bool
             | Type::Constant(_)
             | Type::Error
-            | Type::Code
+            | Type::Quoted(_)
             | Type::Unit => self.clone(),
         }
     }
@@ -1686,7 +1760,7 @@ impl Type {
             | Type::Bool
             | Type::Constant(_)
             | Type::Error
-            | Type::Code
+            | Type::Quoted(_)
             | Type::Unit => false,
         }
     }
@@ -1743,7 +1817,9 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Code | Error => self.clone(),
+            FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Quoted(_) | Error => {
+                self.clone()
+            }
         }
     }
 
@@ -1878,7 +1954,7 @@ impl From<&Type> for PrintableType {
             Type::MutableReference(typ) => {
                 PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
             }
-            Type::Code => unreachable!(),
+            Type::Quoted(_) => unreachable!(),
         }
     }
 }
@@ -1963,7 +2039,7 @@ impl std::fmt::Debug for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element:?}")
             }
-            Type::Code => write!(f, "Code"),
+            Type::Quoted(quoted) => write!(f, "{}", quoted),
         }
     }
 }

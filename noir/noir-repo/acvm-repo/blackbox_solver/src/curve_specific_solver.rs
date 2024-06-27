@@ -81,6 +81,7 @@ impl<F> BlackBoxFunctionSolver<F> for StubbedBlackBoxSolver {
     ) -> Result<F, BlackBoxResolutionError> {
         Err(Self::fail(BlackBoxFunc::PedersenHash))
     }
+
     fn multi_scalar_mul(
         &self,
         _points: &[F],

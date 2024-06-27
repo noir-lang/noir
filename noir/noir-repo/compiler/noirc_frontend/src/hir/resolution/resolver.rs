@@ -64,6 +64,7 @@ use super::errors::{PubPosition, ResolverError};
 use super::import::PathResolution;
 
 pub const SELF_TYPE_NAME: &str = "Self";
+pub const WILDCARD_TYPE: &str = "_";
 
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
@@ -569,7 +570,7 @@ impl<'a> Resolver<'a> {
                 let fields = self.resolve_type_inner(*fields);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
-            Code => Type::Code,
+            Quoted(quoted) => Type::Quoted(quoted),
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,
@@ -1150,7 +1151,7 @@ impl<'a> Resolver<'a> {
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
-            | Type::Code
+            | Type::Quoted(_)
             | Type::Forall(_, _) => (),
 
             Type::TraitAsType(_, _, args) => {
@@ -1640,6 +1641,10 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Resolved(_) => unreachable!(
                 "ExpressionKind::Resolved should only be emitted by the comptime interpreter"
             ),
+            ExpressionKind::Unquote(_) => {
+                self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
+                HirExpression::Literal(HirLiteral::Unit)
+            }
         };
 
         // If these lines are ever changed, make sure to change the early return

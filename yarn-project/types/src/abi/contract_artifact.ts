@@ -231,7 +231,7 @@ function getStorageLayout(input: NoirCompiledContract) {
     const name = field.name;
     const slot = field.value.fields[0].value as IntegerValue;
     acc[name] = {
-      slot: new Fr(BigInt(slot.value)),
+      slot: Fr.fromString(slot.value),
     };
     return acc;
   }, {});

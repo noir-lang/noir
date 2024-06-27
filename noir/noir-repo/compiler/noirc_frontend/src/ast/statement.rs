@@ -608,6 +608,7 @@ impl ForRange {
                     object: Expression::new(array_ident.clone(), array_span),
                     method_name: Ident::new("len".to_string(), array_span),
                     generics: None,
+                    is_macro_call: false,
                     arguments: vec![],
                 }));
                 let end_range = Expression::new(end_range, array_span);
@@ -727,7 +728,11 @@ impl Display for LValue {
 impl Display for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let segments = vecmap(&self.segments, ToString::to_string);
-        write!(f, "{}::{}", self.kind, segments.join("::"))
+        if self.kind == PathKind::Plain {
+            write!(f, "{}", segments.join("::"))
+        } else {
+            write!(f, "{}::{}", self.kind, segments.join("::"))
+        }
     }
 }
 

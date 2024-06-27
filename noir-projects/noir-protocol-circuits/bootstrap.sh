@@ -20,4 +20,4 @@ node ./index.js
 
 echo "Compiling protocol circuits..."
 NARGO=${NARGO:-../../noir/noir-repo/target/release/nargo}
-$NARGO compile --silence-warnings
+$NARGO compile --silence-warnings --use-legacy

@@ -14,7 +14,7 @@ unconstrained fn get_contract_instance_internal(address: AztecAddress) -> [Field
     get_contract_instance_oracle(address)
 }
 
-unconstrained fn get_contract_instance_internal_avm(address: AztecAddress) -> [Field; CONTRACT_INSTANCE_LENGTH + 1] {
+unconstrained pub fn get_contract_instance_internal_avm(address: AztecAddress) -> [Field; CONTRACT_INSTANCE_LENGTH + 1] {
     get_contract_instance_oracle_avm(address)
 }
 

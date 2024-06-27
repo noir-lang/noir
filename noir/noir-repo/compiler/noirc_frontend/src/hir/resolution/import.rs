@@ -289,6 +289,7 @@ fn resolve_external_dep(
         .get(&crate_name.0.contents)
         .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
 
+    // Create an import directive for the dependency crate
     // XXX: This will panic if the path is of the form `use std`. Ideal algorithm will not distinguish between crate and module
     // See `singleton_import.nr` test case for a check that such cases are handled elsewhere.
     let path_without_crate_name = &path[1..];

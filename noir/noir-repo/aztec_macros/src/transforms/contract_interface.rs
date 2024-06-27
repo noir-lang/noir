@@ -56,7 +56,10 @@ pub fn stub_function(aztec_visibility: &str, func: &NoirFunction, is_static_call
         .join(", ");
     let fn_return_type: noirc_frontend::ast::UnresolvedType = func.return_type();
 
-    let fn_selector = format!("dep::aztec::protocol_types::abis::function_selector::FunctionSelector::from_signature(\"{}\")", SELECTOR_PLACEHOLDER);
+    let fn_selector = format!(
+        "dep::aztec::protocol_types::abis::function_selector::FunctionSelector::from_signature(\"{}\")",
+        SELECTOR_PLACEHOLDER
+    );
 
     let parameters = func.parameters();
     let is_void = if matches!(fn_return_type.typ, UnresolvedTypeData::Unit) { "Void" } else { "" };

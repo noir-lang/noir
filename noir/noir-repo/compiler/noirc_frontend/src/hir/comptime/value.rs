@@ -1,20 +1,22 @@
 use std::{borrow::Cow, fmt::Display, rc::Rc};
 
 use acvm::{AcirField, FieldElement};
+use chumsky::Parser;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
 use crate::{
-    ast::{
-        ArrayLiteral, BlockExpression, ConstructorExpression, Ident, IntegerBitSize, Signedness,
-    },
+    ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness},
     hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
     macros_api::{
         Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
+        StructId,
     },
     node_interner::{ExprId, FuncId},
-    Shared, Type,
+    parser,
+    token::{SpannedToken, Token, Tokens},
+    QuotedType, Shared, Type,
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -41,7 +43,8 @@ pub enum Value {
     Pointer(Shared<Value>),
     Array(Vector<Value>, Type),
     Slice(Vector<Value>, Type),
-    Code(Rc<BlockExpression>),
+    Code(Rc<Tokens>),
+    TypeDefinition(StructId),
 }
 
 impl Value {
@@ -70,7 +73,8 @@ impl Value {
             Value::Struct(_, typ) => return Cow::Borrowed(typ),
             Value::Array(_, typ) => return Cow::Borrowed(typ),
             Value::Slice(_, typ) => return Cow::Borrowed(typ),
-            Value::Code(_) => Type::Code,
+            Value::Code(_) => Type::Quoted(QuotedType::Quoted),
+            Value::TypeDefinition(_) => Type::Quoted(QuotedType::TypeDefinition),
             Value::Pointer(element) => {
                 let element = element.borrow().get_type().into_owned();
                 Type::MutableReference(Box::new(element))
@@ -171,8 +175,23 @@ impl Value {
                     try_vecmap(elements, |element| element.into_expression(interner, location))?;
                 ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(elements)))
             }
-            Value::Code(block) => ExpressionKind::Block(unwrap_rc(block)),
-            Value::Pointer(_) => {
+            Value::Code(tokens) => {
+                // Wrap the tokens in '{' and '}' so that we can parse statements as well.
+                let mut tokens_to_parse = tokens.as_ref().clone();
+                tokens_to_parse.0.insert(0, SpannedToken::new(Token::LeftBrace, location.span));
+                tokens_to_parse.0.push(SpannedToken::new(Token::RightBrace, location.span));
+
+                return match parser::expression().parse(tokens_to_parse) {
+                    Ok(expr) => Ok(expr),
+                    Err(mut errors) => {
+                        let error = errors.swap_remove(0);
+                        let file = location.file;
+                        let rule = "an expression";
+                        Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
+                    }
+                };
+            }
+            Value::Pointer(_) | Value::TypeDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -273,7 +292,7 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
             Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
-            Value::Pointer(_) => {
+            Value::Pointer(_) | Value::TypeDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -303,7 +322,7 @@ impl Value {
 }
 
 /// Unwraps an Rc value without cloning the inner value if the reference count is 1. Clones otherwise.
-fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
+pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
     Rc::try_unwrap(rc).unwrap_or_else(|rc| (*rc).clone())
 }
 
@@ -348,7 +367,14 @@ impl Display for Value {
                 let values = vecmap(values, ToString::to_string);
                 write!(f, "&[{}]", values.join(", "))
             }
-            Value::Code(_) => todo!(),
+            Value::Code(tokens) => {
+                write!(f, "quote {{")?;
+                for token in tokens.0.iter() {
+                    write!(f, " {token}")?;
+                }
+                write!(f, " }}")
+            }
+            Value::TypeDefinition(_) => write!(f, "(type definition)"),
         }
     }
 }

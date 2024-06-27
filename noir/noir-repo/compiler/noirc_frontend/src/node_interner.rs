@@ -17,6 +17,7 @@ use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::QuotedType;
 
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
 use crate::hir::resolution::errors::ResolverError;
@@ -302,7 +303,7 @@ impl StmtId {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct ExprId(Index);
 
 impl ExprId {
@@ -1420,6 +1421,13 @@ impl NodeInterner {
     ) -> Result<(), (Span, FileId)> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
 
+        // Avoid adding error types to impls since they'll conflict with every other type.
+        // We don't need to return an error since we expect an error to already be issued when
+        // the error type is created.
+        if object_type == Type::Error {
+            return Ok(());
+        }
+
         // Replace each generic with a fresh type variable
         let substitutions = impl_generics
             .into_iter()
@@ -1475,6 +1483,7 @@ impl NodeInterner {
         force_type_check: bool,
     ) -> Option<FuncId> {
         let methods = self.struct_methods.get(&(id, method_name.to_owned()));
+
         // If there is only one method, just return it immediately.
         // It will still be typechecked later.
         if !force_type_check {
@@ -1806,7 +1815,7 @@ enum TypeMethodKey {
     Tuple,
     Function,
     Generic,
-    Code,
+    Quoted(QuotedType),
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
@@ -1826,7 +1835,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _, _) => Some(Function),
         Type::NamedGeneric(_, _) => Some(Generic),
-        Type::Code => Some(Code),
+        Type::Quoted(quoted) => Some(Quoted(*quoted)),
         Type::MutableReference(element) => get_type_method_key(element),
         Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
 
