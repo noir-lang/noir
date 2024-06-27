@@ -1,5 +1,5 @@
 [package]
-name = "non_comptime_local_fn_call"
+name = "builtin_function_declaration"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.31.0"
