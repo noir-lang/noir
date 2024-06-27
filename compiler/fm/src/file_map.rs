@@ -33,8 +33,6 @@ impl From<&PathBuf> for PathString {
 #[derive(Debug, Clone)]
 pub struct FileMap {
     files: SimpleFiles<PathString, String>,
-    // TODO remove before PR
-    pub name_to_id: HashMap<PathString, FileId>,
 }
 
 // XXX: Note that we derive Default here due to ModuleOrigin requiring us to set a FileId
