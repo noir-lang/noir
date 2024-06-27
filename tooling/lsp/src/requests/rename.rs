@@ -109,7 +109,7 @@ fn on_rename_inner(
         interner = def_interner;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, true);
+        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, false);
         interner = &context.def_interner;
     }
 
