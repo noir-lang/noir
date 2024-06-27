@@ -304,8 +304,9 @@ mod rename_tests {
         );
 
         // Let's check that the above changes actually include the target name
-        let file_contents =
-            std::fs::read_to_string(main_path).expect(&format!("Couldn't read file {}", main_path));
+        let file_contents = std::fs::read_to_string(main_path)
+            .unwrap_or_else(|_| panic!("Couldn't read file {}", main_path));
+
         let file_lines: Vec<&str> = file_contents.lines().collect();
 
         for change in &changes {

@@ -138,9 +138,9 @@ mod goto_definition_tests {
                     start: Position { line: 4, character: 3 },
                     end: Position { line: 4, character: 19 },
                 }
-            )
+            );
         } else {
             panic!("Expected a scalar response");
-        }
+        };
     }
 }
