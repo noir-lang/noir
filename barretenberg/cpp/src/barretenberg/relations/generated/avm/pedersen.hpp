@@ -37,7 +37,7 @@ template <typename FF_> class pedersenImpl {
         {
             Avm_DECLARE_VIEWS(0);
 
-            auto tmp = ((pedersen_sel_pedersen * (-pedersen_sel_pedersen + FF(1))) - FF(0));
+            auto tmp = (pedersen_sel_pedersen * (-pedersen_sel_pedersen + FF(1)));
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
         }

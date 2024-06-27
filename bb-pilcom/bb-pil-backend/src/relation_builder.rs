@@ -399,11 +399,22 @@ fn craft_expression<T: FieldElement>(
                     Expression::Number(_) => (degree, format!("({} + {})", rhs, lhs)),
                     _ => (degree, format!("({} + {})", lhs, rhs)),
                 },
-                AlgebraicBinaryOperator::Sub => match lhe.as_ref() {
-                    // BBerg hack, we do not want a field on the lhs of an expression
-                    Expression::Number(_) => (degree, format!("(-{} + {})", rhs, lhs)),
-                    _ => (degree, format!("({} - {})", lhs, rhs)),
-                },
+                AlgebraicBinaryOperator::Sub => {
+                    // BBerg hack here, to make sure we dont have a trivial (- FF(0))
+                    if let Expression::Number(rhe) = rhe.as_ref() {
+                        // If the binary operation is a sub and the rhs expression is 0, we can just
+                        // return the lhs
+                        if rhe.to_arbitrary_integer() == 0u64.into() {
+                            return (degree, lhs);
+                        }
+                    }
+                    // Otherwise continue with the match
+                    match lhe.as_ref() {
+                        // BBerg hack, we do not want a field on the lhs of an expression
+                        Expression::Number(_) => (degree, format!("(-{} + {})", rhs, lhs)),
+                        _ => (degree, format!("({} - {})", lhs, rhs)),
+                    }
+                }
                 AlgebraicBinaryOperator::Mul => match lhe.as_ref() {
                     // BBerg hack, we do not want a field on the lhs of an expression
                     Expression::Number(_) => (ld + rd, format!("({} * {})", rhs, lhs)),

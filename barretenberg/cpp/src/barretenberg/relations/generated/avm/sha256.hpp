@@ -37,7 +37,7 @@ template <typename FF_> class sha256Impl {
         {
             Avm_DECLARE_VIEWS(0);
 
-            auto tmp = ((sha256_sel_sha256_compression * (-sha256_sel_sha256_compression + FF(1))) - FF(0));
+            auto tmp = (sha256_sel_sha256_compression * (-sha256_sel_sha256_compression + FF(1)));
             tmp *= scaling_factor;
             std::get<0>(evals) += tmp;
         }
