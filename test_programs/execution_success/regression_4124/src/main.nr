@@ -1,6 +1,6 @@
 use std::option::Option;
 
-trait MyDeserialize<let N: u32> {
+trait MyDeserialize<N> {
     fn deserialize(fields: [Field; N]) -> Self;
 }
 
@@ -10,7 +10,7 @@ impl MyDeserialize<1> for Field {
     }
 }
 
-pub fn storage_read<let N: u32>() -> [Field; N] {
+pub fn storage_read<N>() -> [Field; N] {
     std::unsafe::zeroed()
 }
 

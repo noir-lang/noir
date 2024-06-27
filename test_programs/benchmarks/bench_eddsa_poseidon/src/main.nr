@@ -1,4 +1,4 @@
-use std::eddsa::eddsa_poseidon_verify;
+use std::eddsa::{eddsa_poseidon_verify};
 
 fn main(
     msg: pub Field,

@@ -8,7 +8,7 @@ impl FromField for Field {
     }
 }
 
-trait Deserialize<let N: u32> {
+trait Deserialize<N> {
     fn deserialize(fields: [Field; N]) -> Self;
 }
 

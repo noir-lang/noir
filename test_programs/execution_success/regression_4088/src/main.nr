@@ -1,4 +1,4 @@
-trait Serialize<let N: u32> {
+trait Serialize<N> {
     fn serialize(self) -> [Field; N];
 }
 
@@ -12,7 +12,7 @@ impl Serialize<1> for ValueNote {
     }
 }
 
-fn check<let N: u32>(serialized_note: [Field; N]) {
+fn check<N>(serialized_note: [Field; N]) {
     assert(serialized_note[0] == 0);
 }
 

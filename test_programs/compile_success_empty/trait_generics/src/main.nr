@@ -29,7 +29,7 @@ impl MyInto<u32> for Field {
 
 /// Serialize example
 
-trait Serializable<let N: u32> {
+trait Serializable<N> {
     fn serialize(self) -> [Field; N];
 }
 
