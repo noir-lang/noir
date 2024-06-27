@@ -2,6 +2,5 @@
 name = "impl_where_clause"
 type = "bin"
 authors = [""]
-compiler_version = ">=0.31.0"
 
 [dependencies]

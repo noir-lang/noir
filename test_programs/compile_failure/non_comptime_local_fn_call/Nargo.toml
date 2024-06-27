@@ -2,6 +2,6 @@
 name = "non_comptime_local_fn_call"
 type = "bin"
 authors = [""]
-compiler_version = ">=0.31.0"
+compiler_version = ">=0.23.0"
 
 [dependencies]
