@@ -247,7 +247,15 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::StaticAssert => {
-            if arguments.iter().all(|argument| dfg.is_constant_and_truthy(*argument)) {
+            if arguments.len() != 2 {
+                panic!("ICE: static_assert called with wrong number of arguments")
+            }
+
+            if !dfg.is_constant(arguments[1]) {
+                return SimplifyResult::None;
+            }
+
+            if dfg.is_constant_true(arguments[0]) {
                 SimplifyResult::Remove
             } else {
                 SimplifyResult::None

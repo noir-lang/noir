@@ -506,14 +506,12 @@ impl DataFlowGraph {
         }
     }
 
-    /// True if `is_constant` and if a NumericConstant, then is non-zero
-    pub(crate) fn is_constant_and_truthy(&self, argument: ValueId) -> bool {
-        if let Some(constant) = self.get_numeric_constant(argument) {
-             !constant.is_zero()
-        } else {
-             false
+    /// True that the input is a non-zero `Value::NumericConstant`
+    pub(crate) fn is_constant_true(&self, argument: ValueId) -> bool {
+        match &self[self.resolve(argument)] {
+            Value::NumericConstant { constant, .. } => !constant.is_zero(),
+            _ => false,
         }
-            }
     }
 }
 

@@ -99,7 +99,16 @@ fn evaluate_static_assert(
     instruction: InstructionId,
     arguments: &[ValueId],
 ) -> Result<bool, RuntimeError> {
-    if arguments.iter().all(|arg| function.dfg.is_constant_and_truthy(*arg)) {
+    if arguments.len() != 2 {
+        panic!("ICE: static_assert called with wrong number of arguments")
+    }
+
+    if !function.dfg.is_constant(arguments[1]) {
+        let call_stack = function.dfg.get_call_stack(instruction);
+        return Err(RuntimeError::StaticAssertDynamicMessage { call_stack });
+    }
+
+    if function.dfg.is_constant_true(arguments[0]) {
         Ok(false)
     } else {
         let call_stack = function.dfg.get_call_stack(instruction);
