@@ -3,11 +3,11 @@
 // Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
 // Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 contract Benchmarking {
-    use aztec::protocol_types::abis::function_selector::FunctionSelector;
+    use dep::aztec::protocol_types::abis::function_selector::FunctionSelector;
 
     use value_note::{utils::{increment, decrement}, value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods}};
 
-    use aztec::{
+    use dep::aztec::{
         context::Context, note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
         log::emit_unencrypted_log, state_vars::{Map, PublicMutable, PrivateSet},
         types::type_serialization::field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},

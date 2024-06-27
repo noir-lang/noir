@@ -161,7 +161,7 @@ macro_rules! chained_dep {
     ( $base:expr $(, $tail:expr)* ) => {
         {
             let mut base_path = ident_path($base);
-            base_path.kind = PathKind::Plain;
+            base_path.kind = PathKind::Dep;
             $(
                 base_path.segments.push(ident($tail));
             )*
