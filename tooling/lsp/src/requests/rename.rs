@@ -265,10 +265,16 @@ mod rename_tests {
     async fn test_on_rename_request() {
         let (mut state, noir_text_document) = setup().await;
 
+        let main_path = noir_text_document.path();
+        let target_name = "test_multiple4";
+        let target_position = Position { line: 79, character: 4 }; // This is at the "t" of "test_multiple4"
+
         let params = RenameParams {
             text_document_position: TextDocumentPositionParams {
-                text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
-                position: lsp_types::Position { line: 79, character: 4 }, // This is at the "t" of "test_multiple4"
+                text_document: lsp_types::TextDocumentIdentifier {
+                    uri: noir_text_document.clone(),
+                },
+                position: target_position, // This is at the "t" of "test_multiple4"
             },
             new_name: "renamed_test_multiple4".to_string(),
             work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
@@ -289,15 +295,25 @@ mod rename_tests {
                     start: Position { line: 70, character: 3 },
                     end: Position { line: 70, character: 17 },
                 },
-                Range {
-                    start: Position { line: 79, character: 4 },
-                    end: Position { line: 79, character: 18 },
-                },
+                Range { start: target_position, end: Position { line: 79, character: 18 } },
                 Range {
                     start: Position { line: 94, character: 4 },
                     end: Position { line: 94, character: 18 },
                 },
             ]
         );
+
+        // Let's check that the above changes actually include the target name
+        let file_contents =
+            std::fs::read_to_string(main_path).expect(&format!("Couldn't read file {}", main_path));
+        let file_lines: Vec<&str> = file_contents.lines().collect();
+
+        for change in &changes {
+            assert_eq!(change.start.line, change.end.line);
+
+            let line = file_lines[change.start.line as usize];
+            let chunk = &line[change.start.character as usize..change.end.character as usize];
+            assert_eq!(chunk, target_name);
+        }
     }
 }
