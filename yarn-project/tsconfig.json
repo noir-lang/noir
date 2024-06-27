@@ -16,7 +16,8 @@
     "resolveJsonModule": true,
     "composite": true,
     "skipLibCheck": true,
-    "noImplicitOverride": true
+    "noImplicitOverride": true,
+    "allowArbitraryExtensions": true
   },
   "references": [
     { "path": "accounts/tsconfig.json" },
@@ -50,5 +51,5 @@
     { "path": "cli/tsconfig.json" }
   ],
   "files": ["./@types/jest/index.d.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "**/node_modules", "**/.*/"]
 }

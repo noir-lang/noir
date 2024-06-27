@@ -39,10 +39,9 @@ cmake-build-debug
 **/tsconfig.tsbuildinfo
 **/.eslintcache
 **/target
-accounts/src/artifacts
+accounts/artifacts
 aztec-faucet/data*
 aztec-node/data*
-aztec-js/src/account_contract/artifacts
 aztec/log
 circuits.js/fixtures/*.json
 docs/dist
@@ -51,8 +50,8 @@ end-to-end/log
 end-to-end/data
 end-to-end/src/web/main.js
 end-to-end/src/web/main.js.LICENSE.txt
-entry-points/src/artifacts
 l1-contracts/generated
+noir-protocol-circuits-types/artifacts
 builder/target/
 builder/proofs/
 builder/Prover.toml
@@ -64,7 +63,7 @@ builder/Verifier.toml
 builder/src/target
 builder/src/crs
 builder/src/types
-protocol-contracts/src/artifacts
+protocol-contracts/artifacts
 scripts/tmp
 noir-contracts.js/src
 noir-contracts.js/artifacts/

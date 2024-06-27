@@ -2,7 +2,7 @@
   "extends": "..",
   "compilerOptions": {
     "outDir": "dest",
-    "rootDir": ".",
+    "rootDir": "src",
     "tsBuildInfoFile": ".tsbuildinfo"
   },
   "references": [
@@ -15,8 +15,7 @@
   ],
   "include": [
     "src",
-    "artifacts",
-    "artifacts/*.json"
+    "artifacts/*.d.json.ts"
   ],
   "exclude": [
     "dest"

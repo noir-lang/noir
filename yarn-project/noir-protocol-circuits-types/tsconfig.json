@@ -3,7 +3,8 @@
   "compilerOptions": {
     "outDir": "dest",
     "rootDir": "src",
-    "tsBuildInfoFile": ".tsbuildinfo"
+    "tsBuildInfoFile": ".tsbuildinfo",
+    "resolveJsonModule": true
   },
   "references": [
     {
@@ -28,6 +29,5 @@
       "path": "../merkle-tree"
     }
   ],
-  "include": ["src", "src/**/*.json"],
-  "exclude": ["src/contracts"]
+  "include": ["src", "artifacts/*.d.json.ts"]
 }

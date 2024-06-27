@@ -3,14 +3,14 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./dest/src/index.js",
-    "./artifacts/*": "./dest/artifacts/*.json",
-    "./*": "./dest/src/*.js"
+    ".": "./dest/index.js",
+    "./artifacts/*": "./artifacts/*.json",
+    "./*": "./dest/*.js"
   },
   "scripts": {
     "build": "yarn clean && yarn generate",
     "build:dev": "tsc -b --watch",
-    "clean": "rm -rf .tsbuildinfo ./artifacts ./codegenCache.json",
+    "clean": "rm -rf ./dest .tsbuildinfo ./artifacts ./src ./codegenCache.json",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests",

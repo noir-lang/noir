@@ -3,6 +3,6 @@
     "build": "yarn clean && yarn generate",
     "generate": "yarn generate:noir-contracts",
     "generate:noir-contracts": "./scripts/generate-types.sh && run -T prettier -w ./src --loglevel warn",
-    "clean": "rm -rf .tsbuildinfo ./artifacts ./codegenCache.json"
+    "clean": "rm -rf ./dest .tsbuildinfo ./artifacts ./src ./codegenCache.json"
   }
 }

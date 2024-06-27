@@ -19,12 +19,21 @@ echo "// Auto generated module - do not edit!" >"$INDEX"
 # Ensure the artifacts directory exists
 mkdir -p artifacts
 
+decl=$(cat <<EOF
+import { type NoirCompiledContract } from '@aztec/types/noir';
+const circuit: NoirCompiledContract;
+export = circuit;
+EOF
+);
+
 for ABI in $(find ../../noir-projects/noir-contracts/target -maxdepth 1 -type f ! -name 'debug_*' -name '*.json'); do
   # Extract the filename from the path
   filename=$(basename "$ABI")
+  dts_file=$(echo $filename | sed 's/.json/.d.json.ts/g');
 
   # Copy the JSON file to the artifacts folder
   cp "$ABI" "artifacts/$filename"
+  echo "$decl" > "artifacts/$dts_file"
 done
 
 # Generate types for the contracts

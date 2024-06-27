@@ -28,7 +28,7 @@
     "generate:noir-contracts": "./scripts/copy-contracts.sh",
     "build:dev": "tsc -b --watch",
     "build:ts": "tsc -b",
-    "clean": "rm -rf ./dest .tsbuildinfo ./src/artifacts",
+    "clean": "rm -rf ./dest .tsbuildinfo ./artifacts",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests"
@@ -91,7 +91,8 @@
   "files": [
     "dest",
     "src",
-    "!*.test.*"
+    "!*.test.*",
+    "artifacts"
   ],
   "engines": {
     "node": ">=18"

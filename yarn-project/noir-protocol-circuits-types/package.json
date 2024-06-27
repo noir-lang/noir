@@ -12,12 +12,12 @@
   ],
   "scripts": {
     "build": "yarn clean && yarn generate && tsc -b",
-    "clean": "rm -rf ./dest .tsbuildinfo src/types src/target",
+    "clean": "rm -rf ./dest .tsbuildinfo src/types artifacts",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "formatting:fix:types": "NODE_OPTIONS='--max-old-space-size=8096' run -T eslint --fix ./src/types && run -T prettier -w ./src/types",
     "generate": "yarn generate:noir-circuits",
-    "generate:noir-circuits": "mkdir -p ./src/target && cp ../../noir-projects/noir-protocol-circuits/target/* ./src/target && node --no-warnings --loader ts-node/esm src/scripts/generate_ts_from_abi.ts && run -T prettier -w ./src/types",
+    "generate:noir-circuits": "mkdir -p ./artifacts && cp ../../noir-projects/noir-protocol-circuits/target/* ./artifacts && node --no-warnings --loader ts-node/esm src/scripts/generate_declaration_files.ts && node --no-warnings --loader ts-node/esm src/scripts/generate_ts_from_abi.ts && run -T prettier -w ./src/types",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests",
     "codegen": "yarn noir-codegen",
     "build:dev": "tsc -b --watch"
@@ -82,7 +82,8 @@
   "files": [
     "dest",
     "src",
-    "!*.test.*"
+    "!*.test.*",
+    "artifacts"
   ],
   "types": "./dest/index.d.ts",
   "engines": {

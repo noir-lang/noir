@@ -5,6 +5,12 @@
     "generate:noir-contracts": "./scripts/copy-contracts.sh",
     "build:dev": "tsc -b --watch",
     "build:ts": "tsc -b",
-    "clean": "rm -rf ./dest .tsbuildinfo ./src/artifacts"
-  }
+    "clean": "rm -rf ./dest .tsbuildinfo ./artifacts"
+  },
+  "files": [
+    "dest",
+    "src",
+    "artifacts",
+    "!*.test.*"
+  ]
 }

@@ -28,7 +28,9 @@ import {
   convertSimulatedBaseRollupInputsToWitnessMap,
   convertSimulatedBaseRollupOutputsFromWitnessMap,
 } from '@aztec/noir-protocol-circuits-types';
-import { type SimulationProvider, WASMSimulator } from '@aztec/simulator';
+
+import { WASMSimulator } from '../providers/acvm_wasm.js';
+import { type SimulationProvider } from '../providers/simulation_provider.js';
 
 /**
  * Circuit simulator for the rollup circuits.

@@ -28,5 +28,5 @@
       "path": "../types"
     }
   ],
-  "include": ["src", "src/**/*.json"]
+  "include": ["src", "artifacts/*.d.json.ts"]
 }
