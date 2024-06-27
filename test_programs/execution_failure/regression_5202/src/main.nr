@@ -35,7 +35,7 @@ fn get_magical_boolean() -> bool {
 fn main() {
     let magic = get_magical_boolean();
 
-    // One of these asserts should fail, but both pass.
+    // One of these asserts should fail. Before #5202, they would both pass
     assert_eq(magic, true);
     assert_eq(magic, false);
 }
