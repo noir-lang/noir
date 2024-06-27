@@ -5,7 +5,7 @@
 contract Benchmarking {
     use dep::aztec::protocol_types::abis::function_selector::FunctionSelector;
 
-    use dep::value_note::{utils::{increment, decrement}, value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods}};
+    use value_note::{utils::{increment, decrement}, value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods}};
 
     use dep::aztec::{
         context::Context, note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},

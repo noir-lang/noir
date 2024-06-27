@@ -50,8 +50,6 @@ pub enum ResolverError {
     NoSuchNumericTypeVariable { path: crate::ast::Path },
     #[error("Closures cannot capture mutable variables")]
     CapturedMutableVariable { span: Span },
-    #[error("Test functions are not allowed to have any parameters")]
-    TestFunctionHasParameters { span: Span },
     #[error("Only struct types can be used in constructor expressions")]
     NonStructUsedInConstructor { typ: Type, span: Span },
     #[error("Only struct types can have generics")]
@@ -243,11 +241,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::CapturedMutableVariable { span } => Diagnostic::simple_error(
                 "Closures cannot capture mutable variables".into(),
                 "Mutable variable".into(),
-                *span,
-            ),
-            ResolverError::TestFunctionHasParameters { span } => Diagnostic::simple_error(
-                "Test functions cannot have any parameters".into(),
-                "Try removing the parameters or moving the test into a wrapper function".into(),
                 *span,
             ),
             ResolverError::NonStructUsedInConstructor { typ, span } => Diagnostic::simple_error(

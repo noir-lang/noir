@@ -32,6 +32,8 @@ noirc_driver.workspace = true
 noirc_frontend = { workspace = true, features = ["bn254"] }
 noirc_abi.workspace = true
 noirc_errors.workspace = true
+noir_fuzzer.workspace = true
+noirc_artifacts.workspace = true
 acvm = { workspace = true, features = ["bn254"] }
 bn254_blackbox_solver.workspace = true
 toml.workspace = true
@@ -54,6 +56,7 @@ color-eyre.workspace = true
 tokio = { version = "1.0", features = ["io-std", "rt"] }
 dap.workspace = true
 clap-markdown = { git = "https://github.com/noir-lang/clap-markdown", rev = "450d759532c88f0dba70891ceecdbc9ff8f25d2b", optional = true }
+proptest.workspace = true
 
 notify = "6.1.1"
 notify-debouncer-full = "0.3.1"

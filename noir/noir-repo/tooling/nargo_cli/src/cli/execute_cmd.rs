@@ -3,7 +3,6 @@ use acvm::FieldElement;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
-use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
 use nargo::ops::DefaultForeignCallExecutor;
@@ -11,6 +10,7 @@ use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
+use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 

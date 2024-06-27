@@ -1,5 +1,6 @@
 [package]
-name = "noirc_abi"
+name = "noirc_artifacts"
+description = "Definitions of Nargo's build artifacts"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -10,21 +11,14 @@ license.workspace = true
 
 [dependencies]
 acvm.workspace = true
-iter-extended.workspace = true
+fm.workspace = true
+noirc_abi.workspace = true
+noirc_driver.workspace = true
+noirc_errors.workspace = true
 noirc_printable_type.workspace = true
-toml.workspace = true
-serde_json = "1.0"
 serde.workspace = true
-thiserror.workspace = true
-num-bigint = "0.4"
-num-traits = "0.2"
+codespan-reporting.workspace = true
+
 
 [dev-dependencies]
-strum = "0.24"
-strum_macros = "0.24"
-proptest.workspace = true
-proptest-derive.workspace = true
-
-[features]
-bn254 = ["acvm/bn254"]
-bls12_381 = ["acvm/bls12_381"]
+tempfile.workspace = true

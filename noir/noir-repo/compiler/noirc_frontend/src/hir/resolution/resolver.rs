@@ -23,7 +23,7 @@ use crate::hir_def::expr::{
 use crate::hir_def::function::FunctionBody;
 use crate::hir_def::traits::{Trait, TraitConstraint};
 use crate::macros_api::SecondaryAttribute;
-use crate::token::{Attributes, FunctionAttribute};
+use crate::token::Attributes;
 use regex::Regex;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::rc::Rc;
@@ -1039,14 +1039,6 @@ impl<'a> Resolver<'a> {
         if !self.is_entry_point_function(func) && func.kind == FunctionKind::Recursive {
             self.push_err(ResolverError::MisplacedRecursiveAttribute {
                 ident: func.name_ident().clone(),
-            });
-        }
-
-        if matches!(attributes.function, Some(FunctionAttribute::Test { .. }))
-            && !parameters.is_empty()
-        {
-            self.push_err(ResolverError::TestFunctionHasParameters {
-                span: func.name_ident().span(),
             });
         }
 

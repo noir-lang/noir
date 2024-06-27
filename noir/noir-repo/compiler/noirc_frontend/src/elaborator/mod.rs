@@ -569,7 +569,6 @@ impl<'context> Elaborator<'context> {
         self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(func, elaborator.crate_id).map(Into::into)
         });
-        self.run_lint(|_| lints::test_function_with_args(func).map(Into::into));
         self.run_lint(|_| {
             lints::recursive_non_entrypoint_function(func, is_entry_point).map(Into::into)
         });
