@@ -76,10 +76,11 @@ fn on_goto_definition_inner(
 
 #[cfg(test)]
 mod goto_definition_tests {
+    use std::panic;
 
     use acvm::blackbox_solver::StubbedBlackBoxSolver;
     use async_lsp::ClientSocket;
-    use lsp_types::{Position, Url};
+    use lsp_types::{Position, Range, Url};
     use tokio::test;
 
     use super::*;
@@ -91,7 +92,7 @@ mod goto_definition_tests {
 
         let root_path = std::env::current_dir()
             .unwrap()
-            .join("../../test_programs/execution_success/7_function")
+            .join("test_programs/go_to_definition")
             .canonicalize()
             .expect("Could not resolve root path");
         let noir_text_document = Url::from_file_path(root_path.join("src/main.nr").as_path())
@@ -119,16 +120,27 @@ mod goto_definition_tests {
         let params = GotoDefinitionParams {
             text_document_position_params: lsp_types::TextDocumentPositionParams {
                 text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
-                position: Position { line: 95, character: 5 },
+                position: Position { line: 9, character: 12 }, // Right at the beginning of "another_function"
             },
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         };
 
-        let response = on_goto_definition_request(&mut state, params)
+        let response: GotoDefinitionResponse = on_goto_definition_request(&mut state, params)
             .await
-            .expect("Could execute on_goto_definition_request");
+            .expect("Could execute on_goto_definition_request")
+            .expect("Didn't get a goto definition response");
 
-        assert!(&response.is_some());
+        if let GotoDefinitionResponse::Scalar(location) = response {
+            assert_eq!(
+                location.range,
+                Range {
+                    start: Position { line: 4, character: 3 },
+                    end: Position { line: 4, character: 19 },
+                }
+            )
+        } else {
+            panic!("Expected a scalar response");
+        }
     }
 }

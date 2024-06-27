@@ -175,7 +175,7 @@ mod rename_tests {
 
         let root_path = std::env::current_dir()
             .unwrap()
-            .join("../../test_programs/execution_success/7_function")
+            .join("test_programs/rename")
             .canonicalize()
             .expect("Could not resolve root path");
         let noir_text_document = Url::from_file_path(root_path.join("src/main.nr").as_path())
@@ -229,7 +229,7 @@ mod rename_tests {
 
         let params = TextDocumentPositionParams {
             text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
-            position: lsp_types::Position { line: 70, character: 3 }, // This is at the "t" of "test_multiple4"
+            position: lsp_types::Position { line: 4, character: 3 }, // This is at the "a" of "another_function"
         };
 
         let response = on_prepare_rename_request(&mut state, params)
@@ -248,7 +248,7 @@ mod rename_tests {
 
         let params = TextDocumentPositionParams {
             text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
-            position: lsp_types::Position { line: 79, character: 4 }, // This is at the "t" of "test_multiple4"
+            position: lsp_types::Position { line: 9, character: 12 }, // This is at the "a" of "another_function"
         };
 
         let response = on_prepare_rename_request(&mut state, params)
@@ -266,17 +266,17 @@ mod rename_tests {
         let (mut state, noir_text_document) = setup().await;
 
         let main_path = noir_text_document.path();
-        let target_name = "test_multiple4";
-        let target_position = Position { line: 79, character: 4 }; // This is at the "t" of "test_multiple4"
+        let target_name = "another_function";
+        let target_position = Position { line: 9, character: 12 }; // This is at the "a" of "another_function"
 
         let params = RenameParams {
             text_document_position: TextDocumentPositionParams {
                 text_document: lsp_types::TextDocumentIdentifier {
                     uri: noir_text_document.clone(),
                 },
-                position: target_position, // This is at the "t" of "test_multiple4"
+                position: target_position,
             },
-            new_name: "renamed_test_multiple4".to_string(),
+            new_name: "renamed_function".to_string(),
             work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
         };
 
@@ -292,13 +292,13 @@ mod rename_tests {
             changes,
             vec![
                 Range {
-                    start: Position { line: 70, character: 3 },
-                    end: Position { line: 70, character: 17 },
+                    start: Position { line: 4, character: 3 },
+                    end: Position { line: 4, character: 19 },
                 },
-                Range { start: target_position, end: Position { line: 79, character: 18 } },
+                Range { start: target_position, end: Position { line: 9, character: 28 } },
                 Range {
-                    start: Position { line: 94, character: 4 },
-                    end: Position { line: 94, character: 18 },
+                    start: Position { line: 13, character: 12 },
+                    end: Position { line: 13, character: 28 },
                 },
             ]
         );
