@@ -1,17 +1,25 @@
 import { type AvmSimulationStats } from '@aztec/circuit-types/stats';
-import { Fr, Gas, type GlobalVariables, type Header, type Nullifier, type TxContext } from '@aztec/circuits.js';
+import {
+  Fr,
+  Gas,
+  type GasSettings,
+  type GlobalVariables,
+  type Header,
+  type Nullifier,
+  type TxContext,
+} from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
 
 import { AvmContext } from '../avm/avm_context.js';
+import { AvmExecutionEnvironment } from '../avm/avm_execution_environment.js';
 import { AvmMachineState } from '../avm/avm_machine_state.js';
 import { AvmSimulator } from '../avm/avm_simulator.js';
 import { HostStorage } from '../avm/journal/host_storage.js';
 import { AvmPersistableStateManager } from '../avm/journal/index.js';
 import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from './db_interfaces.js';
-import { type PublicExecution, type PublicExecutionResult, checkValidStaticCall } from './execution.js';
+import { type PublicExecutionRequest, type PublicExecutionResult, checkValidStaticCall } from './execution.js';
 import { PublicSideEffectTrace } from './side_effect_trace.js';
-import { createAvmExecutionEnvironment } from './transitional_adaptors.js';
 
 /**
  * Handles execution of public functions.
@@ -38,7 +46,7 @@ export class PublicExecutor {
    * @returns The result of execution, including the results of all nested calls.
    */
   public async simulate(
-    executionRequest: PublicExecution,
+    executionRequest: PublicExecutionRequest,
     globalVariables: GlobalVariables,
     availableGas: Gas,
     txContext: TxContext,
@@ -119,4 +127,36 @@ export class PublicExecutor {
 
     return publicExecutionResult;
   }
+}
+
+/**
+ * Convert a PublicExecutionRequest object to an AvmExecutionEnvironment
+ *
+ * @param executionRequest
+ * @param globalVariables
+ * @returns
+ */
+function createAvmExecutionEnvironment(
+  executionRequest: PublicExecutionRequest,
+  header: Header,
+  globalVariables: GlobalVariables,
+  gasSettings: GasSettings,
+  transactionFee: Fr,
+): AvmExecutionEnvironment {
+  return new AvmExecutionEnvironment(
+    executionRequest.contractAddress,
+    executionRequest.callContext.storageContractAddress,
+    executionRequest.callContext.msgSender,
+    globalVariables.gasFees.feePerL2Gas,
+    globalVariables.gasFees.feePerDaGas,
+    /*contractCallDepth=*/ Fr.zero(),
+    header,
+    globalVariables,
+    executionRequest.callContext.isStaticCall,
+    executionRequest.callContext.isDelegateCall,
+    executionRequest.args,
+    gasSettings,
+    transactionFee,
+    executionRequest.functionSelector,
+  );
 }

@@ -285,9 +285,9 @@ const proveAndVerifyAvmTestContract = async (
 // TODO: pub somewhere more usable - copied from abstract phase manager
 const getPublicInputs = (result: PublicExecutionResult): PublicCircuitPublicInputs => {
   return PublicCircuitPublicInputs.from({
-    callContext: result.execution.callContext,
+    callContext: result.executionRequest.callContext,
     proverAddress: AztecAddress.ZERO,
-    argsHash: computeVarArgsHash(result.execution.args),
+    argsHash: computeVarArgsHash(result.executionRequest.args),
     newNoteHashes: padArrayEnd(result.newNoteHashes, NoteHash.empty(), MAX_NEW_NOTE_HASHES_PER_CALL),
     newNullifiers: padArrayEnd(result.newNullifiers, Nullifier.empty(), MAX_NEW_NULLIFIERS_PER_CALL),
     newL2ToL1Msgs: padArrayEnd(result.newL2ToL1Messages, L2ToL1Message.empty(), MAX_NEW_L2_TO_L1_MSGS_PER_CALL),

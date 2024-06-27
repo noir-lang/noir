@@ -18,8 +18,8 @@ import { type Gas } from '../avm/avm_gas.js';
  * The public function execution result.
  */
 export interface PublicExecutionResult {
-  /** The execution that triggered this result. */
-  execution: PublicExecution;
+  /** The execution request that triggered this result. */
+  executionRequest: PublicExecutionRequest;
 
   /** The side effect counter at the start of the function call. */
   startSideEffectCounter: Fr;
@@ -90,9 +90,13 @@ export interface PublicExecutionResult {
 }
 
 /**
- * The execution of a public function.
+ * The execution request of a public function.
+ * A subset of PublicCallRequest
  */
-export type PublicExecution = Pick<PublicCallRequest, 'contractAddress' | 'functionSelector' | 'callContext' | 'args'>;
+export type PublicExecutionRequest = Pick<
+  PublicCallRequest,
+  'contractAddress' | 'functionSelector' | 'callContext' | 'args'
+>;
 
 /**
  * Returns if the input is a public execution result and not just a public execution.
@@ -100,9 +104,9 @@ export type PublicExecution = Pick<PublicCallRequest, 'contractAddress' | 'funct
  * @returns Whether the input is a public execution result and not just a public execution.
  */
 export function isPublicExecutionResult(
-  input: PublicExecution | PublicExecutionResult,
+  input: PublicExecutionRequest | PublicExecutionResult,
 ): input is PublicExecutionResult {
-  return 'execution' in input && input.execution !== undefined;
+  return 'executionRequest' in input && input.executionRequest !== undefined;
 }
 
 /**

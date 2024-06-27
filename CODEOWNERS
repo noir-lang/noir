@@ -12,8 +12,8 @@
 /barretenberg/cpp/pil @Maddiaa0 @jeanmon @IlyasRidhuan @fcarreiro
 # on changes to PIL-generated C++
 /barretenberg/cpp/src/barretenberg/**/generated @jeanmon @IlyasRidhuan @fcarreiro
-# on changes to AVM trace (C++ witness generator)
-/barretenberg/cpp/src/barretenberg/vm/avm_trace @jeanmon @IlyasRidhuan @fcarreiro
+# on changes to AVM C++ code
+/barretenberg/cpp/src/barretenberg/vm @jeanmon @IlyasRidhuan @fcarreiro
 # on changes to public context in aztec-nr
 /noir-projects/aztec-nr/aztec/src/context/inputs/public_context_inputs.nr @fcarreiro @dbanks12
 /noir-projects/aztec-nr/aztec/src/context/public_context.nr @fcarreiro @dbanks12
@@ -24,7 +24,6 @@
 /yarn-project/simulator/src/public/side_effect_trace.test.ts @fcarreiro @dbanks12
 /yarn-project/simulator/src/public/side_effect_trace.ts @fcarreiro @dbanks12
 /yarn-project/simulator/src/public/side_effect_trace_interface.ts @fcarreiro @dbanks12
-/yarn-project/simulator/src/public/transitional_adaptors.ts @fcarreiro @dbanks12
 # on changes to the AVM transpiler
 /avm-transpiler/src @fcarreiro @dbanks12
 #####################################################

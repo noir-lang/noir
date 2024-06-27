@@ -9,11 +9,11 @@ import { type Fieldable } from '@aztec/foundation/serialize';
 import { mock } from 'jest-mock-extended';
 
 import { type PublicSideEffectTraceInterface } from '../public/side_effect_trace_interface.js';
-import { isAvmBytecode, markBytecodeAsAvm } from '../public/transitional_adaptors.js';
 import { type AvmExecutionEnvironment } from './avm_execution_environment.js';
 import { AvmMachineState } from './avm_machine_state.js';
 import { type MemoryValue, TypeTag, type Uint8 } from './avm_memory_types.js';
 import { AvmSimulator } from './avm_simulator.js';
+import { isAvmBytecode, markBytecodeAsAvm } from './bytecode_utils.js';
 import {
   adjustCalldataIndex,
   getAvmTestContractBytecode,
@@ -308,7 +308,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
     it('selector', async () => {
       const context = initContext({
         env: initExecutionEnvironment({
-          temporaryFunctionSelector: FunctionSelector.fromSignature('check_selector()'),
+          functionSelector: FunctionSelector.fromSignature('check_selector()'),
         }),
       });
       const bytecode = getAvmTestContractBytecode('check_selector');
@@ -345,8 +345,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
 
   describe('Side effects, world state, nested calls', () => {
     const address = new Fr(1);
-    // TODO(dbanks12): should be able to make address and storage address different
-    const storageAddress = new Fr(1);
+    const storageAddress = new Fr(2);
     const sender = new Fr(42);
     const leafIndex = new Fr(7);
     const slotNumber = 1; // must update Noir contract if changing this
@@ -411,7 +410,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
 
     describe.each([[/*exists=*/ false], [/*exists=*/ true]])('Nullifier checks', (exists: boolean) => {
       const existsStr = exists ? 'DOES exist' : 'does NOT exist';
-      it(`Should return ${exists} (and be traced) when noteHash ${existsStr}`, async () => {
+      it(`Should return ${exists} (and be traced) when nullifier ${existsStr}`, async () => {
         const calldata = [value0];
         const context = createContext(calldata);
         const bytecode = getAvmTestContractBytecode('nullifier_exists');
@@ -430,7 +429,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
         const tracedLeafIndex = exists && !isPending ? leafIndex : Fr.ZERO;
         expect(trace.traceNullifierCheck).toHaveBeenCalledWith(
           storageAddress,
-          value0,
+          /*nullifier=*/ value0,
           tracedLeafIndex,
           exists,
           isPending,
@@ -451,7 +450,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
         ? `at leafIndex=${mockAtLeafIndex.toNumber()} (exists at leafIndex=${leafIndex.toNumber()})`
         : '';
 
-      it(`Should return ${expectFound} (and be traced) when noteHash ${existsStr} ${foundAtStr}`, async () => {
+      it(`Should return ${expectFound} (and be traced) when message ${existsStr} ${foundAtStr}`, async () => {
         const calldata = [value0, leafIndex];
         const context = createContext(calldata);
         const bytecode = getAvmTestContractBytecode('l1_to_l2_msg_exists');
@@ -466,7 +465,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
         expect(trace.traceL1ToL2MessageCheck).toHaveBeenCalledTimes(1);
         expect(trace.traceL1ToL2MessageCheck).toHaveBeenCalledWith(
           address,
-          /*noteHash=*/ value0,
+          /*msgHash=*/ value0,
           leafIndex,
           /*exists=*/ expectFound,
         );
@@ -485,7 +484,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
       expect(trace.traceNewNoteHash).toHaveBeenCalledTimes(1);
       expect(trace.traceNewNoteHash).toHaveBeenCalledWith(
         expect.objectContaining(storageAddress),
-        /*nullifier=*/ value0,
+        /*noteHash=*/ value0,
       );
     });
 
@@ -525,7 +524,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
         // leafIndex is returned from DB call for nullifiers, so it is absent on DB miss
         expect(trace.traceNullifierCheck).toHaveBeenCalledWith(
           storageAddress,
-          value0,
+          /*nullifier=*/ value0,
           /*leafIndex=*/ Fr.ZERO,
           /*exists=*/ true,
           /*isPending=*/ true,
@@ -639,8 +638,8 @@ describe('AVM simulator: transpiled Noir contracts', () => {
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
         expect(results.reverted).toBe(false);
 
-        expect(await context.persistableState.peekStorage(address, listSlot0)).toEqual(calldata[0]);
-        expect(await context.persistableState.peekStorage(address, listSlot1)).toEqual(calldata[1]);
+        expect(await context.persistableState.peekStorage(storageAddress, listSlot0)).toEqual(calldata[0]);
+        expect(await context.persistableState.peekStorage(storageAddress, listSlot1)).toEqual(calldata[1]);
 
         expect(trace.tracePublicStorageWrite).toHaveBeenCalledTimes(2);
         expect(trace.tracePublicStorageWrite).toHaveBeenCalledWith(storageAddress, listSlot0, value0);

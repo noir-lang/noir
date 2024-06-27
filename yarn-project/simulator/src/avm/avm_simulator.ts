@@ -2,9 +2,9 @@ import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 
 import { strict as assert } from 'assert';
 
-import { decompressBytecodeIfCompressed, isAvmBytecode } from '../public/transitional_adaptors.js';
 import type { AvmContext } from './avm_context.js';
-import { AvmContractCallResults } from './avm_message_call_result.js';
+import { AvmContractCallResult } from './avm_contract_call_result.js';
+import { decompressBytecodeIfCompressed, isAvmBytecode } from './bytecode_utils.js';
 import {
   AvmExecutionError,
   InvalidProgramCounterError,
@@ -20,18 +20,16 @@ export class AvmSimulator {
   private bytecode: Buffer | undefined;
 
   constructor(private context: AvmContext) {
-    this.log = createDebugLogger(
-      `aztec:avm_simulator:core(f:${context.environment.temporaryFunctionSelector.toString()})`,
-    );
+    this.log = createDebugLogger(`aztec:avm_simulator:core(f:${context.environment.functionSelector.toString()})`);
   }
 
   /**
    * Fetch the bytecode and execute it in the current context.
    */
-  public async execute(): Promise<AvmContractCallResults> {
+  public async execute(): Promise<AvmContractCallResult> {
     const bytecode = await this.context.persistableState.getBytecode(
       this.context.environment.address,
-      this.context.environment.temporaryFunctionSelector,
+      this.context.environment.functionSelector,
     );
 
     // This assumes that we will not be able to send messages to accounts without code
@@ -54,7 +52,7 @@ export class AvmSimulator {
    * Executes the provided bytecode in the current context.
    * This method is useful for testing and debugging.
    */
-  public async executeBytecode(bytecode: Buffer): Promise<AvmContractCallResults> {
+  public async executeBytecode(bytecode: Buffer): Promise<AvmContractCallResult> {
     const decompressedBytecode = await decompressBytecodeIfCompressed(bytecode);
     assert(isAvmBytecode(decompressedBytecode), "AVM simulator can't execute non-AVM bytecode");
 
@@ -66,7 +64,7 @@ export class AvmSimulator {
    * Executes the provided instructions in the current context.
    * This method is useful for testing and debugging.
    */
-  public async executeInstructions(instructions: Instruction[]): Promise<AvmContractCallResults> {
+  public async executeInstructions(instructions: Instruction[]): Promise<AvmContractCallResult> {
     assert(instructions.length > 0);
     const { machineState } = this.context;
     try {
@@ -95,7 +93,7 @@ export class AvmSimulator {
       const output = machineState.getOutput();
       const reverted = machineState.getReverted();
       const revertReason = reverted ? revertReasonFromExplicitRevert(output, this.context) : undefined;
-      const results = new AvmContractCallResults(reverted, output, revertReason);
+      const results = new AvmContractCallResult(reverted, output, revertReason);
       this.log.debug(`Context execution results: ${results.toString()}`);
       // Return results for processing by calling context
       return results;
@@ -108,7 +106,7 @@ export class AvmSimulator {
 
       const revertReason = revertReasonFromExceptionalHalt(err, this.context);
       // Note: "exceptional halts" cannot return data, hence []
-      const results = new AvmContractCallResults(/*reverted=*/ true, /*output=*/ [], revertReason);
+      const results = new AvmContractCallResult(/*reverted=*/ true, /*output=*/ [], revertReason);
       this.log.debug(`Context execution results: ${results.toString()}`);
       // Return results for processing by calling context
       return results;

@@ -6,7 +6,7 @@ import { SerializableContractInstance } from '@aztec/types/contracts';
 
 import { randomBytes, randomInt } from 'crypto';
 
-import { AvmContractCallResults } from '../avm/avm_message_call_result.js';
+import { AvmContractCallResult } from '../avm/avm_contract_call_result.js';
 import { initExecutionEnvironment } from '../avm/fixtures/index.js';
 import { PublicSideEffectTrace, type TracedContractInstance } from './side_effect_trace.js';
 
@@ -39,7 +39,7 @@ describe('Side Effect Trace', () => {
     transactionFee,
   });
   const reverted = false;
-  const avmCallResults = new AvmContractCallResults(reverted, returnValues);
+  const avmCallResults = new AvmContractCallResult(reverted, returnValues);
 
   let startCounter: number;
   let startCounterFr: Fr;

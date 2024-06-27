@@ -5,7 +5,7 @@ import { type AvmRevertReason } from './errors.js';
 /**
  * Results of an contract call's execution in the AVM.
  */
-export class AvmContractCallResults {
+export class AvmContractCallResult {
   constructor(public reverted: boolean, public output: Fr[], public revertReason?: AvmRevertReason) {}
 
   toString(): string {

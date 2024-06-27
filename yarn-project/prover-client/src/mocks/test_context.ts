@@ -21,7 +21,7 @@ import { type DebugLogger } from '@aztec/foundation/log';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import {
   type ContractsDataSourcePublicDB,
-  type PublicExecution,
+  type PublicExecutionRequest,
   type PublicExecutionResult,
   PublicExecutionResultBuilder,
   type PublicExecutor,
@@ -164,7 +164,7 @@ export class TestContext {
     txValidator?: TxValidator<ProcessedTx>,
   ) {
     const defaultExecutorImplementation = (
-      execution: PublicExecution,
+      execution: PublicExecutionRequest,
       _globalVariables: GlobalVariables,
       availableGas: Gas,
       _txContext: TxContext,
@@ -204,7 +204,7 @@ export class TestContext {
     blockProver?: BlockProver,
     txValidator?: TxValidator<ProcessedTx>,
     executorMock?: (
-      execution: PublicExecution,
+      execution: PublicExecutionRequest,
       globalVariables: GlobalVariables,
       availableGas: Gas,
       txContext: TxContext,

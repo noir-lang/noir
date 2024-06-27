@@ -2,9 +2,9 @@ import { FunctionSelector, Gas } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
 
 import type { AvmContext } from '../avm_context.js';
+import { type AvmContractCallResult } from '../avm_contract_call_result.js';
 import { gasLeftToGas } from '../avm_gas.js';
 import { Field, TypeTag, Uint8 } from '../avm_memory_types.js';
-import { type AvmContractCallResults } from '../avm_message_call_result.js';
 import { AvmSimulator } from '../avm_simulator.js';
 import { RethrownError } from '../errors.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
@@ -88,7 +88,7 @@ abstract class ExternalCall extends Instruction {
     );
 
     const simulator = new AvmSimulator(nestedContext);
-    const nestedCallResults: AvmContractCallResults = await simulator.execute();
+    const nestedCallResults: AvmContractCallResult = await simulator.execute();
     const success = !nestedCallResults.reverted;
 
     // TRANSITIONAL: We rethrow here so that the MESSAGE gets propagated.
@@ -120,7 +120,6 @@ abstract class ExternalCall extends Instruction {
     // Accept the nested call's state and trace the nested call
     await context.persistableState.processNestedCall(
       /*nestedState=*/ nestedContext.persistableState,
-      /*success=*/ success,
       /*nestedEnvironment=*/ nestedContext.environment,
       /*startGasLeft=*/ Gas.from(allocatedGas),
       /*endGasLeft=*/ Gas.from(nestedContext.machineState.gasLeft),

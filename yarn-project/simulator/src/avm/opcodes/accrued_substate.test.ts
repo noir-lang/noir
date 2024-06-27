@@ -180,7 +180,7 @@ describe('Accrued Substate', () => {
         const tracedLeafIndex = exists && !isPending ? leafIndex : Fr.ZERO;
         expect(trace.traceNullifierCheck).toHaveBeenCalledWith(
           storageAddress,
-          value0,
+          /*nullifier=*/ value0,
           tracedLeafIndex,
           exists,
           isPending,
@@ -292,7 +292,7 @@ describe('Accrued Substate', () => {
         expect(trace.traceL1ToL2MessageCheck).toHaveBeenCalledTimes(1);
         expect(trace.traceL1ToL2MessageCheck).toHaveBeenCalledWith(
           address,
-          /*noteHash=*/ value0,
+          /*msgHash=*/ value0,
           leafIndex,
           /*exists=*/ expectFound,
         );

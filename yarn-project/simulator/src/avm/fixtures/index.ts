@@ -82,7 +82,7 @@ export function initExecutionEnvironment(overrides?: Partial<AvmExecutionEnviron
     overrides?.calldata ?? [],
     overrides?.gasSettings ?? GasSettings.empty(),
     overrides?.transactionFee ?? Fr.ZERO,
-    overrides?.temporaryFunctionSelector ?? FunctionSelector.empty(),
+    overrides?.functionSelector ?? FunctionSelector.empty(),
   );
 }
 

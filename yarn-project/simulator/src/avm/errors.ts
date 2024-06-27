@@ -113,7 +113,7 @@ function createRevertReason(message: string, context: AvmContext, nestedError?: 
     message,
     /*failingFunction=*/ {
       contractAddress: context.environment.address,
-      functionSelector: context.environment.temporaryFunctionSelector,
+      functionSelector: context.environment.functionSelector,
     },
     /*noirCallStack=*/ [...context.machineState.internalCallStack, context.machineState.pc].map(pc => `0.${pc}`),
     /*options=*/ { cause: nestedError },

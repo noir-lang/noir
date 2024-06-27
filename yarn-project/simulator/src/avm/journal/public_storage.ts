@@ -16,7 +16,7 @@ type PublicStorageReadResult = {
  */
 export class PublicStorage {
   /** Cached storage writes. */
-  private cache: PublicStorageCache;
+  private readonly cache: PublicStorageCache;
 
   constructor(
     /** Reference to node storage. Checked on parent cache-miss. */

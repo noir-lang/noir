@@ -3,9 +3,9 @@ import { Fr } from '@aztec/foundation/fields';
 import { mock } from 'jest-mock-extended';
 
 import { type PublicSideEffectTraceInterface } from '../../public/side_effect_trace_interface.js';
-import { markBytecodeAsAvm } from '../../public/transitional_adaptors.js';
 import { type AvmContext } from '../avm_context.js';
 import { Field, Uint8, Uint32 } from '../avm_memory_types.js';
+import { markBytecodeAsAvm } from '../bytecode_utils.js';
 import { adjustCalldataIndex, initContext, initHostStorage, initPersistableStateManager } from '../fixtures/index.js';
 import { type HostStorage } from '../journal/host_storage.js';
 import { type AvmPersistableStateManager } from '../journal/journal.js';

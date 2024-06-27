@@ -21,16 +21,16 @@ import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type ContractInstanceWithAddress } from '@aztec/types/contracts';
 
+import { type AvmContractCallResult } from '../avm/avm_contract_call_result.js';
 import { type AvmExecutionEnvironment } from '../avm/avm_execution_environment.js';
-import { type AvmContractCallResults } from '../avm/avm_message_call_result.js';
 import { createSimulationError } from '../common/errors.js';
-import { type PublicExecution, type PublicExecutionResult } from './execution.js';
+import { type PublicExecutionRequest, type PublicExecutionResult } from './execution.js';
 import { type PublicSideEffectTraceInterface } from './side_effect_trace_interface.js';
 
 export type TracedContractInstance = { exists: boolean } & ContractInstanceWithAddress;
 
 export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
-  public logger = createDebugLogger('aztec:side-effects');
+  public logger = createDebugLogger('aztec:public_side_effect_trace');
 
   /** The side effect counter increments with every call to the trace. */
   private sideEffectCounter: number; // kept as number until finalized for efficiency
@@ -224,7 +224,7 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
     /** Bytecode used for this execution. */
     bytecode: Buffer,
     /** The call's results */
-    avmCallResults: AvmContractCallResults,
+    avmCallResults: AvmContractCallResult,
     /** Function name for logging */
     functionName: string = 'unknown',
   ) {
@@ -270,14 +270,14 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
     /** Bytecode used for this execution. */
     bytecode: Buffer,
     /** The call's results */
-    avmCallResults: AvmContractCallResults,
+    avmCallResults: AvmContractCallResult,
     /** Function name for logging */
     functionName: string = 'unknown',
     /** The side effect counter of the execution request itself */
     requestSideEffectCounter: number = this.startSideEffectCounter,
   ): PublicExecutionResult {
     return {
-      execution: createPublicExecutionRequest(requestSideEffectCounter, avmEnvironment),
+      executionRequest: createPublicExecutionRequest(requestSideEffectCounter, avmEnvironment),
 
       startSideEffectCounter: new Fr(this.startSideEffectCounter),
       endSideEffectCounter: new Fr(this.sideEffectCounter),
@@ -322,21 +322,20 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
 function createPublicExecutionRequest(
   requestSideEffectCounter: number,
   avmEnvironment: AvmExecutionEnvironment,
-): PublicExecution {
+): PublicExecutionRequest {
   const callContext = CallContext.from({
     msgSender: avmEnvironment.sender,
     storageContractAddress: avmEnvironment.storageAddress,
-    functionSelector: avmEnvironment.temporaryFunctionSelector,
+    functionSelector: avmEnvironment.functionSelector,
     isDelegateCall: avmEnvironment.isDelegateCall,
     isStaticCall: avmEnvironment.isStaticCall,
     sideEffectCounter: requestSideEffectCounter,
   });
-  const execution: PublicExecution = {
+  return {
     contractAddress: avmEnvironment.address,
-    functionSelector: avmEnvironment.temporaryFunctionSelector,
+    functionSelector: avmEnvironment.functionSelector,
     callContext,
     // execution request does not contain AvmContextInputs prefix
     args: avmEnvironment.getCalldataWithoutPrefix(),
   };
-  return execution;
 }
