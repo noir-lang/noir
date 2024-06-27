@@ -21,8 +21,11 @@ comptime fn derive_default(typ: TypeDefinition) -> Quoted {
 #[derive_default]
 struct Foo {
     x: Field,
-    y: u32,
+    y: Bar,
 }
+
+#[derive_default]
+struct Bar {}
 
 comptime fn make_field_exprs(fields: [(Quoted, Quoted)]) -> [Quoted] {
     let mut result = &[];
@@ -41,4 +44,6 @@ comptime fn join(slice: [Quoted]) -> Quoted {
     result
 }
 
-fn main() {}
+fn main() {
+    let _foo: Foo = Default::default();
+}

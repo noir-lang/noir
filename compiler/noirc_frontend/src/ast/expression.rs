@@ -833,22 +833,32 @@ impl Display for FunctionDefinition {
         writeln!(f, "{:?}", self.attributes)?;
 
         let parameters = vecmap(&self.parameters, |Param { visibility, pattern, typ, span: _ }| {
-            format!("{pattern}: {visibility} {typ}")
+            if *visibility == Visibility::Public {
+                format!("{pattern}: {visibility} {typ}")
+            } else {
+                format!("{pattern}: {typ}")
+            }
         });
 
         let where_clause = vecmap(&self.where_clause, ToString::to_string);
         let where_clause_str = if !where_clause.is_empty() {
-            format!("where {}", where_clause.join(", "))
+            format!(" where {}", where_clause.join(", "))
         } else {
             "".to_string()
         };
 
+        let return_type = if matches!(&self.return_type, FunctionReturnType::Default(_)) {
+            String::new()
+        } else {
+            format!(" -> {}", self.return_type)
+        };
+
         write!(
             f,
-            "fn {}({}) -> {} {} {}",
+            "fn {}({}){}{} {}",
             self.name,
             parameters.join(", "),
-            self.return_type,
+            return_type,
             where_clause_str,
             self.body
         )

@@ -11,6 +11,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::graph::CrateId;
+use crate::monomorphization::{perform_instantiation_bindings, undo_instantiation_bindings};
 use crate::token::Tokens;
 use crate::{
     hir_def::{
@@ -31,7 +32,7 @@ use crate::{
 };
 
 use super::errors::{IResult, InterpreterError};
-use super::value::Value;
+use super::value::{unwrap_rc, Value};
 
 mod builtin;
 mod unquote;
@@ -62,6 +63,19 @@ impl<'a> Interpreter<'a> {
     }
 
     pub(crate) fn call_function(
+        &mut self,
+        function: FuncId,
+        arguments: Vec<(Value, Location)>,
+        instantiation_bindings: TypeBindings,
+        location: Location,
+    ) -> IResult<Value> {
+        perform_instantiation_bindings(&instantiation_bindings);
+        let result = self.call_function_inner(function, arguments, location);
+        undo_instantiation_bindings(instantiation_bindings);
+        result
+    }
+
+    fn call_function_inner(
         &mut self,
         function: FuncId,
         arguments: Vec<(Value, Location)>,
@@ -203,7 +217,8 @@ impl<'a> Interpreter<'a> {
     ) -> IResult<()> {
         match pattern {
             HirPattern::Identifier(identifier) => {
-                self.define(identifier.id, typ, argument, location)
+                self.define(identifier.id, argument);
+                Ok(())
             }
             HirPattern::Mutable(pattern, _) => {
                 self.define_pattern(pattern, typ, argument, location)
@@ -225,8 +240,6 @@ impl<'a> Interpreter<'a> {
             },
             HirPattern::Struct(struct_type, pattern_fields, _) => {
                 self.push_scope();
-                self.type_check(typ, &argument, location)?;
-                self.type_check(struct_type, &argument, location)?;
 
                 let res = match argument {
                     Value::Struct(fields, struct_type) if fields.len() == pattern_fields.len() => {
@@ -262,30 +275,8 @@ impl<'a> Interpreter<'a> {
     }
 
     /// Define a new variable in the current scope
-    fn define(
-        &mut self,
-        id: DefinitionId,
-        typ: &Type,
-        argument: Value,
-        location: Location,
-    ) -> IResult<()> {
-        // Temporarily disabled since this fails on generic types
-        // self.type_check(typ, &argument, location)?;
+    fn define(&mut self, id: DefinitionId, argument: Value) {
         self.current_scope_mut().insert(id, argument);
-        Ok(())
-    }
-
-    /// Mutate an existing variable, potentially from a prior scope.
-    /// Also type checks the value being assigned
-    fn checked_mutate(
-        &mut self,
-        id: DefinitionId,
-        typ: &Type,
-        argument: Value,
-        location: Location,
-    ) -> IResult<()> {
-        self.type_check(typ, &argument, location)?;
-        self.mutate(id, argument, location)
     }
 
     /// Mutate an existing variable, potentially from a prior scope
@@ -322,15 +313,6 @@ impl<'a> Interpreter<'a> {
         // but unknown by the interpreter it must be because it was not a comptime variable.
         let name = self.interner.definition(id).name.clone();
         Err(InterpreterError::NonComptimeVarReferenced { name, location })
-    }
-
-    fn type_check(&self, typ: &Type, value: &Value, location: Location) -> IResult<()> {
-        let typ = typ.follow_bindings();
-        let value_type = value.get_type();
-
-        typ.try_unify(&value_type, &mut TypeBindings::new()).map_err(|_| {
-            InterpreterError::TypeMismatch { expected: typ, value: value.clone(), location }
-        })
     }
 
     /// Evaluate an expression and return the result
@@ -370,8 +352,9 @@ impl<'a> Interpreter<'a> {
 
         match &definition.kind {
             DefinitionKind::Function(function_id) => {
-                let typ = self.interner.id_type(id);
-                Ok(Value::Function(*function_id, typ))
+                let typ = self.interner.id_type(id).follow_bindings();
+                let bindings = Rc::new(self.interner.get_instantiation_bindings(id).clone());
+                Ok(Value::Function(*function_id, typ, bindings))
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
@@ -532,7 +515,7 @@ impl<'a> Interpreter<'a> {
     }
 
     fn evaluate_array(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
-        let typ = self.interner.id_type(id);
+        let typ = self.interner.id_type(id).follow_bindings();
 
         match array {
             HirArrayLiteral::Standard(elements) => {
@@ -929,7 +912,7 @@ impl<'a> Interpreter<'a> {
             })
             .collect::<Result<_, _>>()?;
 
-        let typ = self.interner.id_type(id);
+        let typ = self.interner.id_type(id).follow_bindings();
         Ok(Value::Struct(fields, typ))
     }
 
@@ -970,7 +953,10 @@ impl<'a> Interpreter<'a> {
         let location = self.interner.expr_location(&id);
 
         match function {
-            Value::Function(function_id, _) => self.call_function(function_id, arguments, location),
+            Value::Function(function_id, _, bindings) => {
+                let bindings = unwrap_rc(bindings);
+                self.call_function(function_id, arguments, bindings, location)
+            }
             Value::Closure(closure, env, _) => self.call_closure(closure, env, arguments, location),
             value => Err(InterpreterError::NonFunctionCalled { value, location }),
         }
@@ -999,7 +985,7 @@ impl<'a> Interpreter<'a> {
         };
 
         if let Some(method) = method {
-            self.call_function(method, arguments, location)
+            self.call_function(method, arguments, TypeBindings::new(), location)
         } else {
             Err(InterpreterError::NoMethodFound { name: method_name.clone(), typ, location })
         }
@@ -1144,7 +1130,7 @@ impl<'a> Interpreter<'a> {
         let environment =
             try_vecmap(&lambda.captures, |capture| self.lookup_id(capture.ident.id, location))?;
 
-        let typ = self.interner.id_type(id);
+        let typ = self.interner.id_type(id).follow_bindings();
         Ok(Value::Closure(lambda, environment, typ))
     }
 
@@ -1205,9 +1191,7 @@ impl<'a> Interpreter<'a> {
 
     fn store_lvalue(&mut self, lvalue: HirLValue, rhs: Value) -> IResult<()> {
         match lvalue {
-            HirLValue::Ident(ident, typ) => {
-                self.checked_mutate(ident.id, &typ, rhs, ident.location)
-            }
+            HirLValue::Ident(ident, typ) => self.mutate(ident.id, rhs, ident.location),
             HirLValue::Dereference { lvalue, element_type: _, location } => {
                 match self.evaluate_lvalue(&lvalue)? {
                     Value::Pointer(value) => {
@@ -1226,7 +1210,7 @@ impl<'a> Interpreter<'a> {
                     }
                     Value::Struct(mut fields, typ) => {
                         fields.insert(Rc::new(field_name.0.contents), rhs);
-                        self.store_lvalue(*object, Value::Struct(fields, typ))
+                        self.store_lvalue(*object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value => {
                         Err(InterpreterError::NonTupleOrStructInMemberAccess { value, location })
