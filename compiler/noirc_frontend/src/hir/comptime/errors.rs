@@ -42,6 +42,8 @@ pub enum InterpreterError {
     CannotInlineMacro { value: Value, location: Location },
     UnquoteFoundDuringEvaluation { location: Location },
     FailedToParseMacro { error: ParserError, tokens: Rc<Tokens>, rule: &'static str, file: FileId },
+    UnsupportedTopLevelItemUnquote { item: String, location: Location },
+    NonComptimeFnCallInSameCrate { function: String, location: Location },
 
     Unimplemented { item: String, location: Location },
 
@@ -101,6 +103,8 @@ impl InterpreterError {
             | InterpreterError::NonStructInConstructor { location, .. }
             | InterpreterError::CannotInlineMacro { location, .. }
             | InterpreterError::UnquoteFoundDuringEvaluation { location, .. }
+            | InterpreterError::UnsupportedTopLevelItemUnquote { location, .. }
+            | InterpreterError::NonComptimeFnCallInSameCrate { location, .. }
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::BreakNotInLoop { location, .. }
             | InterpreterError::ContinueNotInLoop { location, .. } => *location,
@@ -259,7 +263,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
             InterpreterError::CannotInlineMacro { value, location } => {
-                let msg = "Cannot inline value into runtime code if it contains references".into();
+                let typ = value.get_type();
+                let msg = format!("Cannot inline values of type `{typ}` into this position");
                 let secondary = format!("Cannot inline value {value:?}");
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
@@ -292,6 +297,20 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 diagnostic.add_note(token_stream);
                 diagnostic.add_note(push_the_problem_on_the_library_author);
                 diagnostic
+            }
+            InterpreterError::UnsupportedTopLevelItemUnquote { item, location } => {
+                let msg = "Unsupported statement type to unquote".into();
+                let secondary =
+                    "Only functions, globals, and trait impls can be unquoted here".into();
+                let mut error = CustomDiagnostic::simple_error(msg, secondary, location.span);
+                error.add_note(format!("Unquoted item was:\n{item}"));
+                error
+            }
+            InterpreterError::NonComptimeFnCallInSameCrate { function, location } => {
+                let msg = format!("`{function}` cannot be called in a `comptime` context here");
+                let secondary =
+                    "This function must be `comptime` or in a separate crate to be called".into();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::Unimplemented { item, location } => {
                 let msg = format!("{item} is currently unimplemented");

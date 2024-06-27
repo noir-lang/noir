@@ -5,7 +5,7 @@ comptime global FOO: Field = foo();
 // Due to this function's mutability and branching, SSA currently fails
 // to fold this function into a constant before the assert_constant check
 // is evaluated before loop unrolling.
-fn foo() -> Field {
+comptime fn foo() -> Field {
     let mut three = 3;
     if three == 3 { 5 } else { 6 }
 }

@@ -178,6 +178,12 @@ pub struct NodeInterner {
     /// Stores the [Location] of a [Type] reference
     pub(crate) type_ref_locations: Vec<(Type, Location)>,
 
+    /// In Noir's metaprogramming, a noir type has the type `Type`. When these are spliced
+    /// into `quoted` expressions, we preserve the original type by assigning it a unique id
+    /// and creating a `Token::QuotedType(id)` from this id. We cannot create a token holding
+    /// the actual type since types do not implement Send or Sync.
+    quoted_types: noirc_arena::Arena<Type>,
+
     /// Store the location of the references in the graph
     pub(crate) reference_graph: DiGraph<DependencyId, ()>,
 
@@ -487,6 +493,9 @@ pub struct GlobalInfo {
     pub value: Option<comptime::Value>,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct QuotedTypeId(noirc_arena::Index);
+
 impl Default for NodeInterner {
     fn default() -> Self {
         let mut interner = NodeInterner {
@@ -521,6 +530,7 @@ impl Default for NodeInterner {
             primitive_methods: HashMap::new(),
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
+            quoted_types: Default::default(),
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::new(),
@@ -641,6 +651,15 @@ impl NodeInterner {
 
     pub fn update_trait(&mut self, trait_id: TraitId, f: impl FnOnce(&mut Trait)) {
         let value = self.traits.get_mut(&trait_id).unwrap();
+        f(value);
+    }
+
+    pub fn update_struct_attributes(
+        &mut self,
+        type_id: StructId,
+        f: impl FnOnce(&mut StructAttributes),
+    ) {
+        let value = self.struct_attributes.get_mut(&type_id).unwrap();
         f(value);
     }
 
@@ -1766,6 +1785,14 @@ impl NodeInterner {
         }
 
         cycle
+    }
+
+    pub fn push_quoted_type(&mut self, typ: Type) -> QuotedTypeId {
+        QuotedTypeId(self.quoted_types.insert(typ))
+    }
+
+    pub fn get_quoted_type(&self, id: QuotedTypeId) -> &Type {
+        &self.quoted_types[id.0]
     }
 }
 

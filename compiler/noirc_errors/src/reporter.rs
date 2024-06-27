@@ -202,14 +202,14 @@ fn stack_trace<'files>(
         let path = files.name(call_item.file).expect("should get file path");
         let source = files.source(call_item.file).expect("should get file source");
 
-        let (line, column) = location(source.as_ref(), call_item.span.start());
+        let (line, column) = line_and_column_from_span(source.as_ref(), &call_item.span);
         result += &format!("{}. {}:{}:{}\n", i + 1, path, line, column);
     }
 
     result
 }
 
-fn location(source: &str, span_start: u32) -> (u32, u32) {
+pub fn line_and_column_from_span(source: &str, span: &Span) -> (u32, u32) {
     let mut line = 1;
     let mut column = 0;
 
@@ -221,7 +221,7 @@ fn location(source: &str, span_start: u32) -> (u32, u32) {
             column = 0;
         }
 
-        if span_start <= i as u32 {
+        if span.start() <= i as u32 {
             break;
         }
     }
