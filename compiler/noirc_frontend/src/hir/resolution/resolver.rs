@@ -1516,23 +1516,15 @@ impl<'a> Resolver<'a> {
 
                     if hir_ident.id != DefinitionId::dummy_id() {
                         match self.interner.definition(hir_ident.id).kind {
-                            DefinitionKind::Function(func_id) => {
+                            DefinitionKind::Function(id) => {
                                 if let Some(current_item) = self.current_item {
-                                    self.interner.add_function_dependency(current_item, func_id);
+                                    self.interner.add_function_dependency(current_item, id);
                                 }
-
-                                let variable = DependencyId::Variable(hir_ident.location);
-                                let function = DependencyId::Function(func_id);
-                                self.interner.add_reference(function, variable);
                             }
                             DefinitionKind::Global(global_id) => {
                                 if let Some(current_item) = self.current_item {
                                     self.interner.add_global_dependency(current_item, global_id);
                                 }
-
-                                let variable = DependencyId::Variable(hir_ident.location);
-                                let global = DependencyId::Global(global_id);
-                                self.interner.add_reference(global, variable);
                             }
                             DefinitionKind::GenericType(_) => {
                                 // Initialize numeric generics to a polymorphic integer type in case
