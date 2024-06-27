@@ -133,7 +133,7 @@ impl std::fmt::Display for ParserError {
         } else {
             let expected = expected.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
 
-            write!(f, "Unexpected {}, expected one of {}{}", self.found, expected, reason_str)
+            write!(f, "Unexpected {:?}, expected one of {}{}", self.found, expected, reason_str)
         }
     }
 }
