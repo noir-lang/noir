@@ -1,5 +1,5 @@
 [package]
-name = "trait_impl_where_clause"
+name = "impl_where_clause"
 type = "bin"
 authors = [""]
 
