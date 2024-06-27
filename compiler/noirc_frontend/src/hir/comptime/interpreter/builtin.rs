@@ -77,7 +77,7 @@ fn type_def_as_type(
 
     let struct_def = interner.get_struct(type_def);
     let struct_def = struct_def.borrow();
-    let make_token = |name| SpannedToken::new(Token::Str(name), span);
+    let make_token = |name| SpannedToken::new(Token::Ident(name), span);
 
     let mut tokens = vec![make_token(struct_def.name.to_string())];
 
@@ -111,7 +111,7 @@ fn type_def_generics(
         .generics
         .iter()
         .map(|generic| {
-            let name = SpannedToken::new(Token::Str(generic.type_var.borrow().to_string()), span);
+            let name = SpannedToken::new(Token::Ident(generic.type_var.borrow().to_string()), span);
             Value::Code(Rc::new(Tokens(vec![name])))
         })
         .collect();
@@ -137,7 +137,7 @@ fn type_def_fields(
     let struct_def = interner.get_struct(type_def);
     let struct_def = struct_def.borrow();
 
-    let make_token = |name| SpannedToken::new(Token::Str(name), span);
+    let make_token = |name| SpannedToken::new(Token::Ident(name), span);
     let make_quoted = |tokens| Value::Code(Rc::new(Tokens(tokens)));
 
     let mut fields = im::Vector::new();

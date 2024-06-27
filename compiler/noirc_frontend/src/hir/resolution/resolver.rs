@@ -1114,6 +1114,7 @@ impl<'a> Resolver<'a> {
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
             is_entry_point: self.is_entry_point_function(func),
             has_inline_attribute,
+            source_crate: self.path_resolver.module_id().krate,
 
             // These fields are only used by the elaborator
             all_generics: Vec::new(),
