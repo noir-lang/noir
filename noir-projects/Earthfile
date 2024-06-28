@@ -77,7 +77,7 @@ format:
   RUN nargo fmt --check
 
 gates-report:
-  FROM +build
+  FROM +build-protocol-circuits
   WORKDIR /usr/src/noir-projects
 
   COPY ./gates_report.sh ./gates_report.sh
