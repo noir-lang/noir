@@ -4,6 +4,7 @@ use plonky2::iop::{
     target::{BoolTarget, Target},
     wire::Wire,
 };
+use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 
 use super::config::P2Field;
 use super::{asm_writer::AsmWriter, config::P2Builder};
@@ -128,6 +129,16 @@ impl<TIter: Iterator<Item = T> + Clone, T: Borrow<BoolTarget>> Display
         }
         write!(f, ")")?;
         Ok(())
+    }
+}
+
+struct U32TargetDisplay {
+    t: U32Target,
+}
+
+impl Display for U32TargetDisplay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", TargetDisplay { t: self.t.0 })
     }
 }
 
@@ -374,5 +385,21 @@ impl AsmWriter for ConsoleAsmWriter {
         if self.show_plonky2 {
             println!("range_check\t{},{}", TargetDisplay { t: x }, n_log);
         }
+    }
+
+    fn add_virtual_bool_target_unsafe(&mut self) -> BoolTarget {
+        let result = self.builder.add_virtual_bool_target_unsafe();
+        if self.show_plonky2 {
+            println!("add_virtual_bool_target_unsafe\t{}", BoolTargetDisplay { t: result });
+        }
+        result
+    }
+
+    fn constant_u32(&mut self, c: u32) -> U32Target {
+        let result = self.builder.constant_u32(c);
+        if self.show_plonky2 {
+            println!("constant_u32\t{},{}", c, U32TargetDisplay { t: result });
+        }
+        result
     }
 }

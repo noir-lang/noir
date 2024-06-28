@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 
 use plonky2::iop::target::{BoolTarget, Target};
+use plonky2_u32::gadgets::arithmetic_u32::U32Target;
 
 use super::config::{P2Builder, P2Field};
 
@@ -34,4 +35,6 @@ pub trait AsmWriter {
         T: Borrow<Target>;
     fn le_sum(&mut self, bits: impl Iterator<Item = impl Borrow<BoolTarget>> + Clone) -> Target;
     fn range_check(&mut self, x: Target, n_log: usize);
+    fn add_virtual_bool_target_unsafe(&mut self) -> BoolTarget;
+    fn constant_u32(&mut self, c: u32) -> U32Target;
 }
