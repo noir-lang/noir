@@ -32,9 +32,9 @@ use crate::hir_def::{
     stmt::HirStatement,
 };
 use crate::token::{Attributes, SecondaryAttribute};
-use crate::{
-    Generics, Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
-};
+use crate::GenericTypeVars;
+use crate::Generics;
+use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind};
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
@@ -176,6 +176,12 @@ pub struct NodeInterner {
 
     /// Stores the [Location] of a [Type] reference
     pub(crate) type_ref_locations: Vec<(Type, Location)>,
+
+    /// In Noir's metaprogramming, a noir type has the type `Type`. When these are spliced
+    /// into `quoted` expressions, we preserve the original type by assigning it a unique id
+    /// and creating a `Token::QuotedType(id)` from this id. We cannot create a token holding
+    /// the actual type since types do not implement Send or Sync.
+    quoted_types: noirc_arena::Arena<Type>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -472,6 +478,9 @@ pub struct GlobalInfo {
     pub value: Option<comptime::Value>,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct QuotedTypeId(noirc_arena::Index);
+
 impl Default for NodeInterner {
     fn default() -> Self {
         let mut interner = NodeInterner {
@@ -506,6 +515,7 @@ impl Default for NodeInterner {
             primitive_methods: HashMap::new(),
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
+            quoted_types: Default::default(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -547,7 +557,12 @@ impl NodeInterner {
         self.definition_to_type.insert(definition_id, typ);
     }
 
-    pub fn push_empty_trait(&mut self, type_id: TraitId, unresolved_trait: &UnresolvedTrait) {
+    pub fn push_empty_trait(
+        &mut self,
+        type_id: TraitId,
+        unresolved_trait: &UnresolvedTrait,
+        generics: Generics,
+    ) {
         let self_type_typevar_id = self.next_type_variable_id();
 
         let new_trait = Trait {
@@ -555,13 +570,7 @@ impl NodeInterner {
             name: unresolved_trait.trait_def.name.clone(),
             crate_id: unresolved_trait.crate_id,
             location: Location::new(unresolved_trait.trait_def.span, unresolved_trait.file_id),
-            generics: vecmap(&unresolved_trait.trait_def.generics, |_| {
-                // Temporary type variable ids before the trait is resolved to its actual ids.
-                // This lets us record how many arguments the type expects so that other types
-                // can refer to it with generic arguments before the generic parameters themselves
-                // are resolved.
-                TypeVariable::unbound(TypeVariableId(0))
-            }),
+            generics,
             self_type_typevar_id,
             self_type_typevar: TypeVariable::unbound(self_type_typevar_id),
             methods: Vec::new(),
@@ -576,6 +585,7 @@ impl NodeInterner {
     pub fn new_struct(
         &mut self,
         typ: &UnresolvedStruct,
+        generics: Generics,
         krate: CrateId,
         local_id: LocalModuleId,
         file_id: FileId,
@@ -585,13 +595,6 @@ impl NodeInterner {
 
         // Fields will be filled in later
         let no_fields = Vec::new();
-        let generics = vecmap(&typ.struct_def.generics, |_| {
-            // Temporary type variable ids before the struct is resolved to its actual ids.
-            // This lets us record how many arguments the type expects so that other types
-            // can refer to it with generic arguments before the generic parameters themselves
-            // are resolved.
-            TypeVariable::unbound(TypeVariableId(0))
-        });
 
         let location = Location::new(typ.struct_def.span, file_id);
         let new_struct = StructType::new(struct_id, name, location, no_fields, generics);
@@ -600,7 +603,11 @@ impl NodeInterner {
         struct_id
     }
 
-    pub fn push_type_alias(&mut self, typ: &UnresolvedTypeAlias) -> TypeAliasId {
+    pub fn push_type_alias(
+        &mut self,
+        typ: &UnresolvedTypeAlias,
+        generics: Generics,
+    ) -> TypeAliasId {
         let type_id = TypeAliasId(self.type_aliases.len());
 
         self.type_aliases.push(Shared::new(TypeAlias::new(
@@ -608,7 +615,7 @@ impl NodeInterner {
             typ.type_alias_def.name.clone(),
             Location::new(typ.type_alias_def.span, typ.file_id),
             Type::Error,
-            vecmap(&typ.type_alias_def.generics, |_| TypeVariable::unbound(TypeVariableId(0))),
+            generics,
         )));
 
         type_id
@@ -624,17 +631,17 @@ impl NodeInterner {
         f(&mut value);
     }
 
+    pub fn update_trait(&mut self, trait_id: TraitId, f: impl FnOnce(&mut Trait)) {
+        let value = self.traits.get_mut(&trait_id).unwrap();
+        f(value);
+    }
+
     pub fn update_struct_attributes(
         &mut self,
         type_id: StructId,
         f: impl FnOnce(&mut StructAttributes),
     ) {
         let value = self.struct_attributes.get_mut(&type_id).unwrap();
-        f(value);
-    }
-
-    pub fn update_trait(&mut self, trait_id: TraitId, f: impl FnOnce(&mut Trait)) {
-        let value = self.traits.get_mut(&trait_id).unwrap();
         f(value);
     }
 
@@ -1416,7 +1423,7 @@ impl NodeInterner {
         trait_id: TraitId,
         trait_generics: Vec<Type>,
         impl_id: TraitImplId,
-        impl_generics: Generics,
+        impl_generics: GenericTypeVars,
         trait_impl: Shared<TraitImpl>,
     ) -> Result<(), (Span, FileId)> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
@@ -1747,6 +1754,14 @@ impl NodeInterner {
 
         cycle
     }
+
+    pub fn push_quoted_type(&mut self, typ: Type) -> QuotedTypeId {
+        QuotedTypeId(self.quoted_types.insert(typ))
+    }
+
+    pub fn get_quoted_type(&self, id: QuotedTypeId) -> &Type {
+        &self.quoted_types[id.0]
+    }
 }
 
 impl Methods {
@@ -1834,7 +1849,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _, _) => Some(Function),
-        Type::NamedGeneric(_, _) => Some(Generic),
+        Type::NamedGeneric(_, _, _) => Some(Generic),
         Type::Quoted(quoted) => Some(Quoted(*quoted)),
         Type::MutableReference(element) => get_type_method_key(element),
         Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),

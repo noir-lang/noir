@@ -50,7 +50,10 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, F
     });
 }
 
-pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
+pub(crate) fn get_program(
+    src: &str,
+    use_legacy: bool,
+) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
     let root = std::path::Path::new("/");
     let fm = FileManager::new(root);
 
@@ -82,7 +85,7 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            false,
+            use_legacy,
             &[], // No macro processors
         ));
     }
@@ -90,7 +93,7 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
 }
 
 pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
-    get_program(src).2
+    get_program(src, false).2
 }
 
 #[test]
@@ -833,7 +836,7 @@ fn check_trait_as_type_as_two_fn_parameters() {
 }
 
 fn get_program_captures(src: &str) -> Vec<Vec<String>> {
-    let (program, context, _errors) = get_program(src);
+    let (program, context, _errors) = get_program(src, false);
     let interner = context.def_interner;
     let mut all_captures: Vec<Vec<String>> = Vec::new();
     for func in program.into_sorted().functions {
@@ -1195,7 +1198,7 @@ fn resolve_fmt_strings() {
 }
 
 fn check_rewrite(src: &str, expected: &str) {
-    let (_program, mut context, _errors) = get_program(src);
+    let (_program, mut context, _errors) = get_program(src, false);
     let main_func_id = context.def_interner.find_function("main").unwrap();
     let program = monomorphize(main_func_id, &mut context.def_interner).unwrap();
     assert!(format!("{}", program) == expected);
@@ -1326,14 +1329,20 @@ fn for_loop_over_array() {
             hello(array);
         }
     "#;
-    assert_eq!(get_program_errors(src).len(), 0);
+    let errors = get_program_errors(src);
+    assert_eq!(get_program_errors(src).len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. })
+    ));
 }
 
 // Regression for #4545
 #[test]
 fn type_aliases_in_main() {
     let src = r#"
-        type Outer<N> = [u8; N];
+        type Outer<let N: u32> = [u8; N];
         fn main(_arg: Outer<1>) {}
     "#;
     assert_eq!(get_program_errors(src).len(), 0);
@@ -1444,6 +1453,425 @@ fn specify_method_types_with_turbofish() {
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn struct_numeric_generic_in_function() {
+    let src = r#"
+    struct Foo {
+        inner: u64
+    }
+
+    fn bar<let N: Foo>() { }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
+    ));
+}
+
+#[test]
+fn struct_numeric_generic_in_struct() {
+    let src = r#"
+    struct Foo {
+        inner: u64
+    }
+
+    struct Bar<let N: Foo> { }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::DefinitionError(
+            DefCollectorErrorKind::UnsupportedNumericGenericType { .. }
+        ),
+    ));
+}
+
+#[test]
+fn bool_numeric_generic() {
+    let src = r#"
+    fn read<let N: bool>() -> Field {
+        if N {
+            0
+        } else {
+            1
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
+    ));
+}
+
+#[test]
+fn numeric_generic_binary_operation_type_mismatch() {
+    let src = r#"
+    fn foo<let N: Field>() -> bool {
+        let mut check: bool = true;
+        check = N;
+        check
+    }   
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }),
+    ));
+}
+
+#[test]
+fn bool_generic_as_loop_bound() {
+    let src = r#"
+    fn read<let N: bool>() {
+        let mut fields = [0; N];
+        for i in 0..N {
+            fields[i] = i + 1;
+        }
+        assert(fields[0] == 1);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
+    ));
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch {
+        expected_typ, expr_typ, ..
+    }) = &errors[1].0
+    else {
+        panic!("Got an error other than a type mismatch");
+    };
+
+    assert_eq!(expected_typ, "Field");
+    assert_eq!(expr_typ, "bool");
+}
+
+#[test]
+fn numeric_generic_in_function_signature() {
+    let src = r#"
+    fn foo<let N: u8>(arr: [Field; N]) -> [Field; N] { arr }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+}
+
+#[test]
+fn numeric_generic_as_struct_field_type() {
+    let src = r#"
+    struct Foo<let N: u64> {
+        a: Field,
+        b: N,
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
+    ));
+}
+
+#[test]
+fn normal_generic_as_array_length() {
+    let src = r#"
+    struct Foo<N> {
+        a: Field,
+        b: [Field; N],
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    // TODO(https://github.com/noir-lang/noir/issues/5156): This should be switched to a hard type error rather than
+    // the `UseExplicitNumericGeneric` once implicit numeric generics are removed.
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. }),
+    ));
+}
+
+#[test]
+fn numeric_generic_as_param_type() {
+    let src = r#"
+    fn foo<let I: Field>(x: I) -> I {
+        let _q: I = 5;
+        x
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 3);
+    // Error from the parameter type
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
+    ));
+    // Error from the let statement annotated type
+    assert!(matches!(
+        errors[1].0,
+        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
+    ));
+    // Error from the return type
+    assert!(matches!(
+        errors[2].0,
+        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
+    ));
+}
+
+#[test]
+fn numeric_generic_used_in_nested_type_fail() {
+    let src = r#"
+    struct Foo<let N: u64> {
+        a: Field,
+        b: Bar<N>,
+    }
+    struct Bar<N> {
+        inner: N
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::NumericGenericUsedForType { .. }),
+    ));
+}
+
+#[test]
+fn normal_generic_used_in_nested_array_length_fail() {
+    let src = r#"
+    struct Foo<N> {
+        a: Field,
+        b: Bar<N>,
+    }
+    struct Bar<let N: u32> {
+        inner: [Field; N]
+    }
+    "#;
+    let errors = get_program_errors(src);
+    // TODO(https://github.com/noir-lang/noir/issues/5156): This should be switched to a hard type error once implicit numeric generics are removed.
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn numeric_generic_used_in_nested_type_pass() {
+    // The order of these structs should not be changed to make sure
+    // that we are accurately resolving all struct generics before struct fields
+    let src = r#"
+    struct NestedNumeric<let N: u32> {
+        a: Field,
+        b: InnerNumeric<N>
+    }
+    struct InnerNumeric<let N: u32> {
+        inner: [u64; N],
+    }    
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+}
+
+#[test]
+fn numeric_generic_used_in_trait() {
+    let src = r#"
+    struct MyType<T> {
+        a: Field,
+        b: Field,
+        c: Field,
+        d: T,
+    }
+    
+    impl<let N: u64, T> Deserialize<N, T> for MyType<T> {
+        fn deserialize(fields: [Field; N], other: T) -> Self {
+            MyType { a: fields[0], b: fields[1], c: fields[2], d: other }
+        }
+    }
+    
+    trait Deserialize<let N: u32, T> {
+        fn deserialize(fields: [Field; N], other: T) -> Self;
+    }
+    "#;
+    let errors = get_program_errors(src);
+    // We want to make sure that `N` in `impl<let N: u64, T> Deserialize<N, T>` does
+    // not trigger `expected type, found numeric generic parameter N` as the trait
+    // does in fact expect a numeric generic.
+    assert!(errors.is_empty());
+}
+
+#[test]
+fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
+    let src = r#"
+    trait Default {
+        fn default() -> Self;
+    }
+
+    struct MyType<T> {
+        a: Field,
+        b: Field,
+        c: Field,
+        d: T,
+    }
+    
+    // Make sure that `T` is placed before `N` as we want to test that the order of the generics is correctly maintained.
+    // `N` is used first in the trait impl generics (`Deserialize<N> for MyType<T>`).
+    // We want to make sure that the compiler correctly accounts for that `N` has a numeric kind
+    // while `T` has a normal kind. 
+    impl<T, let N: u32> Deserialize<N> for MyType<T> where T: Default {
+        fn deserialize(fields: [Field; N]) -> Self {
+            MyType { a: fields[0], b: fields[1], c: fields[2], d: T::default() }
+        }
+    }
+    
+    trait Deserialize<let N: u32> {
+        fn deserialize(fields: [Field; N]) -> Self;
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+}
+
+#[test]
+fn numeric_generic_used_in_where_clause() {
+    let src = r#"
+    trait Deserialize<let N: u32> {
+        fn deserialize(fields: [Field; N]) -> Self;
+    }
+
+    fn read<T, let N: u32>() -> T where T: Deserialize<N> {
+        let mut fields: [Field; N] = [0; N];
+        for i in 0..N {
+            fields[i] = i as Field + 1;
+        }
+        T::deserialize(fields)
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+}
+
+#[test]
+fn numeric_generic_used_in_turbofish() {
+    let src = r#"
+    fn double<let N: u32>() -> u32 {
+        // Used as an expression
+        N * 2
+    }
+
+    fn double_numeric_generics_test() {
+        // Example usage of a numeric generic arguments.
+        assert(double::<9>() == 18);
+        assert(double::<7 + 8>() == 30);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+}
+
+#[test]
+fn constant_used_with_numeric_generic() {
+    let src = r#"
+    struct ValueNote {
+        value: Field,
+    }
+
+    trait Serialize<let N: u32> {
+        fn serialize(self) -> [Field; N];
+    }
+
+    impl Serialize<1> for ValueNote {
+        fn serialize(self) -> [Field; 1] {
+            [self.value]
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+}
+
+#[test]
+fn normal_generic_used_when_numeric_expected_in_where_clause() {
+    let src = r#"
+    trait Deserialize<let N: u32> {
+        fn deserialize(fields: [Field; N]) -> Self;
+    }
+
+    fn read<T, N>() -> T where T: Deserialize<N> {
+        T::deserialize([0, 1])
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }),
+    ));
+
+    let src = r#"
+    trait Deserialize<let N: u32> {
+        fn deserialize(fields: [Field; N]) -> Self;
+    }
+
+    fn read<T, N>() -> T where T: Deserialize<N> {
+        let mut fields: [Field; N] = [0; N];
+        for i in 0..N {
+            fields[i] = i as Field + 1;
+        }
+        T::deserialize(fields)
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::VariableNotDeclared { .. }),
+    ));
+}
+
+// TODO(https://github.com/noir-lang/noir/issues/5156): Remove this test once we ban implicit numeric generics
+#[test]
+fn implicit_numeric_generics_elaborator() {
+    let src = r#"
+    struct BoundedVec<T, MaxLen> {
+        storage: [T; MaxLen],
+        len: u64,
+    }
+    
+    impl<T, MaxLen> BoundedVec<T, MaxLen> {
+
+        // Test that we have an implicit numeric generic for "Len" as well as "MaxLen"
+        pub fn extend_from_bounded_vec<Len>(&mut self, _vec: BoundedVec<T, Len>) { 
+            // We do this to avoid an unused variable warning on `self`
+            let _ = self.len;
+            for _ in 0..Len { }
+        }
+
+        pub fn push(&mut self, elem: T) {
+            assert(self.len < MaxLen, "push out of bounds");
+            self.storage[self.len] = elem;
+            self.len += 1;
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 4);
+
+    for error in errors.iter() {
+        if let CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { ident }) =
+            &errors[0].0
+        {
+            assert!(matches!(ident.0.contents.as_str(), "MaxLen" | "Len"));
+        } else {
+            panic!("Expected ResolverError::UseExplicitNumericGeneric but got {:?}", error);
+        }
+    }
 }
 
 #[test]

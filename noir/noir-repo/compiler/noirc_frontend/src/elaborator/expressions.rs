@@ -29,7 +29,7 @@ use crate::{
     },
     node_interner::{DefinitionKind, ExprId, FuncId},
     token::Tokens,
-    QuotedType, Shared, StructType, Type,
+    Kind, QuotedType, Shared, StructType, Type,
 };
 
 use super::Elaborator;
@@ -52,7 +52,20 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::If(if_) => self.elaborate_if(*if_),
             ExpressionKind::Variable(variable, generics) => {
                 let generics = generics.map(|option_inner| {
-                    option_inner.into_iter().map(|generic| self.resolve_type(generic)).collect()
+                    option_inner
+                        .into_iter()
+                        .map(|generic| {
+                            // All type expressions should resolve to a `Type::Constant`
+                            if generic.is_type_expression() {
+                                self.resolve_type_inner(
+                                    generic,
+                                    &Kind::Numeric(Box::new(Type::default_int_type())),
+                                )
+                            } else {
+                                self.resolve_type(generic)
+                            }
+                        })
+                        .collect()
                 });
                 return self.elaborate_variable(variable, generics);
             }
@@ -651,7 +664,8 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_comptime_block(&mut self, block: BlockExpression, span: Span) -> (ExprId, Type) {
         let (block, _typ) = self.elaborate_block_expression(block);
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        let mut interpreter =
+            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
         let value = interpreter.evaluate_block(block);
         self.inline_comptime_value(value, span)
     }
@@ -724,7 +738,8 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        let mut interpreter =
+            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
 
         let mut comptime_args = Vec::new();
         let mut errors = Vec::new();
@@ -744,7 +759,8 @@ impl<'context> Elaborator<'context> {
             return None;
         }
 
-        let result = interpreter.call_function(function, comptime_args, location);
+        let bindings = interpreter.interner.get_instantiation_bindings(func).clone();
+        let result = interpreter.call_function(function, comptime_args, bindings, location);
         let (expr_id, typ) = self.inline_comptime_value(result, location.span);
         Some((self.interner.expression(&expr_id), typ))
     }

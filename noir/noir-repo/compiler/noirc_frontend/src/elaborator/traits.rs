@@ -1,10 +1,12 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, rc::Rc};
 
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    ast::{FunctionKind, TraitItem, UnresolvedGenerics, UnresolvedTraitConstraint},
+    ast::{
+        FunctionKind, TraitItem, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
+    },
     hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::{TraitConstant, TraitFunction, TraitType},
     macros_api::{
@@ -13,7 +15,7 @@ use crate::{
     },
     node_interner::{FuncId, TraitId},
     token::Attributes,
-    Type, TypeVariableKind,
+    Kind, ResolvedGeneric, Type, TypeVariableKind,
 };
 
 use super::Elaborator;
@@ -22,7 +24,11 @@ impl<'context> Elaborator<'context> {
     pub fn collect_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.recover_generics(|this| {
-                this.add_generics(&unresolved_trait.trait_def.generics);
+                let resolved_generics = this.interner.get_trait(trait_id).generics.clone();
+                this.add_existing_generics(
+                    &unresolved_trait.trait_def.generics,
+                    &resolved_generics,
+                );
 
                 // Resolve order
                 // 1. Trait Types ( Trait constants can have a trait type, therefore types before constants)
@@ -34,7 +40,6 @@ impl<'context> Elaborator<'context> {
 
                 this.interner.update_trait(trait_id, |trait_def| {
                     trait_def.set_methods(methods);
-                    trait_def.generics = vecmap(&this.generics, |(_, generic, _)| generic.clone());
                 });
             });
 
@@ -87,10 +92,20 @@ impl<'context> Elaborator<'context> {
                         Type::TypeVariable(self_typevar.clone(), TypeVariableKind::Normal);
                     let name_span = the_trait.name.span();
 
-                    this.add_existing_generic("Self", name_span, self_typevar);
+                    this.add_existing_generic(
+                        &UnresolvedGeneric::Variable(Ident::from("Self")),
+                        name_span,
+                        &ResolvedGeneric {
+                            name: Rc::new("Self".to_owned()),
+                            type_var: self_typevar,
+                            span: name_span,
+                            kind: Kind::Normal,
+                        },
+                    );
                     this.self_type = Some(self_type.clone());
 
                     let func_id = unresolved_trait.method_ids[&name.0.contents];
+
                     this.resolve_trait_function(
                         name,
                         generics,
@@ -105,7 +120,7 @@ impl<'context> Elaborator<'context> {
                     let arguments = vecmap(&func_meta.parameters.0, |(_, typ, _)| typ.clone());
                     let return_type = func_meta.return_type().clone();
 
-                    let generics = vecmap(&this.generics, |(_, type_var, _)| type_var.clone());
+                    let generics = vecmap(&this.generics, |generic| generic.type_var.clone());
 
                     let default_impl_list: Vec<_> = unresolved_trait
                         .fns_with_default_impl
@@ -147,6 +162,7 @@ impl<'context> Elaborator<'context> {
         func_id: FuncId,
     ) {
         let old_generic_count = self.generics.len();
+
         self.scopes.start_function();
 
         let kind = FunctionKind::Normal;

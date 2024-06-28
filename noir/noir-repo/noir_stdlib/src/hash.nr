@@ -9,24 +9,24 @@ use crate::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_s
 
 #[foreign(sha256)]
 // docs:start:sha256
-pub fn sha256<N>(input: [u8; N]) -> [u8; 32]
+pub fn sha256<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:sha256
 {}
 
 #[foreign(blake2s)]
 // docs:start:blake2s
-pub fn blake2s<N>(input: [u8; N]) -> [u8; 32]
+pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake2s
 {}
 
 #[foreign(blake3)]
 // docs:start:blake3
-pub fn blake3<N>(input: [u8; N]) -> [u8; 32]
+pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake3
 {}
 
 // docs:start:pedersen_commitment
-pub fn pedersen_commitment<N>(input: [Field; N]) -> EmbeddedCurvePoint {
+pub fn pedersen_commitment<let N: u32>(input: [Field; N]) -> EmbeddedCurvePoint {
     // docs:end:pedersen_commitment
     let value = pedersen_commitment_with_separator(input, 0);
     if (value.x == 0) & (value.y == 0) {
@@ -36,7 +36,7 @@ pub fn pedersen_commitment<N>(input: [Field; N]) -> EmbeddedCurvePoint {
     }
 }
 
-fn pedersen_commitment_with_separator_noir<N>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
+fn pedersen_commitment_with_separator_noir<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
     let mut points = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N];
     for i in 0..N {
         points[i] = EmbeddedCurveScalar::from_field(input[i]);
@@ -46,20 +46,23 @@ fn pedersen_commitment_with_separator_noir<N>(input: [Field; N], separator: u32)
     EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: values[2] as bool }
 }
 
-pub fn pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
+pub fn pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
     let values = __pedersen_commitment_with_separator(input, separator);
     EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: false }
 }
 
 // docs:start:pedersen_hash
-pub fn pedersen_hash<N>(input: [Field; N]) -> Field
+pub fn pedersen_hash<let N: u32>(input: [Field; N]) -> Field
 // docs:end:pedersen_hash
 {
     pedersen_hash_with_separator(input, 0)
 }
 
 #[field(bn254)]
-fn derive_generators<N, M>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {
+fn derive_generators<let N: u32, let M: u32>(
+    domain_separator_bytes: [u8; M],
+    starting_index: u32
+) -> [EmbeddedCurvePoint; N] {
     crate::assert_constant(domain_separator_bytes);
     crate::assert_constant(starting_index);
     __derive_generators(domain_separator_bytes, starting_index)
@@ -67,9 +70,9 @@ fn derive_generators<N, M>(domain_separator_bytes: [u8; M], starting_index: u32)
 
 #[builtin(derive_pedersen_generators)]
 #[field(bn254)]
-fn __derive_generators<N, M>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {}
+fn __derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {}
 
-fn pedersen_hash_with_separator_noir<N>(input: [Field; N], separator: u32) -> Field {
+fn pedersen_hash_with_separator_noir<let N: u32>(input: [Field; N], separator: u32) -> Field {
     let v1 = pedersen_commitment_with_separator(input, separator);
     let length_generator : [EmbeddedCurvePoint; 1] = derive_generators("pedersen_hash_length".as_bytes(), 0);
     multi_scalar_mul(
@@ -79,10 +82,10 @@ fn pedersen_hash_with_separator_noir<N>(input: [Field; N], separator: u32) -> Fi
 }
 
 #[foreign(pedersen_hash)]
-pub fn pedersen_hash_with_separator<N>(input: [Field; N], separator: u32) -> Field {}
+pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32) -> Field {}
 
 #[foreign(pedersen_commitment)]
-fn __pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> [Field; 2] {}
+fn __pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> [Field; 2] {}
 
 pub fn hash_to_field(inputs: [Field]) -> Field {
     let mut sum = 0;
@@ -97,12 +100,12 @@ pub fn hash_to_field(inputs: [Field]) -> Field {
 
 #[foreign(keccak256)]
 // docs:start:keccak256
-pub fn keccak256<N>(input: [u8; N], message_size: u32) -> [u8; 32]
+pub fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32]
 // docs:end:keccak256
 {}
 
 #[foreign(poseidon2_permutation)]
-pub fn poseidon2_permutation<N>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
+pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
 
 #[foreign(sha256_compression)]
 pub fn sha256_compression(_input: [u32; 16], _state: [u32; 8]) -> [u32; 8] {}
@@ -207,7 +210,7 @@ impl Hash for U128 {
     }
 }
 
-impl<T, N> Hash for [T; N] where T: Hash {
+impl<T, let N: u32> Hash for [T; N] where T: Hash {
     fn hash<H>(self, state: &mut H) where H: Hasher{
         for elem in self {
             elem.hash(state);

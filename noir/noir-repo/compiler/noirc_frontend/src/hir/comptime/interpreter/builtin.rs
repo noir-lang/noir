@@ -4,14 +4,13 @@ use noirc_errors::Location;
 
 use crate::{
     hir::comptime::{errors::IResult, InterpreterError, Value},
-    lexer::Lexer,
     macros_api::NodeInterner,
     token::{SpannedToken, Token, Tokens},
     QuotedType, Type,
 };
 
 pub(super) fn call_builtin(
-    interner: &NodeInterner,
+    interner: &mut NodeInterner,
     name: &str,
     arguments: Vec<(Value, Location)>,
     location: Location,
@@ -78,7 +77,7 @@ fn type_def_as_type(
 
     let struct_def = interner.get_struct(type_def);
     let struct_def = struct_def.borrow();
-    let make_token = |name| SpannedToken::new(Token::Str(name), span);
+    let make_token = |name| SpannedToken::new(Token::Ident(name), span);
 
     let mut tokens = vec![make_token(struct_def.name.to_string())];
 
@@ -86,7 +85,7 @@ fn type_def_as_type(
         if i != 0 {
             tokens.push(SpannedToken::new(Token::Comma, span));
         }
-        tokens.push(make_token(generic.borrow().to_string()));
+        tokens.push(make_token(generic.type_var.borrow().to_string()));
     }
 
     Ok(Value::Code(Rc::new(Tokens(tokens))))
@@ -112,7 +111,7 @@ fn type_def_generics(
         .generics
         .iter()
         .map(|generic| {
-            let name = SpannedToken::new(Token::Str(generic.borrow().to_string()), span);
+            let name = SpannedToken::new(Token::Ident(generic.type_var.borrow().to_string()), span);
             Value::Code(Rc::new(Tokens(vec![name])))
         })
         .collect();
@@ -124,7 +123,7 @@ fn type_def_generics(
 /// fn fields(self) -> [(Quoted, Quoted)]
 /// Returns (name, type) pairs of each field of this TypeDefinition
 fn type_def_fields(
-    interner: &NodeInterner,
+    interner: &mut NodeInterner,
     mut arguments: Vec<(Value, Location)>,
 ) -> IResult<Value> {
     assert_eq!(arguments.len(), 1, "ICE: `generics` should only receive a single argument");
@@ -138,14 +137,16 @@ fn type_def_fields(
     let struct_def = interner.get_struct(type_def);
     let struct_def = struct_def.borrow();
 
-    let make_token = |name| SpannedToken::new(Token::Str(name), span);
+    let make_token = |name| SpannedToken::new(Token::Ident(name), span);
     let make_quoted = |tokens| Value::Code(Rc::new(Tokens(tokens)));
 
     let mut fields = im::Vector::new();
 
     for (name, typ) in struct_def.get_fields_as_written() {
         let name = make_quoted(vec![make_token(name)]);
-        let typ = Value::Code(Rc::new(type_to_tokens(&typ)?));
+        let id = interner.push_quoted_type(typ);
+        let typ = SpannedToken::new(Token::QuotedType(id), span);
+        let typ = Value::Code(Rc::new(Tokens(vec![typ])));
         fields.push_back(Value::Tuple(vec![name, typ]));
     }
 
@@ -154,23 +155,4 @@ fn type_def_fields(
         Type::Quoted(QuotedType::Quoted),
     ])));
     Ok(Value::Slice(fields, typ))
-}
-
-/// FIXME(https://github.com/noir-lang/noir/issues/5309): This code is temporary.
-/// It will produce poor results for type variables and will result in incorrect
-/// spans on the returned tokens.
-fn type_to_tokens(typ: &Type) -> IResult<Tokens> {
-    let (mut tokens, mut errors) = Lexer::lex(&typ.to_string());
-
-    if let Some(last) = tokens.0.last() {
-        if matches!(last.token(), Token::EOF) {
-            tokens.0.pop();
-        }
-    }
-
-    if !errors.is_empty() {
-        let error = errors.swap_remove(0);
-        todo!("Got lexer error: {error}")
-    }
-    Ok(tokens)
 }
