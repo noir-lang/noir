@@ -707,7 +707,7 @@ fn find_module(
     let mod_name_result = file_manager.name_to_id(mod_name_candidate.clone());
 
     // Check "mod_name/mod.nr"
-    let mod_nr_candidate = start_dir.join(&mod_name_str).join(format!("mod.{FILE_EXTENSION}"));
+    let mod_nr_candidate = start_dir.join(mod_name_str).join(format!("mod.{FILE_EXTENSION}"));
     let mod_nr_result = file_manager.name_to_id(mod_nr_candidate.clone());
 
     match (mod_nr_result, mod_name_result) {
@@ -829,7 +829,7 @@ mod tests {
 
     fn add_file(file_manager: &mut FileManager, file_name: &Path) -> FileId {
         file_manager
-            .add_file_with_source(&file_name, "fn foo() {}".to_string())
+            .add_file_with_source(file_name, "fn foo() {}".to_string())
             .expect("could not add file to file manager and obtain a FileId")
     }
 
