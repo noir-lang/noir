@@ -615,7 +615,7 @@ impl<'context> Elaborator<'context> {
     /// in self.type_variables to default it later.
     pub(super) fn polymorphic_integer_or_field(&mut self) -> Type {
         let typ = Type::polymorphic_integer_or_field(self.interner);
-        self.type_variables.push(typ.clone());
+        self.type_variables.last_mut().unwrap().push(typ.clone());
         typ
     }
 
@@ -623,7 +623,7 @@ impl<'context> Elaborator<'context> {
     /// in self.type_variables to default it later.
     pub(super) fn polymorphic_integer(&mut self) -> Type {
         let typ = Type::polymorphic_integer(self.interner);
-        self.type_variables.push(typ.clone());
+        self.type_variables.last_mut().unwrap().push(typ.clone());
         typ
     }
 
@@ -1556,5 +1556,12 @@ impl<'context> Elaborator<'context> {
                 Self::find_numeric_generics_in_type(fields, found);
             }
         }
+    }
+
+    pub fn push_trait_constraint(&mut self, constraint: TraitConstraint, expr_id: ExprId) {
+        self.trait_constraints
+            .last_mut()
+            .expect("trait_constraints should never be empty within a function body")
+            .push((constraint, expr_id));
     }
 }

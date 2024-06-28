@@ -465,20 +465,7 @@ impl<'interner> Monomorphizer<'interner> {
                 if self.interner.get_selected_impl_for_expression(expr).is_some() {
                     // If an impl was selected for this infix operator, replace it
                     // with a method call to the appropriate trait impl method.
-                    let lhs_type = self.interner.id_type(infix.lhs);
-                    let args = vec![lhs_type.clone(), lhs_type];
-
-                    // If this is a comparison operator, the result is a boolean but
-                    // the actual method call returns an Ordering
-                    use crate::ast::BinaryOpKind::*;
-                    let ret = if matches!(operator, Less | LessEqual | Greater | GreaterEqual) {
-                        self.interner.ordering_type()
-                    } else {
-                        self.interner.id_type(expr)
-                    };
-
-                    let env = Box::new(Type::Unit);
-                    let function_type = Type::Function(args, Box::new(ret.clone()), env);
+                    let (function_type, ret) = self.interner.get_operator_type(infix.lhs, operator, expr);
 
                     let method = infix.trait_method_id;
                     let func = self.resolve_trait_method_reference(expr, function_type, method)?;
@@ -841,6 +828,7 @@ impl<'interner> Monomorphizer<'interner> {
         let typ = self.interner.id_type(expr_id);
 
         if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
+            eprintln!("TraitMethod!  {method:?}   {expr_id:?}");
             return self.resolve_trait_method_reference(expr_id, typ, method);
         }
 

@@ -1762,6 +1762,24 @@ impl NodeInterner {
     pub fn get_quoted_type(&self, id: QuotedTypeId) -> &Type {
         &self.quoted_types[id.0]
     }
+
+    /// Returns the type of an operator (which is always a function), along with its return type.
+    pub fn get_operator_type(&self, lhs: ExprId, operator: BinaryOpKind, operator_expr: ExprId) -> (Type, Type) {
+        let lhs_type = self.id_type(lhs);
+        let args = vec![lhs_type.clone(), lhs_type];
+
+        // If this is a comparison operator, the result is a boolean but
+        // the actual method call returns an Ordering
+        use crate::ast::BinaryOpKind::*;
+        let ret = if matches!(operator, Less | LessEqual | Greater | GreaterEqual) {
+            self.ordering_type()
+        } else {
+            self.id_type(operator_expr)
+        };
+
+        let env = Box::new(Type::Unit);
+        (Type::Function(args, Box::new(ret.clone()), env), ret)
+    }
 }
 
 impl Methods {

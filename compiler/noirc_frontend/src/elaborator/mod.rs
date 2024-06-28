@@ -141,13 +141,28 @@ pub struct Elaborator<'context> {
     /// All type variables created in the current function.
     /// This map is used to default any integer type variables at the end of
     /// a function (before checking trait constraints) if a type wasn't already chosen.
-    type_variables: Vec<Type>,
+    ///
+    /// This is a stack of vectors of type variables. Most of the time, for each function we
+    /// expect the outer Vec to be of length one, containing each type variable in the
+    /// function. This outer Vec is pushed to when a `comptime {}` block is used within
+    /// the function, which can force us to resolve that block's trait constraints earlier
+    /// so that they are resolved when the interpreter is run before the enclosing function
+    /// is finished elaborating. When this happens, we need to resolve any type variables
+    /// that were made within this block as well so that we can solve these traits.
+    type_variables: Vec<Vec<Type>>,
 
     /// Trait constraints are collected during type checking until they are
     /// verified at the end of a function. This is because constraints arise
     /// on each variable, but it is only until function calls when the types
     /// needed for the trait constraint may become known.
-    trait_constraints: Vec<(TraitConstraint, ExprId)>,
+    ///
+    /// This is a stack of constraint lists. Most of the time, for each function we
+    /// expect the outer Vec to be of length one, containing each constraint in the
+    /// function. This outer Vec is pushed to when a `comptime {}` block is used within
+    /// the function, which can force us to resolve that block's trait constraints earlier
+    /// so that they are resolved when the interpreter is run before the enclosing function
+    /// is finished elaborating.
+    trait_constraints: Vec<Vec<(TraitConstraint, ExprId)>>,
 
     /// The current module this elaborator is in.
     /// Initially empty, it is set whenever a new top-level item is resolved.
@@ -185,7 +200,7 @@ impl<'context> Elaborator<'context> {
             resolving_ids: BTreeSet::new(),
             trait_bounds: Vec::new(),
             current_function: None,
-            type_variables: Vec::new(),
+            type_variables: vec![Vec::new()],
             trait_constraints: Vec::new(),
             current_trait_impl: None,
             comptime_scopes: vec![HashMap::default()],
@@ -326,6 +341,8 @@ impl<'context> Elaborator<'context> {
         let func_meta = func_meta.clone();
 
         self.trait_bounds = func_meta.trait_constraints.clone();
+        self.trait_constraints.push(Vec::new());
+        self.type_variables.push(Vec::new());
 
         // Introduce all numeric generics into scope
         for generic in &func_meta.all_generics {
@@ -370,31 +387,11 @@ impl<'context> Elaborator<'context> {
         // Default any type variables that still need defaulting.
         // This is done before trait impl search since leaving them bindable can lead to errors
         // when multiple impls are available. Instead we default first to choose the Field or u64 impl.
-        for typ in &self.type_variables {
-            if let Type::TypeVariable(variable, kind) = typ.follow_bindings() {
-                let msg = "TypeChecker should only track defaultable type vars";
-                variable.bind(kind.default_type().expect(msg));
-            }
-        }
+        self.pop_and_default_type_variables();
 
         // Verify any remaining trait constraints arising from the function body
-        for (mut constraint, expr_id) in std::mem::take(&mut self.trait_constraints) {
-            let span = self.interner.expr_span(&expr_id);
-
-            if matches!(&constraint.typ, Type::MutableReference(_)) {
-                let (_, dereferenced_typ) =
-                    self.insert_auto_dereferences(expr_id, constraint.typ.clone());
-                constraint.typ = dereferenced_typ;
-            }
-
-            self.verify_trait_constraint(
-                &constraint.typ,
-                constraint.trait_id,
-                &constraint.trait_generics,
-                expr_id,
-                span,
-            );
-        }
+        self.pop_and_verify_current_trait_constraints();
+        assert_eq!(self.trait_constraints.len(), 0);
 
         // Now remove all the `where` clause constraints we added
         for constraint in &func_meta.trait_constraints {
@@ -417,10 +414,42 @@ impl<'context> Elaborator<'context> {
         meta.function_body = FunctionBody::Resolved;
 
         self.trait_bounds.clear();
-        self.type_variables.clear();
         self.interner.update_fn(id, hir_func);
         self.current_function = old_function;
         self.current_item = old_item;
+    }
+
+    fn pop_and_default_type_variables(&mut self) {
+        if let Some(type_variables) = self.type_variables.pop() {
+            for typ in type_variables {
+                if let Type::TypeVariable(variable, kind) = typ.follow_bindings() {
+                    let msg = "TypeChecker should only track defaultable type vars";
+                    variable.bind(kind.default_type().expect(msg));
+                }
+            }
+        }
+    }
+
+    fn pop_and_verify_current_trait_constraints(&mut self) {
+        if let Some(constraints) = self.trait_constraints.pop() {
+            for (mut constraint, expr_id) in constraints {
+                let span = self.interner.expr_span(&expr_id);
+
+                if matches!(&constraint.typ, Type::MutableReference(_)) {
+                    let (_, dereferenced_typ) =
+                        self.insert_auto_dereferences(expr_id, constraint.typ.clone());
+                    constraint.typ = dereferenced_typ;
+                }
+
+                self.verify_trait_constraint(
+                    &constraint.typ,
+                    constraint.trait_id,
+                    &constraint.trait_generics,
+                    expr_id,
+                    span,
+                );
+            }
+        }
     }
 
     /// This turns function parameters of the form:
@@ -1339,10 +1368,6 @@ impl<'context> Elaborator<'context> {
             self.elaborate_comptime_global(global_id);
         }
 
-        // Avoid defaulting the types of globals here since they may be used in any function.
-        // Otherwise we may prematurely default to a Field inside the next function if this
-        // global was unused there, even if it is consistently used as a u8 everywhere else.
-        self.type_variables.clear();
         self.local_module = old_module;
         self.file = old_file;
         self.current_item = old_item;
