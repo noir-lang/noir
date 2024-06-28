@@ -1,6 +1,7 @@
 use acvm::{AcirField, FieldElement};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::Signed;
+use num_traits::ToPrimitive;
 
 pub fn big_int_to_field_element(big_int: &BigInt) -> FieldElement {
     let big_uint = big_int.magnitude();
@@ -24,6 +25,8 @@ pub fn truncate_big_int_to_u128(big_int: &BigInt) -> u128 {
 
 #[cfg(test)]
 mod tests {
+    use num_traits::Num;
+
     use super::*;
 
     #[test]
@@ -35,5 +38,18 @@ mod tests {
         let big_int = BigInt::from(-1);
         let field_element = big_int_to_field_element(&big_int);
         assert_eq!(field_element.to_i128(), -1);
+    }
+
+    #[test]
+    fn test_truncate_big_int_to_u128() {
+        let big_int = BigInt::from(1);
+        let u128_val = truncate_big_int_to_u128(&big_int);
+        assert_eq!(u128_val, 1);
+
+        let u128_val = 0x12345678901234567890123456789012_u128;
+        let big_int_u128 = BigInt::from(u128_val);
+        let big_int =
+            BigInt::from_str_radix(&format!("2{}", big_int_u128.to_str_radix(16)), 16).unwrap();
+        assert_eq!(truncate_big_int_to_u128(&big_int), big_int_u128.to_u128().unwrap());
     }
 }
