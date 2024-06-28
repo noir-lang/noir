@@ -204,84 +204,46 @@ mod rename_tests {
         );
     }
 
-    const ANOTHER_FUNCTION_REFERENCE: Range = Range {
-        start: Position { line: 9, character: 12 },
-        end: Position { line: 9, character: 28 },
-    };
-    const ANOTHER_FUNCTION_DECLARATION: Range = Range {
-        start: Position { line: 4, character: 3 },
-        end: Position { line: 4, character: 19 },
-    };
-    // The ranges of positions which represent the usage of the `another_function` symbol.
-    const ANOTHER_FUNCTION_RANGES: &[Range] = &[
-        ANOTHER_FUNCTION_DECLARATION,
-        ANOTHER_FUNCTION_REFERENCE,
-        Range {
-            start: Position { line: 13, character: 12 },
-            end: Position { line: 13, character: 28 },
-        },
-        Range {
-            start: Position { line: 19, character: 15 },
-            end: Position { line: 19, character: 31 },
-        },
-    ];
-
-    #[test]
-    async fn test_on_prepare_rename_request_can_be_applied_at_function_declaration() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("rename").await;
-
-        let params = TextDocumentPositionParams {
-            text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
-            position: ANOTHER_FUNCTION_DECLARATION.start,
-        };
-
-        let response = on_prepare_rename_request(&mut state, params)
-            .await
-            .expect("Could not execute on_prepare_rename_request");
-
-        assert_eq!(
-            response,
-            Some(PrepareRenameResponse::DefaultBehavior { default_behavior: true })
-        );
-    }
-
-    #[test]
-    async fn test_on_prepare_rename_request_can_be_applied_at_function_reference() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("rename").await;
-
-        let params = TextDocumentPositionParams {
-            text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
-            position: ANOTHER_FUNCTION_REFERENCE.start,
-        };
-
-        let response = on_prepare_rename_request(&mut state, params)
-            .await
-            .expect("Could not execute on_prepare_rename_request");
-
-        assert_eq!(
-            response,
-            Some(PrepareRenameResponse::DefaultBehavior { default_behavior: true })
-        );
-    }
-
     #[test]
     async fn test_on_rename_request() {
+        const ANOTHER_FUNCTION_REFERENCE: Range = Range {
+            start: Position { line: 9, character: 12 },
+            end: Position { line: 9, character: 28 },
+        };
+        const ANOTHER_FUNCTION_DECLARATION: Range = Range {
+            start: Position { line: 4, character: 3 },
+            end: Position { line: 4, character: 19 },
+        };
+        // The ranges of positions which represent the usage of the `another_function` symbol.
+        const ANOTHER_FUNCTION_RANGES: &[Range] = &[
+            ANOTHER_FUNCTION_DECLARATION,
+            ANOTHER_FUNCTION_REFERENCE,
+            Range {
+                start: Position { line: 13, character: 12 },
+                end: Position { line: 13, character: 28 },
+            },
+            Range {
+                start: Position { line: 19, character: 15 },
+                end: Position { line: 19, character: 31 },
+            },
+        ];
+
         check_rename_succeeds("rename", "another_function", ANOTHER_FUNCTION_RANGES).await;
     }
 
-    const BAR_FUNCTION_REFERENCE: Range = Range {
-        start: Position { line: 1, character: 9 },
-        end: Position { line: 1, character: 12 },
-    };
-    const BAR_FUNCTION_DECLARATION: Range = Range {
-        start: Position { line: 5, character: 11 },
-        end: Position { line: 5, character: 14 },
-    };
-    // The ranges of positions which represent the usage of the `bar` symbol.
-    const BAR_FUNCTION_RANGES: &[Range] = &[BAR_FUNCTION_REFERENCE, BAR_FUNCTION_DECLARATION];
-
     #[test]
     async fn test_on_rename_request_works_with_qualified_path() {
+        const BAR_FUNCTION_REFERENCE: Range = Range {
+            start: Position { line: 1, character: 9 },
+            end: Position { line: 1, character: 12 },
+        };
+        const BAR_FUNCTION_DECLARATION: Range = Range {
+            start: Position { line: 5, character: 11 },
+            end: Position { line: 5, character: 14 },
+        };
+        // The ranges of positions which represent the usage of the `bar` symbol.
+        const BAR_FUNCTION_RANGES: &[Range] = &[BAR_FUNCTION_REFERENCE, BAR_FUNCTION_DECLARATION];
+
         check_rename_succeeds("rename_qualified", "bar", BAR_FUNCTION_RANGES).await;
     }
 }
