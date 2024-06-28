@@ -4,6 +4,7 @@ import {
   EncryptedNoteTxL2Logs,
   EncryptedTxL2Logs,
   type EventMetadata,
+  EventType,
   ExtendedNote,
   type FunctionCall,
   type GetUnencryptedLogsResponse,
@@ -35,8 +36,14 @@ import {
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
 import { computeNoteHashNonce, siloNullifier } from '@aztec/circuits.js/hash';
-import { type ContractArtifact, type DecodedReturn, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
-import { type Fq, Fr, type Point } from '@aztec/foundation/fields';
+import {
+  type ContractArtifact,
+  type DecodedReturn,
+  EventSelector,
+  FunctionSelector,
+  encodeArguments,
+} from '@aztec/foundation/abi';
+import { type Fq, Fr, Point } from '@aztec/foundation/fields';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { type KeyStore } from '@aztec/key-store';
@@ -834,7 +841,34 @@ export class PXEService implements PXE {
     return !!(await this.node.getContract(address));
   }
 
-  public async getEvents<T>(from: number, limit: number, eventMetadata: EventMetadata<T>, ivpk: Point): Promise<T[]> {
+  public getEvents<T>(
+    type: EventType.Encrypted,
+    eventMetadata: EventMetadata<T>,
+    from: number,
+    limit: number,
+    ivpk: Point,
+  ): Promise<T[]>;
+  public getEvents<T>(
+    type: EventType.Unencrypted,
+    eventMetadata: EventMetadata<T>,
+    from: number,
+    limit: number,
+  ): Promise<T[]>;
+  public getEvents<T>(
+    type: EventType,
+    eventMetadata: EventMetadata<T>,
+    from: number,
+    limit: number,
+    ivpk: Point = Point.ZERO,
+  ): Promise<T[]> {
+    if (type.includes(EventType.Encrypted)) {
+      return this.getEncryptedEvents(from, limit, eventMetadata, ivpk);
+    }
+
+    return this.getUnencryptedEvents(from, limit, eventMetadata);
+  }
+
+  async getEncryptedEvents<T>(from: number, limit: number, eventMetadata: EventMetadata<T>, ivpk: Point): Promise<T[]> {
     const blocks = await this.node.getBlocks(from, limit);
 
     const txEffects = blocks.flatMap(block => block.body.txEffects);
@@ -871,6 +905,42 @@ export class PXEService implements PXE {
         );
       })
       .filter(visibleEvent => visibleEvent !== undefined) as T[];
+
+    return decodedEvents;
+  }
+
+  async getUnencryptedEvents<T>(from: number, limit: number, eventMetadata: EventMetadata<T>): Promise<T[]> {
+    const { logs: unencryptedLogs } = await this.node.getUnencryptedLogs({
+      fromBlock: from,
+      toBlock: from + limit,
+    });
+
+    const decodedEvents = unencryptedLogs
+      .map(unencryptedLog => {
+        const unencryptedLogBuf = unencryptedLog.log.data;
+        if (
+          !EventSelector.fromBuffer(unencryptedLogBuf.subarray(unencryptedLogBuf.byteLength - 4)).equals(
+            eventMetadata.eventSelector,
+          )
+        ) {
+          return undefined;
+        }
+
+        if (unencryptedLogBuf.byteLength !== eventMetadata.fieldNames.length * 32 + 32) {
+          throw new Error(
+            'Something is weird here, we have matching FunctionSelectors, but the actual payload has mismatched length',
+          );
+        }
+
+        return eventMetadata.fieldNames.reduce(
+          (acc, curr, i) => ({
+            ...acc,
+            [curr]: new Fr(unencryptedLogBuf.subarray(i * 32, i * 32 + 32)),
+          }),
+          {} as T,
+        );
+      })
+      .filter(unencryptedLog => unencryptedLog !== undefined) as T[];
 
     return decodedEvents;
   }

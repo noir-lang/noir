@@ -99,6 +99,7 @@ export {
   EncryptedLogHeader,
   EncryptedNoteLogIncomingBody,
   EncryptedLogOutgoingBody,
+  EventType,
   ExtendedNote,
   FunctionCall,
   GrumpkinPrivateKey,

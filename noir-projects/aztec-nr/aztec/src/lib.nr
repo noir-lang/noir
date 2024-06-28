@@ -12,6 +12,7 @@ mod state_vars;
 mod prelude;
 mod public_storage;
 mod encrypted_logs;
+mod unencrypted_logs;
 use dep::protocol_types;
 mod utils;
 

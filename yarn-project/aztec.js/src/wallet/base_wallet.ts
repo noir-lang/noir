@@ -1,6 +1,7 @@
 import {
   type AuthWitness,
   type EventMetadata,
+  type EventType,
   type ExtendedNote,
   type GetUnencryptedLogsResponse,
   type IncomingNotesFilter,
@@ -182,11 +183,12 @@ export abstract class BaseWallet implements Wallet {
     return this.pxe.getPXEInfo();
   }
   getEvents<T>(
+    type: EventType,
+    eventMetadata: EventMetadata<T>,
     from: number,
     limit: number,
-    eventMetadata: EventMetadata<T>,
     ivpk: Point = this.getCompleteAddress().publicKeys.masterIncomingViewingPublicKey,
-  ): Promise<T[]> {
-    return this.pxe.getEvents(from, limit, eventMetadata, ivpk);
+  ) {
+    return this.pxe.getEvents(type, eventMetadata, from, limit, ivpk);
   }
 }

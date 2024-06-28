@@ -17,17 +17,15 @@ impl PublicContext {
     pub fn storage_address(self) -> AztecAddress {
         storage_address()
     }
+
     pub fn fee_per_l2_gas(self) -> Field {
         fee_per_l2_gas()
     }
+
     pub fn fee_per_da_gas(self) -> Field {
         fee_per_da_gas()
     }
-    /**
-    * Emit a log with the given event selector and message.
-    * @param event_selector The event selector for the log.
-    * @param message The message to emit in the log.
-    */
+
     pub fn emit_unencrypted_log<T, N>(&mut self, log: T) where T: Serialize<N> {
         emit_unencrypted_log(Serialize::serialize(log).as_slice());
     }
@@ -35,6 +33,7 @@ impl PublicContext {
     pub fn note_hash_exists(self, note_hash: Field, leaf_index: Field) -> bool {
         note_hash_exists(note_hash, leaf_index) == 1
     }
+
     pub fn l1_to_l2_msg_exists(self, msg_hash: Field, msg_leaf_index: Field) -> bool {
         l1_to_l2_msg_exists(msg_hash, msg_leaf_index) == 1
     }

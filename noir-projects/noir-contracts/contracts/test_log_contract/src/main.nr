@@ -5,6 +5,7 @@ contract TestLog {
     use dep::aztec::encrypted_logs::incoming_body::EncryptedLogIncomingBody;
     use dep::aztec::event::event_interface::EventInterface;
     use dep::aztec::encrypted_logs::encrypted_event_emission::{encode_and_encrypt_event, encode_and_encrypt_event_with_keys};
+    use dep::aztec::unencrypted_logs::unencrypted_event_emission::encode_event;
 
     #[aztec(event)]
     struct ExampleEvent0 {
@@ -63,5 +64,16 @@ contract TestLog {
                 context.msg_sender()
             )
         );
+    }
+
+    #[aztec(public)]
+    fn emit_unencrypted_events(preimages: [Field; 4]) {
+        let event0 = ExampleEvent0 { value0: preimages[0], value1: preimages[1] };
+
+        event0.emit(encode_event(&mut context));
+
+        let event1 = ExampleEvent1 { value2: preimages[2], value3: preimages[3] };
+
+        event1.emit(encode_event(&mut context));
     }
 }
