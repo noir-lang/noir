@@ -40,6 +40,30 @@ impl LensForEncryptedLog<6, 672> for [Field; 6] {
     fn output_fields(self) -> [Field; 6] {[self[0]; 6]}
     fn output_bytes(self) -> [u8; 672] {[self[0] as u8; 672]}
 }
+impl LensForEncryptedLog<7, 704> for [Field; 7] {
+    fn output_fields(self) -> [Field; 7] {[self[0]; 7]}
+    fn output_bytes(self) -> [u8; 704] {[self[0] as u8; 704]}
+}
+impl LensForEncryptedLog<8, 736> for [Field; 8] {
+    fn output_fields(self) -> [Field; 8] {[self[0]; 8]}
+    fn output_bytes(self) -> [u8; 736] {[self[0] as u8; 736]}
+}
+impl LensForEncryptedLog<9, 768> for [Field; 9] {
+    fn output_fields(self) -> [Field; 9] {[self[0]; 9]}
+    fn output_bytes(self) -> [u8; 768] {[self[0] as u8; 768]}
+}
+impl LensForEncryptedLog<10, 800> for [Field; 10] {
+    fn output_fields(self) -> [Field; 10] {[self[0]; 10]}
+    fn output_bytes(self) -> [u8; 800] {[self[0] as u8; 800]}
+}
+impl LensForEncryptedLog<11, 832> for [Field; 11] {
+    fn output_fields(self) -> [Field; 11] {[self[0]; 11]}
+    fn output_bytes(self) -> [u8; 832] {[self[0] as u8; 832]}
+}
+impl LensForEncryptedLog<12, 864> for [Field; 12] {
+    fn output_fields(self) -> [Field; 12] {[self[0]; 12]}
+    fn output_bytes(self) -> [u8; 864] {[self[0] as u8; 864]}
+}
 
 trait LensForEncryptedEvent<N, M> {
     // N = event preimage input in bytes
