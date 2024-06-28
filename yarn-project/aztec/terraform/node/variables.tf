@@ -64,27 +64,11 @@ variable "P2P_MAX_PEERS" {
 }
 
 variable "P2P_ENABLED" {
-  type = bool
-}
-
-variable "AVAILABILITY_ORACLE_CONTRACT_ADDRESS" { type = string }
-variable "ROLLUP_CONTRACT_ADDRESS" { type = string }
-variable "REGISTRY_CONTRACT_ADDRESS" { type = string }
-variable "INBOX_CONTRACT_ADDRESS" { type = string }
-variable "OUTBOX_CONTRACT_ADDRESS" { type = string }
-variable "GAS_TOKEN_CONTRACT_ADDRESS" { type = string }
-variable "GAS_PORTAL_CONTRACT_ADDRESS" { type = string }
-variable "AGENTS_PER_SEQUENCER" { type = string }
-variable "PROVING_ENABLED" {
   type    = bool
   default = true
 }
 
-variable "IMAGE_TAG" {
-  type = string
-}
-
-variable "FULL_IMAGE" {
-  type    = string
-  default = "${var.DOCKERHUB_ACCOUNT}/aztec:${var.IMAGE_TAG}"
+variable "PROVING_ENABLED" {
+  type    = bool
+  default = true
 }

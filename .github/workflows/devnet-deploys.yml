@@ -3,6 +3,10 @@ on:
   push:
     branches: [devnet]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
   GIT_COMMIT: ${{ github.sha }}
@@ -56,14 +60,20 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-2
 
-      - name: Deploy Bootstrap Nodes
-        working-directory: ./yarn-project/aztec/terraform/node
+      - name: Deploy P2P Bootstrap Nodes
+        working-directory: ./yarn-project/p2p-bootstrap/terraform
         run: |
-          terraform init -input=false -backend-config="key=devnet/aztec-node"
+          terraform init -input=false -backend-config="key=devnet/p2p-bootstrap"
           terraform apply -input=false -auto-approve
 
       - name: Deploy Aztec Nodes
         working-directory: ./yarn-project/aztec/terraform/node
         run: |
           terraform init -input=false -backend-config="key=devnet/aztec-node"
+          terraform apply -input=false -auto-approve
+
+      - name: Deploy Provers
+        working-directory: ./yarn-project/aztec/terraform/prover
+        run: |
+          terraform init -input=false -backend-config="key=devnet/prover"
           terraform apply -input=false -auto-approve

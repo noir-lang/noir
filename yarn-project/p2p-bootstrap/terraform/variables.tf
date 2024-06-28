@@ -29,8 +29,3 @@ variable "DOCKERHUB_ACCOUNT" {
   type    = string
   default = "aztecprotocol"
 }
-
-variable "FULL_IMAGE" {
-  type    = string
-  default = "${var.DOCKERHUB_ACCOUNT}/aztec:${var.DEPLOY_TAG}"
-}
