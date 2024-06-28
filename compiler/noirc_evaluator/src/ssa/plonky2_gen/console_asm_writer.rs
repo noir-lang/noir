@@ -402,4 +402,18 @@ impl AsmWriter for ConsoleAsmWriter {
         }
         result
     }
+
+    fn add_u32(&mut self, a: U32Target, b: U32Target) -> (U32Target, U32Target) {
+        let result = self.builder.add_u32(a, b);
+        if self.show_plonky2 {
+            println!(
+                "add_u32\t{},{},({},{})",
+                U32TargetDisplay { t: a },
+                U32TargetDisplay { t: b },
+                U32TargetDisplay { t: result.0 },
+                U32TargetDisplay { t: result.1 }
+            );
+        }
+        result
+    }
 }

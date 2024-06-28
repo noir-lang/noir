@@ -37,4 +37,5 @@ pub trait AsmWriter {
     fn range_check(&mut self, x: Target, n_log: usize);
     fn add_virtual_bool_target_unsafe(&mut self) -> BoolTarget;
     fn constant_u32(&mut self, c: u32) -> U32Target;
+    fn add_u32(&mut self, a: U32Target, b: U32Target) -> (U32Target, U32Target);
 }
