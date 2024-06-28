@@ -694,30 +694,20 @@ fn find_module(
     // This is "mod_name"
     let mod_name_str = &mod_name.0.contents;
 
-    // The logic of finding a module depends on whether the module we are in (anchor) is
-    // one of the special "main.nr", "lib.nr", "mod.nr" or "{mod_name}.nr" names.
-    let (mod_name_candidate, mod_nr_candidate) =
-        if should_check_siblings_for_module(&anchor_path, anchor_dir) {
-            // We are in a "main.nr" (or similar) file.
-            // A "mod mod_name;" statement should look up in "mod_name.nr" or "mod_name/mod.nr".
-            (
-                // Check "mod_name.nr"
-                anchor_dir.join(format!("{mod_name_str}.{FILE_EXTENSION}")),
-                // Check "mod_name/mod.nr"
-                anchor_dir.join(&mod_name_str).join(format!("mod.{FILE_EXTENSION}")),
-            )
-        } else {
-            // We are not in a "main.nr" (or similar file), so we are in, say, "foo.nr".
-            // A "mod mod_name;" statement should look up in "foo/mod_name.nr" or "foo/mod_name/mod.nr";
-            (
-                // Check "foo/mod_name.nr"
-                anchor_path.join(format!("{mod_name_str}.{FILE_EXTENSION}")),
-                // Check "foo/mod_name/mod.nr"
-                anchor_path.join(&mod_name_str).join(format!("mod.{FILE_EXTENSION}")),
-            )
-        };
+    // If we are in a special name like "main.nr", "lib.nr", "mod.nr" or "{mod_name}.nr",
+    // the search starts at the same directory, otherwise it starts in a nested directory.
+    let start_dir = if should_check_siblings_for_module(&anchor_path, anchor_dir) {
+        anchor_dir
+    } else {
+        anchor_path.as_path()
+    };
 
+    // Check "mod_name.nr"
+    let mod_name_candidate = start_dir.join(format!("{mod_name_str}.{FILE_EXTENSION}"));
     let mod_name_result = file_manager.name_to_id(mod_name_candidate.clone());
+
+    // Check "mod_name/mod.nr"
+    let mod_nr_candidate = start_dir.join(&mod_name_str).join(format!("mod.{FILE_EXTENSION}"));
     let mod_nr_result = file_manager.name_to_id(mod_nr_candidate.clone());
 
     match (mod_nr_result, mod_name_result) {
