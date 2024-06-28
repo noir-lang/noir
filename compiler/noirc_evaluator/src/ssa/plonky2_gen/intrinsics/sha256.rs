@@ -1,7 +1,7 @@
 use plonky2::iop::target::BoolTarget;
 use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 
-use crate::ssa::plonky2_gen::config::P2Builder;
+use crate::ssa::plonky2_gen::{asm_writer::AsmWriter, config::P2Builder};
 
 #[rustfmt::skip]
 const H256: [u32; 8] = [
@@ -48,7 +48,7 @@ fn array_to_bits(bytes: &[u8]) -> Vec<bool> {
 }
 
 fn u32_to_bits_target<const B: usize>(
-    builder: &mut P2Builder,
+    builder: &mut impl AsmWriter,
     a: &U32Target,
 ) -> Vec<BoolTarget> {
     let mut res = Vec::new();
@@ -59,10 +59,7 @@ fn u32_to_bits_target<const B: usize>(
     res
 }
 
-fn bits_to_u32_target(
-    builder: &mut P2Builder,
-    bits_target: Vec<BoolTarget>,
-) -> U32Target {
+fn bits_to_u32_target(builder: &mut impl AsmWriter, bits_target: Vec<BoolTarget>) -> U32Target {
     let bit_len = bits_target.len();
     assert_eq!(bit_len, 32);
     U32Target(builder.le_sum(bits_target[0..32].iter().rev()))
@@ -99,12 +96,7 @@ a ^ b ^ c = a+b+c - 2*a*b - 2*a*c - 2*b*c + 4*a*b*c
           = a*( 1 - 2*b -2*c + 4*m ) + b + c - 2*m
 where m = b*c
  */
-fn xor3(
-    builder: &mut P2Builder,
-    a: BoolTarget,
-    b: BoolTarget,
-    c: BoolTarget,
-) -> BoolTarget {
+fn xor3(builder: &mut impl AsmWriter, a: BoolTarget, b: BoolTarget, c: BoolTarget) -> BoolTarget {
     let m = builder.mul(b.target, c.target);
     let two_b = builder.add(b.target, b.target);
     let two_c = builder.add(c.target, c.target);
@@ -122,10 +114,7 @@ fn xor3(
 }
 
 //#define Sigma0(x)    (ROTATE((x), 2) ^ ROTATE((x),13) ^ ROTATE((x),22))
-fn big_sigma0(
-    builder: &mut P2Builder,
-    a: &U32Target,
-) -> U32Target {
+fn big_sigma0(builder: &mut impl AsmWriter, a: &U32Target) -> U32Target {
     let a_bits = u32_to_bits_target::<2>(builder, a);
     let rotate2 = rotate32(2);
     let rotate13 = rotate32(13);
@@ -138,10 +127,7 @@ fn big_sigma0(
 }
 
 //#define Sigma1(x)    (ROTATE((x), 6) ^ ROTATE((x),11) ^ ROTATE((x),25))
-fn big_sigma1(
-    builder: &mut P2Builder,
-    a: &U32Target,
-) -> U32Target {
+fn big_sigma1(builder: &mut impl AsmWriter, a: &U32Target) -> U32Target {
     let a_bits = u32_to_bits_target::<2>(builder, a);
     let rotate6 = rotate32(6);
     let rotate11 = rotate32(11);
@@ -154,10 +140,7 @@ fn big_sigma1(
 }
 
 //#define sigma0(x)    (ROTATE((x), 7) ^ ROTATE((x),18) ^ ((x)>> 3))
-fn sigma0(
-    builder: &mut P2Builder,
-    a: &U32Target,
-) -> U32Target {
+fn sigma0(builder: &mut impl AsmWriter, a: &U32Target) -> U32Target {
     let mut a_bits = u32_to_bits_target::<2>(builder, a);
     a_bits.push(builder.constant_bool(false));
     let rotate7 = rotate32(7);
@@ -171,10 +154,7 @@ fn sigma0(
 }
 
 //#define sigma1(x)    (ROTATE((x),17) ^ ROTATE((x),19) ^ ((x)>>10))
-fn sigma1(
-    builder: &mut P2Builder,
-    a: &U32Target,
-) -> U32Target {
+fn sigma1(builder: &mut impl AsmWriter, a: &U32Target) -> U32Target {
     let mut a_bits = u32_to_bits_target::<2>(builder, a);
     a_bits.push(builder.constant_bool(false));
     let rotate17 = rotate32(17);
@@ -191,12 +171,7 @@ fn sigma1(
 ch = a&b ^ (!a)&c
    = a*(b-c) + c
  */
-fn ch(
-    builder: &mut P2Builder,
-    a: &U32Target,
-    b: &U32Target,
-    c: &U32Target,
-) -> U32Target {
+fn ch(builder: &mut impl AsmWriter, a: &U32Target, b: &U32Target, c: &U32Target) -> U32Target {
     let a_bits = u32_to_bits_target::<2>(builder, a);
     let b_bits = u32_to_bits_target::<2>(builder, b);
     let c_bits = u32_to_bits_target::<2>(builder, c);
@@ -217,12 +192,7 @@ maj = a&b ^ a&c ^ b&c
     = a*( b + c - 2*m ) + m
 where m = b*c
  */
-fn maj(
-    builder: &mut P2Builder,
-    a: &U32Target,
-    b: &U32Target,
-    c: &U32Target,
-) -> U32Target {
+fn maj(builder: &mut impl AsmWriter, a: &U32Target, b: &U32Target, c: &U32Target) -> U32Target {
     let a_bits = u32_to_bits_target::<2>(builder, a);
     let b_bits = u32_to_bits_target::<2>(builder, b);
     let c_bits = u32_to_bits_target::<2>(builder, c);
@@ -241,11 +211,7 @@ fn maj(
     bits_to_u32_target(builder, res_bits)
 }
 
-fn add_u32(
-    builder: &mut P2Builder,
-    a: &U32Target,
-    b: &U32Target,
-) -> U32Target {
+fn add_u32(builder: &mut impl AsmWriter, a: &U32Target, b: &U32Target) -> U32Target {
     let (res, _carry) = builder.add_u32(*a, *b);
     res
 }
@@ -254,7 +220,7 @@ fn add_u32(
 // Size: msg_len_in_bits (L) |  p bits   | 64 bits
 // Bits:      msg            | 100...000 |    L
 pub(crate) fn make_sha256_circuit(
-    builder: &mut P2Builder,
+    builder: &mut impl AsmWriter,
     msg_len_in_bits: u64,
 ) -> Sha256Targets {
     let mut message = Vec::new();
@@ -383,6 +349,9 @@ mod tests {
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
+    use crate::ssa::plonky2_gen::asm_writer::AsmWriter;
+    use crate::ssa::plonky2_gen::console_asm_writer::ConsoleAsmWriter;
+
     use super::super::sha256::{array_to_bits, make_sha256_circuit};
 
     fn perform_sha256_test(message: &[u8], expected: &[u8]) {
@@ -390,8 +359,9 @@ mod tests {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
-        let mut builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
-        let targets = make_sha256_circuit(&mut builder, message_bits.len() as u64);
+        let builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
+        let mut asm_writer = ConsoleAsmWriter::new(builder, false);
+        let targets = make_sha256_circuit(&mut asm_writer, message_bits.len() as u64);
         let mut pw = PartialWitness::new();
 
         for i in 0..message_bits.len() {
@@ -401,13 +371,13 @@ mod tests {
         let expected_bits = array_to_bits(expected);
         for i in 0..expected_bits.len() {
             if expected_bits[i] {
-                builder.assert_one(targets.digest[i].target);
+                asm_writer.get_mut_builder().assert_one(targets.digest[i].target);
             } else {
-                builder.assert_zero(targets.digest[i].target);
+                asm_writer.get_mut_builder().assert_zero(targets.digest[i].target);
             }
         }
 
-        let data = builder.build::<C>();
+        let data = asm_writer.move_builder().build::<C>();
         let proof = data.prove(pw).unwrap();
 
         data.verify(proof).unwrap();

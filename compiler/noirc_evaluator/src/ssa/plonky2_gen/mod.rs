@@ -529,7 +529,7 @@ where
         };
         */
         let msg_len = u64::try_from(argument.1.len()).unwrap() * 8;
-        let sha256targets = make_sha256_circuit(&mut self.get_mut_builder(), msg_len);
+        let sha256targets = make_sha256_circuit(&mut self.asm_writer, msg_len);
         let mut j = 0;
         for target in argument.1 {
             let split_arg = self.asm_writer.split_le(target.get_target()?, 8);
