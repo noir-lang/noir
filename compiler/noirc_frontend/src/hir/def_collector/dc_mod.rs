@@ -557,14 +557,14 @@ impl<'a> ModCollector<'a> {
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
-        let child_file_id =
-            match find_module(&context.file_manager, self.file_id, mod_decl.ident.clone()) {
-                Ok(child_file_id) => child_file_id,
-                Err(err) => {
-                    errors.push((err.into(), self.file_id));
-                    return errors;
-                }
-            };
+        let child_file_id = match find_module(&context.file_manager, self.file_id, &mod_decl.ident)
+        {
+            Ok(child_file_id) => child_file_id,
+            Err(err) => {
+                errors.push((err.into(), self.file_id));
+                return errors;
+            }
+        };
 
         let location = Location { file: self.file_id, span: mod_decl.ident.span() };
 
@@ -681,7 +681,7 @@ impl<'a> ModCollector<'a> {
 fn find_module(
     file_manager: &FileManager,
     anchor: FileId,
-    mod_name: Ident,
+    mod_name: &Ident,
 ) -> Result<FileId, DefCollectorErrorKind> {
     let anchor_path = file_manager
         .path(anchor)
@@ -721,7 +721,10 @@ fn find_module(
     match found_paths.len() {
         0 => {
             let expected_path = parent_candidate.as_os_str().to_string_lossy().to_string();
-            Err(DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path })
+            Err(DefCollectorErrorKind::UnresolvedModuleDecl {
+                mod_name: mod_name.clone(),
+                expected_path,
+            })
         }
         1 => Ok(found_paths[0]),
         _ => {
@@ -736,7 +739,10 @@ fn find_module(
                         .to_string()
                 })
                 .collect();
-            Err(DefCollectorErrorKind::OverlappingModuleDecls { mod_name, overlapping_paths })
+            Err(DefCollectorErrorKind::OverlappingModuleDecls {
+                mod_name: mod_name.clone(),
+                overlapping_paths,
+            })
         }
     }
 }
@@ -845,7 +851,7 @@ mod tests {
         let dep_file_name = Path::new("foo.nr");
         let mod_name = Ident(Spanned::from_position(0, 1, "foo".to_string()));
         create_dummy_file(&dir, dep_file_name);
-        find_module(&fm, file_id, mod_name).unwrap_err();
+        find_module(&fm, file_id, &mod_name).unwrap_err();
     }
 
     #[test]
@@ -884,10 +890,10 @@ mod tests {
 
         // First check for the sub_dir.nr file and add it to the FileManager
         let sub_dir_mod_name = Ident(Spanned::from_position(0, 1, sub_dir_name.to_string()));
-        let sub_dir_file_id = find_module(&fm, file_id, sub_dir_mod_name).unwrap();
+        let sub_dir_file_id = find_module(&fm, file_id, &sub_dir_mod_name).unwrap();
 
         // Now check for files in it's subdirectory
         let mod_name = Ident(Spanned::from_position(0, 1, "foo".to_string()));
-        find_module(&fm, sub_dir_file_id, mod_name).unwrap();
+        find_module(&fm, sub_dir_file_id, &mod_name).unwrap();
     }
 }
