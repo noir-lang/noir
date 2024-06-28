@@ -51,7 +51,7 @@ pub fn assert_constant<T>(x: T) {}
 
 // Asserts that the given value is both true and known at compile-time
 #[builtin(static_assert)]
-pub fn static_assert<N>(predicate: bool, message: str<N>) {}
+pub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}
 
 // from_field and as_field are private since they are not valid for every type.
 // `as` should be the default for users to cast between primitive types, and in the future
