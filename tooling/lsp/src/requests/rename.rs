@@ -153,6 +153,10 @@ mod rename_tests {
             start: Position { line: 13, character: 12 },
             end: Position { line: 13, character: 28 },
         },
+        Range {
+            start: Position { line: 19, character: 15 },
+            end: Position { line: 19, character: 31 },
+        },
     ];
 
     /// Tests that the contents of `ANOTHER_FUNCTION_RANGES` is valid such that all ranges cover an instance of `another_function`.

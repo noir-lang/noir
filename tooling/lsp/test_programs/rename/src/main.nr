@@ -13,3 +13,10 @@ fn main() {
 
     let _ = another_function();
 }
+
+
+mod foo {
+    fn yet_another_function() -> Field {
+        crate::another_function()
+    }
+}
