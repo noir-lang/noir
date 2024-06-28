@@ -75,8 +75,8 @@ pub fn check_public_balance(token_contract_address: AztecAddress, address: Aztec
 
     let balances_slot = Token::storage().public_balances.slot;
     let address_slot = derive_storage_slot_in_map(balances_slot, address);
-    let fields = storage_read(address_slot);
-    assert(U128::deserialize(fields).to_field() == address_amount, "Public balance is not correct");
+    let amount: U128 = storage_read(address_slot);
+    assert(amount.to_field() == address_amount, "Public balance is not correct");
     cheatcodes::set_contract_address(current_contract_address);
 }
 

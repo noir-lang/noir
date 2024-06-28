@@ -1,6 +1,6 @@
 use crate::{
-    context::{PrivateContext, PublicContext, UnconstrainedContext},
-    oracle::{storage::{storage_read, storage_write}}, state_vars::storage::Storage
+    context::{PrivateContext, PublicContext, UnconstrainedContext}, oracle::storage::storage_read,
+    state_vars::storage::Storage
 };
 use dep::protocol_types::{constants::INITIALIZATION_SLOT_SEPARATOR, traits::{Deserialize, Serialize}};
 
@@ -33,26 +33,22 @@ impl<T> SharedImmutable<T, &mut PublicContext> {
 
         // We check that the struct is not yet initialized by checking if the initialization slot is 0
         let initialization_slot = INITIALIZATION_SLOT_SEPARATOR + self.storage_slot;
-        let fields_read: [Field; 1] = storage_read(initialization_slot);
-        assert(fields_read[0] == 0, "SharedImmutable already initialized");
+        let init_field: Field = self.context.storage_read(initialization_slot);
+        assert(init_field == 0, "SharedImmutable already initialized");
 
         // We populate the initialization slot with a non-zero value to indicate that the struct is initialized
-        storage_write(initialization_slot, [0xdead]);
-
-        let fields_write = T::serialize(value);
-        storage_write(self.storage_slot, fields_write);
+        self.context.storage_write(initialization_slot, 0xdead);
+        self.context.storage_write(self.storage_slot, value);
     }
 
     pub fn read_public<T_SERIALIZED_LEN>(self) -> T where T: Deserialize<T_SERIALIZED_LEN> {
-        let fields = storage_read(self.storage_slot);
-        T::deserialize(fields)
+        self.context.storage_read(self.storage_slot)
     }
 }
 
 impl<T> SharedImmutable<T, UnconstrainedContext> {
-    pub fn read_public<T_SERIALIZED_LEN>(self) -> T where T: Deserialize<T_SERIALIZED_LEN> {
-        let fields = storage_read(self.storage_slot);
-        T::deserialize(fields)
+    unconstrained pub fn read_public<T_SERIALIZED_LEN>(self) -> T where T: Deserialize<T_SERIALIZED_LEN> {
+        storage_read(self.storage_slot)
     }
 }
 

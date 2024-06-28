@@ -263,8 +263,8 @@ fn handle_foreign_call(
         "avmOpcodeGetContractInstance" => {
             handle_get_contract_instance(avm_instrs, destinations, inputs);
         }
-        "storageRead" => handle_storage_read(avm_instrs, destinations, inputs),
-        "storageWrite" => handle_storage_write(avm_instrs, destinations, inputs),
+        "avmOpcodeStorageRead" => handle_storage_read(avm_instrs, destinations, inputs),
+        "avmOpcodeStorageWrite" => handle_storage_write(avm_instrs, destinations, inputs),
         "debugLog" => handle_debug_log(avm_instrs, destinations, inputs),
         // Getters.
         _ if inputs.is_empty() && destinations.len() == 1 => {
@@ -926,7 +926,7 @@ fn handle_storage_write(
     inputs: &Vec<ValueOrArray>,
 ) {
     assert!(inputs.len() == 2);
-    assert!(destinations.len() == 1);
+    assert!(destinations.len() == 0);
 
     let slot_offset_maybe = inputs[0];
     let slot_offset = match slot_offset_maybe {
@@ -992,8 +992,8 @@ fn handle_storage_read(
     inputs: &Vec<ValueOrArray>,
 ) {
     // For the foreign calls we want to handle, we do not want inputs, as they are getters
-    assert!(inputs.len() == 2); // output, len - but we dont use this len - its for the oracle
-    assert!(destinations.len() == 1);
+    assert!(inputs.len() == 1); // storage_slot
+    assert!(destinations.len() == 1); // return values
 
     let slot_offset_maybe = inputs[0];
     let slot_offset = match slot_offset_maybe {
