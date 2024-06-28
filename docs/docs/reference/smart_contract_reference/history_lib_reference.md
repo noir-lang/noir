@@ -7,42 +7,25 @@ sidebar_position: 3
 
 ## Note inclusion
 
-Note inclusion proves that a note existed (its hash was included in a note hash tree) at a specific block number. There exists a version that tests for note inclusion at current block number. It is recommended to use this version whenever possible to reduce cost.
+Note inclusion proves that a note existed (its hash was included in a note hash tree) in a block header.
 
 ### prove_note_inclusion
 
-`prove_note_inclusion_at` takes 3 parameters:
+`prove_note_inclusion` takes 1 parameter:
 
-| Name             | Type           | Description                               |
-| ---------------- | -------------- | ----------------------------------------- |
-| note_with_header | Note           | The note you are proving inclusion for    |
-| block_number     | u32            | Block number for proving note's existence |
-| context          | PrivateContext | Private context                           |
+| Name | Type | Description                            |
+| ---- | ---- | -------------------------------------- |
+| note | Note | The note you are proving inclusion for |
 
-## prove_note_commitment_inclusion
+#### Example
 
-A **commitment**, also referred to as a **note hash** is a public acknowledgment of the existence of a note without revealing the content of the note. You can learn more about how to compress a note to a note hash [here](../../aztec/concepts/storage/trees/index.md#example-note).
-
-`prove_note_commitment_inclusion` takes 2 parameters:
-
-| Name             | Type           | Description                            |
-| ---------------- | -------------- | -------------------------------------- |
-| note_with_header | Note           | The note you are proving inclusion for |
-| context          | PrivateContext | Private context                        |
+#include_code prove_note_inclusion noir-projects/noir-contracts/contracts/inclusion_proofs_contract/src/main.nr rust
 
 ## Note validity
 
-This proves that a note exists and has not been nullified at a specified block. Again as above, there exists a version that tests for validity at current block. It is recommended to use this version whenever possible to reduce cost.
+This proves that a note exists and has not been nullified in a specific block header.
 
 ### prove_note_validity
-
-`prove_note_validity_at` takes 3 parameters:
-
-| Name             | Type           | Description                               |
-| ---------------- | -------------- | ----------------------------------------- |
-| note_with_header | Note           | The note you are proving inclusion for    |
-| block_number     | u32            | Block number for proving note's existence |
-| context          | PrivateContext | Private context                           |
 
 `prove_note_validity` takes 2 parameters:
 
@@ -51,55 +34,57 @@ This proves that a note exists and has not been nullified at a specified block. 
 | note_with_header | Note           | The note you are proving inclusion for |
 | context          | PrivateContext | Private context                        |
 
+#### Example
+
+#include_code prove_note_validity noir-projects/noir-contracts/contracts/inclusion_proofs_contract/src/main.nr rust
+
 ## Nullifier inclusion
 
-This proves that a nullifier was included in a certain block (can be used to prove that a note had been nullified). The same disclaimer above holds true for this, and subsequent functions that specify another version without a block_number argument.
+This proves that a nullifier exists in a given block header (can be used to prove that a note had been nullified).
 
 ### prove_nullifier_inclusion
 
-`prove_nullifier_inclusion_at` takes 3 parameters:
+`prove_nullifier_inclusion` takes 1 parameter:
 
-| Name         | Type           | Description                                 |
-| ------------ | -------------- | ------------------------------------------- |
-| nullifier    | Field          | The nullifier you are proving inclusion for |
-| block_number | u32            | Block number for proving note's existence   |
-| context      | PrivateContext | Private context                             |
+| Name      | Type  | Description                                 |
+| --------- | ----- | ------------------------------------------- |
+| nullifier | Field | The nullifier you are proving inclusion for |
 
-`prove_nullifier_inclusion` takes 2 parameters:
+#### Example
 
-| Name      | Type           | Description                                 |
-| --------- | -------------- | ------------------------------------------- |
-| nullifier | Field          | The nullifier you are proving inclusion for |
-| context   | PrivateContext | Private context                             |
+#include_code prove_nullifier_inclusion noir-projects/noir-contracts/contracts/inclusion_proofs_contract/src/main.nr rust
 
-### prove_note_is_nullified_at / prove_note_is_nullified
+### prove_note_is_nullified
 
 Instead of passing the nullifier, you can check that a note has been nullified by passing the note.
 
+#### Implementation
+
+#include_code prove_note_is_nullified noir-projects/aztec-nr/aztec/src/history/nullifier_inclusion.nr rust
+
 ## Nullifier non inclusion
 
-This proves that a nullifier was not included in a certain block (can be used to prove that a note had not yet been nullified in a given block).
+This proves that a nullifier was not included in a certain block, given the block header (can be used to prove that a note had not yet been nullified in a given block).
 
-### prove_nullifier_not_included
+### prove_nullifier_non_inclusion
 
-`prove_nullifier_not_included_at` takes 3 parameters:
+`prove_nullifier_non_inclusion` takes 1 parameters:
 
-| Name         | Type           | Description                                 |
-| ------------ | -------------- | ------------------------------------------- |
-| nullifier    | Field          | The nullifier you are proving inclusion for |
-| block_number | u32            | Block number for proving note's existence   |
-| context      | PrivateContext | Private context                             |
+| Name      | Type  | Description                                 |
+| --------- | ----- | ------------------------------------------- |
+| nullifier | Field | The nullifier you are proving inclusion for |
 
-`prove_nullifier_not_included` takes 2 parameters:
+#### Example
 
-| Name      | Type           | Description                                 |
-| --------- | -------------- | ------------------------------------------- |
-| nullifier | Field          | The nullifier you are proving inclusion for |
-| context   | PrivateContext | Private context                             |
+#include_code prove_nullifier_non_inclusion noir-projects/aztec-nr/aztec/src/history/contract_inclusion.nr rust
 
-### prove_note_not_nullified_at / prove_note_not_nullified
+### prove_note_not_nullified
 
 Instead of passing the nullifier, you can check that a note has not been nullified by passing the note.
+
+#### Implementation
+
+#include_code prove_note_not_nullified noir-projects/aztec-nr/aztec/src/history/nullifier_non_inclusion.nr rust
 
 ## Public storage historical reads
 
@@ -109,36 +94,65 @@ Note that it is never possible to read the _current_ value in a public storage s
 
 ### public_storage_historical_read
 
-`public_storage_historical_read_at` takes 4 parameters:
+`public_storage_historical_read` takes 2 parameters:
 
-| Name             | Type           | Description                              |
-| ---------------- | -------------- | ---------------------------------------- |
-| context          | PrivateContext | Private context                          |
-| storage_slot     | Field          | Storage slot                             |
-| contract_address | AztecAddress   | The contract that owns the storage slot  |
-| block_number     | u32            | Historical block number in which to read |
+| Name             | Type         | Description                             |
+| ---------------- | ------------ | --------------------------------------- |
+| storage_slot     | Field        | Storage slot                            |
+| contract_address | AztecAddress | The contract that owns the storage slot |
 
-`public_storage_historical_read` takes 3 parameters. `block_number` is implicitly the historical block number from the context:
+#### Example
 
-| Name             | Type           | Description                             |
-| ---------------- | -------------- | --------------------------------------- |
-| context          | PrivateContext | Private context                         |
-| storage_slot     | Field          | Storage slot                            |
-| contract_address | AztecAddress   | The contract that owns the storage slot |
+#include_code public_storage_historical_read noir-projects/noir-contracts/contracts/inclusion_proofs_contract/src/main.nr rust
 
 ## Contract inclusion
 
 This proves that a contract exists in, ie had been deployed before or in, a certain block.
 
-### prove_contract_inclusion
+### prove_contract_deployment
 
-`prove_contract_inclusion_at` takes 7 parameters:
+`prove_contract_deployment` takes 1 parameter:
 
-| Name                  | Type           | Description                                  |
-| --------------------- | -------------- | -------------------------------------------- |
-| deployer_public_key   | GrumpkinPoint  | Public key of the contract deployer          |
-| contract_address_salt | Field          | Unique identifier for the contract's address |
-| function_tree_root    | Field          | Root of the contract's function tree         |
-| constructor_hash      | Field          | Hash of the contract's constructor           |
-| block_number          | u32            | Block number for proof verification          |
-| context               | PrivateContext | Private context                              |
+| Name             | Type         | Description                                 |
+| ---------------- | ------------ | ------------------------------------------- |
+| contract_address | AztecAddress | The contract address to prove deployment of |
+
+#### Example
+
+#include_code prove_contract_deployment noir-projects/noir-contracts/contracts/inclusion_proofs_contract/src/main.nr rust
+
+### prove_contract_non_deployment
+
+`prove_contract_non_deployment` takes 1 parameter:
+
+| Name             | Type         | Description                                     |
+| ---------------- | ------------ | ----------------------------------------------- |
+| contract_address | AztecAddress | The contract address to prove non-deployment of |
+
+#### Example
+
+#include_code prove_contract_non_deployment noir-projects/noir-contracts/contracts/inclusion_proofs_contract/src/main.nr rust
+
+### prove_contract_initialization
+
+`prove_contract_initialization` takes 1 parameter:
+
+| Name             | Type         | Description                                     |
+| ---------------- | ------------ | ----------------------------------------------- |
+| contract_address | AztecAddress | The contract address to prove initialization of |
+
+#### Example
+
+#include_code prove_contract_initialization noir-projects/noir-contracts/contracts/inclusion_proofs_contract/src/main.nr rust
+
+### prove_contract_non_initialization
+
+`prove_contract_non_initialization` takes 1 parameter:
+
+| Name             | Type         | Description                                         |
+| ---------------- | ------------ | --------------------------------------------------- |
+| contract_address | AztecAddress | The contract address to prove non-initialization of |
+
+#### Example
+
+#include_code prove_contract_non_initialization noir-projects/noir-contracts/contracts/inclusion_proofs_contract/src/main.nr rust

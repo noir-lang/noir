@@ -194,9 +194,11 @@ contract InclusionProofs {
         let header = context.get_header_at(block_number);
 
         assert_eq(
+            // docs:start:public_storage_historical_read
             header.public_storage_historical_read(
                 storage.public_unused_value.storage_slot,
                 context.this_address()
+            // docs:end:public_storage_historical_read
             ), 0
         );
     }
@@ -229,10 +231,14 @@ contract InclusionProofs {
         let header = context.get_header_at(block_number);
 
         if test_deployment {
+            // docs:start:prove_contract_deployment
             header.prove_contract_deployment(contract_address);
+            // docs:end:prove_contract_deployment
         }
         if test_initialization {
+            // docs:start:prove_contract_initialization
             header.prove_contract_initialization(contract_address);
+            // docs:end:prove_contract_initialization
         }
     }
 
@@ -247,10 +253,14 @@ contract InclusionProofs {
         let header = context.get_header_at(block_number);
 
         if test_deployment {
+            // docs:start:prove_contract_non_deployment
             header.prove_contract_non_deployment(contract_address);
+            // docs:end:prove_contract_non_deployment
         }
         if test_initialization {
+            // docs:start:prove_contract_non_initialization
             header.prove_contract_non_initialization(contract_address);
+            // docs:end:prove_contract_non_initialization
         }
     }
 }
