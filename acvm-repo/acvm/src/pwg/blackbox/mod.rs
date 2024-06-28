@@ -18,6 +18,7 @@ pub(crate) mod bigint;
 mod embedded_curve_ops;
 mod hash;
 mod logic;
+mod pedersen;
 mod range;
 mod signature;
 pub(crate) mod utils;
@@ -26,6 +27,7 @@ use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 // Hash functions should eventually be exposed for external consumers.
 use hash::{solve_generic_256_hash_opcode, solve_sha_256_permutation_opcode};
 use logic::{and, xor};
+use pedersen::{pedersen, pedersen_hash};
 pub(crate) use range::solve_range_opcode;
 use signature::{
     ecdsa::{secp256k1_prehashed, secp256r1_prehashed},
@@ -125,6 +127,12 @@ pub(crate) fn solve<F: AcirField>(
             message,
             *output,
         ),
+        BlackBoxFuncCall::PedersenCommitment { inputs, domain_separator, outputs } => {
+            pedersen(backend, initial_witness, inputs, *domain_separator, *outputs)
+        }
+        BlackBoxFuncCall::PedersenHash { inputs, domain_separator, output } => {
+            pedersen_hash(backend, initial_witness, inputs, *domain_separator, *output)
+        }
         BlackBoxFuncCall::EcdsaSecp256k1 {
             public_key_x,
             public_key_y,
@@ -179,7 +187,5 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len } => {
             solve_poseidon2_permutation_opcode(backend, initial_witness, inputs, outputs, *len)
         }
-        BlackBoxFuncCall::PedersenCommitment { .. } => todo!("Deprecated BlackBox"),
-        BlackBoxFuncCall::PedersenHash { .. } => todo!("Deprecated BlackBox"),
     }
 }

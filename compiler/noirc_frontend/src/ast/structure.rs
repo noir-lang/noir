@@ -20,7 +20,7 @@ impl NoirStruct {
     pub fn new(
         name: Ident,
         attributes: Vec<SecondaryAttribute>,
-        generics: Vec<Ident>,
+        generics: UnresolvedGenerics,
         fields: Vec<(Ident, UnresolvedType)>,
         span: Span,
     ) -> NoirStruct {

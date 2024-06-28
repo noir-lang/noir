@@ -128,7 +128,7 @@ fn check_expected_failure_message(
     };
 
     let expected_failure_message_matches =
-        matches!(&failed_assertion, Some(message) if message == expected_failure_message);
+        matches!(&failed_assertion, Some(message) if message.contains(expected_failure_message));
     if expected_failure_message_matches {
         return TestStatus::Pass;
     }

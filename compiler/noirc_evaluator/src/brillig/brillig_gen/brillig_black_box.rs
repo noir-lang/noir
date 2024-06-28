@@ -137,6 +137,39 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                 )
             }
         }
+
+        BlackBoxFunc::PedersenCommitment => {
+            if let (
+                [message, BrilligVariable::SingleAddr(domain_separator)],
+                [BrilligVariable::BrilligArray(result_array)],
+            ) = (function_arguments, function_results)
+            {
+                let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
+                brillig_context.black_box_op_instruction(BlackBoxOp::PedersenCommitment {
+                    inputs: message_vector.to_heap_vector(),
+                    domain_separator: domain_separator.address,
+                    output: result_array.to_heap_array(),
+                });
+            } else {
+                unreachable!("ICE: Pedersen expects one array argument, a register for the domain separator, and one array result")
+            }
+        }
+        BlackBoxFunc::PedersenHash => {
+            if let (
+                [message, BrilligVariable::SingleAddr(domain_separator)],
+                [BrilligVariable::SingleAddr(result)],
+            ) = (function_arguments, function_results)
+            {
+                let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
+                brillig_context.black_box_op_instruction(BlackBoxOp::PedersenHash {
+                    inputs: message_vector.to_heap_vector(),
+                    domain_separator: domain_separator.address,
+                    output: result.address,
+                });
+            } else {
+                unreachable!("ICE: Pedersen hash expects one array argument, a register for the domain separator, and one register result")
+            }
+        }
         BlackBoxFunc::SchnorrVerify => {
             if let (
                 [BrilligVariable::SingleAddr(public_key_x), BrilligVariable::SingleAddr(public_key_y), BrilligVariable::BrilligArray(signature), message],
@@ -391,8 +424,6 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                 unreachable!("ICE: AES128Encrypt expects three array arguments, one array result")
             }
         }
-        BlackBoxFunc::PedersenCommitment => todo!("Deprecated Blackbox"),
-        BlackBoxFunc::PedersenHash => todo!("Deprecated Blackbox"),
     }
 }
 
