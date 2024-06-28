@@ -820,7 +820,8 @@ pub(crate) fn collect_global(
 mod tests {
     use super::*;
 
-    use std::path::PathBuf;
+    use noirc_errors::Spanned;
+    use std::path::{Path, PathBuf};
     use tempfile::{tempdir, TempDir};
 
     // Returns the absolute path to the file
@@ -842,8 +843,9 @@ mod tests {
         let file_id = fm.add_file_with_source(entry_file_name, "fn foo() {}".to_string()).unwrap();
 
         let dep_file_name = Path::new("foo.nr");
+        let mod_name = Ident(Spanned::from_position(0, 1, "foo".to_string()));
         create_dummy_file(&dir, dep_file_name);
-        find_module(&fm, file_id, "foo").unwrap_err();
+        find_module(&fm, file_id, mod_name).unwrap_err();
     }
 
     #[test]
@@ -881,9 +883,11 @@ mod tests {
         fm.add_file_with_source(sub_dir_nr_path.as_path(), "fn foo() {}".to_string());
 
         // First check for the sub_dir.nr file and add it to the FileManager
-        let sub_dir_file_id = find_module(&fm, file_id, sub_dir_name).unwrap();
+        let sub_dir_mod_name = Ident(Spanned::from_position(0, 1, sub_dir_name.to_string()));
+        let sub_dir_file_id = find_module(&fm, file_id, sub_dir_mod_name).unwrap();
 
         // Now check for files in it's subdirectory
-        find_module(&fm, sub_dir_file_id, "foo").unwrap();
+        let mod_name = Ident(Spanned::from_position(0, 1, "foo".to_string()));
+        find_module(&fm, sub_dir_file_id, mod_name).unwrap();
     }
 }

@@ -95,9 +95,6 @@ pub fn resolve_import(
         mut error,
     } = resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps)?;
 
-    // TODO cleanup
-    // dbg!("resolve_import: err", &error);
-
     let name = resolve_path_name(import_directive);
 
     let visibility = resolved_namespace
@@ -137,9 +134,6 @@ fn resolve_path_to_ns(
 ) -> NamespaceResolutionResult {
     let import_path = &import_directive.path.segments;
     let def_map = &def_maps[&crate_id];
-
-    // TODO cleanup
-    // dbg!("resolve_path_to_ns", &import_path);
 
     match import_directive.path.kind {
         crate::ast::PathKind::Crate => {
