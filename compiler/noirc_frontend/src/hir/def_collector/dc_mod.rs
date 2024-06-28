@@ -845,7 +845,7 @@ mod tests {
     }
 
     #[test]
-    fn find_module_cannot_find_non_existing_file() {
+    fn find_module_errors_if_cannot_find_file() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
@@ -853,35 +853,60 @@ mod tests {
         // Now we have temp_dir/my_dummy_file.nr
         let file_id = add_file(&mut fm, &dir.join("my_dummy_file.nr"));
 
-        find_module(&fm, file_id, "foo").unwrap_err();
+        let result = find_module(&fm, file_id, "foo");
+        assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
     }
 
     #[test]
-    fn find_module_sub_module() {
+    fn find_module_can_find_nested_modules() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        // Create a lib.nr file at the root.
-        // we now have temp_dir/lib.nr
-        let file_id = add_file(&mut fm, &dir.join("lib.nr"));
-
-        // Add a parent module for the sub_dir
-        // we no have:
-        // - temp_dir/lib.nr
-        // - temp_dir/sub_dir.nr
-        add_file(&mut fm, &dir.join(&format!("sub_dir.nr")));
-
-        // Add foo.nr to the subdirectory
-        // we no have:
-        // - temp_dir/lib.nr
-        // - temp_dir/sub_dir.nr
-        // - temp_dir/sub_dir/foo.nr
+        // Create this tree structure:
+        // - lib.nr
+        // - sub_dir.nr
+        // - sub_dir/foo.nr
+        let lib_file_id = add_file(&mut fm, &dir.join("lib.nr"));
+        add_file(&mut fm, &dir.join("sub_dir.nr"));
         add_file(&mut fm, &dir.join("sub_dir").join("foo.nr"));
 
         // First check for the sub_dir.nr file
-        let sub_dir_file_id = find_module(&fm, file_id, "sub_dir").unwrap();
+        let sub_dir_file_id = find_module(&fm, lib_file_id, "sub_dir").unwrap();
 
         // Now check for files in it's subdirectory
         find_module(&fm, sub_dir_file_id, "foo").unwrap();
+    }
+
+    #[test]
+    fn find_module_can_find_as_mod_dot_nr() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        // Create this tree structure:
+        // - lib.nr
+        // - foo/mod.nr
+        let lib_file_id = add_file(&mut fm, &dir.join("lib.nr"));
+        add_file(&mut fm, &dir.join("foo").join("mod.nr"));
+
+        // Check that searching "foo" finds the mod.nr file
+        find_module(&fm, lib_file_id, "foo").unwrap();
+    }
+
+    #[test]
+    fn find_module_errors_if_there_are_overlapping_module_declarations() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        // Create this tree structure:
+        // - lib.nr
+        // - foo.nr
+        // - foo/mod.nr
+        let lib_file_id = add_file(&mut fm, &dir.join("lib.nr"));
+        add_file(&mut fm, &dir.join("foo.nr"));
+        add_file(&mut fm, &dir.join("foo").join("mod.nr"));
+
+        // Check that searching "foo" gives an error
+        let result = find_module(&fm, lib_file_id, "foo");
+        assert!(matches!(result, Err(DefCollectorErrorKind::OverlappingModuleDecls { .. })));
     }
 }
