@@ -103,10 +103,6 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub use_legacy: bool,
 
-    /// Skip loading the prelude (stdlib)
-    #[arg(long, hide = true)]
-    pub skip_prelude: bool,
-
     /// Outputs the paths to any modified artifacts
     #[arg(long, hide = true)]
     pub show_artifact_paths: bool,
