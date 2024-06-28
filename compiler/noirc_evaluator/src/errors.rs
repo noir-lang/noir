@@ -37,7 +37,7 @@ pub enum RuntimeError {
     AssertConstantFailed { call_stack: CallStack },
     #[error("The static_assert message is not constant")]
     StaticAssertDynamicMessage { call_stack: CallStack },
-    #[error("Nested slices are not supported")]
+    #[error("Argument is false or dynamic")]
     StaticAssertFailed { call_stack: CallStack },
     #[error("Nested slices are not supported")]
     NestedSlice { call_stack: CallStack },
