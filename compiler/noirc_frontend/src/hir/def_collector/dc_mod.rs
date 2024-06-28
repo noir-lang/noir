@@ -828,72 +828,68 @@ mod tests {
 
     use noirc_errors::Spanned;
     use std::path::{Path, PathBuf};
-    use tempfile::{tempdir, TempDir};
 
-    // Returns the absolute path to the file
-    fn create_dummy_file(dir: &TempDir, file_name: &Path) -> PathBuf {
-        let file_path = dir.path().join(file_name);
-        let _file = std::fs::File::create(&file_path).unwrap();
-        file_path
+    fn add_file(file_manager: &mut FileManager, dir: &Path, file_name: &str) -> FileId {
+        file_manager
+            .add_file_with_source(&dir.join(file_name), "fn foo() {}".to_string())
+            .expect("could not add file to file manager and obtain a FileId")
+    }
+
+    fn find_module(
+        file_manager: &FileManager,
+        anchor: FileId,
+        mod_name: &str,
+    ) -> Result<FileId, DefCollectorErrorKind> {
+        let mod_name = Ident(Spanned::from_position(0, 1, mod_name.to_string()));
+        super::find_module(file_manager, anchor, &mod_name)
     }
 
     #[test]
-    fn path_resolve_file_module() {
-        let dir = tempdir().unwrap();
+    fn find_module_cannot_find_non_existing_file() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
 
-        let entry_file_name = Path::new("my_dummy_file.nr");
-        create_dummy_file(&dir, entry_file_name);
+        // Create a my_dummy_file.nr
+        // Now we have temp_dir/my_dummy_file.nr
+        let file_id = add_file(&mut fm, &dir, "my_dummy_file.nr");
 
-        let mut fm = FileManager::new(dir.path());
-
-        let file_id = fm.add_file_with_source(entry_file_name, "fn foo() {}".to_string()).unwrap();
-
-        let dep_file_name = Path::new("foo.nr");
-        let mod_name = Ident(Spanned::from_position(0, 1, "foo".to_string()));
-        create_dummy_file(&dir, dep_file_name);
-        find_module(&fm, file_id, &mod_name).unwrap_err();
+        find_module(&fm, file_id, "foo").unwrap_err();
     }
 
     #[test]
-    fn path_resolve_sub_module() {
-        let dir = tempdir().unwrap();
-        let mut fm = FileManager::new(dir.path());
+    fn find_module_sub_module() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
 
         // Create a lib.nr file at the root.
-        // we now have dir/lib.nr
-        let lib_nr_path = create_dummy_file(&dir, Path::new("lib.nr"));
-        let file_id = fm
-            .add_file_with_source(lib_nr_path.as_path(), "fn foo() {}".to_string())
-            .expect("could not add file to file manager and obtain a FileId");
+        // we now have temp_dir/lib.nr
+        let file_id = add_file(&mut fm, &dir, "lib.nr");
 
         // Create a sub directory
         // we now have:
-        // - dir/lib.nr
-        // - dir/sub_dir
-        let sub_dir = TempDir::new_in(&dir).unwrap();
-        let sub_dir_name = sub_dir.path().file_name().unwrap().to_str().unwrap();
+        // - temp_dir/lib.nr
+        // - temp_dir/sub_dir
+        let sub_dir_name = "sub_dir";
+        let sub_dir_path = dir.join(sub_dir_name);
+        std::fs::create_dir(&sub_dir_path).unwrap();
 
         // Add foo.nr to the subdirectory
         // we no have:
-        // - dir/lib.nr
-        // - dir/sub_dir/foo.nr
-        let foo_nr_path = create_dummy_file(&sub_dir, Path::new("foo.nr"));
-        fm.add_file_with_source(foo_nr_path.as_path(), "fn foo() {}".to_string());
+        // - temp_dir/lib.nr
+        // - temp_dir/sub_dir/foo.nr
+        add_file(&mut fm, &sub_dir_path, "foo.nr");
 
         // Add a parent module for the sub_dir
         // we no have:
-        // - dir/lib.nr
-        // - dir/sub_dir.nr
-        // - dir/sub_dir/foo.nr
-        let sub_dir_nr_path = create_dummy_file(&dir, Path::new(&format!("{sub_dir_name}.nr")));
-        fm.add_file_with_source(sub_dir_nr_path.as_path(), "fn foo() {}".to_string());
+        // - temp_dir/lib.nr
+        // - temp_dir/sub_dir.nr
+        // - temp_dir/sub_dir/foo.nr
+        add_file(&mut fm, &dir, &format!("{sub_dir_name}.nr"));
 
-        // First check for the sub_dir.nr file and add it to the FileManager
-        let sub_dir_mod_name = Ident(Spanned::from_position(0, 1, sub_dir_name.to_string()));
-        let sub_dir_file_id = find_module(&fm, file_id, &sub_dir_mod_name).unwrap();
+        // First check for the sub_dir.nr file
+        let sub_dir_file_id = find_module(&fm, file_id, sub_dir_name).unwrap();
 
         // Now check for files in it's subdirectory
-        let mod_name = Ident(Spanned::from_position(0, 1, "foo".to_string()));
-        find_module(&fm, sub_dir_file_id, &mod_name).unwrap();
+        find_module(&fm, sub_dir_file_id, "foo").unwrap();
     }
 }
