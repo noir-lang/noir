@@ -58,6 +58,9 @@ mod requests;
 mod solver;
 mod types;
 
+#[cfg(test)]
+mod test_utils;
+
 use solver::WrapperSolver;
 use types::{notification, request, NargoTest, NargoTestId, Position, Range, Url};
 

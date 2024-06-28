@@ -78,44 +78,15 @@ fn on_goto_definition_inner(
 mod goto_definition_tests {
     use std::panic;
 
-    use acvm::blackbox_solver::StubbedBlackBoxSolver;
-    use async_lsp::ClientSocket;
-    use lsp_types::{Position, Range, Url};
+    use crate::test_utils;
+    use lsp_types::{Position, Range};
     use tokio::test;
 
     use super::*;
 
     #[test]
     async fn test_on_goto_definition() {
-        let client = ClientSocket::new_closed();
-        let mut state = LspState::new(&client, StubbedBlackBoxSolver);
-
-        let root_path = std::env::current_dir()
-            .unwrap()
-            .join("test_programs/go_to_definition")
-            .canonicalize()
-            .expect("Could not resolve root path");
-        let noir_text_document = Url::from_file_path(root_path.join("src/main.nr").as_path())
-            .expect("Could not convert text document path to URI");
-        let root_uri = Some(
-            Url::from_file_path(root_path.as_path()).expect("Could not convert root path to URI"),
-        );
-
-        #[allow(deprecated)]
-        let initialize_params = lsp_types::InitializeParams {
-            process_id: Default::default(),
-            root_path: None,
-            root_uri,
-            initialization_options: None,
-            capabilities: Default::default(),
-            trace: Some(lsp_types::TraceValue::Verbose),
-            workspace_folders: None,
-            client_info: None,
-            locale: None,
-        };
-        let _initialize_response = crate::requests::on_initialize(&mut state, initialize_params)
-            .await
-            .expect("Could not initialize LSP server");
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("go_to_definition").await;
 
         let params = GotoDefinitionParams {
             text_document_position_params: lsp_types::TextDocumentPositionParams {
