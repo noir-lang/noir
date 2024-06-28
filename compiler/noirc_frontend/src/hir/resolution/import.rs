@@ -214,7 +214,6 @@ fn resolve_name_in_module(
     }
 
     let first_segment = import_path.first().expect("ice: could not fetch first segment");
-
     let mut current_ns = current_mod.find_name(first_segment);
     if current_ns.is_none() {
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
