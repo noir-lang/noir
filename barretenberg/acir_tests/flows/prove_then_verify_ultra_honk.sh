@@ -1,5 +1,5 @@
 #!/bin/sh
-set -eu
+set -eux
 
 VFLAG=${VERBOSE:+-v}
 BFLAG="-b ./target/program.json"

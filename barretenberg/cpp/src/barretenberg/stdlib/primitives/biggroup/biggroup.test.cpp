@@ -443,6 +443,8 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
 
     static void test_batch_mul()
     {
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/1043): this test will fail with num_points is 1
+        // (and this case gets hit sometimes when handling points at infinity).
         const size_t num_points = 5;
         Builder builder;
         std::vector<affine_element> points;

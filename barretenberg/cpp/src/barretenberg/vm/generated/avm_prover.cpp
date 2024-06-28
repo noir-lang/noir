@@ -965,7 +965,8 @@ void AvmProver::execute_relation_check_rounds()
  * */
 void AvmProver::execute_pcs_rounds()
 {
-    auto prover_opening_claim = ZeroMorph::prove(prover_polynomials.get_unshifted(),
+    auto prover_opening_claim = ZeroMorph::prove(key->circuit_size,
+                                                 prover_polynomials.get_unshifted(),
                                                  prover_polynomials.get_to_be_shifted(),
                                                  sumcheck_output.claimed_evaluations.get_unshifted(),
                                                  sumcheck_output.claimed_evaluations.get_shifted(),

@@ -7,12 +7,13 @@ namespace bb {
  *
  * @tparam Builder
  */
-template <typename Curve> class VerifierCommitmentKey {
+template <typename Curve_> class VerifierCommitmentKey {
+  public:
+    using Curve = Curve_;
     using Builder = Curve::Builder;
     using Commitment = Curve::AffineElement;
     using NativeEmbeddedCurve = typename Builder::EmbeddedCurve;
 
-  public:
     /**
      * @brief Construct a new Verifier Commitment Key object from its native counterpart. instantiated on Grumpkin.
      * This will be part of the ECCVMRecursiveFlavor once implemented. The Grumpkin SRS points are represented after

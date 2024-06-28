@@ -389,6 +389,19 @@ template <typename Builder> field_t<Builder> field_t<Builder>::pow(const field_t
 }
 
 /**
+ * @brief raise a field_t to a power of an exponent (field_t). Note that the exponent must not exceed 32 bits and is
+ * implicitly range constrained.
+ *
+ * @returns this ** (exponent)
+ */
+template <typename Builder> field_t<Builder> field_t<Builder>::pow(const size_t exponent) const
+{
+    auto* ctx = get_context();
+    auto exponent_field_elt = field_t::from_witness(ctx, exponent);
+    return pow(exponent_field_elt);
+}
+
+/**
  * @returns `this * to_mul + to_add`
  */
 template <typename Builder> field_t<Builder> field_t<Builder>::madd(const field_t& to_mul, const field_t& to_add) const

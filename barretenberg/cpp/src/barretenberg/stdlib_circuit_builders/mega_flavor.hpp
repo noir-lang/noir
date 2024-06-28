@@ -416,9 +416,6 @@ class MegaFlavor {
                                                                              this->circuit_size,
                                                                              this->pub_inputs_offset);
             relation_parameters.public_input_delta = public_input_delta;
-            auto lookup_grand_product_delta = compute_lookup_grand_product_delta(
-                relation_parameters.beta, relation_parameters.gamma, this->circuit_size);
-            relation_parameters.lookup_grand_product_delta = lookup_grand_product_delta;
 
             // Compute permutation and lookup grand product polynomials
             compute_grand_products<MegaFlavor>(this->polynomials, relation_parameters);
@@ -560,31 +557,6 @@ class MegaFlavor {
                        lagrange_last,
                        lagrange_ecc_op,
                        databus_id);
-
-        /**
-         * @brief Serialize verification key to field elements
-         *
-         * @return std::vector<FF>
-         */
-        std::vector<FF> to_field_elements()
-        {
-            std::vector<FF> elements;
-            std::vector<FF> circuit_size_elements = bb::field_conversion::convert_to_bn254_frs(this->circuit_size);
-            elements.insert(elements.end(), circuit_size_elements.begin(), circuit_size_elements.end());
-            // do the same for the rest of the fields
-            std::vector<FF> num_public_inputs_elements =
-                bb::field_conversion::convert_to_bn254_frs(this->num_public_inputs);
-            elements.insert(elements.end(), num_public_inputs_elements.begin(), num_public_inputs_elements.end());
-            std::vector<FF> pub_inputs_offset_elements =
-                bb::field_conversion::convert_to_bn254_frs(this->pub_inputs_offset);
-            elements.insert(elements.end(), pub_inputs_offset_elements.begin(), pub_inputs_offset_elements.end());
-
-            for (Commitment& comm : this->get_all()) {
-                std::vector<FF> comm_elements = bb::field_conversion::convert_to_bn254_frs(comm);
-                elements.insert(elements.end(), comm_elements.begin(), comm_elements.end());
-            }
-            return elements;
-        }
     };
     /**
      * @brief A container for storing the partially evaluated multivariates produced by sumcheck.
@@ -814,7 +786,6 @@ class MegaFlavor {
             // take current proof and put them into the struct
             size_t num_frs_read = 0;
             circuit_size = deserialize_from_buffer<uint32_t>(proof_data, num_frs_read);
-            size_t log_n = numeric::get_msb(circuit_size);
 
             public_input_size = deserialize_from_buffer<uint32_t>(proof_data, num_frs_read);
             pub_inputs_offset = deserialize_from_buffer<uint32_t>(proof_data, num_frs_read);
@@ -839,13 +810,13 @@ class MegaFlavor {
             w_4_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
             lookup_inverses_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
             z_perm_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
-            for (size_t i = 0; i < log_n; ++i) {
+            for (size_t i = 0; i < CONST_PROOF_SIZE_LOG_N; ++i) {
                 sumcheck_univariates.push_back(
                     deserialize_from_buffer<bb::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>>(proof_data,
                                                                                                  num_frs_read));
             }
             sumcheck_evaluations = deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(proof_data, num_frs_read);
-            for (size_t i = 0; i < log_n; ++i) {
+            for (size_t i = 0; i < CONST_PROOF_SIZE_LOG_N; ++i) {
                 zm_cq_comms.push_back(deserialize_from_buffer<Commitment>(proof_data, num_frs_read));
             }
             zm_cq_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
@@ -856,7 +827,6 @@ class MegaFlavor {
         {
             size_t old_proof_length = proof_data.size();
             proof_data.clear();
-            size_t log_n = numeric::get_msb(circuit_size);
             serialize_to_buffer(circuit_size, proof_data);
             serialize_to_buffer(public_input_size, proof_data);
             serialize_to_buffer(pub_inputs_offset, proof_data);
@@ -881,11 +851,11 @@ class MegaFlavor {
             serialize_to_buffer(w_4_comm, proof_data);
             serialize_to_buffer(lookup_inverses_comm, proof_data);
             serialize_to_buffer(z_perm_comm, proof_data);
-            for (size_t i = 0; i < log_n; ++i) {
+            for (size_t i = 0; i < CONST_PROOF_SIZE_LOG_N; ++i) {
                 serialize_to_buffer(sumcheck_univariates[i], proof_data);
             }
             serialize_to_buffer(sumcheck_evaluations, proof_data);
-            for (size_t i = 0; i < log_n; ++i) {
+            for (size_t i = 0; i < CONST_PROOF_SIZE_LOG_N; ++i) {
                 serialize_to_buffer(zm_cq_comms[i], proof_data);
             }
             serialize_to_buffer(zm_cq_comm, proof_data);

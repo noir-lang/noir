@@ -17,6 +17,7 @@ template <typename Builder> struct StdlibTranscriptParams {
             Builder* builder = data[0].get_context();
             return stdlib::poseidon2<Builder>::hash(*builder, data);
         } else {
+            // TODO(https://github.com/AztecProtocol/barretenberg/issues/1035): Add constraints for hashing in Ultra
             using NativeFr = bb::fr;
             ASSERT(!data.empty() && data[0].get_context() != nullptr);
             Builder* builder = data[0].get_context();

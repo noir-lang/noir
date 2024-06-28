@@ -136,11 +136,8 @@ template <IsUltraFlavor Flavor> void OinkVerifier<Flavor>::execute_grand_product
                                                                      relation_parameters.gamma,
                                                                      key->circuit_size,
                                                                      static_cast<size_t>(key->pub_inputs_offset));
-    const FF lookup_grand_product_delta =
-        compute_lookup_grand_product_delta<FF>(relation_parameters.beta, relation_parameters.gamma, key->circuit_size);
 
     relation_parameters.public_input_delta = public_input_delta;
-    relation_parameters.lookup_grand_product_delta = lookup_grand_product_delta;
 
     // Get commitment to permutation and lookup grand products
     witness_comms.z_perm = transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.z_perm);

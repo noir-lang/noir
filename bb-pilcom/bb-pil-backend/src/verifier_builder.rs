@@ -56,7 +56,7 @@ impl VerifierBuilder for BBFiles {
             |public_inputs_column_name: &String, idx: usize| {
                 format!(
                 "
-        FF {public_inputs_column_name}_evaluation = evaluate_public_input_column(public_inputs[{idx}], circuit_size, multivariate_challenge);
+        FF {public_inputs_column_name}_evaluation = evaluate_public_input_column(public_inputs[{idx}], circuit_size, mle_challenge);
         if ({public_inputs_column_name}_evaluation != claimed_evaluations.{public_inputs_column_name}) {{
             return false;
         }}
@@ -178,6 +178,8 @@ impl VerifierBuilder for BBFiles {
         }}
 
         // Public columns evaluation checks
+        std::vector<FF> mle_challenge(multivariate_challenge.begin(),
+                                  multivariate_challenge.begin() + static_cast<int>(log_circuit_size));
         {public_inputs_check}
     
         // Execute ZeroMorph rounds. See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the

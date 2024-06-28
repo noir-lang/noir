@@ -341,7 +341,7 @@ void build_constraints(Builder& builder,
         // Add recursion constraints
 
         for (size_t i = 0; i < constraint_system.honk_recursion_constraints.size(); ++i) {
-            auto constraint = constraint_system.honk_recursion_constraints.at(i);
+            auto& constraint = constraint_system.honk_recursion_constraints.at(i);
             // A proof passed into the constraint should be stripped of its inner public inputs, but not the
             // nested aggregation object itself. The verifier circuit requires that the indices to a nested
             // proof aggregation state are a circuit constant. The user tells us they how they want these

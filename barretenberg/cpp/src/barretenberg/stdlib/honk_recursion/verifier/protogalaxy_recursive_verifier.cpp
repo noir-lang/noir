@@ -91,10 +91,7 @@ void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::receive_and_finalise_inst
                                            gamma,
                                            inst->verification_key->circuit_size,
                                            static_cast<size_t>(inst->verification_key->pub_inputs_offset));
-    const FF lookup_grand_product_delta =
-        compute_lookup_grand_product_delta<FF>(beta, gamma, inst->verification_key->circuit_size);
-    inst->relation_parameters =
-        RelationParameters<FF>{ eta, eta_two, eta_three, beta, gamma, public_input_delta, lookup_grand_product_delta };
+    inst->relation_parameters = RelationParameters<FF>{ eta, eta_two, eta_three, beta, gamma, public_input_delta };
 
     // Get the relation separation challenges
     for (size_t idx = 0; idx < NUM_SUBRELATIONS - 1; idx++) {

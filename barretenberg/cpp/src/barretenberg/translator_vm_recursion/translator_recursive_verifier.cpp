@@ -73,7 +73,7 @@ std::array<typename Flavor::GroupElement, 2> TranslatorRecursiveVerifier_<Flavor
     VerifierCommitments commitments{ key };
     CommitmentLabels commitment_labels;
 
-    const auto circuit_size = transcript->template receive_from_prover<FF>("circuit_size");
+    const FF circuit_size = transcript->template receive_from_prover<FF>("circuit_size");
     ASSERT(static_cast<uint32_t>(circuit_size.get_value()) == key->circuit_size);
     evaluation_input_x = transcript->template receive_from_prover<BF>("evaluation_input_x");
 
@@ -113,7 +113,8 @@ std::array<typename Flavor::GroupElement, 2> TranslatorRecursiveVerifier_<Flavor
     // Execute ZeroMorph rounds followed by the univariate PCS. See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a
     // complete description ofthe unrolled protocol.
 
-    auto opening_claim = ZeroMorph::verify(commitments.get_unshifted_without_concatenated(),
+    auto opening_claim = ZeroMorph::verify(circuit_size,
+                                           commitments.get_unshifted_without_concatenated(),
                                            commitments.get_to_be_shifted(),
                                            claimed_evaluations.get_unshifted_without_concatenated(),
                                            claimed_evaluations.get_shifted(),

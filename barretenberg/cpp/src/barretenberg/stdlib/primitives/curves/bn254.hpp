@@ -12,6 +12,7 @@ template <typename CircuitBuilder> struct bn254 {
     // classes are instantiated with "native" curve types. Eventually, the verifier classes will be instantiated only
     // with stdlib types, and "native" verification will be acheived via a simulated builder.
     static constexpr bool is_stdlib_type = true;
+    using NativeCurve = curve::BN254;
 
     // Corresponding native types (used exclusively for testing)
     using ScalarFieldNative = curve::BN254::ScalarField;

@@ -50,19 +50,12 @@ template <typename RecursiveFlavor> class RecursiveVerifierTest : public testing
      */
     static InnerBuilder create_inner_circuit(size_t log_num_gates = 10)
     {
-        using fr_ct = InnerCurve::ScalarField;
-        using fq_ct = InnerCurve::BaseField;
-        using point_ct = InnerCurve::AffineElement;
-        using public_witness_ct = InnerCurve::public_witness_ct;
-        using witness_ct = InnerCurve::witness_ct;
-        using byte_array_ct = InnerCurve::byte_array_ct;
         using fr = typename InnerCurve::ScalarFieldNative;
-        using point = typename InnerCurve::GroupNative::affine_element;
 
         InnerBuilder builder;
 
         // Create 2^log_n many add gates based on input log num gates
-        const size_t num_gates = 1 << log_num_gates;
+        const size_t num_gates = (1 << log_num_gates);
         for (size_t i = 0; i < num_gates; ++i) {
             fr a = fr::random_element();
             uint32_t a_idx = builder.add_variable(a);
@@ -76,39 +69,6 @@ template <typename RecursiveFlavor> class RecursiveVerifierTest : public testing
 
             builder.create_big_add_gate({ a_idx, b_idx, c_idx, d_idx, fr(1), fr(1), fr(1), fr(-1), fr(0) });
         }
-
-        // Perform a batch mul which will add some arbitrary goblin-style ECC op gates if the circuit arithmetic is
-        // goblinisied otherwise it will add the conventional nonnative gates
-        size_t num_points = 5;
-        std::vector<point_ct> circuit_points;
-        std::vector<fr_ct> circuit_scalars;
-        for (size_t i = 0; i < num_points; ++i) {
-            circuit_points.push_back(point_ct::from_witness(&builder, point::random_element()));
-            circuit_scalars.push_back(fr_ct::from_witness(&builder, fr::random_element()));
-        }
-        point_ct::batch_mul(circuit_points, circuit_scalars);
-
-        // Define some additional arbitrary convetional circuit logic
-        fr_ct a(public_witness_ct(&builder, fr::random_element()));
-        fr_ct b(public_witness_ct(&builder, fr::random_element()));
-        fr_ct c(public_witness_ct(&builder, fr::random_element()));
-
-        for (size_t i = 0; i < 32; ++i) {
-            a = (a * b) + b + a;
-            a = a.madd(b, c);
-        }
-        pedersen_hash<InnerBuilder>::hash({ a, b });
-        byte_array_ct to_hash(&builder, "nonsense test data");
-        blake3s(to_hash);
-
-        fr bigfield_data = fr::random_element();
-        fr bigfield_data_a{ bigfield_data.data[0], bigfield_data.data[1], 0, 0 };
-        fr bigfield_data_b{ bigfield_data.data[2], bigfield_data.data[3], 0, 0 };
-
-        fq_ct big_a(fr_ct(witness_ct(&builder, bigfield_data_a.to_montgomery_form())), fr_ct(witness_ct(&builder, 0)));
-        fq_ct big_b(fr_ct(witness_ct(&builder, bigfield_data_b.to_montgomery_form())), fr_ct(witness_ct(&builder, 0)));
-
-        big_a* big_b;
 
         return builder;
     };
@@ -154,6 +114,52 @@ template <typename RecursiveFlavor> class RecursiveVerifierTest : public testing
         for (auto [vk_poly, native_vk_poly] : zip_view(verifier.key->get_all(), verification_key->get_all())) {
             EXPECT_EQ(vk_poly.get_value(), native_vk_poly);
         }
+    }
+
+    static void test_independent_vk_hash()
+    {
+        auto get_blocks = [](size_t inner_size) { // Create an arbitrary inner circuit
+            auto inner_circuit = create_inner_circuit(inner_size);
+
+            // Generate a proof over the inner circuit
+            auto instance = std::make_shared<InnerProverInstance>(inner_circuit);
+            InnerProver inner_prover(instance);
+            info("test circuit size: ", instance->proving_key.circuit_size);
+            auto verification_key = std::make_shared<typename InnerFlavor::VerificationKey>(instance->proving_key);
+            auto inner_proof = inner_prover.construct_proof();
+
+            // Create a recursive verification circuit for the proof of the inner circuit
+            OuterBuilder outer_circuit;
+            RecursiveVerifier verifier{ &outer_circuit, verification_key };
+            [[maybe_unused]] auto pairing_points = verifier.verify_proof(inner_proof);
+            return outer_circuit.blocks;
+        };
+
+        bool broke(false);
+        auto check_eq = [&broke](auto& p1, auto& p2) {
+            for (size_t idx = 0; idx < p1.size(); idx++) {
+                if (p1[idx] != p2[idx]) {
+                    broke = true;
+                    info("discrepancy at value index: ", idx);
+                    break;
+                }
+            }
+        };
+
+        auto blocks_10 = get_blocks(10);
+        auto blocks_11 = get_blocks(11);
+        size_t block_idx = 0;
+        for (auto [b_10, b_11] : zip_view(blocks_10.get(), blocks_11.get())) {
+            info("block index: ", block_idx);
+            size_t sel_idx = 0;
+            for (auto [p_10, p_11] : zip_view(b_10.selectors, b_11.selectors)) {
+                info("sel index: ", sel_idx);
+                check_eq(p_10, p_11);
+                sel_idx++;
+            }
+            block_idx++;
+        }
+        EXPECT_FALSE(broke);
     }
 
     /**
@@ -267,6 +273,15 @@ HEAVY_TYPED_TEST(RecursiveVerifierTest, RecursiveVerificationKey)
 HEAVY_TYPED_TEST(RecursiveVerifierTest, SingleRecursiveVerification)
 {
     TestFixture::test_recursive_verification();
+};
+
+HEAVY_TYPED_TEST(RecursiveVerifierTest, IndependentVKHash)
+{
+    if constexpr (std::same_as<TypeParam, UltraRecursiveFlavor_<UltraCircuitBuilder>>) {
+        TestFixture::test_independent_vk_hash();
+    } else {
+        GTEST_SKIP() << "Not built for this parameter";
+    }
 };
 
 HEAVY_TYPED_TEST(RecursiveVerifierTest, SingleRecursiveVerificationFailure)

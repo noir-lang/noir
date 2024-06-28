@@ -70,12 +70,14 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const HonkP
 
     // If Sumcheck did not verify, return false
     if (sumcheck_verified.has_value() && !sumcheck_verified.value()) {
+        info("Sumcheck verification failed.");
         return false;
     }
 
     // Execute ZeroMorph rounds to produce an opening claim and verify it with a univariate PCS. See
     // https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the unrolled protocol.
-    auto opening_claim = ZeroMorph::verify(commitments.get_unshifted(),
+    auto opening_claim = ZeroMorph::verify(key->circuit_size,
+                                           commitments.get_unshifted(),
                                            commitments.get_to_be_shifted(),
                                            claimed_evaluations.get_unshifted(),
                                            claimed_evaluations.get_shifted(),
@@ -83,7 +85,6 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const HonkP
                                            Commitment::one(),
                                            transcript);
     auto pairing_points = PCS::reduce_verify(opening_claim, transcript);
-
     auto pcs_verified = key->pcs_verification_key->pairing_check(pairing_points[0], pairing_points[1]);
     return sumcheck_verified.value() && pcs_verified;
 }

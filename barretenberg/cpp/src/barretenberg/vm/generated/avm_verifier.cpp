@@ -713,27 +713,26 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
     }
 
     // Public columns evaluation checks
-
-    FF kernel_kernel_inputs_evaluation =
-        evaluate_public_input_column(public_inputs[0], circuit_size, multivariate_challenge);
+    std::vector<FF> mle_challenge(multivariate_challenge.begin(),
+                                  multivariate_challenge.begin() + static_cast<int>(log_circuit_size));
+    FF kernel_kernel_inputs_evaluation = evaluate_public_input_column(public_inputs[0], circuit_size, mle_challenge);
     if (kernel_kernel_inputs_evaluation != claimed_evaluations.kernel_kernel_inputs) {
         return false;
     }
 
-    FF kernel_kernel_value_out_evaluation =
-        evaluate_public_input_column(public_inputs[1], circuit_size, multivariate_challenge);
+    FF kernel_kernel_value_out_evaluation = evaluate_public_input_column(public_inputs[1], circuit_size, mle_challenge);
     if (kernel_kernel_value_out_evaluation != claimed_evaluations.kernel_kernel_value_out) {
         return false;
     }
 
     FF kernel_kernel_side_effect_out_evaluation =
-        evaluate_public_input_column(public_inputs[2], circuit_size, multivariate_challenge);
+        evaluate_public_input_column(public_inputs[2], circuit_size, mle_challenge);
     if (kernel_kernel_side_effect_out_evaluation != claimed_evaluations.kernel_kernel_side_effect_out) {
         return false;
     }
 
     FF kernel_kernel_metadata_out_evaluation =
-        evaluate_public_input_column(public_inputs[3], circuit_size, multivariate_challenge);
+        evaluate_public_input_column(public_inputs[3], circuit_size, mle_challenge);
     if (kernel_kernel_metadata_out_evaluation != claimed_evaluations.kernel_kernel_metadata_out) {
         return false;
     }

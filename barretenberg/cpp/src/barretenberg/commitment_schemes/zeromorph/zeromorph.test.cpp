@@ -1,9 +1,7 @@
 #include "zeromorph.hpp"
-#include "../commitment_key.test.hpp"
+#include "barretenberg/commitment_schemes/commitment_key.test.hpp"
 #include "barretenberg/commitment_schemes/ipa/ipa.hpp"
 #include "barretenberg/commitment_schemes/kzg/kzg.hpp"
-#include "barretenberg/transcript/transcript.hpp"
-
 #include <gtest/gtest.h>
 
 namespace bb {
@@ -89,10 +87,10 @@ template <class PCS> class ZeroMorphTest : public CommitmentTest<typename PCS::C
 
         bool verified = false;
         if (NUM_CONCATENATED == 0) {
-            verified = prove_and_verify(unshifted_input, shifted_input, u_challenge);
+            verified = prove_and_verify(N, unshifted_input, shifted_input, u_challenge);
         } else {
             verified =
-                prove_and_verify_with_concatenation(unshifted_input, shifted_input, u_challenge, NUM_CONCATENATED);
+                prove_and_verify_with_concatenation(N, unshifted_input, shifted_input, u_challenge, NUM_CONCATENATED);
         }
 
         return verified;
@@ -205,14 +203,16 @@ template <class PCS> class ZeroMorphTest : public CommitmentTest<typename PCS::C
         return { concatenation_groups, concatenated_polynomials, c_evaluations, concatenation_groups_commitments };
     };
 
-    bool prove_and_verify(PolynomialsEvaluationsCommitments& unshifted,
+    bool prove_and_verify(size_t N,
+                          PolynomialsEvaluationsCommitments& unshifted,
                           PolynomialsEvaluationsCommitments& shifted,
                           std::vector<Fr> u_challenge)
     {
         auto prover_transcript = NativeTranscript::prover_init_empty();
 
         // Execute Prover protocol
-        auto prover_opening_claim = ZeroMorphProver::prove(RefVector(unshifted.polynomials), // unshifted
+        auto prover_opening_claim = ZeroMorphProver::prove(N,
+                                                           RefVector(unshifted.polynomials), // unshifted
                                                            RefVector(shifted.polynomials),   // to-be shifted
                                                            RefVector(unshifted.evaluations), // unshifted
                                                            RefVector(shifted.evaluations),   // shifted
@@ -224,7 +224,8 @@ template <class PCS> class ZeroMorphTest : public CommitmentTest<typename PCS::C
 
         auto verifier_transcript = NativeTranscript::verifier_init_empty(prover_transcript);
 
-        auto verifier_opening_claim = ZeroMorphVerifier::verify(RefVector(unshifted.commitments), // unshifted
+        auto verifier_opening_claim = ZeroMorphVerifier::verify(N,
+                                                                RefVector(unshifted.commitments), // unshifted
                                                                 RefVector(shifted.commitments),   // to-be-shifted
                                                                 RefVector(unshifted.evaluations), // unshifted
                                                                 RefVector(shifted.evaluations),   // shifted
@@ -250,7 +251,8 @@ template <class PCS> class ZeroMorphTest : public CommitmentTest<typename PCS::C
         return verified;
     };
 
-    bool prove_and_verify_with_concatenation(PolynomialsEvaluationsCommitments& unshifted,
+    bool prove_and_verify_with_concatenation(size_t N,
+                                             PolynomialsEvaluationsCommitments& unshifted,
                                              PolynomialsEvaluationsCommitments& shifted,
                                              std::vector<Fr> u_challenge,
                                              size_t NUM_CONCATENATED)
@@ -261,7 +263,8 @@ template <class PCS> class ZeroMorphTest : public CommitmentTest<typename PCS::C
 
         // Execute Prover protocol
         auto prover_opening_claim =
-            ZeroMorphProver::prove(RefVector(unshifted.polynomials), // unshifted
+            ZeroMorphProver::prove(N,
+                                   RefVector(unshifted.polynomials), // unshifted
                                    RefVector(shifted.polynomials),   // to-be-shifted
                                    RefVector(unshifted.evaluations), // unshifted
                                    RefVector(shifted.evaluations),   // shifted
@@ -276,7 +279,8 @@ template <class PCS> class ZeroMorphTest : public CommitmentTest<typename PCS::C
         auto verifier_transcript = NativeTranscript::verifier_init_empty(prover_transcript);
 
         auto verifier_opening_claim =
-            ZeroMorphVerifier::verify(RefVector(unshifted.commitments), // unshifted
+            ZeroMorphVerifier::verify(N,
+                                      RefVector(unshifted.commitments), // unshifted
                                       RefVector(shifted.commitments),   // to-be-shifted
                                       RefVector(unshifted.evaluations), // unshifted
                                       RefVector(shifted.evaluations),   // shifted

@@ -29,11 +29,11 @@ template <class Curve> class VerifierCommitmentKey;
  * @tparam curve::BN254
  */
 template <> class VerifierCommitmentKey<curve::BN254> {
+  public:
     using Curve = curve::BN254;
     using GroupElement = typename Curve::Element;
     using Commitment = typename Curve::AffineElement;
 
-  public:
     VerifierCommitmentKey()
     {
         srs::init_crs_factory("../srs_db/ignition");
@@ -69,11 +69,11 @@ template <> class VerifierCommitmentKey<curve::BN254> {
  * @tparam curve::Grumpkin
  */
 template <> class VerifierCommitmentKey<curve::Grumpkin> {
+  public:
     using Curve = curve::Grumpkin;
     using GroupElement = typename Curve::Element;
     using Commitment = typename Curve::AffineElement;
 
-  public:
     /**
      * @brief Construct a new IPA Verification Key object from existing SRS
      *

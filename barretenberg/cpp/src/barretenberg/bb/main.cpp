@@ -741,6 +741,40 @@ bool avm_verify(const std::filesystem::path& proof_path, const std::filesystem::
 #endif
 
 /**
+ * @brief Create a Honk a prover from program bytecode and an optional witness
+ *
+ * @tparam Flavor
+ * @param bytecodePath
+ * @param witnessPath
+ * @return UltraProver_<Flavor>
+ */
+template <typename Flavor>
+UltraProver_<Flavor> compute_valid_prover(const std::string& bytecodePath, const std::string& witnessPath)
+{
+    using Builder = Flavor::CircuitBuilder;
+    using Prover = UltraProver_<Flavor>;
+
+    bool honk_recursion = false;
+    if constexpr (IsAnyOf<Flavor, UltraFlavor>) {
+        honk_recursion = true;
+    }
+    auto constraint_system = get_constraint_system(bytecodePath, honk_recursion);
+    acir_format::WitnessVector witness = {};
+    if (!witnessPath.empty()) {
+        witness = get_witness(witnessPath);
+    }
+
+    auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, witness, honk_recursion);
+
+    auto num_extra_gates = builder.get_num_gates_added_to_ensure_nonzero_polynomials();
+    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size() + num_extra_gates);
+    init_bn254_crs(srs_size);
+
+    Prover prover{ builder };
+    return prover;
+}
+
+/**
  * @brief Creates a proof for an ACIR circuit
  *
  * Communication:
@@ -754,24 +788,11 @@ bool avm_verify(const std::filesystem::path& proof_path, const std::filesystem::
 template <IsUltraFlavor Flavor>
 void prove_honk(const std::string& bytecodePath, const std::string& witnessPath, const std::string& outputPath)
 {
-    using Builder = Flavor::CircuitBuilder;
+    // using Builder = Flavor::CircuitBuilder;
     using Prover = UltraProver_<Flavor>;
 
-    bool honk_recursion = false;
-    if constexpr (IsAnyOf<Flavor, UltraFlavor>) {
-        honk_recursion = true;
-    }
-    auto constraint_system = get_constraint_system(bytecodePath, honk_recursion);
-    auto witness = get_witness(witnessPath);
-
-    auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, witness, honk_recursion);
-
-    auto num_extra_gates = builder.get_num_gates_added_to_ensure_nonzero_polynomials();
-    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size() + num_extra_gates);
-    init_bn254_crs(srs_size);
-
     // Construct Honk proof
-    Prover prover{ builder };
+    Prover prover = compute_valid_prover<Flavor>(bytecodePath, witnessPath);
     auto proof = prover.construct_proof();
 
     if (outputPath == "-") {
@@ -807,10 +828,9 @@ template <IsUltraFlavor Flavor> bool verify_honk(const std::string& proof_path, 
     auto g2_data = get_bn254_g2_data(CRS_PATH);
     srs::init_crs_factory({}, g2_data);
     auto proof = from_buffer<std::vector<bb::fr>>(read_file(proof_path));
-    auto verification_key = std::make_shared<VerificationKey>(from_buffer<VerificationKey>(read_file(vk_path)));
-    verification_key->pcs_verification_key = std::make_shared<VerifierCommitmentKey>();
-
-    Verifier verifier{ verification_key };
+    auto vk = std::make_shared<VerificationKey>(from_buffer<VerificationKey>(read_file(vk_path)));
+    vk->pcs_verification_key = std::make_shared<VerifierCommitmentKey>();
+    Verifier verifier{ vk };
 
     bool verified = verifier.verify_proof(proof);
 
@@ -830,22 +850,12 @@ template <IsUltraFlavor Flavor> bool verify_honk(const std::string& proof_path, 
  */
 template <IsUltraFlavor Flavor> void write_vk_honk(const std::string& bytecodePath, const std::string& outputPath)
 {
-    using Builder = Flavor::CircuitBuilder;
+    using Prover = UltraProver_<Flavor>;
     using ProverInstance = ProverInstance_<Flavor>;
     using VerificationKey = Flavor::VerificationKey;
 
-    bool honk_recursion = false;
-    if constexpr (IsAnyOf<Flavor, UltraFlavor>) {
-        honk_recursion = true;
-    }
-    auto constraint_system = get_constraint_system(bytecodePath, honk_recursion);
-    auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, {}, honk_recursion);
-
-    auto num_extra_gates = builder.get_num_gates_added_to_ensure_nonzero_polynomials();
-    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size() + num_extra_gates);
-    init_bn254_crs(srs_size);
-
-    ProverInstance prover_inst(builder);
+    Prover prover = compute_valid_prover<Flavor>(bytecodePath, "");
+    ProverInstance& prover_inst = *prover.instance;
     VerificationKey vk(
         prover_inst.proving_key); // uses a partial form of the proving key which only has precomputed entities
 

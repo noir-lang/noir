@@ -42,7 +42,7 @@ barretenberg-acir-tests-bb:
     RUN FLOW=prove_and_verify_mega_honk_program ./run_acir_tests.sh
     # Fold and verify an ACIR program stack using ClientIvc
     RUN FLOW=fold_and_verify_program ./run_acir_tests.sh fold_basic
-     # Fold and verify an ACIR program stack using ClientIvc, recursively verify as part of the Tube circuit and produce and verify a Honk proof
+    # Fold and verify an ACIR program stack using ClientIvc, recursively verify as part of the Tube circuit and produce and verify a Honk proof
     RUN FLOW=prove_then_verify_tube ./run_acir_tests.sh fold_basic
     # Construct and separately verify a UltraHonk proof for a single program that recursively verifies a Honk proof
     RUN FLOW=prove_then_verify_ultra_honk ./run_acir_tests.sh verify_honk_proof

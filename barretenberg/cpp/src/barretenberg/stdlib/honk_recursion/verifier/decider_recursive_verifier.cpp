@@ -33,7 +33,8 @@ std::array<typename Flavor::GroupElement, 2> DeciderRecursiveVerifier_<Flavor>::
 
     // Execute ZeroMorph rounds. See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the
     // unrolled protocol.
-    auto opening_claim = ZeroMorph::verify(commitments.get_unshifted(),
+    auto opening_claim = ZeroMorph::verify(accumulator->verification_key->circuit_size,
+                                           commitments.get_unshifted(),
                                            commitments.get_to_be_shifted(),
                                            claimed_evaluations.get_unshifted(),
                                            claimed_evaluations.get_shifted(),

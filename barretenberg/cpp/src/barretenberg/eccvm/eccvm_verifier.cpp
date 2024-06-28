@@ -61,7 +61,8 @@ bool ECCVMVerifier::verify_proof(const HonkProof& proof)
     }
 
     // Reduce the multivariate evaluation claims produced by sumcheck to a single univariate opening claim
-    auto multivariate_to_univariate_opening_claim = ZeroMorph::verify(commitments.get_unshifted(),
+    auto multivariate_to_univariate_opening_claim = ZeroMorph::verify(circuit_size,
+                                                                      commitments.get_unshifted(),
                                                                       commitments.get_to_be_shifted(),
                                                                       claimed_evaluations.get_unshifted(),
                                                                       claimed_evaluations.get_shifted(),

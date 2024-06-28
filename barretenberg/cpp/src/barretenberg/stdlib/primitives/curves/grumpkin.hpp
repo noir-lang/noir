@@ -14,8 +14,8 @@ namespace bb::stdlib {
  */
 template <typename CircuitBuilder> struct grumpkin {
     static constexpr bool is_stdlib_type = true;
-
     using Builder = CircuitBuilder;
+    using NativeCurve = curve::Grumpkin;
 
     // Stdlib types corresponding to those defined in the native description of the curve.
     // Note: its useful to have these type names match the native analog exactly so that components that digest a
