@@ -15,10 +15,35 @@ use runtime_tracing::{Line, Tracer};
 
 use nargo::NargoError;
 
+/// A location in the source code: filename and line number (1-indexed).
+#[derive(PartialEq)]
+struct SourceLocation {
+    filepath: PathString,
+    line_number: isize,
+}
+
+impl SourceLocation {
+    /// Creates a source location that represents an unknown place in the source code.
+    fn create_unknown() -> SourceLocation {
+        SourceLocation { filepath: PathString::from_path(PathBuf::from("?")), line_number: -1 }
+    }
+}
+
+/// The result from step_debugger: the debugger either paused at a new location, reached the end of
+/// execution, or hit some kind of an error. Takes the error type as a parameter.
+enum DebugStepResult<Error> {
+    /// The debugger reached a new location and the execution is paused at it.
+    Paused(SourceLocation),
+    /// The debuger reached the end of the program and finished execution.
+    Finished,
+    /// The debugger reached an error and cannot continue.
+    Error(Error),
+}
+
 pub struct TracingContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     debug_context: DebugContext<'a, B>,
-    current_filepath: PathString, // The path to the file currently pointed at by debugger.
-    current_line: isize,          // The line in the source code that the debugger has reached.
+    /// The source location at the current moment of tracing.
+    source_location: SourceLocation,
 }
 
 impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
@@ -40,18 +65,16 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             unconstrained_functions,
         );
 
-        Self {
-            debug_context,
-            current_filepath: PathString::from_path(PathBuf::new()),
-            current_line: -1isize,
-        }
+        Self { debug_context, source_location: SourceLocation::create_unknown() }
     }
 
-    /// Extracts the current filepath and line in that file from the debugger, given that the
-    /// relevant debugging information is present.
+    /// Extracts the current source location from the debugger, given that the relevant debugging
+    /// information is present. In the context of this method, a source location is a path to a
+    /// source file and a line in that file. The most recently called function is last in the
+    /// returned vector/stack.
     ///
     /// Otherwise, returns a &str containing a warning message about the missing data.
-    fn get_current_line_and_filepath(&self) -> Result<(isize, PathString), String> {
+    fn get_current_source_location(&self) -> Result<SourceLocation, String> {
         let call_stack = self.debug_context.get_call_stack();
         let opcode_location = match call_stack.last() {
             Some(location) => location,
@@ -77,32 +100,34 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             }
         };
 
-        let current_line = match self.debug_context.get_line_for_location(*source_location) {
+        let line_number = match self.debug_context.get_line_for_location(*source_location) {
             Ok(line) => line as isize + 1,
             Err(error) => {
                 return Err(format!("Warning: could not get line for source location: {error}"));
             }
         };
 
-        Ok((current_line, filepath))
+        Ok(SourceLocation { filepath, line_number })
     }
 
     /// Steps the debugger until a new line is reached, or the debugger returns anything other than
     /// Ok.
     ///
     /// Propagates the debugger result.
-    fn step_debugger(&mut self) -> DebugCommandResult {
+    fn step_debugger(&mut self) -> DebugStepResult<NargoError<FieldElement>> {
         loop {
-            let result = self.debug_context.next_into();
-
-            match &result {
-                DebugCommandResult::Done
-                | DebugCommandResult::Error(_)
-                | DebugCommandResult::BreakpointReached(_) => return result,
+            match self.debug_context.next_into() {
+                DebugCommandResult::Done => return DebugStepResult::Finished,
+                DebugCommandResult::Error(error) => return DebugStepResult::Error(error),
+                DebugCommandResult::BreakpointReached(loc) => {
+                    // Note: this is panic! instead of an error, because it is more serious and
+                    // indicates an internal inconsistency, rather than a recoverable error.
+                    panic!("Error: Breakpoint unexpected in tracer; loc={loc}")
+                }
                 DebugCommandResult::Ok => (),
             }
 
-            let (current_line, filepath) = match self.get_current_line_and_filepath() {
+            let source_location = match self.get_current_source_location() {
                 Ok(pair) => pair,
                 Err(warning) => {
                     println!("{warning}");
@@ -110,24 +135,22 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
                 }
             };
 
-            if self.current_filepath == filepath && self.current_line == current_line {
+            if self.source_location == source_location {
                 // Continue stepping until a new line in the same file is reached, or the current file
                 // has changed.
                 // TODO(coda-bug/r916): a function call could result in an extra step
                 continue;
             }
 
-            self.current_filepath = filepath;
-            self.current_line = current_line;
-            return result;
+            return DebugStepResult::Paused(source_location);
         }
     }
 
     /// Propagates information about the current execution state to `tracer`.
-    fn update_record(&mut self, tracer: &mut Tracer) {
+    fn update_record(&mut self, tracer: &mut Tracer, source_location: &SourceLocation) {
         tracer.register_step(
-            &PathBuf::from(self.current_filepath.to_string()),
-            Line(self.current_line as i64),
+            &PathBuf::from(source_location.filepath.to_string()),
+            Line(source_location.line_number as i64),
         );
     }
 }
@@ -155,19 +178,19 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
 
     tracer.start(&PathBuf::from(""), Line(-1));
     loop {
-        match tracing_context.step_debugger() {
-            DebugCommandResult::Done => break,
-            DebugCommandResult::Ok => (),
-            DebugCommandResult::Error(err) => {
+        let source_location = match tracing_context.step_debugger() {
+            DebugStepResult::Finished => break,
+            DebugStepResult::Error(err) => {
                 println!("Error: {err}");
                 break;
             }
-            DebugCommandResult::BreakpointReached(loc) => {
-                panic!("Error: Breakpoint unexpected in tracer; loc={loc}");
-            }
-        }
+            DebugStepResult::Paused(source_location) => source_location,
+        };
 
-        tracing_context.update_record(tracer);
+        tracing_context.update_record(tracer, &source_location);
+
+        // This update is intentionally explicit here, to show what drives the loop.
+        tracing_context.source_location = source_location;
     }
 
     Ok(())
