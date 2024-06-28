@@ -691,7 +691,7 @@ fn find_module(
 
     // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`, we check siblings of
     // the anchor at `base/mod_name.nr`.
-    let mod_name_str = mod_name.0.contents.clone();
+    let mod_name_str = &mod_name.0.contents;
     let mod_nr_candidate = anchor_dir.join(&mod_name_str).join(format!("mod.{FILE_EXTENSION}"));
     let parent_candidate = anchor_dir.join(format!("{mod_name_str}.{FILE_EXTENSION}"));
     let child_candidate = anchor_path.join(format!("{mod_name_str}.{FILE_EXTENSION}"));
@@ -870,10 +870,10 @@ mod tests {
         add_file(&mut fm, &dir.join("sub_dir.nr"));
         add_file(&mut fm, &dir.join("sub_dir").join("foo.nr"));
 
-        // First check for the sub_dir.nr file
+        // `mod sub_dir` from `lib.nr` should find `sub_dir.nr`
         let sub_dir_file_id = find_module(&fm, lib_file_id, "sub_dir").unwrap();
 
-        // Now check for files in it's subdirectory
+        // `mod foo` from `sub_dir.nr` should find `sub_dir/foo.nr`
         find_module(&fm, sub_dir_file_id, "foo").unwrap();
     }
 

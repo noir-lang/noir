@@ -1,8 +1,0 @@
-[package]
-name = "overlapping_dep_and_mod"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.29.0"
-
-[dependencies]
-foo = { path = "../foo" }
