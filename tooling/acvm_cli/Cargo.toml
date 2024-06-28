@@ -20,7 +20,7 @@ path = "src/main.rs"
 [dependencies]
 thiserror.workspace = true
 toml.workspace = true
-color-eyre = "0.6.2"
+color-eyre.workspace = true
 clap.workspace = true
 acvm.workspace = true
 nargo.workspace = true

@@ -69,7 +69,10 @@ pub(crate) fn optimize_into_acir(
     // Run mem2reg with the CFG separated into blocks
     .run_pass(Ssa::mem2reg, "After Mem2Reg:")
     .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
-    .try_run_pass(Ssa::evaluate_assert_constant, "After Assert Constant:")?
+    .try_run_pass(
+        Ssa::evaluate_static_assert_and_assert_constant,
+        "After `static_assert` and `assert_constant`:",
+    )?
     .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
     .run_pass(Ssa::simplify_cfg, "After Simplifying:")
     .run_pass(Ssa::flatten_cfg, "After Flattening:")
@@ -114,17 +117,28 @@ pub(crate) fn optimize_into_plonky2(
     let ssa = SsaBuilder::new(program, print_passes, false, print_timings)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
+        .run_pass(Ssa::separate_runtime, "After Runtime Separation:")
+        .run_pass(Ssa::resolve_is_unconstrained, "After Resolving IsUnconstrained:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
         // Run mem2reg with the CFG separated into blocks
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
-        .try_run_pass(Ssa::evaluate_assert_constant, "After Assert Constant:")?
+        .try_run_pass(
+            Ssa::evaluate_static_assert_and_assert_constant,
+            "After `static_assert` and `assert_constant`:",
+        )?
         .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
         .run_pass(Ssa::simplify_cfg, "After Simplifying:")
         .run_pass(Ssa::flatten_cfg, "After Flattening:")
         .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+        // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
+        // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
+        // This pass must come immediately following `mem2reg` as the succeeding passes
+        // may create an SSA which inlining fails to handle.
+        .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
+        .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
         .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
         .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
@@ -134,7 +148,11 @@ pub(crate) fn optimize_into_plonky2(
 
     drop(ssa_gen_span_guard);
 
-    Builder::<ConsoleAsmWriter>::new(print_plonky2).build(ssa, parameter_names, main_function_signature)
+    Builder::<ConsoleAsmWriter>::new(print_plonky2).build(
+        ssa,
+        parameter_names,
+        main_function_signature,
+    )
 }
 
 // Helper to time SSA passes
@@ -354,7 +372,13 @@ pub fn create_plonky2_circuit(
     print_codegen_timings: bool,
     parameter_names: Vec<String>,
 ) -> Result<Plonky2Circuit, RuntimeError> {
-    optimize_into_plonky2(program, enable_ssa_logging, show_plonky2, print_codegen_timings, parameter_names)
+    optimize_into_plonky2(
+        program,
+        enable_ssa_logging,
+        show_plonky2,
+        print_codegen_timings,
+        parameter_names,
+    )
 }
 
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
