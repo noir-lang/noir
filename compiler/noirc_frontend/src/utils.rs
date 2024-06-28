@@ -1,7 +1,6 @@
 use acvm::{AcirField, FieldElement};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::Signed;
-use num_traits::ToPrimitive;
 
 pub fn big_int_to_field_element(big_int: &BigInt) -> FieldElement {
     let big_uint = big_int.magnitude();
@@ -26,6 +25,7 @@ pub fn truncate_big_int_to_u128(big_int: &BigInt) -> u128 {
 #[cfg(test)]
 mod tests {
     use num_traits::Num;
+    use num_traits::ToPrimitive;
 
     use super::*;
 
