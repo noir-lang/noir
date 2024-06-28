@@ -19,9 +19,9 @@ pub(super) fn call_builtin(
         "array_len" => array_len(&arguments),
         "as_slice" => as_slice(arguments),
         "slice_push_back" => slice_push_back(arguments),
-        "type_def_as_type" => type_def_as_type(interner, arguments),
-        "type_def_generics" => type_def_generics(interner, arguments),
-        "type_def_fields" => type_def_fields(interner, arguments),
+        "struct_def_as_type" => struct_def_as_type(interner, arguments),
+        "struct_def_generics" => struct_def_generics(interner, arguments),
+        "struct_def_fields" => struct_def_fields(interner, arguments),
         _ => {
             let item = format!("Comptime evaluation for builtin function {name}");
             Err(InterpreterError::Unimplemented { item, location })
@@ -63,19 +63,19 @@ fn slice_push_back(mut arguments: Vec<(Value, Location)>) -> IResult<Value> {
 }
 
 /// fn as_type(self) -> Quoted
-fn type_def_as_type(
+fn struct_def_as_type(
     interner: &NodeInterner,
     mut arguments: Vec<(Value, Location)>,
 ) -> IResult<Value> {
     assert_eq!(arguments.len(), 1, "ICE: `generics` should only receive a single argument");
-    let (type_def, span) = match arguments.pop() {
-        Some((Value::TypeDefinition(id), location)) => (id, location.span),
+    let (struct_def, span) = match arguments.pop() {
+        Some((Value::StructDefinition(id), location)) => (id, location.span),
         other => {
-            unreachable!("ICE: `as_type` expected a `TypeDefinition` argument, found {other:?}")
+            unreachable!("ICE: `as_type` expected a `StructDefinition` argument, found {other:?}")
         }
     };
 
-    let struct_def = interner.get_struct(type_def);
+    let struct_def = interner.get_struct(struct_def);
     let struct_def = struct_def.borrow();
     let make_token = |name| SpannedToken::new(Token::Ident(name), span);
 
@@ -92,19 +92,19 @@ fn type_def_as_type(
 }
 
 /// fn generics(self) -> [Quoted]
-fn type_def_generics(
+fn struct_def_generics(
     interner: &NodeInterner,
     mut arguments: Vec<(Value, Location)>,
 ) -> IResult<Value> {
     assert_eq!(arguments.len(), 1, "ICE: `generics` should only receive a single argument");
-    let (type_def, span) = match arguments.pop() {
-        Some((Value::TypeDefinition(id), location)) => (id, location.span),
+    let (struct_def, span) = match arguments.pop() {
+        Some((Value::StructDefinition(id), location)) => (id, location.span),
         other => {
-            unreachable!("ICE: `as_type` expected a `TypeDefinition` argument, found {other:?}")
+            unreachable!("ICE: `as_type` expected a `StructDefinition` argument, found {other:?}")
         }
     };
 
-    let struct_def = interner.get_struct(type_def);
+    let struct_def = interner.get_struct(struct_def);
 
     let generics = struct_def
         .borrow()
@@ -121,20 +121,20 @@ fn type_def_generics(
 }
 
 /// fn fields(self) -> [(Quoted, Quoted)]
-/// Returns (name, type) pairs of each field of this TypeDefinition
-fn type_def_fields(
+/// Returns (name, type) pairs of each field of this StructDefinition
+fn struct_def_fields(
     interner: &mut NodeInterner,
     mut arguments: Vec<(Value, Location)>,
 ) -> IResult<Value> {
     assert_eq!(arguments.len(), 1, "ICE: `generics` should only receive a single argument");
-    let (type_def, span) = match arguments.pop() {
-        Some((Value::TypeDefinition(id), location)) => (id, location.span),
+    let (struct_def, span) = match arguments.pop() {
+        Some((Value::StructDefinition(id), location)) => (id, location.span),
         other => {
-            unreachable!("ICE: `as_type` expected a `TypeDefinition` argument, found {other:?}")
+            unreachable!("ICE: `as_type` expected a `StructDefinition` argument, found {other:?}")
         }
     };
 
-    let struct_def = interner.get_struct(type_def);
+    let struct_def = interner.get_struct(struct_def);
     let struct_def = struct_def.borrow();
 
     let make_token = |name| SpannedToken::new(Token::Ident(name), span);
