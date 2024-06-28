@@ -1,8 +1,7 @@
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
+
+use crate::ssa::plonky2_gen::config::P2Builder;
 
 #[rustfmt::skip]
 const H256: [u32; 8] = [
@@ -48,8 +47,8 @@ fn array_to_bits(bytes: &[u8]) -> Vec<bool> {
     ret
 }
 
-fn u32_to_bits_target<F: RichField + Extendable<D>, const D: usize, const B: usize>(
-    builder: &mut CircuitBuilder<F, D>,
+fn u32_to_bits_target<const B: usize>(
+    builder: &mut P2Builder,
     a: &U32Target,
 ) -> Vec<BoolTarget> {
     let mut res = Vec::new();
@@ -60,8 +59,8 @@ fn u32_to_bits_target<F: RichField + Extendable<D>, const D: usize, const B: usi
     res
 }
 
-fn bits_to_u32_target<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
+fn bits_to_u32_target(
+    builder: &mut P2Builder,
     bits_target: Vec<BoolTarget>,
 ) -> U32Target {
     let bit_len = bits_target.len();
@@ -100,8 +99,8 @@ a ^ b ^ c = a+b+c - 2*a*b - 2*a*c - 2*b*c + 4*a*b*c
           = a*( 1 - 2*b -2*c + 4*m ) + b + c - 2*m
 where m = b*c
  */
-fn xor3<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
+fn xor3(
+    builder: &mut P2Builder,
     a: BoolTarget,
     b: BoolTarget,
     c: BoolTarget,
@@ -123,11 +122,11 @@ fn xor3<F: RichField + Extendable<D>, const D: usize>(
 }
 
 //#define Sigma0(x)    (ROTATE((x), 2) ^ ROTATE((x),13) ^ ROTATE((x),22))
-fn big_sigma0<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
+fn big_sigma0(
+    builder: &mut P2Builder,
     a: &U32Target,
 ) -> U32Target {
-    let a_bits = u32_to_bits_target::<F, D, 2>(builder, a);
+    let a_bits = u32_to_bits_target::<2>(builder, a);
     let rotate2 = rotate32(2);
     let rotate13 = rotate32(13);
     let rotate22 = rotate32(22);
@@ -139,11 +138,11 @@ fn big_sigma0<F: RichField + Extendable<D>, const D: usize>(
 }
 
 //#define Sigma1(x)    (ROTATE((x), 6) ^ ROTATE((x),11) ^ ROTATE((x),25))
-fn big_sigma1<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
+fn big_sigma1(
+    builder: &mut P2Builder,
     a: &U32Target,
 ) -> U32Target {
-    let a_bits = u32_to_bits_target::<F, D, 2>(builder, a);
+    let a_bits = u32_to_bits_target::<2>(builder, a);
     let rotate6 = rotate32(6);
     let rotate11 = rotate32(11);
     let rotate25 = rotate32(25);
@@ -155,11 +154,11 @@ fn big_sigma1<F: RichField + Extendable<D>, const D: usize>(
 }
 
 //#define sigma0(x)    (ROTATE((x), 7) ^ ROTATE((x),18) ^ ((x)>> 3))
-fn sigma0<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
+fn sigma0(
+    builder: &mut P2Builder,
     a: &U32Target,
 ) -> U32Target {
-    let mut a_bits = u32_to_bits_target::<F, D, 2>(builder, a);
+    let mut a_bits = u32_to_bits_target::<2>(builder, a);
     a_bits.push(builder.constant_bool(false));
     let rotate7 = rotate32(7);
     let rotate18 = rotate32(18);
@@ -172,11 +171,11 @@ fn sigma0<F: RichField + Extendable<D>, const D: usize>(
 }
 
 //#define sigma1(x)    (ROTATE((x),17) ^ ROTATE((x),19) ^ ((x)>>10))
-fn sigma1<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
+fn sigma1(
+    builder: &mut P2Builder,
     a: &U32Target,
 ) -> U32Target {
-    let mut a_bits = u32_to_bits_target::<F, D, 2>(builder, a);
+    let mut a_bits = u32_to_bits_target::<2>(builder, a);
     a_bits.push(builder.constant_bool(false));
     let rotate17 = rotate32(17);
     let rotate19 = rotate32(19);
@@ -192,15 +191,15 @@ fn sigma1<F: RichField + Extendable<D>, const D: usize>(
 ch = a&b ^ (!a)&c
    = a*(b-c) + c
  */
-fn ch<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
+fn ch(
+    builder: &mut P2Builder,
     a: &U32Target,
     b: &U32Target,
     c: &U32Target,
 ) -> U32Target {
-    let a_bits = u32_to_bits_target::<F, D, 2>(builder, a);
-    let b_bits = u32_to_bits_target::<F, D, 2>(builder, b);
-    let c_bits = u32_to_bits_target::<F, D, 2>(builder, c);
+    let a_bits = u32_to_bits_target::<2>(builder, a);
+    let b_bits = u32_to_bits_target::<2>(builder, b);
+    let c_bits = u32_to_bits_target::<2>(builder, c);
     let mut res_bits = Vec::new();
     for i in 0..32 {
         let b_sub_c = builder.sub(b_bits[i].target, c_bits[i].target);
@@ -218,15 +217,15 @@ maj = a&b ^ a&c ^ b&c
     = a*( b + c - 2*m ) + m
 where m = b*c
  */
-fn maj<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
+fn maj(
+    builder: &mut P2Builder,
     a: &U32Target,
     b: &U32Target,
     c: &U32Target,
 ) -> U32Target {
-    let a_bits = u32_to_bits_target::<F, D, 2>(builder, a);
-    let b_bits = u32_to_bits_target::<F, D, 2>(builder, b);
-    let c_bits = u32_to_bits_target::<F, D, 2>(builder, c);
+    let a_bits = u32_to_bits_target::<2>(builder, a);
+    let b_bits = u32_to_bits_target::<2>(builder, b);
+    let c_bits = u32_to_bits_target::<2>(builder, c);
     let mut res_bits = Vec::new();
     for i in 0..32 {
         let m = builder.mul(b_bits[i].target, c_bits[i].target);
@@ -242,8 +241,8 @@ fn maj<F: RichField + Extendable<D>, const D: usize>(
     bits_to_u32_target(builder, res_bits)
 }
 
-fn add_u32<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
+fn add_u32(
+    builder: &mut P2Builder,
     a: &U32Target,
     b: &U32Target,
 ) -> U32Target {
@@ -254,8 +253,8 @@ fn add_u32<F: RichField + Extendable<D>, const D: usize>(
 // padded_msg_len = block_count x 512 bits
 // Size: msg_len_in_bits (L) |  p bits   | 64 bits
 // Bits:      msg            | 100...000 |    L
-pub(crate) fn make_sha256_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
+pub(crate) fn make_sha256_circuit(
+    builder: &mut P2Builder,
     msg_len_in_bits: u64,
 ) -> Sha256Targets {
     let mut message = Vec::new();
