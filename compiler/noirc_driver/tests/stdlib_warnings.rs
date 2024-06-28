@@ -3,7 +3,6 @@ use std::path::Path;
 use noirc_driver::{file_manager_with_stdlib, prepare_crate, ErrorsAndWarnings};
 use noirc_frontend::hir::{def_map::parse_file, Context};
 
-#[ignore = "Temporarily ignoring the test until the stdlib is updated to use explicit numeric generics"]
 #[test]
 fn stdlib_does_not_produce_constant_warnings() -> Result<(), ErrorsAndWarnings> {
     // We use a minimal source file so that if stdlib produces warnings then we can expect these warnings to _always_
