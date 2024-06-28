@@ -583,7 +583,10 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn get_ident_from_path(&mut self, path: Path) -> (HirIdent, usize) {
-        let location = Location::new(path.span(), self.file);
+        let location = Location::new(
+            path.segments.last().expect("ice: path without segments").span(),
+            self.file,
+        );
 
         let error = match path.as_ident().map(|ident| self.use_variable(ident)) {
             Some(Ok(found)) => return found,

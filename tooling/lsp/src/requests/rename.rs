@@ -137,47 +137,51 @@ mod rename_tests {
     use lsp_types::{Position, Range, WorkDoneProgressParams};
     use tokio::test;
 
-    const ANOTHER_FUNCTION_REFERENCE: Range = Range {
-        start: Position { line: 9, character: 12 },
-        end: Position { line: 9, character: 28 },
-    };
-    const ANOTHER_FUNCTION_DECLARATION: Range = Range {
-        start: Position { line: 4, character: 3 },
-        end: Position { line: 4, character: 19 },
-    };
-    // The ranges of positions which represent the usage of the `another_function` symbol.
-    const ANOTHER_FUNCTION_RANGES: &[Range] = &[
-        ANOTHER_FUNCTION_DECLARATION,
-        ANOTHER_FUNCTION_REFERENCE,
-        Range {
-            start: Position { line: 13, character: 12 },
-            end: Position { line: 13, character: 28 },
-        },
-        Range {
-            start: Position { line: 19, character: 15 },
-            end: Position { line: 19, character: 31 },
-        },
-    ];
+    async fn check_rename_succeeds(directory: &str, name: &str, ranges: &[Range]) {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
 
-    /// Tests that the contents of `ANOTHER_FUNCTION_RANGES` is valid such that all ranges cover an instance of `another_function`.
-    #[test]
-    async fn check_target_ranges() {
-        let (_, noir_text_document) = test_utils::init_lsp_server("rename").await;
         let main_path = noir_text_document.path();
 
-        // Let's check that the above changes actually include the target name
+        // As we process the rename requests we'll check that the request position actually
+        // includes the target name.
         let file_contents = std::fs::read_to_string(main_path)
             .unwrap_or_else(|_| panic!("Couldn't read file {}", main_path));
 
         let file_lines: Vec<&str> = file_contents.lines().collect();
 
-        let target_name = "another_function";
-        for range in ANOTHER_FUNCTION_RANGES {
-            assert_eq!(range.start.line, range.end.line);
+        // Test renaming works on any instance of the symbol.
+        for target_range in ranges {
+            assert_eq!(target_range.start.line, target_range.end.line);
 
-            let line = file_lines[range.start.line as usize];
-            let chunk = &line[range.start.character as usize..range.end.character as usize];
-            assert_eq!(chunk, target_name);
+            // Check that the range includes the target name
+            let line = file_lines[target_range.start.line as usize];
+            let chunk =
+                &line[target_range.start.character as usize..target_range.end.character as usize];
+            assert_eq!(chunk, name);
+
+            let target_position = target_range.start;
+
+            let params = RenameParams {
+                text_document_position: TextDocumentPositionParams {
+                    text_document: lsp_types::TextDocumentIdentifier {
+                        uri: noir_text_document.clone(),
+                    },
+                    position: target_position,
+                },
+                new_name: "renamed_function".to_string(),
+                work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+            };
+
+            let response = on_rename_request(&mut state, params)
+                .await
+                .expect("Could not execute on_prepare_rename_request")
+                .unwrap();
+
+            let changes = response.changes.expect("Expected to find rename changes");
+            let mut changes: Vec<Range> =
+                changes.values().flatten().map(|edit| edit.range).collect();
+            changes.sort_by_key(|range| range.start.line);
+            assert_eq!(changes, ranges);
         }
     }
 
@@ -199,6 +203,28 @@ mod rename_tests {
             Some(PrepareRenameResponse::DefaultBehavior { default_behavior: false })
         );
     }
+
+    const ANOTHER_FUNCTION_REFERENCE: Range = Range {
+        start: Position { line: 9, character: 12 },
+        end: Position { line: 9, character: 28 },
+    };
+    const ANOTHER_FUNCTION_DECLARATION: Range = Range {
+        start: Position { line: 4, character: 3 },
+        end: Position { line: 4, character: 19 },
+    };
+    // The ranges of positions which represent the usage of the `another_function` symbol.
+    const ANOTHER_FUNCTION_RANGES: &[Range] = &[
+        ANOTHER_FUNCTION_DECLARATION,
+        ANOTHER_FUNCTION_REFERENCE,
+        Range {
+            start: Position { line: 13, character: 12 },
+            end: Position { line: 13, character: 28 },
+        },
+        Range {
+            start: Position { line: 19, character: 15 },
+            end: Position { line: 19, character: 31 },
+        },
+    ];
 
     #[test]
     async fn test_on_prepare_rename_request_can_be_applied_at_function_declaration() {
@@ -240,33 +266,22 @@ mod rename_tests {
 
     #[test]
     async fn test_on_rename_request() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("rename").await;
+        check_rename_succeeds("rename", "another_function", ANOTHER_FUNCTION_RANGES).await;
+    }
 
-        // Test renaming works on any instance of the symbol.
-        for target_range in ANOTHER_FUNCTION_RANGES {
-            let target_position = target_range.start;
+    const BAR_FUNCTION_REFERENCE: Range = Range {
+        start: Position { line: 1, character: 9 },
+        end: Position { line: 1, character: 12 },
+    };
+    const BAR_FUNCTION_DECLARATION: Range = Range {
+        start: Position { line: 5, character: 11 },
+        end: Position { line: 5, character: 14 },
+    };
+    // The ranges of positions which represent the usage of the `bar` symbol.
+    const BAR_FUNCTION_RANGES: &[Range] = &[BAR_FUNCTION_REFERENCE, BAR_FUNCTION_DECLARATION];
 
-            let params = RenameParams {
-                text_document_position: TextDocumentPositionParams {
-                    text_document: lsp_types::TextDocumentIdentifier {
-                        uri: noir_text_document.clone(),
-                    },
-                    position: target_position,
-                },
-                new_name: "renamed_function".to_string(),
-                work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
-            };
-
-            let response = on_rename_request(&mut state, params)
-                .await
-                .expect("Could not execute on_prepare_rename_request")
-                .unwrap();
-
-            let changes = response.changes.expect("Expected to find rename changes");
-            let mut changes: Vec<Range> =
-                changes.values().flatten().map(|edit| edit.range).collect();
-            changes.sort_by_key(|range| range.start.line);
-            assert_eq!(changes, ANOTHER_FUNCTION_RANGES);
-        }
+    #[test]
+    async fn test_on_rename_request_works_with_qualified_path() {
+        check_rename_succeeds("rename_qualified", "bar", BAR_FUNCTION_RANGES).await;
     }
 }
