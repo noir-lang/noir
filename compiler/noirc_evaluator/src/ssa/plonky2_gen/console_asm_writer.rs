@@ -25,6 +25,26 @@ impl Display for TargetDisplay {
         }
     }
 }
+struct VecTargetDisplay<'a> {
+    t: &'a Vec<Target>,
+}
+
+impl<'a> Display for VecTargetDisplay<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(")?;
+        let mut first = true;
+        for tt in self.t {
+            if first {
+                write!(f, "{}", TargetDisplay { t: *tt })?;
+                first = false;
+            } else {
+                write!(f, ",{}", TargetDisplay { t: *tt })?;
+            }
+        }
+        write!(f, ")")?;
+        Ok(())
+    }
+}
 
 struct BoolTargetDisplay {
     t: BoolTarget,
@@ -413,6 +433,20 @@ impl AsmWriter for ConsoleAsmWriter {
                 U32TargetDisplay { t: result.0 },
                 U32TargetDisplay { t: result.1 }
             );
+        }
+        result
+    }
+
+    fn split_le_base<const B: usize>(&mut self, x: Target, num_limbs: usize) -> Vec<Target> {
+        let result = self.builder.split_le_base::<B>(x, num_limbs);
+        if self.show_plonky2 {
+            println!(
+                "split_le_base\t{},{},{},{}",
+                B,
+                TargetDisplay { t: x },
+                num_limbs,
+                VecTargetDisplay { t: &result }
+            )
         }
         result
     }
