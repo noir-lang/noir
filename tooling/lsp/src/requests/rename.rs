@@ -6,8 +6,7 @@ use std::{
 use async_lsp::{ErrorCode, ResponseError};
 use fm::FileMap;
 use lsp_types::{
-    Position, PrepareRenameResponse, RenameParams, TextDocumentIdentifier,
-    TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
+    PrepareRenameResponse, RenameParams, TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
 };
 use nargo::insert_all_files_for_workspace_into_file_manager;
 use noirc_driver::file_manager_with_stdlib;
@@ -22,15 +21,10 @@ pub(crate) fn on_prepare_rename_request(
     state: &mut LspState,
     params: TextDocumentPositionParams,
 ) -> impl Future<Output = Result<Option<PrepareRenameResponse>, ResponseError>> {
-    let result = process_rename_request(
-        state,
-        params.text_document,
-        params.position,
-        |search_for_location, interner, _| {
-            let rename_possible = interner.check_rename_possible(search_for_location);
-            Some(PrepareRenameResponse::DefaultBehavior { default_behavior: rename_possible })
-        },
-    );
+    let result = process_rename_request(state, params, |search_for_location, interner, _| {
+        let rename_possible = interner.check_rename_possible(search_for_location);
+        Some(PrepareRenameResponse::DefaultBehavior { default_behavior: rename_possible })
+    });
     future::ready(result)
 }
 
@@ -40,8 +34,7 @@ pub(crate) fn on_rename_request(
 ) -> impl Future<Output = Result<Option<WorkspaceEdit>, ResponseError>> {
     let result = process_rename_request(
         state,
-        params.text_document_position.text_document,
-        params.text_document_position.position,
+        params.text_document_position,
         |search_for_location, interner, files| {
             let rename_changes =
                 interner.find_rename_symbols_at(search_for_location).map(|locations| {
@@ -82,16 +75,16 @@ pub(crate) fn on_rename_request(
 
 fn process_rename_request<F, T>(
     state: &mut LspState,
-    text_document: TextDocumentIdentifier,
-    position: Position,
+    text_document_position_params: TextDocumentPositionParams,
     callback: F,
 ) -> Result<T, ResponseError>
 where
     F: FnOnce(Location, &NodeInterner, &FileMap) -> T,
 {
-    let file_path = text_document.uri.to_file_path().map_err(|_| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
-    })?;
+    let file_path =
+        text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
+            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+        })?;
 
     let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
     let package = workspace.members.first().unwrap();
@@ -119,12 +112,15 @@ where
         ErrorCode::REQUEST_FAILED,
         format!("Could not find file in file manager. File path: {:?}", file_path),
     ))?;
-    let byte_index = position_to_byte_index(files, file_id, &position).map_err(|err| {
-        ResponseError::new(
-            ErrorCode::REQUEST_FAILED,
-            format!("Could not convert position to byte index. Error: {:?}", err),
-        )
-    })?;
+    let byte_index =
+        position_to_byte_index(files, file_id, &text_document_position_params.position).map_err(
+            |err| {
+                ResponseError::new(
+                    ErrorCode::REQUEST_FAILED,
+                    format!("Could not convert position to byte index. Error: {:?}", err),
+                )
+            },
+        )?;
 
     let search_for_location = noirc_errors::Location {
         file: file_id,
