@@ -1,5 +1,5 @@
 [
-  { "Path": "" },
+  { "Path": "?" },
   { "Function": { "path_id": 0, "line": -1, "name": "<toplevel>" } },
   { "Call": { "function_id": 0, "args": [] } },
   { "Type": { "kind": 30, "lang_type": "None", "specific_info": { "kind": "None" } } },
