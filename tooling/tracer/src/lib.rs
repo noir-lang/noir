@@ -9,6 +9,7 @@ use noir_debugger::foreign_calls::DefaultDebugForeignCallExecutor;
 use noirc_artifacts::debug::DebugArtifact;
 
 use fm::PathString;
+use std::cmp::min;
 use std::path::PathBuf;
 
 use runtime_tracing::{Line, Tracer};
@@ -32,8 +33,11 @@ impl SourceLocation {
 /// The result from step_debugger: the debugger either paused at a new location, reached the end of
 /// execution, or hit some kind of an error. Takes the error type as a parameter.
 enum DebugStepResult<Error> {
-    /// The debugger reached a new location and the execution is paused at it.
-    Paused(SourceLocation),
+    /// The debugger reached a new location and the execution is paused at it. The wrapped value is
+    /// a vector, because if the next source line is a function call, one debugger step includes
+    /// it, together with the first line of the called function. This is just how `nargo debug`
+    /// works and a fact of life we choose not to change.
+    Paused(Vec<SourceLocation>),
     /// The debuger reached the end of the program and finished execution.
     Finished,
     /// The debugger reached an error and cannot continue.
@@ -43,7 +47,7 @@ enum DebugStepResult<Error> {
 pub struct TracingContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     debug_context: DebugContext<'a, B>,
     /// The source location at the current moment of tracing.
-    source_location: SourceLocation,
+    source_locations: Vec<SourceLocation>,
 }
 
 impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
@@ -65,49 +69,50 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             unconstrained_functions,
         );
 
-        Self { debug_context, source_location: SourceLocation::create_unknown() }
+        Self { debug_context, source_locations: vec![] }
     }
 
-    /// Extracts the current source location from the debugger, given that the relevant debugging
-    /// information is present. In the context of this method, a source location is a path to a
-    /// source file and a line in that file. The most recently called function is last in the
+    /// Extracts the current stack of source locations from the debugger, given that the relevant
+    /// debugging information is present. In the context of this method, a source location is a path
+    /// to a source file and a line in that file. The most recently called function is last in the
     /// returned vector/stack.
     ///
-    /// Otherwise, returns a &str containing a warning message about the missing data.
-    fn get_current_source_location(&self) -> Result<SourceLocation, String> {
+    /// If there is no debugging information, an empty vector will be returned.
+    ///
+    /// If some of the debugging information is missing (no line or filename for a certain frame of
+    /// the stack), an "unknown location" will be created for that frame. See
+    /// `SourceLocation::create_unknown`.
+    fn get_current_source_locations(&self) -> Vec<SourceLocation> {
         let call_stack = self.debug_context.get_call_stack();
-        let opcode_location = match call_stack.last() {
-            Some(location) => location,
-            None => {
-                return Err(String::from("Warning: no call stack"));
-            }
-        };
 
-        let locations = self.debug_context.get_source_location_for_opcode_location(opcode_location);
-        let source_location = match locations.last() {
-            Some(location) => location,
-            None => {
-                return Err(String::from("Warning: no source location mapped to opcode"));
-            }
-        };
+        let mut result: Vec<SourceLocation> = vec![];
+        for opcode_location in call_stack {
+            let locations =
+                self.debug_context.get_source_location_for_opcode_location(&opcode_location);
+            for source_location in locations {
+                let filepath = match self.debug_context.get_filepath_for_location(source_location) {
+                    Ok(filepath) => filepath,
+                    Err(error) => {
+                        println!("Warning: could not get filepath for source location: {error}");
+                        result.push(SourceLocation::create_unknown());
+                        continue;
+                    }
+                };
 
-        let filepath = match self.debug_context.get_filepath_for_location(*source_location) {
-            Ok(filepath) => filepath,
-            Err(error) => {
-                return Err(format!(
-                    "Warning: could not get filepath for source location: {error}"
-                ));
-            }
-        };
+                let line_number = match self.debug_context.get_line_for_location(source_location) {
+                    Ok(line) => line as isize + 1,
+                    Err(error) => {
+                        println!("Warning: could not get line for source location: {error}");
+                        result.push(SourceLocation::create_unknown());
+                        continue;
+                    }
+                };
 
-        let line_number = match self.debug_context.get_line_for_location(*source_location) {
-            Ok(line) => line as isize + 1,
-            Err(error) => {
-                return Err(format!("Warning: could not get line for source location: {error}"));
+                result.push(SourceLocation { filepath, line_number })
             }
-        };
+        }
 
-        Ok(SourceLocation { filepath, line_number })
+        result
     }
 
     /// Steps the debugger until a new line is reached, or the debugger returns anything other than
@@ -127,31 +132,43 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
                 DebugCommandResult::Ok => (),
             }
 
-            let source_location = match self.get_current_source_location() {
-                Ok(pair) => pair,
-                Err(warning) => {
-                    println!("{warning}");
-                    continue;
-                }
+            let source_locations = self.get_current_source_locations();
+            if source_locations.is_empty() {
+                println!("Warning: no call stack");
+                continue;
             };
 
-            if self.source_location == source_location {
+            if self.source_locations.len() == source_locations.len()
+                && self.source_locations.last().unwrap() == source_locations.last().unwrap()
+            {
                 // Continue stepping until a new line in the same file is reached, or the current file
                 // has changed.
                 // TODO(coda-bug/r916): a function call could result in an extra step
                 continue;
             }
 
-            return DebugStepResult::Paused(source_location);
+            return DebugStepResult::Paused(source_locations);
         }
     }
 
     /// Propagates information about the current execution state to `tracer`.
-    fn update_record(&mut self, tracer: &mut Tracer, source_location: &SourceLocation) {
-        tracer.register_step(
-            &PathBuf::from(source_location.filepath.to_string()),
-            Line(source_location.line_number as i64),
-        );
+    fn update_record(&mut self, tracer: &mut Tracer, source_locations: &Vec<SourceLocation>) {
+        // Find the last index of the previous and current stack traces, until which they are
+        // identical.
+        let mut last_match: isize = -1;
+        for i in 0..min(self.source_locations.len(), source_locations.len()) {
+            if self.source_locations[i] == source_locations[i] {
+                last_match = i as isize;
+                continue;
+            }
+            break;
+        }
+        // For the rest of the indexes of the new call stack: register a step that was performed to
+        // reach that frame of the call stack.
+        for i in ((last_match + 1) as usize)..source_locations.len() {
+            let SourceLocation { filepath, line_number } = &source_locations[i];
+            tracer.register_step(&PathBuf::from(filepath.to_string()), Line(*line_number as i64));
+        }
     }
 }
 
@@ -176,9 +193,10 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
         return Ok(());
     }
 
-    tracer.start(&PathBuf::from(""), Line(-1));
+    let SourceLocation { filepath, line_number } = SourceLocation::create_unknown();
+    tracer.start(&PathBuf::from(filepath.to_string()), Line(line_number as i64));
     loop {
-        let source_location = match tracing_context.step_debugger() {
+        let source_locations = match tracing_context.step_debugger() {
             DebugStepResult::Finished => break,
             DebugStepResult::Error(err) => {
                 println!("Error: {err}");
@@ -187,10 +205,10 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
             DebugStepResult::Paused(source_location) => source_location,
         };
 
-        tracing_context.update_record(tracer, &source_location);
+        tracing_context.update_record(tracer, &source_locations);
 
         // This update is intentionally explicit here, to show what drives the loop.
-        tracing_context.source_location = source_location;
+        tracing_context.source_locations = source_locations;
     }
 
     Ok(())
