@@ -285,10 +285,12 @@ impl<'a> FunctionContext<'a> {
 
             let field = if negative {
                 match numeric_type {
-                    NumericType::NativeField => -field,
+                    NumericType::NativeField => field,
                     NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                         let base = 1_u128 << bit_size;
-                        FieldElement::from(base) - field
+                        // We do `- (-field)` because `big_int_to_field_element` already made the field
+                        // negative, so here we make it positive to later subtract it from the base.
+                        FieldElement::from(base) - (-field)
                     }
                 }
             } else {
