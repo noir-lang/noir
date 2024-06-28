@@ -202,7 +202,7 @@ mod rename_tests {
 
         let params = TextDocumentPositionParams {
             text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
-            position: ANOTHER_FUNCTION_DECLARATION.start
+            position: ANOTHER_FUNCTION_DECLARATION.start,
         };
 
         let response = on_prepare_rename_request(&mut state, params)
@@ -221,7 +221,7 @@ mod rename_tests {
 
         let params = TextDocumentPositionParams {
             text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
-            position: ANOTHER_FUNCTION_REFERENCE.start
+            position: ANOTHER_FUNCTION_REFERENCE.start,
         };
 
         let response = on_prepare_rename_request(&mut state, params)
