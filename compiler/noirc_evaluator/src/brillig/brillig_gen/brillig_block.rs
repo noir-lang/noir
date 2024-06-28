@@ -583,6 +583,11 @@ impl<'block> BrilligBlock<'block> {
                         1,
                     );
                 }
+
+                // `Intrinsic::AsWitness` is used to provide hints to acir-gen on optimal expression splitting.
+                // It is then useless in the brillig runtime and so we can ignore it
+                Value::Intrinsic(Intrinsic::AsWitness) => (),
+
                 _ => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
                 }

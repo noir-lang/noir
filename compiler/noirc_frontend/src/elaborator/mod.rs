@@ -6,12 +6,13 @@ use std::{
 use crate::{
     ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
-        comptime::{self, Interpreter, Value},
+        comptime::{self, Interpreter, InterpreterError, Value},
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
                 UnresolvedStruct, UnresolvedTypeAlias,
             },
+            dc_mod,
             errors::DuplicateType,
         },
         resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext},
@@ -31,7 +32,8 @@ use crate::{
     node_interner::{
         DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, TraitId, TypeAliasId,
     },
-    Shared, Type, TypeVariable,
+    parser::TopLevelStatement,
+    Shared, Type, TypeBindings, TypeVariable,
 };
 use crate::{
     ast::{TraitBound, UnresolvedGeneric, UnresolvedGenerics},
@@ -229,7 +231,7 @@ impl<'context> Elaborator<'context> {
         }
 
         // Must resolve structs before we resolve globals.
-        self.collect_struct_definitions(items.types);
+        let generated_items = self.collect_struct_definitions(items.types);
 
         self.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
 
@@ -253,6 +255,16 @@ impl<'context> Elaborator<'context> {
         // globals will need to reference the struct type they're initialized to ensure they are valid.
         while let Some((_, global)) = self.unresolved_globals.pop_first() {
             self.elaborate_global(global);
+        }
+
+        // After everything is collected, we can elaborate our generated items.
+        // It may be better to inline these within `items` entirely since elaborating them
+        // all here means any globals will not see these. Inlining them completely within `items`
+        // means we must be more careful about missing any additional items that need to be already
+        // elaborated. E.g. if a new struct is created, we've already passed the code path to
+        // elaborate them.
+        if !generated_items.is_empty() {
+            self.elaborate_items(generated_items);
         }
 
         for functions in items.functions {
@@ -1177,10 +1189,17 @@ impl<'context> Elaborator<'context> {
         self.generics.clear();
     }
 
-    fn collect_struct_definitions(&mut self, structs: BTreeMap<StructId, UnresolvedStruct>) {
+    fn collect_struct_definitions(
+        &mut self,
+        structs: BTreeMap<StructId, UnresolvedStruct>,
+    ) -> CollectedItems {
         // This is necessary to avoid cloning the entire struct map
         // when adding checks after each struct field is resolved.
         let struct_ids = structs.keys().copied().collect::<Vec<_>>();
+
+        // This will contain any additional top-level items that are generated at compile-time
+        // via macros. This often includes derived trait impls.
+        let mut generated_items = CollectedItems::default();
 
         // Resolve each field in each struct.
         // Each struct should already be present in the NodeInterner after def collection.
@@ -1218,7 +1237,7 @@ impl<'context> Elaborator<'context> {
                 }
             });
 
-            self.run_comptime_attributes_on_struct(attributes, type_id, span);
+            self.run_comptime_attributes_on_struct(attributes, type_id, span, &mut generated_items);
         }
 
         // Check whether the struct fields have nested slices
@@ -1240,6 +1259,8 @@ impl<'context> Elaborator<'context> {
                 }
             }
         }
+
+        generated_items
     }
 
     fn run_comptime_attributes_on_struct(
@@ -1247,34 +1268,53 @@ impl<'context> Elaborator<'context> {
         attributes: Vec<SecondaryAttribute>,
         struct_id: StructId,
         span: Span,
+        generated_items: &mut CollectedItems,
     ) {
         for attribute in attributes {
             if let SecondaryAttribute::Custom(name) = attribute {
-                match self.lookup_global(Path::from_single(name, span)) {
-                    Ok(id) => {
-                        let definition = self.interner.definition(id);
-                        if let DefinitionKind::Function(function) = &definition.kind {
-                            let function = *function;
-                            let mut interpreter = Interpreter::new(
-                                self.interner,
-                                &mut self.comptime_scopes,
-                                self.crate_id,
-                            );
-
-                            let location = Location::new(span, self.file);
-                            let arguments = vec![(Value::TypeDefinition(struct_id), location)];
-                            let result = interpreter.call_function(function, arguments, location);
-                            if let Err(error) = result {
-                                self.errors.push(error.into_compilation_error_pair());
-                            }
-                        } else {
-                            self.push_err(ResolverError::NonFunctionInAnnotation { span });
-                        }
-                    }
-                    Err(_) => self.push_err(ResolverError::UnknownAnnotation { span }),
+                if let Err(error) =
+                    self.run_comptime_attribute_on_struct(name, struct_id, span, generated_items)
+                {
+                    self.errors.push(error);
                 }
             }
         }
+    }
+
+    fn run_comptime_attribute_on_struct(
+        &mut self,
+        attribute: String,
+        struct_id: StructId,
+        span: Span,
+        generated_items: &mut CollectedItems,
+    ) -> Result<(), (CompilationError, FileId)> {
+        let id = self
+            .lookup_global(Path::from_single(attribute, span))
+            .map_err(|_| (ResolverError::UnknownAnnotation { span }.into(), self.file))?;
+
+        let definition = self.interner.definition(id);
+        let DefinitionKind::Function(function) = definition.kind else {
+            return Err((ResolverError::NonFunctionInAnnotation { span }.into(), self.file));
+        };
+        let mut interpreter =
+            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
+
+        let location = Location::new(span, self.file);
+        let arguments = vec![(Value::TypeDefinition(struct_id), location)];
+
+        let value = interpreter
+            .call_function(function, arguments, TypeBindings::new(), location)
+            .map_err(|error| error.into_compilation_error_pair())?;
+
+        if value != Value::Unit {
+            let item = value
+                .into_top_level_item(location)
+                .map_err(|error| error.into_compilation_error_pair())?;
+
+            self.add_item(item, generated_items, location);
+        }
+
+        Ok(())
     }
 
     pub fn resolve_struct_fields(
@@ -1489,5 +1529,82 @@ impl<'context> Elaborator<'context> {
 
         items.functions = function_sets;
         (comptime, items)
+    }
+
+    fn add_item(
+        &mut self,
+        item: TopLevelStatement,
+        generated_items: &mut CollectedItems,
+        location: Location,
+    ) {
+        match item {
+            TopLevelStatement::Function(function) => {
+                let id = self.interner.push_empty_fn();
+                let module = self.module_id();
+                self.interner.push_function(id, &function.def, module, location);
+                let functions = vec![(self.local_module, id, function)];
+                generated_items.functions.push(UnresolvedFunctions {
+                    file_id: self.file,
+                    functions,
+                    trait_id: None,
+                    self_type: None,
+                });
+            }
+            TopLevelStatement::TraitImpl(mut trait_impl) => {
+                let methods = dc_mod::collect_trait_impl_functions(
+                    self.interner,
+                    &mut trait_impl,
+                    self.crate_id,
+                    self.file,
+                    self.local_module,
+                );
+
+                generated_items.trait_impls.push(UnresolvedTraitImpl {
+                    file_id: self.file,
+                    module_id: self.local_module,
+                    trait_generics: trait_impl.trait_generics,
+                    trait_path: trait_impl.trait_name,
+                    object_type: trait_impl.object_type,
+                    methods,
+                    generics: trait_impl.impl_generics,
+                    where_clause: trait_impl.where_clause,
+
+                    // These last fields are filled in later
+                    trait_id: None,
+                    impl_id: None,
+                    resolved_object_type: None,
+                    resolved_generics: Vec::new(),
+                    resolved_trait_generics: Vec::new(),
+                });
+            }
+            TopLevelStatement::Global(global) => {
+                let (global, error) = dc_mod::collect_global(
+                    self.interner,
+                    self.def_maps.get_mut(&self.crate_id).unwrap(),
+                    global,
+                    self.file,
+                    self.local_module,
+                );
+
+                generated_items.globals.push(global);
+                if let Some(error) = error {
+                    self.errors.push(error);
+                }
+            }
+            // Assume that an error has already been issued
+            TopLevelStatement::Error => (),
+
+            TopLevelStatement::Module(_)
+            | TopLevelStatement::Import(_)
+            | TopLevelStatement::Struct(_)
+            | TopLevelStatement::Trait(_)
+            | TopLevelStatement::Impl(_)
+            | TopLevelStatement::TypeAlias(_)
+            | TopLevelStatement::SubModule(_) => {
+                let item = item.to_string();
+                let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
+                self.errors.push(error.into_compilation_error_pair());
+            }
+        }
     }
 }

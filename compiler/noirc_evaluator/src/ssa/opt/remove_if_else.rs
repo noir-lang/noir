@@ -226,6 +226,7 @@ fn slice_capacity_change(
 
         // These cases don't affect slice capacities
         Intrinsic::AssertConstant
+        | Intrinsic::StaticAssert
         | Intrinsic::ApplyRangeConstraint
         | Intrinsic::ArrayLen
         | Intrinsic::StrAsBytes
