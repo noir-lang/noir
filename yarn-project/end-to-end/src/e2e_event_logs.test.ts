@@ -4,6 +4,7 @@ import {
   EventType,
   Fr,
   L1EventPayload,
+  type PXE,
   TaggedLog,
 } from '@aztec/aztec.js';
 import { deriveMasterIncomingViewingSecretKey } from '@aztec/circuits.js';
@@ -24,30 +25,36 @@ describe('Logs', () => {
 
   let wallets: AccountWalletWithSecretKey[];
   let node: AztecNode;
+  let pxe: PXE;
 
   let teardown: () => Promise<void>;
 
   beforeAll(async () => {
-    ({ teardown, wallets, aztecNode: node } = await setup(2));
+    ({ teardown, wallets, aztecNode: node, pxe } = await setup(2));
 
     await publicDeployAccounts(wallets[0], wallets.slice(0, 2));
 
     testLogContract = await TestLogContract.deploy(wallets[0]).send().deployed();
+
+    await pxe.registerRecipient(wallets[1].getCompleteAddress());
   });
 
   afterAll(() => teardown());
 
   describe('functionality around emitting an encrypted log', () => {
-    it('emits multiple events as encrypted logs and decodes a single one manually', async () => {
+    it('emits multiple events as encrypted logs and decodes them one manually', async () => {
       const randomness = makeTuple(2, Fr.random);
       const preimage = makeTuple(4, Fr.random);
 
-      const tx = await testLogContract.methods.emit_encrypted_events(randomness, preimage).send().wait();
+      const tx = await testLogContract.methods
+        .emit_encrypted_events(wallets[1].getAddress(), randomness, preimage)
+        .send()
+        .wait();
 
       const txEffect = await node.getTxEffect(tx.txHash);
 
       const encryptedLogs = txEffect!.encryptedLogs.unrollLogs();
-      expect(encryptedLogs.length).toBe(2);
+      expect(encryptedLogs.length).toBe(3);
 
       const decryptedLog0 = TaggedLog.decryptAsIncoming(
         encryptedLogs[0],
@@ -73,7 +80,8 @@ describe('Logs', () => {
       expect(badEvent0).toBe(undefined);
 
       const decryptedLog1 = TaggedLog.decryptAsIncoming(
-        encryptedLogs[1],
+        // We want to skip the second emitted log as it is irrelevant in this test.
+        encryptedLogs[2],
         deriveMasterIncomingViewingSecretKey(wallets[0].getSecretKey()),
         L1EventPayload,
       );
@@ -101,14 +109,24 @@ describe('Logs', () => {
       const preimage = makeTuple(5, makeTuple.bind(undefined, 4, Fr.random)) as Tuple<Tuple<Fr, 4>, 5>;
 
       let i = 0;
-      const firstTx = await testLogContract.methods.emit_encrypted_events(randomness[i], preimage[i]).send().wait();
+      const firstTx = await testLogContract.methods
+        .emit_encrypted_events(wallets[1].getAddress(), randomness[i], preimage[i])
+        .send()
+        .wait();
       await Promise.all(
         [...new Array(3)].map(() =>
-          testLogContract.methods.emit_encrypted_events(randomness[++i], preimage[i]).send().wait(),
+          testLogContract.methods
+            .emit_encrypted_events(wallets[1].getAddress(), randomness[++i], preimage[i])
+            .send()
+            .wait(),
         ),
       );
-      const lastTx = await testLogContract.methods.emit_encrypted_events(randomness[++i], preimage[i]).send().wait();
+      const lastTx = await testLogContract.methods
+        .emit_encrypted_events(wallets[1].getAddress(), randomness[++i], preimage[i])
+        .send()
+        .wait();
 
+      // We get all the events we can decrypt with either our incoming or outgoing viewing keys
       const collectedEvent0s = await wallets[0].getEvents(
         EventType.Encrypted,
         TestLogContract.events.ExampleEvent0,
@@ -116,21 +134,57 @@ describe('Logs', () => {
         lastTx.blockNumber! - firstTx.blockNumber! + 1,
       );
 
+      const collectedEvent0sWithIncoming = await wallets[0].getEvents(
+        EventType.Encrypted,
+        TestLogContract.events.ExampleEvent0,
+        firstTx.blockNumber!,
+        lastTx.blockNumber! - firstTx.blockNumber! + 1,
+        // This function can be called specifying the viewing public keys associated with the encrypted event.
+        [wallets[0].getCompleteAddress().publicKeys.masterIncomingViewingPublicKey],
+      );
+
+      const collectedEvent0sWithOutgoing = await wallets[0].getEvents(
+        EventType.Encrypted,
+        TestLogContract.events.ExampleEvent0,
+        firstTx.blockNumber!,
+        lastTx.blockNumber! - firstTx.blockNumber! + 1,
+        [wallets[0].getCompleteAddress().publicKeys.masterOutgoingViewingPublicKey],
+      );
+
       const collectedEvent1s = await wallets[0].getEvents(
         EventType.Encrypted,
         TestLogContract.events.ExampleEvent1,
         firstTx.blockNumber!,
         lastTx.blockNumber! - firstTx.blockNumber! + 1,
-        // This function can also be called specifying the incoming viewing public key associated with the encrypted event.
-        wallets[0].getCompleteAddress().publicKeys.masterIncomingViewingPublicKey,
+        [wallets[0].getCompleteAddress().publicKeys.masterIncomingViewingPublicKey],
       );
 
-      expect(collectedEvent0s.length).toBe(5);
+      expect(collectedEvent0sWithIncoming.length).toBe(5);
+      expect(collectedEvent0sWithOutgoing.length).toBe(5);
+      expect(collectedEvent0s.length).toBe(10);
       expect(collectedEvent1s.length).toBe(5);
 
+      const emptyEvent1s = await wallets[0].getEvents(
+        EventType.Encrypted,
+        TestLogContract.events.ExampleEvent1,
+        firstTx.blockNumber!,
+        lastTx.blockNumber! - firstTx.blockNumber! + 1,
+        [wallets[0].getCompleteAddress().publicKeys.masterOutgoingViewingPublicKey],
+      );
+
+      expect(emptyEvent1s.length).toBe(0);
+
       const exampleEvent0Sort = (a: ExampleEvent0, b: ExampleEvent0) => (a.value0 > b.value0 ? 1 : -1);
-      expect(collectedEvent0s.sort(exampleEvent0Sort)).toStrictEqual(
+      expect(collectedEvent0sWithIncoming.sort(exampleEvent0Sort)).toStrictEqual(
         preimage.map(preimage => ({ value0: preimage[0], value1: preimage[1] })).sort(exampleEvent0Sort),
+      );
+
+      expect(collectedEvent0sWithOutgoing.sort(exampleEvent0Sort)).toStrictEqual(
+        preimage.map(preimage => ({ value0: preimage[0], value1: preimage[1] })).sort(exampleEvent0Sort),
+      );
+
+      expect([...collectedEvent0sWithIncoming, ...collectedEvent0sWithOutgoing].sort(exampleEvent0Sort)).toStrictEqual(
+        collectedEvent0s.sort(exampleEvent0Sort),
       );
 
       const exampleEvent1Sort = (a: ExampleEvent1, b: ExampleEvent1) => (a.value2 > b.value2 ? 1 : -1);

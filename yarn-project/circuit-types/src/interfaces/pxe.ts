@@ -386,7 +386,7 @@ export interface PXE {
    * @param eventMetadata - Identifier of the event. This should be the class generated from the contract. e.g. Contract.events.Event
    * @param from - The block number to search from.
    * @param limit - The amount of blocks to search.
-   * @param ivpk - (Used for encrypted logs only) The incoming viewing public key that corresponds to the incoming viewing secret key that can decrypt the log.
+   * @param vpks - (Used for encrypted logs only) The viewing (incoming and outgoing) public keys that correspond to the viewing secret keys that can decrypt the log.
    * @returns - The deserialized events.
    */
   getEvents<T>(
@@ -394,7 +394,7 @@ export interface PXE {
     eventMetadata: EventMetadata<T>,
     from: number,
     limit: number,
-    ivpk: Point,
+    vpks: Point[],
   ): Promise<T[]>;
 }
 // docs:end:pxe-interface

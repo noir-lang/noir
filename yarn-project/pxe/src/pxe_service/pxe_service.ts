@@ -43,7 +43,7 @@ import {
   FunctionSelector,
   encodeArguments,
 } from '@aztec/foundation/abi';
-import { type Fq, Fr, Point } from '@aztec/foundation/fields';
+import { type Fq, Fr, type Point } from '@aztec/foundation/fields';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { type KeyStore } from '@aztec/key-store';
@@ -846,7 +846,7 @@ export class PXEService implements PXE {
     eventMetadata: EventMetadata<T>,
     from: number,
     limit: number,
-    ivpk: Point,
+    vpks: Point[],
   ): Promise<T[]>;
   public getEvents<T>(
     type: EventType.Unencrypted,
@@ -859,16 +859,25 @@ export class PXEService implements PXE {
     eventMetadata: EventMetadata<T>,
     from: number,
     limit: number,
-    ivpk: Point = Point.ZERO,
+    vpks: Point[] = [],
   ): Promise<T[]> {
     if (type.includes(EventType.Encrypted)) {
-      return this.getEncryptedEvents(from, limit, eventMetadata, ivpk);
+      return this.getEncryptedEvents(from, limit, eventMetadata, vpks);
     }
 
     return this.getUnencryptedEvents(from, limit, eventMetadata);
   }
 
-  async getEncryptedEvents<T>(from: number, limit: number, eventMetadata: EventMetadata<T>, ivpk: Point): Promise<T[]> {
+  async getEncryptedEvents<T>(
+    from: number,
+    limit: number,
+    eventMetadata: EventMetadata<T>,
+    vpks: Point[],
+  ): Promise<T[]> {
+    if (vpks.length === 0) {
+      throw new Error('Tried to get encrypted events without supplying any viewing public keys');
+    }
+
     const blocks = await this.node.getBlocks(from, limit);
 
     const txEffects = blocks.flatMap(block => block.body.txEffects);
@@ -876,11 +885,20 @@ export class PXEService implements PXE {
 
     const encryptedLogs = encryptedTxLogs.flatMap(encryptedTxLog => encryptedTxLog.unrollLogs());
 
-    const ivsk = await this.keyStore.getMasterSecretKey(ivpk);
+    const vsks = await Promise.all(vpks.map(vpk => this.keyStore.getMasterSecretKey(vpk)));
 
-    const visibleEvents = encryptedLogs
-      .map(encryptedLog => TaggedLog.decryptAsIncoming(encryptedLog, ivsk, L1EventPayload))
-      .filter(item => item !== undefined) as TaggedLog<L1EventPayload>[];
+    const visibleEvents = encryptedLogs.flatMap(encryptedLog => {
+      for (const sk of vsks) {
+        const decryptedLog =
+          TaggedLog.decryptAsIncoming(encryptedLog, sk, L1EventPayload) ??
+          TaggedLog.decryptAsOutgoing(encryptedLog, sk, L1EventPayload);
+        if (decryptedLog !== undefined) {
+          return [decryptedLog];
+        }
+      }
+
+      return [];
+    });
 
     const decodedEvents = visibleEvents
       .map(visibleEvent => {

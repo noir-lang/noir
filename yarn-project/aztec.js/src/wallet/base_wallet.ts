@@ -187,8 +187,11 @@ export abstract class BaseWallet implements Wallet {
     eventMetadata: EventMetadata<T>,
     from: number,
     limit: number,
-    ivpk: Point = this.getCompleteAddress().publicKeys.masterIncomingViewingPublicKey,
+    vpks: Point[] = [
+      this.getCompleteAddress().publicKeys.masterIncomingViewingPublicKey,
+      this.getCompleteAddress().publicKeys.masterOutgoingViewingPublicKey,
+    ],
   ) {
-    return this.pxe.getEvents(type, eventMetadata, from, limit, ivpk);
+    return this.pxe.getEvents(type, eventMetadata, from, limit, vpks);
   }
 }
