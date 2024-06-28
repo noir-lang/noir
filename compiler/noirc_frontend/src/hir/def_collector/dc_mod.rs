@@ -1,4 +1,5 @@
-use std::{collections::HashMap, ffi::OsStr, vec};
+use std::path::{Path, PathBuf};
+use std::{collections::HashMap, vec};
 
 use acvm::{AcirField, FieldElement};
 use fm::{FileId, FileManager, FILE_EXTENSION};
@@ -689,38 +690,32 @@ fn find_module(
         .with_extension("");
     let anchor_dir = anchor_path.parent().unwrap();
 
-    // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`, we check siblings of
-    // the anchor at `base/mod_name.nr`.
+    // Assuming anchor is called "anchor.nr" and we are looking up a module named "mod_name"...
+    // This is "mod_name"
     let mod_name_str = &mod_name.0.contents;
+
+    // Check "mod_name/mod.nr"
     let mod_nr_candidate = anchor_dir.join(&mod_name_str).join(format!("mod.{FILE_EXTENSION}"));
-    let parent_candidate = anchor_dir.join(format!("{mod_name_str}.{FILE_EXTENSION}"));
-    let child_candidate = anchor_path.join(format!("{mod_name_str}.{FILE_EXTENSION}"));
+    let mod_nr_result = find_in_name_to_id(&file_manager, &mod_nr_candidate);
 
-    let mod_nr_result = file_manager
-        .name_to_id(mod_nr_candidate.clone())
-        .ok_or_else(|| mod_nr_candidate.as_os_str().to_string_lossy().to_string());
-    let parent_result = file_manager
-        .name_to_id(parent_candidate.clone())
-        .ok_or_else(|| parent_candidate.as_os_str().to_string_lossy().to_string());
+    // Check "mod_name.nr"
+    let sibling_candidate = anchor_dir.join(format!("{mod_name_str}.{FILE_EXTENSION}"));
+    let sibling_result = find_in_name_to_id(&file_manager, &sibling_candidate);
 
-    let mut path_results = vec![mod_nr_result, parent_result];
-    let anchor_path_suffix = anchor_path
-        .as_path()
-        .file_name()
-        .unwrap_or_else(|| OsStr::new(""))
-        .to_string_lossy()
-        .to_string();
-    if anchor_path_suffix != "main" {
-        let child_result = file_manager
-            .name_to_id(child_candidate.clone())
-            .ok_or_else(|| child_candidate.as_os_str().to_string_lossy().to_string());
+    let mut path_results = vec![mod_nr_result, sibling_result];
+
+    // We also check "anchor/mod_name.nr", but only if anchor isn't one of the special names:
+    // `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`,
+    if !should_check_siblings_for_module(&anchor_path, anchor_dir) {
+        let child_candidate = anchor_path.join(format!("{mod_name_str}.{FILE_EXTENSION}"));
+        let child_result = find_in_name_to_id(&file_manager, &child_candidate);
         path_results.push(child_result);
     }
 
     let found_paths: Vec<_> = path_results.into_iter().flat_map(|result| result.ok()).collect();
     match found_paths.len() {
         0 => {
-            let expected_path = parent_candidate.as_os_str().to_string_lossy().to_string();
+            let expected_path = sibling_candidate.as_os_str().to_string_lossy().to_string();
             Err(DefCollectorErrorKind::UnresolvedModuleDecl {
                 mod_name: mod_name.clone(),
                 expected_path,
@@ -744,6 +739,30 @@ fn find_module(
                 overlapping_paths,
             })
         }
+    }
+}
+
+fn find_in_name_to_id(file_manager: &FileManager, path: &PathBuf) -> Result<FileId, String> {
+    file_manager
+        .name_to_id(path.clone())
+        .ok_or_else(|| path.as_os_str().to_string_lossy().to_string())
+}
+/// Returns true if a module's child modules are expected to be in the same directory.
+/// Returns false if they are expected to be in a subdirectory matching the name of the module.
+fn should_check_siblings_for_module(module_path: &Path, parent_path: &Path) -> bool {
+    if let Some(filename) = module_path.file_stem() {
+        // This check also means a `main.nr` or `lib.nr` file outside of the crate root would
+        // check its same directory for child modules instead of a subdirectory. Should we prohibit
+        // `main.nr` and `lib.nr` files outside of the crate root?
+        filename == "main"
+            || filename == "lib"
+            || filename == "mod"
+            || Some(filename) == parent_path.file_stem()
+    } else {
+        // If there's no filename, we arbitrarily return true.
+        // Alternatively, we could panic, but this is left to a different step where we
+        // ideally have some source location to issue an error.
+        true
     }
 }
 
@@ -858,7 +877,57 @@ mod tests {
     }
 
     #[test]
-    fn find_module_can_find_nested_modules() {
+    fn find_module_errors_because_cannot_find_mod_relative_to_main() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        // Create this tree structure:
+        // - main.nr
+        // - main/foo.nr
+        let main_file_id = add_file(&mut fm, &dir.join("main.nr"));
+        add_file(&mut fm, &dir.join("main").join("foo.nr"));
+
+        let result = find_module(&fm, main_file_id, "foo");
+        assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
+    }
+
+    #[test]
+    fn find_module_errors_because_cannot_find_mod_relative_to_lib() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        // Create this tree structure:
+        // - lib.nr
+        // - lib/foo.nr
+        let lib_file_id = add_file(&mut fm, &dir.join("lib.nr"));
+        add_file(&mut fm, &dir.join("lib").join("foo.nr"));
+
+        let result = find_module(&fm, lib_file_id, "foo");
+        assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
+    }
+
+    #[test]
+    fn find_module_can_find_module_in_the_same_directory() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        // Create this tree structure:
+        // - lib.nr
+        // - bar.nr
+        // - foo.nr
+        let lib_file_id = add_file(&mut fm, &dir.join("lib.nr"));
+        add_file(&mut fm, &dir.join("bar.nr"));
+        add_file(&mut fm, &dir.join("foo.nr"));
+
+        // `mod bar` from `lib.nr` should find `bar.nr`
+        let bar_file_id = find_module(&fm, lib_file_id, "bar").unwrap();
+
+        // `mod foo` from `bar.nr` should find `foo.nr`
+        find_module(&fm, bar_file_id, "foo").unwrap();
+    }
+
+    #[test]
+    fn find_module_can_find_module_nested_in_directory() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
@@ -893,7 +962,7 @@ mod tests {
     }
 
     #[test]
-    fn find_module_errors_if_there_are_overlapping_module_declarations() {
+    fn find_module_errors_if_module_is_found_in_name_dot_nr_and_name_slash_mod_dot_nr() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
@@ -907,6 +976,29 @@ mod tests {
 
         // Check that searching "foo" gives an error
         let result = find_module(&fm, lib_file_id, "foo");
+        assert!(matches!(result, Err(DefCollectorErrorKind::OverlappingModuleDecls { .. })));
+    }
+
+    #[test]
+    fn find_module_errors_if_module_is_found_in_name_dot_nr_and_anchor_slash_name_dot_nr() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        // Create this tree structure:
+        // - lib.nr
+        // - foo.nr
+        // - bar.nr
+        // - foo/bar.nr
+        let lib_file_id = add_file(&mut fm, &dir.join("lib.nr"));
+        add_file(&mut fm, &dir.join("foo.nr"));
+        add_file(&mut fm, &dir.join("bar.nr"));
+        add_file(&mut fm, &dir.join("foo").join("bar.nr"));
+
+        // Find `mod foo` from `lib`
+        let foo_file_id = find_module(&fm, lib_file_id, "foo").unwrap();
+
+        // Check that `mod bar` from `foo` gives an error
+        let result = find_module(&fm, foo_file_id, "bar");
         assert!(matches!(result, Err(DefCollectorErrorKind::OverlappingModuleDecls { .. })));
     }
 }
