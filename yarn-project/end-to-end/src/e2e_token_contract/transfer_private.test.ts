@@ -1,10 +1,12 @@
 import {
   AztecAddress,
   CompleteAddress,
+  EventType,
   Fr,
   computeAuthWitMessageHash,
   computeInnerAuthWitHashFromAction,
 } from '@aztec/aztec.js';
+import { TokenContract } from '@aztec/noir-contracts.js';
 
 import { DUPLICATE_NULLIFIER_ERROR } from '../fixtures/fixtures.js';
 import { TokenContractTest } from './token_contract_test.js';
@@ -32,8 +34,16 @@ describe('e2e_token_contract transfer private', () => {
     const balance0 = await asset.methods.balance_of_private(accounts[0].address).simulate();
     const amount = balance0 / 2n;
     expect(amount).toBeGreaterThan(0n);
-    await asset.methods.transfer(accounts[1].address, amount).send().wait();
+    const tx = await asset.methods.transfer(accounts[1].address, amount).send().wait();
     tokenSim.transferPrivate(accounts[0].address, accounts[1].address, amount);
+
+    const events = await wallets[1].getEvents(EventType.Encrypted, TokenContract.events.Transfer, tx.blockNumber!, 1);
+
+    expect(events[0]).toEqual({
+      from: accounts[0].address,
+      to: accounts[1].address,
+      amount: new Fr(amount),
+    });
   });
 
   it('transfer less than balance to non-deployed account', async () => {
