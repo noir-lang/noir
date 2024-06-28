@@ -1,4 +1,4 @@
-impl crate1::MyTrait for crate2::MyStruct {
+impl dep::crate1::MyTrait for dep::crate2::MyStruct {
 }
 
 fn main(x: Field, y: pub Field) {

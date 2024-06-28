@@ -1,3 +1,5 @@
+use std::io::IsTerminal;
+
 use crate::{FileDiagnostic, Location, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::Files;
@@ -148,7 +150,9 @@ pub fn report<'files>(
     call_stack: &[Location],
     deny_warnings: bool,
 ) -> bool {
-    let writer = StandardStream::stderr(ColorChoice::Always);
+    let color_choice =
+        if std::io::stderr().is_terminal() { ColorChoice::Auto } else { ColorChoice::Never };
+    let writer = StandardStream::stderr(color_choice);
     let config = codespan_reporting::term::Config::default();
 
     let stack_trace = stack_trace(files, call_stack);
