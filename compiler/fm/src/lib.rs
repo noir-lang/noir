@@ -195,7 +195,7 @@ mod tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        let file_id = add_file(&mut fm, Path::new("foo.nr"));
+        let file_id = add_file(&mut fm, &dir.join("foo.nr"));
 
         assert!(fm.path(file_id).unwrap().ends_with("foo.nr"));
     }
@@ -209,13 +209,12 @@ mod tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        let sub_dir = dir.join("sub_dir");
-        let sub_sub_dir = sub_dir.join("sub_sub_dir");
-
         // Create a lib.nr file at the root and add it to the file manager.
-        let file_id = add_file(&mut fm, Path::new("lib.nr"));
+        let file_id = add_file(&mut fm, &dir.join("lib.nr"));
 
         // Create another path with `./` and `../` inside it, and add it to the file manager
+        let sub_dir = dir.join("sub_dir");
+        let sub_sub_dir = sub_dir.join("sub_sub_dir");
         let second_file_id = add_file(
             &mut fm,
             PathBuf::from(sub_sub_dir.as_path()).join("./../../lib.nr").as_path(),

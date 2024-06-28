@@ -829,9 +829,9 @@ mod tests {
     use noirc_errors::Spanned;
     use std::path::{Path, PathBuf};
 
-    fn add_file(file_manager: &mut FileManager, dir: &Path, file_name: &str) -> FileId {
+    fn add_file(file_manager: &mut FileManager, file_name: &Path) -> FileId {
         file_manager
-            .add_file_with_source(&dir.join(file_name), "fn foo() {}".to_string())
+            .add_file_with_source(&file_name, "fn foo() {}".to_string())
             .expect("could not add file to file manager and obtain a FileId")
     }
 
@@ -851,7 +851,7 @@ mod tests {
 
         // Create a my_dummy_file.nr
         // Now we have temp_dir/my_dummy_file.nr
-        let file_id = add_file(&mut fm, &dir, "my_dummy_file.nr");
+        let file_id = add_file(&mut fm, &dir.join("my_dummy_file.nr"));
 
         find_module(&fm, file_id, "foo").unwrap_err();
     }
@@ -863,31 +863,23 @@ mod tests {
 
         // Create a lib.nr file at the root.
         // we now have temp_dir/lib.nr
-        let file_id = add_file(&mut fm, &dir, "lib.nr");
-
-        // Create a sub directory
-        // we now have:
-        // - temp_dir/lib.nr
-        // - temp_dir/sub_dir
-        let sub_dir_name = "sub_dir";
-        let sub_dir_path = dir.join(sub_dir_name);
-        std::fs::create_dir(&sub_dir_path).unwrap();
-
-        // Add foo.nr to the subdirectory
-        // we no have:
-        // - temp_dir/lib.nr
-        // - temp_dir/sub_dir/foo.nr
-        add_file(&mut fm, &sub_dir_path, "foo.nr");
+        let file_id = add_file(&mut fm, &dir.join("lib.nr"));
 
         // Add a parent module for the sub_dir
         // we no have:
         // - temp_dir/lib.nr
         // - temp_dir/sub_dir.nr
+        add_file(&mut fm, &dir.join(&format!("sub_dir.nr")));
+
+        // Add foo.nr to the subdirectory
+        // we no have:
+        // - temp_dir/lib.nr
+        // - temp_dir/sub_dir.nr
         // - temp_dir/sub_dir/foo.nr
-        add_file(&mut fm, &dir, &format!("{sub_dir_name}.nr"));
+        add_file(&mut fm, &dir.join("sub_dir").join("foo.nr"));
 
         // First check for the sub_dir.nr file
-        let sub_dir_file_id = find_module(&fm, file_id, sub_dir_name).unwrap();
+        let sub_dir_file_id = find_module(&fm, file_id, "sub_dir").unwrap();
 
         // Now check for files in it's subdirectory
         find_module(&fm, sub_dir_file_id, "foo").unwrap();
