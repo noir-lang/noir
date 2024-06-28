@@ -137,6 +137,46 @@ mod rename_tests {
     use lsp_types::{Position, Range, WorkDoneProgressParams};
     use tokio::test;
 
+    const ANOTHER_FUNCTION_REFERENCE: Range = Range {
+        start: Position { line: 9, character: 12 },
+        end: Position { line: 9, character: 28 },
+    };
+    const ANOTHER_FUNCTION_DECLARATION: Range = Range {
+        start: Position { line: 4, character: 3 },
+        end: Position { line: 4, character: 19 },
+    };
+    // The ranges of positions which represent the usage of the `another_function` symbol.
+    const ANOTHER_FUNCTION_RANGES: &[Range] = &[
+        ANOTHER_FUNCTION_DECLARATION,
+        ANOTHER_FUNCTION_REFERENCE,
+        Range {
+            start: Position { line: 13, character: 12 },
+            end: Position { line: 13, character: 28 },
+        },
+    ];
+
+    /// Tests that the contents of `ANOTHER_FUNCTION_RANGES` is valid such that all ranges cover an instance of `another_function`.
+    #[test]
+    async fn check_target_ranges() {
+        let (_, noir_text_document) = test_utils::init_lsp_server("rename").await;
+        let main_path = noir_text_document.path();
+
+        // Let's check that the above changes actually include the target name
+        let file_contents = std::fs::read_to_string(main_path)
+            .unwrap_or_else(|_| panic!("Couldn't read file {}", main_path));
+
+        let file_lines: Vec<&str> = file_contents.lines().collect();
+
+        let target_name = "another_function";
+        for range in ANOTHER_FUNCTION_RANGES {
+            assert_eq!(range.start.line, range.end.line);
+
+            let line = file_lines[range.start.line as usize];
+            let chunk = &line[range.start.character as usize..range.end.character as usize];
+            assert_eq!(chunk, target_name);
+        }
+    }
+
     #[test]
     async fn test_on_prepare_rename_request_cannot_be_applied() {
         let (mut state, noir_text_document) = test_utils::init_lsp_server("rename").await;
@@ -162,7 +202,7 @@ mod rename_tests {
 
         let params = TextDocumentPositionParams {
             text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
-            position: lsp_types::Position { line: 4, character: 3 }, // This is at the "a" of "another_function"
+            position: ANOTHER_FUNCTION_DECLARATION
         };
 
         let response = on_prepare_rename_request(&mut state, params)
@@ -181,7 +221,7 @@ mod rename_tests {
 
         let params = TextDocumentPositionParams {
             text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
-            position: lsp_types::Position { line: 9, character: 12 }, // This is at the "a" of "another_function"
+            position: ANOTHER_FUNCTION_REFERENCE
         };
 
         let response = on_prepare_rename_request(&mut state, params)
@@ -198,56 +238,31 @@ mod rename_tests {
     async fn test_on_rename_request() {
         let (mut state, noir_text_document) = test_utils::init_lsp_server("rename").await;
 
-        let main_path = noir_text_document.path();
-        let target_name = "another_function";
-        let target_position = Position { line: 9, character: 12 }; // This is at the "a" of "another_function"
+        // Test renaming works on any instance of the symbol.
+        for target_range in ANOTHER_FUNCTION_RANGES {
+            let target_position = target_range.start;
 
-        let params = RenameParams {
-            text_document_position: TextDocumentPositionParams {
-                text_document: lsp_types::TextDocumentIdentifier {
-                    uri: noir_text_document.clone(),
+            let params = RenameParams {
+                text_document_position: TextDocumentPositionParams {
+                    text_document: lsp_types::TextDocumentIdentifier {
+                        uri: noir_text_document.clone(),
+                    },
+                    position: target_position,
                 },
-                position: target_position,
-            },
-            new_name: "renamed_function".to_string(),
-            work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
-        };
+                new_name: "renamed_function".to_string(),
+                work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+            };
 
-        let response = on_rename_request(&mut state, params)
-            .await
-            .expect("Could not execute on_prepare_rename_request")
-            .unwrap();
+            let response = on_rename_request(&mut state, params)
+                .await
+                .expect("Could not execute on_prepare_rename_request")
+                .unwrap();
 
-        let changes = response.changes.expect("Expected to find rename changes");
-        let mut changes: Vec<Range> = changes.values().flatten().map(|edit| edit.range).collect();
-        changes.sort_by_key(|range| range.start.line);
-        assert_eq!(
-            changes,
-            vec![
-                Range {
-                    start: Position { line: 4, character: 3 },
-                    end: Position { line: 4, character: 19 },
-                },
-                Range { start: target_position, end: Position { line: 9, character: 28 } },
-                Range {
-                    start: Position { line: 13, character: 12 },
-                    end: Position { line: 13, character: 28 },
-                },
-            ]
-        );
-
-        // Let's check that the above changes actually include the target name
-        let file_contents = std::fs::read_to_string(main_path)
-            .unwrap_or_else(|_| panic!("Couldn't read file {}", main_path));
-
-        let file_lines: Vec<&str> = file_contents.lines().collect();
-
-        for change in &changes {
-            assert_eq!(change.start.line, change.end.line);
-
-            let line = file_lines[change.start.line as usize];
-            let chunk = &line[change.start.character as usize..change.end.character as usize];
-            assert_eq!(chunk, target_name);
+            let changes = response.changes.expect("Expected to find rename changes");
+            let mut changes: Vec<Range> =
+                changes.values().flatten().map(|edit| edit.range).collect();
+            changes.sort_by_key(|range| range.start.line);
+            assert_eq!(changes, ANOTHER_FUNCTION_RANGES);
         }
     }
 }
