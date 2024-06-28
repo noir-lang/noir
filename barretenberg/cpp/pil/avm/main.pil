@@ -17,6 +17,9 @@ namespace main(256);
     pol constant sel_first = [1] + [0]*; // Used mostly to toggle off the first row consisting
                                          // only in first element of shifted polynomials.
 
+    //===== PUBLIC COLUMNS=========================================================
+    pol public calldata;
+
     //===== KERNEL INPUTS =========================================================
     // Kernel lookup selector opcodes
     pol commit sel_q_kernel_lookup;

@@ -402,7 +402,7 @@ TEST_F(AvmMemOpcodeTests, indirectMovInvalidAddressTag)
                       MEM_ROW_FIELD_EQ(r_in_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
                       MEM_ROW_FIELD_EQ(sel_resolve_ind_addr_c, 1)));
 
-    validate_trace(std::move(trace), public_inputs, true);
+    validate_trace(std::move(trace), public_inputs, {}, true);
 }
 
 /******************************************************************************

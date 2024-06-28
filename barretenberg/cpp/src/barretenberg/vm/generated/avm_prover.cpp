@@ -62,6 +62,7 @@ void AvmProver::execute_wire_commitments_round()
     witness_commitments.kernel_kernel_value_out = commitment_key->commit(key->kernel_kernel_value_out);
     witness_commitments.kernel_kernel_side_effect_out = commitment_key->commit(key->kernel_kernel_side_effect_out);
     witness_commitments.kernel_kernel_metadata_out = commitment_key->commit(key->kernel_kernel_metadata_out);
+    witness_commitments.main_calldata = commitment_key->commit(key->main_calldata);
     witness_commitments.alu_a_hi = commitment_key->commit(key->alu_a_hi);
     witness_commitments.alu_a_lo = commitment_key->commit(key->alu_a_lo);
     witness_commitments.alu_b_hi = commitment_key->commit(key->alu_b_hi);
@@ -408,6 +409,7 @@ void AvmProver::execute_wire_commitments_round()
                                  witness_commitments.kernel_kernel_side_effect_out);
     transcript->send_to_verifier(commitment_labels.kernel_kernel_metadata_out,
                                  witness_commitments.kernel_kernel_metadata_out);
+    transcript->send_to_verifier(commitment_labels.main_calldata, witness_commitments.main_calldata);
     transcript->send_to_verifier(commitment_labels.alu_a_hi, witness_commitments.alu_a_hi);
     transcript->send_to_verifier(commitment_labels.alu_a_lo, witness_commitments.alu_a_lo);
     transcript->send_to_verifier(commitment_labels.alu_b_hi, witness_commitments.alu_b_hi);

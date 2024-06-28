@@ -581,7 +581,7 @@ void negative_test_incorrect_ia_kernel_lookup(OpcodesFunc apply_opcodes,
 
     check_trace(/*indirect*/ false, trace);
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace), public_inputs), expected_message);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), expected_message);
 }
 
 TEST_F(AvmKernelNegativeTests, incorrectIaSender)

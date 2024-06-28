@@ -36,7 +36,9 @@ class AvmMemoryTests : public ::testing::Test {
 // The proof must pass and we check that the AVM error is raised.
 TEST_F(AvmMemoryTests, mismatchedTagAddOperation)
 {
-    trace_builder.op_calldata_copy(0, 0, 2, 0, std::vector<FF>{ 98, 12 });
+    std::vector<FF> const calldata = { 98, 12 };
+    trace_builder = AvmTraceBuilder(public_inputs, {}, 0, calldata);
+    trace_builder.op_calldata_copy(0, 0, 2, 0);
 
     trace_builder.op_add(0, 0, 1, 4, AvmMemoryTag::U8);
     trace_builder.halt();
@@ -75,7 +77,7 @@ TEST_F(AvmMemoryTests, mismatchedTagAddOperation)
     EXPECT_EQ(row->mem_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U8)));
     EXPECT_EQ(row->mem_tag, FF(static_cast<uint32_t>(AvmMemoryTag::FF)));
 
-    validate_trace(std::move(trace), public_inputs, true);
+    validate_trace(std::move(trace), public_inputs, calldata, true);
 }
 
 // Testing an equality operation with a mismatched memory tag.
@@ -228,7 +230,8 @@ TEST_F(AvmMemoryTests, readUninitializedMemoryViolation)
 // must raise a VM error.
 TEST_F(AvmMemoryTests, mismatchedTagErrorViolation)
 {
-    trace_builder.op_calldata_copy(0, 0, 2, 0, std::vector<FF>{ 98, 12 });
+    trace_builder = AvmTraceBuilder(public_inputs, {}, 0, { 98, 12 });
+    trace_builder.op_calldata_copy(0, 0, 2, 0);
 
     trace_builder.op_sub(0, 0, 1, 4, AvmMemoryTag::U8);
     trace_builder.halt();
@@ -262,8 +265,8 @@ TEST_F(AvmMemoryTests, mismatchedTagErrorViolation)
 // must not set a VM error.
 TEST_F(AvmMemoryTests, consistentTagNoErrorViolation)
 {
-    trace_builder.op_calldata_copy(0, 0, 2, 0, std::vector<FF>{ 84, 7 });
-
+    trace_builder = AvmTraceBuilder(public_inputs, {}, 0, std::vector<FF>{ 84, 7 });
+    trace_builder.op_calldata_copy(0, 0, 2, 0);
     trace_builder.op_fdiv(0, 0, 1, 4);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
@@ -288,8 +291,8 @@ TEST_F(AvmMemoryTests, consistentTagNoErrorViolation)
 // Testing violation that a write operation must not set a VM error.
 TEST_F(AvmMemoryTests, noErrorTagWriteViolation)
 {
-    trace_builder.op_calldata_copy(0, 0, 2, 0, std::vector<FF>{ 84, 7 });
-
+    trace_builder = AvmTraceBuilder(public_inputs, {}, 0, { 84, 7 });
+    trace_builder.op_calldata_copy(0, 0, 2, 0);
     trace_builder.op_fdiv(0, 0, 1, 4);
     trace_builder.halt();
     auto trace = trace_builder.finalize();

@@ -79,6 +79,7 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
         transcript->template receive_from_prover<Commitment>(commitment_labels.kernel_kernel_side_effect_out);
     commitments.kernel_kernel_metadata_out =
         transcript->template receive_from_prover<Commitment>(commitment_labels.kernel_kernel_metadata_out);
+    commitments.main_calldata = transcript->template receive_from_prover<Commitment>(commitment_labels.main_calldata);
     commitments.alu_a_hi = transcript->template receive_from_prover<Commitment>(commitment_labels.alu_a_hi);
     commitments.alu_a_lo = transcript->template receive_from_prover<Commitment>(commitment_labels.alu_a_lo);
     commitments.alu_b_hi = transcript->template receive_from_prover<Commitment>(commitment_labels.alu_b_hi);
@@ -734,6 +735,11 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
     FF kernel_kernel_metadata_out_evaluation =
         evaluate_public_input_column(public_inputs[3], circuit_size, multivariate_challenge);
     if (kernel_kernel_metadata_out_evaluation != claimed_evaluations.kernel_kernel_metadata_out) {
+        return false;
+    }
+
+    FF main_calldata_evaluation = evaluate_public_input_column(public_inputs[4], circuit_size, multivariate_challenge);
+    if (main_calldata_evaluation != claimed_evaluations.main_calldata) {
         return false;
     }
 

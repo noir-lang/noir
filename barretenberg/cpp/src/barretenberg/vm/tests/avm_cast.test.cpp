@@ -23,6 +23,7 @@ class AvmCastTests : public ::testing::Test {
 
     VmPublicInputs public_inputs;
     AvmTraceBuilder trace_builder;
+    std::vector<FF> calldata;
 
     std::vector<Row> trace;
     size_t main_addr;
@@ -113,9 +114,9 @@ class AvmCastTests : public ::testing::Test {
         // We still want the ability to enable proving through the environment variable and therefore we do not pass
         // the boolean variable force_proof to validate_trace second argument.
         if (force_proof) {
-            validate_trace(std::move(trace), public_inputs, true);
+            validate_trace(std::move(trace), public_inputs, calldata, true);
         } else {
-            validate_trace(std::move(trace), public_inputs);
+            validate_trace(std::move(trace), public_inputs, calldata);
         }
     }
 };
@@ -171,7 +172,9 @@ TEST_F(AvmCastTests, noTruncationFFToU32)
 
 TEST_F(AvmCastTests, truncationFFToU16ModMinus1)
 {
-    trace_builder.op_calldata_copy(0, 0, 1, 0, { FF(FF::modulus - 1) });
+    calldata = { FF::modulus - 1 };
+    trace_builder = AvmTraceBuilder(public_inputs, {}, 0, calldata);
+    trace_builder.op_calldata_copy(0, 0, 1, 0);
     trace_builder.op_cast(0, 0, 1, AvmMemoryTag::U16);
     trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
@@ -182,7 +185,9 @@ TEST_F(AvmCastTests, truncationFFToU16ModMinus1)
 
 TEST_F(AvmCastTests, truncationFFToU16ModMinus2)
 {
-    trace_builder.op_calldata_copy(0, 0, 1, 0, { FF(FF::modulus_minus_two) });
+    calldata = { FF::modulus_minus_two };
+    trace_builder = AvmTraceBuilder(public_inputs, {}, 0, calldata);
+    trace_builder.op_calldata_copy(0, 0, 1, 0);
     trace_builder.op_cast(0, 0, 1, AvmMemoryTag::U16);
     trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
@@ -291,7 +296,9 @@ TEST_F(AvmCastNegativeTests, wrongOutputAluIc)
 
 TEST_F(AvmCastNegativeTests, wrongLimbDecompositionInput)
 {
-    trace_builder.op_calldata_copy(0, 0, 1, 0, { FF(FF::modulus_minus_two) });
+    calldata = { FF::modulus_minus_two };
+    trace_builder = AvmTraceBuilder(public_inputs, {}, 0, calldata);
+    trace_builder.op_calldata_copy(0, 0, 1, 0);
     trace_builder.op_cast(0, 0, 1, AvmMemoryTag::U16);
     trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
@@ -314,7 +321,9 @@ TEST_F(AvmCastNegativeTests, wrongPSubALo)
 
 TEST_F(AvmCastNegativeTests, wrongPSubAHi)
 {
-    trace_builder.op_calldata_copy(0, 0, 1, 0, { FF(FF::modulus_minus_two - 987) });
+    calldata = { FF::modulus_minus_two - 987 };
+    trace_builder = AvmTraceBuilder(public_inputs, {}, 0, calldata);
+    trace_builder.op_calldata_copy(0, 0, 1, 0);
     trace_builder.op_cast(0, 0, 1, AvmMemoryTag::U16);
     trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
@@ -352,7 +361,9 @@ TEST_F(AvmCastNegativeTests, wrongRangeCheckDecompositionLo)
 
 TEST_F(AvmCastNegativeTests, wrongRangeCheckDecompositionHi)
 {
-    trace_builder.op_calldata_copy(0, 0, 1, 0, { FF(FF::modulus_minus_two - 987) });
+    calldata = { FF::modulus_minus_two - 987 };
+    trace_builder = AvmTraceBuilder(public_inputs, {}, 0, calldata);
+    trace_builder.op_calldata_copy(0, 0, 1, 0);
     trace_builder.op_cast(0, 0, 1, AvmMemoryTag::U16);
     trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
@@ -396,7 +407,9 @@ TEST_F(AvmCastNegativeTests, wrongCopySubLoForRangeCheck)
 
 TEST_F(AvmCastNegativeTests, wrongCopySubHiForRangeCheck)
 {
-    trace_builder.op_calldata_copy(0, 0, 1, 0, { FF(FF::modulus_minus_two - 972836) });
+    std::vector<FF> const calldata = { FF::modulus_minus_two - 972836 };
+    trace_builder = AvmTraceBuilder(public_inputs, {}, 0, calldata);
+    trace_builder.op_calldata_copy(0, 0, 1, 0);
     trace_builder.op_cast(0, 0, 1, AvmMemoryTag::U128);
     trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();

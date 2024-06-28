@@ -12,6 +12,10 @@ export const VK_FILENAME = 'vk';
 export const VK_FIELDS_FILENAME = 'vk_fields.json';
 export const PROOF_FILENAME = 'proof';
 export const PROOF_FIELDS_FILENAME = 'proof_fields.json';
+export const AVM_BYTECODE_FILENAME = 'avm_bytecode.bin';
+export const AVM_CALLDATA_FILENAME = 'avm_calldata.bin';
+export const AVM_PUBLIC_INPUTS_FILENAME = 'avm_public_inputs.bin';
+export const AVM_HINTS_FILENAME = 'avm_hints.bin';
 
 export enum BB_RESULT {
   SUCCESS,
@@ -276,10 +280,10 @@ export async function generateAvmProof(
   }
 
   // Paths for the inputs
-  const bytecodePath = join(workingDirectory, 'avm_bytecode.bin');
-  const calldataPath = join(workingDirectory, 'avm_calldata.bin');
-  const publicInputsPath = join(workingDirectory, 'avm_public_inputs.bin');
-  const avmHintsPath = join(workingDirectory, 'avm_hints.bin');
+  const bytecodePath = join(workingDirectory, AVM_BYTECODE_FILENAME);
+  const calldataPath = join(workingDirectory, AVM_CALLDATA_FILENAME);
+  const publicInputsPath = join(workingDirectory, AVM_PUBLIC_INPUTS_FILENAME);
+  const avmHintsPath = join(workingDirectory, AVM_HINTS_FILENAME);
 
   // The proof is written to e.g. /workingDirectory/proof
   const outputPath = workingDirectory;

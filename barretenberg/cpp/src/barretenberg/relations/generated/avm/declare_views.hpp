@@ -8,6 +8,7 @@
     [[maybe_unused]] auto kernel_kernel_value_out = View(new_term.kernel_kernel_value_out);                            \
     [[maybe_unused]] auto kernel_kernel_side_effect_out = View(new_term.kernel_kernel_side_effect_out);                \
     [[maybe_unused]] auto kernel_kernel_metadata_out = View(new_term.kernel_kernel_metadata_out);                      \
+    [[maybe_unused]] auto main_calldata = View(new_term.main_calldata);                                                \
     [[maybe_unused]] auto alu_a_hi = View(new_term.alu_a_hi);                                                          \
     [[maybe_unused]] auto alu_a_lo = View(new_term.alu_a_lo);                                                          \
     [[maybe_unused]] auto alu_b_hi = View(new_term.alu_b_hi);                                                          \

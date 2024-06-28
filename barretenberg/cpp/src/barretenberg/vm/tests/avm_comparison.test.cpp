@@ -106,8 +106,12 @@ TEST_P(AvmCmpTestsLT, ParamTest)
 {
     const auto [params, mem_tag] = GetParam();
     const auto [a, b, c] = params;
+    std::vector<FF> calldata{};
+
     if (mem_tag == AvmMemoryTag::FF) {
-        trace_builder.op_calldata_copy(0, 0, 2, 0, std::vector<FF>{ a, b });
+        calldata = { a, b };
+        trace_builder = AvmTraceBuilder(public_inputs, {}, 0, calldata);
+        trace_builder.op_calldata_copy(0, 0, 2, 0);
     } else {
         trace_builder.op_set(0, uint128_t(a), 0, mem_tag);
         trace_builder.op_set(0, uint128_t(b), 1, mem_tag);
@@ -128,7 +132,7 @@ TEST_P(AvmCmpTestsLT, ParamTest)
     ASSERT_TRUE(alu_row != trace.end());
     common_validate_cmp(*row, *alu_row, a, b, c, FF(0), FF(1), FF(2), mem_tag);
 
-    validate_trace(std::move(trace), public_inputs);
+    validate_trace(std::move(trace), public_inputs, calldata);
 }
 INSTANTIATE_TEST_SUITE_P(AvmCmpTests,
                          AvmCmpTestsLT,
@@ -138,8 +142,12 @@ TEST_P(AvmCmpTestsLTE, ParamTest)
 {
     const auto [params, mem_tag] = GetParam();
     const auto [a, b, c] = params;
+    std::vector<FF> calldata{};
+
     if (mem_tag == AvmMemoryTag::FF) {
-        trace_builder.op_calldata_copy(0, 0, 2, 0, std::vector<FF>{ a, b });
+        calldata = { a, b };
+        trace_builder = AvmTraceBuilder(public_inputs, {}, 0, calldata);
+        trace_builder.op_calldata_copy(0, 0, 2, 0);
     } else {
         trace_builder.op_set(0, uint128_t(a), 0, mem_tag);
         trace_builder.op_set(0, uint128_t(b), 1, mem_tag);
@@ -157,7 +165,7 @@ TEST_P(AvmCmpTestsLTE, ParamTest)
     ASSERT_TRUE(row != trace.end());
     ASSERT_TRUE(alu_row != trace.end());
     common_validate_cmp(*row, *alu_row, a, b, c, FF(0), FF(1), FF(2), mem_tag);
-    validate_trace(std::move(trace), public_inputs);
+    validate_trace(std::move(trace), public_inputs, calldata);
 }
 INSTANTIATE_TEST_SUITE_P(AvmCmpTests,
                          AvmCmpTestsLTE,
@@ -309,7 +317,9 @@ TEST_P(AvmCmpNegativeTestsLT, ParamTest)
     const auto [failure, params] = GetParam();
     const auto [failure_string, failure_mode] = failure;
     const auto [a, b, output] = params;
-    trace_builder.op_calldata_copy(0, 0, 3, 0, std::vector<FF>{ a, b, output });
+
+    trace_builder = AvmTraceBuilder(public_inputs, {}, 0, std::vector<FF>{ a, b, output });
+    trace_builder.op_calldata_copy(0, 0, 3, 0);
     trace_builder.op_lt(0, 0, 1, 2, AvmMemoryTag::FF);
     trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
@@ -327,7 +337,8 @@ TEST_P(AvmCmpNegativeTestsLTE, ParamTest)
     const auto [failure, params] = GetParam();
     const auto [failure_string, failure_mode] = failure;
     const auto [a, b, output] = params;
-    trace_builder.op_calldata_copy(0, 0, 3, 0, std::vector<FF>{ a, b, output });
+    trace_builder = AvmTraceBuilder(public_inputs, {}, 0, std::vector<FF>{ a, b, output });
+    trace_builder.op_calldata_copy(0, 0, 3, 0);
     trace_builder.op_lte(0, 0, 1, 2, AvmMemoryTag::FF);
     trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();

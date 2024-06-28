@@ -93,6 +93,7 @@ template <typename FF> struct AvmFullRow {
     FF kernel_kernel_value_out{};
     FF kernel_kernel_side_effect_out{};
     FF kernel_kernel_metadata_out{};
+    FF main_calldata{};
     FF alu_a_hi{};
     FF alu_a_lo{};
     FF alu_b_hi{};
@@ -553,8 +554,8 @@ class AvmCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 450;
-    static constexpr size_t num_polys = 385;
+    static constexpr size_t num_fixed_columns = 451;
+    static constexpr size_t num_polys = 386;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -576,6 +577,7 @@ class AvmCircuitBuilder {
             polys.kernel_kernel_value_out[i] = rows[i].kernel_kernel_value_out;
             polys.kernel_kernel_side_effect_out[i] = rows[i].kernel_kernel_side_effect_out;
             polys.kernel_kernel_metadata_out[i] = rows[i].kernel_kernel_metadata_out;
+            polys.main_calldata[i] = rows[i].main_calldata;
             polys.alu_a_hi[i] = rows[i].alu_a_hi;
             polys.alu_a_lo[i] = rows[i].alu_a_lo;
             polys.alu_b_hi[i] = rows[i].alu_b_hi;

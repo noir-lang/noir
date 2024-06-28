@@ -39,7 +39,8 @@ class AvmTraceBuilder {
   public:
     AvmTraceBuilder(VmPublicInputs public_inputs = {},
                     ExecutionHints execution_hints = {},
-                    uint32_t side_effect_counter = 0);
+                    uint32_t side_effect_counter = 0,
+                    std::vector<FF> calldata = {});
 
     std::vector<Row> finalize(uint32_t min_trace_size = 0, bool range_check_required = ENABLE_PROVING);
     void reset();
@@ -158,11 +159,7 @@ class AvmTraceBuilder {
     // CALLDATACOPY opcode with direct/indirect memory access, i.e.,
     // direct: M[dst_offset:dst_offset+copy_size] = calldata[cd_offset:cd_offset+copy_size]
     // indirect: M[M[dst_offset]:M[dst_offset]+copy_size] = calldata[cd_offset:cd_offset+copy_size]
-    void op_calldata_copy(uint8_t indirect,
-                          uint32_t cd_offset,
-                          uint32_t copy_size,
-                          uint32_t dst_offset,
-                          std::vector<FF> const& call_data_mem);
+    void op_calldata_copy(uint8_t indirect, uint32_t cd_offset, uint32_t copy_size, uint32_t dst_offset);
 
     // REVERT Opcode (that just call return under the hood for now)
     std::vector<FF> op_revert(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size);
@@ -240,6 +237,8 @@ class AvmTraceBuilder {
     AvmKeccakTraceBuilder keccak_trace_builder;
     AvmPedersenTraceBuilder pedersen_trace_builder;
     AvmEccTraceBuilder ecc_trace_builder;
+
+    std::vector<FF> calldata{};
 
     /**
      * @brief Create a kernel lookup opcode object

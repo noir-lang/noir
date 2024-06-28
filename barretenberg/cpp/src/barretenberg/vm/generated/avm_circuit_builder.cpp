@@ -24,6 +24,7 @@ template <typename FF> std::vector<std::string> AvmFullRow<FF>::names()
              "kernel_kernel_value_out",
              "kernel_kernel_side_effect_out",
              "kernel_kernel_metadata_out",
+             "main_calldata",
              "alu_a_hi",
              "alu_a_lo",
              "alu_b_hi",
@@ -412,18 +413,19 @@ template <typename FF> std::ostream& operator<<(std::ostream& os, AvmFullRow<FF>
            << field_to_string(row.main_clk) << "," << field_to_string(row.main_sel_first) << ","
            << field_to_string(row.kernel_kernel_inputs) << "," << field_to_string(row.kernel_kernel_value_out) << ","
            << field_to_string(row.kernel_kernel_side_effect_out) << ","
-           << field_to_string(row.kernel_kernel_metadata_out) << "," << field_to_string(row.alu_a_hi) << ","
-           << field_to_string(row.alu_a_lo) << "," << field_to_string(row.alu_b_hi) << ","
-           << field_to_string(row.alu_b_lo) << "," << field_to_string(row.alu_borrow) << ","
-           << field_to_string(row.alu_cf) << "," << field_to_string(row.alu_clk) << ","
-           << field_to_string(row.alu_cmp_rng_ctr) << "," << field_to_string(row.alu_div_u16_r0) << ","
-           << field_to_string(row.alu_div_u16_r1) << "," << field_to_string(row.alu_div_u16_r2) << ","
-           << field_to_string(row.alu_div_u16_r3) << "," << field_to_string(row.alu_div_u16_r4) << ","
-           << field_to_string(row.alu_div_u16_r5) << "," << field_to_string(row.alu_div_u16_r6) << ","
-           << field_to_string(row.alu_div_u16_r7) << "," << field_to_string(row.alu_divisor_hi) << ","
-           << field_to_string(row.alu_divisor_lo) << "," << field_to_string(row.alu_ff_tag) << ","
-           << field_to_string(row.alu_ia) << "," << field_to_string(row.alu_ib) << "," << field_to_string(row.alu_ic)
-           << "," << field_to_string(row.alu_in_tag) << "," << field_to_string(row.alu_op_add) << ","
+           << field_to_string(row.kernel_kernel_metadata_out) << "," << field_to_string(row.main_calldata) << ","
+           << field_to_string(row.alu_a_hi) << "," << field_to_string(row.alu_a_lo) << ","
+           << field_to_string(row.alu_b_hi) << "," << field_to_string(row.alu_b_lo) << ","
+           << field_to_string(row.alu_borrow) << "," << field_to_string(row.alu_cf) << ","
+           << field_to_string(row.alu_clk) << "," << field_to_string(row.alu_cmp_rng_ctr) << ","
+           << field_to_string(row.alu_div_u16_r0) << "," << field_to_string(row.alu_div_u16_r1) << ","
+           << field_to_string(row.alu_div_u16_r2) << "," << field_to_string(row.alu_div_u16_r3) << ","
+           << field_to_string(row.alu_div_u16_r4) << "," << field_to_string(row.alu_div_u16_r5) << ","
+           << field_to_string(row.alu_div_u16_r6) << "," << field_to_string(row.alu_div_u16_r7) << ","
+           << field_to_string(row.alu_divisor_hi) << "," << field_to_string(row.alu_divisor_lo) << ","
+           << field_to_string(row.alu_ff_tag) << "," << field_to_string(row.alu_ia) << ","
+           << field_to_string(row.alu_ib) << "," << field_to_string(row.alu_ic) << ","
+           << field_to_string(row.alu_in_tag) << "," << field_to_string(row.alu_op_add) << ","
            << field_to_string(row.alu_op_cast) << "," << field_to_string(row.alu_op_cast_prev) << ","
            << field_to_string(row.alu_op_div) << "," << field_to_string(row.alu_op_div_a_lt_b) << ","
            << field_to_string(row.alu_op_div_std) << "," << field_to_string(row.alu_op_eq) << ","

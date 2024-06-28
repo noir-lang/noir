@@ -23,9 +23,9 @@ std::vector<ThreeOpParamRow> gen_three_op_params(std::vector<ThreeOpParam> opera
  *
  * @param trace The execution trace
  */
-void validate_trace_check_circuit(std::vector<Row>&& trace, VmPublicInputs public_inputs)
+void validate_trace_check_circuit(std::vector<Row>&& trace)
 {
-    validate_trace(std::move(trace), public_inputs, false);
+    validate_trace(std::move(trace), {}, {}, false);
 };
 
 /**
@@ -34,7 +34,10 @@ void validate_trace_check_circuit(std::vector<Row>&& trace, VmPublicInputs publi
  *
  * @param trace The execution trace
  */
-void validate_trace(std::vector<Row>&& trace, VmPublicInputs const& public_inputs, bool with_proof)
+void validate_trace(std::vector<Row>&& trace,
+                    VmPublicInputs const& public_inputs,
+                    std::vector<FF> const& calldata,
+                    bool with_proof)
 {
     auto circuit_builder = AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
@@ -47,7 +50,8 @@ void validate_trace(std::vector<Row>&& trace, VmPublicInputs const& public_input
 
         AvmVerifier verifier = composer.create_verifier(circuit_builder);
 
-        std::vector<std::vector<FF>> public_inputs_as_vec = bb::avm_trace::copy_public_inputs_columns(public_inputs);
+        std::vector<std::vector<FF>> public_inputs_as_vec =
+            bb::avm_trace::copy_public_inputs_columns(public_inputs, calldata);
 
         bool verified = verifier.verify_proof(proof, { public_inputs_as_vec });
 
