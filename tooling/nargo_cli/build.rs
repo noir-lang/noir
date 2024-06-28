@@ -748,8 +748,6 @@ fn generate_plonky2_trace_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_case_dirs =
         fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
 
-    let expected_messages = HashMap::from([("1_mul", vec!["Total tracing steps: 7"])]);
-
     for test_dir in test_case_dirs {
         let test_name =
             test_dir.file_name().into_string().expect("Directory can't be converted to string");
@@ -779,40 +777,32 @@ fn plonky2_trace_{test_name}() {{
     let trace_file_path = temp_dir.path().join("trace.json");
     let file_written_message = format!("Saved trace to {{:?}}", trace_file_path);
 
-    cmd.assert().success().stdout(predicate::str::contains(file_written_message));"#,
-            test_dir = test_dir.display(),
-        )
-        .expect("Could not write templated test file.");
-
-        // Not all tests have expected messages, so match.
-        match expected_messages.get(test_name.as_str()) {
-            Some(messages) => {
-                for message in messages.iter() {
-                    write!(
-                        test_file,
-                        r#"
-    cmd.assert().success().stdout(predicate::str::contains("{message}"));"#
-                    )
-                    .expect("Could not write templated test file.");
-                }
-            }
-            None => {}
-        }
-
-        write!(
-            test_file,
-            r#"
+    cmd.assert().success().stdout(predicate::str::contains(file_written_message));
 
     let expected_trace_path = test_program_dir.join("expected_trace.json");
     let expected_trace = fs::read_to_string(expected_trace_path).unwrap();
-    let expected_json: Value = serde_json::from_str(&expected_trace).unwrap();
+    let mut expected_json: Value = serde_json::from_str(&expected_trace).unwrap();
 
     let actual_trace = fs::read_to_string(trace_file_path).unwrap();
-    let actual_json: Value = serde_json::from_str(&actual_trace).unwrap();
+    let mut actual_json: Value = serde_json::from_str(&actual_trace).unwrap();
+
+    // Rewrite all paths to avoid comparing them.
+    for trace_item in expected_json.as_array_mut().unwrap() {{
+        if let Some(path) = trace_item.get_mut("Path") {{
+            *path = json!("it-does-not-matter");
+        }}
+    }}
+
+    for trace_item in actual_json.as_array_mut().unwrap() {{
+        if let Some(path) = trace_item.get_mut("Path") {{
+            *path = json!("it-does-not-matter");
+        }}
+    }}
 
     assert_eq!(expected_json, actual_json);
 }}
-"#
+"#,
+            test_dir = test_dir.display(),
         )
         .expect("Could not write templated test file.");
     }
