@@ -434,13 +434,18 @@ export class TXE implements TypedOracle {
     throw new Error('Method not implemented.');
   }
 
-  async storageRead(startStorageSlot: Fr, numberOfElements: number): Promise<Fr[]> {
+  async storageRead(
+    contractAddress: Fr,
+    startStorageSlot: Fr,
+    blockNumber: number, // TODO(#7230): use block number
+    numberOfElements: number,
+  ): Promise<Fr[]> {
     const db = this.trees.asLatest();
 
     const values = [];
     for (let i = 0n; i < numberOfElements; i++) {
       const storageSlot = startStorageSlot.add(new Fr(i));
-      const leafSlot = computePublicDataTreeLeafSlot(this.contractAddress, storageSlot).toBigInt();
+      const leafSlot = computePublicDataTreeLeafSlot(contractAddress, storageSlot).toBigInt();
 
       const lowLeafResult = await db.getPreviousValueIndex(MerkleTreeId.PUBLIC_DATA_TREE, leafSlot);
 

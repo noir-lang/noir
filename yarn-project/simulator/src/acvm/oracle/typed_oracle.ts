@@ -190,7 +190,12 @@ export abstract class TypedOracle {
     throw new OracleMethodNotAvailableError('getL1ToL2MembershipWitness');
   }
 
-  storageRead(_startStorageSlot: Fr, _numberOfElements: number): Promise<Fr[]> {
+  storageRead(
+    _contractAddress: Fr,
+    _startStorageSlot: Fr,
+    _blockNumber: number,
+    _numberOfElements: number,
+  ): Promise<Fr[]> {
     throw new OracleMethodNotAvailableError('storageRead');
   }
 

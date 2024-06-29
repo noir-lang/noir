@@ -287,8 +287,18 @@ export class Oracle {
     return message.toFields().map(toACVMField);
   }
 
-  async storageRead([startStorageSlot]: ACVMField[], [numberOfElements]: ACVMField[]): Promise<ACVMField[]> {
-    const values = await this.typedOracle.storageRead(fromACVMField(startStorageSlot), +numberOfElements);
+  async storageRead(
+    [contractAddress]: ACVMField[],
+    [startStorageSlot]: ACVMField[],
+    [blockNumber]: ACVMField[],
+    [numberOfElements]: ACVMField[],
+  ): Promise<ACVMField[]> {
+    const values = await this.typedOracle.storageRead(
+      fromACVMField(contractAddress),
+      fromACVMField(startStorageSlot),
+      +blockNumber,
+      +numberOfElements,
+    );
     return values.map(toACVMField);
   }
 

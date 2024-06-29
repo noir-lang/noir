@@ -54,7 +54,7 @@ describe('benchmarks/process_history', () => {
           const node = await AztecNodeService.createAndSync(nodeConfig);
           // call getPublicStorageAt (which calls #getWorldState, which calls #syncWorldState) to force a sync with
           // world state to ensure the node has caught up
-          await node.getPublicStorageAt(AztecAddress.random(), Fr.random());
+          await node.getPublicStorageAt(AztecAddress.random(), Fr.random(), 'latest');
           return node;
         });
 

@@ -293,7 +293,7 @@ export class PXEService implements PXE {
     if (!(await this.getContractInstance(contract))) {
       throw new Error(`Contract ${contract.toString()} is not deployed`);
     }
-    return await this.node.getPublicStorageAt(contract, slot);
+    return await this.node.getPublicStorageAt(contract, slot, 'latest');
   }
 
   public async getIncomingNotes(filter: IncomingNotesFilter): Promise<ExtendedNote[]> {

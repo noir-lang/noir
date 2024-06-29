@@ -72,10 +72,11 @@ pub fn setup_and_mint(with_account_contracts: bool) -> (&mut TestEnvironment, Az
 pub fn check_public_balance(token_contract_address: AztecAddress, address: AztecAddress, address_amount: Field) {
     let current_contract_address = cheatcodes::get_contract_address();
     cheatcodes::set_contract_address(token_contract_address);
+    let block_number = cheatcodes::get_block_number();
 
     let balances_slot = Token::storage().public_balances.slot;
     let address_slot = derive_storage_slot_in_map(balances_slot, address);
-    let amount: U128 = storage_read(address_slot);
+    let amount: U128 = storage_read(token_contract_address, address_slot, block_number);
     assert(amount.to_field() == address_amount, "Public balance is not correct");
     cheatcodes::set_contract_address(current_contract_address);
 }

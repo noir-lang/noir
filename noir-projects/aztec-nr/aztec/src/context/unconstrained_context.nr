@@ -1,4 +1,5 @@
-use dep::protocol_types::address::AztecAddress;
+use dep::protocol_types::{address::AztecAddress, traits::Deserialize};
+use crate::oracle::storage::{raw_storage_read, storage_read};
 
 struct UnconstrainedContext {
     block_number: u32,
@@ -34,6 +35,14 @@ impl UnconstrainedContext {
 
     fn chain_id(self) -> Field {
         self.chain_id
+    }
+
+    unconstrained fn raw_storage_read<N>(self: Self, storage_slot: Field) -> [Field; N] {
+        storage_read(self.this_address(), storage_slot, self.block_number())
+    }
+
+    unconstrained fn storage_read<T, N>(self, storage_slot: Field) -> T where T: Deserialize<N> {
+        T::deserialize(self.raw_storage_read(storage_slot))
     }
 }
 
