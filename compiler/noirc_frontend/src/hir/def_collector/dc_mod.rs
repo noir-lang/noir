@@ -11,6 +11,7 @@ use crate::ast::{
     NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItem, TraitItem,
     TypeImpl,
 };
+use crate::macros_api::NodeInterner;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -26,7 +27,7 @@ use super::{
     },
     errors::{DefCollectorErrorKind, DuplicateType},
 };
-use crate::hir::def_map::{LocalModuleId, ModuleData, ModuleId};
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleId};
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
 
@@ -105,35 +106,19 @@ impl<'a> ModCollector<'a> {
     ) -> Vec<(CompilationError, fm::FileId)> {
         let mut errors = vec![];
         for global in globals {
-            let name = global.pattern.name_ident().clone();
-
-            let global_id = context.def_interner.push_empty_global(
-                name.clone(),
-                self.module_id,
+            let (global, error) = collect_global(
+                &mut context.def_interner,
+                &mut self.def_collector.def_map,
+                global,
                 self.file_id,
-                global.attributes.clone(),
-                matches!(global.pattern, Pattern::Mutable { .. }),
+                self.module_id,
             );
 
-            // Add the statement to the scope so its path can be looked up later
-            let result = self.def_collector.def_map.modules[self.module_id.0]
-                .declare_global(name, global_id);
-
-            if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::Duplicate {
-                    typ: DuplicateType::Global,
-                    first_def,
-                    second_def,
-                };
-                errors.push((err.into(), self.file_id));
+            if let Some(error) = error {
+                errors.push(error);
             }
 
-            self.def_collector.items.globals.push(UnresolvedGlobal {
-                file_id: self.file_id,
-                module_id: self.module_id,
-                global_id,
-                stmt_def: global,
-            });
+            self.def_collector.items.globals.push(global);
         }
         errors
     }
@@ -149,8 +134,9 @@ impl<'a> ModCollector<'a> {
                 self_type: None,
             };
 
-            for (method, _) in r#impl.methods {
+            for (mut method, _) in r#impl.methods {
                 let func_id = context.def_interner.push_empty_fn();
+                method.def.where_clause.extend(r#impl.where_clause.clone());
                 let location = Location::new(method.span(), self.file_id);
                 context.def_interner.push_function(func_id, &method.def, module_id, location);
                 unresolved_functions.push_fn(self.module_id, func_id, method);
@@ -168,11 +154,16 @@ impl<'a> ModCollector<'a> {
         impls: Vec<NoirTraitImpl>,
         krate: CrateId,
     ) {
-        for trait_impl in impls {
+        for mut trait_impl in impls {
             let trait_name = trait_impl.trait_name.clone();
 
-            let mut unresolved_functions =
-                self.collect_trait_impl_function_overrides(context, &trait_impl, krate);
+            let mut unresolved_functions = collect_trait_impl_functions(
+                &mut context.def_interner,
+                &mut trait_impl,
+                krate,
+                self.file_id,
+                self.module_id,
+            );
 
             let module = ModuleId { krate, local_id: self.module_id };
 
@@ -202,33 +193,6 @@ impl<'a> ModCollector<'a> {
 
             self.def_collector.items.trait_impls.push(unresolved_trait_impl);
         }
-    }
-
-    fn collect_trait_impl_function_overrides(
-        &mut self,
-        context: &mut Context,
-        trait_impl: &NoirTraitImpl,
-        krate: CrateId,
-    ) -> UnresolvedFunctions {
-        let mut unresolved_functions = UnresolvedFunctions {
-            file_id: self.file_id,
-            functions: Vec::new(),
-            trait_id: None,
-            self_type: None,
-        };
-
-        let module = ModuleId { krate, local_id: self.module_id };
-
-        for item in &trait_impl.items {
-            if let TraitImplItem::Function(impl_method) = item {
-                let func_id = context.def_interner.push_empty_fn();
-                let location = Location::new(impl_method.span(), self.file_id);
-                context.def_interner.push_function(func_id, &impl_method.def, module, location);
-                unresolved_functions.push_fn(self.module_id, func_id, impl_method.clone());
-            }
-        }
-
-        unresolved_functions
     }
 
     fn collect_functions(
@@ -308,11 +272,21 @@ impl<'a> ModCollector<'a> {
                 struct_def: struct_definition,
             };
 
+            let resolved_generics = context.resolve_generics(
+                &unresolved.struct_def.generics,
+                &mut definition_errors,
+                self.file_id,
+            );
+
             // Create the corresponding module for the struct namespace
             let id = match self.push_child_module(&name, self.file_id, false, false) {
-                Ok(local_id) => {
-                    context.def_interner.new_struct(&unresolved, krate, local_id, self.file_id)
-                }
+                Ok(local_id) => context.def_interner.new_struct(
+                    &unresolved,
+                    resolved_generics,
+                    krate,
+                    local_id,
+                    self.file_id,
+                ),
                 Err(error) => {
                     definition_errors.push((error.into(), self.file_id));
                     continue;
@@ -356,7 +330,14 @@ impl<'a> ModCollector<'a> {
                 type_alias_def: type_alias,
             };
 
-            let type_alias_id = context.def_interner.push_type_alias(&unresolved);
+            let resolved_generics = context.resolve_generics(
+                &unresolved.type_alias_def.generics,
+                &mut errors,
+                self.file_id,
+            );
+
+            let type_alias_id =
+                context.def_interner.push_type_alias(&unresolved, resolved_generics);
 
             // Add the type alias to scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
@@ -516,6 +497,9 @@ impl<'a> ModCollector<'a> {
                 }
             }
 
+            let resolved_generics =
+                context.resolve_generics(&trait_definition.generics, &mut errors, self.file_id);
+
             // And store the TraitId -> TraitType mapping somewhere it is reachable
             let unresolved = UnresolvedTrait {
                 file_id: self.file_id,
@@ -525,7 +509,8 @@ impl<'a> ModCollector<'a> {
                 method_ids,
                 fns_with_default_impl: unresolved_functions,
             };
-            context.def_interner.push_empty_trait(trait_id, &unresolved);
+            context.def_interner.push_empty_trait(trait_id, &unresolved, resolved_generics);
+
             self.def_collector.items.traits.insert(trait_id, unresolved);
         }
         errors
@@ -759,6 +744,60 @@ fn is_native_field(str: &str) -> bool {
     } else {
         CHOSEN_FIELD == str
     }
+}
+
+pub(crate) fn collect_trait_impl_functions(
+    interner: &mut NodeInterner,
+    trait_impl: &mut NoirTraitImpl,
+    krate: CrateId,
+    file_id: FileId,
+    local_id: LocalModuleId,
+) -> UnresolvedFunctions {
+    let mut unresolved_functions =
+        UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
+
+    let module = ModuleId { krate, local_id };
+
+    for item in std::mem::take(&mut trait_impl.items) {
+        if let TraitImplItem::Function(impl_method) = item {
+            let func_id = interner.push_empty_fn();
+            let location = Location::new(impl_method.span(), file_id);
+            interner.push_function(func_id, &impl_method.def, module, location);
+            unresolved_functions.push_fn(local_id, func_id, impl_method);
+        }
+    }
+
+    unresolved_functions
+}
+
+pub(crate) fn collect_global(
+    interner: &mut NodeInterner,
+    def_map: &mut CrateDefMap,
+    global: LetStatement,
+    file_id: FileId,
+    module_id: LocalModuleId,
+) -> (UnresolvedGlobal, Option<(CompilationError, FileId)>) {
+    let name = global.pattern.name_ident().clone();
+
+    let global_id = interner.push_empty_global(
+        name.clone(),
+        module_id,
+        file_id,
+        global.attributes.clone(),
+        matches!(global.pattern, Pattern::Mutable { .. }),
+    );
+
+    // Add the statement to the scope so its path can be looked up later
+    let result = def_map.modules[module_id.0].declare_global(name, global_id);
+
+    let error = result.err().map(|(first_def, second_def)| {
+        let err =
+            DefCollectorErrorKind::Duplicate { typ: DuplicateType::Global, first_def, second_def };
+        (err.into(), file_id)
+    });
+
+    let global = UnresolvedGlobal { file_id, module_id, global_id, stmt_def: global };
+    (global, error)
 }
 
 #[cfg(test)]

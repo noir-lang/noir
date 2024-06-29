@@ -52,6 +52,7 @@ pub(crate) enum Intrinsic {
     ArrayLen,
     AsSlice,
     AssertConstant,
+    StaticAssert,
     SlicePushBack,
     SlicePushFront,
     SlicePopBack,
@@ -67,6 +68,7 @@ pub(crate) enum Intrinsic {
     AsField,
     AsWitness,
     IsUnconstrained,
+    DerivePedersenGenerators,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -75,6 +77,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::ArrayLen => write!(f, "array_len"),
             Intrinsic::AsSlice => write!(f, "as_slice"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
+            Intrinsic::StaticAssert => write!(f, "static_assert"),
             Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
             Intrinsic::SlicePushFront => write!(f, "slice_push_front"),
             Intrinsic::SlicePopBack => write!(f, "slice_pop_back"),
@@ -92,6 +95,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::AsField => write!(f, "as_field"),
             Intrinsic::AsWitness => write!(f, "as_witness"),
             Intrinsic::IsUnconstrained => write!(f, "is_unconstrained"),
+            Intrinsic::DerivePedersenGenerators => write!(f, "derive_pedersen_generators"),
         }
     }
 }
@@ -102,9 +106,10 @@ impl Intrinsic {
     /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
     pub(crate) fn has_side_effects(&self) -> bool {
         match self {
-            Intrinsic::AssertConstant | Intrinsic::ApplyRangeConstraint | Intrinsic::AsWitness => {
-                true
-            }
+            Intrinsic::AssertConstant
+            | Intrinsic::StaticAssert
+            | Intrinsic::ApplyRangeConstraint
+            | Intrinsic::AsWitness => true,
 
             // These apply a constraint that the input must fit into a specified number of limbs.
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
@@ -120,7 +125,8 @@ impl Intrinsic {
             | Intrinsic::StrAsBytes
             | Intrinsic::FromField
             | Intrinsic::AsField
-            | Intrinsic::IsUnconstrained => false,
+            | Intrinsic::IsUnconstrained
+            | Intrinsic::DerivePedersenGenerators => false,
 
             // Some black box functions have side-effects
             Intrinsic::BlackBox(func) => matches!(
@@ -139,6 +145,7 @@ impl Intrinsic {
             "array_len" => Some(Intrinsic::ArrayLen),
             "as_slice" => Some(Intrinsic::AsSlice),
             "assert_constant" => Some(Intrinsic::AssertConstant),
+            "static_assert" => Some(Intrinsic::StaticAssert),
             "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
             "slice_push_back" => Some(Intrinsic::SlicePushBack),
             "slice_push_front" => Some(Intrinsic::SlicePushFront),
@@ -155,6 +162,7 @@ impl Intrinsic {
             "as_field" => Some(Intrinsic::AsField),
             "as_witness" => Some(Intrinsic::AsWitness),
             "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
+            "derive_pedersen_generators" => Some(Intrinsic::DerivePedersenGenerators),
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }
     }

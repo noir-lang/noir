@@ -1547,6 +1547,26 @@ impl<F: AcirField> AcirContext<F> {
         brillig_function_index: u32,
         brillig_stdlib_func: Option<BrilligStdlibFunc>,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
+        let predicate = self.var_to_expression(predicate)?;
+        if predicate.is_zero() {
+            // If the predicate has a constant value of zero, the brillig call will never be executed.
+            // We can then immediately zero out all of its outputs as this is the value which would be written
+            // if we waited until runtime to resolve this call.
+            let outputs_var = vecmap(outputs, |output| match output {
+                AcirType::NumericType(_) => {
+                    let var = self.add_constant(F::zero());
+                    AcirValue::Var(var, output.clone())
+                }
+                AcirType::Array(element_types, size) => {
+                    self.zeroed_array_output(&element_types, size)
+                }
+            });
+
+            return Ok(outputs_var);
+        }
+        // Remove "always true" predicates.
+        let predicate = if predicate == Expression::one() { None } else { Some(predicate) };
+
         let brillig_inputs: Vec<BrilligInputs<F>> =
             try_vecmap(inputs, |i| -> Result<_, InternalError> {
                 match i {
@@ -1594,10 +1614,9 @@ impl<F: AcirField> AcirContext<F> {
                 acir_value
             }
         });
-        let predicate = self.var_to_expression(predicate)?;
 
         self.acir_ir.brillig_call(
-            Some(predicate),
+            predicate,
             generated_brillig,
             brillig_inputs,
             brillig_outputs,
@@ -1666,6 +1685,27 @@ impl<F: AcirField> AcirContext<F> {
             }
         }
         Ok(())
+    }
+
+    /// Recursively create zeroed-out acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
+    fn zeroed_array_output(&mut self, element_types: &[AcirType], size: usize) -> AcirValue {
+        let mut array_values = im::Vector::new();
+        for _ in 0..size {
+            for element_type in element_types {
+                match element_type {
+                    AcirType::Array(nested_element_types, nested_size) => {
+                        let nested_acir_value =
+                            self.zeroed_array_output(nested_element_types, *nested_size);
+                        array_values.push_back(nested_acir_value);
+                    }
+                    AcirType::NumericType(_) => {
+                        let var = self.add_constant(F::zero());
+                        array_values.push_back(AcirValue::Var(var, element_type.clone()));
+                    }
+                }
+            }
+        }
+        AcirValue::Array(array_values)
     }
 
     /// Recursively create acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.

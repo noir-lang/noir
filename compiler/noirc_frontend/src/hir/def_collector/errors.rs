@@ -1,4 +1,4 @@
-use crate::ast::{Ident, Path};
+use crate::ast::{Ident, Path, UnresolvedTypeData};
 use crate::hir::resolution::import::PathResolutionError;
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
@@ -66,6 +66,8 @@ pub enum DefCollectorErrorKind {
     TraitImplOrphaned { span: Span },
     #[error("macro error : {0:?}")]
     MacroError(MacroError),
+    #[error("The only supported types of numeric generics are integers, fields, and booleans")]
+    UnsupportedNumericGenericType { ident: Ident, typ: UnresolvedTypeData },
 }
 
 /// An error struct that macro processors can return.
@@ -228,6 +230,15 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
             DefCollectorErrorKind::MacroError(macro_error) => {
                 Diagnostic::simple_error(macro_error.primary_message.clone(), macro_error.secondary_message.clone().unwrap_or_default(), macro_error.span.unwrap_or_default())
             },
+            DefCollectorErrorKind::UnsupportedNumericGenericType { ident, typ } => {
+                let name = &ident.0.contents;
+
+                Diagnostic::simple_error(
+                    format!("{name} has a type of {typ}. The only supported types of numeric generics are integers and fields"),
+                    "Unsupported numeric generic type".to_string(),
+                    ident.0.span(),
+                )
+            }
         }
     }
 }

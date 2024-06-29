@@ -1,3 +1,4 @@
+
 global SIZE = 30;
 
 fn main(input: [[u8; 2]; SIZE]) -> pub [[u8; 32]; SIZE] {
