@@ -39,4 +39,5 @@ pub trait AsmWriter {
     fn constant_u32(&mut self, c: u32) -> U32Target;
     fn add_u32(&mut self, a: U32Target, b: U32Target) -> (U32Target, U32Target);
     fn split_le_base<const B: usize>(&mut self, x: Target, num_limbs: usize) -> Vec<Target>;
+    fn add_virtual_target(&mut self) -> Target;
 }

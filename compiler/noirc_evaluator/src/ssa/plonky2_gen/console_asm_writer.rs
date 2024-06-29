@@ -450,4 +450,12 @@ impl AsmWriter for ConsoleAsmWriter {
         }
         result
     }
+
+    fn add_virtual_target(&mut self) -> Target {
+        let result = self.builder.add_virtual_target();
+        if self.show_plonky2 {
+            println!("add_virtual_target\t{}", TargetDisplay { t: result });
+        }
+        result
+    }
 }
