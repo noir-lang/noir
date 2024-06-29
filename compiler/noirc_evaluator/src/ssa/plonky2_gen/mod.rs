@@ -123,12 +123,14 @@ impl P2Value {
     /// builder.
     fn create_empty(asm_writer: &mut impl AsmWriter, p2type: P2Type) -> P2Value {
         match p2type.clone() {
-            P2Type::Field => {
-                P2Value { target: P2Target::IntTarget(asm_writer.add_virtual_target()), typ: p2type }
-            }
-            P2Type::Integer(_) => {
-                P2Value { target: P2Target::IntTarget(asm_writer.add_virtual_target()), typ: p2type }
-            }
+            P2Type::Field => P2Value {
+                target: P2Target::IntTarget(asm_writer.add_virtual_target()),
+                typ: p2type,
+            },
+            P2Type::Integer(_) => P2Value {
+                target: P2Target::IntTarget(asm_writer.add_virtual_target()),
+                typ: p2type,
+            },
             P2Type::Boolean => P2Value {
                 target: P2Target::BoolTarget(asm_writer.add_virtual_bool_target_safe()),
                 typ: p2type,
