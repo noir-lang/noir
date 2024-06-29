@@ -823,7 +823,7 @@ where
                         return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
                     }
                 };
-                let new_target = self.get_mut_builder().add_virtual_target();
+                let new_target = self.asm_writer.add_virtual_target();
                 self.asm_writer.connect(target, new_target);
 
                 let p2value = P2Value::make_integer(P2Type::Integer(bit_size), new_target)?;

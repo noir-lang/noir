@@ -28,8 +28,8 @@ impl VariableIntDivGenerator {
         Self {
             numerator,
             denominator,
-            quotient: asm_writer.get_mut_builder().add_virtual_target(),
-            remainder: asm_writer.get_mut_builder().add_virtual_target(),
+            quotient: asm_writer.add_virtual_target(),
+            remainder: asm_writer.add_virtual_target(),
             _phantom: PhantomData,
         }
     }
