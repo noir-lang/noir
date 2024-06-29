@@ -715,6 +715,7 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
     // Public columns evaluation checks
     std::vector<FF> mle_challenge(multivariate_challenge.begin(),
                                   multivariate_challenge.begin() + static_cast<int>(log_circuit_size));
+
     FF kernel_kernel_inputs_evaluation = evaluate_public_input_column(public_inputs[0], circuit_size, mle_challenge);
     if (kernel_kernel_inputs_evaluation != claimed_evaluations.kernel_kernel_inputs) {
         return false;
@@ -737,7 +738,7 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
         return false;
     }
 
-    FF main_calldata_evaluation = evaluate_public_input_column(public_inputs[4], circuit_size, multivariate_challenge);
+    FF main_calldata_evaluation = evaluate_public_input_column(public_inputs[4], circuit_size, mle_challenge);
     if (main_calldata_evaluation != claimed_evaluations.main_calldata) {
         return false;
     }

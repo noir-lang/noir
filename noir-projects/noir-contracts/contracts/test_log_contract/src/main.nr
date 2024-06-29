@@ -60,7 +60,7 @@ contract TestLog {
 
         // We duplicate the emission, but specifying different incoming and outgoing parties
         event0.emit(
-            encode_and_encrypt_event(
+            encode_and_encrypt_event_with_randomness(
                 &mut context,
                 randomness[0],
                 // outgoing is set to msg sender, incoming is set to other
