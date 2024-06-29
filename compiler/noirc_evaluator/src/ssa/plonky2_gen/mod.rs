@@ -121,29 +121,29 @@ impl P2Value {
 
     /// Creates an undefined PLONKY2 value of the given type, which includes adding targets to the given
     /// builder.
-    fn create_empty(builder: &mut P2Builder, p2type: P2Type) -> P2Value {
+    fn create_empty(asm_writer: &mut impl AsmWriter, p2type: P2Type) -> P2Value {
         match p2type.clone() {
             P2Type::Field => {
-                P2Value { target: P2Target::IntTarget(builder.add_virtual_target()), typ: p2type }
+                P2Value { target: P2Target::IntTarget(asm_writer.add_virtual_target()), typ: p2type }
             }
             P2Type::Integer(_) => {
-                P2Value { target: P2Target::IntTarget(builder.add_virtual_target()), typ: p2type }
+                P2Value { target: P2Target::IntTarget(asm_writer.add_virtual_target()), typ: p2type }
             }
             P2Type::Boolean => P2Value {
-                target: P2Target::BoolTarget(builder.add_virtual_bool_target_safe()),
+                target: P2Target::BoolTarget(asm_writer.add_virtual_bool_target_safe()),
                 typ: p2type,
             },
             P2Type::Array(element_type, array_size) => {
                 let mut p2targets = Vec::new();
                 for _ in 0..array_size {
-                    p2targets.push(P2Value::create_empty(builder, *element_type.clone()).target);
+                    p2targets.push(P2Value::create_empty(asm_writer, *element_type.clone()).target);
                 }
                 P2Value { target: P2Target::ArrayTarget(p2targets), typ: p2type }
             }
             P2Type::Struct(field_types) => {
                 let mut p2targets = Vec::new();
                 for field_type in field_types {
-                    p2targets.push(P2Value::create_empty(builder, field_type.clone()).target);
+                    p2targets.push(P2Value::create_empty(asm_writer, field_type.clone()).target);
                 }
                 P2Value { target: P2Target::StructTarget(p2targets), typ: p2type }
             }
@@ -382,7 +382,7 @@ where
         let p2value = match value {
             Value::Param { block: _, position: _, typ } => {
                 let p2type = P2Type::from_noir_type(typ)?;
-                P2Value::create_empty(&mut self.get_mut_builder(), p2type)
+                P2Value::create_empty(&mut self.asm_writer, p2type)
             }
             _ => {
                 return Err(Plonky2GenError::ICE {
@@ -712,7 +712,7 @@ where
 
                 let mut new_values = Vec::new();
                 for i in 0..p2targets.len() {
-                    new_values.push(P2Value::create_empty(&mut self.get_mut_builder(), target_type.clone()));
+                    new_values.push(P2Value::create_empty(&mut self.asm_writer, target_type.clone()));
                     if i == num_index {
                         self.asm_writer.connect(p2value.get_target()?, new_values[i].get_target()?);
                     } else {
@@ -858,7 +858,7 @@ where
         match value.clone() {
             Value::Param { typ, .. } => {
                 let p2type = P2Type::from_noir_type(typ)?;
-                Ok(P2Value::create_empty(&mut self.get_mut_builder(), p2type))
+                Ok(P2Value::create_empty(&mut self.asm_writer, p2type))
             }
             Value::NumericConstant { constant, typ } => {
                 let p2type = P2Type::from_noir_type(typ)?;
