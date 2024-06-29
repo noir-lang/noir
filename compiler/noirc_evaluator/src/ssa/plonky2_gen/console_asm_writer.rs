@@ -415,6 +415,14 @@ impl AsmWriter for ConsoleAsmWriter {
         result
     }
 
+    fn add_virtual_bool_target_safe(&mut self) -> BoolTarget {
+        let result = self.builder.add_virtual_bool_target_safe();
+        if self.show_plonky2 {
+            println!("add_virtual_bool_target_safe\t{}", BoolTargetDisplay { t: result });
+        }
+        result
+    }
+
     fn constant_u32(&mut self, c: u32) -> U32Target {
         let result = self.builder.constant_u32(c);
         if self.show_plonky2 {

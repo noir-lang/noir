@@ -36,6 +36,7 @@ pub trait AsmWriter {
     fn le_sum(&mut self, bits: impl Iterator<Item = impl Borrow<BoolTarget>> + Clone) -> Target;
     fn range_check(&mut self, x: Target, n_log: usize);
     fn add_virtual_bool_target_unsafe(&mut self) -> BoolTarget;
+    fn add_virtual_bool_target_safe(&mut self) -> BoolTarget;
     fn constant_u32(&mut self, c: u32) -> U32Target;
     fn add_u32(&mut self, a: U32Target, b: U32Target) -> (U32Target, U32Target);
     fn split_le_base<const B: usize>(&mut self, x: Target, num_limbs: usize) -> Vec<Target>;
