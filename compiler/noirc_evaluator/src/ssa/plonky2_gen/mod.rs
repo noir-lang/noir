@@ -320,13 +320,6 @@ where
         }
     }
 
-    fn get_builder(&self) -> &P2Builder {
-        self.asm_writer.get_builder()
-    }
-    fn get_mut_builder(&mut self) -> &mut P2Builder {
-        self.asm_writer.get_mut_builder()
-    }
-
     pub(crate) fn build(
         mut self,
         ssa: Ssa,
