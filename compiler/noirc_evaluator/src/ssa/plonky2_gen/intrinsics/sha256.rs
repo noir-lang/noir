@@ -1,7 +1,7 @@
 use plonky2::iop::target::BoolTarget;
-use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
+use plonky2_u32::gadgets::arithmetic_u32::U32Target;
 
-use crate::ssa::plonky2_gen::{asm_writer::AsmWriter, config::P2Builder};
+use crate::ssa::plonky2_gen::asm_writer::AsmWriter;
 
 #[rustfmt::skip]
 const H256: [u32; 8] = [
