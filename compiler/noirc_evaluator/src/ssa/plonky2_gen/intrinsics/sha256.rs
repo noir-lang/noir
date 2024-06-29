@@ -96,7 +96,12 @@ a ^ b ^ c = a+b+c - 2*a*b - 2*a*c - 2*b*c + 4*a*b*c
           = a*( 1 - 2*b -2*c + 4*m ) + b + c - 2*m
 where m = b*c
  */
-fn xor3(asm_writer: &mut impl AsmWriter, a: BoolTarget, b: BoolTarget, c: BoolTarget) -> BoolTarget {
+fn xor3(
+    asm_writer: &mut impl AsmWriter,
+    a: BoolTarget,
+    b: BoolTarget,
+    c: BoolTarget,
+) -> BoolTarget {
     let m = asm_writer.mul(b.target, c.target);
     let two_b = asm_writer.add(b.target, b.target);
     let two_c = asm_writer.add(c.target, c.target);
@@ -121,7 +126,12 @@ fn big_sigma0(asm_writer: &mut impl AsmWriter, a: &U32Target) -> U32Target {
     let rotate22 = rotate32(22);
     let mut res_bits = Vec::new();
     for i in 0..32 {
-        res_bits.push(xor3(asm_writer, a_bits[rotate2[i]], a_bits[rotate13[i]], a_bits[rotate22[i]]));
+        res_bits.push(xor3(
+            asm_writer,
+            a_bits[rotate2[i]],
+            a_bits[rotate13[i]],
+            a_bits[rotate22[i]],
+        ));
     }
     bits_to_u32_target(asm_writer, res_bits)
 }
@@ -134,7 +144,12 @@ fn big_sigma1(asm_writer: &mut impl AsmWriter, a: &U32Target) -> U32Target {
     let rotate25 = rotate32(25);
     let mut res_bits = Vec::new();
     for i in 0..32 {
-        res_bits.push(xor3(asm_writer, a_bits[rotate6[i]], a_bits[rotate11[i]], a_bits[rotate25[i]]));
+        res_bits.push(xor3(
+            asm_writer,
+            a_bits[rotate6[i]],
+            a_bits[rotate11[i]],
+            a_bits[rotate25[i]],
+        ));
     }
     bits_to_u32_target(asm_writer, res_bits)
 }
@@ -162,7 +177,12 @@ fn sigma1(asm_writer: &mut impl AsmWriter, a: &U32Target) -> U32Target {
     let shift10 = shift32(10);
     let mut res_bits = Vec::new();
     for i in 0..32 {
-        res_bits.push(xor3(asm_writer, a_bits[rotate17[i]], a_bits[rotate19[i]], a_bits[shift10[i]]));
+        res_bits.push(xor3(
+            asm_writer,
+            a_bits[rotate17[i]],
+            a_bits[rotate19[i]],
+            a_bits[shift10[i]],
+        ));
     }
     bits_to_u32_target(asm_writer, res_bits)
 }
