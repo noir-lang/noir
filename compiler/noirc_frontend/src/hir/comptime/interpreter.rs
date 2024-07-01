@@ -356,10 +356,12 @@ impl<'a> Interpreter<'a> {
                 if let Ok(value) = self.lookup(&ident) {
                     Ok(value)
                 } else {
-                    let let_ = self
-                        .interner
-                        .get_global_let_statement(*global_id)
-                        .expect("No definition for global");
+                    let let_ =
+                        self.interner.get_global_let_statement(*global_id).ok_or_else(|| {
+                            let location = self.interner.expr_location(&id);
+                            InterpreterError::VariableNotInScope { location }
+                        })?;
+
                     if let_.comptime {
                         self.evaluate_let(let_.clone())?;
                     }
