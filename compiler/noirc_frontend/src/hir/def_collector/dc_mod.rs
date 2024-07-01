@@ -821,7 +821,7 @@ pub(crate) fn collect_global(
 }
 
 #[cfg(test)]
-mod tests {
+mod find_module_tests {
     use super::*;
 
     use noirc_errors::Spanned;
@@ -843,7 +843,7 @@ mod tests {
     }
 
     #[test]
-    fn find_module_errors_if_cannot_find_file() {
+    fn errors_if_cannot_find_file() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
@@ -856,7 +856,7 @@ mod tests {
     }
 
     #[test]
-    fn find_module_errors_because_cannot_find_mod_relative_to_main() {
+    fn errors_because_cannot_find_mod_relative_to_main() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
@@ -871,7 +871,7 @@ mod tests {
     }
 
     #[test]
-    fn find_module_errors_because_cannot_find_mod_relative_to_lib() {
+    fn errors_because_cannot_find_mod_relative_to_lib() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
@@ -886,7 +886,7 @@ mod tests {
     }
 
     #[test]
-    fn find_module_errors_because_cannot_find_sibling_mod_for_regular_name() {
+    fn errors_because_cannot_find_sibling_mod_for_regular_name() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
@@ -901,7 +901,7 @@ mod tests {
     }
 
     #[test]
-    fn find_module_cannot_find_module_in_the_same_directory_for_regular_name() {
+    fn cannot_find_module_in_the_same_directory_for_regular_name() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
@@ -922,7 +922,7 @@ mod tests {
     }
 
     #[test]
-    fn find_module_can_find_module_in_sibling_dir_for_regular_name() {
+    fn finds_module_in_sibling_dir_for_regular_name() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
@@ -937,7 +937,7 @@ mod tests {
     }
 
     #[test]
-    fn find_module_can_find_module_in_sibling_dir_mod_nr_for_regular_name() {
+    fn finds_module_in_sibling_dir_mod_nr_for_regular_name() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
@@ -952,7 +952,7 @@ mod tests {
     }
 
     #[test]
-    fn find_module_can_find_module_in_sibling_dir_for_special_name() {
+    fn finds_module_in_sibling_dir_for_special_name() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
@@ -972,7 +972,7 @@ mod tests {
     }
 
     #[test]
-    fn find_module_can_find_as_mod_dot_nr_for_special_name() {
+    fn finds_mod_dot_nr_for_special_name() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
@@ -987,8 +987,7 @@ mod tests {
     }
 
     #[test]
-    fn find_module_errors_if_module_is_found_in_name_dot_nr_and_anchor_slash_name_dot_nr_for_regular_name(
-    ) {
+    fn errors_if_module_is_found_in_name_dot_nr_and_anchor_slash_name_dot_nr_for_regular_name() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
