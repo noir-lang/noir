@@ -129,6 +129,10 @@ impl DataFlowGraph {
         self.values.iter()
     }
 
+    /// Retrieve the actual Value from ValueId
+    pub(crate) fn get_value(&self, value_id: ValueId) -> &Value {
+        &self.values[value_id]
+    }
     /// Returns the parameters of the given block
     pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
         self.blocks[block].parameters()

@@ -84,8 +84,8 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
     .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
     .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
+    .run_pass(Ssa::detect_independent_subgraphs, "After independent subgraph detection:")
     .finish();
-
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         ssa.to_brillig(options.enable_brillig_logging)
     });

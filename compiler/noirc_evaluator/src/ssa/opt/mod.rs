@@ -11,6 +11,7 @@ mod constant_folding;
 mod defunctionalize;
 mod die;
 pub(crate) mod flatten_cfg;
+mod independent_subgraph_detection;
 mod inlining;
 mod mem2reg;
 mod rc;
