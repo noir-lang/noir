@@ -238,7 +238,7 @@ const foreignCallHandler = async (name, input) => {
     const oracleReturn = await client.request(name, [
       input[0].map((i) => i.toString("hex")),
     ]);
-    return [oracleReturn.values[0].Array];
+    return { values: oracleReturn };
 };
 
 // the rest of your NoirJS code
