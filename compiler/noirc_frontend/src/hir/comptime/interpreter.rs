@@ -2,15 +2,17 @@ use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::{acir::AcirField, FieldElement};
 use im::Vector;
-use iter_extended::{try_vecmap, vecmap};
+use iter_extended::try_vecmap;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::graph::CrateId;
 use crate::hir_def::expr::ImplKind;
-use crate::monomorphization::{perform_instantiation_bindings, undo_instantiation_bindings, perform_impl_bindings};
-use crate::node_interner::{TraitMethodId, TraitImplKind};
+use crate::monomorphization::{
+    perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
+    undo_instantiation_bindings,
+};
 use crate::token::Tokens;
 use crate::{
     hir_def::{
@@ -354,10 +356,10 @@ impl<'a> Interpreter<'a> {
         let definition = self.interner.definition(ident.id);
 
         if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
-            let method_id = self.resolve_trait_method(method, id)?;
+            let method_id = resolve_trait_method(self.interner, method, id)?;
             let typ = self.interner.id_type(id).follow_bindings();
             let bindings = self.interner.get_instantiation_bindings(id).clone();
-            return Ok(Value::Function(method_id, typ, Rc::new(bindings)))
+            return Ok(Value::Function(method_id, typ, Rc::new(bindings)));
         }
 
         match &definition.kind {
@@ -862,11 +864,17 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_overloaded_infix(&mut self, infix: HirInfixExpression, lhs: Value, rhs: Value, id: ExprId) -> IResult<Value> {
+    fn evaluate_overloaded_infix(
+        &mut self,
+        infix: HirInfixExpression,
+        lhs: Value,
+        rhs: Value,
+        id: ExprId,
+    ) -> IResult<Value> {
         let method = infix.trait_method_id;
         let operator = infix.operator.kind;
 
-        let method_id = self.resolve_trait_method(method, id)?;
+        let method_id = resolve_trait_method(self.interner, method, id)?;
         let type_bindings = self.interner.get_instantiation_bindings(id).clone();
 
         let lhs = (lhs, self.interner.expr_location(&infix.lhs));
@@ -874,50 +882,6 @@ impl<'a> Interpreter<'a> {
 
         let location = self.interner.expr_location(&id);
         self.call_function(method_id, vec![lhs, rhs], type_bindings, location)
-    }
-
-    fn resolve_trait_method(&mut self, method: TraitMethodId, expr_id: ExprId) -> IResult<FuncId> {
-        let trait_impl = self.interner.get_selected_impl_for_expression(expr_id)
-            .expect("ICE: missing trait impl");
-
-        let func_id = match trait_impl {
-            TraitImplKind::Normal(impl_id) => {
-                self.interner.get_trait_implementation(impl_id).borrow().methods
-                    [method.method_index]
-            }
-            TraitImplKind::Assumed { object_type, trait_generics } => {
-                match self.interner.lookup_trait_implementation(
-                    &object_type,
-                    method.trait_id,
-                    &trait_generics,
-                ) {
-                    Ok(TraitImplKind::Normal(impl_id)) => {
-                        self.interner.get_trait_implementation(impl_id).borrow().methods
-                            [method.method_index]
-                    }
-                    Ok(TraitImplKind::Assumed { .. }) => unreachable!(
-                        "There should be no remaining Assumed impls during monomorphization"
-                    ),
-                    Err(constraints) => {
-                        let failed_constraints = vecmap(constraints, |constraint| {
-                            let id = constraint.trait_id;
-                            let mut name = self.interner.get_trait(id).name.to_string();
-                            if !constraint.trait_generics.is_empty() {
-                                let types =
-                                    vecmap(&constraint.trait_generics, |t| format!("{t:?}"));
-                                name += &format!("<{}>", types.join(", "));
-                            }
-                            format!("  {}: {name}", constraint.typ)
-                        })
-                        .join("\n");
-
-                        unreachable!("Failed to find trait impl during monomorphization. The failed constraint(s) are:\n{failed_constraints}")
-                    }
-                }
-            }
-        };
-
-        Ok(func_id)
     }
 
     fn evaluate_index(&mut self, index: HirIndexExpression, id: ExprId) -> IResult<Value> {

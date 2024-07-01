@@ -1775,7 +1775,12 @@ impl NodeInterner {
     }
 
     /// Returns the type of an operator (which is always a function), along with its return type.
-    pub fn get_operator_type(&self, lhs: ExprId, operator: BinaryOpKind, operator_expr: ExprId) -> (Type, Type) {
+    pub fn get_operator_type(
+        &self,
+        lhs: ExprId,
+        operator: BinaryOpKind,
+        operator_expr: ExprId,
+    ) -> (Type, Type) {
         let lhs_type = self.id_type(lhs);
         let args = vec![lhs_type.clone(), lhs_type];
 
