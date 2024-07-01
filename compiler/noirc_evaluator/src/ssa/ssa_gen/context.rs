@@ -285,7 +285,6 @@ impl<'a> FunctionContext<'a> {
                 match numeric_type {
                     NumericType::NativeField => -value,
                     NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                        let bit_size: u32 = bit_size.into();
                         let base = 1_u128 << bit_size;
                         FieldElement::from(base) - value
                     }
