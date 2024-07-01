@@ -3,8 +3,8 @@ use crate::{
     encrypted_logs::payload::compute_encrypted_note_log, oracle::logs_traits::LensForEncryptedLog
 };
 use dep::protocol_types::{
-    address::AztecAddress, grumpkin_point::GrumpkinPoint, abis::note_hash::NoteHash,
-    constants::MAX_NEW_NOTE_HASHES_PER_CALL, utils::arrays::find_index
+    hash::sha256_to_field, address::AztecAddress, grumpkin_point::GrumpkinPoint,
+    abis::note_hash::NoteHash, constants::MAX_NEW_NOTE_HASHES_PER_CALL, utils::arrays::find_index
 };
 
 fn emit_with_keys<Note, N, NB, M>(
@@ -30,7 +30,9 @@ fn emit_with_keys<Note, N, NB, M>(
 
     let encrypted_log: [u8; M] = compute_encrypted_note_log(contract_address, storage_slot, ovsk_app, ovpk, ivpk, note);
 
-    context.emit_raw_note_log(note_hash_counter, encrypted_log);
+    let log_hash = sha256_to_field(encrypted_log);
+
+    context.emit_raw_note_log(note_hash_counter, encrypted_log, log_hash);
 }
 
 pub fn encode_and_encrypt_note<Note, N, NB, M>(

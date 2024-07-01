@@ -13,7 +13,6 @@ use crate::{
 }
 };
 use dep::protocol_types::{
-    hash::sha256_to_field,
     abis::{
     caller_context::CallerContext, function_selector::FunctionSelector,
     max_block_number::MaxBlockNumber,
@@ -263,25 +262,23 @@ impl PrivateContext {
 
     // NB: A randomness value of 0 signals that the kernels should not mask the contract address
     // used in siloing later on e.g. 'handshaking' contract w/ known address.
-    pub fn emit_raw_event_log_with_masked_address<M>(&mut self, randomness: Field, encrypted_log: [u8; M]) {
+    pub fn emit_raw_event_log_with_masked_address<M>(&mut self, randomness: Field, log: [u8; M], log_hash: Field) {
         let counter = self.next_counter();
         let contract_address = self.this_address();
-        let len = encrypted_log.len() as Field + 4;
-        let log_hash = sha256_to_field(encrypted_log);
+        let len = log.len() as Field + 4;
         let side_effect = EncryptedLogHash { value: log_hash, counter, length: len, randomness };
         self.encrypted_logs_hashes.push(side_effect);
 
-        emit_encrypted_event_log(contract_address, randomness, encrypted_log, counter);
+        emit_encrypted_event_log(contract_address, randomness, log, counter);
     }
 
-    pub fn emit_raw_note_log<M>(&mut self, note_hash_counter: u32, encrypted_log: [u8; M]) {
+    pub fn emit_raw_note_log<M>(&mut self, note_hash_counter: u32, log: [u8; M], log_hash: Field) {
         let counter = self.next_counter();
-        let len = encrypted_log.len() as Field + 4;
-        let log_hash = sha256_to_field(encrypted_log);
+        let len = log.len() as Field + 4;
         let side_effect = NoteLogHash { value: log_hash, counter, length: len, note_hash_counter };
         self.note_encrypted_logs_hashes.push(side_effect);
 
-        emit_encrypted_note_log(note_hash_counter, encrypted_log, counter);
+        emit_encrypted_note_log(note_hash_counter, log, counter);
     }
 
     pub fn call_private_function<ARGS_COUNT>(

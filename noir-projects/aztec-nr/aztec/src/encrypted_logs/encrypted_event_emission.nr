@@ -3,7 +3,7 @@ use crate::{
     encrypted_logs::payload::compute_encrypted_event_log, oracle::logs_traits::LensForEncryptedEvent,
     oracle::unsafe_rand::unsafe_rand
 };
-use dep::protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint};
+use dep::protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint, hash::sha256_to_field};
 
 fn emit_with_keys<Event, NB, MB, OB>(
     context: &mut PrivateContext,
@@ -17,7 +17,9 @@ fn emit_with_keys<Event, NB, MB, OB>(
 
     let encrypted_log: [u8; OB] = compute_encrypted_event_log(contract_address, randomness, ovsk_app, ovpk, ivpk, event);
 
-    context.emit_raw_event_log_with_masked_address(randomness, encrypted_log);
+    let log_hash = sha256_to_field(encrypted_log);
+
+    context.emit_raw_event_log_with_masked_address(randomness, encrypted_log, log_hash);
 }
 
 pub fn encode_and_encrypt_event<Event, NB, MB, OB>(
