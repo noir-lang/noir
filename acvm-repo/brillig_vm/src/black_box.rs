@@ -306,7 +306,6 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let modulus: Vec<u8> = modulus.iter().map(|x| x.try_into().unwrap()).collect();
 
             let new_id = bigint_solver.bigint_from_bytes(&input, &modulus)?;
-
             memory.write(*output, new_id.into());
 
             Ok(())
