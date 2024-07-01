@@ -824,11 +824,11 @@ mod find_module_tests {
     use super::*;
 
     use noirc_errors::Spanned;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
-    fn add_file(file_manager: &mut FileManager, dir: &PathBuf, file_name: &str) -> FileId {
-        let mut target_filename = dir.clone();
-        for path in file_name.split("/") {
+    fn add_file(file_manager: &mut FileManager, dir: &Path, file_name: &str) -> FileId {
+        let mut target_filename = PathBuf::from(&dir);
+        for path in file_name.split('/') {
             target_filename = target_filename.join(path);
         }
 
