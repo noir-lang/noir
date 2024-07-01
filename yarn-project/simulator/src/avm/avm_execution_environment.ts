@@ -1,15 +1,15 @@
-import { FunctionSelector, type GasSettings, type GlobalVariables, type Header } from '@aztec/circuits.js';
+import { FunctionSelector, type GlobalVariables, type Header } from '@aztec/circuits.js';
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
 export class AvmContextInputs {
-  static readonly SIZE = 3;
+  static readonly SIZE = 2;
 
-  constructor(private selector: Fr, private argsHash: Fr, private isStaticCall: boolean) {}
+  constructor(private argsHash: Fr, private isStaticCall: boolean) {}
 
   public toFields(): Fr[] {
-    return [this.selector, this.argsHash, new Fr(this.isStaticCall)];
+    return [this.argsHash, new Fr(this.isStaticCall)];
   }
 }
 
@@ -18,36 +18,23 @@ export class AvmContextInputs {
  * These variables are provided by the public kernel circuit
  */
 export class AvmExecutionEnvironment {
-  private readonly calldataPrefixLength;
   constructor(
     public readonly address: AztecAddress,
     public readonly storageAddress: AztecAddress,
     public readonly sender: AztecAddress,
-    public readonly feePerL2Gas: Fr,
-    public readonly feePerDaGas: Fr,
+    public readonly functionSelector: FunctionSelector, // may be temporary (#7224)
     public readonly contractCallDepth: Fr,
+    public readonly transactionFee: Fr,
     public readonly header: Header,
     public readonly globals: GlobalVariables,
     public readonly isStaticCall: boolean,
     public readonly isDelegateCall: boolean,
     public readonly calldata: Fr[],
-    public readonly gasSettings: GasSettings,
-    public readonly transactionFee: Fr,
-
-    // Function selector may be temporary since eventually public contract bytecode will likely be one
-    // blob containing all functions, and function selector will become an application-level mechanism
-    // (e.g. first few bytes of calldata + compiler-generated jump table)
-    public readonly functionSelector: FunctionSelector,
   ) {
     // We encode some extra inputs (AvmContextInputs) in calldata.
     // This will have to go once we move away from one proof per call.
-    const inputs = new AvmContextInputs(
-      functionSelector.toField(),
-      computeVarArgsHash(calldata),
-      isStaticCall,
-    ).toFields();
+    const inputs = new AvmContextInputs(computeVarArgsHash(calldata), isStaticCall).toFields();
     this.calldata = [...inputs, ...calldata];
-    this.calldataPrefixLength = inputs.length;
   }
 
   private deriveEnvironmentForNestedCallInternal(
@@ -61,17 +48,14 @@ export class AvmExecutionEnvironment {
       /*address=*/ targetAddress,
       /*storageAddress=*/ targetAddress,
       /*sender=*/ this.address,
-      this.feePerL2Gas,
-      this.feePerDaGas,
+      functionSelector,
       this.contractCallDepth.add(Fr.ONE),
+      this.transactionFee,
       this.header,
       this.globals,
       isStaticCall,
       isDelegateCall,
       calldata,
-      this.gasSettings,
-      this.transactionFee,
-      functionSelector,
     );
   }
 
@@ -113,6 +97,6 @@ export class AvmExecutionEnvironment {
 
   public getCalldataWithoutPrefix(): Fr[] {
     // clip off the first few entries
-    return this.calldata.slice(this.calldataPrefixLength);
+    return this.calldata.slice(AvmContextInputs.SIZE);
   }
 }

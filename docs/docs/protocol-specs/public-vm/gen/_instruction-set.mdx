@@ -159,22 +159,14 @@ Click on an instruction name to jump to its section.
 </tr>
 <tr>
 	<td style={{'text-align': 'center'}}>0x12</td>
-	<td style={{'text-align': 'center'}}><a id='isa-table-feeperl2gas'/><Markdown>\[\`FEEPERL2GAS\`\](#isa-section-feeperl2gas)</Markdown></td>
-	<td><Markdown>Get the fee to be paid per "L2 gas" - constant for entire transaction</Markdown></td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-functionselector'/><Markdown>\[\`FUNCTIONSELECTOR\`\](#isa-section-functionselector)</Markdown></td>
+	<td><Markdown>Get the function selector of the contract function being executed</Markdown></td>
 	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = context.environment.feePerL2Gas`
+		`M[dstOffset] = context.environment.functionSelector`
 	}</CodeBlock></td>
 </tr>
 <tr>
 	<td style={{'text-align': 'center'}}>0x13</td>
-	<td style={{'text-align': 'center'}}><a id='isa-table-feeperdagas'/><Markdown>\[\`FEEPERDAGAS\`\](#isa-section-feeperdagas)</Markdown></td>
-	<td><Markdown>Get the fee to be paid per "DA gas" - constant for entire transaction</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = context.environment.feePerDaGas`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x14</td>
 	<td style={{'text-align': 'center'}}><a id='isa-table-transactionfee'/><Markdown>\[\`TRANSACTIONFEE\`\](#isa-section-transactionfee)</Markdown></td>
 	<td><Markdown>Get the computed transaction fee during teardown phase, zero otherwise</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -182,15 +174,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x15</td>
-	<td style={{'text-align': 'center'}}><a id='isa-table-contractcalldepth'/><Markdown>\[\`CONTRACTCALLDEPTH\`\](#isa-section-contractcalldepth)</Markdown></td>
-	<td><Markdown>Get how many contract calls deep the current call context is</Markdown></td>
-	<td><CodeBlock language="jsx">{
-		`M[dstOffset] = context.environment.contractCallDepth`
-	}</CodeBlock></td>
-</tr>
-<tr>
-	<td style={{'text-align': 'center'}}>0x16</td>
+	<td style={{'text-align': 'center'}}>0x14</td>
 	<td style={{'text-align': 'center'}}><a id='isa-table-chainid'/><Markdown>\[\`CHAINID\`\](#isa-section-chainid)</Markdown></td>
 	<td><Markdown>Get this rollup's L1 chain ID</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -198,7 +182,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x17</td>
+	<td style={{'text-align': 'center'}}>0x15</td>
 	<td style={{'text-align': 'center'}}><a id='isa-table-version'/><Markdown>\[\`VERSION\`\](#isa-section-version)</Markdown></td>
 	<td><Markdown>Get this rollup's L2 version ID</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -206,7 +190,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x18</td>
+	<td style={{'text-align': 'center'}}>0x16</td>
 	<td style={{'text-align': 'center'}}><a id='isa-table-blocknumber'/><Markdown>\[\`BLOCKNUMBER\`\](#isa-section-blocknumber)</Markdown></td>
 	<td><Markdown>Get this L2 block's number</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -214,7 +198,7 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x19</td>
+	<td style={{'text-align': 'center'}}>0x17</td>
 	<td style={{'text-align': 'center'}}><a id='isa-table-timestamp'/><Markdown>\[\`TIMESTAMP\`\](#isa-section-timestamp)</Markdown></td>
 	<td><Markdown>Get this L2 block's timestamp</Markdown></td>
 	<td><CodeBlock language="jsx">{
@@ -222,17 +206,33 @@ Click on an instruction name to jump to its section.
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1a</td>
+	<td style={{'text-align': 'center'}}>0x18</td>
 	<td style={{'text-align': 'center'}}><a id='isa-table-coinbase'/><Markdown>\[\`COINBASE\`\](#isa-section-coinbase)</Markdown></td>
-	<td><Markdown>Get the block's beneficiary address</Markdown></td>
+	<td><Markdown>(UNIMPLEMENTED) Get the block's beneficiary address</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.coinbase`
 	}</CodeBlock></td>
 </tr>
 <tr>
+	<td style={{'text-align': 'center'}}>0x19</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-feeperl2gas'/><Markdown>\[\`FEEPERL2GAS\`\](#isa-section-feeperl2gas)</Markdown></td>
+	<td><Markdown>Get the fee to be paid per "L2 gas" - constant for entire transaction</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.globals.feePerL2Gas`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x1a</td>
+	<td style={{'text-align': 'center'}}><a id='isa-table-feeperdagas'/><Markdown>\[\`FEEPERDAGAS\`\](#isa-section-feeperdagas)</Markdown></td>
+	<td><Markdown>Get the fee to be paid per "DA gas" - constant for entire transaction</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = context.environment.globals.feePerDaGas`
+	}</CodeBlock></td>
+</tr>
+<tr>
 	<td style={{'text-align': 'center'}}>0x1b</td>
 	<td style={{'text-align': 'center'}}><a id='isa-table-blockl2gaslimit'/><Markdown>\[\`BLOCKL2GASLIMIT\`\](#isa-section-blockl2gaslimit)</Markdown></td>
-	<td><Markdown>Total amount of "L2 gas" that a block can consume</Markdown></td>
+	<td><Markdown>(UNIMPLEMENTED) Total amount of "L2 gas" that a block can consume</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.l2GasLimit`
 	}</CodeBlock></td>
@@ -240,7 +240,7 @@ Click on an instruction name to jump to its section.
 <tr>
 	<td style={{'text-align': 'center'}}>0x1c</td>
 	<td style={{'text-align': 'center'}}><a id='isa-table-blockdagaslimit'/><Markdown>\[\`BLOCKDAGASLIMIT\`\](#isa-section-blockdagaslimit)</Markdown></td>
-	<td><Markdown>Total amount of "DA gas" that a block can consume</Markdown></td>
+	<td><Markdown>(UNIMPLEMENTED) Total amount of "DA gas" that a block can consume</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.daGasLimit`
 	}</CodeBlock></td>
@@ -399,7 +399,7 @@ M[existsOffset] = exists`}
 <tr>
 	<td style={{'text-align': 'center'}}>0x2e</td>
 	<td style={{'text-align': 'center'}}><a id='isa-table-headermember'/><Markdown>\[\`HEADERMEMBER\`\](#isa-section-headermember)</Markdown></td>
-	<td><Markdown>Check if a header exists in the [archive tree](../state/archive) and retrieve the specified member if so</Markdown></td>
+	<td><Markdown>(UNIMPLEMENTED) Check if a header exists in the [archive tree](../state/archive) and retrieve the specified member if so</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`exists = context.worldState.header.has({
     leafIndex: M[blockIndexOffset], leaf: M[msgKeyOffset]
@@ -486,7 +486,7 @@ updateContextAfterNestedCall(context, instr.args, nestedContext)`}
 <tr>
 	<td style={{'text-align': 'center'}}>0x34</td>
 	<td style={{'text-align': 'center'}}><a id='isa-table-delegatecall'/><Markdown>\[\`DELEGATECALL\`\](#isa-section-delegatecall)</Markdown></td>
-	<td><Markdown>Call into another contract, but keep the caller's `sender` and `storageAddress`</Markdown></td>
+	<td><Markdown>(UNIMPLEMENTED) Call into another contract, but keep the caller's `sender` and `storageAddress`</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
 chargeGas(context,
@@ -895,10 +895,10 @@ Get the address of the sender (caller of the current context)
 
 [![](/img/protocol-specs/public-vm/bit-formats/SENDER.png)](/img/protocol-specs/public-vm/bit-formats/SENDER.png)
 
-### <a id='isa-section-feeperl2gas'/>`FEEPERL2GAS`
-Get the fee to be paid per "L2 gas" - constant for entire transaction
+### <a id='isa-section-functionselector'/>`FUNCTIONSELECTOR`
+Get the function selector of the contract function being executed
 
-[See in table.](#isa-table-feeperl2gas)
+[See in table.](#isa-table-functionselector)
 
 - **Opcode**: 0x12
 - **Category**: Execution Environment
@@ -906,35 +906,17 @@ Get the fee to be paid per "L2 gas" - constant for entire transaction
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = context.environment.feePerL2Gas`
-- **Tag updates**: `T[dstOffset] = field`
+- **Expression**: `M[dstOffset] = context.environment.functionSelector`
+- **Tag updates**: `T[dstOffset] = u32`
 - **Bit-size**: 56
 
-[![](/img/protocol-specs/public-vm/bit-formats/FEEPERL2GAS.png)](/img/protocol-specs/public-vm/bit-formats/FEEPERL2GAS.png)
-
-### <a id='isa-section-feeperdagas'/>`FEEPERDAGAS`
-Get the fee to be paid per "DA gas" - constant for entire transaction
-
-[See in table.](#isa-table-feeperdagas)
-
-- **Opcode**: 0x13
-- **Category**: Execution Environment
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = context.environment.feePerDaGas`
-- **Tag updates**: `T[dstOffset] = field`
-- **Bit-size**: 56
-
-[![](/img/protocol-specs/public-vm/bit-formats/FEEPERDAGAS.png)](/img/protocol-specs/public-vm/bit-formats/FEEPERDAGAS.png)
 
 ### <a id='isa-section-transactionfee'/>`TRANSACTIONFEE`
 Get the computed transaction fee during teardown phase, zero otherwise
 
 [See in table.](#isa-table-transactionfee)
 
-- **Opcode**: 0x14
+- **Opcode**: 0x13
 - **Category**: Execution Environment
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -945,30 +927,12 @@ Get the computed transaction fee during teardown phase, zero otherwise
 - **Bit-size**: 56
 
 
-### <a id='isa-section-contractcalldepth'/>`CONTRACTCALLDEPTH`
-Get how many contract calls deep the current call context is
-
-[See in table.](#isa-table-contractcalldepth)
-
-- **Opcode**: 0x15
-- **Category**: Execution Environment
-- **Flags**: 
-	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
-- **Args**: 
-	- **dstOffset**: memory offset specifying where to store operation's result
-- **Expression**: `M[dstOffset] = context.environment.contractCallDepth`
-- **Details**: Note: security issues with EVM's tx.origin can be resolved by asserting `calldepth == 0`.
-- **Tag updates**: `T[dstOffset] = field`
-- **Bit-size**: 56
-
-[![](/img/protocol-specs/public-vm/bit-formats/CONTRACTCALLDEPTH.png)](/img/protocol-specs/public-vm/bit-formats/CONTRACTCALLDEPTH.png)
-
 ### <a id='isa-section-chainid'/>`CHAINID`
 Get this rollup's L1 chain ID
 
 [See in table.](#isa-table-chainid)
 
-- **Opcode**: 0x16
+- **Opcode**: 0x14
 - **Category**: Execution Environment - Globals
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -985,7 +949,7 @@ Get this rollup's L2 version ID
 
 [See in table.](#isa-table-version)
 
-- **Opcode**: 0x17
+- **Opcode**: 0x15
 - **Category**: Execution Environment - Globals
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1002,7 +966,7 @@ Get this L2 block's number
 
 [See in table.](#isa-table-blocknumber)
 
-- **Opcode**: 0x18
+- **Opcode**: 0x16
 - **Category**: Execution Environment - Globals
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1019,7 +983,7 @@ Get this L2 block's timestamp
 
 [See in table.](#isa-table-timestamp)
 
-- **Opcode**: 0x19
+- **Opcode**: 0x17
 - **Category**: Execution Environment - Globals
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1032,11 +996,11 @@ Get this L2 block's timestamp
 [![](/img/protocol-specs/public-vm/bit-formats/TIMESTAMP.png)](/img/protocol-specs/public-vm/bit-formats/TIMESTAMP.png)
 
 ### <a id='isa-section-coinbase'/>`COINBASE`
-Get the block's beneficiary address
+(UNIMPLEMENTED) Get the block's beneficiary address
 
 [See in table.](#isa-table-coinbase)
 
-- **Opcode**: 0x1a
+- **Opcode**: 0x18
 - **Category**: Execution Environment - Globals
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1048,8 +1012,42 @@ Get the block's beneficiary address
 
 [![](/img/protocol-specs/public-vm/bit-formats/COINBASE.png)](/img/protocol-specs/public-vm/bit-formats/COINBASE.png)
 
+### <a id='isa-section-feeperl2gas'/>`FEEPERL2GAS`
+Get the fee to be paid per "L2 gas" - constant for entire transaction
+
+[See in table.](#isa-table-feeperl2gas)
+
+- **Opcode**: 0x19
+- **Category**: Execution Environment - Globals - Gas
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.globals.feePerL2Gas`
+- **Tag updates**: `T[dstOffset] = field`
+- **Bit-size**: 56
+
+[![](/img/protocol-specs/public-vm/bit-formats/FEEPERL2GAS.png)](/img/protocol-specs/public-vm/bit-formats/FEEPERL2GAS.png)
+
+### <a id='isa-section-feeperdagas'/>`FEEPERDAGAS`
+Get the fee to be paid per "DA gas" - constant for entire transaction
+
+[See in table.](#isa-table-feeperdagas)
+
+- **Opcode**: 0x1a
+- **Category**: Execution Environment - Globals - Gas
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = context.environment.globals.feePerDaGas`
+- **Tag updates**: `T[dstOffset] = field`
+- **Bit-size**: 56
+
+[![](/img/protocol-specs/public-vm/bit-formats/FEEPERDAGAS.png)](/img/protocol-specs/public-vm/bit-formats/FEEPERDAGAS.png)
+
 ### <a id='isa-section-blockl2gaslimit'/>`BLOCKL2GASLIMIT`
-Total amount of "L2 gas" that a block can consume
+(UNIMPLEMENTED) Total amount of "L2 gas" that a block can consume
 
 [See in table.](#isa-table-blockl2gaslimit)
 
@@ -1066,7 +1064,7 @@ Total amount of "L2 gas" that a block can consume
 [![](/img/protocol-specs/public-vm/bit-formats/BLOCKL2GASLIMIT.png)](/img/protocol-specs/public-vm/bit-formats/BLOCKL2GASLIMIT.png)
 
 ### <a id='isa-section-blockdagaslimit'/>`BLOCKDAGASLIMIT`
-Total amount of "DA gas" that a block can consume
+(UNIMPLEMENTED) Total amount of "DA gas" that a block can consume
 
 [See in table.](#isa-table-blockdagaslimit)
 
@@ -1522,7 +1520,7 @@ M[existsOffset] = exists`}
 
 
 ### <a id='isa-section-headermember'/>`HEADERMEMBER`
-Check if a header exists in the [archive tree](../state/archive) and retrieve the specified member if so
+(UNIMPLEMENTED) Check if a header exists in the [archive tree](../state/archive) and retrieve the specified member if so
 
 [See in table.](#isa-table-headermember)
 
@@ -1737,7 +1735,7 @@ T[retOffset:retOffset+retSize] = field`}
 [![](/img/protocol-specs/public-vm/bit-formats/STATICCALL.png)](/img/protocol-specs/public-vm/bit-formats/STATICCALL.png)
 
 ### <a id='isa-section-delegatecall'/>`DELEGATECALL`
-Call into another contract, but keep the caller's `sender` and `storageAddress`
+(UNIMPLEMENTED) Call into another contract, but keep the caller's `sender` and `storageAddress`
 
 [See in table.](#isa-table-delegatecall)
 

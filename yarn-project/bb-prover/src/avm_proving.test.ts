@@ -3,6 +3,7 @@ import {
   AztecAddress,
   ContractStorageRead,
   ContractStorageUpdateRequest,
+  FunctionSelector,
   Gas,
   GlobalVariables,
   Header,
@@ -168,6 +169,7 @@ describe('AVM WitGen, proof generation and verification', () => {
       'get_fee_per_l2_gas',
       'get_fee_per_da_gas',
       'get_transaction_fee',
+      'get_function_selector',
       'get_chain_id',
       'get_version',
       'get_block_number',
@@ -201,9 +203,10 @@ const proveAndVerifyAvmTestContract = async (
   assertionErrString?: string,
 ) => {
   const startSideEffectCounter = 0;
+  const functionSelector = FunctionSelector.random();
   const globals = GlobalVariables.empty();
   globals.timestamp = TIMESTAMP;
-  const environment = initExecutionEnvironment({ calldata, globals });
+  const environment = initExecutionEnvironment({ functionSelector, calldata, globals });
 
   const contractsDb = mock<PublicContractsDB>();
   const contractInstance = new SerializableContractInstance({

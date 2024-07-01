@@ -38,4 +38,9 @@ A contract's public bytecode is a series of execution instructions for the AVM. 
 
 The entirety of a contract's public code is represented as a single block of bytecode with a maximum of `MAX_PUBLIC_INSTRUCTIONS_PER_CONTRACT` ($2^{15} = 32768$) instructions. The mechanism used to distinguish between different "functions" in an AVM bytecode program is left as a higher-level abstraction (_e.g._ similar to Solidity's concept of a function selector).
 
+::: warning
+Ultimately, function selectors _may_ be removed as an enshrined protocol mechanism as described above. For now, each public function on a contract has a distinct bytecode that can be selected for execution via a function selector.
+:::
+ 
+
 > See the [Bytecode Validation Circuit](./bytecode-validation-circuit) to see how a contract's bytecode can be validated and committed to.

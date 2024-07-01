@@ -221,6 +221,7 @@ template <typename FF> std::vector<std::string> AvmFullRow<FF>::names()
              "main_sel_op_fdiv",
              "main_sel_op_fee_per_da_gas",
              "main_sel_op_fee_per_l2_gas",
+             "main_sel_op_function_selector",
              "main_sel_op_get_contract_instance",
              "main_sel_op_halt",
              "main_sel_op_internal_call",
@@ -520,6 +521,7 @@ template <typename FF> std::ostream& operator<<(std::ostream& os, AvmFullRow<FF>
            << "," << field_to_string(row.main_sel_op_external_call) << "," << field_to_string(row.main_sel_op_fdiv)
            << "," << field_to_string(row.main_sel_op_fee_per_da_gas) << ","
            << field_to_string(row.main_sel_op_fee_per_l2_gas) << ","
+           << field_to_string(row.main_sel_op_function_selector) << ","
            << field_to_string(row.main_sel_op_get_contract_instance) << "," << field_to_string(row.main_sel_op_halt)
            << "," << field_to_string(row.main_sel_op_internal_call) << ","
            << field_to_string(row.main_sel_op_internal_return) << "," << field_to_string(row.main_sel_op_jump) << ","

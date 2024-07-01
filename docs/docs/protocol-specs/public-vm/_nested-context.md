@@ -14,11 +14,10 @@ nestedContext = deriveContext(context, instr.args, isStaticCall, isDelegateCall)
 Nested context derivation is defined as follows:
 ```jsx
 nestedExecutionEnvironment = ExecutionEnvironment {
-    sender: isDelegateCall ? context.sender : context.address,
     address: M[addrOffset],
     storageAddress: isDelegateCall ? context.storageAddress : M[addrOffset],
-    feePerL2Gas: context.environment.feePerL2Gas,
-    feePerDaGas: context.environment.feePerDaGas,
+    sender: isDelegateCall ? context.sender : context.address,
+    functionSelector: context.environment.functionSelector,
     transactionFee: context.environment.transactionFee,
     contractCallDepth: context.contractCallDepth + 1,
     contractCallPointer: context.worldStateAccessTrace.contractCalls.length + 1,

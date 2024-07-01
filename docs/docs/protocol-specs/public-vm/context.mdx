@@ -28,9 +28,7 @@ A context's **execution environment** remains constant throughout a contract cal
 | address             | `AztecAddress`               |                                                                                                                                                                                                                        |
 | storageAddress      | `AztecAddress`               |                                                                                                                                                                                                                        |
 | sender              | `AztecAddress`               |                                                                                                                                                                                                                        |
-| portal              | `EthAddress`                 |                                                                                                                                                                                                                        |
-| feePerL2Gas         | `field`                      |                                                                                                                                                                                                                        |
-| feePerDaGas         | `field`                      |                                                                                                                                                                                                                        |
+| functionSelector    | `u32`                        |                                                                                                                                                                                                                        |
 | transactionFee      | `field`                      | Computed transaction fee based on gas fees, inclusion fee, and gas usage. Zero in all phases but teardown.                                                                                                             |
 | contractCallDepth   | `field`                      | Depth of the current call (how many nested calls deep is it).                                                                                                                                                          |
 | contractCallPointer | `field`                      | Uniquely identifies each contract call processed by an AVM session. An initial call is assigned pointer value of 1 (expanded on in the AVM circuit section's ["Call Pointer"](./avm-circuit#call-pointer) subsection). |
@@ -76,9 +74,7 @@ INITIAL_EXECUTION_ENVIRONMENT = ExecutionEnvironment {
     address: PublicCallRequest.contractAddress,
     storageAddress: PublicCallRequest.CallContext.storageContractAddress,
     sender: PublicCallRequest.CallContext.msgSender,
-    portal: PublicCallRequest.CallContext.portalContractAddress,
-    feePerL2Gas: TxRequest.feePerL2Gas,
-    feePerDaGas: TxRequest.feePerDaGas,
+    functionelector: PublicCallRequest.functionSelector,
     contractCallDepth: 0,
     contractCallPointer: 1,
     globals: <current block's global variables>
@@ -88,8 +84,8 @@ INITIAL_EXECUTION_ENVIRONMENT = ExecutionEnvironment {
 }
 
 INITIAL_MACHINE_STATE = MachineState {
-    l2GasLeft: TxRequest.l2GasLimit,
-    daGasLeft: TxRequest.daGasLimit,
+    l2GasLeft: <available l2 gas according to previous kernel>,
+    daGasLeft: <available da gas according to previous kernel>,
     pc: 0,
     internalCallStack: [], // initialized as empty
     memory: [0, ..., 0],   // all 2^32 entries are initialized to zero

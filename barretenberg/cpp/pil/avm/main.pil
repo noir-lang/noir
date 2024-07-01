@@ -24,24 +24,24 @@ namespace main(256);
     // Kernel lookup selector opcodes
     pol commit sel_q_kernel_lookup;
 
-    // CALL CONTEXT
-    pol commit sel_op_sender;
+    // CONTEXT - ENVIRONMENT
     pol commit sel_op_address;
     pol commit sel_op_storage_address;
-
-    // FEES
-    pol commit sel_op_fee_per_l2_gas;
-    pol commit sel_op_fee_per_da_gas;
+    pol commit sel_op_sender;
+    pol commit sel_op_function_selector;
     pol commit sel_op_transaction_fee;
-    
-    // GLOBALS
+
+    // CONTEXT - ENVIRONMENT - GLOBALS
     pol commit sel_op_chain_id;
     pol commit sel_op_version;
     pol commit sel_op_block_number;
     pol commit sel_op_coinbase;
     pol commit sel_op_timestamp;
+    // CONTEXT - ENVIRONMENT - GLOBALS - FEES
+    pol commit sel_op_fee_per_l2_gas;
+    pol commit sel_op_fee_per_da_gas;
 
-    // MACHINE STATE - GAS
+    // CONTEXT - MACHINE STATE - GAS
     pol commit sel_op_l2gasleft;
     pol commit sel_op_dagasleft;
 
@@ -262,9 +262,11 @@ namespace main(256);
     // Relations on type constraints
     // TODO: Very likely, we can remove these constraints as the selectors should be derived during
     // opcode decomposition.
-    sel_op_sender * (1 - sel_op_sender) = 0;
     sel_op_address * (1 - sel_op_address) = 0;
     sel_op_storage_address * (1 - sel_op_storage_address) = 0;
+    sel_op_sender * (1 - sel_op_sender) = 0;
+    sel_op_function_selector * (1 - sel_op_function_selector) = 0;
+    sel_op_transaction_fee * (1 - sel_op_transaction_fee) = 0;
     sel_op_chain_id * (1 - sel_op_chain_id) = 0;
     sel_op_version * (1 - sel_op_version) = 0;
     sel_op_block_number * (1 - sel_op_block_number) = 0;
@@ -272,7 +274,6 @@ namespace main(256);
     sel_op_timestamp * (1 - sel_op_timestamp) = 0;
     sel_op_fee_per_l2_gas * (1 - sel_op_fee_per_l2_gas) = 0;
     sel_op_fee_per_da_gas * (1 - sel_op_fee_per_da_gas) = 0;
-    sel_op_transaction_fee * (1 - sel_op_transaction_fee) = 0;
 
     // MACHINE STATE - GAS
     sel_op_l2gasleft * (1 - sel_op_l2gasleft) = 0;
@@ -410,8 +411,9 @@ namespace main(256);
     
     //===== KERNEL LOOKUPS =======================================================
     pol KERNEL_INPUT_SELECTORS = (
-        sel_op_sender + sel_op_address + sel_op_storage_address + sel_op_chain_id + sel_op_version + sel_op_block_number + sel_op_coinbase + 
-        sel_op_timestamp + sel_op_fee_per_l2_gas + sel_op_fee_per_da_gas + sel_op_transaction_fee
+        sel_op_address + sel_op_storage_address + sel_op_sender + sel_op_function_selector + sel_op_transaction_fee +
+        sel_op_chain_id + sel_op_version + sel_op_block_number + sel_op_coinbase + sel_op_timestamp +
+        sel_op_fee_per_l2_gas + sel_op_fee_per_da_gas
     );
     // Ensure that only one kernel lookup is active when the kernel_in_offset is active
     #[KERNEL_INPUT_ACTIVE_CHECK]
@@ -568,27 +570,23 @@ namespace main(256);
     //  We can lookup into a fixed index of this polynomial by including constraints that force the value
     //  of kernel_in_offset to the value relevant to the given opcode that is active
 
-    // CALL CONTEXT
-    #[SENDER_KERNEL]
-    sel_op_sender * (kernel.kernel_in_offset - constants.SENDER_SELECTOR) = 0;
-
+    // CONTEXT - ENVIRONMENT
     #[ADDRESS_KERNEL]
     sel_op_address * (kernel.kernel_in_offset - constants.ADDRESS_SELECTOR) = 0;
 
     #[STORAGE_ADDRESS_KERNEL]
     sel_op_storage_address * (kernel.kernel_in_offset - constants.STORAGE_ADDRESS_SELECTOR) = 0;
 
-    // FEES
-    #[FEE_DA_GAS_KERNEL]
-    sel_op_fee_per_da_gas  * (kernel.kernel_in_offset - constants.FEE_PER_DA_GAS_SELECTOR) = 0;
+    #[SENDER_KERNEL]
+    sel_op_sender * (kernel.kernel_in_offset - constants.SENDER_SELECTOR) = 0;
 
-    #[FEE_L2_GAS_KERNEL]
-    sel_op_fee_per_l2_gas  * (kernel.kernel_in_offset - constants.FEE_PER_L2_GAS_SELECTOR) = 0;
+    #[FUNCTION_SELECTOR_KERNEL]
+    sel_op_function_selector * (kernel.kernel_in_offset - constants.FUNCTION_SELECTOR_SELECTOR) = 0;
 
     #[FEE_TRANSACTION_FEE_KERNEL]
     sel_op_transaction_fee  * (kernel.kernel_in_offset - constants.TRANSACTION_FEE_SELECTOR) = 0;
 
-    // GLOBALS
+    // CONTEXT - ENVIRONMENT - GLOBALS
     #[CHAIN_ID_KERNEL]
     sel_op_chain_id * (kernel.kernel_in_offset - constants.CHAIN_ID_SELECTOR) = 0;
 
@@ -598,11 +596,18 @@ namespace main(256);
     #[BLOCK_NUMBER_KERNEL]
     sel_op_block_number * (kernel.kernel_in_offset - constants.BLOCK_NUMBER_SELECTOR) = 0;
 
+    #[TIMESTAMP_KERNEL]
+    sel_op_timestamp * (kernel.kernel_in_offset - constants.TIMESTAMP_SELECTOR) = 0;
+
     #[COINBASE_KERNEL]
     sel_op_coinbase * (kernel.kernel_in_offset - constants.COINBASE_SELECTOR) = 0;
 
-    #[TIMESTAMP_KERNEL]
-    sel_op_timestamp * (kernel.kernel_in_offset - constants.TIMESTAMP_SELECTOR) = 0;
+    // CONTEXT - ENVIRONMENT - GLOBALS - FEES
+    #[FEE_DA_GAS_KERNEL]
+    sel_op_fee_per_da_gas  * (kernel.kernel_in_offset - constants.FEE_PER_DA_GAS_SELECTOR) = 0;
+
+    #[FEE_L2_GAS_KERNEL]
+    sel_op_fee_per_l2_gas  * (kernel.kernel_in_offset - constants.FEE_PER_L2_GAS_SELECTOR) = 0;
 
     // OUTPUTS LOOKUPS
     // Constrain the value of kernel_out_offset to be the correct offset for the operation being performed

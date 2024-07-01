@@ -164,7 +164,6 @@ impl TestEnvironment {
         cheatcodes::set_contract_address(target_address);
         cheatcodes::set_msg_sender(original_contract_address);
         let mut inputs = cheatcodes::get_public_context_inputs();
-        inputs.selector = call_interface.get_selector().to_field();
         inputs.args_hash = hash_args(call_interface.get_args());
         inputs.is_static_call = call_interface.get_is_static();
         let result = original_fn(inputs);

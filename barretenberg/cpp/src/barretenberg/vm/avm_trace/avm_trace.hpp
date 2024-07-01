@@ -49,71 +49,88 @@ class AvmTraceBuilder {
 
     // Addition with direct or indirect memory access.
     void op_add(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
-
     // Subtraction with direct or indirect memory access.
     void op_sub(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
-
     // Multiplication with direct or indirect memory access.
     void op_mul(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
-
+    // Integer Division with direct or indirect memory access.
+    void op_div(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
     // Finite field division with direct or indirect memory access.
     void op_fdiv(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset);
 
-    // Bitwise not with direct or indirect memory access.
-    void op_not(uint8_t indirect, uint32_t a_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
-
     // Equality with direct or indirect memory access.
     void op_eq(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
-
-    // Bitwise and with direct or indirect memory access.
-    void op_and(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
-
-    // Bitwise or with direct or indirect memory access.
-    void op_or(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
-
-    // Bitwise xor with direct or indirect memory access.
-    void op_xor(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
-
     // Less Than with direct or indirect memory access.
     void op_lt(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
-
     // Less Than or Equal to with direct or indirect memory access.
     void op_lte(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
 
+    // Bitwise and with direct or indirect memory access.
+    void op_and(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+    // Bitwise or with direct or indirect memory access.
+    void op_or(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+    // Bitwise xor with direct or indirect memory access.
+    void op_xor(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+    // Bitwise not with direct or indirect memory access.
+    void op_not(uint8_t indirect, uint32_t a_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+    // Shift Left with direct or indirect memory access.
+    void op_shl(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
     // Shift Right with direct or indirect memory access.
     void op_shr(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
 
-    // Shift Left with direct or indirect memory access.
-    void op_shl(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+    // Cast an element pointed by the address a_offset into type specified by dst_tag and
+    // store the result in address given by dst_offset.
+    void op_cast(uint8_t indirect, uint32_t a_offset, uint32_t dst_offset, AvmMemoryTag dst_tag);
 
-    // Set a constant from bytecode with direct or indirect memory access.
-    void op_set(uint8_t indirect, uint128_t val, uint32_t dst_offset, AvmMemoryTag in_tag);
-
-    // Move (copy) the value and tag of a memory cell to another one.
-    void op_mov(uint8_t indirect, uint32_t src_offset, uint32_t dst_offset);
-
-    // Move (copy) the value and tag of a memory cell to another one whereby the source
-    // is determined conditionally based on a conditional value determined by cond_offset.
-    void op_cmov(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t cond_offset, uint32_t dst_offset);
-
-    // Call Context
-    void op_storage_address(uint8_t indirect, uint32_t dst_offset);
+    // Context - Environment
     void op_sender(uint8_t indirect, uint32_t dst_offset);
     void op_address(uint8_t indirect, uint32_t dst_offset);
-
-    // Fees
-    void op_fee_per_da_gas(uint8_t indirect, uint32_t dst_offset);
-    void op_fee_per_l2_gas(uint8_t indirect, uint32_t dst_offset);
+    void op_storage_address(uint8_t indirect, uint32_t dst_offset);
     void op_transaction_fee(uint8_t indirect, uint32_t dst_offset);
+    void op_function_selector(uint8_t indirect, uint32_t dst_offset);
 
-    // Globals
+    // Context - Environment - Globals
     void op_chain_id(uint8_t indirect, uint32_t dst_offset);
     void op_version(uint8_t indirect, uint32_t dst_offset);
     void op_block_number(uint8_t indirect, uint32_t dst_offset);
     void op_coinbase(uint8_t indirect, uint32_t dst_offset);
     void op_timestamp(uint8_t indirect, uint32_t dst_offset);
+    // Context - Environment - Globals - Gas
+    void op_fee_per_da_gas(uint8_t indirect, uint32_t dst_offset);
+    void op_fee_per_l2_gas(uint8_t indirect, uint32_t dst_offset);
 
-    // Outputs
+    // Context - Environment - Calldata
+    // CALLDATACOPY opcode with direct/indirect memory access, i.e.,
+    // direct: M[dst_offset:dst_offset+copy_size] = calldata[cd_offset:cd_offset+copy_size]
+    // indirect: M[M[dst_offset]:M[dst_offset]+copy_size] = calldata[cd_offset:cd_offset+copy_size]
+    void op_calldata_copy(uint8_t indirect, uint32_t cd_offset, uint32_t copy_size, uint32_t dst_offset);
+
+    // Context - Machine State - Gas
+    void op_l2gasleft(uint8_t indirect, uint32_t dst_offset);
+    void op_dagasleft(uint8_t indirect, uint32_t dst_offset);
+
+    // Jump to a given program counter.
+    void op_jump(uint32_t jmp_dest);
+    // Jump conditionally to a given program counter.
+    void op_jumpi(uint8_t indirect, uint32_t jmp_dest, uint32_t cond_offset);
+    // Jump to a given program counter; storing the return location on a call stack.
+    // TODO(md): this program counter MUST be an operand to the OPCODE.
+    void op_internal_call(uint32_t jmp_dest);
+    // Return from an internal call.
+    void op_internal_return();
+
+    // Set a constant from bytecode with direct or indirect memory access.
+    void op_set(uint8_t indirect, uint128_t val, uint32_t dst_offset, AvmMemoryTag in_tag);
+    // Move (copy) the value and tag of a memory cell to another one.
+    void op_mov(uint8_t indirect, uint32_t src_offset, uint32_t dst_offset);
+    // Move (copy) the value and tag of a memory cell to another one whereby the source
+    // is determined conditionally based on a conditional value determined by cond_offset.
+    void op_cmov(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t cond_offset, uint32_t dst_offset);
+
+    // Side Effects - Public Storage
+    void op_sload(uint8_t indirect, uint32_t slot_offset, uint32_t size, uint32_t dest_offset);
+    void op_sstore(uint8_t indirect, uint32_t src_offset, uint32_t size, uint32_t slot_offset);
+
     // With single output values
     void op_emit_note_hash(uint8_t indirect, uint32_t note_hash_offset);
     void op_emit_nullifier(uint8_t indirect, uint32_t nullifier_offset);
@@ -126,48 +143,6 @@ class AvmTraceBuilder {
     void op_note_hash_exists(uint8_t indirect, uint32_t note_hash_offset, uint32_t dest_offset);
     void op_nullifier_exists(uint8_t indirect, uint32_t nullifier_offset, uint32_t dest_offset);
 
-    void op_sload(uint8_t indirect, uint32_t slot_offset, uint32_t size, uint32_t dest_offset);
-    void op_sstore(uint8_t indirect, uint32_t src_offset, uint32_t size, uint32_t slot_offset);
-
-    // Cast an element pointed by the address a_offset into type specified by dst_tag and
-    // store the result in address given by dst_offset.
-    void op_cast(uint8_t indirect, uint32_t a_offset, uint32_t dst_offset, AvmMemoryTag dst_tag);
-
-    // Integer Division with direct or indirect memory access.
-    void op_div(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
-
-    // Machine State - Gas
-    void op_l2gasleft(uint8_t indirect, uint32_t dst_offset);
-    void op_dagasleft(uint8_t indirect, uint32_t dst_offset);
-
-    // Jump to a given program counter.
-    void op_jump(uint32_t jmp_dest);
-
-    // Jump conditionally to a given program counter.
-    void op_jumpi(uint8_t indirect, uint32_t jmp_dest, uint32_t cond_offset);
-
-    // Jump to a given program counter; storing the return location on a call stack.
-    // TODO(md): this program counter MUST be an operand to the OPCODE.
-    void op_internal_call(uint32_t jmp_dest);
-
-    // Return from a jump.
-    void op_internal_return();
-
-    // Halt -> stop program execution.
-    void halt();
-
-    // CALLDATACOPY opcode with direct/indirect memory access, i.e.,
-    // direct: M[dst_offset:dst_offset+copy_size] = calldata[cd_offset:cd_offset+copy_size]
-    // indirect: M[M[dst_offset]:M[dst_offset]+copy_size] = calldata[cd_offset:cd_offset+copy_size]
-    void op_calldata_copy(uint8_t indirect, uint32_t cd_offset, uint32_t copy_size, uint32_t dst_offset);
-
-    // REVERT Opcode (that just call return under the hood for now)
-    std::vector<FF> op_revert(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size);
-    // RETURN opcode with direct and indirect memory access, i.e.,
-    // direct:   return(M[ret_offset:ret_offset+ret_size])
-    // indirect: return(M[M[ret_offset]:M[ret_offset]+ret_size])
-    std::vector<FF> op_return(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size);
-
     // Calls
     void op_call(uint8_t indirect,
                  uint32_t gas_offset,
@@ -178,6 +153,16 @@ class AvmTraceBuilder {
                  uint32_t ret_size,
                  uint32_t success_offset,
                  uint32_t function_selector_offset);
+
+    // RETURN opcode with direct and indirect memory access, i.e.,
+    // direct:   return(M[ret_offset:ret_offset+ret_size])
+    // indirect: return(M[M[ret_offset]:M[ret_offset]+ret_size])
+    std::vector<FF> op_return(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size);
+    // REVERT Opcode (that just call return under the hood for now)
+    std::vector<FF> op_revert(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size);
+
+    // (not an opcode) Halt -> stop program execution.
+    void halt();
 
     // Gadgets
     // --- Conversions

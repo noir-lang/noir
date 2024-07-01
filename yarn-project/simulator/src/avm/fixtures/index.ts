@@ -1,4 +1,4 @@
-import { GasFees, GasSettings, GlobalVariables, Header } from '@aztec/circuits.js';
+import { GasFees, GlobalVariables, Header } from '@aztec/circuits.js';
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -72,17 +72,14 @@ export function initExecutionEnvironment(overrides?: Partial<AvmExecutionEnviron
     overrides?.address ?? AztecAddress.zero(),
     overrides?.storageAddress ?? AztecAddress.zero(),
     overrides?.sender ?? AztecAddress.zero(),
-    overrides?.feePerL2Gas ?? Fr.zero(),
-    overrides?.feePerDaGas ?? Fr.zero(),
+    overrides?.functionSelector ?? FunctionSelector.empty(),
     overrides?.contractCallDepth ?? Fr.zero(),
+    overrides?.transactionFee ?? Fr.zero(),
     overrides?.header ?? Header.empty(),
     overrides?.globals ?? GlobalVariables.empty(),
     overrides?.isStaticCall ?? false,
     overrides?.isDelegateCall ?? false,
     overrides?.calldata ?? [],
-    overrides?.gasSettings ?? GasSettings.empty(),
-    overrides?.transactionFee ?? Fr.ZERO,
-    overrides?.functionSelector ?? FunctionSelector.empty(),
   );
 }
 

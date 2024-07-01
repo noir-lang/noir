@@ -1322,133 +1322,148 @@ TEST_F(AvmExecutionTests, msmOpCode)
 // Positive test for Kernel Input opcodes
 TEST_F(AvmExecutionTests, kernelInputOpcodes)
 {
-    std::string bytecode_hex = to_hex(OpCode::SENDER) +           // opcode SENDER
-                               "00"                               // Indirect flag
-                               "00000001"                         // dst_offset 1
-                               + to_hex(OpCode::ADDRESS) +        // opcode ADDRESS
-                               "00"                               // Indirect flag
-                               "00000002"                         // dst_offset 2
-                               + to_hex(OpCode::STORAGEADDRESS) + // opcode STORAGEADDRESS
-                               "00"                               // Indirect flag
-                               "00000003"                         // dst_offset 3
-                               + to_hex(OpCode::FEEPERL2GAS) +    // opcode FEEPERL2GAS
-                               "00"                               // Indirect flag
-                               "00000004"                         // dst_offset 4
-                               + to_hex(OpCode::FEEPERDAGAS) +    // opcode FEEPERDAGAS
-                               "00"                               // Indirect flag
-                               "00000005"                         // dst_offset 5
-                               + to_hex(OpCode::TRANSACTIONFEE) + // opcode TRANSACTIONFEE
-                               "00"                               // Indirect flag
-                               "00000006"                         // dst_offset 6
-                               + to_hex(OpCode::CHAINID) +        // opcode CHAINID
-                               "00"                               // Indirect flag
-                               "00000007"                         // dst_offset 7
-                               + to_hex(OpCode::VERSION) +        // opcode VERSION
-                               "00"                               // Indirect flag
-                               "00000008"                         // dst_offset 8
-                               + to_hex(OpCode::BLOCKNUMBER) +    // opcode BLOCKNUMBER
-                               "00"                               // Indirect flag
-                               "00000009"                         // dst_offset 9
-                               + to_hex(OpCode::TIMESTAMP) +      // opcode TIMESTAMP
-                               "00"                               // Indirect flag
-                               "0000000a"                         // dst_offset 10
-                                                                  // Not in simulator
+    std::string bytecode_hex = to_hex(OpCode::ADDRESS) +            // opcode ADDRESS
+                               "00"                                 // Indirect flag
+                               "00000001"                           // dst_offset
+                               + to_hex(OpCode::STORAGEADDRESS) +   // opcode STORAGEADDRESS
+                               "00"                                 // Indirect flag
+                               "00000002"                           // dst_offset
+                               + to_hex(OpCode::SENDER) +           // opcode SENDER
+                               "00"                                 // Indirect flag
+                               "00000003"                           // dst_offset
+                               + to_hex(OpCode::FUNCTIONSELECTOR) + // opcode TRANSACTIONFEE
+                               "00"                                 // Indirect flag
+                               "00000004"                           // dst_offset
+                               + to_hex(OpCode::TRANSACTIONFEE) +   // opcode TRANSACTIONFEE
+                               "00"                                 // Indirect flag
+                               "00000005"                           // dst_offset
+                               + to_hex(OpCode::CHAINID) +          // opcode CHAINID
+                               "00"                                 // Indirect flag
+                               "00000006"                           // dst_offset
+                               + to_hex(OpCode::VERSION) +          // opcode VERSION
+                               "00"                                 // Indirect flag
+                               "00000007"                           // dst_offset
+                               + to_hex(OpCode::BLOCKNUMBER) +      // opcode BLOCKNUMBER
+                               "00"                                 // Indirect flag
+                               "00000008"                           // dst_offset
+                               + to_hex(OpCode::TIMESTAMP) +        // opcode TIMESTAMP
+                               "00"                                 // Indirect flag
+                               "00000009"                           // dst_offset
+                                                                    // Not in simulator
                                //    + to_hex(OpCode::COINBASE) +       // opcode COINBASE
                                //    "00"                               // Indirect flag
-                               //    "0000000a"                         // dst_offset 10
-                               + to_hex(OpCode::RETURN) + // opcode RETURN
-                               "00"                       // Indirect flag
-                               "00000001"                 // ret offset 1
-                               "0000000a";                // ret size 10
+                               //    "00000009"                         // dst_offset
+                               + to_hex(OpCode::FEEPERL2GAS) + // opcode FEEPERL2GAS
+                               "00"                            // Indirect flag
+                               "0000000a"                      // dst_offset
+                               + to_hex(OpCode::FEEPERDAGAS) + // opcode FEEPERDAGAS
+                               "00"                            // Indirect flag
+                               "0000000b"                      // dst_offset
+                               + to_hex(OpCode::RETURN) +      // opcode RETURN
+                               "00"                            // Indirect flag
+                               "00000001"                      // ret offset 1
+                               "0000000b";                     // ret size 11
 
     auto bytecode = hex_to_bytes(bytecode_hex);
     auto instructions = Deserialization::parse(bytecode);
 
-    ASSERT_THAT(instructions, SizeIs(11));
-
-    // SENDER
-    EXPECT_THAT(instructions.at(0),
-                AllOf(Field(&Instruction::op_code, OpCode::SENDER),
-                      Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(1)))));
+    ASSERT_THAT(instructions, SizeIs(12));
 
     // ADDRESS
-    EXPECT_THAT(instructions.at(1),
+    EXPECT_THAT(instructions.at(0),
                 AllOf(Field(&Instruction::op_code, OpCode::ADDRESS),
-                      Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(2)))));
+                      Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(1)))));
 
     // STORAGEADDRESS
-    EXPECT_THAT(instructions.at(2),
+    EXPECT_THAT(instructions.at(1),
                 AllOf(Field(&Instruction::op_code, OpCode::STORAGEADDRESS),
+                      Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(2)))));
+
+    // SENDER
+    EXPECT_THAT(instructions.at(2),
+                AllOf(Field(&Instruction::op_code, OpCode::SENDER),
                       Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(3)))));
-    // FEEPERL2GAS
+
+    // FUNCTIONSELECTOR
     EXPECT_THAT(instructions.at(3),
-                AllOf(Field(&Instruction::op_code, OpCode::FEEPERL2GAS),
+                AllOf(Field(&Instruction::op_code, OpCode::FUNCTIONSELECTOR),
                       Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(4)))));
 
-    // FEEPERDAGAS
+    // TRANSACTIONFEE
     EXPECT_THAT(instructions.at(4),
-                AllOf(Field(&Instruction::op_code, OpCode::FEEPERDAGAS),
+                AllOf(Field(&Instruction::op_code, OpCode::TRANSACTIONFEE),
                       Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(5)))));
 
-    // TRANSACTIONFEE
+    // CHAINID
     EXPECT_THAT(instructions.at(5),
-                AllOf(Field(&Instruction::op_code, OpCode::TRANSACTIONFEE),
+                AllOf(Field(&Instruction::op_code, OpCode::CHAINID),
                       Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(6)))));
 
-    // CHAINID
+    // VERSION
     EXPECT_THAT(instructions.at(6),
-                AllOf(Field(&Instruction::op_code, OpCode::CHAINID),
+                AllOf(Field(&Instruction::op_code, OpCode::VERSION),
                       Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(7)))));
 
-    // VERSION
+    // BLOCKNUMBER
     EXPECT_THAT(instructions.at(7),
-                AllOf(Field(&Instruction::op_code, OpCode::VERSION),
+                AllOf(Field(&Instruction::op_code, OpCode::BLOCKNUMBER),
                       Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(8)))));
 
-    // BLOCKNUMBER
-    EXPECT_THAT(instructions.at(8),
-                AllOf(Field(&Instruction::op_code, OpCode::BLOCKNUMBER),
-                      Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(9)))));
-
     // TIMESTAMP
-    EXPECT_THAT(instructions.at(9),
+    EXPECT_THAT(instructions.at(8),
                 AllOf(Field(&Instruction::op_code, OpCode::TIMESTAMP),
-                      Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(10)))));
+                      Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(9)))));
 
     // COINBASE
     // Not in simulator
-    // EXPECT_THAT(instructions.at(9),
+    // EXPECT_THAT(instructions.at(8),
     //             AllOf(Field(&Instruction::op_code, OpCode::COINBASE),
     //                   Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0),
     //                   VariantWith<uint32_t>(10)))));
+
+    // FEEPERL2GAS
+    EXPECT_THAT(instructions.at(9),
+                AllOf(Field(&Instruction::op_code, OpCode::FEEPERL2GAS),
+                      Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(10)))));
+
+    // FEEPERDAGAS
+    EXPECT_THAT(instructions.at(10),
+                AllOf(Field(&Instruction::op_code, OpCode::FEEPERDAGAS),
+                      Field(&Instruction::operands, ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(11)))));
 
     // Public inputs for the circuit
     std::vector<FF> calldata = {};
 
     FF sender = 1;
     FF address = 2;
-    FF storage_address = 3;
-    FF feeperl2gas = 4;
-    FF feeperdagas = 5;
-    FF transactionfee = 6;
-    FF chainid = 7;
-    FF version = 8;
-    FF blocknumber = 9;
-    FF timestamp = 10;
-    // Not in simulator
-    // FF coinbase = 10;
+    // NOTE: address doesn't actually exist in public circuit public inputs,
+    // so storage address is just an alias of address for now
+    FF storage_address = address;
+    FF function_selector = 4;
+    FF transaction_fee = 5;
+    FF chainid = 6;
+    FF version = 7;
+    FF blocknumber = 8;
+    FF timestamp = 9;
+    // FF coinbase = 10; // Not in simulator
+    FF feeperl2gas = 10;
+    FF feeperdagas = 11;
 
     // The return data for this test should be a the opcodes in sequence, as the opcodes dst address lines up with
     // this array The returndata call above will then return this array
-    std::vector<FF> returndata = { sender,         address, storage_address, feeperl2gas, feeperdagas,
-                                   transactionfee, chainid, version,         blocknumber, /*coinbase,*/ timestamp };
+    std::vector<FF> returndata = { sender,     address, storage_address, function_selector,       transaction_fee,
+                                   chainid,    version, blocknumber,     /*coinbase,*/ timestamp, feeperl2gas,
+                                   feeperdagas };
 
     // Set up public inputs to contain the above values
     // TODO: maybe have a javascript like object construction so that this is readable
     // Reduce the amount of times we have similar code to this
-    public_inputs_vec[SENDER_SELECTOR] = sender;
+    //
     public_inputs_vec[ADDRESS_SELECTOR] = address;
     public_inputs_vec[STORAGE_ADDRESS_SELECTOR] = storage_address;
+    public_inputs_vec[SENDER_SELECTOR] = sender;
+    public_inputs_vec[FUNCTION_SELECTOR_SELECTOR] = function_selector;
+    public_inputs_vec[TRANSACTION_FEE_OFFSET] = transaction_fee;
 
     // Global variables
     public_inputs_vec[CHAIN_ID_OFFSET] = chainid;
@@ -1457,21 +1472,13 @@ TEST_F(AvmExecutionTests, kernelInputOpcodes)
     public_inputs_vec[TIMESTAMP_OFFSET] = timestamp;
     // Not in the simulator yet
     // public_inputs_vec[COINBASE_OFFSET] = coinbase;
-
-    // Fees
+    // Global variables - Gas
     public_inputs_vec[FEE_PER_DA_GAS_OFFSET] = feeperdagas;
     public_inputs_vec[FEE_PER_L2_GAS_OFFSET] = feeperl2gas;
-
-    // Transaction fee
-    public_inputs_vec[TRANSACTION_FEE_OFFSET] = transactionfee;
 
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
 
     // Validate that the opcode read the correct value into ia
-    // Check sender
-    auto sender_row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sender == 1; });
-    EXPECT_EQ(sender_row->main_ia, sender);
-
     // Check address
     auto address_row =
         std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_address == 1; });
@@ -1481,6 +1488,20 @@ TEST_F(AvmExecutionTests, kernelInputOpcodes)
     auto storage_addr_row =
         std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_storage_address == 1; });
     EXPECT_EQ(storage_addr_row->main_ia, storage_address);
+
+    // Check sender
+    auto sender_row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sender == 1; });
+    EXPECT_EQ(sender_row->main_ia, sender);
+
+    // Check function selector
+    auto function_selector_row =
+        std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_function_selector == 1; });
+    EXPECT_EQ(function_selector_row->main_ia, function_selector);
+
+    // Check transactionfee
+    auto transaction_fee_row =
+        std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_transaction_fee == 1; });
+    EXPECT_EQ(transaction_fee_row->main_ia, transaction_fee);
 
     // Check chain id
     auto chainid_row =
@@ -1502,6 +1523,12 @@ TEST_F(AvmExecutionTests, kernelInputOpcodes)
         std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_timestamp == 1; });
     EXPECT_EQ(timestamp_row->main_ia, timestamp);
 
+    // // Check coinbase
+    // Not in simulator
+    // auto coinbase_row =
+    //     std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_coinbase == 1; });
+    // EXPECT_EQ(coinbase_row->main_ia, coinbase);
+
     // Check feeperdagas
     auto feeperdagas_row =
         std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_fee_per_da_gas == 1; });
@@ -1511,17 +1538,6 @@ TEST_F(AvmExecutionTests, kernelInputOpcodes)
     auto feeperl2gas_row =
         std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_fee_per_l2_gas == 1; });
     EXPECT_EQ(feeperl2gas_row->main_ia, feeperl2gas);
-
-    // Check transactionfee
-    auto transactionfee_row =
-        std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_transaction_fee == 1; });
-    EXPECT_EQ(transactionfee_row->main_ia, transactionfee);
-
-    // // Check coinbase
-    // Not in simulator
-    // auto coinbase_row =
-    //     std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_coinbase == 1; });
-    // EXPECT_EQ(coinbase_row->main_ia, coinbase);
 
     validate_trace(std::move(trace), Execution::convert_public_inputs(public_inputs_vec));
 }

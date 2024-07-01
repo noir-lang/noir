@@ -60,14 +60,10 @@ std::string to_string(OpCode opcode)
         return "STORAGEADDRESS";
     case OpCode::SENDER:
         return "SENDER";
-    case OpCode::FEEPERL2GAS:
-        return "FEEPERL2GAS";
-    case OpCode::FEEPERDAGAS:
-        return "FEEPERDAGAS";
+    case OpCode::FUNCTIONSELECTOR:
+        return "FUNCTIONSELECTOR";
     case OpCode::TRANSACTIONFEE:
         return "TRANSACTIONFEE";
-    case OpCode::CONTRACTCALLDEPTH:
-        return "CONTRACTCALLDEPTH";
     case OpCode::CHAINID:
         return "CHAINID";
     case OpCode::VERSION:
@@ -78,6 +74,10 @@ std::string to_string(OpCode opcode)
         return "TIMESTAMP";
     case OpCode::COINBASE:
         return "COINBASE";
+    case OpCode::FEEPERL2GAS:
+        return "FEEPERL2GAS";
+    case OpCode::FEEPERDAGAS:
+        return "FEEPERDAGAS";
     case OpCode::BLOCKL2GASLIMIT:
         return "BLOCKL2GASLIMIT";
     case OpCode::BLOCKDAGASLIMIT:

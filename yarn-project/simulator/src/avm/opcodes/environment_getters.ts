@@ -1,6 +1,6 @@
 import type { AvmContext } from '../avm_context.js';
 import type { AvmExecutionEnvironment } from '../avm_execution_environment.js';
-import { Field, type MemoryValue, Uint64 } from '../avm_memory_types.js';
+import { Field, type MemoryValue, Uint32, Uint64 } from '../avm_memory_types.js';
 import { Opcode } from '../serialization/instruction_serialization.js';
 import { GetterInstruction } from './instruction_impl.js';
 
@@ -39,21 +39,12 @@ export class Sender extends EnvironmentGetterInstruction {
   }
 }
 
-export class FeePerL2Gas extends EnvironmentGetterInstruction {
-  static type: string = 'FEEPERL2GAS';
-  static readonly opcode: Opcode = Opcode.FEEPERL2GAS;
+export class FunctionSelector extends EnvironmentGetterInstruction {
+  static type: string = 'FUNCTIONSELECTOR';
+  static readonly opcode: Opcode = Opcode.FUNCTIONSELECTOR;
 
   protected getEnvironmentValue(env: AvmExecutionEnvironment) {
-    return new Field(env.feePerL2Gas);
-  }
-}
-
-export class FeePerDAGas extends EnvironmentGetterInstruction {
-  static type: string = 'FEEPERDAGAS';
-  static readonly opcode: Opcode = Opcode.FEEPERDAGAS;
-
-  protected getEnvironmentValue(env: AvmExecutionEnvironment) {
-    return new Field(env.feePerDaGas);
+    return new Uint32(env.functionSelector.value);
   }
 }
 
@@ -99,5 +90,23 @@ export class Timestamp extends EnvironmentGetterInstruction {
 
   protected getEnvironmentValue(env: AvmExecutionEnvironment) {
     return new Uint64(env.globals.timestamp.toBigInt());
+  }
+}
+
+export class FeePerL2Gas extends EnvironmentGetterInstruction {
+  static type: string = 'FEEPERL2GAS';
+  static readonly opcode: Opcode = Opcode.FEEPERL2GAS;
+
+  protected getEnvironmentValue(env: AvmExecutionEnvironment) {
+    return new Field(env.globals.gasFees.feePerL2Gas);
+  }
+}
+
+export class FeePerDAGas extends EnvironmentGetterInstruction {
+  static type: string = 'FEEPERDAGAS';
+  static readonly opcode: Opcode = Opcode.FEEPERDAGAS;
+
+  protected getEnvironmentValue(env: AvmExecutionEnvironment) {
+    return new Field(env.globals.gasFees.feePerDaGas);
   }
 }

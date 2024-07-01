@@ -314,11 +314,9 @@ fn handle_external_call(
         ValueOrArray::HeapVector(HeapVector { pointer, size }) => (pointer.0 as u32, size.0 as u32),
         _ => panic!("Call instruction's args input should be a HeapVector input"),
     };
-    let temporary_function_selector_offset = match &inputs[4] {
+    let function_selector_offset = match &inputs[4] {
         ValueOrArray::MemoryAddress(offset) => offset.to_usize() as u32,
-        _ => panic!(
-            "Call instruction's temporary function selector input should be a basic MemoryAddress",
-        ),
+        _ => panic!("Call instruction's function selector input should be a basic MemoryAddress",),
     };
 
     let ret_offset_maybe = destinations[0];
@@ -351,7 +349,7 @@ fn handle_external_call(
             AvmOperand::U32 { value: ret_offset },
             AvmOperand::U32 { value: ret_size },
             AvmOperand::U32 { value: success_offset },
-            AvmOperand::U32 { value: temporary_function_selector_offset },
+            AvmOperand::U32 { value: function_selector_offset },
         ],
         ..Default::default()
     });
@@ -650,6 +648,7 @@ fn handle_getter_instruction(
         "avmOpcodeTimestamp" => AvmOpcode::TIMESTAMP,
         "avmOpcodeL2GasLeft" => AvmOpcode::L2GASLEFT,
         "avmOpcodeDaGasLeft" => AvmOpcode::DAGASLEFT,
+        "avmOpcodeFunctionSelector" => AvmOpcode::FUNCTIONSELECTOR,
         // "callStackDepth" => AvmOpcode::CallStackDepth,
         _ => panic!("Transpiler doesn't know how to process ForeignCall function {:?}", function),
     };

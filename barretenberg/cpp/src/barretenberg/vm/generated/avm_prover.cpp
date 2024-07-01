@@ -270,6 +270,7 @@ void AvmProver::execute_wire_commitments_round()
     witness_commitments.main_sel_op_fdiv = commitment_key->commit(key->main_sel_op_fdiv);
     witness_commitments.main_sel_op_fee_per_da_gas = commitment_key->commit(key->main_sel_op_fee_per_da_gas);
     witness_commitments.main_sel_op_fee_per_l2_gas = commitment_key->commit(key->main_sel_op_fee_per_l2_gas);
+    witness_commitments.main_sel_op_function_selector = commitment_key->commit(key->main_sel_op_function_selector);
     witness_commitments.main_sel_op_get_contract_instance =
         commitment_key->commit(key->main_sel_op_get_contract_instance);
     witness_commitments.main_sel_op_halt = commitment_key->commit(key->main_sel_op_halt);
@@ -640,6 +641,8 @@ void AvmProver::execute_wire_commitments_round()
                                  witness_commitments.main_sel_op_fee_per_da_gas);
     transcript->send_to_verifier(commitment_labels.main_sel_op_fee_per_l2_gas,
                                  witness_commitments.main_sel_op_fee_per_l2_gas);
+    transcript->send_to_verifier(commitment_labels.main_sel_op_function_selector,
+                                 witness_commitments.main_sel_op_function_selector);
     transcript->send_to_verifier(commitment_labels.main_sel_op_get_contract_instance,
                                  witness_commitments.main_sel_op_get_contract_instance);
     transcript->send_to_verifier(commitment_labels.main_sel_op_halt, witness_commitments.main_sel_op_halt);

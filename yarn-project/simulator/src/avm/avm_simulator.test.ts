@@ -1,3 +1,4 @@
+import { GasFees } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { FunctionSelector } from '@aztec/foundation/abi';
@@ -6,9 +7,11 @@ import { keccak256, pedersenHash, poseidon2Hash, sha256 } from '@aztec/foundatio
 import { Fq, Fr } from '@aztec/foundation/fields';
 import { type Fieldable } from '@aztec/foundation/serialize';
 
+import { randomInt } from 'crypto';
 import { mock } from 'jest-mock-extended';
 
 import { type PublicSideEffectTraceInterface } from '../public/side_effect_trace_interface.js';
+import { type AvmContext } from './avm_context.js';
 import { type AvmExecutionEnvironment } from './avm_execution_environment.js';
 import { AvmMachineState } from './avm_machine_state.js';
 import { type MemoryValue, TypeTag, type Uint8 } from './avm_memory_types.js';
@@ -234,73 +237,58 @@ describe('AVM simulator: transpiled Noir contracts', () => {
   });
 
   describe('Environment getters', () => {
-    const testEnvGetter = async (valueName: string, value: any, functionName: string, globalVar: boolean = false) => {
-      // Execute
-      let overrides = {};
-      if (globalVar === true) {
-        const globals = initGlobalVariables({ [valueName]: value });
-        overrides = { globals };
-      } else {
-        overrides = { [valueName]: value };
-      }
-      const context = initContext({ env: initExecutionEnvironment(overrides) });
+    const address = AztecAddress.random();
+    const storageAddress = AztecAddress.random();
+    const sender = AztecAddress.random();
+    const functionSelector = FunctionSelector.random();
+    const transactionFee = Fr.random();
+    const chainId = Fr.random();
+    const version = Fr.random();
+    const blockNumber = Fr.random();
+    const timestamp = new Fr(randomInt(100000)); // cap timestamp since must fit in u64
+    const feePerDaGas = Fr.random();
+    const feePerL2Gas = Fr.random();
+    const gasFees = new GasFees(feePerDaGas, feePerL2Gas);
+    const globals = initGlobalVariables({
+      chainId,
+      version,
+      blockNumber,
+      timestamp,
+      gasFees,
+    });
+    const env = initExecutionEnvironment({
+      address,
+      storageAddress,
+      sender,
+      functionSelector,
+      transactionFee,
+      globals,
+    });
+    let context: AvmContext;
+    beforeEach(() => {
+      context = initContext({ env });
+    });
+
+    it.each([
+      ['address', address.toField(), 'get_address'],
+      ['storageAddress', storageAddress.toField(), 'get_storage_address'],
+      ['sender', sender.toField(), 'get_sender'],
+      ['functionSelector', functionSelector.toField(), 'get_function_selector'],
+      ['transactionFee', transactionFee.toField(), 'get_transaction_fee'],
+      ['chainId', chainId.toField(), 'get_chain_id'],
+      ['version', version.toField(), 'get_version'],
+      ['blockNumber', blockNumber.toField(), 'get_block_number'],
+      ['timestamp', timestamp.toField(), 'get_timestamp'],
+      ['feePerDaGas', feePerDaGas.toField(), 'get_fee_per_da_gas'],
+      ['feePerL2Gas', feePerL2Gas.toField(), 'get_fee_per_l2_gas'],
+    ])('%s getter', async (_name: string, value: Fr, functionName: string) => {
       const bytecode = getAvmTestContractBytecode(functionName);
       const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
       expect(results.reverted).toBe(false);
 
       const returnData = results.output;
-      expect(returnData).toEqual([value.toField()]);
-    };
-
-    it('address', async () => {
-      const address = AztecAddress.fromField(new Fr(1));
-      await testEnvGetter('address', address, 'get_address');
-    });
-
-    it('storageAddress', async () => {
-      const storageAddress = AztecAddress.fromField(new Fr(1));
-      await testEnvGetter('storageAddress', storageAddress, 'get_storage_address');
-    });
-
-    it('sender', async () => {
-      const sender = AztecAddress.fromField(new Fr(1));
-      await testEnvGetter('sender', sender, 'get_sender');
-    });
-
-    it('getFeePerL2Gas', async () => {
-      const fee = new Fr(1);
-      await testEnvGetter('feePerL2Gas', fee, 'get_fee_per_l2_gas');
-    });
-
-    it('getFeePerDaGas', async () => {
-      const fee = new Fr(1);
-      await testEnvGetter('feePerDaGas', fee, 'get_fee_per_da_gas');
-    });
-
-    it('getTransactionFee', async () => {
-      const fee = new Fr(1);
-      await testEnvGetter('transactionFee', fee, 'get_transaction_fee');
-    });
-
-    it('chainId', async () => {
-      const chainId = new Fr(1);
-      await testEnvGetter('chainId', chainId, 'get_chain_id', /*globalVar=*/ true);
-    });
-
-    it('version', async () => {
-      const version = new Fr(1);
-      await testEnvGetter('version', version, 'get_version', /*globalVar=*/ true);
-    });
-
-    it('blockNumber', async () => {
-      const blockNumber = new Fr(1);
-      await testEnvGetter('blockNumber', blockNumber, 'get_block_number', /*globalVar=*/ true);
-    });
-
-    it('timestamp', async () => {
-      const timestamp = new Fr(1);
-      await testEnvGetter('timestamp', timestamp, 'get_timestamp', /*globalVar=*/ true);
+      expect(returnData).toEqual([value]);
     });
   });
 

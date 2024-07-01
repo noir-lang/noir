@@ -550,8 +550,8 @@ const INSTRUCTION_SET_RAW = [
     "Tag updates": "`T[dstOffset] = field`",
   },
   {
-    id: "feeperl2gas",
-    Name: "`FEEPERL2GAS`",
+    id: "functionselector",
+    Name: "`FUNCTIONSELECTOR`",
     Category: "Execution Environment",
     Flags: [{ name: "indirect", description: INDIRECT_FLAG_DESCRIPTION }],
     Args: [
@@ -561,31 +561,11 @@ const INSTRUCTION_SET_RAW = [
           "memory offset specifying where to store operation's result",
       },
     ],
-    Expression: "`M[dstOffset] = context.environment.feePerL2Gas`",
-    Summary:
-      'Get the fee to be paid per "L2 gas" - constant for entire transaction',
+    Expression: "`M[dstOffset] = context.environment.functionSelector`",
+    Summary: "Get the function selector of the contract function being executed",
     Details: "",
     "Tag checks": "",
-    "Tag updates": "`T[dstOffset] = field`",
-  },
-  {
-    id: "feeperdagas",
-    Name: "`FEEPERDAGAS`",
-    Category: "Execution Environment",
-    Flags: [{ name: "indirect", description: INDIRECT_FLAG_DESCRIPTION }],
-    Args: [
-      {
-        name: "dstOffset",
-        description:
-          "memory offset specifying where to store operation's result",
-      },
-    ],
-    Expression: "`M[dstOffset] = context.environment.feePerDaGas`",
-    Summary:
-      'Get the fee to be paid per "DA gas" - constant for entire transaction',
-    Details: "",
-    "Tag checks": "",
-    "Tag updates": "`T[dstOffset] = field`",
+    "Tag updates": "`T[dstOffset] = u32`",
   },
   {
     id: "transactionfee",
@@ -603,25 +583,6 @@ const INSTRUCTION_SET_RAW = [
     Summary:
       "Get the computed transaction fee during teardown phase, zero otherwise",
     Details: "",
-    "Tag checks": "",
-    "Tag updates": "`T[dstOffset] = field`",
-  },
-  {
-    id: "contractcalldepth",
-    Name: "`CONTRACTCALLDEPTH`",
-    Category: "Execution Environment",
-    Flags: [{ name: "indirect", description: INDIRECT_FLAG_DESCRIPTION }],
-    Args: [
-      {
-        name: "dstOffset",
-        description:
-          "memory offset specifying where to store operation's result",
-      },
-    ],
-    Expression: "`M[dstOffset] = context.environment.contractCallDepth`",
-    Summary: "Get how many contract calls deep the current call context is",
-    Details:
-      "Note: security issues with EVM's tx.origin can be resolved by asserting `calldepth == 0`.",
     "Tag checks": "",
     "Tag updates": "`T[dstOffset] = field`",
   },
@@ -710,7 +671,45 @@ const INSTRUCTION_SET_RAW = [
       },
     ],
     Expression: "`M[dstOffset] = context.environment.globals.coinbase`",
-    Summary: "Get the block's beneficiary address",
+    Summary: "(UNIMPLEMENTED) Get the block's beneficiary address",
+    Details: "",
+    "Tag checks": "",
+    "Tag updates": "`T[dstOffset] = field`",
+  },
+  {
+    id: "feeperl2gas",
+    Name: "`FEEPERL2GAS`",
+    Category: "Execution Environment - Globals - Gas",
+    Flags: [{ name: "indirect", description: INDIRECT_FLAG_DESCRIPTION }],
+    Args: [
+      {
+        name: "dstOffset",
+        description:
+          "memory offset specifying where to store operation's result",
+      },
+    ],
+    Expression: "`M[dstOffset] = context.environment.globals.feePerL2Gas`",
+    Summary:
+      'Get the fee to be paid per "L2 gas" - constant for entire transaction',
+    Details: "",
+    "Tag checks": "",
+    "Tag updates": "`T[dstOffset] = field`",
+  },
+  {
+    id: "feeperdagas",
+    Name: "`FEEPERDAGAS`",
+    Category: "Execution Environment - Globals - Gas",
+    Flags: [{ name: "indirect", description: INDIRECT_FLAG_DESCRIPTION }],
+    Args: [
+      {
+        name: "dstOffset",
+        description:
+          "memory offset specifying where to store operation's result",
+      },
+    ],
+    Expression: "`M[dstOffset] = context.environment.globals.feePerDaGas`",
+    Summary:
+      'Get the fee to be paid per "DA gas" - constant for entire transaction',
     Details: "",
     "Tag checks": "",
     "Tag updates": "`T[dstOffset] = field`",
@@ -728,7 +727,7 @@ const INSTRUCTION_SET_RAW = [
       },
     ],
     Expression: "`M[dstOffset] = context.environment.globals.l2GasLimit`",
-    Summary: 'Total amount of "L2 gas" that a block can consume',
+    Summary: '(UNIMPLEMENTED) Total amount of "L2 gas" that a block can consume',
     Details: "",
     "Tag checks": "",
     "Tag updates": "`T[dstOffset] = field`",
@@ -746,7 +745,7 @@ const INSTRUCTION_SET_RAW = [
       },
     ],
     Expression: "`M[dstOffset] = context.environment.globals.daGasLimit`",
-    Summary: 'Total amount of "DA gas" that a block can consume',
+    Summary: '(UNIMPLEMENTED) Total amount of "DA gas" that a block can consume',
     Details: "",
     "Tag checks": "",
     "Tag updates": "`T[dstOffset] = field`",
@@ -1287,7 +1286,7 @@ if exists:
     M[dstOffset] = header[M[memberIndexOffset]] // member
 `,
     Summary:
-      "Check if a header exists in the [archive tree](../state/archive) and retrieve the specified member if so",
+      "(UNIMPLEMENTED) Check if a header exists in the [archive tree](../state/archive) and retrieve the specified member if so",
     "World State access tracing": `
 context.worldStateAccessTrace.archiveChecks.append(
     TracedArchiveLeafCheck {
@@ -1462,7 +1461,7 @@ execute(nestedContext)
 updateContextAfterNestedCall(context, instr.args, nestedContext)
 `,
     Summary:
-      "Call into another contract, but keep the caller's `sender` and `storageAddress`",
+      "(UNIMPLEMENTED) Call into another contract, but keep the caller's `sender` and `storageAddress`",
     Details:
       `Same as \`CALL\`, but \`sender\` and \`storageAddress\` remains
                     the same in the nested call as they were in the caller. ` +

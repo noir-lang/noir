@@ -1188,6 +1188,18 @@ Row AvmTraceBuilder::create_kernel_lookup_opcode(
     };
 }
 
+void AvmTraceBuilder::op_address(uint8_t indirect, uint32_t dst_offset)
+{
+    FF ia_value = kernel_trace_builder.op_address();
+    Row row = create_kernel_lookup_opcode(indirect, dst_offset, ADDRESS_SELECTOR, ia_value, AvmMemoryTag::FF);
+    row.main_sel_op_address = FF(1);
+
+    // Constrain gas cost
+    gas_trace_builder.constrain_gas_lookup(static_cast<uint32_t>(row.main_clk), OpCode::ADDRESS);
+
+    main_trace.push_back(row);
+}
+
 void AvmTraceBuilder::op_storage_address(uint8_t indirect, uint32_t dst_offset)
 {
     FF ia_value = kernel_trace_builder.op_storage_address();
@@ -1212,38 +1224,15 @@ void AvmTraceBuilder::op_sender(uint8_t indirect, uint32_t dst_offset)
     main_trace.push_back(row);
 }
 
-void AvmTraceBuilder::op_address(uint8_t indirect, uint32_t dst_offset)
+void AvmTraceBuilder::op_function_selector(uint8_t indirect, uint32_t dst_offset)
 {
-    FF ia_value = kernel_trace_builder.op_address();
-    Row row = create_kernel_lookup_opcode(indirect, dst_offset, ADDRESS_SELECTOR, ia_value, AvmMemoryTag::FF);
-    row.main_sel_op_address = FF(1);
+    FF ia_value = kernel_trace_builder.op_function_selector();
+    Row row =
+        create_kernel_lookup_opcode(indirect, dst_offset, FUNCTION_SELECTOR_SELECTOR, ia_value, AvmMemoryTag::U32);
+    row.main_sel_op_function_selector = FF(1);
 
     // Constrain gas cost
-    gas_trace_builder.constrain_gas_lookup(static_cast<uint32_t>(row.main_clk), OpCode::ADDRESS);
-
-    main_trace.push_back(row);
-}
-
-void AvmTraceBuilder::op_fee_per_da_gas(uint8_t indirect, uint32_t dst_offset)
-{
-    FF ia_value = kernel_trace_builder.op_fee_per_da_gas();
-    Row row = create_kernel_lookup_opcode(indirect, dst_offset, FEE_PER_DA_GAS_SELECTOR, ia_value, AvmMemoryTag::FF);
-    row.main_sel_op_fee_per_da_gas = FF(1);
-
-    // Constrain gas cost
-    gas_trace_builder.constrain_gas_lookup(static_cast<uint32_t>(row.main_clk), OpCode::FEEPERDAGAS);
-
-    main_trace.push_back(row);
-}
-
-void AvmTraceBuilder::op_fee_per_l2_gas(uint8_t indirect, uint32_t dst_offset)
-{
-    FF ia_value = kernel_trace_builder.op_fee_per_l2_gas();
-    Row row = create_kernel_lookup_opcode(indirect, dst_offset, FEE_PER_L2_GAS_SELECTOR, ia_value, AvmMemoryTag::FF);
-    row.main_sel_op_fee_per_l2_gas = FF(1);
-
-    // Constrain gas cost
-    gas_trace_builder.constrain_gas_lookup(static_cast<uint32_t>(row.main_clk), OpCode::FEEPERL2GAS);
+    gas_trace_builder.constrain_gas_lookup(static_cast<uint32_t>(row.main_clk), OpCode::FUNCTIONSELECTOR);
 
     main_trace.push_back(row);
 }
@@ -1316,6 +1305,30 @@ void AvmTraceBuilder::op_timestamp(uint8_t indirect, uint32_t dst_offset)
 
     // Constrain gas cost
     gas_trace_builder.constrain_gas_lookup(static_cast<uint32_t>(row.main_clk), OpCode::TIMESTAMP);
+
+    main_trace.push_back(row);
+}
+
+void AvmTraceBuilder::op_fee_per_da_gas(uint8_t indirect, uint32_t dst_offset)
+{
+    FF ia_value = kernel_trace_builder.op_fee_per_da_gas();
+    Row row = create_kernel_lookup_opcode(indirect, dst_offset, FEE_PER_DA_GAS_SELECTOR, ia_value, AvmMemoryTag::FF);
+    row.main_sel_op_fee_per_da_gas = FF(1);
+
+    // Constrain gas cost
+    gas_trace_builder.constrain_gas_lookup(static_cast<uint32_t>(row.main_clk), OpCode::FEEPERDAGAS);
+
+    main_trace.push_back(row);
+}
+
+void AvmTraceBuilder::op_fee_per_l2_gas(uint8_t indirect, uint32_t dst_offset)
+{
+    FF ia_value = kernel_trace_builder.op_fee_per_l2_gas();
+    Row row = create_kernel_lookup_opcode(indirect, dst_offset, FEE_PER_L2_GAS_SELECTOR, ia_value, AvmMemoryTag::FF);
+    row.main_sel_op_fee_per_l2_gas = FF(1);
+
+    // Constrain gas cost
+    gas_trace_builder.constrain_gas_lookup(static_cast<uint32_t>(row.main_clk), OpCode::FEEPERL2GAS);
 
     main_trace.push_back(row);
 }

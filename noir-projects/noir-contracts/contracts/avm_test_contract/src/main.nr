@@ -273,13 +273,8 @@ contract AvmTest {
     }
 
     #[aztec(public)]
-    fn get_fee_per_l2_gas() -> Field {
-        context.fee_per_l2_gas()
-    }
-
-    #[aztec(public)]
-    fn get_fee_per_da_gas() -> Field {
-        context.fee_per_da_gas()
+    fn get_function_selector() -> FunctionSelector {
+        context.selector()
     }
 
     #[aztec(public)]
@@ -305,6 +300,16 @@ contract AvmTest {
     #[aztec(public)]
     fn get_timestamp() -> u64 {
         context.timestamp()
+    }
+
+    #[aztec(public)]
+    fn get_fee_per_l2_gas() -> Field {
+        context.fee_per_l2_gas()
+    }
+
+    #[aztec(public)]
+    fn get_fee_per_da_gas() -> Field {
+        context.fee_per_da_gas()
     }
 
     #[aztec(public)]
