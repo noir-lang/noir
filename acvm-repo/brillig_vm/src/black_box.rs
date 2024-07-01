@@ -426,7 +426,7 @@ impl BrilligBigintSolver {
         if modulus_lhs != modulus_rhs {
             return Err(BlackBoxResolutionError::Failed(
                 func,
-                "BigInt modulus mismatch".to_string(),
+                "moduli should be identical in BigInt operation".to_string(),
             ));
         }
         let id = self.create_bigint_id();
