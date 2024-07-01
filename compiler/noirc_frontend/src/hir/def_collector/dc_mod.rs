@@ -1003,7 +1003,7 @@ mod find_module_tests {
     }
 
     #[test]
-    fn errors_if_module_is_found_in_name_dot_nr_and_anchor_slash_name_dot_nr_for_regular_name() {
+    fn errors_if_file_exists_at_both_potential_module_locations_for_regular_name() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
@@ -1021,8 +1021,7 @@ mod find_module_tests {
     }
 
     #[test]
-    fn find_module_errors_if_module_is_found_in_name_dot_nr_and_name_slash_mod_dot_nr_for_special_name(
-    ) {
+    fn errors_if_file_exists_at_both_potential_module_locations_for_special_name() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
