@@ -9,7 +9,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::graph::CrateId;
 use crate::hir_def::expr::ImplKind;
-use crate::monomorphization::{perform_instantiation_bindings, undo_instantiation_bindings};
+use crate::monomorphization::{perform_instantiation_bindings, undo_instantiation_bindings, perform_impl_bindings};
 use crate::node_interner::{TraitMethodId, TraitImplKind};
 use crate::token::Tokens;
 use crate::{
@@ -68,8 +68,12 @@ impl<'a> Interpreter<'a> {
         instantiation_bindings: TypeBindings,
         location: Location,
     ) -> IResult<Value> {
+        let trait_method = self.interner.get_trait_method_id(function);
+
         perform_instantiation_bindings(&instantiation_bindings);
+        let impl_bindings = perform_impl_bindings(self.interner, trait_method, function);
         let result = self.call_function_inner(function, arguments, location);
+        undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
         result
     }

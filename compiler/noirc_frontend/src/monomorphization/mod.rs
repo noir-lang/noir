@@ -125,7 +125,7 @@ pub fn monomorphize_debug(
         monomorphizer.locals.clear();
 
         perform_instantiation_bindings(&bindings);
-        let impl_bindings = monomorphizer.perform_impl_bindings(trait_method, next_fn_id);
+        let impl_bindings = perform_impl_bindings(monomorphizer.interner, trait_method, next_fn_id);
         monomorphizer.function(next_fn_id, new_id)?;
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(bindings);
@@ -1749,46 +1749,6 @@ impl<'interner> Monomorphizer<'interner> {
 
         Ok(result)
     }
-
-    /// Call sites are instantiated against the trait method, but when an impl is later selected,
-    /// the corresponding method in the impl will have a different set of generics. `perform_impl_bindings`
-    /// is needed to apply the generics from the trait method to the impl method. Without this,
-    /// static method references to generic impls (e.g. `Eq::eq` for `[T; N]`) will fail to re-apply
-    /// the correct type bindings during monomorphization.
-    fn perform_impl_bindings(
-        &self,
-        trait_method: Option<TraitMethodId>,
-        impl_method: node_interner::FuncId,
-    ) -> TypeBindings {
-        let mut bindings = TypeBindings::new();
-
-        if let Some(trait_method) = trait_method {
-            let the_trait = self.interner.get_trait(trait_method.trait_id);
-
-            let trait_method_type = the_trait.methods[trait_method.method_index].typ.as_monotype();
-
-            // Make each NamedGeneric in this type bindable by replacing it with a TypeVariable
-            // with the same internal id and binding.
-            let (generics, impl_method_type) =
-                self.interner.function_meta(&impl_method).typ.unwrap_forall();
-
-            let replace_type_variable = |var: &TypeVariable| {
-                (var.id(), (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
-            };
-
-            // Replace each NamedGeneric with a TypeVariable containing the same internal type variable
-            let type_bindings = generics.iter().map(replace_type_variable).collect();
-            let impl_method_type = impl_method_type.force_substitute(&type_bindings);
-
-            trait_method_type.try_unify(&impl_method_type, &mut bindings).unwrap_or_else(|_| {
-                unreachable!("Impl method type {} does not unify with trait method type {} during monomorphization", impl_method_type, trait_method_type)
-            });
-
-            perform_instantiation_bindings(&bindings);
-        }
-
-        bindings
-    }
 }
 
 fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
@@ -1815,4 +1775,44 @@ pub fn undo_instantiation_bindings(bindings: TypeBindings) {
     for (id, (var, _)) in bindings {
         var.unbind(id);
     }
+}
+
+/// Call sites are instantiated against the trait method, but when an impl is later selected,
+/// the corresponding method in the impl will have a different set of generics. `perform_impl_bindings`
+/// is needed to apply the generics from the trait method to the impl method. Without this,
+/// static method references to generic impls (e.g. `Eq::eq` for `[T; N]`) will fail to re-apply
+/// the correct type bindings during monomorphization.
+pub fn perform_impl_bindings(
+    interner: &NodeInterner,
+    trait_method: Option<TraitMethodId>,
+    impl_method: node_interner::FuncId,
+) -> TypeBindings {
+    let mut bindings = TypeBindings::new();
+
+    if let Some(trait_method) = trait_method {
+        let the_trait = interner.get_trait(trait_method.trait_id);
+
+        let trait_method_type = the_trait.methods[trait_method.method_index].typ.as_monotype();
+
+        // Make each NamedGeneric in this type bindable by replacing it with a TypeVariable
+        // with the same internal id and binding.
+        let (generics, impl_method_type) =
+            interner.function_meta(&impl_method).typ.unwrap_forall();
+
+        let replace_type_variable = |var: &TypeVariable| {
+            (var.id(), (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
+        };
+
+        // Replace each NamedGeneric with a TypeVariable containing the same internal type variable
+        let type_bindings = generics.iter().map(replace_type_variable).collect();
+        let impl_method_type = impl_method_type.force_substitute(&type_bindings);
+
+        trait_method_type.try_unify(&impl_method_type, &mut bindings).unwrap_or_else(|_| {
+            unreachable!("Impl method type {} does not unify with trait method type {} during monomorphization", impl_method_type, trait_method_type)
+        });
+
+        perform_instantiation_bindings(&bindings);
+    }
+
+    bindings
 }

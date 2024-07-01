@@ -1194,6 +1194,17 @@ impl NodeInterner {
         self.trait_implementations[&id].clone()
     }
 
+    /// If the given function belongs to a trait impl, return its trait method id.
+    /// Otherwise, return None.
+    pub fn get_trait_method_id(&self, function: FuncId) -> Option<TraitMethodId> {
+        let impl_id = self.function_meta(&function).trait_impl?;
+        let trait_impl = self.get_trait_implementation(impl_id);
+        let trait_impl = trait_impl.borrow();
+
+        let method_index = trait_impl.methods.iter().position(|id| *id == function)?;
+        Some(TraitMethodId { trait_id: trait_impl.trait_id, method_index })
+    }
+
     /// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the
     /// constraint. If an impl cannot be found, this will return a vector of each constraint
     /// in the path to get to the failing constraint. Usually this is just the single failing
