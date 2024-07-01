@@ -987,6 +987,22 @@ mod find_module_tests {
     }
 
     #[test]
+    fn errors_mod_dot_nr_in_same_directory() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        // Create this tree structure:
+        // - lib.nr
+        // - mod.nr
+        let lib_file_id = add_file(&mut fm, &dir.join("lib.nr"));
+        add_file(&mut fm, &dir.join("foo").join("mod.nr"));
+
+        // Check that searching "foo" does not pick up the mod.nr file
+        let result = find_module(&fm, lib_file_id, "foo");
+        assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
+    }
+
+    #[test]
     fn errors_if_module_is_found_in_name_dot_nr_and_anchor_slash_name_dot_nr_for_regular_name() {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
