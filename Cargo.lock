@@ -1542,7 +1542,6 @@ dependencies = [
  "codespan-reporting",
  "iter-extended",
  "serde",
- "tempfile",
 ]
 
 [[package]]
@@ -2928,7 +2927,6 @@ dependencies = [
  "smol_str",
  "strum",
  "strum_macros",
- "tempfile",
  "thiserror",
  "tracing",
 ]

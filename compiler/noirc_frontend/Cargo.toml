@@ -36,7 +36,6 @@ lalrpop-util = { version = "0.20.2", features = ["lexer"] }
 base64.workspace = true
 strum = "0.24"
 strum_macros = "0.24"
-tempfile.workspace = true
 
 [build-dependencies]
 lalrpop = "0.20.2"
