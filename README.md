@@ -28,7 +28,8 @@ works for you too!
 ## Run manually
 
 To run the PLONKY2 backend manually, call `nargo prove` and construct proofs for
-ZK circuits written in Noir.
+ZK circuits written in Noir. Once you have a proof, `nargo verify` can be used
+to verify that it is correct.
 
 ## More details
 
@@ -45,9 +46,9 @@ is implemented by the PLONKY2 backend as an intrinsic function, as demonstrated
 by the `test_programs/plonky2_prove_success/sha256` test (as well as the
 `test_programs/plonky2_prove_failure/sha256` test).
 
-The next steps for this project are to add verification, more intrinsics,
-better debugging capabilities and more. Investigating the potential support for
-recursion is particularly interesting.
+The next steps for this project are to add more intrinsics, better debugging
+capabilities and more. Investigating the potential support for recursion is
+particularly interesting.
 
 ## Why PLONKY2 backend does not adhere to Noir backend API
 
@@ -63,17 +64,21 @@ verify` commands, which internally called the Barretenberg backend as a proving
 system. At the end of May 2024, the Noir team removed that feature, decoupling
 their compiler from the way the proof is performed.
 
-This is an improvement for the mainline Noir workflow. At the same time, the
-PLONKY2 backend that we're developing fits more naturally with the Noir
-frontend, since it is written in Rust and called as a library rather than an
-external binary. For this reason, while Noir have removed the aforementioned
-commands, we have kept them for PLONKY2 proofs.
+To use PLONKY2 as a proving system, it is natural to keep the `nargo prove` and
+`nargo verify` commands. The way they work now (after they have been removed
+upstream) is to keep the same compiler pipeline as upstream Noir until the final
+SSA form is generated and optimized. After the optimization phases, we fork the
+pipeline and instead of generating ACIR code, we generate PLONKY2 operations.
+ * When ACIR is generated, the ZK program can be executed or debugged.
+ * When PLONKY2 is generated, a proof can be generated or a proof can be verified.
 
-In addition to the more natural fit, the user experience for the PLONKY2 backend
-is also simpler this way, when compared to requiring users to execute an
-additional step for proving or verifying their circuits. We might reconsider
-this decision in the future, but for the time being this is the path we're
-taking.
+The main reason for producing an alternative intermediate representation for the
+program, is that PLONKY2 has direct implementation for some of the
+intermediate-level operations, which the ACIR backend translates to combinations
+of several other operations. If we didn't do that, but tried to convert ACIR to
+PLONKY2 instead, we would have to pattern match combinations of instructions to
+single or combinations of PLONKY2 operations. Compared to our approach that
+would be harder and less likely to produce as few operations.
 
 the blocksense.network team
 
