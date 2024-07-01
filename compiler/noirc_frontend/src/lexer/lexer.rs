@@ -381,28 +381,21 @@ impl<'a> Lexer<'a> {
         // Underscores needs to be stripped out before the literal can be converted to a `FieldElement.
         let integer_str = integer_str.replace('_', "");
 
-        let big_integer_result = match integer_str.strip_prefix("0x") {
+        let bigint_result = match integer_str.strip_prefix("0x") {
             Some(integer_str) => BigInt::from_str_radix(integer_str, 16),
             None => BigInt::from_str(&integer_str),
         };
 
-        let integer = match big_integer_result {
-            Ok(big_integer) => {
-                if big_integer > self.max_integer {
+        let integer = match bigint_result {
+            Ok(bigint) => {
+                if bigint > self.max_integer {
                     return Err(LexerErrorKind::IntegerLiteralTooLarge {
                         span: Span::inclusive(start, end),
                         limit: self.max_integer.to_string(),
                     });
                 }
-                match FieldElement::try_from_str(&integer_str) {
-                    Some(field_element) => field_element,
-                    None => {
-                        return Err(LexerErrorKind::InvalidIntegerLiteral {
-                            span: Span::inclusive(start, end),
-                            found: integer_str,
-                        })
-                    }
-                }
+                let big_uint = bigint.magnitude();
+                FieldElement::from_be_bytes_reduce(&big_uint.to_bytes_be())
             }
             Err(_) => {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
