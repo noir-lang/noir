@@ -270,29 +270,33 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         BlackBoxOp::BigIntAdd { lhs, rhs, output } => {
             let lhs = memory.read(*lhs).try_into().unwrap();
             let rhs = memory.read(*rhs).try_into().unwrap();
-            let output = memory.read(*output).try_into().unwrap();
-            bigint_solver.bigint_op(lhs, rhs, output, BlackBoxFunc::BigIntAdd)?;
+            let new_id = bigint_solver.create_bigint_id();
+            bigint_solver.bigint_op(lhs, rhs, new_id, BlackBoxFunc::BigIntAdd)?;
+            memory.write(*output, new_id.into());
             Ok(())
         }
         BlackBoxOp::BigIntSub { lhs, rhs, output } => {
             let lhs = memory.read(*lhs).try_into().unwrap();
             let rhs = memory.read(*rhs).try_into().unwrap();
-            let output = memory.read(*output).try_into().unwrap();
-            bigint_solver.bigint_op(lhs, rhs, output, BlackBoxFunc::BigIntSub)?;
+            let new_id = bigint_solver.create_bigint_id();
+            bigint_solver.bigint_op(lhs, rhs, new_id, BlackBoxFunc::BigIntSub)?;
+            memory.write(*output, new_id.into());
             Ok(())
         }
         BlackBoxOp::BigIntMul { lhs, rhs, output } => {
             let lhs = memory.read(*lhs).try_into().unwrap();
             let rhs = memory.read(*rhs).try_into().unwrap();
-            let output = memory.read(*output).try_into().unwrap();
-            bigint_solver.bigint_op(lhs, rhs, output, BlackBoxFunc::BigIntMul)?;
+            let new_id = bigint_solver.create_bigint_id();
+            bigint_solver.bigint_op(lhs, rhs, new_id, BlackBoxFunc::BigIntMul)?;
+            memory.write(*output, new_id.into());
             Ok(())
         }
         BlackBoxOp::BigIntDiv { lhs, rhs, output } => {
             let lhs = memory.read(*lhs).try_into().unwrap();
             let rhs = memory.read(*rhs).try_into().unwrap();
-            let output = memory.read(*output).try_into().unwrap();
-            bigint_solver.bigint_op(lhs, rhs, output, BlackBoxFunc::BigIntDiv)?;
+            let new_id = bigint_solver.create_bigint_id();
+            bigint_solver.bigint_op(lhs, rhs, new_id, BlackBoxFunc::BigIntDiv)?;
+            memory.write(*output, new_id.into());
             Ok(())
         }
         BlackBoxOp::BigIntFromLeBytes { inputs, modulus, output } => {
@@ -300,8 +304,12 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let input: Vec<u8> = input.iter().map(|x| x.try_into().unwrap()).collect();
             let modulus = read_heap_vector(memory, modulus);
             let modulus: Vec<u8> = modulus.iter().map(|x| x.try_into().unwrap()).collect();
-            let output = memory.read(*output).try_into().unwrap();
-            bigint_solver.bigint_from_bytes(&input, &modulus, output)?;
+            let next_id = bigint_solver.create_bigint_id();
+            bigint_solver.bigint_from_bytes(&input, &modulus, next_id)?;
+            println!("Built bigint from bytes: {:?} {:?} with id {}", input, modulus, next_id);
+
+            memory.write(*output, next_id.into());
+
             Ok(())
         }
         BlackBoxOp::BigIntToLeBytes { input, output } => {
