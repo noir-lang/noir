@@ -1,5 +1,6 @@
 fn main() {
-    comptime {
+    comptime
+    {
         // impl Eq for Field
         println(3 == 3);
 
