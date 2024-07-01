@@ -127,7 +127,7 @@ fn constrain_get_notes_internal<Note, N, M, FILTER_ARGS>(
     let filtered_notes = filter_fn(opt_notes, filter_args);
 
     let mut prev_fields = [0; N];
-    for i in 0..filtered_notes.len() {
+    for i in 0..options.limit {
         let opt_note = filtered_notes[i];
         if opt_note.is_some() {
             let note = opt_note.unwrap_unchecked();
@@ -154,7 +154,13 @@ fn constrain_get_notes_internal<Note, N, M, FILTER_ARGS>(
         };
     }
 
+    // As long as we only loop till `options.limit` the array will be guaranteed to be at most of length `options.limit`.
     assert(returned_notes.len() <= options.limit, "Got more notes than limit.");
+    // We will however check that nothing else was returned after the limit.
+    for i in options.limit..filtered_notes.len() {
+        assert(filtered_notes[i].is_none(), "Got more notes than limit.");
+    }
+
     assert(returned_notes.len() != 0, "Cannot return zero notes");
 
     returned_notes
