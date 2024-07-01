@@ -612,6 +612,7 @@ impl<'interner> Monomorphizer<'interner> {
                     })
                     .transpose()?
                     .map(Box::new);
+
                 Ok(ast::Expression::Constrain(Box::new(expr), location, assert_message))
             }
             HirStatement::Assign(assign) => self.assign(assign),
