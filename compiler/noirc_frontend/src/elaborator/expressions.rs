@@ -546,6 +546,7 @@ impl<'context> Elaborator<'context> {
                         typ: lhs_type.clone(),
                         trait_id: trait_id.trait_id,
                         trait_generics: Vec::new(),
+                        span,
                     };
                     self.trait_constraints.push((constraint, expr_id));
                     self.type_check_operator_method(expr_id, trait_id, &lhs_type, span);

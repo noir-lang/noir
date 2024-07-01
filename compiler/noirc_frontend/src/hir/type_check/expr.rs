@@ -163,6 +163,8 @@ impl<'interner> TypeChecker<'interner> {
                                 typ: lhs_type.clone(),
                                 trait_id: id.trait_id,
                                 trait_generics: Vec::new(),
+                                // This field is used by the elaborator
+                                span: Span::default(),
                             };
                             self.trait_constraints.push((constraint, *expr_id));
                             self.typecheck_operator_method(*expr_id, id, &lhs_type, span);

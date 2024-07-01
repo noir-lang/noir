@@ -42,8 +42,8 @@ struct MyStruct<T> {
     a: T
 }
 
-impl<T> Deserialize<1> for MyStruct<T> {
-    fn deserialize(fields: [Field; 1]) -> Self where T: FromField {
+impl<T> Deserialize<1> for MyStruct<T> where T: FromField {
+    fn deserialize(fields: [Field; 1]) -> Self {
         Self{ a: FromField::from_field(fields[0]) }
     }
 }

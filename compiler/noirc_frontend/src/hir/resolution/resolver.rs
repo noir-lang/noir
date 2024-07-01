@@ -544,7 +544,7 @@ impl<'a> Resolver<'a> {
             });
         }
 
-        Some(TraitConstraint { typ, trait_id, trait_generics })
+        Some(TraitConstraint { typ, trait_id, trait_generics, span })
     }
 
     /// Translates an UnresolvedType into a Type and appends any
@@ -1923,6 +1923,7 @@ impl<'a> Resolver<'a> {
                         generic.type_var.clone()
                     })),
                     trait_id,
+                    span: path.span(),
                 };
                 return Some((method, constraint, false));
             }
@@ -1940,6 +1941,7 @@ impl<'a> Resolver<'a> {
 
             let mut trait_path = path.clone();
             trait_path.pop();
+            let span = trait_path.span();
             let trait_id = self.lookup(trait_path).ok()?;
             let the_trait = self.interner.get_trait(trait_id);
 
@@ -1953,6 +1955,7 @@ impl<'a> Resolver<'a> {
                     generic.type_var.clone()
                 })),
                 trait_id,
+                span,
             };
             return Some((method, constraint, false));
         }
@@ -1994,6 +1997,7 @@ impl<'a> Resolver<'a> {
                             trait_generics: vecmap(trait_bound.trait_generics, |typ| {
                                 self.resolve_type(typ)
                             }),
+                            span: trait_bound.trait_path.span(),
                         };
                         return Some((method, constraint, true));
                     }
