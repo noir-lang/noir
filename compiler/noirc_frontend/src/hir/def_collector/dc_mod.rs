@@ -825,11 +825,16 @@ mod find_module_tests {
     use super::*;
 
     use noirc_errors::Spanned;
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
 
-    fn add_file(file_manager: &mut FileManager, file_name: &Path) -> FileId {
+    fn add_file(file_manager: &mut FileManager, dir: &PathBuf, file_name: &str) -> FileId {
+        let mut target_filename = dir.clone();
+        for path in file_name.split("/") {
+            target_filename = target_filename.join(path);
+        }
+
         file_manager
-            .add_file_with_source(file_name, "fn foo() {}".to_string())
+            .add_file_with_source(&target_filename, "fn foo() {}".to_string())
             .expect("could not add file to file manager and obtain a FileId")
     }
 
@@ -845,11 +850,9 @@ mod find_module_tests {
     #[test]
     fn errors_if_cannot_find_file() {
         let dir = PathBuf::new();
-        let mut fm = FileManager::new(&dir);
+        let mut fm = FileManager::new(&PathBuf::new());
 
-        // Create a my_dummy_file.nr
-        // Now we have temp_dir/my_dummy_file.nr
-        let file_id = add_file(&mut fm, &dir.join("my_dummy_file.nr"));
+        let file_id = add_file(&mut fm, &dir, &"my_dummy_file.nr");
 
         let result = find_module(&fm, file_id, "foo");
         assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
@@ -860,11 +863,8 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        // Create this tree structure:
-        // - main.nr
-        // - main/foo.nr
-        let main_file_id = add_file(&mut fm, &dir.join("main.nr"));
-        add_file(&mut fm, &dir.join("main").join("foo.nr"));
+        let main_file_id = add_file(&mut fm, &dir, &"main.nr");
+        add_file(&mut fm, &dir, &"main/foo.nr");
 
         let result = find_module(&fm, main_file_id, "foo");
         assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
@@ -875,11 +875,8 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        // Create this tree structure:
-        // - lib.nr
-        // - lib/foo.nr
-        let lib_file_id = add_file(&mut fm, &dir.join("lib.nr"));
-        add_file(&mut fm, &dir.join("lib").join("foo.nr"));
+        let lib_file_id = add_file(&mut fm, &dir, "lib.nr");
+        add_file(&mut fm, &dir, "lib/foo.nr");
 
         let result = find_module(&fm, lib_file_id, "foo");
         assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
@@ -890,11 +887,8 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        // Create this tree structure:
-        // - foo.nr
-        // - bar.nr
-        let foo_file_id = add_file(&mut fm, &dir.join("foo.nr"));
-        add_file(&mut fm, &dir.join("bar.nr"));
+        let foo_file_id = add_file(&mut fm, &dir, &"foo.nr");
+        add_file(&mut fm, &dir, &"bar.nr");
 
         let result = find_module(&fm, foo_file_id, "bar");
         assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
@@ -905,13 +899,9 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        // Create this tree structure:
-        // - lib.nr
-        // - bar.nr
-        // - foo.nr
-        let lib_file_id = add_file(&mut fm, &dir.join("lib.nr"));
-        add_file(&mut fm, &dir.join("bar.nr"));
-        add_file(&mut fm, &dir.join("foo.nr"));
+        let lib_file_id = add_file(&mut fm, &dir, &"lib.nr");
+        add_file(&mut fm, &dir, &"bar.nr");
+        add_file(&mut fm, &dir, &"foo.nr");
 
         // `mod bar` from `lib.nr` should find `bar.nr`
         let bar_file_id = find_module(&fm, lib_file_id, "bar").unwrap();
@@ -926,11 +916,8 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        // Create this tree structure:
-        // - sub_dir.nr
-        // - sub_dir/foo.nr
-        let sub_dir_file_id = add_file(&mut fm, &dir.join("sub_dir.nr"));
-        add_file(&mut fm, &dir.join("sub_dir").join("foo.nr"));
+        let sub_dir_file_id = add_file(&mut fm, &dir, &"sub_dir.nr");
+        add_file(&mut fm, &dir, &"sub_dir/foo.nr");
 
         // `mod foo` from `sub_dir.nr` should find `sub_dir/foo.nr`
         find_module(&fm, sub_dir_file_id, "foo").unwrap();
@@ -941,11 +928,8 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        // Create this tree structure:
-        // - sub_dir.nr
-        // - sub_dir/foo/mod.nr
-        let sub_dir_file_id = add_file(&mut fm, &dir.join("sub_dir.nr"));
-        add_file(&mut fm, &dir.join("sub_dir").join("foo").join("mod.nr"));
+        let sub_dir_file_id = add_file(&mut fm, &dir, &"sub_dir.nr");
+        add_file(&mut fm, &dir, &"sub_dir/foo/mod.nr");
 
         // `mod foo` from `sub_dir.nr` should find `sub_dir/foo.nr`
         find_module(&fm, sub_dir_file_id, "foo").unwrap();
@@ -956,13 +940,9 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        // Create this tree structure:
-        // - lib.nr
-        // - sub_dir.nr
-        // - sub_dir/foo.nr
-        let lib_file_id = add_file(&mut fm, &dir.join("lib.nr"));
-        add_file(&mut fm, &dir.join("sub_dir.nr"));
-        add_file(&mut fm, &dir.join("sub_dir").join("foo.nr"));
+        let lib_file_id = add_file(&mut fm, &dir, &"lib.nr");
+        add_file(&mut fm, &dir, &"sub_dir.nr");
+        add_file(&mut fm, &dir, &"sub_dir/foo.nr");
 
         // `mod sub_dir` from `lib.nr` should find `sub_dir.nr`
         let sub_dir_file_id = find_module(&fm, lib_file_id, "sub_dir").unwrap();
@@ -976,11 +956,8 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        // Create this tree structure:
-        // - lib.nr
-        // - foo/mod.nr
-        let lib_file_id = add_file(&mut fm, &dir.join("lib.nr"));
-        add_file(&mut fm, &dir.join("foo").join("mod.nr"));
+        let lib_file_id = add_file(&mut fm, &dir, "lib.nr");
+        add_file(&mut fm, &dir, &"foo/mod.nr");
 
         // Check that searching "foo" finds the mod.nr file
         find_module(&fm, lib_file_id, "foo").unwrap();
@@ -991,11 +968,8 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        // Create this tree structure:
-        // - lib.nr
-        // - mod.nr
-        let lib_file_id = add_file(&mut fm, &dir.join("lib.nr"));
-        add_file(&mut fm, &dir.join("foo").join("mod.nr"));
+        let lib_file_id = add_file(&mut fm, &dir, &"lib.nr");
+        add_file(&mut fm, &dir, &"mod.nr");
 
         // Check that searching "foo" does not pick up the mod.nr file
         let result = find_module(&fm, lib_file_id, "foo");
@@ -1007,13 +981,9 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        // Create this tree structure:
-        // - foo.nr
-        // - foo/bar.nr
-        // - foo/bar/mod.nr
-        let foo_file_id = add_file(&mut fm, &dir.join("foo.nr"));
-        add_file(&mut fm, &dir.join("foo").join("bar.nr"));
-        add_file(&mut fm, &dir.join("foo").join("bar").join("mod.nr"));
+        let foo_file_id = add_file(&mut fm, &dir, &"foo.nr");
+        add_file(&mut fm, &dir, &"foo/bar.nr");
+        add_file(&mut fm, &dir, &"foo/bar/mod.nr");
 
         // Check that `mod bar` from `foo` gives an error
         let result = find_module(&fm, foo_file_id, "bar");
@@ -1025,13 +995,9 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        // Create this tree structure:
-        // - lib.nr
-        // - foo.nr
-        // - foo/mod.nr
-        let lib_file_id = add_file(&mut fm, &dir.join("lib.nr"));
-        add_file(&mut fm, &dir.join("foo.nr"));
-        add_file(&mut fm, &dir.join("foo").join("mod.nr"));
+        let lib_file_id = add_file(&mut fm, &dir, &"lib.nr");
+        add_file(&mut fm, &dir, &"foo.nr");
+        add_file(&mut fm, &dir, &"foo/mod.nr");
 
         // Check that searching "foo" gives an error
         let result = find_module(&fm, lib_file_id, "foo");
