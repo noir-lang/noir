@@ -414,31 +414,31 @@ impl<'context> Elaborator<'context> {
     /// Defaults all type variables used in this function context then solves
     /// all still-unsolved trait constraints in this context.
     fn check_and_pop_function_context(&mut self) {
-        if let Some(context) = self.function_context.pop() {
-            for typ in context.type_variables {
-                if let Type::TypeVariable(variable, kind) = typ.follow_bindings() {
-                    let msg = "TypeChecker should only track defaultable type vars";
-                    variable.bind(kind.default_type().expect(msg));
-                }
+        let context = self.function_context.pop().expect("Imbalanced function_context pushes");
+
+        for typ in context.type_variables {
+            if let Type::TypeVariable(variable, kind) = typ.follow_bindings() {
+                let msg = "TypeChecker should only track defaultable type vars";
+                variable.bind(kind.default_type().expect(msg));
+            }
+        }
+
+        for (mut constraint, expr_id) in context.trait_constraints {
+            let span = self.interner.expr_span(&expr_id);
+
+            if matches!(&constraint.typ, Type::MutableReference(_)) {
+                let (_, dereferenced_typ) =
+                    self.insert_auto_dereferences(expr_id, constraint.typ.clone());
+                constraint.typ = dereferenced_typ;
             }
 
-            for (mut constraint, expr_id) in context.trait_constraints {
-                let span = self.interner.expr_span(&expr_id);
-
-                if matches!(&constraint.typ, Type::MutableReference(_)) {
-                    let (_, dereferenced_typ) =
-                        self.insert_auto_dereferences(expr_id, constraint.typ.clone());
-                    constraint.typ = dereferenced_typ;
-                }
-
-                self.verify_trait_constraint(
-                    &constraint.typ,
-                    constraint.trait_id,
-                    &constraint.trait_generics,
-                    expr_id,
-                    span,
-                );
-            }
+            self.verify_trait_constraint(
+                &constraint.typ,
+                constraint.trait_id,
+                &constraint.trait_generics,
+                expr_id,
+                span,
+            );
         }
     }
 

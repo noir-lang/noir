@@ -9,6 +9,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::graph::CrateId;
 use crate::hir_def::expr::ImplKind;
+use crate::macros_api::UnaryOp;
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
     undo_instantiation_bindings,
@@ -571,8 +572,17 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_prefix(&mut self, prefix: HirPrefixExpression, id: ExprId) -> IResult<Value> {
         let rhs = self.evaluate(prefix.rhs)?;
-        match prefix.operator {
-            crate::ast::UnaryOp::Minus => match rhs {
+        self.evaluate_prefix_with_value(rhs, prefix.operator, id)
+    }
+
+    fn evaluate_prefix_with_value(
+        &mut self,
+        rhs: Value,
+        operator: UnaryOp,
+        id: ExprId,
+    ) -> IResult<Value> {
+        match operator {
+            UnaryOp::Minus => match rhs {
                 Value::Field(value) => Ok(Value::Field(FieldElement::zero() - value)),
                 Value::I8(value) => Ok(Value::I8(-value)),
                 Value::I16(value) => Ok(Value::I16(-value)),
@@ -588,7 +598,7 @@ impl<'a> Interpreter<'a> {
                     Err(InterpreterError::InvalidValueForUnary { value, location, operator })
                 }
             },
-            crate::ast::UnaryOp::Not => match rhs {
+            UnaryOp::Not => match rhs {
                 Value::Bool(value) => Ok(Value::Bool(!value)),
                 Value::I8(value) => Ok(Value::I8(!value)),
                 Value::I16(value) => Ok(Value::I16(!value)),
@@ -603,8 +613,8 @@ impl<'a> Interpreter<'a> {
                     Err(InterpreterError::InvalidValueForUnary { value, location, operator: "not" })
                 }
             },
-            crate::ast::UnaryOp::MutableReference => Ok(Value::Pointer(Shared::new(rhs))),
-            crate::ast::UnaryOp::Dereference { implicitly_added: _ } => match rhs {
+            UnaryOp::MutableReference => Ok(Value::Pointer(Shared::new(rhs))),
+            UnaryOp::Dereference { implicitly_added: _ } => match rhs {
                 Value::Pointer(element) => Ok(element.borrow().clone()),
                 value => {
                     let location = self.interner.expr_location(&id);
@@ -881,7 +891,45 @@ impl<'a> Interpreter<'a> {
         let rhs = (rhs, self.interner.expr_location(&infix.rhs));
 
         let location = self.interner.expr_location(&id);
-        self.call_function(method_id, vec![lhs, rhs], type_bindings, location)
+        let value = self.call_function(method_id, vec![lhs, rhs], type_bindings, location)?;
+
+        // Certain operators add additional operations after the trait call:
+        // - `!=`: Reverse the result of Eq
+        // - Comparator operators: Convert the returned `Ordering` to a boolean.
+        use BinaryOpKind::*;
+        match operator {
+            NotEqual => self.evaluate_prefix_with_value(value, UnaryOp::Not, id),
+            Less | LessEqual | Greater | GreaterEqual => self.evaluate_ordering(value, operator),
+            _ => Ok(value),
+        }
+    }
+
+    /// Given the result of a `cmp` operation, convert it into the boolean result of the given operator.
+    /// - `<`:  `ordering == Ordering::Less`
+    /// - `<=`: `ordering != Ordering::Greater`
+    /// - `>`:  `ordering == Ordering::Greater`
+    /// - `<=`: `ordering != Ordering::Less`
+    fn evaluate_ordering(&self, ordering: Value, operator: BinaryOpKind) -> IResult<Value> {
+        let ordering = match ordering {
+            Value::Struct(fields, _) => match fields.into_iter().next().unwrap().1 {
+                Value::Field(ordering) => ordering,
+                _ => unreachable!("`cmp` should always return an Ordering value"),
+            },
+            _ => unreachable!("`cmp` should always return an Ordering value"),
+        };
+
+        use BinaryOpKind::*;
+        let less_or_greater = if matches!(operator, Less | GreaterEqual) {
+            FieldElement::zero() // Ordering::Less
+        } else {
+            2u128.into() // Ordering::Greater
+        };
+
+        if matches!(operator, Less | Greater) {
+            Ok(Value::Bool(ordering == less_or_greater))
+        } else {
+            Ok(Value::Bool(ordering != less_or_greater))
+        }
     }
 
     fn evaluate_index(&mut self, index: HirIndexExpression, id: ExprId) -> IResult<Value> {
