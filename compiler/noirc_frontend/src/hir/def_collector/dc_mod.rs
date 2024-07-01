@@ -851,7 +851,7 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&PathBuf::new());
 
-        let file_id = add_file(&mut fm, &dir, &"my_dummy_file.nr");
+        let file_id = add_file(&mut fm, &dir, "my_dummy_file.nr");
 
         let result = find_module(&fm, file_id, "foo");
         assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
@@ -862,8 +862,8 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        let main_file_id = add_file(&mut fm, &dir, &"main.nr");
-        add_file(&mut fm, &dir, &"main/foo.nr");
+        let main_file_id = add_file(&mut fm, &dir, "main.nr");
+        add_file(&mut fm, &dir, "main/foo.nr");
 
         let result = find_module(&fm, main_file_id, "foo");
         assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
@@ -886,8 +886,8 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        let foo_file_id = add_file(&mut fm, &dir, &"foo.nr");
-        add_file(&mut fm, &dir, &"bar.nr");
+        let foo_file_id = add_file(&mut fm, &dir, "foo.nr");
+        add_file(&mut fm, &dir, "bar.nr");
 
         let result = find_module(&fm, foo_file_id, "bar");
         assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
@@ -898,9 +898,9 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        let lib_file_id = add_file(&mut fm, &dir, &"lib.nr");
-        add_file(&mut fm, &dir, &"bar.nr");
-        add_file(&mut fm, &dir, &"foo.nr");
+        let lib_file_id = add_file(&mut fm, &dir, "lib.nr");
+        add_file(&mut fm, &dir, "bar.nr");
+        add_file(&mut fm, &dir, "foo.nr");
 
         // `mod bar` from `lib.nr` should find `bar.nr`
         let bar_file_id = find_module(&fm, lib_file_id, "bar").unwrap();
@@ -915,8 +915,8 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        let sub_dir_file_id = add_file(&mut fm, &dir, &"sub_dir.nr");
-        add_file(&mut fm, &dir, &"sub_dir/foo.nr");
+        let sub_dir_file_id = add_file(&mut fm, &dir, "sub_dir.nr");
+        add_file(&mut fm, &dir, "sub_dir/foo.nr");
 
         // `mod foo` from `sub_dir.nr` should find `sub_dir/foo.nr`
         find_module(&fm, sub_dir_file_id, "foo").unwrap();
@@ -927,8 +927,8 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        let sub_dir_file_id = add_file(&mut fm, &dir, &"sub_dir.nr");
-        add_file(&mut fm, &dir, &"sub_dir/foo/mod.nr");
+        let sub_dir_file_id = add_file(&mut fm, &dir, "sub_dir.nr");
+        add_file(&mut fm, &dir, "sub_dir/foo/mod.nr");
 
         // `mod foo` from `sub_dir.nr` should find `sub_dir/foo.nr`
         find_module(&fm, sub_dir_file_id, "foo").unwrap();
@@ -939,9 +939,9 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        let lib_file_id = add_file(&mut fm, &dir, &"lib.nr");
-        add_file(&mut fm, &dir, &"sub_dir.nr");
-        add_file(&mut fm, &dir, &"sub_dir/foo.nr");
+        let lib_file_id = add_file(&mut fm, &dir, "lib.nr");
+        add_file(&mut fm, &dir, "sub_dir.nr");
+        add_file(&mut fm, &dir, "sub_dir/foo.nr");
 
         // `mod sub_dir` from `lib.nr` should find `sub_dir.nr`
         let sub_dir_file_id = find_module(&fm, lib_file_id, "sub_dir").unwrap();
@@ -956,7 +956,7 @@ mod find_module_tests {
         let mut fm = FileManager::new(&dir);
 
         let lib_file_id = add_file(&mut fm, &dir, "lib.nr");
-        add_file(&mut fm, &dir, &"foo/mod.nr");
+        add_file(&mut fm, &dir, "foo/mod.nr");
 
         // Check that searching "foo" finds the mod.nr file
         find_module(&fm, lib_file_id, "foo").unwrap();
@@ -967,8 +967,8 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        let lib_file_id = add_file(&mut fm, &dir, &"lib.nr");
-        add_file(&mut fm, &dir, &"mod.nr");
+        let lib_file_id = add_file(&mut fm, &dir, "lib.nr");
+        add_file(&mut fm, &dir, "mod.nr");
 
         // Check that searching "foo" does not pick up the mod.nr file
         let result = find_module(&fm, lib_file_id, "foo");
@@ -980,9 +980,9 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        let foo_file_id = add_file(&mut fm, &dir, &"foo.nr");
-        add_file(&mut fm, &dir, &"foo/bar.nr");
-        add_file(&mut fm, &dir, &"foo/bar/mod.nr");
+        let foo_file_id = add_file(&mut fm, &dir, "foo.nr");
+        add_file(&mut fm, &dir, "foo/bar.nr");
+        add_file(&mut fm, &dir, "foo/bar/mod.nr");
 
         // Check that `mod bar` from `foo` gives an error
         let result = find_module(&fm, foo_file_id, "bar");
@@ -994,9 +994,9 @@ mod find_module_tests {
         let dir = PathBuf::new();
         let mut fm = FileManager::new(&dir);
 
-        let lib_file_id = add_file(&mut fm, &dir, &"lib.nr");
-        add_file(&mut fm, &dir, &"foo.nr");
-        add_file(&mut fm, &dir, &"foo/mod.nr");
+        let lib_file_id = add_file(&mut fm, &dir, "lib.nr");
+        add_file(&mut fm, &dir, "foo.nr");
+        add_file(&mut fm, &dir, "foo/mod.nr");
 
         // Check that searching "foo" gives an error
         let result = find_module(&fm, lib_file_id, "foo");
