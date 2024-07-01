@@ -916,7 +916,7 @@ mod find_module_tests {
         // `mod bar` from `lib.nr` should find `bar.nr`
         let bar_file_id = find_module(&fm, lib_file_id, "bar").unwrap();
 
-        // `mod foo` from `bar.nr` should find `foo.nr`
+        // `mod foo` from `bar.nr` should fail to find `foo.nr`
         let result = find_module(&fm, bar_file_id, "foo");
         assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
     }
