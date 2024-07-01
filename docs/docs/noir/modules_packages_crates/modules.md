@@ -49,6 +49,27 @@ crate
 
 ```
 
+The module filename may also be the name of the module as a directory with the contents in a 
+file named `mod.nr` within that directory. The above example can alternatively be expressed like this:
+
+Filename : `src/main.nr`
+
+```rust
+mod foo;
+
+fn main() {
+    foo::hello_world();
+}
+```
+
+Filename : `src/foo/mod.nr`
+
+```rust
+fn from_foo() {}
+```
+
+Note that it's an error to have both files `src/foo.nr` and `src/foo/mod.nr` in the filesystem.
+
 ### Importing a module throughout the tree
 
 All modules are accessible from the `crate::` namespace.
@@ -102,4 +123,29 @@ crate
       ├── from_foo
       └── bar
            └── from_bar
+```
+
+Similar to importing a module in the crate root, modules can be placed in a `mod.nr` file, like this:
+
+Filename : `src/main.nr`
+
+```rust
+mod foo;
+
+fn main() {
+    foo::from_foo();
+}
+```
+
+Filename : `src/foo/mod.nr`
+
+```rust
+mod bar;
+fn from_foo() {}
+```
+
+Filename : `src/foo/bar/mod.nr`
+
+```rust
+fn from_bar() {}
 ```
