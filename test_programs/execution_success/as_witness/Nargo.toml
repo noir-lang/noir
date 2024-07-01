@@ -1,0 +1,6 @@
+[package]
+name = "as_witness"
+type = "bin"
+authors = [""]
+
+[dependencies]

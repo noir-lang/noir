@@ -38,8 +38,6 @@ pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionErro
 pub enum PathResolutionError {
     #[error("Could not resolve '{0}' in path")]
     Unresolved(Ident),
-    #[error("Contract variable '{0}' referenced from outside the contract")]
-    ExternalContractUsed(Ident),
     #[error("{0} is private and not visible from the current module")]
     Private(Ident),
 }
@@ -68,11 +66,6 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
             PathResolutionError::Unresolved(ident) => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.span())
             }
-            PathResolutionError::ExternalContractUsed(ident) => CustomDiagnostic::simple_error(
-                error.to_string(),
-                "Contracts may only be referenced from within a contract".to_string(),
-                ident.span(),
-            ),
             // This will be upgraded to an error in future versions
             PathResolutionError::Private(ident) => CustomDiagnostic::simple_warning(
                 error.to_string(),
