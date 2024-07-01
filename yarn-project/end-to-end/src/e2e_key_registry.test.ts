@@ -58,7 +58,7 @@ describe('Key Registry', () => {
       await expect(
         keyRegistry
           .withWallet(wallets[0])
-          .methods.register(
+          .methods.register_npk_and_ivpk(
             account,
             account.partialAddress,
             // TODO(#6337): Make calling `toNoirStruct()` unnecessary
@@ -108,7 +108,18 @@ describe('Key Registry', () => {
     it('registers', async () => {
       await keyRegistry
         .withWallet(wallets[0])
-        .methods.register(
+        .methods.register_npk_and_ivpk(
+          account,
+          account.partialAddress,
+          // TODO(#6337): Make calling `toNoirStruct()` unnecessary
+          account.publicKeys.toNoirStruct(),
+        )
+        .send()
+        .wait();
+
+      await keyRegistry
+        .withWallet(wallets[0])
+        .methods.register_ovpk_and_tpk(
           account,
           account.partialAddress,
           // TODO(#6337): Make calling `toNoirStruct()` unnecessary

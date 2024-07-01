@@ -11,6 +11,7 @@ fn test_serde() {
     let original = ScheduledValueChange::new(pre, post, block_of_change);
     let converted = ScheduledValueChange::deserialize((original).serialize());
 
+    assert_eq(original, converted); // This also tests the Eq impl
     assert_eq(original.pre, converted.pre);
     assert_eq(original.post, converted.post);
     assert_eq(original.block_of_change, converted.block_of_change);

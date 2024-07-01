@@ -1,18 +1,22 @@
 use crate::{
-    context::{PublicContext, PrivateContext}, state_vars::shared_mutable::shared_mutable::SharedMutable,
+    context::{PublicContext, PrivateContext},
+    state_vars::shared_mutable::{
+    shared_mutable::SharedMutable, scheduled_value_change::ScheduledValueChange,
+    scheduled_delay_change::ScheduledDelayChange
+},
     test::helpers::test_environment::TestEnvironment
 };
 
 use dep::protocol_types::address::AztecAddress;
+use dep::std::{test::OracleMock, unsafe::zeroed};
 
-global new_value = 57;
+global new_value = 17;
 
-global pre_delay = 20;
-global post_delay = 15;
+global new_delay = 20;
 
-global storage_slot = 57;
+global storage_slot = 47;
 
-global TEST_INITIAL_DELAY: u32 = 30;
+global TEST_INITIAL_DELAY: u32 = 32;
 
 fn setup() -> TestEnvironment {
     TestEnvironment::new()
@@ -29,335 +33,291 @@ fn in_private(
     SharedMutable::new(&mut env.private_at(historical_block_number), storage_slot)
 }
 
-// #[test]
-// fn test_get_current_value_in_public_initial() {
-//     let env = setup();
-//     let state_var = in_public(env);
+#[test]
+fn test_get_current_value_in_public_initial() {
+    let env = setup();
+    let state_var = in_public(env);
 
-//     // 0 is the default empty value for a Field
-//     assert_eq(state_var.get_current_value_in_public(), 0);
-// }
+    assert_eq(state_var.get_current_value_in_public(), zeroed());
+}
 
-// #[test]
-// fn test_get_current_value_in_public_before_scheduled_change() {
-//     let mut env = setup();
-//     let state_var = in_public(env);
+#[test]
+fn test_get_scheduled_value_in_public() {
+    let mut env = setup();
+    let state_var = in_public(env);
 
-//     state_var.schedule_value_change(new_value);
+    state_var.schedule_value_change(new_value);
 
-//     let (_, block_of_change) = state_var.get_scheduled_value_in_public();
+    let (scheduled, block_of_change) = state_var.get_scheduled_value_in_public();
+    assert_eq(scheduled, new_value);
+    assert_eq(block_of_change, env.block_number() + TEST_INITIAL_DELAY);
+}
 
-//     let original_value = 0;
+#[test]
+fn test_get_current_value_in_public_before_scheduled_change() {
+    let mut env = setup();
+    let state_var = in_public(env);
 
-//     // The current value has not changed
-//     assert_eq(state_var.get_current_value_in_public(), original_value);
+    state_var.schedule_value_change(new_value);
 
-//     // The current value still does not change right before the block of change
-//     env.advance_block_to(block_of_change - 1);
-//     assert_eq(state_var.get_current_value_in_public(), original_value);
-// }
+    let (_, block_of_change) = state_var.get_scheduled_value_in_public();
 
-// #[test]
-// fn test_get_current_value_in_public_at_scheduled_change() {
-//     let mut env = setup();
-//     let state_var = in_public(env);
+    let original_value = zeroed();
 
-//     state_var.schedule_value_change(new_value);
+    // The current value has not changed
+    assert_eq(state_var.get_current_value_in_public(), original_value);
 
-//     let (_, block_of_change) = state_var.get_scheduled_value_in_public();
+    // The current value still does not change right before the block of change
+    env.advance_block_to(block_of_change - 1);
+    assert_eq(state_var.get_current_value_in_public(), original_value);
+}
 
-//     env.advance_block_to(block_of_change);
-//     assert_eq(state_var.get_current_value_in_public(), new_value);
-// }
+#[test]
+fn test_get_current_value_in_public_at_scheduled_change() {
+    let mut env = setup();
+    let state_var = in_public(env);
 
-// #[test]
-// fn test_get_current_value_in_public_after_scheduled_change() {
-//     let mut env = setup();
-//     let state_var = in_public(env);
+    state_var.schedule_value_change(new_value);
 
-//     state_var.schedule_value_change(new_value);
+    let (_, block_of_change) = state_var.get_scheduled_value_in_public();
 
-//     let (_, block_of_change) = state_var.get_scheduled_value_in_public();
+    env.advance_block_to(block_of_change);
+    assert_eq(state_var.get_current_value_in_public(), new_value);
+}
 
-//     env.advance_block_to(block_of_change + 10);
-//     assert_eq(state_var.get_current_value_in_public(), new_value);
-// }
+#[test]
+fn test_get_current_value_in_public_after_scheduled_change() {
+    let mut env = setup();
+    let state_var = in_public(env);
 
-// #[test]
-// fn test_get_current_value_in_private_before_change() {
-//     let mut env = setup();
+    state_var.schedule_value_change(new_value);
 
-//     let public_state_var = in_public(env);
-//     public_state_var.schedule_value_change(new_value);
+    let (_, block_of_change) = state_var.get_scheduled_value_in_public();
 
-//     let (_, block_of_change) = public_state_var.get_scheduled_value_in_public();
+    env.advance_block_to(block_of_change + 10);
+    assert_eq(state_var.get_current_value_in_public(), new_value);
+}
 
-//     let schedule_block_number = env.block_number();
+#[test]
+fn test_get_current_delay_in_public_initial() {
+    let env = setup();
+    let state_var = in_public(env);
 
-//     let private_state_var = in_private(&mut env, schedule_block_number);
-//     assert_eq(private_state_var.get_current_value_in_private(), 0);
-//     assert_eq(private_state_var.context.max_block_number.unwrap(), block_of_change - 1);
-// }
+    assert_eq(state_var.get_current_delay_in_public(), TEST_INITIAL_DELAY);
+}
 
-// #[test]
-// fn test_get_current_value_in_private_immediately_before_change() {
-//     let mut env = setup();
+#[test]
+fn test_get_scheduled_delay_in_public() {
+    let mut env = setup();
+    let state_var = in_public(env);
 
-//     let public_state_var = in_public(env);
-//     public_state_var.schedule_value_change(new_value);
+    state_var.schedule_delay_change(new_delay);
 
-//     let (_, block_of_change) = public_state_var.get_scheduled_value_in_public();
+    let (scheduled, block_of_change) = state_var.get_scheduled_delay_in_public();
+    assert_eq(scheduled, new_delay);
+    // The new delay is smaller, therefore we need to wait for the difference between current and new
+    assert_eq(block_of_change, env.block_number() + TEST_INITIAL_DELAY - new_delay);
+}
 
-//     let private_state_var = in_private(&mut env, block_of_change - 1);
+#[test]
+fn test_get_current_delay_in_public_before_scheduled_change() {
+    let mut env = setup();
+    let state_var = in_public(env);
 
-//     assert_eq(private_state_var.get_current_value_in_private(), 0);
-//     assert_eq(private_state_var.context.max_block_number.unwrap(), block_of_change - 1);
-// }
+    state_var.schedule_delay_change(new_delay);
 
-// #[test]
-// fn test_get_current_value_in_private_at_change() {
-//     let mut env = setup();
+    let (_, block_of_change) = state_var.get_scheduled_delay_in_public();
 
-//     let public_state_var = in_public(env);
-//     public_state_var.schedule_value_change(new_value);
+    let original_delay = TEST_INITIAL_DELAY;
 
-//     let (_, block_of_change) = public_state_var.get_scheduled_value_in_public();
+    // The current delay has not changed
+    assert_eq(state_var.get_current_delay_in_public(), original_delay);
 
-//     let historical_block_number = block_of_change;
-//     let private_state_var = in_private(&mut env, historical_block_number);
-//     assert_eq(private_state_var.get_current_value_in_private(), new_value);
-//     assert_eq(
-//         private_state_var.context.max_block_number.unwrap(), historical_block_number + TEST_INITIAL_DELAY
-//     );
-// }
-
-// #[test]
-// fn test_get_current_value_in_private_after_change() {
-//     let mut env = setup();
-
-//     let public_state_var = in_public(env);
-//     public_state_var.schedule_value_change(new_value);
+    // The current delay still does not change right before the block of change
+    env.advance_block_to(block_of_change - 1);
+    assert_eq(state_var.get_current_delay_in_public(), original_delay);
+}
 
-//     let (_, block_of_change) = public_state_var.get_scheduled_value_in_public();
+#[test]
+fn test_get_current_delay_in_public_at_scheduled_change() {
+    let mut env = setup();
+    let state_var = in_public(env);
 
-//     let historical_block_number = block_of_change + 10;
-//     let private_state_var = in_private(&mut env, historical_block_number);
-//     assert_eq(private_state_var.get_current_value_in_private(), new_value);
-//     assert_eq(
-//         private_state_var.context.max_block_number.unwrap(), historical_block_number + TEST_INITIAL_DELAY
-//     );
-// }
-
-// #[test]
-// fn test_get_current_delay_in_public() {
-//     let (state_var, block_number) = setup();
-
-//     // Uninitialized
-//     mock_delay_change_read_uninitialized(state_var);
-//     assert_eq(state_var.get_current_delay_in_public(), TEST_INITIAL_DELAY as u32);
-
-//     // Change in the future, current value is pre
-//     mock_delay_change_read(state_var, pre_delay, post_delay, block_number + 1);
-//     assert_eq(state_var.get_current_delay_in_public(), pre_delay as u32);
+    state_var.schedule_delay_change(new_delay);
 
-//     // Change in the current block, current value is post
-//     mock_delay_change_read(state_var, pre_delay, post_delay, block_number);
-//     assert_eq(state_var.get_current_delay_in_public(), post_delay as u32);
-
-//     // Change in the past, current value is post
-//     mock_delay_change_read(state_var, pre_delay, post_delay, block_number - 1);
-//     assert_eq(state_var.get_current_delay_in_public(), post_delay as u32);
-// }
-
-// #[test]
-// fn test_get_scheduled_delay_in_public_before_change() {
-//     let (state_var, block_number) = setup();
-
-//     // Uninitialized
-//     mock_delay_change_read_uninitialized(state_var);
-//     assert_eq(state_var.get_scheduled_delay_in_public(), (TEST_INITIAL_DELAY as u32, 0));
-
-//     // Change in the future, scheduled is post (always is)
-//     mock_delay_change_read(state_var, pre_delay, post_delay, block_number + 1);
-//     assert_eq(state_var.get_scheduled_delay_in_public(), (post_delay as u32, (block_number + 1) as u32));
+    let (_, block_of_change) = state_var.get_scheduled_delay_in_public();
 
-//     // Change in the current block, scheduled is post (always is)
-//     mock_delay_change_read(state_var, pre_delay, post_delay, block_number);
-//     assert_eq(state_var.get_scheduled_delay_in_public(), (post_delay as u32, block_number as u32));
-
-//     // Change in the past, scheduled is post (always is)
-//     mock_delay_change_read(state_var, pre_delay, post_delay, block_number - 1);
-//     assert_eq(state_var.get_scheduled_delay_in_public(), (post_delay as u32, (block_number - 1) as u32));
-// }
-
-// #[test]
-// fn test_schedule_value_change_no_delay() {
-//     let (state_var, block_number) = setup();
-
-//     // Last value change was in the past
-//     mock_value_change_read(state_var, pre_value, post_value, 0);
-
-//     // Current delay is 0
-//     mock_delay_change_read(state_var, 0, 0, block_number);
-
-//     let write_mock = mock_value_change_write();
-
-//     state_var.schedule_value_change(new_value);
-
-//     // The new value has a block of change equal to the current block, i.e. it is the current value
-//     assert_value_change_write(state_var, write_mock, post_value, new_value, block_number);
-// }
-
-// #[test]
-// fn test_schedule_value_change_before_change_no_scheduled_delay() {
-//     let (state_var, block_number) = setup();
-
-//     // Value change in the future, delay change in the past
-//     mock_value_and_delay_read(state_var, block_number + 1, block_number - 1);
-//     let write_mock = mock_value_change_write();
-
-//     state_var.schedule_value_change(new_value);
-
-//     // The new scheduled value change replaces the old one, post delay (current) is used
-//     assert_value_change_write(
-//         state_var,
-//         write_mock,
-//         pre_value,
-//         new_value,
-//         block_number + post_delay
-//     );
-// }
-
-// #[test]
-// fn test_schedule_value_change_before_change_scheduled_delay() {
-//     let (state_var, block_number) = setup();
-
-//     // Value change in the future, delay change in the future
-//     mock_value_and_delay_read(state_var, block_number + 1, block_number + 1);
-
-//     let write_mock = mock_value_change_write();
-
-//     state_var.schedule_value_change(new_value);
-
-//     // The new scheduled value change replaces the old one, pre delay (current, not scheduled) is used
-//     assert_value_change_write(
-//         state_var,
-//         write_mock,
-//         pre_value,
-//         new_value,
-//         block_number + pre_delay
-//     );
-// }
-
-// #[test]
-// fn test_schedule_value_change_after_change_no_scheduled_delay() {
-//     let (state_var, block_number) = setup();
-
-//     // Value change in the past, delay change in the past
-//     mock_value_and_delay_read(state_var, block_number - 1, block_number - 1);
-//     let write_mock = mock_value_change_write();
-
-//     state_var.schedule_value_change(new_value);
-
-//     // The previous post value becomes the pre value, post delay (current) is used
-//     assert_value_change_write(
-//         state_var,
-//         write_mock,
-//         post_value,
-//         new_value,
-//         block_number + post_delay
-//     );
-// }
-
-// #[test]
-// fn test_schedule_value_change_after_change_scheduled_delay() {
-//     let (state_var, block_number) = setup();
-
-//     // Value change in the past, delay change in the future
-//     mock_value_and_delay_read(state_var, block_number - 1, block_number + 1);
-
-//     let write_mock = mock_value_change_write();
-
-//     state_var.schedule_value_change(new_value);
-
-//     // The previous post value becomes the pre value, pre delay (current, not scheduled) is used
-//     assert_value_change_write(
-//         state_var,
-//         write_mock,
-//         post_value,
-//         new_value,
-//         block_number + pre_delay
-//     );
-// }
-
-// #[test]
-// fn test_schedule_delay_increase_before_change() {
-//     let (state_var, block_number) = setup();
-
-//     // Delay change in future, current delay is pre
-//     mock_delay_change_read(state_var, pre_delay, post_delay, block_number + 1);
-//     let write_mock = mock_delay_change_write();
-
-//     let new_delay = pre_delay + 1;
-//     state_var.schedule_delay_change(new_delay as u32);
-
-//     // The previous scheduled change is lost, change is immediate (due to increase)
-//     assert_delay_change_write(state_var, write_mock, pre_delay, new_delay, block_number);
-// }
-
-// #[test]
-// fn test_schedule_delay_reduction_before_change() {
-//     let (state_var, block_number) = setup();
-
-//     // Delay change in future, current delay is pre
-//     mock_delay_change_read(state_var, pre_delay, post_delay, block_number + 1);
-//     let write_mock = mock_delay_change_write();
-
-//     let new_delay = pre_delay - 1;
-//     state_var.schedule_delay_change(new_delay as u32);
-
-//     // The previous scheduled change is lost, change delay equals difference (due to reduction)
-//     assert_delay_change_write(
-//         state_var,
-//         write_mock,
-//         pre_delay,
-//         new_delay,
-//         block_number + pre_delay - new_delay
-//     );
-// }
-
-// #[test]
-// fn test_schedule_delay_increase_after_change() {
-//     let (state_var, block_number) = setup();
-
-//     // Delay change in the past, current delay is post
-//     mock_delay_change_read(state_var, pre_delay, post_delay, block_number - 1);
-//     let write_mock = mock_delay_change_write();
-
-//     let new_delay = post_delay + 1;
-//     state_var.schedule_delay_change(new_delay as u32);
-
-//     // The current value becomes pre, change is immediate (due to increase)
-//     assert_delay_change_write(state_var, write_mock, post_delay, new_delay, block_number);
-// }
-
-// #[test]
-// fn test_schedule_delay_reduction_after_change() {
-//     let (state_var, block_number) = setup();
-
-//     // Delay change in the past, current delay is post
-//     mock_delay_change_read(state_var, pre_delay, post_delay, block_number - 1);
-//     let write_mock = mock_delay_change_write();
-
-//     let new_delay = post_delay - 1;
-//     state_var.schedule_delay_change(new_delay as u32);
-
-//     // The current value becomes pre, change delay equals difference (due to reduction)
-//     assert_delay_change_write(
-//         state_var,
-//         write_mock,
-//         post_delay,
-//         new_delay,
-//         block_number + post_delay - new_delay
-//     );
-// }
+    env.advance_block_to(block_of_change);
+    assert_eq(state_var.get_current_delay_in_public(), new_delay);
+}
+
+#[test]
+fn test_get_current_delay_in_public_after_scheduled_change() {
+    let mut env = setup();
+    let state_var = in_public(env);
+
+    state_var.schedule_delay_change(new_delay);
+
+    let (_, block_of_change) = state_var.get_scheduled_delay_in_public();
+
+    env.advance_block_to(block_of_change + 10);
+    assert_eq(state_var.get_current_delay_in_public(), new_delay);
+}
+
+#[test]
+fn test_get_current_value_in_private_initial() {
+    let mut env = setup();
+
+    let historical_block_number = env.block_number();
+    let state_var = in_private(&mut env, historical_block_number);
+
+    assert_eq(state_var.get_current_value_in_private(), zeroed());
+    assert_eq(state_var.context.max_block_number.unwrap(), historical_block_number + TEST_INITIAL_DELAY);
+}
+
+#[test]
+fn test_get_current_value_in_private_before_change() {
+    let mut env = setup();
+
+    let public_state_var = in_public(env);
+    public_state_var.schedule_value_change(new_value);
+
+    let (_, block_of_change) = public_state_var.get_scheduled_value_in_public();
+
+    let schedule_block_number = env.block_number();
+
+    let private_state_var = in_private(&mut env, schedule_block_number);
+    assert_eq(private_state_var.get_current_value_in_private(), 0);
+    assert_eq(private_state_var.context.max_block_number.unwrap(), block_of_change - 1);
+}
+
+#[test]
+fn test_get_current_value_in_private_immediately_before_change() {
+    let mut env = setup();
+
+    let public_state_var = in_public(env);
+    public_state_var.schedule_value_change(new_value);
+
+    let (_, block_of_change) = public_state_var.get_scheduled_value_in_public();
+
+    let private_state_var = in_private(&mut env, block_of_change - 1);
+
+    // Note that this transaction would never be valid since the max block number is the same as the historical block
+    // used to built the proof, i.e. in the past.
+    assert_eq(private_state_var.get_current_value_in_private(), 0);
+    assert_eq(private_state_var.context.max_block_number.unwrap(), block_of_change - 1);
+}
+
+#[test]
+fn test_get_current_value_in_private_at_change() {
+    let mut env = setup();
+
+    let public_state_var = in_public(env);
+    public_state_var.schedule_value_change(new_value);
+
+    let (_, block_of_change) = public_state_var.get_scheduled_value_in_public();
+
+    let historical_block_number = block_of_change;
+    let private_state_var = in_private(&mut env, historical_block_number);
+    assert_eq(private_state_var.get_current_value_in_private(), new_value);
+    assert_eq(
+        private_state_var.context.max_block_number.unwrap(), historical_block_number + TEST_INITIAL_DELAY
+    );
+}
+
+#[test]
+fn test_get_current_value_in_private_after_change() {
+    let mut env = setup();
+
+    let public_state_var = in_public(env);
+    public_state_var.schedule_value_change(new_value);
+
+    let (_, block_of_change) = public_state_var.get_scheduled_value_in_public();
+
+    let historical_block_number = block_of_change + 10;
+    let private_state_var = in_private(&mut env, historical_block_number);
+    assert_eq(private_state_var.get_current_value_in_private(), new_value);
+    assert_eq(
+        private_state_var.context.max_block_number.unwrap(), historical_block_number + TEST_INITIAL_DELAY
+    );
+}
+
+#[test]
+fn test_get_current_value_in_private_with_non_initial_delay() {
+    let mut env = setup();
+
+    let public_state_var = in_public(env);
+    public_state_var.schedule_value_change(new_value);
+    public_state_var.schedule_delay_change(new_delay);
+
+    let (_, value_block_of_change) = public_state_var.get_scheduled_value_in_public();
+    let (_, delay_block_of_change) = public_state_var.get_scheduled_delay_in_public();
+
+    let historical_block_number = if value_block_of_change > delay_block_of_change {
+        value_block_of_change
+    } else {
+        delay_block_of_change
+    };
+
+    let private_state_var = in_private(&mut env, historical_block_number);
+    assert_eq(private_state_var.get_current_value_in_private(), new_value);
+    assert_eq(private_state_var.context.max_block_number.unwrap(), historical_block_number + new_delay);
+}
+
+#[test(should_fail_with="Hint values do not match hash")]
+fn test_get_current_value_in_private_bad_value_hints() {
+    let mut env = setup();
+
+    let public_state_var = in_public(env);
+    public_state_var.schedule_value_change(new_value);
+
+    let schedule_block_number = env.block_number();
+    let private_state_var = in_private(&mut env, schedule_block_number);
+
+    let mocked: ScheduledValueChange<Field> = ScheduledValueChange::new(0, new_value + 1, schedule_block_number);
+    let _ = OracleMock::mock("storageRead").with_params((private_state_var.get_value_change_storage_slot(), 3)).returns(mocked.serialize()).times(1);
+
+    let _ = private_state_var.get_current_value_in_private();
+}
+
+#[test(should_fail_with="Hint values do not match hash")]
+fn test_get_current_value_in_private_bad_delay_hints() {
+    let mut env = setup();
+
+    let public_state_var = in_public(env);
+    public_state_var.schedule_value_change(new_value);
+
+    let schedule_block_number = env.block_number();
+    let private_state_var = in_private(&mut env, schedule_block_number);
+
+    let mocked: ScheduledDelayChange<TEST_INITIAL_DELAY> = ScheduledDelayChange::new(Option::none(), Option::some(42), schedule_block_number);
+    let _ = OracleMock::mock("storageRead").with_params((private_state_var.get_delay_change_storage_slot(), 1)).returns(mocked.serialize()).times(1);
+
+    let _ = private_state_var.get_current_value_in_private();
+}
+
+#[test(should_fail_with="Non-zero value change for zero hash")]
+fn test_get_current_value_in_private_bad_zero_hash_value_hints() {
+    let mut env = setup();
+
+    let historical_block_number = env.block_number();
+    let state_var = in_private(&mut env, historical_block_number);
+
+    let mocked: ScheduledValueChange<Field> = ScheduledValueChange::new(0, new_value, 0);
+    let _ = OracleMock::mock("storageRead").with_params((state_var.get_value_change_storage_slot(), 3)).returns(mocked.serialize()).times(1);
+
+    let _ = state_var.get_current_value_in_private();
+}
+
+#[test(should_fail_with="Non-zero delay change for zero hash")]
+fn test_get_current_value_in_private_bad_zero_hash_delay_hints() {
+    let mut env = setup();
+
+    let historical_block_number = env.block_number();
+    let state_var = in_private(&mut env, historical_block_number);
+
+    let mocked: ScheduledDelayChange<TEST_INITIAL_DELAY> = ScheduledDelayChange::new(Option::none(), Option::some(new_delay), 0);
+    let _ = OracleMock::mock("storageRead").with_params((state_var.get_delay_change_storage_slot(), 1)).returns(mocked.serialize()).times(1);
+
+    let _ = state_var.get_current_value_in_private();
+}

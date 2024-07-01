@@ -171,3 +171,9 @@ impl<INITIAL_DELAY> Deserialize<1> for ScheduledDelayChange<INITIAL_DELAY> {
         }
     }
 }
+
+impl<INITIAL_DELAY> Eq for ScheduledDelayChange<INITIAL_DELAY> {
+    fn eq(self, other: Self) -> bool {
+        (self.pre == other.pre) & (self.post == other.post) & (self.block_of_change == other.block_of_change)
+    }
+}

@@ -1,9 +1,15 @@
-use dep::protocol_types::{hash::pedersen_hash, traits::FromField, address::AztecAddress, header::Header};
+use dep::protocol_types::{
+    hash::{pedersen_hash, poseidon2_hash}, traits::{FromField, ToField}, address::AztecAddress,
+    header::Header
+};
 
 use crate::context::PrivateContext;
 use crate::state_vars::{
     storage::Storage,
-    shared_mutable::{scheduled_delay_change::ScheduledDelayChange, scheduled_value_change::ScheduledValueChange}
+    shared_mutable::{
+    shared_mutable::SharedMutable, scheduled_delay_change::ScheduledDelayChange,
+    scheduled_value_change::ScheduledValueChange
+}
 };
 
 struct SharedMutablePrivateGetter<T, INITIAL_DELAY> {
@@ -30,8 +36,12 @@ impl<T, INITIAL_DELAY> SharedMutablePrivateGetter<T, INITIAL_DELAY> {
         Self { context, other_contract_address, storage_slot, _dummy: [0; INITIAL_DELAY] }
     }
 
-    pub fn get_value_in_private(self, header: Header) -> T where T: FromField {
-        let (value_change, delay_change, historical_block_number) = self.historical_read_from_public_storage(header);
+    pub fn get_value_in_private(self, header: Header) -> T where T: FromField + ToField + Eq {
+        // We create a dummy SharedMutable state variable so that we can reuse its historical_read_from_public_storage
+        // method, greatly reducing code duplication. 
+        let dummy: SharedMutable<T, INITIAL_DELAY, ()> = SharedMutable::new((), self.storage_slot);
+        let (value_change, delay_change, historical_block_number) = dummy.historical_read_from_public_storage(header, self.other_contract_address);
+
         let effective_minimum_delay = delay_change.get_effective_minimum_delay_at(historical_block_number);
         let block_horizon = value_change.get_block_horizon(historical_block_number, effective_minimum_delay);
 
@@ -43,37 +53,5 @@ impl<T, INITIAL_DELAY> SharedMutablePrivateGetter<T, INITIAL_DELAY> {
         }
 
         value_change.get_current_at(historical_block_number)
-    }
-
-    fn historical_read_from_public_storage(
-        self,
-        header: Header
-    ) -> (ScheduledValueChange<T>, ScheduledDelayChange<INITIAL_DELAY>, u32) where T: FromField {
-        let value_change_slot = self.get_value_change_storage_slot();
-        let mut raw_value_change_fields = [0; 3];
-        for i in 0..3 {
-            raw_value_change_fields[i] = header.public_storage_historical_read(
-                value_change_slot + i as Field,
-                self.other_contract_address
-            );
-        }
-
-        let delay_change_slot = self.get_delay_change_storage_slot();
-        let raw_delay_change_fields = [header.public_storage_historical_read(delay_change_slot, self.other_contract_address)];
-
-        let value_change = ScheduledValueChange::deserialize(raw_value_change_fields);
-        let delay_change = ScheduledDelayChange::deserialize(raw_delay_change_fields);
-
-        let historical_block_number = header.global_variables.block_number as u32;
-
-        (value_change, delay_change, historical_block_number)
-    }
-
-    fn get_value_change_storage_slot(self) -> Field {
-        pedersen_hash([self.storage_slot, 0], 0)
-    }
-
-    fn get_delay_change_storage_slot(self) -> Field {
-        pedersen_hash([self.storage_slot, 1], 0)
     }
 }

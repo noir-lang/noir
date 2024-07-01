@@ -152,3 +152,9 @@ impl<T> Deserialize<3> for ScheduledValueChange<T> {
     }
   }
 }
+
+impl<T> Eq for ScheduledValueChange<T>  {
+    fn eq(self, other: Self) -> bool where T: Eq {
+        (self.pre == other.pre) & (self.post == other.post) & (self.block_of_change == other.block_of_change)
+    }
+}

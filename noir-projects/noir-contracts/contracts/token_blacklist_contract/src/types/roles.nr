@@ -41,6 +41,12 @@ impl ToField for UserFlags {
     }
 }
 
+impl Eq for UserFlags {
+    fn eq(self, other: Self) -> bool {
+        (self.is_admin == other.is_admin) & (self.is_minter == other.is_minter) & (self.is_blacklisted == other.is_blacklisted)
+    }
+}
+
 // We implement this as it is used when serializing the state variable into return values
 // This is very inefficient if used to store the state variable.
 // We are currently "abusing" that the `to_field` is called in the `scheduled_value_change`
