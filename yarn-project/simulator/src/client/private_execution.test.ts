@@ -67,7 +67,7 @@ import { MessageLoadOracleInputs } from '../acvm/index.js';
 import { buildL1ToL2Message } from '../test/utils.js';
 import { computeSlotForMapping } from '../utils.js';
 import { type DBOracle } from './db_oracle.js';
-import { type ExecutionResult, collectSortedEncryptedLogs, collectSortedUnencryptedLogs } from './execution_result.js';
+import { type ExecutionResult, collectSortedEncryptedLogs } from './execution_result.js';
 import { AcirSimulator } from './simulator.js';
 
 jest.setTimeout(60_000);
@@ -266,41 +266,6 @@ describe('Private Execution test suite', () => {
   });
 
   describe('no constructor', () => {
-    it('emits a field as an unencrypted log', async () => {
-      const artifact = getFunctionArtifact(TestContractArtifact, 'emit_msg_sender');
-      const result = await runSimulator({ artifact, msgSender: owner });
-
-      const newUnencryptedLogs = getNonEmptyItems(result.callStackItem.publicInputs.unencryptedLogsHashes);
-      expect(newUnencryptedLogs).toHaveLength(1);
-
-      const functionLogs = collectSortedUnencryptedLogs(result);
-      expect(functionLogs.logs).toHaveLength(1);
-
-      const [unencryptedLog] = newUnencryptedLogs;
-      expect(unencryptedLog.value).toEqual(Fr.fromBuffer(functionLogs.logs[0].hash()));
-      expect(unencryptedLog.length).toEqual(new Fr(functionLogs.getKernelLength()));
-      // Test that the log payload (ie ignoring address, selector, and header) matches what we emitted
-      expect(functionLogs.logs[0].data.subarray(-32).toString('hex')).toEqual(owner.toBuffer().toString('hex'));
-    });
-
-    it('emits a field array as an unencrypted log', async () => {
-      const artifact = getFunctionArtifact(TestContractArtifact, 'emit_unencrypted_logs');
-      const args = times(5, () => Fr.random());
-      const result = await runSimulator({ artifact, msgSender: owner, args: [args, false] });
-
-      const newUnencryptedLogs = getNonEmptyItems(result.callStackItem.publicInputs.unencryptedLogsHashes);
-      expect(newUnencryptedLogs).toHaveLength(1);
-      const functionLogs = collectSortedUnencryptedLogs(result);
-      expect(functionLogs.logs).toHaveLength(1);
-
-      const [unencryptedLog] = newUnencryptedLogs;
-      expect(unencryptedLog.value).toEqual(Fr.fromBuffer(functionLogs.logs[0].hash()));
-      expect(unencryptedLog.length).toEqual(new Fr(functionLogs.getKernelLength()));
-      // Test that the log payload (ie ignoring address, selector, and header) matches what we emitted
-      const expected = Buffer.concat(args.map(arg => arg.toBuffer())).toString('hex');
-      expect(functionLogs.logs[0].data.subarray(-32 * 5).toString('hex')).toEqual(expected);
-    });
-
     it('emits a field array as an encrypted log', async () => {
       // NB: this test does NOT cover correct enc/dec of values, just whether
       // the kernels correctly populate non-note encrypted logs
@@ -952,7 +917,7 @@ describe('Private Execution test suite', () => {
   describe('setting fee payer', () => {
     it('should default to not being a fee payer', async () => {
       // arbitrary random function that doesn't set a fee payer
-      const entrypoint = getFunctionArtifact(TestContractArtifact, 'emit_msg_sender');
+      const entrypoint = getFunctionArtifact(TestContractArtifact, 'get_this_address');
       const contractAddress = AztecAddress.random();
       const result = await runSimulator({ artifact: entrypoint, contractAddress });
       expect(result.callStackItem.publicInputs.isFeePayer).toBe(false);

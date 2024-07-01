@@ -300,25 +300,6 @@ contract Test {
     }
 
     #[aztec(private)]
-    fn emit_msg_sender() {
-        context.emit_unencrypted_log(context.msg_sender());
-    }
-
-    #[aztec(private)]
-    fn emit_unencrypted_logs(fields: [Field; 5], nest: bool) {
-        // Merged two fns to avoid hitting max #functions limit:
-        // nest -> emit_unencrypted_logs_nested
-        // else -> emit_array_as_unencrypted_log
-        if nest {
-            Test::at(context.this_address()).emit_msg_sender().call(&mut context);
-            Test::at(context.this_address()).emit_unencrypted_logs(fields, false).call(&mut context);
-            context.emit_unencrypted_log("test");
-        } else {
-            context.emit_unencrypted_log(fields);
-        }
-    }
-
-    #[aztec(private)]
     fn emit_encrypted_logs_nested(value: Field, owner: AztecAddress, outgoing_viewer: AztecAddress) {
         let mut storage_slot = storage.example_constant.get_storage_slot() + 1;
         Test::at(context.this_address()).call_create_note(value, owner, outgoing_viewer, storage_slot).call(&mut context);

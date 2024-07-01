@@ -4,13 +4,11 @@ contract Crowdfunding {
 
     // docs:start:all-deps
     use dep::aztec::{
-        protocol_types::{
-        abis::function_selector::FunctionSelector, address::AztecAddress, traits::Serialize,
-        grumpkin_point::GrumpkinPoint
-    },
+        protocol_types::address::AztecAddress,
         encrypted_logs::encrypted_note_emission::encode_and_encrypt_note,
         state_vars::{PrivateSet, PublicImmutable, SharedImmutable}
     };
+    use dep::aztec::unencrypted_logs::unencrypted_event_emission::encode_event;
     use dep::value_note::value_note::ValueNote;
     use dep::token::Token;
     // docs:end:all-deps
@@ -95,10 +93,14 @@ contract Crowdfunding {
 
         // 2) Transfer the donation tokens from this contract to the operator
         Token::at(storage.donation_token.read_private()).transfer(operator_address, amount as Field).call(&mut context);
-
         // 3) Emit an unencrypted event so that anyone can audit how much the operator has withdrawn
-        let event = WithdrawalProcessed { amount: amount as Field, who: operator_address.to_field() };
-        context.emit_unencrypted_log(event.serialize());
+        Crowdfunding::at(context.this_address())._publish_donation_receipts(amount, operator_address).enqueue(&mut context);
     }
     // docs:end:operator-withdrawals
+
+    #[aztec(public)]
+    #[aztec(internal)]
+    fn _publish_donation_receipts(amount: u64, to: AztecAddress) {
+        WithdrawalProcessed { amount: amount as Field, who: to.to_field() }.emit(encode_event(&mut context));
+    }
 }

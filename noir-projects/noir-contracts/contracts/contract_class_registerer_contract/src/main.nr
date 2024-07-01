@@ -9,8 +9,10 @@ contract ContractClassRegisterer {
         ARTIFACT_FUNCTION_TREE_MAX_HEIGHT, FUNCTION_TREE_HEIGHT,
         MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS, REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE
     },
-        traits::Serialize
+        traits::Serialize, abis::log_hash::LogHash
     };
+
+    use dep::aztec::{context::PrivateContext, oracle::logs::emit_contract_class_unencrypted_log_private_internal};
 
     use crate::events::{
         class_registered::ContractClassRegistered,
@@ -52,7 +54,7 @@ contract ContractClassRegisterer {
             public_bytecode_commitment
         ]
         );
-        context.emit_contract_class_unencrypted_log(event.serialize());
+        emit_contract_class_unencrypted_log(&mut context, event.serialize());
     }
 
     #[aztec(private)]
@@ -87,7 +89,7 @@ contract ContractClassRegisterer {
             function_data.metadata_hash
         ]
         );
-        context.emit_contract_class_unencrypted_log(event.serialize());
+        emit_contract_class_unencrypted_log(&mut context, event.serialize());
     }
 
     #[aztec(private)]
@@ -117,6 +119,25 @@ contract ContractClassRegisterer {
             function_data.metadata_hash
         ]
         );
-        context.emit_contract_class_unencrypted_log(event.serialize());
+        emit_contract_class_unencrypted_log(&mut context, event.serialize());
+    }
+
+    // This fn exists separately from emit_unencrypted_log because sha hashing the preimage
+    // is too large to compile (16,200 fields, 518,400 bytes) => the oracle hashes it
+    // It is ONLY used with contract_class_registerer_contract since we already assert correctness:
+    // - Contract class -> we will commit to the packed bytecode (currently a TODO)
+    // - Private function -> we provide a membership proof
+    // - Unconstrained function -> we provide a membership proof
+    // Ordinary logs are not protected by the above so this fn shouldn't be called by anything else
+    #[contract_library_method]
+    pub fn emit_contract_class_unencrypted_log<N>(context: &mut PrivateContext, log: [Field; N]) {
+        let event_selector = 5; // TODO: compute actual event selector.
+        let contract_address = context.this_address();
+        let counter = context.next_counter();
+        let log_hash = emit_contract_class_unencrypted_log_private_internal(contract_address, event_selector, log, counter);
+        // 44 = addr (32) + selector (4) + raw log len (4) + processed log len (4)
+        let len = 44 + N * 32;
+        let side_effect = LogHash { value: log_hash, counter, length: len };
+        context.unencrypted_logs_hashes.push(side_effect);
     }
 }

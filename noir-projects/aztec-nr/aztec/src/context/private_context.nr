@@ -1,17 +1,11 @@
 use crate::{
     context::{inputs::PrivateContextInputs, packed_returns::PackedReturns},
-    messaging::process_l1_to_l2_message,
-    hash::{hash_args_array, ArgsHasher, compute_unencrypted_log_hash},
+    messaging::process_l1_to_l2_message, hash::{hash_args_array, ArgsHasher},
     keys::constants::{NULLIFIER_INDEX, OUTGOING_INDEX, NUM_KEY_TYPES, sk_generators},
-    note::note_interface::NoteInterface,
     oracle::{
     key_validation_request::get_key_validation_request, arguments, returns::pack_returns,
     call_private_function::call_private_function_internal, header::get_header_at,
-    logs::{
-    emit_encrypted_note_log, emit_encrypted_event_log,
-    emit_contract_class_unencrypted_log_private_internal, emit_unencrypted_log_private_internal
-},
-    logs_traits::{LensForEncryptedLog, ToBytesForUnencryptedLog},
+    logs::{emit_encrypted_note_log, emit_encrypted_event_log},
     enqueue_public_function_call::{
     enqueue_public_function_call_internal, set_public_teardown_function_call_internal,
     parse_public_call_stack_item_from_oracle
@@ -36,10 +30,7 @@ use dep::protocol_types::{
     MAX_KEY_VALIDATION_REQUESTS_PER_CALL, MAX_ENCRYPTED_LOGS_PER_CALL, MAX_UNENCRYPTED_LOGS_PER_CALL,
     MAX_NOTE_ENCRYPTED_LOGS_PER_CALL
 },
-    contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
-    grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint, header::Header,
-    messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader, traits::{is_empty, Empty},
-    utils::arrays::find_index
+    header::Header, messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader, traits::Empty
 };
 
 // When finished, one can call .finish() to convert back to the abi
@@ -269,42 +260,6 @@ impl PrivateContext {
         self.push_new_nullifier(nullifier, 0)
     }
     // docs:end:consume_l1_to_l2_message
-
-    // TODO: We might want to remove this since emitting unencrypted logs from private functions is violating privacy.
-    // --> might be a better approach to force devs to make a public function call that emits the log if needed then
-    // it would be less easy to accidentally leak information.
-    // If we decide to keep this function around would make sense to wait for traits and then merge it with emit_unencrypted_log.
-    pub fn emit_unencrypted_log<T, N, M>(&mut self, log: T) where T: ToBytesForUnencryptedLog<N, M> {
-        let event_selector = 5; // TODO: compute actual event selector.
-        let contract_address = self.this_address();
-        let counter = self.next_counter();
-        let log_slice = log.to_be_bytes_arr();
-        let log_hash = compute_unencrypted_log_hash(contract_address, event_selector, log);
-        // 44 = addr (32) + selector (4) + raw log len (4) + processed log len (4)
-        let len = 44 + log_slice.len().to_field();
-        let side_effect = LogHash { value: log_hash, counter, length: len };
-        self.unencrypted_logs_hashes.push(side_effect);
-        // call oracle
-        let _void = emit_unencrypted_log_private_internal(contract_address, event_selector, log, counter);
-    }
-
-    // This fn exists separately from emit_unencrypted_log because sha hashing the preimage
-    // is too large to compile (16,200 fields, 518,400 bytes) => the oracle hashes it
-    // It is ONLY used with contract_class_registerer_contract since we already assert correctness:
-    // - Contract class -> we will commit to the packed bytecode (currently a TODO)
-    // - Private function -> we provide a membership proof
-    // - Unconstrained function -> we provide a membership proof
-    // Ordinary logs are not protected by the above so this fn shouldn't be called by anything else
-    pub fn emit_contract_class_unencrypted_log<N>(&mut self, log: [Field; N]) {
-        let event_selector = 5; // TODO: compute actual event selector.
-        let contract_address = self.this_address();
-        let counter = self.next_counter();
-        let log_hash = emit_contract_class_unencrypted_log_private_internal(contract_address, event_selector, log, counter);
-        // 44 = addr (32) + selector (4) + raw log len (4) + processed log len (4)
-        let len = 44 + N * 32;
-        let side_effect = LogHash { value: log_hash, counter, length: len };
-        self.unencrypted_logs_hashes.push(side_effect);
-    }
 
     // NB: A randomness value of 0 signals that the kernels should not mask the contract address
     // used in siloing later on e.g. 'handshaking' contract w/ known address.

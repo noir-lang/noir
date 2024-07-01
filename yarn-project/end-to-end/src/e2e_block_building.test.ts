@@ -246,24 +246,6 @@ describe('e2e_block_building', () => {
       testContract = await TestContract.deploy(owner).send().deployed();
     }, 60_000);
 
-    it('calls a method with nested unencrypted logs', async () => {
-      const tx = await testContract.methods.emit_unencrypted_logs([1, 2, 3, 4, 5], true).send().wait();
-      const logs = (await pxe.getUnencryptedLogs({ txHash: tx.txHash })).logs.map(l => l.log);
-
-      // First log should be contract address
-      expect(logs[0].data).toEqual(testContract.address.toBuffer());
-
-      // Second log should be array of fields
-      let expectedBuffer = Buffer.concat([1, 2, 3, 4, 5].map(num => new Fr(num).toBuffer()));
-      expect(logs[1].data.subarray(-32 * 5)).toEqual(expectedBuffer);
-
-      // Third log should be string "test"
-      expectedBuffer = Buffer.concat(
-        ['t', 'e', 's', 't'].map(num => Buffer.concat([Buffer.alloc(31), Buffer.from(num)])),
-      );
-      expect(logs[2].data.subarray(-32 * 5)).toEqual(expectedBuffer);
-    }, 60_000);
-
     it('calls a method with nested note encrypted logs', async () => {
       // account setup
       const privateKey = new Fr(7n);
