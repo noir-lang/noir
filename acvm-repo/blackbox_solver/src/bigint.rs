@@ -15,7 +15,6 @@ use crate::BlackBoxResolutionError;
 pub struct BigIntSolver {
     bigint_id_to_value: HashMap<u32, BigUint>,
     bigint_id_to_modulus: HashMap<u32, BigUint>,
-    last_id: usize,
 }
 
 impl BigIntSolver {
@@ -46,13 +45,6 @@ impl BigIntSolver {
             ))
             .cloned()
     }
-
-    pub fn create_bigint_id(&mut self) -> u32 {
-        let output = self.last_id as u32;
-        self.last_id += 1;
-        output
-    }
-
     pub fn bigint_from_bytes(
         &mut self,
         inputs: &[u8],
