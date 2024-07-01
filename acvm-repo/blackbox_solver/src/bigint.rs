@@ -18,7 +18,7 @@ pub struct BigIntSolver {
 }
 
 impl BigIntSolver {
-    pub(crate) fn get_bigint(
+    pub fn get_bigint(
         &self,
         id: u32,
         func: BlackBoxFunc,
@@ -32,7 +32,7 @@ impl BigIntSolver {
             .cloned()
     }
 
-    pub(crate) fn get_modulus(
+    pub fn get_modulus(
         &self,
         id: u32,
         func: BlackBoxFunc,
