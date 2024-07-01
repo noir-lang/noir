@@ -48,39 +48,52 @@ export class Body {
 
   /**
    * Computes the transactions effects hash for the L2 block
-   * This hash is also computed in the `AvailabilityOracle` and the `Circuit`.
+   * This hash is also computed in the `AvailabilityOracle`.
    * @returns The txs effects hash.
    */
   getTxsEffectsHash() {
+    // Adapted from proving-state.ts -> findMergeLevel and unbalanced_tree.ts
+    // Calculates the tree upwards layer by layer until we reach the root
+    // The L1 calculation instead computes the tree from right to left (slightly cheaper gas)
+    // TODO: A more thorough investigation of which method is cheaper, then use that method everywhere
     const computeRoot = (leaves: Buffer[]): Buffer => {
-      const layers: Buffer[][] = [leaves];
-      let activeLayer = 0;
-
-      while (layers[activeLayer].length > 1) {
-        const layer: Buffer[] = [];
-        const layerLength = layers[activeLayer].length;
-
-        for (let i = 0; i < layerLength; i += 2) {
-          const left = layers[activeLayer][i];
-          const right = layers[activeLayer][i + 1];
-
-          layer.push(sha256Trunc(Buffer.concat([left, right])));
+      const depth = Math.ceil(Math.log2(leaves.length));
+      let [layerWidth, nodeToShift] =
+        leaves.length & 1 ? [leaves.length - 1, leaves[leaves.length - 1]] : [leaves.length, Buffer.alloc(0)];
+      // Allocate this layer's leaves and init the next layer up
+      let thisLayer = leaves.slice(0, layerWidth);
+      let nextLayer = [];
+      for (let i = 0; i < depth; i++) {
+        for (let j = 0; j < layerWidth; j += 2) {
+          // Store the hash of each pair one layer up
+          nextLayer[j / 2] = sha256Trunc(Buffer.concat([thisLayer[j], thisLayer[j + 1]]));
         }
-
-        layers.push(layer);
-        activeLayer++;
+        layerWidth /= 2;
+        if (layerWidth & 1) {
+          if (nodeToShift.length) {
+            // If the next layer has odd length, and we have a node that needs to be shifted up, add it here
+            nextLayer.push(nodeToShift);
+            layerWidth += 1;
+            nodeToShift = Buffer.alloc(0);
+          } else {
+            // If we don't have a node waiting to be shifted, store the next layer's final node to be shifted
+            layerWidth -= 1;
+            nodeToShift = nextLayer[layerWidth];
+          }
+        }
+        // reset the layers
+        thisLayer = nextLayer;
+        nextLayer = [];
       }
-
-      return layers[layers.length - 1][0];
+      // return the root
+      return thisLayer[0];
     };
 
     const emptyTxEffectHash = TxEffect.empty().hash();
-    const leaves: Buffer[] = padArrayEnd(
-      this.txEffects.map(txEffect => txEffect.hash()),
-      emptyTxEffectHash,
-      this.numberOfTxsIncludingPadded,
-    );
-
+    let leaves: Buffer[] = this.txEffects.map(txEffect => txEffect.hash());
+    if (leaves.length < 2) {
+      leaves = padArrayEnd(leaves, emptyTxEffectHash, 2);
+    }
     return computeRoot(leaves);
   }
 
@@ -114,20 +127,7 @@ export class Body {
       return 2;
     }
 
-    // Note that the following could be implemented in a more simple way as "2 ** Math.ceil(Math.log2(numTxEffects));"
-    // but we want to keep the same logic as in Solidity and there we don't have the math functions.
-    let v = numTxEffects;
-
-    // The following rounds numTxEffects up to the next power of 2 (works only for 4 bytes value!)
-    v--;
-    v |= v >> 1;
-    v |= v >> 2;
-    v |= v >> 4;
-    v |= v >> 8;
-    v |= v >> 16;
-    v++;
-
-    return v;
+    return numTxEffects;
   }
 
   static random(

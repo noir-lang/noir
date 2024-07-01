@@ -128,7 +128,7 @@ impl BaseRollupInputs {
 
         BaseOrMergeRollupPublicInputs {
             rollup_type: BASE_ROLLUP_TYPE,
-            height_in_block_tree: 0,
+            num_txs: 1,
             constants: self.constants,
             start: self.start,
             end: PartialStateReference {
@@ -1147,10 +1147,10 @@ mod tests {
     }
 
     #[test]
-    unconstrained fn subtree_height_is_0() {
+    unconstrained fn num_txs_is_1() {
         let outputs = BaseRollupInputsBuilder::new().execute();
 
-        assert_eq(outputs.height_in_block_tree, 0);
+        assert_eq(outputs.num_txs, 1);
     }
 
     #[test]

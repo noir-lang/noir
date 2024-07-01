@@ -7,7 +7,7 @@ import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 import { jest } from '@jest/globals';
 
 import { TestCircuitProver } from '../../../bb-prover/src/test/test_circuit_prover.js';
-import { makeEmptyProcessedTestTx } from '../mocks/fixtures.js';
+import { makeBloatedProcessedTx } from '../mocks/fixtures.js';
 import { TestContext } from '../mocks/test_context.js';
 import { ProvingOrchestrator } from './orchestrator.js';
 
@@ -67,10 +67,9 @@ describe('prover/orchestrator/failures', () => {
     ] as const)('handles a %s error', async (message: string, fn: () => void) => {
       fn();
       const txs = await Promise.all([
-        makeEmptyProcessedTestTx(context.actualDb),
-        makeEmptyProcessedTestTx(context.actualDb),
-        makeEmptyProcessedTestTx(context.actualDb),
-        makeEmptyProcessedTestTx(context.actualDb),
+        makeBloatedProcessedTx(context.actualDb, 1),
+        makeBloatedProcessedTx(context.actualDb, 2),
+        makeBloatedProcessedTx(context.actualDb, 3),
       ]);
 
       const blockTicket = await orchestrator.startNewBlock(

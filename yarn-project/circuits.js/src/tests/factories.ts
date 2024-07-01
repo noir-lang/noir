@@ -922,7 +922,7 @@ export function makeBaseOrMergeRollupPublicInputs(
 ): BaseOrMergeRollupPublicInputs {
   return new BaseOrMergeRollupPublicInputs(
     RollupTypes.Base,
-    new Fr(0n),
+    1,
     makeConstantBaseRollupData(seed + 0x200, globalVariables),
     makePartialStateReference(seed + 0x300),
     makePartialStateReference(seed + 0x400),

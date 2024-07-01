@@ -6,7 +6,7 @@ import { CONTENT_COMMITMENT_LENGTH } from '../constants.gen.js';
 export const NUM_BYTES_PER_SHA256 = 32;
 
 export class ContentCommitment {
-  constructor(public txTreeHeight: Fr, public txsEffectsHash: Buffer, public inHash: Buffer, public outHash: Buffer) {
+  constructor(public numTxs: Fr, public txsEffectsHash: Buffer, public inHash: Buffer, public outHash: Buffer) {
     if (txsEffectsHash.length !== NUM_BYTES_PER_SHA256) {
       throw new Error(`txsEffectsHash buffer must be ${NUM_BYTES_PER_SHA256} bytes`);
     }
@@ -32,12 +32,12 @@ export class ContentCommitment {
   }
 
   toBuffer() {
-    return serializeToBuffer(this.txTreeHeight, this.txsEffectsHash, this.inHash, this.outHash);
+    return serializeToBuffer(this.numTxs, this.txsEffectsHash, this.inHash, this.outHash);
   }
 
   toFields(): Fr[] {
     const serialized = [
-      this.txTreeHeight,
+      this.numTxs,
       Fr.fromBuffer(this.txsEffectsHash),
       Fr.fromBuffer(this.inHash),
       Fr.fromBuffer(this.outHash),
@@ -80,7 +80,7 @@ export class ContentCommitment {
 
   isEmpty(): boolean {
     return (
-      this.txTreeHeight.isZero() &&
+      this.numTxs.isZero() &&
       this.txsEffectsHash.equals(Buffer.alloc(NUM_BYTES_PER_SHA256)) &&
       this.inHash.equals(Buffer.alloc(NUM_BYTES_PER_SHA256)) &&
       this.outHash.equals(Buffer.alloc(NUM_BYTES_PER_SHA256))

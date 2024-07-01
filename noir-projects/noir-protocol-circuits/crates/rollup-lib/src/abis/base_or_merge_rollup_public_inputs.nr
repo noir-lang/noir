@@ -12,9 +12,7 @@ struct BaseOrMergeRollupPublicInputs {
     // rollup_type is either 0 (base) or 1 (merge)
     // TODO(Kev): Why is this a u32 instead of a u8/u16?
     rollup_type : u32,
-    // subtree height is always 0 for base.
-    // so that we always pass-in two base/merge circuits of the same height into the next level of recursion
-    height_in_block_tree : Field,
+    num_txs : u32,
     constants : ConstantRollupData,
 
     start: PartialStateReference,
@@ -35,7 +33,7 @@ impl Empty for BaseOrMergeRollupPublicInputs {
     fn empty() -> Self {
         BaseOrMergeRollupPublicInputs {
             rollup_type : 0 as u32,
-            height_in_block_tree : 0,
+            num_txs : 0 as u32,
             constants : ConstantRollupData::empty(),
             start: PartialStateReference::empty(),
             end: PartialStateReference::empty(),
@@ -49,7 +47,7 @@ impl Empty for BaseOrMergeRollupPublicInputs {
 impl Eq for BaseOrMergeRollupPublicInputs {
   fn eq(self, other: Self) -> bool {
     (self.rollup_type == other.rollup_type) &
-    (self.height_in_block_tree == other.height_in_block_tree) &
+    (self.num_txs == other.num_txs) &
     (self.constants.eq(other.constants)) &
     (self.start.eq(other.start)) &
     (self.end.eq(other.end)) &
@@ -64,7 +62,7 @@ impl Serialize<BASE_OR_MERGE_PUBLIC_INPUTS_LENGTH> for BaseOrMergeRollupPublicIn
     let mut fields: BoundedVec<Field, BASE_OR_MERGE_PUBLIC_INPUTS_LENGTH> = BoundedVec::new();
 
     fields.push(self.rollup_type as Field);
-    fields.push(self.height_in_block_tree as Field);
+    fields.push(self.num_txs as Field);
     fields.extend_from_array(self.constants.serialize());
     fields.extend_from_array(self.start.serialize());
     fields.extend_from_array(self.end.serialize());
@@ -83,7 +81,7 @@ impl Deserialize<BASE_OR_MERGE_PUBLIC_INPUTS_LENGTH> for BaseOrMergeRollupPublic
     let mut reader = Reader::new(fields);
     let item = Self {
         rollup_type: reader.read() as u32,
-        height_in_block_tree: reader.read(),
+        num_txs: reader.read() as u32,
         constants: reader.read_struct(ConstantRollupData::deserialize),        
         start: reader.read_struct(PartialStateReference::deserialize),
         end: reader.read_struct(PartialStateReference::deserialize),

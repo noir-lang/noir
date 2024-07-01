@@ -53,160 +53,26 @@ A function can emit an arbitrary number of logs, provided they don't exceed the 
 
 <!-- TODO: there might be length extension attacks with this approach. We might need to encode the length of each log into the accumulated logs hash, rather than sum the lengths separately. Otherwise, there might be a way to pretend a message of length 7 was actually two messages of length 3 and 4 (for example) -->
 
-To minimize the on-chain verification data size, protocol circuits aggregate log hashes. The end result is a single hash within the root rollup proof, encompassing all logs of the same type.
+To minimize the on-chain verification data size, protocol circuits aggregate log hashes. The end result is a single hash within the base rollup proof, encompassing all logs of the same type.
 
 Each protocol circuit outputs two values for each log type:
 
 - _`accumulated_logs_hash`_: A hash representing all logs.
 - _`accumulated_logs_length`_: The total length of all log preimages.
 
+Both the `accumulated_logs_hash` and `accumulated_logs_length` for each type are included in the base rollup's `txs_effect_hash`. When rolling up to merge and root circuits, the two input proof's `txs_effect_hash`es are hashed together to form the new value of `txs_effect_hash`.
+
+When publishing a block on L1, the raw logs of each type and their lengths are provided (**Availability**), hashed and accumulated into each respective `accumulated_logs_hash` and `accumulated_logs_length`, then included in the on-chain recalculation of `txs_effect_hash`. If this value doesn't match the one from the rollup circuits, the block will not be valid (**Immutability**).
+
+<!-- 
 In cases where two proofs are combined to form a single proof, the _accumulated_logs_hash_ and _accumulated_logs_length_ from the two child proofs must be merged into one accumulated value:
 
 - _`accumulated_logs_hash = hash(proof_0.accumulated_logs_hash, proof_1.accumulated_logs_hash)`_
   - If either hash is zero, the new hash will be _`proof_0.accumulated_logs_hash | proof_1.accumulated_logs_hash`_.
-- _`accumulated_logs_length = proof_0.accumulated_logs_length + proof_1.accumulated_logs_length`_
+- _`accumulated_logs_length = proof_0.accumulated_logs_length + proof_1.accumulated_logs_length`_ 
+-->
 
 For private and public kernel circuits, beyond aggregating logs from a function call, they ensure that the contract's address emitting the logs is linked to the _logs_hash_. For more details, refer to the "Hashing" sections in [Unencrypted Log](#hashing-1), [Encrypted Log](#hashing-2), and [Encrypted Note Preimage](#hashing-3).
-
-### Encoding
-
-1. The encoded logs data of a transaction is a flattened array of all logs data within the transaction:
-
-   _`tx_logs_data = [number_of_logs, ...log_data_0, ...log_data_1, ...]`_
-
-   The format of _log_data_ varies based on the log type. For specifics, see the "Encoding" sections in [Unencrypted Log](#encoding-1), [Encrypted Log](#encoding-2), and [Encrypted Note Preimage](#encoding-3).
-
-2. The encoded logs data of a block is a flatten array of a collection of the above _tx_logs_data_, with hints facilitating hashing replay in a binary tree structure:
-
-   _`block_logs_data = [number_of_branches, number_of_transactions, ...tx_logs_data_0, ...tx_logs_data_1, ...]`_
-
-   - _number_of_transactions_ is the number of leaves in the left-most branch, restricted to either _1_ or _2_.
-   - _number_of_branches_ is the depth of the parent node of the left-most leaf.
-
-Here is a step-by-step example to construct the _`block_logs_data`_:
-
-1. A rollup, _R01_, merges two transactions: _tx0_ containing _tx_logs_data_0_, and _tx1_ containing _tx_logs_data_1_:
-
-   ```mermaid
-   flowchart BT
-       tx0((tx0))
-       tx1((tx1))
-       R01((R01))
-       tx0 --- R01
-       tx1 --- R01
-   ```
-
-   _block_logs_data_: _`[0, 2, ...tx_logs_data_0, ...tx_logs_data_1]`_
-
-   Where _0_ is the depth of the node _R01_, and _2_ is the number of aggregated _tx_logs_data_ of _R01_.
-
-2. Another rollup, _R23_, merges two transactions: _tx3_ containing _tx_logs_data_3_, and _tx2_ without any logs:
-
-   ```mermaid
-   flowchart BT
-       tx2((tx2))
-       tx3((tx3))
-       R23((R23))
-       tx2 -. no logs .- R23
-       tx3 --- R23
-   ```
-
-   _block_logs_data_: _`[0, 1, ...tx_logs_data_3]`_
-
-   Here, the number of aggregated _tx_logs_data_ is _1_.
-
-3. A rollup, _RA_, merges the two rollups _R01_ and _R23_:
-
-   ```mermaid
-   flowchart BT
-      tx0((tx0))
-      tx1((tx1))
-      R01((R01))
-      tx0 --- R01
-      tx1 --- R01
-      tx2((tx2))
-      tx3((tx3))
-      R23((R23))
-      tx2 -.- R23
-      tx3 --- R23
-      RA((RA))
-      R01 --- RA
-      R23 --- RA
-   ```
-
-   _block_logs_data_: _`[1, 2, ...tx_logs_data_0, ...tx_logs_data_1, 0, 1, ...tx_logs_data_3]`_
-
-   The result is the _block_logs_data_ of _R01_ concatenated with the _block_logs_data_ of _R23_, with the _number_of_branches_ of _R01_ incremented by _1_. The updated value of _number_of_branches_ (_0 + 1_) is also the depth of the node _R01_.
-
-4. A rollup, _RB_, merges the above rollup _RA_ and another rollup _R45_:
-
-   ```mermaid
-   flowchart BT
-     tx0((tx0))
-      tx1((tx1))
-      R01((R01))
-      tx0 --- R01
-      tx1 --- R01
-      tx2((tx2))
-      tx3((tx3))
-      R23((R23))
-      tx2 -.- R23
-      tx3 --- R23
-      RA((RA))
-      R01 --- RA
-      R23 --- RA
-      tx4((tx4))
-      tx5((tx5))
-      R45((R45))
-      tx4 --- R45
-      tx5 --- R45
-      RB((RB))
-      RA --- RB
-      R45 --- RB
-   ```
-
-   _block_logs_data_: _`[2, 2, ...tx_logs_data_0, ...tx_logs_data_1, 0, 1, ...tx_logs_data_3, 0, 2, ...tx_logs_data_4, ...tx_logs_data_5]`_
-
-   The result is the concatenation of the _block_logs_data_ from both rollups, with the _number_of_branches_ of the left-side rollup, _RA_, incremented by _1_.
-
-### Verification
-
-Upon receiving a proof and its encoded logs data, the entity can ensure the correctness of the provided _block_logs_data_ by verifying that the _accumulated_logs_hash_ in the proof can be derived from it:
-
-```js
-const accumulated_logs_hash = compute_accumulated_logs_hash(block_logs_data);
-assert(accumulated_logs_hash == proof.accumulated_logs_hash);
-assert(block_logs_data.accumulated_logs_length == proof.accumulated_logs_length);
-
-function compute_accumulated_logs_hash(logs_data) {
-  const number_of_branches = logs_data.read_u32();
-
-  const number_of_transactions = logs_data.read_u32();
-  let res = hash_tx_logs_data(logs_data);
-  if number_of_transactions == 2 {
-    res = hash(res, hash_tx_logs_data(logs_data));
-  }
-
-  for (let i = 0; i < number_of_branches; ++i) {
-    const res_right = compute_accumulated_logs_hash(logs_data);
-    res = hash(res, res_right);
-  }
-
-  return res;
-}
-
-function hash_tx_logs_data(logs_data) {
-  const number_of_logs = logs_data.read_u32();
-  let res = hash_log_data(logs_data);
-  for (let i = 1; i < number_of_logs; ++i) {
-    const log_hash = hash_log_data(logs_data);
-    res = hash(res, log_hash);
-  }
-  return res;
-}
-```
-
-The _accumulated_logs_length_ in _block_logs_data_ is computed during the processing of each _logs_data_ within _hash_log_data()_. The implementation of _hash_log_data_ varies depending on the type of the logs being processed. Refer to the "Verification" sections in [Unencrypted Log](#verification-1), [Encrypted Log](#verification-2), and [Encrypted Note Preimage](#verification-3) for details.
 
 ## Unencrypted Log
 

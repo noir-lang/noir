@@ -28,10 +28,7 @@ impl MergeRollupInputs {
         let left = self.previous_rollup_data[0].base_or_merge_rollup_public_inputs;
         let right = self.previous_rollup_data[1].base_or_merge_rollup_public_inputs;
 
-        // check that both input proofs are either both "BASE" or "MERGE" and not a mix!
-        // this prevents having wonky commitment, nullifier and contract subtrees.
-        components::assert_both_input_proofs_of_same_rollup_type(left, right);
-        let current_height = components::assert_both_input_proofs_of_same_height_and_return(left, right);
+        components::assert_txs_filled_from_left(left, right);
         components::assert_equal_constants(left, right);
         components::assert_prev_rollups_follow_on_from_each_other(left, right);
 
@@ -43,7 +40,7 @@ impl MergeRollupInputs {
 
         let public_inputs = BaseOrMergeRollupPublicInputs {
             rollup_type: MERGE_ROLLUP_TYPE,
-            height_in_block_tree: current_height + 1,
+            num_txs: left.num_txs + right.num_txs,
             constants: left.constants,
             start: left.start,
             end: right.end,
@@ -63,19 +60,11 @@ mod tests {
     };
     use dep::types::hash::accumulate_sha256;
 
-    #[test(should_fail_with="input proofs are of different rollup types")]
+    #[test(should_fail_with="The rollup should be filled greedily from L to R, but received a L base and R merge")]
     fn different_rollup_type_fails() {
         let mut inputs = default_merge_rollup_inputs();
         inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.rollup_type = 0;
         inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.rollup_type = 1;
-        let _output = inputs.merge_rollup_circuit();
-    }
-
-    #[test(should_fail_with="input proofs are of different rollup heights")]
-    fn different_height_fails() {
-        let mut inputs = default_merge_rollup_inputs();
-        inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.height_in_block_tree = 0;
-        inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.height_in_block_tree = 1;
         let _output = inputs.merge_rollup_circuit();
     }
 
@@ -116,20 +105,44 @@ mod tests {
         let mut inputs = default_merge_rollup_inputs();
         let mut outputs = inputs.merge_rollup_circuit();
         assert_eq(outputs.rollup_type, 1);
-        assert_eq(
-            outputs.height_in_block_tree, inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.height_in_block_tree + 1
-        );
+        assert_eq(outputs.num_txs, 2);
 
         // set inputs to have a merge rollup type and set the rollup height and test again.
         inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.rollup_type = 1;
-        inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.height_in_block_tree = 1;
+        inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.num_txs = 2;
 
         inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.rollup_type = 1;
-        inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.height_in_block_tree = 1;
+        inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.num_txs = 2;
 
         outputs = inputs.merge_rollup_circuit();
         assert_eq(outputs.rollup_type, 1);
-        assert_eq(outputs.height_in_block_tree, 2);
+        assert_eq(outputs.num_txs, 4);
+    }
+
+    #[test]
+    fn tx_subtrees_are_set_correctly() {
+        let mut inputs = default_merge_rollup_inputs();
+        let mut outputs = inputs.merge_rollup_circuit();
+        // Start with two bases => two single txs
+        assert_eq(outputs.num_txs, 2);
+        // Test one merge of 2 merged with one base
+        inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.rollup_type = 1;
+        inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.num_txs = 2;
+        outputs = inputs.merge_rollup_circuit();
+        // Should have one subtree of size 2, and one of size 1
+        assert_eq(outputs.num_txs, 3);
+        // Test two merges, each with a subtree of 2
+        inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.rollup_type = 1;
+        inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.num_txs = 2;
+        outputs = inputs.merge_rollup_circuit();
+        // Should have one subtree of size 4
+        assert_eq(outputs.num_txs, 4);
+
+        // Test two merges, one with a subtree of 16, one with subtrees of 4 and 1
+        inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.num_txs = 16;
+        inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.num_txs = 5;
+        outputs = inputs.merge_rollup_circuit();
+        assert_eq(outputs.num_txs, 21);
     }
 
     #[test]

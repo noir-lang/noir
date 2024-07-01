@@ -3,6 +3,7 @@
 pragma solidity >=0.8.18;
 
 import {TxsDecoder} from "../../../src/core/libraries/decoders/TxsDecoder.sol";
+import {MerkleLib} from "../../../src/core/libraries/MerkleLib.sol";
 
 contract TxsDecoderHelper {
   // A wrapper used such that we get "calldata" and not memory
@@ -20,5 +21,13 @@ contract TxsDecoderHelper {
 
   function computeNumTxEffectsToPad(uint32 _numTxEffects) external pure returns (uint32) {
     return TxsDecoder.computeNumTxEffectsToPad(_numTxEffects);
+  }
+
+  function computeUnbalancedRoot(bytes32[] memory _leaves) external pure returns (bytes32) {
+    return TxsDecoder.computeUnbalancedRoot(_leaves);
+  }
+
+  function computeMinMaxPathLength(uint32 _numTxEffects) external pure returns (uint256, uint256) {
+    return MerkleLib.computeMinMaxPathLength(_numTxEffects);
   }
 }

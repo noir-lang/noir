@@ -16,6 +16,7 @@ import {HeaderLib} from "./libraries/HeaderLib.sol";
 import {Hash} from "./libraries/Hash.sol";
 import {Errors} from "./libraries/Errors.sol";
 import {Constants} from "./libraries/ConstantsGen.sol";
+import {MerkleLib} from "./libraries/MerkleLib.sol";
 import {EnumerableSet} from "@oz/utils/structs/EnumerableSet.sol";
 
 // Contracts
@@ -149,10 +150,10 @@ contract Rollup is IRollup {
       revert Errors.Rollup__InvalidInHash(inHash, header.contentCommitment.inHash);
     }
 
-    // Currently trying out storing each tx's L2 to L1 messages in variable height trees (smallest tree required)
-    // => path lengths will differ and we cannot provide one here
-    // We can provide a minimum which is the height of the rollup layers (txTreeHeight) and the smallest 'tree' (1 layer)
-    uint256 l2ToL1TreeMinHeight = header.contentCommitment.txTreeHeight + 1;
+    // TODO(#7218): Revert to fixed height tree for outbox, currently just providing min as interim
+    // Min size = smallest path of the rollup tree + 1
+    (uint256 min,) = MerkleLib.computeMinMaxPathLength(header.contentCommitment.numTxs);
+    uint256 l2ToL1TreeMinHeight = min + 1;
     OUTBOX.insert(
       header.globalVariables.blockNumber, header.contentCommitment.outHash, l2ToL1TreeMinHeight
     );

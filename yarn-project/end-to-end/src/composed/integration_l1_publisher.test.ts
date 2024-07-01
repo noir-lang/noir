@@ -262,7 +262,7 @@ describe('L1Publisher integration', () => {
           contentCommitment: {
             inHash: `0x${block.header.contentCommitment.inHash.toString('hex').padStart(64, '0')}`,
             outHash: `0x${block.header.contentCommitment.outHash.toString('hex').padStart(64, '0')}`,
-            txTreeHeight: Number(block.header.contentCommitment.txTreeHeight.toBigInt()),
+            numTxs: Number(block.header.contentCommitment.numTxs),
             txsEffectsHash: `0x${block.header.contentCommitment.txsEffectsHash.toString('hex').padStart(64, '0')}`,
           },
           globalVariables: {
@@ -484,6 +484,7 @@ describe('L1Publisher integration', () => {
         GasFees.empty(),
       );
       const blockTicket = await buildBlock(globalVariables, txs, l1ToL2Messages);
+      await builder.setBlockCompleted();
       const result = await blockTicket.provingPromise;
       expect(result.status).toBe(PROVING_STATUS.SUCCESS);
       const blockResult = await builder.finaliseBlock();

@@ -109,6 +109,7 @@ export default {
         "protocol-specs/state/note-hash-tree",
         "protocol-specs/state/nullifier-tree",
         "protocol-specs/state/public-data-tree",
+        "protocol-specs/state/wonky-tree",
       ],
     },
     {

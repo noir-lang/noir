@@ -71,6 +71,32 @@ export class ProvingState {
     return BigInt(Math.ceil(Math.log2(this.totalNumTxs)) - 1);
   }
 
+  // Calculates the index and level of the parent rollup circuit
+  // Based on tree implementation in unbalanced_tree.ts -> batchInsert()
+  public findMergeLevel(currentLevel: bigint, currentIndex: bigint) {
+    const moveUpMergeLevel = (levelSize: number, index: bigint, nodeToShift: boolean) => {
+      levelSize /= 2;
+      if (levelSize & 1) {
+        [levelSize, nodeToShift] = nodeToShift ? [levelSize + 1, false] : [levelSize - 1, true];
+      }
+      index >>= 1n;
+      return { thisLevelSize: levelSize, thisIndex: index, shiftUp: nodeToShift };
+    };
+    let [thisLevelSize, shiftUp] = this.totalNumTxs & 1 ? [this.totalNumTxs - 1, true] : [this.totalNumTxs, false];
+    const maxLevel = this.numMergeLevels + 1n;
+    let placeholder = currentIndex;
+    for (let i = 0; i < maxLevel - currentLevel; i++) {
+      ({ thisLevelSize, thisIndex: placeholder, shiftUp } = moveUpMergeLevel(thisLevelSize, placeholder, shiftUp));
+    }
+    let thisIndex = currentIndex;
+    let mergeLevel = currentLevel;
+    while (thisIndex >= thisLevelSize && mergeLevel != 0n) {
+      mergeLevel -= 1n;
+      ({ thisLevelSize, thisIndex, shiftUp } = moveUpMergeLevel(thisLevelSize, thisIndex, shiftUp));
+    }
+    return [mergeLevel - 1n, thisIndex >> 1n, thisIndex & 1n];
+  }
+
   // Adds a transaction to the proving state, returns it's index
   // Will update the proving life cycle if this is the last transaction
   public addNewTx(tx: TxProvingState) {

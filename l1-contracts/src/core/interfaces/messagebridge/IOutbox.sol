@@ -11,7 +11,7 @@ import {DataStructures} from "../../libraries/DataStructures.sol";
  * and will be consumed by the portal contracts.
  */
 interface IOutbox {
-  event RootAdded(uint256 indexed l2BlockNumber, bytes32 indexed root, uint256 height);
+  event RootAdded(uint256 indexed l2BlockNumber, bytes32 indexed root, uint256 minHeight);
   event MessageConsumed(
     uint256 indexed l2BlockNumber,
     bytes32 indexed root,

@@ -70,6 +70,13 @@ describe('prover/orchestrator/errors', () => {
       );
     });
 
+    it('throws if setting an incomplete block completed', async () => {
+      await context.orchestrator.startNewBlock(3, context.globalVariables, [], getMockVerificationKeys());
+      await expect(async () => await context.orchestrator.setBlockCompleted()).rejects.toThrow(
+        `Block not ready for completion: expecting ${3} more transactions.`,
+      );
+    });
+
     it('throws if finalising an already finalised block', async () => {
       const txs = await Promise.all([
         makeEmptyProcessedTestTx(context.actualDb),
@@ -80,13 +87,10 @@ describe('prover/orchestrator/errors', () => {
         txs.length,
         context.globalVariables,
         [],
-
         getMockVerificationKeys(),
       );
 
-      for (const tx of txs) {
-        await context.orchestrator.addNewTx(tx);
-      }
+      await context.orchestrator.setBlockCompleted();
 
       const result = await blockTicket.provingPromise;
       expect(result.status).toBe(PROVING_STATUS.SUCCESS);
@@ -111,7 +115,7 @@ describe('prover/orchestrator/errors', () => {
       ).rejects.toThrow('Rollup not accepting further transactions');
     });
 
-    it.each([[-4], [0], [1], [3], [8.1], [7]] as const)(
+    it.each([[-4], [0], [1], [8.1]] as const)(
       'fails to start a block with %i transactions',
       async (blockSize: number) => {
         await expect(
@@ -123,7 +127,7 @@ describe('prover/orchestrator/errors', () => {
 
               getMockVerificationKeys(),
             ),
-        ).rejects.toThrow(`Length of txs for the block should be a power of two and at least two (got ${blockSize})`);
+        ).rejects.toThrow(`Length of txs for the block should be at least two (got ${blockSize})`);
       },
     );
 

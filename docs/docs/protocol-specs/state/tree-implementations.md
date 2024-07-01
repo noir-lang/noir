@@ -8,6 +8,12 @@ In an append-only Merkle tree, new leaves are inserted in order from left to rig
 
 Append-only trees allow for more efficient syncing than sparse trees, since clients can sync from left to right starting with their last known value. Updates to the tree root, when inserting new leaves, can be computed from the rightmost "frontier" of the tree (i.e., from the sibling path of the rightmost nonzero leaf). Batch insertions can be computed with fewer hashes than in a sparse tree. The historical snapshots of append-only trees also enable efficient membership proofs; as older roots can be computed by completing the merkle path from a past left subtree with an empty right subtree.
 
+### Wonky Merkle Trees
+
+We also use a special type of append-only tree to structure the rollup circuits. Given `n` leaves, we fill from left to right and attempt to pair them to produce the next layer. If `n` is a power of 2, this tree looks exactly like a standard append-only merkle tree. Otherwise, once we reach an odd-sized row we shift the final node up until we reach another odd row to combine them.
+
+This results in an unbalanced tree where there are no empty leaves. For rollups, this means we don't have to pad empty transactions and process them through the rollup circuits. A full explanation is given [here](./wonky-tree.md).
+
 ## Indexed Merkle trees
 
 Indexed Merkle trees, introduced [here](https://eprint.iacr.org/2021/1263.pdf), allow for proofs of non-inclusion more efficiently than sparse Merkle trees. Each leaf in the tree is a tuple of: the leaf value, the next-highest value in the tree, and the index of the leaf where that next-highest value is stored. New leaves are inserted from left to right, as in the append-only tree, but existing leaves can be _modified_ to update the next-highest value and next-highest index (a.k.a. the "pointer") if a new leaf with a "closer value" is added to the tree. An Indexed Merkle trees behaves as a Merkle tree over a sorted linked list.

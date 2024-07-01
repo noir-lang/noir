@@ -19,9 +19,9 @@ Note that we have two different types of "merger" circuits, depending on what th
 For transactions we have:
 
 - The `merge` rollup
-  - Merges two `base` rollup proofs OR two `merge` rollup proofs
+  - Merges two rollup proofs of either `base` or `merge` and constructs outputs for further proving
 - The `root` rollup
-  - Merges two `merge` rollup proofs
+  - Merges two rollup proofs of either `base` or `merge` and constructs outputs for L1
 
 And for the message parity we have:
 
@@ -30,7 +30,7 @@ And for the message parity we have:
 - The `base_parity` circuit
   - Merges `N` l1 to l2 messages in a subtree
 
-In the diagram the size of the tree is limited for demonstration purposes, but a larger tree would have more layers of merge rollups proofs.
+In the diagram the size of the tree is limited for demonstration purposes, but a larger tree would have more layers of merge rollups proofs. Exactly how many layers and what combination of `base` and/or `merge` circuits are consumed is based on filling a [wonky tree](../state/tree-implementations.md#wonky-merkle-trees) with N transactions.
 Circles mark the different types of proofs, while squares mark the different circuit types.
 
 ```mermaid
@@ -465,7 +465,7 @@ Furthermore, the `OutHash` is a computed from a subset of the data in `TxsHash` 
 
 Since we strive to minimize the compute requirements to prove blocks, we amortize the commitment cost across the full tree.
 We can do so by building merkle trees of partial "commitments", whose roots are ultimately computed in the final root rollup circuit.
-Below, we outline the `TxsHash` merkle tree that is based on the `TxEffect`s and a `OutHash` which is based on the `l2_to_l1_msgs` (cross-chain messages) for each transaction.
+Below, we outline the `TxsHash` merkle tree that is based on the `TxEffect`s and a `OutHash` which is based on the `l2_to_l1_msgs` (cross-chain messages) for each transaction, with four transactions in this rollup.
 While the `TxsHash` implicitly includes the `OutHash` we need it separately such that it can be passed to the `Outbox` for consumption by the portals with minimal work.
 
 ```mermaid
@@ -588,6 +588,8 @@ graph BT
 
 While the `TxsHash` merely require the data to be published and known to L1, the `InHash` and `OutHash` needs to be computable on L1 as well.
 This reason require them to be efficiently computable on L1 while still being non-horrible inside a snark - leading us to rely on SHA256.
+
+
 The L2 to L1 messages from each transaction form a variable height tree. In the diagram above, transactions 0 and 3 have four messages, so require a tree with two layers, whereas the others only have two messages and so require a single layer tree. The base rollup calculates the root of this tree and passes it as the to the next layer. Merge rollups simply hash both of these roots together and pass it up as the `OutHash`.
 
 ## Next Steps

@@ -135,10 +135,8 @@ export class ProvingOrchestrator {
       this.initialHeader = await this.db.buildInitialHeader();
     }
 
-    // Check that the length of the array of txs is a power of two
-    // See https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
-    if (!Number.isInteger(numTxs) || numTxs < 2 || (numTxs & (numTxs - 1)) !== 0) {
-      throw new Error(`Length of txs for the block should be a power of two and at least two (got ${numTxs})`);
+    if (!Number.isInteger(numTxs) || numTxs < 2) {
+      throw new Error(`Length of txs for the block should be at least two (got ${numTxs})`);
     }
     // Cancel any currently proving block before starting a new one
     this.cancelBlock();
@@ -225,12 +223,17 @@ export class ProvingOrchestrator {
 
     logger.info(`Received transaction: ${tx.hash}`);
 
+    if (tx.isEmpty) {
+      logger.warn(`Ignoring empty transaction ${tx.hash} - it will not be added to this block`);
+      return;
+    }
+
     const [inputs, treeSnapshots] = await this.prepareTransaction(tx, this.provingState);
     this.enqueueFirstProof(inputs, treeSnapshots, tx, this.provingState);
   }
 
   /**
-   * Marks the block as full and pads it to the full power of 2 block size, no more transactions will be accepted.
+   * Marks the block as full and pads it if required, no more transactions will be accepted.
    */
   @trackSpan('ProvingOrchestrator.setBlockCompleted', function () {
     if (!this.provingState) {
@@ -252,10 +255,15 @@ export class ProvingOrchestrator {
     const paddingTxCount = this.provingState.totalNumTxs - this.provingState.transactionsReceived;
     if (paddingTxCount === 0) {
       return;
+    } else if (this.provingState.totalNumTxs > 2) {
+      throw new Error(`Block not ready for completion: expecting ${paddingTxCount} more transactions.`);
     }
 
     logger.debug(`Padding rollup with ${paddingTxCount} empty transactions`);
     // Make an empty padding transaction
+    // Required for:
+    // 0 (when we want an empty block, largely for testing), or
+    // 1 (we need to pad with one tx as all rollup circuits require a pair of inputs) txs
     // Insert it into the tree the required number of times to get all of the
     // base rollup inputs
     // Then enqueue the proving of all the transactions
@@ -579,13 +587,18 @@ export class ProvingOrchestrator {
       VerificationKeyAsFields,
     ],
   ) {
-    const mergeLevel = currentLevel - 1n;
-    const indexWithinMergeLevel = currentIndex >> 1n;
+    const [mergeLevel, indexWithinMergeLevel, indexWithinMerge] = provingState.findMergeLevel(
+      currentLevel,
+      currentIndex,
+    );
     const mergeIndex = 2n ** mergeLevel - 1n + indexWithinMergeLevel;
-    const subscript = Number(mergeIndex);
-    const indexWithinMerge = Number(currentIndex & 1n);
-    const ready = provingState.storeMergeInputs(mergeInputs, indexWithinMerge, subscript);
-    return { ready, indexWithinMergeLevel, mergeLevel, mergeInputData: provingState.getMergeInputs(subscript) };
+    const ready = provingState.storeMergeInputs(mergeInputs, Number(indexWithinMerge), Number(mergeIndex));
+    return {
+      ready,
+      indexWithinMergeLevel,
+      mergeLevel,
+      mergeInputData: provingState.getMergeInputs(Number(mergeIndex)),
+    };
   }
 
   // Executes the base rollup circuit and stored the output as intermediate state for the parent merge/root circuit

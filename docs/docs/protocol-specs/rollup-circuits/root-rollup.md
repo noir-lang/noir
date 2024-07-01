@@ -183,8 +183,7 @@ def RootRollupCircuit(
 
     assert left.public_inputs.constants == right.public_inputs.constants
     assert left.public_inputs.end == right.public_inputs.start
-    assert left.public_inputs.type == right.public_inputs.type
-    assert left.public_inputs.height_in_block_tree == right.public_inputs.height_in_block_tree
+    assert left.public_inputs.num_txs >= right.public_inputs.num_txs
 
     assert parent.state.partial == left.public_inputs.start
 
@@ -208,8 +207,8 @@ def RootRollupCircuit(
     header = Header(
         last_archive = left.public_inputs.constants.last_archive,
         content_commitment: ContentCommitment(
-            tx_tree_height = left.public_inputs.height_in_block_tree + 1,
-            txs_hash = SHA256(left.public_inputs.txs_hash | right.public_inputs.txs_hash),
+            num_txs=left.public_inputs.num_txs + right.public_inputs.num_txs,
+            txs_effect_hash=SHA256(left.public_inputs.txs_effect_hash | right.public_inputs.txs_effect_hash),
             in_hash = l1_to_l2_roots.public_inputs.sha_root,
             out_hash = SHA256(left.public_inputs.out_hash | right.public_inputs.out_hash),
         ),

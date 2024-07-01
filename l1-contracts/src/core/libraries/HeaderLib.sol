@@ -25,7 +25,7 @@ import {Hash} from "./Hash.sol";
  *  | 0x0000                                                                           | 0x20         |   lastArchive.root
  *  | 0x0020                                                                           | 0x04         |   lastArchive.nextAvailableLeafIndex
  *  |                                                                                  |              |   ContentCommitment {
- *  | 0x0024                                                                           | 0x20         |     txTreeHeight
+ *  | 0x0024                                                                           | 0x20         |     numTxs
  *  | 0x0044                                                                           | 0x20         |     txsEffectsHash
  *  | 0x0064                                                                           | 0x20         |     inHash
  *  | 0x0084                                                                           | 0x20         |     outHash
@@ -90,7 +90,7 @@ library HeaderLib {
   }
 
   struct ContentCommitment {
-    uint256 txTreeHeight;
+    uint256 numTxs;
     bytes32 txsEffectsHash;
     bytes32 inHash;
     bytes32 outHash;
@@ -163,7 +163,7 @@ library HeaderLib {
     );
 
     // Reading ContentCommitment
-    header.contentCommitment.txTreeHeight = uint256(bytes32(_header[0x0024:0x0044]));
+    header.contentCommitment.numTxs = uint256(bytes32(_header[0x0024:0x0044]));
     header.contentCommitment.txsEffectsHash = bytes32(_header[0x0044:0x0064]);
     header.contentCommitment.inHash = bytes32(_header[0x0064:0x0084]);
     header.contentCommitment.outHash = bytes32(_header[0x0084:0x00a4]);
@@ -204,7 +204,7 @@ library HeaderLib {
     // must match the order in the Header.getFields
     fields[0] = _header.lastArchive.root;
     fields[1] = bytes32(uint256(_header.lastArchive.nextAvailableLeafIndex));
-    fields[2] = bytes32(_header.contentCommitment.txTreeHeight);
+    fields[2] = bytes32(_header.contentCommitment.numTxs);
     fields[3] = _header.contentCommitment.txsEffectsHash;
     fields[4] = _header.contentCommitment.inHash;
     fields[5] = _header.contentCommitment.outHash;

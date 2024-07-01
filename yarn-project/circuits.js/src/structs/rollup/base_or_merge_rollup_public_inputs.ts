@@ -15,11 +15,9 @@ export class BaseOrMergeRollupPublicInputs {
      */
     public rollupType: RollupTypes,
     /**
-     * Rollup sub tree height.
-     * Note 1: Base rollup circuit always have a sub tree height of 0.
-     * Note 2: With each merge, the sub tree height increases by 1.
+     * Number of txs in this rollup.
      */
-    public rollupSubtreeHeight: Fr,
+    public numTxs: number,
     /**
      * Data which is forwarded through the rollup circuits unchanged.
      */
@@ -59,7 +57,7 @@ export class BaseOrMergeRollupPublicInputs {
     const reader = BufferReader.asReader(buffer);
     return new BaseOrMergeRollupPublicInputs(
       reader.readNumber(),
-      Fr.fromBuffer(reader),
+      reader.readNumber(),
       reader.readObject(ConstantRollupData),
       reader.readObject(PartialStateReference),
       reader.readObject(PartialStateReference),
@@ -77,7 +75,7 @@ export class BaseOrMergeRollupPublicInputs {
   toBuffer() {
     return serializeToBuffer(
       this.rollupType,
-      this.rollupSubtreeHeight,
+      this.numTxs,
       this.constants,
 
       this.start,

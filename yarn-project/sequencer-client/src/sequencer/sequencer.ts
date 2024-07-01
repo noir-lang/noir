@@ -258,9 +258,7 @@ export class Sequencer {
     const processor = await this.publicProcessorFactory.create(historicalHeader, newGlobalVariables);
 
     const numRealTxs = validTxs.length;
-    const pow2 = Math.log2(numRealTxs);
-    const totalTxs = 2 ** Math.ceil(pow2);
-    const blockSize = Math.max(2, totalTxs);
+    const blockSize = Math.max(2, numRealTxs);
 
     const blockBuildingTimer = new Timer();
     const blockTicket = await this.prover.startNewBlock(blockSize, newGlobalVariables, l1ToL2Messages);

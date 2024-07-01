@@ -46,7 +46,7 @@ library Errors {
   error Rollup__TimestampInFuture(); // 0xbc1ce916
   error Rollup__TimestampTooOld(); // 0x72ed9c81
   error Rollup__UnavailableTxs(bytes32 txsHash); // 0x414906c3
-  error Rollup__InvalidSequencer(address sequencer);
+  error Rollup__InvalidSequencer(address sequencer); // 0xa127a106
 
   // Registry
   error Registry__RollupNotRegistered(address rollup); // 0xa1fee4cf
@@ -54,6 +54,7 @@ library Errors {
 
   //TxsDecoder
   error TxsDecoder__InvalidLogsLength(uint256 expected, uint256 actual); // 0x829ca981
+  error TxsDecoder__TxsTooLarge(uint256 expected, uint256 actual); // 0xc7d44a62
 
   // HeaderLib
   error HeaderLib__InvalidHeaderSize(uint256 expected, uint256 actual); // 0xf3ccb247

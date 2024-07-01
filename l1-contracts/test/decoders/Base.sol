@@ -73,8 +73,8 @@ contract DecoderBase is Test {
 
   struct ContentCommitment {
     bytes32 inHash;
+    uint256 numTxs;
     bytes32 outHash;
-    uint256 txTreeHeight;
     bytes32 txsEffectsHash;
   }
 

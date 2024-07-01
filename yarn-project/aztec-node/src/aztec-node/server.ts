@@ -53,7 +53,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { type AztecKVStore } from '@aztec/kv-store';
 import { AztecLmdbStore } from '@aztec/kv-store/lmdb';
 import { initStoreForRollup, openTmpStore } from '@aztec/kv-store/utils';
-import { SHA256Trunc, StandardTree } from '@aztec/merkle-tree';
+import { SHA256Trunc, StandardTree, UnbalancedTree } from '@aztec/merkle-tree';
 import { AztecKVTxPool, type P2P, createP2PClient } from '@aztec/p2p';
 import { getCanonicalClassRegisterer } from '@aztec/protocol-contracts/class-registerer';
 import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
@@ -550,26 +550,16 @@ export class AztecNodeService implements AztecNode {
       true,
     );
 
-    const l2toL1SubtreeRoots = l2toL1Subtrees.map(t => Fr.fromBuffer(t.getRoot(true)));
-    const treeHeight = block.header.contentCommitment.txTreeHeight.toNumber();
-    // NOTE: This padding only works assuming that an 'empty' out hash is H(0,0)
-    const paddedl2toL1SubtreeRoots = padArrayEnd(
-      l2toL1SubtreeRoots,
-      Fr.fromBuffer(sha256Trunc(Buffer.alloc(64))),
-      2 ** treeHeight,
-    );
+    let l2toL1SubtreeRoots = l2toL1Subtrees.map(t => Fr.fromBuffer(t.getRoot(true)));
+    if (l2toL1SubtreeRoots.length < 2) {
+      l2toL1SubtreeRoots = padArrayEnd(l2toL1SubtreeRoots, Fr.fromBuffer(sha256Trunc(Buffer.alloc(64))), 2);
+    }
+    const maxTreeHeight = Math.ceil(Math.log2(l2toL1SubtreeRoots.length));
     // The root of this tree is the out_hash calculated in Noir => we truncate to match Noir's SHA
-    const outHashTree = new StandardTree(
-      openTmpStore(true),
-      new SHA256Trunc(),
-      'temp_outhash_sibling_path',
-      treeHeight,
-      0n,
-      Fr,
-    );
-    await outHashTree.appendLeaves(paddedl2toL1SubtreeRoots);
+    const outHashTree = new UnbalancedTree(new SHA256Trunc(), 'temp_outhash_sibling_path', maxTreeHeight, Fr);
+    await outHashTree.appendLeaves(l2toL1SubtreeRoots);
 
-    const pathOfTxInOutHashTree = await outHashTree.getSiblingPath(BigInt(indexOfMsgTx), true);
+    const pathOfTxInOutHashTree = await outHashTree.getSiblingPath(l2toL1SubtreeRoots[indexOfMsgTx].toBigInt());
     // Append subtree path to out hash tree path
     const mergedPath = subtreePathOfL2ToL1Message.toBufferArray().concat(pathOfTxInOutHashTree.toBufferArray());
     // Append binary index of subtree path to binary index of out hash tree path

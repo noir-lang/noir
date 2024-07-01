@@ -82,13 +82,12 @@ def MergeRollupCircuit(
 
     assert left.public_inputs.constants == right.public_inputs.constants
     assert left.public_inputs.end == right.public_inputs.start
-    assert left.public_inputs.type == right.public_inputs.type
-    assert left.public_inputs.height_in_block_tree == right.public_inputs.height_in_block_tree
+    assert left.public_inputs.num_txs >= right.public_inputs.num_txs
 
     return BaseOrMergeRollupPublicInputs(
         type=1,
-        height_in_block_tree=left.public_inputs.height_in_block_tree + 1,
-        txs_hash=SHA256(left.public_inputs.txs_hash | right.public_inputs.txs_hash),
+        num_txs=left.public_inputs.num_txs + right.public_inputs.num_txs,
+        txs_effect_hash=SHA256(left.public_inputs.txs_effect_hash | right.public_inputs.txs_effect_hash),
         out_hash=SHA256(left.public_inputs.out_hash | right.public_inputs.out_hash),
         start=left.public_inputs.start,
         end=right.public_inputs.end,

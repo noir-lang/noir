@@ -7,7 +7,7 @@ import { sleep } from '@aztec/foundation/sleep';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { type MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
-import { makeBloatedProcessedTx, makeEmptyProcessedTestTx, updateExpectedTreesFromTxs } from '../mocks/fixtures.js';
+import { makeBloatedProcessedTx, updateExpectedTreesFromTxs } from '../mocks/fixtures.js';
 import { TestContext } from '../mocks/test_context.js';
 
 const logger = createDebugLogger('aztec:orchestrator-single-blocks');
@@ -27,21 +27,14 @@ describe('prover/orchestrator/blocks', () => {
 
   describe('blocks', () => {
     it('builds an empty L2 block', async () => {
-      const txs = await Promise.all([
-        makeEmptyProcessedTestTx(context.actualDb),
-        makeEmptyProcessedTestTx(context.actualDb),
-      ]);
-
       const blockTicket = await context.orchestrator.startNewBlock(
-        txs.length,
+        2,
         context.globalVariables,
         [],
         getMockVerificationKeys(),
       );
 
-      for (const tx of txs) {
-        await context.orchestrator.addNewTx(tx);
-      }
+      await context.orchestrator.setBlockCompleted();
 
       const result = await blockTicket.provingPromise;
       expect(result.status).toBe(PROVING_STATUS.SUCCESS);
