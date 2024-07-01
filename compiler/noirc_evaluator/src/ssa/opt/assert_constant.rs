@@ -112,6 +112,10 @@ fn evaluate_static_assert(
         Ok(false)
     } else {
         let call_stack = function.dfg.get_call_stack(instruction);
-        Err(RuntimeError::StaticAssertFailed { call_stack })
+        if function.dfg.is_constant(arguments[0]) {
+            Err(RuntimeError::StaticAssertFailed { call_stack })
+        } else {
+            Err(RuntimeError::StaticAssertDynamicPredicate { call_stack })
+        }
     }
 }
