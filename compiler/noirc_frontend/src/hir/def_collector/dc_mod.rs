@@ -716,8 +716,7 @@ fn find_module(
             expected_path: mod_name_candidate.as_os_str().to_string_lossy().to_string(),
             alternative_path: mod_nr_candidate.as_os_str().to_string_lossy().to_string(),
         }),
-        (Some(mod_nr_id), None) => Ok(mod_nr_id),
-        (None, Some(name_id)) => Ok(name_id),
+        (Some(id), None) | (None, Some(id)) => Ok(id),
         (None, None) => Err(DefCollectorErrorKind::UnresolvedModuleDecl {
             mod_name: mod_name.clone(),
             expected_path: mod_name_candidate.as_os_str().to_string_lossy().to_string(),
