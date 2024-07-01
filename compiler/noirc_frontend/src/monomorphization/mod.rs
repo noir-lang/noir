@@ -832,7 +832,6 @@ impl<'interner> Monomorphizer<'interner> {
         let typ = self.interner.id_type(expr_id);
 
         if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
-            eprintln!("TraitMethod!  {method:?}   {expr_id:?}");
             return self.resolve_trait_method_expr(expr_id, typ, method);
         }
 

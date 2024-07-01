@@ -433,16 +433,14 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
-        // We have to push a new trait constraints Vec so that we can resolve any constraints
+        // We have to push a new FunctionContext so that we can resolve any constraints
         // in this comptime block early before the function as a whole finishes elaborating.
         // Otherwise the interpreter below may find expressions for which the underlying trait
         // call is not yet solved for.
-        self.type_variables.push(Vec::new());
-        self.trait_constraints.push(Vec::new());
+        self.function_context.push(Default::default());
         let span = statement.span;
         let (hir_statement, _typ) = self.elaborate_statement(statement);
-        self.pop_and_default_type_variables();
-        self.pop_and_verify_current_trait_constraints();
+        self.check_and_pop_function_context();
 
         let mut interpreter =
             Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
