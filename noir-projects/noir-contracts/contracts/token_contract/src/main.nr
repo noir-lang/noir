@@ -19,8 +19,11 @@ contract Token {
         hash::compute_secret_hash,
         prelude::{NoteGetterOptions, Map, PublicMutable, SharedImmutable, PrivateSet, AztecAddress},
         encrypted_logs::{
-        encrypted_note_emission::{encode_and_encrypt_note, encode_and_encrypt_note_with_keys},
-        encrypted_event_emission::{encode_and_encrypt_event, encode_and_encrypt_event_with_keys}
+        encrypted_note_emission::{
+        encode_and_encrypt_note, encode_and_encrypt_note_with_keys,
+        encode_and_encrypt_note_with_keys_unconstrained
+    },
+        encrypted_event_emission::{encode_and_encrypt_event, encode_and_encrypt_event_with_keys_unconstrained}
     }
     };
 
@@ -332,10 +335,10 @@ contract Token {
         let to_ivpk = header.get_ivpk_m(&mut context, to);
 
         let amount = U128::from_integer(amount);
-        storage.balances.sub(from, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_ovpk, from_ivpk));
-        storage.balances.add(to, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_ovpk, to_ivpk));
+        storage.balances.sub(from, amount).emit(encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_ovpk, from_ivpk));
+        storage.balances.add(to, amount).emit(encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_ovpk, to_ivpk));
 
-        Transfer { from: from.to_field(), to: to.to_field(), amount: amount.to_field() }.emit(encode_and_encrypt_event_with_keys(&mut context, from_ovpk, to_ivpk));
+        Transfer { from: from.to_field(), to: to.to_field(), amount: amount.to_field() }.emit(encode_and_encrypt_event_with_keys_unconstrained(&mut context, from_ovpk, to_ivpk));
     }
     // docs:end:transfer
 
