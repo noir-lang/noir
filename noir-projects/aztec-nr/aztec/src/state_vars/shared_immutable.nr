@@ -26,11 +26,6 @@ impl<T, Context> SharedImmutable<T, Context> {
 impl<T> SharedImmutable<T, &mut PublicContext> {
     // Intended to be only called once. 
     pub fn initialize<T_SERIALIZED_LEN>(self, value: T) where T: Serialize<T_SERIALIZED_LEN> {
-        // TODO(#4738): Uncomment the following assert
-        // assert(
-        //     self.context.public.unwrap_unchecked().is_deployment(), "SharedImmutable can only be initialized during contract deployment"
-        // );
-
         // We check that the struct is not yet initialized by checking if the initialization slot is 0
         let initialization_slot = INITIALIZATION_SLOT_SEPARATOR + self.storage_slot;
         let init_field: Field = self.context.storage_read(initialization_slot);

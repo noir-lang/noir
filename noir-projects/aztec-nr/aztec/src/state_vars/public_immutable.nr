@@ -30,11 +30,6 @@ impl<T, Context> PublicImmutable<T, Context> {
 impl <T> PublicImmutable<T, &mut PublicContext> {
     // docs:start:public_immutable_struct_write
     pub fn initialize<T_SERIALIZED_LEN>(self, value: T) where T: Serialize<T_SERIALIZED_LEN> {
-        // TODO(#4738): Uncomment the following assert
-        // assert(
-        //     self.context.public.unwrap_unchecked().is_deployment(), "PublicImmutable can only be initialized during contract deployment"
-        // );
-
         // We check that the struct is not yet initialized by checking if the initialization slot is 0
         let initialization_slot = INITIALIZATION_SLOT_SEPARATOR + self.storage_slot;
         let init_field: Field = self.context.storage_read(initialization_slot);
