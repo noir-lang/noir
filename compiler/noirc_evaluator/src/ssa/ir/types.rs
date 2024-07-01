@@ -31,11 +31,30 @@ impl NumericType {
 
     /// Returns true if the given Field value is within the numeric limits
     /// for the current NumericType.
-    pub(crate) fn value_is_within_limits(self, field: FieldElement) -> bool {
+    ///
+    /// Note that if `negative` is true, it's expected that the field value holds the negative value
+    /// already casted to the range of `self` (for example, `-1` for a `i8` or `u8` type is
+    /// should be passed as `255`).
+    pub(crate) fn value_is_within_limits(self, field: FieldElement, negative: bool) -> bool {
         match self {
-            NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
+            NumericType::Unsigned { bit_size } => {
+                if negative {
+                    return false;
+                }
                 let max = 2u128.pow(bit_size) - 1;
                 field <= max.into()
+            }
+            NumericType::Signed { bit_size } => {
+                if negative {
+                    let base = 1_u128 << bit_size;
+                    // Recover the original value (a similar operation is done in compiler/noirc_frontend/src/monomorphization/mod.rs)
+                    let field = FieldElement::from(base) - field;
+                    let max = 2u128.pow(bit_size - 1);
+                    field <= max.into()
+                } else {
+                    let max = 2u128.pow(bit_size - 1) - 1;
+                    field <= max.into()
+                }
             }
             NumericType::NativeField => true,
         }
@@ -208,5 +227,38 @@ impl std::fmt::Display for NumericType {
             NumericType::Unsigned { bit_size } => write!(f, "u{bit_size}"),
             NumericType::NativeField => write!(f, "Field"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_u8_is_within_limits() {
+        let u8 = NumericType::Unsigned { bit_size: 8 };
+        assert!(!u8.value_is_within_limits(
+            FieldElement::from(256_i128) - FieldElement::from(1_i128),
+            true
+        ));
+        assert!(u8.value_is_within_limits(FieldElement::from(0_i128), false));
+        assert!(u8.value_is_within_limits(FieldElement::from(255_i128), false));
+        assert!(!u8.value_is_within_limits(FieldElement::from(256_i128), false));
+    }
+
+    #[test]
+    fn test_i8_is_within_limits() {
+        let i8 = NumericType::Signed { bit_size: 8 };
+        assert!(!i8.value_is_within_limits(
+            FieldElement::from(256_i128) - FieldElement::from(129_i128),
+            true
+        ));
+        assert!(i8.value_is_within_limits(
+            FieldElement::from(256_i128) - FieldElement::from(128_i128),
+            true
+        ));
+        assert!(i8.value_is_within_limits(FieldElement::from(0_i128), false));
+        assert!(i8.value_is_within_limits(FieldElement::from(127_i128), false));
+        assert!(!i8.value_is_within_limits(FieldElement::from(128_i128), false));
     }
 }

@@ -266,12 +266,13 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn checked_numeric_constant(
         &mut self,
         value: impl Into<FieldElement>,
+        negative: bool,
         typ: Type,
     ) -> Result<ValueId, RuntimeError> {
         let value = value.into();
 
         if let Type::Numeric(typ) = typ {
-            if !typ.value_is_within_limits(value) {
+            if !typ.value_is_within_limits(value, negative) {
                 let call_stack = self.builder.get_call_stack();
                 return Err(RuntimeError::IntegerOutOfBounds { value, typ, call_stack });
             }
