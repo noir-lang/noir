@@ -2,12 +2,12 @@ use std::collections::BTreeMap;
 use std::io::{Read, Write};
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
-use acvm::acir::circuit::{Circuit, OpcodeLocation};
+use acvm::acir::circuit::Circuit;
 use acvm::acir::native_types::WitnessMap;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
-use crate::context::DebugCommandResult;
 use crate::context::DebugContext;
+use crate::context::{DebugCommandResult, DebugLocation};
 use crate::foreign_calls::DefaultDebugForeignCallExecutor;
 
 use dap::errors::ServerError;
@@ -37,8 +37,8 @@ pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElem
     debug_artifact: &'a DebugArtifact,
     running: bool,
     next_breakpoint_id: BreakpointId,
-    instruction_breakpoints: Vec<(OpcodeLocation, BreakpointId)>,
-    source_breakpoints: BTreeMap<FileId, Vec<(OpcodeLocation, BreakpointId)>>,
+    instruction_breakpoints: Vec<(DebugLocation, BreakpointId)>,
+    source_breakpoints: BTreeMap<FileId, Vec<(DebugLocation, BreakpointId)>>,
 }
 
 enum ScopeReferences {
@@ -61,14 +61,14 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
     pub fn new(
         server: Server<R, W>,
         solver: &'a B,
-        circuit: &'a Circuit<FieldElement>,
+        circuits: &'a [Circuit<FieldElement>],
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap<FieldElement>,
         unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
     ) -> Self {
         let context = DebugContext::new(
             solver,
-            circuit,
+            circuits,
             debug_artifact,
             initial_witness,
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact)),
@@ -100,7 +100,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
     }
 
     pub fn run_loop(&mut self) -> Result<(), ServerError> {
-        self.running = self.context.get_current_opcode_location().is_some();
+        self.running = self.context.get_current_debug_location().is_some();
 
         if self.running && self.context.get_current_source_location().is_none() {
             // TODO: remove this? This is to ensure that the tool has a proper
@@ -194,7 +194,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
             .get_source_call_stack()
             .iter()
             .enumerate()
-            .map(|(index, (opcode_location, source_location))| {
+            .map(|(index, (debug_location, source_location))| {
                 let line_number =
                     self.debug_artifact.location_line_number(*source_location).unwrap();
                 let column_number =
@@ -204,7 +204,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
                     Some(frame) => format!("{} {}", frame.function_name, index),
                     None => format!("frame #{index}"),
                 };
-                let address = self.context.opcode_location_to_address(opcode_location);
+                let address = self.context.debug_location_to_address(debug_location);
 
                 StackFrame {
                     id: index as i64,
@@ -251,18 +251,18 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
         let mut instructions: Vec<DisassembledInstruction> = vec![];
 
         while count > 0 {
-            let opcode_location = if address >= 0 {
-                self.context.address_to_opcode_location(address as usize)
+            let debug_location = if address >= 0 {
+                self.context.address_to_debug_location(address as usize)
             } else {
                 None
             };
 
-            if let Some(opcode_location) = opcode_location {
+            if let Some(debug_location) = debug_location {
                 instructions.push(DisassembledInstruction {
                     address: address.to_string(),
                     // we'll use the instruction_bytes field to render the OpcodeLocation
-                    instruction_bytes: Some(opcode_location.to_string()),
-                    instruction: self.context.render_opcode_at_location(&opcode_location),
+                    instruction_bytes: Some(debug_location.to_string()),
+                    instruction: self.context.render_opcode_at_location(&debug_location),
                     ..DisassembledInstruction::default()
                 });
             } else {
@@ -320,16 +320,16 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
         self.handle_execution_result(result)
     }
 
-    fn find_breakpoints_at_location(&self, opcode_location: &OpcodeLocation) -> Vec<i64> {
+    fn find_breakpoints_at_location(&self, debug_location: &DebugLocation) -> Vec<i64> {
         let mut result = vec![];
         for (location, id) in &self.instruction_breakpoints {
-            if opcode_location == location {
+            if debug_location == location {
                 result.push(*id);
             }
         }
         for breakpoints in self.source_breakpoints.values() {
             for (location, id) in breakpoints {
-                if opcode_location == location {
+                if debug_location == location {
                     result.push(*id);
                 }
             }
@@ -404,7 +404,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
         };
 
         // compute breakpoints to set and return
-        let mut breakpoints_to_set: Vec<(OpcodeLocation, i64)> = vec![];
+        let mut breakpoints_to_set: Vec<(DebugLocation, i64)> = vec![];
         let breakpoints: Vec<Breakpoint> = args
             .breakpoints
             .iter()
@@ -420,8 +420,8 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
                 };
                 let Some(location) = self
                     .context
-                    .address_to_opcode_location(address)
-                    .filter(|location| self.context.is_valid_opcode_location(location))
+                    .address_to_debug_location(address)
+                    .filter(|location| self.context.is_valid_debug_location(location))
                 else {
                     return Breakpoint {
                         verified: false,
@@ -472,7 +472,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
         let Some(ref breakpoints) = &args.breakpoints else {
             return vec![];
         };
-        let mut breakpoints_to_set: Vec<(OpcodeLocation, i64)> = vec![];
+        let mut breakpoints_to_set: Vec<(DebugLocation, i64)> = vec![];
         let breakpoints = breakpoints
             .iter()
             .map(|breakpoint| {
@@ -490,14 +490,14 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
                 // TODO: line will not necessarily be the one requested; we
                 // should do the reverse mapping and retrieve the actual source
                 // code line number
-                if !self.context.is_valid_opcode_location(&location) {
+                if !self.context.is_valid_debug_location(&location) {
                     return Breakpoint {
                         verified: false,
                         message: Some(String::from("Invalid opcode location")),
                         ..Breakpoint::default()
                     };
                 }
-                let breakpoint_address = self.context.opcode_location_to_address(&location);
+                let breakpoint_address = self.context.debug_location_to_address(&location);
                 let instruction_reference = format!("{}", breakpoint_address);
                 let breakpoint_id = self.get_next_breakpoint_id();
                 breakpoints_to_set.push((location, breakpoint_id));
@@ -612,7 +612,7 @@ pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>>(
     let mut session = DapSession::new(
         server,
         solver,
-        &program.program.functions[0],
+        &program.program.functions,
         &debug_artifact,
         initial_witness,
         &program.program.unconstrained_functions,

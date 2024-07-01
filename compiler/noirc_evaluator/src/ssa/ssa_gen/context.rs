@@ -5,7 +5,7 @@ use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::ast::{BinaryOpKind, Signedness};
-use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
+use noirc_frontend::monomorphization::ast::{self, InlineType, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 
 use crate::errors::RuntimeError;
@@ -121,9 +121,14 @@ impl<'a> FunctionContext<'a> {
     ///
     /// Note that the previous function cannot be resumed after calling this. Developers should
     /// avoid calling new_function until the previous function is completely finished with ssa-gen.
-    pub(super) fn new_function(&mut self, id: IrFunctionId, func: &ast::Function) {
+    pub(super) fn new_function(
+        &mut self,
+        id: IrFunctionId,
+        func: &ast::Function,
+        force_brillig_runtime: bool,
+    ) {
         self.definitions.clear();
-        if func.unconstrained {
+        if func.unconstrained || (force_brillig_runtime && func.inline_type != InlineType::Inline) {
             self.builder.new_brillig_function(func.name.clone(), id);
         } else {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
