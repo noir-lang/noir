@@ -1,5 +1,5 @@
 [package]
-name = "rename"
+name = "rename_function"
 type = "bin"
 authors = [""]
 

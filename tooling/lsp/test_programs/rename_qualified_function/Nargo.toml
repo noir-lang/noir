@@ -1,5 +1,5 @@
 [package]
-name = "rename_qualified"
+name = "rename_qualified_function"
 type = "bin"
 authors = [""]
 

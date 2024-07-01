@@ -187,7 +187,7 @@ mod rename_tests {
 
     #[test]
     async fn test_on_prepare_rename_request_cannot_be_applied() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("rename").await;
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("rename_function").await;
 
         let params = TextDocumentPositionParams {
             text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
@@ -205,7 +205,7 @@ mod rename_tests {
     }
 
     #[test]
-    async fn test_on_rename_request() {
+    async fn test_rename_function() {
         const ANOTHER_FUNCTION_REFERENCE: Range = Range {
             start: Position { line: 9, character: 12 },
             end: Position { line: 9, character: 28 },
@@ -228,11 +228,11 @@ mod rename_tests {
             },
         ];
 
-        check_rename_succeeds("rename", "another_function", ANOTHER_FUNCTION_RANGES).await;
+        check_rename_succeeds("rename_function", "another_function", ANOTHER_FUNCTION_RANGES).await;
     }
 
     #[test]
-    async fn test_on_rename_request_works_with_qualified_path() {
+    async fn test_rename_qualified_function() {
         const BAR_FUNCTION_REFERENCE: Range = Range {
             start: Position { line: 1, character: 9 },
             end: Position { line: 1, character: 12 },
@@ -244,6 +244,6 @@ mod rename_tests {
         // The ranges of positions which represent the usage of the `bar` symbol.
         const BAR_FUNCTION_RANGES: &[Range] = &[BAR_FUNCTION_REFERENCE, BAR_FUNCTION_DECLARATION];
 
-        check_rename_succeeds("rename_qualified", "bar", BAR_FUNCTION_RANGES).await;
+        check_rename_succeeds("rename_qualified_function", "bar", BAR_FUNCTION_RANGES).await;
     }
 }
