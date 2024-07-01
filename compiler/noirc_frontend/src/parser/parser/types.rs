@@ -25,7 +25,7 @@ pub(super) fn parse_type_inner<'a>(
         bool_type(),
         string_type(),
         expr_type(),
-        type_definition_type(),
+        struct_definition_type(),
         top_level_item_type(),
         type_of_quoted_types(),
         quoted_type(),
@@ -80,10 +80,10 @@ pub(super) fn expr_type() -> impl NoirParser<UnresolvedType> {
         .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Expr).with_span(span))
 }
 
-/// This is the type `TypeDefinition` - the type of a quoted type definition
-pub(super) fn type_definition_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::TypeDefinition).map_with_span(|_, span| {
-        UnresolvedTypeData::Quoted(QuotedType::TypeDefinition).with_span(span)
+/// This is the type `StructDefinition` - the type of a quoted struct definition
+pub(super) fn struct_definition_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::StructDefinition).map_with_span(|_, span| {
+        UnresolvedTypeData::Quoted(QuotedType::StructDefinition).with_span(span)
     })
 }
 
