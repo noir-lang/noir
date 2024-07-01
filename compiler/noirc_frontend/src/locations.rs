@@ -32,7 +32,7 @@ impl NodeInterner {
     pub fn dependency_location(&self, dependency: DependencyId) -> Location {
         match dependency {
             DependencyId::Function(id) => self.function_modifiers(&id).name_location,
-            DependencyId::Struct(id) => self.get_struct(id).borrow().location,
+            DependencyId::Struct(id) => self.struct_location(&id),
             DependencyId::Global(id) => self.get_global(id).location,
             DependencyId::Alias(id) => self.get_type_alias(id).borrow().location,
             DependencyId::Variable(location) => location,
@@ -92,8 +92,10 @@ impl NodeInterner {
 
         let reference_node = self.reference_graph[node_index];
         let found_locations: Vec<Location> = match reference_node {
-            DependencyId::Alias(_) | DependencyId::Struct(_) | DependencyId::Global(_) => todo!(),
-            DependencyId::Function(_) => self.get_edit_locations(node_index),
+            DependencyId::Alias(_) | DependencyId::Global(_) => todo!(),
+            DependencyId::Function(_) | DependencyId::Struct(_) => {
+                self.get_edit_locations(node_index)
+            }
 
             DependencyId::Variable(_) => {
                 let referenced_node_index = self

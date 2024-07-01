@@ -246,4 +246,32 @@ mod rename_tests {
 
         check_rename_succeeds("rename_qualified_function", "bar", BAR_FUNCTION_RANGES).await;
     }
+
+    #[test]
+    async fn test_rename_struct() {
+        const FOO_RANGES: &[Range] = &[
+            Range {
+                start: Position { line: 0, character: 7 },
+                end: Position { line: 0, character: 10 },
+            },
+            Range {
+                start: Position { line: 5, character: 15 },
+                end: Position { line: 5, character: 18 },
+            },
+            Range {
+                start: Position { line: 6, character: 15 },
+                end: Position { line: 6, character: 18 },
+            },
+            Range {
+                start: Position { line: 7, character: 8 },
+                end: Position { line: 7, character: 11 },
+            },
+            Range {
+                start: Position { line: 11, character: 12 },
+                end: Position { line: 11, character: 15 },
+            },
+        ];
+
+        check_rename_succeeds("rename_struct", "Foo", FOO_RANGES).await;
+    }
 }

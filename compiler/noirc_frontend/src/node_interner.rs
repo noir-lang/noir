@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
+use std::hash::Hash;
 use std::ops::Deref;
 
 use fm::FileId;
@@ -63,6 +64,9 @@ pub struct NodeInterner {
 
     // Contains the source module each function was defined in
     function_modules: HashMap<FuncId, ModuleId>,
+
+    // The location of each struct name
+    struct_name_locations: HashMap<StructId, Location>,
 
     /// This graph tracks dependencies between different global definitions.
     /// This is used to ensure the absence of dependency cycles for globals and types.
@@ -504,6 +508,7 @@ impl Default for NodeInterner {
             function_definition_ids: HashMap::new(),
             function_modifiers: HashMap::new(),
             function_modules: HashMap::new(),
+            struct_name_locations: HashMap::new(),
             func_id_to_trait: HashMap::new(),
             dependency_graph: petgraph::graph::DiGraph::new(),
             dependency_graph_indices: HashMap::new(),
@@ -926,6 +931,14 @@ impl NodeInterner {
 
     pub fn struct_attributes(&self, struct_id: &StructId) -> &StructAttributes {
         &self.struct_attributes[struct_id]
+    }
+
+    pub fn add_struct_location(&mut self, struct_id: StructId, location: Location) {
+        self.struct_name_locations.insert(struct_id, location);
+    }
+
+    pub fn struct_location(&self, struct_id: &StructId) -> Location {
+        self.struct_name_locations[struct_id]
     }
 
     pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {
