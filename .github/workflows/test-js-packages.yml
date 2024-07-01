@@ -527,7 +527,7 @@ jobs:
         #  - { repo: vlayer-xyz/monorepo, path: ./, ref: ee46af88c025863872234eb05d890e1e447907cb }
         #  - { repo: hashcloak/noir-bigint, path: ./, ref: 940ddba3a5201b508e7b37a2ef643551afcf5ed8 }
 
-    name: Check ${{ matrix.project.repo }}
+    name: Check external repo: ${{ matrix.project.repo }}
 
     steps:
       - name: Checkout
