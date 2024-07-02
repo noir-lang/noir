@@ -20,7 +20,10 @@ use async_lsp::{
 };
 use fm::{codespan_files as files, FileManager};
 use fxhash::FxHashSet;
-use lsp_types::CodeLens;
+use lsp_types::{
+    request::{PrepareRenameRequest, Rename},
+    CodeLens,
+};
 use nargo::{
     package::{Package, PackageType},
     parse_all,
@@ -43,8 +46,8 @@ use notifications::{
 };
 use requests::{
     on_code_lens_request, on_formatting, on_goto_declaration_request, on_goto_definition_request,
-    on_goto_type_definition_request, on_initialize, on_profile_run_request, on_shutdown,
-    on_test_run_request, on_tests_request,
+    on_goto_type_definition_request, on_initialize, on_prepare_rename_request,
+    on_profile_run_request, on_rename_request, on_shutdown, on_test_run_request, on_tests_request,
 };
 use serde_json::Value as JsonValue;
 use thiserror::Error;
@@ -54,6 +57,9 @@ mod notifications;
 mod requests;
 mod solver;
 mod types;
+
+#[cfg(test)]
+mod test_utils;
 
 use solver::WrapperSolver;
 use types::{notification, request, NargoTest, NargoTestId, Position, Range, Url};
@@ -119,6 +125,8 @@ impl NargoLspService {
             .request::<request::GotoDefinition, _>(on_goto_definition_request)
             .request::<request::GotoDeclaration, _>(on_goto_declaration_request)
             .request::<request::GotoTypeDefinition, _>(on_goto_type_definition_request)
+            .request::<PrepareRenameRequest, _>(on_prepare_rename_request)
+            .request::<Rename, _>(on_rename_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)

@@ -17,6 +17,7 @@ use crate::{
     TypeBinding, TypeBindings, TypeVariableKind,
 };
 
+use super::NoMatchingImplFoundError;
 use super::{errors::TypeCheckError, TypeChecker};
 
 impl<'interner> TypeChecker<'interner> {
@@ -518,26 +519,10 @@ impl<'interner> TypeChecker<'interner> {
             Err(erroring_constraints) => {
                 if erroring_constraints.is_empty() {
                     self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
-                } else {
-                    // Don't show any errors where try_get_trait returns None.
-                    // This can happen if a trait is used that was never declared.
-                    let constraints = erroring_constraints
-                        .into_iter()
-                        .map(|constraint| {
-                            let r#trait = self.interner.try_get_trait(constraint.trait_id)?;
-                            let mut name = r#trait.name.to_string();
-                            if !constraint.trait_generics.is_empty() {
-                                let generics =
-                                    vecmap(&constraint.trait_generics, ToString::to_string);
-                                name += &format!("<{}>", generics.join(", "));
-                            }
-                            Some((constraint.typ, name))
-                        })
-                        .collect::<Option<Vec<_>>>();
-
-                    if let Some(constraints) = constraints {
-                        self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
-                    }
+                } else if let Some(error) =
+                    NoMatchingImplFoundError::new(self.interner, erroring_constraints, span)
+                {
+                    self.errors.push(TypeCheckError::NoMatchingImplFound(error));
                 }
             }
         }

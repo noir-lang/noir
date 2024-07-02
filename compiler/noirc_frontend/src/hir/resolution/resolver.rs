@@ -1512,7 +1512,7 @@ impl<'a> Resolver<'a> {
                     // Otherwise, then it is referring to an Identifier
                     // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
                     // If the expression is a singular indent, we search the resolver's current scope as normal.
-                    let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
+                    let (hir_ident, var_scope_index) = self.get_ident_from_path(path.clone());
 
                     if hir_ident.id != DefinitionId::dummy_id() {
                         match self.interner.definition(hir_ident.id).kind {
