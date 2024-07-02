@@ -31,7 +31,8 @@ use crate::parser::{ParserError, SortedModule};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Span};
-use std::collections::{BTreeMap, HashMap};
+use rustc_hash::FxHashMap as HashMap;
+use std::collections::BTreeMap;
 
 use std::vec;
 
@@ -253,7 +254,7 @@ impl DefCollector {
                 types: BTreeMap::new(),
                 type_aliases: BTreeMap::new(),
                 traits: BTreeMap::new(),
-                impls: HashMap::new(),
+                impls: HashMap::default(),
                 globals: vec![],
                 trait_impls: vec![],
             },

@@ -1,11 +1,12 @@
 use std::path::Path;
-use std::{collections::HashMap, vec};
+use std::vec;
 
 use acvm::{AcirField, FieldElement};
 use fm::{FileId, FileManager, FILE_EXTENSION};
 use noirc_errors::Location;
 use num_bigint::BigUint;
 use num_traits::Num;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
     FunctionDefinition, Ident, ItemVisibility, LetStatement, ModuleDeclaration, NoirFunction,
@@ -400,7 +401,7 @@ impl<'a> ModCollector<'a> {
                 self_type: None,
             };
 
-            let mut method_ids = HashMap::new();
+            let mut method_ids = HashMap::default();
             for trait_item in &trait_definition.items {
                 match trait_item {
                     TraitItem::Function {
