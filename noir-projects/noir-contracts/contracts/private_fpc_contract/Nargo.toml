@@ -1,0 +1,10 @@
+[package]
+name = "private_fpc_contract"
+authors = [""]
+compiler_version = ">=0.25.0"
+type = "contract"
+
+[dependencies]
+aztec = { path = "../../../aztec-nr/aztec" }
+authwit = { path = "../../../aztec-nr/authwit" }
+private_token = { path = "../private_token_contract" }

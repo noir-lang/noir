@@ -176,12 +176,14 @@ export abstract class AbstractPhaseManager {
         call => revertibleCallStack.find(p => p.equals(call)) || nonRevertibleCallStack.find(p => p.equals(call)),
       );
 
+    const teardownCallStack = tx.publicTeardownFunctionCall.isEmpty() ? [] : [tx.publicTeardownFunctionCall];
+
     if (callRequestsStack.length === 0) {
       return {
         [PublicKernelType.NON_PUBLIC]: [],
         [PublicKernelType.SETUP]: [],
         [PublicKernelType.APP_LOGIC]: [],
-        [PublicKernelType.TEARDOWN]: [],
+        [PublicKernelType.TEARDOWN]: teardownCallStack,
         [PublicKernelType.TAIL]: [],
       };
     }
@@ -190,8 +192,6 @@ export abstract class AbstractPhaseManager {
     const firstRevertibleCallIndex = callRequestsStack.findIndex(
       c => revertibleCallStack.findIndex(p => p.equals(c)) !== -1,
     );
-
-    const teardownCallStack = tx.publicTeardownFunctionCall.isEmpty() ? [] : [tx.publicTeardownFunctionCall];
 
     if (firstRevertibleCallIndex === 0) {
       return {

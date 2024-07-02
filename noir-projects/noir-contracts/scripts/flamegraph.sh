@@ -27,8 +27,20 @@ CONTRACT=$1
 # second console arg is the contract function
 FUNCTION=$2
 
+function sed_wrapper() {
+  if sed --version >/dev/null 2>&1; then
+    sed "$@"
+  elif gsed --version >/dev/null 2>&1; then
+    gsed "$@"
+  else
+    echo "No suitable sed found"
+    echo "You can install gsed with 'brew install gnu-sed'"
+    exit 1
+  fi
+}
+
 # convert contract name to following format: token_bridge_contract-TokenBridge.json
-ARTIFACT=$(echo "$CONTRACT" | sed -r 's/^([A-Z])/\L\1/; s/([a-z0-9])([A-Z])/\1_\L\2/g')
+ARTIFACT=$(echo "$CONTRACT" | sed_wrapper -r 's/^([A-Z])/\L\1/; s/([a-z0-9])([A-Z])/\1_\L\2/g')
 ARTIFACT_NAME="${ARTIFACT}_contract-${CONTRACT}"
 
 # Extract artifact for the specific function

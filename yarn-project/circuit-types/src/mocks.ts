@@ -58,7 +58,7 @@ export const mockTx = (
     );
   }
 
-  const isForPublic = totalPublicCallRequests > 0;
+  const isForPublic = totalPublicCallRequests > 0 || publicTeardownCallRequest.isEmpty() === false;
   const data = PrivateKernelTailCircuitPublicInputs.empty();
   const firstNullifier = new Nullifier(new Fr(seed + 1), 0, Fr.ZERO);
   const noteEncryptedLogs = EncryptedNoteTxL2Logs.empty(); // Mock seems to have no new notes => no note logs

@@ -1,5 +1,5 @@
 import { poseidon2Hash } from '@aztec/foundation/crypto';
-import { type Fr, Point } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { GeneratorIndex } from '../constants.gen.js';
@@ -19,13 +19,28 @@ export class PublicKeys {
   ) {}
 
   hash() {
-    return poseidon2Hash([
-      this.masterNullifierPublicKey,
-      this.masterIncomingViewingPublicKey,
-      this.masterOutgoingViewingPublicKey,
-      this.masterTaggingPublicKey,
-      GeneratorIndex.PUBLIC_KEYS_HASH,
-    ]);
+    return this.isEmpty()
+      ? Fr.ZERO
+      : poseidon2Hash([
+          this.masterNullifierPublicKey,
+          this.masterIncomingViewingPublicKey,
+          this.masterOutgoingViewingPublicKey,
+          this.masterTaggingPublicKey,
+          GeneratorIndex.PUBLIC_KEYS_HASH,
+        ]);
+  }
+
+  isEmpty() {
+    return (
+      this.masterNullifierPublicKey.isZero() &&
+      this.masterIncomingViewingPublicKey.isZero() &&
+      this.masterOutgoingViewingPublicKey.isZero() &&
+      this.masterTaggingPublicKey.isZero()
+    );
+  }
+
+  static empty(): PublicKeys {
+    return new PublicKeys(Point.ZERO, Point.ZERO, Point.ZERO, Point.ZERO);
   }
 
   /**

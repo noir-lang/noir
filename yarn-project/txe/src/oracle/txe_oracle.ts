@@ -690,7 +690,7 @@ export class TXE implements TypedOracle {
       Gas.test(),
       TxContext.empty(),
       /* pendingNullifiers */ [],
-      /* transactionFee */ Fr.ZERO,
+      /* transactionFee */ Fr.ONE,
       callContext.sideEffectCounter,
     );
   }
@@ -835,14 +835,23 @@ export class TXE implements TypedOracle {
   }
 
   setPublicTeardownFunctionCall(
-    _targetContractAddress: AztecAddress,
-    _functionSelector: FunctionSelector,
-    _argsHash: Fr,
-    _sideEffectCounter: number,
-    _isStaticCall: boolean,
-    _isDelegateCall: boolean,
+    targetContractAddress: AztecAddress,
+    functionSelector: FunctionSelector,
+    argsHash: Fr,
+    sideEffectCounter: number,
+    isStaticCall: boolean,
+    isDelegateCall: boolean,
   ): Promise<PublicCallRequest> {
-    throw new Error('Method not implemented.');
+    // Definitely not right, in that the teardown should always be last.
+    // But useful for executing flows.
+    return this.enqueuePublicFunctionCall(
+      targetContractAddress,
+      functionSelector,
+      argsHash,
+      sideEffectCounter,
+      isStaticCall,
+      isDelegateCall,
+    );
   }
 
   aes128Encrypt(input: Buffer, initializationVector: Buffer, key: Buffer): Buffer {

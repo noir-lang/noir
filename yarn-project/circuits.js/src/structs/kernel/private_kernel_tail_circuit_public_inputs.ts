@@ -187,7 +187,8 @@ export class PrivateKernelTailCircuitPublicInputs {
   numberOfPublicCallRequests() {
     return this.forPublic
       ? countAccumulatedItems(this.forPublic.endNonRevertibleData.publicCallStack) +
-          countAccumulatedItems(this.forPublic.end.publicCallStack)
+          countAccumulatedItems(this.forPublic.end.publicCallStack) +
+          countAccumulatedItems(this.forPublic.publicTeardownCallStack)
       : 0;
   }
 

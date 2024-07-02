@@ -1017,6 +1017,79 @@ describe('public_processor', () => {
       expect(prover.addNewTx).toHaveBeenCalledWith(processed[0]);
     });
 
+    it('runs a tx with only teardown', async function () {
+      const baseContractAddressSeed = 0x200;
+      const teardown = makePublicCallRequest(baseContractAddressSeed);
+      const tx = mockTxWithPartialState({
+        numberOfNonRevertiblePublicCallRequests: 0,
+        numberOfRevertiblePublicCallRequests: 0,
+        publicCallRequests: [],
+        publicTeardownCallRequest: teardown,
+      });
+
+      const gasLimits = Gas.from({ l2Gas: 1e9, daGas: 1e9 });
+      const teardownGas = Gas.from({ l2Gas: 1e7, daGas: 1e7 });
+      tx.data.constants.txContext.gasSettings = GasSettings.from({
+        gasLimits: gasLimits,
+        teardownGasLimits: teardownGas,
+        inclusionFee: new Fr(1e4),
+        maxFeesPerGas: { feePerDaGas: new Fr(10), feePerL2Gas: new Fr(10) },
+      });
+
+      // Private kernel tail to public pushes teardown gas allocation into revertible gas used
+      tx.data.forPublic!.end = PublicAccumulatedDataBuilder.fromPublicAccumulatedData(tx.data.forPublic!.end)
+        .withGasUsed(teardownGas)
+        .build();
+      tx.data.forPublic!.endNonRevertibleData = PublicAccumulatedDataBuilder.fromPublicAccumulatedData(
+        tx.data.forPublic!.endNonRevertibleData,
+      )
+        .withGasUsed(Gas.empty())
+        .build();
+
+      let simulatorCallCount = 0;
+      const txOverhead = 1e4;
+      const expectedTxFee = txOverhead + teardownGas.l2Gas * 1 + teardownGas.daGas * 1;
+      const transactionFee = new Fr(expectedTxFee);
+      const teardownGasUsed = Gas.from({ l2Gas: 1e6, daGas: 1e6 });
+
+      const simulatorResults: PublicExecutionResult[] = [
+        // Teardown
+        PublicExecutionResultBuilder.fromPublicCallRequest({
+          request: teardown,
+          nestedExecutions: [],
+        }).build({
+          startGasLeft: teardownGas,
+          endGasLeft: teardownGas.sub(teardownGasUsed),
+          transactionFee,
+        }),
+      ];
+
+      publicExecutor.simulate.mockImplementation(execution => {
+        if (simulatorCallCount < simulatorResults.length) {
+          const result = simulatorResults[simulatorCallCount++];
+          return Promise.resolve(result);
+        } else {
+          throw new Error(`Unexpected execution request: ${execution}, call count: ${simulatorCallCount}`);
+        }
+      });
+
+      const setupSpy = jest.spyOn(publicKernel, 'publicKernelCircuitSetup');
+      const appLogicSpy = jest.spyOn(publicKernel, 'publicKernelCircuitAppLogic');
+      const teardownSpy = jest.spyOn(publicKernel, 'publicKernelCircuitTeardown');
+      const tailSpy = jest.spyOn(publicKernel, 'publicKernelCircuitTail');
+
+      const [processed, failed] = await processor.process([tx], 1, prover);
+
+      expect(processed).toHaveLength(1);
+      expect(processed).toEqual([expectedTxByHash(tx)]);
+      expect(failed).toHaveLength(0);
+
+      expect(setupSpy).toHaveBeenCalledTimes(0);
+      expect(appLogicSpy).toHaveBeenCalledTimes(0);
+      expect(teardownSpy).toHaveBeenCalledTimes(1);
+      expect(tailSpy).toHaveBeenCalledTimes(1);
+    });
+
     describe('with fee payer', () => {
       it('injects balance update with no public calls', async function () {
         const feePayer = AztecAddress.random();

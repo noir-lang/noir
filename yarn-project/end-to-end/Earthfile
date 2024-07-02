@@ -142,6 +142,9 @@ e2e-private-voting-contract:
 e2e-fees-private-payments:
   DO +E2E_TEST --test=./src/e2e_fees/private_payments.test.ts
 
+e2e-fees-private-refunds:
+  DO +E2E_TEST --test=./src/e2e_fees/private_refunds.test.ts
+
 e2e-fees-gas-estimation:
   DO +E2E_TEST --test=./src/e2e_fees/gas_estimation.test.ts
 

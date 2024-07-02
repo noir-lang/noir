@@ -633,6 +633,33 @@ export class TXEService {
     return toForeignCallResult([toArray(fields)]);
   }
 
+  public async setPublicTeardownFunctionCall(
+    targetContractAddress: ForeignCallSingle,
+    functionSelector: ForeignCallSingle,
+    argsHash: ForeignCallSingle,
+    sideEffectCounter: ForeignCallSingle,
+    isStaticCall: ForeignCallSingle,
+    isDelegateCall: ForeignCallSingle,
+  ) {
+    const publicTeardownCallRequest = await this.typedOracle.setPublicTeardownFunctionCall(
+      fromSingle(targetContractAddress),
+      FunctionSelector.fromField(fromSingle(functionSelector)),
+      fromSingle(argsHash),
+      fromSingle(sideEffectCounter).toNumber(),
+      fromSingle(isStaticCall).toBool(),
+      fromSingle(isDelegateCall).toBool(),
+    );
+
+    const fields = [
+      publicTeardownCallRequest.contractAddress.toField(),
+      publicTeardownCallRequest.functionSelector.toField(),
+      ...publicTeardownCallRequest.callContext.toFields(),
+      publicTeardownCallRequest.getArgsHash(),
+    ];
+
+    return toForeignCallResult([toArray(fields)]);
+  }
+
   async getChainId() {
     return toForeignCallResult([toSingle(await this.typedOracle.getChainId())]);
   }

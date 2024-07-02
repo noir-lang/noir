@@ -30,6 +30,8 @@ members = [
     "contracts/parent_contract",
     "contracts/pending_note_hashes_contract",
     "contracts/price_feed_contract",
+    "contracts/private_fpc_contract",
+    "contracts/private_token_contract",
     "contracts/schnorr_account_contract",
     "contracts/schnorr_hardcoded_account_contract",
     "contracts/schnorr_single_key_account_contract",

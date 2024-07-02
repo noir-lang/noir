@@ -50,10 +50,11 @@ export class Tx {
     public readonly publicTeardownFunctionCall: PublicCallRequest,
   ) {
     const kernelPublicCallStackSize = data.numberOfPublicCallRequests();
-    if (kernelPublicCallStackSize !== enqueuedPublicFunctionCalls.length) {
+    const totalPublicCalls = enqueuedPublicFunctionCalls.length + (publicTeardownFunctionCall.isEmpty() ? 0 : 1);
+    if (kernelPublicCallStackSize !== totalPublicCalls) {
       throw new Error(
         `Mismatch number of enqueued public function calls in kernel circuit public inputs (expected
-          ${kernelPublicCallStackSize}, got ${enqueuedPublicFunctionCalls.length})`,
+          ${kernelPublicCallStackSize}, got ${totalPublicCalls})`,
       );
     }
   }

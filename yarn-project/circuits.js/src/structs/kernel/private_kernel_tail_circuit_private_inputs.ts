@@ -15,7 +15,10 @@ export class PrivateKernelTailCircuitPrivateInputs {
   ) {}
 
   isForPublic() {
-    return countAccumulatedItems(this.previousKernel.publicInputs.end.publicCallStack) > 0;
+    return (
+      countAccumulatedItems(this.previousKernel.publicInputs.end.publicCallStack) > 0 ||
+      !this.previousKernel.publicInputs.publicTeardownCallRequest.isEmpty()
+    );
   }
 
   /**

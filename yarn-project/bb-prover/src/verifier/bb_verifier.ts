@@ -129,9 +129,10 @@ export class BBCircuitVerifier implements ClientProtocolCircuitVerifier {
   }
 
   async verifyProof(tx: Tx): Promise<boolean> {
-    const { proof, enqueuedPublicFunctionCalls } = tx;
-    const expectedCircuit: ClientProtocolArtifact =
-      enqueuedPublicFunctionCalls.length > 0 ? 'PrivateKernelTailToPublicArtifact' : 'PrivateKernelTailArtifact';
+    const { proof, data } = tx;
+    const expectedCircuit: ClientProtocolArtifact = data.forPublic
+      ? 'PrivateKernelTailToPublicArtifact'
+      : 'PrivateKernelTailArtifact';
 
     try {
       await this.verifyProofForCircuit(expectedCircuit, proof);
