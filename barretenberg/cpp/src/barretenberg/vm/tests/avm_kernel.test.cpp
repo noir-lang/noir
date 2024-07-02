@@ -11,6 +11,8 @@ namespace tests_avm {
 using namespace bb;
 using namespace bb::avm_trace;
 
+auto const BAD_LOOKUP = "LOOKUP_INTO_KERNEL";
+
 class AvmKernelTests : public ::testing::Test {
   protected:
     // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
@@ -614,6 +616,8 @@ void negative_test_incorrect_ia_kernel_lookup(OpcodesFunc apply_opcodes,
     auto& ta = trace.at(1);
 
     ta.main_ia = incorrect_ia;
+    // memory trace should only have one row for these tests as well, so first row has looked-up val
+    ta.mem_val = incorrect_ia;
 
     check_trace(/*indirect*/ false, trace);
 
@@ -643,7 +647,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaSender)
             /*w_in_tag=*/AvmMemoryTag::FF);
     };
 
-    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, "PERM_MAIN_MEM_A");
+    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, BAD_LOOKUP);
 }
 
 TEST_F(AvmKernelNegativeTests, incorrectIaAddress)
@@ -669,7 +673,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaAddress)
             /*w_in_tag=*/AvmMemoryTag::FF);
     };
 
-    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, "PERM_MAIN_MEM_A");
+    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, BAD_LOOKUP);
 }
 
 TEST_F(AvmKernelNegativeTests, incorrectIaStorageAddress)
@@ -695,7 +699,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaStorageAddress)
             /*w_in_tag=*/AvmMemoryTag::FF);
     };
 
-    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, "PERM_MAIN_MEM_A");
+    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, BAD_LOOKUP);
 }
 
 TEST_F(AvmKernelNegativeTests, incorrectIaFunctionSelector)
@@ -721,7 +725,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaFunctionSelector)
             /*w_in_tag=*/AvmMemoryTag::U32);
     };
 
-    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, "PERM_MAIN_MEM_A");
+    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, BAD_LOOKUP);
 }
 
 TEST_F(AvmKernelNegativeTests, incorrectIaDaGas)
@@ -747,7 +751,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaDaGas)
             /*w_in_tag=*/AvmMemoryTag::FF);
     };
 
-    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, "PERM_MAIN_MEM_A");
+    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, BAD_LOOKUP);
 }
 
 TEST_F(AvmKernelNegativeTests, incorrectIal2Gas)
@@ -773,7 +777,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIal2Gas)
             /*w_in_tag=*/AvmMemoryTag::FF);
     };
 
-    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, "PERM_MAIN_MEM_A");
+    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, BAD_LOOKUP);
 }
 
 TEST_F(AvmKernelNegativeTests, incorrectIaTransactionFee)
@@ -799,7 +803,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaTransactionFee)
             /*w_in_tag=*/AvmMemoryTag::FF);
     };
 
-    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, "PERM_MAIN_MEM_A");
+    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, BAD_LOOKUP);
 }
 
 TEST_F(AvmKernelNegativeTests, incorrectIaChainId)
@@ -825,7 +829,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaChainId)
             /*w_in_tag=*/AvmMemoryTag::FF);
     };
 
-    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, "PERM_MAIN_MEM_A");
+    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, BAD_LOOKUP);
 }
 
 TEST_F(AvmKernelNegativeTests, incorrectIaVersion)
@@ -851,7 +855,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaVersion)
             /*w_in_tag=*/AvmMemoryTag::FF);
     };
 
-    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, "PERM_MAIN_MEM_A");
+    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, BAD_LOOKUP);
 }
 
 TEST_F(AvmKernelNegativeTests, incorrectIaBlockNumber)
@@ -877,7 +881,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaBlockNumber)
             /*w_in_tag=*/AvmMemoryTag::FF);
     };
 
-    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, "PERM_MAIN_MEM_A");
+    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, BAD_LOOKUP);
 }
 
 TEST_F(AvmKernelNegativeTests, incorrectIaTimestamp)
@@ -903,7 +907,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaTimestamp)
             /*w_in_tag=*/AvmMemoryTag::U64);
     };
 
-    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, "PERM_MAIN_MEM_A");
+    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, BAD_LOOKUP);
 }
 
 TEST_F(AvmKernelNegativeTests, incorrectIaCoinbase)
@@ -929,7 +933,7 @@ TEST_F(AvmKernelNegativeTests, incorrectIaCoinbase)
             /*w_in_tag=*/AvmMemoryTag::FF);
     };
 
-    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, "PERM_MAIN_MEM_A");
+    negative_test_incorrect_ia_kernel_lookup(apply_opcodes, checks, incorrect_ia, BAD_LOOKUP);
 }
 
 // KERNEL OUTPUTS
