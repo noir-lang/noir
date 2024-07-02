@@ -39,7 +39,7 @@ Open `cross_chain_messaging.test.ts` and paste the initial description of the te
 
 ```typescript
 import { beforeAll, describe, beforeEach, expect, jest, it} from '@jest/globals'
-import { AccountWallet, AztecAddress, BatchCall, type DebugLogger, EthAddress, Fr, computeAuthWitMessageHash, createDebugLogger, createPXEClient, waitForPXE, L1ToL2Message, L1Actor, L2Actor, type Wallet } from '@aztec/aztec.js';
+import { AccountWallet, AztecAddress, BatchCall, type DebugLogger, EthAddress, Fr, computeAuthWitMessageHash, createDebugLogger, createPXEClient, waitForPXE, L1ToL2Message, L1Actor, L2Actor, type PXE, type Wallet } from '@aztec/aztec.js';
 import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
 import { sha256ToField } from '@aztec/foundation/crypto';
@@ -47,7 +47,6 @@ import { TokenBridgeContract } from './fixtures/TokenBridge.js';
 import { createAztecNodeClient } from '@aztec/circuit-types';
 import { deployInstance, registerContractClass } from '@aztec/aztec.js/deployment';
 import { SchnorrAccountContractArtifact } from '@aztec/accounts/schnorr';
-
 
 import { CrossChainTestHarness } from './shared/cross_chain_test_harness.js';
 import { mnemonicToAccount } from 'viem/accounts';
@@ -61,14 +60,21 @@ const aztecNode = createAztecNodeClient(PXE_URL);
 export const NO_L1_TO_L2_MSG_ERROR =
   /No non-nullified L1 to L2 message found for message hash|Tried to consume nonexistent L1-to-L2 message/;
 
-async function publicDeployAccounts(sender: Wallet, accountsToDeploy: Wallet[]) {
-  const accountAddressesToDeploy = accountsToDeploy.map(a => a.getAddress());
-  const instances = await Promise.all(accountAddressesToDeploy.map(account => sender.getContractInstance(account)));
-  const batch = new BatchCall(sender, [
-    (await registerContractClass(sender, SchnorrAccountContractArtifact)).request(),
-    ...instances.map(instance => deployInstance(sender, instance!).request()),
-  ]);
-  await batch.send().wait();
+async function publicDeployAccounts(sender: Wallet, accountsToDeploy: Wallet[], pxe: PXE) {
+    const accountAddressesToDeploy = await Promise.all(
+        accountsToDeploy.map(async a => {
+            const address = await a.getAddress();
+            const isDeployed = await pxe.isContractPubliclyDeployed(address);
+            return { address, isDeployed };
+        })
+    ).then(results => results.filter(result => !result.isDeployed).map(result => result.address));
+    if (accountAddressesToDeploy.length === 0) return
+    const instances = await Promise.all(accountAddressesToDeploy.map(account => sender.getContractInstance(account)));
+    const batch = new BatchCall(sender, [
+        (await registerContractClass(sender, SchnorrAccountContractArtifact)).request(),
+        ...instances.map(instance => deployInstance(sender, instance!).request()),
+    ]);
+    await batch.send().wait();
 }
 
 describe('e2e_cross_chain_messaging', () => {
@@ -93,7 +99,7 @@ describe('e2e_cross_chain_messaging', () => {
       wallets = await getInitialTestAccountsWallets(pxe);
 
       // deploy the accounts publicly to use public authwits
-      await publicDeployAccounts(wallets[0], wallets);
+      await publicDeployAccounts(wallets[0], wallets, pxe);
   })
 
   beforeEach(async () => {
@@ -127,7 +133,6 @@ describe('e2e_cross_chain_messaging', () => {
     outbox = crossChainTestHarness.outbox;
     user1Wallet = wallets[0];
     user2Wallet = wallets[1];
-    logger('Successfully deployed contracts and initialized portal');
   });
 ```
 
