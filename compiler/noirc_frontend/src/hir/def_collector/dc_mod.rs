@@ -469,6 +469,7 @@ impl<'a> ModCollector<'a> {
                             self.file_id,
                             vec![],
                             false,
+                            false,
                         );
 
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules
@@ -806,6 +807,7 @@ pub(crate) fn collect_global(
         file_id,
         global.attributes.clone(),
         matches!(global.pattern, Pattern::Mutable { .. }),
+        global.comptime,
     );
 
     // Add the statement to the scope so its path can be looked up later
