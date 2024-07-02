@@ -48,7 +48,7 @@ impl NodeInterner {
         let reference_location = self.dependency_location(reference);
         let reference_index = self.reference_graph.add_node(reference);
 
-        self.reference_graph.add_edge(referenced_index, reference_index, ());
+        self.reference_graph.add_edge(reference_index, referenced_index, ());
         self.location_indices.add_location(reference_location, reference_index);
     }
 
@@ -73,6 +73,18 @@ impl NodeInterner {
         index
     }
 
+    // Given a reference location, find the location of the referenced node.
+    pub fn find_referenced_location(&self, reference_location: Location) -> Option<Location> {
+        self.location_indices
+            .get_node_from_location(reference_location)
+            .and_then(|node_index| {
+                self.reference_graph
+                    .neighbors_directed(node_index, petgraph::Direction::Outgoing)
+                    .next()
+            })
+            .and_then(|node_index| Some(self.dependency_location(self.reference_graph[node_index])))
+    }
+
     pub fn check_rename_possible(&self, location: Location) -> bool {
         self.location_indices.get_node_from_location(location).is_some()
     }
@@ -90,7 +102,7 @@ impl NodeInterner {
             DependencyId::Variable(_) => {
                 let referenced_node_index = self
                     .reference_graph
-                    .neighbors_directed(node_index, petgraph::Direction::Incoming)
+                    .neighbors_directed(node_index, petgraph::Direction::Outgoing)
                     .next()?;
 
                 self.get_edit_locations(referenced_node_index)
@@ -104,7 +116,7 @@ impl NodeInterner {
         let mut edit_locations = vec![self.dependency_location(id)];
 
         self.reference_graph
-            .neighbors_directed(referenced_node_index, petgraph::Direction::Outgoing)
+            .neighbors_directed(referenced_node_index, petgraph::Direction::Incoming)
             .for_each(|reference_node_index| {
                 let id = self.reference_graph[reference_node_index];
                 edit_locations.push(self.dependency_location(id));

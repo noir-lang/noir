@@ -191,7 +191,22 @@ pub struct NodeInterner {
     /// Whether to track references. In regular compilations this is false, but tools set it to true.
     pub(crate) track_references: bool,
 
-    /// Store the location of the references in the graph
+    /// Store the location of the references in the graph.
+    /// Edges are directed from reference nodes to referenced nodes.
+    /// For example:
+    ///
+    /// ```
+    /// let foo = 3;
+    /// //  referenced
+    /// //   ^
+    /// //   |
+    /// //   +------------+
+    /// let bar = foo;    |
+    /// //      reference |
+    /// //         v      |
+    /// //         |      |
+    /// //         +------+
+    /// ```
     pub(crate) reference_graph: DiGraph<DependencyId, ()>,
 
     /// Tracks the index of the references in the graph
