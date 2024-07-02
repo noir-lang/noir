@@ -312,7 +312,12 @@ impl<'a> Interpreter<'a> {
             }
         }
 
-        Err(InterpreterError::VariableNotInScope { location })
+        if id == DefinitionId::dummy_id() {
+            Err(InterpreterError::VariableNotInScope { location })
+        } else {
+            let name = self.interner.definition_name(id).to_string();
+            Err(InterpreterError::NonComptimeVarReferenced { name, location })
+        }
     }
 
     /// Evaluate an expression and return the result
