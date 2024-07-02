@@ -1,13 +1,9 @@
 import { expect } from 'chai';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore File is codegenned at test time.
-// import { exported_function_foo, MyStruct, u64, ForeignCallHandler } from './codegen/index.js';
+import { join, resolve } from 'path';
 
 import { CompiledCircuit, InputMap, InputValue } from '@noir-lang/types';
-
 import { Noir } from '@noir-lang/noir_js';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
-import { join, resolve } from 'path';
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
 
 import { ProofData } from '@noir-lang/types';
@@ -50,7 +46,6 @@ type FullNoir = {
 //    1   3 #   #
 
 describe('can verify recursive proofs', () => {
-  let a: number;
   // Declare Noir objects for each circuit
   let leaf: FullNoir;
   let recurseLeaf: FullNoir;
