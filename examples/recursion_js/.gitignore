@@ -1,0 +1,4 @@
+build
+test/*/export
+
+test/recursive
