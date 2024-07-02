@@ -1,0 +1,6 @@
+[package]
+name = "poseidon2_hash"
+type = "bin"
+authors = [""]
+
+[dependencies]
