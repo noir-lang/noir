@@ -1,0 +1,2 @@
+namespace constants_misc(256);
+    pol INTERNAL_CALL_SPACE_ID = 255;

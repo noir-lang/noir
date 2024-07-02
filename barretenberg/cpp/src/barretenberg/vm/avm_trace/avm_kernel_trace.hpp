@@ -9,28 +9,6 @@
 #include <unordered_map>
 #include <vector>
 
-inline const uint32_t SENDER_SELECTOR = 0;
-// address doesn't actually exist in PublicCircuitPublicInputs, but storageAddress does
-// so we just make a address  & storageAddress an alias of each other for now
-inline const uint32_t ADDRESS_SELECTOR = 1;
-inline const uint32_t STORAGE_ADDRESS_SELECTOR = ADDRESS_SELECTOR;
-inline const uint32_t FUNCTION_SELECTOR_SELECTOR = 2;
-
-inline const uint32_t START_GLOBAL_VARIABLES = CALL_CONTEXT_LENGTH + HEADER_LENGTH;
-
-inline const uint32_t CHAIN_ID_SELECTOR = START_GLOBAL_VARIABLES;
-inline const uint32_t VERSION_SELECTOR = START_GLOBAL_VARIABLES + 1;
-inline const uint32_t BLOCK_NUMBER_SELECTOR = START_GLOBAL_VARIABLES + 2;
-inline const uint32_t TIMESTAMP_SELECTOR = START_GLOBAL_VARIABLES + 3;
-inline const uint32_t COINBASE_SELECTOR = START_GLOBAL_VARIABLES + 4;
-inline const uint32_t FEE_PER_DA_GAS_SELECTOR = START_GLOBAL_VARIABLES + 6;
-inline const uint32_t FEE_PER_L2_GAS_SELECTOR = START_GLOBAL_VARIABLES + 7;
-
-inline const uint32_t END_GLOBAL_VARIABLES = START_GLOBAL_VARIABLES + GLOBAL_VARIABLES_LENGTH;
-inline const uint32_t START_SIDE_EFFECT_COUNTER = END_GLOBAL_VARIABLES;
-
-inline const uint32_t TRANSACTION_FEE_SELECTOR = KERNEL_INPUTS_LENGTH - 1;
-
 namespace bb::avm_trace {
 
 class AvmKernelTraceBuilder {
@@ -98,28 +76,6 @@ class AvmKernelTraceBuilder {
     void op_l1_to_l2_msg_exists(uint32_t clk, uint32_t side_effect_counter, const FF& message, uint32_t result);
     void op_emit_unencrypted_log(uint32_t clk, uint32_t side_effect_counter, const FF& log_hash);
     void op_emit_l2_to_l1_msg(uint32_t clk, uint32_t side_effect_counter, const FF& l2_to_l1_msg, const FF& recipient);
-
-    // TODO: Move into constants.hpp?
-    static const uint32_t START_NOTE_HASH_EXISTS_WRITE_OFFSET = 0;
-    static const uint32_t START_NULLIFIER_EXISTS_OFFSET =
-        START_NOTE_HASH_EXISTS_WRITE_OFFSET + MAX_NOTE_HASH_READ_REQUESTS_PER_CALL;
-    static const uint32_t START_NULLIFIER_NON_EXISTS_OFFSET =
-        START_NULLIFIER_EXISTS_OFFSET + MAX_NULLIFIER_READ_REQUESTS_PER_CALL;
-    static const uint32_t START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET =
-        START_NULLIFIER_NON_EXISTS_OFFSET + MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL;
-
-    static const uint32_t START_SSTORE_WRITE_OFFSET =
-        START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET + MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL;
-    static const uint32_t START_SLOAD_WRITE_OFFSET =
-        START_SSTORE_WRITE_OFFSET + MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL;
-
-    static const uint32_t START_EMIT_NOTE_HASH_WRITE_OFFSET = START_SLOAD_WRITE_OFFSET + MAX_PUBLIC_DATA_READS_PER_CALL;
-    static const uint32_t START_EMIT_NULLIFIER_WRITE_OFFSET =
-        START_EMIT_NOTE_HASH_WRITE_OFFSET + MAX_NEW_NOTE_HASHES_PER_CALL;
-    static const uint32_t START_L2_TO_L1_MSG_WRITE_OFFSET =
-        START_EMIT_NULLIFIER_WRITE_OFFSET + MAX_NEW_NULLIFIERS_PER_CALL;
-    static const uint32_t START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET =
-        START_L2_TO_L1_MSG_WRITE_OFFSET + MAX_NEW_L2_TO_L1_MSGS_PER_CALL;
 
   private:
     std::vector<KernelTraceEntry> kernel_trace;

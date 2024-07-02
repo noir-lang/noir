@@ -942,7 +942,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitNoteHash)
     uint32_t indirect_offset = 69;
     uint32_t value = 1234;
 
-    uint32_t output_offset = AvmKernelTraceBuilder::START_EMIT_NOTE_HASH_WRITE_OFFSET;
+    uint32_t output_offset = START_EMIT_NOTE_HASH_WRITE_OFFSET;
 
     // We write the note hash into memory
     auto direct_apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
@@ -984,7 +984,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitNullifier)
     uint32_t indirect_offset = 69;
     uint32_t value = 1234;
 
-    uint32_t output_offset = AvmKernelTraceBuilder::START_EMIT_NULLIFIER_WRITE_OFFSET;
+    uint32_t output_offset = START_EMIT_NULLIFIER_WRITE_OFFSET;
 
     // We write the note hash into memory
     auto direct_apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
@@ -1032,7 +1032,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitL2ToL1Msg)
 
     uint32_t value = 1234;
     uint32_t recipient = 420;
-    uint32_t output_offset = AvmKernelTraceBuilder::START_L2_TO_L1_MSG_WRITE_OFFSET;
+    uint32_t output_offset = START_EMIT_L2_TO_L1_MSG_WRITE_OFFSET;
 
     // auto direct_apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
     //     trace_builder.op_set(0, 1234, msg_offset, AvmMemoryTag::FF);
@@ -1079,7 +1079,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitUnencryptedLog)
     uint32_t indirect_offset = 69;
     uint32_t value = 1234;
     uint32_t slot = 0;
-    uint32_t output_offset = AvmKernelTraceBuilder::START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET;
+    uint32_t output_offset = START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET;
 
     // We write the note hash into memory
     auto direct_apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
@@ -1122,7 +1122,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelSload)
     uint32_t size = 1;
     uint32_t slot_offset = 420;
     auto slot = 12345;
-    uint32_t output_offset = AvmKernelTraceBuilder::START_SLOAD_WRITE_OFFSET;
+    uint32_t output_offset = START_SLOAD_WRITE_OFFSET;
 
     // Provide a hint for sload value slot
     auto execution_hints = ExecutionHints().with_storage_value_hints({ { 0, value } });
@@ -1165,7 +1165,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelSstore)
     auto slot = 12345;
     uint8_t indirect = 0;
     uint32_t size = 1;
-    uint32_t output_offset = AvmKernelTraceBuilder::START_SSTORE_WRITE_OFFSET;
+    uint32_t output_offset = START_SSTORE_WRITE_OFFSET;
 
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, static_cast<uint128_t>(value), value_offset, AvmMemoryTag::FF);
@@ -1207,7 +1207,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNoteHashExists)
     uint32_t metadata_offset = 420;
     uint32_t indirect_metadata_offset = 690;
     auto exists = 1;
-    uint32_t output_offset = AvmKernelTraceBuilder::START_NOTE_HASH_EXISTS_WRITE_OFFSET;
+    uint32_t output_offset = START_NOTE_HASH_EXISTS_WRITE_OFFSET;
 
     auto execution_hints = ExecutionHints().with_note_hash_exists_hints({ { 0, exists } });
 
@@ -1254,7 +1254,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNullifierExists)
     auto value = 1234;
     uint32_t metadata_offset = 420;
     auto exists = 1;
-    uint32_t output_offset = AvmKernelTraceBuilder::START_NULLIFIER_EXISTS_OFFSET;
+    uint32_t output_offset = START_NULLIFIER_EXISTS_OFFSET;
 
     auto execution_hints = ExecutionHints().with_nullifier_exists_hints({ { 0, exists } });
 
@@ -1293,7 +1293,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNullifierNonExists)
     auto value = 1234;
     uint32_t metadata_offset = 420;
     auto exists = 0;
-    uint32_t output_offset = AvmKernelTraceBuilder::START_NULLIFIER_NON_EXISTS_OFFSET;
+    uint32_t output_offset = START_NULLIFIER_NON_EXISTS_OFFSET;
 
     auto execution_hints = ExecutionHints().with_nullifier_exists_hints({ { 0, exists } });
 
@@ -1332,7 +1332,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelL1ToL2MsgExists)
     auto value = 1234;
     uint32_t metadata_offset = 420;
     auto exists = 1;
-    uint32_t output_offset = AvmKernelTraceBuilder::START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET;
+    uint32_t output_offset = START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET;
 
     // Create an execution hints object with the result of the operation
     auto execution_hints = ExecutionHints().with_l1_to_l2_message_exists_hints({ { 0, exists } });

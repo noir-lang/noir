@@ -1,7 +1,8 @@
 include "mem.pil";
 include "alu.pil";
 include "binary.pil";
-include "constants.pil";
+include "constants_gen.pil";
+include "constants_misc.pil";
 include "kernel.pil";
 include "fixed/gas.pil";
 include "fixed/powers.pil";
@@ -506,7 +507,7 @@ namespace main(256);
 
     //====== SPACE ID CONSTRAINTS ===============================================
     #[SPACE_ID_INTERNAL]
-    (sel_op_internal_call + sel_op_internal_return) * (space_id - constants.INTERNAL_CALL_SPACE_ID) = 0;
+    (sel_op_internal_call + sel_op_internal_return) * (space_id - constants_misc.INTERNAL_CALL_SPACE_ID) = 0;
 
     #[SPACE_ID_STANDARD_OPCODES]
     OPCODE_SELECTORS * (call_ptr - space_id) = 0;
@@ -612,43 +613,43 @@ namespace main(256);
     // OUTPUTS LOOKUPS
     // Constrain the value of kernel_out_offset to be the correct offset for the operation being performed
     #[NOTE_HASH_KERNEL_OUTPUT]
-    sel_op_note_hash_exists * (kernel.kernel_out_offset - (kernel.START_NOTE_HASH_EXISTS_WRITE_OFFSET + kernel.note_hash_exist_write_offset)) = 0;
+    sel_op_note_hash_exists * (kernel.kernel_out_offset - (constants.START_NOTE_HASH_EXISTS_WRITE_OFFSET + kernel.note_hash_exist_write_offset)) = 0;
     sel_first * kernel.note_hash_exist_write_offset = 0;
     
 
     #[EMIT_NOTE_HASH_KERNEL_OUTPUT]
-    sel_op_emit_note_hash * (kernel.kernel_out_offset - (kernel.START_EMIT_NOTE_HASH_WRITE_OFFSET + kernel.emit_note_hash_write_offset)) = 0;
+    sel_op_emit_note_hash * (kernel.kernel_out_offset - (constants.START_EMIT_NOTE_HASH_WRITE_OFFSET + kernel.emit_note_hash_write_offset)) = 0;
     sel_first * kernel.emit_note_hash_write_offset = 0;
 
     #[NULLIFIER_EXISTS_KERNEL_OUTPUT]
-    sel_op_nullifier_exists * (kernel.kernel_out_offset - ((ib * (kernel.START_NULLIFIER_EXISTS_OFFSET + kernel.nullifier_exists_write_offset)) + ((1 - ib) * (kernel.START_NULLIFIER_NON_EXISTS_OFFSET + kernel.nullifier_non_exists_write_offset)))) = 0;
+    sel_op_nullifier_exists * (kernel.kernel_out_offset - ((ib * (constants.START_NULLIFIER_EXISTS_OFFSET + kernel.nullifier_exists_write_offset)) + ((1 - ib) * (constants.START_NULLIFIER_NON_EXISTS_OFFSET + kernel.nullifier_non_exists_write_offset)))) = 0;
     sel_first * kernel.nullifier_exists_write_offset = 0;
     sel_first * kernel.nullifier_non_exists_write_offset = 0;
 
     #[EMIT_NULLIFIER_KERNEL_OUTPUT]
-    sel_op_emit_nullifier * (kernel.kernel_out_offset - (kernel.START_EMIT_NULLIFIER_WRITE_OFFSET + kernel.emit_nullifier_write_offset)) = 0;
+    sel_op_emit_nullifier * (kernel.kernel_out_offset - (constants.START_EMIT_NULLIFIER_WRITE_OFFSET + kernel.emit_nullifier_write_offset)) = 0;
     sel_first * kernel.emit_nullifier_write_offset = 0;
 
     #[L1_TO_L2_MSG_EXISTS_KERNEL_OUTPUT]
-    sel_op_l1_to_l2_msg_exists * (kernel.kernel_out_offset - (kernel.START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET + kernel.l1_to_l2_msg_exists_write_offset)) = 0;
+    sel_op_l1_to_l2_msg_exists * (kernel.kernel_out_offset - (constants.START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET + kernel.l1_to_l2_msg_exists_write_offset)) = 0;
     sel_first * kernel.l1_to_l2_msg_exists_write_offset = 0;
 
     #[EMIT_UNENCRYPTED_LOG_KERNEL_OUTPUT]
-    sel_op_emit_unencrypted_log * (kernel.kernel_out_offset - (kernel.START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET + kernel.emit_unencrypted_log_write_offset)) = 0;
+    sel_op_emit_unencrypted_log * (kernel.kernel_out_offset - (constants.START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET + kernel.emit_unencrypted_log_write_offset)) = 0;
     sel_first * kernel.emit_unencrypted_log_write_offset = 0;
 
     // TODO: Add the equivalent for GETCONTRACTINSTANCE?
 
     #[EMIT_L2_TO_L1_MSGS_KERNEL_OUTPUT]
-    sel_op_emit_l2_to_l1_msg * (kernel.kernel_out_offset - (kernel.START_EMIT_L2_TO_l1_MSG + kernel.emit_l2_to_l1_msg_write_offset)) = 0;
+    sel_op_emit_l2_to_l1_msg * (kernel.kernel_out_offset - (constants.START_EMIT_L2_TO_L1_MSG_WRITE_OFFSET + kernel.emit_l2_to_l1_msg_write_offset)) = 0;
     sel_first * kernel.emit_l2_to_l1_msg_write_offset = 0;
 
     #[SLOAD_KERNEL_OUTPUT]
-    sel_op_sload * (kernel.kernel_out_offset - (kernel.START_SLOAD_WRITE_OFFSET + kernel.sload_write_offset)) = 0;
+    sel_op_sload * (kernel.kernel_out_offset - (constants.START_SLOAD_WRITE_OFFSET + kernel.sload_write_offset)) = 0;
     sel_first * kernel.sload_write_offset = 0;
 
     #[SSTORE_KERNEL_OUTPUT]
-    sel_op_sstore * (kernel.kernel_out_offset - (kernel.START_SSTORE_WRITE_OFFSET + kernel.sstore_write_offset)) = 0;
+    sel_op_sstore * (kernel.kernel_out_offset - (constants.START_SSTORE_WRITE_OFFSET + kernel.sstore_write_offset)) = 0;
     sel_first * kernel.sstore_write_offset = 0;
 
     // When we encounter a state writing opcode

@@ -225,7 +225,7 @@ void AvmKernelTraceBuilder::op_emit_l2_to_l1_msg(uint32_t clk,
                                                  const FF& l2_to_l1_msg,
                                                  const FF& recipient)
 {
-    uint32_t offset = START_L2_TO_L1_MSG_WRITE_OFFSET + emit_l2_to_l1_msg_offset;
+    uint32_t offset = START_EMIT_L2_TO_L1_MSG_WRITE_OFFSET + emit_l2_to_l1_msg_offset;
     perform_kernel_output_lookup(offset, side_effect_counter, l2_to_l1_msg, recipient);
     emit_l2_to_l1_msg_offset++;
 

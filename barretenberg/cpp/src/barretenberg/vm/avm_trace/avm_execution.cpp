@@ -165,7 +165,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
     // We copy each type of the kernel outputs into their respective columns, each has differeing lengths / data
     // For NOTEHASHEXISTS
     for (size_t i = 0; i < MAX_NOTE_HASH_READ_REQUESTS_PER_CALL; i++) {
-        size_t dest_offset = AvmKernelTraceBuilder::START_NOTE_HASH_EXISTS_WRITE_OFFSET + i;
+        size_t dest_offset = START_NOTE_HASH_EXISTS_WRITE_OFFSET + i;
         size_t pcpi_offset = PCPI_NOTE_HASH_EXISTS_OFFSET + (i * READ_REQUEST_LENGTH);
 
         ko_values[dest_offset] = public_inputs_vec[pcpi_offset];
@@ -173,7 +173,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
     }
     // For NULLIFIEREXISTS
     for (size_t i = 0; i < MAX_NULLIFIER_READ_REQUESTS_PER_CALL; i++) {
-        size_t dest_offset = AvmKernelTraceBuilder::START_NULLIFIER_EXISTS_OFFSET + i;
+        size_t dest_offset = START_NULLIFIER_EXISTS_OFFSET + i;
         size_t pcpi_offset = PCPI_NULLIFIER_EXISTS_OFFSET + (i * READ_REQUEST_LENGTH);
 
         ko_values[dest_offset] = public_inputs_vec[pcpi_offset];
@@ -182,7 +182,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
     }
     // For NULLIFIEREXISTS - non existent
     for (size_t i = 0; i < MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL; i++) {
-        size_t dest_offset = AvmKernelTraceBuilder::START_NULLIFIER_NON_EXISTS_OFFSET + i;
+        size_t dest_offset = START_NULLIFIER_NON_EXISTS_OFFSET + i;
         size_t pcpi_offset = PCPI_NULLIFIER_NON_EXISTS_OFFSET + (i * READ_REQUEST_LENGTH);
 
         ko_values[dest_offset] = public_inputs_vec[pcpi_offset];
@@ -191,7 +191,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
     }
     // For L1TOL2MSGEXISTS
     for (size_t i = 0; i < MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL; i++) {
-        size_t dest_offset = AvmKernelTraceBuilder::START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET + i;
+        size_t dest_offset = START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET + i;
         size_t pcpi_offset = PCPI_L1_TO_L2_MSG_READ_REQUESTS_OFFSET + (i * READ_REQUEST_LENGTH);
 
         ko_values[dest_offset] = public_inputs_vec[pcpi_offset];
@@ -199,7 +199,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
     }
     // For SSTORE
     for (size_t i = 0; i < MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL; i++) {
-        size_t dest_offset = AvmKernelTraceBuilder::START_SSTORE_WRITE_OFFSET + i;
+        size_t dest_offset = START_SSTORE_WRITE_OFFSET + i;
         size_t pcpi_offset = PCPI_PUBLIC_DATA_UPDATE_OFFSET + (i * CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH);
 
         // slot, value, side effect
@@ -209,7 +209,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
     }
     // For SLOAD
     for (size_t i = 0; i < MAX_PUBLIC_DATA_READS_PER_CALL; i++) {
-        size_t dest_offset = AvmKernelTraceBuilder::START_SLOAD_WRITE_OFFSET + i;
+        size_t dest_offset = START_SLOAD_WRITE_OFFSET + i;
         size_t pcpi_offset = PCPI_PUBLIC_DATA_READ_OFFSET + (i * CONTRACT_STORAGE_READ_LENGTH);
 
         // slot, value, side effect
@@ -219,7 +219,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
     }
     // For EMITNOTEHASH
     for (size_t i = 0; i < MAX_NEW_NOTE_HASHES_PER_CALL; i++) {
-        size_t dest_offset = AvmKernelTraceBuilder::START_EMIT_NOTE_HASH_WRITE_OFFSET + i;
+        size_t dest_offset = START_EMIT_NOTE_HASH_WRITE_OFFSET + i;
         size_t pcpi_offset = PCPI_NEW_NOTE_HASHES_OFFSET + (i * NOTE_HASH_LENGTH);
 
         ko_values[dest_offset] = public_inputs_vec[pcpi_offset];
@@ -227,7 +227,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
     }
     // For EMITNULLIFIER
     for (size_t i = 0; i < MAX_NEW_NULLIFIERS_PER_CALL; i++) {
-        size_t dest_offset = AvmKernelTraceBuilder::START_EMIT_NULLIFIER_WRITE_OFFSET + i;
+        size_t dest_offset = START_EMIT_NULLIFIER_WRITE_OFFSET + i;
         size_t pcpi_offset = PCPI_NEW_NULLIFIERS_OFFSET + (i * NULLIFIER_LENGTH);
 
         ko_values[dest_offset] = public_inputs_vec[pcpi_offset];
@@ -235,7 +235,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
     }
     // For EMITL2TOL1MSG
     for (size_t i = 0; i < MAX_NEW_L2_TO_L1_MSGS_PER_CALL; i++) {
-        size_t dest_offset = AvmKernelTraceBuilder::START_L2_TO_L1_MSG_WRITE_OFFSET + i;
+        size_t dest_offset = START_EMIT_L2_TO_L1_MSG_WRITE_OFFSET + i;
         size_t pcpi_offset = PCPI_NEW_L2_TO_L1_MSGS_OFFSET + (i * L2_TO_L1_MESSAGE_LENGTH);
 
         // Note: unorthadox order
@@ -245,7 +245,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
     }
     // For EMITUNENCRYPTEDLOG
     for (size_t i = 0; i < MAX_UNENCRYPTED_LOGS_PER_CALL; i++) {
-        size_t dest_offset = AvmKernelTraceBuilder::START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET + i;
+        size_t dest_offset = START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET + i;
         size_t pcpi_offset = PCPI_NEW_UNENCRYPTED_LOGS_OFFSET + (i * 2);
 
         ko_values[dest_offset] = public_inputs_vec[pcpi_offset];

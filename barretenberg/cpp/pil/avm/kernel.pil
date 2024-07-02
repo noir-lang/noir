@@ -1,5 +1,5 @@
 include "main.pil";
-include "constants.pil";
+include "constants_gen.pil";
 
 namespace kernel(256);
     pol public kernel_inputs;
@@ -23,24 +23,6 @@ namespace kernel(256);
     
     // Global side effect counter; incremented after each side effect is produced.
     pol commit side_effect_counter;
-
-    // FIXED INDEXES
-    // Exists checks
-    pol START_NOTE_HASH_EXISTS_WRITE_OFFSET = 0;
-    pol START_NULLIFIER_EXISTS_OFFSET = 32; // START_NOTE_HASH_EXISTS_WRITE_OFFSET + MAX_NOTE_HASH_READ_REQUESTS_PER_CALL
-    pol START_NULLIFIER_NON_EXISTS_OFFSET = 64; // START_NULLIFIER_EXISTS_OFFSET +  MAX_NULLIFIER_READ_REQUESTS_PER_CALL
-    pol START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET = 96; //  START_NULLIFIER_EXISTS_OFFET + (MAX_NULLIFIER_READ_REQUESTS_PER_CALL + MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL)
-
-    // Public storage requests
-    pol START_SSTORE_WRITE_OFFSET = 112; // START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET  + MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL
-    pol START_SLOAD_WRITE_OFFSET = 144; // START_SSTORE_WRITE_OFFSET  + MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL
-    
-    // Emit data 
-    pol START_EMIT_NOTE_HASH_WRITE_OFFSET = 176; // START_SLOAD_WRITE_OFFSET + MAX_PUBLIC_DATA_READS_PER_CALL
-    pol START_EMIT_NULLIFIER_WRITE_OFFSET = 192; // START_EMIT_NOTE_HASH_WRITE_OFFSET + MAX_NEW_NOTE_HASHES_PER_CALL
-    pol START_EMIT_L2_TO_l1_MSG = 208; // START_EMIT_NULLIFIER_WRITE_OFFSET + MAX_NEW_NULLIFIERS_PER_CALL
-    pol START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET = 210; // START_EMIT_L2_TO_L1_MSG + MAX_NEW_L2_TO_L1_MSGS_PER_CALL
-
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6465): Must constrain write_offset counters to be less than side effect MAX
     // Current write offsets for each opcode
