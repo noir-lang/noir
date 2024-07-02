@@ -421,6 +421,14 @@ impl BrilligBigintSolver {
         rhs: u32,
         func: BlackBoxFunc,
     ) -> Result<u32, BlackBoxResolutionError> {
+        let modulus_lhs = self.bigint_solver.get_modulus(lhs, func)?;
+        let modulus_rhs = self.bigint_solver.get_modulus(rhs, func)?;
+        if modulus_lhs != modulus_rhs {
+            return Err(BlackBoxResolutionError::Failed(
+                func,
+                "moduli should be identical in BigInt operation".to_string(),
+            ));
+        }
         let id = self.create_bigint_id();
         self.bigint_solver.bigint_op(lhs, rhs, id, func)?;
         Ok(id)

@@ -1,6 +1,4 @@
-bigint
 brillig_references
-brillig_to_bytes_integration
 debug_logs
 fold_after_inlined_calls
 fold_basic
@@ -12,7 +10,5 @@ fold_fibonacci
 fold_numeric_generic_poseidon
 is_unconstrained
 macros
-modulus
 references
 regression_4709
-to_bytes_integration
