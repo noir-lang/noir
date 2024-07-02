@@ -1,12 +1,10 @@
 import { expect } from 'chai';
 import { join, resolve } from 'path';
 
-import { CompiledCircuit, InputMap, InputValue } from '@noir-lang/types';
+import { CompiledCircuit, InputMap, InputValue, ProofData } from '@noir-lang/types';
 import { Noir } from '@noir-lang/noir_js';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
-
-import { ProofData } from '@noir-lang/types';
 
 // Helper function to get compiled Noir program
 async function getCircuit(name: string) {
