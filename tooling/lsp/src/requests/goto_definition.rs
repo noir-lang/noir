@@ -77,7 +77,9 @@ mod goto_definition_tests {
             let response = on_goto_definition_request(&mut state, params)
                 .await
                 .expect("Could execute on_goto_definition_request")
-                .expect(&format!("Didn't get a goto definition response for index {index}"));
+                .unwrap_or_else(|| {
+                    panic!("Didn't get a goto definition response for index {index}")
+                });
 
             if let GotoDefinitionResponse::Scalar(location) = response {
                 assert_eq!(location.range, expected_range);

@@ -78,7 +78,7 @@ impl NodeInterner {
         self.location_indices
             .get_node_from_location(reference_location)
             .and_then(|node_index| self.referenced_index(node_index))
-            .and_then(|node_index| Some(self.dependency_location(self.reference_graph[node_index])))
+            .map(|node_index| self.dependency_location(self.reference_graph[node_index]))
     }
 
     // Is the given location known to this interner?
