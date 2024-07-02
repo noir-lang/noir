@@ -307,13 +307,13 @@ impl<'interner> TypeChecker<'interner> {
 
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
-            HirExpression::Quote(_) => Type::Expr,
+            HirExpression::Quote(_) => Type::Quoted(crate::QuotedType::Quoted),
             HirExpression::Comptime(block) => self.check_block(block),
 
             // Unquote should be inserted & removed by the comptime interpreter.
             // Even if we allowed it here, we wouldn't know what type to give to the result.
             HirExpression::Unquote(block) => {
-                unreachable!("Unquote remaining during type checking {block}")
+                unreachable!("Unquote remaining during type checking {block:?}")
             }
         };
 
@@ -340,7 +340,7 @@ impl<'interner> TypeChecker<'interner> {
         // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
         if is_current_func_constrained && is_unconstrained_call {
             for (typ, _, _) in args.iter() {
-                if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
+                if !typ.is_valid_for_unconstrained_boundary() {
                     self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained { span });
                 }
             }
@@ -404,8 +404,8 @@ impl<'interner> TypeChecker<'interner> {
 
             for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
                 // Avoid binding t = t
-                if !arg.occurs(param.id()) {
-                    bindings.insert(param.id(), (param.clone(), arg.clone()));
+                if !arg.occurs(param.type_var.id()) {
+                    bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.clone()));
                 }
             }
 
@@ -1025,7 +1025,7 @@ impl<'interner> TypeChecker<'interner> {
                 });
                 None
             }
-            Type::NamedGeneric(_, _) => {
+            Type::NamedGeneric(_, _, _) => {
                 let func_meta = self.interner.function_meta(
                     &self.current_function.expect("unexpected method outside a function"),
                 );

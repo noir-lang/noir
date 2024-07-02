@@ -11,11 +11,10 @@ use crate::{
     },
     hir_def::{
         expr::{HirIdent, ImplKind},
-        function::FunctionBody,
         stmt::HirPattern,
     },
     macros_api::{HirExpression, Ident, Path, Pattern},
-    node_interner::{DefinitionId, DefinitionKind, DependencyId, ExprId, GlobalId, TraitImplKind},
+    node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, TraitImplKind},
     Shared, StructType, Type, TypeBindings,
 };
 
@@ -302,9 +301,14 @@ impl<'context> Elaborator<'context> {
         ident
     }
 
-    pub fn add_existing_variable_to_scope(&mut self, name: String, ident: HirIdent) {
+    pub fn add_existing_variable_to_scope(
+        &mut self,
+        name: String,
+        ident: HirIdent,
+        warn_if_unused: bool,
+    ) {
         let second_span = ident.location.span;
-        let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
+        let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused };
 
         let old_value = self.scopes.get_mut_scope().add_key_value(name.clone(), resolver_meta);
 
@@ -390,6 +394,7 @@ impl<'context> Elaborator<'context> {
     ) -> (ExprId, Type) {
         let span = variable.span;
         let expr = self.resolve_variable(variable);
+
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
         self.interner.push_expr_location(id, span, self.file);
         let typ = self.type_check_variable(expr, id, generics);
@@ -415,16 +420,6 @@ impl<'context> Elaborator<'context> {
                 match self.interner.definition(hir_ident.id).kind {
                     DefinitionKind::Function(id) => {
                         if let Some(current_item) = self.current_item {
-                            // Lazily evaluate functions found within globals if necessary.
-                            // Otherwise if we later attempt to evaluate the global it will
-                            // see an empty function body.
-                            if matches!(current_item, DependencyId::Global(_)) {
-                                let meta = self.interner.function_meta(&id);
-
-                                if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
-                                    self.elaborate_function(id);
-                                }
-                            }
                             self.interner.add_function_dependency(current_item, id);
                         }
                     }
@@ -475,8 +470,8 @@ impl<'context> Elaborator<'context> {
 
             for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
                 // Avoid binding t = t
-                if !arg.occurs(param.id()) {
-                    bindings.insert(param.id(), (param.clone(), arg.clone()));
+                if !arg.occurs(param.type_var.id()) {
+                    bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.clone()));
                 }
             }
 

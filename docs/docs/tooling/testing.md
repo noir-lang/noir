@@ -42,7 +42,7 @@ fn test_add() {
 }
 ```
 
-You can be more specific and make it fail with a specific reason by using `should_fail_with = "<the reason for failure>`:
+You can be more specific and make it fail with a specific reason by using `should_fail_with = "<the reason for failure>"`:
 
 ```rust
 fn main(african_swallow_avg_speed : Field) {
@@ -58,5 +58,22 @@ fn test_king_arthur() {
 fn test_bridgekeeper() {
     main(32);
 }
+```
 
+The string given to `should_fail_with` doesn't need to exactly match the failure reason, it just needs to be a substring of it:
+
+```rust
+fn main(african_swallow_avg_speed : Field) {
+    assert(african_swallow_avg_speed == 65, "What is the airspeed velocity of an unladen swallow");
+}
+
+#[test]
+fn test_king_arthur() {
+    main(65);
+}
+
+#[test(should_fail_with = "airspeed velocity")]
+fn test_bridgekeeper() {
+    main(32);
+}
 ```

@@ -15,7 +15,7 @@ trait MyInto<T> {
     fn into(self) -> T;
 }
 
-impl<T, U, N> MyInto<[U; N]> for [T; N] where T: MyInto<U> {
+impl<T, U, let N: u32> MyInto<[U; N]> for [T; N] where T: MyInto<U> {
     fn into(self) -> [U; N] {
         self.map(|x: T| x.into())
     }
@@ -29,7 +29,7 @@ impl MyInto<u32> for Field {
 
 /// Serialize example
 
-trait Serializable<N> {
+trait Serializable<let N: u32> {
     fn serialize(self) -> [Field; N];
 }
 
