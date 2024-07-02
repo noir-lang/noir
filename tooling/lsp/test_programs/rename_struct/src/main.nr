@@ -1,6 +1,12 @@
-struct Foo {
-    field: Field,
+mod foo {
+    mod bar {
+        struct Foo {
+            field: Field,
+        }
+    }
 }
+
+use foo::bar::Foo;
 
 fn main(x: Field) -> pub Field {
     let foo1 = Foo { field: 1 };
@@ -9,6 +15,4 @@ fn main(x: Field) -> pub Field {
     x
 }
 
-fn foo(foo: Foo) {
-
-}
+fn foo(foo: Foo) {}
