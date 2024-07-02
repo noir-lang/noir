@@ -77,7 +77,6 @@ fn collapses_notes_at_the_beginning_of_the_array() {
     opt_notes[5] = Option::some(build_valid_note(3));
     opt_notes[8] = Option::some(build_valid_note(4));
     opt_notes[13] = Option::some(build_valid_note(5));
-    opt_notes[21] = Option::some(build_valid_note(6));
 
     let options = NoteGetterOptions::new();
     let returned = constrain_get_notes_internal(&mut context, storage_slot, opt_notes, options);
@@ -89,7 +88,6 @@ fn collapses_notes_at_the_beginning_of_the_array() {
     expected[3] = Option::some(build_valid_note(3));
     expected[4] = Option::some(build_valid_note(4));
     expected[5] = Option::some(build_valid_note(5));
-    expected[6] = Option::some(build_valid_note(6));
 
     assert_equivalent_vec_and_array(returned, expected);
 }
