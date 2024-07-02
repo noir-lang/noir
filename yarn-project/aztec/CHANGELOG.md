@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.45.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.44.0...aztec-package-v0.45.0) (2024-07-02)
+
+
+### Bug Fixes
+
+* Devnet deployment issues ([#7197](https://github.com/AztecProtocol/aztec-packages/issues/7197)) ([9cf4904](https://github.com/AztecProtocol/aztec-packages/commit/9cf49048eefd1f02d22c6b4a8db100b863f39f84))
+
 ## [0.44.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.43.0...aztec-package-v0.44.0) (2024-06-26)
 
 
