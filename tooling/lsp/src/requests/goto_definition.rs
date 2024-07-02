@@ -76,59 +76,42 @@ fn on_goto_definition_inner(
 
 #[cfg(test)]
 mod goto_definition_tests {
+    use std::panic;
 
-    use acvm::blackbox_solver::StubbedBlackBoxSolver;
-    use async_lsp::ClientSocket;
-    use lsp_types::{Position, Url};
+    use crate::test_utils;
+    use lsp_types::{Position, Range};
     use tokio::test;
 
     use super::*;
 
     #[test]
     async fn test_on_goto_definition() {
-        let client = ClientSocket::new_closed();
-        let mut state = LspState::new(&client, StubbedBlackBoxSolver);
-
-        let root_path = std::env::current_dir()
-            .unwrap()
-            .join("../../test_programs/execution_success/7_function")
-            .canonicalize()
-            .expect("Could not resolve root path");
-        let noir_text_document = Url::from_file_path(root_path.join("src/main.nr").as_path())
-            .expect("Could not convert text document path to URI");
-        let root_uri = Some(
-            Url::from_file_path(root_path.as_path()).expect("Could not convert root path to URI"),
-        );
-
-        #[allow(deprecated)]
-        let initialize_params = lsp_types::InitializeParams {
-            process_id: Default::default(),
-            root_path: None,
-            root_uri,
-            initialization_options: None,
-            capabilities: Default::default(),
-            trace: Some(lsp_types::TraceValue::Verbose),
-            workspace_folders: None,
-            client_info: None,
-            locale: None,
-        };
-        let _initialize_response = crate::requests::on_initialize(&mut state, initialize_params)
-            .await
-            .expect("Could not initialize LSP server");
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("go_to_definition").await;
 
         let params = GotoDefinitionParams {
             text_document_position_params: lsp_types::TextDocumentPositionParams {
                 text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
-                position: Position { line: 95, character: 5 },
+                position: Position { line: 9, character: 12 }, // Right at the beginning of "another_function"
             },
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         };
 
-        let response = on_goto_definition_request(&mut state, params)
+        let response: GotoDefinitionResponse = on_goto_definition_request(&mut state, params)
             .await
-            .expect("Could execute on_goto_definition_request");
+            .expect("Could execute on_goto_definition_request")
+            .expect("Didn't get a goto definition response");
 
-        assert!(&response.is_some());
+        if let GotoDefinitionResponse::Scalar(location) = response {
+            assert_eq!(
+                location.range,
+                Range {
+                    start: Position { line: 4, character: 3 },
+                    end: Position { line: 4, character: 19 },
+                }
+            );
+        } else {
+            panic!("Expected a scalar response");
+        };
     }
 }

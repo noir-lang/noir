@@ -31,6 +31,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
+use crate::locations::LocationIndices;
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::GenericTypeVars;
 use crate::Generics;
@@ -64,7 +65,7 @@ pub struct NodeInterner {
     function_modules: HashMap<FuncId, ModuleId>,
 
     /// This graph tracks dependencies between different global definitions.
-    /// This is used to ensure the absense of dependency cycles for globals and types.
+    /// This is used to ensure the absence of dependency cycles for globals and types.
     dependency_graph: DiGraph<DependencyId, ()>,
 
     /// To keep track of where each DependencyId is in `dependency_graph`, we need
@@ -182,6 +183,15 @@ pub struct NodeInterner {
     /// and creating a `Token::QuotedType(id)` from this id. We cannot create a token holding
     /// the actual type since types do not implement Send or Sync.
     quoted_types: noirc_arena::Arena<Type>,
+
+    /// Store the location of the references in the graph
+    pub(crate) reference_graph: DiGraph<DependencyId, ()>,
+
+    /// Tracks the index of the references in the graph
+    pub(crate) reference_graph_indices: HashMap<DependencyId, PetGraphIndex>,
+
+    /// Store the location of the references in the graph
+    pub(crate) location_indices: LocationIndices,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -200,6 +210,7 @@ pub enum DependencyId {
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
+    Variable(Location),
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -258,6 +269,9 @@ pub struct FunctionModifiers {
     pub generic_count: usize,
 
     pub is_comptime: bool,
+
+    /// The location of the function's name rather than the entire function
+    pub name_location: Location,
 }
 
 impl FunctionModifiers {
@@ -272,6 +286,7 @@ impl FunctionModifiers {
             is_unconstrained: false,
             generic_count: 0,
             is_comptime: false,
+            name_location: Location::dummy(),
         }
     }
 }
@@ -516,6 +531,9 @@ impl Default for NodeInterner {
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
             quoted_types: Default::default(),
+            location_indices: LocationIndices::default(),
+            reference_graph: petgraph::graph::DiGraph::new(),
+            reference_graph_indices: HashMap::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -804,8 +822,14 @@ impl NodeInterner {
             is_unconstrained: function.is_unconstrained,
             generic_count: function.generics.len(),
             is_comptime: function.is_comptime,
+            name_location: Location::new(function.name.span(), location.file),
         };
-        self.push_function_definition(id, modifiers, module, location)
+        let definition_id = self.push_function_definition(id, modifiers, module, location);
+
+        // This needs to be done after pushing the definition since it will reference the
+        // location that was stored
+        self.add_definition_location(DependencyId::Function(id));
+        definition_id
     }
 
     pub fn push_function_definition(
@@ -1664,13 +1688,13 @@ impl NodeInterner {
         self.add_dependency(dependent, DependencyId::Alias(dependency));
     }
 
-    fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {
+    pub fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {
         let dependent_index = self.get_or_insert_dependency(dependent);
         let dependency_index = self.get_or_insert_dependency(dependency);
         self.dependency_graph.update_edge(dependent_index, dependency_index, ());
     }
 
-    fn get_or_insert_dependency(&mut self, id: DependencyId) -> PetGraphIndex {
+    pub fn get_or_insert_dependency(&mut self, id: DependencyId) -> PetGraphIndex {
         if let Some(index) = self.dependency_graph_indices.get(&id) {
             return *index;
         }
@@ -1721,6 +1745,11 @@ impl NodeInterner {
                         }
                         // Mutually recursive functions are allowed
                         DependencyId::Function(_) => (),
+                        // Local variables should never be in a dependency cycle, scoping rules
+                        // prevents referring to them before they're defined
+                        DependencyId::Variable(loc) => unreachable!(
+                            "Variable used at location {loc:?} caught in a dependency cycle"
+                        ),
                     }
                 }
             }
@@ -1741,6 +1770,9 @@ impl NodeInterner {
             }
             DependencyId::Global(id) => {
                 Cow::Borrowed(self.get_global(id).ident.0.contents.as_ref())
+            }
+            DependencyId::Variable(loc) => {
+                unreachable!("Variable used at location {loc:?} caught in a dependency cycle")
             }
         };
 
