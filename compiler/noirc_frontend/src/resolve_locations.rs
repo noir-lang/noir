@@ -18,10 +18,6 @@ impl NodeInterner {
         // Note: we can modify this in the future to not do a linear
         // scan by storing a separate map of the spans or by sorting the locations.
         for (index, interned_location) in self.id_to_location.iter() {
-            if interned_location.file != location.file {
-                continue;
-            }
-
             if interned_location.contains(&location) {
                 if let Some(current_location) = location_candidate {
                     if interned_location.span.is_smaller(&current_location.1.span) {
