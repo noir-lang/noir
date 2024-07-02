@@ -1235,6 +1235,17 @@ impl NodeInterner {
         self.trait_implementations[&id].clone()
     }
 
+    /// If the given function belongs to a trait impl, return its trait method id.
+    /// Otherwise, return None.
+    pub fn get_trait_method_id(&self, function: FuncId) -> Option<TraitMethodId> {
+        let impl_id = self.function_meta(&function).trait_impl?;
+        let trait_impl = self.get_trait_implementation(impl_id);
+        let trait_impl = trait_impl.borrow();
+
+        let method_index = trait_impl.methods.iter().position(|id| *id == function)?;
+        Some(TraitMethodId { trait_id: trait_impl.trait_id, method_index })
+    }
+
     /// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the
     /// constraint. If an impl cannot be found, this will return a vector of each constraint
     /// in the path to get to the failing constraint. Usually this is just the single failing
@@ -1810,6 +1821,29 @@ impl NodeInterner {
 
     pub fn get_quoted_type(&self, id: QuotedTypeId) -> &Type {
         &self.quoted_types[id.0]
+    }
+
+    /// Returns the type of an operator (which is always a function), along with its return type.
+    pub fn get_operator_type(
+        &self,
+        lhs: ExprId,
+        operator: BinaryOpKind,
+        operator_expr: ExprId,
+    ) -> (Type, Type) {
+        let lhs_type = self.id_type(lhs);
+        let args = vec![lhs_type.clone(), lhs_type];
+
+        // If this is a comparison operator, the result is a boolean but
+        // the actual method call returns an Ordering
+        use crate::ast::BinaryOpKind::*;
+        let ret = if matches!(operator, Less | LessEqual | Greater | GreaterEqual) {
+            self.ordering_type()
+        } else {
+            self.id_type(operator_expr)
+        };
+
+        let env = Box::new(Type::Unit);
+        (Type::Function(args, Box::new(ret.clone()), env), ret)
     }
 }
 
