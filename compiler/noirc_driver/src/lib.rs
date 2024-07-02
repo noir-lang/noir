@@ -562,10 +562,8 @@ pub fn compile_no_check(
         force_brillig_output: options.force_brillig,
         print_codegen_timings: options.benchmark_codegen,
     };
-    let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } = create_program(
-        monomorph.clone(),
-        &ssa_evaluator_options
-    )?;
+    let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =
+        create_program(monomorph.clone(), &ssa_evaluator_options)?;
 
     let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);

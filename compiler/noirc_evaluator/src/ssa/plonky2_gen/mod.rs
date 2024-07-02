@@ -362,7 +362,7 @@ where
             let fields_for_param = typ.field_count() as usize;
             if vis == Visibility::Public {
                 self.asm_writer.register_public_inputs(
-                    &parameters[next_param_idx..next_param_idx+fields_for_param]
+                    &parameters[next_param_idx..next_param_idx + fields_for_param],
                 );
             }
             next_param_idx += fields_for_param;
@@ -707,7 +707,8 @@ where
 
                 let mut new_values = Vec::new();
                 for i in 0..p2targets.len() {
-                    new_values.push(P2Value::create_empty(&mut self.asm_writer, target_type.clone()));
+                    new_values
+                        .push(P2Value::create_empty(&mut self.asm_writer, target_type.clone()));
                     if i == num_index {
                         self.asm_writer.connect(p2value.get_target()?, new_values[i].get_target()?);
                     } else {

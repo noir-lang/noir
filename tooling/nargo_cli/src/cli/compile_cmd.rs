@@ -189,7 +189,7 @@ fn compile_programs(
                 package,
                 compile_options,
                 load_cached_program(package),
-		false,
+                false,
             )?;
             let program = nargo::ops::transform_program(program, compile_options.expression_width);
             save_program_to_file(

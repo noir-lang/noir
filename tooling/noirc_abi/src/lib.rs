@@ -373,11 +373,7 @@ impl Abi {
     pub fn public_abi(self) -> Abi {
         let parameters: Vec<_> =
             self.parameters.into_iter().filter(|param| param.is_public()).collect();
-        Abi {
-            parameters,
-            return_type: self.return_type,
-            error_types: self.error_types,
-        }
+        Abi { parameters, return_type: self.return_type, error_types: self.error_types }
     }
 }
 

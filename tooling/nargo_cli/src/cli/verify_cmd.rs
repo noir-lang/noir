@@ -85,12 +85,8 @@ fn verify_package(
     verifier_name: &str,
 ) -> Result<(), CliError> {
     let public_abi = compiled_program.abi.public_abi();
-    let (public_inputs_map, return_value) = read_inputs_from_file(
-        &package.root_dir,
-        verifier_name,
-        Format::Toml,
-        &public_abi,
-    )?;
+    let (public_inputs_map, return_value) =
+        read_inputs_from_file(&package.root_dir, verifier_name, Format::Toml, &public_abi)?;
 
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
 
