@@ -882,7 +882,10 @@ impl<'a> Interpreter<'a> {
 
         let index = match index {
             Value::Field(value) => {
-                value.try_to_u64().expect("index could not fit into u64") as usize
+                value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(|| {
+                    let typ = Type::default_int_type();
+                    InterpreterError::IntegerOutOfRangeForType { value, typ, location }
+                })?
             }
             Value::I8(value) => value as usize,
             Value::I16(value) => value as usize,
@@ -1209,8 +1212,15 @@ impl<'a> Interpreter<'a> {
                 }
             }
             HirLValue::MemberAccess { object, field_name, field_index, typ: _, location } => {
-                let index = field_index.expect("The field index should be set after type checking");
-                match self.evaluate_lvalue(&object)? {
+                let object_value = self.evaluate_lvalue(&object)?;
+
+                let index = field_index.ok_or_else(|| {
+                    let value = object_value.clone();
+                    let field_name = field_name.to_string();
+                    InterpreterError::ExpectedStructToHaveField { value, field_name, location }
+                })?;
+
+                match object_value {
                     Value::Tuple(mut fields) => {
                         fields[index] = rhs;
                         self.store_lvalue(*object, Value::Tuple(fields))
@@ -1254,9 +1264,16 @@ impl<'a> Interpreter<'a> {
                 }
             }
             HirLValue::MemberAccess { object, field_name, field_index, typ: _, location } => {
-                let index = field_index.expect("The field index should be set after type checking");
+                let object_value = self.evaluate_lvalue(object)?;
 
-                match self.evaluate_lvalue(object)? {
+                let index = field_index.ok_or_else(|| {
+                    let value = object_value.clone();
+                    let field_name = field_name.to_string();
+                    let location = *location;
+                    InterpreterError::ExpectedStructToHaveField { value, field_name, location }
+                })?;
+
+                match object_value {
                     Value::Tuple(mut values) => Ok(values.swap_remove(index)),
                     Value::Struct(fields, _) => Ok(fields[&field_name.0.contents].clone()),
                     value => Err(InterpreterError::NonTupleOrStructInMemberAccess {
