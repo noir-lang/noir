@@ -290,4 +290,9 @@ impl Context<'_, '_> {
             ResolvedGeneric { name, type_var, kind, span }
         })
     }
+
+    // Enables reference tracking (useful for tools like LSP).
+    pub fn track_references(&mut self) {
+        self.def_interner.track_references = true;
+    }
 }

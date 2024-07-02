@@ -4,7 +4,6 @@ use async_lsp::{ErrorCode, ResponseError};
 use nargo::{
     insert_all_files_for_workspace_into_file_manager,
     ops::{run_test, TestStatus},
-    prepare_package,
 };
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
@@ -59,7 +58,7 @@ fn on_test_run_request_inner(
     match workspace.into_iter().next() {
         Some(package) => {
             let (mut context, crate_id) =
-                prepare_package(&workspace_file_manager, &parsed_files, package);
+                crate::prepare_package(&workspace_file_manager, &parsed_files, package);
             if check_crate(&mut context, crate_id, false, false, false).is_err() {
                 let result = NargoTestRunResult {
                     id: params.id.clone(),

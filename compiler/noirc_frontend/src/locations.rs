@@ -32,7 +32,7 @@ impl NodeInterner {
     pub fn dependency_location(&self, dependency: DependencyId) -> Location {
         match dependency {
             DependencyId::Function(id) => self.function_modifiers(&id).name_location,
-            DependencyId::Struct(id) => self.get_struct(id).borrow().location,
+            DependencyId::Struct(id) => self.struct_location(&id),
             DependencyId::Global(id) => self.get_global(id).location,
             DependencyId::Alias(id) => self.get_type_alias(id).borrow().location,
             DependencyId::Variable(location) => location,
@@ -40,6 +40,10 @@ impl NodeInterner {
     }
 
     pub(crate) fn add_reference(&mut self, referenced: DependencyId, reference: DependencyId) {
+        if !self.track_references {
+            return;
+        }
+
         let referenced_index = self.get_or_insert_reference(referenced);
         let reference_index = self.reference_graph.add_node(reference);
 
@@ -56,6 +60,10 @@ impl NodeInterner {
         referenced_id: DependencyId,
         reference: DependencyId,
     ) {
+        if !self.track_references {
+            return;
+        }
+
         let Some(referenced_index) = self.reference_graph_indices.get(&referenced_id) else {
             panic!("Compiler Error: Referenced index not found")
         };
@@ -67,6 +75,10 @@ impl NodeInterner {
     }
 
     pub(crate) fn add_definition_location(&mut self, referenced: DependencyId) {
+        if !self.track_references {
+            return;
+        }
+
         let referenced_index = self.get_or_insert_reference(referenced);
         let referenced_location = self.dependency_location(referenced);
         self.location_indices.add_location(referenced_location, referenced_index);
@@ -92,8 +104,10 @@ impl NodeInterner {
 
         let reference_node = self.reference_graph[node_index];
         let found_locations: Vec<Location> = match reference_node {
-            DependencyId::Alias(_) | DependencyId::Struct(_) | DependencyId::Global(_) => todo!(),
-            DependencyId::Function(_) => self.get_edit_locations(node_index),
+            DependencyId::Alias(_) | DependencyId::Global(_) => todo!(),
+            DependencyId::Function(_) | DependencyId::Struct(_) => {
+                self.get_edit_locations(node_index)
+            }
 
             DependencyId::Variable(_) => {
                 let referenced_node_index = self

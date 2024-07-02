@@ -1,0 +1,6 @@
+[package]
+name = "rename_function"
+type = "bin"
+authors = [""]
+
+[dependencies]
