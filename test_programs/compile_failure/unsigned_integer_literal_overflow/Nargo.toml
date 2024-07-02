@@ -1,5 +1,5 @@
 [package]
-name = "integer_literal_overflow"
+name = "unsigned_integer_literal_overflow"
 type = "bin"
 authors = [""]
 [dependencies]

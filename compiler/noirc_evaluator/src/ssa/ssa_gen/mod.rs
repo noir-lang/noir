@@ -219,10 +219,10 @@ impl<'a> FunctionContext<'a> {
                     _ => unreachable!("ICE: unexpected slice literal type, got {}", array.typ),
                 })
             }
-            ast::Literal::Integer(value, typ, location) => {
+            ast::Literal::Integer(value, negative, typ, location) => {
                 self.builder.set_location(*location);
                 let typ = Self::convert_non_tuple_type(typ);
-                self.checked_numeric_constant(*value, typ).map(Into::into)
+                self.checked_numeric_constant(*value, *negative, typ).map(Into::into)
             }
             ast::Literal::Bool(value) => {
                 // Don't need to call checked_numeric_constant here since `value` can only be true or false

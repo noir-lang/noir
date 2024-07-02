@@ -422,20 +422,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Literal(HirLiteral::Integer(value, sign)) => {
                 let location = self.interner.id_location(expr);
                 let typ = Self::convert_type(&self.interner.id_type(expr), location)?;
-
-                if sign {
-                    match typ {
-                        ast::Type::Field => Literal(Integer(-value, typ, location)),
-                        ast::Type::Integer(_, bit_size) => {
-                            let bit_size: u32 = bit_size.into();
-                            let base = 1_u128 << bit_size;
-                            Literal(Integer(FieldElement::from(base) - value, typ, location))
-                        }
-                        _ => unreachable!("Integer literal must be numeric"),
-                    }
-                } else {
-                    Literal(Integer(value, typ, location))
-                }
+                Literal(Integer(value, sign, typ, location))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
                 HirArrayLiteral::Standard(array) => self.standard_array(expr, array, false)?,
@@ -904,7 +891,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let value = FieldElement::from(value as u128);
                 let location = self.interner.id_location(expr_id);
                 let typ = Self::convert_type(&typ, ident.location)?;
-                ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
+                ast::Expression::Literal(ast::Literal::Integer(value, false, typ, location))
             }
         };
 
@@ -1222,7 +1209,9 @@ impl<'interner> Monomorphizer<'interner> {
                         let bits = (FieldElement::max_num_bits() as u128).into();
                         let typ =
                             ast::Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
-                        Some(ast::Expression::Literal(ast::Literal::Integer(bits, typ, location)))
+                        Some(ast::Expression::Literal(ast::Literal::Integer(
+                            bits, false, typ, location,
+                        )))
                     }
                     "zeroed" => {
                         let location = self.interner.expr_location(expr_id);
@@ -1262,7 +1251,12 @@ impl<'interner> Monomorphizer<'interner> {
         let int_type = Type::Integer(crate::ast::Signedness::Unsigned, arr_elem_bits);
 
         let bytes_as_expr = vecmap(bytes, |byte| {
-            Expression::Literal(Literal::Integer((byte as u128).into(), int_type.clone(), location))
+            Expression::Literal(Literal::Integer(
+                (byte as u128).into(),
+                false,
+                int_type.clone(),
+                location,
+            ))
         });
 
         let typ = Type::Slice(Box::new(int_type));
@@ -1549,7 +1543,7 @@ impl<'interner> Monomorphizer<'interner> {
         match typ {
             ast::Type::Field | ast::Type::Integer(..) => {
                 let typ = typ.clone();
-                ast::Expression::Literal(ast::Literal::Integer(0_u128.into(), typ, location))
+                ast::Expression::Literal(ast::Literal::Integer(0_u128.into(), false, typ, location))
             }
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
             ast::Type::Unit => ast::Expression::Literal(ast::Literal::Unit),
@@ -1704,7 +1698,8 @@ impl<'interner> Monomorphizer<'interner> {
                 let operator =
                     if matches!(operator.kind, Less | Greater) { Equal } else { NotEqual };
 
-                let int_value = ast::Literal::Integer(ordering_value, ast::Type::Field, location);
+                let int_value =
+                    ast::Literal::Integer(ordering_value, false, ast::Type::Field, location);
                 let rhs = Box::new(ast::Expression::Literal(int_value));
                 let lhs = Box::new(ast::Expression::ExtractTupleField(Box::new(result), 0));
 

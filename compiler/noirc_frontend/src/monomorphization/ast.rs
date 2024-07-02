@@ -93,7 +93,7 @@ pub struct For {
 pub enum Literal {
     Array(ArrayLiteral),
     Slice(ArrayLiteral),
-    Integer(FieldElement, Type, Location),
+    Integer(FieldElement, /*sign*/ bool, Type, Location), // false for positive integer and true for negative
     Bool(bool),
     Unit,
     Str(String),
