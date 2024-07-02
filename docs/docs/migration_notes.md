@@ -6,6 +6,10 @@ keywords: [sandbox, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
+## 0.45.0
+### [Aztec.nr] Remove unencrypted logs from private
+They leak privacy so is a footgun!
+
 ## 0.44.0
 ### [Aztec.nr] Autogenerate Serialize methods for events
 ```diff
