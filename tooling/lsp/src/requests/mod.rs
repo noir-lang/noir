@@ -1,13 +1,20 @@
 use std::future::Future;
 
-use crate::types::{CodeLensOptions, InitializeParams};
+use crate::{
+    parse_diff, resolve_workspace_for_source_path,
+    types::{CodeLensOptions, InitializeParams},
+};
 use async_lsp::{ErrorCode, ResponseError};
 use fm::{codespan_files::Error, FileMap, PathString};
 use lsp_types::{
-    DeclarationCapability, Location, Position, TextDocumentSyncCapability, TextDocumentSyncKind,
-    TypeDefinitionProviderCapability, Url, WorkDoneProgressOptions,
+    DeclarationCapability, Location, Position, TextDocumentPositionParams,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TypeDefinitionProviderCapability, Url,
+    WorkDoneProgressOptions,
 };
+use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo_fmt::Config;
+use noirc_driver::file_manager_with_stdlib;
+use noirc_frontend::macros_api::NodeInterner;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -249,6 +256,51 @@ pub(crate) fn on_shutdown(
     _params: (),
 ) -> impl Future<Output = Result<(), ResponseError>> {
     async { Ok(()) }
+}
+
+pub(crate) fn process_request<F, T>(
+    state: &mut LspState,
+    text_document_position_params: TextDocumentPositionParams,
+    callback: F,
+) -> Result<T, ResponseError>
+where
+    F: FnOnce(noirc_errors::Location, &NodeInterner, &FileMap) -> T,
+{
+    let file_path =
+        text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
+            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+        })?;
+
+    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
+    let package = workspace.members.first().unwrap();
+
+    let package_root_path: String = package.root_dir.as_os_str().to_string_lossy().into();
+
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_diff(&workspace_file_manager, state);
+
+    let (mut context, crate_id) =
+        crate::prepare_package(&workspace_file_manager, &parsed_files, package);
+
+    let interner;
+    if let Some(def_interner) = state.cached_definitions.get(&package_root_path) {
+        interner = def_interner;
+    } else {
+        // We ignore the warnings and errors produced by compilation while resolving the definition
+        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, false);
+        interner = &context.def_interner;
+    }
+
+    let files = context.file_manager.as_file_map();
+
+    let location = position_to_location(
+        files,
+        &PathString::from(file_path),
+        &text_document_position_params.position,
+    )?;
+
+    Ok(callback(location, interner, files))
 }
 
 #[cfg(test)]

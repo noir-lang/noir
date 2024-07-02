@@ -18,6 +18,10 @@ impl NodeInterner {
         // Note: we can modify this in the future to not do a linear
         // scan by storing a separate map of the spans or by sorting the locations.
         for (index, interned_location) in self.id_to_location.iter() {
+            if interned_location.file != location.file {
+                continue;
+            }
+
             if interned_location.contains(&location) {
                 if let Some(current_location) = location_candidate {
                     if interned_location.span.is_smaller(&current_location.1.span) {
@@ -38,12 +42,16 @@ impl NodeInterner {
         location: Location,
         return_type_location_instead: bool,
     ) -> Option<Location> {
-        self.find_location_index(location)
-            .and_then(|index| self.resolve_location(index, return_type_location_instead))
-            .or_else(|| self.try_resolve_trait_impl_location(location))
-            .or_else(|| self.try_resolve_trait_method_declaration(location))
-            .or_else(|| self.try_resolve_type_ref(location))
-            .or_else(|| self.try_resolve_type_alias(location))
+        // First try to find the location in the reference graph
+        self.find_referenced_location(location).or_else(|| {
+            // Otherwise fallback to the location indices
+            self.find_location_index(location)
+                .and_then(|index| self.resolve_location(index, return_type_location_instead))
+                .or_else(|| self.try_resolve_trait_impl_location(location))
+                .or_else(|| self.try_resolve_trait_method_declaration(location))
+                .or_else(|| self.try_resolve_type_ref(location))
+                .or_else(|| self.try_resolve_type_alias(location))
+        })
     }
 
     pub fn get_declaration_location_from(&self, location: Location) -> Option<Location> {
