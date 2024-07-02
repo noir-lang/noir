@@ -1494,7 +1494,7 @@ impl<'context> Elaborator<'context> {
             traits: BTreeMap::new(),
             trait_impls: Vec::new(),
             globals: Vec::new(),
-            impls: std::collections::HashMap::new(),
+            impls: rustc_hash::FxHashMap::default(),
         };
 
         items.functions = function_sets;
