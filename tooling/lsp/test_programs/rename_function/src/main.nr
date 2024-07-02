@@ -14,9 +14,8 @@ fn main() {
     let _ = another_function();
 }
 
-
 mod foo {
-    fn yet_another_function() -> Field {
+    fn some_other_function() -> Field {
         crate::another_function()
     }
 }

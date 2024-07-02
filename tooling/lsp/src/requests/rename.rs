@@ -137,28 +137,32 @@ mod rename_tests {
     use lsp_types::{Position, Range, WorkDoneProgressParams};
     use tokio::test;
 
-    async fn check_rename_succeeds(directory: &str, name: &str, ranges: &[Range]) {
+    async fn check_rename_succeeds(directory: &str, name: &str) {
         let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
 
         let main_path = noir_text_document.path();
 
-        // As we process the rename requests we'll check that the request position actually
-        // includes the target name.
+        // First we find out all of the occurrences of `name` in the main.nr file.
+        // Note that this only works if that name doesn't show up in other places where we don't
+        // expect a rename, but we craft our tests to avoid that.
         let file_contents = std::fs::read_to_string(main_path)
             .unwrap_or_else(|_| panic!("Couldn't read file {}", main_path));
-
         let file_lines: Vec<&str> = file_contents.lines().collect();
+        let ranges: Vec<_> = file_lines
+            .iter()
+            .enumerate()
+            .filter_map(|(line_num, line)| {
+                line.find(name).map(|index| {
+                    let start = Position { line: line_num as u32, character: index as u32 };
+                    let end =
+                        Position { line: line_num as u32, character: (index + name.len()) as u32 };
+                    Range { start, end }
+                })
+            })
+            .collect();
 
         // Test renaming works on any instance of the symbol.
-        for target_range in ranges {
-            assert_eq!(target_range.start.line, target_range.end.line);
-
-            // Check that the range includes the target name
-            let line = file_lines[target_range.start.line as usize];
-            let chunk =
-                &line[target_range.start.character as usize..target_range.end.character as usize];
-            assert_eq!(chunk, name);
-
+        for target_range in &ranges {
             let target_position = target_range.start;
 
             let params = RenameParams {
@@ -206,72 +210,16 @@ mod rename_tests {
 
     #[test]
     async fn test_rename_function() {
-        const ANOTHER_FUNCTION_REFERENCE: Range = Range {
-            start: Position { line: 9, character: 12 },
-            end: Position { line: 9, character: 28 },
-        };
-        const ANOTHER_FUNCTION_DECLARATION: Range = Range {
-            start: Position { line: 4, character: 3 },
-            end: Position { line: 4, character: 19 },
-        };
-        // The ranges of positions which represent the usage of the `another_function` symbol.
-        const ANOTHER_FUNCTION_RANGES: &[Range] = &[
-            ANOTHER_FUNCTION_DECLARATION,
-            ANOTHER_FUNCTION_REFERENCE,
-            Range {
-                start: Position { line: 13, character: 12 },
-                end: Position { line: 13, character: 28 },
-            },
-            Range {
-                start: Position { line: 19, character: 15 },
-                end: Position { line: 19, character: 31 },
-            },
-        ];
-
-        check_rename_succeeds("rename_function", "another_function", ANOTHER_FUNCTION_RANGES).await;
+        check_rename_succeeds("rename_function", "another_function").await;
     }
 
     #[test]
     async fn test_rename_qualified_function() {
-        const BAR_FUNCTION_REFERENCE: Range = Range {
-            start: Position { line: 1, character: 9 },
-            end: Position { line: 1, character: 12 },
-        };
-        const BAR_FUNCTION_DECLARATION: Range = Range {
-            start: Position { line: 5, character: 11 },
-            end: Position { line: 5, character: 14 },
-        };
-        // The ranges of positions which represent the usage of the `bar` symbol.
-        const BAR_FUNCTION_RANGES: &[Range] = &[BAR_FUNCTION_REFERENCE, BAR_FUNCTION_DECLARATION];
-
-        check_rename_succeeds("rename_qualified_function", "bar", BAR_FUNCTION_RANGES).await;
+        check_rename_succeeds("rename_qualified_function", "bar").await;
     }
 
     #[test]
     async fn test_rename_struct() {
-        const FOO_RANGES: &[Range] = &[
-            Range {
-                start: Position { line: 0, character: 7 },
-                end: Position { line: 0, character: 10 },
-            },
-            Range {
-                start: Position { line: 5, character: 15 },
-                end: Position { line: 5, character: 18 },
-            },
-            Range {
-                start: Position { line: 6, character: 15 },
-                end: Position { line: 6, character: 18 },
-            },
-            Range {
-                start: Position { line: 7, character: 8 },
-                end: Position { line: 7, character: 11 },
-            },
-            Range {
-                start: Position { line: 11, character: 12 },
-                end: Position { line: 11, character: 15 },
-            },
-        ];
-
-        check_rename_succeeds("rename_struct", "Foo", FOO_RANGES).await;
+        check_rename_succeeds("rename_struct", "Foo").await;
     }
 }
