@@ -17,7 +17,7 @@ pub(crate) fn on_prepare_rename_request(
     params: TextDocumentPositionParams,
 ) -> impl Future<Output = Result<Option<PrepareRenameResponse>, ResponseError>> {
     let result = process_request(state, params, |location, interner, _| {
-        let rename_possible = interner.check_rename_possible(location);
+        let rename_possible = interner.is_location_known(location);
         Some(PrepareRenameResponse::DefaultBehavior { default_behavior: rename_possible })
     });
     future::ready(result)
@@ -29,7 +29,7 @@ pub(crate) fn on_rename_request(
 ) -> impl Future<Output = Result<Option<WorkspaceEdit>, ResponseError>> {
     let result =
         process_request(state, params.text_document_position, |location, interner, files| {
-            let rename_changes = interner.find_rename_symbols_at(location).map(|locations| {
+            let rename_changes = interner.find_all_references(location).map(|locations| {
                 let rs = locations.iter().fold(
                     HashMap::new(),
                     |mut acc: HashMap<Url, Vec<TextEdit>>, location| {
