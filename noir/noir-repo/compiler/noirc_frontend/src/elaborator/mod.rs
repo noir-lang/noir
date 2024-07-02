@@ -1270,7 +1270,7 @@ impl<'context> Elaborator<'context> {
             Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
 
         let location = Location::new(span, self.file);
-        let arguments = vec![(Value::TypeDefinition(struct_id), location)];
+        let arguments = vec![(Value::StructDefinition(struct_id), location)];
 
         let value = interpreter
             .call_function(function, arguments, TypeBindings::new(), location)

@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-NO_PARALLEL=${1:-}
-
 process_dir() {
     local dir=$1
     local current_dir=$2
@@ -62,46 +60,6 @@ for dir in $current_dir/benchmarks/*; do
     dirs_to_process+=("$dir")
 done
 
-pids=() # Array to hold PIDs of background processes
-dirs_map=() # Array to map PIDs to directories
+parallel -j0  process_dir {} "$current_dir" ::: ${dirs_to_process[@]}
 
-if [ -z $NO_PARALLEL ]; then
-    # Process directories in parallel
-    for dir in "${dirs_to_process[@]}"; do
-        process_dir "$dir" "$current_dir" &  # Run process_dir in the background
-        pid=$!  # Get PID of the last background command
-        pids+=($pid)  # Add PID to the pids array
-        dirs_map[$pid]=$dir  # Map PID to the directory being processed
-    done
-else
-    # Process directories sequentially
-    for dir in "${dirs_to_process[@]}"; do
-        process_dir "$dir" "$current_dir"  # Run process_dir in the foreground
-        pid=$!  # Get PID of the last command
-        pids+=($pid)  # Add PID to the pids array
-        dirs_map[$pid]=$dir  # Map PID to the directory being processed
-    done
-fi
-
-# Store the failed processes
-failed_pids=()
-# Check the exit status of each background job.
-for pid in "${pids[@]}"; do
-    if ! wait $pid; then  # Wait for the process to complete, check if it failed
-        exit_status=$?  # Capture the failed exit status
-        failed_pids+=($pid)
-    fi
-done
-
-echo ""
-
-# Exit with a failure status if any job failed.
-if [ ! -z "$exit_status" ]; then
-    echo "Rebuild failed for directories:"
-    # Print the failed directories after waiting for each process to complete
-    for pid in "${failed_pids[@]}"; do
-        echo "${dirs_map[$pid]}"
-    done
-    exit $exit_status
-fi
 echo "Rebuild Succeeded!"
