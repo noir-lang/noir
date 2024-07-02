@@ -29,7 +29,7 @@ export default {
         docs: {
           path: 'processed-docs',
           sidebarPath: './sidebars.js',
-          routeBasePath: '/docs',
+          routeBasePath: 'docs',
           remarkPlugins: [math],
           rehypePlugins: [katex],
           versions: {
@@ -151,6 +151,17 @@ export default {
         };
       },
     }),
+    [
+      '@docusaurus/plugin-client-redirects',
+      {
+        redirects: [
+          {
+            to: '/docs/:match*',
+            from: '/:match*',
+          },
+        ],
+      },
+    ],
     [
       'docusaurus-plugin-typedoc',
       {
