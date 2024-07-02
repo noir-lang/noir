@@ -14,9 +14,8 @@ use dep::types::{
 };
 
 struct PrivateKernelInitHints {
+    // TODO: Remove note_hash_nullifier_counters.
     note_hash_nullifier_counters: [u32; MAX_NEW_NOTE_HASHES_PER_CALL],
-    // TODO: Build the following hint in noir.
-    first_revertible_private_call_request_index: u32,
 }
 
 // Initialization struct for private inputs to the private kernel
@@ -29,7 +28,7 @@ struct PrivateKernelInitCircuitPrivateInputs {
 impl PrivateKernelInitCircuitPrivateInputs {
     unconstrained fn generate_output(self) -> PrivateKernelCircuitPublicInputs {
         let private_call_public_inputs = self.private_call.call_stack_item.public_inputs;
-        PrivateKernelCircuitPublicInputsComposer::new_from_tx_request(self.tx_request, private_call_public_inputs).compose(
+        PrivateKernelCircuitPublicInputsComposer::new_from_tx_request(self.tx_request, private_call_public_inputs).with_private_call(
             private_call_public_inputs,
             self.private_call.call_stack_item.contract_address,
             self.hints.note_hash_nullifier_counters,
@@ -44,7 +43,7 @@ impl PrivateKernelInitCircuitPrivateInputs {
 
         // Validate inputs.
         let private_call_data_validator = PrivateCallDataValidator::new(self.private_call);
-        private_call_data_validator.validate_as_first_call(self.hints.first_revertible_private_call_request_index);
+        private_call_data_validator.validate_as_first_call();
         private_call_data_validator.validate_against_tx_request(self.tx_request);
         private_call_data_validator.validate(output.end.new_note_hashes);
         if !std::runtime::is_unconstrained() {
@@ -87,10 +86,7 @@ mod tests {
         pub fn new() -> Self {
             let private_call = FixtureBuilder::new();
             let tx_request = private_call.build_tx_request();
-            let hints = PrivateKernelInitHints {
-                note_hash_nullifier_counters: [0; MAX_NEW_NOTE_HASHES_PER_CALL],
-                first_revertible_private_call_request_index: 0
-            };
+            let hints = PrivateKernelInitHints { note_hash_nullifier_counters: [0; MAX_NEW_NOTE_HASHES_PER_CALL] };
             PrivateKernelInitInputsBuilder { tx_request, private_call, hints }
         }
 

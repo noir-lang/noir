@@ -18,7 +18,6 @@ use dep::types::{
 
 struct PrivateCallDataValidatorBuilder {
     private_call: FixtureBuilder,
-    first_revertible_private_call_request_index: u32,
     previous_note_hashes: BoundedVec<ScopedNoteHash, 4>,
 }
 
@@ -31,7 +30,7 @@ impl PrivateCallDataValidatorBuilder {
     pub fn new_from_counter(counter: u32) -> Self {
         let private_call = FixtureBuilder::new_from_counter(counter);
         let previous_note_hashes = BoundedVec::new();
-        PrivateCallDataValidatorBuilder { private_call, first_revertible_private_call_request_index: 0, previous_note_hashes }
+        PrivateCallDataValidatorBuilder { private_call, previous_note_hashes }
     }
 
     pub fn is_delegate_call(&mut self) -> Self {
@@ -53,7 +52,7 @@ impl PrivateCallDataValidatorBuilder {
 
     pub fn validate_as_first_call(self) {
         let private_call = self.private_call.to_private_call_data();
-        PrivateCallDataValidator::new(private_call).validate_as_first_call(self.first_revertible_private_call_request_index);
+        PrivateCallDataValidator::new(private_call).validate_as_first_call();
     }
 
     pub fn validate_against_tx_request(self, request: TxRequest) {

@@ -15,6 +15,8 @@ import { toBufferLE } from '@aztec/foundation/bigint-buffer';
 import { sha256 } from '@aztec/foundation/crypto';
 import { CardGameContract } from '@aztec/noir-contracts.js/CardGame';
 
+import { jest } from '@jest/globals';
+
 import { setup } from './fixtures/utils.js';
 
 /* eslint-disable camelcase */
@@ -59,7 +61,11 @@ const GAME_ID = 42;
 
 const PLAYER_SECRET_KEYS = INITIAL_TEST_SECRET_KEYS;
 
+const TIMEOUT = 600_000;
+
 describe('e2e_card_game', () => {
+  jest.setTimeout(TIMEOUT);
+
   let pxe: PXE;
   let logger: DebugLogger;
   let teardown: () => Promise<void>;

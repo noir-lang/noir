@@ -2,7 +2,10 @@ use crate::{
     abis::{
     gas::Gas, gas_settings::GasSettings, call_context::CallContext,
     call_request::{CallerContext, CallRequest},
-    accumulated_data::{CombinedAccumulatedData, PrivateAccumulatedData, PrivateAccumulatedDataBuilder, PublicAccumulatedData},
+    accumulated_data::{
+    CombinedAccumulatedData, PrivateAccumulatedData, PrivateAccumulatedDataBuilder,
+    PublicAccumulatedData, PublicAccumulatedDataBuilder
+},
     function_data::FunctionData, global_variables::GlobalVariables,
     combined_constant_data::CombinedConstantData,
     kernel_circuit_public_inputs::{KernelCircuitPublicInputs, PrivateKernelCircuitPublicInputs, PublicKernelCircuitPublicInputs},
@@ -283,8 +286,8 @@ impl FixtureBuilder {
         }
     }
 
-    pub fn to_private_accumulated_data(self) -> PrivateAccumulatedData {
-        let public_inputs = PrivateAccumulatedDataBuilder {
+    pub fn to_private_accumulated_data_builder(self) -> PrivateAccumulatedDataBuilder {
+        PrivateAccumulatedDataBuilder {
             new_note_hashes: self.new_note_hashes,
             new_nullifiers: self.new_nullifiers,
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs,
@@ -293,19 +296,67 @@ impl FixtureBuilder {
             unencrypted_logs_hashes: self.unencrypted_logs_hashes,
             private_call_stack: vec_reverse(self.private_call_requests),
             public_call_stack: self.public_call_requests
+        }
+    }
+
+    pub fn to_private_accumulated_data(self) -> PrivateAccumulatedData {
+        self.to_private_accumulated_data_builder().finish()
+    }
+
+    pub fn to_public_accumulated_data_builder(self) -> PublicAccumulatedDataBuilder {
+        let new_note_hashes = BoundedVec {
+            storage: self.new_note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash),
+            len: self.new_note_hashes.len()
         };
-        public_inputs.finish()
+        let new_nullifiers = BoundedVec {
+            storage: self.new_nullifiers.storage.map(|n: ScopedNullifier| n.nullifier),
+            len: self.new_nullifiers.len()
+        };
+        let new_l2_to_l1_msgs = BoundedVec {
+            storage: self.new_l2_to_l1_msgs.storage.map(|m: ScopedL2ToL1Message| m.message.content),
+            len: self.new_l2_to_l1_msgs.len()
+        };
+        let note_encrypted_logs_hashes = BoundedVec {
+            storage: self.note_encrypted_logs_hashes.storage.map(|l: NoteLogHash| LogHash { value: l.value, counter: l.counter, length: l.length }),
+            len: self.note_encrypted_logs_hashes.len()
+        };
+        let encrypted_logs_hashes = BoundedVec {
+            storage: self.encrypted_logs_hashes.storage.map(|l: ScopedEncryptedLogHash| l.log_hash).map(|l: EncryptedLogHash| LogHash { value: l.value, counter: l.counter, length: l.length }),
+            len: self.encrypted_logs_hashes.len()
+        };
+        let unencrypted_logs_hashes = BoundedVec {
+            storage: self.unencrypted_logs_hashes.storage.map(|l: ScopedLogHash| l.log_hash),
+            len: self.unencrypted_logs_hashes.len()
+        };
+
+        PublicAccumulatedDataBuilder {
+            new_note_hashes,
+            new_nullifiers,
+            new_l2_to_l1_msgs,
+            note_encrypted_logs_hashes,
+            encrypted_logs_hashes,
+            unencrypted_logs_hashes,
+            public_data_update_requests: self.public_data_update_requests,
+            public_call_stack: self.public_call_requests,
+            gas_used: self.gas_used
+        }
     }
 
     pub fn to_public_accumulated_data(self) -> PublicAccumulatedData {
+        self.to_public_accumulated_data_builder().finish()
+    }
+
+    pub fn to_exposed_public_accumulated_data(self) -> PublicAccumulatedData {
         PublicAccumulatedData {
-            new_note_hashes: self.new_note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash),
-            new_nullifiers: self.new_nullifiers.storage.map(|n: ScopedNullifier| n.nullifier),
+            new_note_hashes: self.new_note_hashes.storage.map(|n: ScopedNoteHash| n.expose_to_public()),
+            new_nullifiers: self.new_nullifiers.storage.map(|n: ScopedNullifier| n.expose_to_public()),
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage.map(|m: ScopedL2ToL1Message| m.message.content),
             note_encrypted_logs_hashes: self.note_encrypted_logs_hashes.storage.map(|l: NoteLogHash| l.expose_to_public()),
             encrypted_logs_hashes: self.encrypted_logs_hashes.storage.map(|l: ScopedEncryptedLogHash| l.expose_to_public()),
-            unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage.map(|l: ScopedLogHash| l.log_hash),
+            unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage.map(|l: ScopedLogHash| l.expose_to_public()),
             public_data_update_requests: self.public_data_update_requests.storage,
+            // TODO: Hide the counter of a public call request.
+            // public_call_stack: self.public_call_requests.storage.map(|cr: CallRequest| cr.expose_to_public()),
             public_call_stack: self.public_call_requests.storage,
             gas_used: self.gas_used
         }
@@ -361,6 +412,7 @@ impl FixtureBuilder {
     }
 
     pub fn to_public_kernel_circuit_public_inputs(self, revertible: bool) -> PublicKernelCircuitPublicInputs {
+        // TODO: Split the data using self.min_revertible_side_effect_counter.
         let accumulated_data = self.to_public_accumulated_data();
         let end_non_revertible = if revertible {
             PublicAccumulatedData::empty()
@@ -468,6 +520,13 @@ impl FixtureBuilder {
                 self.add_note_encrypted_log_hash(log_hash, length, self.counter - 1);
             }
         }
+    }
+
+    pub fn set_first_nullifier(&mut self) {
+        assert_eq(self.new_nullifiers.len(), 0, "first nullifier already set");
+        let value = self.mock_nullifier_value(0);
+        let first_nullifier = Nullifier { value, counter: 0, note_hash: 0 }.scope(AztecAddress::zero());
+        self.new_nullifiers.push(first_nullifier);
     }
 
     pub fn add_nullifier(&mut self, value: Field) {
@@ -661,6 +720,13 @@ impl FixtureBuilder {
         self.encrypted_log_preimages_length += length;
     }
 
+    pub fn add_siloed_encrypted_log_hash(&mut self, hash: Field, length: Field) {
+        let mut log_hash = EncryptedLogHash { value: hash, counter: self.next_counter(), length, randomness: 2 }.scope(self.storage_contract_address);
+        log_hash.log_hash.value = silo_encrypted_log_hash(log_hash);
+        self.encrypted_logs_hashes.push(log_hash);
+        self.encrypted_log_preimages_length += length;
+    }
+
     pub fn append_encrypted_log_hashes(&mut self, num: u32) {
         let index_offset = self.encrypted_logs_hashes.len();
         for i in 0..self.encrypted_logs_hashes.max_len() {
@@ -685,6 +751,13 @@ impl FixtureBuilder {
     pub fn add_unencrypted_log_hash(&mut self, hash: Field, length: Field) {
         let log_hash = LogHash { value: hash, counter: self.next_counter(), length };
         self.unencrypted_logs_hashes.push(log_hash.scope(self.storage_contract_address));
+        self.unencrypted_log_preimages_length += length;
+    }
+
+    pub fn add_siloed_unencrypted_log_hash(&mut self, hash: Field, length: Field) {
+        let mut log_hash = LogHash { value: hash, counter: self.next_counter(), length }.scope(self.storage_contract_address);
+        log_hash.log_hash.value = silo_unencrypted_log_hash(log_hash);
+        self.unencrypted_logs_hashes.push(log_hash);
         self.unencrypted_log_preimages_length += length;
     }
 

@@ -117,9 +117,10 @@ mod tests {
     },
         hash::{compute_siloed_nullifier, sha256_to_field},
         public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
-        tests::{fixture_builder::FixtureBuilder, merkle_tree_utils::NonEmptyMerkleTree, sort::sort_get_sorted_hints},
+        tests::{fixture_builder::FixtureBuilder, merkle_tree_utils::NonEmptyMerkleTree},
         traits::is_empty, partial_state_reference::PartialStateReference,
-        utils::arrays::{array_length, array_merge}, merkle_tree::MembershipWitness
+        utils::arrays::{array_length, array_merge, sort_get_sorted_hints},
+        merkle_tree::MembershipWitness
     };
 
     fn build_nullifier_tree<N>() -> NonEmptyMerkleTree<MAX_NEW_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT> {

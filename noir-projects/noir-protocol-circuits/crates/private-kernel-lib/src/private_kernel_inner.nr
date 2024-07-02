@@ -25,7 +25,7 @@ struct PrivateKernelInnerCircuitPrivateInputs {
 
 impl PrivateKernelInnerCircuitPrivateInputs {
     unconstrained fn generate_output(self) -> PrivateKernelCircuitPublicInputs {
-        PrivateKernelCircuitPublicInputsComposer::new_from_previous_kernel(self.previous_kernel.public_inputs).compose(
+        PrivateKernelCircuitPublicInputsComposer::new_from_previous_kernel(self.previous_kernel.public_inputs).pop_top_call_request().with_private_call(
             self.private_call.call_stack_item.public_inputs,
             self.private_call.call_stack_item.contract_address,
             self.hints.note_hash_nullifier_counters,

@@ -5,9 +5,8 @@ use dep::types::{
     MAX_NEW_NULLIFIERS_PER_TX, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, NULLIFIER_TREE_HEIGHT,
     NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT
 },
-    merkle_tree::MembershipWitness,
-    tests::{merkle_tree_utils::NonEmptyMerkleTree, sort::sort_get_sorted_hints},
-    utils::{arrays::find_index, field::full_field_greater_than}
+    merkle_tree::MembershipWitness, tests::{merkle_tree_utils::NonEmptyMerkleTree},
+    utils::{arrays::{find_index, sort_get_sorted_hints}, field::full_field_greater_than}
 };
 
 struct NullifierNonExistentReadRequestHintsBuilder {

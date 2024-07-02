@@ -17,3 +17,11 @@ pub fn assert_array_eq<T, N, S>(array: [T; N], expected: [T; S]) where T: Empty 
         assert_eq(array[i], expected[i], "mismatch array elements");
     }
 }
+
+// Swap two items in a BoundedVec.
+// Useful when we want to shuffle side effects, which by default are ordered by counters when we add mock data to FixtureBuilder.
+pub fn swap_items<T, N>(vec: &mut BoundedVec<T, N>, from_index: u64, to_index: u64) {
+    let tmp = vec.storage[from_index];
+    vec.storage[from_index] = vec.storage[to_index];
+    vec.storage[to_index] = tmp;
+}

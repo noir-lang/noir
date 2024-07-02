@@ -13,15 +13,17 @@ impl PreviousKernelValidator {
     }
 
     pub fn validate_for_private_tail(self) {
-        self.validate_empty_private_call_stack();
+        self.validate_common();
         self.validate_empty_public_call_stack();
-        self.verify_empty_validation_requests();
-        self.verify_no_transient_data();
     }
 
     pub fn validate_for_private_tail_to_public(self) {
-        self.validate_empty_private_call_stack();
+        self.validate_common();
         self.validate_non_empty_public_call_stack();
+    }
+
+    fn validate_common(self) {
+        self.validate_empty_private_call_stack();
         self.verify_empty_validation_requests();
         self.verify_no_transient_data();
     }

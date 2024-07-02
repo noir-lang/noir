@@ -5,10 +5,7 @@ import { TxRequest } from '../tx_request.js';
 import { PrivateCallData } from './private_call_data.js';
 
 export class PrivateKernelInitHints {
-  constructor(
-    public noteHashNullifierCounters: Tuple<number, typeof MAX_NEW_NOTE_HASHES_PER_CALL>,
-    public firstRevertiblePrivateCallRequestIndex: number,
-  ) {}
+  constructor(public noteHashNullifierCounters: Tuple<number, typeof MAX_NEW_NOTE_HASHES_PER_CALL>) {}
 
   toBuffer() {
     return serializeToBuffer(this.noteHashNullifierCounters);
@@ -16,7 +13,7 @@ export class PrivateKernelInitHints {
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new PrivateKernelInitHints(reader.readNumbers(MAX_NEW_NOTE_HASHES_PER_CALL), reader.readNumber());
+    return new PrivateKernelInitHints(reader.readNumbers(MAX_NEW_NOTE_HASHES_PER_CALL));
   }
 }
 

@@ -215,12 +215,13 @@ mod tests {
         // Setup 2 new note hashes and logs on the previous kernel.
         builder.previous_kernel.append_new_note_hashes_with_logs(2);
         let previous = builder.previous_kernel.new_note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash);
+        let prev_data = builder.previous_kernel.to_public_accumulated_data();
+        let prev_note_logs = prev_data.note_encrypted_logs_hashes;
         // Setup 2 new note hashes on the current public inputs.
         let current = [
             NoteHash { value: previous[1].value + 1, counter: 5 },
             NoteHash { value: previous[1].value + 2, counter: 6 }
         ];
-        let note_logs = builder.previous_kernel.note_encrypted_logs_hashes.storage;
         builder.public_call.public_inputs.new_note_hashes.extend_from_array(current);
         let siloed = current.map(|c: NoteHash| compute_siloed_note_hash(contract_address, c.value));
         let new_note_hashes = [
@@ -233,7 +234,7 @@ mod tests {
         assert(
             array_eq(
                 public_inputs.end.note_encrypted_logs_hashes,
-                [note_logs[0].expose_to_public(), note_logs[1].expose_to_public()]
+                [prev_note_logs[0], prev_note_logs[1]]
             )
         );
     }
@@ -347,14 +348,15 @@ mod tests {
             prev_unencrypted_logs_hash,
             prev_unencrypted_log_preimages_length
         );
+        let prev_data = builder.previous_kernel.to_public_accumulated_data();
 
         let mut expected_unencrypted_logs = [
-            builder.previous_kernel.unencrypted_logs_hashes.storage[0].log_hash, builder.public_call.public_inputs.unencrypted_logs_hashes.storage[0]
+            prev_data.unencrypted_logs_hashes[0], builder.public_call.public_inputs.unencrypted_logs_hashes.storage[0]
         ];
         // silo the new log hash
         expected_unencrypted_logs[1].value = compute_siloed_unencrypted_log_hash(builder.public_call.contract_address, expected_unencrypted_logs[1].value);
         // we assume the encrypted log is already siloed from private kernels
-        let expected_encrypted_logs = [builder.previous_kernel.encrypted_logs_hashes.storage[0].expose_to_public()];
+        let expected_encrypted_logs = [prev_data.encrypted_logs_hashes[0]];
 
         let public_inputs = builder.execute();
 

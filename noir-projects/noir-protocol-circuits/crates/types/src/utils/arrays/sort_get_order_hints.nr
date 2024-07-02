@@ -8,7 +8,7 @@ use crate::{
 
 struct OrderHint {
     counter: u32,
-    sorted_index: u64,
+    sorted_index: u32,
 }
 
 impl OrderHint {
@@ -23,7 +23,7 @@ impl Eq for OrderHint {
     }
 }
 
-fn sort_get_order_hints<T, N>(
+pub fn sort_get_order_hints<T, N>(
     array: [T; N],
     ordering: fn(T, T) -> bool
 ) -> [OrderHint; N] where T: Ordered + Eq + Empty {

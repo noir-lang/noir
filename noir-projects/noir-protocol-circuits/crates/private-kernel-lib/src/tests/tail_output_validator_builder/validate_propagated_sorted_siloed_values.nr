@@ -1,4 +1,5 @@
-use crate::tests::kernel_circuit_output_validator_builder::{KernelCircuitOutputValidatorBuilder, utils::swap_items};
+use crate::tests::tail_output_validator_builder::TailOutputValidatorBuilder;
+use dep::types::tests::utils::swap_items;
 
 /**
  * new_note_hashes
@@ -6,7 +7,7 @@ use crate::tests::kernel_circuit_output_validator_builder::{KernelCircuitOutputV
 
 #[test]
 fn validate_propagated_sorted_siloed_values_new_note_hashes_succeeds() {
-    let mut builder = KernelCircuitOutputValidatorBuilder::new();
+    let mut builder = TailOutputValidatorBuilder::new();
 
     builder.previous_kernel.append_new_note_hashes(3);
     builder.output.append_siloed_note_hashes(3);
@@ -16,7 +17,7 @@ fn validate_propagated_sorted_siloed_values_new_note_hashes_succeeds() {
 
 #[test]
 fn validate_propagated_sorted_siloed_values_new_note_hashes_unordered_succeeds() {
-    let mut builder = KernelCircuitOutputValidatorBuilder::new();
+    let mut builder = TailOutputValidatorBuilder::new();
 
     builder.previous_kernel.append_new_note_hashes(3);
     swap_items(&mut builder.previous_kernel.new_note_hashes, 0, 2);
@@ -31,7 +32,7 @@ fn validate_propagated_sorted_siloed_values_new_note_hashes_unordered_succeeds()
 
 #[test(should_fail_with="mismatch sorted values")]
 fn validate_propagated_sorted_siloed_values_new_note_hashes_mismatch_hash_fails() {
-    let mut builder = KernelCircuitOutputValidatorBuilder::new();
+    let mut builder = TailOutputValidatorBuilder::new();
 
     builder.previous_kernel.append_new_note_hashes(2);
     builder.output.append_siloed_note_hashes(2);
@@ -47,7 +48,7 @@ fn validate_propagated_sorted_siloed_values_new_note_hashes_mismatch_hash_fails(
 
 #[test]
 fn validate_propagated_sorted_siloed_values_new_nullifiers_succeeds() {
-    let mut builder = KernelCircuitOutputValidatorBuilder::new();
+    let mut builder = TailOutputValidatorBuilder::new();
 
     builder.previous_kernel.append_new_nullifiers(3);
     builder.output.append_siloed_nullifiers(3);
@@ -57,7 +58,7 @@ fn validate_propagated_sorted_siloed_values_new_nullifiers_succeeds() {
 
 #[test]
 fn validate_propagated_sorted_siloed_values_new_nullifiers_unordered_succeeds() {
-    let mut builder = KernelCircuitOutputValidatorBuilder::new();
+    let mut builder = TailOutputValidatorBuilder::new();
 
     builder.previous_kernel.append_new_nullifiers(3);
     swap_items(&mut builder.previous_kernel.new_nullifiers, 0, 3);
@@ -68,7 +69,7 @@ fn validate_propagated_sorted_siloed_values_new_nullifiers_unordered_succeeds() 
 
 #[test(should_fail_with="mismatch sorted values")]
 fn validate_propagated_sorted_siloed_values_new_nullifiers_mismatch_hash_fails() {
-    let mut builder = KernelCircuitOutputValidatorBuilder::new();
+    let mut builder = TailOutputValidatorBuilder::new();
 
     builder.previous_kernel.append_new_nullifiers(3);
     builder.output.append_siloed_nullifiers(3);
@@ -84,7 +85,7 @@ fn validate_propagated_sorted_siloed_values_new_nullifiers_mismatch_hash_fails()
 
 #[test]
 fn validate_propagated_sorted_siloed_values_new_l2_to_l1_msgs_succeeds() {
-    let mut builder = KernelCircuitOutputValidatorBuilder::new();
+    let mut builder = TailOutputValidatorBuilder::new();
 
     builder.previous_kernel.append_new_l2_to_l1_msgs(2);
     builder.output.append_siloed_l2_to_l1_msgs(2);
@@ -94,7 +95,7 @@ fn validate_propagated_sorted_siloed_values_new_l2_to_l1_msgs_succeeds() {
 
 #[test]
 fn validate_propagated_sorted_siloed_values_new_l2_to_l1_msgs_unordered_succeeds() {
-    let mut builder = KernelCircuitOutputValidatorBuilder::new();
+    let mut builder = TailOutputValidatorBuilder::new();
 
     builder.previous_kernel.append_new_l2_to_l1_msgs(2);
     swap_items(&mut builder.previous_kernel.new_l2_to_l1_msgs, 0, 1);
@@ -105,7 +106,7 @@ fn validate_propagated_sorted_siloed_values_new_l2_to_l1_msgs_unordered_succeeds
 
 #[test(should_fail_with="mismatch sorted values")]
 fn validate_propagated_sorted_siloed_values_new_l2_to_l1_msgs_mismatch_hash_fails() {
-    let mut builder = KernelCircuitOutputValidatorBuilder::new();
+    let mut builder = TailOutputValidatorBuilder::new();
 
     builder.previous_kernel.append_new_l2_to_l1_msgs(2);
     builder.output.append_siloed_l2_to_l1_msgs(2);

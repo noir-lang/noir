@@ -131,6 +131,14 @@ impl Deserialize<SCOPED_LOG_HASH_LENGTH> for ScopedLogHash {
     }
 }
 
+impl ScopedLogHash {
+    pub fn expose_to_public(self) -> LogHash {
+        // Hide the counter when exposing to public.
+        // The log hash must already be siloed when we call this.
+        LogHash { value: self.log_hash.value, counter: 0, length: self.log_hash.length }
+    }
+}
+
 struct EncryptedLogHash {
     value: Field,
     counter: u32,

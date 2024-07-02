@@ -1,14 +1,20 @@
 mod assert_sorted_array;
 mod assert_sorted_transformed_value_array;
+mod assert_split_sorted_transformed_value_arrays;
 mod sort_by_counters;
 mod sort_get_order_hints;
+mod sort_get_sorted_hints;
 mod sort_get_sorted_tuple;
+mod sort_get_split_order_hints;
 
 // Re-exports.
 use assert_sorted_array::assert_sorted_array;
+use assert_split_sorted_transformed_value_arrays::{assert_split_sorted_transformed_value_arrays_asc, assert_split_sorted_transformed_value_arrays_desc};
 use assert_sorted_transformed_value_array::assert_sorted_transformed_value_array;
 use sort_by_counters::{sort_by_counters_asc, sort_by_counters_desc};
-use sort_get_order_hints::{OrderHint, sort_get_order_hints_asc};
+use sort_get_order_hints::{OrderHint, sort_get_order_hints_asc, sort_get_order_hints_desc};
+use sort_get_sorted_hints::sort_get_sorted_hints;
+use sort_get_split_order_hints::{sort_get_split_order_hints_asc, sort_get_split_order_hints_desc, SplitOrderHints};
 
 use crate::traits::{Empty, is_empty};
 use crate::abis::side_effect::{Positioned, Ordered};

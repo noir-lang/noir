@@ -39,7 +39,7 @@ struct Hints {
     sorted_unencrypted_log_hash_hints: [OrderHint; MAX_UNENCRYPTED_LOGS_PER_TX],
 }
 
-unconstrained pub fn generate_hints(previous_kernel: PrivateKernelCircuitPublicInputs) -> Hints {
+unconstrained pub fn generate_kernel_circuit_output_hints(previous_kernel: PrivateKernelCircuitPublicInputs) -> Hints {
     // note_hashes
     let sorted_note_hash_hints = sort_get_order_hints_asc(previous_kernel.end.new_note_hashes);
 

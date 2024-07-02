@@ -39,6 +39,18 @@ impl Empty for CallRequest {
     }
 }
 
+impl CallRequest {
+    pub fn expose_to_public(self) -> Self {
+        CallRequest {
+            hash: self.hash,
+            caller_contract_address: self.caller_contract_address,
+            caller_context: self.caller_context,
+            start_side_effect_counter: 0,
+            end_side_effect_counter: 0
+        }
+    }
+}
+
 impl Serialize<CALL_REQUEST_LENGTH> for CallRequest {
   fn serialize(self) -> [Field; CALL_REQUEST_LENGTH] {
     let mut fields: BoundedVec<Field, CALL_REQUEST_LENGTH> = BoundedVec::new();

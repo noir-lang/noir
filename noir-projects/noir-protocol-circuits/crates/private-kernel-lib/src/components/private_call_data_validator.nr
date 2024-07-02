@@ -1,10 +1,17 @@
+mod find_first_revertible_item_index;
+mod validate_split_ranges;
+
+use crate::components::private_call_data_validator::{
+    find_first_revertible_item_index::find_first_revertible_item_index,
+    validate_split_ranges::validate_split_ranges
+};
 use dep::types::{
     abis::{
     call_context::CallContext, call_request::CallRequest, caller_context::CallerContext,
     kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs, log_hash::NoteLogHash,
     note_hash::ScopedNoteHash, private_call_request::ScopedPrivateCallRequest,
     private_call_stack_item::PrivateCallStackItem,
-    private_circuit_public_inputs::PrivateCircuitPublicInputsArrayLengths,
+    private_circuit_public_inputs::{PrivateCircuitPublicInputs, PrivateCircuitPublicInputsArrayLengths},
     private_kernel::private_call_data::PrivateCallData, side_effect::{Ordered, RangeOrdered}
 },
     address::{AztecAddress, PartialAddress}, contract_class_id::ContractClassId,
@@ -12,10 +19,20 @@ use dep::types::{
     traits::is_empty, transaction::tx_request::TxRequest, utils::arrays::find_index
 };
 
-unconstrained fn match_log_to_note<N>(note_log: NoteLogHash, accumulated_note_hashes: [ScopedNoteHash; N]) -> u32 {
+unconstrained fn match_log_to_note<N>(
+    note_log: NoteLogHash,
+    accumulated_note_hashes: [ScopedNoteHash; N]
+) -> u32 {
     find_index(
         accumulated_note_hashes,
         |n: ScopedNoteHash| n.counter() == note_log.note_hash_counter
+    )
+}
+
+unconstrained fn find_first_revertible_private_call_request_index(public_inputs: PrivateCircuitPublicInputs) -> u32 {
+    find_first_revertible_item_index(
+        public_inputs.min_revertible_side_effect_counter,
+        public_inputs.private_call_requests
     )
 }
 
@@ -38,12 +55,7 @@ fn validate_call_request(request: CallRequest, hash: Field, caller: PrivateCallS
     }
 }
 
-fn validate_incrementing_counters_within_range<T, N>(
-    counter_start: u32,
-    counter_end: u32,
-    items: [T; N],
-    num_items: u32
-) where T: Ordered {
+fn validate_incrementing_counters_within_range<T, N>(counter_start: u32, counter_end: u32, items: [T; N], num_items: u32) where T: Ordered {
     let mut prev_counter = counter_start;
     let mut should_check = true;
     for i in 0..N {
@@ -83,27 +95,6 @@ fn validate_incrementing_counter_ranges_within_range<T, N>(
     );
 }
 
-fn validate_clean_split_ranges<T, N>(
-    min_revertible_side_effect_counter: u32,
-    first_revertible_item_index: u32,
-    items: [T; N],
-    num_items: u32
-) where T: RangeOrdered {
-    if first_revertible_item_index != 0 {
-        let last_non_revertible_item_index = first_revertible_item_index - 1;
-        let item = items[last_non_revertible_item_index];
-        assert(
-            min_revertible_side_effect_counter > item.counter_end(), "min_revertible_side_effect_counter must be greater than the end counter of the last non revertible item"
-        );
-    }
-    if first_revertible_item_index != num_items {
-        let item = items[first_revertible_item_index];
-        assert(
-            min_revertible_side_effect_counter <= item.counter_start(), "min_revertible_side_effect_counter must be less than or equal to the start counter of the first revertible item"
-        );
-    }
-}
-
 struct PrivateCallDataValidator {
     data: PrivateCallData,
     array_lengths: PrivateCircuitPublicInputsArrayLengths,
@@ -125,18 +116,19 @@ impl PrivateCallDataValidator {
         self.validate_note_logs(accumulated_note_hashes);
     }
 
-    pub fn validate_as_first_call(self, first_revertible_private_call_request_index: u32) {
+    pub fn validate_as_first_call(self) {
         let public_inputs = self.data.call_stack_item.public_inputs;
         let call_context = public_inputs.call_context;
         assert(call_context.is_delegate_call == false, "Users cannot make a delegatecall");
         assert(call_context.is_static_call == false, "Users cannot make a static call");
 
         let min_revertible_side_effect_counter = public_inputs.min_revertible_side_effect_counter;
+        let first_revertible_index = find_first_revertible_private_call_request_index(public_inputs);
         // No need to check that the min_revertible_side_effect_counter falls in the counter range of the private call.
         // It is valid as long as it does not fall in the middle of any nested call.
-        validate_clean_split_ranges(
+        validate_split_ranges(
             min_revertible_side_effect_counter,
-            first_revertible_private_call_request_index,
+            first_revertible_index,
             public_inputs.private_call_requests,
             self.array_lengths.private_call_requests
         );
