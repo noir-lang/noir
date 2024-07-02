@@ -219,6 +219,11 @@ mod rename_tests {
     }
 
     #[test]
+    async fn test_rename_function_in_use_statement() {
+        check_rename_succeeds("rename_function_use", "some_function").await;
+    }
+
+    #[test]
     async fn test_rename_struct() {
         check_rename_succeeds("rename_struct", "Foo").await;
     }
