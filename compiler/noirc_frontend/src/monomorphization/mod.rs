@@ -241,7 +241,9 @@ impl<'interner> Monomorphizer<'interner> {
                         Definition::Oracle(opcode.to_string())
                     }
                     FunctionKind::Recursive => {
-                        unreachable!("Only main can be specified as recursive, which should already be checked");
+                        let id =
+                            self.queue_function(id, expr_id, typ, turbofish_generics, trait_method);
+                        Definition::Function(id)
                     }
                 }
             }
