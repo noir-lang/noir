@@ -188,6 +188,9 @@ pub struct NodeInterner {
     /// the actual type since types do not implement Send or Sync.
     quoted_types: noirc_arena::Arena<Type>,
 
+    /// Whether to track references. In regular compilations this is false, but tools set it to true.
+    pub(crate) track_references: bool,
+
     /// Store the location of the references in the graph
     pub(crate) reference_graph: DiGraph<DependencyId, ()>,
 
@@ -536,6 +539,7 @@ impl Default for NodeInterner {
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
             quoted_types: Default::default(),
+            track_references: false,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::new(),

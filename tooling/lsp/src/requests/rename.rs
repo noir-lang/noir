@@ -96,7 +96,7 @@ where
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
     let (mut context, crate_id) =
-        nargo::prepare_package(&workspace_file_manager, &parsed_files, package);
+        crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
     let interner;
     if let Some(def_interner) = state.cached_definitions.get(&package_root_path) {

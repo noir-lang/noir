@@ -266,6 +266,16 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
     }
 }
 
+pub(crate) fn prepare_package<'file_manager, 'parsed_files>(
+    file_manager: &'file_manager FileManager,
+    parsed_files: &'parsed_files ParsedFiles,
+    package: &Package,
+) -> (Context<'file_manager, 'parsed_files>, CrateId) {
+    let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
+    context.track_references();
+    (context, crate_id)
+}
+
 /// Prepares a package from a source string
 /// This is useful for situations when we don't need dependencies
 /// and just need to operate on single file.
@@ -283,6 +293,8 @@ fn prepare_source(source: String, state: &mut LspState) -> (Context<'static, 'st
     let parsed_files = parse_diff(&file_manager, state);
 
     let mut context = Context::new(file_manager, parsed_files);
+    context.track_references();
+
     let root_crate_id = prepare_crate(&mut context, file_name);
 
     (context, root_crate_id)

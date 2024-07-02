@@ -40,6 +40,10 @@ impl NodeInterner {
     }
 
     pub(crate) fn add_reference(&mut self, referenced: DependencyId, reference: DependencyId) {
+        if !self.track_references {
+            return;
+        }
+
         let referenced_index = self.get_or_insert_reference(referenced);
         let reference_index = self.reference_graph.add_node(reference);
 
@@ -56,6 +60,10 @@ impl NodeInterner {
         referenced_id: DependencyId,
         reference: DependencyId,
     ) {
+        if !self.track_references {
+            return;
+        }
+
         let Some(referenced_index) = self.reference_graph_indices.get(&referenced_id) else {
             panic!("Compiler Error: Referenced index not found")
         };
@@ -67,6 +75,10 @@ impl NodeInterner {
     }
 
     pub(crate) fn add_definition_location(&mut self, referenced: DependencyId) {
+        if !self.track_references {
+            return;
+        }
+
         let referenced_index = self.get_or_insert_reference(referenced);
         let referenced_location = self.dependency_location(referenced);
         self.location_indices.add_location(referenced_location, referenced_index);
