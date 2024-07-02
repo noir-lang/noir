@@ -101,6 +101,14 @@ unconstrained pub fn add_note_hashes(contractAddress: AztecAddress, inner_note_h
     oracle_add_note_hashes(contractAddress, inner_note_hashes)
 }
 
+unconstrained pub fn get_function_selector() -> FunctionSelector {
+    oracle_get_function_selector()
+}
+
+unconstrained pub fn set_fn_selector(selector: FunctionSelector) {
+    oracle_set_function_selector(selector)
+}
+
 #[oracle(reset)]
 fn oracle_reset() {}
 
@@ -181,3 +189,8 @@ fn oracle_add_nullifiers(contractAddress: AztecAddress, nullifiers: [Field]) {}
 #[oracle(addNoteHashes)]
 fn oracle_add_note_hashes(contractAddress: AztecAddress, inner_note_hashes: [Field]) {}
 
+#[oracle(getFunctionSelector)]
+fn oracle_get_function_selector() -> FunctionSelector {}
+
+#[oracle(setFunctionSelector)]
+fn oracle_set_function_selector(selector: FunctionSelector) {}

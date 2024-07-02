@@ -78,13 +78,16 @@ impl<N> Deployer<N> {
         let original_fn = call_interface.get_original();
         let original_msg_sender = cheatcodes::get_msg_sender();
         let original_contract_address = cheatcodes::get_contract_address();
+        let original_fn_selector = cheatcodes::get_function_selector();
 
+        cheatcodes::set_fn_selector(call_interface.get_selector());
         cheatcodes::set_contract_address(instance.to_address());
         cheatcodes::set_msg_sender(original_contract_address);
         let mut inputs = cheatcodes::get_public_context_inputs();
         inputs.args_hash = hash_args(call_interface.get_args());
         let _result: T = original_fn(inputs);
 
+        cheatcodes::set_fn_selector(original_fn_selector);
         cheatcodes::set_contract_address(original_contract_address);
         cheatcodes::set_msg_sender(original_msg_sender);
         instance

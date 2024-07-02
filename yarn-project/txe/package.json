@@ -18,7 +18,7 @@
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests",
-    "dev": "DEBUG='aztec:*' && node ./dest/bin/index.js",
+    "dev": "DEBUG='aztec:*' LOG_LEVEL=debug && node ./dest/bin/index.js",
     "start": "node ./dest/bin/index.js"
   },
   "inherits": [

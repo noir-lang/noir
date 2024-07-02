@@ -30,6 +30,10 @@ impl TestEnvironment {
         cheatcodes::get_block_number()
     }
 
+    fn contract_address(self) -> AztecAddress {
+        cheatcodes::get_contract_address()
+    }
+
     fn advance_block_to(&mut self, block_number: u32) {
         let difference = block_number - cheatcodes::get_block_number();
         self.advance_block_by(difference);
@@ -40,7 +44,8 @@ impl TestEnvironment {
     }
 
     fn public(self) -> PublicContext {
-        PublicContext::empty()
+        let mut inputs = cheatcodes::get_public_context_inputs();
+        PublicContext::new(inputs)
     }
 
     fn private(&mut self) -> PrivateContext {
@@ -159,8 +164,11 @@ impl TestEnvironment {
         let original_fn = call_interface.get_original();
         let original_msg_sender = cheatcodes::get_msg_sender();
         let original_contract_address = cheatcodes::get_contract_address();
+        let original_fn_selector = cheatcodes::get_function_selector();
         let target_address = call_interface.get_contract_address();
+        let fn_selector = call_interface.get_selector();
 
+        cheatcodes::set_fn_selector(fn_selector);
         cheatcodes::set_contract_address(target_address);
         cheatcodes::set_msg_sender(original_contract_address);
         let mut inputs = cheatcodes::get_public_context_inputs();
@@ -168,6 +176,7 @@ impl TestEnvironment {
         inputs.is_static_call = call_interface.get_is_static();
         let result = original_fn(inputs);
 
+        cheatcodes::set_fn_selector(original_fn_selector);
         cheatcodes::set_contract_address(original_contract_address);
         cheatcodes::set_msg_sender(original_msg_sender);
         result

@@ -991,7 +991,7 @@ fn handle_storage_read(
     inputs: &Vec<ValueOrArray>,
 ) {
     // For the foreign calls we want to handle, we do not want inputs, as they are getters
-    assert!(inputs.len() == 1); // storage_slot
+    assert!(inputs.len() == 2); // output, len. The latter is not used by the AVM, but required in the oracle call so that TXE knows how many slots to read.
     assert!(destinations.len() == 1); // return values
 
     let slot_offset_maybe = inputs[0];

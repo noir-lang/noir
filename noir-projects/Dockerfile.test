@@ -24,16 +24,16 @@ COPY . .
 # Build & test
 RUN cd ./noir-protocol-circuits && ./bootstrap.sh && nargo test --use-legacy --silence-warnings
 
-RUN cd /usr/src/yarn-project/txe && yarn start & echo $! > /tmp/txe.pid && \ 
+RUN cd /usr/src/yarn-project/txe && yarn start & \ 
     # Wait for TXE to initialize
     sleep 5 && \ 
     cd ./noir-contracts && \
     # We need to increase the timeout since all tests running in parallel hammer TXE at the same time, and processing slows down leading to timeouts
     # The only way we currently have to batch tests is via RAYON_NUM_THREADS, which is not ideal
-    ./bootstrap.sh && NARGO_FOREIGN_CALL_TIMEOUT=300000 nargo test  --use-legacy --silence-warnings --oracle-resolver http://localhost:8080 ; \
-    kill $(cat /tmp/txe.pid)
+    ./bootstrap.sh && \
+    NARGO_FOREIGN_CALL_TIMEOUT=300000 nargo test  --use-legacy --silence-warnings --oracle-resolver http://localhost:8080 
 
-RUN cd /usr/src/yarn-project/txe && yarn start & echo $! > /tmp/txe.pid && \ 
+RUN cd /usr/src/yarn-project/txe && yarn start & \ 
     # Wait for TXE to initialize
     sleep 5 && \ 
     cd ./aztec-nr && \
