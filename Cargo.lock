@@ -2747,13 +2747,11 @@ version = "0.31.0"
 dependencies = [
  "acir",
  "clap",
- "codespan-reporting",
  "color-eyre",
  "const_format",
  "fm",
  "im",
  "inferno",
- "nargo",
  "noirc_abi",
  "noirc_artifacts",
  "noirc_driver",
