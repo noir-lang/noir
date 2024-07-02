@@ -396,6 +396,7 @@ impl<'context> Elaborator<'context> {
         let expr = self.resolve_variable(variable);
 
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
+
         self.interner.push_expr_location(id, span, self.file);
         let typ = self.type_check_variable(expr, id, generics);
         self.interner.push_expr_type(id, typ.clone());
@@ -524,7 +525,7 @@ impl<'context> Elaborator<'context> {
 
                 for mut constraint in function.trait_constraints.clone() {
                     constraint.apply_bindings(&bindings);
-                    self.trait_constraints.push((constraint, expr_id));
+                    self.push_trait_constraint(constraint, expr_id);
                 }
             }
         }
@@ -541,7 +542,7 @@ impl<'context> Elaborator<'context> {
                 // Currently only one impl can be selected per expr_id, so this
                 // constraint needs to be pushed after any other constraints so
                 // that monomorphization can resolve this trait method to the correct impl.
-                self.trait_constraints.push((constraint, expr_id));
+                self.push_trait_constraint(constraint, expr_id);
             }
         }
 
