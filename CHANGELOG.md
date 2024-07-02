@@ -1,5 +1,70 @@
 # Changelog
 
+## [0.32.0](https://github.com/noir-lang/noir/compare/v0.31.0...v0.32.0) (2024-07-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* error on too large integer value ([#5371](https://github.com/noir-lang/noir/issues/5371))
+* rename struct-specific TypeDefinition -> StructDefinition ([#5356](https://github.com/noir-lang/noir/issues/5356))
+* **frontend:** Explicit numeric generics and type kinds ([#5155](https://github.com/noir-lang/noir/issues/5155))
+
+### Features
+
+* `mod.nr` entrypoint ([#5039](https://github.com/noir-lang/noir/issues/5039)) ([076fe0a](https://github.com/noir-lang/noir/commit/076fe0a11869f6975d214c5b9a5ed1e8f7cdbded))
+* `static_assert` builtin ([#5342](https://github.com/noir-lang/noir/issues/5342)) ([ef44270](https://github.com/noir-lang/noir/commit/ef4427051eebf323462cbb1fed205e8b555712a1))
+* Add `map`, `fold`, `reduce`, `any`, and `all` for slices ([#5331](https://github.com/noir-lang/noir/issues/5331)) ([03e25b4](https://github.com/noir-lang/noir/commit/03e25b4577349859c85203fadafc3c63aa4e4dd0))
+* Add fuzzer for Noir programs ([#5251](https://github.com/noir-lang/noir/issues/5251)) ([e100017](https://github.com/noir-lang/noir/commit/e1000176a31140b2abd79c47653cbc4bb1a6808a))
+* Add gate profiler for noir circuits (https://github.com/AztecProtocol/aztec-packages/pull/7004) ([083070e](https://github.com/noir-lang/noir/commit/083070e83e916b68799358b119a9f843223f2686))
+* Add opcodes flamegraph and refactor gates flamegraph (https://github.com/AztecProtocol/aztec-packages/pull/7282) ([32029f9](https://github.com/noir-lang/noir/commit/32029f91f6aae4d2f6b08b4ea40481f5837e50bc))
+* Add support for wildcard types ([#5275](https://github.com/noir-lang/noir/issues/5275)) ([7445efb](https://github.com/noir-lang/noir/commit/7445efb05165bf7df2f9dfe325abbc42f839364c))
+* Build simple dictionary from inspecting ACIR program ([#5264](https://github.com/noir-lang/noir/issues/5264)) ([508e677](https://github.com/noir-lang/noir/commit/508e677cf2c66ac3427932a18f1661f5f4dc4202))
+* Disable nargo color output if stderr is tty ([#5346](https://github.com/noir-lang/noir/issues/5346)) ([554dd6b](https://github.com/noir-lang/noir/commit/554dd6b01b1d3417448d8ecc95165fd0c3ca36e9))
+* Error on too large integer value ([#5371](https://github.com/noir-lang/noir/issues/5371)) ([0c4fffa](https://github.com/noir-lang/noir/commit/0c4fffa86f6605e8f16f973ad42c6927a03fc3cc))
+* **frontend:** Explicit numeric generics and type kinds ([#5155](https://github.com/noir-lang/noir/issues/5155)) ([d4e03d0](https://github.com/noir-lang/noir/commit/d4e03d07bb00d1ba0f8f43bd0dd9e967a10a28b9))
+* **frontend:** Where clause on impl ([#5320](https://github.com/noir-lang/noir/issues/5320)) ([cf938bc](https://github.com/noir-lang/noir/commit/cf938bc06b7015dae94847f146dc7fd38055f064))
+* Implement comptime support for `array_len` builtin ([#5272](https://github.com/noir-lang/noir/issues/5272)) ([c91186a](https://github.com/noir-lang/noir/commit/c91186a5c0d9e84767f160e6acd63672b23e8f52))
+* Implement comptime support for `as_slice` builtin ([#5276](https://github.com/noir-lang/noir/issues/5276)) ([9db65d8](https://github.com/noir-lang/noir/commit/9db65d8706ac8b67921f2a73163ab8bee3dfb4e8))
+* Implement trait dispatch in the comptime interpreter ([#5376](https://github.com/noir-lang/noir/issues/5376)) ([8aa5b2e](https://github.com/noir-lang/noir/commit/8aa5b2e4cc69ca6ac1077e8e08c28e9cb30ffb51))
+* Insert trait impls into the program from type annotations ([#5327](https://github.com/noir-lang/noir/issues/5327)) ([efdd818](https://github.com/noir-lang/noir/commit/efdd818a1fc52f31bda4e4519a4ba42887cec87a))
+* Let `should_fail_with` check that the failure reason contains the expected message ([#5319](https://github.com/noir-lang/noir/issues/5319)) ([cb9db55](https://github.com/noir-lang/noir/commit/cb9db55dcf87a45356af362f6f90681dd0e00212))
+* **lsp:** Allow function rename ([#4294](https://github.com/noir-lang/noir/issues/4294)) ([3d86dc6](https://github.com/noir-lang/noir/commit/3d86dc6118d083c686b1061a52eb4f113e9a9f7c))
+* Make macros operate on token streams instead of AST nodes ([#5301](https://github.com/noir-lang/noir/issues/5301)) ([7689d59](https://github.com/noir-lang/noir/commit/7689d59aa12003994cea6a3ff4bf87484e41aa6b))
+* Rename struct-specific TypeDefinition -&gt; StructDefinition ([#5356](https://github.com/noir-lang/noir/issues/5356)) ([7ffccf7](https://github.com/noir-lang/noir/commit/7ffccf7f060aee30b08ef7fda75d8695f047abd8))
+* Run `comptime` code from annotations on a type definition ([#5256](https://github.com/noir-lang/noir/issues/5256)) ([6cbe6a0](https://github.com/noir-lang/noir/commit/6cbe6a0c830b2992666e0f9bdbc8f66ec41eed84))
+* **stdlib:** Update stdlib to use explicit numeric generics ([#5306](https://github.com/noir-lang/noir/issues/5306)) ([8456185](https://github.com/noir-lang/noir/commit/8456185078c90cfcb8e63caf147ea6cdbbd786af))
+* Sync from aztec-packages ([#5347](https://github.com/noir-lang/noir/issues/5347)) ([47b621f](https://github.com/noir-lang/noir/commit/47b621fcb8a971b353ce5bda3a506da5504ae9a3))
+* Sync from aztec-packages ([#5377](https://github.com/noir-lang/noir/issues/5377)) ([7b77bbf](https://github.com/noir-lang/noir/commit/7b77bbfc19c51829814149e623257a3424d8e8c2))
+* Sync from noir (https://github.com/AztecProtocol/aztec-packages/pull/7257) ([32029f9](https://github.com/noir-lang/noir/commit/32029f91f6aae4d2f6b08b4ea40481f5837e50bc))
+* Use runtime loops for brillig array initialization ([#5243](https://github.com/noir-lang/noir/issues/5243)) ([0bd22bb](https://github.com/noir-lang/noir/commit/0bd22bb460ff0bf134ce3acf79e018c1e360d31c))
+
+
+### Bug Fixes
+
+* Add more thorough check for whether a type is valid when passing it from constrained code to unconstrained code ([#5009](https://github.com/noir-lang/noir/issues/5009)) ([318314d](https://github.com/noir-lang/noir/commit/318314d6dd35674328f534ebd882d4b0e66eab24))
+* Address compiler warnings coming from stdlib ([#5351](https://github.com/noir-lang/noir/issues/5351)) ([758a905](https://github.com/noir-lang/noir/commit/758a905fc740971c995151bfb5f997bcc080397c))
+* Avoid duplicating constant arrays ([#5287](https://github.com/noir-lang/noir/issues/5287)) ([3ef3645](https://github.com/noir-lang/noir/commit/3ef36458fef36b2a2f6cf99b35a43339f3721b27))
+* Avoid panic in type system ([#5332](https://github.com/noir-lang/noir/issues/5332)) ([52d48ff](https://github.com/noir-lang/noir/commit/52d48ff1cf1415fa87fbaf76249b2e0d042de8bd))
+* Avoid unnecessarily splitting expressions with multiplication terms with a shared term ([#5291](https://github.com/noir-lang/noir/issues/5291)) ([19884f1](https://github.com/noir-lang/noir/commit/19884f161dfc7d7ce75dd2c404b8ef39cdad2240))
+* Don't benchmark the "prove" command as it doesn't exist anymore ([#5323](https://github.com/noir-lang/noir/issues/5323)) ([3bb3b03](https://github.com/noir-lang/noir/commit/3bb3b03aedab9c7abfeb3d3141e04b07b7aeeffb))
+* Don't lazily elaborate functions ([#5282](https://github.com/noir-lang/noir/issues/5282)) ([0ea608f](https://github.com/noir-lang/noir/commit/0ea608f10bdeb26df7dfc17b1a0bad5db1967be8))
+* Error when a local function is called in a comptime context ([#5334](https://github.com/noir-lang/noir/issues/5334)) ([7cd4a4d](https://github.com/noir-lang/noir/commit/7cd4a4d1cde4446c8ace7439ce9f8d42ded70869))
+* Fix incorrect return type being applied to stdlib functions `modulus_be_bytes()`, `modulus_be_bits()`, etc. ([#5278](https://github.com/noir-lang/noir/issues/5278)) ([91a9b72](https://github.com/noir-lang/noir/commit/91a9b725cdb75c08cde888f49e7b8d11257e5de6))
+* Fix tokenization of unquoted types in macros ([#5326](https://github.com/noir-lang/noir/issues/5326)) ([6673c8b](https://github.com/noir-lang/noir/commit/6673c8b7068a3cd5d5914e1b0ecb9457a7e26bab))
+* Fix usage of `#[abi(tag)]` attribute with elaborator ([#5298](https://github.com/noir-lang/noir/issues/5298)) ([64dd48a](https://github.com/noir-lang/noir/commit/64dd48a19060ccce8758851ea7bcec1f287f1156))
+* Handle struct with nested arrays in oracle return values ([#5244](https://github.com/noir-lang/noir/issues/5244)) ([a30814f](https://github.com/noir-lang/noir/commit/a30814f1f767bf874cd7e2969f5061c68f16b9a7))
+* Ignore calls to `Intrinsic::AsWitness` during brillig codegen ([#5350](https://github.com/noir-lang/noir/issues/5350)) ([9c11fd2](https://github.com/noir-lang/noir/commit/9c11fd264451a3d2b8617ee5e47e6db3fcb148d8))
+* Implement generic functions in the interpreter ([#5330](https://github.com/noir-lang/noir/issues/5330)) ([d8b9870](https://github.com/noir-lang/noir/commit/d8b9870a991b724ec337b58380b50464ba274d8a))
+* **nargo_fmt:** Account for spaces before the generic list of a function ([#5303](https://github.com/noir-lang/noir/issues/5303)) ([ec728dd](https://github.com/noir-lang/noir/commit/ec728dd909fce33ab712116f61d672b1ee552fc4))
+* Remove panics in the interpreter when a builtin fails to type check ([#5382](https://github.com/noir-lang/noir/issues/5382)) ([c8161c8](https://github.com/noir-lang/noir/commit/c8161c81a3c6599a3b0380f4c80c730a41a75f22))
+* Replace expects in interpreter with errors ([#5383](https://github.com/noir-lang/noir/issues/5383)) ([ac738b2](https://github.com/noir-lang/noir/commit/ac738b21bc19181b021f909a8e60752dff5ac713))
+* Replace panic in monomorphization with an error ([#5305](https://github.com/noir-lang/noir/issues/5305)) ([49e1b0c](https://github.com/noir-lang/noir/commit/49e1b0c0d45565f3e87469b77f2fef0c283f6ea1))
+* Replace std::HashMap with FxHashMap to fix frontend indeterminism ([#5385](https://github.com/noir-lang/noir/issues/5385)) ([9501495](https://github.com/noir-lang/noir/commit/95014950a9685ee8fdae69457cfe45d6c509172a))
+* Runtime brillig bigint id assignment ([#5369](https://github.com/noir-lang/noir/issues/5369)) ([a8928dd](https://github.com/noir-lang/noir/commit/a8928ddcffcae15babf7aa5aff0e462e4549552e))
+* Skip emission of brillig calls which will never be executed ([#5314](https://github.com/noir-lang/noir/issues/5314)) ([b859ef9](https://github.com/noir-lang/noir/commit/b859ef90af9944a83f197c26408a55988b143e0e))
+* Update `in_contract` flag before handling function metadata in elaborator ([#5292](https://github.com/noir-lang/noir/issues/5292)) ([4c4ea2d](https://github.com/noir-lang/noir/commit/4c4ea2df0163d4989c922c6a1377e04c2cd0540c))
+* Use proper serialization in `AbiValue` ([#5270](https://github.com/noir-lang/noir/issues/5270)) ([d08b7b9](https://github.com/noir-lang/noir/commit/d08b7b93a981f2e01a3d9754b194c5565ad3a7c2))
+
 ## [0.31.0](https://github.com/noir-lang/noir/compare/v0.30.0...v0.31.0) (2024-06-17)
 
 
