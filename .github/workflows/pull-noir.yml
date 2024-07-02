@@ -5,8 +5,11 @@ name: Pull from noir repo
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
+
 on:
-  # o
+  schedule:
+    # Run every morning at 8 AM UTC
+    - cron: "0 8 * * *"
   workflow_dispatch: {}
 
 jobs:
