@@ -18,11 +18,12 @@ Initializers are regular functions that set an "initialized" flag (a nullifier) 
 
 There are also special oracle functions, which can get data from outside of the smart contract. In the context of Aztec, oracles are often used to get user-provided inputs.
 
-Explore this section to learn:
+## Learn more about functions
 
 - [How function visibility works in Aztec](./visibility.md)
-- [Function types and Macros](./function_types_macros.md), and how to write them
 - How to write an [initializer function](../../../../guides/smart_contracts/writing_contracts/initializers.md)
 - [Calling functions from within the same smart contract and from different contracts](../../../../guides/smart_contracts/writing_contracts/call_functions.md), including calling private functions from private functions, public from public, and even private from public
 - [Oracles](../oracles/index.md) and how Aztec smart contracts might use them
 - [How functions work under the hood](./inner_workings.md)
+
+Find a function macros reference [here](../../../../reference/smart_contract_reference/macros.md).
