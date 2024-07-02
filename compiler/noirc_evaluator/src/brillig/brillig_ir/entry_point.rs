@@ -23,7 +23,6 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
             section_label: 0,
             next_section: 1,
             debug_show: DebugShow::new(false),
-            bigint_new_id: 0,
         };
 
         context.codegen_entry_point(&arguments, &return_parameters);

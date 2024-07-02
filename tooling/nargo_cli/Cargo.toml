@@ -44,12 +44,7 @@ prettytable-rs = "0.10"
 rayon = "1.8.0"
 thiserror.workspace = true
 tower.workspace = true
-async-lsp = { workspace = true, features = [
-  "client-monitor",
-  "stdio",
-  "tracing",
-  "tokio",
-] }
+async-lsp = { workspace = true, features = ["client-monitor", "stdio", "tracing", "tokio"] }
 const_format.workspace = true
 hex.workspace = true
 similar-asserts.workspace = true
