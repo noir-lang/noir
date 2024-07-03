@@ -1,11 +1,12 @@
 use std::path::Path;
-use std::{collections::HashMap, vec};
+use std::vec;
 
 use acvm::{AcirField, FieldElement};
 use fm::{FileId, FileManager, FILE_EXTENSION};
 use noirc_errors::Location;
 use num_bigint::BigUint;
 use num_traits::Num;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
     FunctionDefinition, Ident, ItemVisibility, LetStatement, ModuleDeclaration, NoirFunction,
@@ -13,6 +14,7 @@ use crate::ast::{
     TypeImpl,
 };
 use crate::macros_api::NodeInterner;
+use crate::node_interner::DependencyId;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -266,6 +268,7 @@ impl<'a> ModCollector<'a> {
         let mut definition_errors = vec![];
         for struct_definition in types {
             let name = struct_definition.name.clone();
+            let name_location = Location::new(name.span(), self.file_id);
 
             let unresolved = UnresolvedStruct {
                 file_id: self.file_id,
@@ -309,6 +312,9 @@ impl<'a> ModCollector<'a> {
 
             // And store the TypeId -> StructType mapping somewhere it is reachable
             self.def_collector.items.types.insert(id, unresolved);
+
+            context.def_interner.add_struct_location(id, name_location);
+            context.def_interner.add_definition_location(DependencyId::Struct(id));
         }
         definition_errors
     }
@@ -400,7 +406,7 @@ impl<'a> ModCollector<'a> {
                 self_type: None,
             };
 
-            let mut method_ids = HashMap::new();
+            let mut method_ids = HashMap::default();
             for trait_item in &trait_definition.items {
                 match trait_item {
                     TraitItem::Function {
@@ -414,6 +420,7 @@ impl<'a> ModCollector<'a> {
                         let func_id = context.def_interner.push_empty_fn();
                         method_ids.insert(name.to_string(), func_id);
 
+                        let location = Location::new(name.span(), self.file_id);
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
                             visibility: ItemVisibility::Public,
@@ -422,9 +429,9 @@ impl<'a> ModCollector<'a> {
                             is_unconstrained: false,
                             generic_count: generics.len(),
                             is_comptime: false,
+                            name_location: location,
                         };
 
-                        let location = Location::new(name.span(), self.file_id);
                         context
                             .def_interner
                             .push_function_definition(func_id, modifiers, trait_id.0, location);

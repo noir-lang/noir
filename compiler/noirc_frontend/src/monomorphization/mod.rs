@@ -9,6 +9,9 @@
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
 use crate::ast::{FunctionKind, IntegerBitSize, Signedness, UnaryOp, Visibility};
+use crate::hir::comptime::InterpreterError;
+use crate::hir::type_check::NoMatchingImplFoundError;
+use crate::node_interner::ExprId;
 use crate::{
     debug::DebugInstrumenter,
     hir_def::{
@@ -125,7 +128,7 @@ pub fn monomorphize_debug(
         monomorphizer.locals.clear();
 
         perform_instantiation_bindings(&bindings);
-        let impl_bindings = monomorphizer.perform_impl_bindings(trait_method, next_fn_id);
+        let impl_bindings = perform_impl_bindings(monomorphizer.interner, trait_method, next_fn_id);
         monomorphizer.function(next_fn_id, new_id)?;
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(bindings);
@@ -467,23 +470,11 @@ impl<'interner> Monomorphizer<'interner> {
                 if self.interner.get_selected_impl_for_expression(expr).is_some() {
                     // If an impl was selected for this infix operator, replace it
                     // with a method call to the appropriate trait impl method.
-                    let lhs_type = self.interner.id_type(infix.lhs);
-                    let args = vec![lhs_type.clone(), lhs_type];
-
-                    // If this is a comparison operator, the result is a boolean but
-                    // the actual method call returns an Ordering
-                    use crate::ast::BinaryOpKind::*;
-                    let ret = if matches!(operator, Less | LessEqual | Greater | GreaterEqual) {
-                        self.interner.ordering_type()
-                    } else {
-                        self.interner.id_type(expr)
-                    };
-
-                    let env = Box::new(Type::Unit);
-                    let function_type = Type::Function(args, Box::new(ret.clone()), env);
+                    let (function_type, ret) =
+                        self.interner.get_operator_type(infix.lhs, operator, expr);
 
                     let method = infix.trait_method_id;
-                    let func = self.resolve_trait_method_reference(expr, function_type, method)?;
+                    let func = self.resolve_trait_method_expr(expr, function_type, method)?;
                     self.create_operator_impl_call(func, lhs, infix.operator, rhs, ret, location)?
                 } else {
                     let lhs = Box::new(lhs);
@@ -843,7 +834,7 @@ impl<'interner> Monomorphizer<'interner> {
         let typ = self.interner.id_type(expr_id);
 
         if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
-            return self.resolve_trait_method_reference(expr_id, typ, method);
+            return self.resolve_trait_method_expr(expr_id, typ, method);
         }
 
         let definition = self.interner.definition(ident.id);
@@ -1046,53 +1037,14 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn resolve_trait_method_reference(
+    fn resolve_trait_method_expr(
         &mut self,
         expr_id: node_interner::ExprId,
         function_type: HirType,
         method: TraitMethodId,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let trait_impl = self
-            .interner
-            .get_selected_impl_for_expression(expr_id)
-            .expect("ICE: missing trait impl - should be caught during type checking");
-
-        let func_id = match trait_impl {
-            node_interner::TraitImplKind::Normal(impl_id) => {
-                self.interner.get_trait_implementation(impl_id).borrow().methods
-                    [method.method_index]
-            }
-            node_interner::TraitImplKind::Assumed { object_type, trait_generics } => {
-                match self.interner.lookup_trait_implementation(
-                    &object_type,
-                    method.trait_id,
-                    &trait_generics,
-                ) {
-                    Ok(TraitImplKind::Normal(impl_id)) => {
-                        self.interner.get_trait_implementation(impl_id).borrow().methods
-                            [method.method_index]
-                    }
-                    Ok(TraitImplKind::Assumed { .. }) => unreachable!(
-                        "There should be no remaining Assumed impls during monomorphization"
-                    ),
-                    Err(constraints) => {
-                        let failed_constraints = vecmap(constraints, |constraint| {
-                            let id = constraint.trait_id;
-                            let mut name = self.interner.get_trait(id).name.to_string();
-                            if !constraint.trait_generics.is_empty() {
-                                let types =
-                                    vecmap(&constraint.trait_generics, |t| format!("{t:?}"));
-                                name += &format!("<{}>", types.join(", "));
-                            }
-                            format!("  {}: {name}", constraint.typ)
-                        })
-                        .join("\n");
-
-                        unreachable!("Failed to find trait impl during monomorphization. The failed constraint(s) are:\n{failed_constraints}")
-                    }
-                }
-            }
-        };
+        let func_id = resolve_trait_method(self.interner, method, expr_id)
+            .map_err(MonomorphizationError::InterpreterError)?;
 
         let func_id =
             match self.lookup_function(func_id, expr_id, &function_type, vec![], Some(method)) {
@@ -1763,46 +1715,6 @@ impl<'interner> Monomorphizer<'interner> {
 
         Ok(result)
     }
-
-    /// Call sites are instantiated against the trait method, but when an impl is later selected,
-    /// the corresponding method in the impl will have a different set of generics. `perform_impl_bindings`
-    /// is needed to apply the generics from the trait method to the impl method. Without this,
-    /// static method references to generic impls (e.g. `Eq::eq` for `[T; N]`) will fail to re-apply
-    /// the correct type bindings during monomorphization.
-    fn perform_impl_bindings(
-        &self,
-        trait_method: Option<TraitMethodId>,
-        impl_method: node_interner::FuncId,
-    ) -> TypeBindings {
-        let mut bindings = TypeBindings::new();
-
-        if let Some(trait_method) = trait_method {
-            let the_trait = self.interner.get_trait(trait_method.trait_id);
-
-            let trait_method_type = the_trait.methods[trait_method.method_index].typ.as_monotype();
-
-            // Make each NamedGeneric in this type bindable by replacing it with a TypeVariable
-            // with the same internal id and binding.
-            let (generics, impl_method_type) =
-                self.interner.function_meta(&impl_method).typ.unwrap_forall();
-
-            let replace_type_variable = |var: &TypeVariable| {
-                (var.id(), (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
-            };
-
-            // Replace each NamedGeneric with a TypeVariable containing the same internal type variable
-            let type_bindings = generics.iter().map(replace_type_variable).collect();
-            let impl_method_type = impl_method_type.force_substitute(&type_bindings);
-
-            trait_method_type.try_unify(&impl_method_type, &mut bindings).unwrap_or_else(|_| {
-                unreachable!("Impl method type {} does not unify with trait method type {} during monomorphization", impl_method_type, trait_method_type)
-            });
-
-            perform_instantiation_bindings(&bindings);
-        }
-
-        bindings
-    }
 }
 
 fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
@@ -1829,4 +1741,85 @@ pub fn undo_instantiation_bindings(bindings: TypeBindings) {
     for (id, (var, _)) in bindings {
         var.unbind(id);
     }
+}
+
+/// Call sites are instantiated against the trait method, but when an impl is later selected,
+/// the corresponding method in the impl will have a different set of generics. `perform_impl_bindings`
+/// is needed to apply the generics from the trait method to the impl method. Without this,
+/// static method references to generic impls (e.g. `Eq::eq` for `[T; N]`) will fail to re-apply
+/// the correct type bindings during monomorphization.
+pub fn perform_impl_bindings(
+    interner: &NodeInterner,
+    trait_method: Option<TraitMethodId>,
+    impl_method: node_interner::FuncId,
+) -> TypeBindings {
+    let mut bindings = TypeBindings::new();
+
+    if let Some(trait_method) = trait_method {
+        let the_trait = interner.get_trait(trait_method.trait_id);
+
+        let trait_method_type = the_trait.methods[trait_method.method_index].typ.as_monotype();
+
+        // Make each NamedGeneric in this type bindable by replacing it with a TypeVariable
+        // with the same internal id and binding.
+        let (generics, impl_method_type) = interner.function_meta(&impl_method).typ.unwrap_forall();
+
+        let replace_type_variable = |var: &TypeVariable| {
+            (var.id(), (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
+        };
+
+        // Replace each NamedGeneric with a TypeVariable containing the same internal type variable
+        let type_bindings = generics.iter().map(replace_type_variable).collect();
+        let impl_method_type = impl_method_type.force_substitute(&type_bindings);
+
+        trait_method_type.try_unify(&impl_method_type, &mut bindings).unwrap_or_else(|_| {
+            unreachable!("Impl method type {} does not unify with trait method type {} during monomorphization", impl_method_type, trait_method_type)
+        });
+
+        perform_instantiation_bindings(&bindings);
+    }
+
+    bindings
+}
+
+pub fn resolve_trait_method(
+    interner: &NodeInterner,
+    method: TraitMethodId,
+    expr_id: ExprId,
+) -> Result<node_interner::FuncId, InterpreterError> {
+    let trait_impl = interner.get_selected_impl_for_expression(expr_id).ok_or_else(|| {
+        let location = interner.expr_location(&expr_id);
+        InterpreterError::NoImpl { location }
+    })?;
+
+    let impl_id = match trait_impl {
+        TraitImplKind::Normal(impl_id) => impl_id,
+        TraitImplKind::Assumed { object_type, trait_generics } => {
+            match interner.lookup_trait_implementation(
+                &object_type,
+                method.trait_id,
+                &trait_generics,
+            ) {
+                Ok(TraitImplKind::Normal(impl_id)) => impl_id,
+                Ok(TraitImplKind::Assumed { .. }) => {
+                    let location = interner.expr_location(&expr_id);
+                    return Err(InterpreterError::NoImpl { location });
+                }
+                Err(constraints) => {
+                    let location = interner.expr_location(&expr_id);
+                    if let Some(error) =
+                        NoMatchingImplFoundError::new(interner, constraints, location.span)
+                    {
+                        let file = location.file;
+                        return Err(InterpreterError::NoMatchingImplFound { error, file });
+                    } else {
+                        let location = interner.expr_location(&expr_id);
+                        return Err(InterpreterError::NoImpl { location });
+                    }
+                }
+            }
+        }
+    };
+
+    Ok(interner.get_trait_implementation(impl_id).borrow().methods[method.method_index])
 }

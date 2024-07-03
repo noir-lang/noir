@@ -38,7 +38,7 @@ fn on_goto_definition_inner(
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
     let (mut context, crate_id) =
-        nargo::prepare_package(&workspace_file_manager, &parsed_files, package);
+        crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
     let package_root_path = package.root_dir.as_os_str().to_string_lossy().into_owned();
     let interner = if let Some(def_interner) = state.cached_definitions.get(&package_root_path) {

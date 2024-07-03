@@ -14,7 +14,7 @@ use crate::{
         stmt::HirPattern,
     },
     macros_api::{HirExpression, Ident, Path, Pattern},
-    node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, TraitImplKind},
+    node_interner::{DefinitionId, DefinitionKind, DependencyId, ExprId, GlobalId, TraitImplKind},
     Shared, StructType, Type, TypeBindings,
 };
 
@@ -157,6 +157,8 @@ impl<'context> Elaborator<'context> {
         mutable: Option<Span>,
         new_definitions: &mut Vec<HirIdent>,
     ) -> HirPattern {
+        let name_span = name.last_segment().span();
+
         let error_identifier = |this: &mut Self| {
             // Must create a name here to return a HirPattern::Identifier. Allowing
             // shadowing here lets us avoid further errors if we define ERROR_IDENT
@@ -195,6 +197,10 @@ impl<'context> Elaborator<'context> {
             mutable,
             new_definitions,
         );
+
+        let referenced = DependencyId::Struct(struct_type.borrow().id);
+        let reference = DependencyId::Variable(Location::new(name_span, self.file));
+        self.interner.add_reference(referenced, reference);
 
         HirPattern::Struct(expected_type, fields, location)
     }
@@ -396,6 +402,7 @@ impl<'context> Elaborator<'context> {
         let expr = self.resolve_variable(variable);
 
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
+
         self.interner.push_expr_location(id, span, self.file);
         let typ = self.type_check_variable(expr, id, generics);
         self.interner.push_expr_type(id, typ.clone());
@@ -418,10 +425,14 @@ impl<'context> Elaborator<'context> {
 
             if hir_ident.id != DefinitionId::dummy_id() {
                 match self.interner.definition(hir_ident.id).kind {
-                    DefinitionKind::Function(id) => {
+                    DefinitionKind::Function(func_id) => {
                         if let Some(current_item) = self.current_item {
-                            self.interner.add_function_dependency(current_item, id);
+                            self.interner.add_function_dependency(current_item, func_id);
                         }
+
+                        let variable = DependencyId::Variable(hir_ident.location);
+                        let function = DependencyId::Function(func_id);
+                        self.interner.add_reference(function, variable);
                     }
                     DefinitionKind::Global(global_id) => {
                         if let Some(global) = self.unresolved_globals.remove(&global_id) {
@@ -430,6 +441,10 @@ impl<'context> Elaborator<'context> {
                         if let Some(current_item) = self.current_item {
                             self.interner.add_global_dependency(current_item, global_id);
                         }
+
+                        let variable = DependencyId::Variable(hir_ident.location);
+                        let global = DependencyId::Global(global_id);
+                        self.interner.add_reference(global, variable);
                     }
                     DefinitionKind::GenericType(_) => {
                         // Initialize numeric generics to a polymorphic integer type in case
@@ -516,7 +531,7 @@ impl<'context> Elaborator<'context> {
 
                 for mut constraint in function.trait_constraints.clone() {
                     constraint.apply_bindings(&bindings);
-                    self.trait_constraints.push((constraint, expr_id));
+                    self.push_trait_constraint(constraint, expr_id);
                 }
             }
         }
@@ -533,7 +548,7 @@ impl<'context> Elaborator<'context> {
                 // Currently only one impl can be selected per expr_id, so this
                 // constraint needs to be pushed after any other constraints so
                 // that monomorphization can resolve this trait method to the correct impl.
-                self.trait_constraints.push((constraint, expr_id));
+                self.push_trait_constraint(constraint, expr_id);
             }
         }
 
@@ -575,7 +590,7 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn get_ident_from_path(&mut self, path: Path) -> (HirIdent, usize) {
-        let location = Location::new(path.span(), self.file);
+        let location = Location::new(path.last_segment().span(), self.file);
 
         let error = match path.as_ident().map(|ident| self.use_variable(ident)) {
             Some(Ok(found)) => return found,
