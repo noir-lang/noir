@@ -11,7 +11,7 @@ mod errors;
 mod expr;
 mod stmt;
 
-pub use errors::TypeCheckError;
+pub use errors::{NoMatchingImplFoundError, TypeCheckError};
 use noirc_errors::Span;
 
 use crate::{

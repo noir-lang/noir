@@ -18,4 +18,5 @@ sed -i "s/^require_command wasm-opt/#require_command wasm-opt/" ./tooling/noirc_
 sed -i "s/^require_command wasm-opt/#require_command wasm-opt/" ./acvm-repo/acvm_js/build.sh
 
 # Replace `verify_honk_proof` test
-cp -r ../verify_honk_proof ./test_programs/execution_success/verify_honk_proof
+cp -r ../verify_honk_proof ./test_programs/execution_success/
+git add ./test_programs/execution_success/verify_honk_proof

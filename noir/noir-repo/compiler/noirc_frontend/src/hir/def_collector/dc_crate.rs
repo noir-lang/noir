@@ -20,18 +20,20 @@ use crate::hir::Context;
 
 use crate::macros_api::{MacroError, MacroProcessor};
 use crate::node_interner::{
-    FuncId, GlobalId, NodeInterner, StructId, TraitId, TraitImplId, TypeAliasId,
+    DependencyId, FuncId, GlobalId, NodeInterner, StructId, TraitId, TraitImplId, TypeAliasId,
 };
 
 use crate::ast::{
     ExpressionKind, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
     NoirTypeAlias, Path, PathKind, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
 };
+
 use crate::parser::{ParserError, SortedModule};
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic, Span};
-use std::collections::{BTreeMap, HashMap};
+use noirc_errors::{CustomDiagnostic, Location, Span};
+use rustc_hash::FxHashMap as HashMap;
+use std::collections::BTreeMap;
 
 use std::vec;
 
@@ -253,7 +255,7 @@ impl DefCollector {
                 types: BTreeMap::new(),
                 type_aliases: BTreeMap::new(),
                 traits: BTreeMap::new(),
-                impls: HashMap::new(),
+                impls: HashMap::default(),
                 globals: vec![],
                 trait_impls: vec![],
             },
@@ -327,6 +329,7 @@ impl DefCollector {
 
         // Resolve unresolved imports collected from the crate, one by one.
         for collected_import in std::mem::take(&mut def_collector.imports) {
+            let module_id = collected_import.module_id;
             match resolve_import(crate_id, &collected_import, &context.def_maps) {
                 Ok(resolved_import) => {
                     if let Some(error) = resolved_import.error {
@@ -343,6 +346,9 @@ impl DefCollector {
                     for ns in resolved_import.resolved_namespace.iter_defs() {
                         let result = current_def_map.modules[resolved_import.module_scope.0]
                             .import(name.clone(), ns, resolved_import.is_prelude);
+
+                        let file_id = current_def_map.file_id(module_id);
+                        add_import_reference(ns, &name, &mut context.def_interner, file_id);
 
                         if let Err((first_def, second_def)) = result {
                             let err = DefCollectorErrorKind::Duplicate {
@@ -464,6 +470,22 @@ impl DefCollector {
         }
 
         resolved_module.errors
+    }
+}
+
+fn add_import_reference(
+    def_id: crate::macros_api::ModuleDefId,
+    name: &Ident,
+    interner: &mut NodeInterner,
+    file_id: FileId,
+) {
+    if name.span() == Span::empty(0) {
+        // We ignore empty spans at 0 location, this must be Stdlib
+        return;
+    }
+    if let crate::macros_api::ModuleDefId::FunctionId(func_id) = def_id {
+        let variable = DependencyId::Variable(Location::new(name.span(), file_id));
+        interner.add_reference_for(DependencyId::Function(func_id), variable);
     }
 }
 
