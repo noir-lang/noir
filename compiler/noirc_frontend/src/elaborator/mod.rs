@@ -136,8 +136,6 @@ pub struct Elaborator<'context> {
     /// Each constraint in the `where` clause of the function currently being resolved.
     trait_bounds: Vec<TraitConstraint>,
 
-    current_function: Option<FuncId>,
-
     /// This is a stack of function contexts. Most of the time, for each function we
     /// expect this to be of length one, containing each type variable and trait constraint
     /// used in the function. This is also pushed to when a `comptime {}` block is used within
@@ -196,7 +194,6 @@ impl<'context> Elaborator<'context> {
             crate_id,
             resolving_ids: BTreeSet::new(),
             trait_bounds: Vec::new(),
-            current_function: None,
             function_context: vec![FunctionContext::default()],
             current_trait_impl: None,
             comptime_scopes: vec![HashMap::default()],
@@ -329,8 +326,6 @@ impl<'context> Elaborator<'context> {
             FunctionBody::Resolving => return,
         };
 
-        let old_function = std::mem::replace(&mut self.current_function, Some(id));
-
         self.scopes.start_function();
         let old_item = std::mem::replace(&mut self.current_item, Some(DependencyId::Function(id)));
 
@@ -407,7 +402,6 @@ impl<'context> Elaborator<'context> {
 
         self.trait_bounds.clear();
         self.interner.update_fn(id, hir_func);
-        self.current_function = old_function;
         self.current_item = old_item;
     }
 
@@ -615,8 +609,6 @@ impl<'context> Elaborator<'context> {
         func_id: FuncId,
         is_trait_function: bool,
     ) {
-        self.current_function = Some(func_id);
-
         let in_contract = if self.self_type.is_some() {
             // Without this, impl methods can accidentally be placed in contracts.
             // See: https://github.com/noir-lang/noir/issues/3254
@@ -738,7 +730,6 @@ impl<'context> Elaborator<'context> {
         };
 
         self.interner.push_fn_meta(meta, func_id);
-        self.current_function = None;
         self.scopes.end_function();
         self.current_item = None;
     }
@@ -1466,6 +1457,30 @@ impl<'context> Elaborator<'context> {
                 this.define_function_meta(func, *id, false);
             });
         }
+    }
+
+    /// True if we're currently within a `comptime` block, function, or global
+    fn in_comptime_context(&self) -> bool {
+        // The first context is the global context, followed by the function-specific context.
+        // Any context after that is a `comptime {}` block's.
+        if self.function_context.len() > 2 {
+            return true;
+        }
+
+        match self.current_item {
+            Some(DependencyId::Function(id)) => self.interner.function_modifiers(&id).is_comptime,
+            Some(DependencyId::Global(id)) => self.interner.get_global_definition(id).comptime,
+            _ => false,
+        }
+    }
+
+    /// True if we're currently within a constrained function.
+    /// Defaults to `true` if the current function is unknown.
+    fn in_constrained_function(&self) -> bool {
+        self.current_item.map_or(true, |id| match id {
+            DependencyId::Function(id) => !self.interner.function_modifiers(&id).is_unconstrained,
+            _ => true,
+        })
     }
 
     /// Filters out comptime items from non-comptime items.
