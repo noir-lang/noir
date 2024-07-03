@@ -310,10 +310,17 @@ impl<TAsmWriter> Builder<TAsmWriter>
 where
     TAsmWriter: AsmWriter,
 {
-    pub(crate) fn new(show_plonky2: bool) -> Builder<TAsmWriter> {
+    pub(crate) fn new(
+        show_plonky2: bool,
+        write_plonky2_to_file: Option<String>,
+    ) -> Builder<TAsmWriter> {
         let config = CircuitConfig::standard_recursion_config();
         Builder::<TAsmWriter> {
-            asm_writer: TAsmWriter::new(P2Builder::new(config), show_plonky2),
+            asm_writer: TAsmWriter::new(
+                P2Builder::new(config),
+                show_plonky2,
+                write_plonky2_to_file,
+            ),
             translation: HashMap::new(),
             dfg: DataFlowGraph::default(),
             show_plonky2,

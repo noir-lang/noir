@@ -1,4 +1,9 @@
-use std::{borrow::Borrow, fmt::Display};
+use std::{
+    borrow::Borrow,
+    fmt::Display,
+    fs::File,
+    io::{BufWriter, Write},
+};
 
 use plonky2::iop::{
     target::{BoolTarget, Target},
@@ -165,16 +170,21 @@ impl Display for U32TargetDisplay {
 pub(crate) struct ConsoleAsmWriter {
     pub builder: P2Builder,
     pub show_plonky2: bool,
+    file: Option<BufWriter<File>>,
 }
 
 impl ConsoleAsmWriter {
     fn output_enabled(&self) -> bool {
-        self.show_plonky2
+        self.show_plonky2 || self.file.is_some()
     }
 
-    fn handle_output(&self, s: String) {
+    fn handle_output(&mut self, s: String) {
         if self.show_plonky2 {
             println!("{}", s);
+        }
+
+        if let Some(f) = &mut self.file {
+            writeln!(f, "{}", s).expect("Unable to write PLONKY2 data to file");
         }
     }
 }
@@ -190,8 +200,18 @@ impl AsmWriter for ConsoleAsmWriter {
         self.builder
     }
 
-    fn new(builder: P2Builder, show_plonky2: bool) -> Self {
-        ConsoleAsmWriter { builder, show_plonky2 }
+    fn new(builder: P2Builder, show_plonky2: bool, write_plonky2_to_file: Option<String>) -> Self {
+        ConsoleAsmWriter {
+            builder,
+            show_plonky2,
+            file: if let Some(file_name) = write_plonky2_to_file {
+                Some(BufWriter::new(
+                    File::create(file_name).expect("Unable to create PLONKY2 file"),
+                ))
+            } else {
+                None
+            },
+        }
     }
 
     fn is_equal(&mut self, x: Target, y: Target) -> BoolTarget {

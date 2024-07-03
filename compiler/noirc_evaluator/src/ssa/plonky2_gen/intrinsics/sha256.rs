@@ -380,7 +380,7 @@ mod tests {
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
         let builder = CircuitBuilder::<F, D>::new(CircuitConfig::standard_recursion_config());
-        let mut asm_writer = ConsoleAsmWriter::new(builder, false);
+        let mut asm_writer = ConsoleAsmWriter::new(builder, false, None);
         let targets = make_sha256_circuit(&mut asm_writer, message_bits.len() as u64);
         let mut pw = PartialWitness::new();
 

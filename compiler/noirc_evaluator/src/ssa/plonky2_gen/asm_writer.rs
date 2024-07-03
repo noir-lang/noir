@@ -10,7 +10,7 @@ pub trait AsmWriter {
     fn get_mut_builder(&mut self) -> &mut P2Builder;
     fn move_builder(self) -> P2Builder;
 
-    fn new(builder: P2Builder, show_plonky2: bool) -> Self;
+    fn new(builder: P2Builder, show_plonky2: bool, write_plonky2_to_file: Option<String>) -> Self;
 
     fn is_equal(&mut self, x: Target, y: Target) -> BoolTarget;
     fn zero(&mut self) -> Target;
