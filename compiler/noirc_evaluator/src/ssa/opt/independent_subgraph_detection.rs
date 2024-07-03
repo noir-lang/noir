@@ -167,7 +167,7 @@ impl Context {
                     self.connect_values(function, &value_ids);
                 }
                 Instruction::Store { address, value } => {
-                    self.connect_values(function, &[*address, *value])
+                    self.connect_values(function, &[*address, *value]);
                 }
                 Instruction::ArrayGet { array, index } => {
                     let mut value_ids = vec![*array, *index];
@@ -175,7 +175,7 @@ impl Context {
                     self.connect_values(function, &value_ids);
                 }
                 Instruction::ArraySet { array, index, value, .. } => {
-                    self.connect_values(function, &[*array, *index, *value])
+                    self.connect_values(function, &[*array, *index, *value]);
                 }
 
                 Instruction::Call { func: func_id, arguments: argument_ids } => {
@@ -199,7 +199,7 @@ impl Context {
                                     self.brillig_return_to_argument_map
                                         .insert(*result, argument_ids.clone());
                                     self.brillig_return_to_instruction_id_map
-                                        .insert(*result, instruction.clone());
+                                        .insert(*result, *instruction);
                                 }
                             }
                             _ => {
@@ -228,9 +228,8 @@ impl Context {
         self.value_sets.push(HashSet::from_iter(
             values
                 .iter()
-                .filter(|value_id| match function.dfg.get_value(**value_id) {
-                    Value::NumericConstant { .. } => false,
-                    _ => true,
+                .filter(|value_id| {
+                    !matches!(function.dfg.get_value(**value_id), Value::NumericConstant { .. })
                 })
                 .cloned(),
         ));
