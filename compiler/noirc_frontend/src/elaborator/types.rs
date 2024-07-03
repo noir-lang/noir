@@ -1237,10 +1237,7 @@ impl<'context> Elaborator<'context> {
             lints::deprecated_function(elaborator.interner, call.func).map(Into::into)
         });
 
-        let is_current_func_constrained = self.current_item.map_or(true, |id| match id {
-            DependencyId::Function(id) => !self.interner.function_modifiers(&id).is_unconstrained,
-            _ => true,
-        });
+        let is_current_func_constrained = self.in_constrained_function();
 
         let is_unconstrained_call = self.is_unconstrained_call(call.func);
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;

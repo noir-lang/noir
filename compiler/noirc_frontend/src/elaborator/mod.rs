@@ -1474,6 +1474,15 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    /// True if we're currently within a constrained function.
+    /// Defaults to `true` if the current function is unknown.
+    fn in_constrained_function(&self) -> bool {
+        self.current_item.map_or(true, |id| match id {
+            DependencyId::Function(id) => !self.interner.function_modifiers(&id).is_unconstrained,
+            _ => true,
+        })
+    }
+
     /// Filters out comptime items from non-comptime items.
     /// Returns a pair of (comptime items, non-comptime items)
     fn filter_comptime_items(mut items: CollectedItems) -> (CollectedItems, CollectedItems) {

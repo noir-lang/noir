@@ -16,7 +16,7 @@ use crate::{
     macros_api::{
         ForLoopStatement, ForRange, HirStatement, LetStatement, Path, Statement, StatementKind,
     },
-    node_interner::{DefinitionId, DefinitionKind, DependencyId, GlobalId, StmtId},
+    node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
     Type,
 };
 
@@ -206,12 +206,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_jump(&mut self, is_break: bool, span: noirc_errors::Span) -> (HirStatement, Type) {
-        let in_constrained_function = self.current_item.map_or(true, |id| match id {
-            DependencyId::Function(func_id) => {
-                !self.interner.function_modifiers(&func_id).is_unconstrained
-            }
-            _ => true,
-        });
+        let in_constrained_function = self.in_constrained_function();
 
         if in_constrained_function {
             self.push_err(ResolverError::JumpInConstrainedFn { is_break, span });
