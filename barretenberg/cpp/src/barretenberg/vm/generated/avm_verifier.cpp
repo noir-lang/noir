@@ -1,6 +1,5 @@
+#include "barretenberg/vm/generated/avm_verifier.hpp"
 
-
-#include "./avm_verifier.hpp"
 #include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
@@ -194,24 +193,20 @@ bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::ve
     if (kernel_kernel_inputs_evaluation != claimed_evaluations.kernel_kernel_inputs) {
         return false;
     }
-
     FF kernel_kernel_value_out_evaluation = evaluate_public_input_column(public_inputs[1], circuit_size, mle_challenge);
     if (kernel_kernel_value_out_evaluation != claimed_evaluations.kernel_kernel_value_out) {
         return false;
     }
-
     FF kernel_kernel_side_effect_out_evaluation =
         evaluate_public_input_column(public_inputs[2], circuit_size, mle_challenge);
     if (kernel_kernel_side_effect_out_evaluation != claimed_evaluations.kernel_kernel_side_effect_out) {
         return false;
     }
-
     FF kernel_kernel_metadata_out_evaluation =
         evaluate_public_input_column(public_inputs[3], circuit_size, mle_challenge);
     if (kernel_kernel_metadata_out_evaluation != claimed_evaluations.kernel_kernel_metadata_out) {
         return false;
     }
-
     FF main_calldata_evaluation = evaluate_public_input_column(public_inputs[4], circuit_size, mle_challenge);
     if (main_calldata_evaluation != claimed_evaluations.main_calldata) {
         return false;

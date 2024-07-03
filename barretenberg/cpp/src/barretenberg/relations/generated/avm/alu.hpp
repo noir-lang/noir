@@ -1,8 +1,8 @@
-
 #pragma once
-#include "../../relation_parameters.hpp"
-#include "../../relation_types.hpp"
-#include "./declare_views.hpp"
+
+#include "barretenberg/relations/generated/avm/declare_views.hpp"
+#include "barretenberg/relations/relation_parameters.hpp"
+#include "barretenberg/relations/relation_types.hpp"
 
 namespace bb::Avm_vm {
 
@@ -127,8 +127,6 @@ template <typename FF> struct AluRow {
     FF alu_u8_r1{};
     FF alu_u8_r1_shift{};
     FF alu_u8_tag{};
-
-    [[maybe_unused]] static std::vector<std::string> names();
 };
 
 inline std::string get_relation_label_alu(int index)
@@ -136,139 +134,94 @@ inline std::string get_relation_label_alu(int index)
     switch (index) {
     case 12:
         return "ALU_ADD_SUB_1";
-
     case 13:
         return "ALU_ADD_SUB_2";
-
     case 14:
         return "ALU_MULTIPLICATION_FF";
-
     case 15:
         return "ALU_MUL_COMMON_1";
-
     case 16:
         return "ALU_MUL_COMMON_2";
-
     case 19:
         return "ALU_MULTIPLICATION_OUT_U128";
-
     case 20:
         return "ALU_FF_NOT_XOR";
-
     case 21:
         return "ALU_OP_NOT";
-
     case 22:
         return "ALU_RES_IS_BOOL";
-
     case 23:
         return "ALU_OP_EQ";
-
     case 24:
         return "INPUT_DECOMP_1";
-
     case 25:
         return "INPUT_DECOMP_2";
-
     case 27:
         return "SUB_LO_1";
-
     case 28:
         return "SUB_HI_1";
-
     case 30:
         return "SUB_LO_2";
-
     case 31:
         return "SUB_HI_2";
-
     case 32:
         return "RES_LO";
-
     case 33:
         return "RES_HI";
-
     case 34:
         return "CMP_CTR_REL_1";
-
     case 35:
         return "CMP_CTR_REL_2";
-
     case 38:
         return "CTR_NON_ZERO_REL";
-
     case 39:
         return "RNG_CHK_LOOKUP_SELECTOR";
-
     case 40:
         return "LOWER_CMP_RNG_CHK";
-
     case 41:
         return "UPPER_CMP_RNG_CHK";
-
     case 42:
         return "SHIFT_RELS_0";
-
     case 44:
         return "SHIFT_RELS_1";
-
     case 46:
         return "SHIFT_RELS_2";
-
     case 48:
         return "SHIFT_RELS_3";
-
     case 50:
         return "OP_CAST_PREV_LINE";
-
     case 51:
         return "ALU_OP_CAST";
-
     case 52:
         return "OP_CAST_RNG_CHECK_P_SUB_A_LOW";
-
     case 53:
         return "OP_CAST_RNG_CHECK_P_SUB_A_HIGH";
-
     case 54:
         return "TWO_LINE_OP_NO_OVERLAP";
-
     case 55:
         return "SHR_RANGE_0";
-
     case 56:
         return "SHR_RANGE_1";
-
     case 57:
         return "SHL_RANGE_0";
-
     case 58:
         return "SHL_RANGE_1";
-
     case 60:
         return "SHIFT_LT_BIT_LEN";
-
     case 61:
         return "SHR_INPUT_DECOMPOSITION";
-
     case 62:
         return "SHR_OUTPUT";
-
     case 63:
         return "SHL_INPUT_DECOMPOSITION";
-
     case 64:
         return "SHL_OUTPUT";
-
     case 74:
         return "ALU_PROD_DIV";
-
     case 75:
         return "REMAINDER_RANGE_CHK";
-
     case 76:
         return "CMP_CTR_REL_3";
-
     case 78:
         return "DIVISION_RELATION";
     }
@@ -279,10 +232,10 @@ template <typename FF_> class aluImpl {
   public:
     using FF = FF_;
 
-    static constexpr std::array<size_t, 87> SUBRELATION_PARTIAL_LENGTHS{
+    static constexpr std::array<size_t, 87> SUBRELATION_PARTIAL_LENGTHS = {
         2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 5, 5, 5, 5, 6, 6, 8, 3, 4, 4, 5, 4, 4, 3, 4, 3,
         3, 4, 3, 6, 5, 3, 3, 3, 3, 4, 3, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 2, 5, 3, 3, 4, 4, 4, 4,
-        4, 3, 5, 5, 4, 5, 5, 2, 3, 3, 3, 3, 3, 4, 4, 3, 5, 3, 3, 3, 5, 3, 3, 4, 4, 4, 4, 4, 4,
+        4, 3, 5, 5, 4, 5, 5, 2, 3, 3, 3, 3, 3, 4, 4, 3, 5, 3, 3, 3, 5, 3, 3, 4, 4, 4, 4, 4, 4
     };
 
     template <typename ContainerOverSubrelations, typename AllEntities>
@@ -291,11 +244,9 @@ template <typename FF_> class aluImpl {
                            [[maybe_unused]] const RelationParameters<FF>&,
                            [[maybe_unused]] const FF& scaling_factor)
     {
-
         // Contribution 0
         {
             Avm_DECLARE_VIEWS(0);
-
             auto tmp = (alu_sel_alu -
                         ((((((((((alu_op_add + alu_op_sub) + alu_op_mul) + alu_op_not) + alu_op_eq) + alu_op_cast) +
                              alu_op_lt) +
@@ -309,7 +260,6 @@ template <typename FF_> class aluImpl {
         // Contribution 1
         {
             Avm_DECLARE_VIEWS(1);
-
             auto tmp = (alu_sel_cmp - (alu_op_lt + alu_op_lte));
             tmp *= scaling_factor;
             std::get<1>(evals) += tmp;
@@ -317,7 +267,6 @@ template <typename FF_> class aluImpl {
         // Contribution 2
         {
             Avm_DECLARE_VIEWS(2);
-
             auto tmp = (alu_sel_shift_which - (alu_op_shl + alu_op_shr));
             tmp *= scaling_factor;
             std::get<2>(evals) += tmp;
@@ -325,7 +274,6 @@ template <typename FF_> class aluImpl {
         // Contribution 3
         {
             Avm_DECLARE_VIEWS(3);
-
             auto tmp = (alu_cf * (-alu_cf + FF(1)));
             tmp *= scaling_factor;
             std::get<3>(evals) += tmp;
@@ -333,7 +281,6 @@ template <typename FF_> class aluImpl {
         // Contribution 4
         {
             Avm_DECLARE_VIEWS(4);
-
             auto tmp = (alu_ff_tag * (-alu_ff_tag + FF(1)));
             tmp *= scaling_factor;
             std::get<4>(evals) += tmp;
@@ -341,7 +288,6 @@ template <typename FF_> class aluImpl {
         // Contribution 5
         {
             Avm_DECLARE_VIEWS(5);
-
             auto tmp = (alu_u8_tag * (-alu_u8_tag + FF(1)));
             tmp *= scaling_factor;
             std::get<5>(evals) += tmp;
@@ -349,7 +295,6 @@ template <typename FF_> class aluImpl {
         // Contribution 6
         {
             Avm_DECLARE_VIEWS(6);
-
             auto tmp = (alu_u16_tag * (-alu_u16_tag + FF(1)));
             tmp *= scaling_factor;
             std::get<6>(evals) += tmp;
@@ -357,7 +302,6 @@ template <typename FF_> class aluImpl {
         // Contribution 7
         {
             Avm_DECLARE_VIEWS(7);
-
             auto tmp = (alu_u32_tag * (-alu_u32_tag + FF(1)));
             tmp *= scaling_factor;
             std::get<7>(evals) += tmp;
@@ -365,7 +309,6 @@ template <typename FF_> class aluImpl {
         // Contribution 8
         {
             Avm_DECLARE_VIEWS(8);
-
             auto tmp = (alu_u64_tag * (-alu_u64_tag + FF(1)));
             tmp *= scaling_factor;
             std::get<8>(evals) += tmp;
@@ -373,7 +316,6 @@ template <typename FF_> class aluImpl {
         // Contribution 9
         {
             Avm_DECLARE_VIEWS(9);
-
             auto tmp = (alu_u128_tag * (-alu_u128_tag + FF(1)));
             tmp *= scaling_factor;
             std::get<9>(evals) += tmp;
@@ -381,7 +323,6 @@ template <typename FF_> class aluImpl {
         // Contribution 10
         {
             Avm_DECLARE_VIEWS(10);
-
             auto tmp =
                 (alu_sel_alu *
                  ((((((alu_ff_tag + alu_u8_tag) + alu_u16_tag) + alu_u32_tag) + alu_u64_tag) + alu_u128_tag) - FF(1)));
@@ -391,7 +332,6 @@ template <typename FF_> class aluImpl {
         // Contribution 11
         {
             Avm_DECLARE_VIEWS(11);
-
             auto tmp = (alu_in_tag -
                         (((((alu_u8_tag + (alu_u16_tag * FF(2))) + (alu_u32_tag * FF(3))) + (alu_u64_tag * FF(4))) +
                           (alu_u128_tag * FF(5))) +
@@ -402,7 +342,6 @@ template <typename FF_> class aluImpl {
         // Contribution 12
         {
             Avm_DECLARE_VIEWS(12);
-
             auto tmp =
                 (((alu_op_add + alu_op_sub) * ((((((((((alu_u8_r0 + (alu_u8_r1 * FF(256))) + (alu_u16_r0 * FF(65536))) +
                                                       (alu_u16_r1 * FF(4294967296UL))) +
@@ -420,7 +359,6 @@ template <typename FF_> class aluImpl {
         // Contribution 13
         {
             Avm_DECLARE_VIEWS(13);
-
             auto tmp = (((alu_op_add + alu_op_sub) *
                          (((((((alu_u8_tag * alu_u8_r0) + (alu_u16_tag * (alu_u8_r0 + (alu_u8_r1 * FF(256))))) +
                               (alu_u32_tag * ((alu_u8_r0 + (alu_u8_r1 * FF(256))) + (alu_u16_r0 * FF(65536))))) +
@@ -443,7 +381,6 @@ template <typename FF_> class aluImpl {
         // Contribution 14
         {
             Avm_DECLARE_VIEWS(14);
-
             auto tmp = ((alu_ff_tag * alu_op_mul) * ((alu_ia * alu_ib) - alu_ic));
             tmp *= scaling_factor;
             std::get<14>(evals) += tmp;
@@ -451,7 +388,6 @@ template <typename FF_> class aluImpl {
         // Contribution 15
         {
             Avm_DECLARE_VIEWS(15);
-
             auto tmp = ((((-alu_ff_tag + FF(1)) - alu_u128_tag) * alu_op_mul) *
                         (((((((((alu_u8_r0 + (alu_u8_r1 * FF(256))) + (alu_u16_r0 * FF(65536))) +
                                (alu_u16_r1 * FF(4294967296UL))) +
@@ -467,7 +403,6 @@ template <typename FF_> class aluImpl {
         // Contribution 16
         {
             Avm_DECLARE_VIEWS(16);
-
             auto tmp =
                 (alu_op_mul * (((((alu_u8_tag * alu_u8_r0) + (alu_u16_tag * (alu_u8_r0 + (alu_u8_r1 * FF(256))))) +
                                  (alu_u32_tag * ((alu_u8_r0 + (alu_u8_r1 * FF(256))) + (alu_u16_r0 * FF(65536))))) +
@@ -481,7 +416,6 @@ template <typename FF_> class aluImpl {
         // Contribution 17
         {
             Avm_DECLARE_VIEWS(17);
-
             auto tmp = ((alu_u128_tag * alu_op_mul) *
                         ((((((alu_u8_r0 + (alu_u8_r1 * FF(256))) + (alu_u16_r0 * FF(65536))) +
                             (alu_u16_r1 * FF(4294967296UL))) +
@@ -496,7 +430,6 @@ template <typename FF_> class aluImpl {
         // Contribution 18
         {
             Avm_DECLARE_VIEWS(18);
-
             auto tmp =
                 ((alu_u128_tag * alu_op_mul) *
                  ((((((alu_u8_r0_shift + (alu_u8_r1_shift * FF(256))) + (alu_u16_r0_shift * FF(65536))) +
@@ -512,7 +445,6 @@ template <typename FF_> class aluImpl {
         // Contribution 19
         {
             Avm_DECLARE_VIEWS(19);
-
             auto tmp =
                 ((alu_u128_tag * alu_op_mul) *
                  ((((alu_ia * ((((alu_u8_r0_shift + (alu_u8_r1_shift * FF(256))) + (alu_u16_r0_shift * FF(65536))) +
@@ -535,7 +467,6 @@ template <typename FF_> class aluImpl {
         // Contribution 20
         {
             Avm_DECLARE_VIEWS(20);
-
             auto tmp = (alu_op_not * alu_ff_tag);
             tmp *= scaling_factor;
             std::get<20>(evals) += tmp;
@@ -543,7 +474,6 @@ template <typename FF_> class aluImpl {
         // Contribution 21
         {
             Avm_DECLARE_VIEWS(21);
-
             auto tmp = (alu_op_not *
                         ((alu_ia + alu_ic) -
                          ((((((alu_u8_tag * FF(256)) + (alu_u16_tag * FF(65536))) + (alu_u32_tag * FF(4294967296UL))) +
@@ -556,7 +486,6 @@ template <typename FF_> class aluImpl {
         // Contribution 22
         {
             Avm_DECLARE_VIEWS(22);
-
             auto tmp = ((alu_sel_cmp + alu_op_eq) * (alu_ic * (-alu_ic + FF(1))));
             tmp *= scaling_factor;
             std::get<22>(evals) += tmp;
@@ -564,7 +493,6 @@ template <typename FF_> class aluImpl {
         // Contribution 23
         {
             Avm_DECLARE_VIEWS(23);
-
             auto tmp =
                 (alu_op_eq *
                  ((((alu_ia - alu_ib) * ((alu_ic * (-alu_op_eq_diff_inv + FF(1))) + alu_op_eq_diff_inv)) - FF(1)) +
@@ -575,7 +503,6 @@ template <typename FF_> class aluImpl {
         // Contribution 24
         {
             Avm_DECLARE_VIEWS(24);
-
             auto tmp = (((alu_op_lt * alu_ib) + ((alu_op_lte + alu_op_cast) * alu_ia)) -
                         ((alu_a_lo + (alu_a_hi * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }))) * (alu_sel_cmp + alu_op_cast)));
             tmp *= scaling_factor;
@@ -584,7 +511,6 @@ template <typename FF_> class aluImpl {
         // Contribution 25
         {
             Avm_DECLARE_VIEWS(25);
-
             auto tmp = (((alu_op_lt * alu_ia) + (alu_op_lte * alu_ib)) -
                         ((alu_b_lo + (alu_b_hi * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }))) * alu_sel_cmp));
             tmp *= scaling_factor;
@@ -593,7 +519,6 @@ template <typename FF_> class aluImpl {
         // Contribution 26
         {
             Avm_DECLARE_VIEWS(26);
-
             auto tmp = (alu_p_a_borrow * (-alu_p_a_borrow + FF(1)));
             tmp *= scaling_factor;
             std::get<26>(evals) += tmp;
@@ -601,7 +526,6 @@ template <typename FF_> class aluImpl {
         // Contribution 27
         {
             Avm_DECLARE_VIEWS(27);
-
             auto tmp = ((alu_p_sub_a_lo -
                          ((-alu_a_lo + FF(uint256_t{ 4891460686036598784UL, 2896914383306846353UL, 0UL, 0UL })) +
                           (alu_p_a_borrow * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL })))) *
@@ -612,7 +536,6 @@ template <typename FF_> class aluImpl {
         // Contribution 28
         {
             Avm_DECLARE_VIEWS(28);
-
             auto tmp = ((alu_p_sub_a_hi -
                          ((-alu_a_hi + FF(uint256_t{ 13281191951274694749UL, 3486998266802970665UL, 0UL, 0UL })) -
                           alu_p_a_borrow)) *
@@ -623,7 +546,6 @@ template <typename FF_> class aluImpl {
         // Contribution 29
         {
             Avm_DECLARE_VIEWS(29);
-
             auto tmp = (alu_p_b_borrow * (-alu_p_b_borrow + FF(1)));
             tmp *= scaling_factor;
             std::get<29>(evals) += tmp;
@@ -631,7 +553,6 @@ template <typename FF_> class aluImpl {
         // Contribution 30
         {
             Avm_DECLARE_VIEWS(30);
-
             auto tmp = ((alu_p_sub_b_lo -
                          ((-alu_b_lo + FF(uint256_t{ 4891460686036598784UL, 2896914383306846353UL, 0UL, 0UL })) +
                           (alu_p_b_borrow * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL })))) *
@@ -642,7 +563,6 @@ template <typename FF_> class aluImpl {
         // Contribution 31
         {
             Avm_DECLARE_VIEWS(31);
-
             auto tmp = ((alu_p_sub_b_hi -
                          ((-alu_b_hi + FF(uint256_t{ 13281191951274694749UL, 3486998266802970665UL, 0UL, 0UL })) -
                           alu_p_b_borrow)) *
@@ -653,7 +573,6 @@ template <typename FF_> class aluImpl {
         // Contribution 32
         {
             Avm_DECLARE_VIEWS(32);
-
             auto tmp = ((alu_res_lo -
                          (((((alu_a_lo - alu_b_lo) - FF(1)) + (alu_borrow * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }))) *
                            ((alu_op_lt * alu_ic) + ((-alu_ic + FF(1)) * alu_op_lte))) +
@@ -666,7 +585,6 @@ template <typename FF_> class aluImpl {
         // Contribution 33
         {
             Avm_DECLARE_VIEWS(33);
-
             auto tmp =
                 ((alu_res_hi -
                   ((((alu_a_hi - alu_b_hi) - alu_borrow) * ((alu_op_lt * alu_ic) + ((-alu_ic + FF(1)) * alu_op_lte))) +
@@ -679,7 +597,6 @@ template <typename FF_> class aluImpl {
         // Contribution 34
         {
             Avm_DECLARE_VIEWS(34);
-
             auto tmp = (((alu_cmp_rng_ctr_shift - alu_cmp_rng_ctr) + FF(1)) * alu_cmp_rng_ctr);
             tmp *= scaling_factor;
             std::get<34>(evals) += tmp;
@@ -687,7 +604,6 @@ template <typename FF_> class aluImpl {
         // Contribution 35
         {
             Avm_DECLARE_VIEWS(35);
-
             auto tmp = ((alu_cmp_rng_ctr_shift - FF(4)) * alu_sel_cmp);
             tmp *= scaling_factor;
             std::get<35>(evals) += tmp;
@@ -695,7 +611,6 @@ template <typename FF_> class aluImpl {
         // Contribution 36
         {
             Avm_DECLARE_VIEWS(36);
-
             auto tmp = (alu_sel_rng_chk * (-alu_sel_rng_chk + FF(1)));
             tmp *= scaling_factor;
             std::get<36>(evals) += tmp;
@@ -703,7 +618,6 @@ template <typename FF_> class aluImpl {
         // Contribution 37
         {
             Avm_DECLARE_VIEWS(37);
-
             auto tmp = (alu_sel_rng_chk * alu_sel_cmp);
             tmp *= scaling_factor;
             std::get<37>(evals) += tmp;
@@ -711,7 +625,6 @@ template <typename FF_> class aluImpl {
         // Contribution 38
         {
             Avm_DECLARE_VIEWS(38);
-
             auto tmp = ((alu_cmp_rng_ctr *
                          (((-alu_sel_rng_chk + FF(1)) * (-alu_op_eq_diff_inv + FF(1))) + alu_op_eq_diff_inv)) -
                         alu_sel_rng_chk);
@@ -721,7 +634,6 @@ template <typename FF_> class aluImpl {
         // Contribution 39
         {
             Avm_DECLARE_VIEWS(39);
-
             auto tmp = (alu_sel_rng_chk_lookup_shift -
                         ((((((((((alu_sel_cmp_shift + alu_sel_rng_chk_shift) + alu_op_add_shift) + alu_op_sub_shift) +
                                alu_op_mul_shift) +
@@ -737,7 +649,6 @@ template <typename FF_> class aluImpl {
         // Contribution 40
         {
             Avm_DECLARE_VIEWS(40);
-
             auto tmp =
                 (alu_a_lo -
                  (((((((((alu_u8_r0 + (alu_u8_r1 * FF(256))) + (alu_u16_r0 * FF(65536))) +
@@ -755,7 +666,6 @@ template <typename FF_> class aluImpl {
         // Contribution 41
         {
             Avm_DECLARE_VIEWS(41);
-
             auto tmp =
                 (alu_a_hi -
                  ((((((((alu_u16_r7 + (alu_u16_r8 * FF(65536))) + (alu_u16_r9 * FF(4294967296UL))) +
@@ -772,7 +682,6 @@ template <typename FF_> class aluImpl {
         // Contribution 42
         {
             Avm_DECLARE_VIEWS(42);
-
             auto tmp = ((alu_a_lo_shift - alu_b_lo) * alu_sel_rng_chk_shift);
             tmp *= scaling_factor;
             std::get<42>(evals) += tmp;
@@ -780,7 +689,6 @@ template <typename FF_> class aluImpl {
         // Contribution 43
         {
             Avm_DECLARE_VIEWS(43);
-
             auto tmp = ((alu_a_hi_shift - alu_b_hi) * alu_sel_rng_chk_shift);
             tmp *= scaling_factor;
             std::get<43>(evals) += tmp;
@@ -788,7 +696,6 @@ template <typename FF_> class aluImpl {
         // Contribution 44
         {
             Avm_DECLARE_VIEWS(44);
-
             auto tmp = ((alu_b_lo_shift - alu_p_sub_a_lo) * alu_sel_rng_chk_shift);
             tmp *= scaling_factor;
             std::get<44>(evals) += tmp;
@@ -796,7 +703,6 @@ template <typename FF_> class aluImpl {
         // Contribution 45
         {
             Avm_DECLARE_VIEWS(45);
-
             auto tmp = ((alu_b_hi_shift - alu_p_sub_a_hi) * alu_sel_rng_chk_shift);
             tmp *= scaling_factor;
             std::get<45>(evals) += tmp;
@@ -804,7 +710,6 @@ template <typename FF_> class aluImpl {
         // Contribution 46
         {
             Avm_DECLARE_VIEWS(46);
-
             auto tmp = ((alu_p_sub_a_lo_shift - alu_p_sub_b_lo) * alu_sel_rng_chk_shift);
             tmp *= scaling_factor;
             std::get<46>(evals) += tmp;
@@ -812,7 +717,6 @@ template <typename FF_> class aluImpl {
         // Contribution 47
         {
             Avm_DECLARE_VIEWS(47);
-
             auto tmp = ((alu_p_sub_a_hi_shift - alu_p_sub_b_hi) * alu_sel_rng_chk_shift);
             tmp *= scaling_factor;
             std::get<47>(evals) += tmp;
@@ -820,7 +724,6 @@ template <typename FF_> class aluImpl {
         // Contribution 48
         {
             Avm_DECLARE_VIEWS(48);
-
             auto tmp = ((alu_p_sub_b_lo_shift - alu_res_lo) * alu_sel_rng_chk_shift);
             tmp *= scaling_factor;
             std::get<48>(evals) += tmp;
@@ -828,7 +731,6 @@ template <typename FF_> class aluImpl {
         // Contribution 49
         {
             Avm_DECLARE_VIEWS(49);
-
             auto tmp = ((alu_p_sub_b_hi_shift - alu_res_hi) * alu_sel_rng_chk_shift);
             tmp *= scaling_factor;
             std::get<49>(evals) += tmp;
@@ -836,7 +738,6 @@ template <typename FF_> class aluImpl {
         // Contribution 50
         {
             Avm_DECLARE_VIEWS(50);
-
             auto tmp = (alu_op_cast_prev_shift - alu_op_cast);
             tmp *= scaling_factor;
             std::get<50>(evals) += tmp;
@@ -844,7 +745,6 @@ template <typename FF_> class aluImpl {
         // Contribution 51
         {
             Avm_DECLARE_VIEWS(51);
-
             auto tmp = (alu_op_cast *
                         (((((((alu_u8_tag * alu_u8_r0) + (alu_u16_tag * (alu_u8_r0 + (alu_u8_r1 * FF(256))))) +
                              (alu_u32_tag * ((alu_u8_r0 + (alu_u8_r1 * FF(256))) + (alu_u16_r0 * FF(65536))))) +
@@ -866,7 +766,6 @@ template <typename FF_> class aluImpl {
         // Contribution 52
         {
             Avm_DECLARE_VIEWS(52);
-
             auto tmp = (alu_op_cast * (alu_a_lo_shift - alu_p_sub_a_lo));
             tmp *= scaling_factor;
             std::get<52>(evals) += tmp;
@@ -874,7 +773,6 @@ template <typename FF_> class aluImpl {
         // Contribution 53
         {
             Avm_DECLARE_VIEWS(53);
-
             auto tmp = (alu_op_cast * (alu_a_hi_shift - alu_p_sub_a_hi));
             tmp *= scaling_factor;
             std::get<53>(evals) += tmp;
@@ -882,7 +780,6 @@ template <typename FF_> class aluImpl {
         // Contribution 54
         {
             Avm_DECLARE_VIEWS(54);
-
             auto tmp = (((alu_op_mul * alu_u128_tag) + alu_op_cast) * alu_sel_alu_shift);
             tmp *= scaling_factor;
             std::get<54>(evals) += tmp;
@@ -890,7 +787,6 @@ template <typename FF_> class aluImpl {
         // Contribution 55
         {
             Avm_DECLARE_VIEWS(55);
-
             auto tmp = ((alu_shift_lt_bit_len * alu_op_shr) * (alu_a_lo - ((alu_two_pow_s - alu_b_lo) - FF(1))));
             tmp *= scaling_factor;
             std::get<55>(evals) += tmp;
@@ -898,7 +794,6 @@ template <typename FF_> class aluImpl {
         // Contribution 56
         {
             Avm_DECLARE_VIEWS(56);
-
             auto tmp = ((alu_shift_lt_bit_len * alu_op_shr) * (alu_a_hi - ((alu_two_pow_t_sub_s - alu_b_hi) - FF(1))));
             tmp *= scaling_factor;
             std::get<56>(evals) += tmp;
@@ -906,7 +801,6 @@ template <typename FF_> class aluImpl {
         // Contribution 57
         {
             Avm_DECLARE_VIEWS(57);
-
             auto tmp = ((alu_shift_lt_bit_len * alu_op_shl) * (alu_a_lo - ((alu_two_pow_t_sub_s - alu_b_lo) - FF(1))));
             tmp *= scaling_factor;
             std::get<57>(evals) += tmp;
@@ -914,7 +808,6 @@ template <typename FF_> class aluImpl {
         // Contribution 58
         {
             Avm_DECLARE_VIEWS(58);
-
             auto tmp = ((alu_shift_lt_bit_len * alu_op_shl) * (alu_a_hi - ((alu_two_pow_s - alu_b_hi) - FF(1))));
             tmp *= scaling_factor;
             std::get<58>(evals) += tmp;
@@ -922,7 +815,6 @@ template <typename FF_> class aluImpl {
         // Contribution 59
         {
             Avm_DECLARE_VIEWS(59);
-
             auto tmp = (alu_shift_lt_bit_len * (-alu_shift_lt_bit_len + FF(1)));
             tmp *= scaling_factor;
             std::get<59>(evals) += tmp;
@@ -930,7 +822,6 @@ template <typename FF_> class aluImpl {
         // Contribution 60
         {
             Avm_DECLARE_VIEWS(60);
-
             auto tmp = (alu_t_sub_s_bits -
                         (alu_sel_shift_which *
                          ((alu_shift_lt_bit_len *
@@ -948,7 +839,6 @@ template <typename FF_> class aluImpl {
         // Contribution 61
         {
             Avm_DECLARE_VIEWS(61);
-
             auto tmp = ((alu_shift_lt_bit_len * alu_op_shr) * (((alu_b_hi * alu_two_pow_s) + alu_b_lo) - alu_ia));
             tmp *= scaling_factor;
             std::get<61>(evals) += tmp;
@@ -956,7 +846,6 @@ template <typename FF_> class aluImpl {
         // Contribution 62
         {
             Avm_DECLARE_VIEWS(62);
-
             auto tmp = (alu_op_shr * (alu_ic - (alu_b_hi * alu_shift_lt_bit_len)));
             tmp *= scaling_factor;
             std::get<62>(evals) += tmp;
@@ -964,7 +853,6 @@ template <typename FF_> class aluImpl {
         // Contribution 63
         {
             Avm_DECLARE_VIEWS(63);
-
             auto tmp = ((alu_shift_lt_bit_len * alu_op_shl) * (((alu_b_hi * alu_two_pow_t_sub_s) + alu_b_lo) - alu_ia));
             tmp *= scaling_factor;
             std::get<63>(evals) += tmp;
@@ -972,7 +860,6 @@ template <typename FF_> class aluImpl {
         // Contribution 64
         {
             Avm_DECLARE_VIEWS(64);
-
             auto tmp = (alu_op_shl * (alu_ic - ((alu_b_lo * alu_two_pow_s) * alu_shift_lt_bit_len)));
             tmp *= scaling_factor;
             std::get<64>(evals) += tmp;
@@ -980,7 +867,6 @@ template <typename FF_> class aluImpl {
         // Contribution 65
         {
             Avm_DECLARE_VIEWS(65);
-
             auto tmp = (alu_op_div - (alu_op_div_std + alu_op_div_a_lt_b));
             tmp *= scaling_factor;
             std::get<65>(evals) += tmp;
@@ -988,7 +874,6 @@ template <typename FF_> class aluImpl {
         // Contribution 66
         {
             Avm_DECLARE_VIEWS(66);
-
             auto tmp = (alu_op_div_a_lt_b * (-alu_op_div_a_lt_b + FF(1)));
             tmp *= scaling_factor;
             std::get<66>(evals) += tmp;
@@ -996,7 +881,6 @@ template <typename FF_> class aluImpl {
         // Contribution 67
         {
             Avm_DECLARE_VIEWS(67);
-
             auto tmp = (alu_op_div_a_lt_b * (alu_a_lo - ((alu_ib - alu_ia) - FF(1))));
             tmp *= scaling_factor;
             std::get<67>(evals) += tmp;
@@ -1004,7 +888,6 @@ template <typename FF_> class aluImpl {
         // Contribution 68
         {
             Avm_DECLARE_VIEWS(68);
-
             auto tmp = (alu_op_div_a_lt_b * alu_ic);
             tmp *= scaling_factor;
             std::get<68>(evals) += tmp;
@@ -1012,7 +895,6 @@ template <typename FF_> class aluImpl {
         // Contribution 69
         {
             Avm_DECLARE_VIEWS(69);
-
             auto tmp = (alu_op_div_a_lt_b * (alu_ia - alu_remainder));
             tmp *= scaling_factor;
             std::get<69>(evals) += tmp;
@@ -1020,7 +902,6 @@ template <typename FF_> class aluImpl {
         // Contribution 70
         {
             Avm_DECLARE_VIEWS(70);
-
             auto tmp = (alu_op_div_std * (-alu_op_div_std + FF(1)));
             tmp *= scaling_factor;
             std::get<70>(evals) += tmp;
@@ -1028,7 +909,6 @@ template <typename FF_> class aluImpl {
         // Contribution 71
         {
             Avm_DECLARE_VIEWS(71);
-
             auto tmp =
                 (alu_op_div_std * ((alu_ib - alu_divisor_lo) - (alu_divisor_hi * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))));
             tmp *= scaling_factor;
@@ -1037,7 +917,6 @@ template <typename FF_> class aluImpl {
         // Contribution 72
         {
             Avm_DECLARE_VIEWS(72);
-
             auto tmp = (alu_op_div_std *
                         ((alu_ic - alu_quotient_lo) - (alu_quotient_hi * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))));
             tmp *= scaling_factor;
@@ -1046,7 +925,6 @@ template <typename FF_> class aluImpl {
         // Contribution 73
         {
             Avm_DECLARE_VIEWS(73);
-
             auto tmp = (((alu_divisor_hi * alu_quotient_lo) + (alu_divisor_lo * alu_quotient_hi)) -
                         (alu_partial_prod_lo + (alu_partial_prod_hi * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))));
             tmp *= scaling_factor;
@@ -1055,7 +933,6 @@ template <typename FF_> class aluImpl {
         // Contribution 74
         {
             Avm_DECLARE_VIEWS(74);
-
             auto tmp =
                 (alu_op_div_std *
                  ((((alu_divisor_lo * alu_quotient_lo) + (alu_partial_prod_lo * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) +
@@ -1067,7 +944,6 @@ template <typename FF_> class aluImpl {
         // Contribution 75
         {
             Avm_DECLARE_VIEWS(75);
-
             auto tmp = (alu_op_div_std * (alu_b_hi - ((alu_ib - alu_remainder) - FF(1))));
             tmp *= scaling_factor;
             std::get<75>(evals) += tmp;
@@ -1075,7 +951,6 @@ template <typename FF_> class aluImpl {
         // Contribution 76
         {
             Avm_DECLARE_VIEWS(76);
-
             auto tmp = ((alu_cmp_rng_ctr_shift - FF(2)) * alu_op_div_std);
             tmp *= scaling_factor;
             std::get<76>(evals) += tmp;
@@ -1083,7 +958,6 @@ template <typename FF_> class aluImpl {
         // Contribution 77
         {
             Avm_DECLARE_VIEWS(77);
-
             auto tmp = (alu_sel_rng_chk * alu_op_div_std);
             tmp *= scaling_factor;
             std::get<77>(evals) += tmp;
@@ -1091,7 +965,6 @@ template <typename FF_> class aluImpl {
         // Contribution 78
         {
             Avm_DECLARE_VIEWS(78);
-
             auto tmp =
                 (alu_op_div_std *
                  ((((alu_divisor_lo * alu_quotient_lo) + (alu_partial_prod_lo * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) +
@@ -1103,7 +976,6 @@ template <typename FF_> class aluImpl {
         // Contribution 79
         {
             Avm_DECLARE_VIEWS(79);
-
             auto tmp = (alu_sel_div_rng_chk * (-alu_sel_div_rng_chk + FF(1)));
             tmp *= scaling_factor;
             std::get<79>(evals) += tmp;
@@ -1111,7 +983,6 @@ template <typename FF_> class aluImpl {
         // Contribution 80
         {
             Avm_DECLARE_VIEWS(80);
-
             auto tmp = ((alu_sel_div_rng_chk * alu_sel_div_rng_chk_shift) - alu_op_div_std);
             tmp *= scaling_factor;
             std::get<80>(evals) += tmp;
@@ -1119,7 +990,6 @@ template <typename FF_> class aluImpl {
         // Contribution 81
         {
             Avm_DECLARE_VIEWS(81);
-
             auto tmp = (alu_divisor_lo - (alu_op_div_std * (((alu_div_u16_r0 + (alu_div_u16_r1 * FF(65536))) +
                                                              (alu_div_u16_r2 * FF(4294967296UL))) +
                                                             (alu_div_u16_r3 * FF(281474976710656UL)))));
@@ -1129,7 +999,6 @@ template <typename FF_> class aluImpl {
         // Contribution 82
         {
             Avm_DECLARE_VIEWS(82);
-
             auto tmp = (alu_divisor_hi - (alu_op_div_std * (((alu_div_u16_r4 + (alu_div_u16_r5 * FF(65536))) +
                                                              (alu_div_u16_r6 * FF(4294967296UL))) +
                                                             (alu_div_u16_r7 * FF(281474976710656UL)))));
@@ -1139,7 +1008,6 @@ template <typename FF_> class aluImpl {
         // Contribution 83
         {
             Avm_DECLARE_VIEWS(83);
-
             auto tmp =
                 (alu_quotient_lo - (alu_op_div_std * (((alu_div_u16_r0_shift + (alu_div_u16_r1_shift * FF(65536))) +
                                                        (alu_div_u16_r2_shift * FF(4294967296UL))) +
@@ -1150,7 +1018,6 @@ template <typename FF_> class aluImpl {
         // Contribution 84
         {
             Avm_DECLARE_VIEWS(84);
-
             auto tmp =
                 (alu_quotient_hi - (alu_op_div_std * (((alu_div_u16_r4_shift + (alu_div_u16_r5_shift * FF(65536))) +
                                                        (alu_div_u16_r6_shift * FF(4294967296UL))) +
@@ -1161,7 +1028,6 @@ template <typename FF_> class aluImpl {
         // Contribution 85
         {
             Avm_DECLARE_VIEWS(85);
-
             auto tmp = (alu_partial_prod_lo - (alu_op_div_std * ((((alu_u8_r0_shift + (alu_u8_r1_shift * FF(256))) +
                                                                    (alu_u16_r0_shift * FF(65536))) +
                                                                   (alu_u16_r1_shift * FF(4294967296UL))) +
@@ -1172,7 +1038,6 @@ template <typename FF_> class aluImpl {
         // Contribution 86
         {
             Avm_DECLARE_VIEWS(86);
-
             auto tmp = (alu_partial_prod_hi - (alu_op_div_std * (((alu_u16_r3_shift + (alu_u16_r4_shift * FF(65536))) +
                                                                   (alu_u16_r5_shift * FF(4294967296UL))) +
                                                                  (alu_u16_r6_shift * FF(281474976710656UL)))));

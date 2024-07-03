@@ -1,4 +1,3 @@
-
 #include "barretenberg/vm/generated/avm_circuit_builder.hpp"
 
 namespace bb {
@@ -404,224 +403,399 @@ template <typename FF> std::vector<std::string> AvmFullRow<FF>::names()
              "lookup_div_u16_4_counts",
              "lookup_div_u16_5_counts",
              "lookup_div_u16_6_counts",
-             "lookup_div_u16_7_counts",
-             "" };
+             "lookup_div_u16_7_counts" };
 }
 
 template <typename FF> std::ostream& operator<<(std::ostream& os, AvmFullRow<FF> const& row)
 {
-    return os
-           << field_to_string(row.main_clk) << "," << field_to_string(row.main_sel_first) << ","
-           << field_to_string(row.kernel_kernel_inputs) << "," << field_to_string(row.kernel_kernel_value_out) << ","
-           << field_to_string(row.kernel_kernel_side_effect_out) << ","
-           << field_to_string(row.kernel_kernel_metadata_out) << "," << field_to_string(row.main_calldata) << ","
-           << field_to_string(row.alu_a_hi) << "," << field_to_string(row.alu_a_lo) << ","
-           << field_to_string(row.alu_b_hi) << "," << field_to_string(row.alu_b_lo) << ","
-           << field_to_string(row.alu_borrow) << "," << field_to_string(row.alu_cf) << ","
-           << field_to_string(row.alu_clk) << "," << field_to_string(row.alu_cmp_rng_ctr) << ","
-           << field_to_string(row.alu_div_u16_r0) << "," << field_to_string(row.alu_div_u16_r1) << ","
-           << field_to_string(row.alu_div_u16_r2) << "," << field_to_string(row.alu_div_u16_r3) << ","
-           << field_to_string(row.alu_div_u16_r4) << "," << field_to_string(row.alu_div_u16_r5) << ","
-           << field_to_string(row.alu_div_u16_r6) << "," << field_to_string(row.alu_div_u16_r7) << ","
-           << field_to_string(row.alu_divisor_hi) << "," << field_to_string(row.alu_divisor_lo) << ","
-           << field_to_string(row.alu_ff_tag) << "," << field_to_string(row.alu_ia) << ","
-           << field_to_string(row.alu_ib) << "," << field_to_string(row.alu_ic) << ","
-           << field_to_string(row.alu_in_tag) << "," << field_to_string(row.alu_op_add) << ","
-           << field_to_string(row.alu_op_cast) << "," << field_to_string(row.alu_op_cast_prev) << ","
-           << field_to_string(row.alu_op_div) << "," << field_to_string(row.alu_op_div_a_lt_b) << ","
-           << field_to_string(row.alu_op_div_std) << "," << field_to_string(row.alu_op_eq) << ","
-           << field_to_string(row.alu_op_eq_diff_inv) << "," << field_to_string(row.alu_op_lt) << ","
-           << field_to_string(row.alu_op_lte) << "," << field_to_string(row.alu_op_mul) << ","
-           << field_to_string(row.alu_op_not) << "," << field_to_string(row.alu_op_shl) << ","
-           << field_to_string(row.alu_op_shr) << "," << field_to_string(row.alu_op_sub) << ","
-           << field_to_string(row.alu_p_a_borrow) << "," << field_to_string(row.alu_p_b_borrow) << ","
-           << field_to_string(row.alu_p_sub_a_hi) << "," << field_to_string(row.alu_p_sub_a_lo) << ","
-           << field_to_string(row.alu_p_sub_b_hi) << "," << field_to_string(row.alu_p_sub_b_lo) << ","
-           << field_to_string(row.alu_partial_prod_hi) << "," << field_to_string(row.alu_partial_prod_lo) << ","
-           << field_to_string(row.alu_quotient_hi) << "," << field_to_string(row.alu_quotient_lo) << ","
-           << field_to_string(row.alu_remainder) << "," << field_to_string(row.alu_res_hi) << ","
-           << field_to_string(row.alu_res_lo) << "," << field_to_string(row.alu_sel_alu) << ","
-           << field_to_string(row.alu_sel_cmp) << "," << field_to_string(row.alu_sel_div_rng_chk) << ","
-           << field_to_string(row.alu_sel_rng_chk) << "," << field_to_string(row.alu_sel_rng_chk_lookup) << ","
-           << field_to_string(row.alu_sel_shift_which) << "," << field_to_string(row.alu_shift_lt_bit_len) << ","
-           << field_to_string(row.alu_t_sub_s_bits) << "," << field_to_string(row.alu_two_pow_s) << ","
-           << field_to_string(row.alu_two_pow_t_sub_s) << "," << field_to_string(row.alu_u128_tag) << ","
-           << field_to_string(row.alu_u16_r0) << "," << field_to_string(row.alu_u16_r1) << ","
-           << field_to_string(row.alu_u16_r10) << "," << field_to_string(row.alu_u16_r11) << ","
-           << field_to_string(row.alu_u16_r12) << "," << field_to_string(row.alu_u16_r13) << ","
-           << field_to_string(row.alu_u16_r14) << "," << field_to_string(row.alu_u16_r2) << ","
-           << field_to_string(row.alu_u16_r3) << "," << field_to_string(row.alu_u16_r4) << ","
-           << field_to_string(row.alu_u16_r5) << "," << field_to_string(row.alu_u16_r6) << ","
-           << field_to_string(row.alu_u16_r7) << "," << field_to_string(row.alu_u16_r8) << ","
-           << field_to_string(row.alu_u16_r9) << "," << field_to_string(row.alu_u16_tag) << ","
-           << field_to_string(row.alu_u32_tag) << "," << field_to_string(row.alu_u64_tag) << ","
-           << field_to_string(row.alu_u8_r0) << "," << field_to_string(row.alu_u8_r1) << ","
-           << field_to_string(row.alu_u8_tag) << "," << field_to_string(row.binary_acc_ia) << ","
-           << field_to_string(row.binary_acc_ib) << "," << field_to_string(row.binary_acc_ic) << ","
-           << field_to_string(row.binary_clk) << "," << field_to_string(row.binary_ia_bytes) << ","
-           << field_to_string(row.binary_ib_bytes) << "," << field_to_string(row.binary_ic_bytes) << ","
-           << field_to_string(row.binary_in_tag) << "," << field_to_string(row.binary_mem_tag_ctr) << ","
-           << field_to_string(row.binary_mem_tag_ctr_inv) << "," << field_to_string(row.binary_op_id) << ","
-           << field_to_string(row.binary_sel_bin) << "," << field_to_string(row.binary_start) << ","
-           << field_to_string(row.byte_lookup_sel_bin) << "," << field_to_string(row.byte_lookup_table_byte_lengths)
-           << "," << field_to_string(row.byte_lookup_table_in_tags) << ","
-           << field_to_string(row.byte_lookup_table_input_a) << "," << field_to_string(row.byte_lookup_table_input_b)
-           << "," << field_to_string(row.byte_lookup_table_op_id) << ","
-           << field_to_string(row.byte_lookup_table_output) << "," << field_to_string(row.conversion_clk) << ","
-           << field_to_string(row.conversion_input) << "," << field_to_string(row.conversion_num_limbs) << ","
-           << field_to_string(row.conversion_radix) << "," << field_to_string(row.conversion_sel_to_radix_le) << ","
-           << field_to_string(row.gas_da_gas_fixed_table) << "," << field_to_string(row.gas_l2_gas_fixed_table) << ","
-           << field_to_string(row.gas_sel_gas_cost) << "," << field_to_string(row.keccakf1600_clk) << ","
-           << field_to_string(row.keccakf1600_input) << "," << field_to_string(row.keccakf1600_output) << ","
-           << field_to_string(row.keccakf1600_sel_keccakf1600) << ","
-           << field_to_string(row.kernel_emit_l2_to_l1_msg_write_offset) << ","
-           << field_to_string(row.kernel_emit_note_hash_write_offset) << ","
-           << field_to_string(row.kernel_emit_nullifier_write_offset) << ","
-           << field_to_string(row.kernel_emit_unencrypted_log_write_offset) << ","
-           << field_to_string(row.kernel_kernel_in_offset) << "," << field_to_string(row.kernel_kernel_out_offset)
-           << "," << field_to_string(row.kernel_l1_to_l2_msg_exists_write_offset) << ","
-           << field_to_string(row.kernel_note_hash_exist_write_offset) << ","
-           << field_to_string(row.kernel_nullifier_exists_write_offset) << ","
-           << field_to_string(row.kernel_nullifier_non_exists_write_offset) << ","
-           << field_to_string(row.kernel_q_public_input_kernel_add_to_table) << ","
-           << field_to_string(row.kernel_q_public_input_kernel_out_add_to_table) << ","
-           << field_to_string(row.kernel_side_effect_counter) << "," << field_to_string(row.kernel_sload_write_offset)
-           << "," << field_to_string(row.kernel_sstore_write_offset) << ","
-           << field_to_string(row.main_abs_da_rem_gas_hi) << "," << field_to_string(row.main_abs_da_rem_gas_lo) << ","
-           << field_to_string(row.main_abs_l2_rem_gas_hi) << "," << field_to_string(row.main_abs_l2_rem_gas_lo) << ","
-           << field_to_string(row.main_alu_in_tag) << "," << field_to_string(row.main_bin_op_id) << ","
-           << field_to_string(row.main_call_ptr) << "," << field_to_string(row.main_da_gas_op_cost) << ","
-           << field_to_string(row.main_da_gas_remaining) << "," << field_to_string(row.main_da_out_of_gas) << ","
-           << field_to_string(row.main_ia) << "," << field_to_string(row.main_ib) << "," << field_to_string(row.main_ic)
-           << "," << field_to_string(row.main_id) << "," << field_to_string(row.main_id_zero) << ","
-           << field_to_string(row.main_ind_addr_a) << "," << field_to_string(row.main_ind_addr_b) << ","
-           << field_to_string(row.main_ind_addr_c) << "," << field_to_string(row.main_ind_addr_d) << ","
-           << field_to_string(row.main_internal_return_ptr) << "," << field_to_string(row.main_inv) << ","
-           << field_to_string(row.main_l2_gas_op_cost) << "," << field_to_string(row.main_l2_gas_remaining) << ","
-           << field_to_string(row.main_l2_out_of_gas) << "," << field_to_string(row.main_mem_addr_a) << ","
-           << field_to_string(row.main_mem_addr_b) << "," << field_to_string(row.main_mem_addr_c) << ","
-           << field_to_string(row.main_mem_addr_d) << "," << field_to_string(row.main_op_err) << ","
-           << field_to_string(row.main_opcode_val) << "," << field_to_string(row.main_pc) << ","
-           << field_to_string(row.main_r_in_tag) << "," << field_to_string(row.main_rwa) << ","
-           << field_to_string(row.main_rwb) << "," << field_to_string(row.main_rwc) << ","
-           << field_to_string(row.main_rwd) << "," << field_to_string(row.main_sel_alu) << ","
-           << field_to_string(row.main_sel_bin) << "," << field_to_string(row.main_sel_gas_accounting_active) << ","
-           << field_to_string(row.main_sel_last) << "," << field_to_string(row.main_sel_mem_op_a) << ","
-           << field_to_string(row.main_sel_mem_op_activate_gas) << "," << field_to_string(row.main_sel_mem_op_b) << ","
-           << field_to_string(row.main_sel_mem_op_c) << "," << field_to_string(row.main_sel_mem_op_d) << ","
-           << field_to_string(row.main_sel_mov_ia_to_ic) << "," << field_to_string(row.main_sel_mov_ib_to_ic) << ","
-           << field_to_string(row.main_sel_op_add) << "," << field_to_string(row.main_sel_op_address) << ","
-           << field_to_string(row.main_sel_op_and) << "," << field_to_string(row.main_sel_op_block_number) << ","
-           << field_to_string(row.main_sel_op_cast) << "," << field_to_string(row.main_sel_op_chain_id) << ","
-           << field_to_string(row.main_sel_op_cmov) << "," << field_to_string(row.main_sel_op_coinbase) << ","
-           << field_to_string(row.main_sel_op_dagasleft) << "," << field_to_string(row.main_sel_op_div) << ","
-           << field_to_string(row.main_sel_op_emit_l2_to_l1_msg) << ","
-           << field_to_string(row.main_sel_op_emit_note_hash) << "," << field_to_string(row.main_sel_op_emit_nullifier)
-           << "," << field_to_string(row.main_sel_op_emit_unencrypted_log) << "," << field_to_string(row.main_sel_op_eq)
-           << "," << field_to_string(row.main_sel_op_external_call) << "," << field_to_string(row.main_sel_op_fdiv)
-           << "," << field_to_string(row.main_sel_op_fee_per_da_gas) << ","
-           << field_to_string(row.main_sel_op_fee_per_l2_gas) << ","
-           << field_to_string(row.main_sel_op_function_selector) << ","
-           << field_to_string(row.main_sel_op_get_contract_instance) << "," << field_to_string(row.main_sel_op_halt)
-           << "," << field_to_string(row.main_sel_op_internal_call) << ","
-           << field_to_string(row.main_sel_op_internal_return) << "," << field_to_string(row.main_sel_op_jump) << ","
-           << field_to_string(row.main_sel_op_jumpi) << "," << field_to_string(row.main_sel_op_keccak) << ","
-           << field_to_string(row.main_sel_op_l1_to_l2_msg_exists) << "," << field_to_string(row.main_sel_op_l2gasleft)
-           << "," << field_to_string(row.main_sel_op_lt) << "," << field_to_string(row.main_sel_op_lte) << ","
-           << field_to_string(row.main_sel_op_mov) << "," << field_to_string(row.main_sel_op_mul) << ","
-           << field_to_string(row.main_sel_op_not) << "," << field_to_string(row.main_sel_op_note_hash_exists) << ","
-           << field_to_string(row.main_sel_op_nullifier_exists) << "," << field_to_string(row.main_sel_op_or) << ","
-           << field_to_string(row.main_sel_op_pedersen) << "," << field_to_string(row.main_sel_op_poseidon2) << ","
-           << field_to_string(row.main_sel_op_radix_le) << "," << field_to_string(row.main_sel_op_sender) << ","
-           << field_to_string(row.main_sel_op_sha256) << "," << field_to_string(row.main_sel_op_shl) << ","
-           << field_to_string(row.main_sel_op_shr) << "," << field_to_string(row.main_sel_op_sload) << ","
-           << field_to_string(row.main_sel_op_sstore) << "," << field_to_string(row.main_sel_op_storage_address) << ","
-           << field_to_string(row.main_sel_op_sub) << "," << field_to_string(row.main_sel_op_timestamp) << ","
-           << field_to_string(row.main_sel_op_transaction_fee) << "," << field_to_string(row.main_sel_op_version) << ","
-           << field_to_string(row.main_sel_op_xor) << "," << field_to_string(row.main_sel_q_kernel_lookup) << ","
-           << field_to_string(row.main_sel_q_kernel_output_lookup) << ","
-           << field_to_string(row.main_sel_resolve_ind_addr_a) << ","
-           << field_to_string(row.main_sel_resolve_ind_addr_b) << ","
-           << field_to_string(row.main_sel_resolve_ind_addr_c) << ","
-           << field_to_string(row.main_sel_resolve_ind_addr_d) << "," << field_to_string(row.main_sel_rng_16) << ","
-           << field_to_string(row.main_sel_rng_8) << "," << field_to_string(row.main_space_id) << ","
-           << field_to_string(row.main_tag_err) << "," << field_to_string(row.main_w_in_tag) << ","
-           << field_to_string(row.mem_addr) << "," << field_to_string(row.mem_clk) << ","
-           << field_to_string(row.mem_diff_hi) << "," << field_to_string(row.mem_diff_lo) << ","
-           << field_to_string(row.mem_diff_mid) << "," << field_to_string(row.mem_glob_addr) << ","
-           << field_to_string(row.mem_last) << "," << field_to_string(row.mem_lastAccess) << ","
-           << field_to_string(row.mem_one_min_inv) << "," << field_to_string(row.mem_r_in_tag) << ","
-           << field_to_string(row.mem_rw) << "," << field_to_string(row.mem_sel_mem) << ","
-           << field_to_string(row.mem_sel_mov_ia_to_ic) << "," << field_to_string(row.mem_sel_mov_ib_to_ic) << ","
-           << field_to_string(row.mem_sel_op_a) << "," << field_to_string(row.mem_sel_op_b) << ","
-           << field_to_string(row.mem_sel_op_c) << "," << field_to_string(row.mem_sel_op_cmov) << ","
-           << field_to_string(row.mem_sel_op_d) << "," << field_to_string(row.mem_sel_resolve_ind_addr_a) << ","
-           << field_to_string(row.mem_sel_resolve_ind_addr_b) << "," << field_to_string(row.mem_sel_resolve_ind_addr_c)
-           << "," << field_to_string(row.mem_sel_resolve_ind_addr_d) << "," << field_to_string(row.mem_sel_rng_chk)
-           << "," << field_to_string(row.mem_skip_check_tag) << "," << field_to_string(row.mem_space_id) << ","
-           << field_to_string(row.mem_tag) << "," << field_to_string(row.mem_tag_err) << ","
-           << field_to_string(row.mem_tsp) << "," << field_to_string(row.mem_val) << ","
-           << field_to_string(row.mem_w_in_tag) << "," << field_to_string(row.pedersen_clk) << ","
-           << field_to_string(row.pedersen_input) << "," << field_to_string(row.pedersen_output) << ","
-           << field_to_string(row.pedersen_sel_pedersen) << "," << field_to_string(row.poseidon2_clk) << ","
-           << field_to_string(row.poseidon2_input) << "," << field_to_string(row.poseidon2_output) << ","
-           << field_to_string(row.poseidon2_sel_poseidon_perm) << "," << field_to_string(row.powers_power_of_2) << ","
-           << field_to_string(row.sha256_clk) << "," << field_to_string(row.sha256_input) << ","
-           << field_to_string(row.sha256_output) << "," << field_to_string(row.sha256_sel_sha256_compression) << ","
-           << field_to_string(row.sha256_state) << "," << field_to_string(row.perm_main_alu) << ","
-           << field_to_string(row.perm_main_bin) << "," << field_to_string(row.perm_main_conv) << ","
-           << field_to_string(row.perm_main_pos2_perm) << "," << field_to_string(row.perm_main_pedersen) << ","
-           << field_to_string(row.perm_main_mem_a) << "," << field_to_string(row.perm_main_mem_b) << ","
-           << field_to_string(row.perm_main_mem_c) << "," << field_to_string(row.perm_main_mem_d) << ","
-           << field_to_string(row.perm_main_mem_ind_addr_a) << "," << field_to_string(row.perm_main_mem_ind_addr_b)
-           << "," << field_to_string(row.perm_main_mem_ind_addr_c) << ","
-           << field_to_string(row.perm_main_mem_ind_addr_d) << "," << field_to_string(row.lookup_byte_lengths) << ","
-           << field_to_string(row.lookup_byte_operations) << "," << field_to_string(row.lookup_opcode_gas) << ","
-           << field_to_string(row.range_check_l2_gas_hi) << "," << field_to_string(row.range_check_l2_gas_lo) << ","
-           << field_to_string(row.range_check_da_gas_hi) << "," << field_to_string(row.range_check_da_gas_lo) << ","
-           << field_to_string(row.kernel_output_lookup) << "," << field_to_string(row.lookup_into_kernel) << ","
-           << field_to_string(row.incl_main_tag_err) << "," << field_to_string(row.incl_mem_tag_err) << ","
-           << field_to_string(row.lookup_mem_rng_chk_lo) << "," << field_to_string(row.lookup_mem_rng_chk_mid) << ","
-           << field_to_string(row.lookup_mem_rng_chk_hi) << "," << field_to_string(row.lookup_pow_2_0) << ","
-           << field_to_string(row.lookup_pow_2_1) << "," << field_to_string(row.lookup_u8_0) << ","
-           << field_to_string(row.lookup_u8_1) << "," << field_to_string(row.lookup_u16_0) << ","
-           << field_to_string(row.lookup_u16_1) << "," << field_to_string(row.lookup_u16_2) << ","
-           << field_to_string(row.lookup_u16_3) << "," << field_to_string(row.lookup_u16_4) << ","
-           << field_to_string(row.lookup_u16_5) << "," << field_to_string(row.lookup_u16_6) << ","
-           << field_to_string(row.lookup_u16_7) << "," << field_to_string(row.lookup_u16_8) << ","
-           << field_to_string(row.lookup_u16_9) << "," << field_to_string(row.lookup_u16_10) << ","
-           << field_to_string(row.lookup_u16_11) << "," << field_to_string(row.lookup_u16_12) << ","
-           << field_to_string(row.lookup_u16_13) << "," << field_to_string(row.lookup_u16_14) << ","
-           << field_to_string(row.lookup_div_u16_0) << "," << field_to_string(row.lookup_div_u16_1) << ","
-           << field_to_string(row.lookup_div_u16_2) << "," << field_to_string(row.lookup_div_u16_3) << ","
-           << field_to_string(row.lookup_div_u16_4) << "," << field_to_string(row.lookup_div_u16_5) << ","
-           << field_to_string(row.lookup_div_u16_6) << "," << field_to_string(row.lookup_div_u16_7) << ","
-           << field_to_string(row.lookup_byte_lengths_counts) << ","
-           << field_to_string(row.lookup_byte_operations_counts) << "," << field_to_string(row.lookup_opcode_gas_counts)
-           << "," << field_to_string(row.range_check_l2_gas_hi_counts) << ","
-           << field_to_string(row.range_check_l2_gas_lo_counts) << ","
-           << field_to_string(row.range_check_da_gas_hi_counts) << ","
-           << field_to_string(row.range_check_da_gas_lo_counts) << ","
-           << field_to_string(row.kernel_output_lookup_counts) << "," << field_to_string(row.lookup_into_kernel_counts)
-           << "," << field_to_string(row.incl_main_tag_err_counts) << ","
-           << field_to_string(row.incl_mem_tag_err_counts) << "," << field_to_string(row.lookup_mem_rng_chk_lo_counts)
-           << "," << field_to_string(row.lookup_mem_rng_chk_mid_counts) << ","
-           << field_to_string(row.lookup_mem_rng_chk_hi_counts) << "," << field_to_string(row.lookup_pow_2_0_counts)
-           << "," << field_to_string(row.lookup_pow_2_1_counts) << "," << field_to_string(row.lookup_u8_0_counts) << ","
-           << field_to_string(row.lookup_u8_1_counts) << "," << field_to_string(row.lookup_u16_0_counts) << ","
-           << field_to_string(row.lookup_u16_1_counts) << "," << field_to_string(row.lookup_u16_2_counts) << ","
-           << field_to_string(row.lookup_u16_3_counts) << "," << field_to_string(row.lookup_u16_4_counts) << ","
-           << field_to_string(row.lookup_u16_5_counts) << "," << field_to_string(row.lookup_u16_6_counts) << ","
-           << field_to_string(row.lookup_u16_7_counts) << "," << field_to_string(row.lookup_u16_8_counts) << ","
-           << field_to_string(row.lookup_u16_9_counts) << "," << field_to_string(row.lookup_u16_10_counts) << ","
-           << field_to_string(row.lookup_u16_11_counts) << "," << field_to_string(row.lookup_u16_12_counts) << ","
-           << field_to_string(row.lookup_u16_13_counts) << "," << field_to_string(row.lookup_u16_14_counts) << ","
-           << field_to_string(row.lookup_div_u16_0_counts) << "," << field_to_string(row.lookup_div_u16_1_counts) << ","
-           << field_to_string(row.lookup_div_u16_2_counts) << "," << field_to_string(row.lookup_div_u16_3_counts) << ","
-           << field_to_string(row.lookup_div_u16_4_counts) << "," << field_to_string(row.lookup_div_u16_5_counts) << ","
-           << field_to_string(row.lookup_div_u16_6_counts) << "," << field_to_string(row.lookup_div_u16_7_counts)
-           << ","
-              "";
+    return os << field_to_string(row.main_clk)                                             //
+              << "," << field_to_string(row.main_sel_first)                                //
+              << "," << field_to_string(row.kernel_kernel_inputs)                          //
+              << "," << field_to_string(row.kernel_kernel_value_out)                       //
+              << "," << field_to_string(row.kernel_kernel_side_effect_out)                 //
+              << "," << field_to_string(row.kernel_kernel_metadata_out)                    //
+              << "," << field_to_string(row.main_calldata)                                 //
+              << "," << field_to_string(row.alu_a_hi)                                      //
+              << "," << field_to_string(row.alu_a_lo)                                      //
+              << "," << field_to_string(row.alu_b_hi)                                      //
+              << "," << field_to_string(row.alu_b_lo)                                      //
+              << "," << field_to_string(row.alu_borrow)                                    //
+              << "," << field_to_string(row.alu_cf)                                        //
+              << "," << field_to_string(row.alu_clk)                                       //
+              << "," << field_to_string(row.alu_cmp_rng_ctr)                               //
+              << "," << field_to_string(row.alu_div_u16_r0)                                //
+              << "," << field_to_string(row.alu_div_u16_r1)                                //
+              << "," << field_to_string(row.alu_div_u16_r2)                                //
+              << "," << field_to_string(row.alu_div_u16_r3)                                //
+              << "," << field_to_string(row.alu_div_u16_r4)                                //
+              << "," << field_to_string(row.alu_div_u16_r5)                                //
+              << "," << field_to_string(row.alu_div_u16_r6)                                //
+              << "," << field_to_string(row.alu_div_u16_r7)                                //
+              << "," << field_to_string(row.alu_divisor_hi)                                //
+              << "," << field_to_string(row.alu_divisor_lo)                                //
+              << "," << field_to_string(row.alu_ff_tag)                                    //
+              << "," << field_to_string(row.alu_ia)                                        //
+              << "," << field_to_string(row.alu_ib)                                        //
+              << "," << field_to_string(row.alu_ic)                                        //
+              << "," << field_to_string(row.alu_in_tag)                                    //
+              << "," << field_to_string(row.alu_op_add)                                    //
+              << "," << field_to_string(row.alu_op_cast)                                   //
+              << "," << field_to_string(row.alu_op_cast_prev)                              //
+              << "," << field_to_string(row.alu_op_div)                                    //
+              << "," << field_to_string(row.alu_op_div_a_lt_b)                             //
+              << "," << field_to_string(row.alu_op_div_std)                                //
+              << "," << field_to_string(row.alu_op_eq)                                     //
+              << "," << field_to_string(row.alu_op_eq_diff_inv)                            //
+              << "," << field_to_string(row.alu_op_lt)                                     //
+              << "," << field_to_string(row.alu_op_lte)                                    //
+              << "," << field_to_string(row.alu_op_mul)                                    //
+              << "," << field_to_string(row.alu_op_not)                                    //
+              << "," << field_to_string(row.alu_op_shl)                                    //
+              << "," << field_to_string(row.alu_op_shr)                                    //
+              << "," << field_to_string(row.alu_op_sub)                                    //
+              << "," << field_to_string(row.alu_p_a_borrow)                                //
+              << "," << field_to_string(row.alu_p_b_borrow)                                //
+              << "," << field_to_string(row.alu_p_sub_a_hi)                                //
+              << "," << field_to_string(row.alu_p_sub_a_lo)                                //
+              << "," << field_to_string(row.alu_p_sub_b_hi)                                //
+              << "," << field_to_string(row.alu_p_sub_b_lo)                                //
+              << "," << field_to_string(row.alu_partial_prod_hi)                           //
+              << "," << field_to_string(row.alu_partial_prod_lo)                           //
+              << "," << field_to_string(row.alu_quotient_hi)                               //
+              << "," << field_to_string(row.alu_quotient_lo)                               //
+              << "," << field_to_string(row.alu_remainder)                                 //
+              << "," << field_to_string(row.alu_res_hi)                                    //
+              << "," << field_to_string(row.alu_res_lo)                                    //
+              << "," << field_to_string(row.alu_sel_alu)                                   //
+              << "," << field_to_string(row.alu_sel_cmp)                                   //
+              << "," << field_to_string(row.alu_sel_div_rng_chk)                           //
+              << "," << field_to_string(row.alu_sel_rng_chk)                               //
+              << "," << field_to_string(row.alu_sel_rng_chk_lookup)                        //
+              << "," << field_to_string(row.alu_sel_shift_which)                           //
+              << "," << field_to_string(row.alu_shift_lt_bit_len)                          //
+              << "," << field_to_string(row.alu_t_sub_s_bits)                              //
+              << "," << field_to_string(row.alu_two_pow_s)                                 //
+              << "," << field_to_string(row.alu_two_pow_t_sub_s)                           //
+              << "," << field_to_string(row.alu_u128_tag)                                  //
+              << "," << field_to_string(row.alu_u16_r0)                                    //
+              << "," << field_to_string(row.alu_u16_r1)                                    //
+              << "," << field_to_string(row.alu_u16_r10)                                   //
+              << "," << field_to_string(row.alu_u16_r11)                                   //
+              << "," << field_to_string(row.alu_u16_r12)                                   //
+              << "," << field_to_string(row.alu_u16_r13)                                   //
+              << "," << field_to_string(row.alu_u16_r14)                                   //
+              << "," << field_to_string(row.alu_u16_r2)                                    //
+              << "," << field_to_string(row.alu_u16_r3)                                    //
+              << "," << field_to_string(row.alu_u16_r4)                                    //
+              << "," << field_to_string(row.alu_u16_r5)                                    //
+              << "," << field_to_string(row.alu_u16_r6)                                    //
+              << "," << field_to_string(row.alu_u16_r7)                                    //
+              << "," << field_to_string(row.alu_u16_r8)                                    //
+              << "," << field_to_string(row.alu_u16_r9)                                    //
+              << "," << field_to_string(row.alu_u16_tag)                                   //
+              << "," << field_to_string(row.alu_u32_tag)                                   //
+              << "," << field_to_string(row.alu_u64_tag)                                   //
+              << "," << field_to_string(row.alu_u8_r0)                                     //
+              << "," << field_to_string(row.alu_u8_r1)                                     //
+              << "," << field_to_string(row.alu_u8_tag)                                    //
+              << "," << field_to_string(row.binary_acc_ia)                                 //
+              << "," << field_to_string(row.binary_acc_ib)                                 //
+              << "," << field_to_string(row.binary_acc_ic)                                 //
+              << "," << field_to_string(row.binary_clk)                                    //
+              << "," << field_to_string(row.binary_ia_bytes)                               //
+              << "," << field_to_string(row.binary_ib_bytes)                               //
+              << "," << field_to_string(row.binary_ic_bytes)                               //
+              << "," << field_to_string(row.binary_in_tag)                                 //
+              << "," << field_to_string(row.binary_mem_tag_ctr)                            //
+              << "," << field_to_string(row.binary_mem_tag_ctr_inv)                        //
+              << "," << field_to_string(row.binary_op_id)                                  //
+              << "," << field_to_string(row.binary_sel_bin)                                //
+              << "," << field_to_string(row.binary_start)                                  //
+              << "," << field_to_string(row.byte_lookup_sel_bin)                           //
+              << "," << field_to_string(row.byte_lookup_table_byte_lengths)                //
+              << "," << field_to_string(row.byte_lookup_table_in_tags)                     //
+              << "," << field_to_string(row.byte_lookup_table_input_a)                     //
+              << "," << field_to_string(row.byte_lookup_table_input_b)                     //
+              << "," << field_to_string(row.byte_lookup_table_op_id)                       //
+              << "," << field_to_string(row.byte_lookup_table_output)                      //
+              << "," << field_to_string(row.conversion_clk)                                //
+              << "," << field_to_string(row.conversion_input)                              //
+              << "," << field_to_string(row.conversion_num_limbs)                          //
+              << "," << field_to_string(row.conversion_radix)                              //
+              << "," << field_to_string(row.conversion_sel_to_radix_le)                    //
+              << "," << field_to_string(row.gas_da_gas_fixed_table)                        //
+              << "," << field_to_string(row.gas_l2_gas_fixed_table)                        //
+              << "," << field_to_string(row.gas_sel_gas_cost)                              //
+              << "," << field_to_string(row.keccakf1600_clk)                               //
+              << "," << field_to_string(row.keccakf1600_input)                             //
+              << "," << field_to_string(row.keccakf1600_output)                            //
+              << "," << field_to_string(row.keccakf1600_sel_keccakf1600)                   //
+              << "," << field_to_string(row.kernel_emit_l2_to_l1_msg_write_offset)         //
+              << "," << field_to_string(row.kernel_emit_note_hash_write_offset)            //
+              << "," << field_to_string(row.kernel_emit_nullifier_write_offset)            //
+              << "," << field_to_string(row.kernel_emit_unencrypted_log_write_offset)      //
+              << "," << field_to_string(row.kernel_kernel_in_offset)                       //
+              << "," << field_to_string(row.kernel_kernel_out_offset)                      //
+              << "," << field_to_string(row.kernel_l1_to_l2_msg_exists_write_offset)       //
+              << "," << field_to_string(row.kernel_note_hash_exist_write_offset)           //
+              << "," << field_to_string(row.kernel_nullifier_exists_write_offset)          //
+              << "," << field_to_string(row.kernel_nullifier_non_exists_write_offset)      //
+              << "," << field_to_string(row.kernel_q_public_input_kernel_add_to_table)     //
+              << "," << field_to_string(row.kernel_q_public_input_kernel_out_add_to_table) //
+              << "," << field_to_string(row.kernel_side_effect_counter)                    //
+              << "," << field_to_string(row.kernel_sload_write_offset)                     //
+              << "," << field_to_string(row.kernel_sstore_write_offset)                    //
+              << "," << field_to_string(row.main_abs_da_rem_gas_hi)                        //
+              << "," << field_to_string(row.main_abs_da_rem_gas_lo)                        //
+              << "," << field_to_string(row.main_abs_l2_rem_gas_hi)                        //
+              << "," << field_to_string(row.main_abs_l2_rem_gas_lo)                        //
+              << "," << field_to_string(row.main_alu_in_tag)                               //
+              << "," << field_to_string(row.main_bin_op_id)                                //
+              << "," << field_to_string(row.main_call_ptr)                                 //
+              << "," << field_to_string(row.main_da_gas_op_cost)                           //
+              << "," << field_to_string(row.main_da_gas_remaining)                         //
+              << "," << field_to_string(row.main_da_out_of_gas)                            //
+              << "," << field_to_string(row.main_ia)                                       //
+              << "," << field_to_string(row.main_ib)                                       //
+              << "," << field_to_string(row.main_ic)                                       //
+              << "," << field_to_string(row.main_id)                                       //
+              << "," << field_to_string(row.main_id_zero)                                  //
+              << "," << field_to_string(row.main_ind_addr_a)                               //
+              << "," << field_to_string(row.main_ind_addr_b)                               //
+              << "," << field_to_string(row.main_ind_addr_c)                               //
+              << "," << field_to_string(row.main_ind_addr_d)                               //
+              << "," << field_to_string(row.main_internal_return_ptr)                      //
+              << "," << field_to_string(row.main_inv)                                      //
+              << "," << field_to_string(row.main_l2_gas_op_cost)                           //
+              << "," << field_to_string(row.main_l2_gas_remaining)                         //
+              << "," << field_to_string(row.main_l2_out_of_gas)                            //
+              << "," << field_to_string(row.main_mem_addr_a)                               //
+              << "," << field_to_string(row.main_mem_addr_b)                               //
+              << "," << field_to_string(row.main_mem_addr_c)                               //
+              << "," << field_to_string(row.main_mem_addr_d)                               //
+              << "," << field_to_string(row.main_op_err)                                   //
+              << "," << field_to_string(row.main_opcode_val)                               //
+              << "," << field_to_string(row.main_pc)                                       //
+              << "," << field_to_string(row.main_r_in_tag)                                 //
+              << "," << field_to_string(row.main_rwa)                                      //
+              << "," << field_to_string(row.main_rwb)                                      //
+              << "," << field_to_string(row.main_rwc)                                      //
+              << "," << field_to_string(row.main_rwd)                                      //
+              << "," << field_to_string(row.main_sel_alu)                                  //
+              << "," << field_to_string(row.main_sel_bin)                                  //
+              << "," << field_to_string(row.main_sel_gas_accounting_active)                //
+              << "," << field_to_string(row.main_sel_last)                                 //
+              << "," << field_to_string(row.main_sel_mem_op_a)                             //
+              << "," << field_to_string(row.main_sel_mem_op_activate_gas)                  //
+              << "," << field_to_string(row.main_sel_mem_op_b)                             //
+              << "," << field_to_string(row.main_sel_mem_op_c)                             //
+              << "," << field_to_string(row.main_sel_mem_op_d)                             //
+              << "," << field_to_string(row.main_sel_mov_ia_to_ic)                         //
+              << "," << field_to_string(row.main_sel_mov_ib_to_ic)                         //
+              << "," << field_to_string(row.main_sel_op_add)                               //
+              << "," << field_to_string(row.main_sel_op_address)                           //
+              << "," << field_to_string(row.main_sel_op_and)                               //
+              << "," << field_to_string(row.main_sel_op_block_number)                      //
+              << "," << field_to_string(row.main_sel_op_cast)                              //
+              << "," << field_to_string(row.main_sel_op_chain_id)                          //
+              << "," << field_to_string(row.main_sel_op_cmov)                              //
+              << "," << field_to_string(row.main_sel_op_coinbase)                          //
+              << "," << field_to_string(row.main_sel_op_dagasleft)                         //
+              << "," << field_to_string(row.main_sel_op_div)                               //
+              << "," << field_to_string(row.main_sel_op_emit_l2_to_l1_msg)                 //
+              << "," << field_to_string(row.main_sel_op_emit_note_hash)                    //
+              << "," << field_to_string(row.main_sel_op_emit_nullifier)                    //
+              << "," << field_to_string(row.main_sel_op_emit_unencrypted_log)              //
+              << "," << field_to_string(row.main_sel_op_eq)                                //
+              << "," << field_to_string(row.main_sel_op_external_call)                     //
+              << "," << field_to_string(row.main_sel_op_fdiv)                              //
+              << "," << field_to_string(row.main_sel_op_fee_per_da_gas)                    //
+              << "," << field_to_string(row.main_sel_op_fee_per_l2_gas)                    //
+              << "," << field_to_string(row.main_sel_op_function_selector)                 //
+              << "," << field_to_string(row.main_sel_op_get_contract_instance)             //
+              << "," << field_to_string(row.main_sel_op_halt)                              //
+              << "," << field_to_string(row.main_sel_op_internal_call)                     //
+              << "," << field_to_string(row.main_sel_op_internal_return)                   //
+              << "," << field_to_string(row.main_sel_op_jump)                              //
+              << "," << field_to_string(row.main_sel_op_jumpi)                             //
+              << "," << field_to_string(row.main_sel_op_keccak)                            //
+              << "," << field_to_string(row.main_sel_op_l1_to_l2_msg_exists)               //
+              << "," << field_to_string(row.main_sel_op_l2gasleft)                         //
+              << "," << field_to_string(row.main_sel_op_lt)                                //
+              << "," << field_to_string(row.main_sel_op_lte)                               //
+              << "," << field_to_string(row.main_sel_op_mov)                               //
+              << "," << field_to_string(row.main_sel_op_mul)                               //
+              << "," << field_to_string(row.main_sel_op_not)                               //
+              << "," << field_to_string(row.main_sel_op_note_hash_exists)                  //
+              << "," << field_to_string(row.main_sel_op_nullifier_exists)                  //
+              << "," << field_to_string(row.main_sel_op_or)                                //
+              << "," << field_to_string(row.main_sel_op_pedersen)                          //
+              << "," << field_to_string(row.main_sel_op_poseidon2)                         //
+              << "," << field_to_string(row.main_sel_op_radix_le)                          //
+              << "," << field_to_string(row.main_sel_op_sender)                            //
+              << "," << field_to_string(row.main_sel_op_sha256)                            //
+              << "," << field_to_string(row.main_sel_op_shl)                               //
+              << "," << field_to_string(row.main_sel_op_shr)                               //
+              << "," << field_to_string(row.main_sel_op_sload)                             //
+              << "," << field_to_string(row.main_sel_op_sstore)                            //
+              << "," << field_to_string(row.main_sel_op_storage_address)                   //
+              << "," << field_to_string(row.main_sel_op_sub)                               //
+              << "," << field_to_string(row.main_sel_op_timestamp)                         //
+              << "," << field_to_string(row.main_sel_op_transaction_fee)                   //
+              << "," << field_to_string(row.main_sel_op_version)                           //
+              << "," << field_to_string(row.main_sel_op_xor)                               //
+              << "," << field_to_string(row.main_sel_q_kernel_lookup)                      //
+              << "," << field_to_string(row.main_sel_q_kernel_output_lookup)               //
+              << "," << field_to_string(row.main_sel_resolve_ind_addr_a)                   //
+              << "," << field_to_string(row.main_sel_resolve_ind_addr_b)                   //
+              << "," << field_to_string(row.main_sel_resolve_ind_addr_c)                   //
+              << "," << field_to_string(row.main_sel_resolve_ind_addr_d)                   //
+              << "," << field_to_string(row.main_sel_rng_16)                               //
+              << "," << field_to_string(row.main_sel_rng_8)                                //
+              << "," << field_to_string(row.main_space_id)                                 //
+              << "," << field_to_string(row.main_tag_err)                                  //
+              << "," << field_to_string(row.main_w_in_tag)                                 //
+              << "," << field_to_string(row.mem_addr)                                      //
+              << "," << field_to_string(row.mem_clk)                                       //
+              << "," << field_to_string(row.mem_diff_hi)                                   //
+              << "," << field_to_string(row.mem_diff_lo)                                   //
+              << "," << field_to_string(row.mem_diff_mid)                                  //
+              << "," << field_to_string(row.mem_glob_addr)                                 //
+              << "," << field_to_string(row.mem_last)                                      //
+              << "," << field_to_string(row.mem_lastAccess)                                //
+              << "," << field_to_string(row.mem_one_min_inv)                               //
+              << "," << field_to_string(row.mem_r_in_tag)                                  //
+              << "," << field_to_string(row.mem_rw)                                        //
+              << "," << field_to_string(row.mem_sel_mem)                                   //
+              << "," << field_to_string(row.mem_sel_mov_ia_to_ic)                          //
+              << "," << field_to_string(row.mem_sel_mov_ib_to_ic)                          //
+              << "," << field_to_string(row.mem_sel_op_a)                                  //
+              << "," << field_to_string(row.mem_sel_op_b)                                  //
+              << "," << field_to_string(row.mem_sel_op_c)                                  //
+              << "," << field_to_string(row.mem_sel_op_cmov)                               //
+              << "," << field_to_string(row.mem_sel_op_d)                                  //
+              << "," << field_to_string(row.mem_sel_resolve_ind_addr_a)                    //
+              << "," << field_to_string(row.mem_sel_resolve_ind_addr_b)                    //
+              << "," << field_to_string(row.mem_sel_resolve_ind_addr_c)                    //
+              << "," << field_to_string(row.mem_sel_resolve_ind_addr_d)                    //
+              << "," << field_to_string(row.mem_sel_rng_chk)                               //
+              << "," << field_to_string(row.mem_skip_check_tag)                            //
+              << "," << field_to_string(row.mem_space_id)                                  //
+              << "," << field_to_string(row.mem_tag)                                       //
+              << "," << field_to_string(row.mem_tag_err)                                   //
+              << "," << field_to_string(row.mem_tsp)                                       //
+              << "," << field_to_string(row.mem_val)                                       //
+              << "," << field_to_string(row.mem_w_in_tag)                                  //
+              << "," << field_to_string(row.pedersen_clk)                                  //
+              << "," << field_to_string(row.pedersen_input)                                //
+              << "," << field_to_string(row.pedersen_output)                               //
+              << "," << field_to_string(row.pedersen_sel_pedersen)                         //
+              << "," << field_to_string(row.poseidon2_clk)                                 //
+              << "," << field_to_string(row.poseidon2_input)                               //
+              << "," << field_to_string(row.poseidon2_output)                              //
+              << "," << field_to_string(row.poseidon2_sel_poseidon_perm)                   //
+              << "," << field_to_string(row.powers_power_of_2)                             //
+              << "," << field_to_string(row.sha256_clk)                                    //
+              << "," << field_to_string(row.sha256_input)                                  //
+              << "," << field_to_string(row.sha256_output)                                 //
+              << "," << field_to_string(row.sha256_sel_sha256_compression)                 //
+              << "," << field_to_string(row.sha256_state)                                  //
+              << "," << field_to_string(row.perm_main_alu)                                 //
+              << "," << field_to_string(row.perm_main_bin)                                 //
+              << "," << field_to_string(row.perm_main_conv)                                //
+              << "," << field_to_string(row.perm_main_pos2_perm)                           //
+              << "," << field_to_string(row.perm_main_pedersen)                            //
+              << "," << field_to_string(row.perm_main_mem_a)                               //
+              << "," << field_to_string(row.perm_main_mem_b)                               //
+              << "," << field_to_string(row.perm_main_mem_c)                               //
+              << "," << field_to_string(row.perm_main_mem_d)                               //
+              << "," << field_to_string(row.perm_main_mem_ind_addr_a)                      //
+              << "," << field_to_string(row.perm_main_mem_ind_addr_b)                      //
+              << "," << field_to_string(row.perm_main_mem_ind_addr_c)                      //
+              << "," << field_to_string(row.perm_main_mem_ind_addr_d)                      //
+              << "," << field_to_string(row.lookup_byte_lengths)                           //
+              << "," << field_to_string(row.lookup_byte_operations)                        //
+              << "," << field_to_string(row.lookup_opcode_gas)                             //
+              << "," << field_to_string(row.range_check_l2_gas_hi)                         //
+              << "," << field_to_string(row.range_check_l2_gas_lo)                         //
+              << "," << field_to_string(row.range_check_da_gas_hi)                         //
+              << "," << field_to_string(row.range_check_da_gas_lo)                         //
+              << "," << field_to_string(row.kernel_output_lookup)                          //
+              << "," << field_to_string(row.lookup_into_kernel)                            //
+              << "," << field_to_string(row.incl_main_tag_err)                             //
+              << "," << field_to_string(row.incl_mem_tag_err)                              //
+              << "," << field_to_string(row.lookup_mem_rng_chk_lo)                         //
+              << "," << field_to_string(row.lookup_mem_rng_chk_mid)                        //
+              << "," << field_to_string(row.lookup_mem_rng_chk_hi)                         //
+              << "," << field_to_string(row.lookup_pow_2_0)                                //
+              << "," << field_to_string(row.lookup_pow_2_1)                                //
+              << "," << field_to_string(row.lookup_u8_0)                                   //
+              << "," << field_to_string(row.lookup_u8_1)                                   //
+              << "," << field_to_string(row.lookup_u16_0)                                  //
+              << "," << field_to_string(row.lookup_u16_1)                                  //
+              << "," << field_to_string(row.lookup_u16_2)                                  //
+              << "," << field_to_string(row.lookup_u16_3)                                  //
+              << "," << field_to_string(row.lookup_u16_4)                                  //
+              << "," << field_to_string(row.lookup_u16_5)                                  //
+              << "," << field_to_string(row.lookup_u16_6)                                  //
+              << "," << field_to_string(row.lookup_u16_7)                                  //
+              << "," << field_to_string(row.lookup_u16_8)                                  //
+              << "," << field_to_string(row.lookup_u16_9)                                  //
+              << "," << field_to_string(row.lookup_u16_10)                                 //
+              << "," << field_to_string(row.lookup_u16_11)                                 //
+              << "," << field_to_string(row.lookup_u16_12)                                 //
+              << "," << field_to_string(row.lookup_u16_13)                                 //
+              << "," << field_to_string(row.lookup_u16_14)                                 //
+              << "," << field_to_string(row.lookup_div_u16_0)                              //
+              << "," << field_to_string(row.lookup_div_u16_1)                              //
+              << "," << field_to_string(row.lookup_div_u16_2)                              //
+              << "," << field_to_string(row.lookup_div_u16_3)                              //
+              << "," << field_to_string(row.lookup_div_u16_4)                              //
+              << "," << field_to_string(row.lookup_div_u16_5)                              //
+              << "," << field_to_string(row.lookup_div_u16_6)                              //
+              << "," << field_to_string(row.lookup_div_u16_7)                              //
+              << "," << field_to_string(row.lookup_byte_lengths_counts)                    //
+              << "," << field_to_string(row.lookup_byte_operations_counts)                 //
+              << "," << field_to_string(row.lookup_opcode_gas_counts)                      //
+              << "," << field_to_string(row.range_check_l2_gas_hi_counts)                  //
+              << "," << field_to_string(row.range_check_l2_gas_lo_counts)                  //
+              << "," << field_to_string(row.range_check_da_gas_hi_counts)                  //
+              << "," << field_to_string(row.range_check_da_gas_lo_counts)                  //
+              << "," << field_to_string(row.kernel_output_lookup_counts)                   //
+              << "," << field_to_string(row.lookup_into_kernel_counts)                     //
+              << "," << field_to_string(row.incl_main_tag_err_counts)                      //
+              << "," << field_to_string(row.incl_mem_tag_err_counts)                       //
+              << "," << field_to_string(row.lookup_mem_rng_chk_lo_counts)                  //
+              << "," << field_to_string(row.lookup_mem_rng_chk_mid_counts)                 //
+              << "," << field_to_string(row.lookup_mem_rng_chk_hi_counts)                  //
+              << "," << field_to_string(row.lookup_pow_2_0_counts)                         //
+              << "," << field_to_string(row.lookup_pow_2_1_counts)                         //
+              << "," << field_to_string(row.lookup_u8_0_counts)                            //
+              << "," << field_to_string(row.lookup_u8_1_counts)                            //
+              << "," << field_to_string(row.lookup_u16_0_counts)                           //
+              << "," << field_to_string(row.lookup_u16_1_counts)                           //
+              << "," << field_to_string(row.lookup_u16_2_counts)                           //
+              << "," << field_to_string(row.lookup_u16_3_counts)                           //
+              << "," << field_to_string(row.lookup_u16_4_counts)                           //
+              << "," << field_to_string(row.lookup_u16_5_counts)                           //
+              << "," << field_to_string(row.lookup_u16_6_counts)                           //
+              << "," << field_to_string(row.lookup_u16_7_counts)                           //
+              << "," << field_to_string(row.lookup_u16_8_counts)                           //
+              << "," << field_to_string(row.lookup_u16_9_counts)                           //
+              << "," << field_to_string(row.lookup_u16_10_counts)                          //
+              << "," << field_to_string(row.lookup_u16_11_counts)                          //
+              << "," << field_to_string(row.lookup_u16_12_counts)                          //
+              << "," << field_to_string(row.lookup_u16_13_counts)                          //
+              << "," << field_to_string(row.lookup_u16_14_counts)                          //
+              << "," << field_to_string(row.lookup_div_u16_0_counts)                       //
+              << "," << field_to_string(row.lookup_div_u16_1_counts)                       //
+              << "," << field_to_string(row.lookup_div_u16_2_counts)                       //
+              << "," << field_to_string(row.lookup_div_u16_3_counts)                       //
+              << "," << field_to_string(row.lookup_div_u16_4_counts)                       //
+              << "," << field_to_string(row.lookup_div_u16_5_counts)                       //
+              << "," << field_to_string(row.lookup_div_u16_6_counts)                       //
+              << "," << field_to_string(row.lookup_div_u16_7_counts)                       //
+        ;
 }
 
 // Explicit template instantiation.

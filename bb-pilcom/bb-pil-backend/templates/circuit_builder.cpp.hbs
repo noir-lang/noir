@@ -1,0 +1,39 @@
+#include "barretenberg/vm/generated/{{snakeCase name}}_circuit_builder.hpp"
+
+namespace bb {
+namespace {
+
+template <typename FF> std::string field_to_string(const FF& ff)
+{
+    std::ostringstream os;
+    os << ff;
+    std::string raw = os.str();
+    auto first_not_zero = raw.find_first_not_of('0', 2);
+    std::string result = "0x" + (first_not_zero != std::string::npos ? raw.substr(first_not_zero) : "0");
+    return result;
+}
+
+} // namespace
+
+template <typename FF> std::vector<std::string> {{name}}FullRow<FF>::names()
+{
+    return {
+        {{#each all_cols as |col|}}
+        {{#if @index}},{{/if}}"{{col}}"
+        {{/each}}
+    };
+}
+
+template <typename FF> std::ostream& operator<<(std::ostream& os, {{name}}FullRow<FF> const& row)
+{
+    return os <<
+        {{#each all_cols as |col|}}
+        {{#if @index}}<< "," << {{/if}}field_to_string(row.{{col}}) //
+        {{/each}};
+}
+
+// Explicit template instantiation.
+template std::ostream& operator<<(std::ostream& os, {{name}}FullRow<bb::{{name}}Flavor::FF> const& row);
+template std::vector<std::string> {{name}}FullRow<bb::{{name}}Flavor::FF>::names();
+
+} // namespace bb

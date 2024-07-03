@@ -1,3 +1,4 @@
+#pragma once
 
 #define Avm_DECLARE_VIEWS(index)                                                                                       \
     using Accumulator = typename std::tuple_element<index, ContainerOverSubrelations>::type;                           \

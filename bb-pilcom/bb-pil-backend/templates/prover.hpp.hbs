@@ -6,12 +6,12 @@
 #include "barretenberg/sumcheck/sumcheck_output.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-#include "barretenberg/vm/generated/avm_flavor.hpp"
+#include "barretenberg/vm/generated/{{snakeCase name}}_flavor.hpp"
 
 namespace bb {
 
-class AvmProver {
-    using Flavor = AvmFlavor;
+class {{name}}Prover {
+    using Flavor = {{name}}Flavor;
     using FF = Flavor::FF;
     using PCS = Flavor::PCS;
     using Curve = Flavor::Curve;
@@ -24,7 +24,7 @@ class AvmProver {
     using Transcript = Flavor::Transcript;
 
   public:
-    explicit AvmProver(std::shared_ptr<ProvingKey> input_key, std::shared_ptr<PCSCommitmentKey> commitment_key);
+    explicit {{name}}Prover(std::shared_ptr<ProvingKey> input_key, std::shared_ptr<PCSCommitmentKey> commitment_key);
 
     void execute_preamble_round();
     void execute_wire_commitments_round();

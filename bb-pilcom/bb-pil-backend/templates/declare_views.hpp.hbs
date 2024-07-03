@@ -1,0 +1,8 @@
+#pragma once
+
+#define {{root_name}}_DECLARE_VIEWS(index)                                                                                       \
+    using Accumulator = typename std::tuple_element<index, ContainerOverSubrelations>::type;                           \
+    using View = typename Accumulator::View;                                                                           \
+    {{#each all_cols_and_shifts as |col| ~}}
+    [[maybe_unused]] auto {{col}} = View(new_term.{{col}});{{#unless @last}} \\{{/unless}}
+    {{/each}}

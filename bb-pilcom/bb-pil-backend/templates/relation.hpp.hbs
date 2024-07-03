@@ -1,0 +1,54 @@
+#pragma once
+
+#include "barretenberg/relations/relation_parameters.hpp"
+#include "barretenberg/relations/relation_types.hpp"
+#include "barretenberg/relations/generated/{{snakeCase root_name}}/declare_views.hpp"
+
+namespace bb::{{root_name}}_vm {
+
+template <typename FF> struct {{upperCamelCase name}}Row {
+    {{#each all_cols as |col|}}
+    FF {{col}}{};
+    {{/each}}
+};
+
+inline std::string get_relation_label_{{name}}(int index) {
+    switch (index) {
+        {{#each labels as |label|}}
+        case {{label.0}}:
+            return "{{label.1}}";
+        {{/each}}
+    }
+    return std::to_string(index);
+}
+
+template <typename FF_> class {{name}}Impl {
+    public:
+        using FF = FF_;
+        
+        static constexpr std::array<size_t, {{len degrees}}> SUBRELATION_PARTIAL_LENGTHS = {
+            {{#each degrees as |degree|}}{{degree}}{{#unless @last}},{{/unless}}{{/each}}
+        };
+        
+        template <typename ContainerOverSubrelations, typename AllEntities>
+        void static accumulate(
+            ContainerOverSubrelations& evals,
+            const AllEntities& new_term,
+            [[maybe_unused]] const RelationParameters<FF>&,
+            [[maybe_unused]] const FF& scaling_factor
+        ){
+            {{#each identities}}
+            // Contribution {{@index}}
+            {
+                {{../root_name}}_DECLARE_VIEWS({{@index}});
+                auto tmp = {{identity}};
+                tmp *= scaling_factor;
+                std::get<{{@index}}>(evals) += tmp;
+            }
+            {{/each}}
+        }
+};
+
+template <typename FF> using {{name}} = Relation<{{name}}Impl<FF>>;
+
+} // namespace bb::{{root_name}}_vm

@@ -1,0 +1,133 @@
+#include "barretenberg/vm/generated/{{snakeCase name}}_verifier.hpp"
+
+#include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
+#include "barretenberg/numeric/bitop/get_msb.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/transcript/transcript.hpp"
+
+namespace bb {
+
+{{name}}Verifier::{{name}}Verifier(std::shared_ptr<Flavor::VerificationKey> verifier_key)
+    : key(verifier_key)
+{}
+
+{{name}}Verifier::{{name}}Verifier({{name}}Verifier&& other) noexcept
+    : key(std::move(other.key))
+    , pcs_verification_key(std::move(other.pcs_verification_key))
+{}
+
+{{name}}Verifier& {{name}}Verifier::operator=({{name}}Verifier&& other) noexcept
+{
+    key = other.key;
+    pcs_verification_key = (std::move(other.pcs_verification_key));
+    commitments.clear();
+    return *this;
+}
+
+using FF = {{name}}Flavor::FF;
+
+// Evaluate the given public input column over the multivariate challenge points
+[[maybe_unused]] inline FF evaluate_public_input_column(const std::vector<FF>& points,
+                                                        const size_t circuit_size,
+                                                        std::vector<FF> challenges)
+{
+
+    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6361): we pad the points to the circuit size in order
+    // to get the correct evaluation. This is not efficient, and will not be valid in production.
+    std::vector<FF> new_points(circuit_size, 0);
+    std::copy(points.begin(), points.end(), new_points.data());
+
+    Polynomial<FF> polynomial(new_points);
+    return polynomial.evaluate_mle(challenges);
+}
+
+/**
+ * @brief This function verifies an {{name}} Honk proof for given program settings.
+ *
+ */
+bool {{name}}Verifier::verify_proof(const HonkProof& proof, const std::vector<std::vector<FF>>& public_inputs)
+{
+    using Flavor = {{name}}Flavor;
+    using FF = Flavor::FF;
+    using Commitment = Flavor::Commitment;
+    // using PCS = Flavor::PCS;
+    // using Curve = Flavor::Curve;
+    // using ZeroMorph = ZeroMorphVerifier_<Curve>;
+    using VerifierCommitments = Flavor::VerifierCommitments;
+    using CommitmentLabels = Flavor::CommitmentLabels;
+
+    RelationParameters<FF> relation_parameters;
+
+    transcript = std::make_shared<Transcript>(proof);
+
+    VerifierCommitments commitments{ key };
+    CommitmentLabels commitment_labels;
+
+    const auto circuit_size = transcript->template receive_from_prover<uint32_t>("circuit_size");
+
+    if (circuit_size != key->circuit_size) {
+        return false;
+    }
+
+    // Get commitments to VM wires
+    for (auto [comm, label] : zip_view(commitments.get_wires(), commitment_labels.get_wires())) {
+        comm = transcript->template receive_from_prover<Commitment>(label);
+    }
+
+    auto [beta, gamm] = transcript->template get_challenges<FF>("beta", "gamma");
+    relation_parameters.beta = beta;
+    relation_parameters.gamma = gamm;
+
+    // Get commitments to inverses
+    {{#each inverses as |inv|}}
+    commitments.{{inv}} = transcript->template receive_from_prover<Commitment>(commitment_labels.{{inv}});
+    {{/each}}
+
+    // Execute Sumcheck Verifier
+    const size_t log_circuit_size = numeric::get_msb(circuit_size);
+    auto sumcheck = SumcheckVerifier<Flavor>(log_circuit_size, transcript);
+
+    FF alpha = transcript->template get_challenge<FF>("Sumcheck:alpha");
+
+    auto gate_challenges = std::vector<FF>(log_circuit_size);
+    for (size_t idx = 0; idx < log_circuit_size; idx++) {
+        gate_challenges[idx] = transcript->template get_challenge<FF>("Sumcheck:gate_challenge_" + std::to_string(idx));
+    }
+
+    auto [multivariate_challenge, claimed_evaluations, sumcheck_verified] =
+        sumcheck.verify(relation_parameters, alpha, gate_challenges);
+
+    // If Sumcheck did not verify, return false
+    if (sumcheck_verified.has_value() && !sumcheck_verified.value()) {
+        return false;
+    }
+
+    // Public columns evaluation checks
+    std::vector<FF> mle_challenge(multivariate_challenge.begin(),
+                                  multivariate_challenge.begin() + static_cast<int>(log_circuit_size));
+
+    {{#each public_cols}}
+    FF {{col}}_evaluation = evaluate_public_input_column(public_inputs[{{idx}}], circuit_size, mle_challenge);
+        if ({{col}}_evaluation != claimed_evaluations.{{col}}) {
+            return false;
+        }
+    {{/each}}
+
+    // Execute ZeroMorph rounds. See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the
+    // unrolled protocol.
+    // NOTE: temporarily disabled - facing integration issues
+    // auto opening_claim = ZeroMorph::verify(commitments.get_unshifted(),
+    //                                         commitments.get_to_be_shifted(),
+    //                                         claimed_evaluations.get_unshifted(),
+    //                                         claimed_evaluations.get_shifted(),
+    //                                         multivariate_challenge,
+    //                                         pcs_verification_key->get_g1_identity(),
+    //                                         transcript);
+
+    // auto pairing_points = PCS::reduce_verify(opening_claim, transcript);
+    // auto verified = pcs_verification_key->pairing_check(pairing_points[0], pairing_points[1]);
+    // return sumcheck_verified.value() && verified;
+    return sumcheck_verified.value();
+}
+
+} // namespace bb

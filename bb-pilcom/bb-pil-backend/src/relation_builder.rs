@@ -14,8 +14,11 @@ use std::path::Path;
 
 use powdr_number::{BigUint, DegreeType, FieldElement};
 
+use handlebars::Handlebars;
+use serde_json::json;
+
 use crate::file_writer::BBFiles;
-use crate::utils::{capitalize, map_with_newline, snake_case};
+use crate::utils::snake_case;
 
 /// Returned back to the vm builder from the create_relations call
 pub struct RelationOutput {
@@ -57,10 +60,9 @@ pub trait RelationBuilder {
         &self,
         root_name: &str,
         name: &str,
-        sub_relations: &[String],
         identities: &[BBIdentity],
-        row_type: &str,
-        labels_lookup: String,
+        all_cols: &[String],
+        labels: &HashMap<usize, String>,
     );
 
     /// Declare views
@@ -84,35 +86,27 @@ impl RelationBuilder for BBFiles {
         relations.sort();
 
         // Contains all of the rows in each relation, will be useful for creating composite builder types
-        let mut all_rows: HashMap<String, String> = HashMap::new();
         let mut shifted_polys: Vec<String> = Vec::new();
 
         // ----------------------- Create the relation files -----------------------
         for (relation_name, analyzed_idents) in grouped_relations.iter() {
             let IdentitiesOutput {
-                subrelations,
+                subrelations: _,
                 identities,
                 collected_cols,
                 collected_shifts,
                 expression_labels,
             } = create_identities(file_name, analyzed_idents);
 
-            // TODO: This can probably be moved into the create_identities function
-            let row_type = create_row_type(&capitalize(relation_name), &collected_cols);
-
             // Aggregate all shifted polys
             shifted_polys.extend(collected_shifts);
-            // Aggregate all rows
-            all_rows.insert(relation_name.to_owned(), row_type.clone());
 
-            let labels_lookup = create_relation_labels(relation_name, expression_labels);
             self.create_relation(
                 file_name,
                 relation_name,
-                &subrelations,
                 &identities,
-                &row_type,
-                labels_lookup,
+                &collected_cols,
+                &expression_labels,
             );
         }
 
@@ -129,57 +123,68 @@ impl RelationBuilder for BBFiles {
         &self,
         root_name: &str,
         name: &str,
-        sub_relations: &[String],
         identities: &[BBIdentity],
-        row_type: &str,
-        labels_lookup: String,
+        all_cols: &[String],
+        labels: &HashMap<usize, String>,
     ) {
-        let includes = relation_includes();
-        let class_boilerplate = relation_class_boilerplate(name, sub_relations, identities);
-        let export = get_export(name);
+        let mut handlebars = Handlebars::new();
+        let degrees: Vec<_> = identities.iter().map(|(d, _)| d + 1).collect();
+        let sorted_labels = labels
+            .iter()
+            .sorted_by_key(|(idx, _)| *idx)
+            .collect::<Vec<_>>();
 
-        let relations = format!(
-            "{includes}
-namespace bb::{root_name}_vm {{
+        let data = &json!({
+            "root_name": root_name,
+            "name": name,
+            "identities": identities.iter().map(|(d, id)| {
+                json!({
+                    "degree": d,
+                    "identity": id,
+                })
+            }).collect::<Vec<_>>(),
+            "degrees": degrees,
+            "all_cols": all_cols,
+            "labels": sorted_labels,
+        });
 
-{row_type};
+        handlebars
+            .register_template_string(
+                "relation.hpp",
+                std::str::from_utf8(include_bytes!("../templates/relation.hpp.hbs")).unwrap(),
+            )
+            .unwrap();
 
-{labels_lookup}
-
-{class_boilerplate}
-
-{export}
-
-        }}"
-        );
+        let relation_hpp = handlebars.render("relation.hpp", data).unwrap();
 
         self.write_file(
             &format!("{}/{}", &self.rel, snake_case(root_name)),
             &format!("{}.hpp", snake_case(name)),
-            &relations,
+            &relation_hpp,
         );
     }
 
     fn create_declare_views(&self, name: &str, all_cols_and_shifts: &[String]) {
-        let view_transformation =
-            |name: &String| format!("[[maybe_unused]] auto {name} = View(new_term.{name});  \\");
-        let make_view_per_row = map_with_newline(all_cols_and_shifts, view_transformation);
+        let mut handlebars = Handlebars::new();
 
-        let declare_views = format!(
-            "
-    #define {name}_DECLARE_VIEWS(index) \\
-        using Accumulator = typename std::tuple_element<index, ContainerOverSubrelations>::type; \\
-        using View = typename Accumulator::View; \\
-        {make_view_per_row}
+        let data = &json!({
+            "root_name": name,
+            "all_cols_and_shifts": all_cols_and_shifts,
+        });
 
+        handlebars
+            .register_template_string(
+                "declare_views.hpp",
+                std::str::from_utf8(include_bytes!("../templates/declare_views.hpp.hbs")).unwrap(),
+            )
+            .unwrap();
 
-    "
-        );
+        let declare_views_hpp = handlebars.render("declare_views.hpp", data).unwrap();
 
         self.write_file(
             &format!("{}/{}", &self.rel, snake_case(name)),
             "declare_views.hpp",
-            &declare_views,
+            &declare_views_hpp,
         );
     }
 }
@@ -217,92 +222,6 @@ fn group_relations_per_file<F: FieldElement>(
             .unwrap_or_default()
             .replace(".pil", "")
     })
-}
-
-fn relation_class_boilerplate(
-    name: &str,
-    sub_relations: &[String],
-    identities: &[BBIdentity],
-) -> String {
-    // We add one to all degrees because we have an extra scaling factor
-    let degrees = identities.iter().map(|(d, _)| d + 1).collect();
-    let degree_boilerplate = get_degree_boilerplate(degrees);
-    let relation_code = get_relation_code(sub_relations);
-    format!(
-        "template <typename FF_> class {name}Impl {{
-    public:
-        using FF = FF_;
-        
-        {degree_boilerplate}
-        
-        {relation_code}
-}};",
-    )
-}
-
-fn get_export(name: &str) -> String {
-    format!(
-        "template <typename FF> using {name} = Relation<{name}Impl<FF>>;",
-        name = name
-    )
-}
-
-fn get_relation_code(ids: &[String]) -> String {
-    let mut relation_code = r#"
-    template <typename ContainerOverSubrelations, typename AllEntities>
-    void static accumulate(
-        ContainerOverSubrelations& evals,
-        const AllEntities& new_term,
-        [[maybe_unused]] const RelationParameters<FF>&,
-        [[maybe_unused]] const FF& scaling_factor
-    ){
-
-    "#
-    .to_owned();
-    for id in ids {
-        relation_code.push_str(&format!("{}\n", id));
-    }
-    relation_code.push_str("}\n");
-    relation_code
-}
-
-fn get_degree_boilerplate(degrees: Vec<DegreeType>) -> String {
-    let num_degrees = degrees.len();
-
-    let mut degree_boilerplate = format!(
-        "static constexpr std::array<size_t, {num_degrees}> SUBRELATION_PARTIAL_LENGTHS{{\n"
-    );
-    for degree in &degrees {
-        degree_boilerplate.push_str(&format!("   {},\n", degree));
-    }
-    degree_boilerplate.push_str("};");
-
-    degree_boilerplate
-}
-
-// The include statements required for a new relation file
-fn relation_includes() -> &'static str {
-    r#"
-#pragma once
-#include "../../relation_parameters.hpp"
-#include "../../relation_types.hpp"
-#include "./declare_views.hpp"
-"#
-}
-
-// Each vm will need to have a row which is a combination of all of the witness columns
-pub(crate) fn create_row_type(name: &str, all_rows: &[String]) -> String {
-    let row_transformation = |row: &_| format!("    FF {row} {{}};");
-    let all_annotated = map_with_newline(all_rows, row_transformation);
-
-    format!(
-        "template <typename FF> struct {name}Row {{
-        {}
-
-        [[maybe_unused]] static std::vector<std::string> names();
-        }}",
-        all_annotated,
-    )
 }
 
 fn create_identity<T: FieldElement>(
@@ -531,43 +450,4 @@ pub(crate) fn create_identities<F: FieldElement>(
         collected_shifts,
         expression_labels,
     }
-}
-
-/// Relation labels
-///
-/// To view relation labels we create a sparse switch that contains all of the collected labels
-/// Whenever there is a failure, we can lookup into this mapping
-///
-/// Note: this mapping will never be that big, so we are quite naive in implementation
-/// It should be able to be called from else where with relation_name::get_relation_label
-fn create_relation_labels(relation_name: &str, labels: HashMap<usize, String>) -> String {
-    // Sort labels by the index
-    let label_transformation = |(index, label)| {
-        format!(
-            "case {index}:
-            return \"{label}\";
-        "
-        )
-    };
-
-    // Sort the labels by their index
-    let mut sorted_labels: Vec<(usize, String)> = labels.into_iter().collect();
-    sorted_labels.sort_by(|a, b| a.0.cmp(&b.0));
-
-    let switch_statement: String = sorted_labels
-        .into_iter()
-        .map(label_transformation)
-        .collect::<Vec<String>>()
-        .join("\n");
-
-    format!(
-        "
-    inline std::string get_relation_label_{relation_name}(int index) {{
-        switch (index) {{
-            {switch_statement}
-        }}
-        return std::to_string(index);
-    }}
-    "
-    )
 }

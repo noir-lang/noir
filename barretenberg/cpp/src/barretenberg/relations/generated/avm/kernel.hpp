@@ -1,8 +1,8 @@
-
 #pragma once
-#include "../../relation_parameters.hpp"
-#include "../../relation_types.hpp"
-#include "./declare_views.hpp"
+
+#include "barretenberg/relations/generated/avm/declare_views.hpp"
+#include "barretenberg/relations/relation_parameters.hpp"
+#include "barretenberg/relations/relation_types.hpp"
 
 namespace bb::Avm_vm {
 
@@ -38,8 +38,6 @@ template <typename FF> struct KernelRow {
     FF main_sel_op_nullifier_exists{};
     FF main_sel_op_sload{};
     FF main_sel_op_sstore{};
-
-    [[maybe_unused]] static std::vector<std::string> names();
 };
 
 inline std::string get_relation_label_kernel(int index)
@@ -47,31 +45,22 @@ inline std::string get_relation_label_kernel(int index)
     switch (index) {
     case 0:
         return "NOTE_HASH_EXISTS_INC_CONSISTENCY_CHECK";
-
     case 1:
         return "EMIT_NOTE_HASH_INC_CONSISTENCY_CHECK";
-
     case 2:
         return "NULLIFIER_EXISTS_INC_CONSISTENCY_CHECK";
-
     case 3:
         return "NULLIFIER_NON_EXISTS_INC_CONSISTENCY_CHECK";
-
     case 4:
         return "EMIT_NULLIFIER_INC_CONSISTENCY_CHECK";
-
     case 5:
         return "L1_TO_L2_MSG_EXISTS_INC_CONSISTENCY_CHECK";
-
     case 6:
         return "EMIT_UNENCRYPTED_LOG_INC_CONSISTENCY_CHECK";
-
     case 7:
         return "EMIT_L2_TO_L1_MSG_INC_CONSISTENCY_CHECK";
-
     case 8:
         return "SLOAD_INC_CONSISTENCY_CHECK";
-
     case 9:
         return "SSTORE_INC_CONSISTENCY_CHECK";
     }
@@ -82,9 +71,7 @@ template <typename FF_> class kernelImpl {
   public:
     using FF = FF_;
 
-    static constexpr std::array<size_t, 10> SUBRELATION_PARTIAL_LENGTHS{
-        3, 3, 4, 4, 3, 3, 3, 3, 3, 3,
-    };
+    static constexpr std::array<size_t, 10> SUBRELATION_PARTIAL_LENGTHS = { 3, 3, 4, 4, 3, 3, 3, 3, 3, 3 };
 
     template <typename ContainerOverSubrelations, typename AllEntities>
     void static accumulate(ContainerOverSubrelations& evals,
@@ -92,11 +79,9 @@ template <typename FF_> class kernelImpl {
                            [[maybe_unused]] const RelationParameters<FF>&,
                            [[maybe_unused]] const FF& scaling_factor)
     {
-
         // Contribution 0
         {
             Avm_DECLARE_VIEWS(0);
-
             auto tmp =
                 ((-main_sel_last + FF(1)) * (kernel_note_hash_exist_write_offset_shift -
                                              (kernel_note_hash_exist_write_offset + main_sel_op_note_hash_exists)));
@@ -106,7 +91,6 @@ template <typename FF_> class kernelImpl {
         // Contribution 1
         {
             Avm_DECLARE_VIEWS(1);
-
             auto tmp = ((-main_sel_last + FF(1)) * (kernel_emit_note_hash_write_offset_shift -
                                                     (kernel_emit_note_hash_write_offset + main_sel_op_emit_note_hash)));
             tmp *= scaling_factor;
@@ -115,7 +99,6 @@ template <typename FF_> class kernelImpl {
         // Contribution 2
         {
             Avm_DECLARE_VIEWS(2);
-
             auto tmp = ((-main_sel_last + FF(1)) *
                         (kernel_nullifier_exists_write_offset_shift -
                          (kernel_nullifier_exists_write_offset + (main_sel_op_nullifier_exists * main_ib))));
@@ -125,7 +108,6 @@ template <typename FF_> class kernelImpl {
         // Contribution 3
         {
             Avm_DECLARE_VIEWS(3);
-
             auto tmp =
                 ((-main_sel_last + FF(1)) *
                  (kernel_nullifier_non_exists_write_offset_shift -
@@ -136,7 +118,6 @@ template <typename FF_> class kernelImpl {
         // Contribution 4
         {
             Avm_DECLARE_VIEWS(4);
-
             auto tmp = ((-main_sel_last + FF(1)) * (kernel_emit_nullifier_write_offset_shift -
                                                     (kernel_emit_nullifier_write_offset + main_sel_op_emit_nullifier)));
             tmp *= scaling_factor;
@@ -145,7 +126,6 @@ template <typename FF_> class kernelImpl {
         // Contribution 5
         {
             Avm_DECLARE_VIEWS(5);
-
             auto tmp = ((-main_sel_last + FF(1)) *
                         (kernel_l1_to_l2_msg_exists_write_offset_shift -
                          (kernel_l1_to_l2_msg_exists_write_offset + main_sel_op_l1_to_l2_msg_exists)));
@@ -155,7 +135,6 @@ template <typename FF_> class kernelImpl {
         // Contribution 6
         {
             Avm_DECLARE_VIEWS(6);
-
             auto tmp = ((-main_sel_last + FF(1)) *
                         (kernel_emit_unencrypted_log_write_offset_shift -
                          (kernel_emit_unencrypted_log_write_offset + main_sel_op_emit_unencrypted_log)));
@@ -165,7 +144,6 @@ template <typename FF_> class kernelImpl {
         // Contribution 7
         {
             Avm_DECLARE_VIEWS(7);
-
             auto tmp =
                 ((-main_sel_last + FF(1)) * (kernel_emit_l2_to_l1_msg_write_offset_shift -
                                              (kernel_emit_l2_to_l1_msg_write_offset + main_sel_op_emit_l2_to_l1_msg)));
@@ -175,7 +153,6 @@ template <typename FF_> class kernelImpl {
         // Contribution 8
         {
             Avm_DECLARE_VIEWS(8);
-
             auto tmp = ((-main_sel_last + FF(1)) *
                         (kernel_sload_write_offset_shift - (kernel_sload_write_offset + main_sel_op_sload)));
             tmp *= scaling_factor;
@@ -184,7 +161,6 @@ template <typename FF_> class kernelImpl {
         // Contribution 9
         {
             Avm_DECLARE_VIEWS(9);
-
             auto tmp = ((-main_sel_last + FF(1)) *
                         (kernel_sstore_write_offset_shift - (kernel_sstore_write_offset + main_sel_op_sstore)));
             tmp *= scaling_factor;

@@ -2,13 +2,13 @@
 
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
-#include "barretenberg/vm/avm_trace/constants.hpp"
-#include "barretenberg/vm/generated/avm_flavor.hpp"
+#include "barretenberg/vm/{{snakeCase name}}_trace/constants.hpp"
+#include "barretenberg/vm/generated/{{snakeCase name}}_flavor.hpp"
 
 namespace bb {
 
-class AvmVerifier {
-    using Flavor = AvmFlavor;
+class {{name}}Verifier {
+    using Flavor = {{name}}Flavor;
     using FF = Flavor::FF;
     using Commitment = Flavor::Commitment;
     using VerificationKey = Flavor::VerificationKey;
@@ -16,12 +16,12 @@ class AvmVerifier {
     using Transcript = Flavor::Transcript;
 
   public:
-    explicit AvmVerifier(std::shared_ptr<VerificationKey> verifier_key = nullptr);
-    AvmVerifier(AvmVerifier&& other) noexcept;
-    AvmVerifier(const AvmVerifier& other) = delete;
+    explicit {{name}}Verifier(std::shared_ptr<VerificationKey> verifier_key = nullptr);
+    {{name}}Verifier({{name}}Verifier&& other) noexcept;
+    {{name}}Verifier(const {{name}}Verifier& other) = delete;
 
-    AvmVerifier& operator=(const AvmVerifier& other) = delete;
-    AvmVerifier& operator=(AvmVerifier&& other) noexcept;
+    {{name}}Verifier& operator=(const {{name}}Verifier& other) = delete;
+    {{name}}Verifier& operator=({{name}}Verifier&& other) noexcept;
 
     bool verify_proof(const HonkProof& proof, const std::vector<std::vector<FF>>& public_inputs);
 
