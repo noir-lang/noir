@@ -366,9 +366,8 @@ fn eval_constant_binary_op(
     Some((value, operand_type))
 }
 
-
 /// Values in the range `[0, 2^(bit_size-1))` are interpreted as positive integers
-/// 
+///
 /// Values in the range `[2^(bit_size-1), 2^bit_size)` are interpreted as negative integers.
 fn try_convert_field_element_to_signed_integer(field: FieldElement, bit_size: u32) -> Option<i128> {
     let unsigned_int = truncate(field.try_into_u128()?, bit_size);
@@ -383,7 +382,6 @@ fn try_convert_field_element_to_signed_integer(field: FieldElement, bit_size: u3
         -(x as i128)
     };
 
-    
     Some(signed_int)
 }
 
@@ -460,7 +458,9 @@ impl BinaryOp {
 mod test {
     use proptest::prelude::*;
 
-    use super::{try_convert_field_element_to_signed_integer, convert_signed_integer_to_field_element};
+    use super::{
+        convert_signed_integer_to_field_element, try_convert_field_element_to_signed_integer,
+    };
 
     proptest! {
         #[test]
