@@ -316,11 +316,7 @@ where
     ) -> Builder<TAsmWriter> {
         let config = CircuitConfig::standard_recursion_config();
         Builder::<TAsmWriter> {
-            asm_writer: TAsmWriter::new(
-                P2Builder::new(config),
-                show_plonky2,
-                plonky2_print_file,
-            ),
+            asm_writer: TAsmWriter::new(P2Builder::new(config), show_plonky2, plonky2_print_file),
             translation: HashMap::new(),
             dfg: DataFlowGraph::default(),
             show_plonky2,
