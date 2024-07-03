@@ -1,5 +1,5 @@
 [package]
-name = "poseidon2_hash"
+name = "poseidon2"
 type = "bin"
 authors = [""]
 
