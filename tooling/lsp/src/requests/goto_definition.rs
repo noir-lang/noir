@@ -46,6 +46,7 @@ mod goto_definition_tests {
     use std::panic;
 
     use crate::test_utils::{self, search_in_file};
+    use lsp_types::{Position, Range};
     use tokio::test;
 
     use super::*;
@@ -92,5 +93,38 @@ mod goto_definition_tests {
     #[test]
     async fn goto_from_function_location_to_declaration() {
         expect_goto("go_to_definition", "another_function", 0).await;
+    }
+
+    #[test]
+    async fn goto_from_use_as() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("go_to_definition").await;
+
+        let params = GotoDefinitionParams {
+            text_document_position_params: lsp_types::TextDocumentPositionParams {
+                text_document: lsp_types::TextDocumentIdentifier {
+                    uri: noir_text_document.clone(),
+                },
+                position: Position { line: 7, character: 29 }, // The word after `as`
+            },
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        };
+
+        let response = on_goto_definition_request(&mut state, params)
+            .await
+            .expect("Could execute on_goto_definition_request")
+            .unwrap_or_else(|| panic!("Didn't get a goto definition response"));
+
+        if let GotoDefinitionResponse::Scalar(location) = response {
+            assert_eq!(
+                location.range,
+                Range {
+                    start: Position { line: 1, character: 11 },
+                    end: Position { line: 1, character: 27 }
+                }
+            );
+        } else {
+            panic!("Expected a scalar response");
+        };
     }
 }
