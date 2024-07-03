@@ -214,7 +214,7 @@ pub enum QuotedType {
     Quoted,
     TopLevelItem,
     Type,
-    TypeDefinition,
+    StructDefinition,
 }
 
 /// A list of TypeVariableIds to bind to a type. Storing the
@@ -547,7 +547,7 @@ impl TypeVariable {
             TypeBinding::Unbound(id) => *id,
         };
 
-        assert!(!typ.occurs(id));
+        assert!(!typ.occurs(id), "{self:?} occurs within {typ:?}");
         *self.1.borrow_mut() = TypeBinding::Bound(typ);
     }
 
@@ -1176,7 +1176,7 @@ impl std::fmt::Display for QuotedType {
             QuotedType::Quoted => write!(f, "Quoted"),
             QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
             QuotedType::Type => write!(f, "Type"),
-            QuotedType::TypeDefinition => write!(f, "TypeDefinition"),
+            QuotedType::StructDefinition => write!(f, "StructDefinition"),
         }
     }
 }
@@ -1343,8 +1343,7 @@ impl Type {
             TypeBinding::Unbound(id) => *id,
         };
 
-        let this = self.substitute(bindings);
-
+        let this = self.substitute(bindings).follow_bindings();
         if let Some(binding) = this.get_inner_type_variable() {
             match &*binding.borrow() {
                 TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings),
@@ -1743,6 +1742,15 @@ impl Type {
         }
     }
 
+    fn type_variable_id(&self) -> Option<TypeVariableId> {
+        match self {
+            Type::TypeVariable(variable, _) | Type::NamedGeneric(variable, _, _) => {
+                Some(variable.0)
+            }
+            _ => None,
+        }
+    }
+
     /// Substitute any type variables found within this type with the
     /// given bindings if found. If a type variable is not found within
     /// the given TypeBindings, it is unchanged.
@@ -1777,18 +1785,29 @@ impl Type {
             return self.clone();
         }
 
+        let recur_on_binding = |id, replacement: &Type| {
+            // Prevent recuring forever if there's a `T := T` binding
+            if replacement.type_variable_id() == Some(id) {
+                replacement.clone()
+            } else {
+                replacement.substitute_helper(type_bindings, substitute_bound_typevars)
+            }
+        };
+
         let substitute_binding = |binding: &TypeVariable| {
             // Check the id first to allow substituting to
             // type variables that have already been bound over.
             // This is needed for monomorphizing trait impl methods.
             match type_bindings.get(&binding.0) {
-                Some((_, binding)) if substitute_bound_typevars => binding.clone(),
+                Some((_, replacement)) if substitute_bound_typevars => {
+                    recur_on_binding(binding.0, replacement)
+                }
                 _ => match &*binding.borrow() {
                     TypeBinding::Bound(binding) => {
                         binding.substitute_helper(type_bindings, substitute_bound_typevars)
                     }
                     TypeBinding::Unbound(id) => match type_bindings.get(id) {
-                        Some((_, binding)) => binding.clone(),
+                        Some((_, replacement)) => recur_on_binding(binding.0, replacement),
                         None => self.clone(),
                     },
                 },

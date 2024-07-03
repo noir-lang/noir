@@ -2,7 +2,10 @@ use acvm::{acir::AcirField, FieldElement};
 use noirc_errors::{Position, Span, Spanned};
 use std::{fmt, iter::Map, vec::IntoIter};
 
-use crate::{lexer::errors::LexerErrorKind, node_interner::ExprId};
+use crate::{
+    lexer::errors::LexerErrorKind,
+    node_interner::{ExprId, QuotedTypeId},
+};
 
 /// Represents a token in noir's grammar - a word, number,
 /// or symbol that can be used in noir's syntax. This is the
@@ -24,6 +27,7 @@ pub enum BorrowedToken<'input> {
     LineComment(&'input str, Option<DocStyle>),
     BlockComment(&'input str, Option<DocStyle>),
     Quote(&'input Tokens),
+    QuotedType(QuotedTypeId),
     /// <
     Less,
     /// <=
@@ -125,6 +129,11 @@ pub enum Token {
     BlockComment(String, Option<DocStyle>),
     // A `quote { ... }` along with the tokens in its token stream.
     Quote(Tokens),
+    /// A quoted type resulting from a `Type` object in noir code being
+    /// spliced into a macro's token stream. We preserve the original type
+    /// to avoid having to tokenize it, re-parse it, and re-resolve it which
+    /// may change the underlying type.
+    QuotedType(QuotedTypeId),
     /// <
     Less,
     /// <=
@@ -223,6 +232,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::LineComment(ref s, _style) => BorrowedToken::LineComment(s, *_style),
         Token::BlockComment(ref s, _style) => BorrowedToken::BlockComment(s, *_style),
         Token::Quote(stream) => BorrowedToken::Quote(stream),
+        Token::QuotedType(id) => BorrowedToken::QuotedType(*id),
         Token::IntType(ref i) => BorrowedToken::IntType(i.clone()),
         Token::Less => BorrowedToken::Less,
         Token::LessEqual => BorrowedToken::LessEqual,
@@ -343,6 +353,8 @@ impl fmt::Display for Token {
                 }
                 write!(f, "}}")
             }
+            // Quoted types only have an ID so there is nothing to display
+            Token::QuotedType(_) => write!(f, "(type)"),
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
@@ -394,6 +406,7 @@ pub enum TokenKind {
     Keyword,
     Attribute,
     Quote,
+    QuotedType,
     UnquoteMarker,
 }
 
@@ -406,6 +419,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Keyword => write!(f, "keyword"),
             TokenKind::Attribute => write!(f, "attribute"),
             TokenKind::Quote => write!(f, "quote"),
+            TokenKind::QuotedType => write!(f, "quoted type"),
             TokenKind::UnquoteMarker => write!(f, "macro result"),
         }
     }
@@ -424,6 +438,7 @@ impl Token {
             Token::Attribute(_) => TokenKind::Attribute,
             Token::UnquoteMarker(_) => TokenKind::UnquoteMarker,
             Token::Quote(_) => TokenKind::Quote,
+            Token::QuotedType(_) => TokenKind::QuotedType,
             tok => TokenKind::Token(tok.clone()),
         }
     }
@@ -898,7 +913,7 @@ pub enum Keyword {
     Trait,
     Type,
     TypeType,
-    TypeDefinition,
+    StructDefinition,
     Unchecked,
     Unconstrained,
     Use,
@@ -946,7 +961,7 @@ impl fmt::Display for Keyword {
             Keyword::Trait => write!(f, "trait"),
             Keyword::Type => write!(f, "type"),
             Keyword::TypeType => write!(f, "Type"),
-            Keyword::TypeDefinition => write!(f, "TypeDefinition"),
+            Keyword::StructDefinition => write!(f, "StructDefinition"),
             Keyword::Unchecked => write!(f, "unchecked"),
             Keyword::Unconstrained => write!(f, "unconstrained"),
             Keyword::Use => write!(f, "use"),
@@ -997,7 +1012,7 @@ impl Keyword {
             "trait" => Keyword::Trait,
             "type" => Keyword::Type,
             "Type" => Keyword::TypeType,
-            "TypeDefinition" => Keyword::TypeDefinition,
+            "StructDefinition" => Keyword::StructDefinition,
             "unchecked" => Keyword::Unchecked,
             "unconstrained" => Keyword::Unconstrained,
             "use" => Keyword::Use,

@@ -1,0 +1,148 @@
+use std::{
+    collections::HashMap,
+    future::{self, Future},
+};
+
+use async_lsp::ResponseError;
+use lsp_types::{
+    PrepareRenameResponse, RenameParams, TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
+};
+
+use crate::LspState;
+
+use super::{process_request, to_lsp_location};
+
+pub(crate) fn on_prepare_rename_request(
+    state: &mut LspState,
+    params: TextDocumentPositionParams,
+) -> impl Future<Output = Result<Option<PrepareRenameResponse>, ResponseError>> {
+    let result = process_request(state, params, |location, interner, _| {
+        let rename_possible = interner.is_location_known(location);
+        Some(PrepareRenameResponse::DefaultBehavior { default_behavior: rename_possible })
+    });
+    future::ready(result)
+}
+
+pub(crate) fn on_rename_request(
+    state: &mut LspState,
+    params: RenameParams,
+) -> impl Future<Output = Result<Option<WorkspaceEdit>, ResponseError>> {
+    let result =
+        process_request(state, params.text_document_position, |location, interner, files| {
+            let rename_changes = interner.find_all_references(location, true).map(|locations| {
+                let rs = locations.iter().fold(
+                    HashMap::new(),
+                    |mut acc: HashMap<Url, Vec<TextEdit>>, location| {
+                        let file_id = location.file;
+                        let span = location.span;
+
+                        let Some(lsp_location) = to_lsp_location(files, file_id, span) else {
+                            return acc;
+                        };
+
+                        let edit = TextEdit {
+                            range: lsp_location.range,
+                            new_text: params.new_name.clone(),
+                        };
+
+                        acc.entry(lsp_location.uri).or_default().push(edit);
+
+                        acc
+                    },
+                );
+                rs
+            });
+
+            let response = WorkspaceEdit {
+                changes: rename_changes,
+                document_changes: None,
+                change_annotations: None,
+            };
+
+            Some(response)
+        });
+    future::ready(result)
+}
+
+#[cfg(test)]
+mod rename_tests {
+    use super::*;
+    use crate::test_utils::{self, search_in_file};
+    use lsp_types::{Range, WorkDoneProgressParams};
+    use tokio::test;
+
+    async fn check_rename_succeeds(directory: &str, name: &str) {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
+
+        // First we find out all of the occurrences of `name` in the main.nr file.
+        // Note that this only works if that name doesn't show up in other places where we don't
+        // expect a rename, but we craft our tests to avoid that.
+        let ranges = search_in_file(noir_text_document.path(), name);
+
+        // Test renaming works on any instance of the symbol.
+        for target_range in &ranges {
+            let target_position = target_range.start;
+
+            let params = RenameParams {
+                text_document_position: TextDocumentPositionParams {
+                    text_document: lsp_types::TextDocumentIdentifier {
+                        uri: noir_text_document.clone(),
+                    },
+                    position: target_position,
+                },
+                new_name: "renamed_function".to_string(),
+                work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+            };
+
+            let response = on_rename_request(&mut state, params)
+                .await
+                .expect("Could not execute on_prepare_rename_request")
+                .unwrap();
+
+            let changes = response.changes.expect("Expected to find rename changes");
+            let mut changes: Vec<Range> =
+                changes.values().flatten().map(|edit| edit.range).collect();
+            changes.sort_by_key(|range| range.start.line);
+            assert_eq!(changes, ranges);
+        }
+    }
+
+    #[test]
+    async fn test_on_prepare_rename_request_cannot_be_applied() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("rename_function").await;
+
+        let params = TextDocumentPositionParams {
+            text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
+            position: lsp_types::Position { line: 0, character: 0 }, // This is at the "f" of an "fn" keyword
+        };
+
+        let response = on_prepare_rename_request(&mut state, params)
+            .await
+            .expect("Could not execute on_prepare_rename_request");
+
+        assert_eq!(
+            response,
+            Some(PrepareRenameResponse::DefaultBehavior { default_behavior: false })
+        );
+    }
+
+    #[test]
+    async fn test_rename_function() {
+        check_rename_succeeds("rename_function", "another_function").await;
+    }
+
+    #[test]
+    async fn test_rename_qualified_function() {
+        check_rename_succeeds("rename_qualified_function", "bar").await;
+    }
+
+    #[test]
+    async fn test_rename_function_in_use_statement() {
+        check_rename_succeeds("rename_function_use", "some_function").await;
+    }
+
+    #[test]
+    async fn test_rename_struct() {
+        check_rename_succeeds("rename_struct", "Foo").await;
+    }
+}

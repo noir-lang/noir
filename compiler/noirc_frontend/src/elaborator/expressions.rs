@@ -27,7 +27,7 @@ use crate::{
         HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
         MethodCallExpression, PrefixExpression,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId},
+    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId},
     token::Tokens,
     Kind, QuotedType, Shared, StructType, Type,
 };
@@ -431,6 +431,11 @@ impl<'context> Elaborator<'context> {
             r#type,
             struct_generics,
         });
+
+        let referenced = DependencyId::Struct(struct_type.borrow().id);
+        let reference = DependencyId::Variable(Location::new(span, self.file));
+        self.interner.add_reference(referenced, reference);
+
         (expr, Type::Struct(struct_type, generics))
     }
 
@@ -547,7 +552,7 @@ impl<'context> Elaborator<'context> {
                         trait_id: trait_id.trait_id,
                         trait_generics: Vec::new(),
                     };
-                    self.trait_constraints.push((constraint, expr_id));
+                    self.push_trait_constraint(constraint, expr_id);
                     self.type_check_operator_method(expr_id, trait_id, &lhs_type, span);
                 }
                 typ
@@ -663,8 +668,16 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_comptime_block(&mut self, block: BlockExpression, span: Span) -> (ExprId, Type) {
+        // We have to push a new FunctionContext so that we can resolve any constraints
+        // in this comptime block early before the function as a whole finishes elaborating.
+        // Otherwise the interpreter below may find expressions for which the underlying trait
+        // call is not yet solved for.
+        self.function_context.push(Default::default());
         let (block, _typ) = self.elaborate_block_expression(block);
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        self.check_and_pop_function_context();
+
+        let mut interpreter =
+            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
         let value = interpreter.evaluate_block(block);
         self.inline_comptime_value(value, span)
     }
@@ -737,7 +750,8 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        let mut interpreter = Interpreter::new(self.interner, &mut self.comptime_scopes);
+        let mut interpreter =
+            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
 
         let mut comptime_args = Vec::new();
         let mut errors = Vec::new();
@@ -757,7 +771,8 @@ impl<'context> Elaborator<'context> {
             return None;
         }
 
-        let result = interpreter.call_function(function, comptime_args, location);
+        let bindings = interpreter.interner.get_instantiation_bindings(func).clone();
+        let result = interpreter.call_function(function, comptime_args, bindings, location);
         let (expr_id, typ) = self.inline_comptime_value(result, location.span);
         Some((self.interner.expression(&expr_id), typ))
     }

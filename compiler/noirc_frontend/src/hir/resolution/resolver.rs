@@ -399,8 +399,8 @@ impl<'a> Resolver<'a> {
         }
 
         let location = Location::new(name.span(), self.file);
-        let id =
-            self.interner.push_definition(name.0.contents.clone(), mutable, definition, location);
+        let var_name = name.0.contents.clone();
+        let id = self.interner.push_definition(var_name, mutable, false, definition, location);
         let ident = HirIdent::non_trait_method(id, location);
         let resolver_meta =
             ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused };
@@ -445,8 +445,8 @@ impl<'a> Resolver<'a> {
             (hir_ident, resolver_meta)
         } else {
             let location = Location::new(name.span(), self.file);
-            let id =
-                self.interner.push_definition(name.0.contents.clone(), false, definition, location);
+            let var_name = name.0.contents.clone();
+            let id = self.interner.push_definition(var_name, false, false, definition, location);
             let ident = HirIdent::non_trait_method(id, location);
             let resolver_meta =
                 ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused: true };
@@ -612,6 +612,7 @@ impl<'a> Resolver<'a> {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element)))
             }
             Parenthesized(typ) => self.resolve_type_inner(*typ),
+            Resolved(id) => self.interner.get_quoted_type(id).clone(),
         };
 
         if let Type::Struct(_, _) = resolved_type {
@@ -1113,6 +1114,7 @@ impl<'a> Resolver<'a> {
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
             is_entry_point: self.is_entry_point_function(func),
             has_inline_attribute,
+            source_crate: self.path_resolver.module_id().krate,
 
             // These fields are only used by the elaborator
             all_generics: Vec::new(),
@@ -1510,7 +1512,7 @@ impl<'a> Resolver<'a> {
                     // Otherwise, then it is referring to an Identifier
                     // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
                     // If the expression is a singular indent, we search the resolver's current scope as normal.
-                    let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
+                    let (hir_ident, var_scope_index) = self.get_ident_from_path(path.clone());
 
                     if hir_ident.id != DefinitionId::dummy_id() {
                         match self.interner.definition(hir_ident.id).kind {

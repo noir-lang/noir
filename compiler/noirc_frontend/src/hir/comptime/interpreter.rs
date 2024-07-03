@@ -7,6 +7,13 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
+use crate::graph::CrateId;
+use crate::hir_def::expr::ImplKind;
+use crate::macros_api::UnaryOp;
+use crate::monomorphization::{
+    perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
+    undo_instantiation_bindings,
+};
 use crate::token::Tokens;
 use crate::{
     hir_def::{
@@ -27,7 +34,7 @@ use crate::{
 };
 
 use super::errors::{IResult, InterpreterError};
-use super::value::Value;
+use super::value::{unwrap_rc, Value};
 
 mod builtin;
 mod unquote;
@@ -42,6 +49,8 @@ pub struct Interpreter<'interner> {
     /// up all currently visible definitions.
     scopes: &'interner mut Vec<HashMap<DefinitionId, Value>>,
 
+    crate_id: CrateId,
+
     in_loop: bool,
 }
 
@@ -50,11 +59,29 @@ impl<'a> Interpreter<'a> {
     pub(crate) fn new(
         interner: &'a mut NodeInterner,
         scopes: &'a mut Vec<HashMap<DefinitionId, Value>>,
+        crate_id: CrateId,
     ) -> Self {
-        Self { interner, scopes, in_loop: false }
+        Self { interner, scopes, crate_id, in_loop: false }
     }
 
     pub(crate) fn call_function(
+        &mut self,
+        function: FuncId,
+        arguments: Vec<(Value, Location)>,
+        instantiation_bindings: TypeBindings,
+        location: Location,
+    ) -> IResult<Value> {
+        let trait_method = self.interner.get_trait_method_id(function);
+
+        perform_instantiation_bindings(&instantiation_bindings);
+        let impl_bindings = perform_impl_bindings(self.interner, trait_method, function);
+        let result = self.call_function_inner(function, arguments, location);
+        undo_instantiation_bindings(impl_bindings);
+        undo_instantiation_bindings(instantiation_bindings);
+        result
+    }
+
+    fn call_function_inner(
         &mut self,
         function: FuncId,
         arguments: Vec<(Value, Location)>,
@@ -67,6 +94,14 @@ impl<'a> Interpreter<'a> {
                 actual: arguments.len(),
                 location,
             });
+        }
+
+        let is_comptime = self.interner.function_modifiers(&function).is_comptime;
+        if !is_comptime && meta.source_crate == self.crate_id {
+            // Calling non-comptime functions from within the current crate is restricted
+            // as non-comptime items will have not been elaborated yet.
+            let function = self.interner.function_name(&function).to_owned();
+            return Err(InterpreterError::NonComptimeFnCallInSameCrate { function, location });
         }
 
         if meta.kind != FunctionKind::Normal {
@@ -98,7 +133,8 @@ impl<'a> Interpreter<'a> {
             .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to");
 
         if let Some(builtin) = func_attrs.builtin() {
-            builtin::call_builtin(self.interner, builtin, arguments, location)
+            let builtin = builtin.clone();
+            builtin::call_builtin(self.interner, &builtin, arguments, location)
         } else if let Some(foreign) = func_attrs.foreign() {
             let item = format!("Comptime evaluation for foreign functions like {foreign}");
             Err(InterpreterError::Unimplemented { item, location })
@@ -187,7 +223,8 @@ impl<'a> Interpreter<'a> {
     ) -> IResult<()> {
         match pattern {
             HirPattern::Identifier(identifier) => {
-                self.define(identifier.id, typ, argument, location)
+                self.define(identifier.id, argument);
+                Ok(())
             }
             HirPattern::Mutable(pattern, _) => {
                 self.define_pattern(pattern, typ, argument, location)
@@ -209,8 +246,6 @@ impl<'a> Interpreter<'a> {
             },
             HirPattern::Struct(struct_type, pattern_fields, _) => {
                 self.push_scope();
-                self.type_check(typ, &argument, location)?;
-                self.type_check(struct_type, &argument, location)?;
 
                 let res = match argument {
                     Value::Struct(fields, struct_type) if fields.len() == pattern_fields.len() => {
@@ -246,30 +281,8 @@ impl<'a> Interpreter<'a> {
     }
 
     /// Define a new variable in the current scope
-    fn define(
-        &mut self,
-        id: DefinitionId,
-        typ: &Type,
-        argument: Value,
-        location: Location,
-    ) -> IResult<()> {
-        // Temporarily disabled since this fails on generic types
-        // self.type_check(typ, &argument, location)?;
+    fn define(&mut self, id: DefinitionId, argument: Value) {
         self.current_scope_mut().insert(id, argument);
-        Ok(())
-    }
-
-    /// Mutate an existing variable, potentially from a prior scope.
-    /// Also type checks the value being assigned
-    fn checked_mutate(
-        &mut self,
-        id: DefinitionId,
-        typ: &Type,
-        argument: Value,
-        location: Location,
-    ) -> IResult<()> {
-        self.type_check(typ, &argument, location)?;
-        self.mutate(id, argument, location)
     }
 
     /// Mutate an existing variable, potentially from a prior scope
@@ -285,8 +298,7 @@ impl<'a> Interpreter<'a> {
                 return Ok(());
             }
         }
-        let name = self.interner.definition(id).name.clone();
-        Err(InterpreterError::NonComptimeVarReferenced { name, location })
+        Err(InterpreterError::VariableNotInScope { location })
     }
 
     pub(super) fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
@@ -300,21 +312,12 @@ impl<'a> Interpreter<'a> {
             }
         }
 
-        // Justification for `NonComptimeVarReferenced`:
-        // If we have an id to lookup at all that means name resolution successfully
-        // found another variable in scope for this name. If the name is in scope
-        // but unknown by the interpreter it must be because it was not a comptime variable.
-        let name = self.interner.definition(id).name.clone();
-        Err(InterpreterError::NonComptimeVarReferenced { name, location })
-    }
-
-    fn type_check(&self, typ: &Type, value: &Value, location: Location) -> IResult<()> {
-        let typ = typ.follow_bindings();
-        let value_type = value.get_type();
-
-        typ.try_unify(&value_type, &mut TypeBindings::new()).map_err(|_| {
-            InterpreterError::TypeMismatch { expected: typ, value: value.clone(), location }
-        })
+        if id == DefinitionId::dummy_id() {
+            Err(InterpreterError::VariableNotInScope { location })
+        } else {
+            let name = self.interner.definition_name(id).to_string();
+            Err(InterpreterError::NonComptimeVarReferenced { name, location })
+        }
     }
 
     /// Evaluate an expression and return the result
@@ -350,12 +353,23 @@ impl<'a> Interpreter<'a> {
     }
 
     pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
-        let definition = self.interner.definition(ident.id);
+        let definition = self.interner.try_definition(ident.id).ok_or_else(|| {
+            let location = self.interner.expr_location(&id);
+            InterpreterError::VariableNotInScope { location }
+        })?;
+
+        if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
+            let method_id = resolve_trait_method(self.interner, method, id)?;
+            let typ = self.interner.id_type(id).follow_bindings();
+            let bindings = self.interner.get_instantiation_bindings(id).clone();
+            return Ok(Value::Function(method_id, typ, Rc::new(bindings)));
+        }
 
         match &definition.kind {
             DefinitionKind::Function(function_id) => {
-                let typ = self.interner.id_type(id);
-                Ok(Value::Function(*function_id, typ))
+                let typ = self.interner.id_type(id).follow_bindings();
+                let bindings = Rc::new(self.interner.get_instantiation_bindings(id).clone());
+                Ok(Value::Function(*function_id, typ, bindings))
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
@@ -363,7 +377,12 @@ impl<'a> Interpreter<'a> {
                 if let Ok(value) = self.lookup(&ident) {
                     Ok(value)
                 } else {
-                    let let_ = self.interner.get_global_let_statement(*global_id).unwrap();
+                    let let_ =
+                        self.interner.get_global_let_statement(*global_id).ok_or_else(|| {
+                            let location = self.interner.expr_location(&id);
+                            InterpreterError::VariableNotInScope { location }
+                        })?;
+
                     if let_.comptime {
                         self.evaluate_let(let_.clone())?;
                     }
@@ -526,7 +545,7 @@ impl<'a> Interpreter<'a> {
     }
 
     fn evaluate_array(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
-        let typ = self.interner.id_type(id);
+        let typ = self.interner.id_type(id).follow_bindings();
 
         match array {
             HirArrayLiteral::Standard(elements) => {
@@ -560,8 +579,17 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_prefix(&mut self, prefix: HirPrefixExpression, id: ExprId) -> IResult<Value> {
         let rhs = self.evaluate(prefix.rhs)?;
-        match prefix.operator {
-            crate::ast::UnaryOp::Minus => match rhs {
+        self.evaluate_prefix_with_value(rhs, prefix.operator, id)
+    }
+
+    fn evaluate_prefix_with_value(
+        &mut self,
+        rhs: Value,
+        operator: UnaryOp,
+        id: ExprId,
+    ) -> IResult<Value> {
+        match operator {
+            UnaryOp::Minus => match rhs {
                 Value::Field(value) => Ok(Value::Field(FieldElement::zero() - value)),
                 Value::I8(value) => Ok(Value::I8(-value)),
                 Value::I16(value) => Ok(Value::I16(-value)),
@@ -577,7 +605,7 @@ impl<'a> Interpreter<'a> {
                     Err(InterpreterError::InvalidValueForUnary { value, location, operator })
                 }
             },
-            crate::ast::UnaryOp::Not => match rhs {
+            UnaryOp::Not => match rhs {
                 Value::Bool(value) => Ok(Value::Bool(!value)),
                 Value::I8(value) => Ok(Value::I8(!value)),
                 Value::I16(value) => Ok(Value::I16(!value)),
@@ -592,8 +620,8 @@ impl<'a> Interpreter<'a> {
                     Err(InterpreterError::InvalidValueForUnary { value, location, operator: "not" })
                 }
             },
-            crate::ast::UnaryOp::MutableReference => Ok(Value::Pointer(Shared::new(rhs))),
-            crate::ast::UnaryOp::Dereference { implicitly_added: _ } => match rhs {
+            UnaryOp::MutableReference => Ok(Value::Pointer(Shared::new(rhs))),
+            UnaryOp::Dereference { implicitly_added: _ } => match rhs {
                 Value::Pointer(element) => Ok(element.borrow().clone()),
                 value => {
                     let location = self.interner.expr_location(&id);
@@ -607,11 +635,9 @@ impl<'a> Interpreter<'a> {
         let lhs = self.evaluate(infix.lhs)?;
         let rhs = self.evaluate(infix.rhs)?;
 
-        // TODO: Need to account for operator overloading
-        assert!(
-            self.interner.get_selected_impl_for_expression(id).is_none(),
-            "Operator overloading is unimplemented in the interpreter"
-        );
+        if self.interner.get_selected_impl_for_expression(id).is_some() {
+            return self.evaluate_overloaded_infix(infix, lhs, rhs, id);
+        }
 
         use InterpreterError::InvalidValuesForBinary;
         match infix.operator.kind {
@@ -855,6 +881,64 @@ impl<'a> Interpreter<'a> {
         }
     }
 
+    fn evaluate_overloaded_infix(
+        &mut self,
+        infix: HirInfixExpression,
+        lhs: Value,
+        rhs: Value,
+        id: ExprId,
+    ) -> IResult<Value> {
+        let method = infix.trait_method_id;
+        let operator = infix.operator.kind;
+
+        let method_id = resolve_trait_method(self.interner, method, id)?;
+        let type_bindings = self.interner.get_instantiation_bindings(id).clone();
+
+        let lhs = (lhs, self.interner.expr_location(&infix.lhs));
+        let rhs = (rhs, self.interner.expr_location(&infix.rhs));
+
+        let location = self.interner.expr_location(&id);
+        let value = self.call_function(method_id, vec![lhs, rhs], type_bindings, location)?;
+
+        // Certain operators add additional operations after the trait call:
+        // - `!=`: Reverse the result of Eq
+        // - Comparator operators: Convert the returned `Ordering` to a boolean.
+        use BinaryOpKind::*;
+        match operator {
+            NotEqual => self.evaluate_prefix_with_value(value, UnaryOp::Not, id),
+            Less | LessEqual | Greater | GreaterEqual => self.evaluate_ordering(value, operator),
+            _ => Ok(value),
+        }
+    }
+
+    /// Given the result of a `cmp` operation, convert it into the boolean result of the given operator.
+    /// - `<`:  `ordering == Ordering::Less`
+    /// - `<=`: `ordering != Ordering::Greater`
+    /// - `>`:  `ordering == Ordering::Greater`
+    /// - `<=`: `ordering != Ordering::Less`
+    fn evaluate_ordering(&self, ordering: Value, operator: BinaryOpKind) -> IResult<Value> {
+        let ordering = match ordering {
+            Value::Struct(fields, _) => match fields.into_iter().next().unwrap().1 {
+                Value::Field(ordering) => ordering,
+                _ => unreachable!("`cmp` should always return an Ordering value"),
+            },
+            _ => unreachable!("`cmp` should always return an Ordering value"),
+        };
+
+        use BinaryOpKind::*;
+        let less_or_greater = if matches!(operator, Less | GreaterEqual) {
+            FieldElement::zero() // Ordering::Less
+        } else {
+            2u128.into() // Ordering::Greater
+        };
+
+        if matches!(operator, Less | Greater) {
+            Ok(Value::Bool(ordering == less_or_greater))
+        } else {
+            Ok(Value::Bool(ordering != less_or_greater))
+        }
+    }
+
     fn evaluate_index(&mut self, index: HirIndexExpression, id: ExprId) -> IResult<Value> {
         let array = self.evaluate(index.collection)?;
         let index = self.evaluate(index.index)?;
@@ -883,7 +967,10 @@ impl<'a> Interpreter<'a> {
 
         let index = match index {
             Value::Field(value) => {
-                value.try_to_u64().expect("index could not fit into u64") as usize
+                value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(|| {
+                    let typ = Type::default_int_type();
+                    InterpreterError::IntegerOutOfRangeForType { value, typ, location }
+                })?
             }
             Value::I8(value) => value as usize,
             Value::I16(value) => value as usize,
@@ -920,7 +1007,7 @@ impl<'a> Interpreter<'a> {
             })
             .collect::<Result<_, _>>()?;
 
-        let typ = self.interner.id_type(id);
+        let typ = self.interner.id_type(id).follow_bindings();
         Ok(Value::Struct(fields, typ))
     }
 
@@ -961,7 +1048,10 @@ impl<'a> Interpreter<'a> {
         let location = self.interner.expr_location(&id);
 
         match function {
-            Value::Function(function_id, _) => self.call_function(function_id, arguments, location),
+            Value::Function(function_id, _, bindings) => {
+                let bindings = unwrap_rc(bindings);
+                self.call_function(function_id, arguments, bindings, location)
+            }
             Value::Closure(closure, env, _) => self.call_closure(closure, env, arguments, location),
             value => Err(InterpreterError::NonFunctionCalled { value, location }),
         }
@@ -990,7 +1080,7 @@ impl<'a> Interpreter<'a> {
         };
 
         if let Some(method) = method {
-            self.call_function(method, arguments, location)
+            self.call_function(method, arguments, TypeBindings::new(), location)
         } else {
             Err(InterpreterError::NoMethodFound { name: method_name.clone(), typ, location })
         }
@@ -1135,7 +1225,7 @@ impl<'a> Interpreter<'a> {
         let environment =
             try_vecmap(&lambda.captures, |capture| self.lookup_id(capture.ident.id, location))?;
 
-        let typ = self.interner.id_type(id);
+        let typ = self.interner.id_type(id).follow_bindings();
         Ok(Value::Closure(lambda, environment, typ))
     }
 
@@ -1196,9 +1286,7 @@ impl<'a> Interpreter<'a> {
 
     fn store_lvalue(&mut self, lvalue: HirLValue, rhs: Value) -> IResult<()> {
         match lvalue {
-            HirLValue::Ident(ident, typ) => {
-                self.checked_mutate(ident.id, &typ, rhs, ident.location)
-            }
+            HirLValue::Ident(ident, typ) => self.mutate(ident.id, rhs, ident.location),
             HirLValue::Dereference { lvalue, element_type: _, location } => {
                 match self.evaluate_lvalue(&lvalue)? {
                     Value::Pointer(value) => {
@@ -1209,15 +1297,22 @@ impl<'a> Interpreter<'a> {
                 }
             }
             HirLValue::MemberAccess { object, field_name, field_index, typ: _, location } => {
-                let index = field_index.expect("The field index should be set after type checking");
-                match self.evaluate_lvalue(&object)? {
+                let object_value = self.evaluate_lvalue(&object)?;
+
+                let index = field_index.ok_or_else(|| {
+                    let value = object_value.clone();
+                    let field_name = field_name.to_string();
+                    InterpreterError::ExpectedStructToHaveField { value, field_name, location }
+                })?;
+
+                match object_value {
                     Value::Tuple(mut fields) => {
                         fields[index] = rhs;
                         self.store_lvalue(*object, Value::Tuple(fields))
                     }
                     Value::Struct(mut fields, typ) => {
                         fields.insert(Rc::new(field_name.0.contents), rhs);
-                        self.store_lvalue(*object, Value::Struct(fields, typ))
+                        self.store_lvalue(*object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value => {
                         Err(InterpreterError::NonTupleOrStructInMemberAccess { value, location })
@@ -1254,9 +1349,16 @@ impl<'a> Interpreter<'a> {
                 }
             }
             HirLValue::MemberAccess { object, field_name, field_index, typ: _, location } => {
-                let index = field_index.expect("The field index should be set after type checking");
+                let object_value = self.evaluate_lvalue(object)?;
 
-                match self.evaluate_lvalue(object)? {
+                let index = field_index.ok_or_else(|| {
+                    let value = object_value.clone();
+                    let field_name = field_name.to_string();
+                    let location = *location;
+                    InterpreterError::ExpectedStructToHaveField { value, field_name, location }
+                })?;
+
+                match object_value {
                     Value::Tuple(mut values) => Ok(values.swap_remove(index)),
                     Value::Struct(fields, _) => Ok(fields[&field_name.0.contents].clone()),
                     value => Err(InterpreterError::NonTupleOrStructInMemberAccess {

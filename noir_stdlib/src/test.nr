@@ -1,5 +1,5 @@
 #[oracle(create_mock)]
-unconstrained fn create_mock_oracle<N>(name: str<N>) -> Field {}
+unconstrained fn create_mock_oracle<let N: u32>(name: str<N>) -> Field {}
 
 #[oracle(set_mock_params)]
 unconstrained fn set_mock_params_oracle<P>(id: Field, params: P) {}
@@ -21,7 +21,7 @@ struct OracleMock {
 }
 
 impl OracleMock {
-    unconstrained pub fn mock<N>(name: str<N>) -> Self {
+    unconstrained pub fn mock<let N: u32>(name: str<N>) -> Self {
         Self { id: create_mock_oracle(name) }
     }
 
