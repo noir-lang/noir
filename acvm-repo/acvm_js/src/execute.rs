@@ -200,9 +200,11 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                                 opcode_location: ErrorLocation::Resolved(opcode_location),
                                 ..
                             } => Some(vec![*opcode_location]),
-                            OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
-                                Some(call_stack.clone())
-                            }
+                            OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. }
+                            | OpcodeResolutionError::BrilligFunctionUnsatisfiedConstrain {
+                                call_stack,
+                                ..
+                            } => Some(call_stack.clone()),
                             _ => None,
                         };
                         // If the failed opcode has an assertion message, integrate it into the error message for backwards compatibility.
@@ -213,6 +215,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                                 ..
                             }
                             | OpcodeResolutionError::BrilligFunctionFailed {
+                                payload: Some(payload),
+                                ..
+                            }
+                            | OpcodeResolutionError::BrilligFunctionUnsatisfiedConstrain {
                                 payload: Some(payload),
                                 ..
                             } => match payload {

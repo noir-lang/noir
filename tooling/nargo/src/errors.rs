@@ -84,6 +84,7 @@ impl<F: AcirField> NargoError<F> {
                 | OpcodeResolutionError::UnsatisfiedConstrain { .. }
                 | OpcodeResolutionError::AcirMainCallAttempted { .. }
                 | OpcodeResolutionError::BrilligFunctionFailed { .. }
+                | OpcodeResolutionError::BrilligFunctionUnsatisfiedConstrain { .. }
                 | OpcodeResolutionError::AcirCallOutputsMismatch { .. } => None,
                 OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
                     Some(reason.to_string())
@@ -110,6 +111,10 @@ fn extract_locations_from_error<F: AcirField>(
     let mut opcode_locations = match error {
         ExecutionError::SolvingError(
             OpcodeResolutionError::BrilligFunctionFailed { .. },
+            acir_call_stack,
+        )
+        | ExecutionError::SolvingError(
+            OpcodeResolutionError::BrilligFunctionUnsatisfiedConstrain { .. },
             acir_call_stack,
         ) => acir_call_stack.clone(),
         ExecutionError::AssertionFailed(_, call_stack) => Some(call_stack.clone()),

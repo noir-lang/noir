@@ -134,6 +134,11 @@ pub enum OpcodeResolutionError<F> {
         call_stack: Vec<OpcodeLocation>,
         payload: Option<ResolvedAssertionPayload<F>>,
     },
+    #[error("Cannot satisfy constraint")]
+    BrilligFunctionUnsatisfiedConstrain {
+        call_stack: Vec<OpcodeLocation>,
+        payload: Option<ResolvedAssertionPayload<F>>,
+    },
     #[error("Attempted to call `main` with a `Call` opcode")]
     AcirMainCallAttempted { opcode_location: ErrorLocation },
     #[error("{results_size:?} result values were provided for {outputs_size:?} call output witnesses, most likely due to bad ACIR codegen")]
@@ -501,7 +506,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
 
     fn map_brillig_error(&self, mut err: OpcodeResolutionError<F>) -> OpcodeResolutionError<F> {
         match &mut err {
-            OpcodeResolutionError::BrilligFunctionFailed { call_stack, payload } => {
+            OpcodeResolutionError::BrilligFunctionUnsatisfiedConstrain { call_stack, payload } => {
                 // Some brillig errors have static strings as payloads, we can resolve them here
                 let last_location =
                     call_stack.last().expect("Call stacks should have at least one item");
