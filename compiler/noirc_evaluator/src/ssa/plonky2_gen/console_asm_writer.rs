@@ -167,13 +167,13 @@ impl Display for U32TargetDisplay {
     }
 }
 
-pub(crate) struct ConsoleAsmWriter {
+pub(crate) struct ConsoleAndFileAsmWriter {
     pub builder: P2Builder,
     pub show_plonky2: bool,
     file: Option<BufWriter<File>>,
 }
 
-impl ConsoleAsmWriter {
+impl ConsoleAndFileAsmWriter {
     fn output_enabled(&self) -> bool {
         self.show_plonky2 || self.file.is_some()
     }
@@ -189,7 +189,7 @@ impl ConsoleAsmWriter {
     }
 }
 
-impl AsmWriter for ConsoleAsmWriter {
+impl AsmWriter for ConsoleAndFileAsmWriter {
     fn get_builder(&self) -> &P2Builder {
         &self.builder
     }
@@ -201,7 +201,7 @@ impl AsmWriter for ConsoleAsmWriter {
     }
 
     fn new(builder: P2Builder, show_plonky2: bool, plonky2_print_file: Option<String>) -> Self {
-        ConsoleAsmWriter {
+        ConsoleAndFileAsmWriter {
             builder,
             show_plonky2,
             file: if let Some(file_name) = plonky2_print_file {
