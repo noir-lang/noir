@@ -7,7 +7,6 @@ pub trait VerifierBuilder {
     fn create_verifier_cpp(
         &mut self,
         name: &str,
-        witness: &[String],
         inverses: &[String],
         public_cols: &[(String, usize)],
     );
@@ -19,7 +18,6 @@ impl VerifierBuilder for BBFiles {
     fn create_verifier_cpp(
         &mut self,
         name: &str,
-        witness: &[String],
         inverses: &[String],
         public_cols: &[(String, usize)],
     ) {
@@ -30,8 +28,6 @@ impl VerifierBuilder for BBFiles {
             "commitments.{n} = transcript->template receive_from_prover<Commitment>(commitment_labels.{n});"
         )
         };
-        let wire_commitments = map_with_newline(witness, wire_transformation);
-
         let has_public_input_columns = !public_cols.is_empty();
         let has_inverses = !inverses.is_empty();
 
@@ -151,7 +147,9 @@ impl VerifierBuilder for BBFiles {
         }}
     
         // Get commitments to VM wires
-        {wire_commitments}
+        for (auto [comm, label] : zip_view(commitments.get_wires(), commitment_labels.get_wires())) {{
+            comm = transcript->template receive_from_prover<Commitment>(label);
+        }}
 
         {get_inverse_challenges}
 

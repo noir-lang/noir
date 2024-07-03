@@ -4,12 +4,7 @@ use crate::utils::{map_with_newline, snake_case};
 pub trait ProverBuilder {
     fn create_prover_hpp(&mut self, name: &str);
 
-    fn create_prover_cpp(
-        &mut self,
-        name: &str,
-        commitment_polys: &[String],
-        lookup_names: &[String],
-    );
+    fn create_prover_cpp(&mut self, name: &str, lookup_names: &[String]);
 }
 
 impl ProverBuilder for BBFiles {
@@ -83,15 +78,10 @@ impl ProverBuilder for BBFiles {
     /// Create the prover cpp file
     ///
     /// Committed polys are included as we manually unroll all commitments, as we do not commit to everything
-    fn create_prover_cpp(
-        &mut self,
-        name: &str,
-        commitment_polys: &[String],
-        lookup_names: &[String],
-    ) {
+    fn create_prover_cpp(&mut self, name: &str, lookup_names: &[String]) {
         let include_str = includes_cpp(&snake_case(name));
 
-        let polynomial_commitment_phase = create_commitments_phase(commitment_polys);
+        let polynomial_commitment_phase = create_commitments_phase();
 
         let (call_log_derivative_phase, log_derivative_inverse_phase): (String, String) =
             if lookup_names.is_empty() {
@@ -292,18 +282,15 @@ fn send_to_verifier_transform(name: &String) -> String {
     format!("transcript->send_to_verifier(commitment_labels.{name}, witness_commitments.{name});")
 }
 
-fn create_commitments_phase(polys_to_commit_to: &[String]) -> String {
-    let all_commit_operations = map_with_newline(polys_to_commit_to, commitment_transform);
-    let send_to_verifier_operations =
-        map_with_newline(polys_to_commit_to, send_to_verifier_transform);
-
+fn create_commitments_phase() -> String {
     format!(
         "
         // Commit to all polynomials (apart from logderivative inverse polynomials, which are committed to in the later logderivative phase)
-        {all_commit_operations}
-
-        // Send all commitments to the verifier
-        {send_to_verifier_operations}
+        auto wire_polys = prover_polynomials.get_wires();
+        auto labels = commitment_labels.get_wires();
+        for (size_t idx = 0; idx < wire_polys.size(); ++idx) {{
+            transcript->send_to_verifier(labels[idx], commitment_key->commit(wire_polys[idx]));
+        }}
         "
     )
 }

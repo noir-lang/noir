@@ -136,6 +136,7 @@ pub fn analyzed_to_cpp<F: FieldElement>(
         &inverses,
         &fixed,
         &witness,
+        &witnesses_without_inverses,
         &all_cols,
         &to_be_shifted,
         &shifted,
@@ -147,16 +148,11 @@ pub fn analyzed_to_cpp<F: FieldElement>(
     bb_files.create_composer_hpp(file_name);
 
     // ----------------------- Create the Verifier files -----------------------
-    bb_files.create_verifier_cpp(
-        file_name,
-        &witnesses_without_inverses,
-        &inverses,
-        &public_inputs,
-    );
+    bb_files.create_verifier_cpp(file_name, &inverses, &public_inputs);
     bb_files.create_verifier_hpp(file_name, &public_inputs);
 
     // ----------------------- Create the Prover files -----------------------
-    bb_files.create_prover_cpp(file_name, &witnesses_without_inverses, &inverses);
+    bb_files.create_prover_cpp(file_name, &inverses);
     bb_files.create_prover_hpp(file_name);
 }
 

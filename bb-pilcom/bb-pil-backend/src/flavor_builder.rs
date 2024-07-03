@@ -12,6 +12,7 @@ pub trait FlavorBuilder {
         lookups: &[String],
         fixed: &[String],
         witness: &[String],
+        witness_without_inverses: &[String],
         all_cols: &[String],
         to_be_shifted: &[String],
         shifted: &[String],
@@ -28,6 +29,7 @@ impl FlavorBuilder for BBFiles {
         lookups: &[String],
         fixed: &[String],
         witness: &[String],
+        witness_without_inverses: &[String],
         all_cols: &[String],
         to_be_shifted: &[String],
         shifted: &[String],
@@ -47,9 +49,9 @@ impl FlavorBuilder for BBFiles {
 
         // Entities classes
         let precomputed_entities = create_precomputed_entities(fixed);
-        let witness_entities = create_witness_entities(witness);
-        let all_entities =
-            create_all_entities(all_cols, to_be_shifted, shifted, all_cols_and_shifts);
+        let witness_entities =
+            create_witness_entities(witness_without_inverses, lookups, shifted, to_be_shifted);
+        let all_entities = create_all_entities();
 
         let proving_and_verification_key =
             create_proving_and_verification_key(name, lookups, to_be_shifted);
@@ -197,16 +199,12 @@ fn create_relation_definitions(
     let comma_sep_lookups: Option<String> = create_lookups_tuple(lookups);
 
     // We only include the grand product relations if we are given lookups
-    let mut grand_product_relations = String::new();
     let mut all_relations = comma_sep_relations.to_string();
     if let Some(lookups) = comma_sep_lookups {
         all_relations = all_relations + &format!(", {lookups}");
-        grand_product_relations = format!("using GrandProductRelations = std::tuple<{lookups}>;");
     }
 
     format!("
-        {grand_product_relations}
-
         using Relations = std::tuple<{all_relations}>;
 
         static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
@@ -286,52 +284,120 @@ fn create_precomputed_entities(fixed: &[String]) -> String {
     )
 }
 
-fn create_witness_entities(witness: &[String]) -> String {
-    let pointer_view = create_flavor_members(witness);
-
-    let wires = return_ref_vector("get_wires", witness);
+// Note(md): this is witnesses WITHOUT inverses or shifts
+fn create_wire_entities(witness: &[String]) -> String {
+    let flavor_members = create_flavor_members(witness);
 
     format!(
         "
         template <typename DataType>
-        class WitnessEntities {{
+        class WireEntities {{
             public:
+            {flavor_members}
+        }};
+        "
+    )
+}
 
-            {pointer_view}
+// Note(md): this is witnesses and in future grand products
+fn create_derived_witnesses(inverses: &[String]) -> String {
+    let flavor_members = create_flavor_members(inverses);
 
-            {wires} 
+    format!(
+        "
+        template <typename DataType>
+        struct DerivedWitnessEntities {{
+            {flavor_members}
+        }};
+        "
+    )
+}
+
+fn create_shifted_entities(shifted: &[String]) -> String {
+    let flavor_members = create_flavor_members(shifted);
+
+    format!(
+        "
+        template <typename DataType>
+        class ShiftedEntities {{
+            public:
+                {flavor_members}
+        }};
+        "
+    )
+}
+
+fn create_to_be_shifted(to_be_shifted: &[String]) -> String {
+    let entities_transformation = |name: &String| format!("entities.{name},");
+    let entities_list = map_with_newline(to_be_shifted, entities_transformation);
+
+    format!(
+        "
+        template <typename DataType, typename PrecomputedAndWitnessEntitiesSuperset>
+        static auto get_to_be_shifted(PrecomputedAndWitnessEntitiesSuperset& entities) {{
+            return RefArray{{
+
+            {entities_list}
+            }};
+        }}
+        "
+    )
+}
+
+fn create_witness_entities(
+    witness: &[String],
+    inverses: &[String],
+    shifted: &[String],
+    to_be_shifted: &[String],
+) -> String {
+    let wire_entities = create_wire_entities(witness);
+    let derived_witnesses = create_derived_witnesses(inverses);
+    let shifted_entities = create_shifted_entities(shifted);
+    let to_be_shifted = create_to_be_shifted(to_be_shifted);
+
+    format!(
+        "
+        {wire_entities}
+
+        {derived_witnesses}
+
+        {shifted_entities}
+
+        {to_be_shifted}
+
+        template <typename DataType>
+        class WitnessEntities: public WireEntities<DataType>, public DerivedWitnessEntities<DataType> {{
+            public:
+                DEFINE_COMPOUND_GET_ALL(WireEntities<DataType>, DerivedWitnessEntities<DataType>)
+                auto get_wires() {{ return WireEntities<DataType>::get_all(); }};
         }};
         "
     )
 }
 
 /// Creates container of all witness entities and shifts
-fn create_all_entities(
-    all_cols: &[String],
-    to_be_shifted: &[String],
-    shifted: &[String],
-    all_cols_and_shifts: &[String],
-) -> String {
-    let all_entities_flavor_members = create_flavor_members(all_cols_and_shifts);
-
-    let wires = return_ref_vector("get_wires", all_cols_and_shifts);
-    let get_unshifted = return_ref_vector("get_unshifted", all_cols);
-    let get_to_be_shifted = return_ref_vector("get_to_be_shifted", to_be_shifted);
-    let get_shifted = return_ref_vector("get_shifted", shifted);
-
+fn create_all_entities() -> String {
     format!(
         "
         template <typename DataType>
-        class AllEntities {{
+        class AllEntities: public PrecomputedEntities<DataType>,
+                           public WitnessEntities<DataType>,
+                           public ShiftedEntities<DataType> {{
             public:
+                AllEntities()
+                    : PrecomputedEntities<DataType>{{}}
+                    , WitnessEntities<DataType>{{}}
+                    , ShiftedEntities<DataType>{{}}
+            {{}}
 
-            {all_entities_flavor_members}
+            DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>, WitnessEntities<DataType>, ShiftedEntities<DataType>)
 
-
-            {wires}
-            {get_unshifted}
-            {get_to_be_shifted}
-            {get_shifted}
+            auto get_unshifted(){{
+                return concatenate(PrecomputedEntities<DataType>::get_all(), WitnessEntities<DataType>::get_all());
+            }}
+            auto get_to_be_shifted(){{ return AvmFlavor::get_to_be_shifted<DataType>(*this); }}
+            auto get_shifted() {{ return ShiftedEntities<DataType>::get_all(); }}
+            auto get_precomputed() {{ return PrecomputedEntities<DataType>::get_all(); }}
         }};
         "
     )
