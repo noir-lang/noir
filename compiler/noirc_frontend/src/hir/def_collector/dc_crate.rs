@@ -330,7 +330,30 @@ impl DefCollector {
         // Resolve unresolved imports collected from the crate, one by one.
         for collected_import in std::mem::take(&mut def_collector.imports) {
             let module_id = collected_import.module_id;
-            match resolve_import(crate_id, &collected_import, &context.def_maps, &mut None) {
+            let resolved_import = if context.def_interner.track_references {
+                let mut references: Vec<ReferenceId> = Vec::new();
+                let resolved_import = resolve_import(
+                    crate_id,
+                    &collected_import,
+                    &context.def_maps,
+                    &mut Some(&mut references),
+                );
+
+                let current_def_map = context.def_maps.get(&crate_id).unwrap();
+                let file_id = current_def_map.file_id(module_id);
+
+                for (referenced, ident) in
+                    references.iter().zip(collected_import.clone().path.segments)
+                {
+                    let reference = ReferenceId::Variable(Location::new(ident.span(), file_id));
+                    context.def_interner.add_reference(*referenced, reference);
+                }
+
+                resolved_import
+            } else {
+                resolve_import(crate_id, &collected_import, &context.def_maps, &mut None)
+            };
+            match resolved_import {
                 Ok(resolved_import) => {
                     if let Some(error) = resolved_import.error {
                         errors.push((

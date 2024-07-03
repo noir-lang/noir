@@ -168,4 +168,18 @@ mod goto_definition_tests {
         )
         .await
     }
+
+    #[test]
+    async fn goto_module_from_use_path() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 6, character: 4 }, // "foo" in "use foo::another_function;"
+            "src/main.nr",
+            Range {
+                start: Position { line: 0, character: 4 },
+                end: Position { line: 0, character: 7 },
+            },
+        )
+        .await
+    }
 }
