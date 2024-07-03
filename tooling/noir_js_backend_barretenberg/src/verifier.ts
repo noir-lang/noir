@@ -1,9 +1,9 @@
-import { ProofData } from '@noir-lang/types';
+import { ProofData, VerifierBackend } from '@noir-lang/types';
 import { BackendOptions } from './types.js';
 import { flattenPublicInputsAsArray } from './public_inputs.js';
 import { type Barretenberg } from '@aztec/bb.js';
 
-export class BarretenbergVerifier {
+export class BarretenbergVerifier implements VerifierBackend {
   // These type assertions are used so that we don't
   // have to initialize `api` and `acirComposer` in the constructor.
   // These are initialized asynchronously in the `init` function,
