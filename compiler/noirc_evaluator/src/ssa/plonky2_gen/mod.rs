@@ -1,7 +1,7 @@
 mod asm_writer;
 mod circuit;
 mod config;
-pub mod console_asm_writer;
+pub mod console_and_file_asm_writer;
 mod div_generator;
 mod intrinsics;
 
