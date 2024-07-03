@@ -182,4 +182,18 @@ mod goto_definition_tests {
         )
         .await
     }
+
+    #[test]
+    async fn goto_module_from_mod() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 9, character: 4 }, // "bar" in "mod bar;"
+            "src/bar.nr",
+            Range {
+                start: Position { line: 0, character: 0 },
+                end: Position { line: 0, character: 0 },
+            },
+        )
+        .await
+    }
 }

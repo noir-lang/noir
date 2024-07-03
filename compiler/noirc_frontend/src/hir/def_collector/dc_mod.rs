@@ -290,11 +290,11 @@ impl<'a> ModCollector<'a> {
                 false,
                 false,
             ) {
-                Ok(local_id) => context.def_interner.new_struct(
+                Ok(module_id) => context.def_interner.new_struct(
                     &unresolved,
                     resolved_generics,
                     krate,
-                    local_id,
+                    module_id.local_id,
                     self.file_id,
                 ),
                 Err(error) => {
@@ -390,7 +390,7 @@ impl<'a> ModCollector<'a> {
                 false,
                 false,
             ) {
-                Ok(local_id) => TraitId(ModuleId { krate, local_id }),
+                Ok(module_id) => TraitId(ModuleId { krate, local_id: module_id.local_id }),
                 Err(error) => {
                     errors.push((error.into(), self.file_id));
                     continue;
@@ -559,7 +559,7 @@ impl<'a> ModCollector<'a> {
                         self.def_collector,
                         submodule.contents,
                         file_id,
-                        child,
+                        child.local_id,
                         crate_id,
                         context,
                         macro_processors,
@@ -646,11 +646,16 @@ impl<'a> ModCollector<'a> {
             false,
         ) {
             Ok(child_mod_id) => {
+                // Track that the "foo" in `mod foo;` points to the module "foo"
+                let referenced = ReferenceId::Module(child_mod_id);
+                let reference = ReferenceId::Variable(location);
+                context.def_interner.add_reference(referenced, reference);
+
                 errors.extend(collect_defs(
                     self.def_collector,
                     ast,
                     child_file_id,
-                    child_mod_id,
+                    child_mod_id.local_id,
                     crate_id,
                     context,
                     macro_processors,
@@ -672,7 +677,7 @@ impl<'a> ModCollector<'a> {
         mod_location: Location,
         add_to_parent_scope: bool,
         is_contract: bool,
-    ) -> Result<LocalModuleId, DefCollectorErrorKind> {
+    ) -> Result<ModuleId, DefCollectorErrorKind> {
         let parent = Some(self.module_id);
         let location = Location::new(mod_name.span(), mod_location.file);
         let new_module = ModuleData::new(parent, location, is_contract);
@@ -683,6 +688,11 @@ impl<'a> ModCollector<'a> {
         // Update the parent module to reference the child
         modules[self.module_id.0].children.insert(mod_name.clone(), LocalModuleId(module_id));
 
+        let mod_id = ModuleId {
+            krate: self.def_collector.def_map.krate,
+            local_id: LocalModuleId(module_id),
+        };
+
         // Add this child module into the scope of the parent module as a module definition
         // module definitions are definitions which can only exist at the module level.
         // ModuleDefinitionIds can be used across crates since they contain the CrateId
@@ -691,11 +701,6 @@ impl<'a> ModCollector<'a> {
         // to a child module containing its methods) since the module name should not shadow
         // the struct name.
         if add_to_parent_scope {
-            let mod_id = ModuleId {
-                krate: self.def_collector.def_map.krate,
-                local_id: LocalModuleId(module_id),
-            };
-
             if let Err((first_def, second_def)) =
                 modules[self.module_id.0].declare_child_module(mod_name.to_owned(), mod_id)
             {
@@ -710,7 +715,7 @@ impl<'a> ModCollector<'a> {
             context.def_interner.add_module_location(mod_id, mod_location);
         }
 
-        Ok(LocalModuleId(module_id))
+        Ok(mod_id)
     }
 }
 
