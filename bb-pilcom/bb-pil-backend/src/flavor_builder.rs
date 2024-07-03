@@ -128,6 +128,7 @@ fn flavor_includes(name: &str, relation_file_names: &[String], lookups: &[String
 
 #include \"barretenberg/relations/generic_permutation/generic_permutation_relation.hpp\"
 
+#include \"barretenberg/vm/avm_trace/stats.hpp\"
 #include \"barretenberg/flavor/flavor_macros.hpp\"
 #include \"barretenberg/transcript/transcript.hpp\"
 #include \"barretenberg/polynomials/evaluation_domain.hpp\"
@@ -568,7 +569,7 @@ fn create_compute_logderivative_inverses(flavor_name: &str, lookups: &[String]) 
     }
 
     let compute_inverse_transformation = |lookup_name: &String| {
-        format!("bb::compute_logderivative_inverse<{flavor_name}Flavor, {lookup_name}_relation<FF>>(prover_polynomials, relation_parameters, this->circuit_size);")
+        format!("AVM_TRACK_TIME(\"compute_logderivative_inverse/{lookup_name}_ms\", (bb::compute_logderivative_inverse<{flavor_name}Flavor, {lookup_name}_relation<FF>>(prover_polynomials, relation_parameters, this->circuit_size)));")
     };
 
     let compute_inverses = map_with_newline(lookups, compute_inverse_transformation);

@@ -9,6 +9,7 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/relations/permutation_relation.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
+#include "barretenberg/vm/avm_trace/stats.hpp"
 
 namespace bb {
 
@@ -240,18 +241,18 @@ HonkProof AvmProver::construct_proof()
     execute_preamble_round();
 
     // Compute wire commitments
-    execute_wire_commitments_round();
+    AVM_TRACK_TIME("proving/wire_commitments_round_ms", execute_wire_commitments_round());
 
     // Compute sorted list accumulator and commitment
-    execute_log_derivative_inverse_round();
+    AVM_TRACK_TIME("proving/log_derivative_inverse_round_ms", execute_log_derivative_inverse_round());
 
     // Fiat-Shamir: alpha
     // Run sumcheck subprotocol.
-    execute_relation_check_rounds();
+    AVM_TRACK_TIME("proving/relation_check_rounds_ms", execute_relation_check_rounds());
 
     // Fiat-Shamir: rho, y, x, z
     // Execute Zeromorph multilinear PCS
-    execute_pcs_rounds();
+    AVM_TRACK_TIME("proving/pcs_rounds_ms", execute_pcs_rounds());
 
     return export_proof();
 }

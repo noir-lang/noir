@@ -3,6 +3,7 @@
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
 #include "barretenberg/vm/avm_trace/constants.hpp"
+#include "barretenberg/vm/avm_trace/stats.hpp"
 #include "barretenberg/vm/generated/avm_flavor.hpp"
 
 #include <array>
