@@ -103,7 +103,7 @@ mod goto_definition_tests {
                 text_document: lsp_types::TextDocumentIdentifier {
                     uri: noir_text_document.clone(),
                 },
-                position: position,
+                position,
             },
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
@@ -138,7 +138,7 @@ mod goto_definition_tests {
                 end: Position { line: 1, character: 27 },
             },
         )
-        .await
+        .await;
     }
 
     #[test]
@@ -152,7 +152,7 @@ mod goto_definition_tests {
                 end: Position { line: 0, character: 0 },
             },
         )
-        .await
+        .await;
     }
 
     #[test]
@@ -166,7 +166,7 @@ mod goto_definition_tests {
                 end: Position { line: 2, character: 10 },
             },
         )
-        .await
+        .await;
     }
 
     #[test]
@@ -180,7 +180,7 @@ mod goto_definition_tests {
                 end: Position { line: 0, character: 7 },
             },
         )
-        .await
+        .await;
     }
 
     #[test]
@@ -194,6 +194,6 @@ mod goto_definition_tests {
                 end: Position { line: 0, character: 0 },
             },
         )
-        .await
+        .await;
     }
 }
