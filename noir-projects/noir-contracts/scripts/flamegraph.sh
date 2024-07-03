@@ -55,5 +55,5 @@ mkdir -p "$SCRIPT_DIR/../dest"
 $PROFILER gates-flamegraph --artifact-path "$SCRIPT_DIR/../target/$FUNCTION_ARTIFACT" --backend-path "$SCRIPT_DIR/../../../barretenberg/cpp/build/bin/bb"  --output "$SCRIPT_DIR/../dest"
 
 # serve the file over http
-echo "Serving flamegraph at http://0.0.0.0:8000/main.svg"
+echo "Serving flamegraph at http://0.0.0.0:8000/main_gates.svg"
 python3 -m http.server --directory "$SCRIPT_DIR/../dest" 8000
