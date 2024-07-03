@@ -465,7 +465,8 @@ mod test {
     proptest! {
         #[test]
         fn signed_int_roundtrip(int: i128, bit_size in 1u32..=64) {
-            let int = int % 1i128 << bit_size;
+            let int = int % (1i128 << (bit_size - 1));
+
             let int_as_field = convert_signed_integer_to_field_element(int, bit_size);
             let recovered_int = try_convert_field_element_to_signed_integer(int_as_field, bit_size).unwrap();
 
