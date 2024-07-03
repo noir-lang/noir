@@ -14,3 +14,5 @@ itertools = "^0.10"
 log = "0.4.17"
 rand = "0.8.5"
 powdr-ast = { path = "../powdr/ast" }
+handlebars = { version = "5.1.2", features = ["string_helpers"] }
+serde_json = "1.0.120"
