@@ -298,8 +298,7 @@ impl<'a> Interpreter<'a> {
                 return Ok(());
             }
         }
-        let name = self.interner.definition(id).name.clone();
-        Err(InterpreterError::NonComptimeVarReferenced { name, location })
+        Err(InterpreterError::VariableNotInScope { location })
     }
 
     pub(super) fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
@@ -313,12 +312,12 @@ impl<'a> Interpreter<'a> {
             }
         }
 
-        // Justification for `NonComptimeVarReferenced`:
-        // If we have an id to lookup at all that means name resolution successfully
-        // found another variable in scope for this name. If the name is in scope
-        // but unknown by the interpreter it must be because it was not a comptime variable.
-        let name = self.interner.definition(id).name.clone();
-        Err(InterpreterError::NonComptimeVarReferenced { name, location })
+        if id == DefinitionId::dummy_id() {
+            Err(InterpreterError::VariableNotInScope { location })
+        } else {
+            let name = self.interner.definition_name(id).to_string();
+            Err(InterpreterError::NonComptimeVarReferenced { name, location })
+        }
     }
 
     /// Evaluate an expression and return the result
@@ -354,7 +353,10 @@ impl<'a> Interpreter<'a> {
     }
 
     pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
-        let definition = self.interner.definition(ident.id);
+        let definition = self.interner.try_definition(ident.id).ok_or_else(|| {
+            let location = self.interner.expr_location(&id);
+            InterpreterError::VariableNotInScope { location }
+        })?;
 
         if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
             let method_id = resolve_trait_method(self.interner, method, id)?;
@@ -375,7 +377,12 @@ impl<'a> Interpreter<'a> {
                 if let Ok(value) = self.lookup(&ident) {
                     Ok(value)
                 } else {
-                    let let_ = self.interner.get_global_let_statement(*global_id).unwrap();
+                    let let_ =
+                        self.interner.get_global_let_statement(*global_id).ok_or_else(|| {
+                            let location = self.interner.expr_location(&id);
+                            InterpreterError::VariableNotInScope { location }
+                        })?;
+
                     if let_.comptime {
                         self.evaluate_let(let_.clone())?;
                     }
