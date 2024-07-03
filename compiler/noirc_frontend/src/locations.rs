@@ -32,7 +32,7 @@ impl NodeInterner {
     pub fn dependency_location(&self, dependency: DependencyId) -> Location {
         match dependency {
             DependencyId::Function(id) => self.function_modifiers(&id).name_location,
-            DependencyId::Struct(id) => self.get_struct(id).borrow().location,
+            DependencyId::Struct(id) => self.struct_location(&id),
             DependencyId::Global(id) => self.get_global(id).location,
             DependencyId::Alias(id) => self.get_type_alias(id).borrow().location,
             DependencyId::Variable(location) => location,
@@ -40,33 +40,23 @@ impl NodeInterner {
     }
 
     pub(crate) fn add_reference(&mut self, referenced: DependencyId, reference: DependencyId) {
+        if !self.track_references {
+            return;
+        }
+
         let referenced_index = self.get_or_insert_reference(referenced);
-        let reference_index = self.reference_graph.add_node(reference);
-
-        let referenced_location = self.dependency_location(referenced);
-        let reference_location = self.dependency_location(reference);
-
-        self.reference_graph.add_edge(referenced_index, reference_index, ());
-        self.location_indices.add_location(referenced_location, referenced_index);
-        self.location_indices.add_location(reference_location, reference_index);
-    }
-
-    pub(crate) fn add_reference_for(
-        &mut self,
-        referenced_id: DependencyId,
-        reference: DependencyId,
-    ) {
-        let Some(referenced_index) = self.reference_graph_indices.get(&referenced_id) else {
-            panic!("Compiler Error: Referenced index not found")
-        };
-
         let reference_location = self.dependency_location(reference);
         let reference_index = self.reference_graph.add_node(reference);
-        self.reference_graph.add_edge(*referenced_index, reference_index, ());
+
+        self.reference_graph.add_edge(reference_index, referenced_index, ());
         self.location_indices.add_location(reference_location, reference_index);
     }
 
     pub(crate) fn add_definition_location(&mut self, referenced: DependencyId) {
+        if !self.track_references {
+            return;
+        }
+
         let referenced_index = self.get_or_insert_reference(referenced);
         let referenced_location = self.dependency_location(referenced);
         self.location_indices.add_location(referenced_location, referenced_index);
@@ -83,40 +73,60 @@ impl NodeInterner {
         index
     }
 
-    pub fn check_rename_possible(&self, location: Location) -> bool {
+    // Given a reference location, find the location of the referenced node.
+    pub fn find_referenced_location(&self, reference_location: Location) -> Option<Location> {
+        self.location_indices
+            .get_node_from_location(reference_location)
+            .and_then(|node_index| self.referenced_index(node_index))
+            .map(|node_index| self.dependency_location(self.reference_graph[node_index]))
+    }
+
+    // Is the given location known to this interner?
+    pub fn is_location_known(&self, location: Location) -> bool {
         self.location_indices.get_node_from_location(location).is_some()
     }
 
-    pub fn find_rename_symbols_at(&self, location: Location) -> Option<Vec<Location>> {
+    // Starting at the given location, find the node referenced by it. Then, gather
+    // all locations that reference that node, and return all of them
+    // (the referenced node and the references).
+    // Returns `None` if the location is not known to this interner.
+    pub fn find_all_references(&self, location: Location) -> Option<Vec<Location>> {
         let node_index = self.location_indices.get_node_from_location(location)?;
 
         let reference_node = self.reference_graph[node_index];
         let found_locations: Vec<Location> = match reference_node {
-            DependencyId::Alias(_) | DependencyId::Struct(_) | DependencyId::Global(_) => todo!(),
-            DependencyId::Function(_) => self.get_edit_locations(node_index),
+            DependencyId::Alias(_) | DependencyId::Global(_) => todo!(),
+            DependencyId::Function(_) | DependencyId::Struct(_) => {
+                self.find_all_references_for_index(node_index)
+            }
 
             DependencyId::Variable(_) => {
-                let referenced_node_index = self
-                    .reference_graph
-                    .neighbors_directed(node_index, petgraph::Direction::Incoming)
-                    .next()?;
-
-                self.get_edit_locations(referenced_node_index)
+                let referenced_node_index = self.referenced_index(node_index)?;
+                self.find_all_references_for_index(referenced_node_index)
             }
         };
         Some(found_locations)
     }
 
-    fn get_edit_locations(&self, referenced_node_index: PetGraphIndex) -> Vec<Location> {
+    // Given a referenced node index, find all references to it and return their locations, together
+    // with the reference node's location.
+    fn find_all_references_for_index(&self, referenced_node_index: PetGraphIndex) -> Vec<Location> {
         let id = self.reference_graph[referenced_node_index];
         let mut edit_locations = vec![self.dependency_location(id)];
 
         self.reference_graph
-            .neighbors_directed(referenced_node_index, petgraph::Direction::Outgoing)
+            .neighbors_directed(referenced_node_index, petgraph::Direction::Incoming)
             .for_each(|reference_node_index| {
                 let id = self.reference_graph[reference_node_index];
                 edit_locations.push(self.dependency_location(id));
             });
         edit_locations
+    }
+
+    // Given a reference index, returns the referenced index, if any.
+    fn referenced_index(&self, reference_index: PetGraphIndex) -> Option<PetGraphIndex> {
+        self.reference_graph
+            .neighbors_directed(reference_index, petgraph::Direction::Outgoing)
+            .next()
     }
 }
