@@ -462,7 +462,7 @@ pub mod test {
         stmt::HirStatement,
     };
     use crate::node_interner::{
-        DefinitionKind, DependencyId, FuncId, NodeInterner, TraitId, TraitMethodId,
+        DefinitionKind, FuncId, NodeInterner, ReferenceId, TraitId, TraitMethodId,
     };
     use crate::{
         hir::{
@@ -694,7 +694,7 @@ pub mod test {
             &self,
             _def_maps: &BTreeMap<CrateId, CrateDefMap>,
             path: Path,
-            _dependencies: &mut Option<&mut Vec<DependencyId>>,
+            _path_references: &mut Option<&mut Vec<ReferenceId>>,
         ) -> PathResolutionResult {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();

@@ -31,7 +31,8 @@ use crate::{
         UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId,
+        DefinitionKind, DependencyId, ExprId, GlobalId, ReferenceId, TraitId, TraitImplKind,
+        TraitMethodId,
     },
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
@@ -154,8 +155,8 @@ impl<'context> Elaborator<'context> {
                     Location::new(unresolved_span, self.file),
                 );
 
-                let referenced = DependencyId::Struct(struct_type.borrow().id);
-                let reference = DependencyId::Variable(Location::new(unresolved_span, self.file));
+                let referenced = ReferenceId::Struct(struct_type.borrow().id);
+                let reference = ReferenceId::Variable(Location::new(unresolved_span, self.file));
                 self.interner.add_reference(referenced, reference);
             }
         }

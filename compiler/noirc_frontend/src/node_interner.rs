@@ -207,10 +207,10 @@ pub struct NodeInterner {
     /// //         |      |
     /// //         +------+
     /// ```
-    pub(crate) reference_graph: DiGraph<DependencyId, ()>,
+    pub(crate) reference_graph: DiGraph<ReferenceId, ()>,
 
     /// Tracks the index of the references in the graph
-    pub(crate) reference_graph_indices: HashMap<DependencyId, PetGraphIndex>,
+    pub(crate) reference_graph_indices: HashMap<ReferenceId, PetGraphIndex>,
 
     /// Store the location of the references in the graph
     pub(crate) location_indices: LocationIndices,
@@ -228,6 +228,17 @@ pub struct NodeInterner {
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum DependencyId {
+    Struct(StructId),
+    Global(GlobalId),
+    Function(FuncId),
+    Alias(TypeAliasId),
+    Variable(Location),
+}
+
+/// A reference to a module, struct, trait, etc., mainly used by the LSP code
+/// to keep track of how symbols reference each other.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum ReferenceId {
     Module(ModuleId),
     Struct(StructId),
     Trait(TraitId),
@@ -860,7 +871,7 @@ impl NodeInterner {
 
         // This needs to be done after pushing the definition since it will reference the
         // location that was stored
-        self.add_definition_location(DependencyId::Function(id));
+        self.add_definition_location(ReferenceId::Function(id));
         definition_id
     }
 
@@ -1802,8 +1813,6 @@ impl NodeInterner {
                         DependencyId::Variable(loc) => unreachable!(
                             "Variable used at location {loc:?} caught in a dependency cycle"
                         ),
-                        // These two are never put in the dependency graph
-                        DependencyId::Module(_) | DependencyId::Trait(_) => (),
                     }
                 }
             }
@@ -1827,10 +1836,6 @@ impl NodeInterner {
             }
             DependencyId::Variable(loc) => {
                 unreachable!("Variable used at location {loc:?} caught in a dependency cycle")
-            }
-            // These two are never put in the dependency graph
-            DependencyId::Module(_) | DependencyId::Trait(_) => {
-                unreachable!("Module or trait dependency shouldn't exist in the dependency graph")
             }
         };
 
