@@ -19,7 +19,7 @@ impl AstPrinter {
         write!(
             f,
             "fn {}$f{}({}) -> {} {{",
-            function.name, function.id.0, params, function.return_type
+            function.name, function.id, params, function.return_type
         )?;
         self.indent_level += 1;
         self.print_expr_expect_block(&function.body, f)?;
@@ -291,7 +291,7 @@ impl Display for Definition {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
             Definition::Local(id) => write!(f, "l{}", id.0),
-            Definition::Function(id) => write!(f, "f{}", id.0),
+            Definition::Function(id) => write!(f, "f{}", id),
             Definition::Builtin(name) => write!(f, "{name}"),
             Definition::LowLevel(name) => write!(f, "{name}"),
             Definition::Oracle(name) => write!(f, "{name}"),

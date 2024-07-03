@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{
@@ -64,7 +66,21 @@ pub struct LocalId(pub u32);
 
 /// A function ID corresponds directly to an index of `Program::functions`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct FuncId(pub u32);
+// pub struct FuncId(pub u32);
+pub enum FuncId {
+    Dummy,
+    Interned(u32),
+}
+
+impl Display for FuncId {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Dummy => write!(f, "[dummy-ID]"),
+            Self::Interned(id) => write!(f, "{}", id),
+        }
+    }
+}
+
 
 #[derive(Debug, Clone, Hash)]
 pub struct Ident {
@@ -348,18 +364,19 @@ impl Program {
     }
 
     pub fn main_id() -> FuncId {
-        FuncId(0)
+        FuncId::Interned(0)
     }
 
     pub fn take_main_body(&mut self) -> Expression {
-        self.take_function_body(FuncId(0))
+        self.take_function_body(FuncId::Dummy)
     }
 
     /// Takes a function body by replacing it with `false` and
     /// returning the previous value
     pub fn take_function_body(&mut self, function: FuncId) -> Expression {
-        let main = &mut self.functions[function.0 as usize];
-        let replacement = Expression::Literal(Literal::Bool(false));
+        let main = &mut self[function];
+
+        let replacement = Expression::Block(vec![]);
         std::mem::replace(&mut main.body, replacement)
     }
 }
@@ -368,13 +385,19 @@ impl std::ops::Index<FuncId> for Program {
     type Output = Function;
 
     fn index(&self, index: FuncId) -> &Self::Output {
-        &self.functions[index.0 as usize]
+        match index {
+            FuncId::Dummy => panic!("ICE: attempted to index a Program using FuncId::Dummy"),
+            FuncId::Interned(index) => &self.functions[index as usize],
+        }
     }
 }
 
 impl std::ops::IndexMut<FuncId> for Program {
     fn index_mut(&mut self, index: FuncId) -> &mut Self::Output {
-        &mut self.functions[index.0 as usize]
+        match index {
+            FuncId::Dummy => panic!("ICE: attempted to index a Program using FuncId::Dummy"),
+            FuncId::Interned(index) => &mut self.functions[index as usize],
+        }
     }
 }
 
