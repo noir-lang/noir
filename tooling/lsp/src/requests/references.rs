@@ -47,7 +47,7 @@ mod references_tests {
         // expect a rename, but we craft our tests to avoid that.
         let ranges = search_in_file(noir_text_document.path(), name);
 
-        // Test renaming works on any instance of the symbol.
+        // Test getting references works on any instance of the symbol.
         for target_range in &ranges {
             let target_position = target_range.start;
 
