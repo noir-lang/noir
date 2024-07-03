@@ -1,7 +1,7 @@
 use crate::LspState;
 use acvm::blackbox_solver::StubbedBlackBoxSolver;
 use async_lsp::ClientSocket;
-use lsp_types::Url;
+use lsp_types::{Position, Range, Url};
 
 pub(crate) async fn init_lsp_server(directory: &str) -> (LspState, Url) {
     let client = ClientSocket::new_closed();
@@ -36,4 +36,26 @@ pub(crate) async fn init_lsp_server(directory: &str) -> (LspState, Url) {
         .expect("Could not initialize LSP server");
 
     (state, noir_text_document)
+}
+
+/// Searches for all instances of `search_string` in file `file_name` and returns a list of their locations.
+pub(crate) fn search_in_file(filename: &str, search_string: &str) -> Vec<Range> {
+    let file_contents = std::fs::read_to_string(filename)
+        .unwrap_or_else(|_| panic!("Couldn't read file {}", filename));
+    let file_lines: Vec<&str> = file_contents.lines().collect();
+    file_lines
+        .iter()
+        .enumerate()
+        .filter_map(|(line_num, line)| {
+            // Note: this only finds the first instance of `search_string` on this line.
+            line.find(search_string).map(|index| {
+                let start = Position { line: line_num as u32, character: index as u32 };
+                let end = Position {
+                    line: line_num as u32,
+                    character: (index + search_string.len()) as u32,
+                };
+                Range { start, end }
+            })
+        })
+        .collect()
 }
