@@ -188,8 +188,8 @@ impl super::FmtVisitor<'_> {
                         continue;
                     }
 
-                    let slice =
-                        self.slice(self.last_position..impl_.object_type.span.unwrap().end());
+                    let before_brace = self.span_before(span, Token::LeftBrace).start();
+                    let slice = self.slice(self.last_position..before_brace).trim();
                     let after_brace = self.span_after(span, Token::LeftBrace).start();
                     self.last_position = after_brace;
 

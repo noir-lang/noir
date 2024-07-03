@@ -246,6 +246,21 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::StaticAssert => {
+            if arguments.len() != 2 {
+                panic!("ICE: static_assert called with wrong number of arguments")
+            }
+
+            if !dfg.is_constant(arguments[1]) {
+                return SimplifyResult::None;
+            }
+
+            if dfg.is_constant_true(arguments[0]) {
+                SimplifyResult::Remove
+            } else {
+                SimplifyResult::None
+            }
+        }
         Intrinsic::ApplyRangeConstraint => {
             let value = arguments[0];
             let max_bit_size = dfg.get_numeric_constant(arguments[1]);
@@ -446,7 +461,9 @@ fn simplify_black_box_func(
         BlackBoxFunc::SHA256 => simplify_hash(dfg, arguments, acvm::blackbox_solver::sha256),
         BlackBoxFunc::Blake2s => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s),
         BlackBoxFunc::Blake3 => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake3),
-        BlackBoxFunc::Keccakf1600 => SimplifyResult::None, //TODO(Guillaume)
+        BlackBoxFunc::PedersenCommitment
+        | BlackBoxFunc::PedersenHash
+        | BlackBoxFunc::Keccakf1600 => SimplifyResult::None, //TODO(Guillaume)
         BlackBoxFunc::Keccak256 => {
             match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
                 (Some((input, _)), Some(num_bytes)) if array_is_constant(dfg, &input) => {
@@ -501,8 +518,6 @@ fn simplify_black_box_func(
         }
         BlackBoxFunc::Sha256Compression => SimplifyResult::None, //TODO(Guillaume)
         BlackBoxFunc::AES128Encrypt => SimplifyResult::None,
-        BlackBoxFunc::PedersenCommitment => todo!("Deprecated Blackbox"),
-        BlackBoxFunc::PedersenHash => todo!("Deprecated Blackbox"),
     }
 }
 

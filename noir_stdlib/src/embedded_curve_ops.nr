@@ -68,7 +68,7 @@ impl EmbeddedCurveScalar {
 // underlying proof system.
 #[foreign(multi_scalar_mul)]
 // docs:start:multi_scalar_mul
-pub fn multi_scalar_mul<N>(
+pub fn multi_scalar_mul<let N: u32>(
     points: [EmbeddedCurvePoint; N],
     scalars: [EmbeddedCurveScalar; N]
 ) -> [Field; 3]

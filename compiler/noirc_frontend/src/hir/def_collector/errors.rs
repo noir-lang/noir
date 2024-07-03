@@ -1,4 +1,4 @@
-use crate::ast::{Ident, Path};
+use crate::ast::{Ident, Path, UnresolvedTypeData};
 use crate::hir::resolution::import::PathResolutionError;
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
@@ -27,7 +27,9 @@ pub enum DefCollectorErrorKind {
     #[error("duplicate {typ} found in namespace")]
     Duplicate { typ: DuplicateType, first_def: Ident, second_def: Ident },
     #[error("unresolved import")]
-    UnresolvedModuleDecl { mod_name: Ident, expected_path: String },
+    UnresolvedModuleDecl { mod_name: Ident, expected_path: String, alternative_path: String },
+    #[error("overlapping imports")]
+    OverlappingModuleDecls { mod_name: Ident, expected_path: String, alternative_path: String },
     #[error("path resolution error")]
     PathResolutionError(PathResolutionError),
     #[error("Non-struct type used in impl")]
@@ -66,6 +68,8 @@ pub enum DefCollectorErrorKind {
     TraitImplOrphaned { span: Span },
     #[error("macro error : {0:?}")]
     MacroError(MacroError),
+    #[error("The only supported types of numeric generics are integers, fields, and booleans")]
+    UnsupportedNumericGenericType { ident: Ident, typ: UnresolvedTypeData },
 }
 
 /// An error struct that macro processors can return.
@@ -119,12 +123,22 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                     diag
                 }
             }
-            DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path } => {
+            DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path, alternative_path } => {
                 let span = mod_name.0.span();
                 let mod_name = &mod_name.0.contents;
 
                 Diagnostic::simple_error(
-                    format!("No module `{mod_name}` at path `{expected_path}`"),
+                    format!("No module `{mod_name}` at path `{expected_path}` or `{alternative_path}`"),
+                    String::new(),
+                    span,
+                )
+            }
+            DefCollectorErrorKind::OverlappingModuleDecls { mod_name, expected_path, alternative_path } => {
+                let span = mod_name.0.span();
+                let mod_name = &mod_name.0.contents;
+
+                Diagnostic::simple_error(
+                    format!("Overlapping modules `{mod_name}` at  path `{expected_path}` and `{alternative_path}`"),
                     String::new(),
                     span,
                 )
@@ -228,6 +242,15 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
             DefCollectorErrorKind::MacroError(macro_error) => {
                 Diagnostic::simple_error(macro_error.primary_message.clone(), macro_error.secondary_message.clone().unwrap_or_default(), macro_error.span.unwrap_or_default())
             },
+            DefCollectorErrorKind::UnsupportedNumericGenericType { ident, typ } => {
+                let name = &ident.0.contents;
+
+                Diagnostic::simple_error(
+                    format!("{name} has a type of {typ}. The only supported types of numeric generics are integers and fields"),
+                    "Unsupported numeric generic type".to_string(),
+                    ident.0.span(),
+                )
+            }
         }
     }
 }

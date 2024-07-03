@@ -544,14 +544,15 @@ pub fn compile_no_check(
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
     let return_visibility = program.return_visibility;
+    let ssa_evaluator_options = noirc_evaluator::ssa::SsaEvaluatorOptions {
+        enable_ssa_logging: options.show_ssa,
+        enable_brillig_logging: options.show_brillig,
+        force_brillig_output: options.force_brillig,
+        print_codegen_timings: options.benchmark_codegen,
+    };
 
-    let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } = create_program(
-        program,
-        options.show_ssa,
-        options.show_brillig,
-        options.force_brillig,
-        options.benchmark_codegen,
-    )?;
+    let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =
+        create_program(program, &ssa_evaluator_options)?;
 
     let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);
