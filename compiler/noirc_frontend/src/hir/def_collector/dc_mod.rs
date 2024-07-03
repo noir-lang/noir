@@ -283,7 +283,13 @@ impl<'a> ModCollector<'a> {
             );
 
             // Create the corresponding module for the struct namespace
-            let id = match self.push_child_module(context, &name, self.file_id, false, false) {
+            let id = match self.push_child_module(
+                context,
+                &name,
+                Location::new(name.span(), self.file_id),
+                false,
+                false,
+            ) {
                 Ok(local_id) => context.def_interner.new_struct(
                     &unresolved,
                     resolved_generics,
@@ -377,8 +383,13 @@ impl<'a> ModCollector<'a> {
             let name = trait_definition.name.clone();
 
             // Create the corresponding module for the trait namespace
-            let trait_id = match self.push_child_module(context, &name, self.file_id, false, false)
-            {
+            let trait_id = match self.push_child_module(
+                context,
+                &name,
+                Location::new(name.span(), self.file_id),
+                false,
+                false,
+            ) {
                 Ok(local_id) => TraitId(ModuleId { krate, local_id }),
                 Err(error) => {
                     errors.push((error.into(), self.file_id));
@@ -539,7 +550,7 @@ impl<'a> ModCollector<'a> {
             match self.push_child_module(
                 context,
                 &submodule.name,
-                file_id,
+                Location::new(submodule.name.span(), file_id),
                 true,
                 submodule.is_contract,
             ) {
@@ -627,7 +638,13 @@ impl<'a> ModCollector<'a> {
         );
 
         // Add module into def collector and get a ModuleId
-        match self.push_child_module(context, &mod_decl.ident, child_file_id, true, false) {
+        match self.push_child_module(
+            context,
+            &mod_decl.ident,
+            Location::new(Span::empty(0), child_file_id),
+            true,
+            false,
+        ) {
             Ok(child_mod_id) => {
                 errors.extend(collect_defs(
                     self.def_collector,
@@ -652,12 +669,12 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         mod_name: &Ident,
-        file_id: FileId,
+        mod_location: Location,
         add_to_parent_scope: bool,
         is_contract: bool,
     ) -> Result<LocalModuleId, DefCollectorErrorKind> {
         let parent = Some(self.module_id);
-        let location = Location::new(mod_name.span(), file_id);
+        let location = Location::new(mod_name.span(), mod_location.file);
         let new_module = ModuleData::new(parent, location, is_contract);
         let module_id = self.def_collector.def_map.modules.insert(new_module);
 
@@ -690,9 +707,7 @@ impl<'a> ModCollector<'a> {
                 return Err(err);
             }
 
-            context
-                .def_interner
-                .add_module_location(mod_id, Location::new(Span::empty(0), file_id));
+            context.def_interner.add_module_location(mod_id, mod_location);
         }
 
         Ok(LocalModuleId(module_id))

@@ -16,4 +16,5 @@ fn some_function() -> Field {
 fn main() {
     let _ = another_function();
     bar::baz();
+    bar::inline::qux();
 }

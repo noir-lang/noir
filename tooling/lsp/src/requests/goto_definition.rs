@@ -154,4 +154,18 @@ mod goto_definition_tests {
         )
         .await
     }
+
+    #[test]
+    async fn goto_inline_module_from_call_path() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 18, character: 9 }, // "inline" in "bar::inline::qux()"
+            "src/bar.nr",
+            Range {
+                start: Position { line: 2, character: 4 },
+                end: Position { line: 2, character: 10 },
+            },
+        )
+        .await
+    }
 }
