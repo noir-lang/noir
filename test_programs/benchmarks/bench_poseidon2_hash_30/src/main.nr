@@ -1,4 +1,4 @@
-use std::hash;
+use std::hash::poseidon2;
 
 global SIZE = 30;
 
