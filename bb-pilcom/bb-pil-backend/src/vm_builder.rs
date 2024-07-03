@@ -124,7 +124,6 @@ pub fn analyzed_to_cpp<F: FieldElement>(
         &all_cols_without_inverses,
         &all_cols,
         &to_be_shifted,
-        &all_cols_with_shifts,
     );
 
     bb_files.create_circuit_builder_cpp(file_name, &all_cols);

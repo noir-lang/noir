@@ -11,7 +11,6 @@ pub trait CircuitBuilder {
         all_cols_without_inverses: &[String],
         all_cols: &[String],
         to_be_shifted: &[String],
-        all_cols_with_shifts: &[String],
     );
 
     fn create_circuit_builder_cpp(&mut self, name: &str, all_cols: &[String]);
@@ -26,7 +25,6 @@ impl CircuitBuilder for BBFiles {
         all_cols_without_inverses: &[String],
         all_cols: &[String],
         to_be_shifted: &[String],
-        all_cols_with_shifts: &[String],
     ) {
         let mut handlebars = Handlebars::new();
 
@@ -37,7 +35,6 @@ impl CircuitBuilder for BBFiles {
             "all_cols_without_inverses": all_cols_without_inverses,
             "all_cols": all_cols,
             "to_be_shifted": to_be_shifted,
-            "all_cols_with_shifts": all_cols_with_shifts,
         });
 
         handlebars

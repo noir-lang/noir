@@ -21,7 +21,7 @@ namespace bb {
 
 template <typename FF>
 struct {{name}}FullRow {
-    {{#each all_cols_with_shifts as |col|}}
+    {{#each all_cols as |col|}}
     FF {{col}}{};
     {{/each}}
     
