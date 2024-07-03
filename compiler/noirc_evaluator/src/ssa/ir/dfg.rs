@@ -497,9 +497,22 @@ impl DataFlowGraph {
         }
     }
 
-    /// True if the given ValueId refers to a constant value
+    /// True if the given ValueId refers to a (recursively) constant value
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
-        !matches!(&self[self.resolve(argument)], Value::Instruction { .. } | Value::Param { .. })
+        match &self[self.resolve(argument)] {
+            Value::Instruction { .. } | Value::Param { .. } => false,
+            Value::Array { array, .. } => array.iter().all(|element| self.is_constant(*element)),
+            _ => true,
+        }
+    }
+
+    /// True that the input is a non-zero `Value::NumericConstant`
+    pub(crate) fn is_constant_true(&self, argument: ValueId) -> bool {
+        if let Some(constant) = self.get_numeric_constant(argument) {
+            !constant.is_zero()
+        } else {
+            false
+        }
     }
 }
 

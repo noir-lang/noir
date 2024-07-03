@@ -5,17 +5,21 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
+use crate::ast::UnresolvedGenerics;
 use crate::debug::DebugInstrumenter;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
 use crate::parser::ParserError;
-use crate::ParsedModule;
+use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, Type, TypeVariable};
+use def_collector::dc_crate::CompilationError;
 use def_map::{Contract, CrateDefMap};
-use fm::FileManager;
+use fm::{FileId, FileManager};
+use iter_extended::vecmap;
 use noirc_errors::Location;
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
+use std::rc::Rc;
 
 use self::def_map::TestFunction;
 
@@ -80,7 +84,7 @@ impl Context<'_, '_> {
         }
     }
 
-    pub fn parsed_file_results(&self, file_id: fm::FileId) -> (ParsedModule, Vec<ParserError>) {
+    pub fn parsed_file_results(&self, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
         self.parsed_files.get(&file_id).expect("noir file wasn't parsed").clone()
     }
 
@@ -255,5 +259,40 @@ impl Context<'_, '_> {
 
     pub fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {
         module_id.module(&self.def_maps)
+    }
+
+    /// Generics need to be resolved before elaboration to distinguish
+    /// between normal and numeric generics.
+    /// This method is expected to be used during definition collection.
+    /// Each result is returned in a list rather than returned as a single result as to allow
+    /// definition collection to provide an error for each ill-formed numeric generic.
+    pub(crate) fn resolve_generics(
+        &mut self,
+        generics: &UnresolvedGenerics,
+        errors: &mut Vec<(CompilationError, FileId)>,
+        file_id: FileId,
+    ) -> Generics {
+        vecmap(generics, |generic| {
+            // Map the generic to a fresh type variable
+            let id = self.def_interner.next_type_variable_id();
+            let type_var = TypeVariable::unbound(id);
+            let ident = generic.ident();
+            let span = ident.0.span();
+
+            // Check for name collisions of this generic
+            let name = Rc::new(ident.0.contents.clone());
+
+            let kind = generic.kind().unwrap_or_else(|err| {
+                errors.push((err.into(), file_id));
+                Kind::Numeric(Box::new(Type::Error))
+            });
+
+            ResolvedGeneric { name, type_var, kind, span }
+        })
+    }
+
+    // Enables reference tracking (useful for tools like LSP).
+    pub fn track_references(&mut self) {
+        self.def_interner.track_references = true;
     }
 }

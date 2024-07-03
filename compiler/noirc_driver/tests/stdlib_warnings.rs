@@ -27,7 +27,7 @@ fn stdlib_does_not_produce_constant_warnings() -> Result<(), ErrorsAndWarnings> 
     let ((), warnings) =
         noirc_driver::check_crate(&mut context, root_crate_id, false, false, false)?;
 
-    assert_eq!(warnings, Vec::new(), "stdlib is producing warnings");
+    assert_eq!(warnings, Vec::new(), "stdlib is producing {} warnings", warnings.len());
 
     Ok(())
 }

@@ -18,7 +18,7 @@ impl Eq for i64 { fn eq(self, other: i64) -> bool { self == other } }
 impl Eq for () { fn eq(_self: Self, _other: ()) -> bool { true } }
 impl Eq for bool { fn eq(self, other: bool) -> bool { self == other } }
 
-impl<T, N> Eq for [T; N] where T: Eq {
+impl<T, let N: u32> Eq for [T; N] where T: Eq {
     fn eq(self, other: [T; N]) -> bool {
         let mut result = true;
         for i in 0 .. self.len() {
@@ -38,7 +38,7 @@ impl<T> Eq for [T] where T: Eq {
     }
 }
 
-impl<N> Eq for str<N> {
+impl<let N: u32> Eq for str<N> {
     fn eq(self, other: str<N>) -> bool {
         let self_bytes = self.as_bytes();
         let other_bytes = other.as_bytes();
@@ -203,7 +203,7 @@ impl Ord for bool {
     }
 }
 
-impl<T, N> Ord for [T; N] where T: Ord {
+impl<T, let N: u32> Ord for [T; N] where T: Ord {
     // The first non-equal element of both arrays determines
     // the ordering for the whole array.
     fn cmp(self, other: [T; N]) -> Ordering {

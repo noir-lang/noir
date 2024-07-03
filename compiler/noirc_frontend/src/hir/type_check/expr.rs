@@ -17,6 +17,7 @@ use crate::{
     TypeBinding, TypeBindings, TypeVariableKind,
 };
 
+use super::NoMatchingImplFoundError;
 use super::{errors::TypeCheckError, TypeChecker};
 
 impl<'interner> TypeChecker<'interner> {
@@ -307,13 +308,13 @@ impl<'interner> TypeChecker<'interner> {
 
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
-            HirExpression::Quote(_) => Type::Code,
+            HirExpression::Quote(_) => Type::Quoted(crate::QuotedType::Quoted),
             HirExpression::Comptime(block) => self.check_block(block),
 
             // Unquote should be inserted & removed by the comptime interpreter.
             // Even if we allowed it here, we wouldn't know what type to give to the result.
             HirExpression::Unquote(block) => {
-                unreachable!("Unquote remaining during type checking {block}")
+                unreachable!("Unquote remaining during type checking {block:?}")
             }
         };
 
@@ -340,7 +341,7 @@ impl<'interner> TypeChecker<'interner> {
         // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
         if is_current_func_constrained && is_unconstrained_call {
             for (typ, _, _) in args.iter() {
-                if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
+                if !typ.is_valid_for_unconstrained_boundary() {
                     self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained { span });
                 }
             }
@@ -404,8 +405,8 @@ impl<'interner> TypeChecker<'interner> {
 
             for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
                 // Avoid binding t = t
-                if !arg.occurs(param.id()) {
-                    bindings.insert(param.id(), (param.clone(), arg.clone()));
+                if !arg.occurs(param.type_var.id()) {
+                    bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.clone()));
                 }
             }
 
@@ -518,26 +519,10 @@ impl<'interner> TypeChecker<'interner> {
             Err(erroring_constraints) => {
                 if erroring_constraints.is_empty() {
                     self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
-                } else {
-                    // Don't show any errors where try_get_trait returns None.
-                    // This can happen if a trait is used that was never declared.
-                    let constraints = erroring_constraints
-                        .into_iter()
-                        .map(|constraint| {
-                            let r#trait = self.interner.try_get_trait(constraint.trait_id)?;
-                            let mut name = r#trait.name.to_string();
-                            if !constraint.trait_generics.is_empty() {
-                                let generics =
-                                    vecmap(&constraint.trait_generics, ToString::to_string);
-                                name += &format!("<{}>", generics.join(", "));
-                            }
-                            Some((constraint.typ, name))
-                        })
-                        .collect::<Option<Vec<_>>>();
-
-                    if let Some(constraints) = constraints {
-                        self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
-                    }
+                } else if let Some(error) =
+                    NoMatchingImplFoundError::new(self.interner, erroring_constraints, span)
+                {
+                    self.errors.push(TypeCheckError::NoMatchingImplFound(error));
                 }
             }
         }
@@ -1025,7 +1010,7 @@ impl<'interner> TypeChecker<'interner> {
                 });
                 None
             }
-            Type::NamedGeneric(_, _) => {
+            Type::NamedGeneric(_, _, _) => {
                 let func_meta = self.interner.function_meta(
                     &self.current_function.expect("unexpected method outside a function"),
                 );

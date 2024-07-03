@@ -48,47 +48,54 @@ pub mod ssa_gen;
 /// and Brillig functions for unconstrained execution.
 pub(crate) fn optimize_into_acir(
     program: Program,
-    print_passes: bool,
-    print_brillig_trace: bool,
-    force_brillig_output: bool,
-    print_timings: bool,
+    options: &SsaEvaluatorOptions,
 ) -> Result<Artifacts, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let ssa = SsaBuilder::new(program, print_passes, force_brillig_output, print_timings)?
-        .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
-        .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
-        .run_pass(Ssa::separate_runtime, "After Runtime Separation:")
-        .run_pass(Ssa::resolve_is_unconstrained, "After Resolving IsUnconstrained:")
-        .run_pass(Ssa::inline_functions, "After Inlining:")
-        // Run mem2reg with the CFG separated into blocks
-        .run_pass(Ssa::mem2reg, "After Mem2Reg:")
-        .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
-        .try_run_pass(Ssa::evaluate_assert_constant, "After Assert Constant:")?
-        .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
-        .run_pass(Ssa::simplify_cfg, "After Simplifying:")
-        .run_pass(Ssa::flatten_cfg, "After Flattening:")
-        .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
-        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
-        .run_pass(Ssa::mem2reg, "After Mem2Reg:")
-        // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
-        // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
-        // This pass must come immediately following `mem2reg` as the succeeding passes
-        // may create an SSA which inlining fails to handle.
-        .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
-        .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
-        .run_pass(Ssa::fold_constants, "After Constant Folding:")
-        .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
-        .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
-        .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
-        .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
-        .finish();
+    let ssa = SsaBuilder::new(
+        program,
+        options.enable_ssa_logging,
+        options.force_brillig_output,
+        options.print_codegen_timings,
+    )?
+    .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
+    .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
+    .run_pass(Ssa::separate_runtime, "After Runtime Separation:")
+    .run_pass(Ssa::resolve_is_unconstrained, "After Resolving IsUnconstrained:")
+    .run_pass(Ssa::inline_functions, "After Inlining:")
+    // Run mem2reg with the CFG separated into blocks
+    .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+    .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
+    .try_run_pass(
+        Ssa::evaluate_static_assert_and_assert_constant,
+        "After `static_assert` and `assert_constant`:",
+    )?
+    .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
+    .run_pass(Ssa::simplify_cfg, "After Simplifying:")
+    .run_pass(Ssa::flatten_cfg, "After Flattening:")
+    .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
+    // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
+    .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+    // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
+    // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
+    // This pass must come immediately following `mem2reg` as the succeeding passes
+    // may create an SSA which inlining fails to handle.
+    .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
+    .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
+    .run_pass(Ssa::fold_constants, "After Constant Folding:")
+    .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
+    .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
+    .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
+    .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
+    .finish();
 
-    let brillig = time("SSA to Brillig", print_timings, || ssa.to_brillig(print_brillig_trace));
+    let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
+        ssa.to_brillig(options.enable_brillig_logging)
+    });
 
     drop(ssa_gen_span_guard);
 
-    time("SSA to ACIR", print_timings, || ssa.into_acir(&brillig))
+    time("SSA to ACIR", options.print_codegen_timings, || ssa.into_acir(&brillig))
 }
 
 // Helper to time SSA passes
@@ -144,17 +151,26 @@ impl SsaProgramArtifact {
     }
 }
 
+pub struct SsaEvaluatorOptions {
+    /// Emit debug information for the intermediate SSA IR
+    pub enable_ssa_logging: bool,
+
+    pub enable_brillig_logging: bool,
+
+    /// Force Brillig output (for step debugging)
+    pub force_brillig_output: bool,
+
+    /// Pretty print benchmark times of each code generation pass
+    pub print_codegen_timings: bool,
+}
+
 /// Compiles the [`Program`] into [`ACIR``][acvm::acir::circuit::Program].
 ///
-/// The output ACIR is is backend-agnostic and so must go through a transformation pass before usage in proof generation.
-#[allow(clippy::type_complexity)]
+/// The output ACIR is backend-agnostic and so must go through a transformation pass before usage in proof generation.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn create_program(
     program: Program,
-    enable_ssa_logging: bool,
-    enable_brillig_logging: bool,
-    force_brillig_output: bool,
-    print_codegen_timings: bool,
+    options: &SsaEvaluatorOptions,
 ) -> Result<SsaProgramArtifact, RuntimeError> {
     let debug_variables = program.debug_variables.clone();
     let debug_types = program.debug_types.clone();
@@ -163,13 +179,7 @@ pub fn create_program(
     let func_sigs = program.function_signatures.clone();
 
     let recursive = program.recursive;
-    let (generated_acirs, generated_brillig, error_types) = optimize_into_acir(
-        program,
-        enable_ssa_logging,
-        enable_brillig_logging,
-        force_brillig_output,
-        print_codegen_timings,
-    )?;
+    let (generated_acirs, generated_brillig, error_types) = optimize_into_acir(program, options)?;
     assert_eq!(
         generated_acirs.len(),
         func_sigs.len(),
@@ -206,7 +216,7 @@ pub struct SsaCircuitArtifact {
 }
 
 fn convert_generated_acir_into_circuit(
-    mut generated_acir: GeneratedAcir,
+    mut generated_acir: GeneratedAcir<FieldElement>,
     func_sig: FunctionSignature,
     recursive: bool,
     debug_variables: DebugVariables,

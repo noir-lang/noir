@@ -47,13 +47,7 @@ export const abi: Abi = {
       visibility: 'private',
     },
   ],
-  param_witnesses: {
-    struct_arg: [{ start: 1, end: 2 }],
-    struct_array_arg: [{ start: 2, end: 5 }],
-    nested_struct_arg: [{ start: 5, end: 6 }],
-  },
   return_type: null,
-  return_witnesses: [],
   error_types: {},
 };
 

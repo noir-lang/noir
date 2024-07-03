@@ -1,0 +1,6 @@
+[package]
+name = "rename_qualified"
+type = "bin"
+authors = [""]
+
+[dependencies]

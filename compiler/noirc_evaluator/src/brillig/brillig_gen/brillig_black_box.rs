@@ -1,18 +1,19 @@
 use acvm::{
     acir::{brillig::BlackBoxOp, BlackBoxFunc},
-    FieldElement,
+    AcirField,
 };
 
 use crate::brillig::brillig_ir::{
     brillig_variable::{BrilligVariable, BrilligVector, SingleAddrVariable},
+    debug_show::DebugToString,
     BrilligBinaryOp, BrilligContext,
 };
 
 /// Transforms SSA's black box function calls into the corresponding brillig instructions
 /// Extracting arguments and results from the SSA function call
 /// And making any necessary type conversions to adapt noir's blackbox calls to brillig's
-pub(crate) fn convert_black_box_call(
-    brillig_context: &mut BrilligContext,
+pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
+    brillig_context: &mut BrilligContext<F>,
     bb_func: &BlackBoxFunc,
     function_arguments: &[BrilligVariable],
     function_results: &[BrilligVariable],
@@ -242,13 +243,7 @@ pub(crate) fn convert_black_box_call(
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(modulus_id)],
             ) = (function_arguments, function_results)
             {
-                prepare_bigint_output(
-                    brillig_context,
-                    lhs_modulus,
-                    rhs_modulus,
-                    output,
-                    modulus_id,
-                );
+                prepare_bigint_output(brillig_context, lhs_modulus, rhs_modulus, modulus_id);
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntAdd {
                     lhs: lhs.address,
                     rhs: rhs.address,
@@ -266,13 +261,7 @@ pub(crate) fn convert_black_box_call(
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(modulus_id)],
             ) = (function_arguments, function_results)
             {
-                prepare_bigint_output(
-                    brillig_context,
-                    lhs_modulus,
-                    rhs_modulus,
-                    output,
-                    modulus_id,
-                );
+                prepare_bigint_output(brillig_context, lhs_modulus, rhs_modulus, modulus_id);
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntSub {
                     lhs: lhs.address,
                     rhs: rhs.address,
@@ -290,13 +279,7 @@ pub(crate) fn convert_black_box_call(
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(modulus_id)],
             ) = (function_arguments, function_results)
             {
-                prepare_bigint_output(
-                    brillig_context,
-                    lhs_modulus,
-                    rhs_modulus,
-                    output,
-                    modulus_id,
-                );
+                prepare_bigint_output(brillig_context, lhs_modulus, rhs_modulus, modulus_id);
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntMul {
                     lhs: lhs.address,
                     rhs: rhs.address,
@@ -314,13 +297,7 @@ pub(crate) fn convert_black_box_call(
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(modulus_id)],
             ) = (function_arguments, function_results)
             {
-                prepare_bigint_output(
-                    brillig_context,
-                    lhs_modulus,
-                    rhs_modulus,
-                    output,
-                    modulus_id,
-                );
+                prepare_bigint_output(brillig_context, lhs_modulus, rhs_modulus, modulus_id);
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntDiv {
                     lhs: lhs.address,
                     rhs: rhs.address,
@@ -340,8 +317,6 @@ pub(crate) fn convert_black_box_call(
             {
                 let inputs_vector = convert_array_or_vector(brillig_context, inputs, bb_func);
                 let modulus_vector = convert_array_or_vector(brillig_context, modulus, bb_func);
-                let output_id = brillig_context.get_new_bigint_id();
-                brillig_context.const_instruction(*output, FieldElement::from(output_id as u128));
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntFromLeBytes {
                     inputs: inputs_vector.to_heap_vector(),
                     modulus: modulus_vector.to_heap_vector(),
@@ -426,8 +401,8 @@ pub(crate) fn convert_black_box_call(
     }
 }
 
-fn convert_array_or_vector(
-    brillig_context: &mut BrilligContext,
+fn convert_array_or_vector<F: AcirField + DebugToString>(
+    brillig_context: &mut BrilligContext<F>,
     array_or_vector: &BrilligVariable,
     bb_func: &BlackBoxFunc,
 ) -> BrilligVector {
@@ -442,11 +417,10 @@ fn convert_array_or_vector(
     }
 }
 
-fn prepare_bigint_output(
-    brillig_context: &mut BrilligContext,
+fn prepare_bigint_output<F: AcirField + DebugToString>(
+    brillig_context: &mut BrilligContext<F>,
     lhs_modulus: &SingleAddrVariable,
     rhs_modulus: &SingleAddrVariable,
-    output: &SingleAddrVariable,
     modulus_id: &SingleAddrVariable,
 ) {
     // Check moduli
@@ -463,8 +437,6 @@ fn prepare_bigint_output(
         Some("moduli should be identical in BigInt operation".to_string()),
     );
     brillig_context.deallocate_register(condition);
-    // Set output id
-    let output_id = brillig_context.get_new_bigint_id();
-    brillig_context.const_instruction(*output, FieldElement::from(output_id as u128));
+
     brillig_context.mov_instruction(modulus_id.address, lhs_modulus.address);
 }

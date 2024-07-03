@@ -166,6 +166,10 @@ interface ForeignCallResult {
 }
 ```
 
+::: Multidimensional Arrays
+
+If the Oracle function is returning an array containing other arrays, such as `[['1','2],['3','4']]`, you need to provide the values in json as flattened values. In the previous example, it would be `['1', '2', '3', '4']`. In the noir program, the Oracle signature can use a nested type, the flattened values will be automatically converted to the nested type.
+
 :::
 
 ## Step 3 - Usage with Nargo
@@ -232,9 +236,9 @@ const foreignCallHandler = async (name, input) => {
     // notice that the "inputs" parameter contains *all* the inputs
     // in this case we to make the RPC request with the first parameter "numbers", which would be input[0]
     const oracleReturn = await client.request(name, [
-      { Array: input[0].map((i) => i.toString("hex")) },
+      input[0].map((i) => i.toString("hex")),
     ]);
-    return [oracleReturn.values[0].Array];
+    return { values: oracleReturn };
 };
 
 // the rest of your NoirJS code

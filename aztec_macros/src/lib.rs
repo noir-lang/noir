@@ -3,11 +3,11 @@ mod utils;
 
 use noirc_errors::Location;
 use transforms::{
-    compute_note_hash_and_nullifier::inject_compute_note_hash_and_nullifier,
+    compute_note_hash_and_optionally_a_nullifier::inject_compute_note_hash_and_optionally_a_nullifier,
     contract_interface::{
         generate_contract_interface, stub_function, update_fn_signatures_in_contract_interface,
     },
-    events::{generate_selector_impl, transform_events},
+    events::{generate_event_impls, transform_event_abi},
     functions::{
         check_for_public_args, export_fn_abi, transform_function, transform_unconstrained,
     },
@@ -65,19 +65,14 @@ fn transform(
     // Usage -> mut ast -> aztec_library::transform(&mut ast)
     // Covers all functions in the ast
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
-        if transform_module(
-            crate_id,
-            &file_id,
-            context,
-            &mut submodule.contents,
-            submodule.name.0.contents.as_str(),
-        )
-        .map_err(|err| (err.into(), file_id))?
+        if transform_module(&file_id, &mut submodule.contents, submodule.name.0.contents.as_str())
+            .map_err(|err| (err.into(), file_id))?
         {
             check_for_aztec_dependency(crate_id, context)?;
         }
     }
 
+    generate_event_impls(&mut ast).map_err(|err| (err.into(), file_id))?;
     generate_note_interface_impl(&mut ast).map_err(|err| (err.into(), file_id))?;
 
     Ok(ast)
@@ -87,9 +82,7 @@ fn transform(
 /// For annotated functions it calls the `transform` function which will perform the required transformations.
 /// Returns true if an annotated node is found, false otherwise
 fn transform_module(
-    crate_id: &CrateId,
     file_id: &FileId,
-    context: &HirContext,
     module: &mut SortedModule,
     module_name: &str,
 ) -> Result<bool, AztecMacroError> {
@@ -106,19 +99,7 @@ fn transform_module(
         if !check_for_storage_implementation(module, storage_struct_name) {
             generate_storage_implementation(module, storage_struct_name)?;
         }
-        // Make sure we're only generating the storage layout for the root crate
-        // In case we got a contract importing other contracts for their interface, we
-        // don't want to generate the storage layout for them
-        if crate_id == context.root_crate_id() {
-            generate_storage_layout(module, storage_struct_name.clone())?;
-        }
-    }
-
-    for structure in module.types.iter_mut() {
-        if structure.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(event)")) {
-            module.impls.push(generate_selector_impl(structure));
-            has_transformed_module = true;
-        }
+        generate_storage_layout(module, storage_struct_name.clone(), module_name)?;
     }
 
     let has_initializer = module.functions.iter().any(|func| {
@@ -219,7 +200,7 @@ fn transform_module(
             });
         }
 
-        generate_contract_interface(module, module_name, &stubs)?;
+        generate_contract_interface(module, module_name, &stubs, storage_defined)?;
     }
 
     Ok(has_transformed_module)
@@ -235,8 +216,8 @@ fn transform_hir(
     context: &mut HirContext,
 ) -> Result<(), (AztecMacroError, FileId)> {
     if has_aztec_dependency(crate_id, context) {
-        transform_events(crate_id, context)?;
-        inject_compute_note_hash_and_nullifier(crate_id, context)?;
+        transform_event_abi(crate_id, context)?;
+        inject_compute_note_hash_and_optionally_a_nullifier(crate_id, context)?;
         assign_storage_slots(crate_id, context)?;
         inject_note_exports(crate_id, context)?;
         update_fn_signatures_in_contract_interface(crate_id, context)

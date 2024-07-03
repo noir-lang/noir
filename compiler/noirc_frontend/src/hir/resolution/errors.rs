@@ -98,8 +98,24 @@ pub enum ResolverError {
     NoPredicatesAttributeOnUnconstrained { ident: Ident },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident },
+    #[error("The only supported types of numeric generics are integers, fields, and booleans")]
+    UnsupportedNumericGenericType { ident: Ident, typ: Type },
+    #[error("Numeric generics should be explicit")]
+    UseExplicitNumericGeneric { ident: Ident },
+    #[error("expected type, found numeric generic parameter")]
+    NumericGenericUsedForType { name: String, span: Span },
     #[error("Invalid array length construction")]
     ArrayLengthInterpreter { error: InterpreterError },
+    #[error("The unquote operator '$' can only be used within a quote expression")]
+    UnquoteUsedOutsideQuote { span: Span },
+    #[error("Invalid syntax in macro call")]
+    InvalidSyntaxInMacroCall { span: Span },
+    #[error("Macros must be comptime functions")]
+    MacroIsNotComptime { span: Span },
+    #[error("Annotation name must refer to a comptime function")]
+    NonFunctionInAnnotation { span: Span },
+    #[error("Unknown annotation")]
+    UnknownAnnotation { span: Span },
 }
 
 impl ResolverError {
@@ -319,7 +335,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 ident.span(),
             ),
-            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_error(
+            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_warning(
                 error.to_string(),
                 "Oracle functions must have the `unconstrained` keyword applied".into(),
                 ident.span(),
@@ -390,7 +406,67 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());
                 diag
             }
+            ResolverError::UnsupportedNumericGenericType { ident , typ } => {
+                let name = &ident.0.contents;
+
+                Diagnostic::simple_error(
+                    format!("{name} has a type of {typ}. The only supported types of numeric generics are integers, fields, and booleans."),
+                    "Unsupported numeric generic type".to_string(),
+                    ident.0.span(),
+                )
+            }
+            ResolverError::UseExplicitNumericGeneric { ident } => {
+                let name = &ident.0.contents;
+
+                Diagnostic::simple_warning(
+                    String::from("Noir now supports explicit numeric generics. Support for implicit numeric generics will be removed in the following release."), 
+                format!("Numeric generic `{name}` should now be specified with `let {name}: <annotated type>`"), 
+                ident.0.span(),
+                )
+            }
+            ResolverError::NumericGenericUsedForType { name, span } => {
+                Diagnostic::simple_error(
+                    format!("expected type, found numeric generic parameter {name}"),
+                    String::from("not a type"),
+                    *span,
+                )
+            }
             ResolverError::ArrayLengthInterpreter { error } => Diagnostic::from(error),
+            ResolverError::UnquoteUsedOutsideQuote { span } => {
+                Diagnostic::simple_error(
+                    "The unquote operator '$' can only be used within a quote expression".into(),
+                    "".into(),
+                    *span,
+                )
+            },
+            ResolverError::InvalidSyntaxInMacroCall { span } => {
+                Diagnostic::simple_error(
+                    "Invalid syntax in macro call".into(),
+                    "Macro calls must call a comptime function directly, they cannot use higher-order functions".into(),
+                    *span,
+                )
+            },
+            ResolverError::MacroIsNotComptime { span } => {
+                Diagnostic::simple_error(
+                    "This macro call is to a non-comptime function".into(),
+                    "Macro calls must be to comptime functions".into(),
+                    *span,
+                )
+            },
+            ResolverError::NonFunctionInAnnotation { span } => {
+                Diagnostic::simple_error(
+                    "Unknown annotation".into(),
+                    "The name of an annotation must refer to a comptime function".into(),
+                    *span,
+                )
+            },
+            ResolverError::UnknownAnnotation { span } => {
+                Diagnostic::simple_warning(
+                    "Unknown annotation".into(),
+                    "No matching comptime function found in scope".into(),
+                    *span,
+                )
+            },
         }
     }
 }

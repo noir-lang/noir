@@ -52,6 +52,14 @@ struct EmbeddedCurveScalar {
     hi: Field,
 }
 
+impl EmbeddedCurveScalar {
+    #[field(bn254)]
+    fn from_field(scalar: Field) -> EmbeddedCurveScalar {
+        let (a,b) = crate::field::bn254::decompose(scalar);
+        EmbeddedCurveScalar { lo: a, hi: b }
+    }
+}
+
 // Computes a multi scalar multiplication over the embedded curve.
 // For bn254, We have Grumpkin and Baby JubJub.
 // For bls12-381, we have JubJub and Bandersnatch.
@@ -60,7 +68,7 @@ struct EmbeddedCurveScalar {
 // underlying proof system.
 #[foreign(multi_scalar_mul)]
 // docs:start:multi_scalar_mul
-pub fn multi_scalar_mul<N>(
+pub fn multi_scalar_mul<let N: u32>(
     points: [EmbeddedCurvePoint; N],
     scalars: [EmbeddedCurveScalar; N]
 ) -> [Field; 3]

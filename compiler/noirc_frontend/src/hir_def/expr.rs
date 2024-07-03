@@ -4,6 +4,7 @@ use noirc_errors::Location;
 
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId};
+use crate::token::Tokens;
 use crate::Shared;
 
 use super::stmt::HirPattern;
@@ -33,8 +34,8 @@ pub enum HirExpression {
     If(HirIfExpression),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
-    Quote(crate::ast::BlockExpression),
-    Unquote(crate::ast::BlockExpression),
+    Quote(Tokens),
+    Unquote(Tokens),
     Comptime(HirBlockExpression),
     Error,
 }
