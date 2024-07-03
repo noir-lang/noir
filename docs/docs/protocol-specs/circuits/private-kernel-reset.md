@@ -243,10 +243,10 @@ The format aligns with the [`PreviousKernel`](./private-kernel-inner#previousker
 
 | Field                                      | Type                                                                                        | Description                                                                           |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `transient_nullifier_indices`              | [`field`; [`MAX_NEW_NOTE_HASHES_PER_TX`](../constants.md#circuit-constants)]                | Indices of the nullifiers for transient notes.                                        |
-| `nullifier_index_hints`                    | [`field`; [`MAX_NEW_NULLIFIERS_PER_TX`](../constants.md#circuit-constants)]                 | Indices of the `transient_nullifier_indices` for transient nullifiers.                |
+| `transient_nullifier_indices`              | [`field`; [`MAX_NOTE_HASHES_PER_TX`](../constants.md#circuit-constants)]                | Indices of the nullifiers for transient notes.                                        |
+| `nullifier_index_hints`                    | [`field`; [`MAX_NULLIFIERS_PER_TX`](../constants.md#circuit-constants)]                 | Indices of the `transient_nullifier_indices` for transient nullifiers.                |
 | `encrypted_note_preimage_hash_index_hints` | [`field`; [`MAX_ENCRYPTED_NOTE_PREIMAGE_HASHES_PER_TX`](../constants.md#circuit-constants)] | Indices of the `encrypted_note_preimage_hash_contexts` for transient preimage hashes. |
-| `log_note_hash_hints`                      | [`field`; [`MAX_NEW_NOTE_HASHES_PER_TX`](../constants.md#circuit-constants)]                | Indices of the `note_hash_contexts` for transient preimage hashes.                    |
+| `log_note_hash_hints`                      | [`field`; [`MAX_NOTE_HASHES_PER_TX`](../constants.md#circuit-constants)]                | Indices of the `note_hash_contexts` for transient preimage hashes.                    |
 
 ## `PublicInputs`
 

@@ -13,14 +13,14 @@ use dep::types::{
     public_data_update_request::PublicDataUpdateRequest, validation_requests::ValidationRequests
 },
     data::public_data_hint::PublicDataHint,
-    constants::{MAX_NEW_NULLIFIERS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX},
+    constants::{MAX_NULLIFIERS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX},
     hash::compute_siloed_nullifier, traits::is_empty,
     utils::arrays::{array_merge, array_to_bounded_vec, assert_sorted_array}
 };
 
 struct PublicValidationRequestProcessor<N> {
     validation_requests: ValidationRequests,
-    pending_nullifiers: [Nullifier; MAX_NEW_NULLIFIERS_PER_TX],
+    pending_nullifiers: [Nullifier; MAX_NULLIFIERS_PER_TX],
     pending_public_data_writes: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     nullifier_read_request_hints: NullifierReadRequestHints<MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
     nullifier_non_existent_read_request_hints: NullifierNonExistentReadRequestHints,
@@ -41,7 +41,7 @@ impl<N> PublicValidationRequestProcessor<N> {
         let end_non_revertible = public_inputs.end_non_revertible;
         let end = public_inputs.end;
 
-        let pending_nullifiers = array_merge(end_non_revertible.new_nullifiers, end.new_nullifiers);
+        let pending_nullifiers = array_merge(end_non_revertible.nullifiers, end.nullifiers);
 
         let pending_public_data_writes = array_merge(
             end_non_revertible.public_data_update_requests,

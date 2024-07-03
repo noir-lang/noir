@@ -2,10 +2,10 @@ import {
   type Fr,
   KeyValidationHint,
   MAX_KEY_VALIDATION_REQUESTS_PER_TX,
-  MAX_NEW_NOTE_HASHES_PER_TX,
-  MAX_NEW_NULLIFIERS_PER_TX,
   MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
+  MAX_NOTE_HASHES_PER_TX,
   MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
+  MAX_NULLIFIERS_PER_TX,
   MAX_NULLIFIER_READ_REQUESTS_PER_TX,
   MembershipWitness,
   NULLIFIER_TREE_HEIGHT,
@@ -33,7 +33,7 @@ import { buildPrivateKernelResetOutputs } from './build_private_kernel_reset_out
 
 function getNullifierReadRequestHints<PENDING extends number, SETTLED extends number>(
   nullifierReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
-  nullifiers: Tuple<ScopedNullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+  nullifiers: Tuple<ScopedNullifier, typeof MAX_NULLIFIERS_PER_TX>,
   oracle: ProvingDataOracle,
   sizePending: PENDING,
   sizeSettled: SETTLED,
@@ -99,7 +99,7 @@ export async function buildPrivateKernelResetInputs(
   // Use max sizes, they will be trimmed down later.
 
   const futureNoteHashes = collectNested(executionStack, executionResult => {
-    const nonEmptyNoteHashes = getNonEmptyItems(executionResult.callStackItem.publicInputs.newNoteHashes);
+    const nonEmptyNoteHashes = getNonEmptyItems(executionResult.callStackItem.publicInputs.noteHashes);
     return nonEmptyNoteHashes.map(
       noteHash =>
         new ScopedNoteHash(
@@ -117,7 +117,7 @@ export async function buildPrivateKernelResetInputs(
   } = await buildNoteHashReadRequestHints(
     oracle,
     publicInputs.validationRequests.noteHashReadRequests,
-    publicInputs.end.newNoteHashes,
+    publicInputs.end.noteHashes,
     noteHashLeafIndexMap,
     MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
     MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
@@ -125,7 +125,7 @@ export async function buildPrivateKernelResetInputs(
   );
 
   const futureNullifiers = collectNested(executionStack, executionResult => {
-    const nonEmptyNullifiers = getNonEmptyItems(executionResult.callStackItem.publicInputs.newNullifiers);
+    const nonEmptyNullifiers = getNonEmptyItems(executionResult.callStackItem.publicInputs.nullifiers);
     return nonEmptyNullifiers.map(
       nullifier =>
         new ScopedNullifier(nullifier, executionResult.callStackItem.publicInputs.callContext.storageContractAddress),
@@ -138,7 +138,7 @@ export async function buildPrivateKernelResetInputs(
     hints: nullifierReadRequestHints,
   } = await getNullifierReadRequestHints(
     publicInputs.validationRequests.nullifierReadRequests,
-    publicInputs.end.newNullifiers,
+    publicInputs.end.nullifiers,
     oracle,
     MAX_NULLIFIER_READ_REQUESTS_PER_TX,
     MAX_NULLIFIER_READ_REQUESTS_PER_TX,
@@ -164,19 +164,19 @@ export async function buildPrivateKernelResetInputs(
     transientNoteHashIndexesForNullifiers,
     transientNoteHashIndexesForLogs,
   ] = buildTransientDataHints(
-    publicInputs.end.newNoteHashes,
-    publicInputs.end.newNullifiers,
+    publicInputs.end.noteHashes,
+    publicInputs.end.nullifiers,
     publicInputs.end.noteEncryptedLogsHashes,
     futureNoteHashReads,
     futureNullifierReads,
-    MAX_NEW_NOTE_HASHES_PER_TX,
-    MAX_NEW_NULLIFIERS_PER_TX,
+    MAX_NOTE_HASHES_PER_TX,
+    MAX_NULLIFIERS_PER_TX,
     MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
   );
 
   const expectedOutputs = buildPrivateKernelResetOutputs(
-    previousKernelData.publicInputs.end.newNoteHashes,
-    previousKernelData.publicInputs.end.newNullifiers,
+    previousKernelData.publicInputs.end.noteHashes,
+    previousKernelData.publicInputs.end.nullifiers,
     previousKernelData.publicInputs.end.noteEncryptedLogsHashes,
     transientNullifierIndexesForNoteHashes,
     transientNoteHashIndexesForNullifiers,

@@ -3,7 +3,7 @@ import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/s
 import { type IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 
 import {
-  MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_NULLIFIERS_PER_TX,
   MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX,
   NULLIFIER_TREE_HEIGHT,
 } from '../constants.gen.js';
@@ -101,7 +101,7 @@ export type NullifierNonExistentReadRequestHints = NonExistentReadRequestHints<
   typeof MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX,
   typeof NULLIFIER_TREE_HEIGHT,
   IndexedTreeLeafPreimage,
-  typeof MAX_NEW_NULLIFIERS_PER_TX,
+  typeof MAX_NULLIFIERS_PER_TX,
   Nullifier
 >;
 
@@ -113,7 +113,7 @@ export function nullifierNonExistentReadRequestHintsFromBuffer(
     MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX,
     NULLIFIER_TREE_HEIGHT,
     NullifierLeafPreimage,
-    MAX_NEW_NULLIFIERS_PER_TX,
+    MAX_NULLIFIERS_PER_TX,
     Nullifier,
   );
 }
@@ -123,8 +123,8 @@ export class NullifierNonExistentReadRequestHintsBuilder {
   private readRequestIndex = 0;
 
   constructor(
-    sortedPendingNullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
-    sortedPendingNullifierIndexHints: Tuple<number, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    sortedPendingNullifiers: Tuple<Nullifier, typeof MAX_NULLIFIERS_PER_TX>,
+    sortedPendingNullifierIndexHints: Tuple<number, typeof MAX_NULLIFIERS_PER_TX>,
   ) {
     this.hints = new NonExistentReadRequestHints(
       makeTuple(MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, () =>
@@ -137,8 +137,8 @@ export class NullifierNonExistentReadRequestHintsBuilder {
   }
 
   static empty() {
-    const emptySortedPendingNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Nullifier.empty);
-    const emptySortedPendingNullifierIndexHints = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, () => 0);
+    const emptySortedPendingNullifiers = makeTuple(MAX_NULLIFIERS_PER_TX, Nullifier.empty);
+    const emptySortedPendingNullifierIndexHints = makeTuple(MAX_NULLIFIERS_PER_TX, () => 0);
     return new NullifierNonExistentReadRequestHintsBuilder(
       emptySortedPendingNullifiers,
       emptySortedPendingNullifierIndexHints,

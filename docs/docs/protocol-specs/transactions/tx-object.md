@@ -40,12 +40,12 @@ Output of the last iteration of the private kernel circuit. Includes _accumulate
 <!-- prettier-ignore -->
 | Field | Type | Description |
 |-------|------|-------------|
-| newNoteHashes | Field[] | The new note hashes made in this transaction. |
-| newNullifiers | Field[] | The new nullifiers made in this transaction. |
+| noteHashes | Field[] | The new note hashes made in this transaction. |
+| nullifiers | Field[] | The new nullifiers made in this transaction. |
 | nullifiedNoteHashes | Field[] | The note hashes which are nullified by a nullifier in the above list. |
 | privateCallStack | Field[] | Current private call stack. |
 | publicCallStack | Field[] | Current public call stack. |
-| newL2ToL1Msgs | Field[] | All the new L2 to L1 messages created in this transaction. |
+| l2ToL1Msgs | Field[] | All the new L2 to L1 messages created in this transaction. |
 | encryptedLogsHash | Field[] | Accumulated encrypted logs hash from all the previous kernel iterations. |
 | unencryptedLogsHash | Field[] | Accumulated unencrypted logs hash from all the previous kernel iterations. |
 | encryptedLogPreimagesLength | Field | Total accumulated length of the encrypted log preimages emitted in all the previous kernel iterations. |

@@ -9,7 +9,7 @@ import {
   type GlobalVariables,
   KernelData,
   type L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
-  MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_NULLIFIERS_PER_TX,
   MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MembershipWitness,
   MergeRollupInputs,
@@ -102,8 +102,8 @@ export async function buildBaseRollupInput(
 
   // Update the note hash trees with the new items being inserted to get the new roots
   // that will be used by the next iteration of the base rollup circuit, skipping the empty ones
-  const newNoteHashes = tx.data.end.newNoteHashes;
-  await db.appendLeaves(MerkleTreeId.NOTE_HASH_TREE, newNoteHashes);
+  const noteHashes = tx.data.end.noteHashes;
+  await db.appendLeaves(MerkleTreeId.NOTE_HASH_TREE, noteHashes);
 
   // The read witnesses for a given TX should be generated before the writes of the same TX are applied.
   // All reads that refer to writes in the same tx are transient and can be simplified out.
@@ -112,12 +112,12 @@ export async function buildBaseRollupInput(
   // Update the nullifier tree, capturing the low nullifier info for each individual operation
   const {
     lowLeavesWitnessData: nullifierWitnessLeaves,
-    newSubtreeSiblingPath: newNullifiersSubtreeSiblingPath,
-    sortedNewLeaves: sortedNewNullifiers,
+    newSubtreeSiblingPath: nullifiersSubtreeSiblingPath,
+    sortedNewLeaves: sortednullifiers,
     sortedNewLeavesIndexes,
   } = await db.batchInsert(
     MerkleTreeId.NULLIFIER_TREE,
-    tx.data.end.newNullifiers.map(n => n.toBuffer()),
+    tx.data.end.nullifiers.map(n => n.toBuffer()),
     NULLIFIER_SUBTREE_HEIGHT,
   );
   if (nullifierWitnessLeaves === undefined) {
@@ -130,7 +130,7 @@ export async function buildBaseRollupInput(
       MembershipWitness.fromBufferArray(l.index, assertLength(l.siblingPath.toBufferArray(), NULLIFIER_TREE_HEIGHT)),
     );
 
-  const nullifierSubtreeSiblingPathArray = newNullifiersSubtreeSiblingPath.toFields();
+  const nullifierSubtreeSiblingPathArray = nullifiersSubtreeSiblingPath.toFields();
 
   const nullifierSubtreeSiblingPath = makeTuple(NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, i =>
     i < nullifierSubtreeSiblingPathArray.length ? nullifierSubtreeSiblingPathArray[i] : Fr.ZERO,
@@ -139,18 +139,18 @@ export async function buildBaseRollupInput(
   const publicDataSiblingPath = txPublicDataUpdateRequestInfo.newPublicDataSubtreeSiblingPath;
 
   const stateDiffHints = StateDiffHints.from({
-    nullifierPredecessorPreimages: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i =>
+    nullifierPredecessorPreimages: makeTuple(MAX_NULLIFIERS_PER_TX, i =>
       i < nullifierWitnessLeaves.length
         ? (nullifierWitnessLeaves[i].leafPreimage as NullifierLeafPreimage)
         : NullifierLeafPreimage.empty(),
     ),
-    nullifierPredecessorMembershipWitnesses: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i =>
+    nullifierPredecessorMembershipWitnesses: makeTuple(MAX_NULLIFIERS_PER_TX, i =>
       i < nullifierPredecessorMembershipWitnessesWithoutPadding.length
         ? nullifierPredecessorMembershipWitnessesWithoutPadding[i]
         : makeEmptyMembershipWitness(NULLIFIER_TREE_HEIGHT),
     ),
-    sortedNullifiers: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => Fr.fromBuffer(sortedNewNullifiers[i])),
-    sortedNullifierIndexes: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => sortedNewLeavesIndexes[i]),
+    sortedNullifiers: makeTuple(MAX_NULLIFIERS_PER_TX, i => Fr.fromBuffer(sortednullifiers[i])),
+    sortedNullifierIndexes: makeTuple(MAX_NULLIFIERS_PER_TX, i => sortedNewLeavesIndexes[i]),
     noteHashSubtreeSiblingPath,
     nullifierSubtreeSiblingPath,
     publicDataSiblingPath,

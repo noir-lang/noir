@@ -199,13 +199,13 @@ contract PrivateToken {
 
         // `compute_inner_note_hash` manually, without constructing the note
         // `3` is the storage slot of the balances
-        context.push_new_note_hash(
+        context.push_note_hash(
             pedersen_hash(
                 [PrivateToken::storage().balances.slot, note_hashes[0]],
                 GENERATOR_INDEX__INNER_NOTE_HASH
             )
         );
-        context.push_new_note_hash(
+        context.push_note_hash(
             pedersen_hash(
                 [PrivateToken::storage().balances.slot, note_hashes[1]],
                 GENERATOR_INDEX__INNER_NOTE_HASH

@@ -3,7 +3,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { type Tuple } from '@aztec/foundation/serialize';
 
-import { MAX_NEW_NULLIFIERS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX } from '../constants.gen.js';
+import { MAX_NULLIFIERS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX } from '../constants.gen.js';
 import {
   Nullifier,
   type NullifierReadRequestHints,
@@ -25,7 +25,7 @@ describe('buildNullifierReadRequestHints', () => {
     getNullifierMembershipWitness: () => ({ membershipWitness: {}, leafPreimage: {} } as any),
   };
   let nullifierReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>;
-  let nullifiers: Tuple<ScopedNullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>;
+  let nullifiers: Tuple<ScopedNullifier, typeof MAX_NULLIFIERS_PER_TX>;
   let expectedHints: NullifierReadRequestHints<
     typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX,
     typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX
@@ -93,7 +93,7 @@ describe('buildNullifierReadRequestHints', () => {
 
   beforeEach(() => {
     nullifierReadRequests = makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_TX, ScopedReadRequest.empty);
-    nullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => makeNullifier(innerNullifier(i)));
+    nullifiers = makeTuple(MAX_NULLIFIERS_PER_TX, i => makeNullifier(innerNullifier(i)));
     expectedHints = NullifierReadRequestHintsBuilder.empty(
       MAX_NULLIFIER_READ_REQUESTS_PER_TX,
       MAX_NULLIFIER_READ_REQUESTS_PER_TX,
@@ -101,9 +101,9 @@ describe('buildNullifierReadRequestHints', () => {
     numReadRequests = 0;
     numPendingReads = 0;
     numSettledReads = 0;
-    futureNullifiers = new Array(MAX_NEW_NULLIFIERS_PER_TX)
+    futureNullifiers = new Array(MAX_NULLIFIERS_PER_TX)
       .fill(null)
-      .map((_, i) => makeNullifier(innerNullifier(i + MAX_NEW_NULLIFIERS_PER_TX)));
+      .map((_, i) => makeNullifier(innerNullifier(i + MAX_NULLIFIERS_PER_TX)));
   });
 
   it('builds empty hints', async () => {

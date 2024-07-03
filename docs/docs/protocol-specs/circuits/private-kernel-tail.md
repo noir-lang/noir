@@ -227,8 +227,8 @@ Data that aids in the verifications carried out in this circuit:
 
 | Field                                                   | Type                                                                                                          | Description                                                 |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `note_hash_hints`                                       | [[`OrderHint`](#orderhint); [`MAX_NEW_NOTE_HASHES_PER_TX`](../constants.md#circuit-constants)]                | Hints for ordering `note_hash_contexts`.                    |
-| `nullifier_hints`                                       | [[`OrderHint`](#orderhint); [`MAX_NEW_NULLIFIERS_PER_TX`](../constants.md#circuit-constants)]                 | Hints for ordering `nullifier_contexts`.                    |
+| `note_hash_hints`                                       | [[`OrderHint`](#orderhint); [`MAX_NOTE_HASHES_PER_TX`](../constants.md#circuit-constants)]                | Hints for ordering `note_hash_contexts`.                    |
+| `nullifier_hints`                                       | [[`OrderHint`](#orderhint); [`MAX_NULLIFIERS_PER_TX`](../constants.md#circuit-constants)]                 | Hints for ordering `nullifier_contexts`.                    |
 | `public_call_request_hints`                             | [`field`; [`MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX`](../constants.md#circuit-constants)]                         | Indices of ordered `public_call_request_contexts`.          |
 | `unencrypted_log_hash_hints`                            | [[`OrderHint`](#orderhint); [`MAX_UNENCRYPTED_LOG_HASHES_PER_TX`](../constants.md#circuit-constants)]         | Hints for ordering `unencrypted_log_hash_contexts`.         |
 | `ordered_unencrypted_log_hashes_revertible`             | [`field`; [`MAX_UNENCRYPTED_LOG_HASHES_PER_TX`](../constants.md#circuit-constants)]                           | Ordered revertible `unencrypted_log_hashes`.                |

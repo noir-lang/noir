@@ -34,7 +34,7 @@ describe('PublicCallStackItem', () => {
     callStack.contractAddress = AztecAddress.fromField(new Fr(1));
     callStack.functionData = new FunctionData(new FunctionSelector(2), /*isPrivate=*/ false);
     callStack.isExecutionRequest = true;
-    callStack.publicInputs.newNoteHashes[0] = new NoteHash(new Fr(1), 0);
+    callStack.publicInputs.noteHashes[0] = new NoteHash(new Fr(1), 0);
 
     const hash = callStack.hash();
     expect(hash.toString()).toMatchSnapshot();
@@ -52,7 +52,7 @@ describe('PublicCallStackItem', () => {
 
     callStack.contractAddress = AztecAddress.fromField(new Fr(1));
     callStack.functionData = new FunctionData(new FunctionSelector(2), /*isPrivate=*/ false);
-    callStack.publicInputs.newNoteHashes[0] = new NoteHash(new Fr(1), 0);
+    callStack.publicInputs.noteHashes[0] = new NoteHash(new Fr(1), 0);
 
     const hash = callStack.hash();
     expect(hash.toString()).toMatchSnapshot();

@@ -2,7 +2,7 @@ use crate::nullifier_non_existent_read_request_reset::{NullifierNonMembershipHin
 use dep::types::{
     abis::{nullifier::Nullifier, nullifier_leaf_preimage::NullifierLeafPreimage},
     constants::{
-    MAX_NEW_NULLIFIERS_PER_TX, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, NULLIFIER_TREE_HEIGHT,
+    MAX_NULLIFIERS_PER_TX, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, NULLIFIER_TREE_HEIGHT,
     NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT
 },
     merkle_tree::MembershipWitness, tests::{merkle_tree_utils::NonEmptyMerkleTree},
@@ -10,10 +10,10 @@ use dep::types::{
 };
 
 struct NullifierNonExistentReadRequestHintsBuilder {
-    nullifier_tree: NonEmptyMerkleTree<MAX_NEW_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT>,
+    nullifier_tree: NonEmptyMerkleTree<MAX_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT>,
     non_membership_hints: BoundedVec<NullifierNonMembershipHint, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
     read_values: BoundedVec<Field, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
-    pending_nullifiers: [Nullifier; MAX_NEW_NULLIFIERS_PER_TX],
+    pending_nullifiers: [Nullifier; MAX_NULLIFIERS_PER_TX],
 }
 
 impl NullifierNonExistentReadRequestHintsBuilder {
@@ -22,18 +22,18 @@ impl NullifierNonExistentReadRequestHintsBuilder {
             nullifier_tree: NonEmptyMerkleTree::empty(),
             non_membership_hints: BoundedVec::new(),
             read_values: BoundedVec::new(),
-            pending_nullifiers: [Nullifier::empty(); MAX_NEW_NULLIFIERS_PER_TX]
+            pending_nullifiers: [Nullifier::empty(); MAX_NULLIFIERS_PER_TX]
         }
     }
 
     pub fn set_nullifier_tree(
         &mut self,
-        tree: NonEmptyMerkleTree<MAX_NEW_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT>
+        tree: NonEmptyMerkleTree<MAX_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT>
     ) {
         self.nullifier_tree = tree;
     }
 
-    pub fn set_nullifiers(&mut self, nullifiers: [Nullifier; MAX_NEW_NULLIFIERS_PER_TX]) {
+    pub fn set_nullifiers(&mut self, nullifiers: [Nullifier; MAX_NULLIFIERS_PER_TX]) {
         self.pending_nullifiers = nullifiers;
     }
 

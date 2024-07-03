@@ -617,12 +617,12 @@ export class TXE implements TypedOracle {
 
       await this.addNullifiers(
         targetContractAddress,
-        publicInputs.newNullifiers.filter(nullifier => !nullifier.isEmpty()).map(nullifier => nullifier.value),
+        publicInputs.nullifiers.filter(nullifier => !nullifier.isEmpty()).map(nullifier => nullifier.value),
       );
 
       await this.addNoteHashes(
         targetContractAddress,
-        publicInputs.newNoteHashes.filter(noteHash => !noteHash.isEmpty()).map(noteHash => noteHash.value),
+        publicInputs.noteHashes.filter(noteHash => !noteHash.isEmpty()).map(noteHash => noteHash.value),
       );
 
       return callStackItem;

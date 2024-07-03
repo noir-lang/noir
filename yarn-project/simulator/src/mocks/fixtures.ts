@@ -128,9 +128,9 @@ export class PublicExecutionResultBuilder {
       l1ToL2MsgReadRequests: [],
       contractStorageUpdateRequests: this._contractStorageUpdateRequests,
       returnValues: padArrayEnd(this._returnValues, Fr.ZERO, 4), // TODO(#5450) Need to use the proper return values here
-      newNoteHashes: [],
-      newNullifiers: [],
-      newL2ToL1Messages: [],
+      noteHashes: [],
+      nullifiers: [],
+      l2ToL1Messages: [],
       contractStorageReads: [],
       unencryptedLogsHashes: [],
       unencryptedLogs: UnencryptedFunctionL2Logs.empty(),

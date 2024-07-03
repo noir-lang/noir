@@ -208,9 +208,9 @@ The AVM's exceptional halting conditions area listed below:
     assert worldStateAccessTrace.publicStorageReads.length <= 1024
         AND worldStateAccessTrace.publicStorageWrites.length <= 1024
         AND worldStateAccessTrace.noteHashChecks.length <= 1024
-        AND worldStateAccessTrace.newNoteHashes.length <= 1024
+        AND worldStateAccessTrace.noteHashes.length <= 1024
         AND worldStateAccessTrace.nullifierChecks.length <= 1024
-        AND worldStateAccessTrace.newNullifiers.length <= 1024
+        AND worldStateAccessTrace.nullifiers.length <= 1024
         AND worldStateAccessTrace.l1ToL2MessageChecks.length <= 1024
         AND worldStateAccessTrace.archiveChecks.length <= 1024
 
@@ -224,13 +224,13 @@ The AVM's exceptional halting conditions area listed below:
     assert instructions[machineState.pc].opcode != NOTEHASHEXISTS
         OR noteHashChecks.length < 1024
     assert instructions[machineState.pc].opcode != EMITNOTEHASH
-        OR newNoteHashes.length < 1024
+        OR noteHashes.length < 1024
 
     // Nullifiers
     assert instructions[machineState.pc].opcode != NULLIFIEREXISTS
         OR nullifierChecks.length < 1024
     assert instructions[machineState.pc].opcode != EMITNULLIFIER
-        OR newNullifiers.length < 1024
+        OR nullifiers.length < 1024
 
     // Read L1 to L2 messages
     assert instructions[machineState.pc].opcode != L1TOL2MSGEXISTS

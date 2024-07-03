@@ -54,29 +54,29 @@ fn validate_call_is_static_mismatch_storage_contract_fails() {
     builder.validate();
 }
 
-#[test(should_fail_with="new_note_hashes must be empty for static calls")]
+#[test(should_fail_with="note_hashes must be empty for static calls")]
 fn validate_call_is_static_creating_note_hashes_fails() {
     let mut builder = PrivateCallDataValidatorBuilder::new().is_static_call();
 
-    builder.private_call.append_new_note_hashes(1);
+    builder.private_call.append_note_hashes(1);
 
     builder.validate();
 }
 
-#[test(should_fail_with="new_nullifiers must be empty for static calls")]
+#[test(should_fail_with="nullifiers must be empty for static calls")]
 fn validate_call_is_static_creating_nullifiers_fails() {
     let mut builder = PrivateCallDataValidatorBuilder::new().is_static_call();
 
-    builder.private_call.append_new_nullifiers(1);
+    builder.private_call.append_nullifiers(1);
 
     builder.validate();
 }
 
-#[test(should_fail_with="new_l2_to_l1_msgs must be empty for static calls")]
+#[test(should_fail_with="l2_to_l1_msgs must be empty for static calls")]
 fn validate_call_is_static_creating_l2_to_l1_msgs_fails() {
     let mut builder = PrivateCallDataValidatorBuilder::new().is_static_call();
 
-    builder.private_call.append_new_l2_to_l1_msgs(1);
+    builder.private_call.append_l2_to_l1_msgs(1);
 
     builder.validate();
 }

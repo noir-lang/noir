@@ -1,11 +1,11 @@
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { MAX_NEW_NOTE_HASHES_PER_CALL } from '../../constants.gen.js';
+import { MAX_NOTE_HASHES_PER_CALL } from '../../constants.gen.js';
 import { PrivateCallData } from './private_call_data.js';
 import { PrivateKernelData } from './private_kernel_data.js';
 
 export class PrivateKernelInnerHints {
-  constructor(public noteHashNullifierCounters: Tuple<number, typeof MAX_NEW_NOTE_HASHES_PER_CALL>) {}
+  constructor(public noteHashNullifierCounters: Tuple<number, typeof MAX_NOTE_HASHES_PER_CALL>) {}
 
   toBuffer() {
     return serializeToBuffer(this.noteHashNullifierCounters);
@@ -13,7 +13,7 @@ export class PrivateKernelInnerHints {
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new PrivateKernelInnerHints(reader.readNumbers(MAX_NEW_NOTE_HASHES_PER_CALL));
+    return new PrivateKernelInnerHints(reader.readNumbers(MAX_NOTE_HASHES_PER_CALL));
   }
 }
 

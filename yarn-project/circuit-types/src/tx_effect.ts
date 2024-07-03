@@ -7,9 +7,9 @@ import {
 } from '@aztec/circuit-types';
 import {
   Fr,
-  MAX_NEW_L2_TO_L1_MSGS_PER_TX,
-  MAX_NEW_NOTE_HASHES_PER_TX,
-  MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_L2_TO_L1_MSGS_PER_TX,
+  MAX_NOTE_HASHES_PER_TX,
+  MAX_NULLIFIERS_PER_TX,
   MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   RevertCode,
 } from '@aztec/circuits.js';
@@ -58,8 +58,8 @@ export class TxEffect {
   ) {
     // TODO(#4638): Clean this up once we have isDefault() everywhere --> then we don't have to deal with 2 different
     // functions (isZero and isEmpty)
-    if (noteHashes.length > MAX_NEW_NOTE_HASHES_PER_TX) {
-      throw new Error(`Too many note hashes: ${noteHashes.length}, max: ${MAX_NEW_NOTE_HASHES_PER_TX}`);
+    if (noteHashes.length > MAX_NOTE_HASHES_PER_TX) {
+      throw new Error(`Too many note hashes: ${noteHashes.length}, max: ${MAX_NOTE_HASHES_PER_TX}`);
     }
     noteHashes.forEach(h => {
       if (h.isZero()) {
@@ -67,8 +67,8 @@ export class TxEffect {
       }
     });
 
-    if (nullifiers.length > MAX_NEW_NULLIFIERS_PER_TX) {
-      throw new Error(`Too many nullifiers: ${nullifiers.length}, max: ${MAX_NEW_NULLIFIERS_PER_TX}`);
+    if (nullifiers.length > MAX_NULLIFIERS_PER_TX) {
+      throw new Error(`Too many nullifiers: ${nullifiers.length}, max: ${MAX_NULLIFIERS_PER_TX}`);
     }
     nullifiers.forEach(h => {
       if (h.isZero()) {
@@ -76,8 +76,8 @@ export class TxEffect {
       }
     });
 
-    if (l2ToL1Msgs.length > MAX_NEW_L2_TO_L1_MSGS_PER_TX) {
-      throw new Error(`Too many L2 to L1 messages: ${l2ToL1Msgs.length}, max: ${MAX_NEW_L2_TO_L1_MSGS_PER_TX}`);
+    if (l2ToL1Msgs.length > MAX_L2_TO_L1_MSGS_PER_TX) {
+      throw new Error(`Too many L2 to L1 messages: ${l2ToL1Msgs.length}, max: ${MAX_L2_TO_L1_MSGS_PER_TX}`);
     }
     l2ToL1Msgs.forEach(h => {
       if (h.isZero()) {
@@ -146,18 +146,9 @@ export class TxEffect {
   hash() {
     const padBuffer = (buf: Buffer, length: number) => Buffer.concat([buf, Buffer.alloc(length - buf.length)]);
 
-    const noteHashesBuffer = padBuffer(
-      serializeToBuffer(this.noteHashes),
-      Fr.SIZE_IN_BYTES * MAX_NEW_NOTE_HASHES_PER_TX,
-    );
-    const nullifiersBuffer = padBuffer(
-      serializeToBuffer(this.nullifiers),
-      Fr.SIZE_IN_BYTES * MAX_NEW_NULLIFIERS_PER_TX,
-    );
-    const l2ToL1MsgsBuffer = padBuffer(
-      serializeToBuffer(this.l2ToL1Msgs),
-      Fr.SIZE_IN_BYTES * MAX_NEW_L2_TO_L1_MSGS_PER_TX,
-    );
+    const noteHashesBuffer = padBuffer(serializeToBuffer(this.noteHashes), Fr.SIZE_IN_BYTES * MAX_NOTE_HASHES_PER_TX);
+    const nullifiersBuffer = padBuffer(serializeToBuffer(this.nullifiers), Fr.SIZE_IN_BYTES * MAX_NULLIFIERS_PER_TX);
+    const l2ToL1MsgsBuffer = padBuffer(serializeToBuffer(this.l2ToL1Msgs), Fr.SIZE_IN_BYTES * MAX_L2_TO_L1_MSGS_PER_TX);
     const publicDataWritesBuffer = padBuffer(
       serializeToBuffer(this.publicDataWrites),
       PublicDataWrite.SIZE_IN_BYTES * MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
@@ -197,9 +188,9 @@ export class TxEffect {
     return new TxEffect(
       RevertCode.random(),
       Fr.random(),
-      makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, Fr.random),
-      makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.random),
-      makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.random),
+      makeTuple(MAX_NOTE_HASHES_PER_TX, Fr.random),
+      makeTuple(MAX_NULLIFIERS_PER_TX, Fr.random),
+      makeTuple(MAX_L2_TO_L1_MSGS_PER_TX, Fr.random),
       makeTuple(MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataWrite.random),
       new Fr(noteEncryptedLogs.getKernelLength()),
       new Fr(encryptedLogs.getKernelLength()),

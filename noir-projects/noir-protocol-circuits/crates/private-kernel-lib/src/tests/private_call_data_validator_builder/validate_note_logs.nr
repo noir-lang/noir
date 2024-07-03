@@ -5,7 +5,7 @@ use dep::types::{abis::note_hash::NoteHash, address::AztecAddress};
 fn validate_note_logs_succeeds() {
     let mut builder = PrivateCallDataValidatorBuilder::new();
 
-    builder.private_call.append_new_note_hashes_with_logs(2);
+    builder.private_call.append_note_hashes_with_logs(2);
 
     builder.validate();
 }
@@ -14,7 +14,7 @@ fn validate_note_logs_succeeds() {
 fn validate_note_logs_random_note_hash_counter_fails() {
     let mut builder = PrivateCallDataValidatorBuilder::new();
 
-    builder.private_call.append_new_note_hashes_with_logs(2);
+    builder.private_call.append_note_hashes_with_logs(2);
     // Tweak the note_hash_counter to not match any note hash's counter.
     builder.private_call.note_encrypted_logs_hashes.storage[1].note_hash_counter += 100;
 
@@ -25,7 +25,7 @@ fn validate_note_logs_random_note_hash_counter_fails() {
 fn validate_note_logs_zero_note_hash_counter_fails() {
     let mut builder = PrivateCallDataValidatorBuilder::new();
 
-    builder.private_call.append_new_note_hashes_with_logs(2);
+    builder.private_call.append_note_hashes_with_logs(2);
     // Tweak the note_hash_counter to be 0.
     builder.private_call.note_encrypted_logs_hashes.storage[1].note_hash_counter = 0;
 

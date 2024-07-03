@@ -1,7 +1,7 @@
 import { MerkleTreeId } from '@aztec/circuit-types';
 import {
   type Fr,
-  type MAX_NEW_NULLIFIERS_PER_TX,
+  type MAX_NULLIFIERS_PER_TX,
   type MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX,
   MAX_NULLIFIER_READ_REQUESTS_PER_TX,
   type MAX_PUBLIC_DATA_HINTS,
@@ -30,7 +30,7 @@ export class HintsBuilder {
 
   async getNullifierReadRequestHints(
     nullifierReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
-    pendingNullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    pendingNullifiers: Tuple<Nullifier, typeof MAX_NULLIFIERS_PER_TX>,
   ) {
     return (
       await buildSiloedNullifierReadRequestHints(
@@ -45,7 +45,7 @@ export class HintsBuilder {
 
   getNullifierNonExistentReadRequestHints(
     nullifierNonExistentReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
-    pendingNullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    pendingNullifiers: Tuple<Nullifier, typeof MAX_NULLIFIERS_PER_TX>,
   ) {
     return buildNullifierNonExistentReadRequestHints(this, nullifierNonExistentReadRequests, pendingNullifiers);
   }

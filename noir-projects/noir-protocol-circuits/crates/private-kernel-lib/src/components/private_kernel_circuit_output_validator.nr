@@ -146,7 +146,7 @@ impl PrivateKernelCircuitOutputValidator {
     ) {
         self.validate_initial_values(tx_request, private_call, public_teardown_call_request);
         let mut offsets = PrivateKernelCircuitPublicInputsArrayLengths::empty();
-        offsets.new_nullifiers = 1; // The first nullifier is not propagated from the private call.
+        offsets.nullifiers = 1; // The first nullifier is not propagated from the private call.
         self.validate_propagated_from_private_call(
             private_call,
             private_call_array_lengths,
@@ -198,7 +198,7 @@ impl PrivateKernelCircuitOutputValidator {
         // First nullifier.
         let first_nullifier = create_first_nullifier(tx_request);
         assert_eq(
-            self.output.end.new_nullifiers[0], first_nullifier, "first nullifier must be the tx request nullifier"
+            self.output.end.nullifiers[0], first_nullifier, "first nullifier must be the tx request nullifier"
         );
 
         // Others.
@@ -293,19 +293,19 @@ impl PrivateKernelCircuitOutputValidator {
             array_lengths.scoped_key_validation_requests_and_generators
         );
         validate_array_prepended(
-            self.output.end.new_note_hashes,
-            previous_kernel.end.new_note_hashes,
-            array_lengths.new_note_hashes
+            self.output.end.note_hashes,
+            previous_kernel.end.note_hashes,
+            array_lengths.note_hashes
         );
         validate_array_prepended(
-            self.output.end.new_nullifiers,
-            previous_kernel.end.new_nullifiers,
-            array_lengths.new_nullifiers
+            self.output.end.nullifiers,
+            previous_kernel.end.nullifiers,
+            array_lengths.nullifiers
         );
         validate_array_prepended(
-            self.output.end.new_l2_to_l1_msgs,
-            previous_kernel.end.new_l2_to_l1_msgs,
-            array_lengths.new_l2_to_l1_msgs
+            self.output.end.l2_to_l1_msgs,
+            previous_kernel.end.l2_to_l1_msgs,
+            array_lengths.l2_to_l1_msgs
         );
         validate_array_prepended(
             self.output.end.note_encrypted_logs_hashes,
@@ -369,30 +369,30 @@ impl PrivateKernelCircuitOutputValidator {
             storage_contract_address
         );
         validate_array_appended_scoped(
-            self.output.end.new_note_hashes,
-            private_call.new_note_hashes,
-            array_lengths.new_note_hashes,
-            offsets.new_note_hashes,
+            self.output.end.note_hashes,
+            private_call.note_hashes,
+            array_lengths.note_hashes,
+            offsets.note_hashes,
             storage_contract_address
         );
         validate_note_hash_nullifier_counters(
-            self.output.end.new_note_hashes,
+            self.output.end.note_hashes,
             note_hash_nullifier_counters,
-            array_lengths.new_note_hashes,
-            offsets.new_note_hashes
+            array_lengths.note_hashes,
+            offsets.note_hashes
         );
         validate_array_appended_scoped(
-            self.output.end.new_nullifiers,
-            private_call.new_nullifiers,
-            array_lengths.new_nullifiers,
-            offsets.new_nullifiers,
+            self.output.end.nullifiers,
+            private_call.nullifiers,
+            array_lengths.nullifiers,
+            offsets.nullifiers,
             storage_contract_address
         );
         validate_array_appended_scoped(
-            self.output.end.new_l2_to_l1_msgs,
-            private_call.new_l2_to_l1_msgs,
-            array_lengths.new_l2_to_l1_msgs,
-            offsets.new_l2_to_l1_msgs,
+            self.output.end.l2_to_l1_msgs,
+            private_call.l2_to_l1_msgs,
+            array_lengths.l2_to_l1_msgs,
+            offsets.l2_to_l1_msgs,
             storage_contract_address
         );
         validate_array_appended(

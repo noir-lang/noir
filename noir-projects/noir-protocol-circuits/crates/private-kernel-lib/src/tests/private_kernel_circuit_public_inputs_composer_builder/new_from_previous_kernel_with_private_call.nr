@@ -149,30 +149,27 @@ fn new_from_previous_kernel_with_private_call_key_validation_requests_succeeds()
 }
 
 #[test]
-fn new_from_previous_kernel_with_private_call_new_note_hashes_succeeds() {
+fn new_from_previous_kernel_with_private_call_note_hashes_succeeds() {
     let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
 
-    builder.previous_kernel.append_new_note_hashes(2);
-    let prev = builder.previous_kernel.new_note_hashes.storage;
-    builder.private_call.append_new_note_hashes(2);
-    let curr = builder.private_call.new_note_hashes.storage;
+    builder.previous_kernel.append_note_hashes(2);
+    let prev = builder.previous_kernel.note_hashes.storage;
+    builder.private_call.append_note_hashes(2);
+    let curr = builder.private_call.note_hashes.storage;
 
     let output = builder.compose_from_previous_kernel();
 
-    assert_array_eq(
-        output.end.new_note_hashes,
-        [prev[0], prev[1], curr[0], curr[1]]
-    );
+    assert_array_eq(output.end.note_hashes, [prev[0], prev[1], curr[0], curr[1]]);
 }
 
 #[test]
-fn new_from_previous_kernel_with_private_call_new_note_hashes_with_nullifier_counters_succeeds() {
+fn new_from_previous_kernel_with_private_call_note_hashes_with_nullifier_counters_succeeds() {
     let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
 
-    builder.previous_kernel.append_new_note_hashes(2);
-    let prev = builder.previous_kernel.new_note_hashes.storage;
-    builder.private_call.append_new_note_hashes(2);
-    let mut curr = builder.private_call.new_note_hashes.storage;
+    builder.previous_kernel.append_note_hashes(2);
+    let prev = builder.previous_kernel.note_hashes.storage;
+    builder.private_call.append_note_hashes(2);
+    let mut curr = builder.private_call.note_hashes.storage;
     builder.note_hash_nullifier_counters[0] = curr[0].counter() + 10;
     builder.note_hash_nullifier_counters[1] = curr[1].counter() + 75;
 
@@ -180,20 +177,17 @@ fn new_from_previous_kernel_with_private_call_new_note_hashes_with_nullifier_cou
 
     curr[0].nullifier_counter = curr[0].counter() + 10;
     curr[1].nullifier_counter = curr[1].counter() + 75;
-    assert_array_eq(
-        output.end.new_note_hashes,
-        [prev[0], prev[1], curr[0], curr[1]]
-    );
+    assert_array_eq(output.end.note_hashes, [prev[0], prev[1], curr[0], curr[1]]);
 }
 
 #[test]
-fn new_from_previous_kernel_with_private_call_new_note_hashes_with_nullifier_counters_more_hints_succeeds() {
+fn new_from_previous_kernel_with_private_call_note_hashes_with_nullifier_counters_more_hints_succeeds() {
     let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
 
-    builder.previous_kernel.append_new_note_hashes(2);
-    let prev = builder.previous_kernel.new_note_hashes.storage;
-    builder.private_call.append_new_note_hashes(2);
-    let mut curr = builder.private_call.new_note_hashes.storage;
+    builder.previous_kernel.append_note_hashes(2);
+    let prev = builder.previous_kernel.note_hashes.storage;
+    builder.private_call.append_note_hashes(2);
+    let mut curr = builder.private_call.note_hashes.storage;
     builder.note_hash_nullifier_counters[0] = curr[0].counter() + 10;
     builder.note_hash_nullifier_counters[1] = curr[1].counter() + 75;
     // Add a random nullifier counter for a non-existent note hash to the hints.
@@ -203,22 +197,19 @@ fn new_from_previous_kernel_with_private_call_new_note_hashes_with_nullifier_cou
 
     curr[0].nullifier_counter = curr[0].counter() + 10;
     curr[1].nullifier_counter = curr[1].counter() + 75;
-    assert_array_eq(
-        output.end.new_note_hashes,
-        [prev[0], prev[1], curr[0], curr[1]]
-    );
+    assert_array_eq(output.end.note_hashes, [prev[0], prev[1], curr[0], curr[1]]);
     // The extra counter won't be propagated.
-    assert_eq(output.end.new_note_hashes[4].nullifier_counter, 0);
+    assert_eq(output.end.note_hashes[4].nullifier_counter, 0);
 }
 
 #[test(should_fail_with="Invalid nullifier counter")]
-fn new_from_previous_kernel_with_private_call_new_note_hashes_with_nullifier_counters_less_than_fails() {
+fn new_from_previous_kernel_with_private_call_note_hashes_with_nullifier_counters_less_than_fails() {
     let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
 
-    builder.previous_kernel.append_new_note_hashes(2);
-    let _ = builder.previous_kernel.new_note_hashes.storage;
-    builder.private_call.append_new_note_hashes(2);
-    let curr = builder.private_call.new_note_hashes.storage;
+    builder.previous_kernel.append_note_hashes(2);
+    let _ = builder.previous_kernel.note_hashes.storage;
+    builder.private_call.append_note_hashes(2);
+    let curr = builder.private_call.note_hashes.storage;
     builder.note_hash_nullifier_counters[0] = curr[0].counter() + 10;
     // Tweak the nullifier counter to be less than the note hash counter.
     builder.note_hash_nullifier_counters[1] = curr[1].counter() - 1;
@@ -227,34 +218,31 @@ fn new_from_previous_kernel_with_private_call_new_note_hashes_with_nullifier_cou
 }
 
 #[test]
-fn new_from_previous_kernel_with_private_call_new_nullifiers_succeeds() {
+fn new_from_previous_kernel_with_private_call_nullifiers_succeeds() {
     let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
 
-    builder.previous_kernel.append_new_nullifiers(2);
-    let prev = builder.previous_kernel.new_nullifiers.storage;
-    builder.private_call.append_new_nullifiers(2);
-    let curr = builder.private_call.new_nullifiers.storage;
+    builder.previous_kernel.append_nullifiers(2);
+    let prev = builder.previous_kernel.nullifiers.storage;
+    builder.private_call.append_nullifiers(2);
+    let curr = builder.private_call.nullifiers.storage;
 
     let output = builder.compose_from_previous_kernel();
 
-    assert_array_eq(
-        output.end.new_nullifiers,
-        [prev[0], prev[1], curr[0], curr[1]]
-    );
+    assert_array_eq(output.end.nullifiers, [prev[0], prev[1], curr[0], curr[1]]);
 }
 
 #[test]
-fn new_from_previous_kernel_with_private_call_new_l2_to_l1_msgs_succeeds() {
+fn new_from_previous_kernel_with_private_call_l2_to_l1_msgs_succeeds() {
     let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
 
-    builder.previous_kernel.append_new_l2_to_l1_msgs(1);
-    let prev = builder.previous_kernel.new_l2_to_l1_msgs.storage;
-    builder.private_call.append_new_l2_to_l1_msgs(1);
-    let curr = builder.private_call.new_l2_to_l1_msgs.storage;
+    builder.previous_kernel.append_l2_to_l1_msgs(1);
+    let prev = builder.previous_kernel.l2_to_l1_msgs.storage;
+    builder.private_call.append_l2_to_l1_msgs(1);
+    let curr = builder.private_call.l2_to_l1_msgs.storage;
 
     let output = builder.compose_from_previous_kernel();
 
-    assert_array_eq(output.end.new_l2_to_l1_msgs, [prev[0], curr[0]]);
+    assert_array_eq(output.end.l2_to_l1_msgs, [prev[0], curr[0]]);
 }
 
 #[test]

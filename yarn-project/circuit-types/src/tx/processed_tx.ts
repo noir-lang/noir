@@ -234,9 +234,9 @@ export function toTxEffect(tx: ProcessedTx, gasFees: GasFees): TxEffect {
   return new TxEffect(
     tx.data.revertCode,
     tx.data.getTransactionFee(gasFees),
-    tx.data.end.newNoteHashes.filter(h => !h.isZero()),
-    tx.data.end.newNullifiers.filter(h => !h.isZero()),
-    tx.data.end.newL2ToL1Msgs.filter(h => !h.isZero()),
+    tx.data.end.noteHashes.filter(h => !h.isZero()),
+    tx.data.end.nullifiers.filter(h => !h.isZero()),
+    tx.data.end.l2ToL1Msgs.filter(h => !h.isZero()),
     tx.finalPublicDataUpdateRequests.map(t => new PublicDataWrite(t.leafSlot, t.newValue)).filter(h => !h.isEmpty()),
     tx.data.end.noteEncryptedLogPreimagesLength,
     tx.data.end.encryptedLogPreimagesLength,

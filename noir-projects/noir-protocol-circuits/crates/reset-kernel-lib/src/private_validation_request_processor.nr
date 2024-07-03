@@ -10,7 +10,7 @@ use dep::types::{
     read_request::ScopedReadRequest
 },
     constants::{
-    MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_KEY_VALIDATION_REQUESTS_PER_TX,
+    MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX, MAX_KEY_VALIDATION_REQUESTS_PER_TX,
     GENERATOR_INDEX__NSK_M, MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX
 },
     grumpkin_private_key::GrumpkinPrivateKey, hash::poseidon2_hash, traits::is_empty,
@@ -20,10 +20,10 @@ use dep::types::{
 struct PrivateValidationRequestProcessor<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> {
     validation_requests: ValidationRequests,
     note_hash_read_request_hints: NoteHashReadRequestHints<NH_RR_PENDING, NH_RR_SETTLED>,
-    pending_note_hashes: [ScopedNoteHash; MAX_NEW_NOTE_HASHES_PER_TX],
+    pending_note_hashes: [ScopedNoteHash; MAX_NOTE_HASHES_PER_TX],
     note_hash_tree_root: Field,
     nullifier_read_request_hints: NullifierReadRequestHints<NLL_RR_PENDING, NLL_RR_SETTLED>,
-    pending_nullifiers: [ScopedNullifier; MAX_NEW_NULLIFIERS_PER_TX],
+    pending_nullifiers: [ScopedNullifier; MAX_NULLIFIERS_PER_TX],
     nullifier_tree_root: Field,
     key_validation_hints: [KeyValidationHint; KEY_VALIDATION_REQUESTS],
 }

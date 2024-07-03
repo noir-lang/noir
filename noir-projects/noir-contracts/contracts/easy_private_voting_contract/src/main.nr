@@ -35,7 +35,7 @@ contract EasyPrivateVoting {
 
         let secret = context.request_nsk_app(msg_sender_npk_m_hash); // get secret key of caller of function
         let nullifier = std::hash::pedersen_hash([context.msg_sender().to_field(), secret]); // derive nullifier from sender and secret
-        context.push_new_nullifier(nullifier, 0); // push nullifier
+        context.push_nullifier(nullifier, 0); // push nullifier
         EasyPrivateVoting::at(context.this_address()).add_to_tally_public(candidate).enqueue(&mut context);
     }
     // docs:end:cast_vote

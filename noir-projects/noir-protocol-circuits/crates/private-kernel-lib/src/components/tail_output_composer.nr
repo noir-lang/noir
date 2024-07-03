@@ -36,9 +36,9 @@ impl TailOutputComposer {
     fn build_combined_accumulated_data(self) -> CombinedAccumulatedData {
         let source = self.output_composer.public_inputs.end;
         let mut data = CombinedAccumulatedData::empty();
-        data.new_note_hashes = source.new_note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash.value);
-        data.new_nullifiers = source.new_nullifiers.storage.map(|n: ScopedNullifier| n.nullifier.value);
-        data.new_l2_to_l1_msgs = source.new_l2_to_l1_msgs.storage.map(|m: ScopedL2ToL1Message| m.message.content);
+        data.note_hashes = source.note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash.value);
+        data.nullifiers = source.nullifiers.storage.map(|n: ScopedNullifier| n.nullifier.value);
+        data.l2_to_l1_msgs = source.l2_to_l1_msgs.storage.map(|m: ScopedL2ToL1Message| m.message.content);
         data.note_encrypted_logs_hash = compute_tx_note_logs_hash(source.note_encrypted_logs_hashes.storage.map(|l: NoteLogHash| l.expose_to_public()));
         data.encrypted_logs_hash = compute_tx_logs_hash(source.encrypted_logs_hashes.storage.map(|l: ScopedEncryptedLogHash| l.expose_to_public()));
         data.unencrypted_logs_hash = compute_tx_logs_hash(source.unencrypted_logs_hashes.storage.map(|l: ScopedLogHash| l.expose_to_public()));
@@ -55,9 +55,9 @@ impl TailOutputComposer {
         let data_builder = self.output_composer.public_inputs.end;
         // IMPORTANT: Must use data_builder.__.len(), which is the the number of items pushed to the BoundedVec. 
         // Do not use data.__.len(), which is the array's max length.
-        metered_bytes += data_builder.new_note_hashes.len() * DA_BYTES_PER_FIELD;
-        metered_bytes += data_builder.new_nullifiers.len() * DA_BYTES_PER_FIELD;
-        metered_bytes += data_builder.new_l2_to_l1_msgs.len() * DA_BYTES_PER_FIELD;
+        metered_bytes += data_builder.note_hashes.len() * DA_BYTES_PER_FIELD;
+        metered_bytes += data_builder.nullifiers.len() * DA_BYTES_PER_FIELD;
+        metered_bytes += data_builder.l2_to_l1_msgs.len() * DA_BYTES_PER_FIELD;
 
         metered_bytes += data.note_encrypted_log_preimages_length as u32;
         metered_bytes += data.encrypted_log_preimages_length as u32;

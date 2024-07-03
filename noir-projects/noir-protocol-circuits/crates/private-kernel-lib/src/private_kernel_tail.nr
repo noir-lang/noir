@@ -71,7 +71,7 @@ mod tests {
         // note_hashes for the given note_hashes.
         pub fn compute_output_note_hashes<N>(self, note_hashes: [ScopedNoteHash; N]) -> [Field; N] {
             // First nullifier is tx hash.
-            let tx_hash = self.previous_kernel.new_nullifiers.get_unchecked(0).value();
+            let tx_hash = self.previous_kernel.nullifiers.get_unchecked(0).value();
             let mut output = [0; N];
             for i in 0..N {
                 output[i] = silo_note_hash(note_hashes[i], tx_hash, i);
@@ -229,41 +229,41 @@ mod tests {
     fn ordering_of_note_hashes_and_nullifiers() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
 
-        builder.previous_kernel.append_new_note_hashes(10);
-        builder.previous_kernel.append_new_nullifiers(10);
+        builder.previous_kernel.append_note_hashes(10);
+        builder.previous_kernel.append_nullifiers(10);
 
-        let sorted_note_hashes = builder.previous_kernel.new_note_hashes.storage;
-        let sorted_nullifiers = builder.previous_kernel.new_nullifiers.storage;
+        let sorted_note_hashes = builder.previous_kernel.note_hashes.storage;
+        let sorted_nullifiers = builder.previous_kernel.nullifiers.storage;
 
         let mut reversed_note_hashes = [ScopedNoteHash::empty(); 10];
         let mut reversed_nullifiers = [ScopedNullifier::empty(); 10];
 
         for i in 0..10 {
-            reversed_note_hashes[9 - i] = builder.previous_kernel.new_note_hashes.pop();
-            reversed_nullifiers[9 - i] = builder.previous_kernel.new_nullifiers.pop();
+            reversed_note_hashes[9 - i] = builder.previous_kernel.note_hashes.pop();
+            reversed_nullifiers[9 - i] = builder.previous_kernel.nullifiers.pop();
         }
 
-        builder.previous_kernel.new_note_hashes.extend_from_array(reversed_note_hashes);
-        builder.previous_kernel.new_nullifiers.extend_from_array(reversed_nullifiers);
+        builder.previous_kernel.note_hashes.extend_from_array(reversed_note_hashes);
+        builder.previous_kernel.nullifiers.extend_from_array(reversed_nullifiers);
 
         let public_inputs = builder.execute();
 
         let expected_note_hashes = builder.compute_output_note_hashes(sorted_note_hashes);
         let expected_nullifiers = builder.compute_output_nullifiers(sorted_nullifiers);
         for i in 0..10 {
-            assert(public_inputs.end.new_note_hashes[i].eq(expected_note_hashes[i]));
-            assert(public_inputs.end.new_nullifiers[i].eq(expected_nullifiers[i]));
+            assert(public_inputs.end.note_hashes[i].eq(expected_note_hashes[i]));
+            assert(public_inputs.end.nullifiers[i].eq(expected_nullifiers[i]));
         }
     }
 
     #[test]
     fn native_empty_nullified_note_hash_means_persistent_nullifier_0() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
-        builder.previous_kernel.append_new_note_hashes(2);
-        builder.previous_kernel.append_new_nullifiers(2);
+        builder.previous_kernel.append_note_hashes(2);
+        builder.previous_kernel.append_nullifiers(2);
         let public_inputs = builder.execute();
-        assert_eq(array_length(public_inputs.end.new_note_hashes), 2);
-        assert_eq(array_length(public_inputs.end.new_nullifiers), 3);
+        assert_eq(array_length(public_inputs.end.note_hashes), 2);
+        assert_eq(array_length(public_inputs.end.nullifiers), 3);
         let expected_gas = Gas::tx_overhead() + Gas::new(DA_GAS_PER_BYTE * DA_BYTES_PER_FIELD * 5, 0);
         assert_eq(public_inputs.end.gas_used, expected_gas);
     }
@@ -292,7 +292,7 @@ mod tests {
     #[test(should_fail_with="Non empty note hash read requests")]
     fn non_empty_note_hash_read_requests() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
-        builder.previous_kernel.append_new_note_hashes(3);
+        builder.previous_kernel.append_note_hashes(3);
         let _void = builder.previous_kernel.add_read_request_for_pending_note_hash(1);
         builder.failed();
     }
@@ -300,7 +300,7 @@ mod tests {
     #[test(should_fail_with="Non empty nullifier read requests")]
     fn non_empty_nullifier_read_requests() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
-        builder.previous_kernel.append_new_nullifiers(3);
+        builder.previous_kernel.append_nullifiers(3);
         let _void = builder.previous_kernel.add_read_request_for_pending_nullifier(1);
         builder.failed();
     }

@@ -16,11 +16,11 @@ fn propagate_from_private_call_empty_data_succeeds() {
 
     let output = builder.compose_from_tx_request();
 
-    assert_eq(output.end.new_nullifiers[0], first_nullifier);
+    assert_eq(output.end.nullifiers[0], first_nullifier);
 
     let array_lengths = PrivateKernelCircuitPublicInputsArrayLengths::new(output);
     let mut expected_array_lengths = PrivateKernelCircuitPublicInputsArrayLengths::empty();
-    expected_array_lengths.new_nullifiers = 1;
+    expected_array_lengths.nullifiers = 1;
     assert_eq(array_lengths, expected_array_lengths);
 
     assert_eq(output.min_revertible_side_effect_counter, 0);
@@ -98,23 +98,23 @@ fn propagate_from_private_call_key_validation_requests_succeeds() {
 }
 
 #[test]
-fn propagate_from_private_call_new_note_hashes_succeeds() {
+fn propagate_from_private_call_note_hashes_succeeds() {
     let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
 
-    builder.private_call.append_new_note_hashes(2);
-    let res = builder.private_call.new_note_hashes.storage;
+    builder.private_call.append_note_hashes(2);
+    let res = builder.private_call.note_hashes.storage;
 
     let output = builder.compose_from_tx_request();
 
-    assert_array_eq(output.end.new_note_hashes, [res[0], res[1]]);
+    assert_array_eq(output.end.note_hashes, [res[0], res[1]]);
 }
 
 #[test]
-fn propagate_from_private_call_new_note_hashes_with_nullifier_counters_succeeds() {
+fn propagate_from_private_call_note_hashes_with_nullifier_counters_succeeds() {
     let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
 
-    builder.private_call.append_new_note_hashes(2);
-    let mut res = builder.private_call.new_note_hashes.storage;
+    builder.private_call.append_note_hashes(2);
+    let mut res = builder.private_call.note_hashes.storage;
     builder.note_hash_nullifier_counters[0] = res[0].counter() + 10;
     builder.note_hash_nullifier_counters[1] = res[1].counter() + 75;
 
@@ -122,15 +122,15 @@ fn propagate_from_private_call_new_note_hashes_with_nullifier_counters_succeeds(
 
     res[0].nullifier_counter = res[0].counter() + 10;
     res[1].nullifier_counter = res[1].counter() + 75;
-    assert_array_eq(output.end.new_note_hashes, [res[0], res[1]]);
+    assert_array_eq(output.end.note_hashes, [res[0], res[1]]);
 }
 
 #[test]
-fn propagate_from_private_call_new_note_hashes_with_nullifier_counters_more_hints_succeeds() {
+fn propagate_from_private_call_note_hashes_with_nullifier_counters_more_hints_succeeds() {
     let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
 
-    builder.private_call.append_new_note_hashes(2);
-    let mut res = builder.private_call.new_note_hashes.storage;
+    builder.private_call.append_note_hashes(2);
+    let mut res = builder.private_call.note_hashes.storage;
     builder.note_hash_nullifier_counters[0] = res[0].counter() + 10;
     builder.note_hash_nullifier_counters[1] = res[1].counter() + 75;
     // Add a random nullifier counter for a non-existent note hash to the hints.
@@ -140,17 +140,17 @@ fn propagate_from_private_call_new_note_hashes_with_nullifier_counters_more_hint
 
     res[0].nullifier_counter = res[0].counter() + 10;
     res[1].nullifier_counter = res[1].counter() + 75;
-    assert_array_eq(output.end.new_note_hashes, [res[0], res[1]]);
+    assert_array_eq(output.end.note_hashes, [res[0], res[1]]);
     // The extra counter won't be propagated.
-    assert_eq(output.end.new_note_hashes[2].nullifier_counter, 0);
+    assert_eq(output.end.note_hashes[2].nullifier_counter, 0);
 }
 
 #[test(should_fail_with="Invalid nullifier counter")]
-fn propagate_from_private_call_new_note_hashes_with_nullifier_counters_less_than_fails() {
+fn propagate_from_private_call_note_hashes_with_nullifier_counters_less_than_fails() {
     let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
 
-    builder.private_call.append_new_note_hashes(2);
-    let mut res = builder.private_call.new_note_hashes.storage;
+    builder.private_call.append_note_hashes(2);
+    let mut res = builder.private_call.note_hashes.storage;
     builder.note_hash_nullifier_counters[0] = res[0].counter() + 10;
     // Tweak the nullifier counter to be less than the note hash counter.
     builder.note_hash_nullifier_counters[1] = res[1].counter() - 1;
@@ -159,30 +159,30 @@ fn propagate_from_private_call_new_note_hashes_with_nullifier_counters_less_than
 }
 
 #[test]
-fn propagate_from_private_call_new_nullifiers_succeeds() {
+fn propagate_from_private_call_nullifiers_succeeds() {
     let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
 
-    builder.private_call.append_new_nullifiers(2);
-    let res = builder.private_call.new_nullifiers.storage;
+    builder.private_call.append_nullifiers(2);
+    let res = builder.private_call.nullifiers.storage;
 
     let tx_request = builder.tx_request;
     let first_nullifier = create_first_nullifier(tx_request);
 
     let output = builder.compose_from_tx_request();
 
-    assert_array_eq(output.end.new_nullifiers, [first_nullifier, res[0], res[1]]);
+    assert_array_eq(output.end.nullifiers, [first_nullifier, res[0], res[1]]);
 }
 
 #[test]
-fn propagate_from_private_call_new_l2_to_l1_msgs_succeeds() {
+fn propagate_from_private_call_l2_to_l1_msgs_succeeds() {
     let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
 
-    builder.private_call.append_new_l2_to_l1_msgs(2);
-    let res = builder.private_call.new_l2_to_l1_msgs.storage;
+    builder.private_call.append_l2_to_l1_msgs(2);
+    let res = builder.private_call.l2_to_l1_msgs.storage;
 
     let output = builder.compose_from_tx_request();
 
-    assert_array_eq(output.end.new_l2_to_l1_msgs, [res[0], res[1]]);
+    assert_array_eq(output.end.l2_to_l1_msgs, [res[0], res[1]]);
 }
 
 #[test]

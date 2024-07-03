@@ -6,7 +6,7 @@ import { inspect } from 'util';
 
 import {
   MAX_ENCRYPTED_LOGS_PER_TX,
-  MAX_NEW_NOTE_HASHES_PER_TX,
+  MAX_NOTE_HASHES_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MAX_UNENCRYPTED_LOGS_PER_TX,
 } from '../../constants.gen.js';
@@ -24,8 +24,8 @@ import { type PublicAccumulatedData } from './public_accumulated_data.js';
 
 export class CombineHints {
   constructor(
-    public readonly sortedNoteHashes: Tuple<NoteHash, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
-    public readonly sortedNoteHashesIndexes: Tuple<number, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
+    public readonly sortedNoteHashes: Tuple<NoteHash, typeof MAX_NOTE_HASHES_PER_TX>,
+    public readonly sortedNoteHashesIndexes: Tuple<number, typeof MAX_NOTE_HASHES_PER_TX>,
     public readonly sortedUnencryptedLogsHashes: Tuple<LogHash, typeof MAX_UNENCRYPTED_LOGS_PER_TX>,
     public readonly sortedUnencryptedLogsHashesIndexes: Tuple<number, typeof MAX_UNENCRYPTED_LOGS_PER_TX>,
     public readonly sortedPublicDataUpdateRequests: Tuple<
@@ -64,8 +64,8 @@ export class CombineHints {
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new CombineHints(
-      reader.readArray(MAX_NEW_NOTE_HASHES_PER_TX, NoteHash),
-      reader.readNumbers(MAX_NEW_NOTE_HASHES_PER_TX),
+      reader.readArray(MAX_NOTE_HASHES_PER_TX, NoteHash),
+      reader.readNumbers(MAX_NOTE_HASHES_PER_TX),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, LogHash),
       reader.readNumbers(MAX_UNENCRYPTED_LOGS_PER_TX),
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
@@ -83,14 +83,14 @@ export class CombineHints {
     nonRevertibleData: PublicAccumulatedData;
   }): CombineHints {
     const mergedNoteHashes = mergeAccumulatedData(
-      nonRevertibleData.newNoteHashes,
-      revertibleData.newNoteHashes,
-      MAX_NEW_NOTE_HASHES_PER_TX,
+      nonRevertibleData.noteHashes,
+      revertibleData.noteHashes,
+      MAX_NOTE_HASHES_PER_TX,
     );
 
     const [sortedNoteHashes, sortedNoteHashesIndexes] = sortByCounterGetSortedHints(
       mergedNoteHashes,
-      MAX_NEW_NOTE_HASHES_PER_TX,
+      MAX_NOTE_HASHES_PER_TX,
     );
 
     const unencryptedLogHashes = mergeAccumulatedData(

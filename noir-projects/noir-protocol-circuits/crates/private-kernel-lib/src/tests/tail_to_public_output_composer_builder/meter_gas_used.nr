@@ -16,9 +16,9 @@ fn meter_gas_used_non_revertible_empty_succeeds() {
 fn meter_gas_used_non_revertible_everything_succeeds() {
     let mut builder = FixtureBuilder::new();
 
-    builder.append_new_note_hashes(4);
-    builder.append_new_nullifiers(3);
-    builder.append_new_l2_to_l1_msgs(1);
+    builder.append_note_hashes(4);
+    builder.append_nullifiers(3);
+    builder.append_l2_to_l1_msgs(1);
     builder.add_note_encrypted_log_hash(1001, 12, 0);
     builder.add_note_encrypted_log_hash(1002, 8, 0);
     builder.add_note_encrypted_log_hash(1003, 20, 0);
@@ -53,9 +53,9 @@ fn meter_gas_used_revertible_empty_succeeds() {
 fn meter_gas_used_revertible_everything_succeeds() {
     let mut builder = FixtureBuilder::new();
 
-    builder.append_new_note_hashes(4);
-    builder.append_new_nullifiers(3);
-    builder.append_new_l2_to_l1_msgs(1);
+    builder.append_note_hashes(4);
+    builder.append_nullifiers(3);
+    builder.append_l2_to_l1_msgs(1);
     builder.add_note_encrypted_log_hash(1001, 12, 0);
     builder.add_note_encrypted_log_hash(1002, 8, 0);
     builder.add_note_encrypted_log_hash(1003, 20, 0);

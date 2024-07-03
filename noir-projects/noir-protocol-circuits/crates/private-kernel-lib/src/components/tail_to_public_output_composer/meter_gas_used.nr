@@ -8,9 +8,9 @@ use dep::types::{
 
 fn meter_gas_used(data: PublicAccumulatedDataBuilder) -> Gas {
     let mut metered_bytes = 0;
-    metered_bytes += data.new_note_hashes.len() * DA_BYTES_PER_FIELD;
-    metered_bytes += data.new_nullifiers.len() * DA_BYTES_PER_FIELD;
-    metered_bytes += data.new_l2_to_l1_msgs.len() * DA_BYTES_PER_FIELD;
+    metered_bytes += data.note_hashes.len() * DA_BYTES_PER_FIELD;
+    metered_bytes += data.nullifiers.len() * DA_BYTES_PER_FIELD;
+    metered_bytes += data.l2_to_l1_msgs.len() * DA_BYTES_PER_FIELD;
 
     let note_encrypted_log_preimages_length = data.note_encrypted_logs_hashes.storage.fold(0, |len, l: LogHash| len + l.length);
     metered_bytes += note_encrypted_log_preimages_length as u32;

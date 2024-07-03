@@ -50,7 +50,7 @@ impl<Note> PrivateImmutable<Note, &mut PrivateContext> {
     ) -> NoteEmission<Note> where Note: NoteInterface<N, M> {
         // Nullify the storage slot.
         let nullifier = self.compute_initialization_nullifier();
-        self.context.push_new_nullifier(nullifier, 0);
+        self.context.push_nullifier(nullifier, 0);
 
         create_note(self.context, self.storage_slot, note)
     }

@@ -48,11 +48,11 @@ export interface PublicExecutionResult {
   /** The contract storage update requests performed by the function. */
   contractStorageUpdateRequests: ContractStorageUpdateRequest[];
   /** The new note hashes to be inserted into the note hashes tree. */
-  newNoteHashes: NoteHash[];
+  noteHashes: NoteHash[];
   /** The new l2 to l1 messages generated in this call. */
-  newL2ToL1Messages: L2ToL1Message[];
+  l2ToL1Messages: L2ToL1Message[];
   /** The new nullifiers to be inserted into the nullifier tree. */
-  newNullifiers: Nullifier[];
+  nullifiers: Nullifier[];
   /** The note hash read requests emitted in this call. */
   noteHashReadRequests: ReadRequest[];
   /** The nullifier read requests emitted in this call. */
@@ -115,17 +115,17 @@ export function isPublicExecutionResult(
  */
 
 export function checkValidStaticCall(
-  newNoteHashes: NoteHash[],
-  newNullifiers: Nullifier[],
+  noteHashes: NoteHash[],
+  nullifiers: Nullifier[],
   contractStorageUpdateRequests: ContractStorageUpdateRequest[],
-  newL2ToL1Messages: L2ToL1Message[],
+  l2ToL1Messages: L2ToL1Message[],
   unencryptedLogs: UnencryptedFunctionL2Logs,
 ) {
   if (
     contractStorageUpdateRequests.length > 0 ||
-    newNoteHashes.length > 0 ||
-    newNullifiers.length > 0 ||
-    newL2ToL1Messages.length > 0 ||
+    noteHashes.length > 0 ||
+    nullifiers.length > 0 ||
+    l2ToL1Messages.length > 0 ||
     unencryptedLogs.logs.length > 0
   ) {
     throw new Error('Static call cannot update the state, emit L2->L1 messages or generate logs');

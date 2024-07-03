@@ -7,7 +7,7 @@ use dep::types::{
 },
     address::AztecAddress,
     constants::{
-    MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_TX,
+    MAX_NOTE_HASHES_PER_CALL, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NOTE_HASHES_PER_TX,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL
 },
     hash::{
@@ -22,7 +22,7 @@ struct DataSource {
     private_call_public_inputs: PrivateCircuitPublicInputs,
     contract_address: AztecAddress,
     storage_contract_address: AztecAddress,
-    note_hash_nullifier_counters: [u32; MAX_NEW_NOTE_HASHES_PER_CALL],
+    note_hash_nullifier_counters: [u32; MAX_NOTE_HASHES_PER_CALL],
     public_call_requests: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
     public_teardown_call_request: CallRequest,
 }
@@ -44,8 +44,8 @@ impl PrivateKernelCircuitPublicInputsComposer {
             tx_request.tx_context,
         );
 
-        // Since it's the first iteration, we need to push the tx hash nullifier into the `new_nullifiers` array
-        public_inputs.end.new_nullifiers.push(create_first_nullifier(tx_request));
+        // Since it's the first iteration, we need to push the tx hash nullifier into the `nullifiers` array
+        public_inputs.end.nullifiers.push(create_first_nullifier(tx_request));
         // Note that we do not need to nullify the transaction request nonce anymore.
         // Should an account want to additionally use nonces for replay protection or handling cancellations,
         // they will be able to do so in the account contract logic:
@@ -69,9 +69,9 @@ impl PrivateKernelCircuitPublicInputsComposer {
         public_inputs.validation_requests.scoped_key_validation_requests_and_generators = array_to_bounded_vec(start.scoped_key_validation_requests_and_generators);
 
         let start = previous_kernel_public_inputs.end;
-        public_inputs.end.new_note_hashes = array_to_bounded_vec(start.new_note_hashes);
-        public_inputs.end.new_nullifiers = array_to_bounded_vec(start.new_nullifiers);
-        public_inputs.end.new_l2_to_l1_msgs = array_to_bounded_vec(start.new_l2_to_l1_msgs);
+        public_inputs.end.note_hashes = array_to_bounded_vec(start.note_hashes);
+        public_inputs.end.nullifiers = array_to_bounded_vec(start.nullifiers);
+        public_inputs.end.l2_to_l1_msgs = array_to_bounded_vec(start.l2_to_l1_msgs);
         public_inputs.end.note_encrypted_logs_hashes = array_to_bounded_vec(start.note_encrypted_logs_hashes);
         public_inputs.end.encrypted_logs_hashes = array_to_bounded_vec(start.encrypted_logs_hashes);
         public_inputs.end.unencrypted_logs_hashes = array_to_bounded_vec(start.unencrypted_logs_hashes);
@@ -91,7 +91,7 @@ impl PrivateKernelCircuitPublicInputsComposer {
         &mut self,
         private_call_public_inputs: PrivateCircuitPublicInputs,
         contract_address: AztecAddress,
-        note_hash_nullifier_counters: [u32; MAX_NEW_NOTE_HASHES_PER_CALL],
+        note_hash_nullifier_counters: [u32; MAX_NOTE_HASHES_PER_CALL],
         public_call_requests: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
         public_teardown_call_request: CallRequest
     ) -> Self {
@@ -181,7 +181,7 @@ impl PrivateKernelCircuitPublicInputsComposer {
     }
 
     fn propagate_note_hashes(&mut self, source: DataSource) {
-        let note_hashes = source.private_call_public_inputs.new_note_hashes;
+        let note_hashes = source.private_call_public_inputs.note_hashes;
         for i in 0..note_hashes.len() {
             let mut note_hash = note_hashes[i];
             if note_hash.value != 0 {
@@ -189,27 +189,27 @@ impl PrivateKernelCircuitPublicInputsComposer {
                 assert(
                     (nullifier_counter == 0) | (nullifier_counter > note_hash.counter), "Invalid nullifier counter"
                 );
-                self.public_inputs.end.new_note_hashes.push(note_hash.scope(nullifier_counter, source.storage_contract_address));
+                self.public_inputs.end.note_hashes.push(note_hash.scope(nullifier_counter, source.storage_contract_address));
             }
         }
     }
 
     fn propagate_nullifiers(&mut self, source: DataSource) {
-        let nullifiers = source.private_call_public_inputs.new_nullifiers;
+        let nullifiers = source.private_call_public_inputs.nullifiers;
         for i in 0..nullifiers.len() {
             let nullifier = nullifiers[i];
             if nullifier.value != 0 {
-                self.public_inputs.end.new_nullifiers.push(nullifier.scope(source.storage_contract_address));
+                self.public_inputs.end.nullifiers.push(nullifier.scope(source.storage_contract_address));
             }
         }
     }
 
     fn propagate_l2_to_l1_messages(&mut self, source: DataSource) {
-        let l2_to_l1_msgs = source.private_call_public_inputs.new_l2_to_l1_msgs;
+        let l2_to_l1_msgs = source.private_call_public_inputs.l2_to_l1_msgs;
         for i in 0..l2_to_l1_msgs.len() {
             let msg = l2_to_l1_msgs[i];
             if !is_empty(msg) {
-                self.public_inputs.end.new_l2_to_l1_msgs.push(msg.scope(source.storage_contract_address));
+                self.public_inputs.end.l2_to_l1_msgs.push(msg.scope(source.storage_contract_address));
             }
         }
     }
@@ -281,9 +281,9 @@ impl PrivateKernelCircuitPublicInputsComposer {
     }
 
     fn sort_ordered_values(&mut self) {
-        self.public_inputs.end.new_note_hashes.storage = sort_by_counters_asc(self.public_inputs.end.new_note_hashes.storage);
-        self.public_inputs.end.new_nullifiers.storage = sort_by_counters_asc(self.public_inputs.end.new_nullifiers.storage);
-        self.public_inputs.end.new_l2_to_l1_msgs.storage = sort_by_counters_asc(self.public_inputs.end.new_l2_to_l1_msgs.storage);
+        self.public_inputs.end.note_hashes.storage = sort_by_counters_asc(self.public_inputs.end.note_hashes.storage);
+        self.public_inputs.end.nullifiers.storage = sort_by_counters_asc(self.public_inputs.end.nullifiers.storage);
+        self.public_inputs.end.l2_to_l1_msgs.storage = sort_by_counters_asc(self.public_inputs.end.l2_to_l1_msgs.storage);
         self.public_inputs.end.note_encrypted_logs_hashes.storage = sort_by_counters_asc(self.public_inputs.end.note_encrypted_logs_hashes.storage);
         self.public_inputs.end.encrypted_logs_hashes.storage = sort_by_counters_asc(self.public_inputs.end.encrypted_logs_hashes.storage);
         self.public_inputs.end.unencrypted_logs_hashes.storage = sort_by_counters_asc(self.public_inputs.end.unencrypted_logs_hashes.storage);
@@ -299,10 +299,10 @@ impl PrivateKernelCircuitPublicInputsComposer {
     }
 
     fn silo_note_hashes(&mut self) {
-        let first_nullifier = self.public_inputs.end.new_nullifiers.get_unchecked(0).value();
-        let note_hashes = self.public_inputs.end.new_note_hashes.storage;
+        let first_nullifier = self.public_inputs.end.nullifiers.get_unchecked(0).value();
+        let note_hashes = self.public_inputs.end.note_hashes.storage;
         for i in 0..note_hashes.len() {
-            self.public_inputs.end.new_note_hashes.storage[i].note_hash.value = silo_note_hash(
+            self.public_inputs.end.note_hashes.storage[i].note_hash.value = silo_note_hash(
                 note_hashes[i],
                 first_nullifier,
                 i
@@ -311,17 +311,17 @@ impl PrivateKernelCircuitPublicInputsComposer {
     }
 
     fn silo_nullifiers(&mut self) {
-        let nullifiers = self.public_inputs.end.new_nullifiers.storage;
+        let nullifiers = self.public_inputs.end.nullifiers.storage;
         for i in 0..nullifiers.len() {
-            self.public_inputs.end.new_nullifiers.storage[i].nullifier.value = silo_nullifier(nullifiers[i]);
+            self.public_inputs.end.nullifiers.storage[i].nullifier.value = silo_nullifier(nullifiers[i]);
         }
     }
 
     fn silo_l2_to_l1_messages(&mut self) {
-        let l2_to_l1_msgs = self.public_inputs.end.new_l2_to_l1_msgs.storage;
+        let l2_to_l1_msgs = self.public_inputs.end.l2_to_l1_msgs.storage;
         let tx_context = self.public_inputs.constants.tx_context;
         for i in 0..l2_to_l1_msgs.len() {
-            self.public_inputs.end.new_l2_to_l1_msgs.storage[i].message.content = silo_l2_to_l1_message(
+            self.public_inputs.end.l2_to_l1_msgs.storage[i].message.content = silo_l2_to_l1_message(
                 l2_to_l1_msgs[i],
                 tx_context.version,
                 tx_context.chain_id,

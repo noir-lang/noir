@@ -10,7 +10,7 @@ use dep::types::{
     address::AztecAddress,
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
     constants::{
-    MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
+    MAX_L2_TO_L1_MSGS_PER_CALL, MAX_NOTE_HASHES_PER_CALL, MAX_NULLIFIERS_PER_CALL,
     MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
     MAX_PUBLIC_DATA_READS_PER_CALL, MAX_UNENCRYPTED_LOGS_PER_CALL
@@ -73,9 +73,9 @@ pub fn initialize_end_values(
     circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
 ) {
     let start = previous_kernel.public_inputs.end;
-    circuit_outputs.end.new_note_hashes = array_to_bounded_vec(start.new_note_hashes);
-    circuit_outputs.end.new_nullifiers = array_to_bounded_vec(start.new_nullifiers);
-    circuit_outputs.end.new_l2_to_l1_msgs = array_to_bounded_vec(start.new_l2_to_l1_msgs);
+    circuit_outputs.end.note_hashes = array_to_bounded_vec(start.note_hashes);
+    circuit_outputs.end.nullifiers = array_to_bounded_vec(start.nullifiers);
+    circuit_outputs.end.l2_to_l1_msgs = array_to_bounded_vec(start.l2_to_l1_msgs);
     circuit_outputs.end.public_data_update_requests = array_to_bounded_vec(start.public_data_update_requests);
     circuit_outputs.end.unencrypted_logs_hashes = array_to_bounded_vec(start.unencrypted_logs_hashes);
     circuit_outputs.end.note_encrypted_logs_hashes = array_to_bounded_vec(start.note_encrypted_logs_hashes);
@@ -97,9 +97,9 @@ pub fn initialize_non_revertible_values(
     circuit_outputs.end_non_revertible.gas_used = previous_kernel.public_inputs.end_non_revertible.gas_used;
 
     let start_non_revertible = previous_kernel.public_inputs.end_non_revertible;
-    circuit_outputs.end_non_revertible.new_note_hashes = array_to_bounded_vec(start_non_revertible.new_note_hashes);
-    circuit_outputs.end_non_revertible.new_nullifiers = array_to_bounded_vec(start_non_revertible.new_nullifiers);
-    circuit_outputs.end_non_revertible.new_l2_to_l1_msgs = array_to_bounded_vec(start_non_revertible.new_l2_to_l1_msgs);
+    circuit_outputs.end_non_revertible.note_hashes = array_to_bounded_vec(start_non_revertible.note_hashes);
+    circuit_outputs.end_non_revertible.nullifiers = array_to_bounded_vec(start_non_revertible.nullifiers);
+    circuit_outputs.end_non_revertible.l2_to_l1_msgs = array_to_bounded_vec(start_non_revertible.l2_to_l1_msgs);
     circuit_outputs.end_non_revertible.public_data_update_requests = array_to_bounded_vec(start_non_revertible.public_data_update_requests);
     circuit_outputs.end_non_revertible.unencrypted_logs_hashes = array_to_bounded_vec(start_non_revertible.unencrypted_logs_hashes);
     circuit_outputs.end_non_revertible.note_encrypted_logs_hashes = array_to_bounded_vec(start_non_revertible.note_encrypted_logs_hashes);
@@ -117,19 +117,19 @@ fn perform_static_call_checks(public_call: PublicCallData) {
     let public_inputs = public_call.call_stack_item.public_inputs;
     if public_inputs.call_context.is_static_call {
         // No state changes are allowed for static calls:
-        let new_note_hashes_length = array_length(public_inputs.new_note_hashes);
-        assert(new_note_hashes_length == 0, "new_note_hashes must be empty for static calls");
+        let note_hashes_length = array_length(public_inputs.note_hashes);
+        assert(note_hashes_length == 0, "note_hashes must be empty for static calls");
 
-        let new_nullifiers_length = array_length(public_inputs.new_nullifiers);
-        assert(new_nullifiers_length == 0, "new_nullifiers must be empty for static calls");
+        let nullifiers_length = array_length(public_inputs.nullifiers);
+        assert(nullifiers_length == 0, "nullifiers must be empty for static calls");
 
         let update_requests_length = array_length(public_inputs.contract_storage_update_requests);
         assert(
             update_requests_length == 0, "No contract storage update requests are allowed for static calls"
         );
 
-        let new_l2_to_l1_msgs_length = array_length(public_inputs.new_l2_to_l1_msgs);
-        assert(new_l2_to_l1_msgs_length == 0, "new_l2_to_l1_msgs must be empty for static calls");
+        let l2_to_l1_msgs_length = array_length(public_inputs.l2_to_l1_msgs);
+        assert(l2_to_l1_msgs_length == 0, "l2_to_l1_msgs must be empty for static calls");
 
         let new_unencrypted_logs_length = array_length(public_inputs.unencrypted_logs_hashes);
         assert(new_unencrypted_logs_length == 0, "No unencrypted logs are allowed for static calls");
@@ -279,8 +279,8 @@ pub fn update_public_end_non_revertible_values(
     // If this call is a static call, certain operations are disallowed, such as creating new state.
     perform_static_call_checks(public_call);
 
-    propagate_new_nullifiers_non_revertible(public_call, circuit_outputs);
-    propagate_new_note_hashes_non_revertible(public_call, circuit_outputs);
+    propagate_nullifiers_non_revertible(public_call, circuit_outputs);
+    propagate_note_hashes_non_revertible(public_call, circuit_outputs);
     propagate_new_l2_to_l1_messages_non_revertible(public_call, circuit_outputs);
     propagate_new_unencrypted_logs_non_revertible(public_call, circuit_outputs);
     propagate_valid_non_revertible_public_data_update_requests(public_call, circuit_outputs);
@@ -292,8 +292,8 @@ pub fn update_public_end_values(public_call: PublicCallData, circuit_outputs: &m
     // If this call is a static call, certain operations are disallowed, such as creating new state.
     perform_static_call_checks(public_call);
 
-    propagate_new_nullifiers(public_call, circuit_outputs);
-    propagate_new_note_hashes(public_call, circuit_outputs);
+    propagate_nullifiers(public_call, circuit_outputs);
+    propagate_note_hashes(public_call, circuit_outputs);
     propagate_new_l2_to_l1_messages(public_call, circuit_outputs);
     propagate_new_unencrypted_logs(public_call, circuit_outputs);
     propagate_valid_public_data_update_requests(public_call, circuit_outputs);
@@ -386,96 +386,79 @@ fn propagate_valid_public_data_reads(public_call: PublicCallData, circuit_output
     circuit_outputs.validation_requests.public_data_reads.extend_from_bounded_vec(public_data_reads);
 }
 
-fn propagate_new_note_hashes_non_revertible(
+fn propagate_note_hashes_non_revertible(
     public_call: PublicCallData,
     circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
 ) {
     let public_call_public_inputs = public_call.call_stack_item.public_inputs;
 
-    let new_note_hashes = public_call.call_stack_item.public_inputs.new_note_hashes;
+    let note_hashes = public_call.call_stack_item.public_inputs.note_hashes;
     let storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
 
-    let mut siloed_new_note_hashes : BoundedVec<NoteHash, MAX_NEW_NOTE_HASHES_PER_CALL> = BoundedVec::new();
-    for i in 0..MAX_NEW_NOTE_HASHES_PER_CALL {
-        let new_note_hash = new_note_hashes[i].value;
+    let mut siloed_note_hashes : BoundedVec<NoteHash, MAX_NOTE_HASHES_PER_CALL> = BoundedVec::new();
+    for i in 0..MAX_NOTE_HASHES_PER_CALL {
+        let new_note_hash = note_hashes[i].value;
         if new_note_hash != 0 {
             let siloed_new_note_hash = compute_siloed_note_hash(storage_contract_address, new_note_hash);
-            siloed_new_note_hashes.push(NoteHash { value: siloed_new_note_hash, counter: new_note_hashes[i].counter });
+            siloed_note_hashes.push(NoteHash { value: siloed_new_note_hash, counter: note_hashes[i].counter });
         }
     }
-    circuit_outputs.end_non_revertible.new_note_hashes.extend_from_bounded_vec(siloed_new_note_hashes);
+    circuit_outputs.end_non_revertible.note_hashes.extend_from_bounded_vec(siloed_note_hashes);
 }
 
-fn propagate_new_note_hashes(
-    public_call: PublicCallData,
-    circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
-) {
+fn propagate_note_hashes(public_call: PublicCallData, circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder) {
     let public_call_public_inputs = public_call.call_stack_item.public_inputs;
 
-    let new_note_hashes = public_call.call_stack_item.public_inputs.new_note_hashes;
+    let note_hashes = public_call.call_stack_item.public_inputs.note_hashes;
     let storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
 
-    let mut siloed_new_note_hashes : BoundedVec<NoteHash, MAX_NEW_NOTE_HASHES_PER_CALL> = BoundedVec::new();
-    for i in 0..MAX_NEW_NOTE_HASHES_PER_CALL {
-        let new_note_hash = new_note_hashes[i].value;
+    let mut siloed_note_hashes : BoundedVec<NoteHash, MAX_NOTE_HASHES_PER_CALL> = BoundedVec::new();
+    for i in 0..MAX_NOTE_HASHES_PER_CALL {
+        let new_note_hash = note_hashes[i].value;
         if new_note_hash != 0 {
             let siloed_new_note_hash = compute_siloed_note_hash(storage_contract_address, new_note_hash);
-            siloed_new_note_hashes.push(NoteHash { value: siloed_new_note_hash, counter: new_note_hashes[i].counter });
+            siloed_note_hashes.push(NoteHash { value: siloed_new_note_hash, counter: note_hashes[i].counter });
         }
     }
-    circuit_outputs.end.new_note_hashes.extend_from_bounded_vec(siloed_new_note_hashes);
+    circuit_outputs.end.note_hashes.extend_from_bounded_vec(siloed_note_hashes);
 }
 
-fn propagate_new_nullifiers_non_revertible(
-    public_call: PublicCallData,
-    circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
-) {
-    let new_nullifiers = public_call.call_stack_item.public_inputs.new_nullifiers;
+fn propagate_nullifiers_non_revertible(public_call: PublicCallData, circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder) {
+    let nullifiers = public_call.call_stack_item.public_inputs.nullifiers;
     let storage_contract_address = public_call.call_stack_item.public_inputs.call_context.storage_contract_address;
 
     // Enhance commitments and nullifiers with domain separation whereby domain is the contract.
-    let mut siloed_new_nullifiers : BoundedVec<Nullifier, MAX_NEW_NULLIFIERS_PER_CALL> = BoundedVec::new();
-    for i in 0..MAX_NEW_NULLIFIERS_PER_CALL {
-        let new_nullifier = new_nullifiers[i].value;
+    let mut siloed_nullifiers : BoundedVec<Nullifier, MAX_NULLIFIERS_PER_CALL> = BoundedVec::new();
+    for i in 0..MAX_NULLIFIERS_PER_CALL {
+        let new_nullifier = nullifiers[i].value;
         if new_nullifier != 0 {
             let siloed_new_nullifier = compute_siloed_nullifier(storage_contract_address, new_nullifier);
-            siloed_new_nullifiers.push(
-                Nullifier {
-                value: siloed_new_nullifier,
-                counter: new_nullifiers[i].counter,
-                note_hash: new_nullifiers[i].note_hash
-            }
+            siloed_nullifiers.push(
+                Nullifier { value: siloed_new_nullifier, counter: nullifiers[i].counter, note_hash: nullifiers[i].note_hash }
             );
         }
     }
 
-    circuit_outputs.end_non_revertible.new_nullifiers.extend_from_bounded_vec(siloed_new_nullifiers);
+    circuit_outputs.end_non_revertible.nullifiers.extend_from_bounded_vec(siloed_nullifiers);
 }
 
-fn propagate_new_nullifiers(
-    public_call: PublicCallData,
-    circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
-) {
-    let new_nullifiers = public_call.call_stack_item.public_inputs.new_nullifiers;
+fn propagate_nullifiers(public_call: PublicCallData, circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder) {
+    let nullifiers = public_call.call_stack_item.public_inputs.nullifiers;
     let storage_contract_address = public_call.call_stack_item.public_inputs.call_context.storage_contract_address;
 
     // Enhance commitments and nullifiers with domain separation whereby domain is the contract.
-    let mut siloed_new_nullifiers : BoundedVec<Nullifier, MAX_NEW_NULLIFIERS_PER_CALL> = BoundedVec::new();
-    for i in 0..MAX_NEW_NULLIFIERS_PER_CALL {
-        let new_nullifier = new_nullifiers[i].value;
+    let mut siloed_nullifiers : BoundedVec<Nullifier, MAX_NULLIFIERS_PER_CALL> = BoundedVec::new();
+    for i in 0..MAX_NULLIFIERS_PER_CALL {
+        let new_nullifier = nullifiers[i].value;
         if new_nullifier != 0 {
             let siloed_new_nullifier = compute_siloed_nullifier(storage_contract_address, new_nullifier);
-            siloed_new_nullifiers.push(
-                Nullifier {
-                value: siloed_new_nullifier,
-                counter: new_nullifiers[i].counter,
-                note_hash: new_nullifiers[i].note_hash
-            }
+            siloed_nullifiers.push(
+                Nullifier { value: siloed_new_nullifier, counter: nullifiers[i].counter, note_hash: nullifiers[i].note_hash }
             );
         }
     }
 
-    circuit_outputs.end.new_nullifiers.extend_from_bounded_vec(siloed_new_nullifiers);
+    circuit_outputs.end.nullifiers.extend_from_bounded_vec(siloed_nullifiers);
 }
 
 fn propagate_new_l2_to_l1_messages_non_revertible(
@@ -486,22 +469,22 @@ fn propagate_new_l2_to_l1_messages_non_revertible(
     let public_call_public_inputs = public_call.call_stack_item.public_inputs;
     let storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
 
-    let new_l2_to_l1_msgs = public_call_public_inputs.new_l2_to_l1_msgs;
-    let mut new_l2_to_l1_msgs_to_insert : BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new();
-    for i in 0..MAX_NEW_L2_TO_L1_MSGS_PER_CALL {
-        let msg = new_l2_to_l1_msgs[i];
+    let l2_to_l1_msgs = public_call_public_inputs.l2_to_l1_msgs;
+    let mut l2_to_l1_msgs_to_insert : BoundedVec<Field, MAX_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new();
+    for i in 0..MAX_L2_TO_L1_MSGS_PER_CALL {
+        let msg = l2_to_l1_msgs[i];
         if !is_empty(msg) {
-            let new_l2_to_l1_msgs = compute_l2_to_l1_hash(
+            let l2_to_l1_msgs = compute_l2_to_l1_hash(
                 storage_contract_address,
                 msg.recipient,
                 msg.content,
                 public_inputs.constants.tx_context.version,
                 public_inputs.constants.tx_context.chain_id
             );
-            new_l2_to_l1_msgs_to_insert.push(new_l2_to_l1_msgs)
+            l2_to_l1_msgs_to_insert.push(l2_to_l1_msgs)
         }
     }
-    public_inputs.end_non_revertible.new_l2_to_l1_msgs.extend_from_bounded_vec(new_l2_to_l1_msgs_to_insert);
+    public_inputs.end_non_revertible.l2_to_l1_msgs.extend_from_bounded_vec(l2_to_l1_msgs_to_insert);
 }
 
 fn propagate_new_l2_to_l1_messages(public_call: PublicCallData, public_inputs: &mut PublicKernelCircuitPublicInputsBuilder) {
@@ -509,22 +492,22 @@ fn propagate_new_l2_to_l1_messages(public_call: PublicCallData, public_inputs: &
     let public_call_public_inputs = public_call.call_stack_item.public_inputs;
     let storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
 
-    let new_l2_to_l1_msgs = public_call_public_inputs.new_l2_to_l1_msgs;
-    let mut new_l2_to_l1_msgs_to_insert : BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new();
-    for i in 0..MAX_NEW_L2_TO_L1_MSGS_PER_CALL {
-        let msg = new_l2_to_l1_msgs[i];
+    let l2_to_l1_msgs = public_call_public_inputs.l2_to_l1_msgs;
+    let mut l2_to_l1_msgs_to_insert : BoundedVec<Field, MAX_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new();
+    for i in 0..MAX_L2_TO_L1_MSGS_PER_CALL {
+        let msg = l2_to_l1_msgs[i];
         if !is_empty(msg) {
-            let new_l2_to_l1_msgs = compute_l2_to_l1_hash(
+            let l2_to_l1_msgs = compute_l2_to_l1_hash(
                 storage_contract_address,
                 msg.recipient,
                 msg.content,
                 public_inputs.constants.tx_context.version,
                 public_inputs.constants.tx_context.chain_id
             );
-            new_l2_to_l1_msgs_to_insert.push(new_l2_to_l1_msgs)
+            l2_to_l1_msgs_to_insert.push(l2_to_l1_msgs)
         }
     }
-    public_inputs.end.new_l2_to_l1_msgs.extend_from_bounded_vec(new_l2_to_l1_msgs_to_insert);
+    public_inputs.end.l2_to_l1_msgs.extend_from_bounded_vec(l2_to_l1_msgs_to_insert);
 }
 
 pub fn propagate_new_unencrypted_logs(public_call: PublicCallData, public_inputs: &mut PublicKernelCircuitPublicInputsBuilder) {

@@ -59,11 +59,11 @@ PrivateKernelCircuitPublicInputs --> CombinedConstantData
 class PrivateAccumulatedData {
     +Field encrypted_log_preimages_length
     +Field unencrypted_log_preimages_length
-    +Field[MAX_NEW_L2_TO_L1_MSGS_PER_TX] new_l2_to_l1_msgs
+    +Field[MAX_L2_TO_L1_MSGS_PER_TX] new_l2_to_l1_msgs
     +SideEffect[MAX_ENCRYPTED_LOGS_PER_TX] encrypted_logs_hashes
     +SideEffect[MAX_UNENCRYPTED_LOGS_PER_TX] unencrypted_logs_hashes
-    +SideEffect[MAX_NEW_NOTE_HASHES_PER_TX] new_note_hashes
-    +SideEffectLinkedToNoteHash[MAX_NEW_NULLIFIERS_PER_TX] new_nullifiers
+    +SideEffect[MAX_NOTE_HASHES_PER_TX] new_note_hashes
+    +SideEffectLinkedToNoteHash[MAX_NULLIFIERS_PER_TX] new_nullifiers
     +CallRequest[MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX] private_call_stack
     +CallRequest[MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX] public_call_stack
 }
@@ -312,11 +312,11 @@ class CombinedConstantData {
 class PublicAccumulatedData {
     +Field encrypted_log_preimages_length
     +Field unencrypted_log_preimages_length
-    +Field[MAX_NEW_L2_TO_L1_MSGS_PER_TX] new_l2_to_l1_msgs
+    +Field[MAX_L2_TO_L1_MSGS_PER_TX] new_l2_to_l1_msgs
     +SideEffect[MAX_ENCRYPTED_LOGS_PER_TX] encrypted_logs_hashes
     +SideEffect[MAX_UNENCRYPTED_LOGS_PER_TX] unencrypted_logs_hashes
-    +SideEffect[MAX_NEW_NOTE_HASHES_PER_TX] new_note_hashes
-    +SideEffectLinkedToNoteHash[MAX_NEW_NULLIFIERS_PER_TX] new_nullifiers
+    +SideEffect[MAX_NOTE_HASHES_PER_TX] new_note_hashes
+    +SideEffectLinkedToNoteHash[MAX_NULLIFIERS_PER_TX] new_nullifiers
     +CallRequest[MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX] public_call_stack
     +PublicDataUpdateRequest[MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] public_data_update_requests
     +Gas gas_used
@@ -378,9 +378,9 @@ class CombinedAccumulatedData {
   +Field unencrypted_log_preimages_length
   +Field encrypted_logs_hash
   +Field unencrypted_logs_hash
-  +Field[MAX_NEW_L2_TO_L1_MSGS_PER_TX] new_l2_to_l1_msgs
-  +Field[MAX_NEW_NOTE_HASHES_PER_TX] new_note_hashes
-  +Field[MAX_NEW_NULLIFIERS_PER_TX] new_nullifiers
+  +Field[MAX_L2_TO_L1_MSGS_PER_TX] new_l2_to_l1_msgs
+  +Field[MAX_NOTE_HASHES_PER_TX] new_note_hashes
+  +Field[MAX_NULLIFIERS_PER_TX] new_nullifiers
   +PublicDataUpdateRequest[MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] public_data_update_requests
   +Gas gas_used
 }

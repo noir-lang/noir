@@ -1119,7 +1119,7 @@ context.worldState.noteHashes.append(
 `,
     Summary: "Emit a new note hash to be inserted into the note hash tree",
     "World State access tracing": `
-context.worldStateAccessTrace.newNoteHashes.append(
+context.worldStateAccessTrace.noteHashes.append(
     TracedNoteHash {
         callPointer: context.environment.callPointer,
         noteHash: M[noteHashOffset], // unsiloed note hash
@@ -1191,7 +1191,7 @@ context.worldState.nullifiers.append(
 `,
     Summary: "Emit a new nullifier to be inserted into the nullifier tree",
     "World State access tracing": `
-context.worldStateAccessTrace.newNullifiers.append(
+context.worldStateAccessTrace.nullifiers.append(
     TracedNullifier {
         callPointer: context.environment.callPointer,
         nullifier: M[nullifierOffset], // unsiloed nullifier

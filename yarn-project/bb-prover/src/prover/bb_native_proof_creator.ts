@@ -76,9 +76,7 @@ export class BBNativeProofCreator implements ProofCreator {
   public getSiloedCommitments(publicInputs: PrivateCircuitPublicInputs) {
     const contractAddress = publicInputs.callContext.storageContractAddress;
 
-    return Promise.resolve(
-      publicInputs.newNoteHashes.map(commitment => siloNoteHash(contractAddress, commitment.value)),
-    );
+    return Promise.resolve(publicInputs.noteHashes.map(commitment => siloNoteHash(contractAddress, commitment.value)));
   }
 
   public async createProofInit(

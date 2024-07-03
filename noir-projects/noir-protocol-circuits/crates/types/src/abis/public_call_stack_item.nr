@@ -62,7 +62,7 @@ mod tests {
         let function_data = FunctionData { selector: FunctionSelector::from_u32(2), is_private: false };
 
         let mut public_inputs = PublicCircuitPublicInputs::empty();
-        public_inputs.new_note_hashes[0] = NoteHash {
+        public_inputs.note_hashes[0] = NoteHash {
             value: 1,
             counter: 0,
         };
@@ -80,7 +80,7 @@ mod tests {
         let function_data = FunctionData { selector: FunctionSelector::from_u32(2), is_private: false };
 
         let mut public_inputs = PublicCircuitPublicInputs::empty();
-        public_inputs.new_note_hashes[0] = NoteHash {
+        public_inputs.note_hashes[0] = NoteHash {
             value: 1,
             counter: 0,
         };

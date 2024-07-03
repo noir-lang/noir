@@ -21,8 +21,8 @@ struct RootRollupInputs {
     l1_to_l2_roots: RootRollupParityInput,
 
     // inputs required to process l1 to l2 messages
-    new_l1_to_l2_messages : [Field; NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP],
-    new_l1_to_l2_message_tree_root_sibling_path : [Field; L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH],
+    l1_to_l2_messages : [Field; NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP],
+    l1_to_l2_message_subtree_sibling_path : [Field; L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH],
 
     start_l1_to_l2_message_tree_snapshot : AppendOnlyTreeSnapshot,
 
@@ -51,7 +51,7 @@ impl RootRollupInputs {
         let empty_l1_to_l2_subtree_root = calculate_empty_tree_root(L1_TO_L2_MSG_SUBTREE_HEIGHT);
         let new_l1_to_l2_message_tree_snapshot = append_only_tree::insert_subtree_to_snapshot_tree(
             self.start_l1_to_l2_message_tree_snapshot,
-            self.new_l1_to_l2_message_tree_root_sibling_path,
+            self.l1_to_l2_message_subtree_sibling_path,
             empty_l1_to_l2_subtree_root,
             self.l1_to_l2_roots.public_inputs.converted_root,
             // TODO(Kev): For now we can add a test that this fits inside of 
@@ -99,8 +99,8 @@ impl Empty for RootRollupInputs {
         RootRollupInputs {
             previous_rollup_data : [PreviousRollupData::empty(); 2],
             l1_to_l2_roots: RootRollupParityInput::empty(),
-            new_l1_to_l2_messages : [0; NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP],
-            new_l1_to_l2_message_tree_root_sibling_path : [0; L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH],
+            l1_to_l2_messages : [0; NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP],
+            l1_to_l2_message_subtree_sibling_path : [0; L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH],
             start_l1_to_l2_message_tree_snapshot : AppendOnlyTreeSnapshot::zero(),
             start_archive_snapshot : AppendOnlyTreeSnapshot::zero(),
             new_archive_sibling_path : [0; ARCHIVE_HEIGHT],

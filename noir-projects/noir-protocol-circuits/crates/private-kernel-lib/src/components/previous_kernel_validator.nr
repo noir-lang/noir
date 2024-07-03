@@ -65,11 +65,11 @@ impl PreviousKernelValidator {
     fn verify_no_transient_data(self) {
         // Currently all the transient note hashes and nullifiers must be cleared in the reset circuits.
         // Check that the propagated note hashes don't link to a nullifier, and vice versa.
-        for note_hash in self.previous_kernel.end.new_note_hashes {
+        for note_hash in self.previous_kernel.end.note_hashes {
             assert_eq(note_hash.nullifier_counter, 0, "Unresolved transient note hash");
         }
-        for new_nullifier in self.previous_kernel.end.new_nullifiers {
-            assert_eq(new_nullifier.nullified_note_hash(), 0, "Unresolved transient nullifier");
+        for nullifier in self.previous_kernel.end.nullifiers {
+            assert_eq(nullifier.nullified_note_hash(), 0, "Unresolved transient nullifier");
         }
     }
 }

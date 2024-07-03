@@ -194,19 +194,19 @@ export class PrivateKernelTailCircuitPublicInputs {
 
   getNonEmptyNoteHashes() {
     const noteHashes = this.forPublic
-      ? mergeAccumulatedData(this.forPublic.endNonRevertibleData.newNoteHashes, this.forPublic.end.newNoteHashes).map(
+      ? mergeAccumulatedData(this.forPublic.endNonRevertibleData.noteHashes, this.forPublic.end.noteHashes).map(
           n => n.value,
         )
-      : this.forRollup!.end.newNoteHashes;
+      : this.forRollup!.end.noteHashes;
     return noteHashes.filter(n => !n.isZero());
   }
 
   getNonEmptyNullifiers() {
     const nullifiers = this.forPublic
-      ? mergeAccumulatedData(this.forPublic.endNonRevertibleData.newNullifiers, this.forPublic.end.newNullifiers).map(
+      ? mergeAccumulatedData(this.forPublic.endNonRevertibleData.nullifiers, this.forPublic.end.nullifiers).map(
           n => n.value,
         )
-      : this.forRollup!.end.newNullifiers;
+      : this.forRollup!.end.nullifiers;
     return nullifiers.filter(n => !n.isZero());
   }
 

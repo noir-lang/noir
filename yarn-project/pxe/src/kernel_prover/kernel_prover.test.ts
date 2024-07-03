@@ -2,8 +2,8 @@ import { Note, type ProofCreator } from '@aztec/circuit-types';
 import {
   FunctionData,
   FunctionSelector,
-  MAX_NEW_NOTE_HASHES_PER_CALL,
-  MAX_NEW_NOTE_HASHES_PER_TX,
+  MAX_NOTE_HASHES_PER_CALL,
+  MAX_NOTE_HASHES_PER_TX,
   MembershipWitness,
   NESTED_RECURSIVE_PROOF_LENGTH,
   NoteHash,
@@ -56,8 +56,8 @@ describe('Kernel Prover', () => {
 
   const createExecutionResult = (fnName: string, newNoteIndices: number[] = []): ExecutionResult => {
     const publicInputs = PrivateCircuitPublicInputs.empty();
-    publicInputs.newNoteHashes = makeTuple(
-      MAX_NEW_NOTE_HASHES_PER_CALL,
+    publicInputs.noteHashes = makeTuple(
+      MAX_NOTE_HASHES_PER_CALL,
       i =>
         i < newNoteIndices.length
           ? new NoteHash(generateFakeCommitment(notesAndSlots[newNoteIndices[i]]), 0)
@@ -86,7 +86,7 @@ describe('Kernel Prover', () => {
 
   const createProofOutput = (newNoteIndices: number[]) => {
     const publicInputs = PrivateKernelCircuitPublicInputs.empty();
-    const noteHashes = makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, ScopedNoteHash.empty);
+    const noteHashes = makeTuple(MAX_NOTE_HASHES_PER_TX, ScopedNoteHash.empty);
     for (let i = 0; i < newNoteIndices.length; i++) {
       noteHashes[i] = new NoteHash(generateFakeSiloedCommitment(notesAndSlots[newNoteIndices[i]]), 0).scope(
         0,
@@ -94,7 +94,7 @@ describe('Kernel Prover', () => {
       );
     }
 
-    publicInputs.end.newNoteHashes = noteHashes;
+    publicInputs.end.noteHashes = noteHashes;
     return {
       publicInputs,
       proof: makeRecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>(NESTED_RECURSIVE_PROOF_LENGTH),
@@ -104,11 +104,11 @@ describe('Kernel Prover', () => {
 
   const createProofOutputFinal = (newNoteIndices: number[]) => {
     const publicInputs = PrivateKernelTailCircuitPublicInputs.empty();
-    const noteHashes = makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, () => Fr.ZERO);
+    const noteHashes = makeTuple(MAX_NOTE_HASHES_PER_TX, () => Fr.ZERO);
     for (let i = 0; i < newNoteIndices.length; i++) {
       noteHashes[i] = generateFakeSiloedCommitment(notesAndSlots[newNoteIndices[i]]);
     }
-    publicInputs.forRollup!.end.newNoteHashes = noteHashes;
+    publicInputs.forRollup!.end.noteHashes = noteHashes;
 
     return {
       publicInputs,
@@ -161,7 +161,7 @@ describe('Kernel Prover', () => {
 
     proofCreator = mock<ProofCreator>();
     proofCreator.getSiloedCommitments.mockImplementation(publicInputs =>
-      Promise.resolve(publicInputs.newNoteHashes.map(com => createFakeSiloedCommitment(com.value))),
+      Promise.resolve(publicInputs.noteHashes.map(com => createFakeSiloedCommitment(com.value))),
     );
     proofCreator.createProofInit.mockResolvedValue(createProofOutput([]));
     proofCreator.createProofInner.mockResolvedValue(createProofOutput([]));

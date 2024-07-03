@@ -8,7 +8,7 @@ use dep::types::{
     kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
     private_call_request::ScopedPrivateCallRequest
 },
-    constants::MAX_NEW_NOTE_HASHES_PER_CALL, tests::fixture_builder::FixtureBuilder,
+    constants::MAX_NOTE_HASHES_PER_CALL, tests::fixture_builder::FixtureBuilder,
     transaction::tx_request::TxRequest
 };
 
@@ -16,7 +16,7 @@ struct PrivateKernelCircuitPublicInputsComposerBuilder {
     tx_request: TxRequest,
     previous_kernel: FixtureBuilder,
     private_call: FixtureBuilder,
-    note_hash_nullifier_counters: [u32; MAX_NEW_NOTE_HASHES_PER_CALL],
+    note_hash_nullifier_counters: [u32; MAX_NOTE_HASHES_PER_CALL],
 }
 
 impl PrivateKernelCircuitPublicInputsComposerBuilder {
@@ -28,7 +28,7 @@ impl PrivateKernelCircuitPublicInputsComposerBuilder {
         private_call.value_offset = 9999;
 
         let tx_request = private_call.build_tx_request();
-        let note_hash_nullifier_counters = [0; MAX_NEW_NOTE_HASHES_PER_CALL];
+        let note_hash_nullifier_counters = [0; MAX_NOTE_HASHES_PER_CALL];
         PrivateKernelCircuitPublicInputsComposerBuilder { tx_request, previous_kernel, private_call, note_hash_nullifier_counters }
     }
 

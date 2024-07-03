@@ -39,11 +39,11 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
   private contractStorageUpdateRequests: ContractStorageUpdateRequest[] = [];
 
   private noteHashReadRequests: ReadRequest[] = [];
-  private newNoteHashes: NoteHash[] = [];
+  private noteHashes: NoteHash[] = [];
 
   private nullifierReadRequests: ReadRequest[] = [];
   private nullifierNonExistentReadRequests: ReadRequest[] = [];
-  private newNullifiers: Nullifier[] = [];
+  private nullifiers: Nullifier[] = [];
 
   private l1ToL2MsgReadRequests: ReadRequest[] = [];
   private newL2ToL1Messages: L2ToL1Message[] = [];
@@ -122,7 +122,7 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
     // IS there, and the AVM circuit should accept THAT noteHash as a hint. The circuit will then compare
     // the noteHash against the one provided by the user code to determine what to return to the user (exists or not),
     // and will then propagate the actually-present noteHash to its public inputs.
-    this.newNoteHashes.push(new NoteHash(noteHash, this.sideEffectCounter));
+    this.noteHashes.push(new NoteHash(noteHash, this.sideEffectCounter));
     this.logger.debug(`NEW_NOTE_HASH cnt: ${this.sideEffectCounter}`);
     this.incrementSideEffectCounter();
   }
@@ -147,7 +147,7 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
   public traceNewNullifier(_storageAddress: Fr, nullifier: Fr) {
     // TODO(4805): check if some threshold is reached for max new nullifier
     // NOTE: storageAddress is unused but will be important when an AVM circuit processes an entire enqueued call
-    this.newNullifiers.push(new Nullifier(nullifier, this.sideEffectCounter, /*noteHash=*/ Fr.ZERO));
+    this.nullifiers.push(new Nullifier(nullifier, this.sideEffectCounter, /*noteHash=*/ Fr.ZERO));
     this.logger.debug(`NEW_NULLIFIER cnt: ${this.sideEffectCounter}`);
     this.incrementSideEffectCounter();
   }
@@ -294,12 +294,12 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
       contractStorageReads: this.contractStorageReads,
       contractStorageUpdateRequests: this.contractStorageUpdateRequests,
       noteHashReadRequests: this.noteHashReadRequests,
-      newNoteHashes: this.newNoteHashes,
+      noteHashes: this.noteHashes,
       nullifierReadRequests: this.nullifierReadRequests,
       nullifierNonExistentReadRequests: this.nullifierNonExistentReadRequests,
-      newNullifiers: this.newNullifiers,
+      nullifiers: this.nullifiers,
       l1ToL2MsgReadRequests: this.l1ToL2MsgReadRequests,
-      newL2ToL1Messages: this.newL2ToL1Messages,
+      l2ToL1Messages: this.newL2ToL1Messages,
       // correct the type on these now that they are finalized (lists won't grow)
       unencryptedLogs: new UnencryptedFunctionL2Logs(this.unencryptedLogs),
       allUnencryptedLogs: new UnencryptedFunctionL2Logs(this.allUnencryptedLogs),

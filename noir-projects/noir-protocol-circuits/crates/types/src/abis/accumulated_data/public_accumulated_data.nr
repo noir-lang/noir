@@ -4,17 +4,17 @@ use crate::{
     note_hash::NoteHash, nullifier::Nullifier, log_hash::{LogHash, NoteLogHash}
 },
     constants::{
-    MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-    MAX_NEW_L2_TO_L1_MSGS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX,
+    MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+    MAX_L2_TO_L1_MSGS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX,
     MAX_UNENCRYPTED_LOGS_PER_TX, MAX_NOTE_ENCRYPTED_LOGS_PER_TX, PUBLIC_ACCUMULATED_DATA_LENGTH
 },
     traits::{Empty, Serialize, Deserialize}, utils::reader::Reader
 };
 
 struct PublicAccumulatedData {
-    new_note_hashes: [NoteHash; MAX_NEW_NOTE_HASHES_PER_TX],
-    new_nullifiers: [Nullifier; MAX_NEW_NULLIFIERS_PER_TX],
-    new_l2_to_l1_msgs: [Field; MAX_NEW_L2_TO_L1_MSGS_PER_TX],
+    note_hashes: [NoteHash; MAX_NOTE_HASHES_PER_TX],
+    nullifiers: [Nullifier; MAX_NULLIFIERS_PER_TX],
+    l2_to_l1_msgs: [Field; MAX_L2_TO_L1_MSGS_PER_TX],
 
     note_encrypted_logs_hashes: [LogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
     encrypted_logs_hashes: [LogHash; MAX_ENCRYPTED_LOGS_PER_TX],
@@ -30,9 +30,9 @@ struct PublicAccumulatedData {
 impl Empty for PublicAccumulatedData {
     fn empty() -> Self {
         PublicAccumulatedData {
-            new_note_hashes: [NoteHash::empty(); MAX_NEW_NOTE_HASHES_PER_TX],
-            new_nullifiers: [Nullifier::empty(); MAX_NEW_NULLIFIERS_PER_TX],
-            new_l2_to_l1_msgs: [0; MAX_NEW_L2_TO_L1_MSGS_PER_TX],
+            note_hashes: [NoteHash::empty(); MAX_NOTE_HASHES_PER_TX],
+            nullifiers: [Nullifier::empty(); MAX_NULLIFIERS_PER_TX],
+            l2_to_l1_msgs: [0; MAX_L2_TO_L1_MSGS_PER_TX],
             note_encrypted_logs_hashes: [LogHash::empty(); MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
             encrypted_logs_hashes: [LogHash::empty(); MAX_ENCRYPTED_LOGS_PER_TX],
             unencrypted_logs_hashes: [LogHash::empty(); MAX_UNENCRYPTED_LOGS_PER_TX],
@@ -47,15 +47,15 @@ impl Serialize<PUBLIC_ACCUMULATED_DATA_LENGTH> for PublicAccumulatedData {
     fn serialize(self) -> [Field; PUBLIC_ACCUMULATED_DATA_LENGTH] {
         let mut fields: BoundedVec<Field, PUBLIC_ACCUMULATED_DATA_LENGTH> = BoundedVec::new();
 
-        for i in 0..MAX_NEW_NOTE_HASHES_PER_TX {
-          fields.extend_from_array(self.new_note_hashes[i].serialize());
+        for i in 0..MAX_NOTE_HASHES_PER_TX {
+          fields.extend_from_array(self.note_hashes[i].serialize());
         }
 
-        for i in 0..MAX_NEW_NULLIFIERS_PER_TX {
-          fields.extend_from_array(self.new_nullifiers[i].serialize());
+        for i in 0..MAX_NULLIFIERS_PER_TX {
+          fields.extend_from_array(self.nullifiers[i].serialize());
         }
 
-        fields.extend_from_array(self.new_l2_to_l1_msgs);
+        fields.extend_from_array(self.l2_to_l1_msgs);
 
         for i in 0..MAX_NOTE_ENCRYPTED_LOGS_PER_TX {
           fields.extend_from_array(self.note_encrypted_logs_hashes[i].serialize());
@@ -90,9 +90,9 @@ impl Deserialize<PUBLIC_ACCUMULATED_DATA_LENGTH> for PublicAccumulatedData {
     let mut reader = Reader::new(fields);
 
     let item = PublicAccumulatedData {
-        new_note_hashes: reader.read_struct_array(NoteHash::deserialize, [NoteHash::empty(); MAX_NEW_NOTE_HASHES_PER_TX]),
-        new_nullifiers: reader.read_struct_array(Nullifier::deserialize, [Nullifier::empty(); MAX_NEW_NULLIFIERS_PER_TX]),
-        new_l2_to_l1_msgs: reader.read_array([0; MAX_NEW_L2_TO_L1_MSGS_PER_TX]),
+        note_hashes: reader.read_struct_array(NoteHash::deserialize, [NoteHash::empty(); MAX_NOTE_HASHES_PER_TX]),
+        nullifiers: reader.read_struct_array(Nullifier::deserialize, [Nullifier::empty(); MAX_NULLIFIERS_PER_TX]),
+        l2_to_l1_msgs: reader.read_array([0; MAX_L2_TO_L1_MSGS_PER_TX]),
         note_encrypted_logs_hashes: reader.read_struct_array(LogHash::deserialize, [LogHash::empty(); MAX_NOTE_ENCRYPTED_LOGS_PER_TX]),
         encrypted_logs_hashes: reader.read_struct_array(LogHash::deserialize, [LogHash::empty(); MAX_ENCRYPTED_LOGS_PER_TX]),
         unencrypted_logs_hashes: reader.read_struct_array(LogHash::deserialize, [LogHash::empty(); MAX_UNENCRYPTED_LOGS_PER_TX]),
@@ -107,9 +107,9 @@ impl Deserialize<PUBLIC_ACCUMULATED_DATA_LENGTH> for PublicAccumulatedData {
 
 impl Eq for PublicAccumulatedData {
   fn eq(self, other: Self) -> bool {
-    (self.new_note_hashes == other.new_note_hashes) &
-    (self.new_nullifiers == other.new_nullifiers) &
-    (self.new_l2_to_l1_msgs == other.new_l2_to_l1_msgs) &
+    (self.note_hashes == other.note_hashes) &
+    (self.nullifiers == other.nullifiers) &
+    (self.l2_to_l1_msgs == other.l2_to_l1_msgs) &
     (self.note_encrypted_logs_hashes == other.note_encrypted_logs_hashes) &
     (self.encrypted_logs_hashes == other.encrypted_logs_hashes) &
     (self.unencrypted_logs_hashes == other.unencrypted_logs_hashes) &

@@ -66,9 +66,9 @@ impl TailToPublicOutputValidator {
         let output_non_revertible = self.output.end_non_revertible;
         let output_revertible = self.output.end;
 
-        // new_note_hashes
-        let first_nullifier = output_non_revertible.new_nullifiers[0].value;
-        let unsiloed_note_hashes = prev_data.new_note_hashes;
+        // note_hashes
+        let first_nullifier = output_non_revertible.nullifiers[0].value;
+        let unsiloed_note_hashes = prev_data.note_hashes;
         for i in 0..unsiloed_note_hashes.len() {
             let siloed_note_hash = silo_note_hash(unsiloed_note_hashes[i], first_nullifier, i);
             assert_eq(hints.siloed_note_hashes[i].value, siloed_note_hash, "mismatch siloed note hashes");
@@ -76,43 +76,43 @@ impl TailToPublicOutputValidator {
         }
 
         assert_split_sorted_transformed_value_arrays_asc(
-            prev_data.new_note_hashes,
+            prev_data.note_hashes,
             hints.siloed_note_hashes,
             split_counter,
-            output_non_revertible.new_note_hashes,
-            output_revertible.new_note_hashes,
+            output_non_revertible.note_hashes,
+            output_revertible.note_hashes,
             hints.sorted_note_hash_hints
         );
 
-        // new_nullifiers
+        // nullifiers
         validate_value_transformation(
-            prev_data.new_nullifiers,
+            prev_data.nullifiers,
             hints.siloed_nullifiers,
             |sn, n: Nullifier| (n.value == silo_nullifier(sn)) & (n.counter == 0) & (n.note_hash == 0)
         );
         assert_split_sorted_transformed_value_arrays_asc(
-            prev_data.new_nullifiers,
+            prev_data.nullifiers,
             hints.siloed_nullifiers,
             split_counter,
-            output_non_revertible.new_nullifiers,
-            output_revertible.new_nullifiers,
+            output_non_revertible.nullifiers,
+            output_revertible.nullifiers,
             hints.sorted_nullifier_hints
         );
 
-        // new_l2_to_l1_msgs
+        // l2_to_l1_msgs
         let tx_context = self.previous_kernel.constants.tx_context;
         validate_transformed_values(
-            prev_data.new_l2_to_l1_msgs,
+            prev_data.l2_to_l1_msgs,
             hints.siloed_l2_to_l1_msgs,
             |msg| silo_l2_to_l1_message(msg, tx_context.version, tx_context.chain_id)
         );
 
         assert_split_sorted_transformed_value_arrays_asc(
-            prev_data.new_l2_to_l1_msgs,
+            prev_data.l2_to_l1_msgs,
             hints.siloed_l2_to_l1_msgs,
             split_counter,
-            output_non_revertible.new_l2_to_l1_msgs,
-            output_revertible.new_l2_to_l1_msgs,
+            output_non_revertible.l2_to_l1_msgs,
+            output_revertible.l2_to_l1_msgs,
             hints.sorted_l2_to_l1_msg_hints
         );
 

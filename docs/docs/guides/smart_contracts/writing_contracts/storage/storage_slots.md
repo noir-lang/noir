@@ -35,7 +35,7 @@ sequenceDiagram
     TokenNote->>Utils: note_hash = H(amount, to, randomness)
     Utils->>NoteHash: compute_inner_hash(derived_slot, note_hash)
     NoteHash->>LifeCycle: inner_note_hash = H(derived_slot, note_hash)
-    LifeCycle->>Context: push_new_note_hash(inner_note_hash)
+    LifeCycle->>Context: push_note_hash(inner_note_hash)
     end
     Context->>Kernel: siloed_note_hash = H(contract_address, inner_note_hash)
 ```

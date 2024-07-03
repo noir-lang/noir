@@ -56,7 +56,7 @@ impl PublicContext {
         );
 
         // Push nullifier (and the "commitment" corresponding to this can be "empty")
-        self.push_new_nullifier(nullifier, 0);
+        self.push_nullifier(nullifier, 0);
     }
 
     fn message_portal(&mut self, recipient: EthAddress, content: Field) {
@@ -111,10 +111,10 @@ impl PublicContext {
         FunctionReturns::new([0; RETURNS_COUNT])
     }
 
-    fn push_new_note_hash(&mut self, note_hash: Field) {
+    fn push_note_hash(&mut self, note_hash: Field) {
         emit_note_hash(note_hash);
     }
-    fn push_new_nullifier(&mut self, nullifier: Field, _nullified_commitment: Field) {
+    fn push_nullifier(&mut self, nullifier: Field, _nullified_commitment: Field) {
         // Cannot nullify pending commitments in AVM, so `nullified_commitment` is not used
         emit_nullifier(nullifier);
     }

@@ -25,11 +25,11 @@ fn new_from_tx_request_succeeds() {
     assert(is_empty(output.constants.global_variables));
 
     // Check first nullifier is set.
-    assert_eq(output.end.new_nullifiers[0], first_nullifier);
+    assert_eq(output.end.nullifiers[0], first_nullifier);
 
     let array_lengths = PrivateKernelCircuitPublicInputsArrayLengths::new(output);
     let mut expected_array_lengths = PrivateKernelCircuitPublicInputsArrayLengths::empty();
-    expected_array_lengths.new_nullifiers = 1;
+    expected_array_lengths.nullifiers = 1;
     assert_eq(array_lengths, expected_array_lengths);
 
     // Check values default to empty.

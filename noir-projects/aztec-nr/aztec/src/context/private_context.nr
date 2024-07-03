@@ -23,7 +23,7 @@ use dep::protocol_types::{
 },
     address::{AztecAddress, EthAddress},
     constants::{
-    MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
+    MAX_NOTE_HASHES_PER_CALL, MAX_L2_TO_L1_MSGS_PER_CALL, MAX_NULLIFIERS_PER_CALL,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
     MAX_KEY_VALIDATION_REQUESTS_PER_CALL, MAX_ENCRYPTED_LOGS_PER_CALL, MAX_UNENCRYPTED_LOGS_PER_CALL,
@@ -50,13 +50,13 @@ struct PrivateContext {
     nullifier_read_requests: BoundedVec<ReadRequest, MAX_NULLIFIER_READ_REQUESTS_PER_CALL>,
     key_validation_requests_and_generators: BoundedVec<KeyValidationRequestAndGenerator, MAX_KEY_VALIDATION_REQUESTS_PER_CALL>,
 
-    new_note_hashes: BoundedVec<NoteHash, MAX_NEW_NOTE_HASHES_PER_CALL>,
-    new_nullifiers: BoundedVec<Nullifier, MAX_NEW_NULLIFIERS_PER_CALL>,
+    note_hashes: BoundedVec<NoteHash, MAX_NOTE_HASHES_PER_CALL>,
+    nullifiers: BoundedVec<Nullifier, MAX_NULLIFIERS_PER_CALL>,
 
     private_call_requests : BoundedVec<PrivateCallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
     public_call_stack_hashes : BoundedVec<Field, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
     public_teardown_function_hash: Field,
-    new_l2_to_l1_msgs : BoundedVec<L2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
+    l2_to_l1_msgs : BoundedVec<L2ToL1Message, MAX_L2_TO_L1_MSGS_PER_CALL>,
     // docs:end:private-context
 
     // Header of a block whose state is used during private execution (not the block the transaction is included in).
@@ -85,13 +85,13 @@ impl PrivateContext {
             note_hash_read_requests: BoundedVec::new(),
             nullifier_read_requests: BoundedVec::new(),
             key_validation_requests_and_generators: BoundedVec::new(),
-            new_note_hashes: BoundedVec::new(),
-            new_nullifiers: BoundedVec::new(),
+            note_hashes: BoundedVec::new(),
+            nullifiers: BoundedVec::new(),
             historical_header: inputs.historical_header,
             private_call_requests: BoundedVec::new(),
             public_call_stack_hashes: BoundedVec::new(),
             public_teardown_function_hash: 0,
-            new_l2_to_l1_msgs: BoundedVec::new(),
+            l2_to_l1_msgs: BoundedVec::new(),
             note_encrypted_logs_hashes: BoundedVec::new(),
             encrypted_logs_hashes: BoundedVec::new(),
             unencrypted_logs_hashes: BoundedVec::new(),
@@ -123,14 +123,14 @@ impl PrivateContext {
         self.args_hash
     }
 
-    fn push_new_note_hash(&mut self, note_hash: Field) {
-        self.new_note_hashes.push(NoteHash { value: note_hash, counter: self.next_counter() });
+    fn push_note_hash(&mut self, note_hash: Field) {
+        self.note_hashes.push(NoteHash { value: note_hash, counter: self.next_counter() });
     }
 
     // TODO(#7112): This function is called with non-zero note hash only in 1 of 25 cases in aztec-packages repo
     // - consider creating a separate function with 1 arg for the zero note hash case.
-    fn push_new_nullifier(&mut self, nullifier: Field, nullified_note_hash: Field) {
-        self.new_nullifiers.push(Nullifier { value: nullifier, note_hash: nullified_note_hash, counter: self.next_counter() });
+    fn push_nullifier(&mut self, nullifier: Field, nullified_note_hash: Field) {
+        self.nullifiers.push(Nullifier { value: nullifier, note_hash: nullified_note_hash, counter: self.next_counter() });
     }
 
     // Returns the header of a block whose state is used during private execution (not the block the transaction is
@@ -161,12 +161,12 @@ impl PrivateContext {
             note_hash_read_requests: self.note_hash_read_requests.storage,
             nullifier_read_requests: self.nullifier_read_requests.storage,
             key_validation_requests_and_generators: self.key_validation_requests_and_generators.storage,
-            new_note_hashes: self.new_note_hashes.storage,
-            new_nullifiers: self.new_nullifiers.storage,
+            note_hashes: self.note_hashes.storage,
+            nullifiers: self.nullifiers.storage,
             private_call_requests: self.private_call_requests.storage,
             public_call_stack_hashes: self.public_call_stack_hashes.storage,
             public_teardown_function_hash: self.public_teardown_function_hash,
-            new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
+            l2_to_l1_msgs: self.l2_to_l1_msgs.storage,
             start_side_effect_counter: self.inputs.start_side_effect_counter,
             end_side_effect_counter: self.side_effect_counter,
             note_encrypted_logs_hashes: self.note_encrypted_logs_hashes.storage,
@@ -238,7 +238,7 @@ impl PrivateContext {
     pub fn message_portal(&mut self, recipient: EthAddress, content: Field) {
         // docs:end:context_message_portal
         let message = L2ToL1Message { recipient, content, counter: self.next_counter() };
-        self.new_l2_to_l1_msgs.push(message);
+        self.l2_to_l1_msgs.push(message);
     }
 
     // docs:start:context_consume_l1_to_l2_message
@@ -256,7 +256,7 @@ impl PrivateContext {
         );
 
         // Push nullifier (and the "commitment" corresponding to this can be "empty")
-        self.push_new_nullifier(nullifier, 0)
+        self.push_nullifier(nullifier, 0)
     }
     // docs:end:consume_l1_to_l2_message
 
@@ -598,12 +598,12 @@ impl Empty for PrivateContext {
             note_hash_read_requests: BoundedVec::new(),
             nullifier_read_requests: BoundedVec::new(),
             key_validation_requests_and_generators: BoundedVec::new(),
-            new_note_hashes: BoundedVec::new(),
-            new_nullifiers: BoundedVec::new(),
+            note_hashes: BoundedVec::new(),
+            nullifiers: BoundedVec::new(),
             private_call_requests: BoundedVec::new(),
             public_call_stack_hashes: BoundedVec::new(),
             public_teardown_function_hash: 0,
-            new_l2_to_l1_msgs: BoundedVec::new(),
+            l2_to_l1_msgs: BoundedVec::new(),
             historical_header: Header::empty(),
             note_encrypted_logs_hashes: BoundedVec::new(),
             encrypted_logs_hashes: BoundedVec::new(),

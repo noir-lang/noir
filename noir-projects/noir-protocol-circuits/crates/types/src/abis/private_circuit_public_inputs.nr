@@ -7,9 +7,9 @@ use crate::{
 },
     constants::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
-    MAX_KEY_VALIDATION_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
+    MAX_KEY_VALIDATION_REQUESTS_PER_CALL, MAX_NOTE_HASHES_PER_CALL, MAX_NULLIFIERS_PER_CALL,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-    MAX_NEW_L2_TO_L1_MSGS_PER_CALL, PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH,
+    MAX_L2_TO_L1_MSGS_PER_CALL, PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH,
     GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS, MAX_ENCRYPTED_LOGS_PER_CALL,
     MAX_UNENCRYPTED_LOGS_PER_CALL, MAX_NOTE_ENCRYPTED_LOGS_PER_CALL
 },
@@ -22,9 +22,9 @@ struct PrivateCircuitPublicInputsArrayLengths {
     note_hash_read_requests: u32,
     nullifier_read_requests: u32,
     key_validation_requests_and_generators: u32,
-    new_note_hashes: u32,
-    new_nullifiers: u32,
-    new_l2_to_l1_msgs: u32,
+    note_hashes: u32,
+    nullifiers: u32,
+    l2_to_l1_msgs: u32,
     private_call_requests: u32,
     public_call_stack_hashes: u32,
     note_encrypted_logs_hashes: u32,
@@ -38,9 +38,9 @@ impl PrivateCircuitPublicInputsArrayLengths {
             note_hash_read_requests: validate_array(public_inputs.note_hash_read_requests),
             nullifier_read_requests: validate_array(public_inputs.nullifier_read_requests),
             key_validation_requests_and_generators: validate_array(public_inputs.key_validation_requests_and_generators),
-            new_note_hashes: validate_array(public_inputs.new_note_hashes),
-            new_nullifiers: validate_array(public_inputs.new_nullifiers),
-            new_l2_to_l1_msgs: validate_array(public_inputs.new_l2_to_l1_msgs),
+            note_hashes: validate_array(public_inputs.note_hashes),
+            nullifiers: validate_array(public_inputs.nullifiers),
+            l2_to_l1_msgs: validate_array(public_inputs.l2_to_l1_msgs),
             private_call_requests: validate_array(public_inputs.private_call_requests),
             public_call_stack_hashes: validate_array(public_inputs.public_call_stack_hashes),
             note_encrypted_logs_hashes: validate_array(public_inputs.note_encrypted_logs_hashes),
@@ -65,12 +65,12 @@ struct PrivateCircuitPublicInputs {
     nullifier_read_requests: [ReadRequest; MAX_NULLIFIER_READ_REQUESTS_PER_CALL],
     key_validation_requests_and_generators: [KeyValidationRequestAndGenerator; MAX_KEY_VALIDATION_REQUESTS_PER_CALL],
 
-    new_note_hashes: [NoteHash; MAX_NEW_NOTE_HASHES_PER_CALL],
-    new_nullifiers: [Nullifier; MAX_NEW_NULLIFIERS_PER_CALL],
+    note_hashes: [NoteHash; MAX_NOTE_HASHES_PER_CALL],
+    nullifiers: [Nullifier; MAX_NULLIFIERS_PER_CALL],
     private_call_requests: [PrivateCallRequest; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],
     public_call_stack_hashes: [Field; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
     public_teardown_function_hash: Field,
-    new_l2_to_l1_msgs: [L2ToL1Message; MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
+    l2_to_l1_msgs: [L2ToL1Message; MAX_L2_TO_L1_MSGS_PER_CALL],
 
     start_side_effect_counter : u32,
     end_side_effect_counter : u32,
@@ -98,11 +98,11 @@ impl Eq for PrivateCircuitPublicInputs {
         (self.note_hash_read_requests == other.note_hash_read_requests) &
         (self.nullifier_read_requests == other.nullifier_read_requests) &
         (self.key_validation_requests_and_generators == other.key_validation_requests_and_generators) &
-        (self.new_note_hashes == other.new_note_hashes) &
-        (self.new_nullifiers == other.new_nullifiers) &
+        (self.note_hashes == other.note_hashes) &
+        (self.nullifiers == other.nullifiers) &
         (self.private_call_requests == other.private_call_requests) &
         (self.public_call_stack_hashes == other.public_call_stack_hashes) &
-        (self.new_l2_to_l1_msgs == other.new_l2_to_l1_msgs) &
+        (self.l2_to_l1_msgs == other.l2_to_l1_msgs) &
         (self.start_side_effect_counter == other.start_side_effect_counter) &
         (self.end_side_effect_counter == other.end_side_effect_counter) &
         (self.note_encrypted_logs_hashes == other.note_encrypted_logs_hashes) &
@@ -134,19 +134,19 @@ impl Serialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicInp
         for i in 0..self.key_validation_requests_and_generators.len() {
             fields.extend_from_array(self.key_validation_requests_and_generators[i].serialize());
         }
-        for i in 0..self.new_note_hashes.len() {
-            fields.extend_from_array(self.new_note_hashes[i].serialize());
+        for i in 0..self.note_hashes.len() {
+            fields.extend_from_array(self.note_hashes[i].serialize());
         }
-        for i in 0..self.new_nullifiers.len() {
-            fields.extend_from_array(self.new_nullifiers[i].serialize());
+        for i in 0..self.nullifiers.len() {
+            fields.extend_from_array(self.nullifiers[i].serialize());
         }
         for i in 0..self.private_call_requests.len() {
             fields.extend_from_array(self.private_call_requests[i].serialize());
         }
         fields.extend_from_array(self.public_call_stack_hashes);
         fields.push(self.public_teardown_function_hash);
-        for i in 0..self.new_l2_to_l1_msgs.len() {
-            fields.extend_from_array(self.new_l2_to_l1_msgs[i].serialize());
+        for i in 0..self.l2_to_l1_msgs.len() {
+            fields.extend_from_array(self.l2_to_l1_msgs[i].serialize());
         }
         fields.push(self.start_side_effect_counter as Field);
         fields.push(self.end_side_effect_counter as Field);
@@ -182,12 +182,12 @@ impl Deserialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicI
             note_hash_read_requests: reader.read_struct_array(ReadRequest::deserialize, [ReadRequest::empty(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL]),
             nullifier_read_requests: reader.read_struct_array(ReadRequest::deserialize, [ReadRequest::empty(); MAX_NULLIFIER_READ_REQUESTS_PER_CALL]),
             key_validation_requests_and_generators: reader.read_struct_array(KeyValidationRequestAndGenerator::deserialize, [KeyValidationRequestAndGenerator::empty(); MAX_KEY_VALIDATION_REQUESTS_PER_CALL]),
-            new_note_hashes: reader.read_struct_array(NoteHash::deserialize, [NoteHash::empty(); MAX_NEW_NOTE_HASHES_PER_CALL]),
-            new_nullifiers: reader.read_struct_array(Nullifier::deserialize, [Nullifier::empty(); MAX_NEW_NULLIFIERS_PER_CALL]),
+            note_hashes: reader.read_struct_array(NoteHash::deserialize, [NoteHash::empty(); MAX_NOTE_HASHES_PER_CALL]),
+            nullifiers: reader.read_struct_array(Nullifier::deserialize, [Nullifier::empty(); MAX_NULLIFIERS_PER_CALL]),
             private_call_requests: reader.read_struct_array(PrivateCallRequest::deserialize, [PrivateCallRequest::empty(); MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL]),
             public_call_stack_hashes: reader.read_array([0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL]),
             public_teardown_function_hash: reader.read(),
-            new_l2_to_l1_msgs: reader.read_struct_array(L2ToL1Message::deserialize, [L2ToL1Message::empty(); MAX_NEW_L2_TO_L1_MSGS_PER_CALL]),
+            l2_to_l1_msgs: reader.read_struct_array(L2ToL1Message::deserialize, [L2ToL1Message::empty(); MAX_L2_TO_L1_MSGS_PER_CALL]),
             start_side_effect_counter: reader.read() as u32,
             end_side_effect_counter: reader.read() as u32,
             note_encrypted_logs_hashes: reader.read_struct_array(NoteLogHash::deserialize, [NoteLogHash::empty(); MAX_NOTE_ENCRYPTED_LOGS_PER_CALL]),
@@ -220,12 +220,12 @@ impl Empty for PrivateCircuitPublicInputs {
             note_hash_read_requests: [ReadRequest::empty(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
             nullifier_read_requests: [ReadRequest::empty(); MAX_NULLIFIER_READ_REQUESTS_PER_CALL],
             key_validation_requests_and_generators: [KeyValidationRequestAndGenerator::empty(); MAX_KEY_VALIDATION_REQUESTS_PER_CALL],
-            new_note_hashes: [NoteHash::empty(); MAX_NEW_NOTE_HASHES_PER_CALL],
-            new_nullifiers: [Nullifier::empty(); MAX_NEW_NULLIFIERS_PER_CALL],
+            note_hashes: [NoteHash::empty(); MAX_NOTE_HASHES_PER_CALL],
+            nullifiers: [Nullifier::empty(); MAX_NULLIFIERS_PER_CALL],
             private_call_requests: [PrivateCallRequest::empty(); MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],
             public_call_stack_hashes: [0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
             public_teardown_function_hash: 0,
-            new_l2_to_l1_msgs: [L2ToL1Message::empty(); MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
+            l2_to_l1_msgs: [L2ToL1Message::empty(); MAX_L2_TO_L1_MSGS_PER_CALL],
             start_side_effect_counter : 0 as u32,
             end_side_effect_counter : 0 as u32,
             note_encrypted_logs_hashes: [NoteLogHash::empty(); MAX_NOTE_ENCRYPTED_LOGS_PER_CALL],

@@ -3,7 +3,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 
-import { MAX_NEW_NULLIFIERS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX } from '../constants.gen.js';
+import { MAX_NULLIFIERS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX } from '../constants.gen.js';
 import { siloNullifier } from '../hash/index.js';
 import {
   Nullifier,
@@ -19,7 +19,7 @@ describe('buildNullifierNonExistentReadRequestHints', () => {
     getLowNullifierMembershipWitness: () => ({ membershipWitness: {}, leafPreimage: {} } as any),
   };
   const nonExistentReadRequests = makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_TX, ScopedReadRequest.empty);
-  let nullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Nullifier.empty);
+  let nullifiers = makeTuple(MAX_NULLIFIERS_PER_TX, Nullifier.empty);
 
   const innerNullifier = (index: number) => index + 1;
 
@@ -36,8 +36,8 @@ describe('buildNullifierNonExistentReadRequestHints', () => {
     siloedValue: Fr;
   }
 
-  const populateNullifiers = (numNullifiers = MAX_NEW_NULLIFIERS_PER_TX) => {
-    nullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i =>
+  const populateNullifiers = (numNullifiers = MAX_NULLIFIERS_PER_TX) => {
+    nullifiers = makeTuple(MAX_NULLIFIERS_PER_TX, i =>
       i < numNullifiers ? makeNullifier(innerNullifier(i)) : Nullifier.empty(),
     );
   };
@@ -77,7 +77,7 @@ describe('buildNullifierNonExistentReadRequestHints', () => {
   });
 
   it('builds hints for half-full sorted nullifiers', async () => {
-    const numNonEmptyNullifiers = MAX_NEW_NULLIFIERS_PER_TX / 2;
+    const numNonEmptyNullifiers = MAX_NULLIFIERS_PER_TX / 2;
     populateNullifiers(numNonEmptyNullifiers);
 
     const hints = await buildHints();
@@ -103,7 +103,7 @@ describe('buildNullifierNonExistentReadRequestHints', () => {
   });
 
   it('builds hints for read requests', async () => {
-    const numNonEmptyNullifiers = MAX_NEW_NULLIFIERS_PER_TX / 2;
+    const numNonEmptyNullifiers = MAX_NULLIFIERS_PER_TX / 2;
     expect(numNonEmptyNullifiers > 1).toBe(true); // Need at least 2 nullifiers to test a value in the middle.
 
     const sortedNullifiers = generateSortedNullifiers(numNonEmptyNullifiers + 3);
@@ -118,7 +118,7 @@ describe('buildNullifierNonExistentReadRequestHints', () => {
     nullifiers = padArrayEnd(
       sortedNullifiers.map(n => makeNullifier(n.value)),
       Nullifier.empty(),
-      MAX_NEW_NULLIFIERS_PER_TX,
+      MAX_NULLIFIERS_PER_TX,
     );
 
     const hints = await buildHints();

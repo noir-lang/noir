@@ -12,9 +12,9 @@ import {
   GasFees,
   GlobalVariables,
   KernelCircuitPublicInputs,
-  MAX_NEW_L2_TO_L1_MSGS_PER_TX,
-  MAX_NEW_NOTE_HASHES_PER_TX,
-  MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_L2_TO_L1_MSGS_PER_TX,
+  MAX_NOTE_HASHES_PER_TX,
+  MAX_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   NULLIFIER_TREE_HEIGHT,
   PUBLIC_DATA_SUBTREE_HEIGHT,
@@ -96,7 +96,7 @@ export async function getSimulationProvider(
 }
 
 export const makeBloatedProcessedTx = async (builderDb: MerkleTreeOperations, seed = 0x1) => {
-  seed *= MAX_NEW_NULLIFIERS_PER_TX; // Ensure no clashing given incremental seeds
+  seed *= MAX_NULLIFIERS_PER_TX; // Ensure no clashing given incremental seeds
   const tx = mockTx(seed);
   const kernelOutput = KernelCircuitPublicInputs.empty();
   kernelOutput.constants.historicalHeader = await builderDb.buildInitialHeader();
@@ -113,12 +113,12 @@ export const makeBloatedProcessedTx = async (builderDb: MerkleTreeOperations, se
 
   const processedTx = makeProcessedTx(tx, kernelOutput, makeProof(), []);
 
-  processedTx.data.end.newNoteHashes = makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, fr, seed + 0x100);
-  processedTx.data.end.newNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x100000);
+  processedTx.data.end.noteHashes = makeTuple(MAX_NOTE_HASHES_PER_TX, fr, seed + 0x100);
+  processedTx.data.end.nullifiers = makeTuple(MAX_NULLIFIERS_PER_TX, fr, seed + 0x100000);
 
-  processedTx.data.end.newNullifiers[tx.data.forPublic!.end.newNullifiers.length - 1] = Fr.zero();
+  processedTx.data.end.nullifiers[tx.data.forPublic!.end.nullifiers.length - 1] = Fr.zero();
 
-  processedTx.data.end.newL2ToL1Msgs = makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
+  processedTx.data.end.l2ToL1Msgs = makeTuple(MAX_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
   processedTx.data.end.noteEncryptedLogsHash = Fr.fromBuffer(processedTx.noteEncryptedLogs.hash());
   processedTx.data.end.encryptedLogsHash = Fr.fromBuffer(processedTx.encryptedLogs.hash());
   processedTx.data.end.unencryptedLogsHash = Fr.fromBuffer(processedTx.unencryptedLogs.hash());
@@ -137,9 +137,9 @@ export const updateExpectedTreesFromTxs = async (db: MerkleTreeOperations, txs: 
     MerkleTreeId.NOTE_HASH_TREE,
     txs.flatMap(tx =>
       padArrayEnd(
-        tx.data.end.newNoteHashes.filter(x => !x.isZero()),
+        tx.data.end.noteHashes.filter(x => !x.isZero()),
         Fr.zero(),
-        MAX_NEW_NOTE_HASHES_PER_TX,
+        MAX_NOTE_HASHES_PER_TX,
       ),
     ),
   );
@@ -147,9 +147,9 @@ export const updateExpectedTreesFromTxs = async (db: MerkleTreeOperations, txs: 
     MerkleTreeId.NULLIFIER_TREE,
     txs.flatMap(tx =>
       padArrayEnd(
-        tx.data.end.newNullifiers.filter(x => !x.isZero()),
+        tx.data.end.nullifiers.filter(x => !x.isZero()),
         Fr.zero(),
-        MAX_NEW_NULLIFIERS_PER_TX,
+        MAX_NULLIFIERS_PER_TX,
       ).map(x => x.toBuffer()),
     ),
     NULLIFIER_TREE_HEIGHT,

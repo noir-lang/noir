@@ -10,12 +10,12 @@ use dep::types::{
     kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
     private_kernel::private_call_data::PrivateCallData
 },
-    constants::MAX_NEW_NOTE_HASHES_PER_CALL, transaction::tx_request::TxRequest
+    constants::MAX_NOTE_HASHES_PER_CALL, transaction::tx_request::TxRequest
 };
 
 struct PrivateKernelInitHints {
     // TODO: Remove note_hash_nullifier_counters.
-    note_hash_nullifier_counters: [u32; MAX_NEW_NOTE_HASHES_PER_CALL],
+    note_hash_nullifier_counters: [u32; MAX_NOTE_HASHES_PER_CALL],
 }
 
 // Initialization struct for private inputs to the private kernel
@@ -45,7 +45,7 @@ impl PrivateKernelInitCircuitPrivateInputs {
         let private_call_data_validator = PrivateCallDataValidator::new(self.private_call);
         private_call_data_validator.validate_as_first_call();
         private_call_data_validator.validate_against_tx_request(self.tx_request);
-        private_call_data_validator.validate(output.end.new_note_hashes);
+        private_call_data_validator.validate(output.end.note_hashes);
         if !std::runtime::is_unconstrained() {
             // verify/aggregate the private call proof
             self.private_call.verify();
@@ -71,7 +71,7 @@ mod tests {
     use crate::private_kernel_init::{PrivateKernelInitHints, PrivateKernelInitCircuitPrivateInputs};
     use dep::types::{
         abis::{kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs},
-        constants::MAX_NEW_NOTE_HASHES_PER_CALL,
+        constants::MAX_NOTE_HASHES_PER_CALL,
         tests::{fixture_builder::FixtureBuilder, utils::assert_array_eq},
         transaction::tx_request::TxRequest
     };
@@ -86,7 +86,7 @@ mod tests {
         pub fn new() -> Self {
             let private_call = FixtureBuilder::new();
             let tx_request = private_call.build_tx_request();
-            let hints = PrivateKernelInitHints { note_hash_nullifier_counters: [0; MAX_NEW_NOTE_HASHES_PER_CALL] };
+            let hints = PrivateKernelInitHints { note_hash_nullifier_counters: [0; MAX_NOTE_HASHES_PER_CALL] };
             PrivateKernelInitInputsBuilder { tx_request, private_call, hints }
         }
 

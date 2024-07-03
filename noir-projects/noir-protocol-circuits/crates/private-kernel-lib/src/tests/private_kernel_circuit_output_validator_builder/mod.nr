@@ -15,14 +15,14 @@ use dep::types::{
     kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputsArrayLengths,
     private_circuit_public_inputs::PrivateCircuitPublicInputsArrayLengths
 },
-    constants::MAX_NEW_NOTE_HASHES_PER_CALL, tests::{fixture_builder::FixtureBuilder},
+    constants::MAX_NOTE_HASHES_PER_CALL, tests::{fixture_builder::FixtureBuilder},
     transaction::tx_request::TxRequest
 };
 
 struct PrivateKernelCircuitOutputValidatorBuilder {
     previous_kernel: FixtureBuilder,
     private_call: FixtureBuilder,
-    note_hash_nullifier_counters: [u32; MAX_NEW_NOTE_HASHES_PER_CALL],
+    note_hash_nullifier_counters: [u32; MAX_NOTE_HASHES_PER_CALL],
     output: FixtureBuilder,
     tx_request: TxRequest,
 }
@@ -31,12 +31,12 @@ impl PrivateKernelCircuitOutputValidatorBuilder {
     pub fn new() -> Self {
         let mut previous_kernel = FixtureBuilder::new();
         let private_call = FixtureBuilder::new();
-        let note_hash_nullifier_counters = [0; MAX_NEW_NOTE_HASHES_PER_CALL];
+        let note_hash_nullifier_counters = [0; MAX_NOTE_HASHES_PER_CALL];
         let mut output = FixtureBuilder::new();
         let tx_request = output.build_tx_request();
         let first_nullifier = create_first_nullifier(tx_request);
-        output.new_nullifiers.push(first_nullifier);
-        previous_kernel.new_nullifiers.push(first_nullifier);
+        output.nullifiers.push(first_nullifier);
+        previous_kernel.nullifiers.push(first_nullifier);
         PrivateKernelCircuitOutputValidatorBuilder { previous_kernel, private_call, note_hash_nullifier_counters, output, tx_request }
     }
 

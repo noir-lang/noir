@@ -12,43 +12,43 @@ pub fn split_to_public(
     let mut non_revertible_builder = PublicAccumulatedDataBuilder::empty();
     let mut revertible_builder = PublicAccumulatedDataBuilder::empty();
 
-    let note_hashes = data.new_note_hashes;
+    let note_hashes = data.note_hashes;
     for i in 0..note_hashes.max_len() {
         if i < note_hashes.len() {
             let note_hash = note_hashes.get_unchecked(i);
             let public_note_hash = note_hash.expose_to_public();
             if note_hash.counter() < min_revertible_side_effect_counter {
-                non_revertible_builder.new_note_hashes.push(public_note_hash);
+                non_revertible_builder.note_hashes.push(public_note_hash);
             } else {
-                revertible_builder.new_note_hashes.push(public_note_hash);
+                revertible_builder.note_hashes.push(public_note_hash);
             }
         }
     }
 
-    let nullifiers = data.new_nullifiers;
+    let nullifiers = data.nullifiers;
     // First nullifier is always non-revertible.
     let first_nullifier = nullifiers.get_unchecked(0).expose_to_public();
-    non_revertible_builder.new_nullifiers.push(first_nullifier);
+    non_revertible_builder.nullifiers.push(first_nullifier);
     for i in 1..nullifiers.max_len() {
         if i < nullifiers.len() {
             let nullifier = nullifiers.get_unchecked(i);
             let public_nullifier = nullifier.expose_to_public();
             if nullifier.counter() < min_revertible_side_effect_counter {
-                non_revertible_builder.new_nullifiers.push(public_nullifier);
+                non_revertible_builder.nullifiers.push(public_nullifier);
             } else {
-                revertible_builder.new_nullifiers.push(public_nullifier);
+                revertible_builder.nullifiers.push(public_nullifier);
             }
         }
     }
 
-    let l2_to_l1_msgs = data.new_l2_to_l1_msgs;
+    let l2_to_l1_msgs = data.l2_to_l1_msgs;
     for i in 0..l2_to_l1_msgs.max_len() {
         if i < l2_to_l1_msgs.len() {
             let msg = l2_to_l1_msgs.get_unchecked(i);
             if msg.counter() < min_revertible_side_effect_counter {
-                non_revertible_builder.new_l2_to_l1_msgs.push(msg.message.content);
+                non_revertible_builder.l2_to_l1_msgs.push(msg.message.content);
             } else {
-                revertible_builder.new_l2_to_l1_msgs.push(msg.message.content);
+                revertible_builder.l2_to_l1_msgs.push(msg.message.content);
             }
         }
     }

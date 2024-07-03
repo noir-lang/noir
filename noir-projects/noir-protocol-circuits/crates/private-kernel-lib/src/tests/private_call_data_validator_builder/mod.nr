@@ -46,7 +46,7 @@ impl PrivateCallDataValidatorBuilder {
     pub fn validate(self) {
         let private_call = self.private_call.to_private_call_data();
         let mut accumulated_note_hashes = self.previous_note_hashes;
-        accumulated_note_hashes.extend_from_bounded_vec(self.private_call.new_note_hashes);
+        accumulated_note_hashes.extend_from_bounded_vec(self.private_call.note_hashes);
         PrivateCallDataValidator::new(private_call).validate(accumulated_note_hashes.storage);
     }
 

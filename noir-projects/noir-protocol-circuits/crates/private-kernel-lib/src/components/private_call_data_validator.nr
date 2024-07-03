@@ -247,11 +247,9 @@ impl PrivateCallDataValidator {
 
         if call_context.is_static_call {
             // No state changes are allowed for static calls:
-            assert_eq(self.array_lengths.new_note_hashes, 0, "new_note_hashes must be empty for static calls");
-            assert_eq(self.array_lengths.new_nullifiers, 0, "new_nullifiers must be empty for static calls");
-            assert_eq(
-                self.array_lengths.new_l2_to_l1_msgs, 0, "new_l2_to_l1_msgs must be empty for static calls"
-            );
+            assert_eq(self.array_lengths.note_hashes, 0, "note_hashes must be empty for static calls");
+            assert_eq(self.array_lengths.nullifiers, 0, "nullifiers must be empty for static calls");
+            assert_eq(self.array_lengths.l2_to_l1_msgs, 0, "l2_to_l1_msgs must be empty for static calls");
             assert_eq(
                 self.array_lengths.note_encrypted_logs_hashes, 0, "note_encrypted_logs_hashes must be empty for static calls"
             );
@@ -317,20 +315,20 @@ impl PrivateCallDataValidator {
         validate_incrementing_counters_within_range(
             counter_start,
             counter_end,
-            public_inputs.new_note_hashes,
-            self.array_lengths.new_note_hashes
+            public_inputs.note_hashes,
+            self.array_lengths.note_hashes
         );
         validate_incrementing_counters_within_range(
             counter_start,
             counter_end,
-            public_inputs.new_nullifiers,
-            self.array_lengths.new_nullifiers
+            public_inputs.nullifiers,
+            self.array_lengths.nullifiers
         );
         validate_incrementing_counters_within_range(
             counter_start,
             counter_end,
-            public_inputs.new_l2_to_l1_msgs,
-            self.array_lengths.new_l2_to_l1_msgs
+            public_inputs.l2_to_l1_msgs,
+            self.array_lengths.l2_to_l1_msgs
         );
         validate_incrementing_counters_within_range(
             counter_start,

@@ -9,10 +9,7 @@ use dep::types::{
     kernel_circuit_public_inputs::KernelCircuitPublicInputs, public_kernel_data::PublicKernelData,
     public_data_update_request::PublicDataUpdateRequest, side_effect::Ordered
 },
-    constants::{
-    MAX_NEW_NOTE_HASHES_PER_TX, MAX_PUBLIC_DATA_HINTS, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
-},
+    constants::{MAX_PUBLIC_DATA_HINTS, MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX},
     data::public_data_hint::PublicDataHint,
     merkle_tree::{conditionally_assert_check_membership, MembershipWitness},
     partial_state_reference::PartialStateReference, utils::{arrays::array_length}, address::AztecAddress
@@ -109,7 +106,7 @@ mod tests {
     },
         address::AztecAddress,
         constants::{
-        MAX_NEW_NULLIFIERS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_PUBLIC_DATA_HINTS,
+        MAX_NULLIFIERS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_PUBLIC_DATA_HINTS,
         MAX_PUBLIC_DATA_READS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, NULLIFIER_TREE_HEIGHT,
         NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT, PUBLIC_DATA_SUBTREE_HEIGHT,
         PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_TREE_HEIGHT, MAX_ENCRYPTED_LOGS_PER_TX,
@@ -123,8 +120,8 @@ mod tests {
         merkle_tree::MembershipWitness
     };
 
-    fn build_nullifier_tree<N>() -> NonEmptyMerkleTree<MAX_NEW_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT> {
-        let mut pre_existing_nullifiers = [NullifierLeafPreimage::empty(); MAX_NEW_NULLIFIERS_PER_TX];
+    fn build_nullifier_tree<N>() -> NonEmptyMerkleTree<MAX_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT> {
+        let mut pre_existing_nullifiers = [NullifierLeafPreimage::empty(); MAX_NULLIFIERS_PER_TX];
         pre_existing_nullifiers[0] = NullifierLeafPreimage { nullifier: 0, next_nullifier: 100, next_index: 1 };
         pre_existing_nullifiers[1] = NullifierLeafPreimage { nullifier: 100, next_nullifier: 0, next_index: 0 };
         NonEmptyMerkleTree::new(
@@ -220,8 +217,8 @@ mod tests {
 
         fn set_nullifiers_for_non_existent_read_request_hints(&mut self) {
             let nullifiers = array_merge(
-                self.previous_kernel.new_nullifiers.storage,
-                self.previous_revertible.new_nullifiers.storage
+                self.previous_kernel.nullifiers.storage,
+                self.previous_revertible.nullifiers.storage
             ).map(|n: ScopedNullifier| n.nullifier);
             self.nullifier_non_existent_read_request_hints_builder.set_nullifiers(nullifiers);
         }
@@ -230,7 +227,7 @@ mod tests {
             let read_request_index = self.previous_kernel.add_read_request_for_pending_nullifier(nullifier_index);
             self.sync_counters();
             let hint_index = self.nullifier_read_request_hints_builder.pending_read_hints.len();
-            let pending_value_index = nullifier_index + self.previous_kernel.new_nullifiers.len();
+            let pending_value_index = nullifier_index + self.previous_kernel.nullifiers.len();
             let hint = PendingReadHint { read_request_index, pending_value_index };
             self.nullifier_read_request_hints_builder.pending_read_hints.push(hint);
             self.nullifier_read_request_hints_builder.read_request_statuses[read_request_index] = ReadRequestStatus { state: ReadRequestState.PENDING, hint_index };
@@ -303,8 +300,8 @@ mod tests {
             // Note: note hashes are a bit odd here: whereas we'd like to use `combined` and then
             // sort the result, we cannot because we lose the side effect counters when we combine.
             let merged = array_merge(
-                previous_kernel.public_inputs.end_non_revertible.new_note_hashes,
-                previous_kernel.public_inputs.end.new_note_hashes
+                previous_kernel.public_inputs.end_non_revertible.note_hashes,
+                previous_kernel.public_inputs.end.note_hashes
             );
             let sorted = sort_get_sorted_hints(merged, |a: NoteHash, b: NoteHash| a.counter() < b.counter());
             let sorted_note_hashes = sorted.sorted_array;
@@ -455,7 +452,7 @@ mod tests {
 
         builder.append_nullifiers_revertible(3);
         builder.add_pending_revertible_nullifier_read_request(1);
-        let nullifier_being_read = builder.previous_revertible.new_nullifiers.get(1);
+        let nullifier_being_read = builder.previous_revertible.nullifiers.get(1);
         let mut read_request = builder.previous_kernel.nullifier_read_requests.pop();
         read_request.read_request.counter = nullifier_being_read.counter() - 1;
         builder.previous_kernel.nullifier_read_requests.push(read_request);

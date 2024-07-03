@@ -4,7 +4,7 @@ use crate::{
 };
 use dep::protocol_types::{
     hash::sha256_to_field, address::AztecAddress, grumpkin_point::GrumpkinPoint,
-    abis::note_hash::NoteHash, constants::MAX_NEW_NOTE_HASHES_PER_CALL, utils::arrays::find_index
+    abis::note_hash::NoteHash, constants::MAX_NOTE_HASHES_PER_CALL, utils::arrays::find_index
 };
 
 unconstrained fn compute_unconstrained<Note, N, NB, M>(
@@ -43,11 +43,11 @@ fn emit_with_keys<Note, N, NB, M>(
     let storage_slot = note_header.storage_slot;
 
     let note_exists_index = find_index(
-        context.new_note_hashes.storage,
+        context.note_hashes.storage,
         |n: NoteHash| n.counter == note_hash_counter
     );
     assert(
-        note_exists_index as u32 != MAX_NEW_NOTE_HASHES_PER_CALL, "Can only emit a note log for an existing note."
+        note_exists_index as u32 != MAX_NOTE_HASHES_PER_CALL, "Can only emit a note log for an existing note."
     );
 
     let contract_address: AztecAddress = context.this_address();

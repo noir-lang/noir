@@ -4,7 +4,7 @@ import { type Tuple } from '@aztec/foundation/serialize';
 import { type IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 
 import {
-  MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_NULLIFIERS_PER_TX,
   type MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX,
   type NULLIFIER_TREE_HEIGHT,
 } from '../constants.gen.js';
@@ -26,8 +26,8 @@ interface SortedResult<T, N extends number> {
 }
 
 function sortNullifiersByValues(
-  nullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
-): SortedResult<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX> {
+  nullifiers: Tuple<Nullifier, typeof MAX_NULLIFIERS_PER_TX>,
+): SortedResult<Nullifier, typeof MAX_NULLIFIERS_PER_TX> {
   const numNullifiers = countAccumulatedItems(nullifiers);
   const sorted = nullifiers
     .slice(0, numNullifiers)
@@ -43,9 +43,9 @@ function sortNullifiersByValues(
     sortedValues: padArrayEnd(
       sorted.map(s => s.nullifier),
       Nullifier.empty(),
-      MAX_NEW_NULLIFIERS_PER_TX,
+      MAX_NULLIFIERS_PER_TX,
     ),
-    sortedIndexHints: padArrayEnd(sortedIndexHints, 0, MAX_NEW_NULLIFIERS_PER_TX),
+    sortedIndexHints: padArrayEnd(sortedIndexHints, 0, MAX_NULLIFIERS_PER_TX),
   };
 }
 
@@ -54,7 +54,7 @@ export async function buildNullifierNonExistentReadRequestHints(
     getLowNullifierMembershipWitness(nullifier: Fr): Promise<NullifierMembershipWitnessWithPreimage>;
   },
   nullifierNonExistentReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
-  pendingNullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+  pendingNullifiers: Tuple<Nullifier, typeof MAX_NULLIFIERS_PER_TX>,
 ) {
   const { sortedValues, sortedIndexHints } = sortNullifiersByValues(pendingNullifiers);
 

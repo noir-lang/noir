@@ -36,13 +36,13 @@ fn test_initialize_or_replace_without_nullifier() {
     // - a new note being created
     // - no notes being read
     // - the initialization nullifier being emitted
-    assert_eq(state_var.context.new_note_hashes.len(), 1);
+    assert_eq(state_var.context.note_hashes.len(), 1);
     assert_eq(state_var.context.note_hash_read_requests.len(), 0);
-    assert_eq(state_var.context.new_nullifiers.len(), 1);
+    assert_eq(state_var.context.nullifiers.len(), 1);
 
     // Note that if the oracle was wrong and the initialization nullifier did exist, this attempt to write it again
     // would cause the sequencer to revert this transaction - we are therefore safe from bad oracles.
-    let nullifier = state_var.context.new_nullifiers.get(0);
+    let nullifier = state_var.context.nullifiers.get(0);
     assert_eq(nullifier.value, state_var.compute_initialization_nullifier());
     assert_eq(nullifier.note_hash, 0);
 }

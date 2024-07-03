@@ -46,7 +46,7 @@ fn validate_initial_values_constants_non_empty_global_variables_fails() {
 fn validate_initial_values_constants_incorrect_first_nullifier_fails() {
     let mut builder = PrivateKernelCircuitOutputValidatorBuilder::new();
 
-    builder.output.new_nullifiers.storage[0].nullifier.value += 1;
+    builder.output.nullifiers.storage[0].nullifier.value += 1;
 
     builder.validate_as_first_call();
 }
@@ -55,7 +55,7 @@ fn validate_initial_values_constants_incorrect_first_nullifier_fails() {
 fn validate_initial_values_constants_empty_first_nullifier_fails() {
     let mut builder = PrivateKernelCircuitOutputValidatorBuilder::new();
 
-    builder.output.new_nullifiers = BoundedVec::new();
+    builder.output.nullifiers = BoundedVec::new();
 
     builder.validate_as_first_call();
 }

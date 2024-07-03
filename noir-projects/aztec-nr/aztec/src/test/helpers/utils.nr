@@ -14,14 +14,14 @@ use crate::oracle::notes::notify_nullified_note;
 
 pub fn apply_side_effects_private(contract_address: AztecAddress, public_inputs: PrivateCircuitPublicInputs) {
     let mut nullifiers = &[];
-    for nullifier in public_inputs.new_nullifiers {
+    for nullifier in public_inputs.nullifiers {
         if nullifier.value != 0 {
             nullifiers = nullifiers.push_back(nullifier.value);
         }
     }
     cheatcodes::add_nullifiers(contract_address, nullifiers);
     let mut note_hashes = &[];
-    for note_hash in public_inputs.new_note_hashes {
+    for note_hash in public_inputs.note_hashes {
         if note_hash.value != 0 {
             note_hashes = note_hashes.push_back(note_hash.value);
         }

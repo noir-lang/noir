@@ -3,7 +3,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { type Tuple } from '@aztec/foundation/serialize';
 
-import { MAX_NEW_NOTE_HASHES_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX } from '../constants.gen.js';
+import { MAX_NOTE_HASHES_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX } from '../constants.gen.js';
 import { siloNoteHash } from '../hash/index.js';
 import {
   NoteHash,
@@ -28,7 +28,7 @@ describe('buildNoteHashReadRequestHints', () => {
       settledLeafIndexes.includes(leafIndex) ? ({} as any) : undefined,
   };
   let noteHashReadRequests: Tuple<ScopedReadRequest, typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX>;
-  let noteHashes: Tuple<ScopedNoteHash, typeof MAX_NEW_NOTE_HASHES_PER_TX>;
+  let noteHashes: Tuple<ScopedNoteHash, typeof MAX_NOTE_HASHES_PER_TX>;
   let noteHashLeafIndexMap: Map<bigint, bigint> = new Map();
   let expectedHints: NoteHashReadRequestHints<
     typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
@@ -89,7 +89,7 @@ describe('buildNoteHashReadRequestHints', () => {
 
   beforeEach(() => {
     noteHashReadRequests = makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, ScopedReadRequest.empty);
-    noteHashes = makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, i => makeNoteHash(innerNoteHash(i)));
+    noteHashes = makeTuple(MAX_NOTE_HASHES_PER_TX, i => makeNoteHash(innerNoteHash(i)));
     noteHashLeafIndexMap = new Map();
     expectedHints = NoteHashReadRequestHintsBuilder.empty(
       MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
@@ -98,9 +98,9 @@ describe('buildNoteHashReadRequestHints', () => {
     numReadRequests = 0;
     numPendingReads = 0;
     numSettledReads = 0;
-    futureNoteHashes = new Array(MAX_NEW_NOTE_HASHES_PER_TX)
+    futureNoteHashes = new Array(MAX_NOTE_HASHES_PER_TX)
       .fill(null)
-      .map((_, i) => makeNoteHash(innerNoteHash(i + MAX_NEW_NOTE_HASHES_PER_TX)));
+      .map((_, i) => makeNoteHash(innerNoteHash(i + MAX_NOTE_HASHES_PER_TX)));
   });
 
   it('builds empty hints', async () => {

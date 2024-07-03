@@ -32,16 +32,16 @@ export class DoubleSpendTxValidator<T extends AnyTx> implements TxValidator<T> {
   }
 
   async #uniqueNullifiers(tx: AnyTx, thisBlockNullifiers: Set<bigint>): Promise<boolean> {
-    const newNullifiers = tx.data.getNonEmptyNullifiers().map(x => x.toBigInt());
+    const nullifiers = tx.data.getNonEmptyNullifiers().map(x => x.toBigInt());
 
     // Ditch this tx if it has repeated nullifiers
-    const uniqueNullifiers = new Set(newNullifiers);
-    if (uniqueNullifiers.size !== newNullifiers.length) {
+    const uniqueNullifiers = new Set(nullifiers);
+    if (uniqueNullifiers.size !== nullifiers.length) {
       this.#log.warn(`Rejecting tx ${Tx.getHash(tx)} for emitting duplicate nullifiers`);
       return false;
     }
 
-    for (const nullifier of newNullifiers) {
+    for (const nullifier of nullifiers) {
       if (thisBlockNullifiers.has(nullifier)) {
         this.#log.warn(`Rejecting tx ${Tx.getHash(tx)} for repeating a nullifier in the same block`);
         return false;
@@ -50,9 +50,7 @@ export class DoubleSpendTxValidator<T extends AnyTx> implements TxValidator<T> {
       thisBlockNullifiers.add(nullifier);
     }
 
-    const nullifierIndexes = await Promise.all(
-      newNullifiers.map(n => this.#nullifierSource.getNullifierIndex(new Fr(n))),
-    );
+    const nullifierIndexes = await Promise.all(nullifiers.map(n => this.#nullifierSource.getNullifierIndex(new Fr(n))));
 
     const hasDuplicates = nullifierIndexes.some(index => index !== undefined);
     if (hasDuplicates) {

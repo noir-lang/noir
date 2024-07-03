@@ -56,46 +56,46 @@ impl TailOutputValidator {
 
     fn validate_propagated_sorted_siloed_values(self, hints: Hints) {
         // First nullifier is tx hash.
-        let tx_hash = self.output.end.new_nullifiers[0];
-        let unsiloed_note_hashes = self.previous_kernel.end.new_note_hashes;
+        let tx_hash = self.output.end.nullifiers[0];
+        let unsiloed_note_hashes = self.previous_kernel.end.note_hashes;
         for i in 0..unsiloed_note_hashes.len() {
             let siloed_note_hash = silo_note_hash(unsiloed_note_hashes[i], tx_hash, i);
             assert_eq(hints.siloed_note_hashes[i], siloed_note_hash, "mismatch siloed note hashes");
         }
 
         assert_sorted_transformed_value_array(
-            self.previous_kernel.end.new_note_hashes,
+            self.previous_kernel.end.note_hashes,
             hints.siloed_note_hashes,
-            self.output.end.new_note_hashes,
+            self.output.end.note_hashes,
             hints.sorted_note_hash_hints
         );
 
-        // new_nullifiers
+        // nullifiers
         validate_transformed_values(
-            self.previous_kernel.end.new_nullifiers,
+            self.previous_kernel.end.nullifiers,
             hints.siloed_nullifiers,
             silo_nullifier
         );
 
         assert_sorted_transformed_value_array(
-            self.previous_kernel.end.new_nullifiers,
+            self.previous_kernel.end.nullifiers,
             hints.siloed_nullifiers,
-            self.output.end.new_nullifiers,
+            self.output.end.nullifiers,
             hints.sorted_nullifier_hints
         );
 
-        // new_l2_to_l1_msgs
+        // l2_to_l1_msgs
         let tx_context = self.previous_kernel.constants.tx_context;
         validate_transformed_values(
-            self.previous_kernel.end.new_l2_to_l1_msgs,
+            self.previous_kernel.end.l2_to_l1_msgs,
             hints.siloed_l2_to_l1_msgs,
             |msg| silo_l2_to_l1_message(msg, tx_context.version, tx_context.chain_id)
         );
 
         assert_sorted_transformed_value_array(
-            self.previous_kernel.end.new_l2_to_l1_msgs,
+            self.previous_kernel.end.l2_to_l1_msgs,
             hints.siloed_l2_to_l1_msgs,
-            self.output.end.new_l2_to_l1_msgs,
+            self.output.end.l2_to_l1_msgs,
             hints.sorted_l2_to_l1_msg_hints
         );
     }

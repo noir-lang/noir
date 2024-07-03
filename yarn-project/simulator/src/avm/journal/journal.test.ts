@@ -252,7 +252,7 @@ describe('journal', () => {
   //    }),
   //  ]);
 
-  //  expect(journalUpdates.newNoteHashes).toEqual([
+  //  expect(journalUpdates.noteHashes).toEqual([
   //    expect.objectContaining({ noteHash: commitment, storageAddress: contractAddress }),
   //    expect.objectContaining({ noteHash: commitmentT1, storageAddress: contractAddress }),
   //  ]);
@@ -276,7 +276,7 @@ describe('journal', () => {
   //    expect.objectContaining({ nullifier: commitment, exists: true }),
   //    expect.objectContaining({ nullifier: commitmentT1, exists: true }),
   //  ]);
-  //  expect(journalUpdates.newNullifiers).toEqual([
+  //  expect(journalUpdates.nullifiers).toEqual([
   //    expect.objectContaining({
   //      storageAddress: contractAddress,
   //      nullifier: commitment,
@@ -386,7 +386,7 @@ describe('journal', () => {
   //  ]);
 
   //  // Check that the world state _traces_ are merged even on rejection
-  //  expect(journalUpdates.newNoteHashes).toEqual([
+  //  expect(journalUpdates.noteHashes).toEqual([
   //    expect.objectContaining({ noteHash: commitment, storageAddress: contractAddress }),
   //    expect.objectContaining({ noteHash: commitmentT1, storageAddress: contractAddress }),
   //  ]);
@@ -394,7 +394,7 @@ describe('journal', () => {
   //    expect.objectContaining({ nullifier: commitment, exists: true }),
   //    expect.objectContaining({ nullifier: commitmentT1, exists: true }),
   //  ]);
-  //  expect(journalUpdates.newNullifiers).toEqual([
+  //  expect(journalUpdates.nullifiers).toEqual([
   //    expect.objectContaining({
   //      storageAddress: contractAddress,
   //      nullifier: commitment,

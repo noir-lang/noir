@@ -1,7 +1,7 @@
 import { type Tuple } from '@aztec/foundation/serialize';
 
 import {
-  type MAX_NEW_NOTE_HASHES_PER_TX,
+  type MAX_NOTE_HASHES_PER_TX,
   type MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
   type NOTE_HASH_TREE_HEIGHT,
 } from '../constants.gen.js';
@@ -29,7 +29,7 @@ export async function buildNoteHashReadRequestHints<PENDING extends number, SETT
     getNoteHashMembershipWitness(leafIndex: bigint): Promise<MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>>;
   },
   noteHashReadRequests: Tuple<ScopedReadRequest, typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX>,
-  noteHashes: Tuple<ScopedNoteHash, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
+  noteHashes: Tuple<ScopedNoteHash, typeof MAX_NOTE_HASHES_PER_TX>,
   noteHashLeafIndexMap: Map<bigint, bigint>,
   sizePending: PENDING,
   sizeSettled: SETTLED,

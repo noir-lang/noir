@@ -22,9 +22,9 @@ import {
   GasFees,
   type Header,
   KernelCircuitPublicInputs,
-  MAX_NEW_L2_TO_L1_MSGS_PER_TX,
-  MAX_NEW_NOTE_HASHES_PER_TX,
-  MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_L2_TO_L1_MSGS_PER_TX,
+  MAX_NOTE_HASHES_PER_TX,
+  MAX_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   type Proof,
@@ -183,10 +183,10 @@ describe('L1Publisher integration', () => {
 
     const processedTx = makeProcessedTx(tx, kernelOutput, makeProof(), []);
 
-    processedTx.data.end.newNoteHashes = makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, fr, seed + 0x100);
-    processedTx.data.end.newNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x200);
-    processedTx.data.end.newNullifiers[processedTx.data.end.newNullifiers.length - 1] = Fr.ZERO;
-    processedTx.data.end.newL2ToL1Msgs = makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
+    processedTx.data.end.noteHashes = makeTuple(MAX_NOTE_HASHES_PER_TX, fr, seed + 0x100);
+    processedTx.data.end.nullifiers = makeTuple(MAX_NULLIFIERS_PER_TX, fr, seed + 0x200);
+    processedTx.data.end.nullifiers[processedTx.data.end.nullifiers.length - 1] = Fr.ZERO;
+    processedTx.data.end.l2ToL1Msgs = makeTuple(MAX_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
     processedTx.data.end.encryptedLogsHash = Fr.fromBuffer(processedTx.encryptedLogs.hash());
     processedTx.data.end.unencryptedLogsHash = Fr.fromBuffer(processedTx.unencryptedLogs.hash());
 
@@ -370,12 +370,12 @@ describe('L1Publisher integration', () => {
       }
 
       // Ensure that each transaction has unique (non-intersecting nullifier values)
-      const totalNullifiersPerBlock = 4 * MAX_NEW_NULLIFIERS_PER_TX;
+      const totalNullifiersPerBlock = 4 * MAX_NULLIFIERS_PER_TX;
       const txs = [
-        makeBloatedProcessedTx(totalNullifiersPerBlock * i + 1 * MAX_NEW_NULLIFIERS_PER_TX),
-        makeBloatedProcessedTx(totalNullifiersPerBlock * i + 2 * MAX_NEW_NULLIFIERS_PER_TX),
-        makeBloatedProcessedTx(totalNullifiersPerBlock * i + 3 * MAX_NEW_NULLIFIERS_PER_TX),
-        makeBloatedProcessedTx(totalNullifiersPerBlock * i + 4 * MAX_NEW_NULLIFIERS_PER_TX),
+        makeBloatedProcessedTx(totalNullifiersPerBlock * i + 1 * MAX_NULLIFIERS_PER_TX),
+        makeBloatedProcessedTx(totalNullifiersPerBlock * i + 2 * MAX_NULLIFIERS_PER_TX),
+        makeBloatedProcessedTx(totalNullifiersPerBlock * i + 3 * MAX_NULLIFIERS_PER_TX),
+        makeBloatedProcessedTx(totalNullifiersPerBlock * i + 4 * MAX_NULLIFIERS_PER_TX),
       ];
 
       const globalVariables = new GlobalVariables(
@@ -396,7 +396,7 @@ describe('L1Publisher integration', () => {
       blockSource.getL1ToL2Messages.mockResolvedValueOnce(currentL1ToL2Messages);
       blockSource.getBlocks.mockResolvedValueOnce([block]);
 
-      const newL2ToL1MsgsArray = block.body.txEffects.flatMap(txEffect => txEffect.l2ToL1Msgs);
+      const l2ToL1MsgsArray = block.body.txEffects.flatMap(txEffect => txEffect.l2ToL1Msgs);
 
       const [emptyRoot] = await outbox.read.roots([block.header.globalVariables.blockNumber.toBigInt()]);
 
@@ -439,7 +439,7 @@ describe('L1Publisher integration', () => {
       expect(newToConsume).toEqual(toConsume + 1n);
       toConsume = newToConsume;
 
-      const treeHeight = Math.ceil(Math.log2(newL2ToL1MsgsArray.length));
+      const treeHeight = Math.ceil(Math.log2(l2ToL1MsgsArray.length));
 
       const tree = new StandardTree(
         openTmpStore(true),
@@ -449,7 +449,7 @@ describe('L1Publisher integration', () => {
         0n,
         Fr,
       );
-      await tree.appendLeaves(newL2ToL1MsgsArray);
+      await tree.appendLeaves(l2ToL1MsgsArray);
 
       const expectedRoot = tree.getRoot(true);
       const [actualRoot] = await outbox.read.roots([block.header.globalVariables.blockNumber.toBigInt()]);

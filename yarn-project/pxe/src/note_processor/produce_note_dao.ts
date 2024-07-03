@@ -18,7 +18,7 @@ import { OutgoingNoteDao } from '../database/outgoing_note_dao.js';
  * @param ovpkM - The public counterpart to the secret key to be used in the decryption of outgoing note logs.
  * @param payload - An instance of l1NotePayload.
  * @param txHash - The hash of the transaction that created the note. Equivalent to the first nullifier of the transaction.
- * @param newNoteHashes - New note hashes in this transaction, one of which belongs to this note.
+ * @param noteHashes - New note hashes in this transaction, one of which belongs to this note.
  * @param dataStartIndexForTx - The next available leaf index for the note hash tree for this transaction.
  * @param excludedIndices - Indices that have been assigned a note in the same tx. Notes in a tx can have the same l1NotePayload, we need to find a different index for each replicate.
  * @param simulator - An instance of AcirSimulator.
@@ -30,7 +30,7 @@ export async function produceNoteDaos(
   ovpkM: PublicKey | undefined,
   payload: L1NotePayload,
   txHash: TxHash,
-  newNoteHashes: Fr[],
+  noteHashes: Fr[],
   dataStartIndexForTx: number,
   excludedIndices: Set<number>,
   log: Logger,
@@ -53,7 +53,7 @@ export async function produceNoteDaos(
     if (ivpkM) {
       const { noteHashIndex, nonce, innerNoteHash, siloedNullifier } = await findNoteIndexAndNullifier(
         simulator,
-        newNoteHashes,
+        noteHashes,
         txHash,
         payload,
         excludedIndices,
@@ -87,7 +87,7 @@ export async function produceNoteDaos(
           payload.storageSlot,
           payload.noteTypeId,
           txHash,
-          newNoteHashes,
+          noteHashes,
           dataStartIndexForTx,
         );
       }
@@ -115,7 +115,7 @@ export async function produceNoteDaos(
       } else {
         const { noteHashIndex, nonce, innerNoteHash } = await findNoteIndexAndNullifier(
           simulator,
-          newNoteHashes,
+          noteHashes,
           txHash,
           payload,
           excludedIndices,
@@ -148,7 +148,7 @@ export async function produceNoteDaos(
           payload.storageSlot,
           payload.noteTypeId,
           txHash,
-          newNoteHashes,
+          noteHashes,
           dataStartIndexForTx,
         );
       }

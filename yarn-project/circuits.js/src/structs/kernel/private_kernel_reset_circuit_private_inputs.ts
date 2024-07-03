@@ -1,10 +1,6 @@
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import {
-  MAX_NEW_NOTE_HASHES_PER_TX,
-  MAX_NEW_NULLIFIERS_PER_TX,
-  MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
-} from '../../constants.gen.js';
+import { MAX_NOTE_ENCRYPTED_LOGS_PER_TX, MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX } from '../../constants.gen.js';
 import { countAccumulatedItems } from '../../utils/index.js';
 import { NoteLogHash } from '../log_hash.js';
 import { ScopedNoteHash } from '../note_hash.js';
@@ -20,8 +16,8 @@ import { PrivateKernelData } from './private_kernel_data.js';
 
 export class PrivateKernelResetOutputs {
   constructor(
-    public noteHashes: Tuple<ScopedNoteHash, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
-    public nullifiers: Tuple<ScopedNullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    public noteHashes: Tuple<ScopedNoteHash, typeof MAX_NOTE_HASHES_PER_TX>,
+    public nullifiers: Tuple<ScopedNullifier, typeof MAX_NULLIFIERS_PER_TX>,
     public noteEncryptedLogHashes: Tuple<NoteLogHash, typeof MAX_NOTE_ENCRYPTED_LOGS_PER_TX>,
   ) {}
 
@@ -32,8 +28,8 @@ export class PrivateKernelResetOutputs {
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new PrivateKernelResetOutputs(
-      reader.readArray(MAX_NEW_NOTE_HASHES_PER_TX, ScopedNoteHash),
-      reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, ScopedNullifier),
+      reader.readArray(MAX_NOTE_HASHES_PER_TX, ScopedNoteHash),
+      reader.readArray(MAX_NULLIFIERS_PER_TX, ScopedNullifier),
       reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, NoteLogHash),
     );
   }
@@ -50,11 +46,11 @@ export class PrivateKernelResetHints<
     /**
      * Contains hints for the transient note hashes to locate corresponding nullifiers.
      */
-    public transientNullifierIndexesForNoteHashes: Tuple<number, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
+    public transientNullifierIndexesForNoteHashes: Tuple<number, typeof MAX_NOTE_HASHES_PER_TX>,
     /**
      * Contains hints for the transient nullifiers to locate corresponding note hashes.
      */
-    public transientNoteHashIndexesForNullifiers: Tuple<number, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    public transientNoteHashIndexesForNullifiers: Tuple<number, typeof MAX_NULLIFIERS_PER_TX>,
     /**
      * Contains hints for the transient logs to locate corresponding note hashes.
      */
@@ -136,8 +132,8 @@ export class PrivateKernelResetHints<
   ): PrivateKernelResetHints<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> {
     const reader = BufferReader.asReader(buffer);
     return new PrivateKernelResetHints(
-      reader.readNumbers(MAX_NEW_NOTE_HASHES_PER_TX),
-      reader.readNumbers(MAX_NEW_NULLIFIERS_PER_TX),
+      reader.readNumbers(MAX_NOTE_HASHES_PER_TX),
+      reader.readNumbers(MAX_NULLIFIERS_PER_TX),
       reader.readNumbers(MAX_NOTE_ENCRYPTED_LOGS_PER_TX),
       reader.readObject({
         fromBuffer: buf =>

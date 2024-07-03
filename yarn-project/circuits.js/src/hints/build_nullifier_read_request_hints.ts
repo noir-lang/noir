@@ -5,7 +5,7 @@ import { type Tuple } from '@aztec/foundation/serialize';
 import { type IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 
 import {
-  type MAX_NEW_NULLIFIERS_PER_TX,
+  type MAX_NULLIFIERS_PER_TX,
   MAX_NULLIFIER_READ_REQUESTS_PER_TX,
   type NULLIFIER_TREE_HEIGHT,
 } from '../constants.gen.js';
@@ -39,7 +39,7 @@ export async function buildNullifierReadRequestHints<PENDING extends number, SET
     getNullifierMembershipWitness(nullifier: Fr): Promise<NullifierMembershipWitnessWithPreimage>;
   },
   nullifierReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
-  nullifiers: Tuple<ScopedNullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+  nullifiers: Tuple<ScopedNullifier, typeof MAX_NULLIFIERS_PER_TX>,
   sizePending: PENDING,
   sizeSettled: SETTLED,
   futureNullifiers: ScopedNullifier[],
@@ -89,7 +89,7 @@ export function buildSiloedNullifierReadRequestHints<PENDING extends number, SET
     getNullifierMembershipWitness(nullifier: Fr): Promise<NullifierMembershipWitnessWithPreimage>;
   },
   nullifierReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
-  nullifiers: Tuple<Nullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+  nullifiers: Tuple<Nullifier, typeof MAX_NULLIFIERS_PER_TX>,
   sizePending: PENDING,
   sizeSettled: SETTLED,
 ) {
@@ -105,7 +105,7 @@ export function buildSiloedNullifierReadRequestHints<PENDING extends number, SET
 
   const scopedNullifiers = nullifiers.map(n =>
     new Nullifier(n.value, n.counter, n.noteHash).scope(AztecAddress.ZERO),
-  ) as Tuple<ScopedNullifier, typeof MAX_NEW_NULLIFIERS_PER_TX>;
+  ) as Tuple<ScopedNullifier, typeof MAX_NULLIFIERS_PER_TX>;
 
   return buildNullifierReadRequestHints(
     oracle,

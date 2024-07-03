@@ -213,8 +213,8 @@ mod tests {
         let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
         let contract_address = builder.public_call.contract_address;
         // Setup 2 new note hashes and logs on the previous kernel.
-        builder.previous_kernel.append_new_note_hashes_with_logs(2);
-        let previous = builder.previous_kernel.new_note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash);
+        builder.previous_kernel.append_note_hashes_with_logs(2);
+        let previous = builder.previous_kernel.note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash);
         let prev_data = builder.previous_kernel.to_public_accumulated_data();
         let prev_note_logs = prev_data.note_encrypted_logs_hashes;
         // Setup 2 new note hashes on the current public inputs.
@@ -222,15 +222,15 @@ mod tests {
             NoteHash { value: previous[1].value + 1, counter: 5 },
             NoteHash { value: previous[1].value + 2, counter: 6 }
         ];
-        builder.public_call.public_inputs.new_note_hashes.extend_from_array(current);
+        builder.public_call.public_inputs.note_hashes.extend_from_array(current);
         let siloed = current.map(|c: NoteHash| compute_siloed_note_hash(contract_address, c.value));
-        let new_note_hashes = [
+        let note_hashes = [
             previous[0], previous[1], NoteHash { value: siloed[0], counter: 5 }, NoteHash { value: siloed[1], counter: 6 }
         ];
 
         let public_inputs = builder.execute();
 
-        assert(array_eq(public_inputs.end.new_note_hashes, new_note_hashes));
+        assert(array_eq(public_inputs.end.note_hashes, note_hashes));
         assert(
             array_eq(
                 public_inputs.end.note_encrypted_logs_hashes,
@@ -282,14 +282,14 @@ mod tests {
         let contract_address = builder.public_call.contract_address;
 
         // Setup 2 new nullifiers on the previous kernel.
-        builder.previous_kernel.append_new_nullifiers(2);
-        let previous = builder.previous_kernel.new_nullifiers.storage.map(|n: ScopedNullifier| n.nullifier);
+        builder.previous_kernel.append_nullifiers(2);
+        let previous = builder.previous_kernel.nullifiers.storage.map(|n: ScopedNullifier| n.nullifier);
         // Setup 2 new note hashes on the current public inputs.
 
         let current = [
             Nullifier { value: previous[1].value + 1, note_hash: 0, counter: 4 }, Nullifier { value: previous[1].value + 2, note_hash: 0, counter: 5 }
         ];
-        builder.public_call.public_inputs.new_nullifiers.extend_from_array(current);
+        builder.public_call.public_inputs.nullifiers.extend_from_array(current);
 
         let siloed = current.map(
             |current: Nullifier| 
@@ -298,11 +298,11 @@ mod tests {
 
         // There are 2 revertible nullifiers in the previous kernel.
         // The tx nullifier is part of the non-revertible nullifiers.
-        let new_nullifiers = [previous[0], previous[1], siloed[0], siloed[1]];
+        let nullifiers = [previous[0], previous[1], siloed[0], siloed[1]];
 
         let public_inputs = builder.execute();
 
-        assert(array_eq(public_inputs.end.new_nullifiers, new_nullifiers));
+        assert(array_eq(public_inputs.end.nullifiers, nullifiers));
     }
 
     #[test]
@@ -317,17 +317,17 @@ mod tests {
         builder.previous_kernel.add_l2_to_l1_message(previous[0], portal_contract_address);
         // Setup 1 new l2 to l1 message on the current public inputs.
         let current = [L2ToL1Message { recipient: portal_contract_address, content: 67890, counter: 0 }];
-        builder.public_call.public_inputs.new_l2_to_l1_msgs.extend_from_array(current);
+        builder.public_call.public_inputs.l2_to_l1_msgs.extend_from_array(current);
         let tx_context = builder.previous_kernel.tx_context;
         let version = tx_context.version;
         let chain_id = tx_context.chain_id;
         let siloed = current.map(
             |c: L2ToL1Message| compute_l2_to_l1_hash(contract_address, c.recipient, c.content, version, chain_id)
         );
-        let new_l2_to_l1_msgs = [previous[0], siloed[0]];
+        let l2_to_l1_msgs = [previous[0], siloed[0]];
 
         let public_inputs = builder.execute();
-        assert(array_eq(public_inputs.end.new_l2_to_l1_msgs, new_l2_to_l1_msgs));
+        assert(array_eq(public_inputs.end.l2_to_l1_msgs, l2_to_l1_msgs));
     }
     // TODO: Break up this test into smaller tests.
     #[test]
@@ -392,20 +392,20 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with="new_note_hashes must be empty for static calls")]
-    fn public_kernel_fails_creating_new_note_hashes_on_static_call() {
+    #[test(should_fail_with="note_hashes must be empty for static calls")]
+    fn public_kernel_fails_creating_note_hashes_on_static_call() {
         let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
         builder.public_call.public_inputs.call_context.is_static_call = true;
-        builder.public_call.public_inputs.new_note_hashes.push(NoteHash { value: 1, counter: 0 });
+        builder.public_call.public_inputs.note_hashes.push(NoteHash { value: 1, counter: 0 });
 
         builder.failed();
     }
 
-    #[test(should_fail_with="new_nullifiers must be empty for static calls")]
-    fn public_kernel_fails_creating_new_nullifiers_on_static_call() {
+    #[test(should_fail_with="nullifiers must be empty for static calls")]
+    fn public_kernel_fails_creating_nullifiers_on_static_call() {
         let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
         builder.public_call.public_inputs.call_context.is_static_call = true;
-        builder.public_call.public_inputs.new_nullifiers.push(Nullifier { value: 1, note_hash: 0, counter: 0 });
+        builder.public_call.public_inputs.nullifiers.push(Nullifier { value: 1, note_hash: 0, counter: 0 });
 
         builder.failed();
     }

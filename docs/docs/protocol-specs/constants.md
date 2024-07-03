@@ -42,9 +42,9 @@ The statically-sized nature the kernel & rollup circuits will restrict the quant
 | Name | Value | Description |
 |---|---|---|
 | `RETURN_VALUES_LENGTH` | 4 |
-| `MAX_NEW_NOTE_HASHES_PER_CALL` | 128 |
-| `MAX_NEW_NULLIFIERS_PER_CALL` | 128 |
-| `MAX_NEW_L2_TO_L1_MSGS_PER_CALL` | 4 |
+| `MAX_NOTE_HASHES_PER_CALL` | 128 |
+| `MAX_NULLIFIERS_PER_CALL` | 128 |
+| `MAX_L2_TO_L1_MSGS_PER_CALL` | 4 |
 | `MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL` | 128 |
 | `MAX_PUBLIC_DATA_READS_PER_CALL` | 128 |
 | `MAX_UNENCRYPTED_LOG_HASHES_PER_CALL` | 128 |
@@ -61,9 +61,9 @@ The statically-sized nature the kernel & rollup circuits will restrict the quant
 <!-- prettier-ignore -->
 | Name | Value | Description |
 |---|---|---|
-| `MAX_NEW_NOTE_HASHES_PER_TX` | 128 |
-| `MAX_NEW_NULLIFIERS_PER_TX` | 128 |
-| `MAX_NEW_L2_TO_L1_MSGS_PER_TX` | 16 |
+| `MAX_NOTE_HASHES_PER_TX` | 128 |
+| `MAX_NULLIFIERS_PER_TX` | 128 |
+| `MAX_L2_TO_L1_MSGS_PER_TX` | 16 |
 | `MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX` | 31 |
 | `MAX_PUBLIC_DATA_READS_PER_TX` | 16 |
 | `MAX_UNENCRYPTED_LOG_HASHES_PER_TX` | 128 |

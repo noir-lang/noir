@@ -226,7 +226,7 @@ pub fn assert_inner_hash_valid_authwit(context: &mut PrivateContext, on_behalf_o
     // Compute the nullifier, similar computation to the outer hash, but without the chain_id and version.
     // Those should already be handled in the verification, so we just need something to nullify, that allow same inner_hash for multiple actors.
     let nullifier = compute_authwit_nullifier(on_behalf_of, inner_hash);
-    context.push_new_nullifier(nullifier, 0);
+    context.push_nullifier(nullifier, 0);
 }
 
 /** 

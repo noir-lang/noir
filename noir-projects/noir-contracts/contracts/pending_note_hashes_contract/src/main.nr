@@ -7,7 +7,7 @@ contract PendingNoteHashes {
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PrivateContext, Map, PrivateSet};
     use dep::value_note::{balance_utils, filter::filter_notes_min_sum, value_note::{VALUE_NOTE_LEN, ValueNote}};
     use dep::aztec::protocol_types::grumpkin_point::GrumpkinPoint;
-    use dep::aztec::protocol_types::constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL};
+    use dep::aztec::protocol_types::constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NOTE_HASHES_PER_CALL};
     use dep::aztec::encrypted_logs::encrypted_note_emission::{encode_and_encrypt_note, encode_and_encrypt_note_with_keys};
     use dep::aztec::note::note_emission::NoteEmission;
 
@@ -395,10 +395,10 @@ contract PendingNoteHashes {
 
     #[contract_library_method]
     fn max_notes_per_call() -> u32 {
-        if MAX_NEW_NOTE_HASHES_PER_CALL > MAX_NOTE_HASH_READ_REQUESTS_PER_CALL {
+        if MAX_NOTE_HASHES_PER_CALL > MAX_NOTE_HASH_READ_REQUESTS_PER_CALL {
             MAX_NOTE_HASH_READ_REQUESTS_PER_CALL
         } else {
-            MAX_NEW_NOTE_HASHES_PER_CALL
+            MAX_NOTE_HASHES_PER_CALL
         }
     }
 }

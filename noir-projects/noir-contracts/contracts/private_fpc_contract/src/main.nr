@@ -23,7 +23,7 @@ contract PrivateFPC {
     fn fund_transaction_privately(amount: Field, asset: AztecAddress, nonce: Field) {
         assert(asset == storage.other_asset.read_private());
         // convince the FPC we are not cheating
-        context.push_new_nullifier(nonce, 0);
+        context.push_nullifier(nonce, 0);
 
         // allow the FPC to reconstruct their fee note
         emit_nonce_as_unencrypted_log(&mut context, nonce);

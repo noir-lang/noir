@@ -25,10 +25,10 @@ import {
   L2ToL1Message,
   LogHash,
   MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL,
-  MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
-  MAX_NEW_NOTE_HASHES_PER_CALL,
-  MAX_NEW_NULLIFIERS_PER_CALL,
+  MAX_L2_TO_L1_MSGS_PER_CALL,
+  MAX_NOTE_HASHES_PER_CALL,
   MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
+  MAX_NULLIFIERS_PER_CALL,
   MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
   MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
@@ -375,7 +375,7 @@ export abstract class AbstractPhaseManager {
 
   /** Returns all pending private and public nullifiers. */
   private getSiloedPendingNullifiers(ko: PublicKernelCircuitPublicInputs) {
-    return [...ko.end.newNullifiers, ...ko.endNonRevertibleData.newNullifiers].filter(n => !n.isEmpty());
+    return [...ko.end.nullifiers, ...ko.endNonRevertibleData.nullifiers].filter(n => !n.isEmpty());
   }
 
   protected getAvailableGas(tx: Tx, previousPublicKernelOutput: PublicKernelCircuitPublicInputs) {
@@ -433,9 +433,9 @@ export abstract class AbstractPhaseManager {
       callContext: result.executionRequest.callContext,
       proverAddress: AztecAddress.ZERO,
       argsHash: computeVarArgsHash(result.executionRequest.args),
-      newNoteHashes: padArrayEnd(result.newNoteHashes, NoteHash.empty(), MAX_NEW_NOTE_HASHES_PER_CALL),
-      newNullifiers: padArrayEnd(result.newNullifiers, Nullifier.empty(), MAX_NEW_NULLIFIERS_PER_CALL),
-      newL2ToL1Msgs: padArrayEnd(result.newL2ToL1Messages, L2ToL1Message.empty(), MAX_NEW_L2_TO_L1_MSGS_PER_CALL),
+      noteHashes: padArrayEnd(result.noteHashes, NoteHash.empty(), MAX_NOTE_HASHES_PER_CALL),
+      nullifiers: padArrayEnd(result.nullifiers, Nullifier.empty(), MAX_NULLIFIERS_PER_CALL),
+      l2ToL1Msgs: padArrayEnd(result.l2ToL1Messages, L2ToL1Message.empty(), MAX_L2_TO_L1_MSGS_PER_CALL),
       startSideEffectCounter: result.startSideEffectCounter,
       endSideEffectCounter: result.endSideEffectCounter,
       returnsHash: computeVarArgsHash(result.returnValues),
@@ -506,15 +506,15 @@ export abstract class AbstractPhaseManager {
    */
   static getMaxSideEffectCounter(inputs: PublicKernelCircuitPublicInputs): number {
     const sideEffectCounters = [
-      ...inputs.endNonRevertibleData.newNoteHashes,
-      ...inputs.endNonRevertibleData.newNullifiers,
+      ...inputs.endNonRevertibleData.noteHashes,
+      ...inputs.endNonRevertibleData.nullifiers,
       ...inputs.endNonRevertibleData.noteEncryptedLogsHashes,
       ...inputs.endNonRevertibleData.encryptedLogsHashes,
       ...inputs.endNonRevertibleData.unencryptedLogsHashes,
       ...inputs.endNonRevertibleData.publicCallStack,
       ...inputs.endNonRevertibleData.publicDataUpdateRequests,
-      ...inputs.end.newNoteHashes,
-      ...inputs.end.newNullifiers,
+      ...inputs.end.noteHashes,
+      ...inputs.end.nullifiers,
       ...inputs.end.noteEncryptedLogsHashes,
       ...inputs.end.encryptedLogsHashes,
       ...inputs.end.unencryptedLogsHashes,

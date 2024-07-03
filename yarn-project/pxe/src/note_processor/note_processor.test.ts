@@ -6,7 +6,7 @@ import {
   type GrumpkinPrivateKey,
   INITIAL_L2_BLOCK_NUM,
   KeyValidationRequest,
-  MAX_NEW_NOTE_HASHES_PER_TX,
+  MAX_NOTE_HASHES_PER_TX,
   type PublicKey,
   computeOvskApp,
   deriveKeys,
@@ -27,7 +27,7 @@ import { type OutgoingNoteDao } from '../database/outgoing_note_dao.js';
 import { NoteProcessor } from './note_processor.js';
 
 const TXS_PER_BLOCK = 4;
-const NUM_NOTE_HASHES_PER_BLOCK = TXS_PER_BLOCK * MAX_NEW_NOTE_HASHES_PER_TX;
+const NUM_NOTE_HASHES_PER_BLOCK = TXS_PER_BLOCK * MAX_NOTE_HASHES_PER_TX;
 
 /** A wrapper containing info about a note we want to mock and insert into a block. */
 class MockNoteRequest {
@@ -48,8 +48,8 @@ class MockNoteRequest {
     if (blockNumber < INITIAL_L2_BLOCK_NUM) {
       throw new Error(`Block number should be greater than or equal to ${INITIAL_L2_BLOCK_NUM}.`);
     }
-    if (noteHashIndex >= MAX_NEW_NOTE_HASHES_PER_TX) {
-      throw new Error(`Data index should be less than ${MAX_NEW_NOTE_HASHES_PER_TX}.`);
+    if (noteHashIndex >= MAX_NOTE_HASHES_PER_TX) {
+      throw new Error(`Data index should be less than ${MAX_NOTE_HASHES_PER_TX}.`);
     }
     if (txIndex >= TXS_PER_BLOCK) {
       throw new Error(`Tx index should be less than ${TXS_PER_BLOCK}.`);
@@ -65,9 +65,7 @@ class MockNoteRequest {
 
   get indexWithinNoteHashTree(): bigint {
     return BigInt(
-      (this.blockNumber - 1) * NUM_NOTE_HASHES_PER_BLOCK +
-        this.txIndex * MAX_NEW_NOTE_HASHES_PER_TX +
-        this.noteHashIndex,
+      (this.blockNumber - 1) * NUM_NOTE_HASHES_PER_BLOCK + this.txIndex * MAX_NOTE_HASHES_PER_TX + this.noteHashIndex,
     );
   }
 }

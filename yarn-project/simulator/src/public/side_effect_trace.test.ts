@@ -115,7 +115,7 @@ describe('Side Effect Trace', () => {
     expect(trace.getCounter()).toBe(startCounterPlus1);
 
     const pxResult = toPxResult(trace);
-    expect(pxResult.newNoteHashes).toEqual([
+    expect(pxResult.noteHashes).toEqual([
       {
         //storageAddress: contractAddress,
         value: utxo,
@@ -163,7 +163,7 @@ describe('Side Effect Trace', () => {
     expect(trace.getCounter()).toBe(startCounterPlus1);
 
     const pxResult = toPxResult(trace);
-    expect(pxResult.newNullifiers).toEqual([
+    expect(pxResult.nullifiers).toEqual([
       {
         value: utxo,
         counter: startCounter,
@@ -197,7 +197,7 @@ describe('Side Effect Trace', () => {
     expect(trace.getCounter()).toBe(startCounterPlus1);
 
     const pxResult = toPxResult(trace);
-    expect(pxResult.newL2ToL1Messages).toEqual([
+    expect(pxResult.l2ToL1Messages).toEqual([
       new L2ToL1Message(EthAddress.fromField(recipient), content, startCounter),
     ]);
   });

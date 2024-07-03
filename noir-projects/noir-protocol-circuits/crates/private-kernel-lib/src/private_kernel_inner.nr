@@ -10,11 +10,11 @@ use dep::types::{
     kernel_circuit_public_inputs::{PrivateKernelCircuitPublicInputs, PrivateKernelCircuitPublicInputsArrayLengths},
     private_kernel_data::PrivateKernelData, private_kernel::private_call_data::PrivateCallData
 },
-    constants::MAX_NEW_NOTE_HASHES_PER_CALL
+    constants::MAX_NOTE_HASHES_PER_CALL
 };
 
 struct PrivateKernelInnerHints {
-    note_hash_nullifier_counters: [u32; MAX_NEW_NOTE_HASHES_PER_CALL],
+    note_hash_nullifier_counters: [u32; MAX_NOTE_HASHES_PER_CALL],
 }
 
 struct PrivateKernelInnerCircuitPrivateInputs {
@@ -45,7 +45,7 @@ impl PrivateKernelInnerCircuitPrivateInputs {
         let call_request = self.previous_kernel.public_inputs.end.private_call_stack[private_call_stack_size - 1];
         private_call_data_validator.validate_against_call_request(call_request);
         private_call_data_validator.validate_against_previous_kernel(self.previous_kernel.public_inputs);
-        private_call_data_validator.validate(output.end.new_note_hashes);
+        private_call_data_validator.validate(output.end.note_hashes);
         if !std::runtime::is_unconstrained() {
             // verify/aggregate the private call proof
             self.private_call.verify();
@@ -74,7 +74,7 @@ mod tests {
     use crate::private_kernel_inner::{PrivateKernelInnerCircuitPrivateInputs, PrivateKernelInnerHints};
     use dep::types::{
         abis::{kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs},
-        constants::MAX_NEW_NOTE_HASHES_PER_CALL,
+        constants::MAX_NOTE_HASHES_PER_CALL,
         tests::{fixture_builder::FixtureBuilder, utils::assert_array_eq}
     };
 
@@ -88,10 +88,10 @@ mod tests {
         pub fn new() -> Self {
             let mut previous_kernel = FixtureBuilder::new_from_counter(15).as_parent_contract();
             let private_call = FixtureBuilder::new_from_counter(200);
-            let hints = PrivateKernelInnerHints { note_hash_nullifier_counters: [0; MAX_NEW_NOTE_HASHES_PER_CALL] };
+            let hints = PrivateKernelInnerHints { note_hash_nullifier_counters: [0; MAX_NOTE_HASHES_PER_CALL] };
 
             // 0th nullifier must be non-zero.
-            previous_kernel.append_new_nullifiers(1);
+            previous_kernel.append_nullifiers(1);
 
             PrivateKernelInnerInputsBuilder { previous_kernel, private_call, hints }
         }

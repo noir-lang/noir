@@ -218,7 +218,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
         ko_side_effect[dest_offset] = public_inputs_vec[pcpi_offset + 2];
     }
     // For EMITNOTEHASH
-    for (size_t i = 0; i < MAX_NEW_NOTE_HASHES_PER_CALL; i++) {
+    for (size_t i = 0; i < MAX_NOTE_HASHES_PER_CALL; i++) {
         size_t dest_offset = START_EMIT_NOTE_HASH_WRITE_OFFSET + i;
         size_t pcpi_offset = PCPI_NEW_NOTE_HASHES_OFFSET + (i * NOTE_HASH_LENGTH);
 
@@ -226,7 +226,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
         ko_side_effect[dest_offset] = public_inputs_vec[pcpi_offset + 1];
     }
     // For EMITNULLIFIER
-    for (size_t i = 0; i < MAX_NEW_NULLIFIERS_PER_CALL; i++) {
+    for (size_t i = 0; i < MAX_NULLIFIERS_PER_CALL; i++) {
         size_t dest_offset = START_EMIT_NULLIFIER_WRITE_OFFSET + i;
         size_t pcpi_offset = PCPI_NEW_NULLIFIERS_OFFSET + (i * NULLIFIER_LENGTH);
 
@@ -234,7 +234,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
         ko_side_effect[dest_offset] = public_inputs_vec[pcpi_offset + 1];
     }
     // For EMITL2TOL1MSG
-    for (size_t i = 0; i < MAX_NEW_L2_TO_L1_MSGS_PER_CALL; i++) {
+    for (size_t i = 0; i < MAX_L2_TO_L1_MSGS_PER_CALL; i++) {
         size_t dest_offset = START_EMIT_L2_TO_L1_MSG_WRITE_OFFSET + i;
         size_t pcpi_offset = PCPI_NEW_L2_TO_L1_MSGS_OFFSET + (i * L2_TO_L1_MESSAGE_LENGTH);
 

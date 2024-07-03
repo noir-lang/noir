@@ -459,9 +459,9 @@ export class ClientExecutionContext extends ViewDataOracle {
 
   #checkValidStaticCall(childExecutionResult: ExecutionResult) {
     if (
-      childExecutionResult.callStackItem.publicInputs.newNoteHashes.some(item => !item.isEmpty()) ||
-      childExecutionResult.callStackItem.publicInputs.newNullifiers.some(item => !item.isEmpty()) ||
-      childExecutionResult.callStackItem.publicInputs.newL2ToL1Msgs.some(item => !item.isEmpty()) ||
+      childExecutionResult.callStackItem.publicInputs.noteHashes.some(item => !item.isEmpty()) ||
+      childExecutionResult.callStackItem.publicInputs.nullifiers.some(item => !item.isEmpty()) ||
+      childExecutionResult.callStackItem.publicInputs.l2ToL1Msgs.some(item => !item.isEmpty()) ||
       childExecutionResult.callStackItem.publicInputs.encryptedLogsHashes.some(item => !item.isEmpty()) ||
       childExecutionResult.callStackItem.publicInputs.unencryptedLogsHashes.some(item => !item.isEmpty())
     ) {

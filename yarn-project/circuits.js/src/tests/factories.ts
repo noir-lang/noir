@@ -49,16 +49,16 @@ import {
   MAX_KEY_VALIDATION_REQUESTS_PER_CALL,
   MAX_KEY_VALIDATION_REQUESTS_PER_TX,
   MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL,
-  MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
-  MAX_NEW_L2_TO_L1_MSGS_PER_TX,
-  MAX_NEW_NOTE_HASHES_PER_CALL,
-  MAX_NEW_NOTE_HASHES_PER_TX,
-  MAX_NEW_NULLIFIERS_PER_CALL,
-  MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_L2_TO_L1_MSGS_PER_CALL,
+  MAX_L2_TO_L1_MSGS_PER_TX,
   MAX_NOTE_ENCRYPTED_LOGS_PER_CALL,
   MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
+  MAX_NOTE_HASHES_PER_CALL,
+  MAX_NOTE_HASHES_PER_TX,
   MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
   MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
+  MAX_NULLIFIERS_PER_CALL,
+  MAX_NULLIFIERS_PER_TX,
   MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
   MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX,
   MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
@@ -332,9 +332,9 @@ export function makeCombinedAccumulatedData(seed = 1, full = false): CombinedAcc
   const tupleGenerator = full ? makeTuple : makeHalfFullTuple;
 
   return new CombinedAccumulatedData(
-    tupleGenerator(MAX_NEW_NOTE_HASHES_PER_TX, fr, seed + 0x120, Fr.zero),
-    tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x200, Fr.zero),
-    tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600, Fr.zero),
+    tupleGenerator(MAX_NOTE_HASHES_PER_TX, fr, seed + 0x120, Fr.zero),
+    tupleGenerator(MAX_NULLIFIERS_PER_TX, fr, seed + 0x200, Fr.zero),
+    tupleGenerator(MAX_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600, Fr.zero),
     fr(seed + 0x700), // note encrypted logs hash
     fr(seed + 0x800), // encrypted logs hash
     fr(seed + 0x900), // unencrypted logs hash
@@ -364,9 +364,9 @@ export function makePublicAccumulatedData(seed = 1, full = false): PublicAccumul
   const tupleGenerator = full ? makeTuple : makeHalfFullTuple;
 
   return new PublicAccumulatedData(
-    tupleGenerator(MAX_NEW_NOTE_HASHES_PER_TX, makeNoteHash, seed + 0x120, NoteHash.empty),
-    tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, makeNullifier, seed + 0x200, Nullifier.empty),
-    tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600, Fr.zero),
+    tupleGenerator(MAX_NOTE_HASHES_PER_TX, makeNoteHash, seed + 0x120, NoteHash.empty),
+    tupleGenerator(MAX_NULLIFIERS_PER_TX, makeNullifier, seed + 0x200, Nullifier.empty),
+    tupleGenerator(MAX_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600, Fr.zero),
     tupleGenerator(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, makeLogHash, seed + 0x700, LogHash.empty), // note encrypted logs hashes
     tupleGenerator(MAX_ENCRYPTED_LOGS_PER_TX, makeLogHash, seed + 0x800, LogHash.empty), // encrypted logs hashes
     tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_TX, makeLogHash, seed + 0x900, LogHash.empty), // unencrypted logs hashes
@@ -428,9 +428,9 @@ export function makePublicCircuitPublicInputs(
     ),
     tupleGenerator(MAX_PUBLIC_DATA_READS_PER_CALL, makeContractStorageRead, seed + 0x500, ContractStorageRead.empty),
     tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x600, Fr.zero),
-    tupleGenerator(MAX_NEW_NOTE_HASHES_PER_CALL, makeNoteHash, seed + 0x700, NoteHash.empty),
-    tupleGenerator(MAX_NEW_NULLIFIERS_PER_CALL, makeNullifier, seed + 0x800, Nullifier.empty),
-    tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, makeL2ToL1Message, seed + 0x900, L2ToL1Message.empty),
+    tupleGenerator(MAX_NOTE_HASHES_PER_CALL, makeNoteHash, seed + 0x700, NoteHash.empty),
+    tupleGenerator(MAX_NULLIFIERS_PER_CALL, makeNullifier, seed + 0x800, Nullifier.empty),
+    tupleGenerator(MAX_L2_TO_L1_MSGS_PER_CALL, makeL2ToL1Message, seed + 0x900, L2ToL1Message.empty),
     fr(seed + 0xa00),
     fr(seed + 0xa01),
     tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_CALL, makeLogHash, seed + 0x901, LogHash.empty),
@@ -682,8 +682,8 @@ export function makePublicKernelCircuitPrivateInputs(seed = 1): PublicKernelCirc
 
 export function makeCombineHints(seed = 1): CombineHints {
   return CombineHints.from({
-    sortedNoteHashes: makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, makeNoteHash, seed + 0x100),
-    sortedNoteHashesIndexes: makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, i => i, seed + 0x200),
+    sortedNoteHashes: makeTuple(MAX_NOTE_HASHES_PER_TX, makeNoteHash, seed + 0x100),
+    sortedNoteHashesIndexes: makeTuple(MAX_NOTE_HASHES_PER_TX, i => i, seed + 0x200),
     sortedUnencryptedLogsHashes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, makeLogHash, seed + 0x300),
     sortedUnencryptedLogsHashesIndexes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, i => i, seed + 0x400),
     sortedPublicDataUpdateRequests: makeTuple(
@@ -793,12 +793,12 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
       makeKeyValidationRequestAndGenerators,
       seed + 0x320,
     ),
-    newNoteHashes: makeTuple(MAX_NEW_NOTE_HASHES_PER_CALL, makeNoteHash, seed + 0x400),
-    newNullifiers: makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, makeNullifier, seed + 0x500),
+    noteHashes: makeTuple(MAX_NOTE_HASHES_PER_CALL, makeNoteHash, seed + 0x400),
+    nullifiers: makeTuple(MAX_NULLIFIERS_PER_CALL, makeNullifier, seed + 0x500),
     privateCallRequests: makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, makePrivateCallRequest, seed + 0x600),
     publicCallStackHashes: makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x700),
     publicTeardownFunctionHash: fr(seed + 0x800),
-    newL2ToL1Msgs: makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, makeL2ToL1Message, seed + 0x800),
+    l2ToL1Msgs: makeTuple(MAX_L2_TO_L1_MSGS_PER_CALL, makeL2ToL1Message, seed + 0x800),
     startSideEffectCounter: fr(seed + 0x849),
     endSideEffectCounter: fr(seed + 0x850),
     noteEncryptedLogsHashes: makeTuple(MAX_NOTE_ENCRYPTED_LOGS_PER_CALL, makeNoteLogHash, seed + 0x875),
@@ -1111,20 +1111,20 @@ export function makePublicDataTreeLeafPreimage(seed = 0): PublicDataTreeLeafPrei
  */
 export function makeStateDiffHints(seed = 1): StateDiffHints {
   const nullifierPredecessorPreimages = makeTuple(
-    MAX_NEW_NULLIFIERS_PER_TX,
+    MAX_NULLIFIERS_PER_TX,
     x => new NullifierLeafPreimage(fr(x), fr(x + 0x100), BigInt(x + 0x200)),
     seed + 0x1000,
   );
 
   const nullifierPredecessorMembershipWitnesses = makeTuple(
-    MAX_NEW_NULLIFIERS_PER_TX,
+    MAX_NULLIFIERS_PER_TX,
     x => makeMembershipWitness(NULLIFIER_TREE_HEIGHT, x),
     seed + 0x2000,
   );
 
-  const sortedNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x3000);
+  const sortedNullifiers = makeTuple(MAX_NULLIFIERS_PER_TX, fr, seed + 0x3000);
 
-  const sortedNullifierIndexes = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => i, seed + 0x4000);
+  const sortedNullifierIndexes = makeTuple(MAX_NULLIFIERS_PER_TX, i => i, seed + 0x4000);
 
   const noteHashSubtreeSiblingPath = makeTuple(NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, fr, seed + 0x5000);
 

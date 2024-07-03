@@ -5,8 +5,8 @@ use crate::{
 },
     address::AztecAddress,
     constants::{
-    MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
-    MAX_NEW_NULLIFIERS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
+    MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL, MAX_L2_TO_L1_MSGS_PER_CALL, MAX_NULLIFIERS_PER_CALL,
+    MAX_NOTE_HASHES_PER_CALL, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
     MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS,
@@ -32,9 +32,9 @@ struct PublicCircuitPublicInputs {
 
     // todo: add sideeffect ranges for the input to these hashes
     public_call_stack_hashes: [Field; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
-    new_note_hashes: [NoteHash; MAX_NEW_NOTE_HASHES_PER_CALL],
-    new_nullifiers: [Nullifier; MAX_NEW_NULLIFIERS_PER_CALL],
-    new_l2_to_l1_msgs: [L2ToL1Message; MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
+    note_hashes: [NoteHash; MAX_NOTE_HASHES_PER_CALL],
+    nullifiers: [Nullifier; MAX_NULLIFIERS_PER_CALL],
+    l2_to_l1_msgs: [L2ToL1Message; MAX_L2_TO_L1_MSGS_PER_CALL],
 
     start_side_effect_counter: u32,
     end_side_effect_counter: u32,
@@ -89,14 +89,14 @@ impl Serialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInput
         }
         fields.extend_from_array(self.public_call_stack_hashes);
 
-        for i in 0..MAX_NEW_NOTE_HASHES_PER_CALL {
-            fields.extend_from_array(self.new_note_hashes[i].serialize());
+        for i in 0..MAX_NOTE_HASHES_PER_CALL {
+            fields.extend_from_array(self.note_hashes[i].serialize());
         }
-        for i in 0..MAX_NEW_NULLIFIERS_PER_CALL {
-            fields.extend_from_array(self.new_nullifiers[i].serialize());
+        for i in 0..MAX_NULLIFIERS_PER_CALL {
+            fields.extend_from_array(self.nullifiers[i].serialize());
         }
-        for i in 0..MAX_NEW_L2_TO_L1_MSGS_PER_CALL {
-            fields.extend_from_array(self.new_l2_to_l1_msgs[i].serialize());
+        for i in 0..MAX_L2_TO_L1_MSGS_PER_CALL {
+            fields.extend_from_array(self.l2_to_l1_msgs[i].serialize());
         }
 
         fields.push(self.start_side_effect_counter as Field);
@@ -131,9 +131,9 @@ impl Deserialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInp
             contract_storage_update_requests: reader.read_struct_array(StorageUpdateRequest::deserialize, [StorageUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL]),
             contract_storage_reads: reader.read_struct_array(StorageRead::deserialize, [StorageRead::empty(); MAX_PUBLIC_DATA_READS_PER_CALL]),
             public_call_stack_hashes: reader.read_array([0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL]),
-            new_note_hashes: reader.read_struct_array(NoteHash::deserialize, [NoteHash::empty(); MAX_NEW_NOTE_HASHES_PER_CALL]),
-            new_nullifiers: reader.read_struct_array(Nullifier::deserialize, [Nullifier::empty(); MAX_NEW_NULLIFIERS_PER_CALL]),
-            new_l2_to_l1_msgs: reader.read_struct_array(L2ToL1Message::deserialize, [L2ToL1Message::empty(); MAX_NEW_L2_TO_L1_MSGS_PER_CALL]),
+            note_hashes: reader.read_struct_array(NoteHash::deserialize, [NoteHash::empty(); MAX_NOTE_HASHES_PER_CALL]),
+            nullifiers: reader.read_struct_array(Nullifier::deserialize, [Nullifier::empty(); MAX_NULLIFIERS_PER_CALL]),
+            l2_to_l1_msgs: reader.read_struct_array(L2ToL1Message::deserialize, [L2ToL1Message::empty(); MAX_L2_TO_L1_MSGS_PER_CALL]),
             start_side_effect_counter: reader.read() as u32,
             end_side_effect_counter: reader.read() as u32,
             unencrypted_logs_hashes: reader.read_struct_array(LogHash::deserialize, [LogHash::empty(); MAX_UNENCRYPTED_LOGS_PER_CALL]),
@@ -170,9 +170,9 @@ impl Empty for PublicCircuitPublicInputs {
             contract_storage_update_requests: [StorageUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL],
             contract_storage_reads: [StorageRead::empty(); MAX_PUBLIC_DATA_READS_PER_CALL],
             public_call_stack_hashes: [0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
-            new_note_hashes: [NoteHash::empty(); MAX_NEW_NOTE_HASHES_PER_CALL],
-            new_nullifiers: [Nullifier::empty(); MAX_NEW_NULLIFIERS_PER_CALL],
-            new_l2_to_l1_msgs: [L2ToL1Message::empty(); MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
+            note_hashes: [NoteHash::empty(); MAX_NOTE_HASHES_PER_CALL],
+            nullifiers: [Nullifier::empty(); MAX_NULLIFIERS_PER_CALL],
+            l2_to_l1_msgs: [L2ToL1Message::empty(); MAX_L2_TO_L1_MSGS_PER_CALL],
             start_side_effect_counter: 0 as u32,
             end_side_effect_counter: 0 as u32,
             unencrypted_logs_hashes: [LogHash::empty(); MAX_UNENCRYPTED_LOGS_PER_CALL],

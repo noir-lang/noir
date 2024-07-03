@@ -235,41 +235,41 @@ fn validate_propagated_from_private_call_key_validation_requests_output_one_more
 }
 
 /**
- * new_note_hashes
+ * note_hashes
  */
 
 #[test]
-fn validate_propagated_from_private_call_new_note_hashes_succeeds() {
+fn validate_propagated_from_private_call_note_hashes_succeeds() {
     let mut builder = PrivateKernelCircuitOutputValidatorBuilder::new();
 
-    builder.private_call.append_new_note_hashes(2);
-    builder.output.append_new_note_hashes(2);
+    builder.private_call.append_note_hashes(2);
+    builder.output.append_note_hashes(2);
 
     builder.validate_as_inner_call();
 }
 
 #[test(should_fail_with="output should be appended with empty items")]
-fn validate_propagated_from_private_call_new_note_hashes_output_one_more_fails() {
+fn validate_propagated_from_private_call_note_hashes_output_one_more_fails() {
     let mut builder = PrivateKernelCircuitOutputValidatorBuilder::new();
 
-    builder.private_call.append_new_note_hashes(2);
+    builder.private_call.append_note_hashes(2);
     // Propagate 1 more item to the output.
-    builder.output.append_new_note_hashes(3);
+    builder.output.append_note_hashes(3);
 
     builder.validate_as_inner_call();
 }
 
 /**
- * new_note_hashes
+ * note_hashes
  * With nullifier counters.
  */
 
 #[test]
-fn validate_propagated_from_private_call_new_note_hashes_non_zero_nullifier_counters_succeeds() {
+fn validate_propagated_from_private_call_note_hashes_non_zero_nullifier_counters_succeeds() {
     let mut builder = PrivateKernelCircuitOutputValidatorBuilder::new();
 
-    builder.private_call.append_new_note_hashes(2);
-    let note_hashes = [builder.private_call.new_note_hashes.storage[0], builder.private_call.new_note_hashes.storage[1]];
+    builder.private_call.append_note_hashes(2);
+    let note_hashes = [builder.private_call.note_hashes.storage[0], builder.private_call.note_hashes.storage[1]];
     builder.note_hash_nullifier_counters[0] = note_hashes[0].counter() + 10;
     builder.note_hash_nullifier_counters[1] = note_hashes[1].counter() + 35;
     builder.output.add_new_note_hash(
@@ -285,15 +285,15 @@ fn validate_propagated_from_private_call_new_note_hashes_non_zero_nullifier_coun
 }
 
 #[test]
-fn validate_propagated_from_private_call_new_note_hashes_with_previous_non_zero_nullifier_counters_succeeds() {
+fn validate_propagated_from_private_call_note_hashes_with_previous_non_zero_nullifier_counters_succeeds() {
     let mut builder = PrivateKernelCircuitOutputValidatorBuilder::new();
 
-    builder.previous_kernel.append_new_note_hashes(2);
-    builder.output.append_new_note_hashes(2);
+    builder.previous_kernel.append_note_hashes(2);
+    builder.output.append_note_hashes(2);
     builder.offset_values(2); // Offset the first 2 note hashes.
 
-    builder.private_call.append_new_note_hashes(2);
-    let note_hashes = [builder.private_call.new_note_hashes.storage[0], builder.private_call.new_note_hashes.storage[1]];
+    builder.private_call.append_note_hashes(2);
+    let note_hashes = [builder.private_call.note_hashes.storage[0], builder.private_call.note_hashes.storage[1]];
     builder.note_hash_nullifier_counters[0] = note_hashes[0].counter() + 10;
     builder.note_hash_nullifier_counters[1] = note_hashes[1].counter() + 35;
     builder.output.add_new_note_hash(
@@ -309,11 +309,11 @@ fn validate_propagated_from_private_call_new_note_hashes_with_previous_non_zero_
 }
 
 #[test(should_fail_with="invalid nullifier counter")]
-fn validate_propagated_from_private_call_new_note_hashes_nullifier_counters_too_small_fails() {
+fn validate_propagated_from_private_call_note_hashes_nullifier_counters_too_small_fails() {
     let mut builder = PrivateKernelCircuitOutputValidatorBuilder::new();
 
-    builder.private_call.append_new_note_hashes(2);
-    let note_hashes = [builder.private_call.new_note_hashes.storage[0], builder.private_call.new_note_hashes.storage[1]];
+    builder.private_call.append_note_hashes(2);
+    let note_hashes = [builder.private_call.note_hashes.storage[0], builder.private_call.note_hashes.storage[1]];
     builder.note_hash_nullifier_counters[0] = note_hashes[0].counter() + 10;
     // Tweak the nullifier counter to be less than the counter of the note hash.
     builder.note_hash_nullifier_counters[1] = note_hashes[1].counter() - 1;
@@ -330,11 +330,11 @@ fn validate_propagated_from_private_call_new_note_hashes_nullifier_counters_too_
 }
 
 #[test(should_fail_with="incorrect nullifier counter assigned to dest")]
-fn validate_propagated_from_private_call_new_note_hashes_nullifier_counters_mismatch_fails() {
+fn validate_propagated_from_private_call_note_hashes_nullifier_counters_mismatch_fails() {
     let mut builder = PrivateKernelCircuitOutputValidatorBuilder::new();
 
-    builder.private_call.append_new_note_hashes(2);
-    let note_hashes = [builder.private_call.new_note_hashes.storage[0], builder.private_call.new_note_hashes.storage[1]];
+    builder.private_call.append_note_hashes(2);
+    let note_hashes = [builder.private_call.note_hashes.storage[0], builder.private_call.note_hashes.storage[1]];
     builder.note_hash_nullifier_counters[0] = note_hashes[0].counter() + 10;
     builder.note_hash_nullifier_counters[1] = note_hashes[1].counter() + 35;
     builder.output.add_new_note_hash(
@@ -351,53 +351,53 @@ fn validate_propagated_from_private_call_new_note_hashes_nullifier_counters_mism
 }
 
 /**
- * new_nullifiers
+ * nullifiers
  */
 
 #[test]
-fn validate_propagated_from_private_call_new_nullifiers_succeeds() {
+fn validate_propagated_from_private_call_nullifiers_succeeds() {
     let mut builder = PrivateKernelCircuitOutputValidatorBuilder::new();
 
     builder.offset_values(1); // Offset the first nullifier.
-    builder.private_call.append_new_nullifiers(2);
-    builder.output.append_new_nullifiers(2);
+    builder.private_call.append_nullifiers(2);
+    builder.output.append_nullifiers(2);
 
     builder.validate_as_inner_call();
 }
 
 #[test(should_fail_with="output should be appended with empty items")]
-fn validate_propagated_from_private_call_new_nullifiers_output_one_more_fails() {
+fn validate_propagated_from_private_call_nullifiers_output_one_more_fails() {
     let mut builder = PrivateKernelCircuitOutputValidatorBuilder::new();
 
     builder.offset_values(1); // Offset the first nullifier.
-    builder.private_call.append_new_nullifiers(2);
+    builder.private_call.append_nullifiers(2);
     // Propagate 1 more item to the output.
-    builder.output.append_new_nullifiers(3);
+    builder.output.append_nullifiers(3);
 
     builder.validate_as_inner_call();
 }
 
 /**
- * new_l2_to_l1_msgs
+ * l2_to_l1_msgs
  */
 
 #[test]
-fn validate_propagated_from_private_call_new_l2_to_l1_msgs_succeeds() {
+fn validate_propagated_from_private_call_l2_to_l1_msgs_succeeds() {
     let mut builder = PrivateKernelCircuitOutputValidatorBuilder::new();
 
-    builder.private_call.append_new_l2_to_l1_msgs(2);
-    builder.output.append_new_l2_to_l1_msgs(2);
+    builder.private_call.append_l2_to_l1_msgs(2);
+    builder.output.append_l2_to_l1_msgs(2);
 
     builder.validate_as_inner_call();
 }
 
 #[test(should_fail_with="output should be appended with empty items")]
-fn validate_propagated_from_private_call_new_l2_to_l1_msgs_output_one_more_fails() {
+fn validate_propagated_from_private_call_l2_to_l1_msgs_output_one_more_fails() {
     let mut builder = PrivateKernelCircuitOutputValidatorBuilder::new();
 
-    builder.private_call.append_new_l2_to_l1_msgs(1);
+    builder.private_call.append_l2_to_l1_msgs(1);
     // Propagate 1 more item to the output.
-    builder.output.append_new_l2_to_l1_msgs(2);
+    builder.output.append_l2_to_l1_msgs(2);
 
     builder.validate_as_inner_call();
 }

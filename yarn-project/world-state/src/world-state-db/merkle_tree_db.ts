@@ -1,5 +1,5 @@
 import { type MerkleTreeId } from '@aztec/circuit-types';
-import { type Fr, MAX_NEW_NULLIFIERS_PER_TX, MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX } from '@aztec/circuits.js';
+import { type Fr, MAX_NULLIFIERS_PER_TX, MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX } from '@aztec/circuits.js';
 import { type IndexedTreeSnapshot, type TreeSnapshot } from '@aztec/merkle-tree';
 
 import { type MerkleTreeOperations } from './merkle_tree_operations.js';
@@ -19,7 +19,7 @@ import { type MerkleTreeOperations } from './merkle_tree_operations.js';
  *    1024 leaves for the first block, because there's only neat space for 1023 leaves after 0. By padding with 1023
  *    more leaves, we can then insert the first block of 1024 leaves into indices 1024:2047.
  */
-export const INITIAL_NULLIFIER_TREE_SIZE = 2 * MAX_NEW_NULLIFIERS_PER_TX;
+export const INITIAL_NULLIFIER_TREE_SIZE = 2 * MAX_NULLIFIERS_PER_TX;
 
 export const INITIAL_PUBLIC_DATA_TREE_SIZE = 2 * MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX;
 
