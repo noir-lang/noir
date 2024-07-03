@@ -67,7 +67,7 @@ does indeed lie on `c` by calling `c.contains(p1)`.
   the curve configurations, the SWU map-to-curve method may be called as `c.swu_map(z,n)`, where
   `z: Field` depends on `Field` and `c` and must be chosen by the user (the conditions it needs to
   satisfy are specified in the comments
-  [here](https://github.com/noir-lang/noir/tree/master/noir_stdlib/src/ec)).
+  [here](https://github.com/noir-lang/noir/tree/master/noir_stdlib/src/ec/mod.nr).
 
 ## Examples
 
