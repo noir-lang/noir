@@ -168,6 +168,10 @@ pub(crate) struct ConsoleAsmWriter {
 }
 
 impl ConsoleAsmWriter {
+    fn output_enabled(&self) -> bool {
+        self.show_plonky2
+    }
+
     fn handle_output(&self, s: String) {
         if self.show_plonky2 {
             println!("{}", s);
@@ -192,7 +196,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn is_equal(&mut self, x: Target, y: Target) -> BoolTarget {
         let result = self.builder.is_equal(x, y);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "is_equal\t{},{},{}",
                 TargetDisplay { t: x },
@@ -205,7 +209,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn zero(&mut self) -> Target {
         let result = self.builder.zero();
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!("zero\t{}", TargetDisplay { t: result }));
         }
         result
@@ -213,7 +217,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn one(&mut self) -> Target {
         let result = self.builder.one();
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!("one\t{}", TargetDisplay { t: result }));
         }
         result
@@ -221,7 +225,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn two(&mut self) -> Target {
         let result = self.builder.two();
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!("two\t{}", TargetDisplay { t: result }));
         }
         result
@@ -229,7 +233,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn split_le(&mut self, integer: Target, num_bits: usize) -> Vec<BoolTarget> {
         let result = self.builder.split_le(integer, num_bits);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "split_le\t{},{},{}",
                 TargetDisplay { t: integer },
@@ -242,7 +246,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn _if(&mut self, b: BoolTarget, x: Target, y: Target) -> Target {
         let result = self.builder._if(b, x, y);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "if\t{},{},{},{}",
                 BoolTargetDisplay { t: b },
@@ -256,7 +260,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn exp_u64(&mut self, base: Target, exponent: u64) -> Target {
         let result = self.builder.exp_u64(base, exponent);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "exp_u64\t{},{},{}",
                 TargetDisplay { t: base },
@@ -269,7 +273,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn constant(&mut self, c: P2Field) -> Target {
         let result = self.builder.constant(c);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!("constant\t{},{}", c, TargetDisplay { t: result }));
         }
         result
@@ -277,7 +281,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn constant_bool(&mut self, b: bool) -> BoolTarget {
         let result = self.builder.constant_bool(b);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!("constant_bool\t{},{}", b, BoolTargetDisplay { t: result }));
         }
         result
@@ -285,7 +289,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn mul(&mut self, x: Target, y: Target) -> Target {
         let result = self.builder.mul(x, y);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "mul\t{},{},{}",
                 TargetDisplay { t: x },
@@ -298,7 +302,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn and(&mut self, b1: BoolTarget, b2: BoolTarget) -> BoolTarget {
         let result = self.builder.and(b1, b2);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "and\t{},{},{}",
                 BoolTargetDisplay { t: b1 },
@@ -311,7 +315,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn or(&mut self, b1: BoolTarget, b2: BoolTarget) -> BoolTarget {
         let result = self.builder.or(b1, b2);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "or\t{},{},{}",
                 BoolTargetDisplay { t: b1 },
@@ -324,7 +328,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn add(&mut self, x: Target, y: Target) -> Target {
         let result = self.builder.add(x, y);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "add\t{},{},{}",
                 TargetDisplay { t: x },
@@ -337,7 +341,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn sub(&mut self, x: Target, y: Target) -> Target {
         let result = self.builder.sub(x, y);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "sub\t{},{},{}",
                 TargetDisplay { t: x },
@@ -350,7 +354,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn not(&mut self, b: BoolTarget) -> BoolTarget {
         let result = self.builder.not(b);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "not\t{},{}",
                 BoolTargetDisplay { t: b },
@@ -362,14 +366,14 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn assert_bool(&mut self, b: BoolTarget) {
         self.builder.assert_bool(b);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!("assert_bool\t{}", BoolTargetDisplay { t: b }));
         }
     }
 
     fn connect(&mut self, x: Target, y: Target) {
         self.builder.connect(x, y);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "connect\t{},{}",
                 TargetDisplay { t: x },
@@ -380,7 +384,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn register_public_inputs(&mut self, targets: &[Target]) {
         self.builder.register_public_inputs(targets);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "register_public_inputs\t{}",
                 TargetSliceDisplay { t: targets }
@@ -392,7 +396,7 @@ impl AsmWriter for ConsoleAsmWriter {
     where
         T: Borrow<Target>,
     {
-        if self.show_plonky2 {
+        if self.output_enabled() {
             let result = self.builder.add_many(terms.clone());
             self.handle_output(format!(
                 "add_many\t{},{}",
@@ -406,7 +410,7 @@ impl AsmWriter for ConsoleAsmWriter {
     }
 
     fn le_sum(&mut self, bits: impl Iterator<Item = impl Borrow<BoolTarget>> + Clone) -> Target {
-        if self.show_plonky2 {
+        if self.output_enabled() {
             let result = self.builder.le_sum(bits.clone());
             self.handle_output(format!(
                 "le_sum\t{},{}",
@@ -421,14 +425,14 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn range_check(&mut self, x: Target, n_log: usize) {
         self.builder.range_check(x, n_log);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!("range_check\t{},{}", TargetDisplay { t: x }, n_log));
         }
     }
 
     fn add_virtual_bool_target_unsafe(&mut self) -> BoolTarget {
         let result = self.builder.add_virtual_bool_target_unsafe();
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "add_virtual_bool_target_unsafe\t{}",
                 BoolTargetDisplay { t: result }
@@ -439,7 +443,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn add_virtual_bool_target_safe(&mut self) -> BoolTarget {
         let result = self.builder.add_virtual_bool_target_safe();
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "add_virtual_bool_target_safe\t{}",
                 BoolTargetDisplay { t: result }
@@ -450,7 +454,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn constant_u32(&mut self, c: u32) -> U32Target {
         let result = self.builder.constant_u32(c);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!("constant_u32\t{},{}", c, U32TargetDisplay { t: result }));
         }
         result
@@ -458,7 +462,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn add_u32(&mut self, a: U32Target, b: U32Target) -> (U32Target, U32Target) {
         let result = self.builder.add_u32(a, b);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "add_u32\t{},{},({},{})",
                 U32TargetDisplay { t: a },
@@ -472,7 +476,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn split_le_base<const B: usize>(&mut self, x: Target, num_limbs: usize) -> Vec<Target> {
         let result = self.builder.split_le_base::<B>(x, num_limbs);
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!(
                 "split_le_base\t{},{},{},{}",
                 B,
@@ -486,7 +490,7 @@ impl AsmWriter for ConsoleAsmWriter {
 
     fn add_virtual_target(&mut self) -> Target {
         let result = self.builder.add_virtual_target();
-        if self.show_plonky2 {
+        if self.output_enabled() {
             self.handle_output(format!("add_virtual_target\t{}", TargetDisplay { t: result }));
         }
         result
