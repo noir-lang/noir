@@ -3,7 +3,7 @@ use std::vec;
 
 use acvm::{AcirField, FieldElement};
 use fm::{FileId, FileManager, FILE_EXTENSION};
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 use num_bigint::BigUint;
 use num_traits::Num;
 use rustc_hash::FxHashMap as HashMap;
@@ -283,7 +283,7 @@ impl<'a> ModCollector<'a> {
             );
 
             // Create the corresponding module for the struct namespace
-            let id = match self.push_child_module(&name, self.file_id, false, false) {
+            let id = match self.push_child_module(context, &name, self.file_id, false, false) {
                 Ok(local_id) => context.def_interner.new_struct(
                     &unresolved,
                     resolved_generics,
@@ -377,7 +377,8 @@ impl<'a> ModCollector<'a> {
             let name = trait_definition.name.clone();
 
             // Create the corresponding module for the trait namespace
-            let trait_id = match self.push_child_module(&name, self.file_id, false, false) {
+            let trait_id = match self.push_child_module(context, &name, self.file_id, false, false)
+            {
                 Ok(local_id) => TraitId(ModuleId { krate, local_id }),
                 Err(error) => {
                     errors.push((error.into(), self.file_id));
@@ -535,7 +536,13 @@ impl<'a> ModCollector<'a> {
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for submodule in submodules {
-            match self.push_child_module(&submodule.name, file_id, true, submodule.is_contract) {
+            match self.push_child_module(
+                context,
+                &submodule.name,
+                file_id,
+                true,
+                submodule.is_contract,
+            ) {
                 Ok(child) => {
                     errors.extend(collect_defs(
                         self.def_collector,
@@ -620,7 +627,7 @@ impl<'a> ModCollector<'a> {
         );
 
         // Add module into def collector and get a ModuleId
-        match self.push_child_module(&mod_decl.ident, child_file_id, true, false) {
+        match self.push_child_module(context, &mod_decl.ident, child_file_id, true, false) {
             Ok(child_mod_id) => {
                 errors.extend(collect_defs(
                     self.def_collector,
@@ -643,6 +650,7 @@ impl<'a> ModCollector<'a> {
     /// On error this returns None and pushes to `errors`
     fn push_child_module(
         &mut self,
+        context: &mut Context,
         mod_name: &Ident,
         file_id: FileId,
         add_to_parent_scope: bool,
@@ -681,6 +689,10 @@ impl<'a> ModCollector<'a> {
                 };
                 return Err(err);
             }
+
+            context
+                .def_interner
+                .add_module_location(mod_id, Location::new(Span::empty(0), file_id));
         }
 
         Ok(LocalModuleId(module_id))
