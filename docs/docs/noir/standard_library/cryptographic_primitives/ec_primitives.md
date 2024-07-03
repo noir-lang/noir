@@ -18,7 +18,7 @@ curve you want to use, which would be specified using any one of the methods
 `std::ec::{tecurve,montcurve,swcurve}::{affine,curvegroup}::new` which take the coefficients in the
 defining equation together with a generator point as parameters. You can find more detail in the
 comments in
-[`noir_stdlib/src/ec/mod.nhttps://github.com/noir-lang/noir/tree/master/noir_stdlib/src/ecc/mod.nr), but
+[`noir_stdlib/src/ec/mod.nr`](https://github.com/noir-lang/noir/tree/master/noir_stdlib/src/ecc/mod.nr), but
 the gist of it is that the elliptic curves of interest are usually expressed in one of the standard
 forms implemented here (Twisted Edwards, Montgomery and Short Weierstraß), and in addition to that,
 you could choose to use `affine` coordinates (Cartesian coordinates - the usual (x,y) - possibly
