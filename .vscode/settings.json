@@ -155,7 +155,8 @@
   "rust-analyzer.linkedProjects": [
     "noir/noir-repo/Cargo.toml",
     "noir/noir-repo/acvm-repo/acvm_js/Cargo.toml",
-    "avm-transpiler/Cargo.toml"
+    "avm-transpiler/Cargo.toml",
+    "bb-pilcom/Cargo.toml"
   ],
   "files.watcherExclude": {
     "**/.git/**": true,
