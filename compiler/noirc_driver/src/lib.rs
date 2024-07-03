@@ -71,7 +71,7 @@ pub struct CompileOptions {
     pub show_plonky2: bool,
 
     #[arg(long, hide = true)]
-    pub write_plonky2_to_file: Option<String>,
+    pub plonky2_print_file: Option<String>,
 
     /// Display the ACIR for compiled circuit
     #[arg(long)]
@@ -577,7 +577,7 @@ pub fn compile_no_check(
             monomorph,
             options.show_ssa,
             options.show_plonky2,
-            options.write_plonky2_to_file.clone(),
+            options.plonky2_print_file.clone(),
             options.benchmark_codegen,
             parameter_names,
         )?)

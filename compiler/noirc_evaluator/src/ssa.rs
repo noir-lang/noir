@@ -108,7 +108,7 @@ pub(crate) fn optimize_into_plonky2(
     program: Program,
     print_passes: bool,
     print_plonky2: bool,
-    write_plonky2_to_file: Option<String>,
+    plonky2_print_file: Option<String>,
     print_timings: bool,
     parameter_names: Vec<String>,
 ) -> Result<Plonky2Circuit, RuntimeError> {
@@ -149,7 +149,7 @@ pub(crate) fn optimize_into_plonky2(
 
     drop(ssa_gen_span_guard);
 
-    Builder::<ConsoleAsmWriter>::new(print_plonky2, write_plonky2_to_file).build(
+    Builder::<ConsoleAsmWriter>::new(print_plonky2, plonky2_print_file).build(
         ssa,
         parameter_names,
         main_function_signature,
@@ -370,7 +370,7 @@ pub fn create_plonky2_circuit(
     program: Program,
     enable_ssa_logging: bool,
     show_plonky2: bool,
-    write_plonky2_to_file: Option<String>,
+    plonky2_print_file: Option<String>,
     print_codegen_timings: bool,
     parameter_names: Vec<String>,
 ) -> Result<Plonky2Circuit, RuntimeError> {
@@ -378,7 +378,7 @@ pub fn create_plonky2_circuit(
         program,
         enable_ssa_logging,
         show_plonky2,
-        write_plonky2_to_file,
+        plonky2_print_file,
         print_codegen_timings,
         parameter_names,
     )

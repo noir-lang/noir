@@ -200,11 +200,11 @@ impl AsmWriter for ConsoleAsmWriter {
         self.builder
     }
 
-    fn new(builder: P2Builder, show_plonky2: bool, write_plonky2_to_file: Option<String>) -> Self {
+    fn new(builder: P2Builder, show_plonky2: bool, plonky2_print_file: Option<String>) -> Self {
         ConsoleAsmWriter {
             builder,
             show_plonky2,
-            file: if let Some(file_name) = write_plonky2_to_file {
+            file: if let Some(file_name) = plonky2_print_file {
                 Some(BufWriter::new(
                     File::create(file_name).expect("Unable to create PLONKY2 file"),
                 ))
