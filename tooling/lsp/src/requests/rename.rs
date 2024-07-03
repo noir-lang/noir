@@ -102,7 +102,7 @@ mod rename_tests {
             let changes = response.changes.expect("Expected to find rename changes");
             let mut changes: Vec<Range> =
                 changes.values().flatten().map(|edit| edit.range).collect();
-            changes.sort_by_key(|range| range.start.line);
+            changes.sort_by_key(|range| (range.start.line, range.start.character));
             assert_eq!(changes, ranges);
         }
     }

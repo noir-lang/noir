@@ -15,4 +15,6 @@ fn main(x: Field) -> pub Field {
     x
 }
 
-fn foo(foo: Foo) {}
+fn foo(foo: Foo) -> Foo {
+    foo
+}
