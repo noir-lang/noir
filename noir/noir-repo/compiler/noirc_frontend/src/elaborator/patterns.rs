@@ -157,6 +157,8 @@ impl<'context> Elaborator<'context> {
         mutable: Option<Span>,
         new_definitions: &mut Vec<HirIdent>,
     ) -> HirPattern {
+        let name_span = name.last_segment().span();
+
         let error_identifier = |this: &mut Self| {
             // Must create a name here to return a HirPattern::Identifier. Allowing
             // shadowing here lets us avoid further errors if we define ERROR_IDENT
@@ -195,6 +197,10 @@ impl<'context> Elaborator<'context> {
             mutable,
             new_definitions,
         );
+
+        let referenced = DependencyId::Struct(struct_type.borrow().id);
+        let reference = DependencyId::Variable(Location::new(name_span, self.file));
+        self.interner.add_reference(referenced, reference);
 
         HirPattern::Struct(expected_type, fields, location)
     }
@@ -584,10 +590,7 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn get_ident_from_path(&mut self, path: Path) -> (HirIdent, usize) {
-        let location = Location::new(
-            path.segments.last().expect("ice: path without segments").span(),
-            self.file,
-        );
+        let location = Location::new(path.last_segment().span(), self.file);
 
         let error = match path.as_ident().map(|ident| self.use_variable(ident)) {
             Some(Ok(found)) => return found,
