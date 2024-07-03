@@ -330,7 +330,7 @@ impl DefCollector {
         // Resolve unresolved imports collected from the crate, one by one.
         for collected_import in std::mem::take(&mut def_collector.imports) {
             let module_id = collected_import.module_id;
-            match resolve_import(crate_id, &collected_import, &context.def_maps) {
+            match resolve_import(crate_id, &collected_import, &context.def_maps, &mut None) {
                 Ok(resolved_import) => {
                     if let Some(error) = resolved_import.error {
                         errors.push((
@@ -524,6 +524,7 @@ fn inject_prelude(
             &context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
             path,
+            &mut None,
         ) {
             assert!(error.is_none(), "Tried to add private item to prelude");
             let module_id = module_def_id.as_module().expect("std::prelude should be a module");

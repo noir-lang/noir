@@ -31,8 +31,10 @@ impl LocationIndices {
 impl NodeInterner {
     pub fn dependency_location(&self, dependency: DependencyId) -> Location {
         match dependency {
+            DependencyId::Module(_) => todo!(),
             DependencyId::Function(id) => self.function_modifiers(&id).name_location,
             DependencyId::Struct(id) => self.struct_location(&id),
+            DependencyId::Trait(_) => todo!(),
             DependencyId::Global(id) => self.get_global(id).location,
             DependencyId::Alias(id) => self.get_type_alias(id).borrow().location,
             DependencyId::Variable(location) => location,
@@ -99,7 +101,10 @@ impl NodeInterner {
 
         let reference_node = self.reference_graph[node_index];
         let found_locations: Vec<Location> = match reference_node {
-            DependencyId::Alias(_) | DependencyId::Global(_) => todo!(),
+            DependencyId::Alias(_)
+            | DependencyId::Global(_)
+            | DependencyId::Module(_)
+            | DependencyId::Trait(_) => todo!(),
             DependencyId::Function(_) | DependencyId::Struct(_) => {
                 self.find_all_references_for_index(node_index, include_reference)
             }

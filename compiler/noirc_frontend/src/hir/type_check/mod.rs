@@ -461,7 +461,9 @@ pub mod test {
         function::{FuncMeta, HirFunction},
         stmt::HirStatement,
     };
-    use crate::node_interner::{DefinitionKind, FuncId, NodeInterner, TraitId, TraitMethodId};
+    use crate::node_interner::{
+        DefinitionKind, DependencyId, FuncId, NodeInterner, TraitId, TraitMethodId,
+    };
     use crate::{
         hir::{
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -692,6 +694,7 @@ pub mod test {
             &self,
             _def_maps: &BTreeMap<CrateId, CrateDefMap>,
             path: Path,
+            _dependencies: &mut Option<&mut Vec<DependencyId>>,
         ) -> PathResolutionResult {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();

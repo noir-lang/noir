@@ -228,7 +228,9 @@ pub struct NodeInterner {
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum DependencyId {
+    Module(ModuleId),
     Struct(StructId),
+    Trait(TraitId),
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
@@ -1800,6 +1802,8 @@ impl NodeInterner {
                         DependencyId::Variable(loc) => unreachable!(
                             "Variable used at location {loc:?} caught in a dependency cycle"
                         ),
+                        // These two are never put in the dependency graph
+                        DependencyId::Module(_) | DependencyId::Trait(_) => (),
                     }
                 }
             }
@@ -1823,6 +1827,10 @@ impl NodeInterner {
             }
             DependencyId::Variable(loc) => {
                 unreachable!("Variable used at location {loc:?} caught in a dependency cycle")
+            }
+            // These two are never put in the dependency graph
+            DependencyId::Module(_) | DependencyId::Trait(_) => {
+                unreachable!("Module or trait dependency shouldn't exist in the dependency graph")
             }
         };
 

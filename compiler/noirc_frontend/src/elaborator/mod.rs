@@ -534,7 +534,7 @@ impl<'context> Elaborator<'context> {
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
         let path_resolver = StandardPathResolver::new(self.module_id());
 
-        let error = match path_resolver.resolve(self.def_maps, path.clone()) {
+        let error = match path_resolver.resolve(self.def_maps, path.clone(), &mut None) {
             Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), error }) => {
                 if let Some(error) = error {
                     self.push_err(error);
