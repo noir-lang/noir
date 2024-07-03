@@ -460,6 +460,7 @@ pub(crate) enum Node {
 pub struct DefinitionInfo {
     pub name: String,
     pub mutable: bool,
+    pub comptime: bool,
     pub kind: DefinitionKind,
     pub location: Location,
 }
@@ -721,6 +722,7 @@ impl NodeInterner {
         self.type_ref_locations.push((typ, location));
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn push_global(
         &mut self,
         ident: Ident,
@@ -729,12 +731,13 @@ impl NodeInterner {
         file: FileId,
         attributes: Vec<SecondaryAttribute>,
         mutable: bool,
+        comptime: bool,
     ) -> GlobalId {
         let id = GlobalId(self.globals.len());
         let location = Location::new(ident.span(), file);
         let name = ident.to_string();
         let definition_id =
-            self.push_definition(name, mutable, DefinitionKind::Global(id), location);
+            self.push_definition(name, mutable, comptime, DefinitionKind::Global(id), location);
 
         self.globals.push(GlobalInfo {
             id,
@@ -761,10 +764,11 @@ impl NodeInterner {
         file: FileId,
         attributes: Vec<SecondaryAttribute>,
         mutable: bool,
+        comptime: bool,
     ) -> GlobalId {
         let statement = self.push_stmt(HirStatement::Error);
         let span = name.span();
-        let id = self.push_global(name, local_id, statement, file, attributes, mutable);
+        let id = self.push_global(name, local_id, statement, file, attributes, mutable, comptime);
         self.push_stmt_location(statement, span, file);
         id
     }
@@ -808,6 +812,7 @@ impl NodeInterner {
         &mut self,
         name: String,
         mutable: bool,
+        comptime: bool,
         definition: DefinitionKind,
         location: Location,
     ) -> DefinitionId {
@@ -816,7 +821,8 @@ impl NodeInterner {
             self.function_definition_ids.insert(func_id, id);
         }
 
-        self.definitions.push(DefinitionInfo { name, mutable, kind: definition, location });
+        let kind = definition;
+        self.definitions.push(DefinitionInfo { name, mutable, comptime, kind, location });
         id
     }
 
@@ -864,9 +870,10 @@ impl NodeInterner {
         location: Location,
     ) -> DefinitionId {
         let name = modifiers.name.clone();
+        let comptime = modifiers.is_comptime;
         self.function_modifiers.insert(func, modifiers);
         self.function_modules.insert(func, module);
-        self.push_definition(name, false, DefinitionKind::Function(func), location)
+        self.push_definition(name, false, comptime, DefinitionKind::Function(func), location)
     }
 
     pub fn set_function_trait(&mut self, func: FuncId, self_type: Type, trait_id: TraitId) {

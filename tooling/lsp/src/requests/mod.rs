@@ -36,6 +36,7 @@ mod code_lens_request;
 mod goto_declaration;
 mod goto_definition;
 mod profile_run;
+mod references;
 mod rename;
 mod test_run;
 mod tests;
@@ -44,8 +45,8 @@ pub(crate) use {
     code_lens_request::collect_lenses_for_package, code_lens_request::on_code_lens_request,
     goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
     goto_definition::on_goto_type_definition_request, profile_run::on_profile_run_request,
-    rename::on_prepare_rename_request, rename::on_rename_request, test_run::on_test_run_request,
-    tests::on_tests_request,
+    references::on_references_request, rename::on_prepare_rename_request,
+    rename::on_rename_request, test_run::on_test_run_request, tests::on_tests_request,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -117,6 +118,11 @@ pub(crate) fn on_initialize(
                 type_definition_provider: Some(TypeDefinitionProviderCapability::Simple(true)),
                 rename_provider: Some(lsp_types::OneOf::Right(lsp_types::RenameOptions {
                     prepare_provider: Some(true),
+                    work_done_progress_options: WorkDoneProgressOptions {
+                        work_done_progress: None,
+                    },
+                })),
+                references_provider: Some(lsp_types::OneOf::Right(lsp_types::ReferencesOptions {
                     work_done_progress_options: WorkDoneProgressOptions {
                         work_done_progress: None,
                     },

@@ -1896,3 +1896,14 @@ fn quote_code_fragments() {
     use InterpreterError::FailingConstraint;
     assert!(matches!(&errors[0].0, CompilationError::InterpreterError(FailingConstraint { .. })));
 }
+
+// Regression for #5388
+#[test]
+fn comptime_let() {
+    let src = r#"fn main() {
+        comptime let my_var = 2;
+        assert_eq(my_var, 2);
+    }"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}

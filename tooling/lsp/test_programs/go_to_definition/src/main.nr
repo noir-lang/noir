@@ -5,6 +5,7 @@ mod foo {
 }
 
 use foo::another_function;
+use foo::another_function as aliased_function;
 
 fn some_function() -> Field {
     1 + 2

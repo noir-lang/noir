@@ -348,7 +348,12 @@ impl DefCollector {
                             .import(name.clone(), ns, resolved_import.is_prelude);
 
                         let file_id = current_def_map.file_id(module_id);
-                        add_import_reference(ns, &name, &mut context.def_interner, file_id);
+                        let last_segment = collected_import.path.last_segment();
+
+                        add_import_reference(ns, &last_segment, &mut context.def_interner, file_id);
+                        if let Some(ref alias) = collected_import.alias {
+                            add_import_reference(ns, alias, &mut context.def_interner, file_id);
+                        }
 
                         if let Err((first_def, second_def)) = result {
                             let err = DefCollectorErrorKind::Duplicate {

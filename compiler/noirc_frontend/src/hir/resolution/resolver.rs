@@ -399,8 +399,8 @@ impl<'a> Resolver<'a> {
         }
 
         let location = Location::new(name.span(), self.file);
-        let id =
-            self.interner.push_definition(name.0.contents.clone(), mutable, definition, location);
+        let var_name = name.0.contents.clone();
+        let id = self.interner.push_definition(var_name, mutable, false, definition, location);
         let ident = HirIdent::non_trait_method(id, location);
         let resolver_meta =
             ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused };
@@ -445,8 +445,8 @@ impl<'a> Resolver<'a> {
             (hir_ident, resolver_meta)
         } else {
             let location = Location::new(name.span(), self.file);
-            let id =
-                self.interner.push_definition(name.0.contents.clone(), false, definition, location);
+            let var_name = name.0.contents.clone();
+            let id = self.interner.push_definition(var_name, false, false, definition, location);
             let ident = HirIdent::non_trait_method(id, location);
             let resolver_meta =
                 ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused: true };

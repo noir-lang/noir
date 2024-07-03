@@ -2893,6 +2893,7 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "num-bigint",
+ "proptest",
  "serde",
  "thiserror",
  "tracing",

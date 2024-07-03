@@ -21,3 +21,6 @@ im.workspace = true
 serde.workspace = true
 tracing.workspace = true
 chrono = "0.4.37"
+
+[dev-dependencies]
+proptest.workspace = true
