@@ -24,6 +24,8 @@ std::string to_hex(OpCode opcode)
 std::string to_string(OpCode opcode)
 {
     switch (opcode) {
+    // Compute
+    // Compute - Arithmetic
     case OpCode::ADD:
         return "ADD";
     case OpCode::SUB:
@@ -34,12 +36,14 @@ std::string to_string(OpCode opcode)
         return "DIV";
     case OpCode::FDIV:
         return "FDIV";
+    // Compute - Comparators
     case OpCode::EQ:
         return "EQ";
     case OpCode::LT:
         return "LT";
     case OpCode::LTE:
         return "LTE";
+    // Compute - Bitwise
     case OpCode::AND:
         return "AND";
     case OpCode::OR:
@@ -52,8 +56,10 @@ std::string to_string(OpCode opcode)
         return "SHL";
     case OpCode::SHR:
         return "SHR";
+    // Compute - Type Conversions
     case OpCode::CAST:
         return "CAST";
+    // Execution Environment
     case OpCode::ADDRESS:
         return "ADDRESS";
     case OpCode::STORAGEADDRESS:
@@ -64,6 +70,7 @@ std::string to_string(OpCode opcode)
         return "FUNCTIONSELECTOR";
     case OpCode::TRANSACTIONFEE:
         return "TRANSACTIONFEE";
+    // Execution Environment - Globals
     case OpCode::CHAINID:
         return "CHAINID";
     case OpCode::VERSION:
@@ -82,12 +89,16 @@ std::string to_string(OpCode opcode)
         return "BLOCKL2GASLIMIT";
     case OpCode::BLOCKDAGASLIMIT:
         return "BLOCKDAGASLIMIT";
+    // Execution Environment - Calldata
     case OpCode::CALLDATACOPY:
         return "CALLDATACOPY";
+    // Machine State
+    // Machine State - Gas
     case OpCode::L2GASLEFT:
         return "L2GASLEFT";
     case OpCode::DAGASLEFT:
         return "DAGASLEFT";
+    // Machine State - Internal Control Flow
     case OpCode::JUMP:
         return "JUMP";
     case OpCode::JUMPI:
@@ -96,12 +107,14 @@ std::string to_string(OpCode opcode)
         return "INTERNALCALL";
     case OpCode::INTERNALRETURN:
         return "INTERNALRETURN";
+    // Machine State - Memory
     case OpCode::SET:
         return "SET";
     case OpCode::MOV:
         return "MOV";
     case OpCode::CMOV:
         return "CMOV";
+    // World State
     case OpCode::SLOAD:
         return "SLOAD";
     case OpCode::SSTORE:
@@ -120,10 +133,12 @@ std::string to_string(OpCode opcode)
         return "HEADERMEMBER";
     case OpCode::GETCONTRACTINSTANCE:
         return "GETCONTRACTINSTANCE";
+    // Accrued Substate
     case OpCode::EMITUNENCRYPTEDLOG:
         return "EMITUNENCRYPTEDLOG";
     case OpCode::SENDL2TOL1MSG:
         return "SENDL2TOL1MSG";
+    // Control Flow - Contract Calls
     case OpCode::CALL:
         return "CALL";
     case OpCode::STATICCALL:
@@ -134,8 +149,10 @@ std::string to_string(OpCode opcode)
         return "RETURN";
     case OpCode::REVERT:
         return "REVERT";
+    // Misc
     case OpCode::DEBUGLOG:
         return "DEBUGLOG";
+    // Gadgets
     case OpCode::KECCAK:
         return "KECCAK";
     case OpCode::POSEIDON2:
@@ -148,12 +165,15 @@ std::string to_string(OpCode opcode)
         return "ECADD";
     case OpCode::MSM:
         return "MSM";
+    // Conversions
     case OpCode::TORADIXLE:
         return "TORADIXLE";
+    // Future Gadgets -- pending changes in noir
     case OpCode::SHA256COMPRESSION:
         return "SHA256COMPRESSION";
     case OpCode::KECCAKF1600:
         return "KECCAKF1600";
+    // Sentinel
     case OpCode::LAST_OPCODE_SENTINEL:
         return "LAST_OPCODE_SENTINEL";
     default:

@@ -18,15 +18,18 @@ class AvmAluTraceBuilder {
         bool alu_op_add = false;
         bool alu_op_sub = false;
         bool alu_op_mul = false;
-        bool alu_op_not = false;
+        bool alu_op_div = false;
+
         bool alu_op_eq = false;
         bool alu_op_lt = false;
         bool alu_op_lte = false;
+
+        bool alu_op_not = false;
+        bool alu_op_shl = false;
+        bool alu_op_shr = false;
+
         bool alu_op_cast = false;
         bool alu_op_cast_prev = false;
-        bool alu_op_shr = false;
-        bool alu_op_shl = false;
-        bool alu_op_div = false;
 
         bool alu_ff_tag = false;
         bool alu_u8_tag = false;
@@ -85,17 +88,24 @@ class AvmAluTraceBuilder {
     void reset();
     std::vector<AluTraceEntry> finalize();
 
+    // Compute - Arithmetic
     FF op_add(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
     FF op_sub(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
     FF op_mul(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
-    FF op_not(FF const& a, AvmMemoryTag in_tag, uint32_t clk);
+    FF op_div(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
+
+    // Compute - Comparators
     FF op_eq(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
     FF op_lt(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
     FF op_lte(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
-    FF op_cast(FF const& a, AvmMemoryTag in_tag, uint32_t clk);
-    FF op_shr(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
+
+    // Compute - Bitwise
+    FF op_not(FF const& a, AvmMemoryTag in_tag, uint32_t clk);
     FF op_shl(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
-    FF op_div(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
+    FF op_shr(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
+
+    // Compute - Type Conversions
+    FF op_cast(FF const& a, AvmMemoryTag in_tag, uint32_t clk);
 
     bool is_range_check_required() const;
     static bool is_alu_row_enabled(AvmAluTraceBuilder::AluTraceEntry const& r);
