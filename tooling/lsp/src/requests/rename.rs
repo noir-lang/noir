@@ -29,7 +29,7 @@ pub(crate) fn on_rename_request(
 ) -> impl Future<Output = Result<Option<WorkspaceEdit>, ResponseError>> {
     let result =
         process_request(state, params.text_document_position, |location, interner, files| {
-            let rename_changes = interner.find_all_references(location).map(|locations| {
+            let rename_changes = interner.find_all_references(location, true).map(|locations| {
                 let rs = locations.iter().fold(
                     HashMap::new(),
                     |mut acc: HashMap<Url, Vec<TextEdit>>, location| {

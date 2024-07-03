@@ -88,31 +88,42 @@ impl NodeInterner {
 
     // Starting at the given location, find the node referenced by it. Then, gather
     // all locations that reference that node, and return all of them
-    // (the referenced node and the references).
+    // (the references and optionally the reference node if `include_reference` is true).
     // Returns `None` if the location is not known to this interner.
-    pub fn find_all_references(&self, location: Location) -> Option<Vec<Location>> {
+    pub fn find_all_references(
+        &self,
+        location: Location,
+        include_reference: bool,
+    ) -> Option<Vec<Location>> {
         let node_index = self.location_indices.get_node_from_location(location)?;
 
         let reference_node = self.reference_graph[node_index];
         let found_locations: Vec<Location> = match reference_node {
             DependencyId::Alias(_) | DependencyId::Global(_) => todo!(),
             DependencyId::Function(_) | DependencyId::Struct(_) => {
-                self.find_all_references_for_index(node_index)
+                self.find_all_references_for_index(node_index, include_reference)
             }
 
             DependencyId::Variable(_) => {
                 let referenced_node_index = self.referenced_index(node_index)?;
-                self.find_all_references_for_index(referenced_node_index)
+                self.find_all_references_for_index(referenced_node_index, include_reference)
             }
         };
         Some(found_locations)
     }
 
-    // Given a referenced node index, find all references to it and return their locations, together
-    // with the reference node's location.
-    fn find_all_references_for_index(&self, referenced_node_index: PetGraphIndex) -> Vec<Location> {
+    // Given a referenced node index, find all references to it and return their locations, optionally together
+    // with the reference node's location if `include_reference` is true.
+    fn find_all_references_for_index(
+        &self,
+        referenced_node_index: PetGraphIndex,
+        include_reference: bool,
+    ) -> Vec<Location> {
         let id = self.reference_graph[referenced_node_index];
-        let mut edit_locations = vec![self.dependency_location(id)];
+        let mut edit_locations = Vec::new();
+        if include_reference {
+            edit_locations.push(self.dependency_location(id));
+        }
 
         self.reference_graph
             .neighbors_directed(referenced_node_index, petgraph::Direction::Incoming)
