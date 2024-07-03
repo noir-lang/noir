@@ -1,6 +1,7 @@
 use fm::FileId;
 use lsp_types::{
-    DeclarationCapability, DefinitionOptions, OneOf, TypeDefinitionProviderCapability,
+    DeclarationCapability, DefinitionOptions, OneOf, ReferencesOptions, RenameOptions,
+    TypeDefinitionProviderCapability,
 };
 use noirc_driver::DebugFile;
 use noirc_errors::{debug_info::OpCodesCount, Location};
@@ -135,6 +136,14 @@ pub(crate) struct ServerCapabilities {
     /// The server handles and provides custom nargo messages.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) nargo: Option<NargoCapability>,
+
+    /// The server provides rename support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) rename_provider: Option<OneOf<bool, RenameOptions>>,
+
+    /// The server provides references support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) references_provider: Option<OneOf<bool, ReferencesOptions>>,
 }
 
 #[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]

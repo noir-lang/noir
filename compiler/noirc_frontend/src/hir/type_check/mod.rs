@@ -11,7 +11,7 @@ mod errors;
 mod expr;
 mod stmt;
 
-pub use errors::TypeCheckError;
+pub use errors::{NoMatchingImplFoundError, TypeCheckError};
 use noirc_errors::Span;
 
 use crate::{
@@ -483,19 +483,34 @@ pub mod test {
         // let z = x + y;
         //
         // Push x variable
-        let x_id =
-            interner.push_definition("x".into(), false, DefinitionKind::Local(None), location);
+        let x_id = interner.push_definition(
+            "x".into(),
+            false,
+            false,
+            DefinitionKind::Local(None),
+            location,
+        );
 
         let x = HirIdent::non_trait_method(x_id, location);
 
         // Push y variable
-        let y_id =
-            interner.push_definition("y".into(), false, DefinitionKind::Local(None), location);
+        let y_id = interner.push_definition(
+            "y".into(),
+            false,
+            false,
+            DefinitionKind::Local(None),
+            location,
+        );
         let y = HirIdent::non_trait_method(y_id, location);
 
         // Push z variable
-        let z_id =
-            interner.push_definition("z".into(), false, DefinitionKind::Local(None), location);
+        let z_id = interner.push_definition(
+            "z".into(),
+            false,
+            false,
+            DefinitionKind::Local(None),
+            location,
+        );
         let z = HirIdent::non_trait_method(z_id, location);
 
         // Push x and y as expressions
@@ -531,7 +546,7 @@ pub mod test {
         let func_id = interner.push_fn(func);
 
         let definition = DefinitionKind::Local(None);
-        let id = interner.push_definition("test_func".into(), false, definition, location);
+        let id = interner.push_definition("test_func".into(), false, false, definition, location);
         let name = HirIdent::non_trait_method(id, location);
 
         // Add function meta

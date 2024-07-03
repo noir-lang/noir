@@ -14,6 +14,7 @@ use crate::ast::{
     TypeImpl,
 };
 use crate::macros_api::NodeInterner;
+use crate::node_interner::DependencyId;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -267,6 +268,7 @@ impl<'a> ModCollector<'a> {
         let mut definition_errors = vec![];
         for struct_definition in types {
             let name = struct_definition.name.clone();
+            let name_location = Location::new(name.span(), self.file_id);
 
             let unresolved = UnresolvedStruct {
                 file_id: self.file_id,
@@ -310,6 +312,9 @@ impl<'a> ModCollector<'a> {
 
             // And store the TypeId -> StructType mapping somewhere it is reachable
             self.def_collector.items.types.insert(id, unresolved);
+
+            context.def_interner.add_struct_location(id, name_location);
+            context.def_interner.add_definition_location(DependencyId::Struct(id));
         }
         definition_errors
     }
@@ -415,6 +420,7 @@ impl<'a> ModCollector<'a> {
                         let func_id = context.def_interner.push_empty_fn();
                         method_ids.insert(name.to_string(), func_id);
 
+                        let location = Location::new(name.span(), self.file_id);
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
                             visibility: ItemVisibility::Public,
@@ -423,9 +429,9 @@ impl<'a> ModCollector<'a> {
                             is_unconstrained: false,
                             generic_count: generics.len(),
                             is_comptime: false,
+                            name_location: location,
                         };
 
-                        let location = Location::new(name.span(), self.file_id);
                         context
                             .def_interner
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
@@ -467,6 +473,7 @@ impl<'a> ModCollector<'a> {
                             trait_id.0.local_id,
                             self.file_id,
                             vec![],
+                            false,
                             false,
                         );
 
@@ -805,6 +812,7 @@ pub(crate) fn collect_global(
         file_id,
         global.attributes.clone(),
         matches!(global.pattern, Pattern::Mutable { .. }),
+        global.comptime,
     );
 
     // Add the statement to the scope so its path can be looked up later
