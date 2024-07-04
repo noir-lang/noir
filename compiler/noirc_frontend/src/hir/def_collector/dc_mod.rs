@@ -650,7 +650,7 @@ impl<'a> ModCollector<'a> {
             Ok(child_mod_id) => {
                 // Track that the "foo" in `mod foo;` points to the module "foo"
                 let referenced = ReferenceId::Module(child_mod_id);
-                let reference = ReferenceId::Variable(location);
+                let reference = ReferenceId::Variable(location, false);
                 context.def_interner.add_reference(referenced, reference);
 
                 errors.extend(collect_defs(
@@ -681,6 +681,14 @@ impl<'a> ModCollector<'a> {
         is_contract: bool,
     ) -> Result<ModuleId, DefCollectorErrorKind> {
         let parent = Some(self.module_id);
+
+        // Note: the difference between `location` and `mod_location` is:
+        // - `mod_location` will point to either the token "foo" in `mod foo { ... }`
+        //   if it's an inline module, or the first char of a the file if it's an external module.
+        // - `location` will always point to the token "foo" in `mod foo` regardless of whether
+        //   it's inline or external.
+        // Eventually the location put in `ModuleData` is used for codelenses about `contract`s,
+        // so we keep using `location` so that it continues to work as usual.
         let location = Location::new(mod_name.span(), mod_location.file);
         let new_module = ModuleData::new(parent, location, is_contract);
         let module_id = self.def_collector.def_map.modules.insert(new_module);
