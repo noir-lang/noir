@@ -14,7 +14,7 @@ use crate::ast::{
     TypeImpl,
 };
 use crate::macros_api::NodeInterner;
-use crate::node_interner::DependencyId;
+use crate::node_interner::ReferenceId;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -314,7 +314,7 @@ impl<'a> ModCollector<'a> {
             self.def_collector.items.types.insert(id, unresolved);
 
             context.def_interner.add_struct_location(id, name_location);
-            context.def_interner.add_definition_location(DependencyId::Struct(id));
+            context.def_interner.add_definition_location(ReferenceId::Struct(id));
         }
         definition_errors
     }
