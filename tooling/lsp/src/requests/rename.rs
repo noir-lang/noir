@@ -29,29 +29,30 @@ pub(crate) fn on_rename_request(
 ) -> impl Future<Output = Result<Option<WorkspaceEdit>, ResponseError>> {
     let result =
         process_request(state, params.text_document_position, |location, interner, files| {
-            let rename_changes = interner.find_all_references(location, true).map(|locations| {
-                let rs = locations.iter().fold(
-                    HashMap::new(),
-                    |mut acc: HashMap<Url, Vec<TextEdit>>, location| {
-                        let file_id = location.file;
-                        let span = location.span;
+            let rename_changes =
+                interner.find_all_references(location, true, false).map(|locations| {
+                    let rs = locations.iter().fold(
+                        HashMap::new(),
+                        |mut acc: HashMap<Url, Vec<TextEdit>>, location| {
+                            let file_id = location.file;
+                            let span = location.span;
 
-                        let Some(lsp_location) = to_lsp_location(files, file_id, span) else {
-                            return acc;
-                        };
+                            let Some(lsp_location) = to_lsp_location(files, file_id, span) else {
+                                return acc;
+                            };
 
-                        let edit = TextEdit {
-                            range: lsp_location.range,
-                            new_text: params.new_name.clone(),
-                        };
+                            let edit = TextEdit {
+                                range: lsp_location.range,
+                                new_text: params.new_name.clone(),
+                            };
 
-                        acc.entry(lsp_location.uri).or_default().push(edit);
+                            acc.entry(lsp_location.uri).or_default().push(edit);
 
-                        acc
-                    },
-                );
-                rs
-            });
+                            acc
+                        },
+                    );
+                    rs
+                });
 
             let response = WorkspaceEdit {
                 changes: rename_changes,
@@ -103,6 +104,13 @@ mod rename_tests {
             let mut changes: Vec<Range> =
                 changes.values().flatten().map(|edit| edit.range).collect();
             changes.sort_by_key(|range| (range.start.line, range.start.character));
+            if changes != ranges {
+                let extra_in_changes: Vec<_> =
+                    changes.iter().filter(|range| !ranges.contains(range)).collect();
+                let extra_in_ranges: Vec<_> =
+                    ranges.iter().filter(|range| !changes.contains(range)).collect();
+                panic!("Rename locations did not match.\nThese renames were not found: {:?}\nThese renames should not have been found: {:?}", extra_in_ranges, extra_in_changes);
+            }
             assert_eq!(changes, ranges);
         }
     }

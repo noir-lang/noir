@@ -491,11 +491,11 @@ fn add_import_reference(
 
     match def_id {
         crate::macros_api::ModuleDefId::FunctionId(func_id) => {
-            let variable = ReferenceId::Variable(Location::new(name.span(), file_id));
+            let variable = ReferenceId::Variable(Location::new(name.span(), file_id), false);
             interner.add_reference(ReferenceId::Function(func_id), variable);
         }
         crate::macros_api::ModuleDefId::TypeId(struct_id) => {
-            let variable = ReferenceId::Variable(Location::new(name.span(), file_id));
+            let variable = ReferenceId::Variable(Location::new(name.span(), file_id), false);
             interner.add_reference(ReferenceId::Struct(struct_id), variable);
         }
         _ => (),

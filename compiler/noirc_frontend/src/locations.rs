@@ -37,7 +37,7 @@ impl NodeInterner {
             ReferenceId::Trait(_) => todo!(),
             ReferenceId::Global(id) => self.get_global(id).location,
             ReferenceId::Alias(id) => self.get_type_alias(id).borrow().location,
-            ReferenceId::Variable(location) => location,
+            ReferenceId::Variable(location, _) => location,
         }
     }
 
@@ -90,12 +90,15 @@ impl NodeInterner {
 
     // Starting at the given location, find the node referenced by it. Then, gather
     // all locations that reference that node, and return all of them
-    // (the references and optionally the reference node if `include_reference` is true).
+    // (the references and optionally the referenced node if `include_referencedd` is true).
+    // If `include_self_type_name` is true, references where "Self" is written are returned,
+    // otherwise they are not.
     // Returns `None` if the location is not known to this interner.
     pub fn find_all_references(
         &self,
         location: Location,
-        include_reference: bool,
+        include_referenced: bool,
+        include_self_type_name: bool,
     ) -> Option<Vec<Location>> {
         let node_index = self.location_indices.get_node_from_location(location)?;
 
@@ -105,36 +108,50 @@ impl NodeInterner {
             | ReferenceId::Global(_)
             | ReferenceId::Module(_)
             | ReferenceId::Trait(_) => todo!(),
-            ReferenceId::Function(_) | ReferenceId::Struct(_) => {
-                self.find_all_references_for_index(node_index, include_reference)
-            }
+            ReferenceId::Function(_) | ReferenceId::Struct(_) => self
+                .find_all_references_for_index(
+                    node_index,
+                    include_referenced,
+                    include_self_type_name,
+                ),
 
-            ReferenceId::Variable(_) => {
+            ReferenceId::Variable(_, _) => {
                 let referenced_node_index = self.referenced_index(node_index)?;
-                self.find_all_references_for_index(referenced_node_index, include_reference)
+                self.find_all_references_for_index(
+                    referenced_node_index,
+                    include_referenced,
+                    include_self_type_name,
+                )
             }
         };
         Some(found_locations)
     }
 
     // Given a referenced node index, find all references to it and return their locations, optionally together
-    // with the reference node's location if `include_reference` is true.
+    // with the reference node's location if `include_referenced` is true.
+    // If `include_self_type_name` is true, references where "Self" is written are returned,
+    // otherwise they are not.
     fn find_all_references_for_index(
         &self,
         referenced_node_index: PetGraphIndex,
-        include_reference: bool,
+        include_referenced: bool,
+        include_self_type_name: bool,
     ) -> Vec<Location> {
         let id = self.reference_graph[referenced_node_index];
         let mut edit_locations = Vec::new();
-        if include_reference {
-            edit_locations.push(self.reference_location(id));
+        if include_referenced {
+            if include_self_type_name || !id.is_self_type_name() {
+                edit_locations.push(self.reference_location(id));
+            }
         }
 
         self.reference_graph
             .neighbors_directed(referenced_node_index, petgraph::Direction::Incoming)
             .for_each(|reference_node_index| {
                 let id = self.reference_graph[reference_node_index];
-                edit_locations.push(self.reference_location(id));
+                if include_self_type_name || !id.is_self_type_name() {
+                    edit_locations.push(self.reference_location(id));
+                }
             });
         edit_locations
     }

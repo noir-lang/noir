@@ -8,6 +8,10 @@ mod foo {
             fn foo() {}
 
             fn bar(self) {}
+
+            fn baz() -> Self {
+                Self { field: 1 }
+            }
         }
     }
 }

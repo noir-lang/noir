@@ -53,7 +53,10 @@ impl<'context> Elaborator<'context> {
                 resolver.resolve(self.def_maps, path.clone(), &mut Some(&mut dependencies))?;
 
             for (referenced, ident) in dependencies.iter().zip(path.segments) {
-                let reference = ReferenceId::Variable(Location::new(ident.span(), self.file));
+                let reference = ReferenceId::Variable(
+                    Location::new(ident.span(), self.file),
+                    ident.is_self_type_name(),
+                );
                 self.interner.add_reference(*referenced, reference);
             }
         } else {

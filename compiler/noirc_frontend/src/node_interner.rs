@@ -245,7 +245,17 @@ pub enum ReferenceId {
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
-    Variable(Location),
+    Variable(Location, bool /* is Self */),
+}
+
+impl ReferenceId {
+    pub fn is_self_type_name(&self) -> bool {
+        if let Self::Variable(_, true) = self {
+            true
+        } else {
+            false
+        }
+    }
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
