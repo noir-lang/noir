@@ -59,10 +59,7 @@ fn u32_to_bits_target<const B: usize>(
     res
 }
 
-fn bits_to_u32_target(
-    asm_writer: &mut AsmWriter,
-    bits_target: Vec<BoolTarget>,
-) -> U32Target {
+fn bits_to_u32_target(asm_writer: &mut AsmWriter, bits_target: Vec<BoolTarget>) -> U32Target {
     let bit_len = bits_target.len();
     assert_eq!(bit_len, 32);
     U32Target(asm_writer.le_sum(bits_target[0..32].iter().rev()))
@@ -99,12 +96,7 @@ a ^ b ^ c = a+b+c - 2*a*b - 2*a*c - 2*b*c + 4*a*b*c
           = a*( 1 - 2*b -2*c + 4*m ) + b + c - 2*m
 where m = b*c
  */
-fn xor3(
-    asm_writer: &mut AsmWriter,
-    a: BoolTarget,
-    b: BoolTarget,
-    c: BoolTarget,
-) -> BoolTarget {
+fn xor3(asm_writer: &mut AsmWriter, a: BoolTarget, b: BoolTarget, c: BoolTarget) -> BoolTarget {
     let m = asm_writer.mul(b.target, c.target);
     let two_b = asm_writer.add(b.target, b.target);
     let two_c = asm_writer.add(c.target, c.target);
@@ -194,12 +186,7 @@ fn sigma1(asm_writer: &mut AsmWriter, a: &U32Target) -> U32Target {
 ch = a&b ^ (!a)&c
    = a*(b-c) + c
  */
-fn ch(
-    asm_writer: &mut AsmWriter,
-    a: &U32Target,
-    b: &U32Target,
-    c: &U32Target,
-) -> U32Target {
+fn ch(asm_writer: &mut AsmWriter, a: &U32Target, b: &U32Target, c: &U32Target) -> U32Target {
     let a_bits = u32_to_bits_target::<2>(asm_writer, a);
     let b_bits = u32_to_bits_target::<2>(asm_writer, b);
     let c_bits = u32_to_bits_target::<2>(asm_writer, c);
@@ -220,12 +207,7 @@ maj = a&b ^ a&c ^ b&c
     = a*( b + c - 2*m ) + m
 where m = b*c
  */
-fn maj(
-    asm_writer: &mut AsmWriter,
-    a: &U32Target,
-    b: &U32Target,
-    c: &U32Target,
-) -> U32Target {
+fn maj(asm_writer: &mut AsmWriter, a: &U32Target, b: &U32Target, c: &U32Target) -> U32Target {
     let a_bits = u32_to_bits_target::<2>(asm_writer, a);
     let b_bits = u32_to_bits_target::<2>(asm_writer, b);
     let c_bits = u32_to_bits_target::<2>(asm_writer, c);

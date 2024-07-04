@@ -309,11 +309,7 @@ impl Builder {
     pub(crate) fn new(show_plonky2: bool, plonky2_print_file: Option<String>) -> Builder {
         let config = CircuitConfig::standard_recursion_config();
         Builder {
-            asm_writer: AsmWriter::new(
-                P2Builder::new(config),
-                show_plonky2,
-                plonky2_print_file,
-            ),
+            asm_writer: AsmWriter::new(P2Builder::new(config), show_plonky2, plonky2_print_file),
             translation: HashMap::new(),
             dfg: DataFlowGraph::default(),
             show_plonky2,
