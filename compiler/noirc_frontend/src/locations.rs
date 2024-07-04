@@ -101,8 +101,11 @@ impl NodeInterner {
 
         let reference_node = self.reference_graph[node_index];
         let found_locations: Vec<Location> = match reference_node {
-            ReferenceId::Alias(_) | ReferenceId::Global(_) | ReferenceId::Module(_) => todo!(),
-            ReferenceId::Function(_) | ReferenceId::Struct(_) | ReferenceId::Trait(_) => {
+            ReferenceId::Global(_) | ReferenceId::Module(_) => todo!(),
+            ReferenceId::Function(_)
+            | ReferenceId::Struct(_)
+            | ReferenceId::Trait(_)
+            | ReferenceId::Alias(_) => {
                 self.find_all_references_for_index(node_index, include_reference)
             }
 

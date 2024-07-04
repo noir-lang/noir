@@ -150,4 +150,9 @@ mod rename_tests {
     async fn test_rename_trait() {
         check_rename_succeeds("rename_trait", "Foo").await;
     }
+
+    #[test]
+    async fn test_rename_type_alias() {
+        check_rename_succeeds("rename_type_alias", "Bar").await;
+    }
 }
