@@ -1,9 +1,11 @@
+mod transient_data_reset_hints;
+
 use dep::types::{
     abis::{note_hash::ScopedNoteHash, nullifier::ScopedNullifier, log_hash::NoteLogHash},
     traits::is_empty
 };
 
-pub fn verify_squashed_transient_note_hashes_and_nullifiers<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS>(
+pub fn verify_squashed_transient_data<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS>(
     note_hashes: [ScopedNoteHash; NUM_NOTE_HASHES],
     nullifiers: [ScopedNullifier; NUM_NULLIFIERS],
     note_logs: [NoteLogHash; NUM_LOGS],
@@ -12,7 +14,7 @@ pub fn verify_squashed_transient_note_hashes_and_nullifiers<NUM_NOTE_HASHES, NUM
     expected_note_logs: [NoteLogHash; NUM_LOGS],
     transient_nullifier_indexes_for_note_hashes: [u32; NUM_NOTE_HASHES],
     transient_note_hash_indexes_for_nullifiers: [u32; NUM_NULLIFIERS],
-    transient_note_hash_indexes_for_logs: [u32; NUM_LOGS]
+    transient_or_propagated_note_hash_indexes_for_logs: [u32; NUM_LOGS]
 ) {
     let mut note_hashes_kept = 0;
     let mut note_hashes_removed = 0;
@@ -30,13 +32,6 @@ pub fn verify_squashed_transient_note_hashes_and_nullifiers<NUM_NOTE_HASHES, NUM
             assert_eq(
                 note_hash.contract_address, nullifier.contract_address, "Contract address of the hinted transient note hash does not match"
             );
-            assert_eq(
-                note_hash.nullifier_counter, nullifier.counter(), "Nullifier counter of the hinted transient note hash does not match"
-            );
-
-            // The following check is not necessary as the nullifier_counter is assured to be greater than the counter of 
-            // the note hash when propagated from either the initial or inner private kernel circuits.
-            // assert(nullifier.counter > note_hash.counter());
 
             note_hashes_removed += 1;
 
@@ -70,8 +65,14 @@ pub fn verify_squashed_transient_note_hashes_and_nullifiers<NUM_NOTE_HASHES, NUM
     let mut note_logs_removed = 0;
     for i in 0..NUM_LOGS {
         let log = note_logs[i];
-        let index_hint = transient_note_hash_indexes_for_logs[i];
-        if index_hint == NUM_NOTE_HASHES {
+        let index_hint = transient_or_propagated_note_hash_indexes_for_logs[i];
+        // - For non-empty logs, their note_hash_counter can't be 0. It must match the counter of a note hash, which is verified in private_call_data_validator.
+        //   Therefor, is_propagated will be false if index_hint incorrectly points to an empty expected_note_hash and fails the check inside the else statement.
+        // - For empty logs, we expect is_propagated to be true, making them part of the note_logs_kept.
+        //   index_hint might point them to the same empty note. This doesn't matter because we increment the value of 
+        //   note_logs_kept and ensure that the correct number of empty logs are present in the expected_note_logs.
+        let is_propagated = expected_note_hashes[index_hint].counter() == log.note_hash_counter;
+        if is_propagated {
             assert_eq(expected_note_logs[note_logs_kept], log, "Propagated note log does not match");
             note_logs_kept += 1;
         } else {
@@ -83,12 +84,6 @@ pub fn verify_squashed_transient_note_hashes_and_nullifiers<NUM_NOTE_HASHES, NUM
             // rather than per note
             let transient_nullifier_index = transient_nullifier_indexes_for_note_hashes[index_hint];
             assert(transient_nullifier_index != NUM_NULLIFIERS, "Hinted transient note log not nullified");
-
-            // Below check not required - It links logs to nullifiers, but we have already linked logs to note hashes,
-            // and note hashes to nullifiers.
-            // assert_eq(
-            //     log.note_hash, nullifiers[transient_nullifier_index].nullified_note_hash(), "Value of the hinted transient nullifier does not match log"
-            // );
 
             note_logs_removed += 1;
 
@@ -104,15 +99,15 @@ pub fn verify_squashed_transient_note_hashes_and_nullifiers<NUM_NOTE_HASHES, NUM
 }
 
 mod tests {
-    use crate::reset::transient_data::verify_squashed_transient_note_hashes_and_nullifiers;
+    use crate::reset::transient_data::verify_squashed_transient_data;
     use dep::types::{
         abis::{note_hash::{NoteHash, ScopedNoteHash}, nullifier::{Nullifier, ScopedNullifier}, log_hash::NoteLogHash},
         address::AztecAddress
     };
 
+    global contract_address = AztecAddress::from_field(987654);
+
     struct TestDataBuilder<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS> {
-        num_note_hashes: u32,
-        num_nullifiers: u32,
         note_hashes: [ScopedNoteHash; NUM_NOTE_HASHES],
         nullifiers: [ScopedNullifier; NUM_NULLIFIERS],
         note_logs: [NoteLogHash; NUM_LOGS],
@@ -121,41 +116,44 @@ mod tests {
         expected_note_logs: [NoteLogHash; NUM_LOGS],
         transient_nullifier_indexes_for_note_hashes: [u32; NUM_NOTE_HASHES],
         transient_note_hash_indexes_for_nullifiers: [u32; NUM_NULLIFIERS],
-        transient_note_hash_indexes_for_logs: [u32; NUM_LOGS]
+        transient_or_propagated_note_hash_indexes_for_logs: [u32; NUM_LOGS]
     }
 
     impl<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS> TestDataBuilder<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS> {
-        pub fn default() -> TestDataBuilder<3, 3, 2> {
-            let contract_address = AztecAddress::from_field(987654);
-
+        pub fn new() -> TestDataBuilder<5, 4, 3> {
             let note_hashes = [
-                NoteHash { value: 11, counter: 100 }.scope(500, contract_address),
-                NoteHash { value: 22, counter: 200 }.scope(0, contract_address),
-                NoteHash { value: 33, counter: 300 }.scope(400, contract_address)
+                NoteHash { value: 11, counter: 100 }.scope(contract_address),
+                NoteHash { value: 22, counter: 200 }.scope(contract_address),
+                NoteHash { value: 33, counter: 300 }.scope(contract_address),
+                ScopedNoteHash::empty(),
+                ScopedNoteHash::empty()
             ];
 
             let nullifiers = [
                 Nullifier { value: 44, counter: 400, note_hash: 33 }.scope(contract_address),
                 Nullifier { value: 55, counter: 500, note_hash: 11 }.scope(contract_address),
-                Nullifier { value: 66, counter: 600, note_hash: 0 }.scope(contract_address)
+                Nullifier { value: 66, counter: 600, note_hash: 0 }.scope(contract_address),
+                ScopedNullifier::empty()
             ];
 
             let note_logs = [
                 NoteLogHash { value: 77, counter: 700, length: 70, note_hash_counter: 100 },
-                NoteLogHash { value: 88, counter: 800, length: 80, note_hash_counter: 200 }
+                NoteLogHash { value: 88, counter: 800, length: 80, note_hash_counter: 200 },
+                NoteLogHash::empty()
             ];
 
-            let expected_note_hashes = [note_hashes[1], ScopedNoteHash::empty(), ScopedNoteHash::empty()];
-            let expected_nullifiers = [nullifiers[2], ScopedNullifier::empty(), ScopedNullifier::empty()];
-            let expected_note_logs = [note_logs[1], NoteLogHash::empty()];
+            let mut expected_note_hashes = [ScopedNoteHash::empty(); 5];
+            expected_note_hashes[0] = note_hashes[1];
+            let mut expected_nullifiers = [ScopedNullifier::empty(); 4];
+            expected_nullifiers[0] = nullifiers[2];
+            let mut expected_note_logs = [NoteLogHash::empty(); 3];
+            expected_note_logs[0] = note_logs[1];
 
-            let transient_nullifier_indexes_for_note_hashes = [1, 3, 0];
-            let transient_note_hash_indexes_for_nullifiers = [2, 0, 3];
-            let transient_note_hash_indexes_for_logs = [0, 3];
+            let transient_nullifier_indexes_for_note_hashes = [1, 4, 0, 4, 4];
+            let transient_note_hash_indexes_for_nullifiers = [2, 0, 5, 5];
+            let transient_or_propagated_note_hash_indexes_for_logs = [0, 0, 1];
 
             TestDataBuilder {
-                num_note_hashes: 3,
-                num_nullifiers: 3,
                 note_hashes,
                 nullifiers,
                 note_logs,
@@ -164,17 +162,15 @@ mod tests {
                 expected_note_logs,
                 transient_nullifier_indexes_for_note_hashes,
                 transient_note_hash_indexes_for_nullifiers,
-                transient_note_hash_indexes_for_logs
+                transient_or_propagated_note_hash_indexes_for_logs
             }
         }
 
-        pub fn default_all_clear() -> TestDataBuilder<3, 3, 4> {
-            let contract_address = AztecAddress::from_field(987654);
-
+        pub fn new_clear_all() -> TestDataBuilder<3, 3, 4> {
             let note_hashes = [
-                NoteHash { value: 11, counter: 100 }.scope(500, contract_address),
-                NoteHash { value: 22, counter: 200 }.scope(600, contract_address),
-                NoteHash { value: 33, counter: 300 }.scope(400, contract_address)
+                NoteHash { value: 11, counter: 100 }.scope(contract_address),
+                NoteHash { value: 22, counter: 200 }.scope(contract_address),
+                NoteHash { value: 33, counter: 300 }.scope(contract_address)
             ];
 
             let nullifiers = [
@@ -197,11 +193,9 @@ mod tests {
 
             let transient_nullifier_indexes_for_note_hashes = [1, 2, 0];
             let transient_note_hash_indexes_for_nullifiers = [2, 0, 1];
-            let transient_note_hash_indexes_for_logs = [0, 2, 1, 2];
+            let transient_or_propagated_note_hash_indexes_for_logs = [0, 2, 1, 2];
 
             TestDataBuilder {
-                num_note_hashes: 3,
-                num_nullifiers: 3,
                 note_hashes,
                 nullifiers,
                 note_logs,
@@ -210,12 +204,53 @@ mod tests {
                 expected_note_logs,
                 transient_nullifier_indexes_for_note_hashes,
                 transient_note_hash_indexes_for_nullifiers,
-                transient_note_hash_indexes_for_logs
+                transient_or_propagated_note_hash_indexes_for_logs
+            }
+        }
+
+        pub fn new_identical_note_hashes() -> TestDataBuilder<3, 3, 4> {
+            let note_hashes = [
+                NoteHash { value: 11, counter: 100 }.scope(contract_address),
+                NoteHash { value: 11, counter: 200 }.scope(contract_address),
+                NoteHash { value: 11, counter: 600 }.scope(contract_address)
+            ];
+
+            let nullifiers = [
+                Nullifier { value: 33, counter: 300, note_hash: 11 }.scope(contract_address),
+                Nullifier { value: 44, counter: 400, note_hash: 0 }.scope(contract_address),
+                Nullifier { value: 55, counter: 500, note_hash: 11 }.scope(contract_address)
+            ];
+
+            let note_logs = [
+                NoteLogHash { value: 77, counter: 701, length: 70, note_hash_counter: 200 },
+                NoteLogHash { value: 77, counter: 702, length: 70, note_hash_counter: 200 },
+                NoteLogHash { value: 77, counter: 703, length: 70, note_hash_counter: 200 },
+                NoteLogHash { value: 88, counter: 800, length: 80, note_hash_counter: 600 }
+            ];
+
+            let expected_note_hashes = [note_hashes[2], ScopedNoteHash::empty(), ScopedNoteHash::empty()];
+            let expected_nullifiers = [nullifiers[1], ScopedNullifier::empty(), ScopedNullifier::empty()];
+            let expected_note_logs = [note_logs[3], NoteLogHash::empty(), NoteLogHash::empty(), NoteLogHash::empty()];
+
+            let transient_nullifier_indexes_for_note_hashes = [0, 2, 3];
+            let transient_note_hash_indexes_for_nullifiers = [0, 3, 1];
+            let transient_or_propagated_note_hash_indexes_for_logs = [1, 1, 1, 0];
+
+            TestDataBuilder {
+                note_hashes,
+                nullifiers,
+                note_logs,
+                expected_note_hashes,
+                expected_nullifiers,
+                expected_note_logs,
+                transient_nullifier_indexes_for_note_hashes,
+                transient_note_hash_indexes_for_nullifiers,
+                transient_or_propagated_note_hash_indexes_for_logs
             }
         }
 
         pub fn verify(self) {
-            let _void = verify_squashed_transient_note_hashes_and_nullifiers(
+            let _void = verify_squashed_transient_data(
                 self.note_hashes,
                 self.nullifiers,
                 self.note_logs,
@@ -224,43 +259,48 @@ mod tests {
                 self.expected_note_logs,
                 self.transient_nullifier_indexes_for_note_hashes,
                 self.transient_note_hash_indexes_for_nullifiers,
-                self.transient_note_hash_indexes_for_logs
+                self.transient_or_propagated_note_hash_indexes_for_logs
             );
         }
     }
 
     #[test]
-    fn verify_squashed_transient_note_hashes_and_nullifiers_with_propagated_values() {
-        TestDataBuilder::default().verify();
+    fn succeeds_clear_all() {
+        TestDataBuilder::new_clear_all().verify();
     }
 
     #[test]
-    fn verify_full_transient_note_hashes_and_nullifiers() {
-        TestDataBuilder::default_all_clear().verify();
+    fn succeeds_with_propagated_values() {
+        TestDataBuilder::new().verify();
     }
 
     #[test]
-    fn verify_partial_transient_note_hashes_and_nullifiers() {
-        let mut builder = TestDataBuilder::default_all_clear();
+    fn succeeds_partially_propagated() {
+        let mut builder = TestDataBuilder::new_clear_all();
 
         // Keep the note at index 1.
-        builder.transient_nullifier_indexes_for_note_hashes[1] = builder.num_nullifiers;
+        builder.transient_nullifier_indexes_for_note_hashes[1] = builder.nullifiers.len();
         builder.expected_note_hashes[0] = builder.note_hashes[1];
 
         // Keep the nullifier at index 2.
-        builder.transient_note_hash_indexes_for_nullifiers[2] = builder.num_note_hashes;
+        builder.transient_note_hash_indexes_for_nullifiers[2] = builder.note_hashes.len();
         builder.expected_nullifiers[0] = builder.nullifiers[2];
 
         // Keep the log at index 2.
-        builder.transient_note_hash_indexes_for_logs[2] = builder.num_note_hashes;
+        builder.transient_or_propagated_note_hash_indexes_for_logs[2] = 0; // Point it to the expected not hash at index 0.
         builder.expected_note_logs[0] = builder.note_logs[2];
 
         builder.verify();
     }
 
+    #[test]
+    fn succeeds_identical_note_hashes() {
+        TestDataBuilder::new_identical_note_hashes().verify();
+    }
+
     #[test(should_fail_with="Value of the hinted transient note hash does not match")]
-    fn mismatch_note_hash_value() {
-        let mut builder = TestDataBuilder::default_all_clear();
+    fn fails_mismatch_note_hash_value() {
+        let mut builder = TestDataBuilder::new_clear_all();
 
         builder.note_hashes[1].note_hash.value += 1;
 
@@ -268,26 +308,17 @@ mod tests {
     }
 
     #[test(should_fail_with="Contract address of the hinted transient note hash does not match")]
-    fn mismatch_contract_address() {
-        let mut builder = TestDataBuilder::default_all_clear();
+    fn fails_mismatch_contract_address() {
+        let mut builder = TestDataBuilder::new_clear_all();
 
         builder.note_hashes[1].contract_address.inner += 1;
 
         builder.verify();
     }
 
-    #[test(should_fail_with="Nullifier counter of the hinted transient note hash does not match")]
-    fn mismatch_nullifier_counter() {
-        let mut builder = TestDataBuilder::default_all_clear();
-
-        builder.note_hashes[1].nullifier_counter += 1;
-
-        builder.verify();
-    }
-
     #[test(should_fail_with="Empty note hash must be padded to the right")]
-    fn unexpected_note_hash_value() {
-        let mut builder = TestDataBuilder::default_all_clear();
+    fn fails_unexpected_note_hash_value() {
+        let mut builder = TestDataBuilder::new_clear_all();
 
         builder.expected_note_hashes[2].note_hash.value = 11;
 
@@ -295,8 +326,8 @@ mod tests {
     }
 
     #[test(should_fail_with="Propagated note hash does not match")]
-    fn wrong_expected_note_hash_value() {
-        let mut builder = TestDataBuilder::default();
+    fn fails_wrong_expected_note_hash_value() {
+        let mut builder = TestDataBuilder::new();
 
         builder.expected_note_hashes[0].note_hash.value += 1;
 
@@ -304,8 +335,8 @@ mod tests {
     }
 
     #[test(should_fail_with="Propagated note hash does not match")]
-    fn wrong_expected_note_hash_counter() {
-        let mut builder = TestDataBuilder::default();
+    fn fails_wrong_expected_note_hash_counter() {
+        let mut builder = TestDataBuilder::new();
 
         builder.expected_note_hashes[0].note_hash.counter += 1;
 
@@ -313,8 +344,8 @@ mod tests {
     }
 
     #[test(should_fail_with="Invalid transient nullifier index hint")]
-    fn wrong_hint_for_transient_nullifier_index() {
-        let mut builder = TestDataBuilder::default_all_clear();
+    fn fails_wrong_hint_for_transient_nullifier_index() {
+        let mut builder = TestDataBuilder::new_clear_all();
 
         builder.transient_note_hash_indexes_for_nullifiers[0] = 1;
 
@@ -322,8 +353,8 @@ mod tests {
     }
 
     #[test(should_fail_with="Empty nullifier must be padded to the right")]
-    fn unexpected_nullifier_value() {
-        let mut builder = TestDataBuilder::default_all_clear();
+    fn fails_unexpected_nullifier_value() {
+        let mut builder = TestDataBuilder::new_clear_all();
 
         builder.expected_nullifiers[2].nullifier.value = 11;
 
@@ -331,8 +362,8 @@ mod tests {
     }
 
     #[test(should_fail_with="Propagated nullifier does not match")]
-    fn wrong_expected_nullifier_value() {
-        let mut builder = TestDataBuilder::default();
+    fn fails_wrong_expected_nullifier_value() {
+        let mut builder = TestDataBuilder::new();
 
         builder.expected_nullifiers[0].nullifier.value += 1;
 
@@ -340,8 +371,8 @@ mod tests {
     }
 
     #[test(should_fail_with="Propagated nullifier does not match")]
-    fn wrong_expected_nullifier_counter() {
-        let mut builder = TestDataBuilder::default();
+    fn fails_wrong_expected_nullifier_counter() {
+        let mut builder = TestDataBuilder::new();
 
         builder.expected_nullifiers[0].nullifier.counter += 1;
 
@@ -349,8 +380,8 @@ mod tests {
     }
 
     #[test(should_fail_with="Empty log must be padded to the right")]
-    fn unexpected_log_value() {
-        let mut builder = TestDataBuilder::default_all_clear();
+    fn fails_unexpected_log_value() {
+        let mut builder = TestDataBuilder::new_clear_all();
 
         builder.expected_note_logs[2].value = 1;
 
@@ -358,8 +389,8 @@ mod tests {
     }
 
     #[test(should_fail_with="Propagated note log does not match")]
-    fn wrong_expected_log_value() {
-        let mut builder = TestDataBuilder::default();
+    fn fails_wrong_expected_log_value() {
+        let mut builder = TestDataBuilder::new();
 
         builder.expected_note_logs[0].value += 1;
 
@@ -367,8 +398,8 @@ mod tests {
     }
 
     #[test(should_fail_with="Propagated note log does not match")]
-    fn wrong_expected_log_counter() {
-        let mut builder = TestDataBuilder::default();
+    fn fails_wrong_expected_log_counter() {
+        let mut builder = TestDataBuilder::new();
 
         builder.expected_note_logs[0].counter += 1;
 
@@ -376,51 +407,73 @@ mod tests {
     }
 
     #[test(should_fail_with="Hinted transient note log not nullified")]
-    fn log_not_nullified() {
-        let mut builder = TestDataBuilder::default();
+    fn fails_log_not_nullified() {
+        let mut builder = TestDataBuilder::new();
 
-        builder.transient_note_hash_indexes_for_logs[1] = 1;
+        builder.transient_or_propagated_note_hash_indexes_for_logs[1] = 1;
 
         builder.verify();
     }
 
     #[test(should_fail_with="Value of the hinted transient note hash does not match log")]
-    fn wrong_log_note_hash() {
-        let mut builder = TestDataBuilder::default();
+    fn fails_wrong_log_note_hash() {
+        let mut builder = TestDataBuilder::new();
 
         builder.note_logs[0].note_hash_counter += 1;
 
         builder.verify();
     }
 
+    #[test(should_fail_with="Empty log must be padded to the right")]
+    fn fails_propagate_too_many_logs() {
+        let mut builder = TestDataBuilder::new_clear_all();
+
+        // Keep the log.
+        builder.expected_note_logs[0] = builder.note_logs[1];
+
+        builder.verify();
+    }
+
+    #[test(should_fail_with="Value of the hinted transient note hash does not match log")]
+    fn fails_propagate_log_whose_note_hash_has_been_nullified() {
+        let mut builder = TestDataBuilder::new_clear_all();
+
+        // Keep the log.
+        builder.expected_note_logs[0] = builder.note_logs[1];
+        // Point the log to index 0, which is empty in expected_note_hashes, and does not match the transient_note_hash.
+        builder.transient_or_propagated_note_hash_indexes_for_logs[1] = 0;
+
+        builder.verify();
+    }
+
     #[test(should_fail_with="Invalid transient nullifier index hint")]
-    fn propagate_more_note_hashes_than_nullifiers() {
-        let mut builder = TestDataBuilder::default_all_clear();
+    fn fails_propagate_more_note_hashes_than_nullifiers() {
+        let mut builder = TestDataBuilder::new_clear_all();
 
         // Keep the note at index 1.
-        builder.transient_nullifier_indexes_for_note_hashes[1] = builder.num_nullifiers;
+        builder.transient_nullifier_indexes_for_note_hashes[1] = builder.nullifiers.len();
         builder.expected_note_hashes[0] = builder.note_hashes[1];
 
         builder.verify();
     }
 
     #[test(should_fail_with="Inconsistent number of note hashes and nullifiers removed")]
-    fn propagate_more_nullifiers_than_note_hashes() {
-        let mut builder = TestDataBuilder::default_all_clear();
+    fn fails_propagate_more_nullifiers_than_note_hashes() {
+        let mut builder = TestDataBuilder::new_clear_all();
 
         // Keep the nullifier at index 2.
-        builder.transient_note_hash_indexes_for_nullifiers[2] = builder.num_note_hashes;
+        builder.transient_note_hash_indexes_for_nullifiers[2] = builder.note_hashes.len();
         builder.expected_nullifiers[0] = builder.nullifiers[2];
 
         builder.verify();
     }
 
-    #[test(should_fail_with="Empty log must be padded to the right")]
-    fn remove_too_many_logs() {
-        let mut builder = TestDataBuilder::default();
-        // Remove the log at index 1, but don't remove from expected_logs
-        builder.note_logs[1].note_hash_counter = 300;
-        builder.transient_note_hash_indexes_for_logs[1] = 2;
+    #[test(should_fail_with="Invalid transient nullifier index hint")]
+    fn fails_identical_note_hashes_nullify_same_note_hash() {
+        let mut builder = TestDataBuilder::new_identical_note_hashes();
+
+        // Make the nullifier at index 2 to also nullify the note hash at index 0.
+        builder.transient_note_hash_indexes_for_nullifiers[2] = 0;
 
         builder.verify();
     }

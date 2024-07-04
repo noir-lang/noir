@@ -19,8 +19,7 @@ export function isValidNoteHashReadRequest(readRequest: ScopedReadRequest, noteH
   return (
     noteHash.value.equals(readRequest.value) &&
     noteHash.contractAddress.equals(readRequest.contractAddress) &&
-    readRequest.counter > noteHash.counter &&
-    (noteHash.nullifierCounter === 0 || noteHash.nullifierCounter > readRequest.counter)
+    readRequest.counter > noteHash.counter
   );
 }
 

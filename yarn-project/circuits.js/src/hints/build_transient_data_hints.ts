@@ -1,5 +1,4 @@
 import {
-  type NoteLogHash,
   type ScopedNoteHash,
   type ScopedNullifier,
   type ScopedReadRequest,
@@ -12,30 +11,20 @@ import { type Tuple } from '@aztec/foundation/serialize';
 
 import { ScopedValueCache } from './scoped_value_cache.js';
 
-export function buildTransientDataHints<
-  NOTE_HASHES_LEN extends number,
-  NULLIFIERS_LEN extends number,
-  LOGS_LEN extends number,
->(
+export function buildTransientDataHints<NOTE_HASHES_LEN extends number, NULLIFIERS_LEN extends number>(
   noteHashes: Tuple<ScopedNoteHash, NOTE_HASHES_LEN>,
   nullifiers: Tuple<ScopedNullifier, NULLIFIERS_LEN>,
-  noteLogs: Tuple<NoteLogHash, LOGS_LEN>,
   futureNoteHashReads: ScopedReadRequest[],
   futureNullifierReads: ScopedReadRequest[],
+  noteHashNullifierCounterMap: Map<number, number>,
   noteHashesLength: NOTE_HASHES_LEN = noteHashes.length as NOTE_HASHES_LEN,
   nullifiersLength: NULLIFIERS_LEN = nullifiers.length as NULLIFIERS_LEN,
-  logsLength: LOGS_LEN = noteLogs.length as LOGS_LEN,
-): [Tuple<number, NOTE_HASHES_LEN>, Tuple<number, NULLIFIERS_LEN>, Tuple<number, LOGS_LEN>] {
+): [Tuple<number, NOTE_HASHES_LEN>, Tuple<number, NULLIFIERS_LEN>] {
   const futureNoteHashReadsMap = new ScopedValueCache(futureNoteHashReads);
   const futureNullifierReadsMap = new ScopedValueCache(futureNullifierReads);
 
   const nullifierIndexMap: Map<number, number> = new Map();
   nullifiers.forEach((n, i) => nullifierIndexMap.set(n.counter, i));
-
-  const logNoteHashMap: Map<number, number[]> = new Map();
-  noteLogs.forEach((n, i) => {
-    logNoteHashMap.set(n.noteHashCounter, (logNoteHashMap.get(n.noteHashCounter) || []).concat([i]));
-  });
 
   const nullifierIndexesForNoteHashes: Tuple<number, NOTE_HASHES_LEN> = makeTuple(
     noteHashesLength,
@@ -47,20 +36,19 @@ export function buildTransientDataHints<
     () => noteHashesLength,
   );
 
-  const noteHashIndexesForLogs: Tuple<number, LOGS_LEN> = makeTuple(logsLength, () => noteHashesLength);
-
   const numNoteHashes = countAccumulatedItems(noteHashes);
   for (let i = 0; i < numNoteHashes; i++) {
     const noteHash = noteHashes[i];
+    const noteHashNullifierCounter = noteHashNullifierCounterMap.get(noteHash.counter);
     // The note hash might not be linked to a nullifier or it might be read in the future
     if (
-      noteHash.nullifierCounter == 0 ||
+      !noteHashNullifierCounter ||
       futureNoteHashReadsMap.get(noteHash).find(read => isValidNoteHashReadRequest(read, noteHash))
     ) {
       continue;
     }
-    const nullifierIndex = nullifierIndexMap.get(noteHash.nullifierCounter);
 
+    const nullifierIndex = nullifierIndexMap.get(noteHashNullifierCounter);
     // We might not have the corresponding nullifier yet
     if (nullifierIndex === undefined) {
       continue;
@@ -80,16 +68,9 @@ export function buildTransientDataHints<
       continue;
     }
 
-    const logIndices = logNoteHashMap.get(noteHash.counter);
-    if (logIndices) {
-      logIndices.forEach(logIndex => {
-        noteHashIndexesForLogs[logIndex] = i;
-      });
-    }
-
     nullifierIndexesForNoteHashes[i] = nullifierIndex;
     noteHashIndexesForNullifiers[nullifierIndex] = i;
   }
 
-  return [nullifierIndexesForNoteHashes, noteHashIndexesForNullifiers, noteHashIndexesForLogs];
+  return [nullifierIndexesForNoteHashes, noteHashIndexesForNullifiers];
 }

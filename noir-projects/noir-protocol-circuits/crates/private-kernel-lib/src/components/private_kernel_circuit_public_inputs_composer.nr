@@ -7,7 +7,7 @@ use dep::types::{
 },
     address::AztecAddress,
     constants::{
-    MAX_NOTE_HASHES_PER_CALL, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NOTE_HASHES_PER_TX,
+    MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NOTE_HASHES_PER_TX,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL
 },
     hash::{
@@ -22,7 +22,6 @@ struct DataSource {
     private_call_public_inputs: PrivateCircuitPublicInputs,
     contract_address: AztecAddress,
     storage_contract_address: AztecAddress,
-    note_hash_nullifier_counters: [u32; MAX_NOTE_HASHES_PER_CALL],
     public_call_requests: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
     public_teardown_call_request: CallRequest,
 }
@@ -91,7 +90,6 @@ impl PrivateKernelCircuitPublicInputsComposer {
         &mut self,
         private_call_public_inputs: PrivateCircuitPublicInputs,
         contract_address: AztecAddress,
-        note_hash_nullifier_counters: [u32; MAX_NOTE_HASHES_PER_CALL],
         public_call_requests: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
         public_teardown_call_request: CallRequest
     ) -> Self {
@@ -100,7 +98,6 @@ impl PrivateKernelCircuitPublicInputsComposer {
             private_call_public_inputs,
             contract_address,
             storage_contract_address,
-            note_hash_nullifier_counters,
             public_call_requests,
             public_teardown_call_request
         };
@@ -183,13 +180,9 @@ impl PrivateKernelCircuitPublicInputsComposer {
     fn propagate_note_hashes(&mut self, source: DataSource) {
         let note_hashes = source.private_call_public_inputs.note_hashes;
         for i in 0..note_hashes.len() {
-            let mut note_hash = note_hashes[i];
+            let note_hash = note_hashes[i];
             if note_hash.value != 0 {
-                let nullifier_counter = source.note_hash_nullifier_counters[i];
-                assert(
-                    (nullifier_counter == 0) | (nullifier_counter > note_hash.counter), "Invalid nullifier counter"
-                );
-                self.public_inputs.end.note_hashes.push(note_hash.scope(nullifier_counter, source.storage_contract_address));
+                self.public_inputs.end.note_hashes.push(note_hash.scope(source.storage_contract_address));
             }
         }
     }

@@ -48,14 +48,13 @@ impl Deserialize<NOTE_HASH_LENGTH> for NoteHash {
 }
 
 impl NoteHash {
-    pub fn scope(self, nullifier_counter: u32, contract_address: AztecAddress) -> ScopedNoteHash {
-        ScopedNoteHash { note_hash: self, nullifier_counter, contract_address }
+    pub fn scope(self, contract_address: AztecAddress) -> ScopedNoteHash {
+        ScopedNoteHash { note_hash: self, contract_address }
     }
 }
 
 struct ScopedNoteHash {
     note_hash: NoteHash,
-    nullifier_counter: u32,
     contract_address: AztecAddress,
 }
 
@@ -86,7 +85,6 @@ impl OrderedValue<Field> for ScopedNoteHash {
 impl Eq for ScopedNoteHash {
     fn eq(self, other: ScopedNoteHash) -> bool {
         (self.note_hash == other.note_hash)
-            & (self.nullifier_counter == other.nullifier_counter)
             & (self.contract_address == other.contract_address)
     }
 }
@@ -95,7 +93,6 @@ impl Empty for ScopedNoteHash {
     fn empty() -> Self {
         ScopedNoteHash {
             note_hash: NoteHash::empty(),
-            nullifier_counter: 0,
             contract_address: AztecAddress::zero(),
         }
     }
@@ -103,7 +100,7 @@ impl Empty for ScopedNoteHash {
 
 impl Serialize<SCOPED_NOTE_HASH_LENGTH> for ScopedNoteHash {
     fn serialize(self) -> [Field; SCOPED_NOTE_HASH_LENGTH] {
-        array_concat(self.note_hash.serialize(), [self.nullifier_counter as Field, self.contract_address.to_field()])
+        array_concat(self.note_hash.serialize(), [self.contract_address.to_field()])
     }
 }
 
@@ -112,7 +109,6 @@ impl Deserialize<SCOPED_NOTE_HASH_LENGTH> for ScopedNoteHash {
         let mut reader = Reader::new(values);
         let res = Self {
             note_hash: reader.read_struct(NoteHash::deserialize),
-            nullifier_counter: reader.read_u32(),
             contract_address: reader.read_struct(AztecAddress::deserialize),
         };
         reader.finish();
@@ -126,9 +122,6 @@ impl Readable for ScopedNoteHash {
         assert_eq(self.contract_address, read_request.contract_address, "Contract address of the note hash does not match read request");
         assert(
             read_request.counter() > self.note_hash.counter, "Read request counter must be greater than the counter of the note hash"
-        );
-        assert(
-            (self.nullifier_counter == 0) | (read_request.counter() < self.nullifier_counter), "Read request counter must be less than the nullifier counter of the note hash"
         );
     }
 }

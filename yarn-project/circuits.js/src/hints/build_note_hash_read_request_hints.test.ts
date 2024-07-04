@@ -44,7 +44,7 @@ describe('buildNoteHashReadRequestHints', () => {
   const makeReadRequest = (value: number, counter = 2) =>
     new ReadRequest(new Fr(value), counter).scope(contractAddress);
 
-  const makeNoteHash = (value: number, counter = 1) => new NoteHash(new Fr(value), counter).scope(0, contractAddress);
+  const makeNoteHash = (value: number, counter = 1) => new NoteHash(new Fr(value), counter).scope(contractAddress);
 
   const readPendingNoteHash = (noteHashIndex: number) => {
     const readRequestIndex = numReadRequests;

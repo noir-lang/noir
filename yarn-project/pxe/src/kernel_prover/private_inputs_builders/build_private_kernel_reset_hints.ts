@@ -2,7 +2,6 @@ import {
   type Fr,
   KeyValidationHint,
   MAX_KEY_VALIDATION_REQUESTS_PER_TX,
-  MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
   MAX_NOTE_HASHES_PER_TX,
   MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
   MAX_NULLIFIERS_PER_TX,
@@ -29,7 +28,6 @@ import { type Tuple } from '@aztec/foundation/serialize';
 import type { ExecutionResult } from '@aztec/simulator';
 
 import { type ProvingDataOracle } from '../proving_data_oracle.js';
-import { buildPrivateKernelResetOutputs } from './build_private_kernel_reset_outputs.js';
 
 function getNullifierReadRequestHints<PENDING extends number, SETTLED extends number>(
   nullifierReadRequests: Tuple<ScopedReadRequest, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
@@ -102,11 +100,7 @@ export async function buildPrivateKernelResetInputs(
     const nonEmptyNoteHashes = getNonEmptyItems(executionResult.callStackItem.publicInputs.noteHashes);
     return nonEmptyNoteHashes.map(
       noteHash =>
-        new ScopedNoteHash(
-          noteHash,
-          noteHashNullifierCounterMap.get(noteHash.counter) ?? 0,
-          executionResult.callStackItem.publicInputs.callContext.storageContractAddress,
-        ),
+        new ScopedNoteHash(noteHash, executionResult.callStackItem.publicInputs.callContext.storageContractAddress),
     );
   });
 
@@ -159,27 +153,14 @@ export async function buildPrivateKernelResetInputs(
     executionResult => executionResult.callStackItem.publicInputs.nullifierReadRequests,
   );
 
-  const [
-    transientNullifierIndexesForNoteHashes,
-    transientNoteHashIndexesForNullifiers,
-    transientNoteHashIndexesForLogs,
-  ] = buildTransientDataHints(
+  const [transientNullifierIndexesForNoteHashes, transientNoteHashIndexesForNullifiers] = buildTransientDataHints(
     publicInputs.end.noteHashes,
     publicInputs.end.nullifiers,
-    publicInputs.end.noteEncryptedLogsHashes,
     futureNoteHashReads,
     futureNullifierReads,
+    noteHashNullifierCounterMap,
     MAX_NOTE_HASHES_PER_TX,
     MAX_NULLIFIERS_PER_TX,
-    MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
-  );
-
-  const expectedOutputs = buildPrivateKernelResetOutputs(
-    previousKernelData.publicInputs.end.noteHashes,
-    previousKernelData.publicInputs.end.nullifiers,
-    previousKernelData.publicInputs.end.noteEncryptedLogsHashes,
-    transientNullifierIndexesForNoteHashes,
-    transientNoteHashIndexesForNullifiers,
   );
 
   let privateInputs;
@@ -194,11 +175,9 @@ export async function buildPrivateKernelResetInputs(
     ) {
       privateInputs = new PrivateKernelResetCircuitPrivateInputs(
         previousKernelData,
-        expectedOutputs,
         new PrivateKernelResetHints(
           transientNullifierIndexesForNoteHashes,
           transientNoteHashIndexesForNullifiers,
-          transientNoteHashIndexesForLogs,
           noteHashReadRequestHints,
           nullifierReadRequestHints,
           keysHints,

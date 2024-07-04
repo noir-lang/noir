@@ -10,19 +10,13 @@ use dep::types::{
     kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
     private_kernel::private_call_data::PrivateCallData
 },
-    constants::MAX_NOTE_HASHES_PER_CALL, transaction::tx_request::TxRequest
+    transaction::tx_request::TxRequest
 };
-
-struct PrivateKernelInitHints {
-    // TODO: Remove note_hash_nullifier_counters.
-    note_hash_nullifier_counters: [u32; MAX_NOTE_HASHES_PER_CALL],
-}
 
 // Initialization struct for private inputs to the private kernel
 struct PrivateKernelInitCircuitPrivateInputs {
     tx_request: TxRequest,
     private_call: PrivateCallData,
-    hints: PrivateKernelInitHints,
 }
 
 impl PrivateKernelInitCircuitPrivateInputs {
@@ -31,7 +25,6 @@ impl PrivateKernelInitCircuitPrivateInputs {
         PrivateKernelCircuitPublicInputsComposer::new_from_tx_request(self.tx_request, private_call_public_inputs).with_private_call(
             private_call_public_inputs,
             self.private_call.call_stack_item.contract_address,
-            self.hints.note_hash_nullifier_counters,
             self.private_call.public_call_stack,
             self.private_call.public_teardown_call_request
         ).finish()
@@ -58,7 +51,6 @@ impl PrivateKernelInitCircuitPrivateInputs {
                 self.private_call.call_stack_item.public_inputs,
                 private_call_data_validator.array_lengths,
                 self.private_call.call_stack_item.contract_address,
-                self.hints.note_hash_nullifier_counters,
                 self.private_call.public_call_stack,
                 self.private_call.public_teardown_call_request
             );
@@ -68,10 +60,9 @@ impl PrivateKernelInitCircuitPrivateInputs {
 }
 
 mod tests {
-    use crate::private_kernel_init::{PrivateKernelInitHints, PrivateKernelInitCircuitPrivateInputs};
+    use crate::private_kernel_init::PrivateKernelInitCircuitPrivateInputs;
     use dep::types::{
         abis::{kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs},
-        constants::MAX_NOTE_HASHES_PER_CALL,
         tests::{fixture_builder::FixtureBuilder, utils::assert_array_eq},
         transaction::tx_request::TxRequest
     };
@@ -79,20 +70,18 @@ mod tests {
     struct PrivateKernelInitInputsBuilder {
         tx_request: TxRequest,
         private_call: FixtureBuilder,
-        hints: PrivateKernelInitHints,
     }
 
     impl PrivateKernelInitInputsBuilder {
         pub fn new() -> Self {
             let private_call = FixtureBuilder::new();
             let tx_request = private_call.build_tx_request();
-            let hints = PrivateKernelInitHints { note_hash_nullifier_counters: [0; MAX_NOTE_HASHES_PER_CALL] };
-            PrivateKernelInitInputsBuilder { tx_request, private_call, hints }
+            PrivateKernelInitInputsBuilder { tx_request, private_call }
         }
 
         pub fn execute(self) -> PrivateKernelCircuitPublicInputs {
             let private_call = self.private_call.to_private_call_data();
-            PrivateKernelInitCircuitPrivateInputs { tx_request: self.tx_request, private_call, hints: self.hints }.execute()
+            PrivateKernelInitCircuitPrivateInputs { tx_request: self.tx_request, private_call }.execute()
         }
     }
 

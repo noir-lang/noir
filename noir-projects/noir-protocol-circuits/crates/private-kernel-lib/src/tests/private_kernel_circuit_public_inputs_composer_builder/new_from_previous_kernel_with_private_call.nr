@@ -163,61 +163,6 @@ fn new_from_previous_kernel_with_private_call_note_hashes_succeeds() {
 }
 
 #[test]
-fn new_from_previous_kernel_with_private_call_note_hashes_with_nullifier_counters_succeeds() {
-    let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
-
-    builder.previous_kernel.append_note_hashes(2);
-    let prev = builder.previous_kernel.note_hashes.storage;
-    builder.private_call.append_note_hashes(2);
-    let mut curr = builder.private_call.note_hashes.storage;
-    builder.note_hash_nullifier_counters[0] = curr[0].counter() + 10;
-    builder.note_hash_nullifier_counters[1] = curr[1].counter() + 75;
-
-    let output = builder.compose_from_previous_kernel();
-
-    curr[0].nullifier_counter = curr[0].counter() + 10;
-    curr[1].nullifier_counter = curr[1].counter() + 75;
-    assert_array_eq(output.end.note_hashes, [prev[0], prev[1], curr[0], curr[1]]);
-}
-
-#[test]
-fn new_from_previous_kernel_with_private_call_note_hashes_with_nullifier_counters_more_hints_succeeds() {
-    let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
-
-    builder.previous_kernel.append_note_hashes(2);
-    let prev = builder.previous_kernel.note_hashes.storage;
-    builder.private_call.append_note_hashes(2);
-    let mut curr = builder.private_call.note_hashes.storage;
-    builder.note_hash_nullifier_counters[0] = curr[0].counter() + 10;
-    builder.note_hash_nullifier_counters[1] = curr[1].counter() + 75;
-    // Add a random nullifier counter for a non-existent note hash to the hints.
-    builder.note_hash_nullifier_counters[2] = 323;
-
-    let output = builder.compose_from_previous_kernel();
-
-    curr[0].nullifier_counter = curr[0].counter() + 10;
-    curr[1].nullifier_counter = curr[1].counter() + 75;
-    assert_array_eq(output.end.note_hashes, [prev[0], prev[1], curr[0], curr[1]]);
-    // The extra counter won't be propagated.
-    assert_eq(output.end.note_hashes[4].nullifier_counter, 0);
-}
-
-#[test(should_fail_with="Invalid nullifier counter")]
-fn new_from_previous_kernel_with_private_call_note_hashes_with_nullifier_counters_less_than_fails() {
-    let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
-
-    builder.previous_kernel.append_note_hashes(2);
-    let _ = builder.previous_kernel.note_hashes.storage;
-    builder.private_call.append_note_hashes(2);
-    let curr = builder.private_call.note_hashes.storage;
-    builder.note_hash_nullifier_counters[0] = curr[0].counter() + 10;
-    // Tweak the nullifier counter to be less than the note hash counter.
-    builder.note_hash_nullifier_counters[1] = curr[1].counter() - 1;
-
-    let _ = builder.compose_from_previous_kernel();
-}
-
-#[test]
 fn new_from_previous_kernel_with_private_call_nullifiers_succeeds() {
     let mut builder = PrivateKernelCircuitPublicInputsComposerBuilder::new();
 

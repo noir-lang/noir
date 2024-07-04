@@ -37,13 +37,13 @@ export class NoteHash {
     return `value=${this.value} counter=${this.counter}`;
   }
 
-  scope(nullifierCounter: number, contractAddress: AztecAddress) {
-    return new ScopedNoteHash(this, nullifierCounter, contractAddress);
+  scope(contractAddress: AztecAddress) {
+    return new ScopedNoteHash(this, contractAddress);
   }
 }
 
 export class ScopedNoteHash implements Ordered {
-  constructor(public noteHash: NoteHash, public nullifierCounter: number, public contractAddress: AztecAddress) {}
+  constructor(public noteHash: NoteHash, public contractAddress: AztecAddress) {}
 
   get counter() {
     return this.noteHash.counter;
@@ -54,36 +54,32 @@ export class ScopedNoteHash implements Ordered {
   }
 
   toFields(): Fr[] {
-    return [...this.noteHash.toFields(), new Fr(this.nullifierCounter), this.contractAddress.toField()];
+    return [...this.noteHash.toFields(), this.contractAddress.toField()];
   }
 
   static fromFields(fields: Fr[] | FieldReader) {
     const reader = FieldReader.asReader(fields);
-    return new ScopedNoteHash(
-      reader.readObject(NoteHash),
-      reader.readU32(),
-      AztecAddress.fromField(reader.readField()),
-    );
+    return new ScopedNoteHash(reader.readObject(NoteHash), AztecAddress.fromField(reader.readField()));
   }
 
   isEmpty() {
-    return this.noteHash.isEmpty() && !this.nullifierCounter && this.contractAddress.isZero();
+    return this.noteHash.isEmpty() && this.contractAddress.isZero();
   }
 
   static empty() {
-    return new ScopedNoteHash(NoteHash.empty(), 0, AztecAddress.ZERO);
+    return new ScopedNoteHash(NoteHash.empty(), AztecAddress.ZERO);
   }
 
   toBuffer(): Buffer {
-    return serializeToBuffer(this.noteHash, this.nullifierCounter, this.contractAddress);
+    return serializeToBuffer(this.noteHash, this.contractAddress);
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new ScopedNoteHash(NoteHash.fromBuffer(reader), reader.readNumber(), AztecAddress.fromBuffer(reader));
+    return new ScopedNoteHash(NoteHash.fromBuffer(reader), AztecAddress.fromBuffer(reader));
   }
 
   toString(): string {
-    return `noteHash=${this.noteHash} nullifierCounter=${this.nullifierCounter} contractAddress=${this.contractAddress}`;
+    return `noteHash=${this.noteHash} contractAddress=${this.contractAddress}`;
   }
 }

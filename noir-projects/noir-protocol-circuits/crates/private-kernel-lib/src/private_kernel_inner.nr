@@ -9,18 +9,12 @@ use dep::types::{
     abis::{
     kernel_circuit_public_inputs::{PrivateKernelCircuitPublicInputs, PrivateKernelCircuitPublicInputsArrayLengths},
     private_kernel_data::PrivateKernelData, private_kernel::private_call_data::PrivateCallData
-},
-    constants::MAX_NOTE_HASHES_PER_CALL
-};
-
-struct PrivateKernelInnerHints {
-    note_hash_nullifier_counters: [u32; MAX_NOTE_HASHES_PER_CALL],
 }
+};
 
 struct PrivateKernelInnerCircuitPrivateInputs {
     previous_kernel: PrivateKernelData,
     private_call: PrivateCallData,
-    hints: PrivateKernelInnerHints,
 }
 
 impl PrivateKernelInnerCircuitPrivateInputs {
@@ -28,7 +22,6 @@ impl PrivateKernelInnerCircuitPrivateInputs {
         PrivateKernelCircuitPublicInputsComposer::new_from_previous_kernel(self.previous_kernel.public_inputs).pop_top_call_request().with_private_call(
             self.private_call.call_stack_item.public_inputs,
             self.private_call.call_stack_item.contract_address,
-            self.hints.note_hash_nullifier_counters,
             self.private_call.public_call_stack,
             self.private_call.public_teardown_call_request
         ).finish()
@@ -61,7 +54,6 @@ impl PrivateKernelInnerCircuitPrivateInputs {
                 self.private_call.call_stack_item.public_inputs,
                 private_call_data_validator.array_lengths,
                 self.private_call.call_stack_item.contract_address,
-                self.hints.note_hash_nullifier_counters,
                 self.private_call.public_call_stack,
                 self.private_call.public_teardown_call_request
             );
@@ -71,29 +63,26 @@ impl PrivateKernelInnerCircuitPrivateInputs {
 }
 
 mod tests {
-    use crate::private_kernel_inner::{PrivateKernelInnerCircuitPrivateInputs, PrivateKernelInnerHints};
+    use crate::private_kernel_inner::PrivateKernelInnerCircuitPrivateInputs;
     use dep::types::{
         abis::{kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs},
-        constants::MAX_NOTE_HASHES_PER_CALL,
         tests::{fixture_builder::FixtureBuilder, utils::assert_array_eq}
     };
 
     struct PrivateKernelInnerInputsBuilder {
         previous_kernel: FixtureBuilder,
         private_call: FixtureBuilder,
-        hints: PrivateKernelInnerHints,
     }
 
     impl PrivateKernelInnerInputsBuilder {
         pub fn new() -> Self {
             let mut previous_kernel = FixtureBuilder::new_from_counter(15).as_parent_contract();
             let private_call = FixtureBuilder::new_from_counter(200);
-            let hints = PrivateKernelInnerHints { note_hash_nullifier_counters: [0; MAX_NOTE_HASHES_PER_CALL] };
 
             // 0th nullifier must be non-zero.
             previous_kernel.append_nullifiers(1);
 
-            PrivateKernelInnerInputsBuilder { previous_kernel, private_call, hints }
+            PrivateKernelInnerInputsBuilder { previous_kernel, private_call }
         }
 
         pub fn execute(&mut self) -> PrivateKernelCircuitPublicInputs {
@@ -104,7 +93,7 @@ mod tests {
             self.previous_kernel.add_private_call_request(hash, is_delegate_call);
             let previous_kernel = self.previous_kernel.to_private_kernel_data();
 
-            let kernel = PrivateKernelInnerCircuitPrivateInputs { previous_kernel, private_call, hints: self.hints };
+            let kernel = PrivateKernelInnerCircuitPrivateInputs { previous_kernel, private_call };
 
             kernel.execute()
         }

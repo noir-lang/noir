@@ -38,7 +38,7 @@ fn validate_note_logs_mismatch_contract_address_fails() {
 
     // Create a note hash emitted from a different contract.
     let another_contract_address = AztecAddress::from_field(9999);
-    let previous_note_hash = NoteHash { value: 1, counter: 17 }.scope(0, another_contract_address);
+    let previous_note_hash = NoteHash { value: 1, counter: 17 }.scope(another_contract_address);
     builder.previous_note_hashes.push(previous_note_hash);
 
     // Add a not log linked to the previous note hash.

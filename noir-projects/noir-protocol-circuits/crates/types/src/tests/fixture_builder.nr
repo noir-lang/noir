@@ -469,19 +469,17 @@ impl FixtureBuilder {
         }
     }
 
-    pub fn add_new_note_hash(&mut self, value: Field, nullifier_counter: u32) {
-        self.note_hashes.push(
-            NoteHash { value, counter: self.next_counter() }.scope(nullifier_counter, self.storage_contract_address)
-        );
+    pub fn add_new_note_hash(&mut self, value: Field) {
+        self.note_hashes.push(NoteHash { value, counter: self.next_counter() }.scope(self.storage_contract_address));
     }
 
     pub fn add_siloed_note_hash(&mut self, value: Field) {
         // First nullifier is tx hash.
         let tx_hash = self.nullifiers.get(0).value();
         let index = self.note_hashes.len();
-        let note_hash = NoteHash { value, counter: 0 }.scope(0, self.storage_contract_address);
+        let note_hash = NoteHash { value, counter: 0 }.scope(self.storage_contract_address);
         let siloed_value = silo_note_hash(note_hash, tx_hash, index);
-        self.add_new_note_hash(siloed_value, 0);
+        self.add_new_note_hash(siloed_value);
     }
 
     pub fn append_note_hashes(&mut self, num_note_hashes: u32) {
@@ -489,7 +487,7 @@ impl FixtureBuilder {
         for i in 0..self.note_hashes.max_len() {
             if i < num_note_hashes {
                 let value = self.mock_note_hash_value(index_offset + i);
-                self.add_new_note_hash(value, 0);
+                self.add_new_note_hash(value);
             }
         }
     }
@@ -509,7 +507,7 @@ impl FixtureBuilder {
         for i in 0..self.note_hashes.max_len() {
             if i < num_note_hashes {
                 let value = self.mock_note_hash_value(index_offset + i);
-                self.add_new_note_hash(value, 0);
+                self.add_new_note_hash(value);
                 let (log_hash, length) = self.mock_note_encrypted_log(index_offset + i);
                 self.add_note_encrypted_log_hash(log_hash, length, self.counter - 1);
             }

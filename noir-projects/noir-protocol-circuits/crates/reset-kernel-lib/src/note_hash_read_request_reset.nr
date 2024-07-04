@@ -68,8 +68,8 @@ mod tests {
     ];
 
     global pending_values = [
-        NoteHash { value: inner_note_hashes[2], counter: 2, }.scope(0, contract_address),
-        NoteHash { value: inner_note_hashes[3], counter: 8,  }.scope(0, contract_address),
+        NoteHash { value: inner_note_hashes[2], counter: 2, }.scope(contract_address),
+        NoteHash { value: inner_note_hashes[3], counter: 8,  }.scope(contract_address),
     ];
     global pending_read_hints = [
         PendingReadHint { read_request_index: 1, pending_value_index: 1 },
@@ -177,25 +177,6 @@ mod tests {
         let mut tainted_pending_values = pending_values;
         // Tweak the counter of the value to be greater than the read request.
         tainted_pending_values[hint.pending_value_index].note_hash.counter = pending_read.counter() + 1;
-
-        let (settled_read_hints, tree_root) = get_settled_read_hints();
-        let _ = reset_read_requests(
-            read_requests,
-            tainted_pending_values,
-            read_request_statuses(),
-            pending_read_hints,
-            settled_read_hints,
-            tree_root
-        );
-    }
-
-    #[test(should_fail_with="Read request counter must be less than the nullifier counter of the note hash")]
-    fn test_reset_note_hash_read_requests_invalid_nullifier_counter() {
-        let hint = pending_read_hints[0];
-        let pending_read = read_requests[hint.read_request_index];
-        let mut tainted_pending_values = pending_values;
-        // Tweak the nullifier counter to be less than the read request.
-        tainted_pending_values[hint.pending_value_index].nullifier_counter = pending_read.counter() - 1;
 
         let (settled_read_hints, tree_root) = get_settled_read_hints();
         let _ = reset_read_requests(

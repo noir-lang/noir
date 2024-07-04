@@ -1,21 +1,7 @@
-import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { MAX_NOTE_HASHES_PER_CALL } from '../../constants.gen.js';
 import { PrivateCallData } from './private_call_data.js';
 import { PrivateKernelData } from './private_kernel_data.js';
-
-export class PrivateKernelInnerHints {
-  constructor(public noteHashNullifierCounters: Tuple<number, typeof MAX_NOTE_HASHES_PER_CALL>) {}
-
-  toBuffer() {
-    return serializeToBuffer(this.noteHashNullifierCounters);
-  }
-
-  static fromBuffer(buffer: Buffer | BufferReader) {
-    const reader = BufferReader.asReader(buffer);
-    return new PrivateKernelInnerHints(reader.readNumbers(MAX_NOTE_HASHES_PER_CALL));
-  }
-}
 
 /**
  * Input to the private kernel circuit - Inner call.
@@ -30,7 +16,6 @@ export class PrivateKernelInnerCircuitPrivateInputs {
      * Private calldata corresponding to this iteration of the kernel.
      */
     public privateCall: PrivateCallData,
-    public hints: PrivateKernelInnerHints,
   ) {}
 
   /**
@@ -38,7 +23,7 @@ export class PrivateKernelInnerCircuitPrivateInputs {
    * @returns The buffer.
    */
   toBuffer() {
-    return serializeToBuffer(this.previousKernel, this.privateCall, this.hints);
+    return serializeToBuffer(this.previousKernel, this.privateCall);
   }
 
   /**
@@ -51,7 +36,6 @@ export class PrivateKernelInnerCircuitPrivateInputs {
     return new PrivateKernelInnerCircuitPrivateInputs(
       reader.readObject(PrivateKernelData),
       reader.readObject(PrivateCallData),
-      reader.readObject(PrivateKernelInnerHints),
     );
   }
 }

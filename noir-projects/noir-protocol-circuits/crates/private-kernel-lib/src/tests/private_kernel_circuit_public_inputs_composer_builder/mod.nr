@@ -8,15 +8,13 @@ use dep::types::{
     kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
     private_call_request::ScopedPrivateCallRequest
 },
-    constants::MAX_NOTE_HASHES_PER_CALL, tests::fixture_builder::FixtureBuilder,
-    transaction::tx_request::TxRequest
+    tests::fixture_builder::FixtureBuilder, transaction::tx_request::TxRequest
 };
 
 struct PrivateKernelCircuitPublicInputsComposerBuilder {
     tx_request: TxRequest,
     previous_kernel: FixtureBuilder,
     private_call: FixtureBuilder,
-    note_hash_nullifier_counters: [u32; MAX_NOTE_HASHES_PER_CALL],
 }
 
 impl PrivateKernelCircuitPublicInputsComposerBuilder {
@@ -28,8 +26,7 @@ impl PrivateKernelCircuitPublicInputsComposerBuilder {
         private_call.value_offset = 9999;
 
         let tx_request = private_call.build_tx_request();
-        let note_hash_nullifier_counters = [0; MAX_NOTE_HASHES_PER_CALL];
-        PrivateKernelCircuitPublicInputsComposerBuilder { tx_request, previous_kernel, private_call, note_hash_nullifier_counters }
+        PrivateKernelCircuitPublicInputsComposerBuilder { tx_request, previous_kernel, private_call }
     }
 
     pub fn new_from_tx_request(self) -> PrivateKernelCircuitPublicInputsComposer {
@@ -47,7 +44,6 @@ impl PrivateKernelCircuitPublicInputsComposerBuilder {
         self.new_from_tx_request().with_private_call(
             private_call.call_stack_item.public_inputs,
             private_call.call_stack_item.contract_address,
-            self.note_hash_nullifier_counters,
             private_call.public_call_stack,
             private_call.public_teardown_call_request
         ).finish()
@@ -65,7 +61,6 @@ impl PrivateKernelCircuitPublicInputsComposerBuilder {
         PrivateKernelCircuitPublicInputsComposer::new_from_previous_kernel(previous_kernel).pop_top_call_request().with_private_call(
             private_call.call_stack_item.public_inputs,
             private_call.call_stack_item.contract_address,
-            self.note_hash_nullifier_counters,
             private_call.public_call_stack,
             private_call.public_teardown_call_request
         ).finish()

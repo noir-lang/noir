@@ -3,7 +3,7 @@ use dep::types::{
     abis::{
     call_request::CallRequest,
     kernel_circuit_public_inputs::{PrivateKernelCircuitPublicInputs, PrivateKernelCircuitPublicInputsArrayLengths},
-    max_block_number::MaxBlockNumber, note_hash::ScopedNoteHash,
+    max_block_number::MaxBlockNumber,
     private_circuit_public_inputs::{PrivateCircuitPublicInputs, PrivateCircuitPublicInputsArrayLengths},
     private_kernel::private_call_data::PrivateCallData, side_effect::Scoped
 },
@@ -103,28 +103,6 @@ fn validate_array_appended_reversed_scoped<ST, T, N, M>(
     }
 }
 
-fn validate_note_hash_nullifier_counters<N, M>(
-    dest: [ScopedNoteHash; N],
-    note_hash_nullifier_counters: [u32; M],
-    num_source_items: u32,
-    num_prepended_items: u32
-) {
-    let mut is_non_empty_item = true;
-    for i in 0..M {
-        is_non_empty_item &= i != num_source_items;
-        if is_non_empty_item {
-            let nullifier_counter = note_hash_nullifier_counters[i];
-            let note_hash = dest[i + num_prepended_items];
-            assert(
-                (nullifier_counter == 0) | (nullifier_counter > note_hash.counter()), "invalid nullifier counter"
-            );
-            assert_eq(
-                note_hash.nullifier_counter, nullifier_counter, "incorrect nullifier counter assigned to dest"
-            );
-        }
-    }
-}
-
 struct PrivateKernelCircuitOutputValidator {
     output: PrivateKernelCircuitPublicInputs,
 }
@@ -134,13 +112,12 @@ impl PrivateKernelCircuitOutputValidator {
         PrivateKernelCircuitOutputValidator { output }
     }
 
-    pub fn validate_as_first_call<NOTE_HASH_NULLIFIER_COUNTERS_LEN, PUBLIC_CALL_REQUESTS_LEN>(
+    pub fn validate_as_first_call<PUBLIC_CALL_REQUESTS_LEN>(
         self,
         tx_request: TxRequest,
         private_call: PrivateCircuitPublicInputs,
         private_call_array_lengths: PrivateCircuitPublicInputsArrayLengths,
         contract_address: AztecAddress,
-        note_hash_nullifier_counters: [u32; NOTE_HASH_NULLIFIER_COUNTERS_LEN],
         public_call_requests: [CallRequest; PUBLIC_CALL_REQUESTS_LEN],
         public_teardown_call_request: CallRequest
     ) {
@@ -153,19 +130,17 @@ impl PrivateKernelCircuitOutputValidator {
             offsets,
             0, // num_popped_call
             contract_address,
-            note_hash_nullifier_counters,
             public_call_requests
         );
     }
 
-    pub fn validate_as_inner_call<NOTE_HASH_NULLIFIER_COUNTERS_LEN, PUBLIC_CALL_REQUESTS_LEN>(
+    pub fn validate_as_inner_call<PUBLIC_CALL_REQUESTS_LEN>(
         self,
         previous_kernel: PrivateKernelCircuitPublicInputs,
         previous_kernel_array_lengths: PrivateKernelCircuitPublicInputsArrayLengths,
         private_call: PrivateCircuitPublicInputs,
         private_call_array_lengths: PrivateCircuitPublicInputsArrayLengths,
         contract_address: AztecAddress,
-        note_hash_nullifier_counters: [u32; NOTE_HASH_NULLIFIER_COUNTERS_LEN],
         public_call_requests: [CallRequest; PUBLIC_CALL_REQUESTS_LEN],
         public_teardown_call_request: CallRequest
     ) {
@@ -177,7 +152,6 @@ impl PrivateKernelCircuitOutputValidator {
             previous_kernel_array_lengths,
             1, // num_popped_call
             contract_address,
-            note_hash_nullifier_counters,
             public_call_requests
         );
     }
@@ -336,14 +310,13 @@ impl PrivateKernelCircuitOutputValidator {
         );
     }
 
-    fn validate_propagated_from_private_call<NOTE_HASH_NULLIFIER_COUNTERS_LEN, PUBLIC_CALL_REQUESTS_LEN>(
+    fn validate_propagated_from_private_call<PUBLIC_CALL_REQUESTS_LEN>(
         self,
         private_call: PrivateCircuitPublicInputs,
         array_lengths: PrivateCircuitPublicInputsArrayLengths,
         offsets: PrivateKernelCircuitPublicInputsArrayLengths,
         num_popped_call: u32,
         contract_address: AztecAddress,
-        note_hash_nullifier_counters: [u32; NOTE_HASH_NULLIFIER_COUNTERS_LEN],
         public_call_requests: [CallRequest; PUBLIC_CALL_REQUESTS_LEN]
     ) {
         let storage_contract_address = private_call.call_context.storage_contract_address;
@@ -374,12 +347,6 @@ impl PrivateKernelCircuitOutputValidator {
             array_lengths.note_hashes,
             offsets.note_hashes,
             storage_contract_address
-        );
-        validate_note_hash_nullifier_counters(
-            self.output.end.note_hashes,
-            note_hash_nullifier_counters,
-            array_lengths.note_hashes,
-            offsets.note_hashes
         );
         validate_array_appended_scoped(
             self.output.end.nullifiers,
