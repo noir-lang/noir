@@ -1,7 +1,7 @@
 use plonky2::iop::target::BoolTarget;
 use plonky2_u32::gadgets::arithmetic_u32::U32Target;
 
-use crate::ssa::plonky2_gen::{console_and_file_asm_writer::ConsoleAndFileAsmWriter};
+use crate::ssa::plonky2_gen::console_and_file_asm_writer::ConsoleAndFileAsmWriter;
 
 #[rustfmt::skip]
 const H256: [u32; 8] = [
@@ -59,7 +59,10 @@ fn u32_to_bits_target<const B: usize>(
     res
 }
 
-fn bits_to_u32_target(asm_writer: &mut ConsoleAndFileAsmWriter, bits_target: Vec<BoolTarget>) -> U32Target {
+fn bits_to_u32_target(
+    asm_writer: &mut ConsoleAndFileAsmWriter,
+    bits_target: Vec<BoolTarget>,
+) -> U32Target {
     let bit_len = bits_target.len();
     assert_eq!(bit_len, 32);
     U32Target(asm_writer.le_sum(bits_target[0..32].iter().rev()))
@@ -191,7 +194,12 @@ fn sigma1(asm_writer: &mut ConsoleAndFileAsmWriter, a: &U32Target) -> U32Target 
 ch = a&b ^ (!a)&c
    = a*(b-c) + c
  */
-fn ch(asm_writer: &mut ConsoleAndFileAsmWriter, a: &U32Target, b: &U32Target, c: &U32Target) -> U32Target {
+fn ch(
+    asm_writer: &mut ConsoleAndFileAsmWriter,
+    a: &U32Target,
+    b: &U32Target,
+    c: &U32Target,
+) -> U32Target {
     let a_bits = u32_to_bits_target::<2>(asm_writer, a);
     let b_bits = u32_to_bits_target::<2>(asm_writer, b);
     let c_bits = u32_to_bits_target::<2>(asm_writer, c);
@@ -212,7 +220,12 @@ maj = a&b ^ a&c ^ b&c
     = a*( b + c - 2*m ) + m
 where m = b*c
  */
-fn maj(asm_writer: &mut ConsoleAndFileAsmWriter, a: &U32Target, b: &U32Target, c: &U32Target) -> U32Target {
+fn maj(
+    asm_writer: &mut ConsoleAndFileAsmWriter,
+    a: &U32Target,
+    b: &U32Target,
+    c: &U32Target,
+) -> U32Target {
     let a_bits = u32_to_bits_target::<2>(asm_writer, a);
     let b_bits = u32_to_bits_target::<2>(asm_writer, b);
     let c_bits = u32_to_bits_target::<2>(asm_writer, c);

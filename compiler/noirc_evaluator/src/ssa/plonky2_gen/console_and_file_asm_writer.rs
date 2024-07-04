@@ -11,8 +11,8 @@ use plonky2::iop::{
 };
 use plonky2_u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
 
-use super::config::P2Field;
 use super::config::P2Builder;
+use super::config::P2Field;
 
 struct TargetDisplay {
     t: Target,
@@ -427,7 +427,10 @@ impl ConsoleAndFileAsmWriter {
         }
     }
 
-    pub fn le_sum(&mut self, bits: impl Iterator<Item = impl Borrow<BoolTarget>> + Clone) -> Target {
+    pub fn le_sum(
+        &mut self,
+        bits: impl Iterator<Item = impl Borrow<BoolTarget>> + Clone,
+    ) -> Target {
         if self.output_enabled() {
             let result = self.builder.le_sum(bits.clone());
             self.handle_output(format!(

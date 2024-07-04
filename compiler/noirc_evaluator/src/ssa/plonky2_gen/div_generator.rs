@@ -24,7 +24,11 @@ struct VariableIntDivGenerator {
 }
 
 impl VariableIntDivGenerator {
-    fn new(asm_writer: &mut ConsoleAndFileAsmWriter, numerator: Target, denominator: Target) -> Self {
+    fn new(
+        asm_writer: &mut ConsoleAndFileAsmWriter,
+        numerator: Target,
+        denominator: Target,
+    ) -> Self {
         Self {
             numerator,
             denominator,
