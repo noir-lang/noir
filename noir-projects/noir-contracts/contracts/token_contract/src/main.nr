@@ -36,8 +36,8 @@ contract Token {
 
     #[aztec(event)]
     struct Transfer {
-        from: Field,
-        to: Field,
+        from: AztecAddress,
+        to: AztecAddress,
         amount: Field,
     }
 
@@ -338,7 +338,7 @@ contract Token {
         storage.balances.sub(from, amount).emit(encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_ovpk, from_ivpk));
         storage.balances.add(to, amount).emit(encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_ovpk, to_ivpk));
 
-        Transfer { from: from.to_field(), to: to.to_field(), amount: amount.to_field() }.emit(encode_and_encrypt_event_with_keys_unconstrained(&mut context, from_ovpk, to_ivpk));
+        Transfer { from, to, amount: amount.to_field() }.emit(encode_and_encrypt_event_with_keys_unconstrained(&mut context, from_ovpk, to_ivpk));
     }
     // docs:end:transfer
 

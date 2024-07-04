@@ -9,9 +9,9 @@ contract ContractInstanceDeployer {
         oracle::logs::emit_unencrypted_log_private_internal
     };
 
-    // @todo This should be using an event, but currently we only support fields in the struct.
-    // #[aztec(event)]
+    #[aztec(event)]
     struct ContractInstanceDeployed {
+        DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE: Field,
         address: AztecAddress,
         version: u8,
         salt: Field, 
@@ -19,23 +19,6 @@ contract ContractInstanceDeployer {
         initialization_hash: Field, 
         public_keys_hash: PublicKeysHash, 
         deployer: AztecAddress,
-    }
-
-    global CONTRACT_INSTANCE_DEPLOYED_SERIALIZED_SIZE: Field = 8;
-
-    impl Serialize<CONTRACT_INSTANCE_DEPLOYED_SERIALIZED_SIZE> for ContractInstanceDeployed {
-        fn serialize(self: Self) -> [Field; CONTRACT_INSTANCE_DEPLOYED_SERIALIZED_SIZE] {
-            [
-                DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE,
-                self.address.to_field(),
-                self.version as Field,
-                self.salt,
-                self.contract_class_id.to_field(),
-                self.initialization_hash,
-                self.public_keys_hash.to_field(),
-                self.deployer.to_field(),
-            ]
-        }
     }
 
     #[aztec(private)]
@@ -62,7 +45,16 @@ contract ContractInstanceDeployer {
         context.push_nullifier(address.to_field(), 0);
 
         // Broadcast the event
-        let event = ContractInstanceDeployed { contract_class_id, address, public_keys_hash, initialization_hash, salt, deployer, version: 1 };
+        let event = ContractInstanceDeployed {
+            DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE,
+            contract_class_id,
+            address,
+            public_keys_hash,
+            initialization_hash,
+            salt,
+            deployer,
+            version: 1
+        };
 
         let payload = event.serialize();
         dep::aztec::oracle::debug_log::debug_log_format("ContractInstanceDeployed: {}", payload);

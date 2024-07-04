@@ -97,7 +97,8 @@ describe('Logs', () => {
 
       // We expect the fields to have been populated correctly
       expect(event1?.value2).toStrictEqual(preimage[2]);
-      expect(event1?.value3).toStrictEqual(preimage[3]);
+      // We get the last byte here because value3 is of type u8
+      expect(event1?.value3).toStrictEqual(new Fr(preimage[3].toBuffer().subarray(31)));
 
       // Again, trying to decode another event with mismatching data does not yield anything
       const badEvent1 = TestLogContract.events.ExampleEvent0.decode(decryptedLog1!.payload);
@@ -189,7 +190,13 @@ describe('Logs', () => {
 
       const exampleEvent1Sort = (a: ExampleEvent1, b: ExampleEvent1) => (a.value2 > b.value2 ? 1 : -1);
       expect(collectedEvent1s.sort(exampleEvent1Sort)).toStrictEqual(
-        preimage.map(preimage => ({ value2: preimage[2], value3: preimage[3] })).sort(exampleEvent1Sort),
+        preimage
+          .map(preimage => ({
+            value2: preimage[2],
+            // We get the last byte here because value3 is of type u8
+            value3: new Fr(preimage[3].toBuffer().subarray(31)),
+          }))
+          .sort(exampleEvent1Sort),
       );
     });
 
@@ -227,7 +234,13 @@ describe('Logs', () => {
 
       const exampleEvent1Sort = (a: ExampleEvent1, b: ExampleEvent1) => (a.value2 > b.value2 ? 1 : -1);
       expect(collectedEvent1s.sort(exampleEvent1Sort)).toStrictEqual(
-        preimage.map(preimage => ({ value2: preimage[2], value3: preimage[3] })).sort(exampleEvent1Sort),
+        preimage
+          .map(preimage => ({
+            value2: preimage[2],
+            // We get the last byte here because value3 is of type u8
+            value3: new Fr(preimage[3].toBuffer().subarray(31)),
+          }))
+          .sort(exampleEvent1Sort),
       );
     });
   });

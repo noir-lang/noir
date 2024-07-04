@@ -18,8 +18,8 @@ contract TestLog {
 
     #[aztec(event)]
     struct ExampleEvent1 {
-        value2: Field,
-        value3: Field,
+        value2: AztecAddress,
+        value3: u8,
     }
 
     #[aztec(storage)]
@@ -69,7 +69,7 @@ contract TestLog {
             )
         );
 
-        let event1 = ExampleEvent1 { value2: preimages[2], value3: preimages[3] };
+        let event1 = ExampleEvent1 { value2: AztecAddress::from_field(preimages[2]), value3: preimages[3] as u8 };
 
         event1.emit(
             encode_and_encrypt_event_with_randomness(
@@ -88,7 +88,7 @@ contract TestLog {
 
         event0.emit(encode_event(&mut context));
 
-        let event1 = ExampleEvent1 { value2: preimages[2], value3: preimages[3] };
+        let event1 = ExampleEvent1 { value2: AztecAddress::from_field(preimages[2]), value3: preimages[3] as u8 };
 
         event1.emit(encode_event(&mut context));
     }
