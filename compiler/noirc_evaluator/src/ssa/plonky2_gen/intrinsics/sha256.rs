@@ -1,7 +1,7 @@
 use plonky2::iop::target::BoolTarget;
 use plonky2_u32::gadgets::arithmetic_u32::U32Target;
 
-use crate::ssa::plonky2_gen::asm_writer::AsmWriter;
+use crate::ssa::plonky2_gen::{console_and_file_asm_writer::ConsoleAndFileAsmWriter};
 
 #[rustfmt::skip]
 const H256: [u32; 8] = [
@@ -48,7 +48,7 @@ fn array_to_bits(bytes: &[u8]) -> Vec<bool> {
 }
 
 fn u32_to_bits_target<const B: usize>(
-    asm_writer: &mut impl AsmWriter,
+    asm_writer: &mut ConsoleAndFileAsmWriter,
     a: &U32Target,
 ) -> Vec<BoolTarget> {
     let mut res = Vec::new();
@@ -59,7 +59,7 @@ fn u32_to_bits_target<const B: usize>(
     res
 }
 
-fn bits_to_u32_target(asm_writer: &mut impl AsmWriter, bits_target: Vec<BoolTarget>) -> U32Target {
+fn bits_to_u32_target(asm_writer: &mut ConsoleAndFileAsmWriter, bits_target: Vec<BoolTarget>) -> U32Target {
     let bit_len = bits_target.len();
     assert_eq!(bit_len, 32);
     U32Target(asm_writer.le_sum(bits_target[0..32].iter().rev()))
@@ -97,7 +97,7 @@ a ^ b ^ c = a+b+c - 2*a*b - 2*a*c - 2*b*c + 4*a*b*c
 where m = b*c
  */
 fn xor3(
-    asm_writer: &mut impl AsmWriter,
+    asm_writer: &mut ConsoleAndFileAsmWriter,
     a: BoolTarget,
     b: BoolTarget,
     c: BoolTarget,
@@ -119,7 +119,7 @@ fn xor3(
 }
 
 //#define Sigma0(x)    (ROTATE((x), 2) ^ ROTATE((x),13) ^ ROTATE((x),22))
-fn big_sigma0(asm_writer: &mut impl AsmWriter, a: &U32Target) -> U32Target {
+fn big_sigma0(asm_writer: &mut ConsoleAndFileAsmWriter, a: &U32Target) -> U32Target {
     let a_bits = u32_to_bits_target::<2>(asm_writer, a);
     let rotate2 = rotate32(2);
     let rotate13 = rotate32(13);
@@ -137,7 +137,7 @@ fn big_sigma0(asm_writer: &mut impl AsmWriter, a: &U32Target) -> U32Target {
 }
 
 //#define Sigma1(x)    (ROTATE((x), 6) ^ ROTATE((x),11) ^ ROTATE((x),25))
-fn big_sigma1(asm_writer: &mut impl AsmWriter, a: &U32Target) -> U32Target {
+fn big_sigma1(asm_writer: &mut ConsoleAndFileAsmWriter, a: &U32Target) -> U32Target {
     let a_bits = u32_to_bits_target::<2>(asm_writer, a);
     let rotate6 = rotate32(6);
     let rotate11 = rotate32(11);
@@ -155,7 +155,7 @@ fn big_sigma1(asm_writer: &mut impl AsmWriter, a: &U32Target) -> U32Target {
 }
 
 //#define sigma0(x)    (ROTATE((x), 7) ^ ROTATE((x),18) ^ ((x)>> 3))
-fn sigma0(asm_writer: &mut impl AsmWriter, a: &U32Target) -> U32Target {
+fn sigma0(asm_writer: &mut ConsoleAndFileAsmWriter, a: &U32Target) -> U32Target {
     let mut a_bits = u32_to_bits_target::<2>(asm_writer, a);
     a_bits.push(asm_writer.constant_bool(false));
     let rotate7 = rotate32(7);
@@ -169,7 +169,7 @@ fn sigma0(asm_writer: &mut impl AsmWriter, a: &U32Target) -> U32Target {
 }
 
 //#define sigma1(x)    (ROTATE((x),17) ^ ROTATE((x),19) ^ ((x)>>10))
-fn sigma1(asm_writer: &mut impl AsmWriter, a: &U32Target) -> U32Target {
+fn sigma1(asm_writer: &mut ConsoleAndFileAsmWriter, a: &U32Target) -> U32Target {
     let mut a_bits = u32_to_bits_target::<2>(asm_writer, a);
     a_bits.push(asm_writer.constant_bool(false));
     let rotate17 = rotate32(17);
@@ -191,7 +191,7 @@ fn sigma1(asm_writer: &mut impl AsmWriter, a: &U32Target) -> U32Target {
 ch = a&b ^ (!a)&c
    = a*(b-c) + c
  */
-fn ch(asm_writer: &mut impl AsmWriter, a: &U32Target, b: &U32Target, c: &U32Target) -> U32Target {
+fn ch(asm_writer: &mut ConsoleAndFileAsmWriter, a: &U32Target, b: &U32Target, c: &U32Target) -> U32Target {
     let a_bits = u32_to_bits_target::<2>(asm_writer, a);
     let b_bits = u32_to_bits_target::<2>(asm_writer, b);
     let c_bits = u32_to_bits_target::<2>(asm_writer, c);
@@ -212,7 +212,7 @@ maj = a&b ^ a&c ^ b&c
     = a*( b + c - 2*m ) + m
 where m = b*c
  */
-fn maj(asm_writer: &mut impl AsmWriter, a: &U32Target, b: &U32Target, c: &U32Target) -> U32Target {
+fn maj(asm_writer: &mut ConsoleAndFileAsmWriter, a: &U32Target, b: &U32Target, c: &U32Target) -> U32Target {
     let a_bits = u32_to_bits_target::<2>(asm_writer, a);
     let b_bits = u32_to_bits_target::<2>(asm_writer, b);
     let c_bits = u32_to_bits_target::<2>(asm_writer, c);
@@ -231,7 +231,7 @@ fn maj(asm_writer: &mut impl AsmWriter, a: &U32Target, b: &U32Target, c: &U32Tar
     bits_to_u32_target(asm_writer, res_bits)
 }
 
-fn add_u32(asm_writer: &mut impl AsmWriter, a: &U32Target, b: &U32Target) -> U32Target {
+fn add_u32(asm_writer: &mut ConsoleAndFileAsmWriter, a: &U32Target, b: &U32Target) -> U32Target {
     let (res, _carry) = asm_writer.add_u32(*a, *b);
     res
 }
@@ -240,7 +240,7 @@ fn add_u32(asm_writer: &mut impl AsmWriter, a: &U32Target, b: &U32Target) -> U32
 // Size: msg_len_in_bits (L) |  p bits   | 64 bits
 // Bits:      msg            | 100...000 |    L
 pub(crate) fn make_sha256_circuit(
-    asm_writer: &mut impl AsmWriter,
+    asm_writer: &mut ConsoleAndFileAsmWriter,
     msg_len_in_bits: u64,
 ) -> Sha256Targets {
     let mut message = Vec::new();
@@ -369,8 +369,7 @@ mod tests {
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use crate::ssa::plonky2_gen::asm_writer::AsmWriter;
-    use crate::ssa::plonky2_gen::console_asm_writer::ConsoleAndFileAsmWriter;
+    use crate::ssa::plonky2_gen::console_and_file_asm_writer::ConsoleAndFileAsmWriter;
 
     use super::super::sha256::{array_to_bits, make_sha256_circuit};
 

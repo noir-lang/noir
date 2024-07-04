@@ -149,7 +149,7 @@ pub(crate) fn optimize_into_plonky2(
 
     drop(ssa_gen_span_guard);
 
-    Builder::<ConsoleAndFileAsmWriter>::new(print_plonky2, plonky2_print_file).build(
+    Builder::new(print_plonky2, plonky2_print_file).build(
         ssa,
         parameter_names,
         main_function_signature,

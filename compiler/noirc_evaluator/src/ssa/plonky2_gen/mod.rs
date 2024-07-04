@@ -1,4 +1,3 @@
-mod asm_writer;
 mod circuit;
 mod config;
 pub mod console_and_file_asm_writer;
@@ -13,8 +12,8 @@ use super::{
     ssa_gen::Ssa,
 };
 use acvm::{acir::BlackBoxFunc, AcirField, FieldElement};
-use asm_writer::AsmWriter;
 pub use circuit::Plonky2Circuit;
+use console_and_file_asm_writer::ConsoleAndFileAsmWriter;
 use div_generator::add_div_mod;
 use noirc_frontend::{ast::Visibility, hir_def::function::FunctionSignature};
 use plonky2::{
@@ -121,7 +120,7 @@ impl P2Value {
 
     /// Creates an undefined PLONKY2 value of the given type, which includes adding targets to the given
     /// builder.
-    fn create_empty(asm_writer: &mut impl AsmWriter, p2type: P2Type) -> P2Value {
+    fn create_empty(asm_writer: &mut ConsoleAndFileAsmWriter, p2type: P2Type) -> P2Value {
         match p2type.clone() {
             P2Type::Field => P2Value {
                 target: P2Target::IntTarget(asm_writer.add_virtual_target()),
@@ -153,7 +152,7 @@ impl P2Value {
     }
 
     fn create_simple_constant(
-        asm_writer: &mut impl AsmWriter,
+        asm_writer: &mut ConsoleAndFileAsmWriter,
         p2type: P2Type,
         constant: FieldElement,
     ) -> Result<P2Value, Plonky2GenError> {
@@ -299,24 +298,22 @@ impl P2Target {
     }
 }
 
-pub(crate) struct Builder<TAsmWriter: AsmWriter> {
-    asm_writer: TAsmWriter,
+pub(crate) struct Builder {
+    asm_writer: ConsoleAndFileAsmWriter,
     translation: HashMap<ValueId, P2Value>,
     dfg: DataFlowGraph,
     show_plonky2: bool,
 }
 
-impl<TAsmWriter> Builder<TAsmWriter>
-where
-    TAsmWriter: AsmWriter,
+impl Builder
 {
     pub(crate) fn new(
         show_plonky2: bool,
         plonky2_print_file: Option<String>,
-    ) -> Builder<TAsmWriter> {
+    ) -> Builder {
         let config = CircuitConfig::standard_recursion_config();
-        Builder::<TAsmWriter> {
-            asm_writer: TAsmWriter::new(P2Builder::new(config), show_plonky2, plonky2_print_file),
+        Builder {
+            asm_writer: ConsoleAndFileAsmWriter::new(P2Builder::new(config), show_plonky2, plonky2_print_file),
             translation: HashMap::new(),
             dfg: DataFlowGraph::default(),
             show_plonky2,
@@ -399,7 +396,7 @@ where
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        p2builder_op: fn(&mut TAsmWriter, Target, Target) -> Target,
+        p2builder_op: fn(&mut ConsoleAndFileAsmWriter, Target, Target) -> Target,
     ) -> Result<P2Value, Plonky2GenError> {
         let (type_a, target_a) = self.get_integer(lhs)?;
         let (type_b, target_b) = self.get_integer(rhs)?;
@@ -417,7 +414,7 @@ where
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        p2builder_op: fn(&mut TAsmWriter, BoolTarget, BoolTarget) -> BoolTarget,
+        p2builder_op: fn(&mut ConsoleAndFileAsmWriter, BoolTarget, BoolTarget) -> BoolTarget,
         opname: &str,
     ) -> Result<P2Value, Plonky2GenError> {
         let typ = self.get_type(lhs)?;
@@ -436,8 +433,8 @@ where
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        normal_op: fn(&mut TAsmWriter, Target, Target) -> Target,
-        boolean_op: fn(&mut TAsmWriter, BoolTarget, BoolTarget) -> BoolTarget,
+        normal_op: fn(&mut ConsoleAndFileAsmWriter, Target, Target) -> Target,
+        boolean_op: fn(&mut ConsoleAndFileAsmWriter, BoolTarget, BoolTarget) -> BoolTarget,
         opname: &str,
     ) -> Result<P2Value, Plonky2GenError> {
         let typ = self.get_type(lhs)?;
@@ -458,7 +455,7 @@ where
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        p2builder_op: fn(&mut TAsmWriter, BoolTarget, BoolTarget) -> BoolTarget,
+        p2builder_op: fn(&mut ConsoleAndFileAsmWriter, BoolTarget, BoolTarget) -> BoolTarget,
     ) -> Result<P2Value, Plonky2GenError> {
         let target_a = self.get_boolean(lhs)?;
         let target_b = self.get_boolean(rhs)?;
@@ -471,7 +468,7 @@ where
         &mut self,
         lhs: ValueId,
         rhs: ValueId,
-        single_bit_op: fn(&mut TAsmWriter, BoolTarget, BoolTarget) -> BoolTarget,
+        single_bit_op: fn(&mut ConsoleAndFileAsmWriter, BoolTarget, BoolTarget) -> BoolTarget,
     ) -> Result<P2Value, Plonky2GenError> {
         let (type_a, target_a) = self.get_integer(lhs)?;
         let (type_b, target_b) = self.get_integer(rhs)?;
@@ -558,8 +555,8 @@ where
                     super::ir::instruction::BinaryOp::Mul => self.multi_convert_integer_op(
                         lhs,
                         rhs,
-                        TAsmWriter::mul,
-                        TAsmWriter::and,
+                        ConsoleAndFileAsmWriter::mul,
+                        ConsoleAndFileAsmWriter::and,
                         "Mul",
                     ),
 
@@ -578,13 +575,13 @@ where
                     super::ir::instruction::BinaryOp::Add => self.multi_convert_integer_op(
                         lhs,
                         rhs,
-                        TAsmWriter::add,
-                        TAsmWriter::or,
+                        ConsoleAndFileAsmWriter::add,
+                        ConsoleAndFileAsmWriter::or,
                         "Add",
                     ),
 
                     super::ir::instruction::BinaryOp::Sub => {
-                        self.convert_integer_op(lhs, rhs, TAsmWriter::sub)
+                        self.convert_integer_op(lhs, rhs, ConsoleAndFileAsmWriter::sub)
                     }
 
                     super::ir::instruction::BinaryOp::Eq => {
@@ -607,7 +604,7 @@ where
 
                     super::ir::instruction::BinaryOp::Xor => {
                         fn one_bit_xor(
-                            asm_writer: &mut impl AsmWriter,
+                            asm_writer: &mut ConsoleAndFileAsmWriter,
                             lhs: BoolTarget,
                             rhs: BoolTarget,
                         ) -> BoolTarget {
@@ -622,11 +619,11 @@ where
                     }
 
                     super::ir::instruction::BinaryOp::And => {
-                        self.multi_convert_boolean_op(lhs, rhs, TAsmWriter::and, "And")
+                        self.multi_convert_boolean_op(lhs, rhs, ConsoleAndFileAsmWriter::and, "And")
                     }
 
                     super::ir::instruction::BinaryOp::Or => {
-                        self.multi_convert_boolean_op(lhs, rhs, TAsmWriter::or, "Or")
+                        self.multi_convert_boolean_op(lhs, rhs, ConsoleAndFileAsmWriter::or, "Or")
                     }
 
                     _ => {
