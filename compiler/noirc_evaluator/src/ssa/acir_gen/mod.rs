@@ -433,7 +433,6 @@ impl<'a> Context<'a> {
         warnings.extend(return_warnings);
 
         // Add the warnings from the alter Ssa passes
-        warnings.extend_from_slice(&ssa.warnings);
         Ok(self.acir_context.finish(input_witness, return_witnesses, warnings))
     }
 

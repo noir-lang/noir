@@ -3,12 +3,9 @@ use std::{collections::BTreeMap, fmt::Display};
 use acvm::acir::circuit::ErrorSelector;
 use iter_extended::btree_map;
 
-use crate::{
-    errors::SsaReport,
-    ssa::ir::{
-        function::{Function, FunctionId, RuntimeType},
-        map::AtomicCounter,
-    },
+use crate::ssa::ir::{
+    function::{Function, FunctionId, RuntimeType},
+    map::AtomicCounter,
 };
 use noirc_frontend::hir_def::types::Type as HirType;
 
@@ -23,7 +20,6 @@ pub(crate) struct Ssa {
     /// as the final program artifact will be a list of only entry point functions.
     pub(crate) entry_point_to_generated_index: BTreeMap<FunctionId, u32>,
     pub(crate) error_selector_to_type: BTreeMap<ErrorSelector, HirType>,
-    pub(crate) warnings: Vec<SsaReport>,
 }
 
 impl Ssa {
@@ -61,7 +57,6 @@ impl Ssa {
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index,
             error_selector_to_type: error_types,
-            warnings: Vec::new(),
         }
     }
 

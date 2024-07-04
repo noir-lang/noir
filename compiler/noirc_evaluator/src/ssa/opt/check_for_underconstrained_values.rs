@@ -15,113 +15,104 @@ use std::collections::{BTreeMap, HashSet};
 impl Ssa {
     /// Go through each top-level non-brillig function and detect if it has independent subgraphs
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn detect_independent_subgraphs(mut self) -> Ssa {
+    pub(crate) fn check_for_underconstrained_values(&mut self) -> Vec<SsaReport> {
+        let mut warnings: Vec<SsaReport> = Vec::new();
         for function in self.functions.values() {
             match function.runtime() {
                 RuntimeType::Acir { .. } => {
-                    let warnings = self.detect_independent_subgraphs_within_function(function);
-                    self.warnings.extend(warnings);
+                    warnings.extend(check_for_underconstrained_values_within_function(
+                        function,
+                        &self.functions,
+                    ));
                 }
                 RuntimeType::Brillig => (),
             }
         }
-        self
-    }
-
-    /// Detect independent subgraphs (not connected to function inputs or outputs) and return a vector of bug reports if some are found
-    fn detect_independent_subgraphs_within_function(&self, function: &Function) -> Vec<SsaReport> {
-        let mut context = Context::default();
-
-        // Go through each block in the function and create a list of sets of ValueIds connected by instructions
-        context.block_queue.push(function.entry_block());
-        while let Some(block) = context.block_queue.pop() {
-            if context.visited_blocks.contains(&block) {
-                continue;
-            }
-            context.visited_blocks.insert(block);
-            context.connect_value_ids_in_block(function, block, &self.functions);
-        }
-
-        // Merge ValueIds into sets, where each original small set of ValueIds is merged with another set if they intersect
-        context.merge_sets();
-
-        let function_parameters = function.parameters();
-        let variable_parameters_and_return_values: HashSet<ValueId> = function_parameters
-            .iter()
-            .chain(function.returns())
-            .filter(|&x| match function.dfg[*x] {
-                Value::NumericConstant { .. } => false, // Constant values don't connect elements and can be reused in different subgraphs, so we need to avoid them
-                _ => true,
-            })
-            .copied()
-            .collect();
-
-        let mut connected_sets_indices: HashSet<usize> = HashSet::new();
-
-        // Go through each parameter and each set and check if the set contains the parameter
-        // If it's the case, then that set doesn't present an issue
-        for parameter_or_return_value in variable_parameters_and_return_values.iter() {
-            for (set_index, final_set) in context.value_sets.iter().enumerate() {
-                if final_set.contains(parameter_or_return_value) {
-                    connected_sets_indices.insert(set_index);
-                }
-            }
-        }
-
-        // All the other sets of variables are independent
-        let disconnected_sets_indices: Vec<usize> =
-            HashSet::from_iter(0..(context.value_sets.len()))
-                .difference(&connected_sets_indices)
-                .copied()
-                .collect();
-
-        let all_brillig_generated_values: HashSet<ValueId> =
-            context.brillig_return_to_argument_map.keys().copied().collect();
-
-        // Go through each disconnected set
-        for set_index in disconnected_sets_indices.iter() {
-            let current_set = &context.value_sets[*set_index];
-
-            // Find brillig-generated values in the set
-            let intersection: Vec<ValueId> =
-                all_brillig_generated_values.intersection(current_set).cloned().collect();
-            if intersection.is_empty() {
-                // This is probably a test and the values are optimized in a weird way
-                continue;
-            }
-
-            // Go through all brillig outputs in the set
-            for brillig_output_in_set in intersection.iter() {
-                // Get the inputs that correspond to the output
-                let inputs: HashSet<ValueId> = HashSet::from_iter(
-                    context.brillig_return_to_argument_map[brillig_output_in_set].iter().copied(),
-                );
-
-                // Check if any of them are not in the set
-                let unused_inputs: Vec<ValueId> = inputs.difference(current_set).copied().collect();
-
-                // There is a value not in the set, which means that the inputs/outputs of this call have not been properly constrained
-                if !unused_inputs.is_empty() {
-                    context.warnings.push(SsaReport::Bug(InternalBug::IndependentSubgraph {
-                        call_stack: function.dfg.get_call_stack(
-                            context.brillig_return_to_instruction_id_map[brillig_output_in_set],
-                        ),
-                    }));
-                }
-            }
-        }
-        context.warnings
+        warnings
     }
 }
 
+/// Detect independent subgraphs (not connected to function inputs or outputs) and return a vector of bug reports if some are found
+fn check_for_underconstrained_values_within_function(
+    function: &Function,
+    all_functions: &BTreeMap<FunctionId, Function>,
+) -> Vec<SsaReport> {
+    let mut context = Context::default();
+    let mut warnings: Vec<SsaReport> = Vec::new();
+
+    // Go through each block in the function and create a list of sets of ValueIds connected by instructions
+    context.block_queue.push(function.entry_block());
+    while let Some(block) = context.block_queue.pop() {
+        if context.visited_blocks.contains(&block) {
+            continue;
+        }
+        context.visited_blocks.insert(block);
+        context.connect_value_ids_in_block(function, block, all_functions);
+    }
+
+    // Merge ValueIds into sets, where each original small set of ValueIds is merged with another set if they intersect
+    context.merge_sets();
+
+    let function_parameters = function.parameters();
+    let variable_parameters_and_return_values = function_parameters
+        .iter()
+        .chain(function.returns())
+        .filter(|id| function.dfg.get_numeric_constant(**id).is_none())
+        .copied();
+
+    let mut connected_sets_indices: HashSet<usize> = HashSet::new();
+
+    // Go through each parameter and each set and check if the set contains the parameter
+    // If it's the case, then that set doesn't present an issue
+    for parameter_or_return_value in variable_parameters_and_return_values {
+        for (set_index, final_set) in context.value_sets.iter().enumerate() {
+            if final_set.contains(&parameter_or_return_value) {
+                connected_sets_indices.insert(set_index);
+            }
+        }
+    }
+
+    let all_brillig_generated_values: HashSet<ValueId> =
+        context.brillig_return_to_argument.keys().copied().collect();
+
+    // Go through each disconnected set
+    for set_index in
+        HashSet::from_iter(0..(context.value_sets.len())).difference(&connected_sets_indices)
+    {
+        let current_set = &context.value_sets[*set_index];
+
+        // Find brillig-generated values in the set
+        let intersection = all_brillig_generated_values.intersection(current_set).copied();
+
+        // Go through all brillig outputs in the set
+        for brillig_output_in_set in intersection {
+            // Get the inputs that correspond to the output
+            let inputs: HashSet<ValueId> = HashSet::from_iter(
+                context.brillig_return_to_argument[&brillig_output_in_set].iter().copied(),
+            );
+
+            // Check if any of them are not in the set
+            let unused_inputs = inputs.difference(current_set).next().is_some();
+
+            // There is a value not in the set, which means that the inputs/outputs of this call have not been properly constrained
+            if unused_inputs {
+                warnings.push(SsaReport::Bug(InternalBug::IndependentSubgraph {
+                    call_stack: function.dfg.get_call_stack(
+                        context.brillig_return_to_instruction_id[&brillig_output_in_set],
+                    ),
+                }));
+            }
+        }
+    }
+    warnings
+}
 #[derive(Default)]
 struct Context {
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: Vec<BasicBlockId>,
-    warnings: Vec<SsaReport>,
     value_sets: Vec<HashSet<ValueId>>,
-    brillig_return_to_argument_map: HashMap<ValueId, Vec<ValueId>>,
-    brillig_return_to_instruction_id_map: HashMap<ValueId, InstructionId>,
+    brillig_return_to_argument: HashMap<ValueId, Vec<ValueId>>,
+    brillig_return_to_instruction_id: HashMap<ValueId, InstructionId>,
 }
 
 impl Context {
@@ -135,104 +126,103 @@ impl Context {
         let instructions = function.dfg[block].instructions();
 
         for instruction in instructions.iter() {
-            let results = function.dfg.instruction_results(*instruction);
+            let mut instruction_arguments_and_results = HashSet::new();
+
+            // Insert non-constant instruction arguments
+            function.dfg[*instruction].for_each_value(|value_id| {
+                if function.dfg.get_numeric_constant(value_id).is_none() {
+                    instruction_arguments_and_results.insert(value_id);
+                }
+            });
+            // And non-constant results
+            for value_id in function.dfg.instruction_results(*instruction).iter() {
+                if function.dfg.get_numeric_constant(*value_id).is_none() {
+                    instruction_arguments_and_results.insert(*value_id);
+                }
+            }
+
             // For most instructions we just connect inputs and outputs
             match &function.dfg[*instruction] {
-                Instruction::Binary(binary) => {
-                    let mut value_ids = vec![binary.lhs, binary.rhs];
-                    value_ids.extend_from_slice(results);
-                    self.connect_values(function, &value_ids);
-                }
-                Instruction::Cast(value_id, ..)
-                | Instruction::Truncate { value: value_id, .. }
-                | Instruction::Not(value_id) => {
-                    let mut value_ids = vec![*value_id];
-                    value_ids.extend_from_slice(results);
-                    self.connect_values(function, &value_ids);
-                }
-                Instruction::Constrain(value_id1, value_id2, ..) => {
-                    let value_ids = &[*value_id1, *value_id2];
-                    self.connect_values(function, value_ids);
-                }
-                Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
-                    let mut value_ids =
-                        vec![*then_condition, *then_value, *else_condition, *else_value];
-
-                    value_ids.extend_from_slice(results);
-                    self.connect_values(function, &value_ids);
-                }
-                Instruction::Load { address } => {
-                    let mut value_ids = vec![*address];
-                    value_ids.extend_from_slice(results);
-                    self.connect_values(function, &value_ids);
-                }
-                Instruction::Store { address, value } => {
-                    self.connect_values(function, &[*address, *value]);
-                }
-                Instruction::ArrayGet { array, index } => {
-                    let mut value_ids = vec![*array, *index];
-                    value_ids.extend_from_slice(results);
-                    self.connect_values(function, &value_ids);
-                }
-                Instruction::ArraySet { array, index, value, .. } => {
-                    self.connect_values(function, &[*array, *index, *value]);
+                Instruction::ArrayGet { .. }
+                | Instruction::ArraySet { .. }
+                | Instruction::Binary(..)
+                | Instruction::Cast(..)
+                | Instruction::Constrain(..)
+                | Instruction::IfElse { .. }
+                | Instruction::Load { .. }
+                | Instruction::Not(..)
+                | Instruction::Store { .. }
+                | Instruction::Truncate { .. } => {
+                    self.value_sets.push(instruction_arguments_and_results);
                 }
 
                 Instruction::Call { func: func_id, arguments: argument_ids } => {
                     match &function.dfg[*func_id] {
                         Value::Intrinsic(intrinsic) => match intrinsic {
-                            Intrinsic::IsUnconstrained
+                            Intrinsic::ApplyRangeConstraint
+                            | Intrinsic::AssertConstant
                             | Intrinsic::AsWitness
-                            | Intrinsic::ApplyRangeConstraint
-                            | Intrinsic::AssertConstant => {}
-                            _ => {
-                                let mut value_ids = argument_ids.clone();
-                                value_ids.extend_from_slice(results);
-                                self.connect_values(function, &value_ids);
+                            | Intrinsic::IsUnconstrained => {}
+                            Intrinsic::ArrayLen
+                            | Intrinsic::AsField
+                            | Intrinsic::AsSlice
+                            | Intrinsic::BlackBox(..)
+                            | Intrinsic::DerivePedersenGenerators
+                            | Intrinsic::FromField
+                            | Intrinsic::SlicePushBack
+                            | Intrinsic::SlicePushFront
+                            | Intrinsic::SlicePopBack
+                            | Intrinsic::SlicePopFront
+                            | Intrinsic::SliceInsert
+                            | Intrinsic::SliceRemove
+                            | Intrinsic::StaticAssert
+                            | Intrinsic::StrAsBytes
+                            | Intrinsic::ToBits(..)
+                            | Intrinsic::ToRadix(..) => {
+                                self.value_sets.push(instruction_arguments_and_results);
                             }
                         },
                         Value::Function(callee) => match all_functions[&callee].runtime() {
                             RuntimeType::Brillig => {
                                 // For calls to brillig functions we memorize the mapping of results to argument ValueId's and InstructionId's
                                 // The latter are needed to produce the callstack later
-                                for result in results.iter() {
-                                    self.brillig_return_to_argument_map
+                                for result in
+                                    function.dfg.instruction_results(*instruction).iter().filter(
+                                        |value_id| {
+                                            function.dfg.get_numeric_constant(**value_id).is_none()
+                                        },
+                                    )
+                                {
+                                    self.brillig_return_to_argument
                                         .insert(*result, argument_ids.clone());
-                                    self.brillig_return_to_instruction_id_map
+                                    self.brillig_return_to_instruction_id
                                         .insert(*result, *instruction);
                                 }
                             }
-                            _ => {
-                                let mut value_ids = argument_ids.clone();
-                                value_ids.extend_from_slice(results);
-                                self.connect_values(function, &value_ids);
+                            RuntimeType::Acir(..) => {
+                                self.value_sets.push(instruction_arguments_and_results);
                             }
                         },
                         Value::ForeignFunction(..) => {
                             panic!("Should not be able to reach foreign function from non-brillig functions");
                         }
-                        _ => {
+                        Value::Array { .. }
+                        | Value::Instruction { .. }
+                        | Value::NumericConstant { .. }
+                        | Value::Param { .. } => {
                             panic!("At the point we are running disconnect there shouldn't be any other values as arguments")
                         }
                     }
                 }
-                _ => {}
+                Instruction::Allocate { .. }
+                | Instruction::DecrementRc { .. }
+                | Instruction::EnableSideEffects { .. }
+                | Instruction::IncrementRc { .. }
+                | Instruction::RangeCheck { .. } => {}
             }
         }
 
         self.block_queue.extend(function.dfg[block].successors());
-    }
-
-    /// Add a set of ValueIds to the vector of connected values while ignoring constants
-    fn connect_values(&mut self, function: &Function, values: &[ValueId]) {
-        self.value_sets.push(HashSet::from_iter(
-            values
-                .iter()
-                .filter(|value_id| {
-                    !matches!(function.dfg.get_value(**value_id), Value::NumericConstant { .. })
-                })
-                .cloned(),
-        ));
     }
 
     /// Merge all small sets into larger ones based on whether the sets intersect or not
@@ -248,7 +238,7 @@ impl Context {
         for set in self.value_sets.iter() {
             // Check if the set has any of the ValueIds we've encountered at previous iterations
             let intersection: HashSet<ValueId> =
-                set.intersection(&parsed_value_set).cloned().collect();
+                set.intersection(&parsed_value_set).copied().collect();
             parsed_value_set.extend(set.iter());
 
             // If there is no intersection, add the new set to updated sets
@@ -332,8 +322,8 @@ mod test {
         builder.terminate_with_return(vec![v2]);
 
         let mut ssa = builder.finish();
-        ssa = ssa.detect_independent_subgraphs();
-        assert_eq!(ssa.warnings.len(), 0);
+        let ssa_level_warnings = ssa.check_for_underconstrained_values();
+        assert_eq!(ssa_level_warnings.len(), 0);
     }
 
     #[test]
@@ -377,7 +367,7 @@ mod test {
         let v2 = builder.insert_binary(v0, BinaryOp::Add, v1);
         builder.terminate_with_return(vec![v2]);
         let mut ssa = builder.finish();
-        ssa = ssa.detect_independent_subgraphs();
-        assert_eq!(ssa.warnings.len(), 1);
+        let ssa_level_warnings = ssa.check_for_underconstrained_values();
+        assert_eq!(ssa_level_warnings.len(), 1);
     }
 }
