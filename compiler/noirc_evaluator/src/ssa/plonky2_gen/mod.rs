@@ -1,6 +1,6 @@
+pub mod asm_writer;
 mod circuit;
 mod config;
-pub mod asm_writer;
 mod div_generator;
 mod intrinsics;
 
@@ -12,8 +12,8 @@ use super::{
     ssa_gen::Ssa,
 };
 use acvm::{acir::BlackBoxFunc, AcirField, FieldElement};
-pub use circuit::Plonky2Circuit;
 use asm_writer::AsmWriter;
+pub use circuit::Plonky2Circuit;
 use div_generator::add_div_mod;
 use noirc_frontend::{ast::Visibility, hir_def::function::FunctionSignature};
 use plonky2::{
