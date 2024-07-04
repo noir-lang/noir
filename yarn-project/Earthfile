@@ -114,7 +114,7 @@ rollup-verifier-contract:
     RUN --entrypoint write-contract -c RootRollupArtifact -n UltraVerifier.sol
     SAVE ARTIFACT /usr/src/bb /usr/src/bb
 
-txe: 
+txe:
     FROM +build
     RUN yarn workspaces focus @aztec/txe --production && yarn cache clean
     # Remove a bunch of stuff that we don't need that takes up space.
@@ -175,9 +175,46 @@ aztec-faucet-build:
 aztec-faucet:
     FROM ubuntu:noble
     RUN apt update && apt install nodejs curl -y && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-    COPY +aztec-faucet/usr/src /usr/src
+    COPY +aztec-faucet-build/usr/src /usr/src
     ENTRYPOINT ["node", "--no-warnings", "/usr/src/yarn-project/aztec-faucet/dest/bin/index.js"]
     LET port=8080
+
+export-aztec-faucet:
+    FROM +aztec-faucet
+    ARG DIST_TAG="latest"
+    ARG ARCH
+    SAVE IMAGE --push aztecprotocol/aztec-faucet:${DIST_TAG}${ARCH:+-$ARCH}
+
+cli-build:
+    FROM +build
+    RUN yarn workspaces focus @aztec/cli --production && yarn cache clean
+    RUN rm -rf \
+            ../noir-projects \
+            ../l1-contracts \
+            ../barretenberg/ts/src \
+            ../barretenberg/ts/dest/node-cjs \
+            ../barretenberg/ts/dest/browser \
+            aztec.js/dest/main.js \
+            end-to-end \
+            **/src \
+            **/artifacts
+    SAVE ARTIFACT /usr/src /usr/src
+
+cli:
+    FROM ubuntu:noble
+    RUN apt update && apt install nodejs curl -y && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    COPY +cli-build/usr/src /usr/src
+
+    RUN mkdir /cache && chmod 777 /cache
+    ENV XDG_CACHE_HOME /cache
+    VOLUME "/cache"
+    ENTRYPOINT ["node", "--no-warnings", "/usr/src/yarn-project/cli/dest/bin/index.js"]
+
+export-cli:
+    FROM +cli
+    ARG DIST_TAG="latest"
+    ARG ARCH
+    SAVE IMAGE --push aztecprotocol/cli:${DIST_TAG}${ARCH:+-$ARCH}
 
 # We care about creating a slimmed down e2e image because we have to serialize it from earthly to docker for running.
 end-to-end-prod:
@@ -246,12 +283,6 @@ export-aztec-arch:
     ARG DIST_TAG="latest"
     ARG ARCH
     SAVE IMAGE --push aztecprotocol/aztec:${DIST_TAG}${ARCH:+-$ARCH}
-
-export-aztec-faucet:
-    FROM +aztec-faucet
-    ARG DIST_TAG="latest"
-    ARG ARCH
-    SAVE IMAGE --push aztecprotocol/aztec-faucet:${DIST_TAG}${ARCH:+-$ARCH}
 
 export-end-to-end:
     ARG EARTHLY_GIT_HASH

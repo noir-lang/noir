@@ -116,7 +116,7 @@ export function createL1Clients(
 }
 
 /**
- * Deploys the aztec L1 contracts; Rollup, Contract Deployment Emitter & (optionally) Decoder Helper.
+ * Deploys the aztec L1 contracts; Rollup & (optionally) Decoder Helper.
  * @param rpcUrl - URL of the ETH RPC to use for deployment.
  * @param account - Private Key or HD Account that will deploy the contracts.
  * @param chain - The chain instance to deploy to.

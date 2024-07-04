@@ -10,6 +10,8 @@ concurrency:
 env:
   DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
   GIT_COMMIT: ${{ github.sha }}
+  DEPLOY_TAG: devnet
+  FILE_PATH: ./l1-contracts/addresses.txt
   # TF Vars
   TF_VAR_DOCKERHUB_ACCOUNT: aztecprotocol
   TF_VAR_CHAIN_ID: 31337
@@ -29,26 +31,49 @@ jobs:
     secrets: inherit
 
   build:
+    needs: setup
     runs-on: ${{ github.actor }}-x86
     steps:
       - uses: actions/checkout@v4
-        with: { ref: "${{ env.GIT_COMMIT }}" }
+        with:
+          ref: "${{ env.GIT_COMMIT }}"
+          fetch-depth: 0
       - uses: ./.github/ci-setup-action
         with:
-          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
           concurrency_key: build-release-artifacts-${{ github.actor }}
-      - name: "Build & Push images"
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+      - name: "Build & Push aztec images"
         timeout-minutes: 40
         # Run the build steps for each image with version and arch, push to dockerhub
         run: |
-          earthly-ci --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=devnet
+          earthly-ci --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=${{ env.DEPLOY_TAG }}
+
+      - name: Check if L1 contracts need deployment
+        id: check_changes_build
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const changedFiles = execSync('git diff --name-only ${{ github.event.before }} ${{ github.sha }}').toString().split('\n');
+            const fileChanged = changedFiles.includes('l1-contracts/REDEPLOY');
+            return fileChanged
+
+      - name: "Build & Push cli image"
+        if: steps.check_changes_build.outputs.result == 'true'
+        timeout-minutes: 40
+        # Run the build steps for each image with version and arch, push to dockerhub
+        run: |
+          earthly-ci --no-output --push ./yarn-project+export-cli --DIST_TAG=${{ env.DEPLOY_TAG }}
 
   terraform_deploy:
     runs-on: ubuntu-latest
     needs: build
     steps:
       - uses: actions/checkout@v4
-        with: { ref: "${{ env.GIT_COMMIT }}" }
+        with:
+          ref: "${{ env.GIT_COMMIT }}"
+          fetch-depth: 0
+      - uses: ./.github/ci-setup-action
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.7.5
@@ -60,20 +85,56 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-2
 
+      - name: Check if L1 contracts need deployment
+        id: check_changes_release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const changedFiles = execSync('git diff --name-only ${{ github.event.before }} ${{ github.sha }}').toString().split('\n');
+            const fileChanged = changedFiles.includes('l1-contracts/REDEPLOY');
+            return fileChanged
+      - name: Deploy L1 Contracts
+        if: steps.check_changes_release.outputs.result == 'true'
+        run: |
+          docker pull aztecprotocol/cli:${{ env.DEPLOY_TAG }}
+          docker run aztecprotocol/cli:${{ env.DEPLOY_TAG }} \
+            deploy-l1-contracts -p ${{ secrets.SEQ_1_PUBLISHER_PRIVATE_KEY }} \
+            -u https://${{ env.DEPLOY_TAG }}-mainnet-fork.aztec.network:8545/${{ secrets.FORK_API_KEY }} \
+            | tee ${{ env.FILE_PATH }}
+          ./.github/scripts/extract_l1_addresses.sh ${{ env.FILE_PATH }}
+
+      - name: Apply l1-contracts Terraform
+        if: steps.check_changes_release.outputs.result == 'true'
+        working-directory: ./l1-contracts/terraform
+        run: |
+          terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/l1-contracts"
+          terraform apply -input=false -auto-approve
+
       - name: Deploy P2P Bootstrap Nodes
         working-directory: ./yarn-project/p2p-bootstrap/terraform
         run: |
-          terraform init -input=false -backend-config="key=devnet/p2p-bootstrap"
+          terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/p2p-bootstrap"
           terraform apply -input=false -auto-approve
+
+      - name: Init Aztec Node Terraform
+        working-directory: ./yarn-project/aztec/terraform/node
+        run: |
+          terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/aztec-node"
+
+      - name: Taint node filesystem if L1 contracts are redeployed
+        if: steps.check_changes_release.outputs.result == 'true'
+        working-directory: ./yarn-project/aztec/terraform/node
+        run: |
+          terraform state list | grep 'aws_efs_file_system.node_data_store' | xargs -n1 terraform taint
 
       - name: Deploy Aztec Nodes
         working-directory: ./yarn-project/aztec/terraform/node
         run: |
-          terraform init -input=false -backend-config="key=devnet/aztec-node"
           terraform apply -input=false -auto-approve
 
       - name: Deploy Provers
         working-directory: ./yarn-project/aztec/terraform/prover
         run: |
-          terraform init -input=false -backend-config="key=devnet/prover"
+          terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/prover"
           terraform apply -input=false -auto-approve
