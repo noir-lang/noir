@@ -381,6 +381,7 @@ impl<'a> ModCollector<'a> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for trait_definition in traits {
             let name = trait_definition.name.clone();
+            let name_location = Location::new(name.span(), self.file_id);
 
             // Create the corresponding module for the trait namespace
             let trait_id = match self.push_child_module(
@@ -531,6 +532,9 @@ impl<'a> ModCollector<'a> {
                 fns_with_default_impl: unresolved_functions,
             };
             context.def_interner.push_empty_trait(trait_id, &unresolved, resolved_generics);
+
+            context.def_interner.add_trait_location(trait_id, name_location);
+            context.def_interner.add_definition_location(ReferenceId::Trait(trait_id));
 
             self.def_collector.items.traits.insert(trait_id, unresolved);
         }
