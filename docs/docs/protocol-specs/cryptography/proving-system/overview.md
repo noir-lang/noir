@@ -38,7 +38,7 @@ The client-side IVC scheme is substantially more complex than the rollup-side sc
 
 Rollup-side, each "step" in the IVC scheme is a Honk proof, which are recursively verified. As a result, no protoocols other than Honk are required to execute rollup-side IVC.
 
-We perform one layer of []"proof-system compression"](https://medium.com/aztec-protocol/proof-compression-a318f478d575) in the rollup. The final proof of block-correctness is constructed as a Honk proof. An UltraPlonk circuit is used to verify the correctness of the Honk proof, so that the proof that is verified on-chain is an UltraPlonk proof.
+We perform one layer of ["proof-system compression"](https://medium.com/aztec-protocol/proof-compression-a318f478d575) in the rollup. The final proof of block-correctness is constructed as a Honk proof. An UltraPlonk circuit is used to verify the correctness of the Honk proof, so that the proof that is verified on-chain is an UltraPlonk proof.
 Verification gas costs are lower for UltraPlonk vs Honk due to the following factors:
 
 1. Fewer precomputed selector polynomials, reducing Verifier G1 scalar multiplications
