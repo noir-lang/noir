@@ -33,7 +33,11 @@ impl NodeInterner {
         match reference {
             ReferenceId::Module(id) => self.module_location(&id),
             ReferenceId::Function(id) => self.function_modifiers(&id).name_location,
-            ReferenceId::Struct(id) => self.struct_location(&id),
+            ReferenceId::Struct(id) => {
+                let struct_type = self.get_struct(id);
+                let struct_type = struct_type.borrow();
+                Location::new(struct_type.name.span(), struct_type.location.file)
+            }
             ReferenceId::Trait(id) => self.trait_location(&id),
             ReferenceId::Global(id) => self.get_global(id).location,
             ReferenceId::Alias(id) => self.alias_location(&id),

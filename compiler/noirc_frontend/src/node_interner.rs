@@ -68,9 +68,6 @@ pub struct NodeInterner {
     // The location of each module
     module_locations: HashMap<ModuleId, Location>,
 
-    // The location of each struct name
-    struct_name_locations: HashMap<StructId, Location>,
-
     // The location of each trait name
     trait_name_locations: HashMap<TraitId, Location>,
 
@@ -550,7 +547,6 @@ impl Default for NodeInterner {
             function_modifiers: HashMap::new(),
             function_modules: HashMap::new(),
             module_locations: HashMap::new(),
-            struct_name_locations: HashMap::new(),
             trait_name_locations: HashMap::new(),
             alias_name_locations: HashMap::new(),
             func_id_to_trait: HashMap::new(),
@@ -982,14 +978,6 @@ impl NodeInterner {
 
     pub fn struct_attributes(&self, struct_id: &StructId) -> &StructAttributes {
         &self.struct_attributes[struct_id]
-    }
-
-    pub fn add_struct_location(&mut self, struct_id: StructId, location: Location) {
-        self.struct_name_locations.insert(struct_id, location);
-    }
-
-    pub fn struct_location(&self, struct_id: &StructId) -> Location {
-        self.struct_name_locations[struct_id]
     }
 
     pub fn add_alias_location(&mut self, alias_id: TypeAliasId, location: Location) {
