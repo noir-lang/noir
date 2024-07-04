@@ -38,7 +38,10 @@ impl NodeInterner {
                 let struct_type = struct_type.borrow();
                 Location::new(struct_type.name.span(), struct_type.location.file)
             }
-            ReferenceId::Trait(id) => self.trait_location(&id),
+            ReferenceId::Trait(id) => {
+                let trait_type = self.get_trait(id);
+                Location::new(trait_type.name.span(), trait_type.location.file)
+            }
             ReferenceId::Global(id) => self.get_global(id).location,
             ReferenceId::Alias(id) => {
                 let alias_type = self.get_type_alias(id);
