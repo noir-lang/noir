@@ -74,6 +74,9 @@ pub struct NodeInterner {
     // The location of each trait name
     trait_name_locations: HashMap<TraitId, Location>,
 
+    // The location of each type alias name
+    alias_name_locations: HashMap<TypeAliasId, Location>,
+
     /// This graph tracks dependencies between different global definitions.
     /// This is used to ensure the absence of dependency cycles for globals and types.
     dependency_graph: DiGraph<DependencyId, ()>,
@@ -549,6 +552,7 @@ impl Default for NodeInterner {
             module_locations: HashMap::new(),
             struct_name_locations: HashMap::new(),
             trait_name_locations: HashMap::new(),
+            alias_name_locations: HashMap::new(),
             func_id_to_trait: HashMap::new(),
             dependency_graph: petgraph::graph::DiGraph::new(),
             dependency_graph_indices: HashMap::new(),
@@ -986,6 +990,14 @@ impl NodeInterner {
 
     pub fn struct_location(&self, struct_id: &StructId) -> Location {
         self.struct_name_locations[struct_id]
+    }
+
+    pub fn add_alias_location(&mut self, alias_id: TypeAliasId, location: Location) {
+        self.alias_name_locations.insert(alias_id, location);
+    }
+
+    pub fn alias_location(&self, alias_id: &TypeAliasId) -> Location {
+        self.alias_name_locations[alias_id]
     }
 
     pub fn add_trait_location(&mut self, trait_id: TraitId, location: Location) {

@@ -335,6 +335,7 @@ impl<'a> ModCollector<'a> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for type_alias in type_aliases {
             let name = type_alias.name.clone();
+            let name_location = Location::new(name.span(), self.file_id);
 
             // And store the TypeId -> TypeAlias mapping somewhere it is reachable
             let unresolved = UnresolvedTypeAlias {
@@ -366,6 +367,9 @@ impl<'a> ModCollector<'a> {
             }
 
             self.def_collector.items.type_aliases.insert(type_alias_id, unresolved);
+
+            context.def_interner.add_alias_location(type_alias_id, name_location);
+            context.def_interner.add_definition_location(ReferenceId::Alias(type_alias_id));
         }
         errors
     }

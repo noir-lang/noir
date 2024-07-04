@@ -36,7 +36,7 @@ impl NodeInterner {
             ReferenceId::Struct(id) => self.struct_location(&id),
             ReferenceId::Trait(id) => self.trait_location(&id),
             ReferenceId::Global(id) => self.get_global(id).location,
-            ReferenceId::Alias(id) => self.get_type_alias(id).borrow().location,
+            ReferenceId::Alias(id) => self.alias_location(&id),
             ReferenceId::Variable(location) => location,
         }
     }
