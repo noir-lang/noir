@@ -3,10 +3,17 @@ mod foo {
     }
 
     type Bar = Foo;
+
+    mod bar {
+        struct Baz {
+
+        }
+    }
 }
 
 use foo::Foo;
 use foo::Bar;
+use foo::bar;
 
 fn main() {
     let x: Bar = Foo {};
