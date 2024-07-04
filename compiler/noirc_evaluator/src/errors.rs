@@ -23,8 +23,13 @@ pub enum RuntimeError {
     IndexOutOfBounds { index: usize, array_size: usize, call_stack: CallStack },
     #[error("Range constraint of {num_bits} bits is too large for the Field size")]
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
-    #[error("{value} does not fit within the type bounds for {typ}")]
-    IntegerOutOfBounds { value: FieldElement, typ: NumericType, call_stack: CallStack },
+    #[error("The value `{value:?}` cannot fit into `{typ}` which has range `{range}`")]
+    IntegerOutOfBounds {
+        value: FieldElement,
+        typ: NumericType,
+        range: String,
+        call_stack: CallStack,
+    },
     #[error("Expected array index to fit into a u64")]
     TypeConversion { from: String, into: String, call_stack: CallStack },
     #[error("{name:?} is not initialized")]
