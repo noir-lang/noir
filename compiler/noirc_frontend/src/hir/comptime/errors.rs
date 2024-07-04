@@ -19,6 +19,7 @@ pub enum InterpreterError {
     ArgumentCountMismatch { expected: usize, actual: usize, location: Location },
     TypeMismatch { expected: Type, value: Value, location: Location },
     NonComptimeVarReferenced { name: String, location: Location },
+    VariableNotInScope { location: Location },
     IntegerOutOfRangeForType { value: FieldElement, typ: Type, location: Location },
     ErrorNodeEncountered { location: Location },
     NonFunctionCalled { value: Value, location: Location },
@@ -83,6 +84,7 @@ impl InterpreterError {
             InterpreterError::ArgumentCountMismatch { location, .. }
             | InterpreterError::TypeMismatch { location, .. }
             | InterpreterError::NonComptimeVarReferenced { location, .. }
+            | InterpreterError::VariableNotInScope { location, .. }
             | InterpreterError::IntegerOutOfRangeForType { location, .. }
             | InterpreterError::ErrorNodeEncountered { location, .. }
             | InterpreterError::NonFunctionCalled { location, .. }
@@ -150,6 +152,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::NonComptimeVarReferenced { name, location } => {
                 let msg = format!("Non-comptime variable `{name}` referenced in comptime code");
                 let secondary = "Non-comptime variables can't be used in comptime code".to_string();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::VariableNotInScope { location } => {
+                let msg = "Variable not in scope".to_string();
+                let secondary = "Could not find variable".to_string();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::IntegerOutOfRangeForType { value, typ, location } => {

@@ -2962,6 +2962,7 @@ dependencies = [
  "num-bigint",
  "plonky2",
  "plonky2_u32",
+ "proptest",
  "serde",
  "serde_json",
  "thiserror",
