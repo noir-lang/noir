@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 use std::marker::PhantomData;
 
-use super::{config::P2Field, console_and_file_asm_writer::AsmWriter};
+use super::{config::P2Field, asm_writer::AsmWriter};
 use plonky2::{
     field::types::{Field, PrimeField64},
     iop::{

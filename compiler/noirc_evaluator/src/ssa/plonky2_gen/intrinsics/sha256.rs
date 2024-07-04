@@ -1,7 +1,7 @@
 use plonky2::iop::target::BoolTarget;
 use plonky2_u32::gadgets::arithmetic_u32::U32Target;
 
-use crate::ssa::plonky2_gen::console_and_file_asm_writer::AsmWriter;
+use crate::ssa::plonky2_gen::asm_writer::AsmWriter;
 
 #[rustfmt::skip]
 const H256: [u32; 8] = [
@@ -364,7 +364,7 @@ mod tests {
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use crate::ssa::plonky2_gen::console_and_file_asm_writer::AsmWriter;
+    use crate::ssa::plonky2_gen::asm_writer::AsmWriter;
 
     use super::super::sha256::{array_to_bits, make_sha256_circuit};
 
