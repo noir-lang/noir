@@ -1,6 +1,10 @@
 use crate::tests::tail_to_public_output_composer_builder::TailToPublicOutputComposerBuilder;
 use dep::types::{
-    abis::gas::Gas, constants::{DA_BYTES_PER_FIELD, DA_GAS_PER_BYTE},
+    abis::gas::Gas,
+    constants::{
+    DA_BYTES_PER_FIELD, DA_GAS_PER_BYTE, FIXED_AVM_STARTUP_L2_GAS, L2_GAS_PER_NOTE_HASH,
+    L2_GAS_PER_NULLIFIER, L2_GAS_PER_LOG_BYTE
+},
     tests::utils::{assert_array_eq, swap_items}
 };
 
@@ -132,7 +136,13 @@ fn tail_to_public_output_composer_succeeds() {
         + 2 // encrypted_log_hash
         + 51; // unencrypted_log_hash
     let computed_da_gas = (total_num_side_effects * DA_BYTES_PER_FIELD + total_log_length) * DA_GAS_PER_BYTE;
-    assert_eq(output.end_non_revertible.gas_used, Gas::new(computed_da_gas, 0) + Gas::tx_overhead());
+    let computed_l2_gas = 4 * L2_GAS_PER_NOTE_HASH
+        + 3 * L2_GAS_PER_NULLIFIER
+        + total_log_length * L2_GAS_PER_LOG_BYTE
+        + 2 * FIXED_AVM_STARTUP_L2_GAS;
+    assert_eq(
+        output.end_non_revertible.gas_used, Gas::new(computed_da_gas, computed_l2_gas) + Gas::tx_overhead()
+    );
 
     // Gas: revertible
     let total_num_side_effects = 2 + 1 + 1;
@@ -140,5 +150,9 @@ fn tail_to_public_output_composer_succeeds() {
         + 6 + 24 // encrypted_log_hash
         + 4; // unencrypted_log_hash
     let computed_da_gas = (total_num_side_effects * DA_BYTES_PER_FIELD + total_log_length) * DA_GAS_PER_BYTE;
-    assert_eq(output.end.gas_used, Gas::new(computed_da_gas, 0) + teardown_gas);
+    let computed_l2_gas = 2 * L2_GAS_PER_NOTE_HASH
+        + 1 * L2_GAS_PER_NULLIFIER
+        + total_log_length * L2_GAS_PER_LOG_BYTE
+        + 3 * FIXED_AVM_STARTUP_L2_GAS;
+    assert_eq(output.end.gas_used, Gas::new(computed_da_gas, computed_l2_gas) + teardown_gas);
 }

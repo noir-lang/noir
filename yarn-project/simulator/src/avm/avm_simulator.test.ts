@@ -13,7 +13,6 @@ import { mock } from 'jest-mock-extended';
 import { type PublicSideEffectTraceInterface } from '../public/side_effect_trace_interface.js';
 import { type AvmContext } from './avm_context.js';
 import { type AvmExecutionEnvironment } from './avm_execution_environment.js';
-import { AvmMachineState } from './avm_machine_state.js';
 import { type MemoryValue, TypeTag, type Uint8 } from './avm_memory_types.js';
 import { AvmSimulator } from './avm_simulator.js';
 import { isAvmBytecode, markBytecodeAsAvm } from './bytecode_utils.js';
@@ -63,7 +62,7 @@ describe('AVM simulator: injected bytecode', () => {
 
   it('Should execute bytecode that performs basic addition', async () => {
     const context = initContext({ env: initExecutionEnvironment({ calldata }) });
-    const { l2GasLeft: initialL2GasLeft } = AvmMachineState.fromState(context.machineState);
+    const { l2Gas: initialL2GasLeft } = context.machineState.gasLeft;
     const results = await new AvmSimulator(context).executeBytecode(markBytecodeAsAvm(bytecode));
 
     expect(results.reverted).toBe(false);

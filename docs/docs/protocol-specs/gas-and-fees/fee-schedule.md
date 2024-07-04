@@ -52,6 +52,8 @@ A side effect of the above calculation is that all transactions will have a non-
 
 L2 gas is consumed to cover the costs associated with executing the public VM, proving the public VM circuit, and proving the public kernel circuit.
 
+It is also consumed to perform fixed, mandatory computation that must be performed per transaction by the sequencer, regardless of what the transaction actually does; examples are TX validation and updating state roots in trees.
+
 The public vm has an [instruction set](../public-vm/instruction-set.mdx) with opcode level gas metering to cover the cost of actions performed within the public VM.
 
 Additionally, there is a fixed cost associated with each iteration of the public VM (i.e. the number of enqueued public function calls, plus 1 if there is a teardown function), which is used to cover the cost of proving the public VM circuit.
@@ -59,23 +61,24 @@ Additionally, there is a fixed cost associated with each iteration of the public
 The L2 gas used is then calculated as:
 
 ```
-AVM_STARTUP_L2_GAS = 1024
+FIXED_L2_GAS = 512
+FIXED_AVM_STARTUP_L2_GAS = 1024
 
 
 num_avm_invocations = (number of enqueued public function calls) +
                       (is there a teardown function ? 1 : 0)
 
-l2_gas_used = AVM_STARTUP_L2_GAS * num_avm_invocations + 
-                teardown_l2_gas +
-                (gas reported as consumed by the public VM)
+l2_gas_used = FIXED_L2_GAS
+                + FIXED_AVM_STARTUP_L2_GAS * num_avm_invocations
+                + teardown_l2_gas
+                + (gas reported as consumed by the public VM)
 ```
 
-:::warning L2 Gas from Private
-In the current implementation, private execution does not consume L2 gas. This will change in future versions of the protocol, because there is still work that needs to be performed by the sequencer correspondent to the private outputs, which is effectively L2 gas. The following operations performed in private execution will likely consume L2 gas in future versions of the protocol:
-- emitting note hashes (due to tree insertion)
-- emitting nullifiers (due to tree insertion)
-- possibly emitting logs (due to validation checks)
-:::
+### L2 Gas from Private
+Private execution also consumes L2 gas, because there is still work that needs to be performed by the sequencer correspondent to the private outputs, which is effectively L2 gas. The following operations performed in private execution will consume L2 gas:
+- 32 L2 gas per note hash
+- 64 L2 gas per nullifier
+- 4 L2 gas per byte of logs (note encrypted, encrypted, and unencrypted)
 
 ## Max Inclusion Fee
 

@@ -98,6 +98,11 @@ library Constants {
   uint256 internal constant DA_BYTES_PER_FIELD = 32;
   uint256 internal constant DA_GAS_PER_BYTE = 16;
   uint256 internal constant FIXED_DA_GAS = 512;
+  uint256 internal constant FIXED_L2_GAS = 512;
+  uint256 internal constant FIXED_AVM_STARTUP_L2_GAS = 1024;
+  uint256 internal constant L2_GAS_PER_LOG_BYTE = 4;
+  uint256 internal constant L2_GAS_PER_NOTE_HASH = 32;
+  uint256 internal constant L2_GAS_PER_NULLIFIER = 64;
   uint256 internal constant CANONICAL_KEY_REGISTRY_ADDRESS =
     2153455745675440165069577621832684870696142028027528497509357256345838682961;
   uint256 internal constant CANONICAL_AUTH_REGISTRY_ADDRESS =

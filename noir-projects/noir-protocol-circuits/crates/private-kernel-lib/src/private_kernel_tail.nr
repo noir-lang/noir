@@ -37,14 +37,14 @@ mod tests {
     use crate::private_kernel_tail::PrivateKernelTailCircuitPrivateInputs;
     use dep::types::constants::{
         MAX_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX, DA_BYTES_PER_FIELD, DA_GAS_PER_BYTE,
-        GENERATOR_INDEX__IVSK_M
+        GENERATOR_INDEX__IVSK_M, L2_GAS_PER_LOG_BYTE, L2_GAS_PER_NULLIFIER, L2_GAS_PER_NOTE_HASH
     };
     use dep::types::{
         abis::{
         kernel_circuit_public_inputs::KernelCircuitPublicInputs, max_block_number::MaxBlockNumber,
         note_hash::{NoteHash, ScopedNoteHash}, nullifier::{Nullifier, ScopedNullifier}, gas::Gas
     },
-        address::AztecAddress, grumpkin_private_key::GrumpkinPrivateKey,
+        address::{AztecAddress, EthAddress}, grumpkin_private_key::GrumpkinPrivateKey,
         hash::{
         sha256_to_field, silo_note_hash, silo_nullifier, compute_siloed_encrypted_log_hash,
         compute_siloed_unencrypted_log_hash
@@ -261,10 +261,18 @@ mod tests {
         let mut builder = PrivateKernelTailInputsBuilder::new();
         builder.previous_kernel.append_note_hashes(2);
         builder.previous_kernel.append_nullifiers(2);
+        builder.previous_kernel.add_note_encrypted_log_hash(
+            42,
+            5,
+            builder.previous_kernel.note_hashes.get(0).note_hash.counter
+        );
         let public_inputs = builder.execute();
         assert_eq(array_length(public_inputs.end.note_hashes), 2);
         assert_eq(array_length(public_inputs.end.nullifiers), 3);
-        let expected_gas = Gas::tx_overhead() + Gas::new(DA_GAS_PER_BYTE * DA_BYTES_PER_FIELD * 5, 0);
+        let expected_gas = Gas::tx_overhead() + Gas::new(
+                DA_GAS_PER_BYTE * DA_BYTES_PER_FIELD * 5 + DA_GAS_PER_BYTE * 5,
+                L2_GAS_PER_NOTE_HASH * 2 + L2_GAS_PER_NULLIFIER * 3 + L2_GAS_PER_LOG_BYTE * 5
+            );
         assert_eq(public_inputs.end.gas_used, expected_gas);
     }
 
@@ -321,11 +329,51 @@ mod tests {
         // addition follows the form:
         // teardown gas
         // tx overhead
-        // tx nullifier
-        let expected_gas_consumed = Gas::new(300, 300)
-            + Gas::tx_overhead()
-            + Gas::new(DA_GAS_PER_BYTE * DA_BYTES_PER_FIELD * 1, 0);
+        // tx nullifier (which has DA and L2 gas)
+        let expected_gas_consumed = Gas::new(300, 300) + Gas::tx_overhead() + Gas::new(
+                    DA_GAS_PER_BYTE * DA_BYTES_PER_FIELD * 1,
+                    L2_GAS_PER_NULLIFIER * 1
+                );
         assert_eq(public_inputs.end.gas_used, expected_gas_consumed);
+    }
+
+    #[test]
+    unconstrained fn tx_consumes_gas_from_l2_l1_msgs() {
+        let mut builder = PrivateKernelTailInputsBuilder::new();
+
+        builder.previous_kernel.add_l2_to_l1_message(42, EthAddress::zero());
+        builder.previous_kernel.add_l2_to_l1_message(42, EthAddress::zero());
+        builder.previous_kernel.end_setup();
+        builder.previous_kernel.add_l2_to_l1_message(42, EthAddress::zero());
+
+        let public_inputs = builder.execute();
+
+        assert_eq(
+            Gas::tx_overhead() + Gas::new(
+                4 * DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE,
+                1 * L2_GAS_PER_NULLIFIER
+            ), public_inputs.end.gas_used
+        );
+    }
+
+    #[test]
+    unconstrained fn tx_consumed_gas_from_logs() {
+        let mut builder = PrivateKernelTailInputsBuilder::new();
+        builder.previous_kernel.add_encrypted_log_hash(42, 3);
+        builder.previous_kernel.add_encrypted_log_hash(42, 4);
+        builder.previous_kernel.add_unencrypted_log_hash(42, 5);
+        builder.previous_kernel.end_setup();
+        builder.previous_kernel.add_encrypted_log_hash(42, 6);
+        builder.previous_kernel.add_unencrypted_log_hash(42, 7);
+
+        let public_inputs = builder.execute();
+
+        assert_eq(
+            Gas::tx_overhead() + Gas::new(
+                (1 * DA_BYTES_PER_FIELD + 25) * DA_GAS_PER_BYTE ,
+                1 * L2_GAS_PER_NULLIFIER + 25 * L2_GAS_PER_LOG_BYTE
+            ), public_inputs.end.gas_used
+        );
     }
 
     #[test(should_fail_with="The gas used exceeds the gas limits")]

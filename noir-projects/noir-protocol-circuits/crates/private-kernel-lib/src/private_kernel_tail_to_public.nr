@@ -36,14 +36,17 @@ impl PrivateKernelTailToPublicCircuitPrivateInputs {
 
 mod tests {
     use crate::private_kernel_tail_to_public::PrivateKernelTailToPublicCircuitPrivateInputs;
-    use dep::types::constants::{DA_BYTES_PER_FIELD, DA_GAS_PER_BYTE, GENERATOR_INDEX__TSK_M};
+    use dep::types::constants::{
+        DA_BYTES_PER_FIELD, DA_GAS_PER_BYTE, GENERATOR_INDEX__TSK_M, L2_GAS_PER_LOG_BYTE,
+        L2_GAS_PER_NOTE_HASH, L2_GAS_PER_NULLIFIER, FIXED_AVM_STARTUP_L2_GAS
+    };
     use dep::types::{
         abis::{
         kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs, gas::Gas,
         note_hash::{NoteHash, ScopedNoteHash}, nullifier::{Nullifier, ScopedNullifier},
         log_hash::{LogHash, NoteLogHash}
     },
-        address::AztecAddress, hash::{silo_note_hash, silo_nullifier},
+        address::{AztecAddress, EthAddress}, hash::{silo_note_hash, silo_nullifier},
         tests::fixture_builder::FixtureBuilder, utils::{arrays::array_eq}, grumpkin_point::GrumpkinPoint
     };
 
@@ -195,9 +198,18 @@ mod tests {
             )
         );
 
-        assert_eq(public_inputs.end.gas_used, Gas::new(2 * DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE, 0));
         assert_eq(
-            public_inputs.end_non_revertible.gas_used, Gas::new(3 * DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE, 0) + Gas::tx_overhead()
+            public_inputs.end.gas_used, Gas::new(
+                2 * DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE,
+                2 * L2_GAS_PER_NULLIFIER
+            )
+        );
+        assert_eq(
+            public_inputs.end_non_revertible.gas_used, Gas::new(
+            3 * DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE,
+            FIXED_AVM_STARTUP_L2_GAS + 3 * L2_GAS_PER_NULLIFIER
+        )
+            + Gas::tx_overhead()
         );
     }
 
@@ -253,13 +265,16 @@ mod tests {
         assert_eq(
             public_inputs.end.gas_used, Gas::new(
                 (2 * DA_BYTES_PER_FIELD + revertible_logs_len) * DA_GAS_PER_BYTE,
-                0
+                2 * L2_GAS_PER_NOTE_HASH + revertible_logs_len * L2_GAS_PER_LOG_BYTE
             )
         );
         assert_eq(
             public_inputs.end_non_revertible.gas_used, Gas::new(
             (3 * DA_BYTES_PER_FIELD + non_revertible_logs_len) * DA_GAS_PER_BYTE,
-            0
+            FIXED_AVM_STARTUP_L2_GAS
+            + L2_GAS_PER_NULLIFIER
+            + 2 * L2_GAS_PER_NOTE_HASH
+            + non_revertible_logs_len * L2_GAS_PER_LOG_BYTE
         )
             + Gas::tx_overhead()
         );
@@ -292,13 +307,83 @@ mod tests {
     fn empty_tx_consumes_teardown_limits_plus_fixed_gas() {
         let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
         builder.previous_kernel.tx_context.gas_settings.teardown_gas_limits = Gas::new(300, 300);
+        builder.previous_kernel.end_setup();
         let public_inputs = builder.execute();
 
-        let gas_for_first_nullifier = Gas::new(DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE, 0);
-        let expected_non_revertible_gas_consumed = Gas::tx_overhead() + gas_for_first_nullifier;
-        assert_eq(public_inputs.end_non_revertible.gas_used, expected_non_revertible_gas_consumed);
-        let expected_revertible_gas_consumed = Gas::new(300, 300);
-        assert_eq(public_inputs.end.gas_used, expected_revertible_gas_consumed);
+        let expected_revertible_gas_used = Gas::new(300, 300);
+        assert_eq(public_inputs.end.gas_used, expected_revertible_gas_used);
+
+        let expected_non_revertible_gas_used = Gas::tx_overhead() + Gas::new(
+                DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE * 1,
+                L2_GAS_PER_NULLIFIER * 1 + FIXED_AVM_STARTUP_L2_GAS
+            );
+
+        assert_eq(public_inputs.end_non_revertible.gas_used, expected_non_revertible_gas_used);
+    }
+
+    #[test]
+    unconstrained fn enqueued_public_calls_consume_startup_gas() {
+        let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
+        // add an extra non-revertible call
+        builder.previous_kernel.push_public_call_request(42, false);
+        builder.previous_kernel.end_setup();
+        // add some revertible calls
+        builder.previous_kernel.push_public_call_request(42, false);
+        builder.previous_kernel.push_public_call_request(42, false);
+        builder.previous_kernel.push_public_call_request(42, false);
+        let public_inputs = builder.execute();
+
+        let expected_revertible_gas_used = Gas::new(0, 3 * FIXED_AVM_STARTUP_L2_GAS);
+        assert_eq(public_inputs.end.gas_used, expected_revertible_gas_used);
+
+        let expected_non_revertible_gas_used = Gas::tx_overhead() + Gas::new(
+                DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE * 1,
+                L2_GAS_PER_NULLIFIER * 1 + 2 * FIXED_AVM_STARTUP_L2_GAS
+            );
+
+        assert_eq(public_inputs.end_non_revertible.gas_used, expected_non_revertible_gas_used);
+    }
+
+    #[test]
+    unconstrained fn tx_consumes_gas_from_l2_l1_msgs() {
+        let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
+
+        builder.previous_kernel.add_l2_to_l1_message(42, EthAddress::zero());
+        builder.previous_kernel.add_l2_to_l1_message(42, EthAddress::zero());
+        builder.previous_kernel.end_setup();
+        builder.previous_kernel.add_l2_to_l1_message(42, EthAddress::zero());
+
+        let public_inputs = builder.execute();
+
+        assert_eq(Gas::new(1 * DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE, 0), public_inputs.end.gas_used);
+        assert_eq(
+            Gas::tx_overhead() + Gas::new(
+                3 * DA_BYTES_PER_FIELD * DA_GAS_PER_BYTE,
+                FIXED_AVM_STARTUP_L2_GAS + 1 * L2_GAS_PER_NULLIFIER
+            ), public_inputs.end_non_revertible.gas_used
+        );
+    }
+
+    #[test]
+    unconstrained fn tx_consumed_gas_from_logs() {
+        let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
+        builder.previous_kernel.add_encrypted_log_hash(42, 3);
+        builder.previous_kernel.add_encrypted_log_hash(42, 4);
+        builder.previous_kernel.add_unencrypted_log_hash(42, 5);
+        builder.previous_kernel.end_setup();
+        builder.previous_kernel.add_encrypted_log_hash(42, 6);
+        builder.previous_kernel.add_unencrypted_log_hash(42, 7);
+
+        let public_inputs = builder.execute();
+
+        assert_eq(Gas::new(13 * DA_GAS_PER_BYTE, 13 * L2_GAS_PER_LOG_BYTE), public_inputs.end.gas_used);
+
+        assert_eq(
+            Gas::tx_overhead() + Gas::new(
+                (1 * DA_BYTES_PER_FIELD + 12) * DA_GAS_PER_BYTE ,
+                FIXED_AVM_STARTUP_L2_GAS + 1 * L2_GAS_PER_NULLIFIER + 12 * L2_GAS_PER_LOG_BYTE
+            ), public_inputs.end_non_revertible.gas_used
+        );
     }
 
     #[test(should_fail_with="The gas used exceeds the gas limits")]

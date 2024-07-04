@@ -142,7 +142,19 @@ global DEFAULT_MAX_FEE_PER_GAS: Field = 10;
 global DEFAULT_INCLUSION_FEE: Field = 0;
 global DA_BYTES_PER_FIELD: u32 = 32;
 global DA_GAS_PER_BYTE: u32 = 16;
+// pays for preamble information in TX Effects
 global FIXED_DA_GAS: u32 = 512;
+// pays for fixed tx costs like validation, and updating state roots
+global FIXED_L2_GAS: u32 = 512;
+// base cost for a single public call
+global FIXED_AVM_STARTUP_L2_GAS = 1024;
+// pays for hashing/validating logs
+global L2_GAS_PER_LOG_BYTE = 4;
+// pays for tree insertions. 
+global L2_GAS_PER_NOTE_HASH = 32;
+// nullifiers are more expensive to insert/validate:
+// they are inserted into an indexed tree and must be checked for duplicates 
+global L2_GAS_PER_NULLIFIER = 64;
 
 // CANONICAL CONTRACT ADDRESSES
 global CANONICAL_KEY_REGISTRY_ADDRESS = 0x04c2d010f88e8c238882fbbcbce5c81fdc1dc8ece85e8dbf3f602b4d81ec0351;
