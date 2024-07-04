@@ -1,5 +1,4 @@
 import { AztecAddress } from '@aztec/circuits.js';
-import { EventSelector } from '@aztec/foundation/abi';
 import { randomBytes, sha256Trunc } from '@aztec/foundation/crypto';
 import { BufferReader, prefixBufferWithLength, toHumanReadable } from '@aztec/foundation/serialize';
 
@@ -17,15 +16,16 @@ export class UnencryptedL2Log {
      * TODO: Optimize this once it makes sense.
      */
     public readonly contractAddress: AztecAddress,
-    /** Selector of the event/log topic. */
-    public readonly selector: EventSelector,
     /** The data contents of the log. */
     public readonly data: Buffer,
   ) {}
 
   get length(): number {
-    // TODO(6578): explain magic number 4 here
-    return EventSelector.SIZE + this.data.length + AztecAddress.SIZE_IN_BYTES + 4;
+    // We want the length of the buffer output from function_l2_logs -> toBuffer to equal the stored log length in the kernels.
+    // The kernels store the length of the processed log as 4 bytes; thus for this length value to match the log length stored in the kernels,
+    // we need to add four to the length here.
+    // https://github.com/AztecProtocol/aztec-packages/issues/6578#issuecomment-2125003435
+    return this.data.length + AztecAddress.SIZE_IN_BYTES + 4;
   }
 
   /**
@@ -33,11 +33,7 @@ export class UnencryptedL2Log {
    * @returns A buffer containing the serialized log.
    */
   public toBuffer(): Buffer {
-    return Buffer.concat([
-      this.contractAddress.toBuffer(),
-      this.selector.toBuffer(),
-      prefixBufferWithLength(this.data),
-    ]);
+    return Buffer.concat([this.contractAddress.toBuffer(), prefixBufferWithLength(this.data)]);
   }
 
   /**
@@ -47,25 +43,20 @@ export class UnencryptedL2Log {
    */
   public toHumanReadable(): string {
     const payload = toHumanReadable(this.data);
-    return `UnencryptedL2Log(contractAddress: ${this.contractAddress.toString()}, selector: ${this.selector.toString()}, data: ${payload})`;
+    return `UnencryptedL2Log(contractAddress: ${this.contractAddress.toString()}, data: ${payload})`;
   }
 
   /** Returns a JSON-friendly representation of the log. */
   public toJSON(): object {
     return {
       contractAddress: this.contractAddress.toString(),
-      selector: this.selector.toString(),
       data: this.data.toString('hex'),
     };
   }
 
   /** Converts a plain JSON object into an instance. */
   public static fromJSON(obj: any) {
-    return new UnencryptedL2Log(
-      AztecAddress.fromString(obj.contractAddress),
-      EventSelector.fromString(obj.selector),
-      Buffer.from(obj.data, 'hex'),
-    );
+    return new UnencryptedL2Log(AztecAddress.fromString(obj.contractAddress), Buffer.from(obj.data, 'hex'));
   }
 
   /**
@@ -76,9 +67,8 @@ export class UnencryptedL2Log {
   public static fromBuffer(buffer: Buffer | BufferReader): UnencryptedL2Log {
     const reader = BufferReader.asReader(buffer);
     const contractAddress = AztecAddress.fromBuffer(reader);
-    const selector = EventSelector.fromBuffer(reader);
     const data = reader.readBuffer();
-    return new UnencryptedL2Log(contractAddress, selector, data);
+    return new UnencryptedL2Log(contractAddress, data);
   }
 
   /**
@@ -107,9 +97,8 @@ export class UnencryptedL2Log {
    */
   public static random(): UnencryptedL2Log {
     const contractAddress = AztecAddress.random();
-    const selector = EventSelector.random();
-    const dataLength = EventSelector.SIZE + randomBytes(1)[0];
+    const dataLength = randomBytes(1)[0];
     const data = randomBytes(dataLength);
-    return new UnencryptedL2Log(contractAddress, selector, data);
+    return new UnencryptedL2Log(contractAddress, data);
   }
 }

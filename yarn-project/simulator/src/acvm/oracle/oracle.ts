@@ -1,6 +1,6 @@
 import { MerkleTreeId, UnencryptedL2Log } from '@aztec/circuit-types';
 import { KeyValidationRequest } from '@aztec/circuits.js';
-import { EventSelector, FunctionSelector, NoteSelector } from '@aztec/foundation/abi';
+import { FunctionSelector, NoteSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 
@@ -387,18 +387,9 @@ export class Oracle {
     return bytes;
   }
 
-  emitUnencryptedLog(
-    [contractAddress]: ACVMField[],
-    [eventSelector]: ACVMField[],
-    message: ACVMField[],
-    [counter]: ACVMField[],
-  ): ACVMField {
+  emitUnencryptedLog([contractAddress]: ACVMField[], message: ACVMField[], [counter]: ACVMField[]): ACVMField {
     const logPayload = Buffer.concat(message.map(fromACVMField).map(f => f.toBuffer()));
-    const log = new UnencryptedL2Log(
-      AztecAddress.fromString(contractAddress),
-      EventSelector.fromField(fromACVMField(eventSelector)),
-      logPayload,
-    );
+    const log = new UnencryptedL2Log(AztecAddress.fromString(contractAddress), logPayload);
 
     this.typedOracle.emitUnencryptedLog(log, +counter);
     return toACVMField(0);
@@ -406,16 +397,11 @@ export class Oracle {
 
   emitContractClassUnencryptedLog(
     [contractAddress]: ACVMField[],
-    [eventSelector]: ACVMField[],
     message: ACVMField[],
     [counter]: ACVMField[],
   ): ACVMField {
     const logPayload = Buffer.concat(message.map(fromACVMField).map(f => f.toBuffer()));
-    const log = new UnencryptedL2Log(
-      AztecAddress.fromString(contractAddress),
-      EventSelector.fromField(fromACVMField(eventSelector)),
-      logPayload,
-    );
+    const log = new UnencryptedL2Log(AztecAddress.fromString(contractAddress), logPayload);
 
     const logHash = this.typedOracle.emitContractClassUnencryptedLog(log, +counter);
     return toACVMField(logHash);

@@ -89,25 +89,23 @@ unconstrained pub fn compute_encrypted_event_log<N, M>(
 }
 
 #[oracle(emitUnencryptedLog)]
-unconstrained fn emit_unencrypted_log_oracle_private<T>(_contract_address: AztecAddress, _event_selector: Field, _message: T, _counter: u32) -> Field {}
+unconstrained fn emit_unencrypted_log_oracle_private<T>(_contract_address: AztecAddress, _message: T, _counter: u32) -> Field {}
 
 unconstrained pub fn emit_unencrypted_log_private_internal<T>(
     contract_address: AztecAddress,
-    event_selector: Field,
     message: T,
     counter: u32
 ) -> Field {
-    emit_unencrypted_log_oracle_private(contract_address, event_selector, message, counter)
+    emit_unencrypted_log_oracle_private(contract_address, message, counter)
 }
 
 #[oracle(emitContractClassUnencryptedLog)]
-unconstrained fn emit_contract_class_unencrypted_log_private<N>(contract_address: AztecAddress, event_selector: Field, message: [Field; N], counter: u32) -> Field {}
+unconstrained fn emit_contract_class_unencrypted_log_private<N>(contract_address: AztecAddress, message: [Field; N], counter: u32) -> Field {}
 
 unconstrained pub fn emit_contract_class_unencrypted_log_private_internal<N>(
     contract_address: AztecAddress,
-    event_selector: Field,
     message: [Field; N],
     counter: u32
 ) -> Field {
-    emit_contract_class_unencrypted_log_private(contract_address, event_selector, message, counter)
+    emit_contract_class_unencrypted_log_private(contract_address, message, counter)
 }

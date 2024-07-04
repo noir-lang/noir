@@ -17,7 +17,6 @@ import {
   parseOptionalAztecAddress,
   parseOptionalInteger,
   parseOptionalLogId,
-  parseOptionalSelector,
   parseOptionalTxHash,
   parsePartialAddress,
   parsePrivateKey,
@@ -403,12 +402,11 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .option('-tb, --to-block <blockNum>', 'Up to which block to fetch logs (defaults to latest).', parseOptionalInteger)
     .option('-al --after-log <logId>', 'ID of a log after which to fetch the logs.', parseOptionalLogId)
     .option('-ca, --contract-address <address>', 'Contract address to filter logs by.', parseOptionalAztecAddress)
-    .option('-s, --selector <hex string>', 'Event selector to filter logs by.', parseOptionalSelector)
     .addOption(pxeOption)
     .option('--follow', 'If set, will keep polling for new logs until interrupted.')
-    .action(async ({ txHash, fromBlock, toBlock, afterLog, contractAddress, selector, rpcUrl, follow }) => {
+    .action(async ({ txHash, fromBlock, toBlock, afterLog, contractAddress, rpcUrl, follow }) => {
       const { getLogs } = await import('./cmds/get_logs.js');
-      await getLogs(txHash, fromBlock, toBlock, afterLog, contractAddress, selector, rpcUrl, follow, debugLogger, log);
+      await getLogs(txHash, fromBlock, toBlock, afterLog, contractAddress, rpcUrl, follow, debugLogger, log);
     });
 
   program

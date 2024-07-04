@@ -70,18 +70,14 @@ contract ContractInstanceDeployer {
         let contract_address = context.this_address();
         let counter = context.next_counter();
 
-        // The event_type_id is not strictly needed. So i'm setting it to 0 here, and we can then purge it 
-        // later on.
-        let event_type_id = 0;
-
         // @todo This is very inefficient, we are doing a lot of back and forth conversions.
         let log_slice = payload.to_be_bytes_arr();
-        let log_hash = compute_unencrypted_log_hash(contract_address, event_type_id, payload);
-        // 44 = addr (32) + selector (4) + raw log len (4) + processed log len (4)
-        let len = 44 + log_slice.len().to_field();
+        let log_hash = compute_unencrypted_log_hash(contract_address, payload);
+        // 40 = addr (32) + raw log len (4) + processed log len (4)
+        let len = 40 + log_slice.len().to_field();
         let side_effect = LogHash { value: log_hash, counter, length: len };
         context.unencrypted_logs_hashes.push(side_effect);
 
-        let _void = emit_unencrypted_log_private_internal(contract_address, event_type_id, payload, counter);
+        let _void = emit_unencrypted_log_private_internal(contract_address, payload, counter);
     }
 }

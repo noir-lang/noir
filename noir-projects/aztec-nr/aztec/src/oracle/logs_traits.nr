@@ -100,18 +100,18 @@ trait ToBytesForUnencryptedLog<N, M> {
     fn output_bytes(self) -> [u8; M];
 }
 
-impl ToBytesForUnencryptedLog<32, 72> for Field {
+impl ToBytesForUnencryptedLog<32, 68> for Field {
     fn to_be_bytes_arr(self) -> [u8; 32] {
         self.to_be_bytes(32).as_array()
     }
-    fn output_bytes(self) -> [u8; 72] {[self as u8; 72]}
+    fn output_bytes(self) -> [u8; 68] {[self as u8; 68]}
 }
 
-impl ToBytesForUnencryptedLog<32, 72> for AztecAddress {
+impl ToBytesForUnencryptedLog<32, 68> for AztecAddress {
     fn to_be_bytes_arr(self) -> [u8; 32] {
         self.to_field().to_be_bytes(32).as_array()
     }
-    fn output_bytes(self) -> [u8; 72] {[self.to_field() as u8; 72]}
+    fn output_bytes(self) -> [u8; 68] {[self.to_field() as u8; 68]}
 }
 
 fn arr_to_be_bytes_arr<N, L>(fields: [Field; L]) -> [u8; N] {
@@ -140,219 +140,219 @@ fn str_to_be_bytes_arr<N, L>(string: str<L>) -> [u8; N] {
     bytes.as_array()
 }
 
-impl ToBytesForUnencryptedLog<32, 72> for [Field; 1] {
+impl ToBytesForUnencryptedLog<32, 68> for [Field; 1] {
     fn to_be_bytes_arr(self) -> [u8; 32] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 72] {
-        [self[0] as u8; 72]
+    fn output_bytes(self) -> [u8; 68] {
+        [self[0] as u8; 68]
     }
 }
 
-impl ToBytesForUnencryptedLog<64, 104> for [Field; 2] {
+impl ToBytesForUnencryptedLog<64, 100> for [Field; 2] {
     fn to_be_bytes_arr(self) -> [u8; 64] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 104] {
-        [self[0] as u8; 104]
+    fn output_bytes(self) -> [u8; 100] {
+        [self[0] as u8; 100]
     }
 }
 
-impl ToBytesForUnencryptedLog<96, 136> for [Field; 3] {
+impl ToBytesForUnencryptedLog<96, 132> for [Field; 3] {
     fn to_be_bytes_arr(self) -> [u8; 96] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 136] {
-        [self[0] as u8; 136]
+    fn output_bytes(self) -> [u8; 132] {
+        [self[0] as u8; 132]
     }
 }
 
-impl ToBytesForUnencryptedLog<128, 168> for [Field; 4] {
+impl ToBytesForUnencryptedLog<128, 164> for [Field; 4] {
     fn to_be_bytes_arr(self) -> [u8; 128] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 168] {
-        [self[0] as u8; 168]
+    fn output_bytes(self) -> [u8; 164] {
+        [self[0] as u8; 164]
     }
 }
 
-impl ToBytesForUnencryptedLog<160, 200> for [Field; 5] {
+impl ToBytesForUnencryptedLog<160, 196> for [Field; 5] {
     fn to_be_bytes_arr(self) -> [u8; 160] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 200] {
-        [self[0] as u8; 200]
+    fn output_bytes(self) -> [u8; 196] {
+        [self[0] as u8; 196]
     }
 }
 
-impl ToBytesForUnencryptedLog<192, 232> for [Field; 6] {
+impl ToBytesForUnencryptedLog<192, 228> for [Field; 6] {
     fn to_be_bytes_arr(self) -> [u8; 192] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 232] {
-        [self[0] as u8; 232]
+    fn output_bytes(self) -> [u8; 228] {
+        [self[0] as u8; 228]
     }
 }
 
-impl ToBytesForUnencryptedLog<224, 264> for [Field; 7] {
+impl ToBytesForUnencryptedLog<224, 260> for [Field; 7] {
     fn to_be_bytes_arr(self) -> [u8; 224] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 264] {
-        [self[0] as u8; 264]
+    fn output_bytes(self) -> [u8; 260] {
+        [self[0] as u8; 260]
     }
 }
 
-impl ToBytesForUnencryptedLog<256, 296> for [Field; 8] {
+impl ToBytesForUnencryptedLog<256, 292> for [Field; 8] {
     fn to_be_bytes_arr(self) -> [u8; 256] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 296] {
-        [self[0] as u8; 296]
+    fn output_bytes(self) -> [u8; 292] {
+        [self[0] as u8; 292]
     }
 }
 
-impl ToBytesForUnencryptedLog<288, 328> for [Field; 9] {
+impl ToBytesForUnencryptedLog<288, 324> for [Field; 9] {
     fn to_be_bytes_arr(self) -> [u8; 288] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 328] {
-        [self[0] as u8; 328]
+    fn output_bytes(self) -> [u8; 324] {
+        [self[0] as u8; 324]
     }
 }
 
-impl ToBytesForUnencryptedLog<320, 360> for [Field; 10] {
+impl ToBytesForUnencryptedLog<320, 356> for [Field; 10] {
     fn to_be_bytes_arr(self) -> [u8; 320] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 360] {
-        [self[0] as u8; 360]
+    fn output_bytes(self) -> [u8; 356] {
+        [self[0] as u8; 356]
     }
 }
 
-impl ToBytesForUnencryptedLog<352, 392> for [Field; 11] {
+impl ToBytesForUnencryptedLog<352, 388> for [Field; 11] {
     fn to_be_bytes_arr(self) -> [u8; 352] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 392] {
-        [self[0] as u8; 392]
+    fn output_bytes(self) -> [u8; 388] {
+        [self[0] as u8; 388]
     }
 }
 
-impl ToBytesForUnencryptedLog<384, 424> for [Field; 12] {
+impl ToBytesForUnencryptedLog<384, 420> for [Field; 12] {
     fn to_be_bytes_arr(self) -> [u8; 384] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 424] {
-        [self[0] as u8; 424]
+    fn output_bytes(self) -> [u8; 420] {
+        [self[0] as u8; 420]
     }
 }
 
-impl ToBytesForUnencryptedLog<416, 456> for [Field; 13] {
+impl ToBytesForUnencryptedLog<416, 452> for [Field; 13] {
     fn to_be_bytes_arr(self) -> [u8; 416] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 456] {
-        [self[0] as u8; 456]
+    fn output_bytes(self) -> [u8; 452] {
+        [self[0] as u8; 452]
     }
 }
 
-impl ToBytesForUnencryptedLog<448, 488> for [Field; 14] {
+impl ToBytesForUnencryptedLog<448, 484> for [Field; 14] {
     fn to_be_bytes_arr(self) -> [u8; 448] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 488] {
-        [self[0] as u8; 488]
+    fn output_bytes(self) -> [u8; 484] {
+        [self[0] as u8; 484]
     }
 }
 
-impl ToBytesForUnencryptedLog<480, 520> for [Field; 15] {
+impl ToBytesForUnencryptedLog<480, 516> for [Field; 15] {
     fn to_be_bytes_arr(self) -> [u8; 480] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 520] {
-        [self[0] as u8; 520]
+    fn output_bytes(self) -> [u8; 516] {
+        [self[0] as u8; 516]
     }
 }
 
-impl ToBytesForUnencryptedLog<512, 552> for [Field; 16] {
+impl ToBytesForUnencryptedLog<512, 548> for [Field; 16] {
     fn to_be_bytes_arr(self) -> [u8; 512] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 552] {
-        [self[0] as u8; 552]
+    fn output_bytes(self) -> [u8; 548] {
+        [self[0] as u8; 548]
     }
 }
 
-impl ToBytesForUnencryptedLog<544, 584> for [Field; 17] {
+impl ToBytesForUnencryptedLog<544, 580> for [Field; 17] {
     fn to_be_bytes_arr(self) -> [u8; 544] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 584] {
-        [self[0] as u8; 584]
+    fn output_bytes(self) -> [u8; 580] {
+        [self[0] as u8; 580]
     }
 }
 
-impl ToBytesForUnencryptedLog<576, 616> for [Field; 18] {
+impl ToBytesForUnencryptedLog<576, 612> for [Field; 18] {
     fn to_be_bytes_arr(self) -> [u8; 576] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 616] {
-        [self[0] as u8; 616]
+    fn output_bytes(self) -> [u8; 612] {
+        [self[0] as u8; 612]
     }
 }
 
-impl ToBytesForUnencryptedLog<608, 648> for [Field; 19] {
+impl ToBytesForUnencryptedLog<608, 644> for [Field; 19] {
     fn to_be_bytes_arr(self) -> [u8; 608] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 648] {
-        [self[0] as u8; 648]
+    fn output_bytes(self) -> [u8; 644] {
+        [self[0] as u8; 644]
     }
 }
 
-impl ToBytesForUnencryptedLog<640, 680> for [Field; 20] {
+impl ToBytesForUnencryptedLog<640, 676> for [Field; 20] {
     fn to_be_bytes_arr(self) -> [u8; 640] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 680] {
-        [self[0] as u8; 680]
+    fn output_bytes(self) -> [u8; 676] {
+        [self[0] as u8; 676]
     }
 }
 
-impl ToBytesForUnencryptedLog<672, 712> for [Field; 21] {
+impl ToBytesForUnencryptedLog<672, 708> for [Field; 21] {
     fn to_be_bytes_arr(self) -> [u8; 672] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 712] {
-        [self[0] as u8; 712]
+    fn output_bytes(self) -> [u8; 708] {
+        [self[0] as u8; 708]
     }
 }
 
-impl ToBytesForUnencryptedLog<704, 744> for [Field; 22] {
+impl ToBytesForUnencryptedLog<704, 740> for [Field; 22] {
     fn to_be_bytes_arr(self) -> [u8; 704] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 744] {
-        [self[0] as u8; 744]
+    fn output_bytes(self) -> [u8; 740] {
+        [self[0] as u8; 740]
     }
 }
 
-impl ToBytesForUnencryptedLog<736, 776> for [Field; 23] {
+impl ToBytesForUnencryptedLog<736, 772> for [Field; 23] {
     fn to_be_bytes_arr(self) -> [u8; 736] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 776] {
-        [self[0] as u8; 776]
+    fn output_bytes(self) -> [u8; 772] {
+        [self[0] as u8; 772]
     }
 }
 
-impl ToBytesForUnencryptedLog<768, 808> for [Field; 24] {
+impl ToBytesForUnencryptedLog<768, 804> for [Field; 24] {
     fn to_be_bytes_arr(self) -> [u8; 768] {
         arr_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; 808] {
-        [self[0] as u8; 808]
+    fn output_bytes(self) -> [u8; 804] {
+        [self[0] as u8; 804]
     }
 }
 

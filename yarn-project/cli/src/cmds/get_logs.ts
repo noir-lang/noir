@@ -1,5 +1,4 @@
 import { type AztecAddress, type LogFilter, type LogId, type TxHash } from '@aztec/aztec.js';
-import { type EventSelector } from '@aztec/foundation/abi';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 import { sleep } from '@aztec/foundation/sleep';
 
@@ -11,7 +10,6 @@ export async function getLogs(
   toBlock: number,
   afterLog: LogId,
   contractAddress: AztecAddress,
-  selector: EventSelector,
   rpcUrl: string,
   follow: boolean,
   debugLogger: DebugLogger,
@@ -28,7 +26,7 @@ export async function getLogs(
     }
   }
 
-  const filter: LogFilter = { txHash, fromBlock, toBlock, afterLog, contractAddress, selector };
+  const filter: LogFilter = { txHash, fromBlock, toBlock, afterLog, contractAddress };
 
   const fetchLogs = async () => {
     const response = await pxe.getUnencryptedLogs(filter);

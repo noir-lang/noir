@@ -14,7 +14,6 @@ pub fn compute_secret_hash(secret: Field) -> Field {
 
 pub fn compute_unencrypted_log_hash<T, N, M>(
     contract_address: AztecAddress,
-    event_selector: Field,
     log: T
 ) -> Field where T: ToBytesForUnencryptedLog<N, M> {
     let message_bytes: [u8; N] = log.to_be_bytes_arr();
@@ -26,16 +25,12 @@ pub fn compute_unencrypted_log_hash<T, N, M>(
     for i in 0..32 {
         hash_bytes[i] = address_bytes[i];
     }
-    let event_bytes = event_selector.to_be_bytes(4);
-    for i in 0..4 {
-        hash_bytes[32 + i] = event_bytes[i];
-    }
     let len_bytes = (n as Field).to_be_bytes(4);
     for i in 0..4 {
-        hash_bytes[36 + i] = len_bytes[i];
+        hash_bytes[32 + i] = len_bytes[i];
     }
     for i in 0..n {
-        hash_bytes[40 + i] = message_bytes[i];
+        hash_bytes[36 + i] = message_bytes[i];
     }
 
     sha256_to_field(hash_bytes)
@@ -148,7 +143,6 @@ fn compute_var_args_hash() {
 #[test]
 fn compute_unenc_log_hash_array() {
     let contract_address = AztecAddress::from_field(0x233a3e0df23b2b15b324194cb4a151f26c0b7333250781d34cc269d85dc334c6);
-    let event_selector = 5;
     let log = [
         0x20660de09f35f876e3e69d227b2a35166ad05f09d82d06366ec9b6f65a51fec2,
         0x1b52bfe3b8689761916f76dc3d38aa8810860db325cd39ca611eed980091f01c,
@@ -156,33 +150,30 @@ fn compute_unenc_log_hash_array() {
         0x25d0f689c4a4178a29d59306f2675824d19be6d25e44fa03b03f49c263053dd2,
         0x2d513a722d6f352dc0961f156afdc5e31495b9f0e35cb069261a8e55e2df67fd
     ];
-    let hash = compute_unencrypted_log_hash(contract_address, event_selector, log);
-    assert(hash == 0x00846d6969c8c2f61d39cd2762efcb0abb14f88d59c2675910251ef2bcffe9a7);
+    let hash = compute_unencrypted_log_hash(contract_address, log);
+    assert(hash == 0x0095b2d17ab72f4b27a341f7ac63e49ec73935ae8c9181a0ac02023eb12f3284);
 }
 
 #[test]
 fn compute_unenc_log_hash_addr() {
     let contract_address = AztecAddress::from_field(0x233a3e0df23b2b15b324194cb4a151f26c0b7333250781d34cc269d85dc334c6);
-    let event_selector = 5;
     let log = AztecAddress::from_field(0x26aa302d4715fd8a687453cb26d616b0768027bd54bcae56b09d908ecd9f8303);
-    let hash = compute_unencrypted_log_hash(contract_address, event_selector, log);
-    assert(hash == 0x00880a801230ea08c98a802a11b4786cba474513875f0fc69a615e81c5f9f21c);
+    let hash = compute_unencrypted_log_hash(contract_address, log);
+    assert(hash == 0x0083ab647dfb26e7ddee90a0f4209d049d4660cab42000c544b986aaa84c55a3);
 }
 
 #[test]
 fn compute_unenc_log_hash_str() {
     let contract_address = AztecAddress::from_field(0x1b401e1146c5c507962287065c81f0ef7590adae3802c533d7549d6bf0a41bd8);
-    let event_selector = 5;
     let log = "dummy";
-    let hash = compute_unencrypted_log_hash(contract_address, event_selector, log);
-    assert(hash == 0x00a78b5347813624ecfd26e5b8bc6146f418b0cfcc8296b5112d09b8ebba9496);
+    let hash = compute_unencrypted_log_hash(contract_address, log);
+    assert(hash == 0x00629e88ebd6374f44aa6cfe07e251ecf07213ebc7267e8f6b578ae57ffd6c20);
 }
 
 #[test]
 fn compute_unenc_log_hash_longer_str() {
     let contract_address = AztecAddress::from_field(0x1b401e1146c5c507962287065c81f0ef7590adae3802c533d7549d6bf0a41bd8);
-    let event_selector = 5;
     let log = "Hello this is a string";
-    let hash = compute_unencrypted_log_hash(contract_address, event_selector, log);
-    assert(hash == 0x001f3390ea242afee7ce46dafdbdc4bd4f1cf20cd63850d12d60ff9956712c4f);
+    let hash = compute_unencrypted_log_hash(contract_address, log);
+    assert(hash == 0x0098637962f7d34fa202b7ffad8a07a238c5d1fd897b82a108f7f467fa73b841);
 }

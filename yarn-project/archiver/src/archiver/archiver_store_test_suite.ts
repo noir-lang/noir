@@ -410,26 +410,6 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         }
       });
 
-      it('"selector" filter param is respected', async () => {
-        // Get a random selector from the logs
-        const targetBlockIndex = randomInt(numBlocks);
-        const targetTxIndex = randomInt(txsPerBlock);
-        const targetFunctionLogIndex = randomInt(numPublicFunctionCalls);
-        const targetLogIndex = randomInt(numUnencryptedLogs);
-        const targetSelector =
-          blocks.retrievedData[targetBlockIndex].body.txEffects[targetTxIndex].unencryptedLogs.functionLogs[
-            targetFunctionLogIndex
-          ].logs[targetLogIndex].selector;
-
-        const response = await store.getUnencryptedLogs({ selector: targetSelector });
-
-        expect(response.maxLogsHit).toBeFalsy();
-
-        for (const extendedLog of response.logs) {
-          expect(extendedLog.log.selector.equals(targetSelector)).toBeTruthy();
-        }
-      });
-
       it('"afterLog" filter param is respected', async () => {
         // Get a random log as reference
         const targetBlockIndex = randomInt(numBlocks);

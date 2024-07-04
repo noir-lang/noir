@@ -1,6 +1,5 @@
 import { UnencryptedL2Log } from '@aztec/circuit-types';
 import { AztecAddress, EthAddress, Gas, L2ToL1Message } from '@aztec/circuits.js';
-import { EventSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { SerializableContractInstance } from '@aztec/types/contracts';
 
@@ -207,11 +206,7 @@ describe('Side Effect Trace', () => {
     expect(trace.getCounter()).toBe(startCounterPlus1);
 
     const pxResult = toPxResult(trace);
-    const expectLog = new UnencryptedL2Log(
-      AztecAddress.fromField(address),
-      EventSelector.fromField(new Fr(0)),
-      Buffer.concat(log.map(f => f.toBuffer())),
-    );
+    const expectLog = new UnencryptedL2Log(AztecAddress.fromField(address), Buffer.concat(log.map(f => f.toBuffer())));
     expect(pxResult.unencryptedLogs.logs).toEqual([expectLog]);
     expect(pxResult.allUnencryptedLogs.logs).toEqual([expectLog]);
     expect(pxResult.unencryptedLogsHashes).toEqual([

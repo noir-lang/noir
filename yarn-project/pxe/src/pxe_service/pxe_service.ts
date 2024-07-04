@@ -936,6 +936,7 @@ export class PXEService implements PXE {
     const decodedEvents = unencryptedLogs
       .map(unencryptedLog => {
         const unencryptedLogBuf = unencryptedLog.log.data;
+        // We are assuming here that event logs are the last 4 bytes of the event. This is not enshrined but is a function of aztec.nr raw log emission.
         if (
           !EventSelector.fromBuffer(unencryptedLogBuf.subarray(unencryptedLogBuf.byteLength - 4)).equals(
             eventMetadata.eventSelector,

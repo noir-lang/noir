@@ -180,18 +180,12 @@ export class LogStore {
     let logIndex = typeof filter.afterLog?.logIndex === 'number' ? filter.afterLog.logIndex + 1 : 0;
     for (; logIndex < txLogs.length; logIndex++) {
       const log = txLogs[logIndex];
-      if (filter.contractAddress && !log.contractAddress.equals(filter.contractAddress)) {
-        continue;
-      }
-
-      if (filter.selector && !log.selector.equals(filter.selector)) {
-        continue;
-      }
-
-      results.push(new ExtendedUnencryptedL2Log(new LogId(blockNumber, txIndex, logIndex), log));
-      if (results.length >= this.#logsMaxPageSize) {
-        maxLogsHit = true;
-        break;
+      if (!filter.contractAddress || log.contractAddress.equals(filter.contractAddress)) {
+        results.push(new ExtendedUnencryptedL2Log(new LogId(blockNumber, txIndex, logIndex), log));
+        if (results.length >= this.#logsMaxPageSize) {
+          maxLogsHit = true;
+          break;
+        }
       }
     }
 

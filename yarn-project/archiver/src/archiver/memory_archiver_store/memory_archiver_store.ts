@@ -388,7 +388,6 @@ export class MemoryArchiverStore implements ArchiverDataStore {
     }
 
     const contractAddress = filter.contractAddress;
-    const selector = filter.selector;
 
     const logs: ExtendedUnencryptedL2Log[] = [];
 
@@ -401,8 +400,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
           const log = txLogs[logIndexInTx];
           if (
             (!txHash || block.body.txEffects[txIndexInBlock].txHash.equals(txHash)) &&
-            (!contractAddress || log.contractAddress.equals(contractAddress)) &&
-            (!selector || log.selector.equals(selector))
+            (!contractAddress || log.contractAddress.equals(contractAddress))
           ) {
             logs.push(new ExtendedUnencryptedL2Log(new LogId(block.number, txIndexInBlock, logIndexInTx), log));
             if (logs.length === this.maxLogs) {

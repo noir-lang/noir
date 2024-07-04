@@ -1,5 +1,4 @@
 import { type AztecAddress } from '@aztec/circuits.js';
-import { type EventSelector } from '@aztec/foundation/abi';
 
 import { type TxHash } from '../tx/tx_hash.js';
 import { type LogId } from './log_id.js';
@@ -19,6 +18,4 @@ export type LogFilter = {
   afterLog?: LogId;
   /** The contract address to filter logs by. */
   contractAddress?: AztecAddress;
-  /** Selector of the event/log topic. */
-  selector?: EventSelector;
 };

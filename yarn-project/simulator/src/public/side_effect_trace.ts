@@ -16,7 +16,6 @@ import {
   Nullifier,
   ReadRequest,
 } from '@aztec/circuits.js';
-import { EventSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type ContractInstanceWithAddress } from '@aztec/types/contracts';
@@ -177,14 +176,15 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
     // TODO(4805): check if some threshold is reached for max logs
     const ulog = new UnencryptedL2Log(
       AztecAddress.fromField(contractAddress),
-      // TODO(#7198): Remove event selector from UnencryptedL2Log
-      EventSelector.fromField(new Fr(0)),
       Buffer.concat(log.map(f => f.toBuffer())),
     );
     const basicLogHash = Fr.fromBuffer(ulog.hash());
     this.unencryptedLogs.push(ulog);
     this.allUnencryptedLogs.push(ulog);
-    // TODO(6578): explain magic number 4 here
+    // We want the length of the buffer output from function_l2_logs -> toBuffer to equal the stored log length in the kernels.
+    // The kernels store the length of the processed log as 4 bytes; thus for this length value to match the log length stored in the kernels,
+    // we need to add four to the length here.
+    // https://github.com/AztecProtocol/aztec-packages/issues/6578#issuecomment-2125003435
     this.unencryptedLogsHashes.push(new LogHash(basicLogHash, this.sideEffectCounter, new Fr(ulog.length + 4)));
     this.logger.debug(`NEW_UNENCRYPTED_LOG cnt: ${this.sideEffectCounter}`);
     this.incrementSideEffectCounter();

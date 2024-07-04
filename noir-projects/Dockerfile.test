@@ -37,4 +37,4 @@ RUN cd /usr/src/yarn-project/txe && yarn start & \
     # Wait for TXE to initialize
     sleep 5 && \ 
     cd ./aztec-nr && \
-    nargo test --use-legacy --silence-warnings --oracle-resolver http://localhost:8080
+    NARGO_FOREIGN_CALL_TIMEOUT=300000 nargo test --use-legacy --silence-warnings --oracle-resolver http://localhost:8080
