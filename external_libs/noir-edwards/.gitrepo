@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/zac-williamson/noir-edwards.git
+	branch = main
+	commit = 0016ce82cd58b6ebb0c43c271725590bcff4e755
+	parent = e1bcb73f8c2e2c6786faeb18b8ce070a2400635d
+	method = merge
+	cmdver = 0.4.6
