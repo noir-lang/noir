@@ -67,6 +67,7 @@
   "files": [
     "dest",
     "src",
+    "artifacts",
     "!*.test.*"
   ],
   "types": "./dest/types/index.d.ts",

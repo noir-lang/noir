@@ -4,5 +4,11 @@
     "generate": "yarn generate:noir-contracts",
     "generate:noir-contracts": "./scripts/generate-types.sh && run -T prettier -w ./src --loglevel warn",
     "clean": "rm -rf ./dest .tsbuildinfo ./artifacts ./src ./codegenCache.json"
-  }
+  },
+  "files": [
+    "dest",
+    "src",
+    "artifacts",
+    "!*.test.*"
+  ]
 }
