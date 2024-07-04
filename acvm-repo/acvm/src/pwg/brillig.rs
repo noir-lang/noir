@@ -171,7 +171,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                     .collect();
                 let payload = match reason {
                     FailureReason::RuntimeError { message } => {
-                        Some(ResolvedAssertionPayload::String(message.clone()))
+                        Some(ResolvedAssertionPayload::String(message))
                     }
                     FailureReason::Trap { revert_data_offset, revert_data_size } => {
                         extract_failure_payload_from_memory(
