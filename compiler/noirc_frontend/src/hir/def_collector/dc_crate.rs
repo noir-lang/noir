@@ -520,6 +520,10 @@ fn add_import_reference(
             let variable = ReferenceId::Variable(Location::new(name.span(), file_id), false);
             interner.add_reference(ReferenceId::Struct(struct_id), variable);
         }
+        crate::macros_api::ModuleDefId::TraitId(trait_id) => {
+            let variable = ReferenceId::Variable(Location::new(name.span(), file_id), false);
+            interner.add_reference(ReferenceId::Trait(trait_id), variable);
+        }
         _ => (),
     }
 }
