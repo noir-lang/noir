@@ -343,7 +343,7 @@ impl DefCollector {
                 let file_id = current_def_map.file_id(module_id);
 
                 for (referenced, ident) in
-                    references.iter().zip(collected_import.clone().path.segments)
+                    references.iter().zip(&collected_import.path.segments)
                 {
                     let reference = ReferenceId::Variable(Location::new(ident.span(), file_id));
                     context.def_interner.add_reference(*referenced, reference);
