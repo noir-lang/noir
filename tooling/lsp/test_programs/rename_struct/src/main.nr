@@ -6,6 +6,8 @@ mod foo {
 
         impl Foo {
             fn foo() {}
+
+            fn bar(self) {}
         }
     }
 }
