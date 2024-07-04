@@ -86,7 +86,7 @@ impl<'context> Elaborator<'context> {
                     expr_span,
                 }
             });
-            if annotated_type.is_unsigned() {
+            if annotated_type.is_unsigned() || annotated_type.is_signed() {
                 let errors = lints::overflowing_uint(self.interner, &expression, &annotated_type);
                 for error in errors {
                     self.push_err(error);
