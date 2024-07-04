@@ -167,7 +167,7 @@ impl Display for U32TargetDisplay {
     }
 }
 
-pub(crate) struct AsmWriter {
+pub struct AsmWriter {
     pub builder: P2Builder,
     pub show_plonky2: bool,
     file: Option<BufWriter<File>>,
