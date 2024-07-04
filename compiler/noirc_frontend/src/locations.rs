@@ -85,9 +85,7 @@ impl NodeInterner {
 
     // Returns the `ReferenceId` that exists at a given location, if any.
     pub fn reference_at_location(&self, location: Location) -> Option<ReferenceId> {
-        if self.location_indices.get_node_from_location(location).is_none() {
-            return None;
-        }
+        self.location_indices.get_node_from_location(location)?;
 
         let node_index = self.location_indices.get_node_from_location(location)?;
         Some(self.reference_graph[node_index])
@@ -144,10 +142,8 @@ impl NodeInterner {
     ) -> Vec<Location> {
         let id = self.reference_graph[referenced_node_index];
         let mut edit_locations = Vec::new();
-        if include_referenced {
-            if include_self_type_name || !id.is_self_type_name() {
-                edit_locations.push(self.reference_location(id));
-            }
+        if include_referenced && (include_self_type_name || !id.is_self_type_name()) {
+            edit_locations.push(self.reference_location(id));
         }
 
         self.reference_graph

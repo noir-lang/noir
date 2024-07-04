@@ -250,11 +250,7 @@ pub enum ReferenceId {
 
 impl ReferenceId {
     pub fn is_self_type_name(&self) -> bool {
-        if let Self::Variable(_, true) = self {
-            true
-        } else {
-            false
-        }
+        matches!(self, Self::Variable(_, true))
     }
 }
 
