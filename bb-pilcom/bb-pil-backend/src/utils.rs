@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 /// Sanitize Names
 ///
 /// Column titles that we get from pil contain . to distinguish which pil namespace they belong to
@@ -36,44 +34,6 @@ where
 pub fn flatten(list: &[Vec<String>]) -> Vec<String> {
     let arr = list.iter().cloned();
     arr.into_iter().flatten().collect()
-}
-
-/// Create Forward As Tuple
-///
-/// Helper function to create a forward as tuple cpp statement
-pub fn create_forward_as_tuple(settings: &[String]) -> String {
-    let adjusted = settings.iter().map(|col| format!("in.{col}")).join(",\n");
-    format!(
-        "
-        return std::forward_as_tuple(
-            {}
-        );
-    ",
-        adjusted
-    )
-}
-
-// TODO: may make sense to move the below around a bit
-pub fn create_get_const_entities(settings: &[String]) -> String {
-    let forward = create_forward_as_tuple(settings);
-    format!(
-        "
-    template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in) {{
-        {forward}
-    }}
-    "
-    )
-}
-
-pub fn create_get_nonconst_entities(settings: &[String]) -> String {
-    let forward = create_forward_as_tuple(settings);
-    format!(
-        "
-    template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in) {{
-        {forward}
-    }}
-    "
-    )
 }
 
 /// Snake Case

@@ -1,0 +1,43 @@
+#pragma once
+
+#include "barretenberg/relations/generic_permutation/generic_permutation_relation.hpp"
+
+#include <cstddef>
+#include <tuple>
+
+namespace bb {
+
+class {{perm_name}}_permutation_settings {
+  public:
+    // This constant defines how many columns are bundled together to form each set.
+    constexpr static size_t COLUMNS_PER_SET = {{columns_per_set}};
+
+    template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
+    {
+        return (in.{{lhs_selector}} == 1 || in.{{rhs_selector}} == 1);
+    }
+
+    template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
+    {
+        return std::forward_as_tuple(
+        {{#each perm_entities as |ent|}}
+        in.{{ent}}{{#unless @last}},{{/unless}}
+        {{/each}}
+        );
+    }
+
+    template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
+    {
+        return std::forward_as_tuple(
+        {{#each perm_entities as |ent|}}
+        in.{{ent}}{{#unless @last}},{{/unless}}
+        {{/each}}
+        );
+    }
+};
+
+template <typename FF_>
+using {{perm_name}}_relation = GenericPermutationRelation<{{perm_name}}_permutation_settings, FF_>;
+template <typename FF_> using {{perm_name}} = GenericPermutation<{{perm_name}}_permutation_settings, FF_>;
+
+} // namespace bb
