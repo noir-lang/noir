@@ -683,6 +683,7 @@ impl<'a> ModCollector<'a> {
         is_contract: bool,
     ) -> Result<ModuleId, DefCollectorErrorKind> {
         let parent = Some(self.module_id);
+
         // Note: the difference between `location` and `mod_location` is:
         // - `mod_location` will point to either the token "foo" in `mod foo { ... }`
         //   if it's an inline module, or the first char of a the file if it's an external module.
