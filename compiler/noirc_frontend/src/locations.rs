@@ -31,7 +31,7 @@ impl LocationIndices {
 impl NodeInterner {
     pub fn reference_location(&self, reference: ReferenceId) -> Location {
         match reference {
-            ReferenceId::Module(_) => todo!(),
+            ReferenceId::Module(id) => self.module_location(&id),
             ReferenceId::Function(id) => self.function_modifiers(&id).name_location,
             ReferenceId::Struct(id) => self.struct_location(&id),
             ReferenceId::Trait(_) => todo!(),

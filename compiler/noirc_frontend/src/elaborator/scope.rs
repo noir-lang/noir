@@ -48,11 +48,11 @@ impl<'context> Elaborator<'context> {
         let path_resolution;
 
         if self.interner.track_references {
-            let mut dependencies: Vec<ReferenceId> = Vec::new();
+            let mut references: Vec<ReferenceId> = Vec::new();
             path_resolution =
-                resolver.resolve(self.def_maps, path.clone(), &mut Some(&mut dependencies))?;
+                resolver.resolve(self.def_maps, path.clone(), &mut Some(&mut references))?;
 
-            for (referenced, ident) in dependencies.iter().zip(path.segments) {
+            for (referenced, ident) in references.iter().zip(path.segments) {
                 let reference = ReferenceId::Variable(
                     Location::new(ident.span(), self.file),
                     ident.is_self_type_name(),

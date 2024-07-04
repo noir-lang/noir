@@ -65,6 +65,9 @@ pub struct NodeInterner {
     // Contains the source module each function was defined in
     function_modules: HashMap<FuncId, ModuleId>,
 
+    // The location of each module
+    module_locations: HashMap<ModuleId, Location>,
+
     // The location of each struct name
     struct_name_locations: HashMap<StructId, Location>,
 
@@ -546,6 +549,7 @@ impl Default for NodeInterner {
             function_definition_ids: HashMap::new(),
             function_modifiers: HashMap::new(),
             function_modules: HashMap::new(),
+            module_locations: HashMap::new(),
             struct_name_locations: HashMap::new(),
             func_id_to_trait: HashMap::new(),
             dependency_graph: petgraph::graph::DiGraph::new(),
@@ -984,6 +988,14 @@ impl NodeInterner {
 
     pub fn struct_location(&self, struct_id: &StructId) -> Location {
         self.struct_name_locations[struct_id]
+    }
+
+    pub fn add_module_location(&mut self, module_id: ModuleId, location: Location) {
+        self.module_locations.insert(module_id, location);
+    }
+
+    pub fn module_location(&self, module_id: &ModuleId) -> Location {
+        self.module_locations[module_id]
     }
 
     pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {
