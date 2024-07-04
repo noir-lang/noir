@@ -23,11 +23,11 @@ import { getRegistererContract } from './protocol_contracts.js';
  * @param selector - Selector of the function to be broadcast.
  * @returns A ContractFunctionInteraction object that can be used to send the transaction.
  */
-export function broadcastPrivateFunction(
+export async function broadcastPrivateFunction(
   wallet: Wallet,
   artifact: ContractArtifact,
   selector: FunctionSelector,
-): ContractFunctionInteraction {
+): Promise<ContractFunctionInteraction> {
   const contractClass = getContractClassFromArtifact(artifact);
   const privateFunctionArtifact = artifact.functions.find(fn => selector.equals(fn));
   if (!privateFunctionArtifact) {
@@ -50,17 +50,21 @@ export function broadcastPrivateFunction(
     MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS,
   );
 
+  await wallet.addCapsule(bytecode);
+
   const registerer = getRegistererContract(wallet);
-  return registerer.methods.broadcast_private_function(
-    contractClass.id,
-    artifactMetadataHash,
-    unconstrainedFunctionsArtifactTreeRoot,
-    privateFunctionTreeSiblingPath,
-    privateFunctionTreeLeafIndex,
-    padArrayEnd(artifactTreeSiblingPath, Fr.ZERO, ARTIFACT_FUNCTION_TREE_MAX_HEIGHT),
-    artifactTreeLeafIndex,
-    // eslint-disable-next-line camelcase
-    { selector, metadata_hash: functionMetadataHash, bytecode, vk_hash: vkHash },
+  return Promise.resolve(
+    registerer.methods.broadcast_private_function(
+      contractClass.id,
+      artifactMetadataHash,
+      unconstrainedFunctionsArtifactTreeRoot,
+      privateFunctionTreeSiblingPath,
+      privateFunctionTreeLeafIndex,
+      padArrayEnd(artifactTreeSiblingPath, Fr.ZERO, ARTIFACT_FUNCTION_TREE_MAX_HEIGHT),
+      artifactTreeLeafIndex,
+      // eslint-disable-next-line camelcase
+      { selector, metadata_hash: functionMetadataHash, vk_hash: vkHash },
+    ),
   );
 }
 
@@ -73,11 +77,11 @@ export function broadcastPrivateFunction(
  * @param selector - Selector of the function to be broadcast.
  * @returns A ContractFunctionInteraction object that can be used to send the transaction.
  */
-export function broadcastUnconstrainedFunction(
+export async function broadcastUnconstrainedFunction(
   wallet: Wallet,
   artifact: ContractArtifact,
   selector: FunctionSelector,
-): ContractFunctionInteraction {
+): Promise<ContractFunctionInteraction> {
   const contractClass = getContractClassFromArtifact(artifact);
   const functionArtifactIndex = artifact.functions.findIndex(
     fn => fn.functionType === FunctionType.UNCONSTRAINED && selector.equals(fn),
@@ -97,6 +101,8 @@ export function broadcastUnconstrainedFunction(
 
   const bytecode = bufferAsFields(functionArtifact.bytecode, MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS);
 
+  await wallet.addCapsule(bytecode);
+
   const registerer = getRegistererContract(wallet);
   return registerer.methods.broadcast_unconstrained_function(
     contractClass.id,
@@ -105,6 +111,6 @@ export function broadcastUnconstrainedFunction(
     padArrayEnd(artifactTreeSiblingPath, Fr.ZERO, ARTIFACT_FUNCTION_TREE_MAX_HEIGHT),
     artifactTreeLeafIndex,
     // eslint-disable-next-line camelcase
-    { selector, metadata_hash: functionMetadataHash, bytecode },
+    { selector, metadata_hash: functionMetadataHash },
   );
 }

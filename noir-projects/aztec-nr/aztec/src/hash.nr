@@ -2,7 +2,7 @@ use dep::protocol_types::{
     address::{AztecAddress, EthAddress},
     constants::{
     GENERATOR_INDEX__SECRET_HASH, GENERATOR_INDEX__MESSAGE_NULLIFIER, ARGS_HASH_CHUNK_COUNT,
-    GENERATOR_INDEX__FUNCTION_ARGS, ARGS_HASH_CHUNK_LENGTH
+    GENERATOR_INDEX__FUNCTION_ARGS, ARGS_HASH_CHUNK_LENGTH, MAX_ARGS_LENGTH
 },
     traits::Hash, hash::{pedersen_hash, compute_siloed_nullifier, sha256_to_field}
 };
@@ -107,7 +107,7 @@ pub fn hash_args(args: [Field]) -> Field {
     if args.len() == 0 {
         0
     } else {
-        assert(args.len() < ARGS_HASH_CHUNK_COUNT * ARGS_HASH_CHUNK_LENGTH);
+        assert(args.len() <= MAX_ARGS_LENGTH, "Args length exceeds maximum");
         let mut chunks_hashes = [0; ARGS_HASH_CHUNK_COUNT];
         let mut current_chunk_values = [0; ARGS_HASH_CHUNK_LENGTH];
 
@@ -133,11 +133,11 @@ pub fn hash_args(args: [Field]) -> Field {
 #[test]
 fn compute_var_args_hash() {
     let mut input = ArgsHasher::new();
-    for i in 0..800 {
+    for i in 0..MAX_ARGS_LENGTH {
         input.add(i as Field);
     }
     let hash = input.hash();
-    assert(hash == 0x05a1023fef839ac88731f49ae983e172c1b600a3c8f3393ad0ac25d819ac0f0f);
+    assert(hash == 0x11e40f2a780822f7971803048c9a2100579de352e7dadd99981760964da65b57);
 }
 
 #[test]

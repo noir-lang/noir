@@ -10,6 +10,17 @@ use dep::aztec::protocol_types::{
     traits::Serialize
 };
 
+struct InnerUnconstrainedFunction {
+    selector: FunctionSelector,
+    metadata_hash: Field, 
+}
+
+impl Serialize<2> for InnerUnconstrainedFunction {
+    fn serialize(self: Self) -> [Field; 2] {
+        [ self.selector.to_field(), self.metadata_hash]
+    }
+}
+
 struct UnconstrainedFunction {
     selector: FunctionSelector,
     metadata_hash: Field, 

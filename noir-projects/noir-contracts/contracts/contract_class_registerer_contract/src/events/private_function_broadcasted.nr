@@ -11,6 +11,18 @@ use dep::aztec::protocol_types::{
     traits::Serialize
 };
 
+struct InnerPrivateFunction {
+    selector: FunctionSelector,
+    metadata_hash: Field, 
+    vk_hash: Field, 
+}
+
+impl Serialize<3> for InnerPrivateFunction {
+    fn serialize(self: Self) -> [Field; 3] {
+        [self.selector.to_field(), self.metadata_hash, self.vk_hash]
+    }
+}
+
 struct PrivateFunction {
     selector: FunctionSelector,
     metadata_hash: Field, 

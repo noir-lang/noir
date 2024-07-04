@@ -2,7 +2,7 @@
 
 exports[`ContractAddress computeContractAddressFromInstance 1`] = `"0x2a192ee63791ad5e219b63db872bf54ba245afbc2c1287f4ba036b8f58fad740"`;
 
-exports[`ContractAddress computeInitializationHash 1`] = `Fr<0x109865e4b959adba34b722e72a69baaf9ee78e31bb1042318f0d91006ed86780>`;
+exports[`ContractAddress computeInitializationHash 1`] = `Fr<0x06fdfa55764301f37a1e8f2f7aef196245747858bf8cba8806c30f53ea6c07df>`;
 
 exports[`ContractAddress computePartialAddress 1`] = `Fr<0x1923a6246e305720b6aaf751fde0342613e93c82e455c3831e28375c16dd40d8>`;
 

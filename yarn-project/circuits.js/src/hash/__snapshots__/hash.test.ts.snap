@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`hash Var args hash matches noir 1`] = `Fr<0x05a1023fef839ac88731f49ae983e172c1b600a3c8f3393ad0ac25d819ac0f0f>`;
+exports[`hash Var args hash matches noir 1`] = `Fr<0x11e40f2a780822f7971803048c9a2100579de352e7dadd99981760964da65b57>`;
 
 exports[`hash compute secret message hash 1`] = `Fr<0x0dc06f2167e2cd19adf738d1f38469d7f8bff1e26b029816e8230bcd6ab6332e>`;
 
@@ -18,6 +18,6 @@ exports[`hash computes unique note hash 1`] = `Fr<0x1cbdcecec4fe92f6638eb6a8dade
 
 exports[`hash hashes empty function args 1`] = `Fr<0x0000000000000000000000000000000000000000000000000000000000000000>`;
 
-exports[`hash hashes function args 1`] = `Fr<0x1a76e9750a1493d95ce48be1fa31831fc370d7e68f563fe5c781c6f58e1f1eac>`;
+exports[`hash hashes function args 1`] = `Fr<0x0f4da5b77d47f61ea495c0ae504c300bfe608d1f233013c20f34ac7c030d8c14>`;
 
-exports[`hash hashes many function args 1`] = `Fr<0x21e37f4da2762d4daff39c2337d812b9c7b9c46aa9fafdf666d7d7fd9935d124>`;
+exports[`hash hashes many function args 1`] = `Fr<0x21fe126bab6cf132a34ef16f23bb6e6a97551d91a2408cd186443e465dc66606>`;

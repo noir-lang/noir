@@ -7,6 +7,8 @@ contract ContractClassRegisterer {
         contract_class_id::ContractClassId,
         constants::{
         ARTIFACT_FUNCTION_TREE_MAX_HEIGHT, FUNCTION_TREE_HEIGHT,
+        MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS,
+        MAX_PACKED_BYTECODE_SIZE_PER_UNCONSTRAINED_FUNCTION_IN_FIELDS,
         MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS, REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE
     },
         traits::Serialize, abis::log_hash::LogHash
@@ -16,8 +18,8 @@ contract ContractClassRegisterer {
 
     use crate::events::{
         class_registered::ContractClassRegistered,
-        private_function_broadcasted::{ClassPrivateFunctionBroadcasted, PrivateFunction},
-        unconstrained_function_broadcasted::{ClassUnconstrainedFunctionBroadcasted, UnconstrainedFunction}
+        private_function_broadcasted::{ClassPrivateFunctionBroadcasted, PrivateFunction, InnerPrivateFunction},
+        unconstrained_function_broadcasted::{ClassUnconstrainedFunctionBroadcasted, UnconstrainedFunction, InnerUnconstrainedFunction}
     };
 
     // docs:start:import_pop_capsule
@@ -66,8 +68,10 @@ contract ContractClassRegisterer {
         private_function_tree_leaf_index: Field,
         artifact_function_tree_sibling_path: [Field; ARTIFACT_FUNCTION_TREE_MAX_HEIGHT],
         artifact_function_tree_leaf_index: Field,
-        function_data: PrivateFunction
+        function_data: InnerPrivateFunction
     ) {
+        let private_bytecode: [Field; MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS] = pop_capsule();
+
         let event = ClassPrivateFunctionBroadcasted {
             contract_class_id,
             artifact_metadata_hash,
@@ -76,7 +80,12 @@ contract ContractClassRegisterer {
             private_function_tree_leaf_index,
             artifact_function_tree_sibling_path,
             artifact_function_tree_leaf_index,
-            function: function_data
+            function: PrivateFunction {
+                selector: function_data.selector,
+                metadata_hash: function_data.metadata_hash,
+                vk_hash: function_data.vk_hash,
+                bytecode: private_bytecode
+            }
         };
         dep::aztec::oracle::debug_log::debug_log_format(
             "ClassPrivateFunctionBroadcasted: {}",
@@ -99,15 +108,20 @@ contract ContractClassRegisterer {
         private_functions_artifact_tree_root: Field,
         artifact_function_tree_sibling_path: [Field; ARTIFACT_FUNCTION_TREE_MAX_HEIGHT],
         artifact_function_tree_leaf_index: Field,
-        function_data: UnconstrainedFunction
+        function_data: InnerUnconstrainedFunction
     ) {
+        let unconstrained_bytecode: [Field; MAX_PACKED_BYTECODE_SIZE_PER_UNCONSTRAINED_FUNCTION_IN_FIELDS] = pop_capsule();
         let event = ClassUnconstrainedFunctionBroadcasted {
             contract_class_id,
             artifact_metadata_hash,
             private_functions_artifact_tree_root,
             artifact_function_tree_sibling_path,
             artifact_function_tree_leaf_index,
-            function: function_data
+            function: UnconstrainedFunction {
+                selector: function_data.selector,
+                metadata_hash: function_data.metadata_hash,
+                bytecode: unconstrained_bytecode
+            }
         };
         dep::aztec::oracle::debug_log::debug_log_format(
             "ClassUnconstrainedFunctionBroadcasted: {}",

@@ -2,12 +2,11 @@ import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { pedersenHash, pedersenHashBuffer } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { createDebugLogger } from '@aztec/foundation/log';
 import { numToUInt8, numToUInt16BE, numToUInt32BE } from '@aztec/foundation/serialize';
 
 import chunk from 'lodash.chunk';
 
-import { ARGS_HASH_CHUNK_COUNT, ARGS_HASH_CHUNK_LENGTH, GeneratorIndex } from '../constants.gen.js';
+import { ARGS_HASH_CHUNK_COUNT, ARGS_HASH_CHUNK_LENGTH, GeneratorIndex, MAX_ARGS_LENGTH } from '../constants.gen.js';
 import { VerificationKey } from '../structs/index.js';
 
 /**
@@ -123,12 +122,8 @@ export function computeVarArgsHash(args: Fr[]) {
   if (args.length === 0) {
     return Fr.ZERO;
   }
-  const maxLen = ARGS_HASH_CHUNK_LENGTH * ARGS_HASH_CHUNK_COUNT;
-  if (args.length > maxLen) {
-    // TODO(@spalladino): This should throw instead of warning. And we should implement
-    // the same check on the Noir side, which is currently missing.
-    args = args.slice(0, maxLen);
-    createDebugLogger('aztec:circuits:abis').warn(`Hashing ${args.length} args exceeds max of ${maxLen}`);
+  if (args.length > MAX_ARGS_LENGTH) {
+    throw new Error(`Hashing ${args.length} args exceeds max of ${MAX_ARGS_LENGTH}`);
   }
 
   let chunksHashes = chunk(args, ARGS_HASH_CHUNK_LENGTH).map(c => {
