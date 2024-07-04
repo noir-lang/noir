@@ -83,9 +83,14 @@ impl NodeInterner {
             .map(|node_index| self.reference_location(self.reference_graph[node_index]))
     }
 
-    // Is the given location known to this interner?
-    pub fn is_location_known(&self, location: Location) -> bool {
-        self.location_indices.get_node_from_location(location).is_some()
+    // Returns the `ReferenceId` that exists at a given location, if any.
+    pub fn reference_at_location(&self, location: Location) -> Option<ReferenceId> {
+        if self.location_indices.get_node_from_location(location).is_none() {
+            return None;
+        }
+
+        let node_index = self.location_indices.get_node_from_location(location)?;
+        Some(self.reference_graph[node_index])
     }
 
     // Starting at the given location, find the node referenced by it. Then, gather

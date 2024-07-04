@@ -7,6 +7,7 @@ use async_lsp::ResponseError;
 use lsp_types::{
     PrepareRenameResponse, RenameParams, TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
 };
+use noirc_frontend::node_interner::ReferenceId;
 
 use crate::LspState;
 
@@ -17,7 +18,13 @@ pub(crate) fn on_prepare_rename_request(
     params: TextDocumentPositionParams,
 ) -> impl Future<Output = Result<Option<PrepareRenameResponse>, ResponseError>> {
     let result = process_request(state, params, |location, interner, _| {
-        let rename_possible = interner.is_location_known(location);
+        let reference_id = interner.reference_at_location(location);
+        let rename_possible = match reference_id {
+            // Rename shouldn't be possible when triggered on top of "Self"
+            Some(ReferenceId::Variable(_, true /* is self type name */)) => false,
+            Some(_) => true,
+            None => false,
+        };
         Some(PrepareRenameResponse::DefaultBehavior { default_behavior: rename_possible })
     });
     future::ready(result)
@@ -116,12 +123,31 @@ mod rename_tests {
     }
 
     #[test]
-    async fn test_on_prepare_rename_request_cannot_be_applied() {
+    async fn test_on_prepare_rename_request_cannot_be_applied_if_there_are_no_matches() {
         let (mut state, noir_text_document) = test_utils::init_lsp_server("rename_function").await;
 
         let params = TextDocumentPositionParams {
             text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
             position: lsp_types::Position { line: 0, character: 0 }, // This is at the "f" of an "fn" keyword
+        };
+
+        let response = on_prepare_rename_request(&mut state, params)
+            .await
+            .expect("Could not execute on_prepare_rename_request");
+
+        assert_eq!(
+            response,
+            Some(PrepareRenameResponse::DefaultBehavior { default_behavior: false })
+        );
+    }
+
+    #[test]
+    async fn test_on_prepare_rename_request_cannot_be_applied_on_self_type_name() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("rename_struct").await;
+
+        let params = TextDocumentPositionParams {
+            text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
+            position: lsp_types::Position { line: 11, character: 24 }, // At "Self"
         };
 
         let response = on_prepare_rename_request(&mut state, params)
