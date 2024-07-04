@@ -40,7 +40,11 @@ impl NodeInterner {
             }
             ReferenceId::Trait(id) => self.trait_location(&id),
             ReferenceId::Global(id) => self.get_global(id).location,
-            ReferenceId::Alias(id) => self.alias_location(&id),
+            ReferenceId::Alias(id) => {
+                let alias_type = self.get_type_alias(id);
+                let alias_type = alias_type.borrow();
+                Location::new(alias_type.name.span(), alias_type.location.file)
+            }
             ReferenceId::Variable(location) => location,
         }
     }
