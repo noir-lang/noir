@@ -117,8 +117,19 @@ fn generate_trait_impl_serialize(
     event_len: u32,
     event_fields: &[(String, String)],
 ) -> Result<NoirTraitImpl, AztecMacroError> {
-    let field_names =
-        event_fields.iter().map(|field| format!("self.{}", field.0)).collect::<Vec<String>>();
+    let field_names = event_fields
+        .iter()
+        .map(|field| {
+            let field_type = field.1.as_str();
+            match field_type {
+                "Field" => format!("self.{}", field.0),
+                "bool" | "u8" | "u32" | "u64" | "i8" | "i32" | "i64" => {
+                    format!("self.{} as Field", field.0)
+                }
+                _ => format!("self.{}.to_field()", field.0),
+            }
+        })
+        .collect::<Vec<String>>();
     let field_input = field_names.join(",");
 
     let trait_impl_source = format!(
@@ -154,7 +165,16 @@ fn generate_trait_impl_deserialize(
     let field_names: Vec<String> = event_fields
         .iter()
         .enumerate()
-        .map(|(index, field)| format!("{}: fields[{}]", field.0, index))
+        .map(|(index, field)| {
+            let field_type = field.1.as_str();
+            match field_type {
+                "Field" => format!("{}: fields[{}]", field.0, index),
+                "bool" | "u8" | "u32" | "u64" | "i8" | "i32" | "i64" => {
+                    format!("{}: fields[{}] as {}", field.0, index, field_type)
+                }
+                _ => format!("{}: {}::from_field(fields[{}])", field.0, field.1, index),
+            }
+        })
         .collect::<Vec<String>>();
     let field_input = field_names.join(",");
 
