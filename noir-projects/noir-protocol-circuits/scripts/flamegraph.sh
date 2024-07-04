@@ -59,11 +59,11 @@ if [[ ! -f $ARTIFACT ]]; then
 fi
 
 # Build profier if it's not available.
-PROFILER="$SCRIPT_DIR/../../../noir/noir-repo/target/debug/noir-profiler"
+PROFILER="$SCRIPT_DIR/../../../noir/noir-repo/target/release/noir-profiler"
 if [ ! -f $PROFILER ]; then
     echo "Profiler not found, building profiler"
     cd "$SCRIPT_DIR/../../../noir/noir-repo/tooling/profiler"
-    cargo build
+    cargo build --release
     cd "$SCRIPT_DIR"
 fi
 
