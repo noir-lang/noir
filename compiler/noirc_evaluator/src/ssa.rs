@@ -28,7 +28,7 @@ use noirc_frontend::{
     hir_def::{function::FunctionSignature, types::Type as HirType},
     monomorphization::ast::Program,
 };
-use plonky2_gen::console_and_file_asm_writer::ConsoleAndFileAsmWriter;
+use plonky2_gen::console_and_file_asm_writer::AsmWriter;
 use tracing::{span, Level};
 
 use self::{

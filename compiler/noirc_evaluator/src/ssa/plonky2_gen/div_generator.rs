@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 use std::marker::PhantomData;
 
-use super::{config::P2Field, console_and_file_asm_writer::ConsoleAndFileAsmWriter};
+use super::{config::P2Field, console_and_file_asm_writer::AsmWriter};
 use plonky2::{
     field::types::{Field, PrimeField64},
     iop::{
@@ -25,7 +25,7 @@ struct VariableIntDivGenerator {
 
 impl VariableIntDivGenerator {
     fn new(
-        asm_writer: &mut ConsoleAndFileAsmWriter,
+        asm_writer: &mut AsmWriter,
         numerator: Target,
         denominator: Target,
     ) -> Self {
@@ -95,7 +95,7 @@ impl SimpleGenerator<P2Field, 2> for VariableIntDivGenerator {
 ///
 /// This uses a custom `SimpleGenerator` internally, which will have performance implications.
 pub(crate) fn add_div_mod(
-    asm_writer: &mut ConsoleAndFileAsmWriter,
+    asm_writer: &mut AsmWriter,
     numerator: Target,
     denominator: Target,
 ) -> (Target, Target) {
