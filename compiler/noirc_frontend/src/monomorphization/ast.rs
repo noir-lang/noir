@@ -81,7 +81,6 @@ impl Display for FuncId {
     }
 }
 
-
 #[derive(Debug, Clone, Hash)]
 pub struct Ident {
     pub location: Option<Location>,
@@ -375,7 +374,6 @@ impl Program {
     /// returning the previous value
     pub fn take_function_body(&mut self, function: FuncId) -> Expression {
         let main = &mut self[function];
-
         let replacement = Expression::Block(vec![]);
         std::mem::replace(&mut main.body, replacement)
     }
