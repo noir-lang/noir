@@ -106,7 +106,7 @@ impl<T> [T] {
         if self.len() != 0 {
             ret = self[0];
 
-            for i in 1 .. self.len() {
+            for i in 1..self.len() {
                 ret = ret.append(separator).append(self[i]);
             }
         }
