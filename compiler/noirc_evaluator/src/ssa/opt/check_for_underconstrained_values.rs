@@ -57,7 +57,7 @@ fn check_for_underconstrained_values_within_function(
             current_set,
             &all_brillig_generated_values,
             function,
-        ))
+        ));
     }
     warnings
 }
