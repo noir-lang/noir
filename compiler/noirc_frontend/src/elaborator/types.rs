@@ -1065,7 +1065,7 @@ impl<'context> Elaborator<'context> {
                 }
                 Ok((Integer(*sign_x, *bit_width_x), false))
             }
-            // The result of two Fields is always a witness
+            // The result of a Field is always a witness
             FieldElement => {
                 if *op == UnaryOp::Not {
                     return Err(TypeCheckError::FieldNot { span });
