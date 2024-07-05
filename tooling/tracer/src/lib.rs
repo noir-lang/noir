@@ -1,3 +1,7 @@
+pub mod tail_diff_vecs;
+
+use tail_diff_vecs::tail_diff_vecs;
+
 use noir_debugger::context::{DebugCommandResult, DebugContext};
 
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
@@ -9,7 +13,6 @@ use noir_debugger::foreign_calls::DefaultDebugForeignCallExecutor;
 use noirc_artifacts::debug::DebugArtifact;
 
 use fm::PathString;
-use std::cmp::min;
 use std::path::PathBuf;
 
 use runtime_tracing::{Line, Tracer};
@@ -17,7 +20,7 @@ use runtime_tracing::{Line, Tracer};
 use nargo::NargoError;
 
 /// A location in the source code: filename and line number (1-indexed).
-#[derive(PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct SourceLocation {
     filepath: PathString,
     line_number: isize,
@@ -44,10 +47,17 @@ enum DebugStepResult<Error> {
     Error(Error),
 }
 
+#[derive(Clone, Debug, PartialEq)]
+struct StackFrame {
+    function_name: String,
+}
+
 pub struct TracingContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     debug_context: DebugContext<'a, B>,
     /// The source location at the current moment of tracing.
     source_locations: Vec<SourceLocation>,
+    /// The stack trace at the current moment; last call is last in the vector.
+    stack_trace: Vec<StackFrame>,
 }
 
 impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
@@ -69,7 +79,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             unconstrained_functions,
         );
 
-        Self { debug_context, source_locations: vec![] }
+        Self { debug_context, source_locations: vec![], stack_trace: vec![] }
     }
 
     /// Extracts the current stack of source locations from the debugger, given that the relevant
@@ -151,23 +161,41 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         }
     }
 
+    /// Converts the debugger stack frames into a vector of stack frames that own their data.
+    fn get_stack_frames(&mut self) -> Vec<StackFrame> {
+        self.debug_context
+            .get_variables()
+            .iter()
+            .map(|f| StackFrame { function_name: String::from(f.function_name) })
+            .collect()
+    }
+
     /// Propagates information about the current execution state to `tracer`.
     fn update_record(&mut self, tracer: &mut Tracer, source_locations: &Vec<SourceLocation>) {
-        // Find the last index of the previous and current stack traces, until which they are
-        // identical.
-        let mut last_match: isize = -1;
-        for i in 0..min(self.source_locations.len(), source_locations.len()) {
-            if self.source_locations[i] == source_locations[i] {
-                last_match = i as isize;
-                continue;
-            }
-            break;
+        let stack_trace = self.get_stack_frames();
+        let (first_nomatch, dropped_frames, new_frames) =
+            tail_diff_vecs(&self.stack_trace, &stack_trace);
+
+        for _ in dropped_frames {
+            let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::None, "()");
+            tracer.register_return(runtime_tracing::ValueRecord::None { type_id });
         }
-        // For the rest of the indexes of the new call stack: register a step that was performed to
-        // reach that frame of the call stack.
-        for i in ((last_match + 1) as usize)..source_locations.len() {
-            let SourceLocation { filepath, line_number } = &source_locations[i];
-            tracer.register_step(&PathBuf::from(filepath.to_string()), Line(*line_number as i64));
+
+        for i in 0..new_frames.len() {
+            let SourceLocation { filepath, line_number } = &source_locations[first_nomatch + i];
+            let path = &PathBuf::from(filepath.to_string());
+            let line = Line(*line_number as i64);
+            let file_id = tracer.ensure_function_id(&new_frames[i].function_name, path, line);
+            tracer.register_call(file_id, vec![]);
+        }
+
+        self.stack_trace = stack_trace;
+
+        let (_, _, new_source_locations) = tail_diff_vecs(&self.source_locations, source_locations);
+        for SourceLocation { filepath, line_number } in new_source_locations {
+            let path = &PathBuf::from(filepath.to_string());
+            let line = Line(*line_number as i64);
+            tracer.register_step(path, line);
         }
     }
 }

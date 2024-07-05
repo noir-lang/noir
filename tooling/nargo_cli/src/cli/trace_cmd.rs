@@ -109,7 +109,13 @@ pub(crate) fn trace_program(
     let trace_path = Path::new(trace_dir).join("trace.json");
     match tracer.store_trace_events(&trace_path) {
         Ok(_) => println!("Saved trace to {:?}", trace_path),
-        Err(_) => (),
+        Err(err) => println!("Warning: tracer failed to store trace events: {err}"),
+    }
+
+    let trace_path = Path::new(trace_dir).join("trace_metadata.json");
+    match tracer.store_trace_metadata(&trace_path) {
+        Ok(_) => println!("Saved trace to {:?}", trace_path),
+        Err(err) => println!("Warning: tracer failed to store trace metadata: {err}"),
     }
 
     Ok(())
