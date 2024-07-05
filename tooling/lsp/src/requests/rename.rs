@@ -102,7 +102,7 @@ mod rename_tests {
             let changes = response.changes.expect("Expected to find rename changes");
             let mut changes: Vec<Range> =
                 changes.values().flatten().map(|edit| edit.range).collect();
-            changes.sort_by_key(|range| range.start.line);
+            changes.sort_by_key(|range| (range.start.line, range.start.character));
             assert_eq!(changes, ranges);
         }
     }
@@ -144,5 +144,10 @@ mod rename_tests {
     #[test]
     async fn test_rename_struct() {
         check_rename_succeeds("rename_struct", "Foo").await;
+    }
+
+    #[test]
+    async fn test_rename_trait() {
+        check_rename_succeeds("rename_trait", "Foo").await;
     }
 }
