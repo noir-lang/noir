@@ -195,8 +195,8 @@ pub(super) fn unnecessary_pub_argument(
 }
 
 /// Check if an assignment is overflowing with respect to `annotated_type`
-/// in a declaration statement where `annotated_type` is an unsigned integer
-pub(crate) fn overflowing_uint(
+/// in a declaration statement where `annotated_type` is a signed or unsigned integer
+pub(crate) fn overflowing_int(
     interner: &NodeInterner,
     rhs_expr: &ExprId,
     annotated_type: &Type,
@@ -235,7 +235,7 @@ pub(crate) fn overflowing_uint(
             _ => (),
         },
         HirExpression::Prefix(expr) => {
-            overflowing_uint(interner, &expr.rhs, annotated_type);
+            overflowing_int(interner, &expr.rhs, annotated_type);
             if expr.operator == UnaryOp::Minus {
                 errors.push(TypeCheckError::InvalidUnaryOp {
                     kind: "annotated_type".to_string(),
@@ -244,8 +244,8 @@ pub(crate) fn overflowing_uint(
             }
         }
         HirExpression::Infix(expr) => {
-            errors.extend(overflowing_uint(interner, &expr.lhs, annotated_type));
-            errors.extend(overflowing_uint(interner, &expr.rhs, annotated_type));
+            errors.extend(overflowing_int(interner, &expr.lhs, annotated_type));
+            errors.extend(overflowing_int(interner, &expr.rhs, annotated_type));
         }
         _ => {}
     }
