@@ -6,12 +6,9 @@ mod test;
 contract PrivateToken {
     use dep::compressed_string::FieldCompressedString;
     use dep::aztec::{
-        hash::compute_secret_hash,
+        note::utils::compute_inner_note_hash_from_preimage, hash::compute_secret_hash,
         prelude::{NoteGetterOptions, Map, PublicMutable, SharedImmutable, PrivateSet, AztecAddress},
-        protocol_types::{
-        abis::function_selector::FunctionSelector, hash::pedersen_hash,
-        constants::GENERATOR_INDEX__INNER_NOTE_HASH
-    },
+        protocol_types::{abis::function_selector::FunctionSelector, hash::pedersen_hash},
         oracle::unsafe_rand::unsafe_rand,
         encrypted_logs::encrypted_note_emission::{encode_and_encrypt_note, encode_and_encrypt_note_with_keys}
     };
@@ -160,57 +157,69 @@ contract PrivateToken {
 
     #[aztec(private)]
     fn setup_refund(
-        fee_payer_npk_m_hash: Field,
-        sponsored_user: AztecAddress,
-        funded_amount: Field,
-        refund_nonce: Field
+        fee_payer_npk_m_hash: Field, // NpkMHash of the entity which will receive the fee note.
+        user: AztecAddress, // A user for which we are setting up the fee refund.
+        funded_amount: Field, // The amount the user funded the fee payer with (represents fee limit).
+        randomness: Field // A randomness to mix in with the generated notes.
     ) {
-        assert_current_call_valid_authwit(&mut context, sponsored_user);
+        // 1. This function is called by fee paying contract (fee_payer) when setting up a refund so we need to support
+        // the authwit flow here and check that the user really permitted fee_payer to set up a refund on their behalf.
+        assert_current_call_valid_authwit(&mut context, user);
+
+        // 2. Get all the relevant user keys
         let header = context.get_header();
-        let sponsored_user_npk_m_hash = header.get_npk_m_hash(&mut context, sponsored_user);
-        let sponsored_user_ovpk = header.get_ovpk_m(&mut context, sponsored_user);
-        let sponsored_user_ivpk = header.get_ivpk_m(&mut context, sponsored_user);
-        storage.balances.sub(sponsored_user_npk_m_hash, U128::from_integer(funded_amount)).emit(encode_and_encrypt_note_with_keys(&mut context, sponsored_user_ovpk, sponsored_user_ivpk));
-        let points = TokenNote::generate_refund_points(
+        let user_npk_m_hash = header.get_npk_m_hash(&mut context, user);
+        let user_ovpk = header.get_ovpk_m(&mut context, user);
+        let user_ivpk = header.get_ivpk_m(&mut context, user);
+
+        // 3. Deduct the funded amount from the user's balance - this is a maximum fee a user is willing to pay
+        // (called fee limit in aztec spec). The difference between fee limit and the actual tx fee will be refunded 
+        // to the user in the `complete_refund(...)` function.
+        // TODO(#7324): using npk_m_hash here does not work with key rotation
+        storage.balances.sub(user_npk_m_hash, U128::from_integer(funded_amount)).emit(encode_and_encrypt_note_with_keys(&mut context, user_ovpk, user_ivpk));
+
+        // 4. We generate the refund points.
+        let (fee_payer_point, user_point) = TokenNote::generate_refund_points(
             fee_payer_npk_m_hash,
-            sponsored_user_npk_m_hash,
+            user_npk_m_hash,
             funded_amount,
-            refund_nonce
+            randomness
         );
+
+        // 5. Set the public teardown function to `complete_refund(...)`. Public teardown is the only time when a public
+        // function has access to the final transaction fee, which is needed to compute the actual refund amount.
         context.set_public_teardown_function(
             context.this_address(),
             FunctionSelector::from_signature("complete_refund(Field,Field,Field,Field)"),
-            [points[0].x, points[0].y, points[1].x, points[1].y]
+            [fee_payer_point.x, fee_payer_point.y, user_point.x, user_point.y]
         );
     }
 
     #[aztec(public)]
     #[aztec(internal)]
     fn complete_refund(
-        fpc_point_x: Field,
-        fpc_point_y: Field,
+        fee_payer_point_x: Field,
+        fee_payer_point_y: Field,
         user_point_x: Field,
         user_point_y: Field
     ) {
-        let fpc_point = EmbeddedCurvePoint { x: fpc_point_x, y: fpc_point_y, is_infinite: false };
+        // 1. We get the final note content hashes by calling the `complete_refund` on the note.
+        let fee_payer_point = EmbeddedCurvePoint { x: fee_payer_point_x, y: fee_payer_point_y, is_infinite: false };
         let user_point = EmbeddedCurvePoint { x: user_point_x, y: user_point_y, is_infinite: false };
         let tx_fee = context.transaction_fee();
-        let note_hashes = TokenNote::complete_refund(fpc_point, user_point, tx_fee);
+        let (fee_payer_note_content_hash, user_note_content_hash) = TokenNote::complete_refund(fee_payer_point, user_point, tx_fee);
 
-        // `compute_inner_note_hash` manually, without constructing the note
-        // `3` is the storage slot of the balances
-        context.push_note_hash(
-            pedersen_hash(
-                [PrivateToken::storage().balances.slot, note_hashes[0]],
-                GENERATOR_INDEX__INNER_NOTE_HASH
-            )
+        // 2. Now we "manually" compute the inner note hashes.
+        let fee_payer_inner_note_hash = compute_inner_note_hash_from_preimage(
+            PrivateToken::storage().balances.slot,
+            fee_payer_note_content_hash
         );
-        context.push_note_hash(
-            pedersen_hash(
-                [PrivateToken::storage().balances.slot, note_hashes[1]],
-                GENERATOR_INDEX__INNER_NOTE_HASH
-            )
-        );
+        let user_inner_note_hash = compute_inner_note_hash_from_preimage(PrivateToken::storage().balances.slot, user_note_content_hash);
+
+        // 3. At last we emit the note hashes.
+        context.push_note_hash(fee_payer_inner_note_hash);
+        context.push_note_hash(user_inner_note_hash);
+        // --> Once the tx is settled user and fee recipient can add the notes to their pixies.
     }
 
     /// Internal ///

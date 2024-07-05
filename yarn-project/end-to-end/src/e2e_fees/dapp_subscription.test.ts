@@ -67,32 +67,33 @@ describe('e2e_fees dapp_subscription', () => {
 
   beforeAll(async () => {
     await expectMapping(
-      t.gasBalances,
+      t.getGasBalanceFn,
       [aliceAddress, sequencerAddress, subscriptionContract.address, bananaFPC.address],
       [0n, 0n, t.INITIAL_GAS_BALANCE, t.INITIAL_GAS_BALANCE],
     );
 
     await expectMapping(
-      t.bananaPrivateBalances,
+      t.getBananaPrivateBalanceFn,
       [aliceAddress, bobAddress, bananaFPC.address],
       [t.ALICE_INITIAL_BANANAS, 0n, 0n],
     );
 
     await expectMapping(
-      t.bananaPublicBalances,
+      t.getBananaPublicBalanceFn,
       [aliceAddress, bobAddress, bananaFPC.address],
       [t.ALICE_INITIAL_BANANAS, 0n, 0n],
     );
   });
 
   beforeEach(async () => {
-    [initialSubscriptionContractGasBalance, initialSequencerGasBalance, initialFPCGasBalance] = (await t.gasBalances(
-      subscriptionContract,
-      sequencerAddress,
+    [initialSubscriptionContractGasBalance, initialSequencerGasBalance, initialFPCGasBalance] =
+      (await t.getGasBalanceFn(subscriptionContract, sequencerAddress, bananaFPC)) as Balances;
+    initialBananasPublicBalances = (await t.getBananaPublicBalanceFn(aliceAddress, bobAddress, bananaFPC)) as Balances;
+    initialBananasPrivateBalances = (await t.getBananaPrivateBalanceFn(
+      aliceAddress,
+      bobAddress,
       bananaFPC,
     )) as Balances;
-    initialBananasPublicBalances = (await t.bananaPublicBalances(aliceAddress, bobAddress, bananaFPC)) as Balances;
-    initialBananasPrivateBalances = (await t.bananaPrivateBalances(aliceAddress, bobAddress, bananaFPC)) as Balances;
   });
 
   it('should allow Alice to subscribe by paying privately with bananas', async () => {
@@ -112,7 +113,7 @@ describe('e2e_fees dapp_subscription', () => {
     );
 
     await expectMapping(
-      t.gasBalances,
+      t.getGasBalanceFn,
       [sequencerAddress, bananaFPC.address],
       [initialSequencerGasBalance, initialFPCGasBalance - transactionFee!],
     );
@@ -140,7 +141,7 @@ describe('e2e_fees dapp_subscription', () => {
     );
 
     await expectMapping(
-      t.gasBalances,
+      t.getGasBalanceFn,
       [sequencerAddress, bananaFPC.address],
       [initialSequencerGasBalance, initialFPCGasBalance - transactionFee!],
     );
@@ -170,7 +171,7 @@ describe('e2e_fees dapp_subscription', () => {
     expect(await counterContract.methods.get_counter(bobAddress).simulate()).toBe(1n);
 
     await expectMapping(
-      t.gasBalances,
+      t.getGasBalanceFn,
       [sequencerAddress, subscriptionContract.address],
       [initialSequencerGasBalance, initialSubscriptionContractGasBalance - transactionFee!],
     );
@@ -216,7 +217,7 @@ describe('e2e_fees dapp_subscription', () => {
   const expectBananasPrivateDelta = (aliceAmount: bigint, bobAmount: bigint, fpcAmount: bigint) =>
     expectMappingDelta(
       initialBananasPrivateBalances,
-      t.bananaPrivateBalances,
+      t.getBananaPrivateBalanceFn,
       [aliceAddress, bobAddress, bananaFPC.address],
       [aliceAmount, bobAmount, fpcAmount],
     );
@@ -224,7 +225,7 @@ describe('e2e_fees dapp_subscription', () => {
   const expectBananasPublicDelta = (aliceAmount: bigint, bobAmount: bigint, fpcAmount: bigint) =>
     expectMappingDelta(
       initialBananasPublicBalances,
-      t.bananaPublicBalances,
+      t.getBananaPublicBalanceFn,
       [aliceAddress, bobAddress, bananaFPC.address],
       [aliceAmount, bobAmount, fpcAmount],
     );

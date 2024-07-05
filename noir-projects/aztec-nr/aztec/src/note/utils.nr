@@ -9,14 +9,18 @@ use dep::protocol_types::{
     utils::arr_copy_slice
 };
 
+pub fn compute_inner_note_hash_from_preimage(storage_slot: Field, note_content_hash: Field) -> Field {
+    pedersen_hash(
+        [storage_slot, note_content_hash],
+        GENERATOR_INDEX__INNER_NOTE_HASH
+    )
+}
+
 fn compute_inner_note_hash<Note, N, M>(note: Note) -> Field where Note: NoteInterface<N, M> {
     let header = note.get_header();
     let note_hash = note.compute_note_content_hash();
 
-    pedersen_hash(
-        [header.storage_slot, note_hash],
-        GENERATOR_INDEX__INNER_NOTE_HASH
-    )
+    compute_inner_note_hash_from_preimage(header.storage_slot, note_hash)
 }
 
 pub fn compute_siloed_nullifier<Note, N, M>(

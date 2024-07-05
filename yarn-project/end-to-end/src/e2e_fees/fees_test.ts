@@ -74,10 +74,10 @@ export class FeesTest {
   public gasBridgeTestHarness!: IGasBridgingTestHarness;
 
   public getCoinbaseBalance!: () => Promise<bigint>;
-  public gasBalances!: BalancesFn;
-  public bananaPublicBalances!: BalancesFn;
-  public bananaPrivateBalances!: BalancesFn;
-  public privateTokenBalances!: BalancesFn;
+  public getGasBalanceFn!: BalancesFn;
+  public getBananaPublicBalanceFn!: BalancesFn;
+  public getBananaPrivateBalanceFn!: BalancesFn;
+  public getPrivateTokenBalanceFn!: BalancesFn;
 
   public readonly INITIAL_GAS_BALANCE = BigInt(1e15);
   public readonly ALICE_INITIAL_BANANAS = BigInt(1e12);
@@ -210,7 +210,7 @@ export class FeesTest {
       async (_data, context) => {
         this.gasTokenContract = await GasTokenContract.at(getCanonicalGasToken().address, this.aliceWallet);
 
-        this.gasBalances = getBalancesFn('⛽', this.gasTokenContract.methods.balance_of_public, this.logger);
+        this.getGasBalanceFn = getBalancesFn('⛽', this.gasTokenContract.methods.balance_of_public, this.logger);
 
         const { publicClient, walletClient } = createL1Clients(context.aztecNodeConfig.rpcUrl, MNEMONIC);
         this.gasBridgeTestHarness = await GasPortalTestingHarnessFactory.create({
@@ -277,7 +277,11 @@ export class FeesTest {
         this.privateToken = await PrivateTokenContract.at(data.privateTokenAddress, this.aliceWallet);
 
         const logger = this.logger;
-        this.privateTokenBalances = getBalancesFn('🕵️.private', this.privateToken.methods.balance_of_private, logger);
+        this.getPrivateTokenBalanceFn = getBalancesFn(
+          '🕵️.private',
+          this.privateToken.methods.balance_of_private,
+          logger,
+        );
       },
     );
   }
@@ -313,8 +317,12 @@ export class FeesTest {
         this.bananaFPC = bananaFPC;
 
         const logger = this.logger;
-        this.bananaPublicBalances = getBalancesFn('🍌.public', this.bananaCoin.methods.balance_of_public, logger);
-        this.bananaPrivateBalances = getBalancesFn('🍌.private', this.bananaCoin.methods.balance_of_private, logger);
+        this.getBananaPublicBalanceFn = getBalancesFn('🍌.public', this.bananaCoin.methods.balance_of_public, logger);
+        this.getBananaPrivateBalanceFn = getBalancesFn(
+          '🍌.private',
+          this.bananaCoin.methods.balance_of_private,
+          logger,
+        );
 
         this.getCoinbaseBalance = async () => {
           const { walletClient } = createL1Clients(context.aztecNodeConfig.rpcUrl, MNEMONIC);

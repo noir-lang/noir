@@ -4,7 +4,7 @@ contract PrivateFPC {
     use dep::aztec::protocol_types::{abis::log_hash::LogHash, address::AztecAddress};
     use dep::aztec::state_vars::SharedImmutable;
     use dep::private_token::PrivateToken;
-    use crate::lib::emit_nonce_as_unencrypted_log;
+    use crate::lib::emit_randomness_as_unencrypted_log;
 
     #[aztec(storage)]
     struct Storage {
@@ -20,19 +20,19 @@ contract PrivateFPC {
     }
 
     #[aztec(private)]
-    fn fund_transaction_privately(amount: Field, asset: AztecAddress, nonce: Field) {
+    fn fund_transaction_privately(amount: Field, asset: AztecAddress, randomness: Field) {
         assert(asset == storage.other_asset.read_private());
         // convince the FPC we are not cheating
-        context.push_nullifier(nonce, 0);
+        context.push_nullifier(randomness, 0);
 
         // allow the FPC to reconstruct their fee note
-        emit_nonce_as_unencrypted_log(&mut context, nonce);
+        emit_randomness_as_unencrypted_log(&mut context, randomness);
 
         PrivateToken::at(asset).setup_refund(
             storage.admin_npk_m_hash.read_private(),
             context.msg_sender(),
             amount,
-            nonce
+            randomness
         ).call(&mut context);
         context.set_as_fee_payer();
     }

@@ -40,15 +40,15 @@ describe('e2e_fees failures', () => {
     const OutrageousPublicAmountAliceDoesNotHave = BigInt(1e8);
     const PrivateMintedAlicePrivateBananas = BigInt(1e15);
 
-    const [initialAlicePrivateBananas, initialFPCPrivateBananas] = await t.bananaPrivateBalances(
+    const [initialAlicePrivateBananas, initialFPCPrivateBananas] = await t.getBananaPrivateBalanceFn(
       aliceAddress,
       bananaFPC.address,
     );
-    const [initialAlicePublicBananas, initialFPCPublicBananas] = await t.bananaPublicBalances(
+    const [initialAlicePublicBananas, initialFPCPublicBananas] = await t.getBananaPublicBalanceFn(
       aliceAddress,
       bananaFPC.address,
     );
-    const [initialAliceGas, initialFPCGas] = await t.gasBalances(aliceAddress, bananaFPC.address);
+    const [initialAliceGas, initialFPCGas] = await t.getGasBalanceFn(aliceAddress, bananaFPC.address);
 
     await t.mintPrivateBananas(PrivateMintedAlicePrivateBananas, aliceAddress);
 
@@ -68,16 +68,16 @@ describe('e2e_fees failures', () => {
 
     // we did not pay the fee, because we did not submit the TX
     await expectMapping(
-      t.bananaPrivateBalances,
+      t.getBananaPrivateBalanceFn,
       [aliceAddress, bananaFPC.address],
       [initialAlicePrivateBananas + PrivateMintedAlicePrivateBananas, initialFPCPrivateBananas],
     );
     await expectMapping(
-      t.bananaPublicBalances,
+      t.getBananaPublicBalanceFn,
       [aliceAddress, bananaFPC.address],
       [initialAlicePublicBananas, initialFPCPublicBananas],
     );
-    await expectMapping(t.gasBalances, [aliceAddress, bananaFPC.address], [initialAliceGas, initialFPCGas]);
+    await expectMapping(t.getGasBalanceFn, [aliceAddress, bananaFPC.address], [initialAliceGas, initialFPCGas]);
 
     // if we skip simulation, it includes the failed TX
     const rebateSecret = Fr.random();
@@ -100,7 +100,7 @@ describe('e2e_fees failures', () => {
 
     // and thus we paid the fee
     await expectMapping(
-      t.bananaPrivateBalances,
+      t.getBananaPrivateBalanceFn,
       [aliceAddress, bananaFPC.address],
       [
         // alice paid the maximum amount in private bananas
@@ -109,11 +109,15 @@ describe('e2e_fees failures', () => {
       ],
     );
     await expectMapping(
-      t.bananaPublicBalances,
+      t.getBananaPublicBalanceFn,
       [aliceAddress, bananaFPC.address],
       [initialAlicePublicBananas, initialFPCPublicBananas + feeAmount],
     );
-    await expectMapping(t.gasBalances, [aliceAddress, bananaFPC.address], [initialAliceGas, initialFPCGas - feeAmount]);
+    await expectMapping(
+      t.getGasBalanceFn,
+      [aliceAddress, bananaFPC.address],
+      [initialAliceGas, initialFPCGas - feeAmount],
+    );
 
     // Alice can redeem her shield to get the rebate
     const refund = gasSettings.getFeeLimit().toBigInt() - feeAmount;
@@ -123,7 +127,7 @@ describe('e2e_fees failures', () => {
     await bananaCoin.methods.redeem_shield(aliceAddress, refund, rebateSecret).send().wait();
 
     await expectMapping(
-      t.bananaPrivateBalances,
+      t.getBananaPrivateBalanceFn,
       [aliceAddress, bananaFPC.address],
       [initialAlicePrivateBananas + PrivateMintedAlicePrivateBananas - feeAmount, initialFPCPrivateBananas],
     );
@@ -133,15 +137,15 @@ describe('e2e_fees failures', () => {
     const OutrageousPublicAmountAliceDoesNotHave = BigInt(1e15);
     const PublicMintedAlicePublicBananas = BigInt(1e12);
 
-    const [initialAlicePrivateBananas, initialFPCPrivateBananas] = await t.bananaPrivateBalances(
+    const [initialAlicePrivateBananas, initialFPCPrivateBananas] = await t.getBananaPrivateBalanceFn(
       aliceAddress,
       bananaFPC.address,
     );
-    const [initialAlicePublicBananas, initialFPCPublicBananas] = await t.bananaPublicBalances(
+    const [initialAlicePublicBananas, initialFPCPublicBananas] = await t.getBananaPublicBalanceFn(
       aliceAddress,
       bananaFPC.address,
     );
-    const [initialAliceGas, initialFPCGas, initialSequencerGas] = await t.gasBalances(
+    const [initialAliceGas, initialFPCGas, initialSequencerGas] = await t.getGasBalanceFn(
       aliceAddress,
       bananaFPC.address,
       sequencerAddress,
@@ -163,17 +167,17 @@ describe('e2e_fees failures', () => {
 
     // we did not pay the fee, because we did not submit the TX
     await expectMapping(
-      t.bananaPrivateBalances,
+      t.getBananaPrivateBalanceFn,
       [aliceAddress, bananaFPC.address, sequencerAddress],
       [initialAlicePrivateBananas, initialFPCPrivateBananas, 0n],
     );
     await expectMapping(
-      t.bananaPublicBalances,
+      t.getBananaPublicBalanceFn,
       [aliceAddress, bananaFPC.address, sequencerAddress],
       [initialAlicePublicBananas + PublicMintedAlicePublicBananas, initialFPCPublicBananas, 0n],
     );
     await expectMapping(
-      t.gasBalances,
+      t.getGasBalanceFn,
       [aliceAddress, bananaFPC.address, sequencerAddress],
       [initialAliceGas, initialFPCGas, initialSequencerGas],
     );
@@ -195,17 +199,17 @@ describe('e2e_fees failures', () => {
 
     // and thus we paid the fee
     await expectMapping(
-      t.bananaPrivateBalances,
+      t.getBananaPrivateBalanceFn,
       [aliceAddress, bananaFPC.address, sequencerAddress],
       [initialAlicePrivateBananas, initialFPCPrivateBananas, 0n],
     );
     await expectMapping(
-      t.bananaPublicBalances,
+      t.getBananaPublicBalanceFn,
       [aliceAddress, bananaFPC.address, sequencerAddress],
       [initialAlicePublicBananas + PublicMintedAlicePublicBananas - feeAmount, initialFPCPublicBananas + feeAmount, 0n],
     );
     await expectMapping(
-      t.gasBalances,
+      t.getGasBalanceFn,
       [aliceAddress, bananaFPC.address, sequencerAddress],
       [initialAliceGas, initialFPCGas - feeAmount, initialSequencerGas],
     );
@@ -248,15 +252,15 @@ describe('e2e_fees failures', () => {
      */
     const PublicMintedAlicePublicBananas = 100_000_000_000n;
 
-    const [initialAlicePrivateBananas, initialFPCPrivateBananas] = await t.bananaPrivateBalances(
+    const [initialAlicePrivateBananas, initialFPCPrivateBananas] = await t.getBananaPrivateBalanceFn(
       aliceAddress,
       bananaFPC.address,
     );
-    const [initialAlicePublicBananas, initialFPCPublicBananas] = await t.bananaPublicBalances(
+    const [initialAlicePublicBananas, initialFPCPublicBananas] = await t.getBananaPublicBalanceFn(
       aliceAddress,
       bananaFPC.address,
     );
-    const [initialAliceGas, initialFPCGas, initialSequencerGas] = await t.gasBalances(
+    const [initialAliceGas, initialFPCGas, initialSequencerGas] = await t.getGasBalanceFn(
       aliceAddress,
       bananaFPC.address,
       sequencerAddress,
@@ -299,13 +303,13 @@ describe('e2e_fees failures', () => {
     expect(receipt.transactionFee).toBeGreaterThan(0n);
 
     await expectMapping(
-      t.bananaPrivateBalances,
+      t.getBananaPrivateBalanceFn,
       [aliceAddress, bananaFPC.address, sequencerAddress],
       [initialAlicePrivateBananas, initialFPCPrivateBananas, 0n],
     );
     // Since setup went through, Alice transferred to the FPC
     await expectMapping(
-      t.bananaPublicBalances,
+      t.getBananaPublicBalanceFn,
       [aliceAddress, bananaFPC.address, sequencerAddress],
       [
         initialAlicePublicBananas + PublicMintedAlicePublicBananas - badGas.getFeeLimit().toBigInt(),
@@ -314,7 +318,7 @@ describe('e2e_fees failures', () => {
       ],
     );
     await expectMapping(
-      t.gasBalances,
+      t.getGasBalanceFn,
       [aliceAddress, bananaFPC.address, sequencerAddress],
       [initialAliceGas, initialFPCGas - receipt.transactionFee!, initialSequencerGas],
     );
