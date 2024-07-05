@@ -131,7 +131,7 @@ impl PublicKernelTeardownCircuitPrivateInputs {
             let reverted_call_request = remaining_calls.pop();
 
             assert(
-                reverted_call_request.hash == self.public_call.call_stack_item.hash(), "calculated public_kernel_inputs_hash does not match provided public_kernel_inputs_hash at the top of the teardown call stack"
+                reverted_call_request.hash == self.public_call.call_stack_item.get_compressed().hash(), "calculated public_kernel_inputs_hash does not match provided public_kernel_inputs_hash at the top of the teardown call stack"
             );
         }
 
@@ -198,7 +198,7 @@ mod tests {
         pub fn execute(&mut self) -> PublicKernelCircuitPublicInputs {
             let public_call = self.public_call.finish();
             // Adjust the call stack item hash for the current call in the previous iteration.
-            let hash = public_call.call_stack_item.hash();
+            let hash = public_call.call_stack_item.get_compressed().hash();
             let is_delegate_call = public_call.call_stack_item.public_inputs.call_context.is_delegate_call;
             self.previous_kernel.push_public_teardown_call_request(hash, is_delegate_call);
             let mut previous_kernel = self.previous_kernel.to_public_kernel_data(true);
@@ -254,7 +254,7 @@ mod tests {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         let public_call = builder.public_call.finish();
 
-        let hash = public_call.call_stack_item.hash();
+        let hash = public_call.call_stack_item.get_compressed().hash();
         // Tweak the call stack item hash.
         builder.previous_kernel.push_public_teardown_call_request(hash + 1, false);
         let previous_kernel = builder.previous_kernel.to_public_kernel_data(true);
@@ -295,7 +295,7 @@ mod tests {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new().is_delegate_call();
         let public_call = builder.public_call.finish();
 
-        let hash = public_call.call_stack_item.hash();
+        let hash = public_call.call_stack_item.get_compressed().hash();
         // Caller context is empty for regular calls.
         let is_delegate_call = false;
         builder.previous_kernel.push_public_teardown_call_request(hash, is_delegate_call);
@@ -517,7 +517,7 @@ mod tests {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.public_call.public_inputs.revert_code = 1;
         let public_call = builder.public_call.finish();
-        let hash = public_call.call_stack_item.hash();
+        let hash = public_call.call_stack_item.get_compressed().hash();
         builder.previous_kernel.push_public_teardown_call_request(hash, false);
         // push again to check that the stack is cleared
         builder.previous_kernel.push_public_teardown_call_request(hash, false);
@@ -535,7 +535,7 @@ mod tests {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.previous_kernel.revert_code = 1;
         let public_call = builder.public_call.finish();
-        let hash = public_call.call_stack_item.hash();
+        let hash = public_call.call_stack_item.get_compressed().hash();
         builder.previous_kernel.push_public_teardown_call_request(hash, false);
         // push again to check that we keep one item after popping the current call
         builder.previous_kernel.push_public_teardown_call_request(hash, false);

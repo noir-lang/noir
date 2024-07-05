@@ -747,7 +747,7 @@ export function makePublicKernelInputsWithTweak(
   // Set the call stack item for this circuit iteration at the top of the call stack
   publicKernelInputs.previousKernel.publicInputs.end.publicCallStack[MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX - 1] =
     new CallRequest(
-      publicCall.callStackItem.hash(),
+      publicCall.callStackItem.getCompressed().hash(),
       publicCall.callStackItem.publicInputs.callContext.msgSender,
       makeCallerContext(seed + 0x100),
       Fr.ZERO,

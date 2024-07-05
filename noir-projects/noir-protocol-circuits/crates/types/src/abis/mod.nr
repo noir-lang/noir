@@ -35,6 +35,7 @@ mod call_request;
 mod private_call_request;
 mod private_call_stack_item;
 mod public_call_stack_item;
+mod public_call_stack_item_compressed;
 mod call_context;
 mod caller_context;
 

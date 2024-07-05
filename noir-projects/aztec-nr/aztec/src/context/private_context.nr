@@ -506,7 +506,7 @@ impl PrivateContext {
         );
 
         self.side_effect_counter = self.side_effect_counter + 1;
-        self.public_call_stack_hashes.push(item.hash());
+        self.public_call_stack_hashes.push(item.get_compressed().hash());
     }
 
     pub fn set_public_teardown_function<ARGS_COUNT>(
@@ -549,7 +549,7 @@ impl PrivateContext {
         );
 
         self.side_effect_counter = self.side_effect_counter + 1;
-        self.public_teardown_function_hash = item.hash();
+        self.public_teardown_function_hash = item.get_compressed().hash();
     }
 
     fn validate_call_stack_item_from_oracle(

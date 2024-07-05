@@ -1,14 +1,13 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
-import { GeneratorIndex } from '../constants.gen.js';
 import { type CallContext } from './call_context.js';
 import { CallRequest } from './call_request.js';
 import { CallerContext } from './caller_context.js';
 import { FunctionData } from './function_data.js';
+import { PublicCallStackItemCompressed } from './public_call_stack_item_compressed.js';
 import { PublicCircuitPublicInputs } from './public_circuit_public_inputs.js';
 
 /**
@@ -85,11 +84,7 @@ export class PublicCallStackItem {
     return this.contractAddress.isZero() && this.functionData.isEmpty() && this.publicInputs.isEmpty();
   }
 
-  /**
-   * Computes this call stack item hash.
-   * @returns Hash.
-   */
-  public hash() {
+  getCompressed(): PublicCallStackItemCompressed {
     let publicInputsToHash = this.publicInputs;
     if (this.isExecutionRequest) {
       // An execution request (such as an enqueued call from private) is hashed with
@@ -106,9 +101,15 @@ export class PublicCallStackItem {
       publicInputsToHash.argsHash = argsHash;
     }
 
-    return pedersenHash(
-      [this.contractAddress, this.functionData.hash(), publicInputsToHash.hash()],
-      GeneratorIndex.CALL_STACK_ITEM,
+    return new PublicCallStackItemCompressed(
+      this.contractAddress,
+      publicInputsToHash.callContext,
+      this.functionData,
+      publicInputsToHash.argsHash,
+      publicInputsToHash.returnsHash,
+      publicInputsToHash.revertCode,
+      publicInputsToHash.startGasLeft,
+      publicInputsToHash.endGasLeft,
     );
   }
 
@@ -130,6 +131,9 @@ export class PublicCallStackItem {
         )
       : CallerContext.empty();
     // todo: populate side effect counters correctly
-    return new CallRequest(this.hash(), parentCallContext.storageContractAddress, callerContext, Fr.ZERO, Fr.ZERO);
+
+    const hash = this.getCompressed().hash();
+
+    return new CallRequest(hash, parentCallContext.storageContractAddress, callerContext, Fr.ZERO, Fr.ZERO);
   }
 }

@@ -424,7 +424,7 @@ export abstract class AbstractPhaseManager {
 
     const callStackPreimages = await this.getPublicCallStackPreimages(result);
     const publicCallStackHashes = padArrayEnd(
-      callStackPreimages.map(c => c.hash()),
+      callStackPreimages.map(c => c.getCompressed().hash()),
       Fr.ZERO,
       MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
     );

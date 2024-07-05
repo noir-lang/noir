@@ -903,7 +903,7 @@ describe('Private Execution test suite', () => {
         }),
       });
 
-      const publicCallRequestHash = publicCallRequest.toPublicCallStackItem().hash();
+      const publicCallRequestHash = publicCallRequest.toPublicCallStackItem().getCompressed().hash();
 
       expect(result.enqueuedPublicFunctionCalls).toHaveLength(1);
       expect(result.enqueuedPublicFunctionCalls[0]).toEqual(publicCallRequest);

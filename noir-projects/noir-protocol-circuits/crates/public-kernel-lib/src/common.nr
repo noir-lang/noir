@@ -554,7 +554,7 @@ pub fn validate_call_against_request(public_call: PublicCallData, request: CallR
     let call_stack_item = public_call.call_stack_item;
 
     assert(
-        request.hash == call_stack_item.hash(), "calculated public_kernel_inputs_hash does not match provided public_kernel_inputs_hash at the top of the call stack"
+        request.hash == call_stack_item.get_compressed().hash(), "calculated public_kernel_inputs_hash does not match provided public_kernel_inputs_hash at the top of the call stack"
     );
 
     let call_context = call_stack_item.public_inputs.call_context;

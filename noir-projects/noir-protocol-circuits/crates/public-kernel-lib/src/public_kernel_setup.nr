@@ -117,13 +117,13 @@ mod tests {
         pub fn stub_teardown_call(&mut self) {
             let teardown_call = PublicCallDataBuilder::new();
             let teardown_call = teardown_call.finish();
-            let teardown_call_hash = teardown_call.call_stack_item.hash();
+            let teardown_call_hash = teardown_call.call_stack_item.get_compressed().hash();
             let teardown_is_delegate_call = teardown_call.call_stack_item.public_inputs.call_context.is_delegate_call;
             self.previous_kernel.push_public_call_request(teardown_call_hash, teardown_is_delegate_call);
         }
 
         pub fn push_public_call(&mut self, public_call: PublicCallData) {
-            let public_call_hash = public_call.call_stack_item.hash();
+            let public_call_hash = public_call.call_stack_item.get_compressed().hash();
             let setup_is_delegate_call = public_call.call_stack_item.public_inputs.call_context.is_delegate_call;
             self.previous_kernel.push_public_call_request(public_call_hash, setup_is_delegate_call);
         }
@@ -242,7 +242,7 @@ mod tests {
         builder.stub_teardown_call();
         let public_call = builder.public_call.finish();
 
-        let hash = public_call.call_stack_item.hash();
+        let hash = public_call.call_stack_item.get_compressed().hash();
         // Tweak the call stack item hash.
         builder.previous_kernel.push_public_call_request(hash + 1, false);
         let previous_kernel = builder.previous_kernel.to_public_kernel_data(false);
@@ -285,7 +285,7 @@ mod tests {
 
         let public_call = builder.public_call.finish();
 
-        let hash = public_call.call_stack_item.hash();
+        let hash = public_call.call_stack_item.get_compressed().hash();
         // Caller context is empty for regular calls.
         let is_delegate_call = false;
         builder.previous_kernel.push_public_call_request(hash, is_delegate_call);
@@ -591,7 +591,7 @@ mod tests {
         let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
         builder.public_call.public_inputs.revert_code = 0;
         let public_call = builder.public_call.finish();
-        let hash = public_call.call_stack_item.hash();
+        let hash = public_call.call_stack_item.get_compressed().hash();
 
         builder.previous_kernel.push_public_call_request(hash, false);
         builder.previous_kernel.push_public_call_request(hash, false);
