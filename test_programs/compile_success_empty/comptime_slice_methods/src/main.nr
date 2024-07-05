@@ -1,5 +1,6 @@
 fn main() {
-    comptime {
+    comptime
+    {
         // Comptime scopes are counted as unconstrained
         assert(std::runtime::is_unconstrained());
 
