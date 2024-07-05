@@ -11,6 +11,6 @@ fn main() {
 }
 
 fn append_three<T>(one: T, two: T, three: T) -> T where T: Append {
-    // The last .append(T::empty()) should do nothing
-    one.append(two).append(three).append(T::empty())
+    // The `T::empty()`s here should do nothing
+    T::empty().append(one).append(two).append(three).append(T::empty())
 }
