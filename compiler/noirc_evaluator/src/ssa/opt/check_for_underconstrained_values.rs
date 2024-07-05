@@ -40,69 +40,24 @@ fn check_for_underconstrained_values_within_function(
     let mut context = Context::default();
     let mut warnings: Vec<SsaReport> = Vec::new();
 
-    // Go through each block in the function and create a list of sets of ValueIds connected by instructions
-    context.block_queue.push(function.entry_block());
-    while let Some(block) = context.block_queue.pop() {
-        if context.visited_blocks.contains(&block) {
-            continue;
-        }
-        context.visited_blocks.insert(block);
-        context.connect_value_ids_in_block(function, block, all_functions);
-    }
-
-    // Merge ValueIds into sets, where each original small set of ValueIds is merged with another set if they intersect
-    context.merge_sets();
-
-    let function_parameters = function.parameters();
-    let variable_parameters_and_return_values = function_parameters
-        .iter()
-        .chain(function.returns())
-        .filter(|id| function.dfg.get_numeric_constant(**id).is_none())
-        .copied();
-
-    let mut connected_sets_indices: HashSet<usize> = HashSet::new();
-
-    // Go through each parameter and each set and check if the set contains the parameter
-    // If it's the case, then that set doesn't present an issue
-    for parameter_or_return_value in variable_parameters_and_return_values {
-        for (set_index, final_set) in context.value_sets.iter().enumerate() {
-            if final_set.contains(&parameter_or_return_value) {
-                connected_sets_indices.insert(set_index);
-            }
-        }
-    }
+    context.compute_sets_of_connected_value_ids(function, all_functions);
 
     let all_brillig_generated_values: HashSet<ValueId> =
         context.brillig_return_to_argument.keys().copied().collect();
 
-    // Go through each disconnected set
+    let connected_sets_indices =
+        context.find_sets_connected_to_function_inputs_or_outputs(function);
+
+    // Go through each disconnected set, find brillig calls that caused it and form warnings
     for set_index in
         HashSet::from_iter(0..(context.value_sets.len())).difference(&connected_sets_indices)
     {
         let current_set = &context.value_sets[*set_index];
-
-        // Find brillig-generated values in the set
-        let intersection = all_brillig_generated_values.intersection(current_set).copied();
-
-        // Go through all brillig outputs in the set
-        for brillig_output_in_set in intersection {
-            // Get the inputs that correspond to the output
-            let inputs: HashSet<ValueId> = HashSet::from_iter(
-                context.brillig_return_to_argument[&brillig_output_in_set].iter().copied(),
-            );
-
-            // Check if any of them are not in the set
-            let unused_inputs = inputs.difference(current_set).next().is_some();
-
-            // There is a value not in the set, which means that the inputs/outputs of this call have not been properly constrained
-            if unused_inputs {
-                warnings.push(SsaReport::Bug(InternalBug::IndependentSubgraph {
-                    call_stack: function.dfg.get_call_stack(
-                        context.brillig_return_to_instruction_id[&brillig_output_in_set],
-                    ),
-                }));
-            }
-        }
+        warnings.append(&mut context.find_disconnecting_brillig_calls_with_results_in_set(
+            current_set,
+            &all_brillig_generated_values,
+            function,
+        ))
     }
     warnings
 }
@@ -116,7 +71,91 @@ struct Context {
 }
 
 impl Context {
+    /// Compute sets of variable ValueIds that are connected with constraints
+    ///
+    /// Additionally, store information about brillig calls in the context
+    fn compute_sets_of_connected_value_ids(
+        &mut self,
+        function: &Function,
+        all_functions: &BTreeMap<FunctionId, Function>,
+    ) {
+        // Go through each block in the function and create a list of sets of ValueIds connected by instructions
+        self.block_queue.push(function.entry_block());
+        while let Some(block) = self.block_queue.pop() {
+            if self.visited_blocks.contains(&block) {
+                continue;
+            }
+            self.visited_blocks.insert(block);
+            self.connect_value_ids_in_block(function, block, all_functions);
+        }
+
+        // Merge ValueIds into sets, where each original small set of ValueIds is merged with another set if they intersect
+        self.merge_sets();
+    }
+
+    /// Find sets that contain input or output value of the function
+    ///
+    /// Goes through each set of connected ValueIds and see if function arguments or return values are in the set
+    fn find_sets_connected_to_function_inputs_or_outputs(
+        &mut self,
+        function: &Function,
+    ) -> HashSet<usize> {
+        let variable_parameters_and_return_values = function
+            .parameters()
+            .iter()
+            .chain(function.returns())
+            .filter(|id| function.dfg.get_numeric_constant(**id).is_none())
+            .copied();
+
+        let mut connected_sets_indices: HashSet<usize> = HashSet::new();
+
+        // Go through each parameter and each set and check if the set contains the parameter
+        // If it's the case, then that set doesn't present an issue
+        for parameter_or_return_value in variable_parameters_and_return_values {
+            for (set_index, final_set) in self.value_sets.iter().enumerate() {
+                if final_set.contains(&parameter_or_return_value) {
+                    connected_sets_indices.insert(set_index);
+                }
+            }
+        }
+        connected_sets_indices
+    }
+
+    /// Find which brillig calls separate this set from others and return bug warnings about them
+    fn find_disconnecting_brillig_calls_with_results_in_set(
+        &self,
+        current_set: &HashSet<ValueId>,
+        all_brillig_generated_values: &HashSet<ValueId>,
+        function: &Function,
+    ) -> Vec<SsaReport> {
+        let mut warnings = Vec::new();
+        // Find brillig-generated values in the set
+        let intersection = all_brillig_generated_values.intersection(current_set).copied();
+
+        // Go through all brillig outputs in the set
+        for brillig_output_in_set in intersection {
+            // Get the inputs that correspond to the output
+            let inputs: HashSet<ValueId> = HashSet::from_iter(
+                self.brillig_return_to_argument[&brillig_output_in_set].iter().copied(),
+            );
+
+            // Check if any of them are not in the set
+            let unused_inputs = inputs.difference(current_set).next().is_some();
+
+            // There is a value not in the set, which means that the inputs/outputs of this call have not been properly constrained
+            if unused_inputs {
+                warnings.push(SsaReport::Bug(InternalBug::IndependentSubgraph {
+                    call_stack: function.dfg.get_call_stack(
+                        self.brillig_return_to_instruction_id[&brillig_output_in_set],
+                    ),
+                }));
+            }
+        }
+        warnings
+    }
     /// Go through each instruction in the block and add a set of ValueIds connected through that instruction
+    ///
+    /// Additionally, this function adds mappings of brillig return values to call arguments and instruction ids from calls to brillig functions in the block
     fn connect_value_ids_in_block(
         &mut self,
         function: &Function,
