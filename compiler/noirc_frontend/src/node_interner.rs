@@ -146,8 +146,8 @@ pub struct NodeInterner {
     /// the context to get the concrete type of the object and select the correct impl itself.
     selected_trait_implementations: HashMap<ExprId, TraitImplKind>,
 
-    /// Holds the trait ids of the traits used for operator overloading
-    operator_traits: HashMap<BinaryOpKind, TraitId>,
+    /// Holds the trait ids of the traits used for infix operator overloading
+    infix_operator_traits: HashMap<BinaryOpKind, TraitId>,
 
     /// Holds the trait ids of the traits used for prefix operator overloading
     prefix_operator_traits: HashMap<UnaryOp, TraitId>,
@@ -568,7 +568,7 @@ impl Default for NodeInterner {
             next_trait_implementation_id: 0,
             trait_implementation_map: HashMap::new(),
             selected_trait_implementations: HashMap::new(),
-            operator_traits: HashMap::new(),
+            infix_operator_traits: HashMap::new(),
             prefix_operator_traits: HashMap::new(),
             ordering_type: None,
             instantiation_bindings: HashMap::new(),
@@ -1680,10 +1680,10 @@ impl NodeInterner {
     /// Retrieves the trait id for a given binary operator.
     /// All binary operators correspond to a trait - although multiple may correspond
     /// to the same trait (such as `==` and `!=`).
-    /// `self.operator_traits` is expected to be filled before name resolution,
+    /// `self.infix_operator_traits` is expected to be filled before name resolution,
     /// during definition collection.
     pub fn get_operator_trait_method(&self, operator: BinaryOpKind) -> TraitMethodId {
-        let trait_id = self.operator_traits[&operator];
+        let trait_id = self.infix_operator_traits[&operator];
 
         // Assume that the operator's method to be overloaded is the first method of the trait.
         TraitMethodId { trait_id, method_index: 0 }
@@ -1702,7 +1702,7 @@ impl NodeInterner {
 
     /// Add the given trait as an operator trait if its name matches one of the
     /// operator trait names (Add, Sub, ...).
-    pub fn try_add_operator_trait(&mut self, trait_id: TraitId) {
+    pub fn try_add_infix_operator_trait(&mut self, trait_id: TraitId) {
         let the_trait = self.get_trait(trait_id);
 
         let operator = match the_trait.name.0.contents.as_str() {
@@ -1721,17 +1721,17 @@ impl NodeInterner {
             _ => return,
         };
 
-        self.operator_traits.insert(operator, trait_id);
+        self.infix_operator_traits.insert(operator, trait_id);
 
         // Some operators also require we insert a matching entry for related operators
         match operator {
             BinaryOpKind::Equal => {
-                self.operator_traits.insert(BinaryOpKind::NotEqual, trait_id);
+                self.infix_operator_traits.insert(BinaryOpKind::NotEqual, trait_id);
             }
             BinaryOpKind::Less => {
-                self.operator_traits.insert(BinaryOpKind::LessEqual, trait_id);
-                self.operator_traits.insert(BinaryOpKind::Greater, trait_id);
-                self.operator_traits.insert(BinaryOpKind::GreaterEqual, trait_id);
+                self.infix_operator_traits.insert(BinaryOpKind::LessEqual, trait_id);
+                self.infix_operator_traits.insert(BinaryOpKind::Greater, trait_id);
+                self.infix_operator_traits.insert(BinaryOpKind::GreaterEqual, trait_id);
 
                 let the_trait = self.get_trait(trait_id);
                 self.ordering_type = match &the_trait.methods[0].typ {
@@ -1765,22 +1765,24 @@ impl NodeInterner {
     #[cfg(test)]
     pub fn populate_dummy_operator_traits(&mut self) {
         let dummy_trait = TraitId(ModuleId::dummy_id());
-        self.operator_traits.insert(BinaryOpKind::Add, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Subtract, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Multiply, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Divide, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Modulo, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Equal, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::NotEqual, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Less, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::LessEqual, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Greater, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::GreaterEqual, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::And, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Or, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Xor, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::ShiftLeft, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::ShiftRight, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Add, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Subtract, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Multiply, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Divide, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Modulo, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Equal, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::NotEqual, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Less, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::LessEqual, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Greater, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::GreaterEqual, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::And, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Or, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Xor, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::ShiftLeft, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::ShiftRight, dummy_trait);
+        self.prefix_operator_traits.insert(UnaryOp::Minus, dummy_trait);
+        self.prefix_operator_traits.insert(UnaryOp::Not, dummy_trait);
     }
 
     pub(crate) fn ordering_type(&self) -> Type {
@@ -1913,7 +1915,7 @@ impl NodeInterner {
     }
 
     /// Returns the type of an operator (which is always a function), along with its return type.
-    pub fn get_operator_type(
+    pub fn get_infix_operator_type(
         &self,
         lhs: ExprId,
         operator: BinaryOpKind,
