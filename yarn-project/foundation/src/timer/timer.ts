@@ -14,7 +14,7 @@ export class Timer {
   private start: number;
 
   constructor() {
-    this.start = performance.now();
+    this.start = performance ? performance.now() : Date.now();
   }
 
   /**
@@ -32,7 +32,7 @@ export class Timer {
    * @returns The elapsed time in milliseconds.
    */
   public ms() {
-    return performance.now() - this.start;
+    return (performance ? performance.now() : Date.now()) - this.start;
   }
 
   /**
