@@ -25,7 +25,7 @@ fn empty_path() -> impl NoirParser<Path> {
     let make_path = |kind| move |_, span| Path { segments: Vec::new(), kind, span };
     let path_kind = |key, kind| keyword(key).map_with_span(make_path(kind));
 
-    choice((path_kind(Keyword::Crate, PathKind::Crate), path_kind(Keyword::Dep, PathKind::Plain)))
+    choice((path_kind(Keyword::Crate, PathKind::Crate), path_kind(Keyword::Dep, PathKind::Dep)))
 }
 
 pub(super) fn maybe_empty_path() -> impl NoirParser<Path> {

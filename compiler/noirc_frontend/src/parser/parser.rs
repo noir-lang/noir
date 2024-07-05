@@ -1187,6 +1187,7 @@ mod test {
     use super::test_helpers::*;
     use super::*;
     use crate::ast::ArrayLiteral;
+    use crate::macros_api::PathKind;
 
     #[test]
     fn parse_infix() {
@@ -1495,6 +1496,17 @@ mod test {
             };
 
             prototype_parse_use_tree(expected_use_statement.as_ref(), &use_statement_str);
+        }
+    }
+
+    #[test]
+    fn parse_use_dep() {
+        let str = "use dep::{foo, bar}";
+        let result = parse_with(use_statement(), str);
+        if let Ok(TopLevelStatement::Import(UseTree { prefix, .. })) = result {
+            assert_eq!(prefix.kind, PathKind::Dep);
+        } else {
+            panic!("Expected a use statement, got {:?}", result);
         }
     }
 

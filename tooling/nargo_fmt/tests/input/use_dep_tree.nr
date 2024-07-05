@@ -1,0 +1,1 @@
+use dep::{ foo, bar };
