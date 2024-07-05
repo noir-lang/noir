@@ -1,4 +1,4 @@
-use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, Shl, Shr};
+use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, Shl, Shr, Neg, Not};
 use std::cmp::Ordering;
 
 // x = 3, y = 9
@@ -42,6 +42,12 @@ fn main(x: u32, y: u32) {
     assert(pair_descending >= pair_ascending);
 
     assert(pair_ascending.cmp(pair_descending) == Ordering::less());
+
+    let wx = SignedWrapper::new(x as i32);
+    let ex: i32 = 3;
+
+    assert((-wx).inner == -ex);
+    assert((!wx).inner == !ex);
 }
 
 struct Wrapper {
@@ -123,6 +129,28 @@ impl Eq for Wrapper {
 impl Ord for Wrapper {
     fn cmp(self, other: Self) -> Ordering {
         self.inner.cmp(other.inner)
+    }
+}
+
+struct SignedWrapper {
+    inner: i32
+}
+
+impl SignedWrapper {
+    fn new(inner: i32) -> Self {
+        SignedWrapper { inner }
+    }
+}
+
+impl Neg for SignedWrapper {
+    fn neg(self) -> SignedWrapper {
+        SignedWrapper::new(-self.inner)
+    }
+}
+
+impl Not for SignedWrapper {
+    fn not(self) -> SignedWrapper {
+        SignedWrapper::new(!self.inner)
     }
 }
 

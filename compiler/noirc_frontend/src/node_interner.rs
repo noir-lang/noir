@@ -18,6 +18,7 @@ use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::macros_api::UnaryOp;
 use crate::QuotedType;
 
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
@@ -147,6 +148,9 @@ pub struct NodeInterner {
 
     /// Holds the trait ids of the traits used for operator overloading
     operator_traits: HashMap<BinaryOpKind, TraitId>,
+
+    /// Holds the trait ids of the traits used for prefix operator overloading
+    prefix_operator_traits: HashMap<UnaryOp, TraitId>,
 
     /// The `Ordering` type is a semi-builtin type that is the result of the comparison traits.
     ordering_type: Option<Type>,
@@ -565,6 +569,7 @@ impl Default for NodeInterner {
             trait_implementation_map: HashMap::new(),
             selected_trait_implementations: HashMap::new(),
             operator_traits: HashMap::new(),
+            prefix_operator_traits: HashMap::new(),
             ordering_type: None,
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
@@ -1684,6 +1689,17 @@ impl NodeInterner {
         TraitMethodId { trait_id, method_index: 0 }
     }
 
+    /// Retrieves the trait id for a given unary operator.
+    /// Only some unary operators correspond to a trait: `-` and `!`, but for example `*` does not.
+    /// `self.prefix_operator_traits` is expected to be filled before name resolution,
+    /// during definition collection.
+    pub fn get_prefix_operator_trait_method(&self, operator: &UnaryOp) -> Option<TraitMethodId> {
+        let trait_id = self.prefix_operator_traits.get(operator)?;
+
+        // Assume that the operator's method to be overloaded is the first method of the trait.
+        Some(TraitMethodId { trait_id: *trait_id, method_index: 0 })
+    }
+
     /// Add the given trait as an operator trait if its name matches one of the
     /// operator trait names (Add, Sub, ...).
     pub fn try_add_operator_trait(&mut self, trait_id: TraitId) {
@@ -1728,6 +1744,20 @@ impl NodeInterner {
             }
             _ => (),
         }
+    }
+
+    /// Add the given trait as an operator trait if its name matches one of the
+    /// prefix operator trait names (Not or Neg).
+    pub fn try_add_prefix_operator_trait(&mut self, trait_id: TraitId) {
+        let the_trait = self.get_trait(trait_id);
+
+        let operator = match the_trait.name.0.contents.as_str() {
+            "Neg" => UnaryOp::Minus,
+            "Not" => UnaryOp::Not,
+            _ => return,
+        };
+
+        self.prefix_operator_traits.insert(operator, trait_id);
     }
 
     /// This function is needed when creating a NodeInterner for testing so that calls
@@ -1901,6 +1931,15 @@ impl NodeInterner {
             self.id_type(operator_expr)
         };
 
+        let env = Box::new(Type::Unit);
+        (Type::Function(args, Box::new(ret.clone()), env), ret)
+    }
+
+    /// Returns the type of a prefix operator (which is always a function), along with its return type.
+    pub fn get_prefix_operator_type(&self, operator_expr: ExprId, rhs: ExprId) -> (Type, Type) {
+        let rhs_type = self.id_type(rhs);
+        let args = vec![rhs_type];
+        let ret = self.id_type(operator_expr);
         let env = Box::new(Type::Unit);
         (Type::Function(args, Box::new(ret.clone()), env), ret)
     }

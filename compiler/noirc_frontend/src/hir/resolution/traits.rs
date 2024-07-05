@@ -73,6 +73,7 @@ pub(crate) fn resolve_traits(
         // of the Cmp trait, if this is it.
         if crate_id.is_stdlib() {
             context.def_interner.try_add_operator_trait(trait_id);
+            context.def_interner.try_add_prefix_operator_trait(trait_id);
         }
     }
     all_errors

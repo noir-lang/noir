@@ -48,6 +48,7 @@ impl<'context> Elaborator<'context> {
             // of the Cmp trait, if this is it.
             if self.crate_id.is_stdlib() {
                 self.interner.try_add_operator_trait(trait_id);
+                self.interner.try_add_prefix_operator_trait(trait_id);
             }
         }
     }
