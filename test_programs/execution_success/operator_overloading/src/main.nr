@@ -48,6 +48,10 @@ fn main(x: u32, y: u32) {
 
     assert((-wx).inner == -ex);
     assert((!wx).inner == !ex);
+
+    // Check that it works with type variables (x's type isn't immediately known)
+    let x = 3;
+    assert(-3 == -x);
 }
 
 struct Wrapper {

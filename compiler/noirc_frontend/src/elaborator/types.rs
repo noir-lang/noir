@@ -957,6 +957,7 @@ impl<'context> Elaborator<'context> {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
+
                 if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
                     self.unify(
                         rhs_type,
@@ -1053,7 +1054,7 @@ impl<'context> Elaborator<'context> {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return Self::prefix_operand_type_rules(op, binding, span);
                 }
-                todo!()
+                Ok((rhs_type.clone(), !rhs_type.is_numeric()))
             }
             Integer(sign_x, bit_width_x) => {
                 if *op == UnaryOp::Minus && *sign_x == Signedness::Unsigned {
