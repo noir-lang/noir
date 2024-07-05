@@ -217,7 +217,7 @@ impl FixtureBuilder {
     }
 
     pub fn build_private_call_request(self) -> ScopedPrivateCallRequest {
-        let hash = self.to_private_call_stack_item().hash();
+        let item = self.to_private_call_stack_item();
         let is_delegate_call = self.is_delegate_call;
         let mut caller_context = CallerContext::empty();
         caller_context.is_static_call = self.is_static_call;
@@ -226,7 +226,11 @@ impl FixtureBuilder {
             caller_context.storage_contract_address = self.storage_contract_address;
         };
         PrivateCallRequest {
-            hash,
+            target: item.contract_address,
+            call_context: item.public_inputs.call_context,
+            function_data: item.function_data,
+            args_hash: item.public_inputs.args_hash,
+            returns_hash: item.public_inputs.returns_hash,
             caller_context,
             start_side_effect_counter: self.counter_start,
             end_side_effect_counter: self.counter
@@ -784,7 +788,33 @@ impl FixtureBuilder {
         self.unencrypted_log_preimages_length = preimages_length;
     }
 
-    pub fn add_private_call_request(&mut self, hash: Field, is_delegate_call: bool) {
+    pub fn add_private_call_from_call_stack_item(&mut self, item: PrivateCallStackItem) {
+        let mut caller_context = CallerContext::empty();
+        let is_delegate_call = item.public_inputs.call_context.is_delegate_call;
+        caller_context.is_static_call = self.is_static_call;
+        if is_delegate_call {
+            caller_context.msg_sender = self.msg_sender;
+            caller_context.storage_contract_address = self.storage_contract_address;
+        }
+        let start_counter = item.public_inputs.start_side_effect_counter;
+        let end_counter = item.public_inputs.end_side_effect_counter;
+        self.counter = end_counter + 1;
+
+        self.private_call_requests.push(
+            PrivateCallRequest {
+            target: item.contract_address,
+            call_context: item.public_inputs.call_context,
+            function_data: item.function_data,
+            args_hash: item.public_inputs.args_hash,
+            returns_hash: item.public_inputs.returns_hash,
+            caller_context,
+            start_side_effect_counter: start_counter,
+            end_side_effect_counter: end_counter
+        }.scope(self.contract_address)
+        );
+    }
+
+    pub fn add_private_call_request(&mut self, args_hash: Field, is_delegate_call: bool) {
         let mut caller_context = CallerContext::empty();
         caller_context.is_static_call = self.is_static_call;
         if is_delegate_call {
@@ -794,8 +824,23 @@ impl FixtureBuilder {
         let start_counter = self.next_counter();
         let end_counter = start_counter + 10;
         self.counter = end_counter + 1;
+
+        let target = AztecAddress::empty();
+        let call_context = CallContext::empty();
+        let function_data = FunctionData::empty();
+        let returns_hash = 0;
+
         self.private_call_requests.push(
-            PrivateCallRequest { hash, caller_context, start_side_effect_counter: start_counter, end_side_effect_counter: end_counter }.scope(self.contract_address)
+            PrivateCallRequest {
+            target,
+            call_context,
+            function_data,
+            args_hash,
+            returns_hash,
+            caller_context,
+            start_side_effect_counter: start_counter,
+            end_side_effect_counter: end_counter
+        }.scope(self.contract_address)
         );
     }
 

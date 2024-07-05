@@ -49,6 +49,15 @@ export class FunctionData {
   }
 
   /**
+   * Returns whether this instance is equal to another.
+   * @param other
+   * @returns
+   */
+  equals(other: FunctionData): boolean {
+    return this.selector.equals(other.selector) && this.isPrivate === other.isPrivate;
+  }
+
+  /**
    * Returns a new instance of FunctionData with zero function selector.
    * @param args - Arguments to pass to the constructor.
    * @returns A new instance of FunctionData with zero function selector.

@@ -635,7 +635,16 @@ export function makeCallRequest(seed = 1): CallRequest {
 }
 
 function makePrivateCallRequest(seed = 1): PrivateCallRequest {
-  return new PrivateCallRequest(fr(seed), makeCallerContext(seed + 0x2), seed + 0x10, seed + 0x11);
+  return new PrivateCallRequest(
+    makeAztecAddress(seed),
+    makeCallContext(seed + 0x1),
+    new FunctionData(makeSelector(seed + 0x2), /*isPrivate=*/ true),
+    fr(seed + 0x3),
+    fr(seed + 0x4),
+    makeCallerContext(seed + 0x5),
+    seed + 0x10,
+    seed + 0x11,
+  );
 }
 
 /**

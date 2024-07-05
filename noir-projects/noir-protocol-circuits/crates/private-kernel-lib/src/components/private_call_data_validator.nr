@@ -156,8 +156,8 @@ impl PrivateCallDataValidator {
         let caller_contract_address = scoped_call_request.contract_address;
         let request = scoped_call_request.call_request;
 
-        assert_eq(
-            request.hash, call_stack_item.hash(), "calculated private_call_hash does not match provided private_call_hash at the top of the call stack"
+        assert(
+            request.matches_stack_item(call_stack_item), "calculated private_call_hash does not match provided private_call_hash at the top of the call stack"
         );
 
         let call_context = call_stack_item.public_inputs.call_context;

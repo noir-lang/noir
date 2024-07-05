@@ -88,9 +88,7 @@ mod tests {
         pub fn execute(&mut self) -> PrivateKernelCircuitPublicInputs {
             let private_call = self.private_call.to_private_call_data();
             // Update the previous_kernel's private_call_stack with the current call_stack_item.
-            let hash = private_call.call_stack_item.hash();
-            let is_delegate_call = private_call.call_stack_item.public_inputs.call_context.is_delegate_call;
-            self.previous_kernel.add_private_call_request(hash, is_delegate_call);
+            self.previous_kernel.add_private_call_from_call_stack_item(private_call.call_stack_item);
             let previous_kernel = self.previous_kernel.to_private_kernel_data();
 
             let kernel = PrivateKernelInnerCircuitPrivateInputs { previous_kernel, private_call };

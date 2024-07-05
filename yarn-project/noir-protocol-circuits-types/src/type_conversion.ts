@@ -533,7 +533,11 @@ export function mapCallerContextToNoir(callerContext: CallerContext): CallerCont
 
 function mapPrivateCallRequestFromNoir(callRequest: PrivateCallRequestNoir) {
   return new PrivateCallRequest(
-    mapFieldFromNoir(callRequest.hash),
+    mapAztecAddressFromNoir(callRequest.target),
+    mapCallContextFromNoir(callRequest.call_context),
+    mapFunctionDataFromNoir(callRequest.function_data),
+    mapFieldFromNoir(callRequest.args_hash),
+    mapFieldFromNoir(callRequest.returns_hash),
     mapCallerContextFromNoir(callRequest.caller_context),
     mapNumberFromNoir(callRequest.start_side_effect_counter),
     mapNumberFromNoir(callRequest.end_side_effect_counter),
@@ -542,7 +546,11 @@ function mapPrivateCallRequestFromNoir(callRequest: PrivateCallRequestNoir) {
 
 function mapPrivateCallRequestToNoir(callRequest: PrivateCallRequest): PrivateCallRequestNoir {
   return {
-    hash: mapFieldToNoir(callRequest.hash),
+    target: mapAztecAddressToNoir(callRequest.target),
+    call_context: mapCallContextToNoir(callRequest.callContext),
+    function_data: mapFunctionDataToNoir(callRequest.functionData),
+    args_hash: mapFieldToNoir(callRequest.argsHash),
+    returns_hash: mapFieldToNoir(callRequest.returnsHash),
     caller_context: mapCallerContextToNoir(callRequest.callerContext),
     start_side_effect_counter: mapNumberToNoir(callRequest.startSideEffectCounter),
     end_side_effect_counter: mapNumberToNoir(callRequest.endSideEffectCounter),

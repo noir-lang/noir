@@ -1,11 +1,19 @@
 use crate::{
-    abis::{caller_context::CallerContext, side_effect::{Ordered, RangeOrdered, Scoped}},
+    abis::{
+    private_call_stack_item::PrivateCallStackItem, call_context::CallContext,
+    function_data::FunctionData, caller_context::CallerContext,
+    side_effect::{Ordered, RangeOrdered, Scoped}
+},
     address::AztecAddress, constants::{PRIVATE_CALL_REQUEST_LENGTH, SCOPED_PRIVATE_CALL_REQUEST_LENGTH},
     traits::{Empty, Serialize, Deserialize}, utils::reader::Reader
 };
 
 struct PrivateCallRequest {
-    hash: Field,
+    target: AztecAddress,
+    call_context: CallContext,
+    function_data: FunctionData,
+    args_hash: Field,
+    returns_hash: Field,
     caller_context: CallerContext,
     start_side_effect_counter: u32,
     end_side_effect_counter: u32,
@@ -28,7 +36,11 @@ impl RangeOrdered for PrivateCallRequest {
 
 impl Eq for PrivateCallRequest {
     fn eq(self, other: PrivateCallRequest) -> bool {
-        (self.hash == other.hash)
+        (self.target == other.target) 
+            & (self.call_context == other.call_context) 
+            & (self.function_data == other.function_data) 
+            & (self.args_hash == other.args_hash) 
+            & (self.returns_hash == other.returns_hash)
             & (self.caller_context == other.caller_context)
             & (self.start_side_effect_counter == other.start_side_effect_counter)
             & (self.end_side_effect_counter == other.end_side_effect_counter)
@@ -38,7 +50,11 @@ impl Eq for PrivateCallRequest {
 impl Empty for PrivateCallRequest {
     fn empty() -> Self {
         PrivateCallRequest {
-            hash: 0,
+            target: AztecAddress::empty(),
+            call_context: CallContext::empty(),
+            function_data: FunctionData::empty(),
+            args_hash: 0,
+            returns_hash: 0,
             caller_context: CallerContext::empty(),
             start_side_effect_counter: 0,
             end_side_effect_counter: 0,
@@ -50,7 +66,11 @@ impl Serialize<PRIVATE_CALL_REQUEST_LENGTH> for PrivateCallRequest {
     fn serialize(self) -> [Field; PRIVATE_CALL_REQUEST_LENGTH] {
         let mut fields: BoundedVec<Field, PRIVATE_CALL_REQUEST_LENGTH> = BoundedVec::new();
 
-        fields.push(self.hash);
+        fields.push(self.target.to_field());
+        fields.extend_from_array(self.call_context.serialize());
+        fields.extend_from_array(self.function_data.serialize());
+        fields.push(self.args_hash);
+        fields.push(self.returns_hash);
         fields.extend_from_array(self.caller_context.serialize());
         fields.push(self.start_side_effect_counter as Field);
         fields.push(self.end_side_effect_counter as Field);
@@ -65,7 +85,11 @@ impl Deserialize<PRIVATE_CALL_REQUEST_LENGTH> for PrivateCallRequest {
     fn deserialize(fields: [Field; PRIVATE_CALL_REQUEST_LENGTH]) -> PrivateCallRequest {
         let mut reader = Reader::new(fields);
         let item = PrivateCallRequest {
-            hash: reader.read(),
+            target: reader.read_struct(AztecAddress::deserialize),
+            call_context: reader.read_struct(CallContext::deserialize),
+            function_data: reader.read_struct(FunctionData::deserialize),
+            args_hash: reader.read(),
+            returns_hash: reader.read(),
             caller_context: reader.read_struct(CallerContext::deserialize),
             start_side_effect_counter: reader.read_u32(),
             end_side_effect_counter: reader.read_u32(),
@@ -78,6 +102,18 @@ impl Deserialize<PRIVATE_CALL_REQUEST_LENGTH> for PrivateCallRequest {
 impl PrivateCallRequest {
     pub fn scope(self, contract_address: AztecAddress) -> ScopedPrivateCallRequest {
         ScopedPrivateCallRequest { call_request: self, contract_address }
+    }
+
+    pub fn matches_stack_item(self, stack_item: PrivateCallStackItem) -> bool {
+        (self.target == stack_item.contract_address)
+            & (self.call_context == stack_item.public_inputs.call_context)
+            & (self.function_data == stack_item.function_data)
+            & (self.args_hash == stack_item.public_inputs.args_hash)
+            & (self.returns_hash == stack_item.public_inputs.returns_hash)
+            & (self.start_side_effect_counter
+                                == stack_item.public_inputs.start_side_effect_counter)
+            & (self.end_side_effect_counter
+                                    == stack_item.public_inputs.end_side_effect_counter)
     }
 }
 

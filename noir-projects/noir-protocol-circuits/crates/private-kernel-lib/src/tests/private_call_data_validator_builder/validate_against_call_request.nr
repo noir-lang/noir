@@ -34,7 +34,7 @@ fn validate_against_call_request_mismatch_hash_fails() {
 
     let mut request = builder.private_call.build_private_call_request();
     // Tweak the hash to be a different value.
-    request.call_request.hash += 1;
+    request.call_request.args_hash += 1;
 
     builder.validate_against_call_request(request);
 }

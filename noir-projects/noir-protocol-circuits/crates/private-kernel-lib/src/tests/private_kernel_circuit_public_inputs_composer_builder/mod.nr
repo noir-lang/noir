@@ -54,7 +54,7 @@ impl PrivateKernelCircuitPublicInputsComposerBuilder {
         let mut previous_kernel = self.previous_kernel.to_private_kernel_circuit_public_inputs();
         let num_private_call_requests = self.previous_kernel.private_call_requests.len();
         previous_kernel.end.private_call_stack[num_private_call_requests] = ScopedPrivateCallRequest::empty();
-        previous_kernel.end.private_call_stack[num_private_call_requests].call_request.hash = 98765432;
+        previous_kernel.end.private_call_stack[num_private_call_requests].call_request.args_hash = 98765432;
 
         let private_call = self.private_call.to_private_call_data();
 
