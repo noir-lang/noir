@@ -1920,7 +1920,7 @@ fn overflowing_u8() {
     if let CompilationError::TypeError(error) = &errors[0].0 {
         assert_eq!(
             error.to_string(),
-            "The literal `2⁸` cannot fit into `u8` which has range `0..=255`"
+            "The value `2⁸` cannot fit into `u8` which has range `0..=255`"
         );
     } else {
         panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
@@ -1939,7 +1939,7 @@ fn underflowing_u8() {
     if let CompilationError::TypeError(error) = &errors[0].0 {
         assert_eq!(
             error.to_string(),
-            "The literal `-1` cannot fit into `u8` which has range `0..=255`"
+            "The value `-1` cannot fit into `u8` which has range `0..=255`"
         );
     } else {
         panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
@@ -1958,7 +1958,7 @@ fn overflowing_i8() {
     if let CompilationError::TypeError(error) = &errors[0].0 {
         assert_eq!(
             error.to_string(),
-            "The literal `2⁷` cannot fit into `i8` which has range `-128..=127`"
+            "The value `2⁷` cannot fit into `i8` which has range `-128..=127`"
         );
     } else {
         panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
@@ -1977,7 +1977,7 @@ fn underflowing_i8() {
     if let CompilationError::TypeError(error) = &errors[0].0 {
         assert_eq!(
             error.to_string(),
-            "The literal `-129` cannot fit into `i8` which has range `-128..=127`"
+            "The value `-129` cannot fit into `i8` which has range `-128..=127`"
         );
     } else {
         panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
