@@ -35,7 +35,7 @@ pub enum Source {
 pub enum TypeCheckError {
     #[error("Operator {op:?} cannot be used in a {place:?}")]
     OpCannotBeUsed { op: HirBinaryOp, place: &'static str, span: Span },
-    #[error("The literal `{expr:?}` cannot fit into `{ty}` which has range `{range}`")]
+    #[error("The value `{expr:?}` cannot fit into `{ty}` which has range `{range}`")]
     OverflowingAssignment { expr: FieldElement, ty: Type, range: String, span: Span },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, span: Span },
