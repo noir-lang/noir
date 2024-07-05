@@ -4,7 +4,7 @@ use std::{collections::BTreeMap, io::BufWriter};
 use acir::circuit::{Opcode, OpcodeLocation};
 use color_eyre::eyre::{self};
 use fm::codespan_files::Files;
-use inferno::flamegraph::{from_lines, Options};
+use inferno::flamegraph::{from_lines, Options, TextTruncateDirection};
 use noirc_errors::debug_info::DebugInfo;
 use noirc_errors::reporter::line_and_column_from_span;
 use noirc_errors::Location;
@@ -60,6 +60,7 @@ impl FlamegraphGenerator for InfernoFlamegraphGenerator {
         options.color_diffusion = true;
         options.min_width = 0.0;
         options.count_name = self.count_name.clone();
+        options.text_truncate_direction = TextTruncateDirection::Right;
 
         from_lines(
             &mut options,

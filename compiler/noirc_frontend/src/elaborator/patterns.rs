@@ -15,7 +15,7 @@ use crate::{
         stmt::HirPattern,
     },
     macros_api::{HirExpression, Ident, Path, Pattern},
-    node_interner::{DefinitionId, DefinitionKind, DependencyId, ExprId, GlobalId, TraitImplKind},
+    node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, ReferenceId, TraitImplKind},
     Shared, StructType, Type, TypeBindings,
 };
 
@@ -199,8 +199,8 @@ impl<'context> Elaborator<'context> {
             new_definitions,
         );
 
-        let referenced = DependencyId::Struct(struct_type.borrow().id);
-        let reference = DependencyId::Variable(Location::new(name_span, self.file));
+        let referenced = ReferenceId::Struct(struct_type.borrow().id);
+        let reference = ReferenceId::Variable(Location::new(name_span, self.file));
         self.interner.add_reference(referenced, reference);
 
         HirPattern::Struct(expected_type, fields, location)
@@ -446,8 +446,8 @@ impl<'context> Elaborator<'context> {
                             self.interner.add_function_dependency(current_item, func_id);
                         }
 
-                        let variable = DependencyId::Variable(hir_ident.location);
-                        let function = DependencyId::Function(func_id);
+                        let variable = ReferenceId::Variable(hir_ident.location);
+                        let function = ReferenceId::Function(func_id);
                         self.interner.add_reference(function, variable);
                     }
                     DefinitionKind::Global(global_id) => {
@@ -458,8 +458,8 @@ impl<'context> Elaborator<'context> {
                             self.interner.add_global_dependency(current_item, global_id);
                         }
 
-                        let variable = DependencyId::Variable(hir_ident.location);
-                        let global = DependencyId::Global(global_id);
+                        let variable = ReferenceId::Variable(hir_ident.location);
+                        let global = ReferenceId::Global(global_id);
                         self.interner.add_reference(global, variable);
                     }
                     DefinitionKind::GenericType(_) => {

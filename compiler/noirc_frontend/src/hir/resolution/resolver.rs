@@ -765,7 +765,7 @@ impl<'a> Resolver<'a> {
         }
 
         // If we cannot find a local generic of the same name, try to look up a global
-        match self.path_resolver.resolve(self.def_maps, path.clone()) {
+        match self.path_resolver.resolve(self.def_maps, path.clone(), &mut None) {
             Ok(PathResolution { module_def_id: ModuleDefId::GlobalId(id), error }) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
@@ -2017,7 +2017,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
-        let path_resolution = self.path_resolver.resolve(self.def_maps, path)?;
+        let path_resolution = self.path_resolver.resolve(self.def_maps, path, &mut None)?;
 
         if let Some(error) = path_resolution.error {
             self.push_err(error.into());
