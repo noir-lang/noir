@@ -6,10 +6,12 @@
 // It is expected that for any implementation:
 // - `T::empty().append(x) == x`
 // - `x.append(T::empty()) == x`
+// docs:start:append-trait
 trait Append {
     fn empty() -> Self;
     fn append(self, other: Self) -> Self;
 }
+// docs:end:append-trait
 
 impl<T> Append for [T] {
     fn empty() -> Self {
