@@ -346,13 +346,16 @@ contract Token {
      * Cancel a private authentication witness.
      * @param inner_hash The inner hash of the authwit to cancel.
      */
+    // docs:start:cancel_authwit
     #[aztec(private)]
     fn cancel_authwit(inner_hash: Field) {
         let on_behalf_of = context.msg_sender();
         let nullifier = compute_authwit_nullifier(on_behalf_of, inner_hash);
         context.push_nullifier(nullifier, 0);
     }
+    // docs:end:cancel_authwit
 
+    // docs:start:transfer_from
     #[aztec(private)]
     fn transfer_from(from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) {
         // docs:start:assert_current_call_valid_authwit
@@ -378,6 +381,7 @@ contract Token {
         // docs:end:increase_private_balance
         storage.balances.add(to, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_ovpk, to_ivpk));
     }
+    // docs:end:transfer_from
 
     // docs:start:burn
     #[aztec(private)]

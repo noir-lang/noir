@@ -62,7 +62,7 @@ Remove everything from `main.nr` and paste this:
 
 ```rust
 contract Token {
-    #[aztec(private)]
+    #[aztec(public)]
     #[aztec(initializer)]
     fn constructor() {}
 
@@ -99,13 +99,15 @@ contract Token {
     fn transfer(from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) -> Field {}
 
     #[aztec(private)]
+    fn transfer_from(from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) {}
+
+    #[aztec(private)]
+    fn cancel_authwit(inner_hash: Field) {}
+
+    #[aztec(private)]
     fn burn(from: AztecAddress, amount: Field, nonce: Field) -> Field {}
 
-    // Internal functions below
-
-    // Will be internal in the future
-    #[aztec(public)]
-    fn _initialize(new_admin: AztecAddress) {}
+    // Internal functions
 
     #[aztec(internal)]
     #[aztec(public)]
@@ -115,17 +117,47 @@ contract Token {
     #[aztec(public)]
     fn _reduce_total_supply(amount: Field) {}
 
+    // View functions
+
+    #[aztec(public)]
+    #[aztec(view)]
+    fn public_get_name() -> pub FieldCompressedString {}
+
+    #[aztec(private)]
+    #[aztec(view)]
+    fn private_get_name() -> pub FieldCompressedString {}
+
+    #[aztec(public)]
+    #[aztec(view)]
+    fn public_get_symbol() -> pub FieldCompressedString {}
+
+    #[aztec(public)]
+    #[aztec(view)]
+    fn public_get_decimals() -> pub u8 {}
+
+    #[aztec(private)]
+    #[aztec(view)]
+    fn private_get_decimals() -> pub u8 {}
+
+    #[aztec(public)]
+    #[aztec(view)]
+    fn admin() -> Field {}
+
+    #[aztec(public)]
+    #[aztec(view)]
+    fn is_minter(minter: AztecAddress) -> bool {}
+
+    #[aztec(public)]
+    #[aztec(view)]
+    fn total_supply() -> Field {}
+
+    #[aztec(public)]
+    #[aztec(view)]
+    fn balance_of_public(owner: AztecAddress) -> Field {}
+
     // Unconstrained functions (read only)
 
-    unconstrained fn admin() -> Field {}
-
-    unconstrained fn is_minter(minter: AztecAddress) -> bool {}
-
-    unconstrained fn total_supply() -> Field {}
-
     unconstrained fn balance_of_private(owner: AztecAddress) -> Field {}
-
-    unconstrained fn balance_of_public(owner: AztecAddress) -> Field {}
 }
 ```
 
@@ -156,13 +188,14 @@ These are functions that have private logic and will be executed on user devices
 - `redeem_shield` enables accounts to claim tokens that have been made private via `mint_private` or `shield` by providing the secret
 - `unshield` enables an account to send tokens from their private balance to any other account's public balance
 - `transfer` enables an account to send tokens from their private balance to another account's private balance
+- `transferFrom` enables an account to send tokens from another account's private balance to another account's private balance
+- `cancel_authwit` enables an account to cancel an authorization to spend tokens
 - `burn` enables tokens to be burned privately
 
 ### Internal functions
 
 Internal functions are functions that can only be called by the contract itself. These can be used when the contract needs to call one of it's public functions from one of it's private functions.
 
-- `_initialize` is a way to call a public function from the `constructor` (which is a private function)
 - `_increase_public_balance` increases the public balance of an account when `unshield` is called
 - `_reduce_total_supply` reduces the total supply of tokens when a token is privately burned
 
@@ -237,6 +270,7 @@ Reading through the storage variables:
 - `total_supply` is an unsigned integer (max 128 bit value) stored in public state and represents the total number of tokens minted.
 - `pending_shields` is a `PrivateSet` of `TransparentNote`s stored in private state. What is stored publicly is a set of commitments to `TransparentNote`s.
 - `public_balances` is a mapping of Aztec addresses in public state and represents the publicly viewable balances of accounts.
+- `symbol`, `name`, and `decimals` are similar in meaning to ERC20 tokens on Ethereum.
 
 You can read more about it [here](../../aztec/concepts/storage/index.md).
 
@@ -363,6 +397,12 @@ After initializing storage, the function checks that the `msg_sender` is authori
 
 #include_code transfer /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
+#### `transfer_from`
+
+This private function enables an account to transfer tokens on behalf of another account. The account that tokens are being debited from must have authorized the `msg_sender` to spend tokens on its behalf.
+
+#include_code transfer_from /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
+
 #### `burn`
 
 This private function enables accounts to privately burn (destroy) tokens.
@@ -387,9 +427,11 @@ This function is called from [`burn`](#burn). The account's private balance is d
 
 #include_code reduce_total_supply /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
-### Unconstrained function implementations
+### View function implementations
 
-Unconstrained functions are similar to `view` functions in Solidity in that they only return information from the contract storage or compute and return data without modifying contract storage.
+View functions in Aztec are similar to `view` functions in Solidity in that they only return information from the contract storage or compute and return data without modifying contract storage. These functions are different from unconstrained functions in that the return values are constrained by their definition in the contract.
+
+Public view calls that are part of a transaction will be executed by the sequencer when the transaction is being executed, so they are not private and will reveal information about the transaction. Private view calls can be safely used in private transactions for getting the same information.
 
 #### `admin`
 
@@ -409,17 +451,21 @@ A getter function for checking the token `total_supply`.
 
 #include_code total_supply /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
-#### `balance_of_private`
-
-A getter function for checking the private balance of the provided Aztec account. Note that the [Private Execution Environment (PXE)](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/yarn-project/pxe) must have `ivsk_app` ([app-specific secret key](../../aztec/concepts/accounts/keys.md#scoped-keys)) in order to decrypt the notes.
-
-#include_code balance_of_private /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
-
 #### `balance_of_public`
 
 A getter function for checking the public balance of the provided Aztec account.
 
 #include_code balance_of_public /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
+
+### Unconstrained function implementations
+
+Unconstrained functions are similar to `view` functions in Solidity in that they only return information from the contract storage or compute and return data without modifying contract storage. They are different from view functions in that the values are returned from the user's PXE and are not constrained by the contract's definition--if there is bad data in the user's PXE, they will get bad data back.
+
+#### `balance_of_private`
+
+A getter function for checking the private balance of the provided Aztec account. Note that the [Private Execution Environment (PXE)](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/yarn-project/pxe) must have `ivsk_app` ([incoming viewing secret key](../../aztec/concepts/accounts/keys.md##incoming-viewing-keys)) in order to decrypt the notes.
+
+#include_code balance_of_private /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
 ## Compiling
 
