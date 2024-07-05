@@ -1,0 +1,8 @@
+[package]
+name = "external_lib"
+type = "bin"
+authors = [""]
+
+[dependencies]
+edwards = { path = "../../../external_libs/noir-edwards" }
+
