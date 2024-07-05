@@ -44,5 +44,5 @@ members = [
     "contracts/uniswap_contract",
     "contracts/multi_call_entrypoint_contract",
     "contracts/static_child_contract",
-    "contracts/static_parent_contract"
+    "contracts/static_parent_contract",
 ]
