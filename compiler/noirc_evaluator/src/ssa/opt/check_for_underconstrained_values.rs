@@ -135,9 +135,8 @@ impl Context {
         // Go through all brillig outputs in the set
         for brillig_output_in_set in intersection {
             // Get the inputs that correspond to the output
-            let inputs: HashSet<ValueId> = HashSet::from_iter(
-                self.brillig_return_to_argument[&brillig_output_in_set].iter().copied(),
-            );
+            let inputs: HashSet<ValueId> =
+                self.brillig_return_to_argument[&brillig_output_in_set].iter().copied().collect();
 
             // Check if any of them are not in the set
             let unused_inputs = inputs.difference(current_set).next().is_some();
