@@ -275,7 +275,7 @@ impl<'a> FunctionContext<'a> {
             if let Some(range) = numeric_type.value_is_outside_limits(value, negative) {
                 let call_stack = self.builder.get_call_stack();
                 return Err(RuntimeError::IntegerOutOfBounds {
-                    value,
+                    value: if negative { -value } else { value },
                     typ: numeric_type,
                     range,
                     call_stack,
