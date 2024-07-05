@@ -40,7 +40,8 @@ unconstrained fn setup_refund_success() {
     let (env, token_contract_address, owner, recipient, mint_amount) = utils::setup_and_mint(true);
 
     let funded_amount = 1_000;
-    let refund_nonce = 42;
+    let user_randomness = 42;
+    let fee_payer_randomness = 123;
     let mut context = env.private();
     let recipient_npk_m_hash = context.get_header().get_npk_m_hash(&mut context, recipient);
 
@@ -48,7 +49,8 @@ unconstrained fn setup_refund_success() {
         recipient_npk_m_hash, // fee payer
         owner, // sponsored user
         funded_amount,
-        refund_nonce
+        user_randomness,
+        fee_payer_randomness
     );
 
     authwit_cheatcodes::add_private_authwit_from_call_interface(owner, recipient, setup_refund_from_call_interface);
@@ -70,7 +72,7 @@ unconstrained fn setup_refund_success() {
         &mut TokenNote {
         amount: U128::from_integer(funded_amount - 1),
         npk_m_hash: owner_npk_m_hash,
-        randomness: refund_nonce,
+        randomness: user_randomness,
         header: NoteHeader::empty()
     },
         PrivateToken::storage().balances.slot,
@@ -80,7 +82,7 @@ unconstrained fn setup_refund_success() {
         &mut TokenNote {
         amount: U128::from_integer(1),
         npk_m_hash: recipient_npk_m_hash,
-        randomness: refund_nonce,
+        randomness: fee_payer_randomness,
         header: NoteHeader::empty()
     },
         PrivateToken::storage().balances.slot,

@@ -19,7 +19,8 @@ trait PrivatelyRefundable {
         fee_payer_npk_m_hash: Field,
         user_npk_m_hash: Field,
         funded_amount: Field,
-        randomness: Field
+        user_randomness: Field,
+        fee_payer_randomness: Field
     ) -> (EmbeddedCurvePoint, EmbeddedCurvePoint);
 
     fn complete_refund(
@@ -155,8 +156,8 @@ impl OwnedNote for TokenNote {
  * deduce what n is. This is the discrete log problem.
  *
  * However we can still perform addition/subtraction on points! That is why we generate those two points, which are:
- * incomplete_fee_payer_point := (fee_payer_npk + randomness) * G
- * incomplete_user_point := (user_npk + funded_amount + randomness) * G
+ * incomplete_fee_payer_point := (fee_payer_npk + fee_payer_randomness) * G
+ * incomplete_user_point := (user_npk + funded_amount + user_randomness) * G
  *
  * where `funded_amount` is the total amount in tokens that the sponsored user initially supplied, from which the transaction fee will be subtracted.
  *
@@ -167,25 +168,37 @@ impl OwnedNote for TokenNote {
  * Then we arrive at the final points via addition/subtraction of that transaction fee point:
  *
  * fee_payer_point := incomplete_fee_payer_point + fee_point
- *                      = (fee_payer_npk + randomness) * G + transaction_fee * G
- *                      = (fee_payer_npk + randomness + transaction_fee) * G
+ *                      = (fee_payer_npk + fee_payer_randomness) * G + transaction_fee * G
+ *                      = (fee_payer_npk + fee_payer_randomness + transaction_fee) * G
  *
  * user_point := incomplete_user_point - fee_point
- *                       = (user_npk + funded_amount + randomness) * G - transaction_fee * G
- *                       = (user_npk + randomness + (funded_amount - transaction_fee)) * G
+ *                       = (user_npk + funded_amount + user_randomness) * G - transaction_fee * G
+ *                       = (user_npk + user_randomness + (funded_amount - transaction_fee)) * G
  * 
  * When we return the x-coordinate of those points, it identically matches the note_content_hash of (and therefore *is*) notes like:
  * {
  *     amount: (funded_amount - transaction_fee),
  *     npk_m_hash: user_npk,
- *     randomness: randomness
+ *     randomness: user_randomness
  * }
+ *
+ * Why do we need different randomness for the user and the fee payer notes?
+ * --> This is because if the randomness values were the same we could fingerprint the user by doing the following:
+ *      1) randomness_influence = incomplete_fee_payer_point - G * fee_payer_npk =
+ *                              = (fee_payer_npk + randomness) * G - G * fee_payer_npk = randomness * G
+ *      2) user_fingerprint = incomplete_user_point - G * funded_amount - randomness_influence =
+ *                          = (user_npk + funded_amount + randomness) * G - funded_amount * G - randomness * G =
+ *                          = user_npk * G
+ *      3) Then the second time the user would use this fee paying contract we would recover the same fingerprint and
+ *         link that the 2 transactions were made by the same user. Given that it's expected that only a limited set
+ *         of fee paying contracts will be used and they will be known searching for fingerprints by trying different
+ *         fee payer npk values of these known contracts is a feasible attack.
  */
 impl PrivatelyRefundable for TokenNote {
-    fn generate_refund_points(fee_payer_npk_m_hash: Field, user_npk_m_hash: Field, funded_amount: Field, randomness: Field) -> (EmbeddedCurvePoint, EmbeddedCurvePoint) {
+    fn generate_refund_points(fee_payer_npk_m_hash: Field, user_npk_m_hash: Field, funded_amount: Field, user_randomness: Field, fee_payer_randomness: Field) -> (EmbeddedCurvePoint, EmbeddedCurvePoint) {
         // 1. To be able to multiply generators with randomness and npk_m_hash using barretneberg's (BB) blackbox function we
         // first need to convert the fields to high and low limbs.
-        let (randomness_lo, randomness_hi) = decompose(randomness);
+        let (fee_payer_randomness_lo, fee_payer_randomness_hi) = decompose(fee_payer_randomness);
         let (fee_payer_npk_m_hash_lo, fee_payer_npk_m_hash_hi) = decompose(fee_payer_npk_m_hash);
 
         // 2. Now that we have correct representationsn of fee payer and randomness we can compute `G ^ (fee_payer_npk + randomness)`
@@ -196,12 +209,13 @@ impl PrivatelyRefundable for TokenNote {
                 hi: fee_payer_npk_m_hash_hi
             },
             EmbeddedCurveScalar {
-                lo: randomness_lo,
-                hi: randomness_hi
+                lo: fee_payer_randomness_lo,
+                hi: fee_payer_randomness_hi
             }]
         );
 
         // 3. We do the necessary conversion for values relevant for the sponsored user point.
+        let (user_randomness_lo, user_randomness_hi) = decompose(user_randomness);
         // TODO(#7324): representing user with their npk_m_hash here does not work with key rotation
         let (user_lo, user_hi) = decompose(user_npk_m_hash);
         let (funded_amount_lo, funded_amount_hi) = decompose(funded_amount);
@@ -218,8 +232,8 @@ impl PrivatelyRefundable for TokenNote {
                 hi: funded_amount_hi
             },
             EmbeddedCurveScalar {
-                lo: randomness_lo,
-                hi: randomness_hi
+                lo: user_randomness_lo,
+                hi: user_randomness_hi
             }]
         );
 

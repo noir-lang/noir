@@ -8,6 +8,7 @@ import {
 } from '@aztec/aztec.js';
 import { Fr, type GasSettings } from '@aztec/circuits.js';
 import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
+import { poseidon2Hash } from '@aztec/foundation/crypto';
 import { type PrivateFPCContract, PrivateTokenContract } from '@aztec/noir-contracts.js';
 
 import { expectMapping } from '../fixtures/utils.js';
@@ -53,7 +54,8 @@ describe('e2e_fees/private_refunds', () => {
     // TODO(#7324): The values in complete address are currently not updated after the keys are rotated so this does
     // not work with key rotation as the key might be the old one and then we would fetch a new one in the contract.
     const bobNpkMHash = t.bobWallet.getCompleteAddress().publicKeys.masterNullifierPublicKey.hash();
-    const randomness = Fr.random();
+    const aliceRandomness = Fr.random(); // Called user_randomness in contracts
+    const bobRandomness = poseidon2Hash([aliceRandomness]); // Called fee_payer_randomness in contracts
 
     // 2. We call arbitrary `private_get_name(...)` function to check that the fee refund flow works.
     const tx = await privateToken.methods
@@ -65,7 +67,8 @@ describe('e2e_fees/private_refunds', () => {
             privateToken.address,
             privateFPC.address,
             aliceWallet,
-            randomness,
+            aliceRandomness,
+            bobRandomness,
             bobNpkMHash, // We use Bob's npk_m_hash in the notes that contain the transaction fee.
           ),
         },
@@ -81,7 +84,7 @@ describe('e2e_fees/private_refunds', () => {
     // TODO(#7324): The values in complete address are currently not updated after the keys are rotated so this does
     // not work with key rotation as the key might be the old one and then we would fetch a new one in the contract.
     const aliceNpkMHash = t.aliceWallet.getCompleteAddress().publicKeys.masterNullifierPublicKey.hash();
-    const aliceRefundNote = new Note([refundNoteValue, aliceNpkMHash, randomness]);
+    const aliceRefundNote = new Note([refundNoteValue, aliceNpkMHash, aliceRandomness]);
 
     // 4. If the refund flow worked it should have added emitted a note hash of the note we constructed above and we
     // should be able to add the note to our PXE. Just calling `pxe.addNote(...)` is enough of a check that the note
@@ -102,7 +105,7 @@ describe('e2e_fees/private_refunds', () => {
     // npk_m_hash (set in the paymentMethod above) and the randomness.
     // Note that FPC emits randomness as unencrypted log and the tx fee is publicly know so Bob is able to reconstruct
     // his note just from on-chain data.
-    const bobFeeNote = new Note([new Fr(tx.transactionFee!), bobNpkMHash, randomness]);
+    const bobFeeNote = new Note([new Fr(tx.transactionFee!), bobNpkMHash, bobRandomness]);
 
     // 6. Once again we add the note to PXE which computes the note hash and checks that it is in the note hash tree.
     await t.bobWallet.addNote(
@@ -144,10 +147,16 @@ class PrivateRefundPaymentMethod implements FeePaymentMethod {
     private wallet: Wallet,
 
     /**
-     * A randomness to mix in with the generated notes.
+     * A randomness to mix in with the generated refund note for the sponsored user.
      * Use this to reconstruct note preimages for the PXE.
      */
-    private randomness: Fr,
+    private userRandomness: Fr,
+
+    /**
+     * A randomness to mix in with the generated fee note for the fee payer.
+     * Use this to reconstruct note preimages for the PXE.
+     */
+    private feePayerRandomness: Fr,
 
     /**
      * The hash of the master nullifier public key that the FPC sends notes it receives to.
@@ -179,8 +188,14 @@ class PrivateRefundPaymentMethod implements FeePaymentMethod {
       caller: this.paymentContract,
       action: {
         name: 'setup_refund',
-        args: [this.feeRecipientNpkMHash, this.wallet.getCompleteAddress().address, maxFee, this.randomness],
-        selector: FunctionSelector.fromSignature('setup_refund(Field,(Field),Field,Field)'),
+        args: [
+          this.feeRecipientNpkMHash,
+          this.wallet.getCompleteAddress().address,
+          maxFee,
+          this.userRandomness,
+          this.feePayerRandomness,
+        ],
+        selector: FunctionSelector.fromSignature('setup_refund(Field,(Field),Field,Field,Field)'),
         type: FunctionType.PRIVATE,
         isStatic: false,
         to: this.asset,
@@ -195,7 +210,7 @@ class PrivateRefundPaymentMethod implements FeePaymentMethod {
         selector: FunctionSelector.fromSignature('fund_transaction_privately(Field,(Field),Field)'),
         type: FunctionType.PRIVATE,
         isStatic: false,
-        args: [maxFee, this.asset, this.randomness],
+        args: [maxFee, this.asset, this.userRandomness],
         returnTypes: [],
       },
     ];
