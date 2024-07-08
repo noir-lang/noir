@@ -154,6 +154,9 @@ impl<'context> Elaborator<'context> {
         };
 
         if let Some(unresolved_span) = typ.span {
+            let reference =
+                ReferenceId::Variable(Location::new(unresolved_span, self.file), is_self_type_name);
+
             match resolved_type {
                 Type::Struct(ref struct_type, _) => {
                     // Record the location of the type reference
@@ -164,19 +167,11 @@ impl<'context> Elaborator<'context> {
 
                     if !is_synthetic {
                         let referenced = ReferenceId::Struct(struct_type.borrow().id);
-                        let reference = ReferenceId::Variable(
-                            Location::new(unresolved_span, self.file),
-                            is_self_type_name,
-                        );
                         self.interner.add_reference(referenced, reference);
                     }
                 }
                 Type::Alias(ref alias_type, _) => {
                     let referenced = ReferenceId::Alias(alias_type.borrow().id);
-                    let reference = ReferenceId::Variable(
-                        Location::new(unresolved_span, self.file),
-                        is_self_type_name,
-                    );
                     self.interner.add_reference(referenced, reference);
                 }
                 _ => (),
