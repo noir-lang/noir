@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
-use std::marker::Copy;
 use std::hash::Hash;
+use std::marker::Copy;
 use std::ops::Deref;
 
 use fm::FileId;

@@ -68,7 +68,14 @@ impl<'a> Interpreter<'a> {
         debug_comptime_scope: Option<FileId>,
         debug_comptime_evaluations: &'a mut Vec<InterpreterError>,
     ) -> Self {
-        Self { interner, scopes, crate_id, debug_comptime_scope, debug_comptime_evaluations, in_loop: false }
+        Self {
+            interner,
+            scopes,
+            crate_id,
+            debug_comptime_scope,
+            debug_comptime_evaluations,
+            in_loop: false,
+        }
     }
 
     pub(crate) fn call_function(

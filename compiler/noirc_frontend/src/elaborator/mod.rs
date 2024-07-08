@@ -1286,8 +1286,14 @@ impl<'context> Elaborator<'context> {
         let DefinitionKind::Function(function) = definition.kind else {
             return Err((ResolverError::NonFunctionInAnnotation { span }.into(), self.file));
         };
-        let mut interpreter =
-            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
+        let mut interpreter_errors = vec![];
+        let mut interpreter = Interpreter::new(
+            self.interner,
+            &mut self.comptime_scopes,
+            self.crate_id,
+            self.debug_comptime_scope,
+            &mut interpreter_errors,
+        );
 
         let location = Location::new(span, self.file);
         let arguments = vec![(Value::StructDefinition(struct_id), location)];
@@ -1295,6 +1301,7 @@ impl<'context> Elaborator<'context> {
         let value = interpreter
             .call_function(function, arguments, TypeBindings::new(), location)
             .map_err(|error| error.into_compilation_error_pair())?;
+        self.include_interpreter_errors(&mut interpreter_errors);
 
         if value != Value::Unit {
             let item = value
@@ -1404,7 +1411,7 @@ impl<'context> Elaborator<'context> {
 
             self.interner.get_global_mut(global_id).value = Some(value);
         }
-        self.include_interpreter_errors(interpreter_errors);
+        self.include_interpreter_errors(&mut interpreter_errors);
     }
 
     fn define_function_metas(
@@ -1500,8 +1507,9 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn include_interpreter_errors(&mut self, errors: Vec<InterpreterError>) {
-        self.errors.extend(errors.into_iter().map(InterpreterError::into_compilation_error_pair));
+    fn include_interpreter_errors(&mut self, errors: &mut [InterpreterError]) {
+        self.errors
+            .extend(errors.iter().cloned().map(InterpreterError::into_compilation_error_pair));
     }
 
     /// True if we're currently within a `comptime` block, function, or global

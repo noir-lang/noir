@@ -33,11 +33,10 @@ use noirc_errors::{CustomDiagnostic, Location, Span};
 
 use fm::FileId;
 use iter_extended::vecmap;
+use rustc_hash::FxHashMap as HashMap;
+use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::path::PathBuf;
-use std::rc::Rc;
-use rustc_hash::FxHashMap as HashMap;
-use std::collections::{BTreeMap, HashMap};
 use std::vec;
 
 #[derive(Default)]
@@ -427,7 +426,8 @@ impl DefCollector {
             });
 
         if !use_legacy {
-            let mut more_errors = Elaborator::elaborate(context, crate_id, def_collector.items, debug_comptime_scope);
+            let mut more_errors =
+                Elaborator::elaborate(context, crate_id, def_collector.items, debug_comptime_scope);
             errors.append(&mut more_errors);
             return errors;
         }

@@ -155,7 +155,8 @@ impl HirExpression {
             HirExpression::Call(call) => {
                 let func = Box::new(call.func.to_display_ast(interner));
                 let arguments = vecmap(call.arguments.clone(), |arg| arg.to_display_ast(interner));
-                ExpressionKind::Call(Box::new(CallExpression { func, arguments }))
+                let is_macro_call = false;
+                ExpressionKind::Call(Box::new(CallExpression { func, arguments, is_macro_call }))
             }
             HirExpression::MethodCall(method_call) => {
                 ExpressionKind::MethodCall(Box::new(MethodCallExpression {
@@ -167,6 +168,7 @@ impl HirExpression {
                     generics: method_call.generics.clone().map(|option| {
                         option.iter().map(|generic| generic.to_display_ast()).collect()
                     }),
+                    is_macro_call: false,
                 }))
             }
             HirExpression::Cast(cast) => {
@@ -196,8 +198,8 @@ impl HirExpression {
             }
             HirExpression::Quote(block) => ExpressionKind::Quote(block.clone()),
 
-            // A macro was evaluated here!
-            HirExpression::Unquote(block) => ExpressionKind::Block(block.clone()),
+            // A macro was evaluated here: return the quoted result
+            HirExpression::Unquote(block) => ExpressionKind::Quote(block.clone()),
         };
 
         Expression::new(kind, span)
@@ -328,7 +330,7 @@ impl Type {
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::TraitAsType(name, generics)
             }
-            Type::NamedGeneric(_, name) => {
+            Type::NamedGeneric(_var, name, _kind) => {
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::TraitAsType(name, Vec::new())
             }
@@ -348,7 +350,7 @@ impl Type {
             // this to ignore this case since it shouldn't be needed anyway.
             Type::Forall(_, typ) => return typ.to_display_ast(),
             Type::Constant(_) => panic!("Type::Constant where a type was expected: {self:?}"),
-            Type::Code => UnresolvedTypeData::Code,
+            Type::Quoted(quoted_type) => UnresolvedTypeData::Quoted(*quoted_type),
             Type::Error => UnresolvedTypeData::Error,
         };
 
@@ -361,7 +363,7 @@ impl Type {
 
         match self.follow_bindings() {
             Type::Constant(length) => UnresolvedTypeExpression::Constant(length, span),
-            Type::NamedGeneric(_, name) => {
+            Type::NamedGeneric(_var, name, _kind) => {
                 let path = Path::from_single(name.as_ref().clone(), span);
                 UnresolvedTypeExpression::Variable(path)
             }

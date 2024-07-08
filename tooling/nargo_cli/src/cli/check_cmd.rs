@@ -164,7 +164,14 @@ pub(crate) fn check_crate_and_report_errors(
     use_legacy: bool,
     debug_comptime_scope: Option<String>,
 ) -> Result<(), CompileError> {
-    let result = check_crate(context, crate_id, deny_warnings, disable_macros, use_legacy, debug_comptime_scope);
+    let result = check_crate(
+        context,
+        crate_id,
+        deny_warnings,
+        disable_macros,
+        use_legacy,
+        debug_comptime_scope,
+    );
     report_errors(result, &context.file_manager, deny_warnings, silence_warnings)
 }
 

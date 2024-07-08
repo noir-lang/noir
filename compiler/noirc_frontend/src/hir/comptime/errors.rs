@@ -118,7 +118,7 @@ impl InterpreterError {
             | InterpreterError::NoImpl { location, .. }
             | InterpreterError::BreakNotInLoop { location, .. }
             | InterpreterError::DebugEvaluateComptime { location, .. } => *location,
-            | InterpreterError::ContinueNotInLoop { location, .. } => *location,
+            InterpreterError::ContinueNotInLoop { location, .. } => *location,
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
             }

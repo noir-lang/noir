@@ -676,7 +676,7 @@ impl<'context> Elaborator<'context> {
         self.function_context.push(Default::default());
         let (block, _typ) = self.elaborate_block_expression(block);
 
-        self.check_and_pop_function_context();      
+        self.check_and_pop_function_context();
         let mut interpreter_errors = vec![];
         let mut interpreter = Interpreter::new(
             self.interner,
@@ -686,7 +686,7 @@ impl<'context> Elaborator<'context> {
             &mut interpreter_errors,
         );
         let value = interpreter.evaluate_block(block);
-        self.include_interpreter_errors(interpreter_errors);
+        self.include_interpreter_errors(&mut interpreter_errors);
         let (id, typ) = self.inline_comptime_value(value, span);
 
         let location = self.interner.id_location(id);
@@ -770,8 +770,14 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        let mut interpreter =
-            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
+        let mut interpreter_errors = vec![];
+        let mut interpreter = Interpreter::new(
+            self.interner,
+            &mut self.comptime_scopes,
+            self.crate_id,
+            self.debug_comptime_scope,
+            &mut interpreter_errors,
+        );
 
         let mut comptime_args = Vec::new();
         let mut errors = Vec::new();
@@ -786,13 +792,15 @@ impl<'context> Elaborator<'context> {
             }
         }
 
+        let bindings = interpreter.interner.get_instantiation_bindings(func).clone();
+        let result = interpreter.call_function(function, comptime_args, bindings, location);
+        self.include_interpreter_errors(&mut interpreter_errors);
+
         if !errors.is_empty() {
             self.errors.append(&mut errors);
             return None;
         }
 
-        let bindings = interpreter.interner.get_instantiation_bindings(func).clone();
-        let result = interpreter.call_function(function, comptime_args, bindings, location);
         let (expr_id, typ) = self.inline_comptime_value(result, location.span);
         Some((self.interner.expression(&expr_id), typ))
     }

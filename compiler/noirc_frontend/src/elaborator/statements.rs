@@ -450,7 +450,7 @@ impl<'context> Elaborator<'context> {
         );
         let value = interpreter.evaluate_statement(hir_statement);
         let (expr, typ) = self.inline_comptime_value(value, span);
-        self.include_interpreter_errors(interpreter_errors);
+        self.include_interpreter_errors(&mut interpreter_errors);
 
         let location = self.interner.id_location(hir_statement);
         if Some(location.file) == self.debug_comptime_scope {

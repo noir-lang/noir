@@ -87,7 +87,7 @@ pub(crate) fn get_program(
             root_file_id,
             use_legacy,
             None, // No debug_comptime_scope
-            &[], // No macro processors
+            &[],  // No macro processors
         ));
     }
     (program, context, errors)
