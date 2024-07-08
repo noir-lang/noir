@@ -41,7 +41,7 @@ fn pedersen_commitment_with_separator_noir<let N: u32>(input: [Field; N], separa
     let mut points = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N];
     for i in 0..N {
         // we use the unsafe version because the multi_scalar_mul will constraint the scalars.
-        points[i] = EmbeddedCurveScalar::from_field_unsafe(input[i]);
+        points[i] = from_field_unsafe(input[i]);
     }
     let generators = derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
     let values = multi_scalar_mul(generators, points);
@@ -74,10 +74,21 @@ fn derive_generators<let N: u32, let M: u32>(
 #[field(bn254)]
 fn __derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {}
 
+#[field(bn254)]
+    // Same as from_field but:
+    // does not assert the limbs are 128 bits
+    // does not assert the decomposition does not overflow the EmbeddedCurveScalar
+    fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
+    let (xlo, xhi) = crate::field::bn254::decompose_hint(scalar);
+    // Check that the decomposition is correct
+    assert_eq(scalar, xlo + crate::field::bn254::TWO_POW_128 * xhi);
+    EmbeddedCurveScalar { lo: xlo, hi: xhi }
+}
+
 fn pedersen_hash_with_separator_noir<let N: u32>(input: [Field; N], separator: u32) -> Field {
     let mut scalars: Vec<EmbeddedCurveScalar> = Vec::new();
     for i in 0..N {
-        scalars.push(EmbeddedCurveScalar::from_field_unsafe(input[i]));
+        scalars.push(from_field_unsafe(input[i]));
     }
     scalars.push(EmbeddedCurveScalar { lo: N as Field, hi: 0 });
     let domain_generators :[EmbeddedCurvePoint; N]= derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
