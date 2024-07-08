@@ -192,8 +192,8 @@ fn module() -> impl NoirParser<ParsedModule> {
 }
 
 /// This parser is used for parsing top level statements in macros
-pub fn top_level_item() -> impl NoirParser<TopLevelStatement> {
-    top_level_statement(module())
+pub fn top_level_items() -> impl NoirParser<Vec<TopLevelStatement>> {
+    top_level_statement(module()).repeated()
 }
 
 /// top_level_statement: function_definition

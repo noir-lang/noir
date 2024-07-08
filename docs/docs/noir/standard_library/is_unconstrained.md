@@ -57,3 +57,13 @@ pub fn external_interface(){
 ```
 
 The is_unconstrained result is resolved at compile time, so in unconstrained contexts the compiler removes the else branch, and in constrained contexts the compiler removes the if branch, reducing the amount of compute necessary to run external_interface.
+
+Note that using `is_unconstrained` in a `comptime` context will also return `true`:
+
+```
+fn main() {
+    comptime {
+        assert(is_unconstrained());
+    }
+}
+```
