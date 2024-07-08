@@ -153,22 +153,28 @@ impl<'context> Elaborator<'context> {
             Resolved(id) => self.interner.get_quoted_type(id).clone(),
         };
 
-        if let Type::Struct(ref struct_type, _) = resolved_type {
-            if let Some(unresolved_span) = typ.span {
-                // Record the location of the type reference
-                self.interner.push_type_ref_location(
-                    resolved_type.clone(),
-                    Location::new(unresolved_span, self.file),
-                );
+        if let Some(unresolved_span) = typ.span {
+            let reference =
+                ReferenceId::Variable(Location::new(unresolved_span, self.file), is_self_type_name);
 
-                if !is_synthetic {
-                    let referenced = ReferenceId::Struct(struct_type.borrow().id);
-                    let reference = ReferenceId::Variable(
+            match resolved_type {
+                Type::Struct(ref struct_type, _) => {
+                    // Record the location of the type reference
+                    self.interner.push_type_ref_location(
+                        resolved_type.clone(),
                         Location::new(unresolved_span, self.file),
-                        is_self_type_name,
                     );
+
+                    if !is_synthetic {
+                        let referenced = ReferenceId::Struct(struct_type.borrow().id);
+                        self.interner.add_reference(referenced, reference);
+                    }
+                }
+                Type::Alias(ref alias_type, _) => {
+                    let referenced = ReferenceId::Alias(alias_type.borrow().id);
                     self.interner.add_reference(referenced, reference);
                 }
+                _ => (),
             }
         }
 
