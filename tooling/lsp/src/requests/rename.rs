@@ -145,4 +145,9 @@ mod rename_tests {
     async fn test_rename_struct() {
         check_rename_succeeds("rename_struct", "Foo").await;
     }
+
+    #[test]
+    async fn test_rename_trait() {
+        check_rename_succeeds("rename_trait", "Foo").await;
+    }
 }
