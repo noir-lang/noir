@@ -17,7 +17,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         function::Function,
-        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
+        instruction::{BinaryOp, Instruction, Intrinsic},
         types::Type,
         value::Value,
     },
