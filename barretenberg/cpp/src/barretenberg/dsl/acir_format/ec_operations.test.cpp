@@ -129,8 +129,56 @@ TEST_F(EcOperations, TestECMultiScalarMul)
         fr(0),
     };
     msm_constrain = MultiScalarMul{
-        .points = { 1, 2, 3, 1, 2, 3 },
-        .scalars = { 4, 5, 4, 5 },
+        .points = { WitnessConstant<fr>{
+                        .index = 1,
+                        .value = fr(0),
+                        .is_constant = false,
+                    },
+                    WitnessConstant<fr>{
+                        .index = 2,
+                        .value = fr(0),
+                        .is_constant = false,
+                    },
+                    WitnessConstant<fr>{
+                        .index = 3,
+                        .value = fr(0),
+                        .is_constant = false,
+                    },
+                    WitnessConstant<fr>{
+                        .index = 1,
+                        .value = fr(0),
+                        .is_constant = false,
+                    },
+                    WitnessConstant<fr>{
+                        .index = 2,
+                        .value = fr(0),
+                        .is_constant = false,
+                    },
+                    WitnessConstant<fr>{
+                        .index = 3,
+                        .value = fr(0),
+                        .is_constant = false,
+                    } },
+        .scalars = { WitnessConstant<fr>{
+                         .index = 4,
+                         .value = fr(0),
+                         .is_constant = false,
+                     },
+                     WitnessConstant<fr>{
+                         .index = 5,
+                         .value = fr(0),
+                         .is_constant = false,
+                     },
+                     WitnessConstant<fr>{
+                         .index = 4,
+                         .value = fr(0),
+                         .is_constant = false,
+                     },
+                     WitnessConstant<fr>{
+                         .index = 5,
+                         .value = fr(0),
+                         .is_constant = false,
+                     } },
         .out_point_x = 6,
         .out_point_y = 7,
         .out_point_is_infinite = 0,

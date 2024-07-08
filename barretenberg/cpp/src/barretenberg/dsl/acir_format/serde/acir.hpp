@@ -13,8 +13,33 @@ struct Witness {
     static Witness bincodeDeserialize(std::vector<uint8_t>);
 };
 
+struct ConstantOrWitnessEnum {
+
+    struct Constant {
+        std::string value;
+
+        friend bool operator==(const Constant&, const Constant&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static Constant bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct Witness {
+        Program::Witness value;
+
+        friend bool operator==(const Witness&, const Witness&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static Witness bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    std::variant<Constant, Witness> value;
+
+    friend bool operator==(const ConstantOrWitnessEnum&, const ConstantOrWitnessEnum&);
+    std::vector<uint8_t> bincodeSerialize() const;
+    static ConstantOrWitnessEnum bincodeDeserialize(std::vector<uint8_t>);
+};
+
 struct FunctionInput {
-    Program::Witness witness;
+    Program::ConstantOrWitnessEnum input;
     uint32_t num_bits;
 
     friend bool operator==(const FunctionInput&, const FunctionInput&);
@@ -6911,6 +6936,151 @@ Program::Circuit serde::Deserializable<Program::Circuit>::deserialize(Deserializ
 
 namespace Program {
 
+inline bool operator==(const ConstantOrWitnessEnum& lhs, const ConstantOrWitnessEnum& rhs)
+{
+    if (!(lhs.value == rhs.value)) {
+        return false;
+    }
+    return true;
+}
+
+inline std::vector<uint8_t> ConstantOrWitnessEnum::bincodeSerialize() const
+{
+    auto serializer = serde::BincodeSerializer();
+    serde::Serializable<ConstantOrWitnessEnum>::serialize(*this, serializer);
+    return std::move(serializer).bytes();
+}
+
+inline ConstantOrWitnessEnum ConstantOrWitnessEnum::bincodeDeserialize(std::vector<uint8_t> input)
+{
+    auto deserializer = serde::BincodeDeserializer(input);
+    auto value = serde::Deserializable<ConstantOrWitnessEnum>::deserialize(deserializer);
+    if (deserializer.get_buffer_offset() < input.size()) {
+        throw_or_abort("Some input bytes were not read");
+    }
+    return value;
+}
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::ConstantOrWitnessEnum>::serialize(const Program::ConstantOrWitnessEnum& obj,
+                                                                    Serializer& serializer)
+{
+    serializer.increase_container_depth();
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+    serializer.decrease_container_depth();
+}
+
+template <>
+template <typename Deserializer>
+Program::ConstantOrWitnessEnum serde::Deserializable<Program::ConstantOrWitnessEnum>::deserialize(
+    Deserializer& deserializer)
+{
+    deserializer.increase_container_depth();
+    Program::ConstantOrWitnessEnum obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    deserializer.decrease_container_depth();
+    return obj;
+}
+
+namespace Program {
+
+inline bool operator==(const ConstantOrWitnessEnum::Constant& lhs, const ConstantOrWitnessEnum::Constant& rhs)
+{
+    if (!(lhs.value == rhs.value)) {
+        return false;
+    }
+    return true;
+}
+
+inline std::vector<uint8_t> ConstantOrWitnessEnum::Constant::bincodeSerialize() const
+{
+    auto serializer = serde::BincodeSerializer();
+    serde::Serializable<ConstantOrWitnessEnum::Constant>::serialize(*this, serializer);
+    return std::move(serializer).bytes();
+}
+
+inline ConstantOrWitnessEnum::Constant ConstantOrWitnessEnum::Constant::bincodeDeserialize(std::vector<uint8_t> input)
+{
+    auto deserializer = serde::BincodeDeserializer(input);
+    auto value = serde::Deserializable<ConstantOrWitnessEnum::Constant>::deserialize(deserializer);
+    if (deserializer.get_buffer_offset() < input.size()) {
+        throw_or_abort("Some input bytes were not read");
+    }
+    return value;
+}
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::ConstantOrWitnessEnum::Constant>::serialize(
+    const Program::ConstantOrWitnessEnum::Constant& obj, Serializer& serializer)
+{
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Program::ConstantOrWitnessEnum::Constant serde::Deserializable<Program::ConstantOrWitnessEnum::Constant>::deserialize(
+    Deserializer& deserializer)
+{
+    Program::ConstantOrWitnessEnum::Constant obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Program {
+
+inline bool operator==(const ConstantOrWitnessEnum::Witness& lhs, const ConstantOrWitnessEnum::Witness& rhs)
+{
+    if (!(lhs.value == rhs.value)) {
+        return false;
+    }
+    return true;
+}
+
+inline std::vector<uint8_t> ConstantOrWitnessEnum::Witness::bincodeSerialize() const
+{
+    auto serializer = serde::BincodeSerializer();
+    serde::Serializable<ConstantOrWitnessEnum::Witness>::serialize(*this, serializer);
+    return std::move(serializer).bytes();
+}
+
+inline ConstantOrWitnessEnum::Witness ConstantOrWitnessEnum::Witness::bincodeDeserialize(std::vector<uint8_t> input)
+{
+    auto deserializer = serde::BincodeDeserializer(input);
+    auto value = serde::Deserializable<ConstantOrWitnessEnum::Witness>::deserialize(deserializer);
+    if (deserializer.get_buffer_offset() < input.size()) {
+        throw_or_abort("Some input bytes were not read");
+    }
+    return value;
+}
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::ConstantOrWitnessEnum::Witness>::serialize(
+    const Program::ConstantOrWitnessEnum::Witness& obj, Serializer& serializer)
+{
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Program::ConstantOrWitnessEnum::Witness serde::Deserializable<Program::ConstantOrWitnessEnum::Witness>::deserialize(
+    Deserializer& deserializer)
+{
+    Program::ConstantOrWitnessEnum::Witness obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Program {
+
 inline bool operator==(const Directive& lhs, const Directive& rhs)
 {
     if (!(lhs.value == rhs.value)) {
@@ -7360,7 +7530,7 @@ namespace Program {
 
 inline bool operator==(const FunctionInput& lhs, const FunctionInput& rhs)
 {
-    if (!(lhs.witness == rhs.witness)) {
+    if (!(lhs.input == rhs.input)) {
         return false;
     }
     if (!(lhs.num_bits == rhs.num_bits)) {
@@ -7393,7 +7563,7 @@ template <typename Serializer>
 void serde::Serializable<Program::FunctionInput>::serialize(const Program::FunctionInput& obj, Serializer& serializer)
 {
     serializer.increase_container_depth();
-    serde::Serializable<decltype(obj.witness)>::serialize(obj.witness, serializer);
+    serde::Serializable<decltype(obj.input)>::serialize(obj.input, serializer);
     serde::Serializable<decltype(obj.num_bits)>::serialize(obj.num_bits, serializer);
     serializer.decrease_container_depth();
 }
@@ -7404,7 +7574,7 @@ Program::FunctionInput serde::Deserializable<Program::FunctionInput>::deserializ
 {
     deserializer.increase_container_depth();
     Program::FunctionInput obj;
-    obj.witness = serde::Deserializable<decltype(obj.witness)>::deserialize(deserializer);
+    obj.input = serde::Deserializable<decltype(obj.input)>::deserialize(deserializer);
     obj.num_bits = serde::Deserializable<decltype(obj.num_bits)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
     return obj;

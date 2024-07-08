@@ -1,13 +1,23 @@
 #pragma once
 #include "barretenberg/serialize/msgpack.hpp"
+#include "barretenberg/stdlib/primitives/field/field.hpp"
+#include "serde/index.hpp"
 #include <cstdint>
 #include <vector>
 
 namespace acir_format {
 
+template <typename FF> struct WitnessConstant {
+    uint32_t index;
+    FF value;
+    bool is_constant;
+    MSGPACK_FIELDS(index, value, is_constant);
+    friend bool operator==(WitnessConstant const& lhs, WitnessConstant const& rhs) = default;
+};
+
 struct MultiScalarMul {
-    std::vector<uint32_t> points;
-    std::vector<uint32_t> scalars;
+    std::vector<WitnessConstant<bb::fr>> points;
+    std::vector<WitnessConstant<bb::fr>> scalars;
 
     uint32_t out_point_x;
     uint32_t out_point_y;

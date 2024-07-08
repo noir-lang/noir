@@ -1,5 +1,5 @@
 use acir::{
-    circuit::opcodes::{BlackBoxFuncCall, FunctionInput},
+    circuit::opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
     native_types::{Witness, WitnessMap},
     AcirField,
 };
@@ -11,7 +11,7 @@ use self::{
 };
 
 use super::{insert_value, OpcodeNotSolvable, OpcodeResolutionError};
-use crate::{pwg::witness_to_value, BlackBoxFunctionSolver};
+use crate::{pwg::input_to_value, BlackBoxFunctionSolver};
 
 mod aes128;
 pub(crate) mod bigint;
@@ -39,26 +39,33 @@ use signature::{
 /// Returns the first missing assignment if any are missing
 fn first_missing_assignment<F>(
     witness_assignments: &WitnessMap<F>,
-    inputs: &[FunctionInput],
+    inputs: &[FunctionInput<F>],
 ) -> Option<Witness> {
     inputs.iter().find_map(|input| {
-        if witness_assignments.contains_key(&input.witness) {
-            None
+        if let ConstantOrWitnessEnum::Witness(witness) = input.input {
+            if witness_assignments.contains_key(&witness) {
+                None
+            } else {
+                Some(witness)
+            }
         } else {
-            Some(input.witness)
+            None
         }
     })
 }
 
 /// Check if all of the inputs to the function have assignments
-fn contains_all_inputs<F>(witness_assignments: &WitnessMap<F>, inputs: &[FunctionInput]) -> bool {
-    inputs.iter().all(|input| witness_assignments.contains_key(&input.witness))
+fn contains_all_inputs<F>(
+    witness_assignments: &WitnessMap<F>,
+    inputs: &[FunctionInput<F>],
+) -> bool {
+    first_missing_assignment(witness_assignments, inputs).is_none()
 }
 
 pub(crate) fn solve<F: AcirField>(
     backend: &impl BlackBoxFunctionSolver<F>,
     initial_witness: &mut WitnessMap<F>,
-    bb_func: &BlackBoxFuncCall,
+    bb_func: &BlackBoxFuncCall<F>,
     bigint_solver: &mut AcvmBigIntSolver,
 ) -> Result<(), OpcodeResolutionError<F>> {
     let inputs = bb_func.get_inputs_vec();
@@ -99,10 +106,9 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
             let mut state = [0; 25];
             for (it, input) in state.iter_mut().zip(inputs.as_ref()) {
-                let witness = input.witness;
-                let num_bits = input.num_bits as usize;
+                let num_bits = input.num_bits() as usize;
                 assert_eq!(num_bits, 64);
-                let witness_assignment = witness_to_value(initial_witness, witness)?;
+                let witness_assignment = input_to_value(initial_witness, *input)?;
                 let lane = witness_assignment.try_to_u64();
                 *it = lane.unwrap();
             }

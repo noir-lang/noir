@@ -14,7 +14,7 @@ use std::collections::BTreeSet;
 use acir::{
     circuit::{
         brillig::{BrilligBytecode, BrilligInputs, BrilligOutputs},
-        opcodes::{BlackBoxFuncCall, BlockId, FunctionInput, MemOp},
+        opcodes::{BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, FunctionInput, MemOp},
         Circuit, Opcode, Program, PublicInputs,
     },
     native_types::{Expression, Witness},
@@ -62,13 +62,13 @@ fn multi_scalar_mul_circuit() {
     let multi_scalar_mul: Opcode<FieldElement> =
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::MultiScalarMul {
             points: vec![
-                FunctionInput { witness: Witness(1), num_bits: 128 },
-                FunctionInput { witness: Witness(2), num_bits: 128 },
-                FunctionInput { witness: Witness(3), num_bits: 1 },
+                FunctionInput::witness(Witness(1), 128),
+                FunctionInput::witness(Witness(2), 128),
+                FunctionInput::witness(Witness(3), 1),
             ],
             scalars: vec![
-                FunctionInput { witness: Witness(4), num_bits: 128 },
-                FunctionInput { witness: Witness(5), num_bits: 128 },
+                FunctionInput::witness(Witness(4), 128),
+                FunctionInput::witness(Witness(5), 128),
             ],
             outputs: (Witness(6), Witness(7), Witness(8)),
         });
@@ -91,10 +91,10 @@ fn multi_scalar_mul_circuit() {
     let bytes = Program::serialize_program(&program);
 
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 93, 141, 219, 10, 0, 32, 8, 67, 243, 214, 5, 250, 232,
-        62, 189, 69, 123, 176, 132, 195, 116, 50, 149, 114, 107, 0, 97, 127, 116, 2, 75, 243, 2,
-        74, 53, 122, 202, 189, 211, 15, 106, 5, 13, 116, 238, 35, 221, 81, 230, 61, 249, 37, 253,
-        250, 179, 79, 109, 218, 22, 67, 227, 173, 0, 0, 0,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 93, 141, 11, 10, 0, 32, 8, 67, 43, 181, 15, 116, 232,
+        142, 158, 210, 130, 149, 240, 112, 234, 212, 156, 78, 12, 39, 67, 71, 158, 142, 80, 29, 44,
+        228, 66, 90, 168, 119, 189, 74, 115, 131, 174, 78, 115, 58, 124, 70, 254, 130, 59, 74, 253,
+        68, 255, 255, 221, 39, 54, 221, 93, 91, 132, 193, 0, 0, 0,
     ];
 
     assert_eq!(bytes, expected_serialization)
@@ -102,18 +102,15 @@ fn multi_scalar_mul_circuit() {
 
 #[test]
 fn schnorr_verify_circuit() {
-    let public_key_x =
-        FunctionInput { witness: Witness(1), num_bits: FieldElement::max_num_bits() };
-    let public_key_y =
-        FunctionInput { witness: Witness(2), num_bits: FieldElement::max_num_bits() };
-    let signature: [FunctionInput; 64] = (3..(3 + 64))
-        .map(|i| FunctionInput { witness: Witness(i), num_bits: 8 })
+    let public_key_x = FunctionInput::witness(Witness(1), FieldElement::max_num_bits());
+    let public_key_y = FunctionInput::witness(Witness(2), FieldElement::max_num_bits());
+    let signature: [FunctionInput<FieldElement>; 64] = (3..(3 + 64))
+        .map(|i| FunctionInput::witness(Witness(i), 8))
         .collect::<Vec<_>>()
         .try_into()
         .unwrap();
-    let message = ((3 + 64)..(3 + 64 + 10))
-        .map(|i| FunctionInput { witness: Witness(i), num_bits: 8 })
-        .collect();
+    let message =
+        ((3 + 64)..(3 + 64 + 10)).map(|i| FunctionInput::witness(Witness(i), 8)).collect();
     let output = Witness(3 + 64 + 10);
     let last_input = output.witness_index() - 1;
 
@@ -137,22 +134,24 @@ fn schnorr_verify_circuit() {
     let bytes = Program::serialize_program(&program);
 
     let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 85, 210, 85, 78, 67, 81, 24, 133, 209, 226, 238, 238,
-        238, 238, 238, 165, 148, 82, 102, 193, 252, 135, 64, 232, 78, 87, 147, 114, 147, 147, 5,
-        47, 132, 252, 251, 107, 41, 212, 191, 159, 218, 107, 241, 115, 236, 226, 111, 237, 181,
-        178, 173, 246, 186, 107, 175, 157, 29, 236, 100, 23, 27, 175, 135, 189, 236, 99, 63, 7, 56,
-        200, 33, 14, 115, 132, 163, 28, 227, 56, 39, 56, 201, 41, 78, 115, 134, 179, 156, 227, 60,
-        23, 184, 200, 37, 46, 115, 133, 171, 92, 227, 58, 55, 184, 201, 45, 110, 115, 135, 187,
-        220, 227, 62, 15, 120, 200, 35, 30, 243, 132, 167, 60, 227, 57, 47, 120, 201, 43, 94, 243,
-        134, 183, 188, 227, 61, 31, 248, 200, 39, 62, 243, 133, 175, 77, 59, 230, 123, 243, 123,
-        145, 239, 44, 241, 131, 101, 126, 178, 194, 47, 86, 249, 237, 239, 86, 153, 238, 210, 92,
-        122, 75, 107, 233, 44, 141, 53, 250, 234, 241, 191, 164, 167, 180, 148, 142, 210, 80, 250,
-        73, 59, 233, 38, 205, 164, 151, 180, 146, 78, 210, 72, 250, 72, 27, 233, 34, 77, 164, 135,
-        180, 144, 14, 210, 64, 246, 95, 46, 212, 119, 207, 230, 217, 59, 91, 103, 231, 108, 156,
-        125, 183, 237, 186, 107, 207, 125, 59, 30, 218, 239, 216, 110, 167, 246, 58, 183, 211, 165,
-        125, 174, 237, 114, 107, 143, 123, 59, 60, 186, 255, 179, 187, 191, 186, 115, 209, 125, 75,
-        238, 90, 118, 207, 138, 59, 54, 110, 214, 184, 91, 161, 233, 158, 255, 190, 63, 71, 59, 68,
-        130, 233, 3, 0, 0,
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 85, 211, 103, 78, 2, 81, 24, 70, 225, 193, 6, 216, 123,
+        47, 216, 123, 239, 136, 136, 136, 136, 136, 187, 96, 255, 75, 32, 112, 194, 55, 201, 129,
+        100, 50, 79, 244, 7, 228, 222, 243, 102, 146, 254, 167, 221, 123, 50, 97, 222, 217, 120,
+        243, 116, 226, 61, 36, 15, 247, 158, 92, 120, 68, 30, 149, 199, 228, 172, 156, 147, 243,
+        242, 184, 60, 33, 79, 202, 83, 242, 180, 60, 35, 207, 202, 115, 242, 188, 188, 32, 47, 202,
+        75, 242, 178, 188, 34, 175, 202, 107, 242, 186, 188, 33, 111, 202, 91, 242, 182, 188, 35,
+        23, 228, 93, 121, 79, 222, 151, 15, 228, 67, 249, 72, 62, 150, 79, 228, 83, 249, 76, 62,
+        151, 47, 228, 75, 249, 74, 190, 150, 111, 228, 91, 249, 78, 190, 151, 31, 228, 71, 249, 73,
+        126, 150, 95, 228, 87, 185, 40, 191, 201, 37, 249, 93, 46, 203, 31, 114, 69, 254, 148, 171,
+        97, 58, 77, 226, 111, 95, 250, 127, 77, 254, 150, 235, 242, 143, 220, 144, 127, 229, 166,
+        252, 39, 183, 194, 255, 241, 253, 45, 253, 14, 182, 201, 38, 217, 34, 27, 100, 123, 233,
+        230, 242, 241, 155, 217, 20, 91, 98, 67, 108, 135, 205, 176, 21, 54, 194, 54, 216, 4, 91,
+        96, 3, 180, 79, 243, 180, 78, 227, 180, 77, 211, 180, 76, 195, 180, 75, 179, 133, 164, 223,
+        40, 109, 210, 36, 45, 210, 32, 237, 209, 28, 173, 209, 24, 109, 209, 20, 45, 209, 16, 237,
+        208, 12, 173, 208, 8, 109, 208, 4, 45, 208, 0, 119, 207, 157, 115, 215, 220, 113, 49, 238,
+        180, 20, 119, 88, 142, 59, 171, 196, 29, 85, 227, 46, 106, 113, 246, 245, 56, 235, 70, 156,
+        109, 51, 206, 50, 61, 179, 244, 220, 18, 157, 231, 192, 167, 11, 75, 28, 99, 152, 25, 5, 0,
+        0,
     ];
 
     assert_eq!(bytes, expected_serialization)
