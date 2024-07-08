@@ -29,7 +29,7 @@ use crate::{
     },
     node_interner::{DefinitionKind, ExprId, FuncId, ReferenceId},
     token::Tokens,
-    Kind, QuotedType, Shared, StructType, Type,
+    QuotedType, Shared, StructType, Type,
 };
 
 use super::Elaborator;
@@ -51,23 +51,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.span),
             ExpressionKind::If(if_) => self.elaborate_if(*if_),
             ExpressionKind::Variable(variable, generics) => {
-                let generics = generics.map(|option_inner| {
-                    option_inner
-                        .into_iter()
-                        .map(|generic| {
-                            // All type expressions should resolve to a `Type::Constant`
-                            if generic.is_type_expression() {
-                                self.resolve_type_inner(
-                                    generic,
-                                    &Kind::Numeric(Box::new(Type::default_int_type())),
-                                )
-                            } else {
-                                self.resolve_type(generic)
-                            }
-                        })
-                        .collect()
-                });
-                return self.elaborate_variable(variable, generics);
+                return self.elaborate_variable(variable, generics)
             }
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
             ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda),

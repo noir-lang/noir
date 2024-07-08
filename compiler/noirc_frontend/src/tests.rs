@@ -1983,3 +1983,24 @@ fn underflowing_i8() {
         panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
     }
 }
+
+#[test]
+fn turbofish_numeric_generic_nested_call() {
+    let src = r#"
+    fn foo<let N: u32>() -> [u8; N] {
+        [0; N]
+    }
+
+    fn bar<let N: u32>() -> [u8; N] {
+        foo::<N>()
+    }
+
+    global M: u32 = 3;
+
+    fn main() {
+        let _ = bar::<M>();
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+}

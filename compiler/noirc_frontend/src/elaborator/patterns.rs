@@ -3,7 +3,7 @@ use noirc_errors::{Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    ast::ERROR_IDENT,
+    ast::{UnresolvedType, ERROR_IDENT},
     hir::{
         comptime::Interpreter,
         def_collector::dc_crate::CompilationError,
@@ -401,11 +401,36 @@ impl<'context> Elaborator<'context> {
     pub(super) fn elaborate_variable(
         &mut self,
         variable: Path,
-        generics: Option<Vec<Type>>,
+        unresolved_turbofish: Option<Vec<UnresolvedType>>,
     ) -> (ExprId, Type) {
         let span = variable.span;
         let expr = self.resolve_variable(variable);
         let definition_id = expr.id;
+
+        let definition = self.interner.try_definition(definition_id);
+
+        // Resolve any generics if we the variable we have resolved is a function
+        // and if the turbofish operator was used.
+        let generics = if let Some(definition) = definition {
+            match &definition.kind {
+                DefinitionKind::Function(function) => {
+                    // Resolve generics using the expected kinds of the function we are calling
+                    let direct_generics =
+                        self.interner.function_meta(function).direct_generics.clone();
+
+                    unresolved_turbofish.map(|option_inner| {
+                        assert_eq!(direct_generics.len(), option_inner.len());
+                        let generics_with_types = direct_generics.iter().zip(option_inner);
+                        vecmap(generics_with_types, |(generic, unresolved_type)| {
+                            self.resolve_type_inner(unresolved_type, &generic.kind)
+                        })
+                    })
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
 
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
 
