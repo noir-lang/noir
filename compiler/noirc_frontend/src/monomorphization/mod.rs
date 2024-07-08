@@ -1746,9 +1746,7 @@ impl<'interner> Monomorphizer<'interner> {
         let func = Box::new(func);
         let return_type = Self::convert_type(&ret, location)?;
 
-        let result = ast::Expression::Call(ast::Call { func, arguments, return_type, location });
-
-        Ok(result)
+        Ok(ast::Expression::Call(ast::Call { func, arguments, return_type, location }))
     }
 }
 
