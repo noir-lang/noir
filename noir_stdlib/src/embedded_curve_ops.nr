@@ -58,6 +58,21 @@ impl EmbeddedCurveScalar {
         let (a,b) = crate::field::bn254::decompose(scalar);
         EmbeddedCurveScalar { lo: a, hi: b }
     }
+
+    //Bytes to scalar: take the first (after the specified offset) 16 bytes of the input as the lo value, and the next 16 bytes as the hi value
+    #[field(bn254)]
+    fn from_bytes(bytes: [u8; 64], offset: u32) -> EmbeddedCurveScalar {
+        let mut v = 1;
+        let mut lo = 0 as Field;
+        let mut hi = 0 as Field;
+        for i in 0..16 {
+            lo = lo + (bytes[offset+31 - i] as Field) * v;
+            hi = hi + (bytes[offset+15 - i] as Field) * v;
+            v = v * 256;
+        }
+        let sig_s = crate::embedded_curve_ops::EmbeddedCurveScalar { lo, hi };
+        sig_s
+    }
 }
 
 // Computes a multi scalar multiplication over the embedded curve.
