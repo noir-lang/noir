@@ -976,16 +976,44 @@ impl<'a> Context<'a> {
             }
         };
 
-        if self.handle_constant_index(instruction, dfg, index, array, store_value)? {
-            return Ok(());
+        let array_id = dfg.resolve(array);
+        let array_typ = dfg.type_of_value(array_id);
+        // Compiler sanity checks
+        assert!(!array_typ.is_nested_slice(), "ICE: Nested slice type has reached ACIR generation");
+        let (Type::Array(_, _) | Type::Slice(_)) = &array_typ else {
+            unreachable!("ICE: expected array or slice type");
+        };
+
+        match self.convert_value(array_id, dfg) {
+            AcirValue::Var(acir_var, _) => {
+                return Err(RuntimeError::InternalError(InternalError::Unexpected {
+                    expected: "an array value".to_string(),
+                    found: format!("{acir_var:?}"),
+                    call_stack: self.acir_context.get_call_stack(),
+                }))
+            }
+            AcirValue::Array(array) => {
+                // `AcirValue::Array` supports reading/writing to constant indices at compile-time.
+                if let Some(constant_index) = dfg.get_numeric_constant(index) {
+                    let store_value = store_value.map(|value| self.convert_value(value, dfg));
+                    self.handle_constant_index(
+                        instruction,
+                        dfg,
+                        array,
+                        constant_index,
+                        store_value,
+                    )?;
+                    return Ok(());
+                }
+            }
+            AcirValue::DynamicArray(_) => (),
         }
 
         // Get an offset such that the type of the array at the offset is the same as the type at the 'index'
         // If we find one, we will use it when computing the index under the enable_side_effect predicate
         // If not, array_get(..) will use a fallback costing one multiplication in the worst case.
         // cf. https://github.com/noir-lang/noir/pull/4971
-        let array_id = dfg.resolve(array);
-        let array_typ = dfg.type_of_value(array_id);
+
         // For simplicity we compute the offset only for simple arrays
         let is_simple_array = dfg.instruction_results(instruction).len() == 1
             && can_omit_element_sizes_array(&array_typ);
@@ -1024,77 +1052,63 @@ impl<'a> Context<'a> {
         &mut self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
-        index: ValueId,
-        array_id: ValueId,
-        store_value: Option<ValueId>,
+        array: Vector<AcirValue>,
+        index: FieldElement,
+        store_value: Option<AcirValue>,
     ) -> Result<bool, RuntimeError> {
-        let index_const = dfg.get_numeric_constant(index);
-        let value_type = dfg.type_of_value(array_id);
-        // Compiler sanity checks
-        assert!(
-            !value_type.is_nested_slice(),
-            "ICE: Nested slice type has reached ACIR generation"
-        );
-        let (Type::Array(_, _) | Type::Slice(_)) = &value_type else {
-            unreachable!("ICE: expected array or slice type");
+        let array_size: usize = array.len();
+        let index = match index.try_to_u64() {
+            Some(index_const) => index_const as usize,
+            None => {
+                let call_stack = self.acir_context.get_call_stack();
+                return Err(RuntimeError::TypeConversion {
+                    from: "array index".to_string(),
+                    into: "u64".to_string(),
+                    call_stack,
+                });
+            }
         };
 
-        match self.convert_value(array_id, dfg) {
-            AcirValue::Var(acir_var, _) => {
-                return Err(RuntimeError::InternalError(InternalError::Unexpected {
-                    expected: "an array value".to_string(),
-                    found: format!("{acir_var:?}"),
-                    call_stack: self.acir_context.get_call_stack(),
-                }))
+        let side_effects_always_enabled =
+            self.acir_context.is_constant_one(&self.current_side_effects_enabled_var);
+        let index_out_of_bounds = index >= array_size;
+
+        // Note that the value of `side_effects_always_enabled` doesn't affect the value which we return here for valid
+        // indices, just whether we return an error for invalid indices at compile time or defer until execution.
+        match (side_effects_always_enabled, index_out_of_bounds) {
+            (true, false) => {
+                let value = match store_value {
+                    Some(store_value) => AcirValue::Array(array.update(index, store_value)),
+                    None => array[index].clone(),
+                };
+
+                self.define_result(dfg, instruction, value);
+                Ok(true)
             }
-            AcirValue::Array(array) => {
-                if let Some(index_const) = index_const {
-                    let array_size = array.len();
-                    let index = match index_const.try_to_u64() {
-                        Some(index_const) => index_const as usize,
-                        None => {
-                            let call_stack = self.acir_context.get_call_stack();
-                            return Err(RuntimeError::TypeConversion {
-                                from: "array index".to_string(),
-                                into: "u64".to_string(),
-                                call_stack,
-                            });
-                        }
-                    };
-
-                    if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
-                        // Report the error if side effects are enabled.
-                        if index >= array_size {
-                            let call_stack = self.acir_context.get_call_stack();
-                            return Err(RuntimeError::IndexOutOfBounds {
-                                index,
-                                array_size,
-                                call_stack,
-                            });
-                        } else {
-                            let value = match store_value {
-                                Some(store_value) => {
-                                    let store_value = self.convert_value(store_value, dfg);
-                                    AcirValue::Array(array.update(index, store_value))
-                                }
-                                None => array[index].clone(),
-                            };
-
-                            self.define_result(dfg, instruction, value);
-                            return Ok(true);
-                        }
-                    }
-                    // If there is a predicate and the index is not out of range, we can directly perform the read
-                    else if index < array_size && store_value.is_none() {
-                        self.define_result(dfg, instruction, array[index].clone());
-                        return Ok(true);
-                    }
+            (false, false) => {
+                if store_value.is_none() {
+                    // If there is a predicate and the index is not out of range, we can optimistically perform the
+                    // read at compile time as if the predicate is true.
+                    //
+                    // This is as if the predicate is false, any side-effects will be disabled so the value returned
+                    // will not affect the rest of execution.
+                    self.define_result(dfg, instruction, array[index].clone());
+                    Ok(true)
+                } else {
+                    // We do not do this for a array writes however.
+                    Ok(false)
                 }
             }
-            AcirValue::DynamicArray(_) => (),
-        };
 
-        Ok(false)
+            // Report the error if side effects are enabled.
+            (true, true) => {
+                let call_stack = self.acir_context.get_call_stack();
+                Err(RuntimeError::IndexOutOfBounds { index, array_size, call_stack })
+            }
+            // Index is out of bounds but predicate may result in this array operation being skipped
+            // so we don't return an error now.
+            (false, true) => Ok(false),
+        }
     }
 
     /// We need to properly setup the inputs for array operations in ACIR.
