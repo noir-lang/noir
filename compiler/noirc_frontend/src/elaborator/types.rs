@@ -16,7 +16,7 @@ use crate::{
             errors::ResolverError,
             resolver::{verify_mutable_reference, SELF_TYPE_NAME, WILDCARD_TYPE},
         },
-        type_check::{Source, TypeCheckError},
+        type_check::{NoMatchingImplFoundError, Source, TypeCheckError},
     },
     hir_def::{
         expr::{
@@ -30,7 +30,10 @@ use crate::{
         HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
         UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
-    node_interner::{DefinitionKind, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId},
+    node_interner::{
+        DefinitionKind, DependencyId, ExprId, GlobalId, ReferenceId, TraitId, TraitImplKind,
+        TraitMethodId,
+    },
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
@@ -55,6 +58,12 @@ impl<'context> Elaborator<'context> {
         use crate::ast::UnresolvedTypeData::*;
 
         let span = typ.span;
+        let (is_self_type_name, is_synthetic) = if let Named(ref named_path, _, synthetic) = typ.typ
+        {
+            (named_path.last_segment().is_self_type_name(), synthetic)
+        } else {
+            (false, false)
+        };
 
         let resolved_type = match typ.typ {
             FieldElement => Type::FieldElement,
@@ -144,13 +153,28 @@ impl<'context> Elaborator<'context> {
             Resolved(id) => self.interner.get_quoted_type(id).clone(),
         };
 
-        if let Type::Struct(_, _) = resolved_type {
-            if let Some(unresolved_span) = typ.span {
-                // Record the location of the type reference
-                self.interner.push_type_ref_location(
-                    resolved_type.clone(),
-                    Location::new(unresolved_span, self.file),
-                );
+        if let Some(unresolved_span) = typ.span {
+            let reference =
+                ReferenceId::Variable(Location::new(unresolved_span, self.file), is_self_type_name);
+
+            match resolved_type {
+                Type::Struct(ref struct_type, _) => {
+                    // Record the location of the type reference
+                    self.interner.push_type_ref_location(
+                        resolved_type.clone(),
+                        Location::new(unresolved_span, self.file),
+                    );
+
+                    if !is_synthetic {
+                        let referenced = ReferenceId::Struct(struct_type.borrow().id);
+                        self.interner.add_reference(referenced, reference);
+                    }
+                }
+                Type::Alias(ref alias_type, _) => {
+                    let referenced = ReferenceId::Alias(alias_type.borrow().id);
+                    self.interner.add_reference(referenced, reference);
+                }
+                _ => (),
             }
         }
 
@@ -617,7 +641,7 @@ impl<'context> Elaborator<'context> {
     /// in self.type_variables to default it later.
     pub(super) fn polymorphic_integer_or_field(&mut self) -> Type {
         let typ = Type::polymorphic_integer_or_field(self.interner);
-        self.type_variables.push(typ.clone());
+        self.push_type_variable(typ.clone());
         typ
     }
 
@@ -625,7 +649,7 @@ impl<'context> Elaborator<'context> {
     /// in self.type_variables to default it later.
     pub(super) fn polymorphic_integer(&mut self) -> Type {
         let typ = Type::polymorphic_integer(self.interner);
-        self.type_variables.push(typ.clone());
+        self.push_type_variable(typ.clone());
         typ
     }
 
@@ -1162,9 +1186,11 @@ impl<'context> Elaborator<'context> {
                 None
             }
             Type::NamedGeneric(_, _, _) => {
-                let func_meta = self.interner.function_meta(
-                    &self.current_function.expect("unexpected method outside a function"),
-                );
+                let func_id = match self.current_item {
+                    Some(DependencyId::Function(id)) => id,
+                    _ => panic!("unexpected method outside a function"),
+                };
+                let func_meta = self.interner.function_meta(&func_id);
 
                 for constraint in &func_meta.trait_constraints {
                     if *object_type == constraint.typ {
@@ -1235,9 +1261,8 @@ impl<'context> Elaborator<'context> {
             lints::deprecated_function(elaborator.interner, call.func).map(Into::into)
         });
 
-        let func_mod = self.current_function.map(|func| self.interner.function_modifiers(&func));
-        let is_current_func_constrained =
-            func_mod.map_or(true, |func_mod| !func_mod.is_unconstrained);
+        let is_current_func_constrained = self.in_constrained_function();
+
         let is_unconstrained_call = self.is_unconstrained_call(call.func);
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
         if crossing_runtime_boundary {
@@ -1412,26 +1437,10 @@ impl<'context> Elaborator<'context> {
             Err(erroring_constraints) => {
                 if erroring_constraints.is_empty() {
                     self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
-                } else {
-                    // Don't show any errors where try_get_trait returns None.
-                    // This can happen if a trait is used that was never declared.
-                    let constraints = erroring_constraints
-                        .into_iter()
-                        .map(|constraint| {
-                            let r#trait = self.interner.try_get_trait(constraint.trait_id)?;
-                            let mut name = r#trait.name.to_string();
-                            if !constraint.trait_generics.is_empty() {
-                                let generics =
-                                    vecmap(&constraint.trait_generics, ToString::to_string);
-                                name += &format!("<{}>", generics.join(", "));
-                            }
-                            Some((constraint.typ, name))
-                        })
-                        .collect::<Option<Vec<_>>>();
-
-                    if let Some(constraints) = constraints {
-                        self.push_err(TypeCheckError::NoMatchingImplFound { constraints, span });
-                    }
+                } else if let Some(error) =
+                    NoMatchingImplFoundError::new(self.interner, erroring_constraints, span)
+                {
+                    self.push_err(TypeCheckError::NoMatchingImplFound(error));
                 }
             }
         }
@@ -1558,5 +1567,21 @@ impl<'context> Elaborator<'context> {
                 Self::find_numeric_generics_in_type(fields, found);
             }
         }
+    }
+
+    /// Push a type variable into the current FunctionContext to be defaulted if needed
+    /// at the end of the earlier of either the current function or the current comptime scope.
+    fn push_type_variable(&mut self, typ: Type) {
+        let context = self.function_context.last_mut();
+        let context = context.expect("The function_context stack should always be non-empty");
+        context.type_variables.push(typ);
+    }
+
+    /// Push a trait constraint into the current FunctionContext to be solved if needed
+    /// at the end of the earlier of either the current function or the current comptime scope.
+    pub fn push_trait_constraint(&mut self, constraint: TraitConstraint, expr_id: ExprId) {
+        let context = self.function_context.last_mut();
+        let context = context.expect("The function_context stack should always be non-empty");
+        context.trait_constraints.push((constraint, expr_id));
     }
 }

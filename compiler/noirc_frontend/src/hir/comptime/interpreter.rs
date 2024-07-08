@@ -8,7 +8,12 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::graph::CrateId;
-use crate::monomorphization::{perform_instantiation_bindings, undo_instantiation_bindings};
+use crate::hir_def::expr::ImplKind;
+use crate::macros_api::UnaryOp;
+use crate::monomorphization::{
+    perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
+    undo_instantiation_bindings,
+};
 use crate::token::Tokens;
 use crate::{
     hir_def::{
@@ -66,8 +71,12 @@ impl<'a> Interpreter<'a> {
         instantiation_bindings: TypeBindings,
         location: Location,
     ) -> IResult<Value> {
+        let trait_method = self.interner.get_trait_method_id(function);
+
         perform_instantiation_bindings(&instantiation_bindings);
+        let impl_bindings = perform_impl_bindings(self.interner, trait_method, function);
         let result = self.call_function_inner(function, arguments, location);
+        undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
         result
     }
@@ -289,8 +298,7 @@ impl<'a> Interpreter<'a> {
                 return Ok(());
             }
         }
-        let name = self.interner.definition(id).name.clone();
-        Err(InterpreterError::NonComptimeVarReferenced { name, location })
+        Err(InterpreterError::VariableNotInScope { location })
     }
 
     pub(super) fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
@@ -304,12 +312,12 @@ impl<'a> Interpreter<'a> {
             }
         }
 
-        // Justification for `NonComptimeVarReferenced`:
-        // If we have an id to lookup at all that means name resolution successfully
-        // found another variable in scope for this name. If the name is in scope
-        // but unknown by the interpreter it must be because it was not a comptime variable.
-        let name = self.interner.definition(id).name.clone();
-        Err(InterpreterError::NonComptimeVarReferenced { name, location })
+        if id == DefinitionId::dummy_id() {
+            Err(InterpreterError::VariableNotInScope { location })
+        } else {
+            let name = self.interner.definition_name(id).to_string();
+            Err(InterpreterError::NonComptimeVarReferenced { name, location })
+        }
     }
 
     /// Evaluate an expression and return the result
@@ -345,7 +353,17 @@ impl<'a> Interpreter<'a> {
     }
 
     pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
-        let definition = self.interner.definition(ident.id);
+        let definition = self.interner.try_definition(ident.id).ok_or_else(|| {
+            let location = self.interner.expr_location(&id);
+            InterpreterError::VariableNotInScope { location }
+        })?;
+
+        if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
+            let method_id = resolve_trait_method(self.interner, method, id)?;
+            let typ = self.interner.id_type(id).follow_bindings();
+            let bindings = self.interner.get_instantiation_bindings(id).clone();
+            return Ok(Value::Function(method_id, typ, Rc::new(bindings)));
+        }
 
         match &definition.kind {
             DefinitionKind::Function(function_id) => {
@@ -359,7 +377,12 @@ impl<'a> Interpreter<'a> {
                 if let Ok(value) = self.lookup(&ident) {
                     Ok(value)
                 } else {
-                    let let_ = self.interner.get_global_let_statement(*global_id).unwrap();
+                    let let_ =
+                        self.interner.get_global_let_statement(*global_id).ok_or_else(|| {
+                            let location = self.interner.expr_location(&id);
+                            InterpreterError::VariableNotInScope { location }
+                        })?;
+
                     if let_.comptime {
                         self.evaluate_let(let_.clone())?;
                     }
@@ -556,8 +579,17 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_prefix(&mut self, prefix: HirPrefixExpression, id: ExprId) -> IResult<Value> {
         let rhs = self.evaluate(prefix.rhs)?;
-        match prefix.operator {
-            crate::ast::UnaryOp::Minus => match rhs {
+        self.evaluate_prefix_with_value(rhs, prefix.operator, id)
+    }
+
+    fn evaluate_prefix_with_value(
+        &mut self,
+        rhs: Value,
+        operator: UnaryOp,
+        id: ExprId,
+    ) -> IResult<Value> {
+        match operator {
+            UnaryOp::Minus => match rhs {
                 Value::Field(value) => Ok(Value::Field(FieldElement::zero() - value)),
                 Value::I8(value) => Ok(Value::I8(-value)),
                 Value::I16(value) => Ok(Value::I16(-value)),
@@ -573,7 +605,7 @@ impl<'a> Interpreter<'a> {
                     Err(InterpreterError::InvalidValueForUnary { value, location, operator })
                 }
             },
-            crate::ast::UnaryOp::Not => match rhs {
+            UnaryOp::Not => match rhs {
                 Value::Bool(value) => Ok(Value::Bool(!value)),
                 Value::I8(value) => Ok(Value::I8(!value)),
                 Value::I16(value) => Ok(Value::I16(!value)),
@@ -588,8 +620,8 @@ impl<'a> Interpreter<'a> {
                     Err(InterpreterError::InvalidValueForUnary { value, location, operator: "not" })
                 }
             },
-            crate::ast::UnaryOp::MutableReference => Ok(Value::Pointer(Shared::new(rhs))),
-            crate::ast::UnaryOp::Dereference { implicitly_added: _ } => match rhs {
+            UnaryOp::MutableReference => Ok(Value::Pointer(Shared::new(rhs))),
+            UnaryOp::Dereference { implicitly_added: _ } => match rhs {
                 Value::Pointer(element) => Ok(element.borrow().clone()),
                 value => {
                     let location = self.interner.expr_location(&id);
@@ -603,13 +635,8 @@ impl<'a> Interpreter<'a> {
         let lhs = self.evaluate(infix.lhs)?;
         let rhs = self.evaluate(infix.rhs)?;
 
-        // TODO: Need to account for operator overloading
-        // See https://github.com/noir-lang/noir/issues/4925
         if self.interner.get_selected_impl_for_expression(id).is_some() {
-            return Err(InterpreterError::Unimplemented {
-                item: "Operator overloading in the interpreter".to_string(),
-                location: infix.operator.location,
-            });
+            return self.evaluate_overloaded_infix(infix, lhs, rhs, id);
         }
 
         use InterpreterError::InvalidValuesForBinary;
@@ -854,6 +881,64 @@ impl<'a> Interpreter<'a> {
         }
     }
 
+    fn evaluate_overloaded_infix(
+        &mut self,
+        infix: HirInfixExpression,
+        lhs: Value,
+        rhs: Value,
+        id: ExprId,
+    ) -> IResult<Value> {
+        let method = infix.trait_method_id;
+        let operator = infix.operator.kind;
+
+        let method_id = resolve_trait_method(self.interner, method, id)?;
+        let type_bindings = self.interner.get_instantiation_bindings(id).clone();
+
+        let lhs = (lhs, self.interner.expr_location(&infix.lhs));
+        let rhs = (rhs, self.interner.expr_location(&infix.rhs));
+
+        let location = self.interner.expr_location(&id);
+        let value = self.call_function(method_id, vec![lhs, rhs], type_bindings, location)?;
+
+        // Certain operators add additional operations after the trait call:
+        // - `!=`: Reverse the result of Eq
+        // - Comparator operators: Convert the returned `Ordering` to a boolean.
+        use BinaryOpKind::*;
+        match operator {
+            NotEqual => self.evaluate_prefix_with_value(value, UnaryOp::Not, id),
+            Less | LessEqual | Greater | GreaterEqual => self.evaluate_ordering(value, operator),
+            _ => Ok(value),
+        }
+    }
+
+    /// Given the result of a `cmp` operation, convert it into the boolean result of the given operator.
+    /// - `<`:  `ordering == Ordering::Less`
+    /// - `<=`: `ordering != Ordering::Greater`
+    /// - `>`:  `ordering == Ordering::Greater`
+    /// - `<=`: `ordering != Ordering::Less`
+    fn evaluate_ordering(&self, ordering: Value, operator: BinaryOpKind) -> IResult<Value> {
+        let ordering = match ordering {
+            Value::Struct(fields, _) => match fields.into_iter().next().unwrap().1 {
+                Value::Field(ordering) => ordering,
+                _ => unreachable!("`cmp` should always return an Ordering value"),
+            },
+            _ => unreachable!("`cmp` should always return an Ordering value"),
+        };
+
+        use BinaryOpKind::*;
+        let less_or_greater = if matches!(operator, Less | GreaterEqual) {
+            FieldElement::zero() // Ordering::Less
+        } else {
+            2u128.into() // Ordering::Greater
+        };
+
+        if matches!(operator, Less | Greater) {
+            Ok(Value::Bool(ordering == less_or_greater))
+        } else {
+            Ok(Value::Bool(ordering != less_or_greater))
+        }
+    }
+
     fn evaluate_index(&mut self, index: HirIndexExpression, id: ExprId) -> IResult<Value> {
         let array = self.evaluate(index.collection)?;
         let index = self.evaluate(index.index)?;
@@ -882,7 +967,10 @@ impl<'a> Interpreter<'a> {
 
         let index = match index {
             Value::Field(value) => {
-                value.try_to_u64().expect("index could not fit into u64") as usize
+                value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(|| {
+                    let typ = Type::default_int_type();
+                    InterpreterError::IntegerOutOfRangeForType { value, typ, location }
+                })?
             }
             Value::I8(value) => value as usize,
             Value::I16(value) => value as usize,
@@ -1209,8 +1297,15 @@ impl<'a> Interpreter<'a> {
                 }
             }
             HirLValue::MemberAccess { object, field_name, field_index, typ: _, location } => {
-                let index = field_index.expect("The field index should be set after type checking");
-                match self.evaluate_lvalue(&object)? {
+                let object_value = self.evaluate_lvalue(&object)?;
+
+                let index = field_index.ok_or_else(|| {
+                    let value = object_value.clone();
+                    let field_name = field_name.to_string();
+                    InterpreterError::ExpectedStructToHaveField { value, field_name, location }
+                })?;
+
+                match object_value {
                     Value::Tuple(mut fields) => {
                         fields[index] = rhs;
                         self.store_lvalue(*object, Value::Tuple(fields))
@@ -1254,9 +1349,16 @@ impl<'a> Interpreter<'a> {
                 }
             }
             HirLValue::MemberAccess { object, field_name, field_index, typ: _, location } => {
-                let index = field_index.expect("The field index should be set after type checking");
+                let object_value = self.evaluate_lvalue(object)?;
 
-                match self.evaluate_lvalue(object)? {
+                let index = field_index.ok_or_else(|| {
+                    let value = object_value.clone();
+                    let field_name = field_name.to_string();
+                    let location = *location;
+                    InterpreterError::ExpectedStructToHaveField { value, field_name, location }
+                })?;
+
+                match object_value {
                     Value::Tuple(mut values) => Ok(values.swap_remove(index)),
                     Value::Struct(fields, _) => Ok(fields[&field_name.0.contents].clone()),
                     value => Err(InterpreterError::NonTupleOrStructInMemberAccess {

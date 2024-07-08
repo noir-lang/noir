@@ -1,4 +1,3 @@
-
 struct Bar<T> {
     one: Field,
     two: Field,

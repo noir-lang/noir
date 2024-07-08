@@ -1,7 +1,10 @@
 use std::rc::Rc;
 
 use crate::{
-    hir::def_collector::dc_crate::CompilationError, parser::ParserError, token::Tokens, Type,
+    hir::{def_collector::dc_crate::CompilationError, type_check::NoMatchingImplFoundError},
+    parser::ParserError,
+    token::Tokens,
+    Type,
 };
 use acvm::{acir::AcirField, FieldElement};
 use fm::FileId;
@@ -16,6 +19,7 @@ pub enum InterpreterError {
     ArgumentCountMismatch { expected: usize, actual: usize, location: Location },
     TypeMismatch { expected: Type, value: Value, location: Location },
     NonComptimeVarReferenced { name: String, location: Location },
+    VariableNotInScope { location: Location },
     IntegerOutOfRangeForType { value: FieldElement, typ: Type, location: Location },
     ErrorNodeEncountered { location: Location },
     NonFunctionCalled { value: Value, location: Location },
@@ -44,6 +48,8 @@ pub enum InterpreterError {
     FailedToParseMacro { error: ParserError, tokens: Rc<Tokens>, rule: &'static str, file: FileId },
     UnsupportedTopLevelItemUnquote { item: String, location: Location },
     NonComptimeFnCallInSameCrate { function: String, location: Location },
+    NoImpl { location: Location },
+    NoMatchingImplFound { error: NoMatchingImplFoundError, file: FileId },
 
     Unimplemented { item: String, location: Location },
 
@@ -78,6 +84,7 @@ impl InterpreterError {
             InterpreterError::ArgumentCountMismatch { location, .. }
             | InterpreterError::TypeMismatch { location, .. }
             | InterpreterError::NonComptimeVarReferenced { location, .. }
+            | InterpreterError::VariableNotInScope { location, .. }
             | InterpreterError::IntegerOutOfRangeForType { location, .. }
             | InterpreterError::ErrorNodeEncountered { location, .. }
             | InterpreterError::NonFunctionCalled { location, .. }
@@ -106,10 +113,14 @@ impl InterpreterError {
             | InterpreterError::UnsupportedTopLevelItemUnquote { location, .. }
             | InterpreterError::NonComptimeFnCallInSameCrate { location, .. }
             | InterpreterError::Unimplemented { location, .. }
+            | InterpreterError::NoImpl { location, .. }
             | InterpreterError::BreakNotInLoop { location, .. }
             | InterpreterError::ContinueNotInLoop { location, .. } => *location,
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
+            }
+            InterpreterError::NoMatchingImplFound { error, file } => {
+                Location::new(error.span, *file)
             }
             InterpreterError::Break | InterpreterError::Continue => {
                 panic!("Tried to get the location of Break/Continue error!")
@@ -141,6 +152,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::NonComptimeVarReferenced { name, location } => {
                 let msg = format!("Non-comptime variable `{name}` referenced in comptime code");
                 let secondary = "Non-comptime variables can't be used in comptime code".to_string();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::VariableNotInScope { location } => {
+                let msg = "Variable not in scope".to_string();
+                let secondary = "Could not find variable".to_string();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::IntegerOutOfRangeForType { value, typ, location } => {
@@ -324,6 +340,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = "There is no loop to continue!".into();
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
+            InterpreterError::NoImpl { location } => {
+                let msg = "No impl found due to prior type error".into();
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::NoMatchingImplFound { error, .. } => error.into(),
             InterpreterError::Break => unreachable!("Uncaught InterpreterError::Break"),
             InterpreterError::Continue => unreachable!("Uncaught InterpreterError::Continue"),
         }

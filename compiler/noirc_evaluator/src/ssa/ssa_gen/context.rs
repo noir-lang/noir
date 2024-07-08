@@ -266,20 +266,38 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn checked_numeric_constant(
         &mut self,
         value: impl Into<FieldElement>,
+        negative: bool,
         typ: Type,
     ) -> Result<ValueId, RuntimeError> {
         let value = value.into();
 
-        if let Type::Numeric(typ) = typ {
-            if !typ.value_is_within_limits(value) {
+        if let Type::Numeric(numeric_type) = typ {
+            if let Some(range) = numeric_type.value_is_outside_limits(value, negative) {
                 let call_stack = self.builder.get_call_stack();
-                return Err(RuntimeError::IntegerOutOfBounds { value, typ, call_stack });
+                return Err(RuntimeError::IntegerOutOfBounds {
+                    value: if negative { -value } else { value },
+                    typ: numeric_type,
+                    range,
+                    call_stack,
+                });
             }
+
+            let value = if negative {
+                match numeric_type {
+                    NumericType::NativeField => -value,
+                    NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
+                        let base = 1_u128 << bit_size;
+                        FieldElement::from(base) - value
+                    }
+                }
+            } else {
+                value
+            };
+
+            Ok(self.builder.numeric_constant(value, typ))
         } else {
             panic!("Expected type for numeric constant to be a numeric type, found {typ}");
         }
-
-        Ok(self.builder.numeric_constant(value, typ))
     }
 
     /// helper function which add instructions to the block computing the absolute value of the
