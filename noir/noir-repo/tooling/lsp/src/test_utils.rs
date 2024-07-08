@@ -46,9 +46,8 @@ pub(crate) fn search_in_file(filename: &str, search_string: &str) -> Vec<Range> 
     file_lines
         .iter()
         .enumerate()
-        .filter_map(|(line_num, line)| {
-            // Note: this only finds the first instance of `search_string` on this line.
-            line.find(search_string).map(|index| {
+        .flat_map(|(line_num, line)| {
+            line.match_indices(search_string).map(move |(index, _)| {
                 let start = Position { line: line_num as u32, character: index as u32 };
                 let end = Position {
                     line: line_num as u32,
