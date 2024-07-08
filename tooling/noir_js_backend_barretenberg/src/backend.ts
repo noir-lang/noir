@@ -10,7 +10,7 @@ import { type Barretenberg } from '@aztec/bb.js';
 // minus the public inputs.
 const numBytesInProofWithoutPublicInputs: number = 2144;
 
-export class BarretenbergVerifierBackend implements VerifierBackend {
+export class BarretenbergBackend implements Backend, VerifierBackend {
   // These type assertions are used so that we don't
   // have to initialize `api` and `acirComposer` in the constructor.
   // These are initialized asynchronously in the `init` function,
@@ -60,29 +60,6 @@ export class BarretenbergVerifierBackend implements VerifierBackend {
     }
   }
 
-  /** @description Verifies a proof */
-  async verifyProof(proofData: ProofData): Promise<boolean> {
-    const proof = reconstructProofWithPublicInputs(proofData);
-    await this.instantiate();
-    await this.api.acirInitVerificationKey(this.acirComposer);
-    return await this.api.acirVerifyProof(this.acirComposer, proof);
-  }
-
-  async getVerificationKey(): Promise<Uint8Array> {
-    await this.instantiate();
-    await this.api.acirInitVerificationKey(this.acirComposer);
-    return await this.api.acirGetVerificationKey(this.acirComposer);
-  }
-
-  async destroy(): Promise<void> {
-    if (!this.api) {
-      return;
-    }
-    await this.api.destroy();
-  }
-}
-
-export class BarretenbergBackend extends BarretenbergVerifierBackend implements Backend {
   /** @description Generates a proof */
   async generateProof(compressedWitness: Uint8Array): Promise<ProofData> {
     await this.instantiate();
@@ -143,5 +120,26 @@ export class BarretenbergBackend extends BarretenbergVerifierBackend implements 
       vkAsFields: vk[0].map((vk) => vk.toString()),
       vkHash: vk[1].toString(),
     };
+  }
+
+  /** @description Verifies a proof */
+  async verifyProof(proofData: ProofData): Promise<boolean> {
+    const proof = reconstructProofWithPublicInputs(proofData);
+    await this.instantiate();
+    await this.api.acirInitVerificationKey(this.acirComposer);
+    return await this.api.acirVerifyProof(this.acirComposer, proof);
+  }
+
+  async getVerificationKey(): Promise<Uint8Array> {
+    await this.instantiate();
+    await this.api.acirInitVerificationKey(this.acirComposer);
+    return await this.api.acirGetVerificationKey(this.acirComposer);
+  }
+
+  async destroy(): Promise<void> {
+    if (!this.api) {
+      return;
+    }
+    await this.api.destroy();
   }
 }
