@@ -2,6 +2,8 @@
 
 # Notify the Noir team of any changes to ACIR serialization
 /noir/noir-repo/acvm-repo/acir/codegen/* @TomAFrench @vezenovm @guipublic
+# on changes to stdlib
+/noir/noir-repo/noir_stdlib/* @TomAFrench
 
 #####################################################
 # Notify the AVM team
