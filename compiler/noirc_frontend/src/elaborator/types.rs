@@ -31,7 +31,8 @@ use crate::{
         UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId,
+        DefinitionKind, DependencyId, ExprId, GlobalId, ReferenceId, TraitId, TraitImplKind,
+        TraitMethodId,
     },
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
@@ -57,6 +58,12 @@ impl<'context> Elaborator<'context> {
         use crate::ast::UnresolvedTypeData::*;
 
         let span = typ.span;
+        let (is_self_type_name, is_synthetic) = if let Named(ref named_path, _, synthetic) = typ.typ
+        {
+            (named_path.last_segment().is_self_type_name(), synthetic)
+        } else {
+            (false, false)
+        };
 
         let resolved_type = match typ.typ {
             FieldElement => Type::FieldElement,
@@ -146,13 +153,22 @@ impl<'context> Elaborator<'context> {
             Resolved(id) => self.interner.get_quoted_type(id).clone(),
         };
 
-        if let Type::Struct(_, _) = resolved_type {
+        if let Type::Struct(ref struct_type, _) = resolved_type {
             if let Some(unresolved_span) = typ.span {
                 // Record the location of the type reference
                 self.interner.push_type_ref_location(
                     resolved_type.clone(),
                     Location::new(unresolved_span, self.file),
                 );
+
+                if !is_synthetic {
+                    let referenced = ReferenceId::Struct(struct_type.borrow().id);
+                    let reference = ReferenceId::Variable(
+                        Location::new(unresolved_span, self.file),
+                        is_self_type_name,
+                    );
+                    self.interner.add_reference(referenced, reference);
+                }
             }
         }
 
@@ -244,8 +260,6 @@ impl<'context> Elaborator<'context> {
             return Type::Alias(alias, args);
         }
 
-        let last_segment = path.last_segment();
-
         match self.lookup_struct_or_error(path) {
             Some(struct_type) => {
                 if self.resolving_ids.contains(&struct_type.borrow().id) {
@@ -282,11 +296,6 @@ impl<'context> Elaborator<'context> {
                     let dependency_id = struct_type.borrow().id;
                     self.interner.add_type_dependency(current_item, dependency_id);
                 }
-
-                let referenced = DependencyId::Struct(struct_type.borrow().id);
-                let reference =
-                    DependencyId::Variable(Location::new(last_segment.span(), self.file));
-                self.interner.add_reference(referenced, reference);
 
                 Type::Struct(struct_type, args)
             }
