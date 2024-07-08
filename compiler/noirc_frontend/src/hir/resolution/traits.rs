@@ -388,7 +388,7 @@ pub(crate) fn resolve_trait_by_path(
 ) -> Result<(TraitId, Option<PathResolutionError>), DefCollectorErrorKind> {
     let path_resolver = StandardPathResolver::new(module);
 
-    match path_resolver.resolve(def_maps, path.clone()) {
+    match path_resolver.resolve(def_maps, path.clone(), &mut None) {
         Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), error }) => {
             Ok((trait_id, error))
         }

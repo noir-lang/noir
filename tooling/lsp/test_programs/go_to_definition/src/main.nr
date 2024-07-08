@@ -7,10 +7,14 @@ mod foo {
 use foo::another_function;
 use foo::another_function as aliased_function;
 
+mod bar;
+
 fn some_function() -> Field {
     1 + 2
 }
 
 fn main() {
     let _ = another_function();
+    bar::baz();
+    bar::inline::qux();
 }

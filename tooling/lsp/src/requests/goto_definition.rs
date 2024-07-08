@@ -51,7 +51,7 @@ mod goto_definition_tests {
 
     use super::*;
 
-    async fn expect_goto(directory: &str, name: &str, definition_index: usize) {
+    async fn expect_goto_for_all_references(directory: &str, name: &str, definition_index: usize) {
         let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
 
         let ranges = search_in_file(noir_text_document.path(), name);
@@ -90,21 +90,20 @@ mod goto_definition_tests {
         }
     }
 
-    #[test]
-    async fn goto_from_function_location_to_declaration() {
-        expect_goto("go_to_definition", "another_function", 0).await;
-    }
-
-    #[test]
-    async fn goto_from_use_as() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("go_to_definition").await;
+    async fn expect_goto(
+        directory: &str,
+        position: Position,
+        expected_file: &str,
+        expected_range: Range,
+    ) {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
 
         let params = GotoDefinitionParams {
             text_document_position_params: lsp_types::TextDocumentPositionParams {
                 text_document: lsp_types::TextDocumentIdentifier {
                     uri: noir_text_document.clone(),
                 },
-                position: Position { line: 7, character: 29 }, // The word after `as`
+                position,
             },
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
@@ -116,15 +115,85 @@ mod goto_definition_tests {
             .unwrap_or_else(|| panic!("Didn't get a goto definition response"));
 
         if let GotoDefinitionResponse::Scalar(location) = response {
-            assert_eq!(
-                location.range,
-                Range {
-                    start: Position { line: 1, character: 11 },
-                    end: Position { line: 1, character: 27 }
-                }
-            );
+            assert!(location.uri.to_string().ends_with(expected_file));
+            assert_eq!(location.range, expected_range);
         } else {
             panic!("Expected a scalar response");
         };
+    }
+
+    #[test]
+    async fn goto_from_function_location_to_declaration() {
+        expect_goto_for_all_references("go_to_definition", "another_function", 0).await;
+    }
+
+    #[test]
+    async fn goto_from_use_as() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 7, character: 29 }, // The word after `as`,
+            "src/main.nr",
+            Range {
+                start: Position { line: 1, character: 11 },
+                end: Position { line: 1, character: 27 },
+            },
+        )
+        .await;
+    }
+
+    #[test]
+    async fn goto_module_from_call_path() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 17, character: 4 }, // "bar" in "bar::baz()"
+            "src/bar.nr",
+            Range {
+                start: Position { line: 0, character: 0 },
+                end: Position { line: 0, character: 0 },
+            },
+        )
+        .await;
+    }
+
+    #[test]
+    async fn goto_inline_module_from_call_path() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 18, character: 9 }, // "inline" in "bar::inline::qux()"
+            "src/bar.nr",
+            Range {
+                start: Position { line: 2, character: 4 },
+                end: Position { line: 2, character: 10 },
+            },
+        )
+        .await;
+    }
+
+    #[test]
+    async fn goto_module_from_use_path() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 6, character: 4 }, // "foo" in "use foo::another_function;"
+            "src/main.nr",
+            Range {
+                start: Position { line: 0, character: 4 },
+                end: Position { line: 0, character: 7 },
+            },
+        )
+        .await;
+    }
+
+    #[test]
+    async fn goto_module_from_mod() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 9, character: 4 }, // "bar" in "mod bar;"
+            "src/bar.nr",
+            Range {
+                start: Position { line: 0, character: 0 },
+                end: Position { line: 0, character: 0 },
+            },
+        )
+        .await;
     }
 }

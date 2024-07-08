@@ -665,6 +665,10 @@ impl Type {
         matches!(self.follow_bindings(), Type::Bool)
     }
 
+    pub fn is_integer(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Integer(_, _))
+    }
+
     pub fn is_signed(&self) -> bool {
         matches!(self.follow_bindings(), Type::Integer(Signedness::Signed, _))
     }
