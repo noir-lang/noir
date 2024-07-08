@@ -10,6 +10,7 @@ on:
   schedule:
     # Run the workflow every night at 2:00 AM UTC.
     - cron: "0 2 * * *"
+  workflow_dispatch: {} 
 
 jobs:
   mirror-to-noir-edwards-lib:
