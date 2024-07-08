@@ -254,13 +254,8 @@ impl<'context> Elaborator<'context> {
         let expr_id = self.interner.push_expr(expr);
         self.interner.push_expr_location(expr_id, span, self.file);
 
-        let typ = match trait_id {
-            Some(trait_id) => {
-                let result = Self::prefix_operand_type_rules(&operator, &rhs_type, span);
-                self.handle_operand_type_rules_result(result, &rhs_type, trait_id, expr_id, span)
-            }
-            None => self.type_check_prefix_operand(&operator, &rhs_type, span),
-        };
+        let result = self.prefix_operand_type_rules(&operator, &rhs_type, span);
+        let typ = self.handle_operand_type_rules_result(result, &rhs_type, trait_id, expr_id, span);
 
         self.interner.push_expr_type(expr_id, typ.clone());
         (expr_id, typ)
@@ -559,7 +554,8 @@ impl<'context> Elaborator<'context> {
         self.interner.push_expr_location(expr_id, span, self.file);
 
         let result = self.infix_operand_type_rules(&lhs_type, &operator, &rhs_type, span);
-        let typ = self.handle_operand_type_rules_result(result, &lhs_type, trait_id, expr_id, span);
+        let typ =
+            self.handle_operand_type_rules_result(result, &lhs_type, Some(trait_id), expr_id, span);
 
         self.interner.push_expr_type(expr_id, typ.clone());
         (expr_id, typ)
@@ -569,13 +565,16 @@ impl<'context> Elaborator<'context> {
         &mut self,
         result: Result<(Type, bool), TypeCheckError>,
         operand_type: &Type,
-        trait_id: TraitMethodId,
+        trait_id: Option<TraitMethodId>,
         expr_id: ExprId,
         span: Span,
     ) -> Type {
         match result {
             Ok((typ, use_impl)) => {
                 if use_impl {
+                    let trait_id =
+                        trait_id.expect("ice: expected some trait_id when use_impl is true");
+
                     // Delay checking the trait constraint until the end of the function.
                     // Checking it now could bind an unbound type variable to any type
                     // that implements the trait.

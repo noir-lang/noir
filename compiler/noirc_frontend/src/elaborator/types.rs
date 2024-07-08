@@ -654,39 +654,6 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn type_check_prefix_operand(
-        &mut self,
-        op: &crate::ast::UnaryOp,
-        rhs_type: &Type,
-        span: Span,
-    ) -> Type {
-        let unify = |this: &mut Self, expected| {
-            this.unify(rhs_type, &expected, || TypeCheckError::TypeMismatch {
-                expr_typ: rhs_type.to_string(),
-                expected_typ: expected.to_string(),
-                expr_span: span,
-            });
-            expected
-        };
-
-        match op {
-            crate::ast::UnaryOp::Minus => {
-                panic!("expected std::ops::Neg to be handled as a trait");
-            }
-            crate::ast::UnaryOp::Not => {
-                panic!("expected std::ops::Not to be handled as a trait");
-            }
-            crate::ast::UnaryOp::MutableReference => {
-                Type::MutableReference(Box::new(rhs_type.follow_bindings()))
-            }
-            crate::ast::UnaryOp::Dereference { implicitly_added: _ } => {
-                let element_type = self.interner.next_type_variable();
-                unify(self, Type::MutableReference(Box::new(element_type.clone())));
-                element_type
-            }
-        }
-    }
-
     /// Insert as many dereference operations as necessary to automatically dereference a method
     /// call object to its base value type T.
     pub(super) fn insert_auto_dereferences(&mut self, object: ExprId, typ: Type) -> (ExprId, Type) {
@@ -1045,47 +1012,66 @@ impl<'context> Elaborator<'context> {
     // or not. A value of false indicates the caller to use a primitive operation for this
     // operator, while a true value indicates a user-provided trait impl is required.
     pub(super) fn prefix_operand_type_rules(
+        &mut self,
         op: &UnaryOp,
         rhs_type: &Type,
         span: Span,
     ) -> Result<(Type, bool), TypeCheckError> {
         use Type::*;
-        match rhs_type {
-            // An error type will always return an error
-            Error => Ok((Error, false)),
-            Alias(alias, args) => {
-                let alias = alias.borrow().get_type(args);
-                Self::prefix_operand_type_rules(op, &alias, span)
-            }
 
-            // Matches on TypeVariable must be first so that we follow any type
-            // bindings.
-            TypeVariable(int, _) => {
-                if let TypeBinding::Bound(binding) = &*int.borrow() {
-                    return Self::prefix_operand_type_rules(op, binding, span);
-                }
-                Ok((rhs_type.clone(), !rhs_type.is_numeric()))
-            }
-            Integer(sign_x, bit_width_x) => {
-                if *op == UnaryOp::Minus && *sign_x == Signedness::Unsigned {
-                    return Err(TypeCheckError::InvalidUnaryOp {
-                        kind: rhs_type.to_string(),
-                        span,
-                    });
-                }
-                Ok((Integer(*sign_x, *bit_width_x), false))
-            }
-            // The result of a Field is always a witness
-            FieldElement => {
-                if *op == UnaryOp::Not {
-                    return Err(TypeCheckError::FieldNot { span });
-                }
-                Ok((FieldElement, false))
-            }
+        match op {
+            crate::ast::UnaryOp::Minus | crate::ast::UnaryOp::Not => {
+                match rhs_type {
+                    // An error type will always return an error
+                    Error => Ok((Error, false)),
+                    Alias(alias, args) => {
+                        let alias = alias.borrow().get_type(args);
+                        return self.prefix_operand_type_rules(op, &alias, span);
+                    }
 
-            Bool => Ok((Bool, false)),
+                    // Matches on TypeVariable must be first so that we follow any type
+                    // bindings.
+                    TypeVariable(int, _) => {
+                        if let TypeBinding::Bound(binding) = &*int.borrow() {
+                            return self.prefix_operand_type_rules(op, binding, span);
+                        }
+                        Ok((rhs_type.clone(), !rhs_type.is_numeric()))
+                    }
+                    Integer(sign_x, bit_width_x) => {
+                        if *op == UnaryOp::Minus && *sign_x == Signedness::Unsigned {
+                            return Err(TypeCheckError::InvalidUnaryOp {
+                                kind: rhs_type.to_string(),
+                                span,
+                            });
+                        }
+                        Ok((Integer(*sign_x, *bit_width_x), false))
+                    }
+                    // The result of a Field is always a witness
+                    FieldElement => {
+                        if *op == UnaryOp::Not {
+                            return Err(TypeCheckError::FieldNot { span });
+                        }
+                        Ok((FieldElement, false))
+                    }
 
-            _ => Ok((rhs_type.clone(), true)),
+                    Bool => Ok((Bool, false)),
+
+                    _ => Ok((rhs_type.clone(), true)),
+                }
+            }
+            crate::ast::UnaryOp::MutableReference => {
+                Ok((Type::MutableReference(Box::new(rhs_type.follow_bindings())), false))
+            }
+            crate::ast::UnaryOp::Dereference { implicitly_added: _ } => {
+                let element_type = self.interner.next_type_variable();
+                let expected = Type::MutableReference(Box::new(element_type.clone()));
+                self.unify(rhs_type, &expected, || TypeCheckError::TypeMismatch {
+                    expr_typ: rhs_type.to_string(),
+                    expected_typ: expected.to_string(),
+                    expr_span: span,
+                });
+                Ok((element_type, false))
+            }
         }
     }
 
