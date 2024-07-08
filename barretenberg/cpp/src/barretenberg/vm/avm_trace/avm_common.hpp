@@ -3,8 +3,9 @@
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
 #include "barretenberg/vm/avm_trace/constants.hpp"
-#include "barretenberg/vm/avm_trace/stats.hpp"
-#include "barretenberg/vm/generated/avm_flavor.hpp"
+
+#include "barretenberg/vm/generated/avm_flavor_settings.hpp"
+#include "barretenberg/vm/generated/avm_full_row.hpp"
 
 #include <array>
 #include <cstdint>
@@ -13,8 +14,7 @@
 
 namespace bb::avm_trace {
 
-using Flavor = bb::AvmFlavor;
-using FF = Flavor::FF;
+using FF = AvmFlavorSettings::FF;
 
 // To toggle all relevant unit tests with proving, set the env variable "AVM_ENABLE_FULL_PROVING".
 static const bool ENABLE_PROVING = std::getenv("AVM_ENABLE_FULL_PROVING") != nullptr;

@@ -12,6 +12,8 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/flavor/flavor.hpp"
 
+#include "barretenberg/vm/generated/{{snakeCase name}}_flavor_settings.hpp"
+
 // Relations
 {{#each relation_file_names as |r|}}
 #include "barretenberg/relations/generated/{{snakeCase ../name}}/{{r}}.hpp"
@@ -30,19 +32,19 @@ namespace bb {
 
 class {{name}}Flavor {
   public: 
-    using Curve = curve::BN254;
-    using G1 = Curve::Group;
-    using PCS = KZG<Curve>;
+    using Curve = {{name}}FlavorSettings::Curve;
+    using G1 = {{name}}FlavorSettings::G1;
+    using PCS = {{name}}FlavorSettings::PCS;
 
-    using FF = G1::subgroup_field;
-    using Polynomial = bb::Polynomial<FF>;
-    using PolynomialHandle = std::span<FF>;
-    using GroupElement = G1::element;
-    using Commitment = G1::affine_element;
-    using CommitmentHandle = G1::affine_element;
-    using CommitmentKey = bb::CommitmentKey<Curve>;
-    using VerifierCommitmentKey = bb::VerifierCommitmentKey<Curve>;
-    using RelationSeparator = FF;
+    using FF = {{name}}FlavorSettings::FF;
+    using Polynomial = {{name}}FlavorSettings::Polynomial;
+    using PolynomialHandle = {{name}}FlavorSettings::PolynomialHandle;
+    using GroupElement = {{name}}FlavorSettings::GroupElement;
+    using Commitment = {{name}}FlavorSettings::Commitment;
+    using CommitmentHandle = {{name}}FlavorSettings::CommitmentHandle;
+    using CommitmentKey = {{name}}FlavorSettings::CommitmentKey;
+    using VerifierCommitmentKey = {{name}}FlavorSettings::VerifierCommitmentKey;
+    using RelationSeparator = {{name}}FlavorSettings::RelationSeparator;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = {{len fixed}}; 
     static constexpr size_t NUM_WITNESS_ENTITIES = {{len witness}};

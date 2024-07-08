@@ -1,4 +1,5 @@
-#include "barretenberg/vm/generated/{{snakeCase name}}_circuit_builder.hpp"
+#include "barretenberg/vm/generated/{{snakeCase name}}_full_row.hpp"
+#include "barretenberg/vm/generated/{{snakeCase name}}_flavor_settings.hpp"
 
 namespace bb {
 namespace {
@@ -33,7 +34,7 @@ template <typename FF> std::ostream& operator<<(std::ostream& os, {{name}}FullRo
 }
 
 // Explicit template instantiation.
-template std::ostream& operator<<(std::ostream& os, {{name}}FullRow<bb::{{name}}Flavor::FF> const& row);
-template std::vector<std::string> {{name}}FullRow<bb::{{name}}Flavor::FF>::names();
+template std::ostream& operator<<(std::ostream& os, {{name}}FullRow<{{name}}FlavorSettings::FF> const& row);
+template std::vector<std::string> {{name}}FullRow<{{name}}FlavorSettings::FF>::names();
 
 } // namespace bb

@@ -13,7 +13,6 @@
 #include "barretenberg/vm/avm_trace/constants.hpp"
 #include "barretenberg/vm/generated/avm_circuit_builder.hpp"
 #include "barretenberg/vm/generated/avm_composer.hpp"
-#include "barretenberg/vm/generated/avm_flavor.hpp"
 
 #include <cassert>
 #include <cstddef>

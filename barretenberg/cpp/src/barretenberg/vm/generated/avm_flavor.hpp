@@ -12,6 +12,8 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
+#include "barretenberg/vm/generated/avm_flavor_settings.hpp"
+
 // Relations
 #include "barretenberg/relations/generated/avm/alu.hpp"
 #include "barretenberg/relations/generated/avm/binary.hpp"
@@ -90,19 +92,19 @@ namespace bb {
 
 class AvmFlavor {
   public:
-    using Curve = curve::BN254;
-    using G1 = Curve::Group;
-    using PCS = KZG<Curve>;
+    using Curve = AvmFlavorSettings::Curve;
+    using G1 = AvmFlavorSettings::G1;
+    using PCS = AvmFlavorSettings::PCS;
 
-    using FF = G1::subgroup_field;
-    using Polynomial = bb::Polynomial<FF>;
-    using PolynomialHandle = std::span<FF>;
-    using GroupElement = G1::element;
-    using Commitment = G1::affine_element;
-    using CommitmentHandle = G1::affine_element;
-    using CommitmentKey = bb::CommitmentKey<Curve>;
-    using VerifierCommitmentKey = bb::VerifierCommitmentKey<Curve>;
-    using RelationSeparator = FF;
+    using FF = AvmFlavorSettings::FF;
+    using Polynomial = AvmFlavorSettings::Polynomial;
+    using PolynomialHandle = AvmFlavorSettings::PolynomialHandle;
+    using GroupElement = AvmFlavorSettings::GroupElement;
+    using Commitment = AvmFlavorSettings::Commitment;
+    using CommitmentHandle = AvmFlavorSettings::CommitmentHandle;
+    using CommitmentKey = AvmFlavorSettings::CommitmentKey;
+    using VerifierCommitmentKey = AvmFlavorSettings::VerifierCommitmentKey;
+    using RelationSeparator = AvmFlavorSettings::RelationSeparator;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 2;
     static constexpr size_t NUM_WITNESS_ENTITIES = 385;

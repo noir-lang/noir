@@ -17,6 +17,8 @@ pub trait FlavorBuilder {
         shifted: &[String],
         all_cols_and_shifts: &[String],
     );
+
+    fn create_flavor_settings_hpp(&mut self, name: &str);
 }
 
 /// Build the boilerplate for the flavor file
@@ -61,6 +63,30 @@ impl FlavorBuilder for BBFiles {
         self.write_file(
             &self.flavor,
             &format!("{}_flavor.hpp", snake_case(name)),
+            &flavor_hpp,
+        );
+    }
+
+    fn create_flavor_settings_hpp(&mut self, name: &str) {
+        let mut handlebars = Handlebars::new();
+
+        let data = &json!({
+            "name": name,
+        });
+
+        handlebars
+            .register_template_string(
+                "flavor_settings.hpp",
+                std::str::from_utf8(include_bytes!("../templates/flavor_settings.hpp.hbs"))
+                    .unwrap(),
+            )
+            .unwrap();
+
+        let flavor_hpp = handlebars.render("flavor_settings.hpp", data).unwrap();
+
+        self.write_file(
+            &self.flavor,
+            &format!("{}_flavor_settings.hpp", snake_case(name)),
             &flavor_hpp,
         );
     }

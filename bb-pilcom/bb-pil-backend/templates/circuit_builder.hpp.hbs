@@ -14,21 +14,10 @@
 #include "barretenberg/relations/generic_lookup/generic_lookup_relation.hpp"
 #include "barretenberg/honk/proof_system/logderivative_library.hpp"
 
-// This already imports the relations and permutations. For now we rely on the transitive includes.
+#include "barretenberg/vm/generated/{{snakeCase name}}_full_row.hpp"
 #include "barretenberg/vm/generated/{{snakeCase name}}_flavor.hpp"
 
 namespace bb {
-
-template <typename FF>
-struct {{name}}FullRow {
-    {{#each all_cols as |col|}}
-    FF {{col}}{};
-    {{/each}}
-    
-    [[maybe_unused]] static std::vector<std::string> names();
-};
-
-template <typename FF> std::ostream& operator<<(std::ostream& os, {{name}}FullRow<FF> const& row);
 
 class {{name}}CircuitBuilder {
     public:

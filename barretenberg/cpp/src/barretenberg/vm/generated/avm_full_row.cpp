@@ -1,4 +1,5 @@
-#include "barretenberg/vm/generated/avm_circuit_builder.hpp"
+#include "barretenberg/vm/generated/avm_full_row.hpp"
+#include "barretenberg/vm/generated/avm_flavor_settings.hpp"
 
 namespace bb {
 namespace {
@@ -799,7 +800,7 @@ template <typename FF> std::ostream& operator<<(std::ostream& os, AvmFullRow<FF>
 }
 
 // Explicit template instantiation.
-template std::ostream& operator<<(std::ostream& os, AvmFullRow<bb::AvmFlavor::FF> const& row);
-template std::vector<std::string> AvmFullRow<bb::AvmFlavor::FF>::names();
+template std::ostream& operator<<(std::ostream& os, AvmFullRow<AvmFlavorSettings::FF> const& row);
+template std::vector<std::string> AvmFullRow<AvmFlavorSettings::FF>::names();
 
 } // namespace bb

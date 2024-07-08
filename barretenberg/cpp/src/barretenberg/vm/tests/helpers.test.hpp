@@ -18,8 +18,7 @@
 
 namespace tests_avm {
 
-using Flavor = bb::AvmFlavor;
-using FF = Flavor::FF;
+using FF = bb::AvmFlavorSettings::FF;
 using Row = bb::AvmFullRow<bb::fr>;
 using ThreeOpParam = std::array<FF, 3>;
 using ThreeOpParamRow = std::tuple<ThreeOpParam, bb::avm_trace::AvmMemoryTag>;

@@ -4,6 +4,7 @@
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 #include "barretenberg/vm/avm_trace/avm_instructions.hpp"
 #include "barretenberg/vm/avm_trace/avm_trace.hpp"
+#include "barretenberg/vm/generated/avm_flavor.hpp"
 
 #include <cstddef>
 #include <cstdint>
