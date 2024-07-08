@@ -172,7 +172,7 @@ export function collectEnqueuedPublicFunctionCalls(execResult: ExecutionResult):
   return [
     ...execResult.enqueuedPublicFunctionCalls,
     ...execResult.nestedExecutions.flatMap(collectEnqueuedPublicFunctionCalls),
-  ].sort((a, b) => b.callContext.sideEffectCounter - a.callContext.sideEffectCounter);
+  ].sort((a, b) => b.sideEffectCounter - a.sideEffectCounter);
 }
 
 export function collectPublicTeardownFunctionCall(execResult: ExecutionResult): PublicCallRequest {

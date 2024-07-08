@@ -72,7 +72,7 @@ export const mockTx = (
     data.forPublic = PartialPrivateTailPublicInputsForPublic.empty();
 
     publicCallRequests = publicCallRequests.length
-      ? publicCallRequests.slice().sort((a, b) => b.callContext.sideEffectCounter - a.callContext.sideEffectCounter)
+      ? publicCallRequests.slice().sort((a, b) => b.sideEffectCounter - a.sideEffectCounter)
       : times(totalPublicCallRequests, i => makePublicCallRequest(seed + 0x100 + i));
 
     const revertibleBuilder = new PublicAccumulatedDataBuilder();

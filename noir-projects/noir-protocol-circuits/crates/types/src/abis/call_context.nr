@@ -1,8 +1,7 @@
 use crate::{
-    abis::function_selector::FunctionSelector, address::{EthAddress, AztecAddress},
+    abis::function_selector::FunctionSelector, address::AztecAddress,
     constants::{CALL_CONTEXT_LENGTH, GENERATOR_INDEX__CALL_CONTEXT}, hash::pedersen_hash,
-    traits::{Deserialize, Hash, Serialize, Empty}, abis::side_effect::Ordered,
-    abis::{gas_settings::GasSettings, gas::Gas}, utils::reader::Reader
+    traits::{Deserialize, Hash, Serialize, Empty}, utils::reader::Reader
 };
 
 // docs:start:call-context
@@ -13,20 +12,8 @@ struct CallContext {
 
     is_delegate_call : bool,
     is_static_call : bool,
-
-    side_effect_counter : u32,
 }
 // docs:end:call-context
-
-impl CallContext {
-    fn assert_is_zero(self) {
-        let serialized: [Field; CALL_CONTEXT_LENGTH] = self.serialize();
-
-        for i in 0..CALL_CONTEXT_LENGTH {
-            assert(serialized[i] == 0);
-        }
-    }
-}
 
 impl Eq for CallContext {
     fn eq(self, other: CallContext) -> bool {
@@ -49,7 +36,6 @@ impl Serialize<CALL_CONTEXT_LENGTH> for CallContext {
         serialized.push(self.function_selector.to_field());
         serialized.push(self.is_delegate_call as Field);
         serialized.push(self.is_static_call as Field);
-        serialized.push(self.side_effect_counter as Field);
     
         serialized.storage
     }
@@ -64,7 +50,6 @@ impl Deserialize<CALL_CONTEXT_LENGTH> for CallContext {
             function_selector: FunctionSelector::from_field(reader.read()),
             is_delegate_call: reader.read() as bool,
             is_static_call: reader.read() as bool,
-            side_effect_counter: reader.read() as u32,
         }
     }
 }
@@ -77,7 +62,6 @@ impl Empty for CallContext {
             function_selector: FunctionSelector::empty(),
             is_delegate_call: false,
             is_static_call: false,
-            side_effect_counter: 0,
         }
     }
 }
@@ -88,19 +72,6 @@ fn serialize_deserialize_of_empty() {
     let serialized = context.serialize();
     let deserialized = CallContext::deserialize(serialized);
     assert(context.eq(deserialized));
-}
-
-#[test]
-fn assert_is_zero() {
-    let context = CallContext::empty();
-    context.assert_is_zero();
-}
-
-#[test(should_fail)]
-fn not_zero_assert_is_zero() {
-    let mut context = CallContext::empty();
-    context.is_delegate_call = true;
-    context.assert_is_zero();
 }
 
 #[test]

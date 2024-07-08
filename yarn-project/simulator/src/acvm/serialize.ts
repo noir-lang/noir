@@ -57,6 +57,7 @@ export function toAcvmEnqueuePublicFunctionResult(item: PublicCallRequest): ACVM
     item.contractAddress.toField(),
     item.functionSelector.toField(),
     ...item.callContext.toFields(),
+    item.sideEffectCounter,
     item.getArgsHash(),
   ];
   if (fields.length !== ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_LENGTH) {

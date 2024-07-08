@@ -179,7 +179,6 @@ export class TXE implements TypedOracle {
     inputs.historicalHeader.state = stateReference;
     inputs.callContext.msgSender = this.msgSender;
     inputs.callContext.storageContractAddress = this.contractAddress;
-    inputs.callContext.sideEffectCounter = sideEffectsCounter;
     inputs.callContext.isStaticCall = isStaticCall;
     inputs.callContext.isDelegateCall = isDelegateCall;
     inputs.startSideEffectCounter = sideEffectsCounter;
@@ -721,7 +720,6 @@ export class TXE implements TypedOracle {
       TxContext.empty(),
       /* pendingNullifiers */ [],
       /* transactionFee */ Fr.ONE,
-      callContext.sideEffectCounter,
     );
   }
 
@@ -743,7 +741,6 @@ export class TXE implements TypedOracle {
     const callContext = CallContext.empty();
     callContext.msgSender = this.msgSender;
     callContext.functionSelector = this.functionSelector;
-    callContext.sideEffectCounter = this.sideEffectsCounter;
     callContext.storageContractAddress = targetContractAddress;
     callContext.isStaticCall = isStaticCall;
     callContext.isDelegateCall = isDelegateCall;
@@ -785,7 +782,6 @@ export class TXE implements TypedOracle {
     const callContext = CallContext.empty();
     callContext.msgSender = this.msgSender;
     callContext.functionSelector = this.functionSelector;
-    callContext.sideEffectCounter = sideEffectCounter;
     callContext.storageContractAddress = targetContractAddress;
     callContext.isStaticCall = isStaticCall;
     callContext.isDelegateCall = isDelegateCall;
@@ -827,7 +823,6 @@ export class TXE implements TypedOracle {
     const callContext = CallContext.empty();
     callContext.msgSender = this.msgSender;
     callContext.functionSelector = this.functionSelector;
-    callContext.sideEffectCounter = sideEffectCounter;
     callContext.storageContractAddress = targetContractAddress;
     callContext.isStaticCall = isStaticCall;
     callContext.isDelegateCall = isDelegateCall;
@@ -850,7 +845,6 @@ export class TXE implements TypedOracle {
     const parentCallContext = CallContext.empty();
     parentCallContext.msgSender = currentMessageSender;
     parentCallContext.functionSelector = currentFunctionSelector;
-    parentCallContext.sideEffectCounter = sideEffectCounter;
     parentCallContext.storageContractAddress = currentContractAddress;
     parentCallContext.isStaticCall = isStaticCall;
     parentCallContext.isDelegateCall = isDelegateCall;
@@ -860,6 +854,7 @@ export class TXE implements TypedOracle {
       contractAddress: targetContractAddress,
       functionSelector,
       callContext,
+      sideEffectCounter,
       args,
     });
   }

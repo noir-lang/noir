@@ -77,6 +77,7 @@ mod tests {
             let mut previous_kernel = FixtureBuilder::new().in_vk_tree(PRIVATE_KERNEL_INNER_INDEX);
             previous_kernel.tx_context.gas_settings.gas_limits = Gas::new(1_000_000, 1_000_000);
             previous_kernel.set_first_nullifier();
+            previous_kernel.end_setup();
             previous_kernel.push_public_call_request(1, false);
 
             PrivateKernelTailToPublicInputsBuilder { previous_kernel }
@@ -167,6 +168,13 @@ mod tests {
     fn non_empty_private_call_stack_should_fail() {
         let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
         builder.previous_kernel.add_private_call_request(1, false);
+        builder.failed();
+    }
+
+    #[test(should_fail_with="min_revertible_side_effect_counter must not be 0")]
+    fn zero_min_revertible_side_effect_counter_fails() {
+        let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
+        builder.previous_kernel.min_revertible_side_effect_counter = 0;
         builder.failed();
     }
 

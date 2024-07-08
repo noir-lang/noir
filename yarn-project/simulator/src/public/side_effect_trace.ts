@@ -273,11 +273,9 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
     avmCallResults: AvmContractCallResult,
     /** Function name for logging */
     functionName: string = 'unknown',
-    /** The side effect counter of the execution request itself */
-    requestSideEffectCounter: number = this.startSideEffectCounter,
   ): PublicExecutionResult {
     return {
-      executionRequest: createPublicExecutionRequest(requestSideEffectCounter, avmEnvironment),
+      executionRequest: createPublicExecutionRequest(avmEnvironment),
 
       startSideEffectCounter: new Fr(this.startSideEffectCounter),
       endSideEffectCounter: new Fr(this.sideEffectCounter),
@@ -319,17 +317,13 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
 /**
  * Helper function to create a public execution request from an AVM execution environment
  */
-function createPublicExecutionRequest(
-  requestSideEffectCounter: number,
-  avmEnvironment: AvmExecutionEnvironment,
-): PublicExecutionRequest {
+function createPublicExecutionRequest(avmEnvironment: AvmExecutionEnvironment): PublicExecutionRequest {
   const callContext = CallContext.from({
     msgSender: avmEnvironment.sender,
     storageContractAddress: avmEnvironment.storageAddress,
     functionSelector: avmEnvironment.functionSelector,
     isDelegateCall: avmEnvironment.isDelegateCall,
     isStaticCall: avmEnvironment.isStaticCall,
-    sideEffectCounter: requestSideEffectCounter,
   });
   return {
     contractAddress: avmEnvironment.address,

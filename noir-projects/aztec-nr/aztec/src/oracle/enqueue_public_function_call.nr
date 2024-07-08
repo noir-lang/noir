@@ -85,6 +85,7 @@ pub fn parse_public_call_stack_item_from_oracle(fields: [Field; ENQUEUE_PUBLIC_F
         function_data: FunctionData { selector: FunctionSelector::from_field(reader.read()), is_private: false },
         public_inputs: PublicCircuitPublicInputs {
             call_context: reader.read_struct(CallContext::deserialize),
+            start_side_effect_counter: reader.read_u32(),
             args_hash: reader.read(),
             returns_hash: 0,
             note_hash_read_requests: [ReadRequest::empty(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
@@ -97,7 +98,6 @@ pub fn parse_public_call_stack_item_from_oracle(fields: [Field; ENQUEUE_PUBLIC_F
             note_hashes: [NoteHash::empty(); MAX_NOTE_HASHES_PER_CALL],
             nullifiers: [Nullifier::empty(); MAX_NULLIFIERS_PER_CALL],
             l2_to_l1_msgs: [L2ToL1Message::empty(); MAX_L2_TO_L1_MSGS_PER_CALL],
-            start_side_effect_counter: 0,
             end_side_effect_counter: 0,
             unencrypted_logs_hashes: [LogHash::empty(); MAX_UNENCRYPTED_LOGS_PER_CALL],
             historical_header: Header::empty(),

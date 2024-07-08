@@ -500,7 +500,6 @@ export class ClientExecutionContext extends ViewDataOracle {
     const derivedCallContext = this.deriveCallContext(
       targetContractAddress,
       targetArtifact,
-      sideEffectCounter,
       isDelegateCall,
       isStaticCall,
     );
@@ -559,7 +558,6 @@ export class ClientExecutionContext extends ViewDataOracle {
     const derivedCallContext = this.deriveCallContext(
       targetContractAddress,
       targetArtifact,
-      sideEffectCounter,
       isDelegateCall,
       isStaticCall,
     );
@@ -579,6 +577,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       parentCallContext: this.callContext,
       functionSelector,
       contractAddress: targetContractAddress,
+      sideEffectCounter,
     });
   }
 
@@ -654,7 +653,6 @@ export class ClientExecutionContext extends ViewDataOracle {
    * Derives the call context for a nested execution.
    * @param targetContractAddress - The address of the contract being called.
    * @param targetArtifact - The artifact of the function being called.
-   * @param startSideEffectCounter - The side effect counter at the start of the call.
    * @param isDelegateCall - Whether the call is a delegate call.
    * @param isStaticCall - Whether the call is a static call.
    * @returns The derived call context.
@@ -662,7 +660,6 @@ export class ClientExecutionContext extends ViewDataOracle {
   private deriveCallContext(
     targetContractAddress: AztecAddress,
     targetArtifact: FunctionArtifact,
-    startSideEffectCounter: number,
     isDelegateCall = false,
     isStaticCall = false,
   ) {
@@ -672,7 +669,6 @@ export class ClientExecutionContext extends ViewDataOracle {
       FunctionSelector.fromNameAndParameters(targetArtifact.name, targetArtifact.parameters),
       isDelegateCall,
       isStaticCall,
-      startSideEffectCounter,
     );
   }
 

@@ -227,8 +227,7 @@ impl FixtureBuilder {
             storage_contract_address: self.storage_contract_address,
             function_selector: self.function_data.selector,
             is_delegate_call: self.is_delegate_call,
-            is_static_call: self.is_static_call,
-            side_effect_counter: self.counter_start
+            is_static_call: self.is_static_call
         }
     }
 

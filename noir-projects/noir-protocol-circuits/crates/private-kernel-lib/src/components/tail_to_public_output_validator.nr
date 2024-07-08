@@ -62,6 +62,8 @@ impl TailToPublicOutputValidator {
 
     fn validate_propagated_sorted_siloed_values(self, hints: TailToPublicOutputHints) {
         let split_counter = self.previous_kernel.min_revertible_side_effect_counter;
+        assert(split_counter != 0, "min_revertible_side_effect_counter must not be 0");
+
         let prev_data = self.previous_kernel.end;
         let output_non_revertible = self.output.end_non_revertible;
         let output_revertible = self.output.end;

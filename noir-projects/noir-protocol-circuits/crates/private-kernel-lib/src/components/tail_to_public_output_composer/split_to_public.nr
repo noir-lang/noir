@@ -9,6 +9,8 @@ pub fn split_to_public(
     data: PrivateAccumulatedDataBuilder,
     min_revertible_side_effect_counter: u32
 ) -> (PublicAccumulatedDataBuilder, PublicAccumulatedDataBuilder) {
+    assert(min_revertible_side_effect_counter != 0, "min_revertible_side_effect_counter must not be 0");
+
     let mut non_revertible_builder = PublicAccumulatedDataBuilder::empty();
     let mut revertible_builder = PublicAccumulatedDataBuilder::empty();
 
@@ -26,10 +28,7 @@ pub fn split_to_public(
     }
 
     let nullifiers = data.nullifiers;
-    // First nullifier is always non-revertible.
-    let first_nullifier = nullifiers.get_unchecked(0).expose_to_public();
-    non_revertible_builder.nullifiers.push(first_nullifier);
-    for i in 1..nullifiers.max_len() {
+    for i in 0..nullifiers.max_len() {
         if i < nullifiers.len() {
             let nullifier = nullifiers.get_unchecked(i);
             let public_nullifier = nullifier.expose_to_public();

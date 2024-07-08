@@ -83,26 +83,14 @@ fn split_to_public_succeeds() {
     );
 }
 
-#[test]
-fn split_to_public_zero_counter_succeeds() {
+#[test(should_fail_with="min_revertible_side_effect_counter must not be 0")]
+fn split_to_public_zero_counter_fails() {
     let mut builder = FixtureBuilder::new();
 
-    builder.append_note_hashes(2);
-    builder.set_first_nullifier();
+    builder.append_note_hashes(1);
 
-    let combined_data = builder.to_exposed_public_accumulated_data();
-    let (non_revertible, revertible) = split_to_public(
+    let _ = split_to_public(
         builder.to_private_accumulated_data_builder(),
         builder.min_revertible_side_effect_counter
     );
-
-    // note_hashes
-    let expected = combined_data.note_hashes;
-    assert_array_eq(non_revertible.note_hashes.storage, []);
-    assert_array_eq(revertible.note_hashes.storage, [expected[0], expected[1]]);
-
-    // nullifiers
-    let expected = combined_data.nullifiers;
-    assert_array_eq(non_revertible.nullifiers.storage, [expected[0]]);
-    assert_array_eq(revertible.nullifiers.storage, []);
 }

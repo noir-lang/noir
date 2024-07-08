@@ -39,6 +39,10 @@ export class PublicCallRequest {
      */
     public parentCallContext: CallContext,
     /**
+     * The start side effect counter for this call request.
+     */
+    public sideEffectCounter: number,
+    /**
      * Function arguments.
      */
     public args: Fr[],
@@ -58,6 +62,7 @@ export class PublicCallRequest {
       this.functionSelector,
       this.callContext,
       this.parentCallContext,
+      this.sideEffectCounter,
       new Vector(this.args),
     );
   }
@@ -74,6 +79,7 @@ export class PublicCallRequest {
       FunctionSelector.fromBuffer(reader),
       CallContext.fromBuffer(reader),
       CallContext.fromBuffer(reader),
+      reader.readNumber(),
       reader.readVector(Fr),
     );
   }
@@ -98,6 +104,7 @@ export class PublicCallRequest {
       fields.functionSelector,
       fields.callContext,
       fields.parentCallContext,
+      fields.sideEffectCounter,
       fields.args,
     ] as const;
   }
@@ -135,7 +142,7 @@ export class PublicCallRequest {
       item.getCompressed().hash(),
       this.parentCallContext.storageContractAddress,
       callerContext,
-      new Fr(this.callContext.sideEffectCounter),
+      new Fr(this.sideEffectCounter),
       Fr.ZERO,
     );
   }
@@ -154,6 +161,7 @@ export class PublicCallRequest {
       FunctionSelector.empty(),
       CallContext.empty(),
       CallContext.empty(),
+      0,
       [],
     );
   }
@@ -164,6 +172,7 @@ export class PublicCallRequest {
       this.functionSelector.isEmpty() &&
       this.callContext.isEmpty() &&
       this.parentCallContext.isEmpty() &&
+      this.sideEffectCounter == 0 &&
       this.args.length === 0
     );
   }
@@ -174,6 +183,8 @@ export class PublicCallRequest {
       functionSelector: ${this.functionSelector}
       callContext: ${this.callContext}
       parentCallContext: ${this.parentCallContext}
-      args: ${this.args} }`;
+      sideEffectCounter: ${this.sideEffectCounter}
+      args: ${this.args}
+    }`;
   }
 }

@@ -75,7 +75,7 @@ export class PublicExecutionResultBuilder {
     revertReason?: SimulationError;
   }) {
     const builder = new PublicExecutionResultBuilder({
-      callContext: new CallContext(from, tx.to, tx.selector, false, false, 0),
+      callContext: new CallContext(from, tx.to, tx.selector, false, false),
       contractAddress: tx.to,
       functionSelector: tx.selector,
       args: tx.args,

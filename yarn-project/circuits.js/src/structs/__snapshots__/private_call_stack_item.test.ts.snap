@@ -1,5 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`PrivateCallStackItem computes empty item hash 1`] = `Fr<0x2dacef1b7e5d66445049df33ac3edad6689d86c83c1f11bb2bdaa4748309fd9f>`;
+exports[`PrivateCallStackItem computes empty item hash 1`] = `Fr<0x26caeca330b5bde6c0904c933fca80c074cc7079b4a94bcc645d79dda873b91e>`;
 
-exports[`PrivateCallStackItem computes hash 1`] = `Fr<0x17171557d06226fae88f7e2b57e23acd8dd767160e5149965ca0f4bebbdedb06>`;
+exports[`PrivateCallStackItem computes hash 1`] = `Fr<0x0c98ab9cd827861d5942aaf589a598c797105582acbdf039e64c4bfd78c38f90>`;

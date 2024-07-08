@@ -67,7 +67,6 @@ export class AcirSimulator {
       FunctionSelector.fromNameAndParameters(entryPointArtifact.name, entryPointArtifact.parameters),
       false,
       entryPointArtifact.isStatic,
-      startSideEffectCounter,
     );
     const context = new ClientExecutionContext(
       contractAddress,

@@ -99,9 +99,6 @@ export class PublicExecutor {
       bytecode,
       avmResult,
       fnName,
-      /*requestSideEffectCounter=*/ executionRequest.callContext.sideEffectCounter,
-      // NOTE: startSideEffectCounter is not the same as the executionRequest's sideEffectCounter
-      // (which counts the request itself)
     );
 
     return publicExecutionResult;

@@ -357,7 +357,6 @@ impl PrivateContext {
             is_delegate_call
         );
 
-        assert_eq(item.public_inputs.call_context.side_effect_counter, start_side_effect_counter);
         assert_eq(item.public_inputs.start_side_effect_counter, start_side_effect_counter);
         let end_side_effect_counter = item.public_inputs.end_side_effect_counter;
         self.side_effect_counter = end_side_effect_counter + 1;
@@ -564,7 +563,7 @@ impl PrivateContext {
         assert(contract_address.eq(item.contract_address));
         assert(function_selector.eq(item.function_data.selector));
 
-        assert_eq(item.public_inputs.call_context.side_effect_counter, self.side_effect_counter);
+        assert_eq(item.public_inputs.start_side_effect_counter, self.side_effect_counter);
 
         assert(args_hash == item.public_inputs.args_hash);
 

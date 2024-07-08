@@ -675,6 +675,7 @@ export class TXEService {
       publicCallRequest.contractAddress.toField(),
       publicCallRequest.functionSelector.toField(),
       ...publicCallRequest.callContext.toFields(),
+      fromSingle(sideEffectCounter),
       publicCallRequest.getArgsHash(),
     ];
     return toForeignCallResult([toArray(fields)]);
@@ -701,6 +702,7 @@ export class TXEService {
       publicTeardownCallRequest.contractAddress.toField(),
       publicTeardownCallRequest.functionSelector.toField(),
       ...publicTeardownCallRequest.callContext.toFields(),
+      fromSingle(sideEffectCounter),
       publicTeardownCallRequest.getArgsHash(),
     ];
 

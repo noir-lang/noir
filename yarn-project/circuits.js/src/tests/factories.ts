@@ -403,7 +403,6 @@ export function makeCallContext(seed = 0, overrides: Partial<FieldsOf<CallContex
     functionSelector: makeSelector(seed + 3),
     isStaticCall: false,
     isDelegateCall: false,
-    sideEffectCounter: 0,
     ...overrides,
   });
 }
@@ -536,6 +535,7 @@ export function makePublicCallRequest(seed = 1): PublicCallRequest {
     makeSelector(seed + 0x1),
     childCallContext,
     parentCallContext,
+    seed + 0x4,
     makeTuple(ARGS_LENGTH, fr, seed + 0x10),
   );
 }
