@@ -194,4 +194,9 @@ mod rename_tests {
     async fn test_rename_global() {
         check_rename_succeeds("rename_global", "FOO").await;
     }
+
+    #[test]
+    async fn test_rename_local_variable() {
+        check_rename_succeeds("local_variable", "some_var").await;
+    }
 }

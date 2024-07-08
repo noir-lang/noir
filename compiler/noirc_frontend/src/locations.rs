@@ -48,6 +48,7 @@ impl NodeInterner {
                 let alias_type = alias_type.borrow();
                 Location::new(alias_type.name.span(), alias_type.location.file)
             }
+            ReferenceId::Local(id) => self.definition(id).location,
             ReferenceId::Reference(location, _) => location,
         }
     }

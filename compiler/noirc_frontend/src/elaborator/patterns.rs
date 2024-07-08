@@ -438,6 +438,7 @@ impl<'context> Elaborator<'context> {
             // Otherwise, then it is referring to an Identifier
             // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
             // If the expression is a singular indent, we search the resolver's current scope as normal.
+            let span = path.span();
             let is_self_type_name = path.last_segment().is_self_type_name();
             let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
 
@@ -479,6 +480,11 @@ impl<'context> Elaborator<'context> {
                     DefinitionKind::Local(_) => {
                         // only local variables can be captured by closures.
                         self.resolve_local_variable(hir_ident.clone(), var_scope_index);
+
+                        let referenced = ReferenceId::Local(hir_ident.id);
+                        let reference =
+                            ReferenceId::Reference(Location::new(span, self.file), false);
+                        self.interner.add_reference(referenced, reference);
                     }
                 }
             }

@@ -16,7 +16,7 @@ use crate::{
     macros_api::{
         ForLoopStatement, ForRange, HirStatement, LetStatement, Path, Statement, StatementKind,
     },
-    node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
+    node_interner::{DefinitionId, DefinitionKind, GlobalId, ReferenceId, StmtId},
     Type,
 };
 
@@ -255,6 +255,10 @@ impl<'context> Elaborator<'context> {
                     let typ = self.interner.definition_type(ident.id).instantiate(self.interner).0;
                     typ.follow_bindings()
                 };
+
+                let referenced = ReferenceId::Local(ident.id);
+                let reference = ReferenceId::Reference(Location::new(span, self.file), false);
+                self.interner.add_reference(referenced, reference);
 
                 (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable)
             }
