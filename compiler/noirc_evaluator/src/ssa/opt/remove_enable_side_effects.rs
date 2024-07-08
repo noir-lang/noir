@@ -64,7 +64,7 @@ impl Context {
         let instructions = function.dfg[block].take_instructions();
 
         let mut active_condition = function.dfg.make_constant(FieldElement::one(), Type::bool());
-        let mut last_side_effects_enabled_instruction: Option<InstructionId> = None;
+        let mut last_side_effects_enabled_instruction = None;
 
         let mut new_instructions = Vec::with_capacity(instructions.len());
         for instruction_id in instructions {
