@@ -1,0 +1,11 @@
+name: Mirror Repositories
+
+on:
+  pull_request:
+    branches:
+    - master
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo Dummy workflow TODO
