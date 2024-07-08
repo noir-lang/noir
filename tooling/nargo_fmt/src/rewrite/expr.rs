@@ -168,15 +168,20 @@ pub(crate) fn rewrite(
             format!("{path_string}{turbofish}")
         }
         ExpressionKind::Lambda(_) => visitor.slice(span).to_string(),
-        ExpressionKind::Quote(block, block_span) => {
-            format!("quote {}", rewrite_block(visitor, block, block_span))
-        }
+        ExpressionKind::Quote(_) => visitor.slice(span).to_string(),
         ExpressionKind::Comptime(block, block_span) => {
             format!("comptime {}", rewrite_block(visitor, block, block_span))
         }
         ExpressionKind::Error => unreachable!(),
         ExpressionKind::Resolved(_) => {
             unreachable!("ExpressionKind::Resolved should only emitted by the comptime interpreter")
+        }
+        ExpressionKind::Unquote(expr) => {
+            if matches!(&expr.kind, ExpressionKind::Variable(..)) {
+                format!("${expr}")
+            } else {
+                format!("$({})", rewrite_sub_expr(visitor, shape, *expr))
+            }
         }
     }
 }

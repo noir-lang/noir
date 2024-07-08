@@ -87,7 +87,7 @@ fn check_package(
         compile_options.deny_warnings,
         compile_options.disable_macros,
         compile_options.silence_warnings,
-        compile_options.use_elaborator,
+        compile_options.use_legacy,
         compile_options.debug_comptime_scope.clone(),
     )?;
 
@@ -161,17 +161,10 @@ pub(crate) fn check_crate_and_report_errors(
     deny_warnings: bool,
     disable_macros: bool,
     silence_warnings: bool,
-    use_elaborator: bool,
+    use_legacy: bool,
     debug_comptime_scope: Option<String>,
 ) -> Result<(), CompileError> {
-    let result = check_crate(
-        context,
-        crate_id,
-        deny_warnings,
-        disable_macros,
-        use_elaborator,
-        debug_comptime_scope,
-    );
+    let result = check_crate(context, crate_id, deny_warnings, disable_macros, use_legacy, debug_comptime_scope);
     report_errors(result, &context.file_manager, deny_warnings, silence_warnings)
 }
 

@@ -25,6 +25,9 @@ use std::{collections::BTreeMap, str};
 //
 // This ABI has nothing to do with ACVM or ACIR. Although they implicitly have a relationship
 
+#[cfg(test)]
+mod arbitrary;
+
 pub mod errors;
 pub mod input_parser;
 mod serialization;
@@ -75,6 +78,7 @@ pub enum AbiType {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(arbitrary::Arbitrary))]
 #[serde(rename_all = "lowercase")]
 /// Represents whether the parameter is public or known only to the prover.
 pub enum AbiVisibility {
@@ -86,6 +90,7 @@ pub enum AbiVisibility {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(arbitrary::Arbitrary))]
 #[serde(rename_all = "lowercase")]
 pub enum Sign {
     Unsigned,
@@ -142,10 +147,12 @@ impl From<&AbiType> for PrintableType {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(arbitrary::Arbitrary))]
 /// An argument or return value of the circuit's `main` function.
 pub struct AbiParameter {
     pub name: String,
     #[serde(rename = "type")]
+    #[cfg_attr(test, proptest(strategy = "arbitrary::arb_abi_type()"))]
     pub typ: AbiType,
     pub visibility: AbiVisibility,
 }
@@ -157,16 +164,20 @@ impl AbiParameter {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub struct AbiReturnType {
+    #[cfg_attr(test, proptest(strategy = "arbitrary::arb_abi_type()"))]
     pub abi_type: AbiType,
     pub visibility: AbiVisibility,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub struct Abi {
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
     pub parameters: Vec<AbiParameter>,
     pub return_type: Option<AbiReturnType>,
+    #[cfg_attr(test, proptest(strategy = "proptest::prelude::Just(BTreeMap::from([]))"))]
     pub error_types: BTreeMap<ErrorSelector, AbiErrorType>,
 }
 
@@ -488,56 +499,18 @@ pub fn display_abi_error<F: AcirField>(
 
 #[cfg(test)]
 mod test {
-    use std::collections::BTreeMap;
+    use proptest::prelude::*;
 
-    use acvm::{AcirField, FieldElement};
+    use crate::arbitrary::arb_abi_and_input_map;
 
-    use crate::{
-        input_parser::InputValue, Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility,
-        InputMap,
-    };
+    proptest! {
+        #[test]
+        fn encoding_and_decoding_returns_original_witness_map((abi, input_map) in arb_abi_and_input_map()) {
+            let witness_map = abi.encode(&input_map, None).unwrap();
+            let (decoded_inputs, return_value) = abi.decode(&witness_map).unwrap();
 
-    #[test]
-    fn witness_encoding_roundtrip() {
-        let abi = Abi {
-            parameters: vec![
-                AbiParameter {
-                    name: "thing1".to_string(),
-                    typ: AbiType::Array { length: 2, typ: Box::new(AbiType::Field) },
-                    visibility: AbiVisibility::Public,
-                },
-                AbiParameter {
-                    name: "thing2".to_string(),
-                    typ: AbiType::Field,
-                    visibility: AbiVisibility::Public,
-                },
-            ],
-            return_type: Some(AbiReturnType {
-                abi_type: AbiType::Field,
-                visibility: AbiVisibility::Public,
-            }),
-            error_types: BTreeMap::default(),
-        };
-
-        // Note we omit return value from inputs
-        let inputs: InputMap = BTreeMap::from([
-            (
-                "thing1".to_string(),
-                InputValue::Vec(vec![
-                    InputValue::Field(FieldElement::one()),
-                    InputValue::Field(FieldElement::one()),
-                ]),
-            ),
-            ("thing2".to_string(), InputValue::Field(FieldElement::zero())),
-        ]);
-
-        let witness_map = abi.encode(&inputs, None).unwrap();
-        let (reconstructed_inputs, return_value) = abi.decode(&witness_map).unwrap();
-
-        for (key, expected_value) in inputs {
-            assert_eq!(reconstructed_inputs[&key], expected_value);
+            prop_assert_eq!(decoded_inputs, input_map);
+            prop_assert_eq!(return_value, None);
         }
-
-        assert!(return_value.is_none());
     }
 }

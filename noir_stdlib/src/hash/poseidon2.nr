@@ -11,8 +11,7 @@ struct Poseidon2 {
 }
 
 impl Poseidon2 {
-
-    pub fn hash<N>(input: [Field; N], message_size: u32) -> Field {
+    pub fn hash<let N: u32>(input: [Field; N], message_size: u32) -> Field {
         if message_size == N {
             Poseidon2::hash_internal(input, N, false)
         } else {
@@ -95,7 +94,7 @@ impl Poseidon2 {
         result
     }
 
-    fn hash_internal<N>(input: [Field; N], in_len: u32, is_variable_length: bool) -> Field {
+    fn hash_internal<let N: u32>(input: [Field; N], in_len: u32, is_variable_length: bool) -> Field {
         let two_pow_64 = 18446744073709551616;
         let iv : Field = (in_len as Field) * two_pow_64;
         let mut sponge = Poseidon2::new(iv);

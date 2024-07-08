@@ -73,7 +73,7 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
-        use_elaborator: bool,
+        use_legacy: bool,
         debug_comptime_scope: Option<String>,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
@@ -123,7 +123,7 @@ impl CrateDefMap {
             context,
             ast,
             root_file_id,
-            use_elaborator,
+            use_legacy,
             debug_comptime_scope,
             macro_processors,
         ));

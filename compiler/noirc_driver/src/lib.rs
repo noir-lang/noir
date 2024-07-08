@@ -99,9 +99,9 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub force_brillig: bool,
 
-    /// Enable the experimental elaborator pass
+    /// Use the deprecated name resolution & type checking passes instead of the elaborator
     #[arg(long, hide = true)]
-    pub use_elaborator: bool,
+    pub use_legacy: bool,
 
     /// Enable printing results of comptime evaluation: provide a path suffix
     /// for the module to debug, e.g. "package_name/src/main.nr"
@@ -262,15 +262,14 @@ pub fn check_crate(
     crate_id: CrateId,
     deny_warnings: bool,
     disable_macros: bool,
-    use_elaborator: bool,
+    use_legacy: bool,
     debug_comptime_scope: Option<String>,
 ) -> CompilationResult<()> {
     let macros: &[&dyn MacroProcessor] =
         if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
 
     let mut errors = vec![];
-    let diagnostics =
-        CrateDefMap::collect_defs(crate_id, context, use_elaborator, debug_comptime_scope, macros);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, use_legacy, macros, debug_comptime_scope);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic = CustomDiagnostic::from(&error);
         diagnostic.in_file(file_id)
@@ -307,7 +306,7 @@ pub fn compile_main(
         crate_id,
         options.deny_warnings,
         options.disable_macros,
-        options.use_elaborator,
+        options.use_legacy,
         options.debug_comptime_scope.clone(),
     )?;
 
@@ -349,7 +348,7 @@ pub fn compile_contract(
         crate_id,
         options.deny_warnings,
         options.disable_macros,
-        options.use_elaborator,
+        options.use_legacy,
         options.debug_comptime_scope.clone(),
     )?;
 
@@ -553,14 +552,15 @@ pub fn compile_no_check(
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
     let return_visibility = program.return_visibility;
+    let ssa_evaluator_options = noirc_evaluator::ssa::SsaEvaluatorOptions {
+        enable_ssa_logging: options.show_ssa,
+        enable_brillig_logging: options.show_brillig,
+        force_brillig_output: options.force_brillig,
+        print_codegen_timings: options.benchmark_codegen,
+    };
 
-    let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } = create_program(
-        program,
-        options.show_ssa,
-        options.show_brillig,
-        options.force_brillig,
-        options.benchmark_codegen,
-    )?;
+    let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =
+        create_program(program, &ssa_evaluator_options)?;
 
     let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);

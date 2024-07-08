@@ -74,7 +74,8 @@ impl<'me, T> Items<'me, T> {
         let mut different_line = false;
 
         let leading = self.visitor.slice(start..end);
-        let leading_trimmed = leading.trim();
+        // Trim any possible whitespace before and after a comma separator
+        let leading_trimmed = leading.trim().trim_start_matches(',').trim();
 
         let starts_with_block_comment = leading_trimmed.starts_with("/*");
         let ends_with_block_comment = leading_trimmed.ends_with("*/");

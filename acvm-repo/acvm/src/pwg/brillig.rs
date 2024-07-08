@@ -162,63 +162,27 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
             VMStatus::Finished { .. } => Ok(BrilligSolverStatus::Finished),
             VMStatus::InProgress => Ok(BrilligSolverStatus::InProgress),
             VMStatus::Failure { reason, call_stack } => {
+                let call_stack = call_stack
+                    .iter()
+                    .map(|brillig_index| OpcodeLocation::Brillig {
+                        acir_index: self.acir_index,
+                        brillig_index: *brillig_index,
+                    })
+                    .collect();
                 let payload = match reason {
                     FailureReason::RuntimeError { message } => {
                         Some(ResolvedAssertionPayload::String(message))
                     }
                     FailureReason::Trap { revert_data_offset, revert_data_size } => {
-                        // Since noir can only revert with strings currently, we can parse return data as a string
-                        if revert_data_size == 0 {
-                            None
-                        } else {
-                            let memory = self.vm.get_memory();
-                            let mut revert_values_iter = memory
-                                [revert_data_offset..(revert_data_offset + revert_data_size)]
-                                .iter();
-                            let error_selector = ErrorSelector::new(
-                                revert_values_iter
-                                    .next()
-                                    .expect("Incorrect revert data size")
-                                    .try_into()
-                                    .expect("Error selector is not u64"),
-                            );
-
-                            match error_selector {
-                                STRING_ERROR_SELECTOR => {
-                                    // If the error selector is 0, it means the error is a string
-                                    let string = revert_values_iter
-                                        .map(|memory_value| {
-                                            let as_u8: u8 = memory_value
-                                                .try_into()
-                                                .expect("String item is not u8");
-                                            as_u8 as char
-                                        })
-                                        .collect();
-                                    Some(ResolvedAssertionPayload::String(string))
-                                }
-                                _ => {
-                                    // If the error selector is not 0, it means the error is a custom error
-                                    Some(ResolvedAssertionPayload::Raw(RawAssertionPayload {
-                                        selector: error_selector,
-                                        data: revert_values_iter
-                                            .map(|value| value.to_field())
-                                            .collect(),
-                                    }))
-                                }
-                            }
-                        }
+                        extract_failure_payload_from_memory(
+                            self.vm.get_memory(),
+                            revert_data_offset,
+                            revert_data_size,
+                        )
                     }
                 };
-                Err(OpcodeResolutionError::BrilligFunctionFailed {
-                    payload,
-                    call_stack: call_stack
-                        .iter()
-                        .map(|brillig_index| OpcodeLocation::Brillig {
-                            acir_index: self.acir_index,
-                            brillig_index: *brillig_index,
-                        })
-                        .collect(),
-                })
+
+                Err(OpcodeResolutionError::BrilligFunctionFailed { payload, call_stack })
             }
             VMStatus::ForeignCallWait { function, inputs } => {
                 Ok(BrilligSolverStatus::ForeignCallWait(ForeignCallWaitInfo { function, inputs }))
@@ -279,6 +243,50 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         match self.vm.get_status() {
             VMStatus::ForeignCallWait { .. } => self.vm.resolve_foreign_call(foreign_call_result),
             _ => unreachable!("Brillig VM is not waiting for a foreign call"),
+        }
+    }
+}
+
+/// Extracts a `ResolvedAssertionPayload` from a block of memory of a Brillig VM instance.
+///
+/// Returns `None` if the amount of memory requested is zero.
+fn extract_failure_payload_from_memory<F: AcirField>(
+    memory: &[MemoryValue<F>],
+    revert_data_offset: usize,
+    revert_data_size: usize,
+) -> Option<ResolvedAssertionPayload<F>> {
+    // Since noir can only revert with strings currently, we can parse return data as a string
+    if revert_data_size == 0 {
+        None
+    } else {
+        let mut revert_values_iter =
+            memory[revert_data_offset..(revert_data_offset + revert_data_size)].iter();
+        let error_selector = ErrorSelector::new(
+            revert_values_iter
+                .next()
+                .expect("Incorrect revert data size")
+                .try_into()
+                .expect("Error selector is not u64"),
+        );
+
+        match error_selector {
+            STRING_ERROR_SELECTOR => {
+                // If the error selector is 0, it means the error is a string
+                let string = revert_values_iter
+                    .map(|memory_value| {
+                        let as_u8: u8 = memory_value.try_into().expect("String item is not u8");
+                        as_u8 as char
+                    })
+                    .collect();
+                Some(ResolvedAssertionPayload::String(string))
+            }
+            _ => {
+                // If the error selector is not 0, it means the error is a custom error
+                Some(ResolvedAssertionPayload::Raw(RawAssertionPayload {
+                    selector: error_selector,
+                    data: revert_values_iter.map(|value| value.to_field()).collect(),
+                }))
+            }
         }
     }
 }

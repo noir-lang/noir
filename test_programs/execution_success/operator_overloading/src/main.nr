@@ -1,5 +1,5 @@
-use dep::std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, Shl, Shr};
-use dep::std::cmp::Ordering;
+use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, Shl, Shr};
+use std::cmp::Ordering;
 
 // x = 3, y = 9
 fn main(x: u32, y: u32) {

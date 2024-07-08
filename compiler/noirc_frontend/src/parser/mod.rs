@@ -22,10 +22,10 @@ use chumsky::primitive::Container;
 pub use errors::ParserError;
 pub use errors::ParserErrorReason;
 use noirc_errors::Span;
-pub use parser::parse_program;
+pub use parser::{expression, parse_program, top_level_item};
 
 #[derive(Debug, Clone)]
-pub(crate) enum TopLevelStatement {
+pub enum TopLevelStatement {
     Function(NoirFunction),
     Module(ModuleDeclaration),
     Import(UseTree),
@@ -45,7 +45,7 @@ pub trait NoirParser<T>: Parser<Token, T, Error = ParserError> + Sized + Clone {
 impl<P, T> NoirParser<T> for P where P: Parser<Token, T, Error = ParserError> + Clone {}
 
 // ExprParser just serves as a type alias for NoirParser<Expression> + Clone
-trait ExprParser: NoirParser<Expression> {}
+pub trait ExprParser: NoirParser<Expression> {}
 impl<P> ExprParser for P where P: NoirParser<Expression> {}
 
 fn parenthesized<P, T>(parser: P) -> impl NoirParser<T>
@@ -197,7 +197,7 @@ fn parameter_name_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
 }
 
 fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatement> {
-    none_of([Token::Semicolon, Token::RightBrace, Token::EOF])
+    none_of([Token::RightBrace, Token::EOF])
         .repeated()
         .ignore_then(one_of([Token::Semicolon]))
         .map(|_| TopLevelStatement::Error)
