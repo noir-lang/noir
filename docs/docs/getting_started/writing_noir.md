@@ -66,7 +66,7 @@ For some applications using Noir, existing code might be a convenient starting p
 Many valuable functions and algorithms have been written in more established languages (C/C++), and converted to modern ones (like Rust).
 :::
 
-Fortunately for Noir devs, when needing a particular function a rust implementation can be readily compiled into Noir with minimal changes. While the compiler does a decent amount of heavy lifting, it won't change code that has been optimized for clock-cycles into code optimized for arithmetic gates.
+Fortunately for Noir devs, when needing a particular function a rust implementation can be readily compiled into Noir with some key changes. While the compiler does a decent amount of optimisations, it won't be able to change code that has been optimized for clock-cycles into code optimized for arithmetic gates.
 
 ## Writing efficient Noir for performant products
 
@@ -83,6 +83,11 @@ A Noir program compiles to an Abstract Circuit Intermediate Representation which
  - Leaves (inputs) are the `Field` type
  - Nodes contain arithmetic operations to combine them (gates)
  - The root is the final result (return value)
+
+:::tip
+The command `nargo info` shows the programs circuit size, and is useful to compare the value of changes made.
+Advanced: You can dig deeper and use the `--print-acir` param to take a closer look at individual gates too.
+:::
 
 ### Use the `Field` type
 
@@ -122,13 +127,12 @@ Use arrays and indices that are known at compile time where possible.
 NB: Using `assert_constant(i);` before an index, `i`, is used in an array will give a compile error if `i` is NOT known at compile time.
 :::
 
-
 ### Leverage unconstrained execution
 
 Constrained verification can leverage unconstrained execution.
 Compute result via unconstrained function, verify result.
 
-Use `  if is_unconstrained() { /`, to conditionally 
+Use `  if is_unconstrained() { /`, to conditionally execute code if being called in an unconstrained vs constrained way.
 
 #### Token transfer example - `fn sub` inefficiencies
 
@@ -136,7 +140,6 @@ Iterates through (32) notes, and does nullifier and membership checks...
 
 Use unconstrained function to find two (largest) notes, if not enough recursively combine two notes.
 "call" expensive, can use "multicall".
-
 
 ### A circuit holds all logic
 
@@ -151,9 +154,14 @@ Use bit-wise `&` or `|` to combine logical expressions efficiently.
 
 ### Combine arithmetic operations
 
-A Noir program can be honed further by combining arithmetic operators in a way that makes the most of each gate (Width 4).
+A Noir program can be honed further by combining arithmetic operators in a way that makes the most of each constraint of the backend. This is in scenarios where the backend might not be doing this perfectly.
 
-- (katex) w_1*w_2*q_m + ...
+Eg Barretenberg backend (current default for Noir) is a width-4 PLONKish constraint system
+$ w_1*w_2*q_m + w_1*q_1 + w_2*q_2 + w_3*q_3 + w_4*q_4 + q_c $
+
+Here we see there is one occurance of witness 1 and 2 ($w_1$, $w_2$) being multiplied together, with addition to witnesses 1-4 ($w_1$ .. $w_4$) multiplied by 4 corresponding circuit constants ($q_1$ .. $q_4$) (plus a final circuit constant, $q_c$).
+
+Use `nargo info --print-acir`, to inspect the constraints, and it may present opportunities to amend the order of operations and reduce the number of constraints.
 
 #### Variable as witness vs expression
 
