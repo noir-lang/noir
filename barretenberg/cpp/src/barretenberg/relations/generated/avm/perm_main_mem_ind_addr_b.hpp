@@ -51,8 +51,11 @@ class perm_main_mem_ind_addr_b_permutation_settings {
 };
 
 template <typename FF_>
-using perm_main_mem_ind_addr_b_relation =
-    GenericPermutationRelation<perm_main_mem_ind_addr_b_permutation_settings, FF_>;
+class perm_main_mem_ind_addr_b_relation
+    : public GenericPermutationRelation<perm_main_mem_ind_addr_b_permutation_settings, FF_> {
+  public:
+    static constexpr const char* NAME = "perm_main_mem_ind_addr_b";
+};
 template <typename FF_>
 using perm_main_mem_ind_addr_b = GenericPermutation<perm_main_mem_ind_addr_b_permutation_settings, FF_>;
 

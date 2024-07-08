@@ -9,10 +9,33 @@
 #include "barretenberg/relations/permutation_relation.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
+#include "barretenberg/vm/avm_trace/stats.hpp"
+
 namespace bb {
 
 using Flavor = AvmFlavor;
 using FF = Flavor::FF;
+
+namespace {
+
+// Loops through LookupRelations and calculates the logderivatives.
+// Metaprogramming is used to loop through the relations, because they are types.
+template <size_t relation_idx = 0, typename PP>
+void compute_logderivative_rel(const RelationParameters<FF>& relation_parameters,
+                               PP& prover_polynomials,
+                               size_t circuit_size)
+{
+    using Relation = std::tuple_element_t<relation_idx, Flavor::LookupRelations>;
+    AVM_TRACK_TIME(
+        Relation::NAME + std::string("_ms"),
+        (compute_logderivative_inverse<Flavor, Relation>(prover_polynomials, relation_parameters, circuit_size)));
+
+    if constexpr (relation_idx + 1 < std::tuple_size_v<Flavor::LookupRelations>) {
+        compute_logderivative_rel<relation_idx + 1, PP>(relation_parameters, prover_polynomials, circuit_size);
+    }
+}
+
+} // namespace
 
 /**
  * Create AvmProver from proving key, witness and manifest.
@@ -69,7 +92,8 @@ void AvmProver::execute_log_derivative_inverse_round()
     relation_parameters.beta = beta;
     relation_parameters.gamma = gamm;
 
-    key->compute_logderivative_inverses(relation_parameters);
+    auto prover_polynomials = ProverPolynomials(*key);
+    compute_logderivative_rel(relation_parameters, prover_polynomials, key->circuit_size);
 
     // Commit to all logderivative inverse polynomials
     for (auto [commitment, key_poly] : zip_view(witness_commitments.get_derived(), key->get_derived())) {

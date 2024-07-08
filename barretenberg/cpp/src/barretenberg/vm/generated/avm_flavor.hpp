@@ -12,8 +12,6 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-#include "barretenberg/vm/avm_trace/stats.hpp"
-
 // Relations
 #include "barretenberg/relations/generated/avm/alu.hpp"
 #include "barretenberg/relations/generated/avm/binary.hpp"
@@ -85,6 +83,9 @@
 #include "barretenberg/relations/generated/avm/range_check_l2_gas_lo.hpp"
 #include "barretenberg/relations/generic_permutation/generic_permutation_relation.hpp"
 
+// Metaprogramming to concatenate tuple types.
+template <typename... input_t> using tuple_cat_t = decltype(std::tuple_cat(std::declval<input_t>()...));
+
 namespace bb {
 
 class AvmFlavor {
@@ -110,7 +111,7 @@ class AvmFlavor {
     // the unshifted and one for the shifted
     static constexpr size_t NUM_ALL_ENTITIES = 452;
 
-    using Relations = std::tuple<
+    using MainRelations = std::tuple<
         // Relations
         Avm_vm::alu<FF>,
         Avm_vm::binary<FF>,
@@ -123,7 +124,9 @@ class AvmFlavor {
         Avm_vm::pedersen<FF>,
         Avm_vm::poseidon2<FF>,
         Avm_vm::powers<FF>,
-        Avm_vm::sha256<FF>,
+        Avm_vm::sha256<FF>>;
+
+    using LookupRelations = std::tuple<
         // Lookups
         perm_main_alu_relation<FF>,
         perm_main_bin_relation<FF>,
@@ -179,6 +182,8 @@ class AvmFlavor {
         lookup_div_u16_5_relation<FF>,
         lookup_div_u16_6_relation<FF>,
         lookup_div_u16_7_relation<FF>>;
+
+    using Relations = tuple_cat_t<MainRelations, LookupRelations>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
 
@@ -849,174 +854,6 @@ class AvmFlavor {
                      mem_tag,
                      mem_tsp,
                      mem_val };
-        }
-
-        void compute_logderivative_inverses(const RelationParameters<FF>& relation_parameters)
-        {
-            ProverPolynomials prover_polynomials = ProverPolynomials(*this);
-
-            AVM_TRACK_TIME("compute_logderivative_inverse/perm_main_alu_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, perm_main_alu_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/perm_main_bin_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, perm_main_bin_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/perm_main_conv_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, perm_main_conv_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/perm_main_pos2_perm_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, perm_main_pos2_perm_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/perm_main_pedersen_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, perm_main_pedersen_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/perm_main_mem_a_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, perm_main_mem_a_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/perm_main_mem_b_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, perm_main_mem_b_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/perm_main_mem_c_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, perm_main_mem_c_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/perm_main_mem_d_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, perm_main_mem_d_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/perm_main_mem_ind_addr_a_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, perm_main_mem_ind_addr_a_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/perm_main_mem_ind_addr_b_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, perm_main_mem_ind_addr_b_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/perm_main_mem_ind_addr_c_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, perm_main_mem_ind_addr_c_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/perm_main_mem_ind_addr_d_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, perm_main_mem_ind_addr_d_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_byte_lengths_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_byte_lengths_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_byte_operations_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_byte_operations_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_opcode_gas_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_opcode_gas_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/range_check_l2_gas_hi_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, range_check_l2_gas_hi_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/range_check_l2_gas_lo_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, range_check_l2_gas_lo_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/range_check_da_gas_hi_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, range_check_da_gas_hi_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/range_check_da_gas_lo_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, range_check_da_gas_lo_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/kernel_output_lookup_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, kernel_output_lookup_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_into_kernel_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_into_kernel_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/incl_main_tag_err_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, incl_main_tag_err_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/incl_mem_tag_err_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, incl_mem_tag_err_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_mem_rng_chk_lo_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_mem_rng_chk_lo_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_mem_rng_chk_mid_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_mem_rng_chk_mid_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_mem_rng_chk_hi_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_mem_rng_chk_hi_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_pow_2_0_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_pow_2_0_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_pow_2_1_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_pow_2_1_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u8_0_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u8_0_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u8_1_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u8_1_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u16_0_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u16_0_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u16_1_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u16_1_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u16_2_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u16_2_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u16_3_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u16_3_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u16_4_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u16_4_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u16_5_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u16_5_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u16_6_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u16_6_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u16_7_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u16_7_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u16_8_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u16_8_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u16_9_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u16_9_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u16_10_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u16_10_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u16_11_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u16_11_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u16_12_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u16_12_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u16_13_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u16_13_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_u16_14_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_u16_14_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_div_u16_0_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_div_u16_0_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_div_u16_1_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_div_u16_1_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_div_u16_2_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_div_u16_2_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_div_u16_3_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_div_u16_3_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_div_u16_4_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_div_u16_4_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_div_u16_5_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_div_u16_5_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_div_u16_6_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_div_u16_6_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
-            AVM_TRACK_TIME("compute_logderivative_inverse/lookup_div_u16_7_ms",
-                           (bb::compute_logderivative_inverse<AvmFlavor, lookup_div_u16_7_relation<FF>>(
-                               prover_polynomials, relation_parameters, this->circuit_size)));
         }
     };
 

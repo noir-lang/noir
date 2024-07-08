@@ -7,20 +7,6 @@
 
 namespace bb {
 
-/**
- * @brief This class contains an example of how to set LookupSettings classes used by the
- * GenericLookupRelationImpl class to specify a scaled lookup
- *
- * @details To create your own lookup:
- * 1) Create a copy of this class and rename it
- * 2) Update all the values with the ones needed for your lookup
- * 3) Update "DECLARE_LOOKUP_IMPLEMENTATIONS_FOR_ALL_SETTINGS" and "DEFINE_LOOKUP_IMPLEMENTATIONS_FOR_ALL_SETTINGS" to
- * include the new settings
- * 4) Add the relation with the chosen settings to Relations in the flavor (for example,"`
- *   using Relations = std::tuple<GenericLookupRelation<ExampleXorLookupSettings,
- * FF>>;)`
- *
- */
 class range_check_l2_gas_hi_lookup_settings {
   public:
     static constexpr size_t READ_TERMS = 1;
@@ -68,7 +54,10 @@ class range_check_l2_gas_hi_lookup_settings {
 };
 
 template <typename FF_>
-using range_check_l2_gas_hi_relation = GenericLookupRelation<range_check_l2_gas_hi_lookup_settings, FF_>;
+class range_check_l2_gas_hi_relation : public GenericLookupRelation<range_check_l2_gas_hi_lookup_settings, FF_> {
+  public:
+    static constexpr const char* NAME = "range_check_l2_gas_hi";
+};
 template <typename FF_> using range_check_l2_gas_hi = GenericLookup<range_check_l2_gas_hi_lookup_settings, FF_>;
 
 } // namespace bb

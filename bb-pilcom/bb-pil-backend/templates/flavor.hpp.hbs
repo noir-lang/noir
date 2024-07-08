@@ -12,8 +12,6 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/flavor/flavor.hpp"
 
-#include "barretenberg/vm/{{snakeCase name}}_trace/stats.hpp"
-
 // Relations
 {{#each relation_file_names as |r|}}
 #include "barretenberg/relations/generated/{{snakeCase ../name}}/{{r}}.hpp"
@@ -24,6 +22,9 @@
 {{#each lookups as |r|}}
 #include "barretenberg/relations/generated/{{snakeCase ../name}}/{{r}}.hpp"
 {{/each}}
+
+// Metaprogramming to concatenate tuple types.
+template <typename... input_t> using tuple_cat_t = decltype(std::tuple_cat(std::declval<input_t>()...));
 
 namespace bb {
 
@@ -49,12 +50,17 @@ class {{name}}Flavor {
     // We have two copies of the witness entities, so we subtract the number of fixed ones (they have no shift), one for the unshifted and one for the shifted
     static constexpr size_t NUM_ALL_ENTITIES = {{len all_cols_and_shifts}};
 
-    using Relations = std::tuple<
+    using MainRelations = std::tuple<
       // Relations
-      {{#each relation_file_names as |item|}}{{#if @index}},{{/if}}{{../name}}_vm::{{item}}<FF>{{/each}},
+      {{#each relation_file_names as |item|}}{{#if @index}},{{/if}}{{../name}}_vm::{{item}}<FF>{{/each}}
+    >;
+
+    using LookupRelations = std::tuple<
       // Lookups
       {{#each lookups as |item|}}{{#if @index}},{{/if}}{{item}}_relation<FF>{{/each}}
     >;
+
+    using Relations = tuple_cat_t<MainRelations, LookupRelations>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
 
@@ -152,15 +158,6 @@ class {{name}}Flavor {
           RefVector<DataType> get_to_be_shifted() { return {
             {{#each to_be_shifted as |item|}}{{#if @index}},{{/if}}{{item}}{{/each}}
           }; }
-
-          void compute_logderivative_inverses(const RelationParameters<FF>& relation_parameters)
-          {
-            ProverPolynomials prover_polynomials = ProverPolynomials(*this);
-
-            {{#each lookups as |item|}}
-            AVM_TRACK_TIME("compute_logderivative_inverse/{{item}}_ms", (bb::compute_logderivative_inverse<{{../name}}Flavor, {{item}}_relation<FF>>(prover_polynomials, relation_parameters, this->circuit_size)));
-            {{/each}}
-          }
       };
 
       using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey>;

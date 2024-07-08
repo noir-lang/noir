@@ -99,7 +99,10 @@ class perm_main_alu_permutation_settings {
 };
 
 template <typename FF_>
-using perm_main_alu_relation = GenericPermutationRelation<perm_main_alu_permutation_settings, FF_>;
+class perm_main_alu_relation : public GenericPermutationRelation<perm_main_alu_permutation_settings, FF_> {
+  public:
+    static constexpr const char* NAME = "perm_main_alu";
+};
 template <typename FF_> using perm_main_alu = GenericPermutation<perm_main_alu_permutation_settings, FF_>;
 
 } // namespace bb

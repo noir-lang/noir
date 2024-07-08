@@ -43,7 +43,10 @@ class perm_main_pedersen_permutation_settings {
 };
 
 template <typename FF_>
-using perm_main_pedersen_relation = GenericPermutationRelation<perm_main_pedersen_permutation_settings, FF_>;
+class perm_main_pedersen_relation : public GenericPermutationRelation<perm_main_pedersen_permutation_settings, FF_> {
+  public:
+    static constexpr const char* NAME = "perm_main_pedersen";
+};
 template <typename FF_> using perm_main_pedersen = GenericPermutation<perm_main_pedersen_permutation_settings, FF_>;
 
 } // namespace bb
