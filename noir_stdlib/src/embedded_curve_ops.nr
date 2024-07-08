@@ -58,6 +58,17 @@ impl EmbeddedCurveScalar {
         let (a,b) = crate::field::bn254::decompose(scalar);
         EmbeddedCurveScalar { lo: a, hi: b }
     }
+
+    #[field(bn254)]
+    // Same as from_field but:
+    // does not assert the limbs are 128 bits
+    // does not assert the decomposition does not overflow the EmbeddedCurveScalar
+    fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
+        let (xlo, xhi) = crate::field::bn254::decompose_hint(scalar);
+        // Check that the decomposition is correct
+        assert_eq(scalar, xlo + crate::field::bn254::TWO_POW_128 * xhi);
+        EmbeddedCurveScalar { lo: xlo, hi: xhi }
+    }
 }
 
 // Computes a multi scalar multiplication over the embedded curve.
