@@ -69,6 +69,7 @@ const IGNORED_NEW_FEATURE_TESTS: [&str; 7] = [
     "derive_impl",
     "comptime_traits",
     "comptime_slice_methods",
+    "unquote_multiple_items_from_annotation",
 ];
 
 fn read_test_cases(
