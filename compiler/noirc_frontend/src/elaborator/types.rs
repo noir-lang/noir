@@ -369,6 +369,10 @@ impl<'context> Elaborator<'context> {
                     self.interner.add_global_dependency(current_item, id);
                 }
 
+                let referenced = ReferenceId::Global(id);
+                let reference = ReferenceId::Variable(Location::new(path.span(), self.file), false);
+                self.interner.add_reference(referenced, reference);
+
                 Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
             _ => None,
