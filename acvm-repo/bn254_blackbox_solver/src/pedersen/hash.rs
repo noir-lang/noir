@@ -3,7 +3,8 @@
 use std::sync::OnceLock;
 
 use ark_ec::{short_weierstrass::Affine, CurveConfig, CurveGroup};
-use grumpkin::GrumpkinParameters;
+use ark_grumpkin::Fq;
+use ark_grumpkin::GrumpkinConfig;
 
 use crate::generator::generators::derive_generators;
 
@@ -11,18 +12,18 @@ use super::commitment::commit_native_with_index;
 
 /// Given a vector of fields, generate a pedersen hash using the indexed generators.
 pub(crate) fn hash_with_index(
-    inputs: &[grumpkin::Fq],
+    inputs: &[Fq],
     starting_index: u32,
-) -> <GrumpkinParameters as CurveConfig>::BaseField {
-    let length_as_scalar: <GrumpkinParameters as CurveConfig>::ScalarField =
+) -> <ark_grumpkin::GrumpkinConfig as CurveConfig>::BaseField {
+    let length_as_scalar: <GrumpkinConfig as CurveConfig>::ScalarField =
         (inputs.len() as u64).into();
     let length_prefix = *length_generator() * length_as_scalar;
     let result = length_prefix + commit_native_with_index(inputs, starting_index);
     result.into_affine().x
 }
 
-fn length_generator() -> &'static Affine<GrumpkinParameters> {
-    static INSTANCE: OnceLock<Affine<GrumpkinParameters>> = OnceLock::new();
+fn length_generator() -> &'static Affine<ark_grumpkin::GrumpkinConfig> {
+    static INSTANCE: OnceLock<Affine<GrumpkinConfig>> = OnceLock::new();
     INSTANCE.get_or_init(|| derive_generators("pedersen_hash_length".as_bytes(), 1, 0)[0])
 }
 

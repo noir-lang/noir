@@ -2,7 +2,7 @@
 
 use ark_ec::{short_weierstrass::Affine, AffineRepr, CurveGroup};
 use ark_ff::{MontConfig, PrimeField};
-use grumpkin::{Fq, FqConfig, Fr, FrConfig, GrumpkinParameters};
+use ark_grumpkin::{Fq, FqConfig, Fr, FrConfig, GrumpkinConfig};
 
 use crate::generator::generators::{derive_generators, DEFAULT_DOMAIN_SEPARATOR};
 
@@ -10,7 +10,7 @@ use crate::generator::generators::{derive_generators, DEFAULT_DOMAIN_SEPARATOR};
 pub(crate) fn commit_native_with_index(
     inputs: &[Fq],
     starting_index: u32,
-) -> Affine<GrumpkinParameters> {
+) -> Affine<GrumpkinConfig> {
     let generators =
         derive_generators(DEFAULT_DOMAIN_SEPARATOR, inputs.len() as u32, starting_index);
 

@@ -11,6 +11,8 @@ mod poseidon2;
 mod schnorr;
 
 use ark_ec::AffineRepr;
+use ark_grumpkin::Fq;
+
 pub use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 pub use generator::generators::derive_generators;
 pub use poseidon2::poseidon2_permutation;
@@ -46,10 +48,10 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
         inputs: &[FieldElement],
         domain_separator: u32,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        let inputs: Vec<grumpkin::Fq> = inputs.iter().map(|input| input.into_repr()).collect();
+        let inputs: Vec<Fq> = inputs.iter().map(|input| input.into_repr()).collect();
         let result = pedersen::commitment::commit_native_with_index(&inputs, domain_separator);
         let result = if let Some((x, y)) = result.xy() {
-            (FieldElement::from_repr(*x), FieldElement::from_repr(*y))
+            (FieldElement::from_repr(x), FieldElement::from_repr(y))
         } else {
             (FieldElement::from(0_u128), FieldElement::from(0_u128))
         };
@@ -62,7 +64,7 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
         inputs: &[FieldElement],
         domain_separator: u32,
     ) -> Result<FieldElement, BlackBoxResolutionError> {
-        let inputs: Vec<grumpkin::Fq> = inputs.iter().map(|input| input.into_repr()).collect();
+        let inputs: Vec<Fq> = inputs.iter().map(|input| input.into_repr()).collect();
         let result = pedersen::hash::hash_with_index(&inputs, domain_separator);
         let result = FieldElement::from_repr(result);
         Ok(result)

@@ -4,7 +4,7 @@ use ark_ec::{
     AffineRepr, CurveConfig, CurveGroup,
 };
 use ark_ff::{BigInteger, PrimeField, Zero};
-use grumpkin::{Fq, GrumpkinParameters};
+use ark_grumpkin::{Fq, GrumpkinConfig};
 
 pub(crate) fn verify_signature(
     pub_key_x: Fq,
@@ -13,7 +13,7 @@ pub(crate) fn verify_signature(
     sig_e_bytes: [u8; 32],
     message: &[u8],
 ) -> bool {
-    let pub_key = Affine::<GrumpkinParameters>::new_unchecked(pub_key_x, pub_key_y);
+    let pub_key = Affine::<GrumpkinConfig>::new_unchecked(pub_key_x, pub_key_y);
 
     if !pub_key.is_on_curve()
         || !pub_key.is_in_correct_subgroup_assuming_on_curve()
@@ -22,17 +22,15 @@ pub(crate) fn verify_signature(
         return false;
     }
 
-    let sig_s =
-        <GrumpkinParameters as CurveConfig>::ScalarField::from_be_bytes_mod_order(&sig_s_bytes);
-    let sig_e =
-        <GrumpkinParameters as CurveConfig>::ScalarField::from_be_bytes_mod_order(&sig_e_bytes);
+    let sig_s = <GrumpkinConfig as CurveConfig>::ScalarField::from_be_bytes_mod_order(&sig_s_bytes);
+    let sig_e = <GrumpkinConfig as CurveConfig>::ScalarField::from_be_bytes_mod_order(&sig_e_bytes);
 
     if sig_s.is_zero() || sig_e.is_zero() {
         return false;
     }
 
     // R = g^{sig.s} • pub^{sig.e}
-    let r = GrumpkinParameters::GENERATOR * sig_s + pub_key * sig_e;
+    let r = GrumpkinConfig::GENERATOR * sig_s + pub_key * sig_e;
     if r.is_zero() {
         // this result implies k == 0, which would be catastrophic for the prover.
         // it is a cheap check that ensures this doesn't happen.
@@ -50,11 +48,11 @@ fn schnorr_generate_challenge(
     message: &[u8],
     pub_key_x: Fq,
     pub_key_y: Fq,
-    r: Affine<GrumpkinParameters>,
+    r: Affine<GrumpkinConfig>,
 ) -> [u8; 32] {
     // create challenge message pedersen_commitment(R.x, pubkey)
 
-    let r_x = *r.x().expect("r has been checked to be non-zero");
+    let r_x = r.x().expect("r has been checked to be non-zero");
     let pedersen_hash = crate::pedersen::hash::hash_with_index(&[r_x, pub_key_x, pub_key_y], 0);
 
     let mut hash_input: Vec<u8> = pedersen_hash.into_bigint().to_bytes_be();

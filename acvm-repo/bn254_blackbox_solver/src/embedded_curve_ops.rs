@@ -23,7 +23,7 @@ pub fn multi_scalar_mul(
         ));
     }
 
-    let mut output_point = grumpkin::SWAffine::zero();
+    let mut output_point = ark_grumpkin::Affine::zero();
 
     for i in (0..points.len()).step_by(3) {
         let point =
@@ -50,7 +50,7 @@ pub fn multi_scalar_mul(
         // Check if this is smaller than the grumpkin modulus
         let grumpkin_integer = BigUint::from_bytes_be(&bytes);
 
-        if grumpkin_integer >= grumpkin::FrConfig::MODULUS.into() {
+        if grumpkin_integer >= ark_grumpkin::FrConfig::MODULUS.into() {
             return Err(BlackBoxResolutionError::Failed(
                 BlackBoxFunc::MultiScalarMul,
                 format!("{} is not a valid grumpkin scalar", grumpkin_integer.to_str_radix(16)),
@@ -58,15 +58,15 @@ pub fn multi_scalar_mul(
         }
 
         let iteration_output_point =
-            grumpkin::SWAffine::from(point.mul_bigint(grumpkin_integer.to_u64_digits()));
+            ark_grumpkin::Affine::from(point.mul_bigint(grumpkin_integer.to_u64_digits()));
 
-        output_point = grumpkin::SWAffine::from(output_point + iteration_output_point);
+        output_point = ark_grumpkin::Affine::from(output_point + iteration_output_point);
     }
 
     if let Some((out_x, out_y)) = output_point.xy() {
         Ok((
-            FieldElement::from_repr(*out_x),
-            FieldElement::from_repr(*out_y),
+            FieldElement::from_repr(out_x),
+            FieldElement::from_repr(out_y),
             FieldElement::from(output_point.is_zero() as u128),
         ))
     } else {
@@ -82,11 +82,11 @@ pub fn embedded_curve_add(
         .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::EmbeddedCurveAdd, e))?;
     let point2 = create_point(input2[0], input2[1], input2[2] == FieldElement::one())
         .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::EmbeddedCurveAdd, e))?;
-    let res = grumpkin::SWAffine::from(point1 + point2);
+    let res = ark_grumpkin::Affine::from(point1 + point2);
     if let Some((res_x, res_y)) = res.xy() {
         Ok((
-            FieldElement::from_repr(*res_x),
-            FieldElement::from_repr(*res_y),
+            FieldElement::from_repr(res_x),
+            FieldElement::from_repr(res_y),
             FieldElement::from(res.is_zero() as u128),
         ))
     } else if res.is_zero() {
@@ -103,11 +103,11 @@ fn create_point(
     x: FieldElement,
     y: FieldElement,
     is_infinite: bool,
-) -> Result<grumpkin::SWAffine, String> {
+) -> Result<ark_grumpkin::Affine, String> {
     if is_infinite {
-        return Ok(grumpkin::SWAffine::zero());
+        return Ok(ark_grumpkin::Affine::zero());
     }
-    let point = grumpkin::SWAffine::new_unchecked(x.into_repr(), y.into_repr());
+    let point = ark_grumpkin::Affine::new_unchecked(x.into_repr(), y.into_repr());
     if !point.is_on_curve() {
         return Err(format!("Point ({}, {}) is not on curve", x.to_hex(), y.to_hex()));
     };
@@ -124,7 +124,7 @@ mod tests {
     use ark_ff::BigInteger;
 
     fn get_generator() -> [FieldElement; 3] {
-        let generator = grumpkin::SWAffine::generator();
+        let generator = ark_grumpkin::Affine::generator();
         let generator_x = FieldElement::from_repr(*generator.x().unwrap());
         let generator_y = FieldElement::from_repr(*generator.y().unwrap());
         [generator_x, generator_y, FieldElement::zero()]
