@@ -253,7 +253,7 @@ class {{name}}Flavor {
               using Base = AllEntities<std::string>;
 
           public:
-              CommitmentLabels() : AllEntities<std::string>()
+              CommitmentLabels()
           {
               {{#each all_cols as |item|}}
               Base::{{item}} = "{{shoutySnakeCase item}}";
@@ -278,9 +278,7 @@ class {{name}}Flavor {
       public:
         uint32_t circuit_size;
 
-        {{#each witness as |w|}}
-        Commitment {{w}};
-        {{/each}}
+        std::array<Commitment, NUM_WITNESS_ENTITIES> commitments;
 
         std::vector<bb::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>> sumcheck_univariates;
         std::array<FF, NUM_ALL_ENTITIES> sumcheck_evaluations;
@@ -300,10 +298,9 @@ class {{name}}Flavor {
             circuit_size = deserialize_from_buffer<uint32_t>(proof_data, num_frs_read);
             size_t log_n = numeric::get_msb(circuit_size);
 
-            {{#each witness as |w|}}
-            {{w}} = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
-            {{/each}}
-
+            for (auto& commitment : commitments) {
+                commitment = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            }
             for (size_t i = 0; i < log_n; ++i) {
                 sumcheck_univariates.emplace_back(
                     deserialize_from_buffer<bb::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>>(
@@ -326,10 +323,9 @@ class {{name}}Flavor {
 
             serialize_to_buffer(circuit_size, Transcript::proof_data);
 
-            {{#each witness as |w|}}
-            serialize_to_buffer<Commitment>({{w}}, Transcript::proof_data);
-            {{/each}}
-
+            for (const auto& commitment : commitments) {
+                serialize_to_buffer(commitment, Transcript::proof_data);
+            }
             for (size_t i = 0; i < log_n; ++i) {
                 serialize_to_buffer(sumcheck_univariates[i], Transcript::proof_data);
             }
