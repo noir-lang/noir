@@ -4,8 +4,7 @@ use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap};
 use acvm::brillig_vm::MemoryValue;
 use acvm::pwg::{
-    ACVMStatus, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo, OpcodeResolutionError,
-    StepResult, ACVM,
+    ACVMStatus, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo, StepResult, ACVM,
 };
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
@@ -297,11 +296,9 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                 self.handle_foreign_call(foreign_call)
             }
             Err(err) => {
-                if let OpcodeResolutionError::BrilligFunctionUnsatisfiedConstrain { .. } = err {
-                    // return solver ownership so brillig_solver it has the right opcode location
-                    self.brillig_solver = Some(solver);
-                }
-                // TODO: should we return solver ownership in all Err scenarios>?
+                // return solver ownership so context has the right opcode location when reporting error
+                self.brillig_solver = Some(solver);
+
                 DebugCommandResult::Error(NargoError::ExecutionError(ExecutionError::SolvingError(
                     err, None,
                 )))
