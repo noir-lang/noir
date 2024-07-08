@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
+          # token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
       - name: Push to external libs repo
         run: |
           SUBREPO_PATH=external_libs/noir-edwards
