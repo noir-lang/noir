@@ -247,9 +247,9 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
     }
 }
 
-// Extracts a `ResolvedAssertionPayload` from a block of memory of a Brillig VM instance.
-//
-// Returns `None` if the amount of memory requested is zero.
+/// Extracts a `ResolvedAssertionPayload` from a block of memory of a Brillig VM instance.
+///
+/// Returns `None` if the amount of memory requested is zero.
 fn extract_failure_payload_from_memory<F: AcirField>(
     memory: &[MemoryValue<F>],
     revert_data_offset: usize,
