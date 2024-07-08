@@ -216,7 +216,7 @@ pub(crate) enum Instruction {
     /// such instructions are allowed to have side-effects.
     ///
     /// For example,
-    /// ```
+    /// ```text
     /// EnableSideEffectsIf condition0;
     /// code0;
     /// EnableSideEffectsIf condition1;
@@ -254,7 +254,7 @@ pub(crate) enum Instruction {
 
     /// Merge two values returned from opposite branches of a conditional into one.
     ///
-    /// ```
+    /// ```text
     /// if then_condition {
     ///     then_value
     /// } else {   // else_condition = !then_condition
