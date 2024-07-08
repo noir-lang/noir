@@ -58,6 +58,12 @@ impl<'context> Elaborator<'context> {
         use crate::ast::UnresolvedTypeData::*;
 
         let span = typ.span;
+        let (is_self_type_name, is_synthetic) = if let Named(ref named_path, _, synthetic) = typ.typ
+        {
+            (named_path.last_segment().is_self_type_name(), synthetic)
+        } else {
+            (false, false)
+        };
 
         let resolved_type = match typ.typ {
             FieldElement => Type::FieldElement,
@@ -155,9 +161,14 @@ impl<'context> Elaborator<'context> {
                     Location::new(unresolved_span, self.file),
                 );
 
-                let referenced = ReferenceId::Struct(struct_type.borrow().id);
-                let reference = ReferenceId::Variable(Location::new(unresolved_span, self.file));
-                self.interner.add_reference(referenced, reference);
+                if !is_synthetic {
+                    let referenced = ReferenceId::Struct(struct_type.borrow().id);
+                    let reference = ReferenceId::Variable(
+                        Location::new(unresolved_span, self.file),
+                        is_self_type_name,
+                    );
+                    self.interner.add_reference(referenced, reference);
+                }
             }
         }
 

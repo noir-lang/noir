@@ -13,7 +13,7 @@ pub(crate) fn on_references_request(
 ) -> impl Future<Output = Result<Option<Vec<Location>>, ResponseError>> {
     let result =
         process_request(state, params.text_document_position, |location, interner, files| {
-            interner.find_all_references(location, params.context.include_declaration).map(
+            interner.find_all_references(location, params.context.include_declaration, true).map(
                 |locations| {
                     locations
                         .iter()
