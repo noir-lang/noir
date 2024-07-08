@@ -33,7 +33,7 @@ use acvm::acir::circuit::opcodes::BlockType;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
-use acvm::acir::circuit::{AssertionPayload, ErrorSelector, OpcodeLocation};
+use acvm::acir::circuit::{AssertionPayload, ErrorSelector, OpcodeLocation, ExpressionWidth};
 use acvm::acir::native_types::Witness;
 use acvm::acir::BlackBoxFunc;
 use acvm::{acir::circuit::opcodes::BlockId, acir::AcirField, FieldElement};
@@ -282,12 +282,13 @@ pub(crate) type Artifacts = (
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn into_acir(self, brillig: &Brillig) -> Result<Artifacts, RuntimeError> {
+    pub(crate) fn into_acir(self, brillig: &Brillig, expression_width: ExpressionWidth) -> Result<Artifacts, RuntimeError> {
+        dbg!(expression_width);
         let mut acirs = Vec::new();
-        // TODO: can we parallelise this?
+        // TODO: can we parallelize this?
         let mut shared_context = SharedContext::default();
         for function in self.functions.values() {
-            let context = Context::new(&mut shared_context);
+            let context = Context::new(&mut shared_context, expression_width);
             if let Some(mut generated_acir) =
                 context.convert_ssa_function(&self, function, brillig)?
             {
@@ -334,8 +335,9 @@ impl Ssa {
 }
 
 impl<'a> Context<'a> {
-    fn new(shared_context: &'a mut SharedContext<FieldElement>) -> Context<'a> {
+    fn new(shared_context: &'a mut SharedContext<FieldElement>, expression_width: ExpressionWidth) -> Context<'a> {
         let mut acir_context = AcirContext::default();
+        acir_context.set_expression_width(expression_width);
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
         Context {

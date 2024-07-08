@@ -41,6 +41,22 @@ pub mod ir;
 mod opt;
 pub mod ssa_gen;
 
+pub struct SsaEvaluatorOptions {
+    /// Emit debug information for the intermediate SSA IR
+    pub enable_ssa_logging: bool,
+
+    pub enable_brillig_logging: bool,
+
+    /// Force Brillig output (for step debugging)
+    pub force_brillig_output: bool,
+
+    /// Pretty print benchmark times of each code generation pass
+    pub print_codegen_timings: bool,
+
+    /// Width of expressions to be used for ACIR
+    pub expression_width: ExpressionWidth,
+}
+
 /// Optimize the given program by converting it into SSA
 /// form and performing optimizations there. When finished,
 /// convert the final SSA into an ACIR program and return it.
@@ -92,7 +108,7 @@ pub(crate) fn optimize_into_acir(
 
     drop(ssa_gen_span_guard);
 
-    time("SSA to ACIR", options.print_codegen_timings, || ssa.into_acir(&brillig))
+    time("SSA to ACIR", options.print_codegen_timings, || ssa.into_acir(&brillig, options.expression_width))
 }
 
 // Helper to time SSA passes
@@ -146,19 +162,6 @@ impl SsaProgramArtifact {
         }
         self.names.push(circuit_artifact.name);
     }
-}
-
-pub struct SsaEvaluatorOptions {
-    /// Emit debug information for the intermediate SSA IR
-    pub enable_ssa_logging: bool,
-
-    pub enable_brillig_logging: bool,
-
-    /// Force Brillig output (for step debugging)
-    pub force_brillig_output: bool,
-
-    /// Pretty print benchmark times of each code generation pass
-    pub print_codegen_timings: bool,
 }
 
 /// Compiles the [`Program`] into [`ACIR``][acvm::acir::circuit::Program].

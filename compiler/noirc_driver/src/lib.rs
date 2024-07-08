@@ -549,6 +549,7 @@ pub fn compile_no_check(
         enable_brillig_logging: options.show_brillig,
         force_brillig_output: options.force_brillig,
         print_codegen_timings: options.benchmark_codegen,
+        expression_width: options.expression_width,
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =

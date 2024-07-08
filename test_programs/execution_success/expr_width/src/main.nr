@@ -18,8 +18,8 @@ fn main(x: Field, y: pub Field) {
     // assert(f == 0);
 
     let state = [x, y];
-    // let state = oh_no_not_again(state);
-    let state = oh_no_not_again_as_witness(state);
+    let state = oh_no_not_again(state);
+    // let state = oh_no_not_again_as_witness(state);
 
     assert(state[0] + state[1] == 0);
 }
@@ -34,7 +34,7 @@ fn oh_no_not_again(mut state: [Field; 2]) -> [Field; 2] {
 
 fn oh_no_not_again_as_witness(mut state: [Field; 2]) -> [Field; 2] {
     for i in 0..200 {
-        state[0] = (state[0] * state[0]) + state[1];
+        state[0] = state[0] * state[0] + state[1];
         std::as_witness(state[0]);
         state[1] += state[0];
         if (i & 1 == 1) {

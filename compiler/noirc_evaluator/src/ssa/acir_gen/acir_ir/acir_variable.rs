@@ -9,7 +9,7 @@ use crate::ssa::ir::types::Type as SsaType;
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::circuit::brillig::{BrilligInputs, BrilligOutputs};
 use acvm::acir::circuit::opcodes::{BlockId, BlockType, MemOp};
-use acvm::acir::circuit::{AssertionPayload, ExpressionOrMemory, Opcode};
+use acvm::acir::circuit::{AssertionPayload, ExpressionOrMemory, Opcode, ExpressionWidth};
 use acvm::blackbox_solver;
 use acvm::brillig_vm::{MemoryValue, VMStatus, VM};
 use acvm::{
@@ -124,9 +124,15 @@ pub(crate) struct AcirContext<F: AcirField> {
 
     /// The BigIntContext, used to generate identifiers for BigIntegers
     big_int_ctx: BigIntContext,
+
+    expression_width: ExpressionWidth,
 }
 
 impl<F: AcirField> AcirContext<F> {
+    pub(crate) fn set_expression_width(&mut self, expression_width: ExpressionWidth) {
+        self.expression_width = expression_width;
+    }
+
     pub(crate) fn current_witness_index(&self) -> Witness {
         self.acir_ir.current_witness_index()
     }
@@ -669,8 +675,41 @@ impl<F: AcirField> AcirContext<F> {
     /// be constrained to be the addition of `lhs` and `rhs`
     pub(crate) fn add_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, RuntimeError> {
         let lhs_expr = self.var_to_expression(lhs)?;
+        let lhs_width = expr_width(&lhs_expr);
+        // println!("lhs_expr, width {}: {}", expr_width(&lhs_expr), lhs_expr.clone());
+        let lhs_expr_fits = fits_in_one_identity(&lhs_expr, self.expression_width);
+        // dbg!(lhs_expr_fits);
         let rhs_expr = self.var_to_expression(rhs)?;
+        let rhs_width = expr_width(&rhs_expr);
+        // println!("rhs_expr, width {}: {}", expr_width(&rhs_expr), rhs_expr.clone());
+        let rhs_expr_fits = fits_in_one_identity(&rhs_expr, self.expression_width);
+        // dbg!(rhs_expr_fits);
         let sum_expr = &lhs_expr + &rhs_expr;
+        // println!("sum_expr, width {}: {}", expr_width(&sum_expr), sum_expr.clone());
+        let sum_expr_fits = fits_in_one_identity(&sum_expr, self.expression_width);
+        // println!("sum_expr_fits: {}", sum_expr_fits);
+        let sum_expr = if lhs_expr_fits && rhs_expr_fits && !sum_expr_fits {
+            // dbg!("got one");
+            let lhs_witness_var = self.get_or_create_witness_var(lhs)?;
+            let lhs_witness_expr = self.var_to_expression(lhs_witness_var)?;
+            // println!("new lhs_expr, width {}: {}", expr_width(&lhs_expr), lhs_expr.clone());
+            let rhs_witness_var = self.get_or_create_witness_var(rhs)?;
+            let rhs_witness_expr = self.var_to_expression(rhs_witness_var)?;
+            // let sum_expr = if rhs_width > lhs_width {
+            //     &lhs_expr + &rhs_witness_expr
+            // } else if lhs_width > rhs_width {
+            //     &lhs_witness_expr + &rhs_expr
+            // } else {
+            //     &lhs_witness_expr + &rhs_witness_expr
+            // };
+            let sum_expr = &lhs_witness_expr + &rhs_witness_expr;
+            // println!("sum_expr, width {}: {}", expr_width(&sum_expr), sum_expr.clone());
+            // let sum_expr_fits = fits_in_one_identity(&sum_expr, self.expression_width);
+            // println!("sum_expr_fits: {}", sum_expr_fits);
+            sum_expr
+        } else {
+            sum_expr
+        };
 
         Ok(self.add_data(AcirVarData::from(sum_expr)))
     }
@@ -1982,6 +2021,237 @@ impl<F: AcirField> From<Expression<F>> for AcirVarData<F> {
             AcirVarData::Expr(expr)
         }
     }
+}
+
+fn expr_width<F: AcirField>(expr: &Expression<F>) -> usize {
+    let mut width = 0;
+
+    if expr.mul_terms.is_empty() {
+        return expr.linear_combinations.len();
+    }
+
+    for mul_term in &expr.mul_terms {
+        // The coefficient should be non-zero, as this method is ran after the compiler removes all zero coefficient terms
+        assert_ne!(mul_term.0, F::zero());
+
+        let mut found_x = false;
+        let mut found_y = false;
+
+        for term in expr.linear_combinations.iter() {
+            let witness = &term.1;
+            let x = &mul_term.1;
+            let y = &mul_term.2;
+            if witness == x {
+                found_x = true;
+            };
+            if witness == y {
+                found_y = true;
+            };
+            if found_x & found_y {
+                break;
+            }
+        }
+
+        // If the multiplication is a squaring then we must assign the two witnesses to separate wires and so we
+        // can never get a zero contribution to the width.
+        let multiplication_is_squaring = mul_term.1 == mul_term.2;
+
+        let mul_term_width_contribution = if !multiplication_is_squaring && (found_x & found_y) {
+            // Both witnesses involved in the multiplication exist elsewhere in the expression.
+            // They both do not contribute to the width of the expression as this would be double-counting
+            // due to their appearance in the linear terms.
+            0
+        } else if found_x || found_y {
+            // One of the witnesses involved in the multiplication exists elsewhere in the expression.
+            // The multiplication then only contributes 1 new witness to the width.
+            1
+        } else {
+            // Worst case scenario, the multiplication is using completely unique witnesses so has a contribution of 2.
+            2
+        };
+
+        width += mul_term_width_contribution;
+    }
+
+    width += expr.linear_combinations.len();
+
+    width
+}
+
+/// Checks if this expression can fit into one arithmetic identity
+fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: ExpressionWidth) -> bool {
+    let width = match &width {
+        ExpressionWidth::Unbounded => {
+            return true;
+        }
+        ExpressionWidth::Bounded { width } => {
+            *width
+        }
+    };
+
+    // A Polynomial with more than one mul term cannot fit into one opcode
+    if expr.mul_terms.len() > 1 {
+        return false;
+    };
+    // A Polynomial with more terms than fan-in cannot fit within a single opcode
+    if expr.linear_combinations.len() > width {
+        return false;
+    }
+
+    // A polynomial with no mul term and a fan-in that fits inside of the width can fit into a single opcode
+    if expr.mul_terms.is_empty() {
+        return true;
+    }
+
+    // A polynomial with width-2 fan-in terms and a single non-zero mul term can fit into one opcode
+    // Example: Axy + Dz . Notice, that the mul term places a constraint on the first two terms, but not the last term
+    // XXX: This would change if our arithmetic polynomial equation was changed to Axyz for example, but for now it is not.
+    if expr.linear_combinations.len() <= (width - 2) {
+        return true;
+    }
+
+    // We now know that we have a single mul term. We also know that the mul term must match up with at least one of the other terms
+    // A polynomial whose mul terms are non zero which do not match up with two terms in the fan-in cannot fit into one opcode
+    // An example of this is: Axy + Bx + Cy + ...
+    // Notice how the bivariate monomial xy has two univariate monomials with their respective coefficients
+    // XXX: note that if x or y is zero, then we could apply a further optimization, but this would be done in another algorithm.
+    // It would be the same as when we have zero coefficients - Can only work if wire is constrained to be zero publicly
+    let mul_term = &expr.mul_terms[0];
+
+    // The coefficient should be non-zero, as this method is ran after the compiler removes all zero coefficient terms
+    assert_ne!(mul_term.0, F::zero());
+
+    let mut found_x = false;
+    let mut found_y = false;
+
+    for term in expr.linear_combinations.iter() {
+        let witness = &term.1;
+        let x = &mul_term.1;
+        let y = &mul_term.2;
+        if witness == x {
+            found_x = true;
+        };
+        if witness == y {
+            found_y = true;
+        };
+        if found_x & found_y {
+            break;
+        }
+    }
+
+    // If the multiplication is a squaring then we must assign the two witnesses to separate wires and so we
+    // can never get a zero contribution to the width.
+    let multiplication_is_squaring = mul_term.1 == mul_term.2;
+
+    let mul_term_width_contribution = if !multiplication_is_squaring && (found_x & found_y) {
+        // Both witnesses involved in the multiplication exist elsewhere in the expression.
+        // They both do not contribute to the width of the expression as this would be double-counting
+        // due to their appearance in the linear terms.
+        0
+    } else if found_x || found_y {
+        // One of the witnesses involved in the multiplication exists elsewhere in the expression.
+        // The multiplication then only contributes 1 new witness to the width.
+        1
+    } else {
+        // Worst case scenario, the multiplication is using completely unique witnesses so has a contribution of 2.
+        2
+    };
+
+    mul_term_width_contribution + expr.linear_combinations.len() <= width
+}
+
+/// Checks if this expression can fit into one arithmetic identity
+fn is_max_width<F: AcirField>(expr: &Expression<F>, width: ExpressionWidth) -> bool {
+    let width = match &width {
+        ExpressionWidth::Unbounded => {
+            return true;
+        }
+        ExpressionWidth::Bounded { width } => {
+            *width
+        }
+    };
+
+    // A Polynomial with more than one mul term cannot fit into one opcode
+    if expr.mul_terms.len() > 1 {
+        dbg!(expr.mul_terms.len());
+        dbg!(expr.linear_combinations.len());
+        return false;
+    };
+    // A Polynomial with more terms than fan-in cannot fit within a single opcode
+    if expr.linear_combinations.len() > width {
+        dbg!(expr.mul_terms.len());
+        dbg!(expr.linear_combinations.len());
+        return false;
+    }
+
+    // A polynomial with no mul term and a fan-in that fits inside of the width can fit into a single opcode
+    // if expr.mul_terms.is_empty() {
+    //     return true;
+    // }
+    
+    // We just want to check whether the expr has hit its max width
+    // A polynomial with no mul term and a fan-in that fits inside of the width has still not reached the max expression width
+    if expr.mul_terms.is_empty() {
+        dbg!(expr.mul_terms.len());
+        dbg!(expr.linear_combinations.len());
+        return false;
+    }
+
+    // A polynomial with width-2 fan-in terms and a single non-zero mul term can fit into one opcode
+    // Example: Axy + Dz . Notice, that the mul term places a constraint on the first two terms, but not the last term
+    // XXX: This would change if our arithmetic polynomial equation was changed to Axyz for example, but for now it is not.
+    // if expr.linear_combinations.len() <= (width - 2) {
+    //     return true;
+    // }
+
+    // We now know that we have a single mul term. We also know that the mul term must match up with at least one of the other terms
+    // A polynomial whose mul terms are non zero which do not match up with two terms in the fan-in cannot fit into one opcode
+    // An example of this is: Axy + Bx + Cy + ...
+    // Notice how the bivariate monomial xy has two univariate monomials with their respective coefficients
+    // XXX: note that if x or y is zero, then we could apply a further optimization, but this would be done in another algorithm.
+    // It would be the same as when we have zero coefficients - Can only work if wire is constrained to be zero publicly
+    let mul_term = &expr.mul_terms[0];
+
+    // The coefficient should be non-zero, as this method is ran after the compiler removes all zero coefficient terms
+    assert_ne!(mul_term.0, F::zero());
+
+    let mut found_x = false;
+    let mut found_y = false;
+
+    for term in expr.linear_combinations.iter() {
+        let witness = &term.1;
+        let x = &mul_term.1;
+        let y = &mul_term.2;
+        if witness == x {
+            found_x = true;
+        };
+        if witness == y {
+            found_y = true;
+        };
+        if found_x & found_y {
+            break;
+        }
+    }
+
+    // If the multiplication is a squaring then we must assign the two witnesses to separate wires and so we
+    // can never get a zero contribution to the width.
+    let multiplication_is_squaring = mul_term.1 == mul_term.2;
+
+    let mul_term_width_contribution = if !multiplication_is_squaring && (found_x & found_y) {
+        // Both witnesses involved in the multiplication exist elsewhere in the expression.
+        // They both do not contribute to the width of the expression as this would be double-counting
+        // due to their appearance in the linear terms.
+        0
+    } else if found_x || found_y {
+        // One of the witnesses involved in the multiplication exists elsewhere in the expression.
+        // The multiplication then only contributes 1 new witness to the width.
+        1
+    } else {
+        // Worst case scenario, the multiplication is using completely unique witnesses so has a contribution of 2.
+        2
+    };
+    dbg!(mul_term_width_contribution + expr.linear_combinations.len());
+    mul_term_width_contribution + expr.linear_combinations.len() == width
 }
 
 /// A Reference to an `AcirVarData`
