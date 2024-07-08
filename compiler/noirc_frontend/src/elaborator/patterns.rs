@@ -201,7 +201,7 @@ impl<'context> Elaborator<'context> {
         );
 
         let referenced = ReferenceId::Struct(struct_type.borrow().id);
-        let reference = ReferenceId::Variable(Location::new(name_span, self.file), is_self_type);
+        let reference = ReferenceId::Reference(Location::new(name_span, self.file), is_self_type);
         self.interner.add_reference(referenced, reference);
 
         HirPattern::Struct(expected_type, fields, location)
@@ -448,7 +448,8 @@ impl<'context> Elaborator<'context> {
                             self.interner.add_function_dependency(current_item, func_id);
                         }
 
-                        let variable = ReferenceId::Variable(hir_ident.location, is_self_type_name);
+                        let variable =
+                            ReferenceId::Reference(hir_ident.location, is_self_type_name);
                         let function = ReferenceId::Function(func_id);
                         self.interner.add_reference(function, variable);
                     }
@@ -460,7 +461,8 @@ impl<'context> Elaborator<'context> {
                             self.interner.add_global_dependency(current_item, global_id);
                         }
 
-                        let variable = ReferenceId::Variable(hir_ident.location, is_self_type_name);
+                        let variable =
+                            ReferenceId::Reference(hir_ident.location, is_self_type_name);
                         let global = ReferenceId::Global(global_id);
                         self.interner.add_reference(global, variable);
                     }

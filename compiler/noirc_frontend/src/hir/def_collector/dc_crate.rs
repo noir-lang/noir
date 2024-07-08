@@ -344,7 +344,7 @@ impl DefCollector {
 
                 for (referenced, ident) in references.iter().zip(&collected_import.path.segments) {
                     let reference =
-                        ReferenceId::Variable(Location::new(ident.span(), file_id), false);
+                        ReferenceId::Reference(Location::new(ident.span(), file_id), false);
                     context.def_interner.add_reference(*referenced, reference);
                 }
 
@@ -521,7 +521,7 @@ fn add_import_reference(
         }
         crate::macros_api::ModuleDefId::GlobalId(global_id) => ReferenceId::Global(global_id),
     };
-    let reference = ReferenceId::Variable(Location::new(name.span(), file_id), false);
+    let reference = ReferenceId::Reference(Location::new(name.span(), file_id), false);
     interner.add_reference(referenced, reference);
 }
 

@@ -21,7 +21,7 @@ pub(crate) fn on_prepare_rename_request(
         let reference_id = interner.reference_at_location(location);
         let rename_possible = match reference_id {
             // Rename shouldn't be possible when triggered on top of "Self"
-            Some(ReferenceId::Variable(_, true /* is self type name */)) => false,
+            Some(ReferenceId::Reference(_, true /* is self type name */)) => false,
             Some(_) => true,
             None => false,
         };

@@ -245,12 +245,12 @@ pub enum ReferenceId {
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
-    Variable(Location, bool /* is Self */),
+    Reference(Location, bool /* is Self */),
 }
 
 impl ReferenceId {
     pub fn is_self_type_name(&self) -> bool {
-        matches!(self, Self::Variable(_, true))
+        matches!(self, Self::Reference(_, true))
     }
 }
 

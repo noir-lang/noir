@@ -434,7 +434,7 @@ impl<'context> Elaborator<'context> {
         });
 
         let referenced = ReferenceId::Struct(struct_type.borrow().id);
-        let reference = ReferenceId::Variable(Location::new(span, self.file), is_self_type);
+        let reference = ReferenceId::Reference(Location::new(span, self.file), is_self_type);
         self.interner.add_reference(referenced, reference);
 
         (expr, Type::Struct(struct_type, generics))
