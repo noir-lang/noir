@@ -1,7 +1,7 @@
 import { AztecAddress } from '../aztec-address/index.js';
 import { Fr } from '../fields/fields.js';
 import { Point } from '../fields/point.js';
-import { ABIParameterVisibility, type FunctionAbi, FunctionType } from './abi.js';
+import { type FunctionAbi, FunctionType } from './abi.js';
 import { encodeArguments } from './encoder.js';
 
 describe('abi/encoder', () => {
@@ -18,7 +18,7 @@ describe('abi/encoder', () => {
           type: {
             kind: 'field',
           },
-          visibility: ABIParameterVisibility.SECRET,
+          visibility: 'private',
         },
       ],
       returnTypes: [],
@@ -43,7 +43,7 @@ describe('abi/encoder', () => {
             length: 2,
             type: { kind: 'field' },
           },
-          visibility: ABIParameterVisibility.SECRET,
+          visibility: 'private',
         },
       ],
       returnTypes: [],
@@ -67,7 +67,7 @@ describe('abi/encoder', () => {
             kind: 'string',
             length: 4,
           },
-          visibility: ABIParameterVisibility.SECRET,
+          visibility: 'private',
         },
       ],
       returnTypes: [],
@@ -99,7 +99,7 @@ describe('abi/encoder', () => {
               },
             ],
           },
-          visibility: ABIParameterVisibility.SECRET,
+          visibility: 'private',
         },
       ],
       returnTypes: [],
@@ -135,7 +135,7 @@ describe('abi/encoder', () => {
               },
             ],
           },
-          visibility: ABIParameterVisibility.SECRET,
+          visibility: 'private',
         },
       ],
       returnTypes: [],
@@ -160,7 +160,7 @@ describe('abi/encoder', () => {
           type: {
             kind: 'field',
           },
-          visibility: ABIParameterVisibility.SECRET,
+          visibility: 'private',
         },
       ],
       returnTypes: [],
@@ -181,11 +181,11 @@ describe('abi/encoder', () => {
         {
           name: 'isOwner',
           type: {
-            sign: 'value',
+            sign: 'signed',
             width: 5,
             kind: 'integer',
           },
-          visibility: ABIParameterVisibility.SECRET,
+          visibility: 'private',
         },
       ],
       returnTypes: [],
@@ -207,7 +207,7 @@ describe('abi/encoder', () => {
           type: {
             kind: 'field',
           },
-          visibility: ABIParameterVisibility.SECRET,
+          visibility: 'private',
         },
       ],
       returnTypes: [],

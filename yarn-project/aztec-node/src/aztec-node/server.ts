@@ -182,7 +182,6 @@ export class AztecNodeService implements AztecNode {
       ? undefined
       : await TxProver.new(
           config,
-          await proofVerifier.getVerificationKeys(),
           worldStateSynchronizer,
           telemetry,
           await archiver
@@ -795,10 +794,6 @@ export class AztecNodeService implements AztecNode {
         new MetadataTxValidator(this.chainId),
         new TxProofValidator(proofVerifier),
       );
-
-      await this.prover?.updateProverConfig({
-        vks: await proofVerifier.getVerificationKeys(),
-      });
     }
 
     this.config = newConfig;

@@ -15,7 +15,8 @@ use dep::types::{
     kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputsArrayLengths,
     private_circuit_public_inputs::PrivateCircuitPublicInputsArrayLengths
 },
-    tests::{fixture_builder::FixtureBuilder}, transaction::tx_request::TxRequest
+    tests::{fixture_builder::FixtureBuilder}, transaction::tx_request::TxRequest,
+    constants::PRIVATE_KERNEL_INIT_INDEX
 };
 
 struct PrivateKernelCircuitOutputValidatorBuilder {
@@ -34,7 +35,13 @@ impl PrivateKernelCircuitOutputValidatorBuilder {
         let first_nullifier = create_first_nullifier(tx_request);
         output.nullifiers.push(first_nullifier);
         previous_kernel.nullifiers.push(first_nullifier);
+        previous_kernel = previous_kernel.in_vk_tree(PRIVATE_KERNEL_INIT_INDEX);
+
         PrivateKernelCircuitOutputValidatorBuilder { previous_kernel, private_call, output, tx_request }
+    }
+
+    pub fn with_previous_kernel_vk_index(&mut self, vk_index: u32) {
+        self.previous_kernel = self.previous_kernel.in_vk_tree(vk_index);
     }
 
     pub fn offset_values(&mut self, num_prepended_items: Field) {
@@ -55,7 +62,8 @@ impl PrivateKernelCircuitOutputValidatorBuilder {
             array_lengths,
             private_call.call_stack_item.contract_address,
             private_call.public_call_stack,
-            private_call.public_teardown_call_request
+            private_call.public_teardown_call_request,
+            FixtureBuilder::vk_tree_root()
         );
     }
 

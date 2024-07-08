@@ -55,6 +55,16 @@ pub fn filter_array_to_bounded_vec<T, N>(arr: [T; N], should_propagate: [bool; N
     vec_hint
 }
 
+unconstrained pub fn find_index_hint<T, N>(array: [T; N], find: T) -> u32 where T: Eq {
+    let mut index = 0;
+    for i in 0..array.len() {
+        if array[i] == find {
+            index = i;
+        }
+    }
+    index
+}
+
 // Routine which validates that all zero values of an array form a contiguous region at the end, i.e.,
 // of the form: [*,*,*...,0,0,0,0] where any * is non-zero. Note that a full array of non-zero values is
 // valid.

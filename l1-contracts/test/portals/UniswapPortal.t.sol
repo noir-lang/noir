@@ -52,7 +52,8 @@ contract UniswapPortalTest is Test {
 
     registry = new Registry();
     PortalERC20 portalERC20 = new PortalERC20();
-    rollup = new Rollup(registry, new AvailabilityOracle(), IERC20(address(portalERC20)));
+    rollup =
+      new Rollup(registry, new AvailabilityOracle(), IERC20(address(portalERC20)), bytes32(0));
     registry.upgrade(address(rollup), address(rollup.INBOX()), address(rollup.OUTBOX()));
     portalERC20.mint(address(rollup), 1000000);
 

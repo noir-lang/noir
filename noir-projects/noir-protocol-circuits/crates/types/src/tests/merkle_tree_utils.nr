@@ -42,10 +42,6 @@ impl<N> MerkleTree<N> {
             current_width = current_width / 2;
         }
     }
-
-    pub fn sibling_index(index: u32) -> u32 {
-        if index % 2 == 0 { index + 1 } else { index - 1 }
-    }
 }
 
 #[test]

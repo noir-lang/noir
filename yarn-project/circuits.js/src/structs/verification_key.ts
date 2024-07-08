@@ -256,28 +256,3 @@ export class VerificationKeyData {
     return VerificationKeyData.fromBuffer(this.toBuffer());
   }
 }
-
-/**
- * Well-known verification keys.
- */
-export interface VerificationKeys {
-  /**
-   * Verification key for the default private kernel tail circuit.
-   */
-  privateKernelCircuit: VerificationKeyData;
-  /**
-   * Verification key for the default private kernel circuit.
-   */
-  privateKernelToPublicCircuit: VerificationKeyData;
-}
-
-/**
- * Returns mock verification keys for each well known circuit.
- * @returns A VerificationKeys object with fake values.
- */
-export function getMockVerificationKeys(): VerificationKeys {
-  return {
-    privateKernelCircuit: VerificationKeyData.makeFake(),
-    privateKernelToPublicCircuit: VerificationKeyData.makeFake(),
-  };
-}

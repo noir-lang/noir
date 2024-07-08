@@ -30,7 +30,6 @@ import {
   PublicDataTreeLeaf,
   type PublicDataTreeLeafPreimage,
   PublicDataUpdateRequest,
-  ROLLUP_VK_TREE_HEIGHT,
   type RecursiveProof,
   type RootParityInput,
   RootRollupInputs,
@@ -45,15 +44,9 @@ import {
 import { assertPermutation, makeTuple } from '@aztec/foundation/array';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { type Tuple, assertLength, toFriendlyJSON } from '@aztec/foundation/serialize';
+import { getVKIndex, getVKSiblingPath, getVKTreeRoot } from '@aztec/noir-protocol-circuits-types';
 import { HintsBuilder, computeFeePayerBalanceLeafSlot } from '@aztec/simulator';
 import { type MerkleTreeOperations } from '@aztec/world-state';
-
-// Denotes fields that are not used now, but will be in the future
-const FUTURE_FR = new Fr(0n);
-const FUTURE_NUM = 0;
-
-// Denotes fields that should be deleted
-const DELETE_FR = new Fr(0n);
 
 /**
  * Type representing the names of the trees for the base rollup.
@@ -267,18 +260,13 @@ export function getPreviousRollupDataFromPublicInputs(
   rollupProof: RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>,
   vk: VerificationKeyAsFields,
 ) {
+  const leafIndex = getVKIndex(vk);
+
   return new PreviousRollupData(
     rollupOutput,
     rollupProof,
     vk,
-
-    // MembershipWitness for a VK tree to be implemented in the future
-    FUTURE_NUM,
-    new MembershipWitness(
-      ROLLUP_VK_TREE_HEIGHT,
-      BigInt(FUTURE_NUM),
-      makeTuple(ROLLUP_VK_TREE_HEIGHT, () => FUTURE_FR),
-    ),
+    new MembershipWitness(VK_TREE_HEIGHT, BigInt(leafIndex), getVKSiblingPath(leafIndex)),
   );
 }
 
@@ -287,10 +275,7 @@ export async function getConstantRollupData(
   db: MerkleTreeOperations,
 ): Promise<ConstantRollupData> {
   return ConstantRollupData.from({
-    baseRollupVkHash: DELETE_FR,
-    mergeRollupVkHash: DELETE_FR,
-    privateKernelVkTreeRoot: FUTURE_FR,
-    publicKernelVkTreeRoot: FUTURE_FR,
+    vkTreeRoot: getVKTreeRoot(),
     lastArchive: await getTreeSnapshot(MerkleTreeId.ARCHIVE, db),
     globalVariables,
   });
@@ -303,6 +288,8 @@ export async function getTreeSnapshot(id: MerkleTreeId, db: MerkleTreeOperations
 
 export function getKernelDataFor(tx: ProcessedTx, vk: VerificationKeyData): KernelData {
   const recursiveProof = makeRecursiveProofFromBinary(tx.proof, NESTED_RECURSIVE_PROOF_LENGTH);
+  const leafIndex = getVKIndex(vk);
+
   return new KernelData(
     tx.data,
     recursiveProof,
@@ -310,9 +297,8 @@ export function getKernelDataFor(tx: ProcessedTx, vk: VerificationKeyData): Kern
     // VK for the kernel circuit
     vk,
 
-    // MembershipWitness for a VK tree to be implemented in the future
-    FUTURE_NUM,
-    assertLength(Array(VK_TREE_HEIGHT).fill(FUTURE_FR), VK_TREE_HEIGHT),
+    leafIndex,
+    getVKSiblingPath(leafIndex),
   );
 }
 

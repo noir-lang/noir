@@ -15,14 +15,21 @@ export class PrivateKernelEmptyInputs {
     public readonly header: Header,
     public readonly chainId: Fr,
     public readonly version: Fr,
+    public readonly vkTreeRoot: Fr,
   ) {}
 
   toBuffer(): Buffer {
-    return serializeToBuffer(this.emptyNested, this.header, this.chainId, this.version);
+    return serializeToBuffer(this.emptyNested, this.header, this.chainId, this.version, this.vkTreeRoot);
   }
 
   static from(fields: FieldsOf<PrivateKernelEmptyInputs>) {
-    return new PrivateKernelEmptyInputs(fields.emptyNested, fields.header, fields.chainId, fields.version);
+    return new PrivateKernelEmptyInputs(
+      fields.emptyNested,
+      fields.header,
+      fields.chainId,
+      fields.version,
+      fields.vkTreeRoot,
+    );
   }
 }
 

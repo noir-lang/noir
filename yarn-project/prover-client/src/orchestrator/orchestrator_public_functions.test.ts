@@ -1,6 +1,6 @@
 import { PROVING_STATUS, mockTx } from '@aztec/circuit-types';
-import { getMockVerificationKeys } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { getVKTreeRoot } from '@aztec/noir-protocol-circuits-types';
 
 import { TestContext } from '../mocks/test_context.js';
 
@@ -35,16 +35,12 @@ describe('prover/orchestrator/public-functions', () => {
           numberOfRevertiblePublicCallRequests,
         });
         tx.data.constants.historicalHeader = await context.actualDb.buildInitialHeader();
+        tx.data.constants.vkTreeRoot = getVKTreeRoot();
 
         const [processed, _] = await context.processPublicFunctions([tx], 1, undefined);
 
         // This will need to be a 2 tx block
-        const blockTicket = await context.orchestrator.startNewBlock(
-          2,
-          context.globalVariables,
-          [],
-          getMockVerificationKeys(),
-        );
+        const blockTicket = await context.orchestrator.startNewBlock(2, context.globalVariables, []);
 
         for (const processedTx of processed) {
           await context.orchestrator.addNewTx(processedTx);

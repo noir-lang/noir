@@ -35,12 +35,17 @@ struct PrivateKernelCircuitPublicInputsComposer {
 }
 
 impl PrivateKernelCircuitPublicInputsComposer {
-    pub fn new_from_tx_request(tx_request: TxRequest, private_call_public_inputs: PrivateCircuitPublicInputs) -> Self {
+    pub fn new_from_tx_request(
+        tx_request: TxRequest,
+        private_call_public_inputs: PrivateCircuitPublicInputs,
+        vk_tree_root: Field
+    ) -> Self {
         let mut public_inputs = PrivateKernelCircuitPublicInputsBuilder::empty();
 
         public_inputs.constants = CombinedConstantData::private(
             private_call_public_inputs.historical_header,
             tx_request.tx_context,
+            vk_tree_root,
         );
 
         // Since it's the first iteration, we need to push the tx hash nullifier into the `nullifiers` array

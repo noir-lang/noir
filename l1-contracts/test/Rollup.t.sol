@@ -40,7 +40,7 @@ contract RollupTest is DecoderBase {
     registry = new Registry();
     availabilityOracle = new AvailabilityOracle();
     portalERC20 = new PortalERC20();
-    rollup = new Rollup(registry, availabilityOracle, IERC20(address(portalERC20)));
+    rollup = new Rollup(registry, availabilityOracle, IERC20(address(portalERC20)), bytes32(0));
     inbox = Inbox(address(rollup.INBOX()));
     outbox = Outbox(address(rollup.OUTBOX()));
 

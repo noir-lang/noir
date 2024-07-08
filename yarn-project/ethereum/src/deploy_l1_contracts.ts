@@ -1,5 +1,6 @@
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
+import { type Fr } from '@aztec/foundation/fields';
 import { type DebugLogger } from '@aztec/foundation/log';
 
 import type { Abi, Narrow } from 'abitype';
@@ -131,7 +132,7 @@ export const deployL1Contracts = async (
   chain: Chain,
   logger: DebugLogger,
   contractsToDeploy: L1ContractArtifactsForDeployment,
-  args: { l2GasTokenAddress: AztecAddress },
+  args: { l2GasTokenAddress: AztecAddress; vkTreeRoot: Fr },
 ): Promise<DeployL1Contracts> => {
   logger.debug('Deploying contracts...');
 
@@ -179,6 +180,7 @@ export const deployL1Contracts = async (
       getAddress(registryAddress.toString()),
       getAddress(availabilityOracleAddress.toString()),
       getAddress(gasTokenAddress.toString()),
+      args.vkTreeRoot.toString(),
     ],
   );
   logger.info(`Deployed Rollup at ${rollupAddress}`);

@@ -1,4 +1,4 @@
-import { ABIParameterVisibility, type FunctionAbi, FunctionType } from '@aztec/foundation/abi';
+import { type FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { setupCustomSnapshotSerializers } from '@aztec/foundation/testing';
 
@@ -38,7 +38,7 @@ describe('ContractAddress', () => {
       isInternal: false,
       isStatic: false,
       name: 'fun',
-      parameters: [{ name: 'param1', type: { kind: 'boolean' }, visibility: ABIParameterVisibility.SECRET }],
+      parameters: [{ name: 'param1', type: { kind: 'boolean' }, visibility: 'private' }],
       returnTypes: [],
     };
     const mockArgs: any[] = [true];

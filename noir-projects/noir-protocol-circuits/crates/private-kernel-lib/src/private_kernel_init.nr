@@ -16,13 +16,14 @@ use dep::types::{
 // Initialization struct for private inputs to the private kernel
 struct PrivateKernelInitCircuitPrivateInputs {
     tx_request: TxRequest,
+    vk_tree_root: Field,
     private_call: PrivateCallData,
 }
 
 impl PrivateKernelInitCircuitPrivateInputs {
     unconstrained fn generate_output(self) -> PrivateKernelCircuitPublicInputs {
         let private_call_public_inputs = self.private_call.call_stack_item.public_inputs;
-        PrivateKernelCircuitPublicInputsComposer::new_from_tx_request(self.tx_request, private_call_public_inputs).with_private_call(
+        PrivateKernelCircuitPublicInputsComposer::new_from_tx_request(self.tx_request, private_call_public_inputs, self.vk_tree_root).with_private_call(
             private_call_public_inputs,
             self.private_call.call_stack_item.contract_address,
             self.private_call.public_call_stack,
@@ -52,7 +53,8 @@ impl PrivateKernelInitCircuitPrivateInputs {
                 private_call_data_validator.array_lengths,
                 self.private_call.call_stack_item.contract_address,
                 self.private_call.public_call_stack,
-                self.private_call.public_teardown_call_request
+                self.private_call.public_teardown_call_request,
+                self.vk_tree_root
             );
         }
         output
@@ -63,7 +65,7 @@ mod tests {
     use crate::private_kernel_init::PrivateKernelInitCircuitPrivateInputs;
     use dep::types::{
         abis::{kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs},
-        tests::{fixture_builder::FixtureBuilder, utils::assert_array_eq},
+        tests::{fixture_builder::FixtureBuilder, fixtures, utils::assert_array_eq},
         transaction::tx_request::TxRequest
     };
 
@@ -81,7 +83,7 @@ mod tests {
 
         pub fn execute(self) -> PrivateKernelCircuitPublicInputs {
             let private_call = self.private_call.to_private_call_data();
-            PrivateKernelInitCircuitPrivateInputs { tx_request: self.tx_request, private_call }.execute()
+            PrivateKernelInitCircuitPrivateInputs { tx_request: self.tx_request, private_call, vk_tree_root: FixtureBuilder::vk_tree_root() }.execute()
         }
     }
 

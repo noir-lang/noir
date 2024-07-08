@@ -8,6 +8,7 @@ use dep::types::{
     tests::merkle_tree_utils::compute_zero_hashes
 };
 use crate::tests::previous_rollup_data::default_previous_rollup_data;
+use crate::tests::l1_to_l2_roots::default_root_rollup_parity_input;
 
 pub fn compute_l1_l2_empty_snapshot() -> (AppendOnlyTreeSnapshot, [Field; L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH]) {
     let zero_hashes = compute_zero_hashes([0; L1_TO_L2_MSG_TREE_HEIGHT]);
@@ -36,6 +37,9 @@ pub fn compute_archive_snapshot() -> (AppendOnlyTreeSnapshot, [Field; ARCHIVE_HE
 
 pub fn default_root_rollup_inputs() -> RootRollupInputs {
     let mut inputs = RootRollupInputs::empty();
+
+    inputs.l1_to_l2_roots = default_root_rollup_parity_input();
+
     let (l1_l2_empty_snapshot, l1_l2_empty_sibling_path) = compute_l1_l2_empty_snapshot();
 
     inputs.l1_to_l2_message_subtree_sibling_path = l1_l2_empty_sibling_path;

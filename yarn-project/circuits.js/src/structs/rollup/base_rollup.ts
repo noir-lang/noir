@@ -27,21 +27,9 @@ export class ConstantRollupData {
     public lastArchive: AppendOnlyTreeSnapshot,
 
     /**
-     * Root of the private kernel verification key tree.
+     * Root of the verification key tree.
      */
-    public privateKernelVkTreeRoot: Fr,
-    /**
-     * Root of the public kernel circuit verification key tree.
-     */
-    public publicKernelVkTreeRoot: Fr,
-    /**
-     * Hash of the base rollup circuit verification key.
-     */
-    public baseRollupVkHash: Fr,
-    /**
-     * Hash of the merge rollup circuit verification key.
-     */
-    public mergeRollupVkHash: Fr,
+    public vkTreeRoot: Fr,
     /**
      * Global variables for the block
      */
@@ -57,33 +45,16 @@ export class ConstantRollupData {
     return new ConstantRollupData(
       reader.readObject(AppendOnlyTreeSnapshot),
       Fr.fromBuffer(reader),
-      Fr.fromBuffer(reader),
-      Fr.fromBuffer(reader),
-      Fr.fromBuffer(reader),
       reader.readObject(GlobalVariables),
     );
   }
 
   static getFields(fields: FieldsOf<ConstantRollupData>) {
-    return [
-      fields.lastArchive,
-      fields.privateKernelVkTreeRoot,
-      fields.publicKernelVkTreeRoot,
-      fields.baseRollupVkHash,
-      fields.mergeRollupVkHash,
-      fields.globalVariables,
-    ] as const;
+    return [fields.lastArchive, fields.vkTreeRoot, fields.globalVariables] as const;
   }
 
   static empty() {
-    return new ConstantRollupData(
-      AppendOnlyTreeSnapshot.zero(),
-      Fr.ZERO,
-      Fr.ZERO,
-      Fr.ZERO,
-      Fr.ZERO,
-      GlobalVariables.empty(),
-    );
+    return new ConstantRollupData(AppendOnlyTreeSnapshot.zero(), Fr.ZERO, GlobalVariables.empty());
   }
 
   toBuffer() {

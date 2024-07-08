@@ -1,11 +1,14 @@
 import { ProvingRequestType } from '@aztec/circuit-types';
 import {
+  Fr,
   RECURSIVE_PROOF_LENGTH,
   RootParityInput,
+  VK_TREE_HEIGHT,
   VerificationKeyAsFields,
   makeRecursiveProof,
 } from '@aztec/circuits.js';
 import { makeBaseParityInputs, makeBaseRollupInputs, makeParityPublicInputs } from '@aztec/circuits.js/testing';
+import { makeTuple } from '@aztec/foundation/array';
 import { AbortError } from '@aztec/foundation/error';
 import { sleep } from '@aztec/foundation/sleep';
 
@@ -52,8 +55,9 @@ describe('MemoryProvingQueue', () => {
     const publicInputs = makeParityPublicInputs();
     const proof = makeRecursiveProof<typeof RECURSIVE_PROOF_LENGTH>(RECURSIVE_PROOF_LENGTH);
     const vk = VerificationKeyAsFields.makeFake();
-    await queue.resolveProvingJob(job!.id, new RootParityInput(proof, vk, publicInputs));
-    await expect(promise).resolves.toEqual(new RootParityInput(proof, vk, publicInputs));
+    const vkPath = makeTuple(VK_TREE_HEIGHT, Fr.zero);
+    await queue.resolveProvingJob(job!.id, new RootParityInput(proof, vk, vkPath, publicInputs));
+    await expect(promise).resolves.toEqual(new RootParityInput(proof, vk, vkPath, publicInputs));
   });
 
   it('retries failed jobs', async () => {
@@ -109,6 +113,7 @@ describe('MemoryProvingQueue', () => {
     const output = new RootParityInput(
       makeRecursiveProof(RECURSIVE_PROOF_LENGTH),
       VerificationKeyAsFields.makeFake(),
+      makeTuple(VK_TREE_HEIGHT, Fr.zero),
       makeParityPublicInputs(),
     );
     await queue.resolveProvingJob(job!.id, output);

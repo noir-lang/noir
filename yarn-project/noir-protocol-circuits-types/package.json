@@ -17,7 +17,7 @@
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "formatting:fix:types": "NODE_OPTIONS='--max-old-space-size=8096' run -T eslint --fix ./src/types && run -T prettier -w ./src/types",
     "generate": "yarn generate:noir-circuits",
-    "generate:noir-circuits": "mkdir -p ./artifacts && cp ../../noir-projects/noir-protocol-circuits/target/* ./artifacts && node --no-warnings --loader ts-node/esm src/scripts/generate_declaration_files.ts && node --no-warnings --loader ts-node/esm src/scripts/generate_ts_from_abi.ts && run -T prettier -w ./src/types",
+    "generate:noir-circuits": "mkdir -p ./artifacts && cp -r ../../noir-projects/noir-protocol-circuits/target/* ./artifacts && node --no-warnings --loader ts-node/esm src/scripts/generate_declaration_files.ts && node --no-warnings --loader ts-node/esm src/scripts/generate_ts_from_abi.ts && run -T prettier -w ./src/types",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests",
     "codegen": "yarn noir-codegen",
     "build:dev": "tsc -b --watch"
@@ -67,7 +67,6 @@
     "tslib": "^2.4.0"
   },
   "devDependencies": {
-    "@aztec/circuit-types": "workspace:^",
     "@aztec/kv-store": "workspace:^",
     "@aztec/merkle-tree": "workspace:^",
     "@jest/globals": "^29.5.0",

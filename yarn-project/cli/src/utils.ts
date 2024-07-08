@@ -12,6 +12,7 @@ import {
   PortalERC20Abi,
   PortalERC20Bytecode,
 } from '@aztec/l1-artifacts';
+import { getVKTreeRoot } from '@aztec/noir-protocol-circuits-types';
 import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 
 import TOML from '@iarna/toml';
@@ -104,6 +105,7 @@ export async function deployAztecContracts(
   };
   return await deployL1Contracts(chain.rpcUrl, account, chain.chainInfo, debugLogger, l1Artifacts, {
     l2GasTokenAddress: GasTokenAddress,
+    vkTreeRoot: getVKTreeRoot(),
   });
 }
 

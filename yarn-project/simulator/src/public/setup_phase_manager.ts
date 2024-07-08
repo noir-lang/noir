@@ -1,5 +1,6 @@
 import { PublicKernelType, type PublicProvingRequest, type Tx } from '@aztec/circuit-types';
 import { type GlobalVariables, type Header, type PublicKernelCircuitPublicInputs } from '@aztec/circuits.js';
+import { type ProtocolArtifact } from '@aztec/noir-protocol-circuits-types';
 import { type PublicExecutor, type PublicStateDB } from '@aztec/simulator';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
@@ -24,13 +25,17 @@ export class SetupPhaseManager extends AbstractPhaseManager {
     super(db, publicExecutor, publicKernel, globalVariables, historicalHeader, phase);
   }
 
-  override async handle(tx: Tx, previousPublicKernelOutput: PublicKernelCircuitPublicInputs) {
+  override async handle(
+    tx: Tx,
+    previousPublicKernelOutput: PublicKernelCircuitPublicInputs,
+    previousCircuit: ProtocolArtifact,
+  ) {
     this.log.verbose(`Processing tx ${tx.getTxHash()}`);
     // TODO(#6464): Should we allow emitting contracts in the private setup phase?
     // if so, this should only add contracts that were deployed during private app logic.
     await this.publicContractsDB.addNewContracts(tx);
-    const { publicProvingInformation, kernelOutput, newUnencryptedLogs, revertReason, gasUsed } =
-      await this.processEnqueuedPublicCalls(tx, previousPublicKernelOutput).catch(
+    const { publicProvingInformation, kernelOutput, lastKernelArtifact, newUnencryptedLogs, revertReason, gasUsed } =
+      await this.processEnqueuedPublicCalls(tx, previousPublicKernelOutput, previousCircuit).catch(
         // the abstract phase manager throws if simulation gives error in a non-revertible phase
         async err => {
           await this.publicStateDB.rollbackToCommit();
@@ -44,6 +49,13 @@ export class SetupPhaseManager extends AbstractPhaseManager {
     const publicProvingRequests: PublicProvingRequest[] = publicProvingInformation.map(info => {
       return makeAvmProvingRequest(info, PublicKernelType.SETUP);
     });
-    return { publicProvingRequests, publicKernelOutput: kernelOutput, revertReason, returnValues: [], gasUsed };
+    return {
+      publicProvingRequests,
+      publicKernelOutput: kernelOutput,
+      lastKernelArtifact,
+      revertReason,
+      returnValues: [],
+      gasUsed,
+    };
   }
 }

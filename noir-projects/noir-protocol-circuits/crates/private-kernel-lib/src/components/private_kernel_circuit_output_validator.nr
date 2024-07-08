@@ -119,9 +119,15 @@ impl PrivateKernelCircuitOutputValidator {
         private_call_array_lengths: PrivateCircuitPublicInputsArrayLengths,
         contract_address: AztecAddress,
         public_call_requests: [CallRequest; PUBLIC_CALL_REQUESTS_LEN],
-        public_teardown_call_request: CallRequest
+        public_teardown_call_request: CallRequest,
+        vk_tree_root: Field
     ) {
-        self.validate_initial_values(tx_request, private_call, public_teardown_call_request);
+        self.validate_initial_values(
+            tx_request,
+            private_call,
+            public_teardown_call_request,
+            vk_tree_root
+        );
         let mut offsets = PrivateKernelCircuitPublicInputsArrayLengths::empty();
         offsets.nullifiers = 1; // The first nullifier is not propagated from the private call.
         self.validate_propagated_from_private_call(
@@ -160,7 +166,8 @@ impl PrivateKernelCircuitOutputValidator {
         self,
         tx_request: TxRequest,
         private_call: PrivateCircuitPublicInputs,
-        public_teardown_call_request: CallRequest
+        public_teardown_call_request: CallRequest,
+        vk_tree_root: Field
     ) {
         // Constants.
         assert_eq(self.output.constants.tx_context, tx_request.tx_context, "mismatch tx_context");
@@ -168,6 +175,7 @@ impl PrivateKernelCircuitOutputValidator {
             self.output.constants.historical_header, private_call.historical_header, "mismatch historical_header"
         );
         assert(is_empty(self.output.constants.global_variables), "constants.global_variables must be empty");
+        assert_eq(self.output.constants.vk_tree_root, vk_tree_root);
 
         // First nullifier.
         let first_nullifier = create_first_nullifier(tx_request);

@@ -1,7 +1,7 @@
 import { PROVING_STATUS, mockTx } from '@aztec/circuit-types';
-import { getMockVerificationKeys } from '@aztec/circuits.js';
 import { times } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { getVKTreeRoot } from '@aztec/noir-protocol-circuits-types';
 
 import { TestContext } from '../mocks/test_context.js';
 
@@ -35,15 +35,10 @@ describe('prover/orchestrator/public-functions', () => {
         );
         for (const tx of txs) {
           tx.data.constants.historicalHeader = await context.actualDb.buildInitialHeader();
+          tx.data.constants.vkTreeRoot = getVKTreeRoot();
         }
 
-        const blockTicket = await context.orchestrator.startNewBlock(
-          numTransactions,
-          context.globalVariables,
-          [],
-
-          getMockVerificationKeys(),
-        );
+        const blockTicket = await context.orchestrator.startNewBlock(numTransactions, context.globalVariables, []);
 
         const [processed, failed] = await context.processPublicFunctions(txs, numTransactions, context.blockProver);
         expect(processed.length).toBe(numTransactions);

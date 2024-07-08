@@ -129,12 +129,14 @@ export class RootRollupPublicInputs {
   constructor(
     /** Snapshot of archive tree after this block/rollup been processed */
     public archive: AppendOnlyTreeSnapshot,
+    /** The root for the protocol circuits vk tree */
+    public vkTreeRoot: Fr,
     /** A header of an L2 block. */
     public header: Header,
   ) {}
 
   static getFields(fields: FieldsOf<RootRollupPublicInputs>) {
-    return [fields.archive, fields.header] as const;
+    return [fields.archive, fields.vkTreeRoot, fields.header] as const;
   }
 
   toBuffer() {
@@ -156,7 +158,11 @@ export class RootRollupPublicInputs {
    */
   public static fromBuffer(buffer: Buffer | BufferReader): RootRollupPublicInputs {
     const reader = BufferReader.asReader(buffer);
-    return new RootRollupPublicInputs(reader.readObject(AppendOnlyTreeSnapshot), reader.readObject(Header));
+    return new RootRollupPublicInputs(
+      reader.readObject(AppendOnlyTreeSnapshot),
+      Fr.fromBuffer(reader),
+      reader.readObject(Header),
+    );
   }
 
   toString() {

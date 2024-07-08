@@ -1,9 +1,8 @@
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { NESTED_RECURSIVE_PROOF_LENGTH, ROLLUP_VK_TREE_HEIGHT } from '../../constants.gen.js';
+import { NESTED_RECURSIVE_PROOF_LENGTH, VK_TREE_HEIGHT } from '../../constants.gen.js';
 import { MembershipWitness } from '../membership_witness.js';
 import { RecursiveProof } from '../recursive_proof.js';
-import { type UInt32 } from '../shared.js';
 import { VerificationKeyAsFields } from '../verification_key.js';
 import { BaseOrMergeRollupPublicInputs } from './base_or_merge_rollup_public_inputs.js';
 
@@ -25,13 +24,9 @@ export class PreviousRollupData {
      */
     public vk: VerificationKeyAsFields,
     /**
-     * The index of the rollup circuit's vk in a big tree of rollup circuit vks.
-     */
-    public vkIndex: UInt32,
-    /**
      * Sibling path of the rollup circuit's vk in a big tree of rollup circuit vks.
      */
-    public vkSiblingPath: MembershipWitness<typeof ROLLUP_VK_TREE_HEIGHT>,
+    public vkWitness: MembershipWitness<typeof VK_TREE_HEIGHT>,
   ) {}
 
   /**
@@ -39,7 +34,7 @@ export class PreviousRollupData {
    * @returns The buffer of the serialized previous rollup data.
    */
   public toBuffer(): Buffer {
-    return serializeToBuffer(this.baseOrMergeRollupPublicInputs, this.proof, this.vk, this.vkIndex, this.vkSiblingPath);
+    return serializeToBuffer(this.baseOrMergeRollupPublicInputs, this.proof, this.vk, this.vkWitness);
   }
 
   /**
@@ -53,8 +48,7 @@ export class PreviousRollupData {
       reader.readObject(BaseOrMergeRollupPublicInputs),
       RecursiveProof.fromBuffer(reader, NESTED_RECURSIVE_PROOF_LENGTH),
       reader.readObject(VerificationKeyAsFields),
-      reader.readNumber(),
-      MembershipWitness.fromBuffer(reader, ROLLUP_VK_TREE_HEIGHT),
+      MembershipWitness.fromBuffer(reader, VK_TREE_HEIGHT),
     );
   }
 }

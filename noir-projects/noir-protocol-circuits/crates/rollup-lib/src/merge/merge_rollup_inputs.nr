@@ -1,7 +1,12 @@
-use dep::types::traits::Empty;
+use dep::types::{traits::Empty, constants::{BASE_ROLLUP_INDEX, MERGE_ROLLUP_INDEX}};
 use crate::abis::previous_rollup_data::PreviousRollupData;
 use crate::abis::base_or_merge_rollup_public_inputs::{BaseOrMergeRollupPublicInputs, MERGE_ROLLUP_TYPE};
 use crate::components;
+
+global ALLOWED_PREVIOUS_CIRCUITS = [
+    BASE_ROLLUP_INDEX,
+    MERGE_ROLLUP_INDEX,
+];
 
 struct MergeRollupInputs {
     // TODO(Kev): Why is this 2?
@@ -22,8 +27,13 @@ impl MergeRollupInputs {
         // we don't have a set of permitted kernel vks yet.
 
         // Verify the previous rollup proofs
-        self.previous_rollup_data[0].verify();
-        self.previous_rollup_data[1].verify();
+        if !dep::std::runtime::is_unconstrained() {
+            self.previous_rollup_data[0].verify();
+            self.previous_rollup_data[0].validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
+
+            self.previous_rollup_data[1].verify();
+            self.previous_rollup_data[1].validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
+        }
 
         let left = self.previous_rollup_data[0].base_or_merge_rollup_public_inputs;
         let right = self.previous_rollup_data[1].base_or_merge_rollup_public_inputs;
@@ -59,6 +69,7 @@ mod tests {
         tests::merge_rollup_inputs::default_merge_rollup_inputs
     };
     use dep::types::hash::accumulate_sha256;
+    use dep::types::constants::{ROOT_PARITY_INDEX, MERGE_ROLLUP_INDEX, BASE_ROLLUP_INDEX};
 
     #[test(should_fail_with="The rollup should be filled greedily from L to R, but received a L base and R merge")]
     fn different_rollup_type_fails() {
@@ -71,8 +82,8 @@ mod tests {
     #[test(should_fail_with="input proofs have different constants")]
     fn constants_different_fails() {
         let mut inputs = default_merge_rollup_inputs();
-        inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.constants.public_kernel_vk_tree_root = 1;
-        inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.constants.public_kernel_vk_tree_root = 0;
+        inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.constants.global_variables.chain_id = 1;
+        inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.constants.global_variables.chain_id = 0;
         let _output = inputs.merge_rollup_circuit();
     }
 
@@ -174,5 +185,44 @@ mod tests {
         assert(
             inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.constants.eq(outputs.constants)
         );
+    }
+
+    #[test]
+    fn valid_previous_circuit_base() {
+        let mut inputs = default_merge_rollup_inputs();
+
+        let vk_tree = dep::types::tests::fixtures::vk_tree::get_vk_merkle_tree();
+
+        inputs.previous_rollup_data[0].vk.hash = vk_tree.leaves[BASE_ROLLUP_INDEX];
+        inputs.previous_rollup_data[0].vk_witness.leaf_index = BASE_ROLLUP_INDEX as Field;
+        inputs.previous_rollup_data[0].vk_witness.sibling_path = vk_tree.get_sibling_path(BASE_ROLLUP_INDEX);
+
+        let _outputs = inputs.merge_rollup_circuit();
+    }
+
+    #[test]
+    fn valid_previous_circuit_merge() {
+        let mut inputs = default_merge_rollup_inputs();
+
+        let vk_tree = dep::types::tests::fixtures::vk_tree::get_vk_merkle_tree();
+
+        inputs.previous_rollup_data[0].vk.hash = vk_tree.leaves[MERGE_ROLLUP_INDEX];
+        inputs.previous_rollup_data[0].vk_witness.leaf_index = MERGE_ROLLUP_INDEX as Field;
+        inputs.previous_rollup_data[0].vk_witness.sibling_path = vk_tree.get_sibling_path(MERGE_ROLLUP_INDEX);
+
+        let _outputs = inputs.merge_rollup_circuit();
+    }
+
+    #[test(should_fail_with="Invalid vk index")]
+    fn invalid_previous_circuit() {
+        let mut inputs = default_merge_rollup_inputs();
+
+        let vk_tree = dep::types::tests::fixtures::vk_tree::get_vk_merkle_tree();
+
+        inputs.previous_rollup_data[0].vk.hash = vk_tree.leaves[ROOT_PARITY_INDEX];
+        inputs.previous_rollup_data[0].vk_witness.leaf_index = ROOT_PARITY_INDEX as Field;
+        inputs.previous_rollup_data[0].vk_witness.sibling_path = vk_tree.get_sibling_path(ROOT_PARITY_INDEX);
+
+        let _outputs = inputs.merge_rollup_circuit();
     }
 }

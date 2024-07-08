@@ -5,6 +5,8 @@ source:
 
   # Install nargo
   COPY ../noir/+nargo/nargo /usr/bin/nargo
+  # Install bb
+  COPY ../barretenberg/cpp/+preset-release/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
 
   WORKDIR /usr/src/noir-projects
 
@@ -25,6 +27,8 @@ build-contracts:
   
 build-protocol-circuits:
   FROM +source
+  RUN --secret AWS_ACCESS_KEY_ID --secret AWS_SECRET_ACCESS_KEY mkdir -p ~/.aws && \
+      bash -c 'echo -e "[default]\naws_access_key_id=$AWS_ACCESS_KEY_ID\naws_secret_access_key=$AWS_SECRET_ACCESS_KEY" > ~/.aws/credentials'
   RUN cd noir-protocol-circuits && NARGO=nargo ./bootstrap.sh
   SAVE ARTIFACT noir-protocol-circuits
 

@@ -25,6 +25,7 @@ import {
   ClientCircuitArtifacts,
   type ClientProtocolArtifact,
   PrivateResetTagToArtifactName,
+  ProtocolCircuitVks,
   convertPrivateKernelInitInputsToWitnessMap,
   convertPrivateKernelInitOutputsFromWitnessMap,
   convertPrivateKernelInnerInputsToWitnessMap,
@@ -44,14 +45,7 @@ import { type WitnessMap } from '@noir-lang/types';
 import * as fs from 'fs/promises';
 import { join } from 'path';
 
-import {
-  BB_RESULT,
-  PROOF_FIELDS_FILENAME,
-  PROOF_FILENAME,
-  generateKeyForNoirCircuit,
-  generateProof,
-  verifyProof,
-} from '../bb/execute.js';
+import { BB_RESULT, PROOF_FIELDS_FILENAME, PROOF_FILENAME, generateProof, verifyProof } from '../bb/execute.js';
 import { mapProtocolArtifactNameToCircuitName } from '../stats.js';
 import { extractVkData } from '../verification_key/verification_key_data.js';
 
@@ -159,7 +153,7 @@ export class BBNativeProofCreator implements ProofCreator {
    * @param proof - The proof to be verified
    */
   public async verifyProofForProtocolCircuit(circuitType: ClientProtocolArtifact, proof: Proof) {
-    const verificationKey = await this.getVerificationKeyDataForCircuit(circuitType);
+    const verificationKey = ProtocolCircuitVks[circuitType];
 
     this.log.debug(`Verifying with key: ${verificationKey.keyAsFields.hash.toString()}`);
 
@@ -191,32 +185,6 @@ export class BBNativeProofCreator implements ProofCreator {
       return await verifyProof(this.bbBinaryPath, proofFileName, verificationKeyPath!, logFunction);
     };
     return await runInDirectory(this.bbWorkingDirectory, operation);
-  }
-
-  /**
-   * Returns the verification key data for a circuit, will generate and cache it if not cached internally
-   * @param circuitType - The type of circuit for which the verification key is required
-   * @returns The verification key data
-   */
-  private async getVerificationKeyDataForCircuit(circuitType: ClientProtocolArtifact): Promise<VerificationKeyData> {
-    let promise = this.verificationKeys.get(circuitType);
-    if (!promise) {
-      promise = generateKeyForNoirCircuit(
-        this.bbBinaryPath,
-        this.bbWorkingDirectory,
-        circuitType,
-        ClientCircuitArtifacts[circuitType],
-        'vk',
-        this.log.debug,
-      ).then(result => {
-        if (result.status === BB_RESULT.FAILURE) {
-          throw new Error(`Failed to generate verification key for ${circuitType}, ${result.reason}`);
-        }
-        return extractVkData(result.vkPath!);
-      });
-      this.verificationKeys.set(circuitType, promise);
-    }
-    return await promise;
   }
 
   /**

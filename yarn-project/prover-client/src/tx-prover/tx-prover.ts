@@ -7,7 +7,7 @@ import {
   type ProvingTicket,
   type ServerCircuitProver,
 } from '@aztec/circuit-types/interfaces';
-import { type Fr, type GlobalVariables, type Header, type VerificationKeys } from '@aztec/circuits.js';
+import { type Fr, type GlobalVariables, type Header } from '@aztec/circuits.js';
 import { NativeACVMSimulator } from '@aztec/simulator';
 import { type TelemetryClient } from '@aztec/telemetry-client';
 import { type WorldStateSynchronizer } from '@aztec/world-state';
@@ -28,7 +28,6 @@ export class TxProver implements ProverClient {
   private constructor(
     private config: ProverClientConfig,
     private worldStateSynchronizer: WorldStateSynchronizer,
-    private vks: VerificationKeys,
     private telemetry: TelemetryClient,
     private agent?: ProverAgent,
     initialHeader?: Header,
@@ -42,12 +41,8 @@ export class TxProver implements ProverClient {
     );
   }
 
-  async updateProverConfig(config: Partial<ProverClientConfig & { vks: VerificationKeys }>): Promise<void> {
+  async updateProverConfig(config: Partial<ProverClientConfig>): Promise<void> {
     const newConfig = { ...this.config, ...config };
-
-    if (config.vks) {
-      this.vks = config.vks;
-    }
 
     if (newConfig.realProofs !== this.config.realProofs && this.agent) {
       const circuitProver = await TxProver.buildCircuitProver(newConfig, this.telemetry);
@@ -100,7 +95,6 @@ export class TxProver implements ProverClient {
    */
   public static async new(
     config: ProverClientConfig,
-    vks: VerificationKeys,
     worldStateSynchronizer: WorldStateSynchronizer,
     telemetry: TelemetryClient,
     initialHeader?: Header,
@@ -113,7 +107,7 @@ export class TxProver implements ProverClient {
         )
       : undefined;
 
-    const prover = new TxProver(config, worldStateSynchronizer, vks, telemetry, agent, initialHeader);
+    const prover = new TxProver(config, worldStateSynchronizer, telemetry, agent, initialHeader);
     await prover.start();
     return prover;
   }
@@ -146,7 +140,7 @@ export class TxProver implements ProverClient {
   ): Promise<ProvingTicket> {
     const previousBlockNumber = globalVariables.blockNumber.toNumber() - 1;
     await this.worldStateSynchronizer.syncImmediate(previousBlockNumber);
-    return this.orchestrator.startNewBlock(numTxs, globalVariables, newL1ToL2Messages, this.vks);
+    return this.orchestrator.startNewBlock(numTxs, globalVariables, newL1ToL2Messages);
   }
 
   /**

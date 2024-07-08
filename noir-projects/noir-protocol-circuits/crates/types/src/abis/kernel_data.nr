@@ -1,6 +1,8 @@
 use crate::constants::VK_TREE_HEIGHT;
 use crate::abis::kernel_circuit_public_inputs::KernelCircuitPublicInputs;
 use crate::recursion::{proof::NestedRecursiveProof, verification_key::VerificationKey, traits::Verifiable};
+use crate::merkle_tree::membership::assert_check_membership;
+use crate::utils::arrays::find_index_hint;
 
 struct KernelData {
     public_inputs: KernelCircuitPublicInputs,
@@ -20,4 +22,18 @@ impl Verifiable for KernelData {
         self.vk.hash
     );
   }
+}
+
+impl KernelData {
+    fn validate_in_vk_tree<N>(self, allowed_indices: [u32; N]) {
+        let index_hint = find_index_hint(allowed_indices, self.vk_index);
+        assert_eq(allowed_indices[index_hint], self.vk_index, "Invalid vk index");
+
+        assert_check_membership(
+            self.vk.hash,
+            self.vk_index as Field,
+            self.vk_path,
+            self.public_inputs.constants.vk_tree_root
+        );
+    }
 }

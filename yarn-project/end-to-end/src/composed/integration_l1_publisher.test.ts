@@ -29,7 +29,6 @@ import {
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   type Proof,
   PublicDataUpdateRequest,
-  getMockVerificationKeys,
   makeEmptyProof,
 } from '@aztec/circuits.js';
 import { fr, makeProof } from '@aztec/circuits.js/testing';
@@ -38,6 +37,7 @@ import { makeTuple, range } from '@aztec/foundation/array';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { AvailabilityOracleAbi, InboxAbi, OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 import { SHA256Trunc, StandardTree } from '@aztec/merkle-tree';
+import { getVKTreeRoot } from '@aztec/noir-protocol-circuits-types';
 import { TxProver } from '@aztec/prover-client';
 import { type L1Publisher, getL1Publisher } from '@aztec/sequencer-client';
 import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
@@ -146,7 +146,7 @@ describe('L1Publisher integration', () => {
     };
     const worldStateSynchronizer = new ServerWorldStateSynchronizer(tmpStore, builderDb, blockSource, worldStateConfig);
     await worldStateSynchronizer.start();
-    builder = await TxProver.new(config, getMockVerificationKeys(), worldStateSynchronizer, new NoopTelemetryClient());
+    builder = await TxProver.new(config, worldStateSynchronizer, new NoopTelemetryClient());
     l2Proof = makeEmptyProof();
 
     publisher = getL1Publisher({
@@ -165,7 +165,12 @@ describe('L1Publisher integration', () => {
   });
 
   const makeEmptyProcessedTx = () => {
-    const tx = makeEmptyProcessedTxFromHistoricalTreeRoots(prevHeader, new Fr(chainId), new Fr(config.version));
+    const tx = makeEmptyProcessedTxFromHistoricalTreeRoots(
+      prevHeader,
+      new Fr(chainId),
+      new Fr(config.version),
+      getVKTreeRoot(),
+    );
     return tx;
   };
 
@@ -174,6 +179,7 @@ describe('L1Publisher integration', () => {
     const kernelOutput = KernelCircuitPublicInputs.empty();
     kernelOutput.constants.txContext.chainId = fr(chainId);
     kernelOutput.constants.txContext.version = fr(config.version);
+    kernelOutput.constants.vkTreeRoot = getVKTreeRoot();
     kernelOutput.constants.historicalHeader = prevHeader;
     kernelOutput.end.publicDataUpdateRequests = makeTuple(
       MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,

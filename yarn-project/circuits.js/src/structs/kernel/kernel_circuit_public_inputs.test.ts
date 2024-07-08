@@ -38,6 +38,7 @@ describe('KernelCircuitPublicInputs', () => {
               inclusionFee: new Fr(42),
             }),
           ),
+          new Fr(0),
           GlobalVariables.empty(),
         ),
         PartialStateReference.empty(),

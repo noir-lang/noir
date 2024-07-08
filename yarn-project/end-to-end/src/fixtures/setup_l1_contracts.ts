@@ -15,6 +15,7 @@ import {
   RollupAbi,
   RollupBytecode,
 } from '@aztec/l1-artifacts';
+import { getVKTreeRoot } from '@aztec/noir-protocol-circuits-types';
 import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 
 import { type HDAccount, type PrivateKeyAccount } from 'viem';
@@ -60,6 +61,7 @@ export const setupL1Contracts = async (
 
   const l1Data = await deployL1Contracts(l1RpcUrl, account, foundry, logger, l1Artifacts, {
     l2GasTokenAddress: GasTokenAddress,
+    vkTreeRoot: getVKTreeRoot(),
   });
 
   return l1Data;

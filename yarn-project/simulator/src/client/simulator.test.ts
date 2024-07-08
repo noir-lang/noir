@@ -6,7 +6,7 @@ import {
   computeUniqueNoteHash,
   siloNoteHash,
 } from '@aztec/circuits.js/hash';
-import { ABIParameterVisibility, type FunctionArtifact, getFunctionArtifact } from '@aztec/foundation/abi';
+import { type FunctionArtifact, getFunctionArtifact } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { poseidon2Hash } from '@aztec/foundation/crypto';
 import { Fr, type Point } from '@aztec/foundation/fields';
@@ -129,7 +129,7 @@ describe('Simulator', () => {
                 kind: 'field',
               },
             },
-            visibility: ABIParameterVisibility.SECRET,
+            visibility: 'private',
           },
         ],
       };

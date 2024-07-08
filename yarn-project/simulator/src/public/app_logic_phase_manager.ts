@@ -1,5 +1,6 @@
 import { PublicKernelType, type PublicProvingRequest, type Tx } from '@aztec/circuit-types';
 import { type GlobalVariables, type Header, type PublicKernelCircuitPublicInputs } from '@aztec/circuits.js';
+import { type ProtocolArtifact } from '@aztec/noir-protocol-circuits-types';
 import { type PublicExecutor, type PublicStateDB } from '@aztec/simulator';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
@@ -24,7 +25,11 @@ export class AppLogicPhaseManager extends AbstractPhaseManager {
     super(db, publicExecutor, publicKernel, globalVariables, historicalHeader, phase);
   }
 
-  override async handle(tx: Tx, previousPublicKernelOutput: PublicKernelCircuitPublicInputs) {
+  override async handle(
+    tx: Tx,
+    previousPublicKernelOutput: PublicKernelCircuitPublicInputs,
+    previousCircuit: ProtocolArtifact,
+  ) {
     this.log.verbose(`Processing tx ${tx.getTxHash()}`);
     // add new contracts to the contracts db so that their functions may be found and called
     // TODO(#4073): This is catching only private deployments, when we add public ones, we'll
@@ -33,14 +38,21 @@ export class AppLogicPhaseManager extends AbstractPhaseManager {
     // TODO(#6464): Should we allow emitting contracts in the private setup phase?
     // if so, this should only add contracts that were deployed during private app logic.
     await this.publicContractsDB.addNewContracts(tx);
-    const { publicProvingInformation, kernelOutput, newUnencryptedLogs, revertReason, returnValues, gasUsed } =
-      await this.processEnqueuedPublicCalls(tx, previousPublicKernelOutput).catch(
-        // if we throw for any reason other than simulation, we need to rollback and drop the TX
-        async err => {
-          await this.publicStateDB.rollbackToCommit();
-          throw err;
-        },
-      );
+    const {
+      publicProvingInformation,
+      kernelOutput,
+      lastKernelArtifact,
+      newUnencryptedLogs,
+      revertReason,
+      returnValues,
+      gasUsed,
+    } = await this.processEnqueuedPublicCalls(tx, previousPublicKernelOutput, previousCircuit).catch(
+      // if we throw for any reason other than simulation, we need to rollback and drop the TX
+      async err => {
+        await this.publicStateDB.rollbackToCommit();
+        throw err;
+      },
+    );
 
     if (revertReason) {
       // TODO(#6464): Should we allow emitting contracts in the private setup phase?
@@ -57,6 +69,13 @@ export class AppLogicPhaseManager extends AbstractPhaseManager {
     const publicProvingRequests: PublicProvingRequest[] = publicProvingInformation.map(info => {
       return makeAvmProvingRequest(info, PublicKernelType.APP_LOGIC);
     });
-    return { publicProvingRequests, publicKernelOutput: kernelOutput, revertReason, returnValues, gasUsed };
+    return {
+      publicProvingRequests,
+      publicKernelOutput: kernelOutput,
+      lastKernelArtifact,
+      revertReason,
+      returnValues,
+      gasUsed,
+    };
   }
 }

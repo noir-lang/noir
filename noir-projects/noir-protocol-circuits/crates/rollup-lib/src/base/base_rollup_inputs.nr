@@ -25,7 +25,8 @@ use dep::types::{
     MAX_L2_TO_L1_MSGS_PER_TX, NULLIFIER_SUBTREE_HEIGHT, NULLIFIER_TREE_HEIGHT,
     PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_SUBTREE_HEIGHT,
     PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, ARCHIVE_HEIGHT, GAS_TOKEN_ADDRESS,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PUBLIC_KERNEL_TAIL_INDEX, PRIVATE_KERNEL_EMPTY_INDEX,
+    PRIVATE_KERNEL_TAIL_INDEX
 },
     merkle_tree::{
     append_only_tree, assert_check_membership, calculate_empty_tree_root, calculate_subtree_root,
@@ -35,6 +36,12 @@ use dep::types::{
     public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage, traits::is_empty,
     utils::{field::{full_field_less_than, full_field_greater_than}, uint256::U256}
 };
+
+global ALLOWED_PREVIOUS_CIRCUITS = [
+    PRIVATE_KERNEL_EMPTY_INDEX,
+    PRIVATE_KERNEL_TAIL_INDEX,
+    PUBLIC_KERNEL_TAIL_INDEX,
+];
 
 struct BaseRollupInputs {
     kernel_data: KernelData,
@@ -57,9 +64,11 @@ struct BaseRollupInputs {
 
 impl BaseRollupInputs {
     pub fn base_rollup_circuit(self) -> BaseOrMergeRollupPublicInputs {
-        // Verify the kernel circuit proof
-        self.kernel_data.verify();
-
+        if !dep::std::runtime::is_unconstrained() {
+            // Verify the kernel circuit proof
+            self.kernel_data.verify();
+            self.kernel_data.validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
+        }
         // Verify the kernel chain_id and versions
         assert(
             self.kernel_data.public_inputs.constants.tx_context.chain_id
@@ -68,6 +77,9 @@ impl BaseRollupInputs {
         assert(
             self.kernel_data.public_inputs.constants.tx_context.version
             == self.constants.global_variables.version, "kernel version does not match the rollup version"
+        );
+        assert(
+            self.kernel_data.public_inputs.constants.vk_tree_root == self.constants.vk_tree_root, "kernel vk_tree_root does not match the rollup vk_tree_root"
         );
 
         // Verify the kernel global variables if set, note these can be empty if this is a request coming directly from the private kernel tail.
@@ -440,7 +452,7 @@ mod tests {
     },
         base::{
         state_diff_hints::StateDiffHints,
-        base_rollup_inputs::{BaseRollupInputs, compute_fee_payer_gas_token_balance_leaf_slot}
+        base_rollup_inputs::{BaseRollupInputs, compute_fee_payer_gas_token_balance_leaf_slot, ALLOWED_PREVIOUS_CIRCUITS}
     },
         components::{TX_EFFECTS_HASH_INPUT_FIELDS, compute_kernel_out_hash}
     };
@@ -459,7 +471,9 @@ mod tests {
         NOTE_HASH_TREE_HEIGHT, NOTE_HASH_SUBTREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
         NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_HEIGHT, PUBLIC_DATA_TREE_HEIGHT,
         PUBLIC_DATA_SUBTREE_HEIGHT, PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, MAX_L2_TO_L1_MSGS_PER_TX,
-        PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+        PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+        BASE_ROLLUP_INDEX, PRIVATE_KERNEL_EMPTY_INDEX, PRIVATE_KERNEL_TAIL_INDEX,
+        PUBLIC_KERNEL_TAIL_INDEX
     },
         contract_class_id::ContractClassId, partial_state_reference::PartialStateReference,
         public_data_tree_leaf::PublicDataTreeLeaf,
@@ -596,9 +610,10 @@ mod tests {
     impl BaseRollupInputsBuilder {
         fn new() -> Self {
             let mut inputs = BaseRollupInputsBuilder::empty();
-            inputs.kernel_data = FixtureBuilder::new();
+            inputs.kernel_data = FixtureBuilder::new().in_vk_tree(PRIVATE_KERNEL_TAIL_INDEX);
             inputs.constants.global_variables.chain_id = fixtures::CHAIN_ID;
             inputs.constants.global_variables.version = fixtures::VERSION;
+            inputs.constants.vk_tree_root = inputs.kernel_data.vk_tree_root;
 
             inputs.pre_existing_blocks[0] = inputs.kernel_data.historical_header.hash();
 
@@ -1407,5 +1422,38 @@ mod tests {
         builder.protocol_public_data_writes.push((0, PublicDataTreeLeaf { slot: balance_slot, value: expected_balance }));
 
         builder.fails();
+    }
+
+    #[test]
+    fn valid_previous_kernel_empty() {
+        let mut builder = BaseRollupInputsBuilder::new();
+        builder.kernel_data = builder.kernel_data.in_vk_tree(PRIVATE_KERNEL_EMPTY_INDEX);
+
+        let _res = builder.execute();
+    }
+
+    #[test]
+    fn valid_previous_kernel_tail() {
+        let mut builder = BaseRollupInputsBuilder::new();
+        builder.kernel_data = builder.kernel_data.in_vk_tree(PRIVATE_KERNEL_TAIL_INDEX);
+
+        let _res = builder.execute();
+    }
+
+    #[test]
+    fn valid_previous_kernel_public_tail() {
+        let mut builder = BaseRollupInputsBuilder::new();
+        builder.kernel_data = builder.kernel_data.in_vk_tree(PUBLIC_KERNEL_TAIL_INDEX);
+
+        let _res = builder.execute();
+    }
+
+    #[test(should_fail_with="Invalid vk index")]
+    fn invalid_previous_kernel() {
+        let mut builder = BaseRollupInputsBuilder::new();
+
+        builder.kernel_data = builder.kernel_data.in_vk_tree(BASE_ROLLUP_INDEX);
+
+        let _res = builder.execute();
     }
 }

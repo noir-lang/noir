@@ -3,6 +3,7 @@ use dep::types::{constants::NUM_MSGS_PER_BASE_PARITY, merkle_tree::MerkleTree, u
 
 struct BaseParityInputs {
     msgs: [Field; NUM_MSGS_PER_BASE_PARITY],
+    vk_tree_root: Field,
 }
 
 impl BaseParityInputs {
@@ -10,7 +11,11 @@ impl BaseParityInputs {
         let sha_tree = Sha256MerkleTree::new(self.msgs);
         let pedersen_tree = MerkleTree::new(self.msgs);
 
-        ParityPublicInputs { sha_root: sha_tree.get_root(), converted_root: pedersen_tree.get_root() }
+        ParityPublicInputs {
+            sha_root: sha_tree.get_root(),
+            converted_root: pedersen_tree.get_root(),
+            vk_tree_root: self.vk_tree_root
+        }
     }
 }
 
@@ -24,7 +29,7 @@ fn test_sha_root_matches_frontier_tree() {
         0x2806c860af67e9cd50000378411b8c4c4db172ceb2daa862b259b689ccbdc1
     ];
 
-    let base_parity_inputs = BaseParityInputs { msgs };
+    let base_parity_inputs = BaseParityInputs { msgs, vk_tree_root: 42 };
     let public_inputs = base_parity_inputs.base_parity_circuit();
 
     // 31 byte truncated root hash

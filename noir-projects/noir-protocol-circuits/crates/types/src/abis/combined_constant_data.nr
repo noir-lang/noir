@@ -13,12 +13,19 @@ struct CombinedConstantData {
     // protocol to execute and prove the transaction.
     tx_context: TxContext,
 
+    vk_tree_root: Field,
+
+    // Must be empty in private, will be filled in by the public kernel
     global_variables: GlobalVariables,
 }
 
 impl CombinedConstantData {
-    pub fn private(historical_header: Header, tx_context: TxContext) -> CombinedConstantData {
-        CombinedConstantData { historical_header, tx_context, global_variables: GlobalVariables::empty() }
+    pub fn private(
+        historical_header: Header,
+        tx_context: TxContext,
+        vk_tree_root: Field
+    ) -> CombinedConstantData {
+        CombinedConstantData { historical_header, tx_context, vk_tree_root, global_variables: GlobalVariables::empty() }
     }
 }
 
@@ -27,6 +34,7 @@ impl Empty for CombinedConstantData {
         CombinedConstantData {
             historical_header: Header::empty(),
             tx_context: TxContext::empty(),
+            vk_tree_root: 0,
             global_variables: GlobalVariables::empty()
         }
     }
@@ -38,6 +46,7 @@ impl Serialize<COMBINED_CONSTANT_DATA_LENGTH> for CombinedConstantData {
 
     fields.extend_from_array(self.historical_header.serialize());
     fields.extend_from_array(self.tx_context.serialize());
+    fields.push(self.vk_tree_root);
     fields.extend_from_array(self.global_variables.serialize());
 
     assert_eq(fields.len(), COMBINED_CONSTANT_DATA_LENGTH);
@@ -53,6 +62,7 @@ impl Deserialize<COMBINED_CONSTANT_DATA_LENGTH> for CombinedConstantData {
     let item = CombinedConstantData {
       historical_header: reader.read_struct(Header::deserialize),
       tx_context: reader.read_struct(TxContext::deserialize),
+      vk_tree_root: reader.read(),
       global_variables: reader.read_struct(GlobalVariables::deserialize),
     };
     reader.finish();
@@ -64,6 +74,7 @@ impl Eq for CombinedConstantData {
   fn eq(self, other: Self) -> bool {
     (self.historical_header.eq(other.historical_header)) &
     (self.tx_context.eq(other.tx_context)) &
+    (self.vk_tree_root.eq(other.vk_tree_root)) &
     (self.global_variables.eq(other.global_variables))
   }
 }

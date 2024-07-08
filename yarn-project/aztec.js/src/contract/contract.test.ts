@@ -1,7 +1,7 @@
 import { type Tx, type TxExecutionRequest, type TxHash, type TxReceipt } from '@aztec/circuit-types';
 import { AztecAddress, CompleteAddress, EthAddress } from '@aztec/circuits.js';
 import { type L1ContractAddresses } from '@aztec/ethereum';
-import { ABIParameterVisibility, type ContractArtifact, type DecodedReturn, FunctionType } from '@aztec/foundation/abi';
+import { type ContractArtifact, type DecodedReturn, FunctionType } from '@aztec/foundation/abi';
 import { type NodeInfo } from '@aztec/types/interfaces';
 
 import { type MockProxy, mock } from 'jest-mock-extended';
@@ -60,14 +60,14 @@ describe('Contract Class', () => {
             type: {
               kind: 'field',
             },
-            visibility: ABIParameterVisibility.PUBLIC,
+            visibility: 'public',
           },
           {
             name: 'value',
             type: {
               kind: 'field',
             },
-            visibility: ABIParameterVisibility.SECRET,
+            visibility: 'private',
           },
         ],
         returnTypes: [],
@@ -96,13 +96,13 @@ describe('Contract Class', () => {
             type: {
               kind: 'field',
             },
-            visibility: ABIParameterVisibility.PUBLIC,
+            visibility: 'public',
           },
         ],
         returnTypes: [
           {
             kind: 'integer',
-            sign: '',
+            sign: 'unsigned',
             width: 32,
           },
         ],

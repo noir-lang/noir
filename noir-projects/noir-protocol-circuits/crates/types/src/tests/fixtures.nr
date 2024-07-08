@@ -1,5 +1,6 @@
 mod contract_functions;
 mod contracts;
+mod vk_tree;
 
 use crate::{address::AztecAddress, grumpkin_point::GrumpkinPoint};
 
@@ -10,3 +11,4 @@ global PUBLIC_KEY = GrumpkinPoint { x: 123456789, y: 123456789 };
 global CHAIN_ID = 1;
 
 global VERSION = 3;
+

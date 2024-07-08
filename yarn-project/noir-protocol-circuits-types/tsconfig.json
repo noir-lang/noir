@@ -20,9 +20,6 @@
       "path": "../types"
     },
     {
-      "path": "../circuit-types"
-    },
-    {
       "path": "../kv-store"
     },
     {

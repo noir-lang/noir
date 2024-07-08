@@ -7,12 +7,17 @@ use types::{
     abis::{append_only_tree_snapshot::AppendOnlyTreeSnapshot, nullifier_leaf_preimage::NullifierLeafPreimage},
     constants::{
     NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, L1_TO_L2_MSG_SUBTREE_HEIGHT,
-    L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH, ARCHIVE_HEIGHT
+    L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH, ARCHIVE_HEIGHT, BASE_ROLLUP_INDEX, MERGE_ROLLUP_INDEX
 },
     header::Header, content_commitment::ContentCommitment,
     merkle_tree::{append_only_tree, calculate_subtree_root, calculate_empty_tree_root},
     state_reference::StateReference, traits::Empty
 };
+
+global ALLOWED_PREVIOUS_CIRCUITS = [
+    BASE_ROLLUP_INDEX,
+    MERGE_ROLLUP_INDEX,
+];
 
 struct RootRollupInputs {
     // All below are shared between the base and merge rollups
@@ -34,11 +39,17 @@ struct RootRollupInputs {
 impl RootRollupInputs {
     pub fn root_rollup_circuit(self) -> RootRollupPublicInputs {
         // Verify the previous rollup proofs
-        self.previous_rollup_data[0].verify();
-        self.previous_rollup_data[1].verify();
+        if !dep::std::runtime::is_unconstrained() {
+            self.previous_rollup_data[0].verify();
+            self.previous_rollup_data[0].validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
 
-        // verify the root parity
-        self.l1_to_l2_roots.verify();
+            self.previous_rollup_data[1].verify();
+            self.previous_rollup_data[1].validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
+
+            // verify the root parity
+            self.l1_to_l2_roots.verify();
+            self.l1_to_l2_roots.validate_in_vk_tree();
+        }
 
         let left = self.previous_rollup_data[0].base_or_merge_rollup_public_inputs;
         let right = self.previous_rollup_data[1].base_or_merge_rollup_public_inputs;
@@ -70,6 +81,8 @@ impl RootRollupInputs {
 
         let total_fees = components::accumulate_fees(left, right);
 
+        let vk_tree_root = left.constants.vk_tree_root;
+
         let header = Header {
             last_archive: left.constants.last_archive,
             content_commitment,
@@ -90,7 +103,7 @@ impl RootRollupInputs {
             0
         );
 
-        RootRollupPublicInputs { archive, header }
+        RootRollupPublicInputs { archive, header, vk_tree_root }
     }
 }
 

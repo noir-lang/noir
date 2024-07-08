@@ -15,6 +15,7 @@ import { makeTuple } from '@aztec/foundation/array';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type Tuple } from '@aztec/foundation/serialize';
+import { ProtocolCircuitVkIndexes, getVKSiblingPath, getVKTreeRoot } from '@aztec/noir-protocol-circuits-types';
 import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 
 import { TestContext } from '../mocks/test_context.js';
@@ -44,7 +45,7 @@ describe('prover/bb_prover/parity', () => {
       Fr.random,
     );
     const baseParityInputs = Array.from({ length: NUM_BASE_PARITY_PER_ROOT_PARITY }, (_, i) =>
-      BaseParityInputs.fromSlice(l1ToL2Messages, i),
+      BaseParityInputs.fromSlice(l1ToL2Messages, i, getVKTreeRoot()),
     );
 
     // Generate the base parity proofs
@@ -73,12 +74,14 @@ describe('prover/bb_prover/parity', () => {
     // In each case either the proof should fail to generate or verify
 
     const validVk = rootParityInputs.children[0].verificationKey;
+    const baseParityVkPath = getVKSiblingPath(ProtocolCircuitVkIndexes.BaseParityArtifact);
     const validPublicInputs = rootParityInputs.children[0].publicInputs;
     const validProof = rootParityInputs.children[0].proof;
 
     const defectiveProofInput = new RootParityInput(
       makeRecursiveProof<typeof RECURSIVE_PROOF_LENGTH>(RECURSIVE_PROOF_LENGTH, 0x500),
       validVk,
+      baseParityVkPath,
       validPublicInputs,
     );
 
@@ -88,12 +91,14 @@ describe('prover/bb_prover/parity', () => {
     const defectivePublicInputs = new RootParityInput(
       validProof,
       validVk,
-      new ParityPublicInputs(Fr.fromBuffer(shaRoot), Fr.random()),
+      baseParityVkPath,
+      new ParityPublicInputs(Fr.fromBuffer(shaRoot), Fr.random(), getVKTreeRoot()),
     );
 
     const defectiveVerificationKey = new RootParityInput(
       validProof,
       VerificationKeyAsFields.makeFake(),
+      baseParityVkPath,
       validPublicInputs,
     );
 

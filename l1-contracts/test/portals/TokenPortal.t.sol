@@ -59,7 +59,8 @@ contract TokenPortalTest is Test {
   function setUp() public {
     registry = new Registry();
     portalERC20 = new PortalERC20();
-    rollup = new Rollup(registry, new AvailabilityOracle(), IERC20(address(portalERC20)));
+    rollup =
+      new Rollup(registry, new AvailabilityOracle(), IERC20(address(portalERC20)), bytes32(0));
     inbox = rollup.INBOX();
     outbox = rollup.OUTBOX();
 

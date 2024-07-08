@@ -1,4 +1,4 @@
-import { type AztecAddress, MembershipWitness, VK_TREE_HEIGHT } from '@aztec/circuits.js';
+import { type AztecAddress } from '@aztec/circuits.js';
 import {
   type ContractArtifact,
   type FunctionArtifact,
@@ -129,20 +129,6 @@ export class ContractDataOracle {
   public async getFunctionMembershipWitness(contractAddress: AztecAddress, selector: FunctionSelector) {
     const tree = await this.getTreeForAddress(contractAddress);
     return tree.getFunctionMembershipWitness(selector);
-  }
-
-  /**
-   * Retrieve the membership witness corresponding to a verification key.
-   * This function currently returns a random membership witness of the specified height,
-   * which is a placeholder implementation until a concrete membership witness calculation
-   * is implemented.
-   *
-   * @param vk - The VerificationKey for which the membership witness is needed.
-   * @returns A Promise that resolves to the MembershipWitness instance.
-   */
-  public async getVkMembershipWitness() {
-    // TODO
-    return await Promise.resolve(MembershipWitness.random(VK_TREE_HEIGHT));
   }
 
   public async getDebugFunctionName(contractAddress: AztecAddress, selector: FunctionSelector) {

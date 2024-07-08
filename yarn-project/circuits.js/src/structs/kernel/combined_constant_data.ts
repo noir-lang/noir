@@ -1,4 +1,4 @@
-import { type Fr } from '@aztec/foundation/fields';
+import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
@@ -22,21 +22,30 @@ export class CombinedConstantData {
      * protocol to execute and prove the transaction.
      */
     public txContext: TxContext,
+    /**
+     * Root of the vk tree for the protocol circuits.
+     */
+    public vkTreeRoot: Fr,
 
     /** Present when output by a public kernel, empty otherwise. */
     public globalVariables: GlobalVariables,
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.historicalHeader, this.txContext, this.globalVariables);
+    return serializeToBuffer(this.historicalHeader, this.txContext, this.vkTreeRoot, this.globalVariables);
   }
 
   getSize() {
     return this.historicalHeader.getSize() + this.txContext.getSize() + this.globalVariables.getSize();
   }
 
-  static from({ historicalHeader, txContext, globalVariables }: FieldsOf<CombinedConstantData>): CombinedConstantData {
-    return new CombinedConstantData(historicalHeader, txContext, globalVariables);
+  static from({
+    historicalHeader,
+    txContext,
+    vkTreeRoot,
+    globalVariables,
+  }: FieldsOf<CombinedConstantData>): CombinedConstantData {
+    return new CombinedConstantData(historicalHeader, txContext, vkTreeRoot, globalVariables);
   }
 
   /**
@@ -49,6 +58,7 @@ export class CombinedConstantData {
     return new CombinedConstantData(
       reader.readObject(Header),
       reader.readObject(TxContext),
+      Fr.fromBuffer(reader),
       reader.readObject(GlobalVariables),
     );
   }
@@ -58,11 +68,12 @@ export class CombinedConstantData {
     return new CombinedConstantData(
       reader.readObject(Header),
       reader.readObject(TxContext),
+      reader.readField(),
       reader.readObject(GlobalVariables),
     );
   }
 
   static empty() {
-    return new CombinedConstantData(Header.empty(), TxContext.empty(), GlobalVariables.empty());
+    return new CombinedConstantData(Header.empty(), TxContext.empty(), Fr.ZERO, GlobalVariables.empty());
   }
 }
