@@ -73,14 +73,14 @@ void {{name}}Prover::execute_log_derivative_inverse_round()
     key->compute_logderivative_inverses(relation_parameters);
 
     // Commit to all logderivative inverse polynomials
-    {{#each lookups as |l|}}
-    witness_commitments.{{l}} = commitment_key->commit(key->{{l}});
-    {{/each}}
+    for (auto [commitment, key_poly] : zip_view(witness_commitments.get_derived(), key->get_derived())) {
+       commitment = commitment_key->commit(key_poly);
+    }
 
     // Send all commitments to the verifier
-    {{#each lookups as |l|}}
-    transcript->send_to_verifier(commitment_labels.{{l}}, witness_commitments.{{l}});
-    {{/each}}
+    for (auto [label, commitment] : zip_view(commitment_labels.get_derived(), witness_commitments.get_derived())) {
+       transcript->send_to_verifier(label, commitment);
+    }
 }
 
 /**

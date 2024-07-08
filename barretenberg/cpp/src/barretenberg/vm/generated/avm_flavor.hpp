@@ -748,7 +748,8 @@ class AvmFlavor {
     class WitnessEntities : public WireEntities<DataType>, public DerivedWitnessEntities<DataType> {
       public:
         DEFINE_COMPOUND_GET_ALL(WireEntities<DataType>, DerivedWitnessEntities<DataType>)
-        auto get_wires() { return WireEntities<DataType>::get_all(); };
+        auto get_wires() { return WireEntities<DataType>::get_all(); }
+        auto get_derived() { return DerivedWitnessEntities<DataType>::get_all(); }
     };
 
     template <typename DataType>
