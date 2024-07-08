@@ -326,14 +326,29 @@ impl<'context> Elaborator<'context> {
                     }
                 };
 
-                if func_id != FuncId::dummy_id() {
+                // Perform any check that required information from the interned function.
+                let generics = if func_id != FuncId::dummy_id() {
                     let function_type = self.interner.function_meta(&func_id).typ.clone();
                     self.try_add_mutable_reference_to_object(
                         &function_type,
                         &mut object_type,
                         &mut object,
                     );
-                }
+
+                    // Resolve generics using the expected kinds of the function we are calling
+                    let direct_generics =
+                        self.interner.function_meta(&func_id).direct_generics.clone();
+
+                    method_call.generics.map(|option_inner| {
+                        assert_eq!(direct_generics.len(), option_inner.len());
+                        let generics_with_types = direct_generics.iter().zip(option_inner);
+                        vecmap(generics_with_types, |(generic, unresolved_type)| {
+                            self.resolve_type_inner(unresolved_type, &generic.kind)
+                        })
+                    })
+                } else {
+                    None
+                };
 
                 // These arguments will be given to the desugared function call.
                 // Compared to the method arguments, they also contain the object.
@@ -351,9 +366,6 @@ impl<'context> Elaborator<'context> {
 
                 let location = Location::new(span, self.file);
                 let method = method_call.method_name;
-                let generics = method_call.generics.map(|option_inner| {
-                    option_inner.into_iter().map(|generic| self.resolve_type(generic)).collect()
-                });
                 let turbofish_generics = generics.clone();
                 let method_call =
                     HirMethodCallExpression { method, object, arguments, location, generics };

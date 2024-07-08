@@ -1986,6 +1986,7 @@ fn underflowing_i8() {
 
 #[test]
 fn turbofish_numeric_generic_nested_call() {
+    // Check for turbofish numeric generics used with function calls
     let src = r#"
     fn foo<let N: u32>() -> [u8; N] {
         [0; N]
@@ -2002,5 +2003,37 @@ fn turbofish_numeric_generic_nested_call() {
     }
     "#;
     let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+
+    // Check for turbofish numeric generics used with method calls
+    let src = r#"
+    struct Foo<T> {
+        a: T
+    }
+
+    impl<T> Foo<T> {
+        fn static_method<let N: u32>() -> [u8; N] {
+            [0; N]
+        }
+
+        fn impl_method<let N: u32>(self) -> [T; N] {
+            [self.a; N]
+        }
+    }
+
+    fn bar<let N: u32>() -> [u8; N] {
+        let _ = Foo::static_method::<N>();
+        let x: Foo<u8> = Foo { a: 0 };
+        x.impl_method::<N>()
+    }
+
+    global M: u32 = 3;
+
+    fn main() {
+        let _ = bar::<M>();
+    }
+    "#;
+    let errors = get_program_errors(src);
+    dbg!(errors.clone());
     assert!(errors.is_empty());
 }
