@@ -993,17 +993,19 @@ impl<'a> Context<'a> {
                 }))
             }
             AcirValue::Array(array) => {
-                // `AcirValue::Array` supports reading/writing to constant indices at compile-time.
+                // `AcirValue::Array` supports reading/writing to constant indices at compile-time in some cases.
                 if let Some(constant_index) = dfg.get_numeric_constant(index) {
                     let store_value = store_value.map(|value| self.convert_value(value, dfg));
-                    self.handle_constant_index(
+                    let handled = self.handle_constant_index(
                         instruction,
                         dfg,
                         array,
                         constant_index,
                         store_value,
                     )?;
-                    return Ok(());
+                    if handled {
+                        return Ok(());
+                    }
                 }
             }
             AcirValue::DynamicArray(_) => (),
