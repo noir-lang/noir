@@ -30,25 +30,23 @@ void compute_logderivative_inverse(Polynomials& polynomials, auto& relation_para
     constexpr size_t READ_TERMS = Relation::READ_TERMS;
     constexpr size_t WRITE_TERMS = Relation::WRITE_TERMS;
 
-    auto lookup_relation = Relation();
-
-    auto& inverse_polynomial = lookup_relation.template get_inverse_polynomial(polynomials);
+    auto& inverse_polynomial = Relation::template get_inverse_polynomial(polynomials);
     for (size_t i = 0; i < circuit_size; ++i) {
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/940): avoid get_row if possible.
         auto row = polynomials.get_row(i);
-        bool has_inverse = lookup_relation.operation_exists_at_row(row);
+        bool has_inverse = Relation::operation_exists_at_row(row);
         if (!has_inverse) {
             continue;
         }
         FF denominator = 1;
         bb::constexpr_for<0, READ_TERMS, 1>([&]<size_t read_index> {
             auto denominator_term =
-                lookup_relation.template compute_read_term<Accumulator, read_index>(row, relation_parameters);
+                Relation::template compute_read_term<Accumulator, read_index>(row, relation_parameters);
             denominator *= denominator_term;
         });
         bb::constexpr_for<0, WRITE_TERMS, 1>([&]<size_t write_index> {
             auto denominator_term =
-                lookup_relation.template compute_write_term<Accumulator, write_index>(row, relation_parameters);
+                Relation::template compute_write_term<Accumulator, write_index>(row, relation_parameters);
             denominator *= denominator_term;
         });
         inverse_polynomial[i] = denominator;
@@ -94,12 +92,10 @@ void accumulate_logderivative_lookup_subrelation_contributions(ContainerOverSubr
     constexpr size_t READ_TERMS = Relation::READ_TERMS;
     constexpr size_t WRITE_TERMS = Relation::WRITE_TERMS;
 
-    auto lookup_relation = Relation();
-
     using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
     using View = typename Accumulator::View;
 
-    auto lookup_inverses = View(lookup_relation.template get_inverse_polynomial(in));
+    auto lookup_inverses = View(Relation::template get_inverse_polynomial(in));
 
     constexpr size_t NUM_TOTAL_TERMS = READ_TERMS + WRITE_TERMS;
     std::array<Accumulator, NUM_TOTAL_TERMS> lookup_terms;
@@ -112,9 +108,9 @@ void accumulate_logderivative_lookup_subrelation_contributions(ContainerOverSubr
     // i.e. (1 / read_term[i]) = lookup_inverse * \prod_{j /ne i} (read_term[j]) * \prod_k (write_term[k])
     //      (1 / write_term[i]) = lookup_inverse * \prod_j (read_term[j]) * \prod_{k ne i} (write_term[k])
     bb::constexpr_for<0, READ_TERMS, 1>(
-        [&]<size_t i>() { lookup_terms[i] = lookup_relation.template compute_read_term<Accumulator, i>(in, params); });
+        [&]<size_t i>() { lookup_terms[i] = Relation::template compute_read_term<Accumulator, i>(in, params); });
     bb::constexpr_for<0, WRITE_TERMS, 1>([&]<size_t i>() {
-        lookup_terms[i + READ_TERMS] = lookup_relation.template compute_write_term<Accumulator, i>(in, params);
+        lookup_terms[i + READ_TERMS] = Relation::template compute_write_term<Accumulator, i>(in, params);
     });
 
     bb::constexpr_for<0, NUM_TOTAL_TERMS, 1>([&]<size_t i>() { denominator_accumulator[i] = lookup_terms[i]; });
@@ -124,7 +120,7 @@ void accumulate_logderivative_lookup_subrelation_contributions(ContainerOverSubr
 
     auto inverse_accumulator = Accumulator(lookup_inverses); // denominator_accumulator[NUM_TOTAL_TERMS - 1];
 
-    const auto inverse_exists = lookup_relation.template compute_inverse_exists<Accumulator>(in);
+    const auto inverse_exists = Relation::template compute_inverse_exists<Accumulator>(in);
 
     // Note: the lookup_inverses are computed so that the value is 0 if !inverse_exists
     std::get<0>(accumulator) +=
@@ -142,14 +138,14 @@ void accumulate_logderivative_lookup_subrelation_contributions(ContainerOverSubr
     // degree of relation at this point = NUM_TOTAL_TERMS + 1
     bb::constexpr_for<0, READ_TERMS, 1>([&]<size_t i>() {
         std::get<1>(accumulator) +=
-            lookup_relation.template compute_read_term_predicate<Accumulator, i>(in) * denominator_accumulator[i];
+            Relation::template compute_read_term_predicate<Accumulator, i>(in) * denominator_accumulator[i];
     });
 
     // each predicate is degree-1, `lookup_read_counts` is degree-1
     // degree of relation = NUM_TOTAL_TERMS + 2
     bb::constexpr_for<0, WRITE_TERMS, 1>([&]<size_t i>() {
-        const auto p = lookup_relation.template compute_write_term_predicate<Accumulator, i>(in);
-        const auto lookup_read_count = lookup_relation.template lookup_read_counts<Accumulator, i>(in);
+        const auto p = Relation::template compute_write_term_predicate<Accumulator, i>(in);
+        const auto lookup_read_count = Relation::template lookup_read_counts<Accumulator, i>(in);
         std::get<1>(accumulator) -= p * (denominator_accumulator[i + READ_TERMS] * lookup_read_count);
     });
 }
@@ -196,12 +192,10 @@ void accumulate_logderivative_permutation_subrelation_contributions(ContainerOve
     static_assert(READ_TERMS == 1);
     static_assert(WRITE_TERMS == 1);
 
-    auto permutation_relation = Relation();
-
     using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
     using View = typename Accumulator::View;
 
-    auto permutation_inverses = View(permutation_relation.template get_inverse_polynomial(in));
+    auto permutation_inverses = View(Relation::template get_inverse_polynomial(in));
 
     constexpr size_t NUM_TOTAL_TERMS = 2;
     std::array<Accumulator, NUM_TOTAL_TERMS> permutation_terms;
@@ -213,8 +207,8 @@ void accumulate_logderivative_permutation_subrelation_contributions(ContainerOve
     // The purpose of this next section is to derive individual inverse terms using `permutation_inverses`
     // i.e. (1 / read_term) = permutation_inverses * write_term
     //      (1 / write_term) = permutation_inverses * read_term
-    permutation_terms[0] = permutation_relation.template compute_read_term<Accumulator, 0>(in, params);
-    permutation_terms[1] = permutation_relation.template compute_write_term<Accumulator, 0>(in, params);
+    permutation_terms[0] = Relation::template compute_read_term<Accumulator, 0>(in, params);
+    permutation_terms[1] = Relation::template compute_write_term<Accumulator, 0>(in, params);
 
     bb::constexpr_for<0, NUM_TOTAL_TERMS, 1>([&]<size_t i>() { denominator_accumulator[i] = permutation_terms[i]; });
 
@@ -223,7 +217,7 @@ void accumulate_logderivative_permutation_subrelation_contributions(ContainerOve
 
     auto inverse_accumulator = Accumulator(permutation_inverses); // denominator_accumulator[NUM_TOTAL_TERMS - 1];
 
-    const auto inverse_exists = permutation_relation.template compute_inverse_exists<Accumulator>(in);
+    const auto inverse_exists = Relation::template compute_inverse_exists<Accumulator>(in);
 
     // Note: the lookup_inverses are computed so that the value is 0 if !inverse_exists
     std::get<0>(accumulator) +=
@@ -240,11 +234,12 @@ void accumulate_logderivative_permutation_subrelation_contributions(ContainerOve
     // each predicate is degree-1
     // degree of relation at this point = NUM_TOTAL_TERMS + 1
     std::get<1>(accumulator) +=
-        permutation_relation.template compute_read_term_predicate<Accumulator, 0>(in) * denominator_accumulator[0];
+        Relation::template compute_read_term_predicate<Accumulator, 0>(in) * denominator_accumulator[0];
 
     // each predicate is degree-1
     // degree of relation = NUM_TOTAL_TERMS + 1
     std::get<1>(accumulator) -=
-        permutation_relation.template compute_write_term_predicate<Accumulator, 0>(in) * denominator_accumulator[1];
+        Relation::template compute_write_term_predicate<Accumulator, 0>(in) * denominator_accumulator[1];
 }
+
 } // namespace bb
