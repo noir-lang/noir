@@ -449,7 +449,9 @@ impl<'interner> Monomorphizer<'interner> {
                     let (function_type, ret) =
                         self.interner.get_prefix_operator_type(expr, prefix.rhs);
 
-                    let method = prefix.trait_method_id.unwrap();
+                    let method = prefix
+                        .trait_method_id
+                        .expect("ice: missing trait method if when impl was found");
                     let func = self.resolve_trait_method_expr(expr, function_type, method)?;
                     self.create_prefix_operator_impl_call(func, rhs, ret, location)?
                 } else {
