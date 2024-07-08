@@ -32,4 +32,3 @@ fn main(
     std::schnorr::assert_valid_signature(pub_key, signature, message);
 }
 
-
