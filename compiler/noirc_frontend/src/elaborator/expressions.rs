@@ -27,7 +27,7 @@ use crate::{
         HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
         MethodCallExpression, PrefixExpression,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId, ReferenceId},
+    node_interner::{DefinitionKind, ExprId, FuncId, ReferenceId, TraitMethodId},
     token::Tokens,
     Kind, QuotedType, Shared, StructType, Type,
 };
@@ -256,27 +256,8 @@ impl<'context> Elaborator<'context> {
 
         let typ = match trait_id {
             Some(trait_id) => {
-                match Self::prefix_operand_type_rules(&operator, &rhs_type, span) {
-                    Ok((typ, use_impl)) => {
-                        if use_impl {
-                            // Delay checking the trait constraint until the end of the function.
-                            // Checking it now could bind an unbound type variable to any type
-                            // that implements the trait.
-                            let constraint = TraitConstraint {
-                                typ: rhs_type.clone(),
-                                trait_id: trait_id.trait_id,
-                                trait_generics: Vec::new(),
-                            };
-                            self.push_trait_constraint(constraint, expr_id);
-                            self.type_check_operator_method(expr_id, trait_id, &rhs_type, span);
-                        }
-                        typ
-                    }
-                    Err(error) => {
-                        self.push_err(error);
-                        Type::Error
-                    }
-                }
+                let result = Self::prefix_operand_type_rules(&operator, &rhs_type, span);
+                self.handle_operand_type_rules_result(result, &rhs_type, trait_id, expr_id, span)
             }
             None => self.type_check_prefix_operand(&operator, &rhs_type, span),
         };
@@ -577,19 +558,34 @@ impl<'context> Elaborator<'context> {
         let expr_id = self.interner.push_expr(expr);
         self.interner.push_expr_location(expr_id, span, self.file);
 
-        let typ = match self.infix_operand_type_rules(&lhs_type, &operator, &rhs_type, span) {
+        let result = self.infix_operand_type_rules(&lhs_type, &operator, &rhs_type, span);
+        let typ = self.handle_operand_type_rules_result(result, &lhs_type, trait_id, expr_id, span);
+
+        self.interner.push_expr_type(expr_id, typ.clone());
+        (expr_id, typ)
+    }
+
+    fn handle_operand_type_rules_result(
+        &mut self,
+        result: Result<(Type, bool), TypeCheckError>,
+        operand_type: &Type,
+        trait_id: TraitMethodId,
+        expr_id: ExprId,
+        span: Span,
+    ) -> Type {
+        match result {
             Ok((typ, use_impl)) => {
                 if use_impl {
                     // Delay checking the trait constraint until the end of the function.
                     // Checking it now could bind an unbound type variable to any type
                     // that implements the trait.
                     let constraint = TraitConstraint {
-                        typ: lhs_type.clone(),
+                        typ: operand_type.clone(),
                         trait_id: trait_id.trait_id,
                         trait_generics: Vec::new(),
                     };
                     self.push_trait_constraint(constraint, expr_id);
-                    self.type_check_operator_method(expr_id, trait_id, &lhs_type, span);
+                    self.type_check_operator_method(expr_id, trait_id, &operand_type, span);
                 }
                 typ
             }
@@ -597,10 +593,7 @@ impl<'context> Elaborator<'context> {
                 self.push_err(error);
                 Type::Error
             }
-        };
-
-        self.interner.push_expr_type(expr_id, typ.clone());
-        (expr_id, typ)
+        }
     }
 
     fn elaborate_if(&mut self, if_expr: IfExpression) -> (HirExpression, Type) {
