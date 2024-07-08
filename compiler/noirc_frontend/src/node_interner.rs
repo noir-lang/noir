@@ -65,8 +65,14 @@ pub struct NodeInterner {
     // Contains the source module each function was defined in
     function_modules: HashMap<FuncId, ModuleId>,
 
+    // The location of each module
+    module_locations: HashMap<ModuleId, Location>,
+
     // The location of each struct name
     struct_name_locations: HashMap<StructId, Location>,
+
+    // The location of each trait name
+    trait_name_locations: HashMap<TraitId, Location>,
 
     /// This graph tracks dependencies between different global definitions.
     /// This is used to ensure the absence of dependency cycles for globals and types.
@@ -207,10 +213,10 @@ pub struct NodeInterner {
     /// //         |      |
     /// //         +------+
     /// ```
-    pub(crate) reference_graph: DiGraph<DependencyId, ()>,
+    pub(crate) reference_graph: DiGraph<ReferenceId, ()>,
 
     /// Tracks the index of the references in the graph
-    pub(crate) reference_graph_indices: HashMap<DependencyId, PetGraphIndex>,
+    pub(crate) reference_graph_indices: HashMap<ReferenceId, PetGraphIndex>,
 
     /// Store the location of the references in the graph
     pub(crate) location_indices: LocationIndices,
@@ -229,6 +235,19 @@ pub struct NodeInterner {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum DependencyId {
     Struct(StructId),
+    Global(GlobalId),
+    Function(FuncId),
+    Alias(TypeAliasId),
+    Variable(Location),
+}
+
+/// A reference to a module, struct, trait, etc., mainly used by the LSP code
+/// to keep track of how symbols reference each other.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum ReferenceId {
+    Module(ModuleId),
+    Struct(StructId),
+    Trait(TraitId),
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
@@ -527,7 +546,9 @@ impl Default for NodeInterner {
             function_definition_ids: HashMap::new(),
             function_modifiers: HashMap::new(),
             function_modules: HashMap::new(),
+            module_locations: HashMap::new(),
             struct_name_locations: HashMap::new(),
+            trait_name_locations: HashMap::new(),
             func_id_to_trait: HashMap::new(),
             dependency_graph: petgraph::graph::DiGraph::new(),
             dependency_graph_indices: HashMap::new(),
@@ -858,7 +879,7 @@ impl NodeInterner {
 
         // This needs to be done after pushing the definition since it will reference the
         // location that was stored
-        self.add_definition_location(DependencyId::Function(id));
+        self.add_definition_location(ReferenceId::Function(id));
         definition_id
     }
 
@@ -965,6 +986,22 @@ impl NodeInterner {
 
     pub fn struct_location(&self, struct_id: &StructId) -> Location {
         self.struct_name_locations[struct_id]
+    }
+
+    pub fn add_trait_location(&mut self, trait_id: TraitId, location: Location) {
+        self.trait_name_locations.insert(trait_id, location);
+    }
+
+    pub fn trait_location(&self, trait_id: &TraitId) -> Location {
+        self.trait_name_locations[trait_id]
+    }
+
+    pub fn add_module_location(&mut self, module_id: ModuleId, location: Location) {
+        self.module_locations.insert(module_id, location);
+    }
+
+    pub fn module_location(&self, module_id: &ModuleId) -> Location {
+        self.module_locations[module_id]
     }
 
     pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {

@@ -27,7 +27,7 @@ use crate::{
         HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
         MethodCallExpression, PrefixExpression,
     },
-    node_interner::{DefinitionKind, DependencyId, ExprId, FuncId},
+    node_interner::{DefinitionKind, ExprId, FuncId, ReferenceId},
     token::Tokens,
     Kind, QuotedType, Shared, StructType, Type,
 };
@@ -432,8 +432,8 @@ impl<'context> Elaborator<'context> {
             struct_generics,
         });
 
-        let referenced = DependencyId::Struct(struct_type.borrow().id);
-        let reference = DependencyId::Variable(Location::new(span, self.file));
+        let referenced = ReferenceId::Struct(struct_type.borrow().id);
+        let reference = ReferenceId::Variable(Location::new(span, self.file));
         self.interner.add_reference(referenced, reference);
 
         (expr, Type::Struct(struct_type, generics))

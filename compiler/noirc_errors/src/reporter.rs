@@ -17,6 +17,7 @@ pub struct CustomDiagnostic {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DiagnosticKind {
     Error,
+    Bug,
     Warning,
 }
 
@@ -62,6 +63,19 @@ impl CustomDiagnostic {
         }
     }
 
+    pub fn simple_bug(
+        primary_message: String,
+        secondary_message: String,
+        secondary_span: Span,
+    ) -> CustomDiagnostic {
+        CustomDiagnostic {
+            message: primary_message,
+            secondaries: vec![CustomLabel::new(secondary_message, secondary_span)],
+            notes: Vec::new(),
+            kind: DiagnosticKind::Bug,
+        }
+    }
+
     pub fn in_file(self, file_id: fm::FileId) -> FileDiagnostic {
         FileDiagnostic::new(file_id, self)
     }
@@ -80,6 +94,10 @@ impl CustomDiagnostic {
 
     pub fn is_warning(&self) -> bool {
         matches!(self.kind, DiagnosticKind::Warning)
+    }
+
+    pub fn is_bug(&self) -> bool {
+        matches!(self.kind, DiagnosticKind::Bug)
     }
 }
 
@@ -120,10 +138,13 @@ pub fn report_all<'files>(
     silence_warnings: bool,
 ) -> ReportedErrors {
     // Report warnings before any errors
-    let (warnings, mut errors): (Vec<_>, _) =
-        diagnostics.iter().partition(|item| item.diagnostic.is_warning());
+    let (warnings_and_bugs, mut errors): (Vec<_>, _) =
+        diagnostics.iter().partition(|item| !item.diagnostic.is_error());
 
+    let (warnings, mut bugs): (Vec<_>, _) =
+        warnings_and_bugs.iter().partition(|item| item.diagnostic.is_warning());
     let mut diagnostics = if silence_warnings { Vec::new() } else { warnings };
+    diagnostics.append(&mut bugs);
     diagnostics.append(&mut errors);
 
     let error_count =
@@ -170,6 +191,7 @@ fn convert_diagnostic(
 ) -> Diagnostic<fm::FileId> {
     let diagnostic = match (cd.kind, deny_warnings) {
         (DiagnosticKind::Warning, false) => Diagnostic::warning(),
+        (DiagnosticKind::Bug, ..) => Diagnostic::bug(),
         _ => Diagnostic::error(),
     };
 
