@@ -199,4 +199,9 @@ mod rename_tests {
     async fn test_rename_local_variable() {
         check_rename_succeeds("local_variable", "some_var").await;
     }
+
+    #[test]
+    async fn test_rename_struct_member() {
+        check_rename_succeeds("struct_member", "some_member").await;
+    }
 }
