@@ -340,7 +340,6 @@ impl<'context> Elaborator<'context> {
                         self.interner.function_meta(&func_id).direct_generics.clone();
 
                     method_call.generics.map(|option_inner| {
-                        assert_eq!(direct_generics.len(), option_inner.len());
                         let generics_with_types = direct_generics.iter().zip(option_inner);
                         vecmap(generics_with_types, |(generic, unresolved_type)| {
                             self.resolve_type_inner(unresolved_type, &generic.kind)
