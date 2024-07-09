@@ -22,7 +22,7 @@ use chumsky::primitive::Container;
 pub use errors::ParserError;
 pub use errors::ParserErrorReason;
 use noirc_errors::Span;
-pub use parser::{expression, parse_program, top_level_item};
+pub use parser::{expression, parse_program, top_level_items};
 
 #[derive(Debug, Clone)]
 pub enum TopLevelStatement {
