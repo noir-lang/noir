@@ -3,7 +3,11 @@ use noirc_errors::Location;
 use rangemap::RangeMap;
 use rustc_hash::FxHashMap;
 
-use crate::{macros_api::NodeInterner, node_interner::ReferenceId};
+use crate::{
+    hir::def_map::ModuleId,
+    macros_api::{NodeInterner, StructId},
+    node_interner::{DefinitionId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
+};
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 
 #[derive(Debug, Default)]
@@ -58,10 +62,64 @@ impl NodeInterner {
         }
     }
 
-    pub(crate) fn add_reference(&mut self, referenced: ReferenceId, reference: ReferenceId) {
+    pub(crate) fn add_module_reference(&mut self, id: ModuleId, location: Location) {
+        self.add_reference(ReferenceId::Module(id), location, false);
+    }
+
+    pub(crate) fn add_struct_reference(
+        &mut self,
+        id: StructId,
+        location: Location,
+        is_self_type: bool,
+    ) {
+        self.add_reference(ReferenceId::Struct(id), location, is_self_type);
+    }
+
+    pub(crate) fn add_struct_member_reference(
+        &mut self,
+        id: StructId,
+        member_index: usize,
+        location: Location,
+    ) {
+        self.add_reference(ReferenceId::StructMember(id, member_index), location, false);
+    }
+
+    pub(crate) fn add_trait_reference(
+        &mut self,
+        id: TraitId,
+        location: Location,
+        is_self_type: bool,
+    ) {
+        self.add_reference(ReferenceId::Trait(id), location, is_self_type);
+    }
+
+    pub(crate) fn add_alias_reference(&mut self, id: TypeAliasId, location: Location) {
+        self.add_reference(ReferenceId::Alias(id), location, false);
+    }
+
+    pub(crate) fn add_function_reference(&mut self, id: FuncId, location: Location) {
+        self.add_reference(ReferenceId::Function(id), location, false);
+    }
+
+    pub(crate) fn add_global_reference(&mut self, id: GlobalId, location: Location) {
+        self.add_reference(ReferenceId::Global(id), location, false);
+    }
+
+    pub(crate) fn add_local_reference(&mut self, id: DefinitionId, location: Location) {
+        self.add_reference(ReferenceId::Local(id), location, false);
+    }
+
+    pub(crate) fn add_reference(
+        &mut self,
+        referenced: ReferenceId,
+        location: Location,
+        is_self_type: bool,
+    ) {
         if !self.track_references {
             return;
         }
+
+        let reference = ReferenceId::Reference(location, is_self_type);
 
         let referenced_index = self.get_or_insert_reference(referenced);
         let reference_location = self.reference_location(reference);

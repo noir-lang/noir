@@ -31,8 +31,7 @@ use crate::{
         UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, GlobalId, ReferenceId, TraitId, TraitImplKind,
-        TraitMethodId,
+        DefinitionKind, DependencyId, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId,
     },
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
@@ -154,30 +153,23 @@ impl<'context> Elaborator<'context> {
         };
 
         if let Some(unresolved_span) = typ.span {
+            let location = Location::new(unresolved_span, self.file);
+
             match resolved_type {
                 Type::Struct(ref struct_type, _) => {
                     // Record the location of the type reference
-                    self.interner.push_type_ref_location(
-                        resolved_type.clone(),
-                        Location::new(unresolved_span, self.file),
-                    );
+                    self.interner.push_type_ref_location(resolved_type.clone(), location);
 
                     if !is_synthetic {
-                        let referenced = ReferenceId::Struct(struct_type.borrow().id);
-                        let reference = ReferenceId::Reference(
-                            Location::new(unresolved_span, self.file),
+                        self.interner.add_struct_reference(
+                            struct_type.borrow().id,
+                            location,
                             is_self_type_name,
                         );
-                        self.interner.add_reference(referenced, reference);
                     }
                 }
                 Type::Alias(ref alias_type, _) => {
-                    let referenced = ReferenceId::Alias(alias_type.borrow().id);
-                    let reference = ReferenceId::Reference(
-                        Location::new(unresolved_span, self.file),
-                        is_self_type_name,
-                    );
-                    self.interner.add_reference(referenced, reference);
+                    self.interner.add_alias_reference(alias_type.borrow().id, location);
                 }
                 _ => (),
             }
@@ -369,10 +361,8 @@ impl<'context> Elaborator<'context> {
                     self.interner.add_global_dependency(current_item, id);
                 }
 
-                let referenced = ReferenceId::Global(id);
-                let reference =
-                    ReferenceId::Reference(Location::new(path.span(), self.file), false);
-                self.interner.add_reference(referenced, reference);
+                let reference_location = Location::new(path.span(), self.file);
+                self.interner.add_global_reference(id, reference_location);
 
                 Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
