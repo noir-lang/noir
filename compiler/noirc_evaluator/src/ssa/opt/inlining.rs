@@ -126,8 +126,6 @@ struct PerFunctionContext<'function> {
 
     /// True if we're currently working on the entry point function.
     inlining_entry: bool,
-
-    side_effects_enabled: Option<ValueId>,
 }
 
 /// Utility function to find out the direct calls of a function.
@@ -327,7 +325,6 @@ impl<'function> PerFunctionContext<'function> {
             blocks: HashMap::default(),
             values: HashMap::default(),
             inlining_entry: false,
-            side_effects_enabled: None,
         }
     }
 
@@ -478,6 +475,8 @@ impl<'function> PerFunctionContext<'function> {
     /// Inline each instruction in the given block into the function being inlined into.
     /// This may recurse if it finds another function to inline if a call instruction is within this block.
     fn inline_block_instructions(&mut self, ssa: &Ssa, block_id: BasicBlockId) {
+        let mut side_effects_enabled: Option<ValueId> = None;
+
         let block = &self.source_function.dfg[block_id];
         for id in block.instructions() {
             match &self.source_function.dfg[*id] {
@@ -494,7 +493,7 @@ impl<'function> PerFunctionContext<'function> {
                             // within the function being inlined whilst the source function has not encountered one yet.
                             // In practice this isn't an issue as the last `Instruction::EnabledSideEffects` in the
                             // function being inlined will be to turn off predicates rather than to create one.
-                            if let Some(condition) = self.side_effects_enabled {
+                            if let Some(condition) = side_effects_enabled {
                                 self.context.builder.insert_enable_side_effects_if(condition);
                             }
                         } else {
@@ -504,7 +503,7 @@ impl<'function> PerFunctionContext<'function> {
                     None => self.push_instruction(*id),
                 },
                 Instruction::EnableSideEffects { condition } => {
-                    self.side_effects_enabled = Some(self.translate_value(*condition));
+                    side_effects_enabled = Some(self.translate_value(*condition));
                     self.push_instruction(*id);
                 }
                 _ => self.push_instruction(*id),
