@@ -170,11 +170,12 @@ function random<T extends BaseField>(f: DerivedField<T>): T {
  */
 function fromHexString<T extends BaseField>(buf: string, f: DerivedField<T>) {
   const withoutPrefix = buf.replace(/^0x/i, '');
-  const buffer = Buffer.from(withoutPrefix, 'hex');
-
-  if (buffer.length === 0 && withoutPrefix.length > 0) {
+  const checked = withoutPrefix.match(/^[0-9A-F]+$/i)?.[0];
+  if (checked === undefined) {
     throw new Error(`Invalid hex-encoded string: "${buf}"`);
   }
+
+  const buffer = Buffer.from(checked.length % 2 === 1 ? '0' + checked : checked, 'hex');
 
   return new f(buffer);
 }
@@ -227,6 +228,11 @@ export class Fr extends BaseField {
     return fromBufferReduce(buffer, Fr);
   }
 
+  /**
+   * Creates a Fr instance from a hex string.
+   * @param buf - a hex encoded string.
+   * @returns the Fr instance
+   */
   static fromString(buf: string) {
     return fromHexString(buf, Fr);
   }
@@ -336,6 +342,11 @@ export class Fq extends BaseField {
     return fromBufferReduce(buffer, Fq);
   }
 
+  /**
+   * Creates a Fq instance from a hex string.
+   * @param buf - a hex encoded string.
+   * @returns the Fq instance
+   */
   static fromString(buf: string) {
     return fromHexString(buf, Fq);
   }
