@@ -72,7 +72,7 @@ export class Grumpkin {
 
     const parsedResult: Point[] = [];
     for (let i = 0; i < pointsByteLength; i += 64) {
-      parsedResult.push(Point.fromBuffer(result.slice(i, i + 64)));
+      parsedResult.push(Point.fromBuffer(result.subarray(i, i + 64)));
     }
     return parsedResult;
   }

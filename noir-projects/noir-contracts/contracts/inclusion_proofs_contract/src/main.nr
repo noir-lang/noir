@@ -6,7 +6,7 @@ contract InclusionProofs {
     };
     use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_note;
 
-    use dep::aztec::protocol_types::{grumpkin_point::GrumpkinPoint, contract_class_id::ContractClassId, header::Header};
+    use dep::aztec::protocol_types::{contract_class_id::ContractClassId, header::Header};
     use dep::aztec::{note::note_getter_options::NoteStatus};
     // docs:start:imports
     // Imports are not needed as inclusion / non_inclusion proofs are accessible on the header.

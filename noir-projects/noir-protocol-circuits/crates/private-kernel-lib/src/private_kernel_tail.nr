@@ -67,7 +67,7 @@ mod tests {
         compute_siloed_unencrypted_log_hash
     },
         tests::fixture_builder::FixtureBuilder, utils::{arrays::array_length},
-        traits::{Empty, is_empty}, grumpkin_point::GrumpkinPoint
+        traits::{Empty, is_empty}, point::Point
     };
 
     // TODO: Reduce the duplicated code/tests for PrivateKernelTailInputs and PrivateKernelTailToPublicInputs.
@@ -333,7 +333,7 @@ mod tests {
     #[test(should_fail_with="Non empty key validation requests")]
     fn non_empty_key_validations() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
-        let _void = builder.previous_kernel.add_request_for_key_validation(GrumpkinPoint::new(1, 2), 27, GENERATOR_INDEX__IVSK_M);
+        let _void = builder.previous_kernel.add_request_for_key_validation(Point::new(1, 2, false), 27, GENERATOR_INDEX__IVSK_M);
         builder.failed();
     }
 

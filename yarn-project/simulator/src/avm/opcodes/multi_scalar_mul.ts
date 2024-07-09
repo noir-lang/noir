@@ -76,7 +76,7 @@ export class MultiScalarMul extends Instruction {
     // Now we need to reconstruct the points and scalars into something we can operate on.
     const grumpkinPoints: Point[] = [];
     for (let i = 0; i < numPoints; i++) {
-      const p: Point = new Point(pointsVector[3 * i].toFr(), pointsVector[3 * i + 1].toFr());
+      const p: Point = new Point(pointsVector[3 * i].toFr(), pointsVector[3 * i + 1].toFr(), false);
       // Include this later when we have a standard for representing infinity
       // const isInf = pointsVector[i + 2].toBoolean();
 
@@ -104,7 +104,7 @@ export class MultiScalarMul extends Instruction {
       (acc, curr) => grumpkin.add(acc, grumpkin.mul(curr[0], curr[1])),
       grumpkin.mul(firstBaseScalarPair[0], firstBaseScalarPair[1]),
     );
-    const output = outputPoint.toFieldsWithInf().map(f => new Field(f));
+    const output = outputPoint.toFields().map(f => new Field(f));
 
     memory.setSlice(outputOffset, output);
 

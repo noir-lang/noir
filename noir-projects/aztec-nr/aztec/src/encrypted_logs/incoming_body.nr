@@ -1,6 +1,6 @@
 use crate::note::note_interface::NoteInterface;
 use crate::event::event_interface::EventInterface;
-use dep::protocol_types::{grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint};
+use dep::protocol_types::{grumpkin_private_key::GrumpkinPrivateKey, point::Point};
 
 use std::aes128::aes128_encrypt;
 use crate::keys::point_to_symmetric_key::point_to_symmetric_key;
@@ -20,7 +20,7 @@ impl<M> EncryptedLogIncomingBody<M> {
         EncryptedLogIncomingBody { plaintext }
     }
 
-    pub fn compute_ciphertext(self, eph_sk: GrumpkinPrivateKey, ivpk_app: GrumpkinPoint) -> [u8] {
+    pub fn compute_ciphertext(self, eph_sk: GrumpkinPrivateKey, ivpk_app: Point) -> [u8] {
         let full_key = point_to_symmetric_key(eph_sk, ivpk_app);
         let mut sym_key = [0; 16];
         let mut iv = [0; 16];
@@ -37,7 +37,7 @@ mod test {
     use crate::encrypted_logs::incoming_body::EncryptedLogIncomingBody;
     use dep::protocol_types::{
         address::AztecAddress, traits::Empty, constants::GENERATOR_INDEX__NOTE_NULLIFIER,
-        grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint, traits::Serialize,
+        grumpkin_private_key::GrumpkinPrivateKey, point::Point, traits::Serialize,
         abis::event_selector::EventSelector
     };
 
@@ -123,9 +123,10 @@ mod test {
             0x0000000000000000000000000000000023b3127c127b1f29a7adff5cccf8fb06,
             0x00000000000000000000000000000000649e7ca01d9de27b21624098b897babd
         );
-        let ivpk_app = GrumpkinPoint::new(
+        let ivpk_app = Point::new(
             0x2688431c705a5ff3e6c6f2573c9e3ba1c1026d2251d0dbbf2d810aa53fd1d186,
-            0x1e96887b117afca01c00468264f4f80b5bb16d94c1808a448595f115556e5c8e
+            0x1e96887b117afca01c00468264f4f80b5bb16d94c1808a448595f115556e5c8e,
+            false
         );
 
         let body = EncryptedLogIncomingBody::from_note(note, storage_slot);
@@ -222,9 +223,10 @@ mod test {
             0x00000000000000000000000000000000649e7ca01d9de27b21624098b897babd
         );
 
-        let ivpk_app = GrumpkinPoint::new(
+        let ivpk_app = Point::new(
             0x2688431c705a5ff3e6c6f2573c9e3ba1c1026d2251d0dbbf2d810aa53fd1d186,
-            0x1e96887b117afca01c00468264f4f80b5bb16d94c1808a448595f115556e5c8e
+            0x1e96887b117afca01c00468264f4f80b5bb16d94c1808a448595f115556e5c8e,
+            false
         );
 
         let randomness = 2;

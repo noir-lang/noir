@@ -574,13 +574,15 @@ export class TXEService {
     ovskApp: ForeignCallSingle,
     ovpkMX: ForeignCallSingle,
     ovpkMY: ForeignCallSingle,
+    ovpkMIsInfinite: ForeignCallSingle,
     ivpkMX: ForeignCallSingle,
     ivpkMY: ForeignCallSingle,
+    ivpkMIsInfinite: ForeignCallSingle,
     preimage: ForeignCallArray,
   ) {
-    const ovpkM = new Point(fromSingle(ovpkMX), fromSingle(ovpkMY));
+    const ovpkM = new Point(fromSingle(ovpkMX), fromSingle(ovpkMY), !fromSingle(ovpkMIsInfinite).isZero());
     const ovKeys = new KeyValidationRequest(ovpkM, Fr.fromString(fromSingle(ovskApp).toString()));
-    const ivpkM = new Point(fromSingle(ivpkMX), fromSingle(ivpkMY));
+    const ivpkM = new Point(fromSingle(ivpkMX), fromSingle(ivpkMY), !fromSingle(ivpkMIsInfinite).isZero());
     const encLog = this.typedOracle.computeEncryptedNoteLog(
       AztecAddress.fromString(fromSingle(contractAddress).toString()),
       Fr.fromString(fromSingle(storageSlot).toString()),
@@ -599,7 +601,7 @@ export class TXEService {
 
   emitEncryptedLog(
     _contractAddress: ForeignCallSingle,
-    _randomandomness: ForeignCallSingle,
+    _randomness: ForeignCallSingle,
     _encryptedLog: ForeignCallSingle,
     _counter: ForeignCallSingle,
   ) {

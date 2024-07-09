@@ -1,7 +1,6 @@
 use crate::ops::arith::{Add, Sub, Neg};
 use crate::cmp::Eq;
 
-// TODO(https://github.com/noir-lang/noir/issues/4931)
 struct EmbeddedCurvePoint {
     x: Field,
     y: Field,
@@ -9,6 +8,10 @@ struct EmbeddedCurvePoint {
 }
 
 impl EmbeddedCurvePoint {
+    fn new(x: Field, y: Field, is_infinite: bool) -> Self {
+        Self { x, y, is_infinite }
+    }
+
     fn double(self) -> EmbeddedCurvePoint {
         embedded_curve_add(self, self)
     }

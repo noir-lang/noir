@@ -9,8 +9,7 @@ contract AppSubscription {
         AztecAddress, FunctionSelector, PrivateContext, NoteHeader, Map, PrivateMutable, PublicMutable,
         SharedImmutable
     },
-        encrypted_logs::encrypted_note_emission::encode_and_encrypt_note,
-        protocol_types::{traits::is_empty, grumpkin_point::GrumpkinPoint}
+        encrypted_logs::encrypted_note_emission::encode_and_encrypt_note
     };
     use authwit::{auth_witness::get_auth_witness, auth::assert_current_call_valid_authwit};
     use gas_token::GasToken;

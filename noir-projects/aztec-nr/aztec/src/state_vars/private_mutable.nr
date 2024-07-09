@@ -1,7 +1,4 @@
-use dep::protocol_types::{
-    address::AztecAddress, constants::GENERATOR_INDEX__INITIALIZATION_NULLIFIER,
-    grumpkin_point::GrumpkinPoint, hash::pedersen_hash
-};
+use dep::protocol_types::{address::AztecAddress, constants::GENERATOR_INDEX__INITIALIZATION_NULLIFIER, hash::pedersen_hash};
 
 use crate::context::{PrivateContext, UnconstrainedContext};
 use crate::note::{
@@ -75,7 +72,10 @@ impl<Note> PrivateMutable<Note, &mut PrivateContext> {
     }
     // docs:end:replace
 
-    pub fn initialize_or_replace<N, M>(self, note: &mut Note) -> NoteEmission<Note>  where Note: NoteInterface<N, M> {
+    pub fn initialize_or_replace<N, M>(
+        self,
+        note: &mut Note
+    ) -> NoteEmission<Note>  where Note: NoteInterface<N, M> {
         let is_initialized = check_nullifier_exists(self.compute_initialization_nullifier());
 
         // check_nullifier_exists() is an unconstrained function - we can constrain a true value by providing an 

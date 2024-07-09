@@ -1,7 +1,7 @@
 use dep::aztec::{
     protocol_types::{
-    address::AztecAddress, grumpkin_point::GrumpkinPoint, traits::{Deserialize, Serialize},
-    constants::GENERATOR_INDEX__NOTE_NULLIFIER, hash::poseidon2_hash
+    address::AztecAddress, traits::{Deserialize, Serialize}, constants::GENERATOR_INDEX__NOTE_NULLIFIER,
+    hash::poseidon2_hash
 },
     note::{note_header::NoteHeader, note_interface::NoteInterface, utils::compute_note_hash_for_consumption},
     oracle::unsafe_rand::unsafe_rand, keys::getters::get_nsk_app, context::PrivateContext

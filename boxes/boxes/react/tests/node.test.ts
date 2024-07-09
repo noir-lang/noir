@@ -21,8 +21,8 @@ describe('BoxReact Contract Tests', () => {
       Fr.random(),
       accountCompleteAddress.address,
       masterNullifierPublicKey.hash(),
-      masterOutgoingViewingPublicKey,
-      masterIncomingViewingPublicKey,
+      masterOutgoingViewingPublicKey.toNoirStruct(),
+      masterIncomingViewingPublicKey.toNoirStruct(),
     )
       .send({ contractAddressSalt: salt })
       .deployed();
@@ -39,8 +39,8 @@ describe('BoxReact Contract Tests', () => {
         numberToSet,
         accountCompleteAddress.address,
         masterNullifierPublicKey.hash(),
-        masterOutgoingViewingPublicKey,
-        masterIncomingViewingPublicKey,
+        masterOutgoingViewingPublicKey.toNoirStruct(),
+        masterIncomingViewingPublicKey.toNoirStruct(),
       )
       .send()
       .wait();

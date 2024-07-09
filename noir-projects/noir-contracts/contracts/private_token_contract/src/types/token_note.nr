@@ -1,11 +1,11 @@
 use dep::aztec::{
     prelude::{AztecAddress, NoteHeader, NoteInterface, PrivateContext},
-    protocol_types::{constants::GENERATOR_INDEX__NOTE_NULLIFIER, grumpkin_point::GrumpkinPoint, hash::poseidon2_hash},
+    protocol_types::{constants::GENERATOR_INDEX__NOTE_NULLIFIER, point::Point, hash::poseidon2_hash},
     note::utils::compute_note_hash_for_consumption, oracle::unsafe_rand::unsafe_rand,
     keys::getters::get_nsk_app, note::note_getter_options::PropertySelector
 };
 use dep::std::field::bn254::decompose;
-use dep::std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, fixed_base_scalar_mul};
+use dep::std::embedded_curve_ops::{EmbeddedCurveScalar, multi_scalar_mul, fixed_base_scalar_mul};
 
 trait OwnedNote {
     fn new(amount: U128, owner_npk_m_hash: Field) -> Self;
@@ -21,11 +21,11 @@ trait PrivatelyRefundable {
         funded_amount: Field,
         user_randomness: Field,
         fee_payer_randomness: Field
-    ) -> (EmbeddedCurvePoint, EmbeddedCurvePoint);
+    ) -> (Point, Point);
 
     fn complete_refund(
-        incomplete_fee_payer_point: EmbeddedCurvePoint,
-        incomplete_user_point: EmbeddedCurvePoint,
+        incomplete_fee_payer_point: Point,
+        incomplete_user_point: Point,
         transaction_fee: Field
     ) -> (Field, Field);
 }
@@ -33,7 +33,7 @@ trait PrivatelyRefundable {
 global TOKEN_NOTE_LEN: Field = 3; // 3 plus a header.
 global TOKEN_NOTE_BYTES_LEN: Field = 3 * 32 + 64;
 // Grumpkin generator point. 
-global G1 = EmbeddedCurvePoint { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };
+global G1 = Point { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };
 
 #[aztec(note)]
 struct TokenNote {
@@ -195,7 +195,7 @@ impl OwnedNote for TokenNote {
  *         fee payer npk values of these known contracts is a feasible attack.
  */
 impl PrivatelyRefundable for TokenNote {
-    fn generate_refund_points(fee_payer_npk_m_hash: Field, user_npk_m_hash: Field, funded_amount: Field, user_randomness: Field, fee_payer_randomness: Field) -> (EmbeddedCurvePoint, EmbeddedCurvePoint) {
+    fn generate_refund_points(fee_payer_npk_m_hash: Field, user_npk_m_hash: Field, funded_amount: Field, user_randomness: Field, fee_payer_randomness: Field) -> (Point, Point) {
         // 1. To be able to multiply generators with randomness and npk_m_hash using barretneberg's (BB) blackbox function we
         // first need to convert the fields to high and low limbs.
         let (fee_payer_randomness_lo, fee_payer_randomness_hi) = decompose(fee_payer_randomness);
@@ -237,19 +237,19 @@ impl PrivatelyRefundable for TokenNote {
             }]
         );
 
-        // 5. At last we represent the points as EmbeddedCurvePoints and return them.
-        (EmbeddedCurvePoint {
+        // 5. At last we represent the points as Points and return them.
+        (Point {
             x: incomplete_fee_payer_point[0],
             y: incomplete_fee_payer_point[1],
             is_infinite: incomplete_fee_payer_point[2] == 1
-        }, EmbeddedCurvePoint {
+        }, Point {
             x: incomplete_user_point[0],
             y: incomplete_user_point[1],
             is_infinite: incomplete_user_point[2] == 1
         })
     }
 
-    fn complete_refund(incomplete_fee_payer_point: EmbeddedCurvePoint, incomplete_user_point: EmbeddedCurvePoint, transaction_fee: Field) -> (Field, Field) {
+    fn complete_refund(incomplete_fee_payer_point: Point, incomplete_user_point: Point, transaction_fee: Field) -> (Field, Field) {
         // 1. We convert the transaction fee to high and low limbs to be able to use BB API.
         let (transaction_fee_lo, transaction_fee_hi) = decompose(transaction_fee);
 
@@ -261,7 +261,7 @@ impl PrivatelyRefundable for TokenNote {
                 hi: transaction_fee_hi,
             }]
         );
-        let fee_point = EmbeddedCurvePoint {
+        let fee_point = Point {
             x: fee_point_raw[0],
             y: fee_point_raw[1],
             is_infinite: fee_point_raw[2] == 1

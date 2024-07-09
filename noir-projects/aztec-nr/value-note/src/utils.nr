@@ -1,6 +1,5 @@
 use dep::aztec::prelude::{AztecAddress, PrivateContext, PrivateSet, NoteGetterOptions};
 use dep::aztec::note::note_getter_options::SortOrder;
-use dep::aztec::protocol_types::grumpkin_point::GrumpkinPoint;
 use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_note;
 use crate::{filter::filter_notes_min_sum, value_note::{ValueNote, VALUE_NOTE_LEN, VALUE_NOTE_BYTES_LEN}};
 

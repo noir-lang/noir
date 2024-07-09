@@ -3,8 +3,7 @@ contract Child {
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, PublicMutable, PrivateSet, PrivateContext, Deserialize, Map};
 
     use dep::aztec::{
-        context::gas::GasOpts,
-        protocol_types::{abis::call_context::CallContext, grumpkin_point::GrumpkinPoint},
+        context::gas::GasOpts, protocol_types::{abis::call_context::CallContext},
         note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
         encrypted_logs::encrypted_note_emission::encode_and_encrypt_note
     };

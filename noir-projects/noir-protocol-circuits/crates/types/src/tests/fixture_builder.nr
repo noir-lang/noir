@@ -41,7 +41,7 @@ use crate::{
     partial_state_reference::PartialStateReference, tests::fixtures,
     transaction::{tx_context::TxContext, tx_request::TxRequest}, traits::Empty,
     recursion::{verification_key::VerificationKey, proof::{NestedRecursiveProof, RecursiveProof}},
-    grumpkin_point::GrumpkinPoint
+    point::Point
 };
 
 fn subarray<T, N, M>(arr: [T; N]) -> [T; M] {
@@ -678,7 +678,7 @@ impl FixtureBuilder {
         new_read_request_index
     }
 
-    pub fn add_request_for_key_validation(&mut self, pk_m: GrumpkinPoint, sk_app: Field, sk_app_generator: Field) -> u32 {
+    pub fn add_request_for_key_validation(&mut self, pk_m: Point, sk_app: Field, sk_app_generator: Field) -> u32 {
         let new_request_index = self.scoped_key_validation_requests_and_generators.len();
         let request = KeyValidationRequest { pk_m, sk_app };
         let request_and_generator = KeyValidationRequestAndGenerator { request, sk_app_generator };
@@ -957,7 +957,7 @@ impl FixtureBuilder {
 
     fn mock_key_validation_request(self, index: u32) -> KeyValidationRequestAndGenerator {
         let value_offset = 3030 + self.value_offset + index as Field;
-        let request = KeyValidationRequest { pk_m: GrumpkinPoint { x: value_offset, y: 1 + value_offset }, sk_app: 2 + value_offset };
+        let request = KeyValidationRequest { pk_m: Point { x: value_offset, y: 1 + value_offset, is_infinite: false }, sk_app: 2 + value_offset };
         KeyValidationRequestAndGenerator { request, sk_app_generator: 3 + value_offset }
     }
 

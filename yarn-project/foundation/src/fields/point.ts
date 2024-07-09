@@ -8,7 +8,7 @@ import { Fr } from './fields.js';
  * converting instances to various output formats, and checking the equality of points.
  */
 export class Point {
-  static ZERO = new Point(Fr.ZERO, Fr.ZERO);
+  static ZERO = new Point(Fr.ZERO, Fr.ZERO, false);
   static SIZE_IN_BYTES = Fr.SIZE_IN_BYTES * 2;
 
   /** Used to differentiate this class from AztecAddress */
@@ -23,8 +23,12 @@ export class Point {
      * The point's y coordinate
      */
     public readonly y: Fr,
+    /**
+     * Whether the point is at infinity
+     */
+    public readonly isInfinite: boolean,
   ) {
-    // TODO: Do we want to check if the point is on the curve here?
+    // TODO(#7386): check if on curve
   }
 
   /**
@@ -33,8 +37,8 @@ export class Point {
    * @returns A randomly generated Point instance.
    */
   static random() {
-    // TODO is this a random point on the curve?
-    return new Point(Fr.random(), Fr.random());
+    // TODO make this return an actual point on curve.
+    return new Point(Fr.random(), Fr.random(), false);
   }
 
   /**
@@ -46,7 +50,7 @@ export class Point {
    */
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new this(Fr.fromBuffer(reader), Fr.fromBuffer(reader));
+    return new this(Fr.fromBuffer(reader), Fr.fromBuffer(reader), false);
   }
 
   /**
@@ -66,12 +70,12 @@ export class Point {
    * @returns The point as an array of 2 fields
    */
   toFields() {
-    return [this.x, this.y];
+    return [this.x, this.y, new Fr(this.isInfinite)];
   }
 
   static fromFields(fields: Fr[] | FieldReader) {
     const reader = FieldReader.asReader(fields);
-    return new this(reader.readField(), reader.readField());
+    return new this(reader.readField(), reader.readField(), reader.readBoolean());
   }
 
   /**
@@ -82,16 +86,29 @@ export class Point {
     return {
       x: this.x.toBigInt(),
       y: this.y.toBigInt(),
+      isInfinite: this.isInfinite ? 1n : 0n,
     };
   }
 
   /**
    * Converts the Point instance to a Buffer representation of the coordinates.
-   * The outputs buffer length will be 64, the length of both coordinates not represented as fields.
    * @returns A Buffer representation of the Point instance.
+   * @dev Note that toBuffer does not include the isInfinite flag and other serialization methods do (e.g. toFields).
+   * This is because currently when we work with point as bytes we don't want to populate the extra bytes for
+   * isInfinite flag because:
+   * 1. Our Grumpkin BB API currently does not handle point at infinity,
+   * 2. we use toBuffer when serializing notes and events and there we only work with public keys and point at infinity
+   *   is not considered a valid public key and the extra byte would raise DA cost.
    */
   toBuffer() {
-    return serializeToBuffer([this.x, this.y]);
+    if (this.isInfinite) {
+      throw new Error('Cannot serialize infinite point without isInfinite flag');
+    }
+    const buf = serializeToBuffer([this.x, this.y]);
+    if (buf.length !== Point.SIZE_IN_BYTES) {
+      throw new Error(`Invalid buffer length for Point: ${buf.length}`);
+    }
+    return buf;
   }
 
   /**
@@ -118,6 +135,12 @@ export class Point {
     return `${str.slice(0, 10)}...${str.slice(-4)}`;
   }
 
+  toNoirStruct() {
+    /* eslint-disable camelcase */
+    return { x: this.x, y: this.y, is_infinite: this.isInfinite };
+    /* eslint-enable camelcase */
+  }
+
   /**
    * Check if two Point instances are equal by comparing their buffer values.
    * Returns true if the buffer values are the same, and false otherwise.
@@ -142,10 +165,7 @@ export class Point {
    * Check this is consistent with how bb is encoding the point at infinity
    */
   public get inf() {
-    return this.x == Fr.ZERO;
-  }
-  public toFieldsWithInf() {
-    return [this.x, this.y, new Fr(this.inf)];
+    return this.x.isZero() && this.y.isZero() && this.isInfinite;
   }
 
   isOnGrumpkin() {

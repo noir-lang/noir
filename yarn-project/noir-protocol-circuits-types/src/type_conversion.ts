@@ -168,7 +168,7 @@ import type {
   AztecAddress as NoirAztecAddress,
   EthAddress as NoirEthAddress,
   Field as NoirField,
-  GrumpkinPoint as NoirPoint,
+  EmbeddedCurvePoint as NoirPoint,
   NoteHashLeafPreimage as NoteHashLeafPreimageNoir,
   NoteHash as NoteHashNoir,
   NoteHashReadRequestHints as NoteHashReadRequestHintsNoir,
@@ -289,6 +289,7 @@ export function mapPointToNoir(point: Point): NoirPoint {
   return {
     x: mapFieldToNoir(point.x),
     y: mapFieldToNoir(point.y),
+    is_infinite: point.isInfinite,
   };
 }
 
@@ -298,7 +299,7 @@ export function mapPointToNoir(point: Point): NoirPoint {
  * @returns The point.
  */
 export function mapPointFromNoir(point: NoirPoint): Point {
-  return new Point(mapFieldFromNoir(point.x), mapFieldFromNoir(point.y));
+  return new Point(mapFieldFromNoir(point.x), mapFieldFromNoir(point.y), point.is_infinite);
 }
 
 /**

@@ -1,9 +1,9 @@
 use dep::protocol_types::{
-    address::AztecAddress, grumpkin_private_key::GrumpkinPrivateKey, grumpkin_point::GrumpkinPoint,
+    address::AztecAddress, grumpkin_private_key::GrumpkinPrivateKey, point::{Point, pub_key_to_bytes},
     constants::{GENERATOR_INDEX__IVSK_M, GENERATOR_INDEX__OVSK_M}, hash::poseidon2_hash
 };
 
-use std::{embedded_curve_ops::{embedded_curve_add, EmbeddedCurvePoint}, field::bytes32_to_field};
+use std::field::bytes32_to_field;
 
 use crate::oracle::unsafe_rand::unsafe_rand;
 
@@ -19,8 +19,8 @@ pub fn compute_encrypted_event_log<Event, NB, MB, OB>(
     contract_address: AztecAddress,
     randomness: Field,
     ovsk_app: Field,
-    ovpk: GrumpkinPoint,
-    ivpk: GrumpkinPoint,
+    ovpk: Point,
+    ivpk: Point,
     event: Event
 ) -> [u8; OB] where Event: EventInterface<NB, MB> {
     // @todo Need to draw randomness from the full domain of Fq not only Fr
@@ -42,7 +42,7 @@ pub fn compute_encrypted_event_log<Event, NB, MB, OB>(
     let mut encrypted_bytes: [u8; OB] = [0; OB];
     // @todo We ignore the tags for now 
 
-    let eph_pk_bytes = eph_pk.to_be_bytes();
+    let eph_pk_bytes = pub_key_to_bytes(eph_pk);
     for i in 0..64 {
         encrypted_bytes[64 + i] = eph_pk_bytes[i];
     }
@@ -76,8 +76,8 @@ pub fn compute_encrypted_note_log<Note, N, NB, M>(
     contract_address: AztecAddress,
     storage_slot: Field,
     ovsk_app: Field,
-    ovpk: GrumpkinPoint,
-    ivpk: GrumpkinPoint,
+    ovpk: Point,
+    ivpk: Point,
     note: Note
 ) -> [u8; M] where Note: NoteInterface<N, NB> {
     // @todo Need to draw randomness from the full domain of Fq not only Fr
@@ -99,7 +99,7 @@ pub fn compute_encrypted_note_log<Note, N, NB, M>(
     let mut encrypted_bytes: [u8; M] = [0; M];
     // @todo We ignore the tags for now 
 
-    let eph_pk_bytes = eph_pk.to_be_bytes();
+    let eph_pk_bytes = pub_key_to_bytes(eph_pk);
     for i in 0..64 {
         encrypted_bytes[64 + i] = eph_pk_bytes[i];
     }
@@ -146,7 +146,7 @@ fn fr_to_private_key(r: Field) -> GrumpkinPrivateKey {
     GrumpkinPrivateKey::new(high, low)
 }
 
-fn compute_ivpk_app(ivpk: GrumpkinPoint, contract_address: AztecAddress) -> GrumpkinPoint {
+fn compute_ivpk_app(ivpk: Point, contract_address: AztecAddress) -> Point {
     // It is useless to compute this, it brings no value to derive fully.
     // Issue(#6955)
     ivpk
@@ -158,10 +158,10 @@ fn compute_ivpk_app(ivpk: GrumpkinPoint, contract_address: AztecAddress) -> Grum
     let i = fr_to_private_key(poseidon2_hash([contract_address.to_field(), ivpk.x, ivpk.y, GENERATOR_INDEX__IVSK_M]));
     let I = i.derive_public_key();
 
-    let embed_I = EmbeddedCurvePoint { x: I.x, y: I.y, is_infinite: false };
-    let embed_ivpk = EmbeddedCurvePoint { x: ivpk.x, y: ivpk.y, is_infinite: false };
+    let embed_I = Point { x: I.x, y: I.y, is_infinite: false };
+    let embed_ivpk = Point { x: ivpk.x, y: ivpk.y, is_infinite: false };
 
     let embed_result = embedded_curve_add(embed_I, embed_ivpk);
 
-    GrumpkinPoint::new(embed_result.x, embed_result.y)*/
+    Point::new(embed_result.x, embed_result.y)*/
 }

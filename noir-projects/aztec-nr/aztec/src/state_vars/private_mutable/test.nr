@@ -1,4 +1,4 @@
-use dep::protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint};
+use dep::protocol_types::{address::AztecAddress, point::Point};
 use crate::{context::PrivateContext, state_vars::private_mutable::PrivateMutable};
 use crate::test::{mocks::mock_note::MockNote, helpers::{cheatcodes, test_environment::TestEnvironment}};
 use std::{unsafe::zeroed, test::OracleMock};
@@ -23,8 +23,8 @@ fn test_initialize_or_replace_without_nullifier() {
     let mut env = setup();
     let state_var = in_private(&mut env);
 
-    let ovpk_m: GrumpkinPoint = zeroed();
-    let ivpk_m: GrumpkinPoint = zeroed();
+    let ovpk_m: Point = zeroed();
+    let ivpk_m: Point = zeroed();
 
     let value = 42;
     let mut note = MockNote::new(value).contract_address(cheatcodes::get_contract_address()).storage_slot(storage_slot).build();

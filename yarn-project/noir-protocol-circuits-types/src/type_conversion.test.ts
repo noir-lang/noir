@@ -25,7 +25,7 @@ describe('Noir<>Circuits.js type conversion test suite', () => {
       expect(mapFieldFromNoir(mapFieldToNoir(field))).toEqual(field);
     });
 
-    const point = new Point(new Fr(27n), new Fr(28n));
+    const point = new Point(new Fr(27n), new Fr(28n), false);
 
     it('should map points', () => {
       expect(mapPointFromNoir(mapPointToNoir(point))).toEqual(point);

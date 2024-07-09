@@ -77,7 +77,7 @@ mod tests {
         gas::Gas, gas_fees::GasFees
     },
         address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
-        grumpkin_point::GrumpkinPoint, transaction::{tx_request::TxRequest, tx_context::TxContext}
+        transaction::{tx_request::TxRequest, tx_context::TxContext}
     };
 
     #[test]

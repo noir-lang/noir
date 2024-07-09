@@ -33,8 +33,8 @@ export function useNumber({ contract }: { contract: Contract }) {
             value,
             deployerWallet.getCompleteAddress().address,
             masterNullifierPublicKey.hash(),
-            masterOutgoingViewingPublicKey,
-            masterIncomingViewingPublicKey,
+            masterOutgoingViewingPublicKey.toNoirStruct(),
+            masterIncomingViewingPublicKey.toNoirStruct(),
           )
           .send()
           .wait(),

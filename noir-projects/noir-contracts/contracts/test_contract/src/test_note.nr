@@ -1,6 +1,6 @@
 use dep::aztec::{
     note::{note_header::NoteHeader, note_interface::NoteInterface}, hash::pedersen_hash,
-    context::PrivateContext, protocol_types::grumpkin_point::GrumpkinPoint
+    context::PrivateContext
 };
 
 global TEST_NOTE_LEN: Field = 1;

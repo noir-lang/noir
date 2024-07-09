@@ -6,7 +6,6 @@ contract PendingNoteHashes {
     // Libs
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PrivateContext, Map, PrivateSet};
     use dep::value_note::{balance_utils, filter::filter_notes_min_sum, value_note::{VALUE_NOTE_LEN, ValueNote}};
-    use dep::aztec::protocol_types::grumpkin_point::GrumpkinPoint;
     use dep::aztec::protocol_types::constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NOTE_HASHES_PER_CALL};
     use dep::aztec::encrypted_logs::encrypted_note_emission::{encode_and_encrypt_note, encode_and_encrypt_note_with_keys};
     use dep::aztec::note::note_emission::NoteEmission;

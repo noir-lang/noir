@@ -1,5 +1,5 @@
 use dep::aztec::{
-    context::PrivateContext, protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint},
+    context::PrivateContext, protocol_types::{address::AztecAddress},
     note::note_getter_options::NoteGetterOptions, state_vars::PrivateSet,
     encrypted_logs::encrypted_note_emission::encode_and_encrypt_note
 };

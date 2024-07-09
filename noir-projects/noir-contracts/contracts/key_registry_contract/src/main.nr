@@ -3,7 +3,7 @@ contract KeyRegistry {
 
     use dep::aztec::{
         keys::PublicKeys, state_vars::{SharedMutable, Map},
-        protocol_types::{grumpkin_point::GrumpkinPoint, address::{AztecAddress, PartialAddress}}
+        protocol_types::{point::Point, address::{AztecAddress, PartialAddress}}
     };
 
     global KEY_ROTATION_DELAY = 5;
@@ -27,7 +27,7 @@ contract KeyRegistry {
   }
 
     #[aztec(public)]
-  fn rotate_npk_m(address: AztecAddress, new_npk_m: GrumpkinPoint, nonce: Field) {
+  fn rotate_npk_m(address: AztecAddress, new_npk_m: Point, nonce: Field) {
         // TODO: (#6137)
         if (!address.eq(context.msg_sender())) {
             assert_current_call_valid_authwit_public(&mut context, address);

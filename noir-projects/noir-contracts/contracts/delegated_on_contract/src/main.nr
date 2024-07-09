@@ -5,7 +5,6 @@ contract DelegatedOn {
         PrivateSet, PrivateContext, Map
     };
     use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_note;
-    use dep::aztec::{protocol_types::grumpkin_point::GrumpkinPoint};
     use dep::value_note::value_note::ValueNote;
 
     #[aztec(storage)]

@@ -3,16 +3,16 @@ use crate::{
     encrypted_logs::payload::compute_encrypted_note_log, oracle::logs_traits::LensForEncryptedLog
 };
 use dep::protocol_types::{
-    hash::sha256_to_field, address::AztecAddress, grumpkin_point::GrumpkinPoint,
-    abis::note_hash::NoteHash, constants::MAX_NOTE_HASHES_PER_CALL, utils::arrays::find_index
+    hash::sha256_to_field, address::AztecAddress, point::Point, abis::note_hash::NoteHash,
+    constants::MAX_NOTE_HASHES_PER_CALL, utils::arrays::find_index
 };
 
 unconstrained fn compute_unconstrained<Note, N, NB, M>(
     contract_address: AztecAddress,
     storage_slot: Field,
     ovsk_app: Field,
-    ovpk: GrumpkinPoint,
-    ivpk: GrumpkinPoint,
+    ovpk: Point,
+    ivpk: Point,
     note: Note
 ) -> ([u8; M], Field) where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
     compute(contract_address, storage_slot, ovsk_app, ovpk, ivpk, note)
@@ -22,8 +22,8 @@ fn compute<Note, N, NB, M>(
     contract_address: AztecAddress,
     storage_slot: Field,
     ovsk_app: Field,
-    ovpk: GrumpkinPoint,
-    ivpk: GrumpkinPoint,
+    ovpk: Point,
+    ivpk: Point,
     note: Note
 ) -> ([u8; M], Field) where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
     let encrypted_log: [u8; M] = compute_encrypted_note_log(contract_address, storage_slot, ovsk_app, ovpk, ivpk, note);
@@ -34,9 +34,9 @@ fn compute<Note, N, NB, M>(
 fn emit_with_keys<Note, N, NB, M>(
     context: &mut PrivateContext,
     note: Note,
-    ovpk: GrumpkinPoint,
-    ivpk: GrumpkinPoint,
-    inner_compute: fn(AztecAddress, Field, Field, GrumpkinPoint, GrumpkinPoint, Note) -> ([u8; M], Field)
+    ovpk: Point,
+    ivpk: Point,
+    inner_compute: fn(AztecAddress, Field, Field, Point, Point, Note) -> ([u8; M], Field)
 ) where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
     let note_header = note.get_header();
     let note_hash_counter = note_header.note_hash_counter;
@@ -86,9 +86,9 @@ pub fn encode_and_encrypt_note_unconstrained<Note, N, NB, M>(
 
 pub fn encode_and_encrypt_note_with_keys<Note, N, NB, M>(
     context: &mut PrivateContext,
-    ovpk: GrumpkinPoint,
-    ivpk: GrumpkinPoint
-) -> fn[(&mut PrivateContext, GrumpkinPoint, GrumpkinPoint)](NoteEmission<Note>) -> () where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
+    ovpk: Point,
+    ivpk: Point
+) -> fn[(&mut PrivateContext, Point, Point)](NoteEmission<Note>) -> () where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
     | e: NoteEmission<Note> | {
         emit_with_keys(context, e.note, ovpk, ivpk, compute);
     }
@@ -96,9 +96,9 @@ pub fn encode_and_encrypt_note_with_keys<Note, N, NB, M>(
 
 pub fn encode_and_encrypt_note_with_keys_unconstrained<Note, N, NB, M>(
     context: &mut PrivateContext,
-    ovpk: GrumpkinPoint,
-    ivpk: GrumpkinPoint
-) -> fn[(&mut PrivateContext, GrumpkinPoint, GrumpkinPoint)](NoteEmission<Note>) -> () where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
+    ovpk: Point,
+    ivpk: Point
+) -> fn[(&mut PrivateContext, Point, Point)](NoteEmission<Note>) -> () where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
     | e: NoteEmission<Note> | {
         emit_with_keys(context, e.note, ovpk, ivpk, compute_unconstrained);
     }

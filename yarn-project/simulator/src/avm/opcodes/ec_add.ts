@@ -59,7 +59,7 @@ export class EcAdd extends Instruction {
     const p1X = memory.get(p1XOffset);
     const p1Y = memory.get(p1YOffset);
     const p1IsInfinite = memory.get(p1IsInfiniteOffset).toNumber() === 1;
-    const p1 = new Point(p1X.toFr(), p1Y.toFr());
+    const p1 = new Point(p1X.toFr(), p1Y.toFr(), p1IsInfinite);
     if (!p1.isOnGrumpkin()) {
       throw new Error(`Point1 is not on the curve`);
     }
@@ -68,7 +68,7 @@ export class EcAdd extends Instruction {
     const p2Y = memory.get(p2YOffset);
     // unused. Point doesn't store this information
     const p2IsInfinite = memory.get(p2IsInfiniteOffset).toNumber() === 1;
-    const p2 = new Point(p2X.toFr(), p2Y.toFr());
+    const p2 = new Point(p2X.toFr(), p2Y.toFr(), p2IsInfinite);
     if (!p2.isOnGrumpkin()) {
       throw new Error(`Point1 is not on the curve`);
     }

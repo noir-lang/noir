@@ -8,14 +8,12 @@ contract PrivateToken {
     use dep::aztec::{
         note::utils::compute_inner_note_hash_from_preimage, hash::compute_secret_hash,
         prelude::{NoteGetterOptions, Map, PublicMutable, SharedImmutable, PrivateSet, AztecAddress},
-        protocol_types::{abis::function_selector::FunctionSelector, hash::pedersen_hash},
+        protocol_types::{abis::function_selector::FunctionSelector, point::Point, hash::pedersen_hash},
         oracle::unsafe_rand::unsafe_rand,
         encrypted_logs::encrypted_note_emission::{encode_and_encrypt_note, encode_and_encrypt_note_with_keys}
     };
     use dep::authwit::{auth::{assert_current_call_valid_authwit, assert_current_call_valid_authwit_public}};
     use crate::types::{token_note::{TokenNote, TOKEN_NOTE_LEN}, balances_map::BalancesMap};
-    use dep::std::embedded_curve_ops::EmbeddedCurvePoint;
-    use dep::std::ec::tecurve::affine::Point;
 
     #[aztec(storage)]
     struct Storage {
@@ -206,8 +204,8 @@ contract PrivateToken {
         user_point_y: Field
     ) {
         // 1. We get the final note content hashes by calling the `complete_refund` on the note.
-        let fee_payer_point = EmbeddedCurvePoint { x: fee_payer_point_x, y: fee_payer_point_y, is_infinite: false };
-        let user_point = EmbeddedCurvePoint { x: user_point_x, y: user_point_y, is_infinite: false };
+        let fee_payer_point = Point { x: fee_payer_point_x, y: fee_payer_point_y, is_infinite: false };
+        let user_point = Point { x: user_point_x, y: user_point_y, is_infinite: false };
         let tx_fee = context.transaction_fee();
         let (fee_payer_note_content_hash, user_note_content_hash) = TokenNote::complete_refund(fee_payer_point, user_point, tx_fee);
 

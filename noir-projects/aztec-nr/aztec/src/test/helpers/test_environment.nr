@@ -1,7 +1,7 @@
 use dep::protocol_types::{
     abis::{function_selector::FunctionSelector, private_circuit_public_inputs::PrivateCircuitPublicInputs},
     address::{AztecAddress, PartialAddress}, storage::map::derive_storage_slot_in_map,
-    constants::CANONICAL_KEY_REGISTRY_ADDRESS, grumpkin_point::GrumpkinPoint, traits::Deserialize
+    constants::CANONICAL_KEY_REGISTRY_ADDRESS, traits::Deserialize
 };
 
 use crate::context::inputs::{PublicContextInputs, PrivateContextInputs};

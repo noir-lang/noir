@@ -49,7 +49,7 @@ describe('MultiScalarMul Opcode', () => {
     const storedScalars: Field[] = scalars.flatMap(s => [new Field(s.low), new Field(s.high)]);
     // Points are stored as [x1, y1, inf1, x2, y2, inf2, ...] where the types are [Field, Field, Uint8, Field, Field, Uint8, ...]
     const storedPoints: MemoryValue[] = points
-      .map(p => p.toFieldsWithInf())
+      .map(p => p.toFields())
       .flatMap(([x, y, inf]) => [new Field(x), new Field(y), new Uint8(inf.toNumber())]);
     const pointsOffset = 0;
     context.machineState.memory.setSlice(pointsOffset, storedPoints);
@@ -89,7 +89,7 @@ describe('MultiScalarMul Opcode', () => {
     const storedScalars: Field[] = scalars.flatMap(s => [new Field(s.low), new Field(s.high)]);
     // Points are stored as [x1, y1, inf1, x2, y2, inf2, ...] where the types are [Field, Field, Uint8, Field, Field, Uint8, ...]
     const storedPoints: MemoryValue[] = points
-      .map(p => p.toFieldsWithInf())
+      .map(p => p.toFields())
       .flatMap(([x, y, inf]) => [new Field(x), new Field(y), new Uint8(inf.toNumber())]);
     const pointsOffset = 0;
     context.machineState.memory.setSlice(pointsOffset, storedPoints);

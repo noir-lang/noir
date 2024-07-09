@@ -1,6 +1,5 @@
 use crate::context::PrivateContext;
 use crate::note::note_header::NoteHeader;
-use dep::protocol_types::grumpkin_point::GrumpkinPoint;
 
 // docs:start:note_interface
 trait NoteInterface<N, M> {

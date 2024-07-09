@@ -2,7 +2,7 @@ use crate::{
     context::{PrivateContext, PublicContext}, event::event_interface::EventInterface,
     encrypted_logs::payload::compute_encrypted_event_log, oracle::logs_traits::LensForEncryptedEvent
 };
-use dep::protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint, traits::Serialize};
+use dep::protocol_types::{address::AztecAddress, traits::Serialize};
 
 fn emit<Event, NB, MB, OB, N, M>(
     context: &mut PublicContext,

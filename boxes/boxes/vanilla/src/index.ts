@@ -27,8 +27,8 @@ document.querySelector('#deploy').addEventListener('click', async ({ target }: a
     Fr.random(),
     wallet.getCompleteAddress().address,
     masterNullifierPublicKey.hash(),
-    masterOutgoingViewingPublicKey,
-    masterIncomingViewingPublicKey,
+    masterOutgoingViewingPublicKey.toNoirStruct(),
+    masterIncomingViewingPublicKey.toNoirStruct(),
   )
     .send({ contractAddressSalt: Fr.random() })
     .deployed();
@@ -51,8 +51,8 @@ document.querySelector('#set').addEventListener('submit', async (e: Event) => {
       parseInt(value),
       owner,
       masterNullifierPublicKey.hash(),
-      masterOutgoingViewingPublicKey,
-      masterIncomingViewingPublicKey,
+      masterOutgoingViewingPublicKey.toNoirStruct(),
+      masterIncomingViewingPublicKey.toNoirStruct(),
     )
     .send()
     .wait();

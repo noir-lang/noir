@@ -1,8 +1,5 @@
 use dep::aztec::{
-    protocol_types::{
-    address::AztecAddress, traits::Empty, constants::GENERATOR_INDEX__NOTE_NULLIFIER,
-    grumpkin_point::GrumpkinPoint, hash::poseidon2_hash
-},
+    protocol_types::{address::AztecAddress, traits::Empty, constants::GENERATOR_INDEX__NOTE_NULLIFIER, hash::poseidon2_hash},
     note::{note_header::NoteHeader, note_interface::NoteInterface, utils::compute_note_hash_for_consumption},
     oracle::unsafe_rand::unsafe_rand, keys::getters::get_nsk_app, context::PrivateContext
 };

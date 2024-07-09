@@ -115,7 +115,7 @@ mod tests {
     },
         address::AztecAddress, grumpkin_private_key::GrumpkinPrivateKey,
         tests::{fixture_builder::FixtureBuilder}, utils::{arrays::{array_eq, array_length}},
-        traits::{Empty, is_empty, is_empty_array}, grumpkin_point::GrumpkinPoint
+        traits::{Empty, is_empty, is_empty_array}, point::Point
     };
 
     struct PrivateKernelResetInputsBuilder {
@@ -291,7 +291,7 @@ mod tests {
         let remaining_nullifier_rr_index = builder.previous_kernel.add_read_request_for_pending_nullifier(1);
         let nullifier_rr = builder.previous_kernel.nullifier_read_requests.storage[remaining_nullifier_rr_index];
 
-        let key_validation_index = builder.previous_kernel.add_request_for_key_validation(GrumpkinPoint::new(1, 2), 27, GENERATOR_INDEX__OVSK_M);
+        let key_validation_index = builder.previous_kernel.add_request_for_key_validation(Point::new(1, 2, false), 27, GENERATOR_INDEX__OVSK_M);
         let key_validation = builder.previous_kernel.scoped_key_validation_requests_and_generators.storage[key_validation_index];
 
         // Check that they have been propagated to the next kernel

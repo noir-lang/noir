@@ -1,4 +1,3 @@
-use dep::protocol_types::grumpkin_point::GrumpkinPoint;
 use crate::context::{PrivateContext, PublicContext};
 use crate::note::{
     note_header::NoteHeader, note_interface::NoteInterface,

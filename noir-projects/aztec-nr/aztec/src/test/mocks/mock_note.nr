@@ -1,6 +1,6 @@
 use crate::{context::PrivateContext, note::{note_header::NoteHeader, note_interface::NoteInterface}};
 
-use dep::protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint, traits::Eq};
+use dep::protocol_types::{address::AztecAddress, traits::Eq};
 
 global MOCK_NOTE_LENGTH = 1;
 // MOCK_NOTE_LENGTH * 32 + 32(storage_slot as bytes) + 32(note_type_id as bytes)

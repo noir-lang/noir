@@ -572,7 +572,7 @@ export function makeVerificationKey(): VerificationKey {
  * @returns A point.
  */
 export function makePoint(seed = 1): Point {
-  return new Point(fr(seed), fr(seed + 1));
+  return new Point(fr(seed), fr(seed + 1), false);
 }
 
 /**
