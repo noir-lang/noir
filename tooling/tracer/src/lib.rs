@@ -183,27 +183,48 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             tail_diff_vecs(&self.stack_trace, &stack_trace);
 
         for _ in dropped_frames {
-            let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::None, "()");
-            tracer.register_return(runtime_tracing::ValueRecord::None { type_id });
+            register_return(tracer);
         }
 
         for i in 0..new_frames.len() {
-            let SourceLocation { filepath, line_number } = &source_locations[first_nomatch + i];
-            let path = &PathBuf::from(filepath.to_string());
-            let line = Line(*line_number as i64);
-            let file_id = tracer.ensure_function_id(&new_frames[i].function_name, path, line);
-            tracer.register_call(file_id, vec![]);
+            register_call(tracer, &source_locations[first_nomatch + i], new_frames[i]);
         }
 
         self.stack_trace = stack_trace;
 
         let (_, _, new_source_locations) = tail_diff_vecs(&self.source_locations, source_locations);
-        for SourceLocation { filepath, line_number } in new_source_locations {
-            let path = &PathBuf::from(filepath.to_string());
-            let line = Line(*line_number as i64);
-            tracer.register_step(path, line);
+        for location in new_source_locations {
+            register_step(tracer, location);
         }
     }
+}
+
+/// Registers a tracing step to the given `location` in the given `tracer`.
+fn register_step(tracer: &mut Tracer, location: &SourceLocation) {
+    let SourceLocation { filepath, line_number } = &location;
+    let path = &PathBuf::from(filepath.to_string());
+    let line = Line(*line_number as i64);
+    tracer.register_step(path, line);
+}
+
+/// Registers a call to the given `frame` at the given `location` in the given `tracer`.
+///
+/// A helper method, that makes it easier to interface with `Tracer`.
+fn register_call(tracer: &mut Tracer, location: &SourceLocation, frame: &StackFrame) {
+    let SourceLocation { filepath, line_number } = &location;
+    let path = &PathBuf::from(filepath.to_string());
+    let line = Line(*line_number as i64);
+    let file_id = tracer.ensure_function_id(&frame.function_name, path, line);
+    tracer.register_call(file_id, vec![]);
+}
+
+/// Register a return statement in the given `tracer`.
+///
+/// The tracer seems to be keeping context of which function is returning and is not expecting that
+/// to be specified.
+fn register_return(tracer: &mut Tracer) {
+    let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::None, "()");
+    tracer.register_return(runtime_tracing::ValueRecord::None { type_id });
 }
 
 pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
