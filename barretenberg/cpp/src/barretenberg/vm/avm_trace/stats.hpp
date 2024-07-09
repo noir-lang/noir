@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 
@@ -32,6 +33,7 @@ class Stats {
     Stats() = default;
 
     std::unordered_map<std::string, uint64_t> stats;
+    mutable std::mutex stats_mutex;
 };
 
 } // namespace bb::avm_trace

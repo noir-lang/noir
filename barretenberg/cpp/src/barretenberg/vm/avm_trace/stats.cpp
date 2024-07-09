@@ -20,6 +20,7 @@ void Stats::reset()
 
 void Stats::increment(const std::string& key, uint64_t value)
 {
+    std::lock_guard lock(stats_mutex);
     stats[key] += value;
 }
 
@@ -33,6 +34,8 @@ void Stats::time(const std::string& key, std::function<void()> f)
 
 std::string Stats::to_string() const
 {
+    std::lock_guard lock(stats_mutex);
+
     std::vector<std::string> result;
     result.reserve(stats.size());
     for (const auto& [key, value] : stats) {
@@ -48,6 +51,8 @@ std::string Stats::to_string() const
 
 std::string Stats::aggregate_to_string(const std::string& key_prefix) const
 {
+    std::lock_guard lock(stats_mutex);
+
     uint64_t result = 0;
     for (const auto& [key, value] : stats) {
         if (key.starts_with(key_prefix)) {
