@@ -1,6 +1,6 @@
 use acir::{
     circuit::{
-        opcodes::{BlackBoxFuncCall, FunctionInput},
+        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
         Circuit, Opcode,
     },
     native_types::Witness,
@@ -74,7 +74,8 @@ impl<F: AcirField> RangeOptimizer<F> {
                 }
 
                 Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                    input: FunctionInput { witness, num_bits },
+                    input:
+                        FunctionInput { input: ConstantOrWitnessEnum::Witness(witness), num_bits },
                 }) => Some((*witness, *num_bits)),
 
                 _ => None,
@@ -105,14 +106,15 @@ impl<F: AcirField> RangeOptimizer<F> {
         let mut new_order_list = Vec::with_capacity(order_list.len());
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
         for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate() {
-            let (witness, num_bits) = match &opcode {
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
-                    (input.witness, input.num_bits)
-                }
+            let (witness, num_bits) = match opcode {
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                    input:
+                        FunctionInput { input: ConstantOrWitnessEnum::Witness(w), num_bits: bits },
+                }) => (w, bits),
                 _ => {
                     // If its not the range opcode, add it to the opcode
                     // list and continue;
-                    optimized_opcodes.push(opcode);
+                    optimized_opcodes.push(opcode.clone());
                     new_order_list.push(order_list[idx]);
                     continue;
                 }
@@ -133,7 +135,7 @@ impl<F: AcirField> RangeOptimizer<F> {
             if is_lowest_bit_size {
                 already_seen_witness.insert(witness);
                 new_order_list.push(order_list[idx]);
-                optimized_opcodes.push(opcode);
+                optimized_opcodes.push(opcode.clone());
             }
         }
 
@@ -148,7 +150,7 @@ mod tests {
     use crate::compiler::optimizers::redundant_range::RangeOptimizer;
     use acir::{
         circuit::{
-            opcodes::{BlackBoxFuncCall, FunctionInput},
+            opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
             Circuit, ExpressionWidth, Opcode, PublicInputs,
         },
         native_types::{Expression, Witness},
@@ -158,7 +160,7 @@ mod tests {
     fn test_circuit(ranges: Vec<(Witness, u32)>) -> Circuit<FieldElement> {
         fn test_range_constraint(witness: Witness, num_bits: u32) -> Opcode<FieldElement> {
             Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput { witness, num_bits },
+                input: FunctionInput::witness(witness, num_bits),
             })
         }
 
@@ -201,7 +203,7 @@ mod tests {
         assert_eq!(
             optimized_circuit.opcodes[0],
             Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput { witness: Witness(1), num_bits: 16 }
+                input: FunctionInput::witness(Witness(1), 16)
             })
         );
     }
@@ -224,13 +226,13 @@ mod tests {
         assert_eq!(
             optimized_circuit.opcodes[0],
             Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput { witness: Witness(1), num_bits: 16 }
+                input: FunctionInput::witness(Witness(1), 16)
             })
         );
         assert_eq!(
             optimized_circuit.opcodes[1],
             Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput { witness: Witness(2), num_bits: 23 }
+                input: FunctionInput::witness(Witness(2), 23)
             })
         );
     }

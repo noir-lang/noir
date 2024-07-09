@@ -159,6 +159,7 @@ impl<'context> Elaborator<'context> {
         new_definitions: &mut Vec<HirIdent>,
     ) -> HirPattern {
         let name_span = name.last_segment().span();
+        let is_self_type = name.last_segment().is_self_type_name();
 
         let error_identifier = |this: &mut Self| {
             // Must create a name here to return a HirPattern::Identifier. Allowing
@@ -200,7 +201,7 @@ impl<'context> Elaborator<'context> {
         );
 
         let referenced = ReferenceId::Struct(struct_type.borrow().id);
-        let reference = ReferenceId::Variable(Location::new(name_span, self.file));
+        let reference = ReferenceId::Variable(Location::new(name_span, self.file), is_self_type);
         self.interner.add_reference(referenced, reference);
 
         HirPattern::Struct(expected_type, fields, location)
@@ -437,6 +438,7 @@ impl<'context> Elaborator<'context> {
             // Otherwise, then it is referring to an Identifier
             // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
             // If the expression is a singular indent, we search the resolver's current scope as normal.
+            let is_self_type_name = path.last_segment().is_self_type_name();
             let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
 
             if hir_ident.id != DefinitionId::dummy_id() {
@@ -446,7 +448,7 @@ impl<'context> Elaborator<'context> {
                             self.interner.add_function_dependency(current_item, func_id);
                         }
 
-                        let variable = ReferenceId::Variable(hir_ident.location);
+                        let variable = ReferenceId::Variable(hir_ident.location, is_self_type_name);
                         let function = ReferenceId::Function(func_id);
                         self.interner.add_reference(function, variable);
                     }
@@ -458,7 +460,7 @@ impl<'context> Elaborator<'context> {
                             self.interner.add_global_dependency(current_item, global_id);
                         }
 
-                        let variable = ReferenceId::Variable(hir_ident.location);
+                        let variable = ReferenceId::Variable(hir_ident.location, is_self_type_name);
                         let global = ReferenceId::Global(global_id);
                         self.interner.add_reference(global, variable);
                     }
