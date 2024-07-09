@@ -41,12 +41,12 @@ unconstrained fn shielding_on_behalf_of_other() {
     let shield_call_interface = Token::at(token_contract_address).shield(owner, shield_amount, secret_hash, 0);
     authwit_cheatcodes::add_public_authwit_from_call_interface(owner, recipient, shield_call_interface);
     // Impersonate recipient to perform the call
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
     // Shield tokens
     env.call_public(shield_call_interface);
 
     // Become owner again
-    cheatcodes::set_contract_address(owner);
+    env.impersonate(owner);
     // Store a note in the cache so we can redeem it
     env.store_note_in_cache(
         &mut TransparentNote::new(shield_amount, secret_hash),
@@ -106,7 +106,7 @@ unconstrained fn shielding_failure_on_behalf_of_other_more_than_balance() {
     let shield_call_interface = Token::at(token_contract_address).shield(owner, shield_amount, secret_hash, 0);
     authwit_cheatcodes::add_public_authwit_from_call_interface(owner, recipient, shield_call_interface);
     // Impersonate recipient to perform the call
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
     // Shield tokens
     env.assert_public_call_fails(shield_call_interface);
 
@@ -126,7 +126,7 @@ unconstrained fn shielding_failure_on_behalf_of_other_wrong_caller() {
     let shield_call_interface = Token::at(token_contract_address).shield(owner, shield_amount, secret_hash, 0);
     authwit_cheatcodes::add_public_authwit_from_call_interface(owner, owner, shield_call_interface);
     // Impersonate recipient to perform the call
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
     // Shield tokens
     env.assert_public_call_fails(shield_call_interface);
 
@@ -145,7 +145,7 @@ unconstrained fn shielding_failure_on_behalf_of_other_without_approval() {
     let shield_amount = mint_amount + 1;
     let shield_call_interface = Token::at(token_contract_address).shield(owner, shield_amount, secret_hash, 0);
     // Impersonate recipient to perform the call
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
     // Shield tokens
     env.assert_public_call_fails(shield_call_interface);
 

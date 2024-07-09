@@ -271,7 +271,7 @@ contract Parent {
         let result: Field = env.call_private(parent_private_set_call_interface);
         assert(result == value_to_set);
         // Read the stored value in the note. We have to change the contract address to the child contract in order to read its notes
-        cheatcodes::set_contract_address(child_contract_address);
+        env.impersonate(child_contract_address);
         let counter_slot = Child::storage().a_map_with_private_values.slot;
         let owner_slot = derive_storage_slot_in_map(counter_slot, owner);
         let mut options = NoteViewerOptions::new();

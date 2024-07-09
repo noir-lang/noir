@@ -34,6 +34,10 @@ impl TestEnvironment {
         cheatcodes::get_contract_address()
     }
 
+    fn impersonate(self, address: AztecAddress) {
+        cheatcodes::set_contract_address(address)
+    }
+
     fn advance_block_to(&mut self, block_number: u32) {
         let difference = block_number - cheatcodes::get_block_number();
         self.advance_block_by(difference);

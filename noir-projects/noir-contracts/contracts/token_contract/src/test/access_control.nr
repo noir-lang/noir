@@ -17,7 +17,7 @@ unconstrained fn access_control() {
     assert(admin == recipient.to_field());
 
     // Impersonate new admin
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
 
     // Check new admin is not a minter
     let is_minter_call_interface = Token::at(token_contract_address).is_minter(recipient);
@@ -40,7 +40,7 @@ unconstrained fn access_control() {
     assert(is_minter == false);
 
     // Impersonate original admin
-    cheatcodes::set_contract_address(owner);
+    env.impersonate(owner);
 
     // Try to set ourselves as admin, fail miserably 
     let set_admin_call_interface = Token::at(token_contract_address).set_admin(recipient);

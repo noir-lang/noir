@@ -17,7 +17,7 @@ unconstrained fn transfer_success() {
 
     authwit_cheatcodes::add_private_authwit_from_call_interface(owner, recipient, transfer_private_from_call_interface);
 
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
     // Transfer tokens
     env.call_private_void(transfer_private_from_call_interface);
     // Check balances
@@ -55,7 +55,7 @@ unconstrained fn setup_refund_success() {
 
     authwit_cheatcodes::add_private_authwit_from_call_interface(owner, recipient, setup_refund_from_call_interface);
 
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
 
     env.call_private_void(setup_refund_from_call_interface);
     let mut context = env.private();

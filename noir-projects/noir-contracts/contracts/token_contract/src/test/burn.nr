@@ -23,7 +23,7 @@ unconstrained fn burn_public_on_behalf_of_other() {
     let burn_call_interface = Token::at(token_contract_address).burn_public(owner, burn_amount, unsafe_rand());
     authwit_cheatcodes::add_public_authwit_from_call_interface(owner, recipient, burn_call_interface);
     // Impersonate recipient to perform the call
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
     // Burn tokens
     env.call_public(burn_call_interface);
     utils::check_public_balance(token_contract_address, owner, mint_amount - burn_amount);
@@ -59,7 +59,7 @@ unconstrained fn burn_public_failure_on_behalf_of_other_without_approval() {
     let burn_amount = mint_amount / 10;
     let burn_call_interface = Token::at(token_contract_address).burn_public(owner, burn_amount, unsafe_rand());
     // Impersonate recipient to perform the call
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
     env.assert_public_call_fails(burn_call_interface);
     utils::check_public_balance(token_contract_address, owner, mint_amount);
 
@@ -67,7 +67,7 @@ unconstrained fn burn_public_failure_on_behalf_of_other_without_approval() {
     let burn_call_interface = Token::at(token_contract_address).burn_public(owner, burn_amount, unsafe_rand());
     authwit_cheatcodes::add_public_authwit_from_call_interface(owner, owner, burn_call_interface);
     // Impersonate recipient to perform the call
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
     env.assert_public_call_fails(burn_call_interface);
     utils::check_public_balance(token_contract_address, owner, mint_amount);
 }
@@ -81,7 +81,7 @@ unconstrained fn burn_public_failure_on_behalf_of_other_wrong_caller() {
     let burn_call_interface = Token::at(token_contract_address).burn_public(owner, burn_amount, unsafe_rand());
     authwit_cheatcodes::add_public_authwit_from_call_interface(owner, owner, burn_call_interface);
     // Impersonate recipient to perform the call
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
     env.assert_public_call_fails(burn_call_interface);
     utils::check_public_balance(token_contract_address, owner, mint_amount);
 }
@@ -106,7 +106,7 @@ unconstrained fn burn_private_on_behalf_of_other() {
     let burn_call_interface = Token::at(token_contract_address).burn(owner, burn_amount, unsafe_rand());
     authwit_cheatcodes::add_private_authwit_from_call_interface(owner, recipient, burn_call_interface);
     // Impersonate recipient to perform the call
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
     // Burn tokens
     env.call_private_void(burn_call_interface);
     utils::check_private_balance(token_contract_address, owner, mint_amount - burn_amount);
@@ -144,7 +144,7 @@ unconstrained fn burn_private_failure_on_behalf_of_other_more_than_balance() {
     let burn_call_interface = Token::at(token_contract_address).burn(owner, burn_amount, unsafe_rand());
     authwit_cheatcodes::add_private_authwit_from_call_interface(owner, recipient, burn_call_interface);
     // Impersonate recipient to perform the call
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
     env.call_private_void(burn_call_interface);
     // Private doesnt revert, so we cannot check balances here since notes have already been nullified. Test is done.
 }
@@ -158,7 +158,7 @@ unconstrained fn burn_private_failure_on_behalf_of_other_without_approval() {
     // Burn on behalf of other
     let burn_call_interface = Token::at(token_contract_address).burn(owner, burn_amount, unsafe_rand());
     // Impersonate recipient to perform the call
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
     env.call_private_void(burn_call_interface);
     // Private doesnt revert, so we cannot check balances here since notes have already been nullified. Test is done.
 }
@@ -173,7 +173,7 @@ unconstrained fn burn_private_failure_on_behalf_of_other_wrong_designated_caller
     let burn_call_interface = Token::at(token_contract_address).burn(owner, burn_amount, unsafe_rand());
     authwit_cheatcodes::add_private_authwit_from_call_interface(owner, owner, burn_call_interface);
     // Impersonate recipient to perform the call
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
     env.call_private_void(burn_call_interface);
     // Private doesnt revert, so we cannot check balances here since notes have already been nullified. Test is done.
 }

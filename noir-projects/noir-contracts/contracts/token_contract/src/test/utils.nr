@@ -24,7 +24,7 @@ pub fn setup(with_account_contracts: bool) -> (&mut TestEnvironment, AztecAddres
     };
 
     // Start the test in the account contract address
-    cheatcodes::set_contract_address(owner);
+    env.impersonate(owner);
 
     // Deploy token contract
     let initializer_call_interface = Token::interface().constructor(
@@ -55,12 +55,14 @@ pub fn setup_and_mint(with_account_contracts: bool) -> (&mut TestEnvironment, Az
     // Time travel so we can read keys from the registry
     env.advance_block_by(6);
 
+    // docs:start:txe_test_store_note
     // Store a note in the cache so we can redeem it
     env.store_note_in_cache(
         &mut TransparentNote::new(mint_amount, secret_hash),
         Token::storage().pending_shields.slot,
         token_contract_address
     );
+    // docs:end:txe_test_store_note
 
     // Redeem our shielded tokens
     let redeem_shield_call_interface = Token::at(token_contract_address).redeem_shield(owner, mint_amount, secret);
@@ -69,6 +71,7 @@ pub fn setup_and_mint(with_account_contracts: bool) -> (&mut TestEnvironment, Az
     (env, token_contract_address, owner, recipient, mint_amount)
 }
 
+// docs:start:txe_test_read_public
 pub fn check_public_balance(token_contract_address: AztecAddress, address: AztecAddress, address_amount: Field) {
     let current_contract_address = cheatcodes::get_contract_address();
     cheatcodes::set_contract_address(token_contract_address);
@@ -80,11 +83,16 @@ pub fn check_public_balance(token_contract_address: AztecAddress, address: Aztec
     assert(amount.to_field() == address_amount, "Public balance is not correct");
     cheatcodes::set_contract_address(current_contract_address);
 }
+// docs:end:txe_test_read_public
 
+// docs:start:txe_test_call_unconstrained
 pub fn check_private_balance(token_contract_address: AztecAddress, address: AztecAddress, address_amount: Field) {
     let current_contract_address = cheatcodes::get_contract_address();
     cheatcodes::set_contract_address(token_contract_address);
+    // Direct call to unconstrained
     let balance_of_private = Token::balance_of_private(address);
     assert(balance_of_private == address_amount, "Private balance is not correct");
     cheatcodes::set_contract_address(current_contract_address);
 }
+// docs:end:txe_test_call_unconstrained
+

@@ -26,13 +26,13 @@ unconstrained fn mint_public_failures() {
 
     // As non-minter
     let mint_amount = 10000;
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
     let mint_public_call_interface = Token::at(token_contract_address).mint_public(owner, mint_amount);
     env.assert_public_call_fails(mint_public_call_interface);
 
     utils::check_public_balance(token_contract_address, owner, 0);
 
-    cheatcodes::set_contract_address(owner);
+    env.impersonate(owner);
 
     // Overflow recipient
 
@@ -129,7 +129,7 @@ unconstrained fn mint_private_failure_non_minter() {
     let (env, token_contract_address, _, recipient) = utils::setup(/* with_account_contracts */ false);
     let mint_amount = 10000;
     // Try to mint some tokens impersonating recipient
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
 
     let secret = unsafe_rand();
     let secret_hash = compute_secret_hash(secret);
@@ -217,19 +217,19 @@ unconstrained fn mint_private_failure_overflow_total_supply() {
     );
 
     // Redeem owner's shielded tokens
-    cheatcodes::set_contract_address(owner);
+    env.impersonate(owner);
     let redeem_shield_call_interface = Token::at(token_contract_address).redeem_shield(owner, mint_amount, secret_owner);
     env.call_private_void(redeem_shield_call_interface);
 
     // Redeem recipient's shielded tokens
-    cheatcodes::set_contract_address(recipient);
+    env.impersonate(recipient);
     let redeem_shield_call_interface = Token::at(token_contract_address).redeem_shield(recipient, mint_amount, secret_recipient);
     env.call_private_void(redeem_shield_call_interface);
 
     utils::check_private_balance(token_contract_address, owner, mint_amount);
     utils::check_private_balance(token_contract_address, recipient, mint_amount);
 
-    cheatcodes::set_contract_address(owner);
+    env.impersonate(owner);
     let mint_amount = 2.pow_32(128) - 2 * mint_amount;
     // Try to mint some tokens
     let secret = unsafe_rand();

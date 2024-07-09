@@ -24,7 +24,7 @@ pub fn setup(with_account_contracts: bool) -> (&mut TestEnvironment, AztecAddres
     };
 
     // Start the test in the account contract address
-    cheatcodes::set_contract_address(owner);
+    env.impersonate(owner);
 
     // Deploy token contract
     let initializer_call_interface = PrivateToken::interface().constructor(

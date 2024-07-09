@@ -38,12 +38,14 @@ impl Serialize<2> for Card {
     }
 }
 
+// docs:start:pure_noir_testing
 #[test]
 fn test_to_from_field() {
     let field = 1234567890;
     let card = Card::from_field(field);
     assert(card.to_field() == field);
 }
+// docs:end:pure_noir_testing
 
 struct CardNote {
     card: Card,
