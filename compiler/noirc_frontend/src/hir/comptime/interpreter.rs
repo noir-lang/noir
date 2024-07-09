@@ -74,7 +74,7 @@ impl<'a> Interpreter<'a> {
         let trait_method = self.interner.get_trait_method_id(function);
 
         perform_instantiation_bindings(&instantiation_bindings);
-        let impl_bindings = perform_impl_bindings(self.interner, trait_method, function);
+        let impl_bindings = perform_impl_bindings(self.interner, trait_method, function, location)?;
         let result = self.call_function_inner(function, arguments, location);
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
