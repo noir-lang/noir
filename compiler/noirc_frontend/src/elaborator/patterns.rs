@@ -411,7 +411,7 @@ impl<'context> Elaborator<'context> {
 
         // Resolve any generics if we the variable we have resolved is a function
         // and if the turbofish operator was used.
-        let generics = if let Some(definition) = definition {
+        let generics = definition.and_then(|definition| {
             match &definition.kind {
                 DefinitionKind::Function(function) => {
                     // Resolve generics using the expected kinds of the function we are calling
@@ -436,9 +436,7 @@ impl<'context> Elaborator<'context> {
                 }
                 _ => None,
             }
-        } else {
-            None
-        };
+        });
 
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
 
