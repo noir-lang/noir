@@ -197,7 +197,7 @@ fn main() {
 Applies a function to each element of the slice, returning a new slice containing the mapped elements.
 
 ```rust
-fn map<U>(self, f: fn(T) -> U) -> [U]
+fn map<U, Env>(self, f: fn[Env](T) -> U) -> [U]
 ```
 
 example
@@ -213,7 +213,7 @@ Applies a function to each element of the slice, returning the final accumulated
 parameter is the initial value.
 
 ```rust
-fn fold<U>(self, mut accumulator: U, f: fn(U, T) -> U) -> U
+fn fold<U, Env>(self, mut accumulator: U, f: fn[Env](U, T) -> U) -> U
 ```
 
 This is a left fold, so the given function will be applied to the accumulator and first element of
@@ -247,7 +247,7 @@ fn main() {
 Same as fold, but uses the first element as the starting element.
 
 ```rust
-fn reduce(self, f: fn(T, T) -> T) -> T
+fn reduce<Env>(self, f: fn[Env](T, T) -> T) -> T
 ```
 
 example:
@@ -260,12 +260,72 @@ fn main() {
 }
 ```
 
+### filter
+
+Returns a new slice containing only elements for which the given predicate returns true.
+
+```rust
+fn filter<Env>(self, f: fn[Env](T) -> bool) -> Self
+```
+
+example:
+
+```rust
+fn main() {
+    let slice = &[1, 2, 3, 4, 5];
+    let odds = slice.filter(|x| x % 2 == 1);
+    assert_eq(odds, &[1, 3, 5]);
+}
+```
+
+### join
+
+Flatten each element in the slice into one value, separated by `separator`.
+
+Note that although slices implement `Append`, `join` cannot be used on slice
+elements since nested slices are prohibited.
+
+```rust
+fn join(self, separator: T) -> T where T: Append
+```
+
+example:
+
+```rust
+struct Accumulator {
+    total: Field,
+}
+
+// "Append" two accumulators by adding them
+impl Append for Accumulator {
+    fn empty() -> Self {
+        Self { total: 0 }
+    }
+
+    fn append(self, other: Self) -> Self {
+        Self { total: self.total + other.total }
+    }
+}
+
+fn main() {
+    let slice = &[1, 2, 3, 4, 5].map(|total| Accumulator { total });
+
+    let result = slice.join(Accumulator::empty());
+    assert_eq(result, Accumulator { total: 15 });
+
+    // We can use a non-empty separator to insert additional elements to sum:
+    let separator = Accumulator { total: 10 };
+    let result = slice.join(separator);
+    assert_eq(result, Accumulator { total: 55 });
+}
+```
+
 ### all
 
 Returns true if all the elements satisfy the given predicate
 
 ```rust
-fn all(self, predicate: fn(T) -> bool) -> bool
+fn all<Env>(self, predicate: fn[Env](T) -> bool) -> bool
 ```
 
 example:
@@ -283,7 +343,7 @@ fn main() {
 Returns true if any of the elements satisfy the given predicate
 
 ```rust
-fn any(self, predicate: fn(T) -> bool) -> bool
+fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool
 ```
 
 example:

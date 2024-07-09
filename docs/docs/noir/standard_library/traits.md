@@ -51,6 +51,7 @@ For primitive integer types, the return value of `default` is `0`. Container
 types such as arrays are filled with default values of their element type,
 except slices whose length is unknown and thus defaulted to zero.
 
+---
 
 ## `std::convert`
 
@@ -85,6 +86,7 @@ For this reason, implementing `From` on a type will automatically generate a mat
 
 `Into` is most useful when passing function arguments where the types don't quite match up with what the function expects. In this case, the compiler has enough type information to perform the necessary conversion by just appending `.into()` onto the arguments in question.
 
+---
 
 ## `std::cmp`
 
@@ -177,6 +179,8 @@ impl<A, B, C, D> Ord for (A, B, C, D)
 impl<A, B, C, D, E> Ord for (A, B, C, D, E)
     where A: Ord, B: Ord, C: Ord, D: Ord, E: Ord { .. }
 ```
+
+---
 
 ## `std::ops`
 
@@ -300,4 +304,30 @@ impl Shl for u8 { fn shl(self, other: u8) -> u8 { self << other } }
 impl Shl for u16 { fn shl(self, other: u16) -> u16 { self << other } }
 impl Shl for u32 { fn shl(self, other: u32) -> u32 { self << other } }
 impl Shl for u64 { fn shl(self, other: u64) -> u64 { self << other } }
+```
+
+---
+
+## `std::append`
+
+### `std::append::Append`
+
+`Append` can abstract over types that can be appended to - usually container types:
+
+#include_code append-trait noir_stdlib/src/append.nr rust
+
+`Append` requires two methods:
+
+- `empty`: Constructs an empty value of `Self`.
+- `append`: Append two values together, returning the result.
+
+Additionally, it is expected that for any implementation:
+
+- `T::empty().append(x) == x`
+- `x.append(T::empty()) == x`
+
+Implementations:
+```rust
+impl<T> Append for [T]
+impl Append for Quoted
 ```
