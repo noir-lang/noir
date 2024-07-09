@@ -3,7 +3,7 @@ title: Writing Noir
 description: Understand new considerations when writing Noir
 keywords: [Noir, programming, rust]
 tags: [Optimisation]
-sidebar_position: 3
+sidebar_position: 0
 ---
 
 # Writing Noir for fun and profit
