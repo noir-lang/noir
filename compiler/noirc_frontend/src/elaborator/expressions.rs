@@ -326,7 +326,6 @@ impl<'context> Elaborator<'context> {
                     }
                 };
 
-                // Perform any check that required information from the interned function.
                 let generics = if func_id != FuncId::dummy_id() {
                     let function_type = self.interner.function_meta(&func_id).typ.clone();
                     self.try_add_mutable_reference_to_object(
