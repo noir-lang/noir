@@ -13,7 +13,6 @@ pub use codespan_reporting::files as codespan_files;
 
 use std::{
     collections::HashMap,
-    ffi::OsStr,
     path::{Component, Path, PathBuf},
 };
 
@@ -108,10 +107,7 @@ impl FileManager {
 
     /// Find a file by its path suffix, e.g. "src/main.nr" is a suffix of
     /// "some_dir/package_name/src/main.nr"`
-    pub fn find_by_path_suffix<S: AsRef<OsStr> + ?Sized>(
-        &self,
-        suffix: &S,
-    ) -> Result<Option<FileId>, Vec<PathBuf>> {
+    pub fn find_by_path_suffix(&self, suffix: &str) -> Result<Option<FileId>, Vec<PathBuf>> {
         let suffix_path: Vec<_> = Path::new(suffix).components().rev().collect();
         let results: Vec<_> = self
             .path_to_id

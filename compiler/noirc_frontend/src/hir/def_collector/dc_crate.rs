@@ -285,7 +285,7 @@ impl DefCollector {
         ast: SortedModule,
         root_file_id: FileId,
         use_legacy: bool,
-        debug_comptime_scope: Option<String>,
+        debug_comptime_scope: Option<&str>,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -303,7 +303,7 @@ impl DefCollector {
                 dep.crate_id,
                 context,
                 use_legacy,
-                debug_comptime_scope.clone(),
+                debug_comptime_scope,
                 macro_processors,
             ));
 
@@ -412,17 +412,16 @@ impl DefCollector {
             }
         }
 
+        let handle_missing_file = |err| {
+            errors.push((CompilationError::DebugComptimeScopeNotFound(err), root_file_id));
+            None
+        };
         let debug_comptime_scope: Option<FileId> =
-            debug_comptime_scope.as_ref().and_then(|debug_comptime_scope| {
-                context.file_manager.find_by_path_suffix(debug_comptime_scope).unwrap_or_else(
-                    |err| {
-                        errors.push((
-                            CompilationError::DebugComptimeScopeNotFound(err),
-                            root_file_id,
-                        ));
-                        None
-                    },
-                )
+            debug_comptime_scope.and_then(|debug_comptime_scope| {
+                context
+                    .file_manager
+                    .find_by_path_suffix(debug_comptime_scope)
+                    .unwrap_or_else(handle_missing_file)
             });
 
         if !use_legacy {
@@ -681,10 +680,9 @@ impl ResolvedModule {
                     self.errors.push(error.into_compilation_error_pair());
                 }
             }
-            self.errors.extend(interpreter_errors.into_iter().map(|error| {
-                let file_id = error.get_location().file;
-                (error.into(), file_id)
-            }));
+            self.errors.extend(
+                interpreter_errors.into_iter().map(InterpreterError::into_compilation_error_pair),
+            );
         }
     }
 

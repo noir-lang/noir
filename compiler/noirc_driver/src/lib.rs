@@ -263,7 +263,7 @@ pub fn check_crate(
     deny_warnings: bool,
     disable_macros: bool,
     use_legacy: bool,
-    debug_comptime_scope: Option<String>,
+    debug_comptime_scope: Option<&str>,
 ) -> CompilationResult<()> {
     let macros: &[&dyn MacroProcessor] =
         if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
@@ -308,7 +308,7 @@ pub fn compile_main(
         options.deny_warnings,
         options.disable_macros,
         options.use_legacy,
-        options.debug_comptime_scope.clone(),
+        options.debug_comptime_scope.as_deref(),
     )?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
@@ -350,7 +350,7 @@ pub fn compile_contract(
         options.deny_warnings,
         options.disable_macros,
         options.use_legacy,
-        options.debug_comptime_scope.clone(),
+        options.debug_comptime_scope.as_deref(),
     )?;
 
     // TODO: We probably want to error if contracts is empty

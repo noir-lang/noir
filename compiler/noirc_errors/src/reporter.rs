@@ -19,7 +19,7 @@ pub enum DiagnosticKind {
     Error,
     Bug,
     Warning,
-    Debug,
+    Info,
 }
 
 /// A count of errors that have been already reported to stderr
@@ -78,7 +78,7 @@ impl CustomDiagnostic {
         )
     }
 
-    pub fn simple_debug(
+    pub fn simple_info(
         primary_message: String,
         secondary_message: String,
         secondary_span: Span,
@@ -87,7 +87,7 @@ impl CustomDiagnostic {
             primary_message,
             secondary_message,
             secondary_span,
-            DiagnosticKind::Debug,
+            DiagnosticKind::Info,
         )
     }
 
@@ -124,8 +124,8 @@ impl CustomDiagnostic {
         matches!(self.kind, DiagnosticKind::Warning)
     }
 
-    pub fn is_debug(&self) -> bool {
-        matches!(self.kind, DiagnosticKind::Debug)
+    pub fn is_info(&self) -> bool {
+        matches!(self.kind, DiagnosticKind::Info)
     }
 
     pub fn is_bug(&self) -> bool {
@@ -223,7 +223,7 @@ fn convert_diagnostic(
 ) -> Diagnostic<fm::FileId> {
     let diagnostic = match (cd.kind, deny_warnings) {
         (DiagnosticKind::Warning, false) => Diagnostic::warning(),
-        (DiagnosticKind::Debug, _) => Diagnostic::note(),
+        (DiagnosticKind::Info, _) => Diagnostic::note(),
         (DiagnosticKind::Bug, ..) => Diagnostic::bug(),
         _ => Diagnostic::error(),
     };
