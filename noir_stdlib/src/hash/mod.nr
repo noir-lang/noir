@@ -37,7 +37,6 @@ pub fn pedersen_commitment<let N: u32>(input: [Field; N]) -> EmbeddedCurvePoint 
     }
 }
 
-#[no_predicates]
 fn pedersen_commitment_with_separator_noir<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
     let mut points = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N];
     for i in 0..N {
