@@ -168,13 +168,13 @@ Unless you're well into the depth of gate optimisation, this advanced section ca
 A Noir program can be honed further by combining arithmetic operators in a way that makes the most of each constraint of the backend. This is in scenarios where the backend might not be doing this perfectly.
 
 Eg Barretenberg backend (current default for Noir) is a width-4 PLONKish constraint system
-$ w_1*w_2*q_m + w_1*q_1 + w_2*q_2 + w_3*q_3 + w_4*q_4 + q_c $
+$ w_1*w_2*q_m + w_1*q_1 + w_2*q_2 + w_3*q_3 + w_4*q_4 + q_c = 0 $
 
 Here we see there is one occurance of witness 1 and 2 ($w_1$, $w_2$) being multiplied together, with addition to witnesses 1-4 ($w_1$ .. $w_4$) multiplied by 4 corresponding circuit constants ($q_1$ .. $q_4$) (plus a final circuit constant, $q_c$).
 
 Use `nargo info --print-acir`, to inspect the constraints, and it may present opportunities to amend the order of operations and reduce the number of constraints.
 
-#### Variable as witness vs expression
+### Variable as witness vs expression
 
 `std::as_witness` means variable is interpreted as a witness not an expression.
 When used incorrecty will create **less** efficient circuits (higher gate count).
