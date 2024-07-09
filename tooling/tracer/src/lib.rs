@@ -82,32 +82,6 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         Self { debug_context, source_locations: vec![], stack_trace: vec![] }
     }
 
-    /// Extracts the current stack of source locations from the debugger, given that the relevant
-    /// debugging information is present. In the context of this method, a source location is a path
-    /// to a source file and a line in that file. The most recently called function is last in the
-    /// returned vector/stack.
-    ///
-    /// If there is no debugging information, an empty vector will be returned.
-    ///
-    /// If some of the debugging information is missing (no line or filename for a certain frame of
-    /// the stack), an "unknown location" will be created for that frame. See
-    /// `SourceLocation::create_unknown`.
-    fn get_current_source_locations(&self) -> Vec<SourceLocation> {
-        let call_stack = self.debug_context.get_call_stack();
-
-        let mut result: Vec<SourceLocation> = vec![];
-        for opcode_location in call_stack {
-            let locations =
-                self.debug_context.get_source_location_for_debug_location(&opcode_location);
-            for location in locations {
-                let source_location = self.convert_debugger_location(location);
-                result.push(source_location);
-            }
-        }
-
-        result
-    }
-
     /// Steps the debugger until a new line is reached, or the debugger returns anything other than
     /// Ok.
     ///
@@ -125,7 +99,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
                 DebugCommandResult::Ok => (),
             }
 
-            let source_locations = self.get_current_source_locations();
+            let source_locations = get_current_source_locations(&self.debug_context);
             if source_locations.is_empty() {
                 println!("Warning: no call stack");
                 continue;
@@ -144,41 +118,9 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         }
     }
 
-    /// Converts the debugger stack frames into a vector of stack frames that own their data.
-    fn get_stack_frames(&mut self) -> Vec<StackFrame> {
-        self.debug_context
-            .get_variables()
-            .iter()
-            .map(|f| StackFrame { function_name: String::from(f.function_name) })
-            .collect()
-    }
-
-    /// Converts a debugger `Location` into a tracer `SourceLocation`.
-    ///
-    /// In case there is a problem getting the filepath or the line number from the debugger, a
-    /// `SourceLocation::create_unknown` is used to return an unknown location.
-    fn convert_debugger_location(&self, location: Location) -> SourceLocation {
-        let filepath = match self.debug_context.get_filepath_for_location(location) {
-            Ok(filepath) => filepath,
-            Err(error) => {
-                println!("Warning: could not get filepath for source location: {error}");
-                return SourceLocation::create_unknown();
-            }
-        };
-
-        let line_number = match self.debug_context.get_line_for_location(location) {
-            Ok(line) => line as isize + 1,
-            Err(error) => {
-                println!("Warning: could not get line for source location: {error}");
-                return SourceLocation::create_unknown();
-            }
-        };
-        SourceLocation { filepath, line_number }
-    }
-
     /// Propagates information about the current execution state to `tracer`.
     fn update_record(&mut self, tracer: &mut Tracer, source_locations: &Vec<SourceLocation>) {
-        let stack_trace = self.get_stack_frames();
+        let stack_trace = get_stack_frames(&self.debug_context);
         let (first_nomatch, dropped_frames, new_frames) =
             tail_diff_vecs(&self.stack_trace, &stack_trace);
 
@@ -197,6 +139,70 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             register_step(tracer, location);
         }
     }
+}
+
+/// Extracts the current stack of source locations from the debugger, given that the relevant
+/// debugging information is present. In the context of this method, a source location is a path
+/// to a source file and a line in that file. The most recently called function is last in the
+/// returned vector/stack.
+///
+/// If there is no debugging information, an empty vector will be returned.
+///
+/// If some of the debugging information is missing (no line or filename for a certain frame of
+/// the stack), an "unknown location" will be created for that frame. See
+/// `SourceLocation::create_unknown`.
+fn get_current_source_locations<B: BlackBoxFunctionSolver<FieldElement>>(
+    debug_context: &DebugContext<B>,
+) -> Vec<SourceLocation> {
+    let call_stack = debug_context.get_call_stack();
+
+    let mut result: Vec<SourceLocation> = vec![];
+    for opcode_location in call_stack {
+        let locations = debug_context.get_source_location_for_debug_location(&opcode_location);
+        for location in locations {
+            let source_location = convert_debugger_location(debug_context, location);
+            result.push(source_location);
+        }
+    }
+
+    result
+}
+
+/// Converts the debugger stack frames into a vector of stack frames that own their data.
+fn get_stack_frames<B: BlackBoxFunctionSolver<FieldElement>>(
+    debug_context: &DebugContext<B>,
+) -> Vec<StackFrame> {
+    debug_context
+        .get_variables()
+        .iter()
+        .map(|f| StackFrame { function_name: String::from(f.function_name) })
+        .collect()
+}
+
+/// Converts a debugger `Location` into a tracer `SourceLocation`.
+///
+/// In case there is a problem getting the filepath or the line number from the debugger, a
+/// `SourceLocation::create_unknown` is used to return an unknown location.
+fn convert_debugger_location<B: BlackBoxFunctionSolver<FieldElement>>(
+    debug_context: &DebugContext<B>,
+    location: Location,
+) -> SourceLocation {
+    let filepath = match debug_context.get_filepath_for_location(location) {
+        Ok(filepath) => filepath,
+        Err(error) => {
+            println!("Warning: could not get filepath for source location: {error}");
+            return SourceLocation::create_unknown();
+        }
+    };
+
+    let line_number = match debug_context.get_line_for_location(location) {
+        Ok(line) => line as isize + 1,
+        Err(error) => {
+            println!("Warning: could not get line for source location: {error}");
+            return SourceLocation::create_unknown();
+        }
+    };
+    SourceLocation { filepath, line_number }
 }
 
 /// Registers a tracing step to the given `location` in the given `tracer`.
