@@ -68,6 +68,15 @@ Many valuable functions and algorithms have been written in more established lan
 
 Fortunately for Noir devs, when needing a particular function a rust implementation can be readily compiled into Noir with some key changes. While the compiler does a decent amount of optimisations, it won't be able to change code that has been optimized for clock-cycles into code optimized for arithmetic gates.
 
+A few things to do when converting Rust code to Noir:
+- `println!` is not a macro, use `println` function (same for `assert_eq`)
+- No early `return` in function. Use constrain via assertion instead
+- No reference `&` operator. Remove, will be value copy
+- No type `usize`. Use types `u8`, `u32`, `u64`, ... 
+- `main` return must be public, `pub`
+- No `const`, use `global`
+- Noir's LSP is your friend, so error message should be informative enough to resolve syntax issues.
+
 ## Writing efficient Noir for performant products
 
 The following points help refine our understanding over time.
@@ -152,6 +161,8 @@ Use bit-wise `&` or `|` to combine logical expressions efficiently.
 
 ## Advanced
 
+Unless you're well into the depth of gate optimisation, this advanced section can be ignored.
+
 ### Combine arithmetic operations
 
 A Noir program can be honed further by combining arithmetic operators in a way that makes the most of each constraint of the backend. This is in scenarios where the backend might not be doing this perfectly.
@@ -167,15 +178,6 @@ Use `nargo info --print-acir`, to inspect the constraints, and it may present op
 
 `std::as_witness` means variable is interpreted as a witness not an expression.
 When used incorrecty will create **less** efficient circuits (higher gate count).
-
-## Rust to Noir
-
-A few things to do when converting Rust code to Noir:
-- Early `return` in function. Use `constrain` instead.
-- Reference `&` operator. Remove, will be value copy.
-- Type `usize`. Use types `u8`, `u32`, `u64`, ... 
-- `main` return must be public, `pub`. 
-
 
 ## References
 ### Guillaume's "Cryptdoku" [video](https://www.youtube.com/watch?v=MrQyzuogxgg) (June'23):
@@ -202,8 +204,11 @@ A: No.
 - Unconstrained gud, so also useful in non-array settings if you can prove the result cheaply once you know it.
 - Bitwise operations are bad and should be avoided if possible (notable as devs tend to use bitwise ops in an attempt to optimise their code)
 - We do as much compile-time execution as we can so calling "expensive" functions with constant arguments isn't a major concern and developers shouldn't feel the need to create hardcoded constants.
+
 ```
+
 + Tip from Jake: `One way to avoid accessing arrays with runtime indices is putting a `assert_constant(my_index);` on the line before an array access so that you get a compile-time error if it is not constant`
+
 ### Idiomatic Noir (from vlayer)
 
  [aritcle](https://www.vlayer.xyz/blog/idiomatic-noir-part-1-collections)
@@ -214,5 +219,5 @@ A: No.
 2. If loops are producing non-linear costs, investigate!
 3. Compute in unconstrained, validate in constrained functions
   - Take care to not create invalid constraints
-4. Optimise for happy path
+4. Optimise for happy path using unconstrained functions
 5. If statements in loops where predicate not known at compile time are dangerous!
