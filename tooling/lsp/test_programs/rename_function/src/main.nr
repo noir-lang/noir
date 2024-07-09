@@ -19,3 +19,9 @@ mod foo {
         crate::another_function()
     }
 }
+
+use foo::some_other_function as bar;
+
+fn x() {
+    bar();
+}
