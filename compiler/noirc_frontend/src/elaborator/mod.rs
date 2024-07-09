@@ -1380,6 +1380,8 @@ impl<'context> Elaborator<'context> {
             self.elaborate_comptime_global(global_id);
         }
 
+        self.interner.add_definition_location(ReferenceId::Global(global_id));
+
         self.local_module = old_module;
         self.file = old_file;
         self.current_item = old_item;

@@ -1117,16 +1117,11 @@ where
 }
 
 fn quote() -> impl NoirParser<ExpressionKind> {
-    token_kind(TokenKind::Quote).validate(|token, span, emit| {
-        let tokens = match token {
+    token_kind(TokenKind::Quote).map(|token| {
+        ExpressionKind::Quote(match token {
             Token::Quote(tokens) => tokens,
             _ => unreachable!("token_kind(Quote) should guarantee parsing only a quote token"),
-        };
-        emit(ParserError::with_reason(
-            ParserErrorReason::ExperimentalFeature("quoted expressions"),
-            span,
-        ));
-        ExpressionKind::Quote(tokens)
+        })
     })
 }
 
