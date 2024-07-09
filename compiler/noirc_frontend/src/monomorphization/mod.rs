@@ -479,14 +479,8 @@ impl<'interner> Monomorphizer<'interner> {
 
                     let method = infix.trait_method_id;
                     let func = self.resolve_trait_method_expr(expr, function_type, method)?;
-                    self.create_infix_operator_impl_call(
-                        func,
-                        lhs,
-                        infix.operator,
-                        rhs,
-                        ret,
-                        location,
-                    )?
+                    let operator = infix.operator;
+                    self.create_infix_operator_impl_call(func, lhs, operator, rhs, ret, location)?
                 } else {
                     let lhs = Box::new(lhs);
                     let rhs = Box::new(rhs);
