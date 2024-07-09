@@ -152,9 +152,9 @@ impl Context {
             constraint_simplification_mapping,
         );
 
-        // If we just inserted an `Instruction::EnableSideEffects`, we need to update `side_effects_enabled_var`
+        // If we just inserted an `Instruction::EnableSideEffectsIf`, we need to update `side_effects_enabled_var`
         // so that we use the correct set of constrained values in future.
-        if let Instruction::EnableSideEffects { condition } = instruction {
+        if let Instruction::EnableSideEffectsIf { condition } = instruction {
             *side_effects_enabled_var = condition;
         };
     }
