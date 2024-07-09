@@ -17,7 +17,7 @@ use std::path::PathBuf;
 
 use runtime_tracing::{Line, Tracer};
 
-use nargo::NargoError;
+use nargo::{errors::Location, NargoError};
 
 /// A location in the source code: filename and line number (1-indexed).
 #[derive(Clone, Debug, PartialEq)]
@@ -99,26 +99,9 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         for opcode_location in call_stack {
             let locations =
                 self.debug_context.get_source_location_for_debug_location(&opcode_location);
-            for source_location in locations {
-                let filepath = match self.debug_context.get_filepath_for_location(source_location) {
-                    Ok(filepath) => filepath,
-                    Err(error) => {
-                        println!("Warning: could not get filepath for source location: {error}");
-                        result.push(SourceLocation::create_unknown());
-                        continue;
-                    }
-                };
-
-                let line_number = match self.debug_context.get_line_for_location(source_location) {
-                    Ok(line) => line as isize + 1,
-                    Err(error) => {
-                        println!("Warning: could not get line for source location: {error}");
-                        result.push(SourceLocation::create_unknown());
-                        continue;
-                    }
-                };
-
-                result.push(SourceLocation { filepath, line_number })
+            for location in locations {
+                let source_location = self.convert_debugger_location(location);
+                result.push(source_location);
             }
         }
 
@@ -168,6 +151,29 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             .iter()
             .map(|f| StackFrame { function_name: String::from(f.function_name) })
             .collect()
+    }
+
+    /// Converts a debugger `Location` into a tracer `SourceLocation`.
+    ///
+    /// In case there is a problem getting the filepath or the line number from the debugger, a
+    /// `SourceLocation::create_unknown` is used to return an unknown location.
+    fn convert_debugger_location(&self, location: Location) -> SourceLocation {
+        let filepath = match self.debug_context.get_filepath_for_location(location) {
+            Ok(filepath) => filepath,
+            Err(error) => {
+                println!("Warning: could not get filepath for source location: {error}");
+                return SourceLocation::create_unknown();
+            }
+        };
+
+        let line_number = match self.debug_context.get_line_for_location(location) {
+            Ok(line) => line as isize + 1,
+            Err(error) => {
+                println!("Warning: could not get line for source location: {error}");
+                return SourceLocation::create_unknown();
+            }
+        };
+        SourceLocation { filepath, line_number }
     }
 
     /// Propagates information about the current execution state to `tracer`.
