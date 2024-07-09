@@ -35,18 +35,22 @@ pub(crate) fn get_current_source_locations<B: BlackBoxFunctionSolver<FieldElemen
 pub(crate) fn get_stack_frames<B: BlackBoxFunctionSolver<FieldElement>>(
     debug_context: &DebugContext<B>,
 ) -> Vec<StackFrame> {
-    debug_context
-        .get_variables()
-        .iter()
-        .map(|f| StackFrame { function_name: String::from(f.function_name) })
-        .collect()
+    debug_context.get_variables().iter().map(convert_debugger_stack_frame).collect()
+}
+
+fn convert_debugger_stack_frame(
+    debugger_stack_frame: &noirc_artifacts::debug::StackFrame<FieldElement>,
+) -> StackFrame {
+    let function_name = String::from(debugger_stack_frame.function_name);
+    // TODO(stanm): add call params and values
+    StackFrame { function_name }
 }
 
 /// Converts a debugger `Location` into a tracer `SourceLocation`.
 ///
 /// In case there is a problem getting the filepath or the line number from the debugger, a
 /// `SourceLocation::create_unknown` is used to return an unknown location.
-pub fn convert_debugger_location<B: BlackBoxFunctionSolver<FieldElement>>(
+fn convert_debugger_location<B: BlackBoxFunctionSolver<FieldElement>>(
     debug_context: &DebugContext<B>,
     location: Location,
 ) -> SourceLocation {
