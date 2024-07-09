@@ -334,24 +334,7 @@ impl<'context> Elaborator<'context> {
                         &mut object,
                     );
 
-                    // Resolve generics using the expected kinds of the function we are calling
-                    let direct_generics =
-                        self.interner.function_meta(&func_id).direct_generics.clone();
-
-                    method_call.generics.map(|option_inner| {
-                        if option_inner.len() != direct_generics.len() {
-                            let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
-                                expected_count: direct_generics.len(),
-                                actual_count: option_inner.len(),
-                                span,
-                            };
-                            self.push_err(type_check_err);
-                        }
-                        let generics_with_types = direct_generics.iter().zip(option_inner);
-                        vecmap(generics_with_types, |(generic, unresolved_type)| {
-                            self.resolve_type_inner(unresolved_type, &generic.kind)
-                        })
-                    })
+                    self.resolve_turbofish_generics(&func_id, method_call.generics, span)
                 } else {
                     None
                 };
