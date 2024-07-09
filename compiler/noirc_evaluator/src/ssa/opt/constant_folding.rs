@@ -821,10 +821,9 @@ mod test {
         //     v5 = array_get v4, index Field 0
         //     constrain_eq v3, v5
         //     enable_side_effects v1
-        //     v6 = array_get v2, index Field 0
         //     v7 = array_set v2, index Field 1, value: Field 2
         //     v8 = array_get v7, index Field 0
-        //     constrain_eq v6, v8
+        //     constrain_eq v3, v8
         //     enable_side_effects v0
         // }
         let ssa = ssa.fold_constants_using_constraints();
