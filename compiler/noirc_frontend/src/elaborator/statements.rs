@@ -443,7 +443,7 @@ impl<'context> Elaborator<'context> {
         let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
         let value = interpreter.evaluate_statement(hir_statement);
         let (expr, typ) = self.inline_comptime_value(value, span);
-        self.include_interpreter_errors(&mut interpreter_errors);
+        self.include_interpreter_errors(interpreter_errors);
 
         let location = self.interner.id_location(hir_statement);
         self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);

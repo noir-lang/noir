@@ -44,7 +44,7 @@ pub struct ResolvedModule {
     pub globals: Vec<(FileId, GlobalId)>,
     pub functions: Vec<(FileId, FuncId)>,
     pub trait_impl_functions: Vec<(FileId, FuncId)>,
-    pub debug_comptime_scope: Option<FileId>,
+    pub debug_comptime_in_file: Option<FileId>,
 
     pub errors: Vec<(CompilationError, FileId)>,
 }
@@ -285,7 +285,7 @@ impl DefCollector {
         ast: SortedModule,
         root_file_id: FileId,
         use_legacy: bool,
-        debug_comptime_scope: Option<&str>,
+        debug_comptime_in_file: Option<&str>,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -303,7 +303,7 @@ impl DefCollector {
                 dep.crate_id,
                 context,
                 use_legacy,
-                debug_comptime_scope,
+                debug_comptime_in_file,
                 macro_processors,
             ));
 
@@ -416,23 +416,27 @@ impl DefCollector {
             errors.push((CompilationError::DebugComptimeScopeNotFound(err), root_file_id));
             None
         };
-        let debug_comptime_scope: Option<FileId> =
-            debug_comptime_scope.and_then(|debug_comptime_scope| {
+        let debug_comptime_in_file: Option<FileId> =
+            debug_comptime_in_file.and_then(|debug_comptime_in_file| {
                 context
                     .file_manager
-                    .find_by_path_suffix(debug_comptime_scope)
+                    .find_by_path_suffix(debug_comptime_in_file)
                     .unwrap_or_else(handle_missing_file)
             });
 
         if !use_legacy {
-            let mut more_errors =
-                Elaborator::elaborate(context, crate_id, def_collector.items, debug_comptime_scope);
+            let mut more_errors = Elaborator::elaborate(
+                context,
+                crate_id,
+                def_collector.items,
+                debug_comptime_in_file,
+            );
             errors.append(&mut more_errors);
             return errors;
         }
 
         let mut resolved_module =
-            ResolvedModule { errors, debug_comptime_scope, ..Default::default() };
+            ResolvedModule { errors, debug_comptime_in_file, ..Default::default() };
 
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
@@ -656,7 +660,7 @@ impl ResolvedModule {
                 interner,
                 &mut scopes,
                 crate_id,
-                self.debug_comptime_scope,
+                self.debug_comptime_in_file,
                 &mut interpreter_errors,
             );
 

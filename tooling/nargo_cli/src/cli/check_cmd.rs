@@ -88,7 +88,7 @@ fn check_package(
         compile_options.disable_macros,
         compile_options.silence_warnings,
         compile_options.use_legacy,
-        compile_options.debug_comptime_scope.as_deref(),
+        compile_options.debug_comptime_in_file.as_deref(),
     )?;
 
     if package.is_library() || package.is_contract() {
@@ -162,7 +162,7 @@ pub(crate) fn check_crate_and_report_errors(
     disable_macros: bool,
     silence_warnings: bool,
     use_legacy: bool,
-    debug_comptime_scope: Option<&str>,
+    debug_comptime_in_file: Option<&str>,
 ) -> Result<(), CompileError> {
     let result = check_crate(
         context,
@@ -170,7 +170,7 @@ pub(crate) fn check_crate_and_report_errors(
         deny_warnings,
         disable_macros,
         use_legacy,
-        debug_comptime_scope,
+        debug_comptime_in_file,
     );
     report_errors(result, &context.file_manager, deny_warnings, silence_warnings)
 }

@@ -262,7 +262,7 @@ impl<'interner> Interpreter<'interner> {
     }
 
     fn debug_comptime(&mut self, expr: ExprId, location: Location) {
-        if Some(location.file) == self.debug_comptime_scope {
+        if Some(location.file) == self.debug_comptime_in_file {
             let expr = expr.to_display_ast(self.interner);
             self.debug_comptime_evaluations
                 .push(InterpreterError::debug_evaluate_comptime(expr, location));

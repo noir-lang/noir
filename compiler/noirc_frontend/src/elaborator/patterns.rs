@@ -461,11 +461,11 @@ impl<'context> Elaborator<'context> {
                     self.interner,
                     &mut self.comptime_scopes,
                     self.crate_id,
-                    self.debug_comptime_scope,
+                    self.debug_comptime_in_file,
                     &mut interpreter_errors,
                 );
                 let value = interpreter.evaluate(id);
-                self.include_interpreter_errors(&mut interpreter_errors);
+                self.include_interpreter_errors(interpreter_errors);
                 return self.inline_comptime_value(value, span);
             }
         }

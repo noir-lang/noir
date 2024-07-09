@@ -159,7 +159,7 @@ pub struct Elaborator<'context> {
     comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
     /// The scope of --debug-comptime, or None if unset
-    debug_comptime_scope: Option<FileId>,
+    debug_comptime_in_file: Option<FileId>,
 
     /// These are the globals that have yet to be elaborated.
     /// This map is used to lazily evaluate these globals if they're encountered before
@@ -185,7 +185,7 @@ impl<'context> Elaborator<'context> {
     pub fn new(
         context: &'context mut Context,
         crate_id: CrateId,
-        debug_comptime_scope: Option<FileId>,
+        debug_comptime_in_file: Option<FileId>,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -206,7 +206,7 @@ impl<'context> Elaborator<'context> {
             function_context: vec![FunctionContext::default()],
             current_trait_impl: None,
             comptime_scopes: vec![HashMap::default()],
-            debug_comptime_scope,
+            debug_comptime_in_file,
             unresolved_globals: BTreeMap::new(),
         }
     }
@@ -215,9 +215,9 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         items: CollectedItems,
-        debug_comptime_scope: Option<FileId>,
+        debug_comptime_in_file: Option<FileId>,
     ) -> Vec<(CompilationError, FileId)> {
-        let mut this = Self::new(context, crate_id, debug_comptime_scope);
+        let mut this = Self::new(context, crate_id, debug_comptime_in_file);
 
         // Filter out comptime items to execute their functions first if needed.
         // This step is why comptime items can only refer to other comptime items
@@ -1294,7 +1294,7 @@ impl<'context> Elaborator<'context> {
         let value = interpreter
             .call_function(function, arguments, TypeBindings::new(), location)
             .map_err(|error| error.into_compilation_error_pair())?;
-        self.include_interpreter_errors(&mut interpreter_errors);
+        self.include_interpreter_errors(interpreter_errors);
 
         if value != Value::Unit {
             let items = value
@@ -1391,7 +1391,7 @@ impl<'context> Elaborator<'context> {
 
             self.interner.get_global_mut(global_id).value = Some(value);
         }
-        self.include_interpreter_errors(&mut interpreter_errors);
+        self.include_interpreter_errors(interpreter_errors);
     }
 
     fn define_function_metas(
@@ -1487,9 +1487,8 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn include_interpreter_errors(&mut self, errors: &mut [InterpreterError]) {
-        self.errors
-            .extend(errors.iter().cloned().map(InterpreterError::into_compilation_error_pair));
+    fn include_interpreter_errors(&mut self, errors: Vec<InterpreterError>) {
+        self.errors.extend(errors.into_iter().map(InterpreterError::into_compilation_error_pair));
     }
 
     /// True if we're currently within a `comptime` block, function, or global
@@ -1651,7 +1650,7 @@ impl<'context> Elaborator<'context> {
             self.interner,
             &mut self.comptime_scopes,
             self.crate_id,
-            self.debug_comptime_scope,
+            self.debug_comptime_in_file,
             interpreter_errors,
         )
     }
@@ -1661,7 +1660,7 @@ impl<'context> Elaborator<'context> {
         location: Location,
         mut expr_f: F,
     ) {
-        if Some(location.file) == self.debug_comptime_scope {
+        if Some(location.file) == self.debug_comptime_in_file {
             let displayed_expr = expr_f(self.interner);
             self.errors.push((
                 InterpreterError::debug_evaluate_comptime(displayed_expr, location).into(),
