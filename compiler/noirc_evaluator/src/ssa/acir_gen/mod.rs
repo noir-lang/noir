@@ -1724,7 +1724,7 @@ impl<'a> Context<'a> {
 
     /// Converts an SSA terminator's return values into their ACIR representations
     fn get_num_return_witnesses(
-        &mut self,
+        &self,
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
     ) -> usize {
