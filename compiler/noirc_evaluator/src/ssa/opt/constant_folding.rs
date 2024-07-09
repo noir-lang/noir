@@ -87,12 +87,16 @@ struct Context {
     block_queue: Vec<BasicBlockId>,
 }
 
+/// HashMap from (Instruction, side_effects_enabled_var) to the results of the instruction.
+/// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
+type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, Vec<ValueId>>>;
+
 impl Context {
     fn fold_constants_in_block(&mut self, function: &mut Function, block: BasicBlockId) {
         let instructions = function.dfg[block].take_instructions();
 
         // Cache of instructions without any side-effects along with their outputs.
-        let mut cached_instruction_results: HashMap<Instruction, Vec<ValueId>> = HashMap::default();
+        let mut cached_instruction_results = HashMap::default();
 
         // Contains sets of values which are constrained to be equivalent to each other.
         //
@@ -124,7 +128,7 @@ impl Context {
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         id: InstructionId,
-        instruction_result_cache: &mut HashMap<Instruction, Vec<ValueId>>,
+        instruction_result_cache: &mut InstructionResultCache,
         constraint_simplification_mappings: &mut HashMap<ValueId, HashMap<ValueId, ValueId>>,
         side_effects_enabled_var: &mut ValueId,
     ) {
@@ -134,7 +138,9 @@ impl Context {
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
-        if let Some(cached_results) = instruction_result_cache.get(&instruction) {
+        if let Some(cached_results) =
+            Self::get_cached(dfg, instruction_result_cache, &instruction, *side_effects_enabled_var)
+        {
             Self::replace_result_ids(dfg, &old_results, cached_results);
             return;
         }
@@ -150,6 +156,7 @@ impl Context {
             dfg,
             instruction_result_cache,
             constraint_simplification_mapping,
+            *side_effects_enabled_var,
         );
 
         // If we just inserted an `Instruction::EnableSideEffects`, we need to update `side_effects_enabled_var`
@@ -224,8 +231,9 @@ impl Context {
         instruction: Instruction,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
-        instruction_result_cache: &mut HashMap<Instruction, Vec<ValueId>>,
+        instruction_result_cache: &mut InstructionResultCache,
         constraint_simplification_mapping: &mut HashMap<ValueId, ValueId>,
+        side_effects_enabled_var: ValueId,
     ) {
         if self.use_constraint_info {
             // If the instruction was a constraint, then create a link between the two `ValueId`s
@@ -258,8 +266,14 @@ impl Context {
 
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
-        if instruction.can_be_deduplicated(dfg) {
-            instruction_result_cache.insert(instruction, instruction_results);
+        if instruction.can_be_deduplicated_with_predicate(dfg) {
+            let predicate =
+                instruction.requires_acir_gen_predicate(dfg).then_some(side_effects_enabled_var);
+
+            instruction_result_cache
+                .entry(instruction)
+                .or_default()
+                .insert(predicate, instruction_results);
         }
     }
 
@@ -272,6 +286,17 @@ impl Context {
         for (old_result, new_result) in old_results.iter().zip(new_results) {
             dfg.set_value_from_id(*old_result, *new_result);
         }
+    }
+
+    fn get_cached<'a>(
+        dfg: &DataFlowGraph,
+        instruction_result_cache: &'a mut InstructionResultCache,
+        instruction: &Instruction,
+        side_effects_enabled_var: ValueId,
+    ) -> Option<&'a Vec<ValueId>> {
+        let predicate =
+            instruction.requires_acir_gen_predicate(dfg).then_some(side_effects_enabled_var);
+        instruction_result_cache.get(instruction).and_then(|map| map.get(&predicate))
     }
 }
 

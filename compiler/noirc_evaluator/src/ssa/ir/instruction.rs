@@ -287,8 +287,9 @@ impl Instruction {
         matches!(self.result_type(), InstructionResultType::Unknown)
     }
 
-    /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
-    pub(crate) fn can_be_deduplicated(&self, dfg: &DataFlowGraph) -> bool {
+    /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs
+    /// and same `EnableSideEffectsIf` predicate.
+    pub(crate) fn can_be_deduplicated_with_predicate(&self, dfg: &DataFlowGraph) -> bool {
         use Instruction::*;
 
         match self {
@@ -307,17 +308,13 @@ impl Instruction {
                 _ => false,
             },
 
-            // These can have different behavior depending on the EnableSideEffectsIf context.
-            // Replacing them with a similar instruction potentially enables replacing an instruction
-            // with one that was disabled. See
-            // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
             Binary(_)
             | Cast(_, _)
             | Not(_)
             | Truncate { .. }
             | IfElse { .. }
             | ArrayGet { .. }
-            | ArraySet { .. } => !self.requires_acir_gen_predicate(dfg),
+            | ArraySet { .. } => true,
         }
     }
 
@@ -372,7 +369,7 @@ impl Instruction {
     }
 
     /// If true the instruction will depends on enable_side_effects context during acir-gen
-    fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
             Instruction::Binary(binary)
                 if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) =>
