@@ -712,8 +712,7 @@ impl<'context> Elaborator<'context> {
 
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
-            .filter_map(|generic| self.find_generic(&generic.ident().0.contents))
-            .map(|ResolvedGeneric { name, type_var, .. }| (name.clone(), type_var.clone()))
+            .filter_map(|generic| self.find_generic(&generic.ident().0.contents).cloned())
             .collect();
 
         let statements = std::mem::take(&mut func.def.body.statements);
@@ -1359,6 +1358,8 @@ impl<'context> Elaborator<'context> {
         if comptime {
             self.elaborate_comptime_global(global_id);
         }
+
+        self.interner.add_definition_location(ReferenceId::Global(global_id));
 
         self.local_module = old_module;
         self.file = old_file;
