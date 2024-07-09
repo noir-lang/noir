@@ -584,7 +584,7 @@ impl<'context> Elaborator<'context> {
                         trait_generics: Vec::new(),
                     };
                     self.push_trait_constraint(constraint, expr_id);
-                    self.type_check_operator_method(expr_id, trait_id, &operand_type, span);
+                    self.type_check_operator_method(expr_id, trait_id, operand_type, span);
                 }
                 typ
             }

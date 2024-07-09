@@ -1041,7 +1041,7 @@ impl<'context> Elaborator<'context> {
                     Error => Ok((Error, false)),
                     Alias(alias, args) => {
                         let alias = alias.borrow().get_type(args);
-                        return self.prefix_operand_type_rules(op, &alias, span);
+                        self.prefix_operand_type_rules(op, &alias, span)
                     }
 
                     // Matches on TypeVariable must be first so that we follow any type
