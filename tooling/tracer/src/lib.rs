@@ -1,37 +1,27 @@
-pub mod tail_diff_vecs;
+mod source_location;
+use source_location::SourceLocation;
 
+mod stack_frame;
+use stack_frame::StackFrame;
+
+mod debugger_glue;
+use debugger_glue::{get_current_source_locations, get_stack_frames};
+
+mod tracer_glue;
+use tracer_glue::{register_call, register_return, register_step};
+
+pub mod tail_diff_vecs;
 use tail_diff_vecs::tail_diff_vecs;
 
-use noir_debugger::context::{DebugCommandResult, DebugContext};
-
+use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use acvm::{BlackBoxFunctionSolver, FieldElement};
-
-use acvm::acir::circuit::brillig::BrilligBytecode;
-
+use nargo::NargoError;
+use noir_debugger::context::{DebugCommandResult, DebugContext};
 use noir_debugger::foreign_calls::DefaultDebugForeignCallExecutor;
 use noirc_artifacts::debug::DebugArtifact;
-
-use fm::PathString;
-use std::path::PathBuf;
-
 use runtime_tracing::{Line, Tracer};
-
-use nargo::{errors::Location, NargoError};
-
-/// A location in the source code: filename and line number (1-indexed).
-#[derive(Clone, Debug, PartialEq)]
-struct SourceLocation {
-    filepath: PathString,
-    line_number: isize,
-}
-
-impl SourceLocation {
-    /// Creates a source location that represents an unknown place in the source code.
-    fn create_unknown() -> SourceLocation {
-        SourceLocation { filepath: PathString::from_path(PathBuf::from("?")), line_number: -1 }
-    }
-}
+use std::path::PathBuf;
 
 /// The result from step_debugger: the debugger either paused at a new location, reached the end of
 /// execution, or hit some kind of an error. Takes the error type as a parameter.
@@ -45,11 +35,6 @@ enum DebugStepResult<Error> {
     Finished,
     /// The debugger reached an error and cannot continue.
     Error(Error),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-struct StackFrame {
-    function_name: String,
 }
 
 pub struct TracingContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
@@ -139,98 +124,6 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             register_step(tracer, location);
         }
     }
-}
-
-/// Extracts the current stack of source locations from the debugger, given that the relevant
-/// debugging information is present. In the context of this method, a source location is a path
-/// to a source file and a line in that file. The most recently called function is last in the
-/// returned vector/stack.
-///
-/// If there is no debugging information, an empty vector will be returned.
-///
-/// If some of the debugging information is missing (no line or filename for a certain frame of
-/// the stack), an "unknown location" will be created for that frame. See
-/// `SourceLocation::create_unknown`.
-fn get_current_source_locations<B: BlackBoxFunctionSolver<FieldElement>>(
-    debug_context: &DebugContext<B>,
-) -> Vec<SourceLocation> {
-    let call_stack = debug_context.get_call_stack();
-
-    let mut result: Vec<SourceLocation> = vec![];
-    for opcode_location in call_stack {
-        let locations = debug_context.get_source_location_for_debug_location(&opcode_location);
-        for location in locations {
-            let source_location = convert_debugger_location(debug_context, location);
-            result.push(source_location);
-        }
-    }
-
-    result
-}
-
-/// Converts the debugger stack frames into a vector of stack frames that own their data.
-fn get_stack_frames<B: BlackBoxFunctionSolver<FieldElement>>(
-    debug_context: &DebugContext<B>,
-) -> Vec<StackFrame> {
-    debug_context
-        .get_variables()
-        .iter()
-        .map(|f| StackFrame { function_name: String::from(f.function_name) })
-        .collect()
-}
-
-/// Converts a debugger `Location` into a tracer `SourceLocation`.
-///
-/// In case there is a problem getting the filepath or the line number from the debugger, a
-/// `SourceLocation::create_unknown` is used to return an unknown location.
-fn convert_debugger_location<B: BlackBoxFunctionSolver<FieldElement>>(
-    debug_context: &DebugContext<B>,
-    location: Location,
-) -> SourceLocation {
-    let filepath = match debug_context.get_filepath_for_location(location) {
-        Ok(filepath) => filepath,
-        Err(error) => {
-            println!("Warning: could not get filepath for source location: {error}");
-            return SourceLocation::create_unknown();
-        }
-    };
-
-    let line_number = match debug_context.get_line_for_location(location) {
-        Ok(line) => line as isize + 1,
-        Err(error) => {
-            println!("Warning: could not get line for source location: {error}");
-            return SourceLocation::create_unknown();
-        }
-    };
-    SourceLocation { filepath, line_number }
-}
-
-/// Registers a tracing step to the given `location` in the given `tracer`.
-fn register_step(tracer: &mut Tracer, location: &SourceLocation) {
-    let SourceLocation { filepath, line_number } = &location;
-    let path = &PathBuf::from(filepath.to_string());
-    let line = Line(*line_number as i64);
-    tracer.register_step(path, line);
-}
-
-/// Registers a call to the given `frame` at the given `location` in the given `tracer`.
-///
-/// A helper method, that makes it easier to interface with `Tracer`.
-fn register_call(tracer: &mut Tracer, location: &SourceLocation, frame: &StackFrame) {
-    let SourceLocation { filepath, line_number } = &location;
-    let path = &PathBuf::from(filepath.to_string());
-    let line = Line(*line_number as i64);
-    let file_id = tracer.ensure_function_id(&frame.function_name, path, line);
-    tracer.register_call(file_id, vec![]);
-}
-
-/// Register a return statement in the given `tracer`.
-///
-/// The tracer seems to be keeping context of which function is returning and is not expecting that
-/// to be specified.
-fn register_return(tracer: &mut Tracer) {
-    let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::None, "()");
-    tracer.register_return(runtime_tracing::ValueRecord::None { type_id });
 }
 
 pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
