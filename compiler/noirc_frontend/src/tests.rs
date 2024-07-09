@@ -2107,6 +2107,5 @@ fn turbofish_numeric_generic_nested_call() {
     }
     "#;
     let errors = get_program_errors(src);
-    dbg!(errors.clone());
     assert!(errors.is_empty());
 }
