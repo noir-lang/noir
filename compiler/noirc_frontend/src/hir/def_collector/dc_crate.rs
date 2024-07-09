@@ -517,22 +517,22 @@ fn add_import_reference(
 
     match def_id {
         crate::macros_api::ModuleDefId::ModuleId(module_id) => {
-            interner.add_module_location(module_id, location)
+            interner.add_module_location(module_id, location);
         }
         crate::macros_api::ModuleDefId::FunctionId(func_id) => {
-            interner.add_function_reference(func_id, location)
+            interner.add_function_reference(func_id, location);
         }
         crate::macros_api::ModuleDefId::TypeId(struct_id) => {
-            interner.add_struct_reference(struct_id, location, false)
+            interner.add_struct_reference(struct_id, location, false);
         }
         crate::macros_api::ModuleDefId::TraitId(trait_id) => {
-            interner.add_trait_reference(trait_id, location, false)
+            interner.add_trait_reference(trait_id, location, false);
         }
         crate::macros_api::ModuleDefId::TypeAliasId(type_alias_id) => {
-            interner.add_alias_reference(type_alias_id, location)
+            interner.add_alias_reference(type_alias_id, location);
         }
         crate::macros_api::ModuleDefId::GlobalId(global_id) => {
-            interner.add_global_reference(global_id, location)
+            interner.add_global_reference(global_id, location);
         }
     };
 }
