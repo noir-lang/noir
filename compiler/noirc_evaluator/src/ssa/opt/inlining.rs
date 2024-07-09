@@ -45,23 +45,23 @@ impl Ssa {
     /// This step should run after runtime separation, since it relies on the runtime of the called functions being final.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn inline_functions(self) -> Ssa {
-        Self::inline_functions_inner(self, true)
+        Self::inline_functions_inner(self, false)
     }
 
     // Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
     pub(crate) fn inline_functions_with_no_predicates(self) -> Ssa {
-        Self::inline_functions_inner(self, false)
+        Self::inline_functions_inner(self, true)
     }
 
-    fn inline_functions_inner(mut self, no_predicates_is_entry_point: bool) -> Ssa {
+    fn inline_functions_inner(mut self, inline_no_predicates_functions: bool) -> Ssa {
         let recursive_functions = find_all_recursive_functions(&self);
         self.functions = btree_map(
-            get_functions_to_inline_into(&self, no_predicates_is_entry_point),
+            get_functions_to_inline_into(&self, inline_no_predicates_functions),
             |entry_point| {
                 let new_function = InlineContext::new(
                     &self,
                     entry_point,
-                    no_predicates_is_entry_point,
+                    inline_no_predicates_functions,
                     recursive_functions.clone(),
                 )
                 .inline_all(&self);
@@ -86,7 +86,13 @@ struct InlineContext {
     // The FunctionId of the entry point function we're inlining into in the old, unmodified Ssa.
     entry_point: FunctionId,
 
-    no_predicates_is_entry_point: bool,
+    /// Whether the inlining pass should inline any functions marked with [`InlineType::NoPredicates`]
+    /// or whether these should be preserved as entrypoint functions.
+    ///
+    /// This is done as we delay inlining of functions with the attribute `#[no_predicates]` until after
+    /// the control flow graph has been flattened.
+    inline_no_predicates_functions: bool,
+
     // We keep track of the recursive functions in the SSA to avoid inlining them in a brillig context.
     recursive_functions: BTreeSet<FunctionId>,
 }
@@ -179,7 +185,7 @@ fn find_all_recursive_functions(ssa: &Ssa) -> BTreeSet<FunctionId> {
 ///  - Any Acir functions with a [fold inline type][InlineType::Fold],
 fn get_functions_to_inline_into(
     ssa: &Ssa,
-    no_predicates_is_entry_point: bool,
+    inline_no_predicates_functions: bool,
 ) -> BTreeSet<FunctionId> {
     let mut brillig_entry_points = BTreeSet::default();
     let mut acir_entry_points = BTreeSet::default();
@@ -190,10 +196,9 @@ fn get_functions_to_inline_into(
         }
 
         // If we have not already finished the flattening pass, functions marked
-        // to not have predicates should be marked as entry points.
-        let no_predicates_is_entry_point =
-            no_predicates_is_entry_point && function.is_no_predicates();
-        if function.runtime().is_entry_point() || no_predicates_is_entry_point {
+        // to not have predicates should be preserved.
+        let preserve_function = !inline_no_predicates_functions && function.is_no_predicates();
+        if function.runtime().is_entry_point() || preserve_function {
             acir_entry_points.insert(*func_id);
         }
 
@@ -228,7 +233,7 @@ impl InlineContext {
     fn new(
         ssa: &Ssa,
         entry_point: FunctionId,
-        no_predicates_is_entry_point: bool,
+        inline_no_predicates_functions: bool,
         recursive_functions: BTreeSet<FunctionId>,
     ) -> InlineContext {
         let source = &ssa.functions[&entry_point];
@@ -239,7 +244,7 @@ impl InlineContext {
             recursion_level: 0,
             entry_point,
             call_stack: CallStack::new(),
-            no_predicates_is_entry_point,
+            inline_no_predicates_functions,
             recursive_functions,
         }
     }
@@ -495,10 +500,10 @@ impl<'function> PerFunctionContext<'function> {
             // If the called function is acir, we inline if it's not an entry point
 
             // If we have not already finished the flattening pass, functions marked
-            // to not have predicates should be marked as entry points.
-            let no_predicates_is_entry_point =
-                self.context.no_predicates_is_entry_point && function.is_no_predicates();
-            !inline_type.is_entry_point() && !no_predicates_is_entry_point
+            // to not have predicates should be preserved.
+            let preserve_function =
+                !self.context.inline_no_predicates_functions && function.is_no_predicates();
+            !inline_type.is_entry_point() && !preserve_function
         } else {
             // If the called function is brillig, we inline only if it's into brillig and the function is not recursive
             ssa.functions[&self.context.entry_point].runtime() == RuntimeType::Brillig
@@ -517,19 +522,13 @@ impl<'function> PerFunctionContext<'function> {
         let old_results = self.source_function.dfg.instruction_results(call_id);
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
 
-        let mut call_stack = self.source_function.dfg.get_call_stack(call_id);
-        let has_location = !call_stack.is_empty();
-
-        // Function calls created by the defunctionalization pass will not have source locations
-        if let Some(location) = call_stack.pop_back() {
-            self.context.call_stack.push_back(location);
-        }
+        let call_stack = self.source_function.dfg.get_call_stack(call_id);
+        let call_stack_len = call_stack.len();
+        self.context.call_stack.append(call_stack);
 
         let new_results = self.context.inline_function(ssa, function, &arguments);
 
-        if has_location {
-            self.context.call_stack.pop_back();
-        }
+        self.context.call_stack.truncate(self.context.call_stack.len() - call_stack_len);
 
         let new_results = InsertInstructionResult::Results(call_id, &new_results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
