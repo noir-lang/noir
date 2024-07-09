@@ -196,7 +196,7 @@ pub struct NodeInterner {
     /// Edges are directed from reference nodes to referenced nodes.
     /// For example:
     ///
-    /// ```
+    /// ```text
     /// let foo = 3;
     /// //  referenced
     /// //   ^

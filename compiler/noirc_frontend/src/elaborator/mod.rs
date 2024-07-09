@@ -1287,16 +1287,9 @@ impl<'context> Elaborator<'context> {
         let DefinitionKind::Function(function) = definition.kind else {
             return Err((ResolverError::NonFunctionInAnnotation { span }.into(), self.file));
         };
-        let mut interpreter_errors = vec![];
-        let mut interpreter = Interpreter::new(
-            self.interner,
-            &mut self.comptime_scopes,
-            self.crate_id,
-            self.debug_comptime_scope,
-            &mut interpreter_errors,
-        );
-
         let location = Location::new(span, self.file);
+        let mut interpreter_errors = vec![];
+        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
         let arguments = vec![(Value::StructDefinition(struct_id), location)];
 
         let value = interpreter
@@ -1382,13 +1375,7 @@ impl<'context> Elaborator<'context> {
         let definition_id = global.definition_id;
         let location = global.location;
         let mut interpreter_errors = vec![];
-        let mut interpreter = Interpreter::new(
-            self.interner,
-            &mut self.comptime_scopes,
-            self.crate_id,
-            self.debug_comptime_scope,
-            &mut interpreter_errors,
-        );
+        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
 
         if let Err(error) = interpreter.evaluate_let(let_statement) {
             self.errors.push(error.into_compilation_error_pair());
@@ -1400,13 +1387,6 @@ impl<'context> Elaborator<'context> {
             self.debug_comptime(location, |interner| {
                 interner.get_global(global_id).let_statement.to_display_ast(interner).kind
             });
-
-            // if Some(location.file) == self.debug_comptime_scope {
-            //     self.errors.push((
-            //         InterpreterError::debug_evaluate_comptime(new_stmt, location).into(),
-            //         location.file,
-            //     ));
-            // }
 
             self.interner.get_global_mut(global_id).value = Some(value);
         }
@@ -1660,6 +1640,19 @@ impl<'context> Elaborator<'context> {
                 }
             }
         }
+    }
+
+    fn setup_interpreter<'a>(
+        &'a mut self,
+        interpreter_errors: &'a mut Vec<InterpreterError>,
+    ) -> Interpreter {
+        Interpreter::new(
+            self.interner,
+            &mut self.comptime_scopes,
+            self.crate_id,
+            self.debug_comptime_scope,
+            interpreter_errors,
+        )
     }
 
     fn debug_comptime<T: Display, F: FnMut(&mut NodeInterner) -> T>(
