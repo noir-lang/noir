@@ -48,7 +48,8 @@ impl NodeInterner {
                 let alias_type = alias_type.borrow();
                 Location::new(alias_type.name.span(), alias_type.location.file)
             }
-            ReferenceId::Variable(location, _) => location,
+            ReferenceId::Local(id) => self.definition(id).location,
+            ReferenceId::Reference(location, _) => location,
         }
     }
 
@@ -117,7 +118,7 @@ impl NodeInterner {
         let node_index = self.location_indices.get_node_from_location(location)?;
 
         let reference_node = self.reference_graph[node_index];
-        let referenced_node_index = if let ReferenceId::Variable(_, _) = reference_node {
+        let referenced_node_index = if let ReferenceId::Reference(_, _) = reference_node {
             self.referenced_index(node_index)?
         } else {
             node_index

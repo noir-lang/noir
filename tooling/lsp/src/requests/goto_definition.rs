@@ -196,4 +196,9 @@ mod goto_definition_tests {
         )
         .await;
     }
+
+    #[test]
+    async fn goto_for_local_variable() {
+        expect_goto_for_all_references("local_variable", "some_var", 0).await;
+    }
 }

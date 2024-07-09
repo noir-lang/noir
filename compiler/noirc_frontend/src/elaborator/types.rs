@@ -164,7 +164,7 @@ impl<'context> Elaborator<'context> {
 
                     if !is_synthetic {
                         let referenced = ReferenceId::Struct(struct_type.borrow().id);
-                        let reference = ReferenceId::Variable(
+                        let reference = ReferenceId::Reference(
                             Location::new(unresolved_span, self.file),
                             is_self_type_name,
                         );
@@ -173,7 +173,7 @@ impl<'context> Elaborator<'context> {
                 }
                 Type::Alias(ref alias_type, _) => {
                     let referenced = ReferenceId::Alias(alias_type.borrow().id);
-                    let reference = ReferenceId::Variable(
+                    let reference = ReferenceId::Reference(
                         Location::new(unresolved_span, self.file),
                         is_self_type_name,
                     );
@@ -370,7 +370,8 @@ impl<'context> Elaborator<'context> {
                 }
 
                 let referenced = ReferenceId::Global(id);
-                let reference = ReferenceId::Variable(Location::new(path.span(), self.file), false);
+                let reference =
+                    ReferenceId::Reference(Location::new(path.span(), self.file), false);
                 self.interner.add_reference(referenced, reference);
 
                 Some(Type::Constant(self.eval_global_as_array_length(id, path)))
