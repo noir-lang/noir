@@ -320,7 +320,7 @@ async function setupFromState(statePath: string, logger: Logger): Promise<Subsys
 
   // Start anvil. We go via a wrapper script to ensure if the parent dies, anvil dies.
   const ethereumHostPort = await getPort();
-  aztecNodeConfig.rpcUrl = `http://localhost:${ethereumHostPort}`;
+  aztecNodeConfig.rpcUrl = `http://127.0.0.1:${ethereumHostPort}`;
   const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
   await anvil.start();
   // Load anvil state.
