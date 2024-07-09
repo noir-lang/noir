@@ -266,9 +266,10 @@ impl Context {
 
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
-        if instruction.can_be_deduplicated_with_predicate(dfg) {
-            let predicate =
-                instruction.requires_acir_gen_predicate(dfg).then_some(side_effects_enabled_var);
+        if instruction.can_be_deduplicated(dfg, self.use_constraint_info) {
+            let use_predicate =
+                self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+            let predicate = use_predicate.then_some(side_effects_enabled_var);
 
             instruction_result_cache
                 .entry(instruction)
@@ -749,5 +750,88 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         let ending_instruction_count = instructions.len();
         assert_eq!(starting_instruction_count, ending_instruction_count);
+    }
+
+    #[test]
+    fn deduplicate_instructions_with_predicates() {
+        // fn main f0 {
+        //   b0(v0: bool, v1: bool, v2: [u32; 2]):
+        //     enable_side_effects v0
+        //     v3 = array_get v2, index u32 0
+        //     v4 = array_set v2, index u32 1, value: u32 2
+        //     v5 = array_get v4, index u32 0
+        //     constrain_eq v3, v5
+        //     enable_side_effects v1
+        //     v6 = array_get v2, index u32 0
+        //     v7 = array_set v2, index u32 1, value: u32 2
+        //     v8 = array_get v7, index u32 0
+        //     constrain_eq v6, v8
+        //     enable_side_effects v0
+        //     v9 = array_get v2, index u32 0
+        //     v10 = array_set v2, index u32 1, value: u32 2
+        //     v11 = array_get v10, index u32 0
+        //     constrain_eq v9, v11
+        // }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.add_parameter(Type::bool());
+        let v1 = builder.add_parameter(Type::bool());
+        let v2 = builder.add_parameter(Type::Array(Rc::new(vec![Type::field()]), 2));
+
+        let zero = builder.numeric_constant(0u128, Type::length_type());
+        let one = builder.numeric_constant(1u128, Type::length_type());
+        let two = builder.numeric_constant(2u128, Type::length_type());
+
+        builder.insert_enable_side_effects_if(v0);
+        let v3 = builder.insert_array_get(v2, zero, Type::length_type());
+        let v4 = builder.insert_array_set(v2, one, two);
+        let v5 = builder.insert_array_get(v4, zero, Type::length_type());
+        builder.insert_constrain(v3, v5, None);
+
+        builder.insert_enable_side_effects_if(v1);
+        let v6 = builder.insert_array_get(v2, zero, Type::length_type());
+        let v7 = builder.insert_array_set(v2, one, two);
+        let v8 = builder.insert_array_get(v7, zero, Type::length_type());
+        builder.insert_constrain(v6, v8, None);
+
+        // We expect all these instructions after the 'enable side effects' instruction to be removed.
+        builder.insert_enable_side_effects_if(v0);
+        let v9 = builder.insert_array_get(v2, zero, Type::length_type());
+        let v10 = builder.insert_array_set(v2, one, two);
+        let v11 = builder.insert_array_get(v10, zero, Type::length_type());
+        builder.insert_constrain(v9, v11, None);
+
+        let ssa = builder.finish();
+        println!("{ssa}");
+
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 15);
+
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0(v0: bool, v1: bool, v2: [Field; 2]):
+        //     enable_side_effects v0
+        //     v3 = array_get v2, index Field 0
+        //     v4 = array_set v2, index Field 1, value: Field 2
+        //     v5 = array_get v4, index Field 0
+        //     constrain_eq v3, v5
+        //     enable_side_effects v1
+        //     v6 = array_get v2, index Field 0
+        //     v7 = array_set v2, index Field 1, value: Field 2
+        //     v8 = array_get v7, index Field 0
+        //     constrain_eq v6, v8
+        //     enable_side_effects v0
+        // }
+        let ssa = ssa.fold_constants_using_constraints();
+        println!("{ssa}");
+
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 10);
     }
 }

@@ -287,34 +287,47 @@ impl Instruction {
         matches!(self.result_type(), InstructionResultType::Unknown)
     }
 
-    /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs
-    /// and same `EnableSideEffectsIf` predicate.
-    pub(crate) fn can_be_deduplicated_with_predicate(&self, dfg: &DataFlowGraph) -> bool {
+    /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
+    /// If `deduplicate_with_predicate` is set, we assume we're deduplicating with the instruction
+    /// and its predicate, rather than just the instruction. Setting this means instructions that
+    /// rely on predicates can be deduplicated as well.
+    pub(crate) fn can_be_deduplicated(
+        &self,
+        dfg: &DataFlowGraph,
+        deduplicate_with_predicate: bool,
+    ) -> bool {
         use Instruction::*;
 
         match self {
             // These either have side-effects or interact with memory
-            Constrain(..)
-            | EnableSideEffects { .. }
+            EnableSideEffects { .. }
             | Allocate
             | Load { .. }
             | Store { .. }
             | IncrementRc { .. }
-            | DecrementRc { .. }
-            | RangeCheck { .. } => false,
+            | DecrementRc { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
                 _ => false,
             },
 
+            // We can deduplicate these instructions if we know the predicate is also the same.
+            Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
+
+            // These can have different behavior depending on the EnableSideEffectsIf context.
+            // Replacing them with a similar instruction potentially enables replacing an instruction
+            // with one that was disabled. See
+            // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
             Binary(_)
             | Cast(_, _)
             | Not(_)
             | Truncate { .. }
             | IfElse { .. }
             | ArrayGet { .. }
-            | ArraySet { .. } => true,
+            | ArraySet { .. } => {
+                deduplicate_with_predicate || !self.requires_acir_gen_predicate(dfg)
+            }
         }
     }
 
