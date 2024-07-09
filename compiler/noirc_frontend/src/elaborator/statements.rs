@@ -3,7 +3,7 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{AssignStatement, ConstrainStatement, LValue},
     hir::{
-        comptime::{Interpreter, InterpreterError},
+        comptime::Interpreter,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
@@ -453,13 +453,16 @@ impl<'context> Elaborator<'context> {
         self.include_interpreter_errors(&mut interpreter_errors);
 
         let location = self.interner.id_location(hir_statement);
-        if Some(location.file) == self.debug_comptime_scope {
-            let new_expr = expr.to_display_ast(self.interner).kind;
-            self.errors.push((
-                InterpreterError::debug_evaluate_comptime(new_expr, location).into(),
-                location.file,
-            ));
-        }
+
+        self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);
+
+        // if Some(location.file) == self.debug_comptime_scope {
+        //     let new_expr = expr.to_display_ast(self.interner).kind;
+        //     self.errors.push((
+        //         InterpreterError::debug_evaluate_comptime(new_expr, location).into(),
+        //         location.file,
+        //     ));
+        // }
 
         (HirStatement::Expression(expr), typ)
     }

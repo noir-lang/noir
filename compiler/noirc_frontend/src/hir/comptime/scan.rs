@@ -29,6 +29,8 @@ use super::{
     Value,
 };
 
+use noirc_errors::Location;
+
 #[allow(dead_code)]
 impl<'interner> Interpreter<'interner> {
     /// Scan through a function, evaluating any Comptime nodes found.
@@ -80,18 +82,10 @@ impl<'interner> Interpreter<'interner> {
             HirExpression::Lambda(lambda) => self.scan_lambda(lambda),
             HirExpression::Comptime(block) => {
                 let location = self.interner.expr_location(&expr);
-                let new_expr =
+                let new_expr_id =
                     self.evaluate_block(block)?.into_hir_expression(self.interner, location)?;
-                let new_expr = self.interner.expression(&new_expr);
-
-                if Some(location.file) == self.debug_comptime_scope {
-                    let new_expr_for_display =
-                        new_expr.to_display_ast(self.interner, location.span).kind;
-                    self.debug_comptime_evaluations.push(
-                        InterpreterError::debug_evaluate_comptime(new_expr_for_display, location),
-                    );
-                }
-
+                let new_expr = self.interner.expression(&new_expr_id);
+                self.debug_comptime(new_expr_id, location);
                 self.interner.replace_expr(&expr, new_expr);
                 Ok(())
             }
@@ -129,12 +123,7 @@ impl<'interner> Interpreter<'interner> {
                     if !matches!(value, Value::Closure(..)) {
                         let new_expr = self.inline_expression(value, id)?;
                         let location = self.interner.id_location(id);
-                        if Some(location.file) == self.debug_comptime_scope {
-                            let new_expr = new_expr.to_display_ast(self.interner);
-                            self.debug_comptime_evaluations.push(
-                                InterpreterError::debug_evaluate_comptime(new_expr, location),
-                            );
-                        }
+                        self.debug_comptime(new_expr, location);
                     }
                 }
                 Ok(())
@@ -247,14 +236,7 @@ impl<'interner> Interpreter<'interner> {
                 let new_expr = self
                     .evaluate_comptime(comptime)?
                     .into_hir_expression(self.interner, location)?;
-
-                if Some(location.file) == self.debug_comptime_scope {
-                    let new_expr_for_display = new_expr.to_display_ast(self.interner);
-                    self.debug_comptime_evaluations.push(
-                        InterpreterError::debug_evaluate_comptime(new_expr_for_display, location),
-                    );
-                }
-
+                self.debug_comptime(new_expr, location);
                 self.interner.replace_statement(statement, HirStatement::Expression(new_expr));
                 Ok(())
             }
@@ -277,5 +259,13 @@ impl<'interner> Interpreter<'interner> {
         let new_expr = self.interner.expression(&new_expr_id);
         self.interner.replace_expr(&expr, new_expr);
         Ok(new_expr_id)
+    }
+
+    fn debug_comptime(&mut self, expr: ExprId, location: Location) {
+        if Some(location.file) == self.debug_comptime_scope {
+            let expr = expr.to_display_ast(self.interner);
+            self.debug_comptime_evaluations
+                .push(InterpreterError::debug_evaluate_comptime(expr, location));
+        }
     }
 }

@@ -690,14 +690,19 @@ impl<'context> Elaborator<'context> {
         let (id, typ) = self.inline_comptime_value(value, span);
 
         let location = self.interner.id_location(id);
-        if Some(location.file) == self.debug_comptime_scope {
-            let new_expr =
-                self.interner.expression(&id).to_display_ast(self.interner, location.span).kind;
-            self.errors.push((
-                InterpreterError::debug_evaluate_comptime(new_expr, location).into(),
-                location.file,
-            ));
-        }
+
+        self.debug_comptime(location, |interner| {
+            interner.expression(&id).to_display_ast(interner, location.span).kind
+        });
+
+        // if Some(location.file) == self.debug_comptime_scope {
+        //     let new_expr =
+        //         self.interner.expression(&id).to_display_ast(self.interner, location.span).kind;
+        //     self.errors.push((
+        //         InterpreterError::debug_evaluate_comptime(new_expr, location).into(),
+        //         location.file,
+        //     ));
+        // }
 
         (id, typ)
     }

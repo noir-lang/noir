@@ -1,5 +1,6 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
+    fmt::Display,
     rc::Rc,
 };
 
@@ -1396,18 +1397,16 @@ impl<'context> Elaborator<'context> {
                 .lookup_id(definition_id, location)
                 .expect("The global should be defined since evaluate_let did not error");
 
-            if Some(location.file) == self.debug_comptime_scope {
-                let new_stmt = self
-                    .interner
-                    .get_global(global_id)
-                    .let_statement
-                    .to_display_ast(self.interner)
-                    .kind;
-                self.errors.push((
-                    InterpreterError::debug_evaluate_comptime(new_stmt, location).into(),
-                    location.file,
-                ));
-            }
+            self.debug_comptime(location, |interner| {
+                interner.get_global(global_id).let_statement.to_display_ast(interner).kind
+            });
+
+            // if Some(location.file) == self.debug_comptime_scope {
+            //     self.errors.push((
+            //         InterpreterError::debug_evaluate_comptime(new_stmt, location).into(),
+            //         location.file,
+            //     ));
+            // }
 
             self.interner.get_global_mut(global_id).value = Some(value);
         }
@@ -1660,6 +1659,20 @@ impl<'context> Elaborator<'context> {
                     self.errors.push(error.into_compilation_error_pair());
                 }
             }
+        }
+    }
+
+    fn debug_comptime<T: Display, F: FnMut(&mut NodeInterner) -> T>(
+        &mut self,
+        location: Location,
+        mut expr_f: F,
+    ) {
+        if Some(location.file) == self.debug_comptime_scope {
+            let displayed_expr = expr_f(self.interner);
+            self.errors.push((
+                InterpreterError::debug_evaluate_comptime(displayed_expr, location).into(),
+                location.file,
+            ));
         }
     }
 }
