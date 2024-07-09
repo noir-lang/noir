@@ -1448,7 +1448,7 @@ fn specify_method_types_with_turbofish() {
         
         fn main() {
             let foo: Foo<Field> = Foo { inner: 1 };
-            let _ = foo.generic_method::<Field, u32>();
+            let _ = foo.generic_method::<Field>();
         }
     "#;
     let errors = get_program_errors(src);
