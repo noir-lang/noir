@@ -34,7 +34,17 @@ So to summarize:
 
 ### Running TXE
 
-In order to use the TXE, it must be running on a known address. By default, TXE runs at `http://localhost:8080`. So you can run  contracts tests with:
+In order to use the TXE, it must be running on a known address. 
+
+:::tip
+If you have [the sandbox](../../../getting_started.md) installed, you can quickly deploy a TXE by running:
+
+`docker run --workdir /usr/src/yarn-project/txe/dest/bin --entrypoint node --name txe -p 8080:8080 aztecprotocol/aztec index.js`
+
+This will be improved in the future with a dedicated command.
+:::
+
+By default, TXE runs at `http://localhost:8080`. Using `aztec-nargo`, contract tests can be run with:
 
 `aztec-nargo test --oracle-resolver http://host.docker.internal:8080`
 

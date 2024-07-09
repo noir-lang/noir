@@ -1,9 +1,12 @@
 FROM aztecprotocol/noir as noir
 FROM aztecprotocol/avm-transpiler as transpiler
+FROM --platform=linux/amd64 aztecprotocol/barretenberg-x86_64-linux-clang as barretenberg
 
 FROM ubuntu:lunar AS builder
 RUN apt-get update && apt-get install -y parallel nodejs npm 
 RUN npm install --global yarn
+# Copy in bb
+COPY --from=barretenberg /usr/src/barretenberg/cpp/build/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
 # Copy in nargo
 COPY --from=noir /usr/src/noir/noir-repo/target/release/nargo /usr/src/noir/noir-repo/target/release/nargo
 ENV PATH="/usr/src/noir/noir-repo/target/release:${PATH}"

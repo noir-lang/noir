@@ -70,6 +70,7 @@ noir-projects:
   dependencies:
     - noir
     - avm-transpiler
+    - barretenberg-x86_64-linux-clang
 
 # Compiles all aztec noir projects using nargo and the avm-transpiler, then tests them using the TXE.
 noir-projects-tests:
