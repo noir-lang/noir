@@ -984,30 +984,8 @@ impl<'a> Context<'a> {
             unreachable!("ICE: expected array or slice type");
         };
 
-        match self.convert_value(array_id, dfg) {
-            AcirValue::Var(acir_var, _) => {
-                return Err(RuntimeError::InternalError(InternalError::Unexpected {
-                    expected: "an array value".to_string(),
-                    found: format!("{acir_var:?}"),
-                    call_stack: self.acir_context.get_call_stack(),
-                }))
-            }
-            AcirValue::Array(array) => {
-                // `AcirValue::Array` supports reading/writing to constant indices at compile-time in some cases.
-                if let Some(constant_index) = dfg.get_numeric_constant(index) {
-                    let store_value = store_value.map(|value| self.convert_value(value, dfg));
-                    if self.handle_constant_index(
-                        instruction,
-                        dfg,
-                        array,
-                        constant_index,
-                        store_value,
-                    )? {
-                        return Ok(());
-                    }
-                }
-            }
-            AcirValue::DynamicArray(_) => (),
+        if self.handle_constant_index_wrapper(instruction, dfg, array, index, store_value)? {
+            return Ok(());
         }
 
         // Get an offset such that the type of the array at the offset is the same as the type at the 'index'
@@ -1045,6 +1023,43 @@ impl<'a> Context<'a> {
         }
 
         Ok(())
+    }
+
+    fn handle_constant_index_wrapper(
+        &mut self,
+        instruction: InstructionId,
+        dfg: &DataFlowGraph,
+        array: ValueId,
+        index: ValueId,
+        store_value: Option<ValueId>,
+    ) -> Result<bool, RuntimeError> {
+        let array_id = dfg.resolve(array);
+        let array_typ = dfg.type_of_value(array_id);
+        // Compiler sanity checks
+        assert!(!array_typ.is_nested_slice(), "ICE: Nested slice type has reached ACIR generation");
+        let (Type::Array(_, _) | Type::Slice(_)) = &array_typ else {
+            unreachable!("ICE: expected array or slice type");
+        };
+
+        match self.convert_value(array_id, dfg) {
+            AcirValue::Var(acir_var, _) => {
+                Err(RuntimeError::InternalError(InternalError::Unexpected {
+                    expected: "an array value".to_string(),
+                    found: format!("{acir_var:?}"),
+                    call_stack: self.acir_context.get_call_stack(),
+                }))
+            }
+            AcirValue::Array(array) => {
+                // `AcirValue::Array` supports reading/writing to constant indices at compile-time in some cases.
+                if let Some(constant_index) = dfg.get_numeric_constant(index) {
+                    let store_value = store_value.map(|value| self.convert_value(value, dfg));
+                    self.handle_constant_index(instruction, dfg, array, constant_index, store_value)
+                } else {
+                    Ok(false)
+                }
+            }
+            AcirValue::DynamicArray(_) => Ok(false),
+        }
     }
 
     /// Handle constant index: if there is no predicate and we have the array values,
