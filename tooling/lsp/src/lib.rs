@@ -296,7 +296,7 @@ pub(crate) fn workspace_package_for_file<'a>(
     workspace: &'a Workspace,
     file_path: &Path,
 ) -> Option<&'a Package> {
-    workspace.members.iter().filter(|package| file_path.starts_with(&package.root_dir)).next()
+    workspace.members.iter().find(|package| file_path.starts_with(&package.root_dir))
 }
 
 pub(crate) fn prepare_package<'file_manager, 'parsed_files>(

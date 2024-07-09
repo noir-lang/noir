@@ -383,7 +383,7 @@ pub(crate) fn find_all_references(
                 .filter_map(|location| to_lsp_location(files, location.file, location.span))
                 .collect()
         })
-        .unwrap_or(vec![])
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
