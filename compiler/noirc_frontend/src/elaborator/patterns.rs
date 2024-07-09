@@ -203,7 +203,7 @@ impl<'context> Elaborator<'context> {
         );
 
         let referenced = ReferenceId::Struct(struct_type.borrow().id);
-        let reference = ReferenceId::Variable(Location::new(name_span, self.file), is_self_type);
+        let reference = ReferenceId::Reference(Location::new(name_span, self.file), is_self_type);
         self.interner.add_reference(referenced, reference);
 
         HirPattern::Struct(expected_type, fields, location)
@@ -485,6 +485,7 @@ impl<'context> Elaborator<'context> {
             // Otherwise, then it is referring to an Identifier
             // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
             // If the expression is a singular indent, we search the resolver's current scope as normal.
+            let span = path.span();
             let is_self_type_name = path.last_segment().is_self_type_name();
             let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
 
@@ -495,7 +496,8 @@ impl<'context> Elaborator<'context> {
                             self.interner.add_function_dependency(current_item, func_id);
                         }
 
-                        let variable = ReferenceId::Variable(hir_ident.location, is_self_type_name);
+                        let variable =
+                            ReferenceId::Reference(hir_ident.location, is_self_type_name);
                         let function = ReferenceId::Function(func_id);
                         self.interner.add_reference(function, variable);
                     }
@@ -507,7 +509,8 @@ impl<'context> Elaborator<'context> {
                             self.interner.add_global_dependency(current_item, global_id);
                         }
 
-                        let variable = ReferenceId::Variable(hir_ident.location, is_self_type_name);
+                        let variable =
+                            ReferenceId::Reference(hir_ident.location, is_self_type_name);
                         let global = ReferenceId::Global(global_id);
                         self.interner.add_reference(global, variable);
                     }
@@ -524,6 +527,11 @@ impl<'context> Elaborator<'context> {
                     DefinitionKind::Local(_) => {
                         // only local variables can be captured by closures.
                         self.resolve_local_variable(hir_ident.clone(), var_scope_index);
+
+                        let referenced = ReferenceId::Local(hir_ident.id);
+                        let reference =
+                            ReferenceId::Reference(Location::new(span, self.file), false);
+                        self.interner.add_reference(referenced, reference);
                     }
                 }
             }

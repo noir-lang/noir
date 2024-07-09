@@ -1467,7 +1467,7 @@ impl<'context> Elaborator<'context> {
                 let trait_name = trait_impl.trait_path.last_segment();
 
                 let referenced = ReferenceId::Trait(trait_id);
-                let reference = ReferenceId::Variable(
+                let reference = ReferenceId::Reference(
                     Location::new(trait_name.span(), trait_impl.file_id),
                     trait_name.is_self_type_name(),
                 );
