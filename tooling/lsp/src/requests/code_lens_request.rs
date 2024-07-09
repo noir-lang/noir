@@ -61,8 +61,12 @@ fn on_code_lens_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not read file from disk")
     })?;
 
-    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
-    let package = workspace.members.first().unwrap();
+    let workspace =
+        resolve_workspace_for_source_path(file_path.as_path(), &state.root_path).unwrap();
+
+    let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
+    })?;
 
     let (mut context, crate_id) = prepare_source(source_string, state);
     // We ignore the warnings and errors produced by compilation for producing code lenses

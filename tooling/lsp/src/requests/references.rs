@@ -5,23 +5,27 @@ use lsp_types::{Location, ReferenceParams};
 
 use crate::LspState;
 
-use super::{process_request, to_lsp_location};
+use super::{find_all_references_in_workspace, process_request};
 
 pub(crate) fn on_references_request(
     state: &mut LspState,
     params: ReferenceParams,
 ) -> impl Future<Output = Result<Option<Vec<Location>>, ResponseError>> {
-    let result =
-        process_request(state, params.text_document_position, |location, interner, files| {
-            interner.find_all_references(location, params.context.include_declaration, true).map(
-                |locations| {
-                    locations
-                        .iter()
-                        .filter_map(|location| to_lsp_location(files, location.file, location.span))
-                        .collect()
-                },
+    let include_declaration = params.context.include_declaration;
+    let result = process_request(
+        state,
+        params.text_document_position,
+        |location, interner, files, cached_interners| {
+            find_all_references_in_workspace(
+                location,
+                interner,
+                cached_interners,
+                files,
+                include_declaration,
+                true,
             )
-        });
+        },
+    );
     future::ready(result)
 }
 

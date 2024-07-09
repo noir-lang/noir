@@ -178,14 +178,8 @@ impl NodeInterner {
         include_referenced: bool,
         include_self_type_name: bool,
     ) -> Option<Vec<Location>> {
-        let node_index = self.location_indices.get_node_from_location(location)?;
-
-        let reference_node = self.reference_graph[node_index];
-        let referenced_node_index = if let ReferenceId::Reference(_, _) = reference_node {
-            self.referenced_index(node_index)?
-        } else {
-            node_index
-        };
+        let referenced_node = self.find_referenced(location)?;
+        let referenced_node_index = self.reference_graph_indices[&referenced_node];
 
         let found_locations = self.find_all_references_for_index(
             referenced_node_index,
@@ -194,6 +188,19 @@ impl NodeInterner {
         );
 
         Some(found_locations)
+    }
+
+    // Returns the `ReferenceId` that is referenced by the given location, if any.
+    pub fn find_referenced(&self, location: Location) -> Option<ReferenceId> {
+        let node_index = self.location_indices.get_node_from_location(location)?;
+
+        let reference_node = self.reference_graph[node_index];
+        if let ReferenceId::Reference(_, _) = reference_node {
+            let node_index = self.referenced_index(node_index)?;
+            Some(self.reference_graph[node_index])
+        } else {
+            Some(reference_node)
+        }
     }
 
     // Given a referenced node index, find all references to it and return their locations, optionally together
