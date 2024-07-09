@@ -126,6 +126,8 @@ struct PerFunctionContext<'function> {
 
     /// True if we're currently working on the entry point function.
     inlining_entry: bool,
+
+    side_effects_enabled: Option<ValueId>,
 }
 
 /// Utility function to find out the direct calls of a function.
@@ -325,6 +327,7 @@ impl<'function> PerFunctionContext<'function> {
             blocks: HashMap::default(),
             values: HashMap::default(),
             inlining_entry: false,
+            side_effects_enabled: None,
         }
     }
 
@@ -482,12 +485,28 @@ impl<'function> PerFunctionContext<'function> {
                     Some(func_id) => {
                         if self.should_inline_call(ssa, func_id) {
                             self.inline_function(ssa, *id, func_id, arguments);
+
+                            // This is only relevant during handling functions with `InlineType::NoPredicates` as these
+                            // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
+                            // resulting in predicates not being applied properly.
+                            //
+                            // Note that this doesn't cover the case in which there exists an `Instruction::EnabledSideEffects`
+                            // within the function being inlined whilst the source function has not encountered one yet.
+                            // In practice this isn't an issue as the last `Instruction::EnabledSideEffects` in the
+                            // function being inlined will be to turn off predicates rather than to create one.
+                            if let Some(condition) = self.side_effects_enabled {
+                                self.context.builder.insert_enable_side_effects_if(condition);
+                            }
                         } else {
                             self.push_instruction(*id);
                         }
                     }
                     None => self.push_instruction(*id),
                 },
+                Instruction::EnableSideEffects { condition } => {
+                    self.side_effects_enabled = Some(self.translate_value(*condition));
+                    self.push_instruction(*id);
+                }
                 _ => self.push_instruction(*id),
             }
         }
