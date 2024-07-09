@@ -310,11 +310,11 @@ export class Fq extends BaseField {
     return `Fq<${this.toString()}>`;
   }
 
-  get low(): Fr {
+  get lo(): Fr {
     return new Fr(this.toBigInt() & Fq.LOW_MASK);
   }
 
-  get high(): Fr {
+  get hi(): Fr {
     return new Fr(this.toBigInt() >> Fq.HIGH_SHIFT);
   }
 

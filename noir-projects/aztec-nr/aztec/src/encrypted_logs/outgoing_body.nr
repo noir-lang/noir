@@ -1,6 +1,6 @@
 use dep::protocol_types::{
-    address::AztecAddress, grumpkin_private_key::GrumpkinPrivateKey, point::Point,
-    constants::GENERATOR_INDEX__SYMMETRIC_KEY, hash::poseidon2_hash
+    address::AztecAddress, scalar::Scalar, point::Point, constants::GENERATOR_INDEX__SYMMETRIC_KEY,
+    hash::poseidon2_hash
 };
 
 use std::aes128::aes128_encrypt;
@@ -8,25 +8,24 @@ use std::aes128::aes128_encrypt;
 use crate::keys::point_to_symmetric_key::point_to_symmetric_key;
 
 struct EncryptedLogOutgoingBody {
-    eph_sk: GrumpkinPrivateKey,
+    eph_sk: Scalar,
     recipient: AztecAddress,
     recipient_ivpk_app: Point,
 }
 
 impl EncryptedLogOutgoingBody {
-    pub fn new(eph_sk: GrumpkinPrivateKey, recipient: AztecAddress, recipient_ivpk_app: Point) -> Self {
+    pub fn new(eph_sk: Scalar, recipient: AztecAddress, recipient_ivpk_app: Point) -> Self {
         Self { eph_sk, recipient, recipient_ivpk_app }
     }
 
-    pub fn compute_ciphertext(self, ovsk_app: GrumpkinPrivateKey, eph_pk: Point) -> [u8; 176] {
+    pub fn compute_ciphertext(self, ovsk_app: Scalar, eph_pk: Point) -> [u8; 176] {
         // Again, we could compute `eph_pk` here, but we keep the interface more similar
         // and also make it easier to optimise it later as we just pass it along
 
         let mut buffer: [u8; 160] = [0; 160];
 
-        let serialized_eph_sk: [Field; 2] = self.eph_sk.serialize();
-        let serialized_eph_sk_high = serialized_eph_sk[0].to_be_bytes(32);
-        let serialized_eph_sk_low = serialized_eph_sk[1].to_be_bytes(32);
+        let serialized_eph_sk_high = self.eph_sk.hi.to_be_bytes(32);
+        let serialized_eph_sk_low = self.eph_sk.lo.to_be_bytes(32);
 
         let address_bytes = self.recipient.to_field().to_be_bytes(32);
         let serialized_recipient_ivpk_app = self.recipient_ivpk_app.serialize();
@@ -44,7 +43,7 @@ impl EncryptedLogOutgoingBody {
         // We compute the symmetric key using poseidon.
         let full_key: [u8; 32] = poseidon2_hash(
             [
-            ovsk_app.high, ovsk_app.low, eph_pk.x, eph_pk.y,
+            ovsk_app.hi, ovsk_app.lo, eph_pk.x, eph_pk.y,
             GENERATOR_INDEX__SYMMETRIC_KEY as Field
         ]
         ).to_be_bytes(32).as_array();
@@ -64,24 +63,24 @@ mod test {
     use crate::encrypted_logs::outgoing_body::EncryptedLogOutgoingBody;
     use dep::protocol_types::{
         address::AztecAddress, traits::Empty, constants::GENERATOR_INDEX__NOTE_NULLIFIER,
-        grumpkin_private_key::GrumpkinPrivateKey, point::Point, hash::poseidon2_hash
+        scalar::Scalar, point::Point, hash::poseidon2_hash
     };
 
     use crate::context::PrivateContext;
 
     #[test]
     fn test_encrypted_log_outgoing_body() {
-        let eph_sk = GrumpkinPrivateKey::new(
-            0x000000000000000000000000000000000f096b423017226a18461115fa8d34bb,
-            0x00000000000000000000000000000000d0d302ee245dfaf2807e604eec4715fe
+        let eph_sk = Scalar::new(
+            0x00000000000000000000000000000000d0d302ee245dfaf2807e604eec4715fe,
+            0x000000000000000000000000000000000f096b423017226a18461115fa8d34bb
         );
-        let recipient_ivsk_app = GrumpkinPrivateKey::new(
-            0x000000000000000000000000000000000f4d97c25d578f9348251a71ca17ae31,
-            0x000000000000000000000000000000004828f8f95676ebb481df163f87fd4022
+        let recipient_ivsk_app = Scalar::new(
+            0x000000000000000000000000000000004828f8f95676ebb481df163f87fd4022,
+            0x000000000000000000000000000000000f4d97c25d578f9348251a71ca17ae31
         );
-        let sender_ovsk_app = GrumpkinPrivateKey::new(
-            0x00000000000000000000000000000000089c6887cb1446d86c64e81afc78048b,
-            0x0000000000000000000000000000000074d2e28c6bc5176ac02cf7c7d36a444e
+        let sender_ovsk_app = Scalar::new(
+            0x0000000000000000000000000000000074d2e28c6bc5176ac02cf7c7d36a444e,
+            0x00000000000000000000000000000000089c6887cb1446d86c64e81afc78048b
         );
 
         let eph_pk = eph_sk.derive_public_key();

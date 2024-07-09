@@ -1,4 +1,4 @@
-import { AztecAddress, type GrumpkinPrivateKey, type KeyValidationRequest, type PublicKey } from '@aztec/circuits.js';
+import { AztecAddress, type GrumpkinScalar, type KeyValidationRequest, type PublicKey } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -55,7 +55,7 @@ export class TaggedLog<Payload extends L1NotePayload | L1EventPayload> {
   }
 
   public encrypt(
-    ephSk: GrumpkinPrivateKey,
+    ephSk: GrumpkinScalar,
     recipient: AztecAddress,
     ivpk: PublicKey,
     ovKeys: KeyValidationRequest,
@@ -65,17 +65,17 @@ export class TaggedLog<Payload extends L1NotePayload | L1EventPayload> {
 
   static decryptAsIncoming(
     encryptedLog: EncryptedL2Log,
-    ivsk: GrumpkinPrivateKey,
+    ivsk: GrumpkinScalar,
     payloadType: typeof L1EventPayload,
   ): TaggedLog<L1EventPayload> | undefined;
   static decryptAsIncoming(
     data: Buffer | bigint[],
-    ivsk: GrumpkinPrivateKey,
+    ivsk: GrumpkinScalar,
     payloadType?: typeof L1NotePayload,
   ): TaggedLog<L1NotePayload> | undefined;
   static decryptAsIncoming(
     data: Buffer | bigint[] | EncryptedL2Log,
-    ivsk: GrumpkinPrivateKey,
+    ivsk: GrumpkinScalar,
     payloadType: typeof L1NotePayload | typeof L1EventPayload = L1NotePayload,
   ): TaggedLog<L1NotePayload | L1EventPayload> | undefined {
     try {
@@ -111,17 +111,17 @@ export class TaggedLog<Payload extends L1NotePayload | L1EventPayload> {
 
   static decryptAsOutgoing(
     encryptedLog: EncryptedL2Log,
-    ivsk: GrumpkinPrivateKey,
+    ivsk: GrumpkinScalar,
     payloadType: typeof L1EventPayload,
   ): TaggedLog<L1EventPayload> | undefined;
   static decryptAsOutgoing(
     data: Buffer | bigint[],
-    ivsk: GrumpkinPrivateKey,
+    ivsk: GrumpkinScalar,
     payloadType?: typeof L1NotePayload,
   ): TaggedLog<L1NotePayload> | undefined;
   static decryptAsOutgoing(
     data: Buffer | bigint[] | EncryptedL2Log,
-    ovsk: GrumpkinPrivateKey,
+    ovsk: GrumpkinScalar,
     payloadType: typeof L1NotePayload | typeof L1EventPayload = L1NotePayload,
   ) {
     try {

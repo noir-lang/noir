@@ -1,4 +1,4 @@
-import { AztecAddress, type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
+import { AztecAddress, type GrumpkinScalar, type PublicKey } from '@aztec/circuits.js';
 import { Aes128 } from '@aztec/circuits.js/barretenberg';
 
 import { deriveAESSecret } from './encryption_utils.js';
@@ -34,7 +34,7 @@ export class EncryptedLogHeader {
    * @param publicKey - The incoming or outgoing viewing key of the "recipient" of this log
    * @returns The ciphertext of the encrypted log header
    */
-  public computeCiphertext(secret: GrumpkinPrivateKey, publicKey: PublicKey) {
+  public computeCiphertext(secret: GrumpkinScalar, publicKey: PublicKey) {
     const aesSecret = deriveAESSecret(secret, publicKey);
     const key = aesSecret.subarray(0, 16);
     const iv = aesSecret.subarray(16, 32);
@@ -54,7 +54,7 @@ export class EncryptedLogHeader {
    */
   public static fromCiphertext(
     ciphertext: Buffer | bigint[],
-    secret: GrumpkinPrivateKey,
+    secret: GrumpkinScalar,
     publicKey: PublicKey,
   ): EncryptedLogHeader {
     const input = Buffer.isBuffer(ciphertext) ? ciphertext : Buffer.from(ciphertext.map((x: bigint) => Number(x)));

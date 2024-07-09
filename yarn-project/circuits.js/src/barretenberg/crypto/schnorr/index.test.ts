@@ -1,6 +1,7 @@
+import { GrumpkinScalar } from '@aztec/foundation/fields';
+
 import { TextEncoder } from 'util';
 
-import { GrumpkinScalar } from '../../../index.js';
 import { Schnorr } from './index.js';
 
 describe('schnorr', () => {

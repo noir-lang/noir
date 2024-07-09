@@ -56,10 +56,25 @@ struct EmbeddedCurveScalar {
 }
 
 impl EmbeddedCurveScalar {
+    pub fn new(lo: Field, hi: Field) -> Self {
+        EmbeddedCurveScalar { lo, hi }
+    }
+
+    pub fn derive_public_key(self) -> EmbeddedCurvePoint {
+        let public_key = fixed_base_scalar_mul(self.lo, self.hi);
+        EmbeddedCurvePoint { x: public_key[0], y: public_key[1], is_infinite: false }
+    }
+
     #[field(bn254)]
     fn from_field(scalar: Field) -> EmbeddedCurveScalar {
         let (a,b) = crate::field::bn254::decompose(scalar);
         EmbeddedCurveScalar { lo: a, hi: b }
+    }
+}
+
+impl Eq for EmbeddedCurveScalar {
+    fn eq(self, key: EmbeddedCurveScalar) -> bool {
+        (key.hi == self.hi) & (key.lo == self.lo)
     }
 }
 

@@ -1,4 +1,4 @@
-import { Fr, type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
+import { Fr, type GrumpkinScalar, type PublicKey } from '@aztec/circuits.js';
 import { NoteSelector } from '@aztec/foundation/abi';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -53,7 +53,7 @@ export class EncryptedNoteLogIncomingBody extends EncryptedLogIncomingBody {
    */
   public static fromCiphertext(
     ciphertext: Buffer | bigint[],
-    ivskAppOrEphSk: GrumpkinPrivateKey,
+    ivskAppOrEphSk: GrumpkinScalar,
     ephPkOrIvpkApp: PublicKey,
   ): EncryptedNoteLogIncomingBody {
     const buffer = super.fromCiphertextToBuffer(ciphertext, ivskAppOrEphSk, ephPkOrIvpkApp);

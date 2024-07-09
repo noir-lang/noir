@@ -3,7 +3,7 @@ import {
   type AztecAddress,
   type Fr,
   type FunctionSelector,
-  type GrumpkinPrivateKey,
+  type GrumpkinScalar,
   MembershipWitness,
   type NOTE_HASH_TREE_HEIGHT,
   type Point,
@@ -73,7 +73,7 @@ export class KernelOracle implements ProvingDataOracle {
     return header.state.partial.noteHashTree.root;
   }
 
-  public getMasterSecretKey(masterPublicKey: Point): Promise<GrumpkinPrivateKey> {
+  public getMasterSecretKey(masterPublicKey: Point): Promise<GrumpkinScalar> {
     return this.keyStore.getMasterSecretKey(masterPublicKey);
   }
 

@@ -8,7 +8,6 @@ import {
   type CompleteAddress,
   type DebugLogger,
   Fr,
-  type GrumpkinPrivateKey,
   GrumpkinScalar,
   type PXE,
   type Wallet,
@@ -20,7 +19,7 @@ import { ChildContract } from '@aztec/noir-contracts.js/Child';
 import { setup } from './fixtures/utils.js';
 
 function itShouldBehaveLikeAnAccountContract(
-  getAccountContract: (encryptionKey: GrumpkinPrivateKey) => AccountContract,
+  getAccountContract: (encryptionKey: GrumpkinScalar) => AccountContract,
   walletSetup: (pxe: PXE, secretKey: Fr, accountContract: AccountContract) => Promise<Wallet>,
   walletAt: (pxe: PXE, accountContract: AccountContract, address: CompleteAddress) => Promise<Wallet>,
 ) {
@@ -79,7 +78,7 @@ describe('e2e_account_contracts', () => {
 
   describe('schnorr single-key account', () => {
     itShouldBehaveLikeAnAccountContract(
-      (encryptionKey: GrumpkinPrivateKey) => new SingleKeyAccountContract(encryptionKey),
+      (encryptionKey: GrumpkinScalar) => new SingleKeyAccountContract(encryptionKey),
       walletSetup,
       walletAt,
     );

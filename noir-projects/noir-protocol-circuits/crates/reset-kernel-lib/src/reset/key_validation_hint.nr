@@ -1,18 +1,18 @@
 use dep::types::{
     traits::{Empty, is_empty}, abis::{validation_requests::ScopedKeyValidationRequestAndGenerator},
-    constants::MAX_KEY_VALIDATION_REQUESTS_PER_TX, grumpkin_private_key::GrumpkinPrivateKey,
-    hash::poseidon2_hash, utils::arrays::filter_array_to_bounded_vec
+    constants::MAX_KEY_VALIDATION_REQUESTS_PER_TX, scalar::Scalar, hash::poseidon2_hash,
+    utils::arrays::filter_array_to_bounded_vec
 };
 
 struct KeyValidationHint {
-  sk_m: GrumpkinPrivateKey,
+  sk_m: Scalar,
   request_index: u64,
 }
 
 impl Empty for KeyValidationHint {
     fn empty() -> Self {
         KeyValidationHint {
-            sk_m: GrumpkinPrivateKey::empty(),
+            sk_m: Scalar::empty(),
             request_index: 0,
         }
     }
@@ -51,7 +51,7 @@ pub fn reset_key_validation_requests<N>(
 
             // Then we check that siloing the master secret key with the contract address gives the app secret key
 
-            let sk_app = poseidon2_hash([sk_m.high, sk_m.low, contract_address.to_field(), sk_app_generator]);
+            let sk_app = poseidon2_hash([sk_m.hi, sk_m.lo, contract_address.to_field(), sk_app_generator]);
             assert(
                 sk_app.eq(request.sk_app), "Failed to derive matching app secret key from the secret key."
             );

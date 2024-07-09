@@ -1,6 +1,6 @@
 import {
   type AztecAddress,
-  type GrumpkinPrivateKey,
+  type GrumpkinScalar,
   type KeyValidationRequest,
   type PublicKey,
   computeIvpkApp,
@@ -47,7 +47,7 @@ export abstract class L1Payload {
    */
   protected _encrypt<T extends EncryptedLogIncomingBody>(
     contractAddress: AztecAddress,
-    ephSk: GrumpkinPrivateKey,
+    ephSk: GrumpkinScalar,
     recipient: AztecAddress,
     ivpk: PublicKey,
     ovKeys: KeyValidationRequest,
@@ -69,7 +69,7 @@ export abstract class L1Payload {
     const incomingBodyCiphertext = incomingBody.computeCiphertext(ephSk, ivpkApp);
 
     const outgoingBodyCiphertext = new EncryptedLogOutgoingBody(ephSk, recipient, ivpkApp).computeCiphertext(
-      ovKeys.skAppAsGrumpkinPrivateKey,
+      ovKeys.skAppAsGrumpkinScalar,
       ephPk,
     );
 
@@ -96,8 +96,8 @@ export abstract class L1Payload {
    */
   protected static _decryptAsIncoming<T extends EncryptedLogIncomingBody>(
     data: Buffer,
-    ivsk: GrumpkinPrivateKey,
-    fromCiphertext: (incomingBodySlice: Buffer, ivskApp: GrumpkinPrivateKey, ephPk: Point) => T,
+    ivsk: GrumpkinScalar,
+    fromCiphertext: (incomingBodySlice: Buffer, ivskApp: GrumpkinScalar, ephPk: Point) => T,
   ): [AztecAddress, T] {
     const reader = BufferReader.asReader(data);
 
@@ -133,8 +133,8 @@ export abstract class L1Payload {
    */
   protected static _decryptAsOutgoing<T extends EncryptedLogIncomingBody>(
     data: Buffer,
-    ovsk: GrumpkinPrivateKey,
-    fromCiphertext: (incomingBodySlice: Buffer, ivskApp: GrumpkinPrivateKey, ephPk: Point) => T,
+    ovsk: GrumpkinScalar,
+    fromCiphertext: (incomingBodySlice: Buffer, ivskApp: GrumpkinScalar, ephPk: Point) => T,
   ): [AztecAddress, T] {
     const reader = BufferReader.asReader(data);
 

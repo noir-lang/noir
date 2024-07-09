@@ -15,8 +15,8 @@ describe('encrypt buffer', () => {
 
   it('derive shared secret', () => {
     // The following 2 are arbitrary fixed values - fixed in order to test a match with Noir
-    const ownerSecretKey: GrumpkinScalar = new Fq(0x23b3127c127b1f29a7adff5cccf8fb06649e7ca01d9de27b21624098b897babdn);
-    const ephSecretKey: GrumpkinScalar = new Fq(0x1fdd0dd8c99b21af8e00d2d130bdc263b36dadcbea84ac5ec9293a0660deca01n);
+    const ownerSecretKey = new Fq(0x23b3127c127b1f29a7adff5cccf8fb06649e7ca01d9de27b21624098b897babdn);
+    const ephSecretKey = new Fq(0x1fdd0dd8c99b21af8e00d2d130bdc263b36dadcbea84ac5ec9293a0660deca01n);
 
     const ownerPubKey = grumpkin.mul(Grumpkin.generator, ownerSecretKey);
     const ephPubKey = grumpkin.mul(Grumpkin.generator, ephSecretKey);

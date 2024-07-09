@@ -3,7 +3,7 @@ import {
   type FUNCTION_TREE_HEIGHT,
   type Fr,
   type FunctionSelector,
-  type GrumpkinPrivateKey,
+  type GrumpkinScalar,
   type MembershipWitness,
   type NOTE_HASH_TREE_HEIGHT,
   type Point,
@@ -76,7 +76,7 @@ export interface ProvingDataOracle {
    * @returns A Promise that resolves to sk_m.
    * @dev Used when feeding the sk_m to the kernel circuit for keys verification.
    */
-  getMasterSecretKey(masterPublicKey: Point): Promise<GrumpkinPrivateKey>;
+  getMasterSecretKey(masterPublicKey: Point): Promise<GrumpkinScalar>;
 
   getDebugFunctionName(contractAddress: AztecAddress, selector: FunctionSelector): Promise<string | undefined>;
 }

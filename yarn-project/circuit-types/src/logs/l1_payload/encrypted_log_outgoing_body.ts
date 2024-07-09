@@ -1,10 +1,10 @@
-import { AztecAddress, Fr, GeneratorIndex, GrumpkinPrivateKey, Point, type PublicKey } from '@aztec/circuits.js';
+import { AztecAddress, Fr, GeneratorIndex, GrumpkinScalar, Point, type PublicKey } from '@aztec/circuits.js';
 import { Aes128 } from '@aztec/circuits.js/barretenberg';
 import { poseidon2Hash } from '@aztec/foundation/crypto';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 export class EncryptedLogOutgoingBody {
-  constructor(public ephSk: GrumpkinPrivateKey, public recipient: AztecAddress, public recipientIvpkApp: PublicKey) {}
+  constructor(public ephSk: GrumpkinScalar, public recipient: AztecAddress, public recipientIvpkApp: PublicKey) {}
 
   /**
    * Serializes the log body
@@ -13,7 +13,7 @@ export class EncryptedLogOutgoingBody {
    */
   public toBuffer(): Buffer {
     // The serialization of Fq is [high, low] check `grumpkin_private_key.nr`
-    const ephSkBytes = serializeToBuffer([this.ephSk.high, this.ephSk.low]);
+    const ephSkBytes = serializeToBuffer([this.ephSk.hi, this.ephSk.lo]);
     return serializeToBuffer(ephSkBytes, this.recipient, this.recipientIvpkApp);
   }
 
@@ -27,7 +27,7 @@ export class EncryptedLogOutgoingBody {
     const reader = BufferReader.asReader(buf);
     const high = reader.readObject(Fr);
     const low = reader.readObject(Fr);
-    const ephSk = GrumpkinPrivateKey.fromHighLow(high, low);
+    const ephSk = GrumpkinScalar.fromHighLow(high, low);
     const recipient = reader.readObject(AztecAddress);
     const recipientIvpkApp = reader.readObject(Point); // PublicKey = Point
 
@@ -42,7 +42,7 @@ export class EncryptedLogOutgoingBody {
    *
    * @returns The ciphertext of the encrypted log body
    */
-  public computeCiphertext(ovskApp: GrumpkinPrivateKey, ephPk: PublicKey) {
+  public computeCiphertext(ovskApp: GrumpkinScalar, ephPk: PublicKey) {
     // We could use `ephSk` and compute `ephPk` from it.
     // We mainly provide it to keep the same api and potentially slight optimization as we can reuse it.
 
@@ -68,7 +68,7 @@ export class EncryptedLogOutgoingBody {
    */
   public static fromCiphertext(
     ciphertext: Buffer | bigint[],
-    ovskApp: GrumpkinPrivateKey,
+    ovskApp: GrumpkinScalar,
     ephPk: PublicKey,
   ): EncryptedLogOutgoingBody {
     const input = Buffer.isBuffer(ciphertext) ? ciphertext : Buffer.from(ciphertext.map((x: bigint) => Number(x)));
@@ -91,10 +91,10 @@ export class EncryptedLogOutgoingBody {
    * @param ephPk - The ephemeral public key
    * @returns The derived AES symmetric key
    */
-  private static derivePoseidonAESSecret(ovskApp: GrumpkinPrivateKey, ephPk: PublicKey) {
+  private static derivePoseidonAESSecret(ovskApp: GrumpkinScalar, ephPk: PublicKey) {
     // For performance reasons, we do NOT use the usual `deriveAESSecret` function here and instead we compute it using
     // poseidon. Note that we can afford to use poseidon here instead of deriving shared secret using Diffie-Hellman
     // because for outgoing we are encrypting for ourselves and hence we don't need to perform a key exchange.
-    return poseidon2Hash([ovskApp.high, ovskApp.low, ephPk.x, ephPk.y, GeneratorIndex.SYMMETRIC_KEY]).toBuffer();
+    return poseidon2Hash([ovskApp.hi, ovskApp.lo, ephPk.x, ephPk.y, GeneratorIndex.SYMMETRIC_KEY]).toBuffer();
   }
 }

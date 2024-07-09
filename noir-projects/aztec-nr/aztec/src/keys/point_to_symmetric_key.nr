@@ -1,16 +1,13 @@
 use dep::protocol_types::{
-    constants::GENERATOR_INDEX__SYMMETRIC_KEY, grumpkin_private_key::GrumpkinPrivateKey,
-    point::{Point, pub_key_to_bytes}, utils::arr_copy_slice
+    constants::GENERATOR_INDEX__SYMMETRIC_KEY, scalar::Scalar, point::{Point, pub_key_to_bytes},
+    utils::arr_copy_slice
 };
-use std::{hash::sha256, embedded_curve_ops::{EmbeddedCurveScalar, multi_scalar_mul}};
+use std::{hash::sha256, embedded_curve_ops::multi_scalar_mul};
 
 // TODO(#5726): This function is called deriveAESSecret in TS. I don't like point_to_symmetric_key name much since
 // point is not the only input of the function. Unify naming with TS once we have a better name.
-pub fn point_to_symmetric_key(secret: GrumpkinPrivateKey, point: Point) -> [u8; 32] {
-    let shared_secret_fields = multi_scalar_mul(
-        [Point { x: point.x, y: point.y, is_infinite: false }],
-        [EmbeddedCurveScalar { lo: secret.low, hi: secret.high }]
-    );
+pub fn point_to_symmetric_key(secret: Scalar, point: Point) -> [u8; 32] {
+    let shared_secret_fields = multi_scalar_mul([point], [secret]);
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6061): make the func return Point struct directly
     let shared_secret = pub_key_to_bytes(Point::new(shared_secret_fields[0], shared_secret_fields[1], false));
     let mut shared_secret_bytes_with_separator = [0 as u8; 65];
@@ -22,9 +19,9 @@ pub fn point_to_symmetric_key(secret: GrumpkinPrivateKey, point: Point) -> [u8; 
 #[test]
 fn check_point_to_symmetric_key() {
     // Value taken from "derive shared secret" test in encrypt_buffer.test.ts
-    let secret = GrumpkinPrivateKey::new(
-        0x0000000000000000000000000000000023b3127c127b1f29a7adff5cccf8fb06,
-        0x00000000000000000000000000000000649e7ca01d9de27b21624098b897babd
+    let secret = Scalar::new(
+        0x00000000000000000000000000000000649e7ca01d9de27b21624098b897babd,
+        0x0000000000000000000000000000000023b3127c127b1f29a7adff5cccf8fb06
     );
     let point = Point::new(
         0x2688431c705a5ff3e6c6f2573c9e3ba1c1026d2251d0dbbf2d810aa53fd1d186,

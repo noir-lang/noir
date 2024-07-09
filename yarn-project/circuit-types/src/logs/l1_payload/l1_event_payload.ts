@@ -1,4 +1,4 @@
-import { AztecAddress, type GrumpkinPrivateKey, type KeyValidationRequest, type PublicKey } from '@aztec/circuits.js';
+import { AztecAddress, type GrumpkinScalar, type KeyValidationRequest, type PublicKey } from '@aztec/circuits.js';
 import { EventSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
@@ -64,7 +64,7 @@ export class L1EventPayload extends L1Payload {
     return new L1EventPayload(Event.random(), AztecAddress.random(), Fr.random(), EventSelector.random());
   }
 
-  public encrypt(ephSk: GrumpkinPrivateKey, recipient: AztecAddress, ivpk: PublicKey, ovKeys: KeyValidationRequest) {
+  public encrypt(ephSk: GrumpkinScalar, recipient: AztecAddress, ivpk: PublicKey, ovKeys: KeyValidationRequest) {
     return super._encrypt(
       this.contractAddress,
       ephSk,
@@ -88,7 +88,7 @@ export class L1EventPayload extends L1Payload {
    * @returns The decrypted log payload
    * @remarks The encrypted log is assumed to always have tags.
    */
-  public static decryptAsIncoming(encryptedLog: EncryptedL2Log, ivsk: GrumpkinPrivateKey) {
+  public static decryptAsIncoming(encryptedLog: EncryptedL2Log, ivsk: GrumpkinScalar) {
     const reader = BufferReader.asReader(encryptedLog.data);
 
     // We skip the tags
@@ -123,7 +123,7 @@ export class L1EventPayload extends L1Payload {
    * @param ovsk - The outgoing viewing secret key, used to decrypt the logs
    * @returns The decrypted log payload
    */
-  public static decryptAsOutgoing(encryptedLog: EncryptedL2Log, ovsk: GrumpkinPrivateKey) {
+  public static decryptAsOutgoing(encryptedLog: EncryptedL2Log, ovsk: GrumpkinScalar) {
     const reader = BufferReader.asReader(encryptedLog.data);
 
     // Skip the tags

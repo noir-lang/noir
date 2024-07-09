@@ -4,8 +4,8 @@ describe('GrumpkinScalar Serialization', () => {
   // Test case for GrumpkinScalar.fromHighLow
   it('fromHighLow should serialize and deserialize correctly', () => {
     const original = GrumpkinScalar.random();
-    const high = original.high;
-    const low = original.low;
+    const high = original.hi;
+    const low = original.lo;
 
     const deserialized = GrumpkinScalar.fromHighLow(high, low);
 

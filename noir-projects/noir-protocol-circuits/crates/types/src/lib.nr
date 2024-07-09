@@ -2,7 +2,7 @@ mod utils;
 mod address;
 mod debug_log;
 mod point;
-mod grumpkin_private_key;
+mod scalar;
 // This is intentionally spelled like this 
 // since contract is a reserved keyword, so it cannot 
 // be used as an ident.

@@ -1,8 +1,7 @@
 import { BarretenbergSync } from '@aztec/bb.js';
-import { Point } from '@aztec/foundation/fields';
+import { type GrumpkinScalar, Point } from '@aztec/foundation/fields';
 import { numToUInt32BE } from '@aztec/foundation/serialize';
 
-import { type GrumpkinPrivateKey } from '../../../types/grumpkin_private_key.js';
 import { type PublicKey } from '../../../types/public_key.js';
 import { SchnorrSignature } from './signature.js';
 
@@ -19,7 +18,7 @@ export class Schnorr {
    * @param privateKey - The private key.
    * @returns A grumpkin public key.
    */
-  public computePublicKey(privateKey: GrumpkinPrivateKey): PublicKey {
+  public computePublicKey(privateKey: GrumpkinScalar): PublicKey {
     this.wasm.writeMemory(0, privateKey.toBuffer());
     this.wasm.call('schnorr_compute_public_key', 0, 32);
     return Point.fromBuffer(Buffer.from(this.wasm.getMemorySlice(32, 96)));
@@ -31,7 +30,7 @@ export class Schnorr {
    * @param privateKey - The private key of the signer.
    * @returns A Schnorr signature of the form (s, e).
    */
-  public constructSignature(msg: Uint8Array, privateKey: GrumpkinPrivateKey) {
+  public constructSignature(msg: Uint8Array, privateKey: GrumpkinScalar) {
     const mem = this.wasm.call('bbmalloc', msg.length + 4);
     this.wasm.writeMemory(0, privateKey.toBuffer());
     this.wasm.writeMemory(mem, Buffer.concat([numToUInt32BE(msg.length), msg]));

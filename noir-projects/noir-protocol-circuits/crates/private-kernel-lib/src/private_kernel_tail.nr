@@ -61,7 +61,7 @@ mod tests {
         kernel_circuit_public_inputs::KernelCircuitPublicInputs, max_block_number::MaxBlockNumber,
         note_hash::{NoteHash, ScopedNoteHash}, nullifier::{Nullifier, ScopedNullifier}, gas::Gas
     },
-        address::{AztecAddress, EthAddress}, grumpkin_private_key::GrumpkinPrivateKey,
+        address::{AztecAddress, EthAddress}, scalar::Scalar,
         hash::{
         sha256_to_field, silo_note_hash, silo_nullifier, compute_siloed_encrypted_log_hash,
         compute_siloed_unencrypted_log_hash

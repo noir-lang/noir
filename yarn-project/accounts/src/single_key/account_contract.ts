@@ -1,5 +1,5 @@
 import { type AuthWitnessProvider } from '@aztec/aztec.js/account';
-import { AuthWitness, type CompleteAddress, type GrumpkinPrivateKey } from '@aztec/circuit-types';
+import { AuthWitness, type CompleteAddress, type GrumpkinScalar } from '@aztec/circuit-types';
 import { Schnorr } from '@aztec/circuits.js/barretenberg';
 import { type ContractArtifact } from '@aztec/foundation/abi';
 import { type Fr } from '@aztec/foundation/fields';
@@ -12,7 +12,7 @@ import { SchnorrSingleKeyAccountContractArtifact } from './artifact.js';
  * the note encryption key, relying on a single private key for both encryption and authentication.
  */
 export class SingleKeyAccountContract extends DefaultAccountContract {
-  constructor(private encryptionPrivateKey: GrumpkinPrivateKey) {
+  constructor(private encryptionPrivateKey: GrumpkinScalar) {
     super(SchnorrSingleKeyAccountContractArtifact as ContractArtifact);
   }
 
@@ -31,7 +31,7 @@ export class SingleKeyAccountContract extends DefaultAccountContract {
  * by reconstructing the current address.
  */
 class SingleKeyAuthWitnessProvider implements AuthWitnessProvider {
-  constructor(private privateKey: GrumpkinPrivateKey, private account: CompleteAddress) {}
+  constructor(private privateKey: GrumpkinScalar, private account: CompleteAddress) {}
 
   createAuthWit(messageHash: Fr): Promise<AuthWitness> {
     const schnorr = new Schnorr();

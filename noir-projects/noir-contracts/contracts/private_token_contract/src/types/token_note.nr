@@ -1,11 +1,11 @@
 use dep::aztec::{
     prelude::{AztecAddress, NoteHeader, NoteInterface, PrivateContext},
-    protocol_types::{constants::GENERATOR_INDEX__NOTE_NULLIFIER, point::Point, hash::poseidon2_hash},
+    protocol_types::{constants::GENERATOR_INDEX__NOTE_NULLIFIER, point::Point, scalar::Scalar, hash::poseidon2_hash},
     note::utils::compute_note_hash_for_consumption, oracle::unsafe_rand::unsafe_rand,
     keys::getters::get_nsk_app, note::note_getter_options::PropertySelector
 };
 use dep::std::field::bn254::decompose;
-use dep::std::embedded_curve_ops::{EmbeddedCurveScalar, multi_scalar_mul, fixed_base_scalar_mul};
+use dep::std::embedded_curve_ops::multi_scalar_mul;
 
 trait OwnedNote {
     fn new(amount: U128, owner_npk_m_hash: Field) -> Self;
@@ -80,15 +80,15 @@ impl NoteInterface<TOKEN_NOTE_LEN, TOKEN_NOTE_BYTES_LEN> for TokenNote {
         // by leveraging homomorphism.
         multi_scalar_mul(
             [G1, G1, G1],
-            [EmbeddedCurveScalar {
+            [Scalar {
                 lo: self.amount.to_integer(),
                 hi: 0
             },
-            EmbeddedCurveScalar {
+            Scalar {
                 lo: npk_lo,
                 hi: npk_hi
             },
-            EmbeddedCurveScalar {
+            Scalar {
                 lo: random_lo,
                 hi: random_hi,
             }]
@@ -204,11 +204,11 @@ impl PrivatelyRefundable for TokenNote {
         // 2. Now that we have correct representationsn of fee payer and randomness we can compute `G ^ (fee_payer_npk + randomness)`
         let incomplete_fee_payer_point = multi_scalar_mul(
             [G1, G1],
-            [EmbeddedCurveScalar {
+            [Scalar {
                 lo: fee_payer_npk_m_hash_lo,
                 hi: fee_payer_npk_m_hash_hi
             },
-            EmbeddedCurveScalar {
+            Scalar {
                 lo: fee_payer_randomness_lo,
                 hi: fee_payer_randomness_hi
             }]
@@ -223,15 +223,15 @@ impl PrivatelyRefundable for TokenNote {
         // 4. We compute `G ^ (user_npk_m_hash + funded_amount + randomness)`
         let incomplete_user_point = multi_scalar_mul(
             [G1, G1, G1],
-            [EmbeddedCurveScalar {
+            [Scalar {
                 lo: user_lo,
                 hi: user_hi
             },
-            EmbeddedCurveScalar {
+            Scalar {
                 lo: funded_amount_lo,
                 hi: funded_amount_hi
             },
-            EmbeddedCurveScalar {
+            Scalar {
                 lo: user_randomness_lo,
                 hi: user_randomness_hi
             }]
@@ -256,7 +256,7 @@ impl PrivatelyRefundable for TokenNote {
         // 2. We compute the fee point as `G ^ transaction_fee`
         let fee_point_raw = multi_scalar_mul(
             [G1],
-            [EmbeddedCurveScalar {
+            [Scalar {
                 lo: transaction_fee_lo,
                 hi: transaction_fee_hi,
             }]

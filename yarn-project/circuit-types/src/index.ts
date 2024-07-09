@@ -1,4 +1,4 @@
-export { CompleteAddress, GrumpkinPrivateKey, type PartialAddress, type PublicKey } from '@aztec/circuits.js';
+export { CompleteAddress, GrumpkinScalar, type PartialAddress, type PublicKey } from '@aztec/circuits.js';
 export * from './auth_witness.js';
 export * from './aztec_node/rpc/index.js';
 export * from './body.js';

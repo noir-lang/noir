@@ -1,8 +1,7 @@
-import { Fr, Point } from '@aztec/foundation/fields';
+import { Fr, GrumpkinScalar, Point } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { KEY_VALIDATION_REQUEST_LENGTH } from '../constants.gen.js';
-import { GrumpkinPrivateKey } from '../types/grumpkin_private_key.js';
 
 /**
  * Request for validating keys used in the app.
@@ -14,11 +13,11 @@ export class KeyValidationRequest {
   constructor(
     /** Master public key corresponding to the same underlying secret as app secret key below. */
     public readonly pkM: Point,
-    skApp: Fr | GrumpkinPrivateKey,
+    skApp: Fr | GrumpkinScalar,
   ) {
-    // I am doing this conversion here because in some places skApp is represented as GrumpkinPrivateKey (Fq).
+    // I am doing this conversion here because in some places skApp is represented as GrumpkinScalar (Fq).
     // I can do this conversion even though Fq.MODULUS is larger than Fr.MODULUS because when we pass in
-    // the skApp as GrumpkinPrivateKey it was converted to that form from Fr. So, it is safe to convert it back
+    // the skApp as GrumpkinScalar it was converted to that form from Fr. So, it is safe to convert it back
     // to Fr. If this would change in the future the code below will throw an error so it should be easy to debug.
     this.skApp = skApp instanceof Fr ? skApp : new Fr(skApp.toBigInt());
   }
@@ -27,8 +26,8 @@ export class KeyValidationRequest {
     return serializeToBuffer(this.pkM, this.skApp);
   }
 
-  get skAppAsGrumpkinPrivateKey() {
-    return new GrumpkinPrivateKey(this.skApp.toBigInt());
+  get skAppAsGrumpkinScalar() {
+    return new GrumpkinScalar(this.skApp.toBigInt());
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {

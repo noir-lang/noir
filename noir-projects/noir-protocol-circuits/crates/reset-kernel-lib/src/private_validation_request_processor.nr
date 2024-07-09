@@ -13,8 +13,7 @@ use dep::types::{
     MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX, MAX_KEY_VALIDATION_REQUESTS_PER_TX,
     GENERATOR_INDEX__NSK_M, MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX
 },
-    grumpkin_private_key::GrumpkinPrivateKey, hash::poseidon2_hash, traits::is_empty,
-    utils::arrays::filter_array_to_bounded_vec
+    scalar::Scalar, hash::poseidon2_hash, traits::is_empty, utils::arrays::filter_array_to_bounded_vec
 };
 
 struct PrivateValidationRequestProcessor<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> {
