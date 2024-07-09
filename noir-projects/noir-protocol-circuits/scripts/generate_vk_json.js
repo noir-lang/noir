@@ -30,6 +30,9 @@ async function getBytecodeHash(artifactPath) {
 }
 
 function getBarretenbergHash() {
+  if (process.env.BB_HASH) {
+    return Promise.resolve(process.env.BB_HASH);
+  }
   return new Promise((res, rej) => {
     const hash = crypto.createHash("md5");
 

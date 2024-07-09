@@ -26,10 +26,12 @@ build-contracts:
   SAVE ARTIFACT noir-contracts
   
 build-protocol-circuits:
+  LOCALLY
+  LET bb_source_hash = $(cd .. && git ls-tree -r HEAD | grep 'barretenberg/cpp' | awk '{print $3}' | git hash-object --stdin)
   FROM +source
   RUN --secret AWS_ACCESS_KEY_ID --secret AWS_SECRET_ACCESS_KEY mkdir -p ~/.aws && \
       bash -c 'echo -e "[default]\naws_access_key_id=$AWS_ACCESS_KEY_ID\naws_secret_access_key=$AWS_SECRET_ACCESS_KEY" > ~/.aws/credentials'
-  RUN cd noir-protocol-circuits && NARGO=nargo ./bootstrap.sh
+  RUN cd noir-protocol-circuits && BB_HASH=$bb_source_hash NARGO=nargo ./bootstrap.sh
   SAVE ARTIFACT noir-protocol-circuits
 
 build:
