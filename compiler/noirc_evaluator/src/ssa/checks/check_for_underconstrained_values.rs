@@ -105,7 +105,7 @@ impl Context {
             .iter()
             .chain(function.returns())
             .filter(|id| function.dfg.get_numeric_constant(**id).is_none())
-            .copied();
+            .map(|value_id| function.dfg.resolve(*value_id));
 
         let mut connected_sets_indices: HashSet<usize> = HashSet::new();
 
@@ -169,13 +169,13 @@ impl Context {
             // Insert non-constant instruction arguments
             function.dfg[*instruction].for_each_value(|value_id| {
                 if function.dfg.get_numeric_constant(value_id).is_none() {
-                    instruction_arguments_and_results.insert(value_id);
+                    instruction_arguments_and_results.insert(function.dfg.resolve(value_id));
                 }
             });
             // And non-constant results
             for value_id in function.dfg.instruction_results(*instruction).iter() {
                 if function.dfg.get_numeric_constant(*value_id).is_none() {
-                    instruction_arguments_and_results.insert(*value_id);
+                    instruction_arguments_and_results.insert(function.dfg.resolve(*value_id));
                 }
             }
 

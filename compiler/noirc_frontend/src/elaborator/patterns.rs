@@ -3,7 +3,7 @@ use noirc_errors::{Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    ast::ERROR_IDENT,
+    ast::{UnresolvedType, ERROR_IDENT},
     hir::{
         comptime::Interpreter,
         def_collector::dc_crate::CompilationError,
@@ -15,7 +15,9 @@ use crate::{
         stmt::HirPattern,
     },
     macros_api::{HirExpression, Ident, Path, Pattern},
-    node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, ReferenceId, TraitImplKind},
+    node_interner::{
+        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, ReferenceId, TraitImplKind,
+    },
     Shared, StructType, Type, TypeBindings,
 };
 
@@ -406,14 +408,52 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    /// Resolve generics using the expected kinds of the function we are calling
+    pub(super) fn resolve_turbofish_generics(
+        &mut self,
+        func_id: &FuncId,
+        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        span: Span,
+    ) -> Option<Vec<Type>> {
+        let direct_generics = self.interner.function_meta(func_id).direct_generics.clone();
+
+        unresolved_turbofish.map(|option_inner| {
+            if option_inner.len() != direct_generics.len() {
+                let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
+                    expected_count: direct_generics.len(),
+                    actual_count: option_inner.len(),
+                    span,
+                };
+                self.push_err(type_check_err);
+            }
+
+            let generics_with_types = direct_generics.iter().zip(option_inner);
+            vecmap(generics_with_types, |(generic, unresolved_type)| {
+                self.resolve_type_inner(unresolved_type, &generic.kind)
+            })
+        })
+    }
+
     pub(super) fn elaborate_variable(
         &mut self,
         variable: Path,
-        generics: Option<Vec<Type>>,
+        unresolved_turbofish: Option<Vec<UnresolvedType>>,
     ) -> (ExprId, Type) {
         let span = variable.span;
         let expr = self.resolve_variable(variable);
         let definition_id = expr.id;
+
+        let definition_kind =
+            self.interner.try_definition(definition_id).map(|definition| definition.kind.clone());
+
+        // Resolve any generics if we the variable we have resolved is a function
+        // and if the turbofish operator was used.
+        let generics = definition_kind.and_then(|definition_kind| match &definition_kind {
+            DefinitionKind::Function(function) => {
+                self.resolve_turbofish_generics(function, unresolved_turbofish, span)
+            }
+            _ => None,
+        });
 
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
 
