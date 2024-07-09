@@ -36,10 +36,13 @@ use self::{
 };
 
 mod acir_gen;
+mod checks;
 pub(super) mod function_builder;
 pub mod ir;
 mod opt;
 pub mod ssa_gen;
+
+pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
 
 /// Optimize the given program by converting it into SSA
 /// form and performing optimizations there. When finished,
@@ -49,10 +52,10 @@ pub mod ssa_gen;
 pub(crate) fn optimize_into_acir(
     program: Program,
     options: &SsaEvaluatorOptions,
-) -> Result<Artifacts, RuntimeError> {
+) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let ssa = SsaBuilder::new(
+    let mut ssa = SsaBuilder::new(
         program,
         options.enable_ssa_logging,
         options.force_brillig_output,
@@ -89,13 +92,15 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
     .finish();
 
+    let ssa_level_warnings = ssa.check_for_underconstrained_values();
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         ssa.to_brillig(options.enable_brillig_logging)
     });
 
     drop(ssa_gen_span_guard);
 
-    time("SSA to ACIR", options.print_codegen_timings, || ssa.into_acir(&brillig))
+    let artifacts = time("SSA to ACIR", options.print_codegen_timings, || ssa.into_acir(&brillig))?;
+    Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
 }
 
 // Helper to time SSA passes
@@ -149,6 +154,10 @@ impl SsaProgramArtifact {
         }
         self.names.push(circuit_artifact.name);
     }
+
+    fn add_warnings(&mut self, mut warnings: Vec<SsaReport>) {
+        self.warnings.append(&mut warnings);
+    }
 }
 
 pub struct SsaEvaluatorOptions {
@@ -179,7 +188,8 @@ pub fn create_program(
     let func_sigs = program.function_signatures.clone();
 
     let recursive = program.recursive;
-    let (generated_acirs, generated_brillig, error_types) = optimize_into_acir(program, options)?;
+    let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
+        optimize_into_acir(program, options)?;
     assert_eq!(
         generated_acirs.len(),
         func_sigs.len(),
@@ -187,6 +197,9 @@ pub fn create_program(
     );
 
     let mut program_artifact = SsaProgramArtifact::new(generated_brillig, error_types);
+
+    // Add warnings collected at the Ssa stage
+    program_artifact.add_warnings(ssa_level_warnings);
     // For setting up the ABI we need separately specify main's input and return witnesses
     let mut is_main = true;
     for (acir, func_sig) in generated_acirs.into_iter().zip(func_sigs) {
