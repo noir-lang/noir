@@ -1448,11 +1448,84 @@ fn specify_method_types_with_turbofish() {
         
         fn main() {
             let foo: Foo<Field> = Foo { inner: 1 };
-            let _ = foo.generic_method::<Field>();
+            let _ = foo.generic_method::<Field, u32>();
         }
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn incorrect_turbofish_count_function_call() {
+    let src = r#"
+        trait Default {
+            fn default() -> Self;
+        }
+
+        impl Default for Field {
+            fn default() -> Self { 0 }
+        }
+
+        impl Default for u64 {
+            fn default() -> Self { 0 }
+        }
+
+        // Need the above as we don't have access to the stdlib here.
+        // We also need to construct a concrete value of `U` without giving away its type
+        // as otherwise the unspecified type is ignored.
+
+        fn generic_func<T, U>() -> (T, U) where T: Default, U: Default {
+            (T::default(), U::default())
+        }
+
+        fn main() {
+            let _ = generic_func::<u64, Field, Field>();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::IncorrectTurbofishGenericCount { .. }),
+    ));
+}
+
+#[test]
+fn incorrect_turbofish_count_method_call() {
+    let src = r#"
+        trait Default {
+            fn default() -> Self;
+        }
+
+        impl Default for Field {
+            fn default() -> Self { 0 }
+        }
+
+        // Need the above as we don't have access to the stdlib here.
+        // We also need to construct a concrete value of `U` without giving away its type
+        // as otherwise the unspecified type is ignored.
+
+        struct Foo<T> {
+            inner: T
+        }
+        
+        impl<T> Foo<T> {
+            fn generic_method<U>(_self: Self) -> U where U: Default {
+                U::default()
+            }
+        }
+        
+        fn main() {
+            let foo: Foo<Field> = Foo { inner: 1 };
+            let _ = foo.generic_method::<Field, u32>();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::IncorrectTurbofishGenericCount { .. }),
+    ));
 }
 
 #[test]

@@ -419,6 +419,15 @@ impl<'context> Elaborator<'context> {
                         self.interner.function_meta(function).direct_generics.clone();
 
                     unresolved_turbofish.map(|option_inner| {
+                        if option_inner.len() != direct_generics.len() {
+                            let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
+                                expected_count: direct_generics.len(),
+                                actual_count: option_inner.len(),
+                                span,
+                            };
+                            self.push_err(type_check_err);
+                        }
+
                         let generics_with_types = direct_generics.iter().zip(option_inner);
                         vecmap(generics_with_types, |(generic, unresolved_type)| {
                             self.resolve_type_inner(unresolved_type, &generic.kind)
