@@ -68,8 +68,8 @@ impl EmbeddedCurveScalar {
 }
 
 impl Eq for EmbeddedCurveScalar {
-    fn eq(self, key: EmbeddedCurveScalar) -> bool {
-        (key.hi == self.hi) & (key.lo == self.lo)
+    fn eq(self, other: Self) -> bool {
+        (other.hi == self.hi) & (other.lo == self.lo)
     }
 }
 
