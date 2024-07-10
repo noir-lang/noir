@@ -1,0 +1,77 @@
+include "../main.pil";
+
+namespace slice(256);
+
+    pol commit clk;
+
+    pol commit sel_start; // Selector to indicate the start of calldatacopy/return. Used in permutation with the main trace.
+    pol commit sel_cd_cpy; // Selector for any row involved in a callatacopy operation.
+    pol commit sel_return; // Selector for any row involved in a return operation.
+    pol commit sel_mem_active; // Selector for any row involved in a memory operation
+    pol commit cnt; // Decreasing counter to track the number of memory operations.
+    pol commit space_id; // Copied from main trace.
+    pol commit addr; // Address pertaining to the memory operation.
+    pol commit val; // Value pertaining to the memory operation.
+    pol commit col_offset; // Offset of the public column element. It is used to get the correct value from calldata/returndata.
+    pol commit one_min_inv; // Helper column to assert zero/non-zero equality of cnt;
+
+    // We use a counter corresponding to the number of memory operations. The counter
+    // is initialized by copying the size argument from the main trace. The counter column
+    // is shared for CALLDATACOPY and RETURN opcodes. The counter is decreased until
+    // it reaches the value zero. Each row with a non-zero counter corresponds to 
+    // a memory operation. The following relations ensure that exactly one operation
+    // selector sel_cd_cpy/sel_return is activated per row with a non-zero counter and
+    // that within a given operation the pertaining selector is enabled. (One prevents
+    // to activate sel_return during a callatacopy operation and vice-versa.)
+
+    sel_mem_active = sel_cd_cpy + sel_return;
+
+    // Instruction decomposition guarantees that sel_cd_cpy and sel_return are mutually exclusive on
+    // the first row of the calldatcopy/return operation.
+
+    // Show that cnt != 0 <==> sel_mem_active == 1
+    // one_min_inv == 1 - cnt^(-1) if cnt != 0 else == 0
+    #[SLICE_CNT_ZERO_TEST1]
+    cnt * (1 - one_min_inv) - sel_mem_active = 0;
+    #[SLICE_CNT_ZERO_TEST2]
+    (1 - sel_mem_active) * one_min_inv = 0;
+
+    #[SLICE_CNT_DECREMENT]
+    sel_mem_active * (cnt - 1 - cnt') = 0;
+    #[ADDR_INCREMENT]
+    sel_mem_active * (addr + 1 - addr') = 0;
+    #[COL_OFFSET_INCREMENT]
+    sel_mem_active * (col_offset + 1 - col_offset') = 0;
+    #[SAME_CLK]
+    sel_mem_active * (clk - clk') = 0;
+    #[SAME_SPACE_ID]
+    sel_mem_active * (space_id - space_id') = 0;
+    #[SAME_SEL_RETURN]
+    sel_mem_active * sel_mem_active' * (sel_return - sel_return') = 0;
+    #[SAME_SEL_CD_CPY]
+    sel_mem_active * sel_mem_active' * (sel_cd_cpy - sel_cd_cpy') = 0;
+
+    #[SEL_MEM_INACTIVE]
+    (1 - sel_mem_active) * sel_mem_active' * (1 - sel_start') = 0;
+
+    // The above relation is crucial to prevent a malicious prover of adding extra active rows
+    // after the row with cnt == 0 unless another operation starts (sel_start == 1). This relation
+    // implies that whenever sel_mem_active == 0 and sel_start' != 1, sel_mem_active' == 0.
+    // Note that the malicious prover can fill other columns such as clk or even sel_cd_cpy
+    // but as long sel_mem_active == 0, it does not lead to any memory operations. The latter
+    // is guarded by sel_mem_active in #[PERM_SLICE_MEM] below.
+
+    #[LOOKUP_CD_VALUE]
+    sel_cd_cpy {col_offset, val} in main.sel_calldata {main.clk, main.calldata};
+
+    #[PERM_SLICE_MEM]
+    sel_mem_active {clk, space_id, addr, val, sel_cd_cpy}
+    is
+    mem.sel_op_slice {mem.clk, mem.space_id, mem.addr, mem.val, mem.rw};
+
+    // Caution: sel_op_slice disables the tag check during a read. This is required for the RETURN opcode
+    // but could have bad consequences if one adds additional "read" operations as part of this gadget.
+    // In such a case, we have to disable tag check specifically for RETURN opcode.
+
+    #[LOOKUP_RET_VALUE]
+    sel_return {col_offset, val} in main.sel_returndata {main.clk, main.returndata};

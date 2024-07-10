@@ -44,9 +44,9 @@ class AvmInterTableTests : public ::testing::Test {
 class AvmPermMainAluNegativeTests : public AvmInterTableTests {
   protected:
     std::vector<Row> trace;
-    size_t main_addr;
-    size_t mem_addr;
-    size_t alu_addr;
+    size_t main_row_idx;
+    size_t mem_row_idx;
+    size_t alu_row_idx;
 
     void SetUp() override
     {
@@ -78,9 +78,9 @@ class AvmPermMainAluNegativeTests : public AvmInterTableTests {
         });
         ASSERT_TRUE(mem_row != trace.end());
 
-        main_addr = static_cast<size_t>(row - trace.begin());
-        alu_addr = static_cast<size_t>(alu_row - trace.begin());
-        mem_addr = static_cast<size_t>(mem_row - trace.begin());
+        main_row_idx = static_cast<size_t>(row - trace.begin());
+        alu_row_idx = static_cast<size_t>(alu_row - trace.begin());
+        mem_row_idx = static_cast<size_t>(mem_row - trace.begin());
     }
 };
 
@@ -88,8 +88,8 @@ TEST_F(AvmPermMainAluNegativeTests, wrongAluOutputCopyInMain)
 {
     // Mutate the multiplication output. Note that the output alu counterpart is still valid
     // and pass the multiplication relation.
-    trace.at(main_addr).main_ic = 1008;
-    trace.at(mem_addr).mem_val = 1008;
+    trace.at(main_row_idx).main_ic = 1008;
+    trace.at(mem_row_idx).mem_val = 1008;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_ALU");
 }
@@ -97,10 +97,10 @@ TEST_F(AvmPermMainAluNegativeTests, wrongAluOutputCopyInMain)
 TEST_F(AvmPermMainAluNegativeTests, wrongCopyToAluIaInput)
 {
     // Mutate the input of alu_ia and adapt the output ic accordingly.
-    trace.at(alu_addr).alu_ia = 20;
-    trace.at(alu_addr).alu_ic = 1060;  // 20 * 53; required to pass the alu mul relation
-    trace.at(alu_addr).alu_u8_r0 = 36; // 1060 % 256 = 36
-    trace.at(alu_addr).alu_u8_r1 = 4;  // 4 * 256 = 1024
+    trace.at(alu_row_idx).alu_ia = 20;
+    trace.at(alu_row_idx).alu_ic = 1060;  // 20 * 53; required to pass the alu mul relation
+    trace.at(alu_row_idx).alu_u8_r0 = 36; // 1060 % 256 = 36
+    trace.at(alu_row_idx).alu_u8_r1 = 4;  // 4 * 256 = 1024
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_ALU");
 }
@@ -108,30 +108,30 @@ TEST_F(AvmPermMainAluNegativeTests, wrongCopyToAluIaInput)
 TEST_F(AvmPermMainAluNegativeTests, wrongCopyToAluIbInput)
 {
     // Mutate the input of alu_ia and adapt the output ic accordingly.
-    trace.at(alu_addr).alu_ib = 10;
-    trace.at(alu_addr).alu_ic = 190; // 19 * 10; required to pass the alu mul relation
-    trace.at(alu_addr).alu_u8_r0 = 190;
-    trace.at(alu_addr).alu_u8_r1 = 0;
+    trace.at(alu_row_idx).alu_ib = 10;
+    trace.at(alu_row_idx).alu_ic = 190; // 19 * 10; required to pass the alu mul relation
+    trace.at(alu_row_idx).alu_u8_r0 = 190;
+    trace.at(alu_row_idx).alu_u8_r1 = 0;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_ALU");
 }
 
 TEST_F(AvmPermMainAluNegativeTests, wrongCopyToAluOpSelector)
 {
-    trace.at(alu_addr).alu_op_mul = 0;
-    trace.at(alu_addr).alu_op_add = 1;
-    trace.at(alu_addr).alu_ic = 72; // 19 + 53
-    trace.at(alu_addr).alu_u8_r0 = 72;
-    trace.at(alu_addr).alu_u8_r1 = 0;
+    trace.at(alu_row_idx).alu_op_mul = 0;
+    trace.at(alu_row_idx).alu_op_add = 1;
+    trace.at(alu_row_idx).alu_ic = 72; // 19 + 53
+    trace.at(alu_row_idx).alu_u8_r0 = 72;
+    trace.at(alu_row_idx).alu_u8_r1 = 0;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_ALU");
 }
 
 TEST_F(AvmPermMainAluNegativeTests, removeAluSelector)
 {
-    trace.at(alu_addr).alu_sel_alu = 0;
-    trace.at(alu_addr).alu_op_mul = 0;
-    trace.at(alu_addr).alu_sel_rng_chk_lookup = 0;
+    trace.at(alu_row_idx).alu_sel_alu = 0;
+    trace.at(alu_row_idx).alu_op_mul = 0;
+    trace.at(alu_row_idx).alu_sel_rng_chk_lookup = 0;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_ALU");
 }
@@ -142,9 +142,9 @@ TEST_F(AvmPermMainAluNegativeTests, removeAluSelector)
 class AvmRangeCheckNegativeTests : public AvmInterTableTests {
   protected:
     std::vector<Row> trace;
-    size_t main_addr;
-    size_t mem_addr;
-    size_t alu_addr;
+    size_t main_row_idx;
+    size_t mem_row_idx;
+    size_t alu_row_idx;
 
     void genTraceAdd(
         uint128_t const& a, uint128_t const& b, uint128_t const& c, AvmMemoryTag tag, uint32_t min_trace_size = 0)
@@ -174,9 +174,9 @@ class AvmRangeCheckNegativeTests : public AvmInterTableTests {
         });
         ASSERT_TRUE(mem_row != trace.end());
 
-        main_addr = static_cast<size_t>(row - trace.begin());
-        alu_addr = static_cast<size_t>(alu_row - trace.begin());
-        mem_addr = static_cast<size_t>(mem_row - trace.begin());
+        main_row_idx = static_cast<size_t>(row - trace.begin());
+        alu_row_idx = static_cast<size_t>(alu_row - trace.begin());
+        mem_row_idx = static_cast<size_t>(mem_row - trace.begin());
     };
 };
 
@@ -191,9 +191,9 @@ TEST_F(AvmRangeCheckNegativeTests, additionU8Reg0)
     // All constraints except range checks on u8_r0, u8_r1 are satisfied.
 
     FF const fake_c = FF(15).add(-FF(2).pow(254));
-    auto& row = trace.at(main_addr);
-    auto& mem_row = trace.at(mem_addr);
-    auto& alu_row = trace.at(alu_addr);
+    auto& row = trace.at(main_row_idx);
+    auto& mem_row = trace.at(mem_row_idx);
+    auto& alu_row = trace.at(alu_row_idx);
 
     row.main_ic = fake_c;
     mem_row.mem_val = fake_c;
@@ -221,9 +221,9 @@ TEST_F(AvmRangeCheckNegativeTests, additionU8Reg0)
 TEST_F(AvmRangeCheckNegativeTests, additionU8Reg1)
 {
     genTraceAdd(19, 20, 39, AvmMemoryTag::U8);
-    auto& row = trace.at(main_addr);
-    auto& mem_row = trace.at(mem_addr);
-    auto& alu_row = trace.at(alu_addr);
+    auto& row = trace.at(main_row_idx);
+    auto& mem_row = trace.at(mem_row_idx);
+    auto& alu_row = trace.at(alu_row_idx);
 
     // a + b = u8_r0 + 2^8 * u8_r1 (mod p)
     // We recall that p-1 is a multiple of a large power of two.
@@ -259,9 +259,9 @@ TEST_F(AvmRangeCheckNegativeTests, additionU8Reg1)
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg0)
 {
     genTraceAdd(1200, 2000, 3200, AvmMemoryTag::U16, 130);
-    auto& row = trace.at(main_addr);
-    auto& mem_row = trace.at(mem_addr);
-    auto& alu_row = trace.at(alu_addr);
+    auto& row = trace.at(main_row_idx);
+    auto& mem_row = trace.at(mem_row_idx);
+    auto& alu_row = trace.at(alu_row_idx);
 
     // a + b = u8_r0 + 2^8 * u8_r1 + 2^16 * u16_r0 (mod p)
     // We recall that p-1 is a multiple of a large power of two.
@@ -306,7 +306,7 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg7)
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
     auto trace_original = trace;
 
-    auto& alu_row = trace.at(alu_addr);
+    auto& alu_row = trace.at(alu_row_idx);
     alu_row.alu_u16_r7 = FF(235655);
 
     auto trace_same_cnt = trace;
@@ -323,7 +323,7 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg7)
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg8)
 {
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
-    trace.at(alu_addr).alu_u16_r8 = FF(235655);
+    trace.at(alu_row_idx).alu_u16_r8 = FF(235655);
     trace.at(1).lookup_u16_8_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_8");
 }
@@ -332,7 +332,7 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg8)
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg9)
 {
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
-    trace.at(alu_addr).alu_u16_r9 = FF(235655);
+    trace.at(alu_row_idx).alu_u16_r9 = FF(235655);
     trace.at(1).lookup_u16_9_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_9");
 }
@@ -341,7 +341,7 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg9)
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg10)
 {
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
-    trace.at(alu_addr).alu_u16_r10 = FF(235655);
+    trace.at(alu_row_idx).alu_u16_r10 = FF(235655);
     trace.at(1).lookup_u16_10_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_10");
 }
@@ -350,7 +350,7 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg10)
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg11)
 {
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
-    trace.at(alu_addr).alu_u16_r11 = FF(235655);
+    trace.at(alu_row_idx).alu_u16_r11 = FF(235655);
     trace.at(1).lookup_u16_11_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_11");
 }
@@ -359,7 +359,7 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg11)
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg12)
 {
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
-    trace.at(alu_addr).alu_u16_r12 = FF(235655);
+    trace.at(alu_row_idx).alu_u16_r12 = FF(235655);
     trace.at(1).lookup_u16_12_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_12");
 }
@@ -368,7 +368,7 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg12)
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg13)
 {
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
-    trace.at(alu_addr).alu_u16_r13 = FF(235655);
+    trace.at(alu_row_idx).alu_u16_r13 = FF(235655);
     trace.at(1).lookup_u16_13_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_13");
 }
@@ -377,7 +377,7 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg13)
 TEST_F(AvmRangeCheckNegativeTests, additionU16Reg14)
 {
     genTraceAdd(4500, 45, 4545, AvmMemoryTag::U16);
-    trace.at(alu_addr).alu_u16_r14 = FF(235655);
+    trace.at(alu_row_idx).alu_u16_r14 = FF(235655);
     trace.at(1).lookup_u16_14_counts -= FF(1);
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "LOOKUP_U16_14");
 }
@@ -388,11 +388,11 @@ TEST_F(AvmRangeCheckNegativeTests, additionU16Reg14)
 class AvmPermMainMemNegativeTests : public AvmInterTableTests {
   protected:
     std::vector<Row> trace;
-    size_t main_addr;
-    size_t mem_addr_a;
-    size_t mem_addr_b;
-    size_t mem_addr_c;
-    size_t alu_addr;
+    size_t main_row_idx;
+    size_t mem_a_row_idx;
+    size_t mem_b_row_idx;
+    size_t mem_c_row_idx;
+    size_t alu_row_idx;
 
     // Helper function to generate a trace with a subtraction
     // for c = a - b at arbitray chosen addresses 52 (a), 11 (b), 55 (c).
@@ -433,11 +433,11 @@ class AvmPermMainMemNegativeTests : public AvmInterTableTests {
         });
         ASSERT_TRUE(mem_row_b != trace.end());
 
-        main_addr = static_cast<size_t>(row - trace.begin());
-        alu_addr = static_cast<size_t>(alu_row - trace.begin());
-        mem_addr_a = static_cast<size_t>(mem_row_a - trace.begin());
-        mem_addr_b = static_cast<size_t>(mem_row_b - trace.begin());
-        mem_addr_c = static_cast<size_t>(mem_row_c - trace.begin());
+        main_row_idx = static_cast<size_t>(row - trace.begin());
+        alu_row_idx = static_cast<size_t>(alu_row - trace.begin());
+        mem_a_row_idx = static_cast<size_t>(mem_row_a - trace.begin());
+        mem_b_row_idx = static_cast<size_t>(mem_row_b - trace.begin());
+        mem_c_row_idx = static_cast<size_t>(mem_row_c - trace.begin());
     }
 };
 // Error tag propagation from memory trace back to the main trace.
@@ -483,8 +483,8 @@ TEST_F(AvmPermMainMemNegativeTests, tagErrNotCopiedInMain)
 TEST_F(AvmPermMainMemNegativeTests, wrongValueIaInMem)
 {
     executeSub(21, 3);
-    trace.at(mem_addr_a).mem_val = 26;     // Correct value: 21
-    trace.at(mem_addr_a - 1).mem_val = 26; // We need to adjust the write operation beforehand (set opcode).
+    trace.at(mem_a_row_idx).mem_val = 26;     // Correct value: 21
+    trace.at(mem_a_row_idx - 1).mem_val = 26; // We need to adjust the write operation beforehand (set opcode).
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_A");
 }
@@ -492,8 +492,8 @@ TEST_F(AvmPermMainMemNegativeTests, wrongValueIaInMem)
 TEST_F(AvmPermMainMemNegativeTests, wrongValueIbInMem)
 {
     executeSub(21, 3);
-    trace.at(mem_addr_b).mem_val = 7;     // Correct value: 3
-    trace.at(mem_addr_b - 1).mem_val = 7; // We need to adjust the write operation beforehand (set opcode).
+    trace.at(mem_b_row_idx).mem_val = 7;     // Correct value: 3
+    trace.at(mem_b_row_idx - 1).mem_val = 7; // We need to adjust the write operation beforehand (set opcode).
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_B");
 }
@@ -501,7 +501,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongValueIbInMem)
 TEST_F(AvmPermMainMemNegativeTests, wrongValueIcInMem)
 {
     executeSub(21, 3);
-    trace.at(mem_addr_c).mem_val = 17; // Correct value: 18 = 21 - 3
+    trace.at(mem_c_row_idx).mem_val = 17; // Correct value: 18 = 21 - 3
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_C");
 }
@@ -509,7 +509,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongValueIcInMem)
 TEST_F(AvmPermMainMemNegativeTests, wrongAddressIaInMain)
 {
     executeSub(21, 3);
-    trace.at(main_addr).main_mem_addr_a = 28; // Correct address: 52
+    trace.at(main_row_idx).main_mem_addr_a = 28; // Correct address: 52
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_A");
 }
@@ -517,7 +517,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongAddressIaInMain)
 TEST_F(AvmPermMainMemNegativeTests, wrongAddressIbInMain)
 {
     executeSub(21, 3);
-    trace.at(main_addr).main_mem_addr_b = 2; // Correct address: 11
+    trace.at(main_row_idx).main_mem_addr_b = 2; // Correct address: 11
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_B");
 }
@@ -525,7 +525,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongAddressIbInMain)
 TEST_F(AvmPermMainMemNegativeTests, wrongAddressIcInMain)
 {
     executeSub(21, 3);
-    trace.at(main_addr).main_mem_addr_c = 75; // Correct address: 55
+    trace.at(main_row_idx).main_mem_addr_c = 75; // Correct address: 55
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_C");
 }
@@ -534,13 +534,13 @@ TEST_F(AvmPermMainMemNegativeTests, wrongInTagIaInMem)
 {
     executeSub(21, 3);
     auto wrong_in_tag = static_cast<uint32_t>(AvmMemoryTag::U32);
-    trace.at(mem_addr_a).mem_r_in_tag = wrong_in_tag; // Correct value: AvmMemoryTag::U8
-    trace.at(mem_addr_a).mem_tag = wrong_in_tag;
+    trace.at(mem_a_row_idx).mem_r_in_tag = wrong_in_tag; // Correct value: AvmMemoryTag::U8
+    trace.at(mem_a_row_idx).mem_tag = wrong_in_tag;
 
     // We need to adjust the write operation beforehand (set opcode).
-    trace.at(mem_addr_a - 1).mem_r_in_tag = wrong_in_tag;
-    trace.at(mem_addr_a - 1).mem_w_in_tag = wrong_in_tag;
-    trace.at(mem_addr_a - 1).mem_tag = wrong_in_tag;
+    trace.at(mem_a_row_idx - 1).mem_r_in_tag = wrong_in_tag;
+    trace.at(mem_a_row_idx - 1).mem_w_in_tag = wrong_in_tag;
+    trace.at(mem_a_row_idx - 1).mem_tag = wrong_in_tag;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_A");
 }
@@ -549,13 +549,13 @@ TEST_F(AvmPermMainMemNegativeTests, wrongInTagIbInMem)
 {
     executeSub(21, 3);
     auto wrong_in_tag = static_cast<uint32_t>(AvmMemoryTag::U16);
-    trace.at(mem_addr_b).mem_r_in_tag = wrong_in_tag; // Correct value: AvmMemoryTag::U8
-    trace.at(mem_addr_b).mem_tag = wrong_in_tag;
+    trace.at(mem_b_row_idx).mem_r_in_tag = wrong_in_tag; // Correct value: AvmMemoryTag::U8
+    trace.at(mem_b_row_idx).mem_tag = wrong_in_tag;
 
     // We need to adjust the write operation beforehand (set opcode).
-    trace.at(mem_addr_b - 1).mem_r_in_tag = wrong_in_tag;
-    trace.at(mem_addr_b - 1).mem_w_in_tag = wrong_in_tag;
-    trace.at(mem_addr_b - 1).mem_tag = wrong_in_tag;
+    trace.at(mem_b_row_idx - 1).mem_r_in_tag = wrong_in_tag;
+    trace.at(mem_b_row_idx - 1).mem_w_in_tag = wrong_in_tag;
+    trace.at(mem_b_row_idx - 1).mem_tag = wrong_in_tag;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_B");
 }
@@ -564,8 +564,8 @@ TEST_F(AvmPermMainMemNegativeTests, wrongInTagIcInMem)
 {
     executeSub(21, 3);
     auto wrong_in_tag = static_cast<uint32_t>(AvmMemoryTag::U128);
-    trace.at(mem_addr_c).mem_w_in_tag = wrong_in_tag; // Correct value: AvmMemoryTag::U8
-    trace.at(mem_addr_c).mem_tag = wrong_in_tag;
+    trace.at(mem_c_row_idx).mem_w_in_tag = wrong_in_tag; // Correct value: AvmMemoryTag::U8
+    trace.at(mem_c_row_idx).mem_tag = wrong_in_tag;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_C");
 }
@@ -573,15 +573,15 @@ TEST_F(AvmPermMainMemNegativeTests, wrongInTagIcInMem)
 TEST_F(AvmPermMainMemNegativeTests, wrongRwIaInMem)
 {
     executeSub(21, 3);
-    trace.at(mem_addr_a).mem_rw = 1; // Write instead of read.
+    trace.at(mem_a_row_idx).mem_rw = 1; // Write instead of read.
 
     // Adjust timestamp value
-    trace.at(mem_addr_a).mem_tsp += FF(AvmMemTraceBuilder::SUB_CLK_STORE_A - AvmMemTraceBuilder::SUB_CLK_LOAD_A);
+    trace.at(mem_a_row_idx).mem_tsp += FF(AvmMemTraceBuilder::SUB_CLK_STORE_A - AvmMemTraceBuilder::SUB_CLK_LOAD_A);
     // Adjust diff value of previous row as well
-    FF diff = trace.at(mem_addr_a - 1).mem_diff_lo + trace.at(mem_addr_a - 1).mem_diff_mid * FF(1 << 16) +
+    FF diff = trace.at(mem_a_row_idx - 1).mem_diff_lo + trace.at(mem_a_row_idx - 1).mem_diff_mid * FF(1 << 16) +
               FF(AvmMemTraceBuilder::SUB_CLK_STORE_A - AvmMemTraceBuilder::SUB_CLK_LOAD_A);
-    trace.at(mem_addr_a - 1).mem_diff_mid = FF(uint32_t(diff) >> 16);
-    trace.at(mem_addr_a - 1).mem_diff_lo = FF(uint32_t(diff) & UINT16_MAX);
+    trace.at(mem_a_row_idx - 1).mem_diff_mid = FF(uint32_t(diff) >> 16);
+    trace.at(mem_a_row_idx - 1).mem_diff_lo = FF(uint32_t(diff) & UINT16_MAX);
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_A");
 }
@@ -589,15 +589,15 @@ TEST_F(AvmPermMainMemNegativeTests, wrongRwIaInMem)
 TEST_F(AvmPermMainMemNegativeTests, wrongRwIbInMem)
 {
     executeSub(21, 3);
-    trace.at(mem_addr_b).mem_rw = 1; // Write instead of read.
+    trace.at(mem_b_row_idx).mem_rw = 1; // Write instead of read.
 
     // Adjust timestamp value
-    trace.at(mem_addr_b).mem_tsp += FF(AvmMemTraceBuilder::SUB_CLK_STORE_B - AvmMemTraceBuilder::SUB_CLK_LOAD_B);
+    trace.at(mem_b_row_idx).mem_tsp += FF(AvmMemTraceBuilder::SUB_CLK_STORE_B - AvmMemTraceBuilder::SUB_CLK_LOAD_B);
     // Adjust diff value of previous row as well
-    FF diff = trace.at(mem_addr_b - 1).mem_diff_lo + trace.at(mem_addr_b - 1).mem_diff_mid * FF(1 << 16) +
+    FF diff = trace.at(mem_b_row_idx - 1).mem_diff_lo + trace.at(mem_b_row_idx - 1).mem_diff_mid * FF(1 << 16) +
               FF(AvmMemTraceBuilder::SUB_CLK_STORE_B - AvmMemTraceBuilder::SUB_CLK_LOAD_B);
-    trace.at(mem_addr_b - 1).mem_diff_mid = FF(uint32_t(diff) >> 16);
-    trace.at(mem_addr_b - 1).mem_diff_lo = FF(uint32_t(diff) & UINT16_MAX);
+    trace.at(mem_b_row_idx - 1).mem_diff_mid = FF(uint32_t(diff) >> 16);
+    trace.at(mem_b_row_idx - 1).mem_diff_lo = FF(uint32_t(diff) & UINT16_MAX);
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_B");
 }
@@ -608,10 +608,10 @@ TEST_F(AvmPermMainMemNegativeTests, wrongRwIcInMem)
     // a write for a read of Ic below leads to a violation that the memory
     // is initialized with zero values.
     executeSub(11, 11);
-    trace.at(mem_addr_c).mem_rw = 0; // Read instead of write.
+    trace.at(mem_c_row_idx).mem_rw = 0; // Read instead of write.
 
     // Adjust timestamp value.
-    trace.at(mem_addr_c).mem_tsp -= FF(AvmMemTraceBuilder::SUB_CLK_STORE_C - AvmMemTraceBuilder::SUB_CLK_LOAD_C);
+    trace.at(mem_c_row_idx).mem_tsp -= FF(AvmMemTraceBuilder::SUB_CLK_STORE_C - AvmMemTraceBuilder::SUB_CLK_LOAD_C);
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_C");
 }
@@ -619,13 +619,13 @@ TEST_F(AvmPermMainMemNegativeTests, wrongRwIcInMem)
 TEST_F(AvmPermMainMemNegativeTests, wrongClkIaInMem)
 {
     executeSub(87, 23);
-    trace.at(mem_addr_a).mem_clk += 3;
-    trace.at(mem_addr_a).mem_tsp += AvmMemTraceBuilder::NUM_SUB_CLK * 3;
+    trace.at(mem_a_row_idx).mem_clk += 3;
+    trace.at(mem_a_row_idx).mem_tsp += AvmMemTraceBuilder::NUM_SUB_CLK * 3;
     // Adjust diff value of previous row as well
-    FF diff = trace.at(mem_addr_a - 1).mem_diff_lo + trace.at(mem_addr_a - 1).mem_diff_mid * FF(1 << 16) +
+    FF diff = trace.at(mem_a_row_idx - 1).mem_diff_lo + trace.at(mem_a_row_idx - 1).mem_diff_mid * FF(1 << 16) +
               FF(AvmMemTraceBuilder::NUM_SUB_CLK * 3);
-    trace.at(mem_addr_a - 1).mem_diff_mid = FF(uint32_t(diff) >> 16);
-    trace.at(mem_addr_a - 1).mem_diff_lo = FF(uint32_t(diff) & UINT16_MAX);
+    trace.at(mem_a_row_idx - 1).mem_diff_mid = FF(uint32_t(diff) >> 16);
+    trace.at(mem_a_row_idx - 1).mem_diff_lo = FF(uint32_t(diff) & UINT16_MAX);
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_A");
 }
@@ -633,12 +633,12 @@ TEST_F(AvmPermMainMemNegativeTests, wrongClkIaInMem)
 TEST_F(AvmPermMainMemNegativeTests, wrongClkIbInMem)
 {
     executeSub(87, 23);
-    trace.at(mem_addr_b).mem_clk += 5;
-    trace.at(mem_addr_b).mem_tsp += AvmMemTraceBuilder::NUM_SUB_CLK * 5;
-    FF diff = trace.at(mem_addr_b - 1).mem_diff_lo + trace.at(mem_addr_b - 1).mem_diff_mid * FF(1 << 16) +
+    trace.at(mem_b_row_idx).mem_clk += 5;
+    trace.at(mem_b_row_idx).mem_tsp += AvmMemTraceBuilder::NUM_SUB_CLK * 5;
+    FF diff = trace.at(mem_b_row_idx - 1).mem_diff_lo + trace.at(mem_b_row_idx - 1).mem_diff_mid * FF(1 << 16) +
               FF(AvmMemTraceBuilder::NUM_SUB_CLK * 5);
-    trace.at(mem_addr_b - 1).mem_diff_mid = FF(uint32_t(diff) >> 16);
-    trace.at(mem_addr_b - 1).mem_diff_lo = FF(uint32_t(diff) & UINT16_MAX);
+    trace.at(mem_b_row_idx - 1).mem_diff_mid = FF(uint32_t(diff) >> 16);
+    trace.at(mem_b_row_idx - 1).mem_diff_lo = FF(uint32_t(diff) & UINT16_MAX);
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_B");
 }
@@ -646,8 +646,8 @@ TEST_F(AvmPermMainMemNegativeTests, wrongClkIbInMem)
 TEST_F(AvmPermMainMemNegativeTests, wrongClkIcInMem)
 {
     executeSub(87, 23);
-    trace.at(mem_addr_c).mem_clk += 7;
-    trace.at(mem_addr_c).mem_tsp += AvmMemTraceBuilder::NUM_SUB_CLK * 7;
+    trace.at(mem_c_row_idx).mem_clk += 7;
+    trace.at(mem_c_row_idx).mem_tsp += AvmMemTraceBuilder::NUM_SUB_CLK * 7;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_C");
 }

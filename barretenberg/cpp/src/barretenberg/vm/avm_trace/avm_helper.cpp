@@ -3,7 +3,6 @@
 #include <cassert>
 
 #include "barretenberg/vm/avm_trace/avm_mem_trace.hpp"
-#include "barretenberg/vm/generated/avm_circuit_builder.hpp"
 
 namespace bb::avm_trace {
 
@@ -19,7 +18,6 @@ void log_avm_trace([[maybe_unused]] std::vector<Row> const& trace,
                    [[maybe_unused]] size_t end,
                    [[maybe_unused]] bool enable_selectors)
 {
-    /*
     info("Built circuit with ", trace.size(), " rows");
 
     for (size_t i = beg; i < end; i++) {
@@ -42,7 +40,6 @@ void log_avm_trace([[maybe_unused]] std::vector<Row> const& trace,
 
         info("m_lastAccess:       ", trace.at(i).mem_lastAccess);
         info("m_last:             ", trace.at(i).mem_last);
-        info("m_val_shift:        ", trace.at(i).mem_val_shift);
 
         info("=======CONTROL_FLOW===================================================================");
         info("pc:                 ", trace.at(i).main_pc);
@@ -68,29 +65,31 @@ void log_avm_trace([[maybe_unused]] std::vector<Row> const& trace,
         info("last:               ", trace.at(i).main_sel_last);
 
         info("=======MEM_OP_A======================================================================");
-        info("mem_op_a:           ", trace.at(i).main_mem_op_a);
-        info("mem_idx_a:          ", trace.at(i).main_mem_idx_a);
+        info("mem_op_a:           ", trace.at(i).main_sel_mem_op_a);
+        info("mem_addr_a:         ", trace.at(i).main_mem_addr_a);
         info("rwa:                ", trace.at(i).main_rwa);
 
         info("=======MEM_OP_B======================================================================");
-        info("mem_op_b:           ", trace.at(i).main_mem_op_b);
-        info("mem_idx_b:          ", trace.at(i).main_mem_idx_b);
+        info("mem_op_b:           ", trace.at(i).main_sel_mem_op_b);
+        info("mem_addr_b:         ", trace.at(i).main_mem_addr_b);
         info("rwb:                ", trace.at(i).main_rwb);
 
         info("=======MEM_OP_C======================================================================");
-        info("mem_op_c:           ", trace.at(i).main_mem_op_c);
-        info("mem_idx_c:          ", trace.at(i).main_mem_idx_c);
+        info("mem_op_c:           ", trace.at(i).main_sel_mem_op_c);
+        info("mem_addr_c:         ", trace.at(i).main_mem_addr_c);
         info("rwc:                ", trace.at(i).main_rwc);
+
+        info("=======MEM_DIFF======================================================================");
         info("diff_hi:            ", trace.at(i).mem_diff_hi);
         info("diff_mid:           ", trace.at(i).mem_diff_mid);
         info("diff_lo:            ", trace.at(i).mem_diff_lo);
 
         info("=======GAS ACCOUNTING================================================================");
-        info("opcode active:      ", trace.at(i).main_gas_cost_active);
+        info("opcode active:      ", trace.at(i).main_sel_mem_op_activate_gas);
         info("l2_gas_remaining:   ", trace.at(i).main_l2_gas_remaining);
         info("da_gas_remaining:   ", trace.at(i).main_da_gas_remaining);
-        info("l2_gas_op:          ", trace.at(i).main_l2_gas_op);
-        info("da_gas_op:          ", trace.at(i).main_da_gas_op);
+        info("l2_gas_op_cost:     ", trace.at(i).main_l2_gas_op_cost);
+        info("da_gas_op_cost:     ", trace.at(i).main_da_gas_op_cost);
         info("l2_out_of_gas:      ", trace.at(i).main_l2_out_of_gas);
         info("da_out_of_gas:      ", trace.at(i).main_da_out_of_gas);
         info("abs_l2_hi_rem_gas:  ", trace.at(i).main_abs_l2_rem_gas_hi);
@@ -105,11 +104,10 @@ void log_avm_trace([[maybe_unused]] std::vector<Row> const& trace,
             info("sel_op_mul:           ", trace.at(i).main_sel_op_mul);
             info("sel_op_eq:            ", trace.at(i).main_sel_op_eq);
             info("sel_op_not:           ", trace.at(i).main_sel_op_not);
-            info("sel_op_sel_alu:       ", trace.at(i).main_alu_sel);
+            info("sel_sel_alu:          ", trace.at(i).main_sel_alu);
         }
         info("\n");
     }
-    */
 }
 
 void dump_trace_as_csv(std::vector<Row> const& trace, std::filesystem::path const& filename)
@@ -137,7 +135,8 @@ bool is_operand_indirect(uint8_t ind_value, uint8_t operand_idx)
 }
 
 std::vector<std::vector<FF>> copy_public_inputs_columns(VmPublicInputs const& public_inputs,
-                                                        std::vector<FF> const& calldata)
+                                                        std::vector<FF> const& calldata,
+                                                        std::vector<FF> const& returndata)
 {
     // We convert to a vector as the pil generated verifier is generic and unaware of the KERNEL_INPUTS_LENGTH
     // For each of the public input vectors
@@ -156,11 +155,14 @@ std::vector<std::vector<FF>> copy_public_inputs_columns(VmPublicInputs const& pu
     assert(public_inputs_kernel_side_effect_outputs.size() == KERNEL_OUTPUTS_LENGTH);
     assert(public_inputs_kernel_metadata_outputs.size() == KERNEL_OUTPUTS_LENGTH);
 
-    return { std::move(public_inputs_kernel_inputs),
-             std::move(public_inputs_kernel_value_outputs),
-             std::move(public_inputs_kernel_side_effect_outputs),
-             std::move(public_inputs_kernel_metadata_outputs),
-             calldata };
+    return {
+        std::move(public_inputs_kernel_inputs),
+        std::move(public_inputs_kernel_value_outputs),
+        std::move(public_inputs_kernel_side_effect_outputs),
+        std::move(public_inputs_kernel_metadata_outputs),
+        calldata,
+        returndata,
+    };
 }
 
 } // namespace bb::avm_trace

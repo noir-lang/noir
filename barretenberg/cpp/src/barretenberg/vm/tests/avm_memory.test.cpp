@@ -77,7 +77,7 @@ TEST_F(AvmMemoryTests, mismatchedTagAddOperation)
     EXPECT_EQ(row->mem_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U8)));
     EXPECT_EQ(row->mem_tag, FF(static_cast<uint32_t>(AvmMemoryTag::FF)));
 
-    validate_trace(std::move(trace), public_inputs, calldata, true);
+    validate_trace(std::move(trace), public_inputs, calldata, {}, true);
 }
 
 // Testing an equality operation with a mismatched memory tag.

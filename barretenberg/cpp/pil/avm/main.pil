@@ -11,6 +11,7 @@ include "gadgets/sha256.pil";
 include "gadgets/poseidon2.pil";
 include "gadgets/keccakf1600.pil";
 include "gadgets/pedersen.pil";
+include "gadgets/mem_slice.pil";
 
 namespace main(256);
     //===== CONSTANT POLYNOMIALS ==================================================
@@ -20,6 +21,9 @@ namespace main(256);
 
     //===== PUBLIC COLUMNS=========================================================
     pol public calldata;
+    pol commit sel_calldata; // Selector used for lookup in calldata. TODO: Might be removed or made constant.
+    pol public returndata;
+    pol commit sel_returndata; // Selector used for lookup in returndata. TODO: Might be removed or made constant.
 
     //===== KERNEL INPUTS =========================================================
     // Kernel lookup selector opcodes
@@ -139,6 +143,10 @@ namespace main(256);
     pol commit sel_op_keccak;
     pol commit sel_op_pedersen;
     
+    //===== Memory Slice Gadget Selectors =========================================
+    pol commit sel_op_calldata_copy;
+    pol commit sel_op_external_return;
+
     //===== Fix Range Checks Selectors=============================================
     // We re-use the clk column for the lookup values of 8-bit resp. 16-bit range check.
     pol commit sel_rng_8;  // Boolean selector for the  8-bit range check lookup
@@ -321,6 +329,9 @@ namespace main(256);
     sel_op_halt * (1 - sel_op_halt) = 0;
     sel_op_external_call * (1 - sel_op_external_call) = 0;
 
+    sel_op_calldata_copy * (1 - sel_op_calldata_copy) = 0;
+    sel_op_external_return * (1 - sel_op_external_return) = 0;
+
     // Might be removed if derived from opcode based on a lookup of constants
     sel_op_mov * ( 1 - sel_op_mov) = 0;
     sel_op_cmov * ( 1 - sel_op_cmov) = 0;
@@ -473,12 +484,13 @@ namespace main(256);
     pol SEL_ALL_BINARY = sel_op_and + sel_op_or + sel_op_xor;
     pol SEL_ALL_GADGET = sel_op_radix_le + sel_op_sha256 + sel_op_poseidon2 + sel_op_keccak + sel_op_pedersen;
     pol SEL_ALL_MEMORY = sel_op_cmov + sel_op_mov;
+    pol SEL_ALL_MEM_SLICE = sel_op_calldata_copy + sel_op_external_return;
     pol OPCODE_SELECTORS = sel_op_fdiv + SEL_ALU_ALL + SEL_ALL_BINARY + SEL_ALL_MEMORY + SEL_ALL_GADGET
-                         + KERNEL_INPUT_SELECTORS + KERNEL_OUTPUT_SELECTORS + SEL_ALL_LEFTGAS;
+                         + KERNEL_INPUT_SELECTORS + KERNEL_OUTPUT_SELECTORS + SEL_ALL_LEFTGAS + SEL_ALL_MEM_SLICE;
 
     // TODO: sel_gas_accounting_active is activating gas accounting on a given row. All opcode with selectors
     //       are activated through the relation below. The other opcodes which are implemented purely
-    //       through memory sub-operations such as CALLDATACOPY, RETURN, SET are activated by
+    //       through memory sub-operations such as RETURN, SET are activated by
     //       setting a newly introduced boolean sel_mem_op_activate_gas which is set in witness generation.
     //       We should remove this shortcut and constrain this activation through bytecode decomposition.
     //       Alternatively, we introduce a boolean selector for the three opcodes mentioned above.
@@ -656,13 +668,20 @@ namespace main(256);
     // We increment the side effect counter by 1
     KERNEL_OUTPUT_SELECTORS * (kernel.side_effect_counter' - (kernel.side_effect_counter + 1)) = 0;
 
+    //===== Memory Slice Constraints ============================================
+    pol commit sel_slice_gadget; // Selector to activate a slice gadget operation in the gadget (#[PERM_MAIN_SLICE]).
+
+    // Activate only if tag_err is disabled
+    sel_slice_gadget = (sel_op_calldata_copy + sel_op_external_return) * (1 - tag_err);
+
+    //====== Inter-table Constraints ============================================
+
     #[KERNEL_OUTPUT_LOOKUP]
     sel_q_kernel_output_lookup {kernel.kernel_out_offset, ia, kernel.side_effect_counter, ib} in kernel.q_public_input_kernel_out_add_to_table {clk, kernel.kernel_value_out, kernel.kernel_side_effect_out, kernel.kernel_metadata_out};
 
     #[LOOKUP_INTO_KERNEL]
     sel_q_kernel_lookup { main.ia, kernel.kernel_in_offset } in kernel.q_public_input_kernel_add_to_table { kernel.kernel_inputs, clk };
 
-    //====== Inter-table Constraints ============================================
     #[INCL_MAIN_TAG_ERR]
     mem.tag_err {mem.clk} in tag_err {clk};
 
@@ -722,6 +741,11 @@ namespace main(256);
     sel_op_pedersen {clk, ia}
     is
     pedersen.sel_pedersen {pedersen.clk, pedersen.input};
+
+    #[PERM_MAIN_SLICE]
+    sel_slice_gadget {clk, space_id, ia, ib, mem_addr_c, sel_op_calldata_copy, sel_op_external_return}
+    is
+    slice.sel_start {slice.clk, slice.space_id, slice.col_offset, slice.cnt, slice.addr, slice.sel_cd_cpy, slice.sel_return};
 
     #[PERM_MAIN_MEM_A]
     sel_mem_op_a {clk, space_id, mem_addr_a, ia, rwa, r_in_tag, w_in_tag, sel_mov_ia_to_ic, sel_op_cmov}

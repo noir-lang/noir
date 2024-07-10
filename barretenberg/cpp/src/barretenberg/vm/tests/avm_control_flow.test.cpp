@@ -87,7 +87,7 @@ TEST_F(AvmControlFlowTests, simpleCall)
         EXPECT_EQ(halt_row->main_pc, FF(CALL_PC));
         EXPECT_EQ(halt_row->main_internal_return_ptr, FF(1));
     }
-    validate_trace(std::move(trace), public_inputs, {}, true);
+    validate_trace(std::move(trace), public_inputs, {}, {}, true);
 }
 
 TEST_F(AvmControlFlowTests, simpleJump)

@@ -78,10 +78,12 @@ std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<u
     auto prover = composer.create_prover(circuit_builder);
     auto verifier = composer.create_verifier(circuit_builder);
 
-    // Proof structure: public_inputs | calldata_size | calldata | raw proof
+    // Proof structure: public_inputs | calldata_size | calldata | returndata_size | returndata | raw proof
     HonkProof proof(public_inputs_vec);
     proof.emplace_back(calldata.size());
     proof.insert(proof.end(), calldata.begin(), calldata.end());
+    proof.emplace_back(returndata.size());
+    proof.insert(proof.end(), returndata.begin(), returndata.end());
     auto raw_proof = prover.construct_proof();
     proof.insert(proof.end(), raw_proof.begin(), raw_proof.end());
     // TODO(#4887): Might need to return PCS vk when full verify is supported
@@ -264,23 +266,28 @@ bool Execution::verify(AvmFlavor::VerificationKey vk, HonkProof const& proof)
     // crs_factory_);
     // output_state.pcs_verification_key = std::move(pcs_verification_key);
 
-    // Proof structure: public_inputs | calldata_size | calldata | raw proof
+    // Proof structure: public_inputs | calldata_size | calldata | returndata_size | returndata | raw proof
     std::vector<FF> public_inputs_vec;
     std::vector<FF> calldata;
+    std::vector<FF> returndata;
     std::vector<FF> raw_proof;
 
     // This can be made nicer using BB's serialize::read, probably.
     const auto public_inputs_offset = proof.begin();
     const auto calldata_size_offset = public_inputs_offset + PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH;
     const auto calldata_offset = calldata_size_offset + 1;
-    const auto raw_proof_offset = calldata_offset + static_cast<int64_t>(uint64_t(*calldata_size_offset));
+    const auto returndata_size_offset = calldata_offset + static_cast<int64_t>(uint64_t(*calldata_size_offset));
+    const auto returndata_offset = returndata_size_offset + 1;
+    const auto raw_proof_offset = returndata_offset + static_cast<int64_t>(uint64_t(*returndata_size_offset));
 
     std::copy(public_inputs_offset, calldata_size_offset, std::back_inserter(public_inputs_vec));
-    std::copy(calldata_offset, raw_proof_offset, std::back_inserter(calldata));
+    std::copy(calldata_offset, returndata_size_offset, std::back_inserter(calldata));
+    std::copy(returndata_offset, raw_proof_offset, std::back_inserter(returndata));
     std::copy(raw_proof_offset, proof.end(), std::back_inserter(raw_proof));
 
     VmPublicInputs public_inputs = convert_public_inputs(public_inputs_vec);
-    std::vector<std::vector<FF>> public_inputs_columns = copy_public_inputs_columns(public_inputs, calldata);
+    std::vector<std::vector<FF>> public_inputs_columns =
+        copy_public_inputs_columns(public_inputs, calldata, returndata);
     return verifier.verify_proof(raw_proof, public_inputs_columns);
 }
 
@@ -647,11 +654,14 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
 
             break;
         }
-        case OpCode::REVERT:
-            trace_builder.op_revert(std::get<uint8_t>(inst.operands.at(0)),
-                                    std::get<uint32_t>(inst.operands.at(1)),
-                                    std::get<uint32_t>(inst.operands.at(2)));
+        case OpCode::REVERT: {
+            auto ret = trace_builder.op_revert(std::get<uint8_t>(inst.operands.at(0)),
+                                               std::get<uint32_t>(inst.operands.at(1)),
+                                               std::get<uint32_t>(inst.operands.at(2)));
+            returndata.insert(returndata.end(), ret.begin(), ret.end());
+
             break;
+        }
 
             // Misc
         case OpCode::DEBUGLOG:

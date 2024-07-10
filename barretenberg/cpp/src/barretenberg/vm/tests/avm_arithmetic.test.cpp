@@ -388,7 +388,9 @@ TEST_F(AvmArithmeticTestsFF, addition)
     EXPECT_EQ(alu_row.alu_cf, FF(0));
     EXPECT_EQ(alu_row.alu_u8_r0, FF(0));
 
-    validate_trace(std::move(trace), public_inputs, calldata, true);
+    std::vector<FF> const returndata = { 37, 4, 11, 0, 41 };
+
+    validate_trace(std::move(trace), public_inputs, calldata, returndata, true);
 }
 
 // Test on basic subtraction over finite field type.
@@ -409,6 +411,7 @@ TEST_F(AvmArithmeticTestsFF, subtraction)
     EXPECT_EQ(alu_row.alu_cf, FF(0));
     EXPECT_EQ(alu_row.alu_u8_r0, FF(0));
 
+    std::vector<FF> const returndata = { 8, 9, 17 };
     validate_trace(std::move(trace), public_inputs, calldata);
 }
 
@@ -431,7 +434,8 @@ TEST_F(AvmArithmeticTestsFF, multiplication)
     EXPECT_EQ(alu_row.alu_cf, FF(0));
     EXPECT_EQ(alu_row.alu_u8_r0, FF(0));
 
-    validate_trace(std::move(trace), public_inputs, calldata);
+    std::vector<FF> const returndata = { 5, 100, 20 };
+    validate_trace(std::move(trace), public_inputs, calldata, returndata);
 }
 
 // Test on multiplication by zero over finite field type.
@@ -453,7 +457,8 @@ TEST_F(AvmArithmeticTestsFF, multiplicationByZero)
     EXPECT_EQ(alu_row.alu_cf, FF(0));
     EXPECT_EQ(alu_row.alu_u8_r0, FF(0));
 
-    validate_trace(std::move(trace), public_inputs, calldata);
+    std::vector<FF> const returndata = { 127, 0, 0 };
+    validate_trace(std::move(trace), public_inputs, calldata, returndata);
 }
 
 // Test on basic division over finite field type.
@@ -478,7 +483,8 @@ TEST_F(AvmArithmeticTestsFF, fDivision)
     EXPECT_EQ(row->main_sel_mem_op_c, FF(1));
     EXPECT_EQ(row->main_rwc, FF(1));
 
-    validate_trace(std::move(trace), public_inputs, calldata);
+    std::vector<FF> const returndata = { 15, 315, 0 };
+    validate_trace(std::move(trace), public_inputs, calldata, returndata);
 }
 
 // Test on division with zero numerator over finite field type.
@@ -503,7 +509,8 @@ TEST_F(AvmArithmeticTestsFF, fDivisionNumeratorZero)
     EXPECT_EQ(row->main_sel_mem_op_c, FF(1));
     EXPECT_EQ(row->main_rwc, FF(1));
 
-    validate_trace(std::move(trace), public_inputs, calldata);
+    std::vector<FF> const returndata = { 0, 0, 0 };
+    validate_trace(std::move(trace), public_inputs, calldata, returndata);
 }
 
 // Test on division by zero over finite field type.
@@ -579,7 +586,7 @@ TEST_F(AvmArithmeticTestsFF, mixedOperationsWithError)
     trace_builder.halt();
 
     auto trace = trace_builder.finalize();
-    validate_trace(std::move(trace), public_inputs, calldata, true);
+    validate_trace(std::move(trace), public_inputs, calldata, {}, true);
 }
 
 // Test of equality on FF elements
@@ -587,10 +594,10 @@ TEST_F(AvmArithmeticTestsFF, equality)
 {
     // Pick a field-sized number
     FF elem = FF::modulus - FF(1);
-    std::vector<FF> const calldata = { elem, elem, 1 };
+    std::vector<FF> const calldata = { elem, elem };
     gen_trace_builder(calldata);
-    trace_builder.op_calldata_copy(0, 0, 3, 0);
-    trace_builder.op_eq(0, 0, 1, 2, AvmMemoryTag::FF); // Memory Layout [q - 1, q -1, 1,0..]
+    trace_builder.op_calldata_copy(0, 0, 2, 0);
+    trace_builder.op_eq(0, 0, 1, 2, AvmMemoryTag::FF); // Memory Layout [q - 1, q - 1, 1, 0..]
     trace_builder.op_return(0, 0, 3);
     auto trace = trace_builder.finalize();
 
@@ -599,17 +606,19 @@ TEST_F(AvmArithmeticTestsFF, equality)
 
     EXPECT_EQ(alu_row.alu_ff_tag, FF(1));
     EXPECT_EQ(alu_row.alu_op_eq_diff_inv, FF(0)); // Expect 0 as inv of (q-1) - (q-1)
-    validate_trace(std::move(trace), public_inputs, calldata);
+
+    std::vector<FF> const returndata = { elem, elem, 1 };
+    validate_trace(std::move(trace), public_inputs, calldata, returndata);
 }
 
 // Test correct non-equality of FF elements
 TEST_F(AvmArithmeticTestsFF, nonEquality)
 {
     FF elem = FF::modulus - FF(1);
-    std::vector<FF> const calldata = { elem, elem + FF(1), 0 };
+    std::vector<FF> const calldata = { elem, elem + FF(1) };
     gen_trace_builder(calldata);
-    trace_builder.op_calldata_copy(0, 0, 3, 0);
-    trace_builder.op_eq(0, 0, 1, 2, AvmMemoryTag::FF); // Memory Layout [q - 1, q, 1,0..]
+    trace_builder.op_calldata_copy(0, 0, 2, 0);
+    trace_builder.op_eq(0, 0, 1, 2, AvmMemoryTag::FF); // Memory Layout [q - 1, q, 0, 0..]
     trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
@@ -618,7 +627,9 @@ TEST_F(AvmArithmeticTestsFF, nonEquality)
 
     EXPECT_EQ(alu_row.alu_ff_tag, FF(1));
     EXPECT_EQ(alu_row.alu_op_eq_diff_inv, FF(-1).invert());
-    validate_trace(std::move(trace), public_inputs, calldata);
+
+    std::vector<FF> const returndata = { elem, 0, 0 };
+    validate_trace(std::move(trace), public_inputs, calldata, returndata);
 }
 
 TEST_P(AvmArithmeticTestsDiv, division)

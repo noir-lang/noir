@@ -25,19 +25,21 @@ std::vector<ThreeOpParamRow> gen_three_op_params(std::vector<ThreeOpParam> opera
  */
 void validate_trace_check_circuit(std::vector<Row>&& trace)
 {
-    validate_trace(std::move(trace), {}, {}, false);
+    validate_trace(std::move(trace), {}, {}, {}, false);
 };
 
 /**
  * @brief Helper routine which checks the circuit constraints and depending on
- *         the boolean with_proof value performs a proof generation and verification.
+ *        the boolean with_proof value performs a proof generation and verification.
  *
  * @param trace The execution trace
  */
 void validate_trace(std::vector<Row>&& trace,
                     VmPublicInputs const& public_inputs,
                     std::vector<FF> const& calldata,
-                    bool with_proof)
+                    std::vector<FF> const& returndata,
+                    bool with_proof,
+                    bool expect_proof_failure)
 {
     auto circuit_builder = AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
@@ -51,11 +53,15 @@ void validate_trace(std::vector<Row>&& trace,
         AvmVerifier verifier = composer.create_verifier(circuit_builder);
 
         std::vector<std::vector<FF>> public_inputs_as_vec =
-            bb::avm_trace::copy_public_inputs_columns(public_inputs, calldata);
+            bb::avm_trace::copy_public_inputs_columns(public_inputs, calldata, returndata);
 
         bool verified = verifier.verify_proof(proof, { public_inputs_as_vec });
 
-        EXPECT_TRUE(verified);
+        if (expect_proof_failure) {
+            EXPECT_FALSE(verified);
+        } else {
+            EXPECT_TRUE(verified);
+        }
     }
 };
 

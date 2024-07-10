@@ -49,28 +49,29 @@ std::vector<AvmMemTraceBuilder::MemoryTraceEntry> AvmMemTraceBuilder::finalize()
  * @param r_in_tag Read memory tag pertaining to the instruction
  * @param w_in_tag Write memory tag pertaining to the instruction
  * @param m_rw Boolean telling whether it is a load (false) or store operation (true).
+ * @param sel_op_cd_cpy Specific boolean selector for calldata_copy memory slice
  */
 void AvmMemTraceBuilder::insert_in_mem_trace(uint8_t space_id,
-                                             uint32_t const m_clk,
-                                             uint32_t const m_sub_clk,
-                                             uint32_t const m_addr,
+                                             uint32_t m_clk,
+                                             uint32_t m_sub_clk,
+                                             uint32_t m_addr,
                                              FF const& m_val,
-                                             AvmMemoryTag const m_tag,
-                                             AvmMemoryTag const r_in_tag,
-                                             AvmMemoryTag const w_in_tag,
-                                             bool const m_rw)
+                                             AvmMemoryTag m_tag,
+                                             AvmMemoryTag r_in_tag,
+                                             AvmMemoryTag w_in_tag,
+                                             bool m_rw,
+                                             bool m_sel_op_slice)
 {
-    mem_trace.emplace_back(MemoryTraceEntry{
-        .m_space_id = space_id,
-        .m_clk = m_clk,
-        .m_sub_clk = m_sub_clk,
-        .m_addr = m_addr,
-        .m_val = m_val,
-        .m_tag = m_tag,
-        .r_in_tag = r_in_tag,
-        .w_in_tag = w_in_tag,
-        .m_rw = m_rw,
-    });
+    mem_trace.emplace_back(MemoryTraceEntry{ .m_space_id = space_id,
+                                             .m_clk = m_clk,
+                                             .m_sub_clk = m_sub_clk,
+                                             .m_addr = m_addr,
+                                             .m_val = m_val,
+                                             .m_tag = m_tag,
+                                             .r_in_tag = r_in_tag,
+                                             .w_in_tag = w_in_tag,
+                                             .m_rw = m_rw,
+                                             .m_sel_op_slice = m_sel_op_slice });
 }
 
 // Memory operations need to be performed before the addition of the corresponding row in
@@ -472,15 +473,61 @@ void AvmMemTraceBuilder::write_into_memory(uint8_t space_id,
                                            AvmMemoryTag r_in_tag,
                                            AvmMemoryTag w_in_tag)
 {
-    MemEntry memEntry{ val, w_in_tag };
-    auto& mem_space = memory.at(space_id);
-    auto it = mem_space.find(addr);
-    if (it != mem_space.end()) {
-        it->second = memEntry;
-    } else {
-        mem_space.emplace(addr, memEntry);
-    }
+    write_in_simulated_mem_table(space_id, addr, val, w_in_tag);
     store_in_mem_trace(space_id, clk, interm_reg, addr, val, r_in_tag, w_in_tag);
+}
+
+void AvmMemTraceBuilder::write_calldata_copy(std::vector<FF> const& calldata,
+                                             uint32_t clk,
+                                             uint8_t space_id,
+                                             uint32_t cd_offset,
+                                             uint32_t copy_size,
+                                             uint32_t direct_dst_offset)
+{
+    for (uint32_t i = 0; i < copy_size; i++) {
+        auto addr = direct_dst_offset + i;
+        auto val = calldata.at(cd_offset + i);
+        write_in_simulated_mem_table(space_id, addr, val, AvmMemoryTag::FF);
+        insert_in_mem_trace(space_id,
+                            clk,
+                            SUB_CLK_STORE_A, // Specific re-use of this value for calldatacopy write slice.
+                            addr,
+                            val,
+                            AvmMemoryTag::FF,
+                            AvmMemoryTag::FF,
+                            AvmMemoryTag::FF,
+                            true,
+                            true);
+    }
+}
+
+std::vector<FF> AvmMemTraceBuilder::read_return_opcode(uint32_t clk,
+                                                       uint8_t space_id,
+                                                       uint32_t direct_ret_offset,
+                                                       uint32_t ret_size)
+{
+    std::vector<FF> returndata;
+    for (uint32_t i = 0; i < ret_size; i++) {
+        auto addr = direct_ret_offset + i;
+        auto& mem_space = memory.at(space_id);
+        FF val = mem_space.contains(addr) ? mem_space.at(addr).val : 0;
+        AvmMemoryTag tag = mem_space.contains(addr) ? mem_space.at(addr).tag : AvmMemoryTag::U0;
+
+        // No tag checking is performed for RETURN opcode.
+        insert_in_mem_trace(space_id,
+                            clk,
+                            SUB_CLK_LOAD_A, // Specific re-use of this value for return read slice.
+                            addr,
+                            val,
+                            tag,
+                            AvmMemoryTag::FF,
+                            AvmMemoryTag::FF,
+                            false,
+                            true);
+
+        returndata.push_back(val);
+    }
+    return returndata;
 }
 
 bool AvmMemTraceBuilder::MemoryTraceEntry::operator<(const AvmMemTraceBuilder::MemoryTraceEntry& other) const
@@ -512,6 +559,21 @@ bool AvmMemTraceBuilder::MemoryTraceEntry::operator<(const AvmMemTraceBuilder::M
     // No safeguard in case they are equal. The caller should ensure this property.
     // Otherwise, relation will not be satisfied.
     return m_sub_clk < other.m_sub_clk;
+}
+
+void AvmMemTraceBuilder::write_in_simulated_mem_table(uint8_t space_id,
+                                                      uint32_t addr,
+                                                      FF const& val,
+                                                      AvmMemoryTag w_in_tag)
+{
+    MemEntry memEntry{ val, w_in_tag };
+    auto& mem_space = memory.at(space_id);
+    auto it = mem_space.find(addr);
+    if (it != mem_space.end()) {
+        it->second = memEntry;
+    } else {
+        mem_space.emplace(addr, memEntry);
+    }
 }
 
 } // namespace bb::avm_trace

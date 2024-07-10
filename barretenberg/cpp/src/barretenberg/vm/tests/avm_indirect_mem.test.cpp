@@ -68,7 +68,7 @@ TEST_F(AvmIndirectMemTests, allIndirectAdd)
     EXPECT_EQ(row->main_sel_mem_op_b, FF(1));
     EXPECT_EQ(row->main_sel_mem_op_c, FF(1));
 
-    validate_trace(std::move(trace), public_inputs, {}, true);
+    validate_trace(std::move(trace), public_inputs, {}, {}, true);
 }
 
 // Testing a subtraction operation with direct input operands a, b, and an indirect
