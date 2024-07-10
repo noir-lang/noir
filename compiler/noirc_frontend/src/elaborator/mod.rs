@@ -1191,6 +1191,7 @@ impl<'context> Elaborator<'context> {
             let span = typ.struct_def.span;
 
             let fields = self.resolve_struct_fields(typ.struct_def, type_id);
+            let fields_len = fields.len();
             self.interner.update_struct(type_id, |struct_def| {
                 struct_def.set_fields(fields);
 
@@ -1216,6 +1217,11 @@ impl<'context> Elaborator<'context> {
                     }
                 }
             });
+
+            for field_index in 0..fields_len {
+                self.interner
+                    .add_definition_location(ReferenceId::StructMember(type_id, field_index));
+            }
 
             self.run_comptime_attributes_on_struct(attributes, type_id, span, &mut generated_items);
         }
