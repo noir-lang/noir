@@ -143,13 +143,6 @@ Compute result via unconstrained function, verify result.
 
 Use `  if is_unconstrained() { /`, to conditionally execute code if being called in an unconstrained vs constrained way.
 
-#### Token transfer example - `fn sub` inefficiencies
-
-Iterates through (32) notes, and does nullifier and membership checks...
-
-Use unconstrained function to find two (largest) notes, if not enough recursively combine two notes.
-"call" expensive, can use "multicall".
-
 ### A circuit holds all logic
 
 In procedural execution, the following logic: `if (a>0 && b>0) {` , will not perform the second comparison if the first one is false. Whereas a circuit will hold both paths.
@@ -180,6 +173,6 @@ Use `nargo info --print-acir`, to inspect the constraints, and it may present op
 When used incorrectly will create **less** efficient circuits (higher gate count).
 
 ## References
-- Guillaume's "Cryptdoku" [video](https://www.youtube.com/watch?v=MrQyzuogxgg) (Jun'23)
+- Guillaume's ["`Cryptdoku`" talk](https://www.youtube.com/watch?v=MrQyzuogxgg) (Jun'23)
 - Tips from Tom, Jake and Zac.
-- [Idiomatic Noir](https://www.vlayer.xyz/blog/idiomatic-noir-part-1-collections) (from vlayer) 
+- [Idiomatic Noir](https://www.vlayer.xyz/blog/idiomatic-noir-part-1-collections) blog post
