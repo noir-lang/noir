@@ -36,6 +36,7 @@ use self::{
 };
 
 mod acir_gen;
+mod checks;
 pub(super) mod function_builder;
 pub mod ir;
 mod opt;
