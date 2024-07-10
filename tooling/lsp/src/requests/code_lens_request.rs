@@ -21,6 +21,8 @@ const INFO_COMMAND: &str = "nargo.info";
 const INFO_CODELENS_TITLE: &str = "Info";
 const EXECUTE_COMMAND: &str = "nargo.execute";
 const EXECUTE_CODELENS_TITLE: &str = "Execute";
+const DEBUG_COMMAND: &str = "nargo.debug.dap";
+const DEBUG_CODELENS_TITLE: &str = "Debug";
 
 const PROFILE_COMMAND: &str = "nargo.profile";
 const PROFILE_CODELENS_TITLE: &str = "Profile";
@@ -183,6 +185,17 @@ pub(crate) fn collect_lenses_for_package(
             let profile_lens = CodeLens { range, command: Some(profile_command), data: None };
 
             lenses.push(profile_lens);
+
+
+            let debug_command = Command {
+                title: DEBUG_CODELENS_TITLE.to_string(),
+                command: DEBUG_COMMAND.into(),
+                arguments: Some(package_selection_args(workspace, package)),
+            };
+
+            let debug_lens = CodeLens { range, command: Some(debug_command), data: None };
+
+            lenses.push(debug_lens);
         }
     }
 
