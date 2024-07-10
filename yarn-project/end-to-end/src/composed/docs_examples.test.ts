@@ -12,6 +12,7 @@ import { TokenContract, TokenContractArtifact } from '@aztec/noir-contracts.js/T
 
 describe('docs_examples', () => {
   it('deploys and interacts with a token contract', async () => {
+    // docs:start:full_deploy
     // docs:start:define_account_vars
     const PXE_URL = process.env.PXE_URL || 'http://localhost:8080';
     const secretKey = Fr.random();
@@ -30,7 +31,7 @@ describe('docs_examples', () => {
       'TokenName', // constructor arg1
       'TokenSymbol', // constructor arg2
       18,
-    ) // constructor arg3
+    )
       .send()
       .deployed();
     // docs:end:deploy_contract
@@ -38,6 +39,7 @@ describe('docs_examples', () => {
     // docs:start:get_contract
     const contract = await Contract.at(deployedContract.address, TokenContractArtifact, wallet);
     // docs:end:get_contract
+    // docs:end:full_deploy
 
     // docs:start:send_transaction
     const _tx = await contract.methods.mint_public(wallet.getAddress(), 1).send().wait();

@@ -41,34 +41,34 @@ The address of the contract is included in a Note's data to ensure that differen
 
 ### Note types
 
-There is more than one Note type, such as the `Set` type is used for private variables. There are also `Singleton` and `ImmutableSingleton` types.
+There is more than one Note type, such as the `PrivateSet` type is used for private variables. There are also `PrivateMutable` and `PrivateImmutable` types.
 
 Furthermore, notes can be completely custom types, storing any value or set of values that are desired by an application.
 
 ### Initialization
 
 Private state variables are stored locally when the contract is created. Depending on the application, values may be privately shared by the creator with others via encrypted logs onchain.
-A hash of a note is stored in the append-only note hash tree so as to prove existence of the current state of the note in a privacy preserving way.
+A hash of a note is stored in the append-only note hash tree on the network so as to prove existence of the current state of the note in a privacy preserving way.
 
 #### Note Hash Tree
 
-By virtue of being append only, notes are not edited. If two transactions amend a private value, multiple notes will be inserted into the tree. The header will contain the same logical storage slot.
+By virtue of being append only, notes are not edited. If two transactions amend a private value, multiple notes will be inserted into the tree (to the note hash tree and the [nullifier tree](../../../../protocol-specs/state/nullifier-tree.md)). The header will contain the same logical storage slot.
 
 ### Reading Notes
 
 :::info
 
-- Only those with appropriate keys/information will be able to successfully read private values that they have permission to
-- Notes can be read outside of a transaction or "off-chain" with no changes to data structures on-chain
-  :::
+Only those with appropriate keys/information will be able to successfully read private values that they have permission to. Notes can be read outside of a transaction or "off-chain" with no changes to data structures on-chain.
 
-When a note is read in a transaction, a subsequent read from another transaction of the same note would reveal a link between the two. So to preserve privacy, notes that are read in a transaction are said to be "consumed" (defined below), and new note(s) are then created with a unique hash (includes transaction identifier).
+:::
 
-With type `Set`, a private variable's value is interpreted as the sum of values of notes with the same logical storage slot.
+When a note is read in a transaction, a subsequent read from another transaction of the same note would reveal a link between the two. So to preserve privacy, notes that are read in a transaction are said to be "consumed" (defined below), and new note(s) are then created with a unique hash.
 
-Consuming, deleting, or otherwise "nullifying" a note is NOT done by deleting the Note hash, this would leak information, but rather by creating a nullifier deterministically linked to the value. This nullifier is inserted into another storage tree, aptly named the nullifier tree.
+With type `PrviateSet`, a private variable's value is interpreted as the sum of values of notes with the same logical storage slot.
 
-When interpreting a value, the local private execution checks that its notes (of the corresponding storage slot/ID) have not been nullified.
+Consuming, deleting, or otherwise "nullifying" a note is NOT done by deleting the Note hash; this would leak information. Rather a nullifier is created deterministically linked to the value. This nullifier is inserted into another the nullifier storage tree.
+
+When reading a value, the local private execution checks that its notes (of the corresponding storage slot/ID) have not been nullified.
 
 ### Updating
 
@@ -76,7 +76,7 @@ When interpreting a value, the local private execution checks that its notes (of
 Only those with appropriate keys/information will be able to successfully nullify a value that they have permission to.
 :::
 
-To update a value, its previous note hash(es) are nullified. The new note value is updated in the PXE, and the updated note hash inserted into the note hash tree.
+To update a value, its previous note hash(es) are nullified. The new note value is updated in the user's private execution environment (PXE), and the updated note hash inserted into the note hash tree.
 
 ## Supplementary components
 
@@ -88,15 +88,16 @@ Some optional background resources on notes can be found here:
 
 Notes touch several core components of the protocol, but we will focus on a the essentials first.
 
-#### Some code context
+### Some code context
 
 The way Aztec benefits from the Noir language is via three important components:
 
-- `Aztec-nr` - a Noir framework enabling contracts on Aztec, written in Noir. Includes useful Note implementations
+- `Aztec.nr` - a Noir framework enabling contracts on Aztec, written in Noir. Includes useful Note implementations
 - `noir contracts` - example Aztec contracts
 - `noir-protocol-circuits` - a crate containing essential circuits for the protocol (public circuits and private wrappers)
 
 A lot of what we will look at will be in [aztec-nr/aztec/src/note](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/noir-projects/aztec-nr/aztec/src/note), specifically the lifecycle and note interface.
+
 Looking at the noir circuits in these components, you will see references to the distinction between public/private execution and state.
 
 ### Lifecycle functions
@@ -129,12 +130,12 @@ For example in ValueNote, the `serialize_content` function simply returns: the v
 ### Value as a sum of Notes
 
 We recall that multiple notes are associated with a "slot" (or ID), and so the value of a numerical note (like ValueNote) is the sum of each note's value.
-The helper function in [balance_utils](https://github.com/AztecProtocol/aztec-packages/blob/#include_/noir-projects/aztec-nr/value-note/src/balance_utils.nr) implements this logic taking a `Set` of `ValueNotes`.
+The helper function in [balance_utils](https://github.com/AztecProtocol/aztec-packages/blob/#include_/noir-projects/aztec-nr/value-note/src/balance_utils.nr) implements this logic taking a `PrivateSet` of `ValueNotes`.
 
 A couple of things worth clarifying:
 
-- A `Set` takes a Generic type, specified here as `ValueNote`, but can be any `Note` type (for all notes in the set)
-- A `Set` of notes also specifies _the_ slot of all Notes that it holds
+- A `PrivateSet` takes a Generic type, specified here as `ValueNote`, but can be any `Note` type (for all notes in the set)
+- A `PrivateSet` of notes also specifies _the_ slot of all Notes that it holds
 
 ### Example - Notes in action
 

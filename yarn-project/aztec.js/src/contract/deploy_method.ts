@@ -23,6 +23,7 @@ import { DeploySentTx } from './deploy_sent_tx.js';
  * Options for deploying a contract on the Aztec network.
  * Allows specifying a contract address salt, and additional send method options.
  */
+// docs:start:deploy_options
 export type DeployOptions = {
   /** An optional salt value used to deterministically calculate the contract address. */
   contractAddressSalt?: Fr;
@@ -35,7 +36,7 @@ export type DeployOptions = {
   /** Skip contract initialization. */
   skipInitialization?: boolean;
 } & SendMethodOptions;
-
+// docs:end:deploy_options
 // TODO(@spalladino): Add unit tests for this class!
 
 /**

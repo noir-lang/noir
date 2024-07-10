@@ -56,7 +56,7 @@ aztec = { git="https://github.com/AztecProtocol/aztec-packages", tag="#include_a
 Go to `main.nr` and delete the sample code. Replace it with this contract initialization:
 
 ```rust
-contract Voting {
+contract EasyPrivateVoting {
 
 }
 ```
@@ -69,11 +69,12 @@ Inside this, paste these imports:
 
 We are using various utils within the Aztec library:
 
-- `Context` and `PrivateContext` - exposes things such as the contract address, msg_sender, etc
+- `PrivateContext` - exposes things such as the contract address, msg_sender, etc
 - `AztecAddress` - A type for storing an address on Aztec
 - `FunctionSelector` - Used for computing a selector to call a function
 - `Map` - A data storage type for storing candidates with the number of votes they have
 - `PublicMutable` - A type of storage, which holds a mutable public value. We'll store votes as PublicMutables
+- `SharedImmutable` - an immutable storage value that is accessible in private and public execution.
 
 ## Set up storage
 
@@ -84,9 +85,10 @@ Define the storage struct like so:
 
 In this contract, we will store three vars:
 
-1. admin, as an Aztec address held in public state
-2. tally, as a map with key as the persona and value as the number (in Field) held in public state
-3. vote_ended, as a boolean held in public state
+1. `admin`, as an Aztec address held in public state
+2. `tally`, as a map with key as the persona and value as the number (in Field) held in public state
+3. `vote_ended`, as a boolean held in public state
+4. `active_at_block` specifies which block people can start voting. This variable specifies the block at which people must use their nullifier secret key to vote. Because nullifier keys are rotatable, if this is not included the same account would be able to vote more than once.
 
 ## Constructor
 
@@ -112,7 +114,7 @@ Create a private function called `cast_vote`:
 
 In this function, we do not create a nullifier with the address directly. This would leak privacy as it would be easy to reverse-engineer. We must add some randomness or some form of secret, like [nullifier secrets](../../aztec/concepts/accounts/keys.md#nullifier-secrets).
 
-To do this, we make an [oracle call](../../aztec/concepts/smart_contracts/oracles/index.md) to fetch the caller's secret key, hash it to create a nullifier, and push the nullifier to Aztec. The `secret.high` and `secret.low` values here refer to how we divide a large [Grumpkin scalar](https://github.com/AztecProtocol/aztec-packages/blob/7fb35874eae3f2cad5cb922282a619206573592c/noir/noir_stdlib/src/grumpkin_scalar.nr) value into its higher and lower parts. This allows for faster cryptographic computations so our hash can still be secure but is calculated faster.
+To do this, we make an [oracle call](../../aztec/concepts/smart_contracts/oracles/index.md) to fetch the caller's secret key, hash it to create a nullifier, and push the nullifier to Aztec.
 
 After pushing the nullifier, we update the `tally` to reflect this vote. As we know from before, a private function cannot update public state directly, so we are calling a public function.
 
@@ -124,10 +126,10 @@ The first thing we do here is assert that the vote has not ended.
 
 `assert()` takes two arguments: the assertion, in this case that `storage.vote_ended` is not false, and the error thrown if the assertion fails.
 
-The code after the assertion will only run if the assertion is true. In this snippet, we read the current vote tally at the voteId, add 1 to it, and write this new number to the voteId. The `Field` element allows us to use `+` to add to an integer.
+The code after the assertion will only run if the assertion is true. In this snippet, we read the current vote tally at the `candidate`, add 1 to it, and write this new number to the `candidate`. The `Field` element allows us to use `+` to add to an integer.
 
-:::danger
-Note that due to [key rotation](../../aztec/concepts/accounts/keys.md#key-rotation), it would be possible for a user to rotate their nullifier secret key and be able to vote again. Refer to [common patterns](../../guides/smart_contracts/writing_contracts/common_patterns/key_rotation.md) for more information
+:::warning
+Refer to [common patterns](../../guides/smart_contracts/writing_contracts/common_patterns/key_rotation.md) for more information about key rotation and considerations.
 :::
 
 ## Getting the number of votes
@@ -140,13 +142,13 @@ We set it as `unconstrained` and do not annotate it because it is only reading f
 
 ## Allowing an admin to end a voting period
 
-To ensure that only an admin can end a voting period, we can use another `assert()` statement.
+To ensure that only an `admin` can end a voting period, we can use another `assert()` statement.
 
 Paste this function in your contract:
 
 #include_code end_vote noir-projects/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
-Here, we are asserting that the `msg_sender()` is equal to the admin stored in public state. We have to create an `AztecAddress` type from the `msg_sender()` in order to do a direct comparison.
+Here, we are asserting that the `msg_sender()` is equal to the `admin` stored in public state.
 
 ## Compiling and deploying
 
@@ -158,13 +160,13 @@ aztec-nargo compile
 
 This will create a new directory called `target` and a JSON artifact inside it.
 
-Once it is compiled you can [deploy](../../reference/sandbox_reference/index.md). 
+Use the `aztec-builder` to generate the Typescript artifact for the contract:
 
 ```bash
-aztec-builder target -o src/artifacts
+aztec-builder codegen target --outdir src/artifacts
 ```
 
-Once it is compiled you can [deploy](../../guides/smart_contracts/how_to_deploy_contract.md) it to the sandbox just like you did in the [counter contract tutorial](./counter_contract.md).
+Once it is compiled you can [deploy](../../guides/smart_contracts/how_to_deploy_contract.md) it to the sandbox.
 
 ## Next steps
 
