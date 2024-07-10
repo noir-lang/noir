@@ -268,7 +268,6 @@ impl<'a> ModCollector<'a> {
         let mut definition_errors = vec![];
         for struct_definition in types {
             let name = struct_definition.name.clone();
-            let name_location = Location::new(name.span(), self.file_id);
 
             let unresolved = UnresolvedStruct {
                 file_id: self.file_id,
@@ -319,7 +318,6 @@ impl<'a> ModCollector<'a> {
             // And store the TypeId -> StructType mapping somewhere it is reachable
             self.def_collector.items.types.insert(id, unresolved);
 
-            context.def_interner.add_struct_location(id, name_location);
             context.def_interner.add_definition_location(ReferenceId::Struct(id));
         }
         definition_errors
@@ -366,6 +364,8 @@ impl<'a> ModCollector<'a> {
             }
 
             self.def_collector.items.type_aliases.insert(type_alias_id, unresolved);
+
+            context.def_interner.add_definition_location(ReferenceId::Alias(type_alias_id));
         }
         errors
     }
@@ -381,7 +381,6 @@ impl<'a> ModCollector<'a> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for trait_definition in traits {
             let name = trait_definition.name.clone();
-            let name_location = Location::new(name.span(), self.file_id);
 
             // Create the corresponding module for the trait namespace
             let trait_id = match self.push_child_module(
@@ -533,7 +532,6 @@ impl<'a> ModCollector<'a> {
             };
             context.def_interner.push_empty_trait(trait_id, &unresolved, resolved_generics);
 
-            context.def_interner.add_trait_location(trait_id, name_location);
             context.def_interner.add_definition_location(ReferenceId::Trait(trait_id));
 
             self.def_collector.items.traits.insert(trait_id, unresolved);
@@ -652,7 +650,7 @@ impl<'a> ModCollector<'a> {
             Ok(child_mod_id) => {
                 // Track that the "foo" in `mod foo;` points to the module "foo"
                 let referenced = ReferenceId::Module(child_mod_id);
-                let reference = ReferenceId::Variable(location);
+                let reference = ReferenceId::Reference(location, false);
                 context.def_interner.add_reference(referenced, reference);
 
                 errors.extend(collect_defs(

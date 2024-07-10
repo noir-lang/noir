@@ -192,8 +192,8 @@ fn module() -> impl NoirParser<ParsedModule> {
 }
 
 /// This parser is used for parsing top level statements in macros
-pub fn top_level_item() -> impl NoirParser<TopLevelStatement> {
-    top_level_statement(module())
+pub fn top_level_items() -> impl NoirParser<Vec<TopLevelStatement>> {
+    top_level_statement(module()).repeated()
 }
 
 /// top_level_statement: function_definition
@@ -1117,16 +1117,11 @@ where
 }
 
 fn quote() -> impl NoirParser<ExpressionKind> {
-    token_kind(TokenKind::Quote).validate(|token, span, emit| {
-        let tokens = match token {
+    token_kind(TokenKind::Quote).map(|token| {
+        ExpressionKind::Quote(match token {
             Token::Quote(tokens) => tokens,
             _ => unreachable!("token_kind(Quote) should guarantee parsing only a quote token"),
-        };
-        emit(ParserError::with_reason(
-            ParserErrorReason::ExperimentalFeature("quoted expressions"),
-            span,
-        ));
-        ExpressionKind::Quote(tokens)
+        })
     })
 }
 
