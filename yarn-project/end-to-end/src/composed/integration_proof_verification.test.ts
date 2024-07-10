@@ -187,7 +187,7 @@ describe('proof_verification', () => {
         `0x${proof.withoutPublicInputs().toString('hex')}`,
       ] as const;
 
-      await expect(rollupContract.write.process(args)).resolves.toBeDefined();
+      await expect(rollupContract.write.submitProof(args)).resolves.toBeDefined();
     });
   });
 });

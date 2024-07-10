@@ -7,10 +7,5 @@
     "build:ts": "tsc -b",
     "clean": "rm -rf ./dest .tsbuildinfo ./artifacts"
   },
-  "files": [
-    "dest",
-    "src",
-    "artifacts",
-    "!*.test.*"
-  ]
+  "files": ["dest", "src", "artifacts", "!*.test.*"]
 }

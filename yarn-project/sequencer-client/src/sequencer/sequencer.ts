@@ -13,7 +13,7 @@ import {
   PROVING_STATUS,
 } from '@aztec/circuit-types/interfaces';
 import { type L2BlockBuiltStats } from '@aztec/circuit-types/stats';
-import { AztecAddress, EthAddress, type GlobalVariables, type Header, type Proof } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, type GlobalVariables, type Header } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
@@ -306,8 +306,16 @@ export class Sequencer {
       ...block.getStats(),
     } satisfies L2BlockBuiltStats);
 
-    await this.publishL2Block(block, aggregationObject, proof);
+    await this.publishL2Block(block);
     this.log.info(`Submitted rollup block ${block.number} with ${processedTxs.length} transactions`);
+
+    // Submit the proof if we have configured this sequencer to run with a prover.
+    // This is temporary while we submit one proof per block, but will have to change once we
+    // move onto proving batches of multiple blocks at a time.
+    if (aggregationObject && proof) {
+      await this.publisher.submitProof(block.header, block.archive.root, aggregationObject, proof);
+      this.log.info(`Submitted proof for block ${block.number}`);
+    }
   }
 
   /**
@@ -317,10 +325,10 @@ export class Sequencer {
   @trackSpan('Sequencer.publishL2Block', block => ({
     [Attributes.BLOCK_NUMBER]: block.number,
   }))
-  protected async publishL2Block(block: L2Block, aggregationObject: Fr[], proof: Proof) {
+  protected async publishL2Block(block: L2Block) {
     // Publishes new block to the network and awaits the tx to be mined
     this.state = SequencerState.PUBLISHING_BLOCK;
-    const publishedL2Block = await this.publisher.processL2Block(block, aggregationObject, proof);
+    const publishedL2Block = await this.publisher.processL2Block(block);
     if (publishedL2Block) {
       this.lastPublishedBlock = block.number;
     } else {

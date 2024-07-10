@@ -19,7 +19,7 @@ import {
   type CircuitProvingStats,
   type CircuitSimulationStats,
   type CircuitWitnessGenerationStats,
-  type L1PublishStats,
+  type L1PublishBlockStats,
   type L2BlockBuiltStats,
   type L2BlockHandledStats,
   type MetricName,
@@ -87,7 +87,7 @@ function processAcirProofGenerated(entry: ProofConstructed, results: BenchmarkCo
 }
 
 /** Processes an entry with event name 'rollup-published-to-l1' and updates results */
-function processRollupPublished(entry: L1PublishStats, results: BenchmarkCollectedResults) {
+function processRollupPublished(entry: L1PublishBlockStats, results: BenchmarkCollectedResults) {
   const bucket = entry.txCount;
   if (!BENCHMARK_BLOCK_SIZES.includes(bucket)) {
     return;

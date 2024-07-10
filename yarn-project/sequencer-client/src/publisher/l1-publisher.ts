@@ -1,6 +1,7 @@
 import { type L2Block } from '@aztec/circuit-types';
-import { type L1PublishStats } from '@aztec/circuit-types/stats';
-import { type EthAddress, type Fr, type Proof } from '@aztec/circuits.js';
+import { type L1PublishBlockStats, type L1PublishProofStats } from '@aztec/circuit-types/stats';
+import { type EthAddress, type Header, type Proof } from '@aztec/circuits.js';
+import { type Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { serializeToBuffer } from '@aztec/foundation/serialize';
 import { InterruptibleSleep } from '@aztec/foundation/sleep';
@@ -42,8 +43,10 @@ export type MinimalTransactionReceipt = {
  * Pushes txs to the L1 chain and waits for their completion.
  */
 export interface L1PublisherTxSender {
+  /** Returns the EOA used for sending txs to L1.  */
   getSenderAddress(): Promise<EthAddress>;
 
+  /** Returns the address elected for submitting a given block number or zero if anyone can submit. */
   getSubmitterAddressForBlock(blockNumber: number): Promise<EthAddress>;
 
   /**
@@ -59,6 +62,13 @@ export interface L1PublisherTxSender {
    * @returns The hash of the mined tx.
    */
   sendProcessTx(encodedData: L1ProcessArgs): Promise<string | undefined>;
+
+  /**
+   * Sends a tx to the L1 rollup contract with a proof. Returns once the tx has been mined.
+   * @param encodedData - Serialized data for processing the new L2 block.
+   * @returns The hash of the mined tx.
+   */
+  sendSubmitProofTx(submitProofArgs: L1SubmitProofArgs): Promise<string | undefined>;
 
   /**
    * Returns a tx receipt if the tx has been mined.
@@ -87,9 +97,7 @@ export interface L1PublisherTxSender {
   checkIfTxsAreAvailable(block: L2Block): Promise<boolean>;
 }
 
-/**
- * Encoded block and proof ready to be pushed to the L1 contract.
- */
+/** Arguments to the process method of the rollup contract */
 export type L1ProcessArgs = {
   /** The L2 block header. */
   header: Buffer;
@@ -97,10 +105,18 @@ export type L1ProcessArgs = {
   archive: Buffer;
   /** L2 block body. */
   body: Buffer;
-  /** Aggregation object needed to verify the proof */
-  aggregationObject: Buffer;
-  /** Root rollup proof of the L2 block. */
+};
+
+/** Arguments to the submitProof method of the rollup contract */
+export type L1SubmitProofArgs = {
+  /** The L2 block header. */
+  header: Buffer;
+  /** A root of the archive tree after the L2 block is applied. */
+  archive: Buffer;
+  /** The proof for the block. */
   proof: Buffer;
+  /** The aggregation object for the block's proof. */
+  aggregationObject: Buffer;
 };
 
 /**
@@ -132,11 +148,12 @@ export class L1Publisher implements L2BlockReceiver {
    * @param block - L2 block to publish.
    * @returns True once the tx has been confirmed and is successful, false on revert or interrupt, blocks otherwise.
    */
-  public async processL2Block(block: L2Block, aggregationObject: Fr[], proof: Proof): Promise<boolean> {
+  public async processL2Block(block: L2Block): Promise<boolean> {
+    const ctx = { blockNumber: block.number, blockHash: block.hash().toString() };
     // TODO(#4148) Remove this block number check, it's here because we don't currently have proper genesis state on the contract
     const lastArchive = block.header.lastArchive.root.toBuffer();
     if (block.number != 1 && !(await this.checkLastArchiveHash(lastArchive))) {
-      this.log.info(`Detected different last archive prior to publishing a block, aborting publish...`);
+      this.log.info(`Detected different last archive prior to publishing a block, aborting publish...`, ctx);
       return false;
     }
 
@@ -145,7 +162,7 @@ export class L1Publisher implements L2BlockReceiver {
     // Publish block transaction effects
     while (!this.interrupted) {
       if (await this.txSender.checkIfTxsAreAvailable(block)) {
-        this.log.verbose(`Transaction effects of a block ${block.number} already published.`);
+        this.log.verbose(`Transaction effects of block ${block.number} already published.`, ctx);
         break;
       }
 
@@ -165,14 +182,14 @@ export class L1Publisher implements L2BlockReceiver {
           // txsEffectsHash from IAvailabilityOracle.TxsPublished event
           txsEffectsHash = receipt.logs[0].data;
         } else {
-          this.log.warn(`Expected 1 log, got ${receipt.logs.length}`);
+          this.log.warn(`Expected 1 log, got ${receipt.logs.length}`, ctx);
         }
 
-        this.log.info(`Block txs effects published, txsEffectsHash: ${txsEffectsHash}`);
+        this.log.info(`Block txs effects published`, { ...ctx, txsEffectsHash });
         break;
       }
 
-      this.log.error(`AvailabilityOracle.publish tx status failed: ${receipt.transactionHash}`);
+      this.log.error(`AvailabilityOracle.publish tx status failed: ${receipt.transactionHash}`, ctx);
       await this.sleepOrInterrupted();
     }
 
@@ -180,8 +197,6 @@ export class L1Publisher implements L2BlockReceiver {
       header: block.header.toBuffer(),
       archive: block.archive.root.toBuffer(),
       body: encodedBody,
-      aggregationObject: serializeToBuffer(aggregationObject),
-      proof: proof.withoutPublicInputs(),
     };
 
     // Process block
@@ -199,27 +214,69 @@ export class L1Publisher implements L2BlockReceiver {
       // Tx was mined successfully
       if (receipt.status) {
         const tx = await this.txSender.getTransactionStats(txHash);
-        const stats: L1PublishStats = {
+        const stats: L1PublishBlockStats = {
           ...pick(receipt, 'gasPrice', 'gasUsed', 'transactionHash'),
           ...pick(tx!, 'calldataGas', 'calldataSize'),
           ...block.getStats(),
           eventName: 'rollup-published-to-l1',
         };
-        this.log.info(`Published L2 block to L1 rollup contract`, stats);
+        this.log.info(`Published L2 block to L1 rollup contract`, { ...stats, ...ctx });
         return true;
       }
 
       // Check if someone else incremented the block number
       if (!(await this.checkLastArchiveHash(lastArchive))) {
-        this.log.warn('Publish failed. Detected different last archive hash.');
+        this.log.warn('Publish failed. Detected different last archive hash.', ctx);
         break;
       }
 
-      this.log.error(`Rollup.process tx status failed: ${receipt.transactionHash}`);
+      this.log.error(`Rollup.process tx status failed: ${receipt.transactionHash}`, ctx);
       await this.sleepOrInterrupted();
     }
 
-    this.log.verbose('L2 block data syncing interrupted while processing blocks.');
+    this.log.verbose('L2 block data syncing interrupted while processing blocks.', ctx);
+    return false;
+  }
+
+  public async submitProof(header: Header, archiveRoot: Fr, aggregationObject: Fr[], proof: Proof): Promise<boolean> {
+    const ctx = { blockNumber: header.globalVariables.blockNumber };
+
+    const txArgs: L1SubmitProofArgs = {
+      header: header.toBuffer(),
+      archive: archiveRoot.toBuffer(),
+      aggregationObject: serializeToBuffer(aggregationObject),
+      proof: proof.withoutPublicInputs(),
+    };
+
+    // Process block
+    while (!this.interrupted) {
+      const txHash = await this.sendSubmitProofTx(txArgs);
+      if (!txHash) {
+        break;
+      }
+
+      const receipt = await this.getTransactionReceipt(txHash);
+      if (!receipt) {
+        break;
+      }
+
+      // Tx was mined successfully
+      if (receipt.status) {
+        const tx = await this.txSender.getTransactionStats(txHash);
+        const stats: L1PublishProofStats = {
+          ...pick(receipt, 'gasPrice', 'gasUsed', 'transactionHash'),
+          ...pick(tx!, 'calldataGas', 'calldataSize'),
+          eventName: 'proof-published-to-l1',
+        };
+        this.log.info(`Published L2 block to L1 rollup contract`, { ...stats, ...ctx });
+        return true;
+      }
+
+      this.log.error(`Rollup.submitProof tx status failed: ${receipt.transactionHash}`, ctx);
+      await this.sleepOrInterrupted();
+    }
+
+    this.log.verbose('L2 block data syncing interrupted while processing blocks.', ctx);
     return false;
   }
 
@@ -252,6 +309,17 @@ export class L1Publisher implements L2BlockReceiver {
       this.log.debug(`New block last archive: ${lastArchive.toString('hex')}`);
     }
     return areSame;
+  }
+
+  private async sendSubmitProofTx(submitProofArgs: L1SubmitProofArgs): Promise<string | undefined> {
+    try {
+      const size = Object.values(submitProofArgs).reduce((acc, arg) => acc + arg.length, 0);
+      this.log.info(`SubmitProof size=${size} bytes`);
+      return await this.txSender.sendSubmitProofTx(submitProofArgs);
+    } catch (err) {
+      this.log.error(`Rollup submit proof failed`, err);
+      return undefined;
+    }
   }
 
   private async sendPublishTx(encodedBody: Buffer): Promise<string | undefined> {

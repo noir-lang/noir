@@ -272,13 +272,17 @@ function getNoteTypes(input: NoirCompiledContract) {
  * @returns Aztec contract build artifact.
  */
 function generateContractArtifact(contract: NoirCompiledContract, aztecNrVersion?: string): ContractArtifact {
-  return {
-    name: contract.name,
-    functions: contract.functions.map(f => generateFunctionArtifact(f, contract)),
-    outputs: contract.outputs,
-    storageLayout: getStorageLayout(contract),
-    notes: getNoteTypes(contract),
-    fileMap: contract.file_map,
-    aztecNrVersion,
-  };
+  try {
+    return {
+      name: contract.name,
+      functions: contract.functions.map(f => generateFunctionArtifact(f, contract)),
+      outputs: contract.outputs,
+      storageLayout: getStorageLayout(contract),
+      notes: getNoteTypes(contract),
+      fileMap: contract.file_map,
+      aztecNrVersion,
+    };
+  } catch (err) {
+    throw new Error(`Could not generate contract artifact for ${contract.name}: ${err}`);
+  }
 }

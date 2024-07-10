@@ -26,10 +26,8 @@ export type L2BlockStats = {
   unencryptedLogSize?: number;
 };
 
-/** Stats logged for each L1 rollup publish tx.*/
+/** Stats logged for each L1 publish tx.*/
 export type L1PublishStats = {
-  /** Name of the event for metrics purposes */
-  eventName: 'rollup-published-to-l1';
   /** Effective gas price of the tx. */
   gasPrice: bigint;
   /** Effective gas used in the tx. */
@@ -40,7 +38,20 @@ export type L1PublishStats = {
   calldataGas: number;
   /** Size in bytes of the calldata. */
   calldataSize: number;
-} & L2BlockStats;
+};
+
+/** Stats logged for each L1 rollup publish tx.*/
+export type L1PublishBlockStats = {
+  /** Name of the event for metrics purposes */
+  eventName: 'rollup-published-to-l1';
+} & L1PublishStats &
+  L2BlockStats;
+
+/** Stats logged for each L1 rollup publish tx.*/
+export type L1PublishProofStats = {
+  /** Name of the event for metrics purposes */
+  eventName: 'proof-published-to-l1';
+} & L1PublishStats;
 
 /** Stats logged for synching node chain history.  */
 export type NodeSyncedChainHistoryStats = {
@@ -271,7 +282,8 @@ export type Stats =
   | CircuitSimulationStats
   | CircuitWitnessGenerationStats
   | PublicDBAccessStats
-  | L1PublishStats
+  | L1PublishBlockStats
+  | L1PublishProofStats
   | L2BlockBuiltStats
   | L2BlockHandledStats
   | NodeSyncedChainHistoryStats

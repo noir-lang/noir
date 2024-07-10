@@ -148,7 +148,7 @@ describe('sequencer', () => {
       new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient, gasFees),
       Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n)),
     );
-    expect(publisher.processL2Block).toHaveBeenCalledWith(block, [], proof);
+    expect(publisher.processL2Block).toHaveBeenCalledWith(block);
     expect(proverClient.cancelBlock).toHaveBeenCalledTimes(0);
   });
 
@@ -186,7 +186,7 @@ describe('sequencer', () => {
       new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient, gasFees),
       Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n)),
     );
-    expect(publisher.processL2Block).toHaveBeenCalledWith(block, [], proof);
+    expect(publisher.processL2Block).toHaveBeenCalledWith(block);
     expect(proverClient.cancelBlock).toHaveBeenCalledTimes(0);
   });
 
@@ -229,7 +229,7 @@ describe('sequencer', () => {
       new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient, gasFees),
       Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n)),
     );
-    expect(publisher.processL2Block).toHaveBeenCalledWith(block, [], proof);
+    expect(publisher.processL2Block).toHaveBeenCalledWith(block);
     expect(p2p.deleteTxs).toHaveBeenCalledWith([doubleSpendTx.getTxHash()]);
     expect(proverClient.cancelBlock).toHaveBeenCalledTimes(0);
   });
@@ -268,7 +268,7 @@ describe('sequencer', () => {
       new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient, gasFees),
       Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n)),
     );
-    expect(publisher.processL2Block).toHaveBeenCalledWith(block, [], proof);
+    expect(publisher.processL2Block).toHaveBeenCalledWith(block);
     expect(p2p.deleteTxs).toHaveBeenCalledWith([invalidChainTx.getTxHash()]);
     expect(proverClient.cancelBlock).toHaveBeenCalledTimes(0);
   });
@@ -307,7 +307,7 @@ describe('sequencer', () => {
       new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient, gasFees),
       Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n)),
     );
-    expect(publisher.processL2Block).toHaveBeenCalledWith(block, [], proof);
+    expect(publisher.processL2Block).toHaveBeenCalledWith(block);
     expect(proverClient.cancelBlock).toHaveBeenCalledTimes(0);
   });
 

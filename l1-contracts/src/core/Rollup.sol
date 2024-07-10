@@ -101,14 +101,8 @@ contract Rollup is IRollup {
    * @notice Process an incoming L2 block and progress the state
    * @param _header - The L2 block header
    * @param _archive - A root of the archive tree after the L2 block is applied
-   * @param _proof - The proof of correct execution
    */
-  function process(
-    bytes calldata _header,
-    bytes32 _archive,
-    bytes calldata _aggregationObject,
-    bytes calldata _proof
-  ) external override(IRollup) {
+  function process(bytes calldata _header, bytes32 _archive) external override(IRollup) {
     // Decode and validate header
     HeaderLib.Header memory header = HeaderLib.decode(_header);
     HeaderLib.validate(header, VERSION, lastBlockTs, archive);
@@ -123,6 +117,38 @@ contract Rollup is IRollup {
     if (sequencer != address(0x0) && sequencer != msg.sender) {
       revert Errors.Rollup__InvalidSequencer(msg.sender);
     }
+
+    archive = _archive;
+    lastBlockTs = block.timestamp;
+
+    bytes32 inHash = INBOX.consume();
+    if (header.contentCommitment.inHash != inHash) {
+      revert Errors.Rollup__InvalidInHash(inHash, header.contentCommitment.inHash);
+    }
+
+    // TODO(#7218): Revert to fixed height tree for outbox, currently just providing min as interim
+    // Min size = smallest path of the rollup tree + 1
+    (uint256 min,) = MerkleLib.computeMinMaxPathLength(header.contentCommitment.numTxs);
+    uint256 l2ToL1TreeMinHeight = min + 1;
+    OUTBOX.insert(
+      header.globalVariables.blockNumber, header.contentCommitment.outHash, l2ToL1TreeMinHeight
+    );
+
+    // pay the coinbase 1 gas token if it is not empty and header.totalFees is not zero
+    if (header.globalVariables.coinbase != address(0) && header.totalFees > 0) {
+      GAS_TOKEN.transfer(address(header.globalVariables.coinbase), header.totalFees);
+    }
+
+    emit L2BlockProcessed(header.globalVariables.blockNumber);
+  }
+
+  function submitProof(
+    bytes calldata _header,
+    bytes32 _archive,
+    bytes calldata _aggregationObject,
+    bytes calldata _proof
+  ) external override(IRollup) {
+    HeaderLib.Header memory header = HeaderLib.decode(_header);
 
     bytes32[] memory publicInputs =
       new bytes32[](3 + Constants.HEADER_LENGTH + Constants.AGGREGATION_OBJECT_LENGTH);
@@ -156,28 +182,7 @@ contract Rollup is IRollup {
       revert Errors.Rollup__InvalidProof();
     }
 
-    archive = _archive;
-    lastBlockTs = block.timestamp;
-
-    bytes32 inHash = INBOX.consume();
-    if (header.contentCommitment.inHash != inHash) {
-      revert Errors.Rollup__InvalidInHash(inHash, header.contentCommitment.inHash);
-    }
-
-    // TODO(#7218): Revert to fixed height tree for outbox, currently just providing min as interim
-    // Min size = smallest path of the rollup tree + 1
-    (uint256 min,) = MerkleLib.computeMinMaxPathLength(header.contentCommitment.numTxs);
-    uint256 l2ToL1TreeMinHeight = min + 1;
-    OUTBOX.insert(
-      header.globalVariables.blockNumber, header.contentCommitment.outHash, l2ToL1TreeMinHeight
-    );
-
-    // pay the coinbase 1 gas token if it is not empty and header.totalFees is not zero
-    if (header.globalVariables.coinbase != address(0) && header.totalFees > 0) {
-      GAS_TOKEN.transfer(address(header.globalVariables.coinbase), header.totalFees);
-    }
-
-    emit L2BlockProcessed(header.globalVariables.blockNumber);
+    emit L2ProofVerified(header.globalVariables.blockNumber);
   }
 
   function _computePublicInputHash(bytes calldata _header, bytes32 _archive)
