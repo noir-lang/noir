@@ -241,6 +241,7 @@ pub enum DependencyId {
 pub enum ReferenceId {
     Module(ModuleId),
     Struct(StructId),
+    StructMember(StructId, usize),
     Trait(TraitId),
     Global(GlobalId),
     Function(FuncId),
