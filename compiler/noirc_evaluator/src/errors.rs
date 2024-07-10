@@ -196,6 +196,13 @@ impl RuntimeError {
                     location.span,
                 )
             }
+            RuntimeError::IndexOutOfBounds { .. } => {
+                let message = self.to_string();
+                let location =
+                    self.call_stack().back().unwrap_or_else(|| panic!("Expected RuntimeError to have a location. Error message: {message}"));
+
+                Diagnostic::simple_warning(message, String::new(), location.span)
+            }
             _ => {
                 let message = self.to_string();
                 let location =
