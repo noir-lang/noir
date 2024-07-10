@@ -29,12 +29,14 @@ use crate::ast::{
 };
 
 use crate::parser::{ParserError, SortedModule};
+use noirc_errors::{CustomDiagnostic, Location, Span};
+
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic, Location, Span};
 use rustc_hash::FxHashMap as HashMap;
 use std::collections::BTreeMap;
-
+use std::fmt::Write;
+use std::path::PathBuf;
 use std::vec;
 
 #[derive(Default)]
@@ -42,6 +44,7 @@ pub struct ResolvedModule {
     pub globals: Vec<(FileId, GlobalId)>,
     pub functions: Vec<(FileId, FuncId)>,
     pub trait_impl_functions: Vec<(FileId, FuncId)>,
+    pub debug_comptime_in_file: Option<FileId>,
 
     pub errors: Vec<(CompilationError, FileId)>,
 }
@@ -195,6 +198,7 @@ pub enum CompilationError {
     ResolverError(ResolverError),
     TypeError(TypeCheckError),
     InterpreterError(InterpreterError),
+    DebugComptimeScopeNotFound(Vec<PathBuf>),
 }
 
 impl CompilationError {
@@ -212,6 +216,16 @@ impl<'a> From<&'a CompilationError> for CustomDiagnostic {
             CompilationError::ResolverError(error) => error.into(),
             CompilationError::TypeError(error) => error.into(),
             CompilationError::InterpreterError(error) => error.into(),
+            CompilationError::DebugComptimeScopeNotFound(error) => {
+                let msg = "multiple files found matching --debug-comptime path".into();
+                let secondary = error.iter().fold(String::new(), |mut output, path| {
+                    let _ = writeln!(output, "    {}", path.display());
+                    output
+                });
+                // NOTE: this span is empty as it is not expected to be displayed
+                let dummy_span = Span::default();
+                CustomDiagnostic::simple_error(msg, secondary, dummy_span)
+            }
         }
     }
 }
@@ -271,6 +285,7 @@ impl DefCollector {
         ast: SortedModule,
         root_file_id: FileId,
         use_legacy: bool,
+        debug_comptime_in_file: Option<&str>,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -288,6 +303,7 @@ impl DefCollector {
                 dep.crate_id,
                 context,
                 use_legacy,
+                debug_comptime_in_file,
                 macro_processors,
             ));
 
@@ -344,7 +360,7 @@ impl DefCollector {
 
                 for (referenced, ident) in references.iter().zip(&collected_import.path.segments) {
                     let reference =
-                        ReferenceId::Variable(Location::new(ident.span(), file_id), false);
+                        ReferenceId::Reference(Location::new(ident.span(), file_id), false);
                     context.def_interner.add_reference(*referenced, reference);
                 }
 
@@ -396,13 +412,31 @@ impl DefCollector {
             }
         }
 
+        let handle_missing_file = |err| {
+            errors.push((CompilationError::DebugComptimeScopeNotFound(err), root_file_id));
+            None
+        };
+        let debug_comptime_in_file: Option<FileId> =
+            debug_comptime_in_file.and_then(|debug_comptime_in_file| {
+                context
+                    .file_manager
+                    .find_by_path_suffix(debug_comptime_in_file)
+                    .unwrap_or_else(handle_missing_file)
+            });
+
         if !use_legacy {
-            let mut more_errors = Elaborator::elaborate(context, crate_id, def_collector.items);
+            let mut more_errors = Elaborator::elaborate(
+                context,
+                crate_id,
+                def_collector.items,
+                debug_comptime_in_file,
+            );
             errors.append(&mut more_errors);
             return errors;
         }
 
-        let mut resolved_module = ResolvedModule { errors, ..Default::default() };
+        let mut resolved_module =
+            ResolvedModule { errors, debug_comptime_in_file, ..Default::default() };
 
         // We must first resolve and intern the globals before we can resolve any stmts inside each function.
         // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
@@ -511,25 +545,18 @@ fn add_import_reference(
         return;
     }
 
-    match def_id {
-        crate::macros_api::ModuleDefId::FunctionId(func_id) => {
-            let variable = ReferenceId::Variable(Location::new(name.span(), file_id), false);
-            interner.add_reference(ReferenceId::Function(func_id), variable);
-        }
-        crate::macros_api::ModuleDefId::TypeId(struct_id) => {
-            let variable = ReferenceId::Variable(Location::new(name.span(), file_id), false);
-            interner.add_reference(ReferenceId::Struct(struct_id), variable);
-        }
-        crate::macros_api::ModuleDefId::TraitId(trait_id) => {
-            let variable = ReferenceId::Variable(Location::new(name.span(), file_id), false);
-            interner.add_reference(ReferenceId::Trait(trait_id), variable);
-        }
+    let referenced = match def_id {
+        crate::macros_api::ModuleDefId::ModuleId(module_id) => ReferenceId::Module(module_id),
+        crate::macros_api::ModuleDefId::FunctionId(func_id) => ReferenceId::Function(func_id),
+        crate::macros_api::ModuleDefId::TypeId(struct_id) => ReferenceId::Struct(struct_id),
+        crate::macros_api::ModuleDefId::TraitId(trait_id) => ReferenceId::Trait(trait_id),
         crate::macros_api::ModuleDefId::TypeAliasId(type_alias_id) => {
-            let variable = ReferenceId::Variable(Location::new(name.span(), file_id), false);
-            interner.add_reference(ReferenceId::Alias(type_alias_id), variable);
+            ReferenceId::Alias(type_alias_id)
         }
-        _ => (),
-    }
+        crate::macros_api::ModuleDefId::GlobalId(global_id) => ReferenceId::Global(global_id),
+    };
+    let reference = ReferenceId::Reference(Location::new(name.span(), file_id), false);
+    interner.add_reference(referenced, reference);
 }
 
 fn inject_prelude(
@@ -628,7 +655,14 @@ impl ResolvedModule {
     fn evaluate_comptime(&mut self, interner: &mut NodeInterner, crate_id: CrateId) {
         if self.count_errors() == 0 {
             let mut scopes = vec![HashMap::default()];
-            let mut interpreter = Interpreter::new(interner, &mut scopes, crate_id);
+            let mut interpreter_errors = vec![];
+            let mut interpreter = Interpreter::new(
+                interner,
+                &mut scopes,
+                crate_id,
+                self.debug_comptime_in_file,
+                &mut interpreter_errors,
+            );
 
             for (_file, global) in &self.globals {
                 if let Err(error) = interpreter.scan_global(*global) {
@@ -643,6 +677,9 @@ impl ResolvedModule {
                     self.errors.push(error.into_compilation_error_pair());
                 }
             }
+            self.errors.extend(
+                interpreter_errors.into_iter().map(InterpreterError::into_compilation_error_pair),
+            );
         }
     }
 

@@ -444,13 +444,26 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Block(block) => self.block(block.statements)?,
 
             HirExpression::Prefix(prefix) => {
+                let rhs = self.expr(prefix.rhs)?;
                 let location = self.interner.expr_location(&expr);
-                ast::Expression::Unary(ast::Unary {
-                    operator: prefix.operator,
-                    rhs: Box::new(self.expr(prefix.rhs)?),
-                    result_type: Self::convert_type(&self.interner.id_type(expr), location)?,
-                    location,
-                })
+
+                if self.interner.get_selected_impl_for_expression(expr).is_some() {
+                    // If an impl was selected for this prefix operator, replace it
+                    // with a method call to the appropriate trait impl method.
+                    let (function_type, ret) =
+                        self.interner.get_prefix_operator_type(expr, prefix.rhs);
+
+                    let method = prefix
+                        .trait_method_id
+                        .expect("ice: missing trait method if when impl was found");
+                    let func = self.resolve_trait_method_expr(expr, function_type, method)?;
+                    self.create_prefix_operator_impl_call(func, rhs, ret, location)?
+                } else {
+                    let operator = prefix.operator;
+                    let rhs = Box::new(rhs);
+                    let result_type = Self::convert_type(&self.interner.id_type(expr), location)?;
+                    ast::Expression::Unary(ast::Unary { operator, rhs, result_type, location })
+                }
             }
 
             HirExpression::Infix(infix) => {
@@ -462,11 +475,12 @@ impl<'interner> Monomorphizer<'interner> {
                     // If an impl was selected for this infix operator, replace it
                     // with a method call to the appropriate trait impl method.
                     let (function_type, ret) =
-                        self.interner.get_operator_type(infix.lhs, operator, expr);
+                        self.interner.get_infix_operator_type(infix.lhs, operator, expr);
 
                     let method = infix.trait_method_id;
                     let func = self.resolve_trait_method_expr(expr, function_type, method)?;
-                    self.create_operator_impl_call(func, lhs, infix.operator, rhs, ret, location)?
+                    let operator = infix.operator;
+                    self.create_infix_operator_impl_call(func, lhs, operator, rhs, ret, location)?
                 } else {
                     let lhs = Box::new(lhs);
                     let rhs = Box::new(rhs);
@@ -1651,12 +1665,12 @@ impl<'interner> Monomorphizer<'interner> {
         })
     }
 
-    /// Call an operator overloading method for the given operator.
+    /// Call an infix operator overloading method for the given operator.
     /// This function handles the special cases some operators have which don't map
     /// 1 to 1 onto their operator function. For example: != requires a negation on
     /// the result of its `eq` method, and the comparison operators each require a
     /// conversion from the `Ordering` result to a boolean.
-    fn create_operator_impl_call(
+    fn create_infix_operator_impl_call(
         &self,
         func: ast::Expression,
         lhs: ast::Expression,
@@ -1714,6 +1728,21 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         Ok(result)
+    }
+
+    /// Call an operator overloading method for the given prefix operator.
+    fn create_prefix_operator_impl_call(
+        &self,
+        func: ast::Expression,
+        rhs: ast::Expression,
+        ret: Type,
+        location: Location,
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        let arguments = vec![rhs];
+        let func = Box::new(func);
+        let return_type = Self::convert_type(&ret, location)?;
+
+        Ok(ast::Expression::Call(ast::Call { func, arguments, return_type, location }))
     }
 }
 

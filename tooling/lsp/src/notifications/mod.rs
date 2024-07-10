@@ -56,7 +56,7 @@ pub(super) fn on_did_change_text_document(
     state.input_files.insert(params.text_document.uri.to_string(), text.clone());
 
     let (mut context, crate_id) = prepare_source(text, state);
-    let _ = check_crate(&mut context, crate_id, false, false, false);
+    let _ = check_crate(&mut context, crate_id, false, false, false, None);
 
     let workspace = match resolve_workspace_for_source_path(
         params.text_document.uri.to_file_path().unwrap().as_path(),
@@ -139,10 +139,11 @@ fn process_noir_document(
             let (mut context, crate_id) =
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
-            let file_diagnostics = match check_crate(&mut context, crate_id, false, false, false) {
-                Ok(((), warnings)) => warnings,
-                Err(errors_and_warnings) => errors_and_warnings,
-            };
+            let file_diagnostics =
+                match check_crate(&mut context, crate_id, false, false, false, None) {
+                    Ok(((), warnings)) => warnings,
+                    Err(errors_and_warnings) => errors_and_warnings,
+                };
 
             let package_root_dir: String = package.root_dir.as_os_str().to_string_lossy().into();
 
@@ -190,6 +191,7 @@ fn process_noir_document(
                     let severity = match diagnostic.kind {
                         DiagnosticKind::Error => DiagnosticSeverity::ERROR,
                         DiagnosticKind::Warning => DiagnosticSeverity::WARNING,
+                        DiagnosticKind::Info => DiagnosticSeverity::INFORMATION,
                         DiagnosticKind::Bug => DiagnosticSeverity::WARNING,
                     };
                     Some(Diagnostic {

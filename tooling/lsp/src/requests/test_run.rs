@@ -59,7 +59,7 @@ fn on_test_run_request_inner(
         Some(package) => {
             let (mut context, crate_id) =
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
-            if check_crate(&mut context, crate_id, false, false, false).is_err() {
+            if check_crate(&mut context, crate_id, false, false, false, None).is_err() {
                 let result = NargoTestRunResult {
                     id: params.id.clone(),
                     result: "error".to_string(),

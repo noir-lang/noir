@@ -3,7 +3,6 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{AssignStatement, ConstrainStatement, LValue},
     hir::{
-        comptime::Interpreter,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
@@ -16,7 +15,7 @@ use crate::{
     macros_api::{
         ForLoopStatement, ForRange, HirStatement, LetStatement, Path, Statement, StatementKind,
     },
-    node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
+    node_interner::{DefinitionId, DefinitionKind, GlobalId, ReferenceId, StmtId},
     Type,
 };
 
@@ -256,6 +255,10 @@ impl<'context> Elaborator<'context> {
                     typ.follow_bindings()
                 };
 
+                let referenced = ReferenceId::Local(ident.id);
+                let reference = ReferenceId::Reference(Location::new(span, self.file), false);
+                self.interner.add_reference(referenced, reference);
+
                 (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable)
             }
             LValue::MemberAccess { object, field_name, span } => {
@@ -377,6 +380,10 @@ impl<'context> Elaborator<'context> {
             Type::Struct(s, args) => {
                 let s = s.borrow();
                 if let Some((field, index)) = s.get_field(field_name, args) {
+                    let referenced = ReferenceId::StructMember(s.id, index);
+                    let reference = ReferenceId::Reference(Location::new(span, self.file), false);
+                    self.interner.add_reference(referenced, reference);
+
                     return Some((field, index));
                 }
             }
@@ -440,11 +447,15 @@ impl<'context> Elaborator<'context> {
         let span = statement.span;
         let (hir_statement, _typ) = self.elaborate_statement(statement);
         self.check_and_pop_function_context();
-
-        let mut interpreter =
-            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
+        let mut interpreter_errors = vec![];
+        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
         let value = interpreter.evaluate_statement(hir_statement);
         let (expr, typ) = self.inline_comptime_value(value, span);
+        self.include_interpreter_errors(interpreter_errors);
+
+        let location = self.interner.id_location(hir_statement);
+        self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);
+
         (HirStatement::Expression(expr), typ)
     }
 }

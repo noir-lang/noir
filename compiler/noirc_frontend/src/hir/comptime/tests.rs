@@ -13,7 +13,15 @@ use crate::hir::type_check::test::type_check_src_code;
 fn interpret_helper(src: &str, func_namespace: Vec<String>) -> Result<Value, InterpreterError> {
     let (mut interner, main_id) = type_check_src_code(src, func_namespace);
     let mut scopes = vec![HashMap::default()];
-    let mut interpreter = Interpreter::new(&mut interner, &mut scopes, CrateId::Root(0));
+    let no_debug_evaluate_comptime = None;
+    let mut interpreter_errors = vec![];
+    let mut interpreter = Interpreter::new(
+        &mut interner,
+        &mut scopes,
+        CrateId::Root(0),
+        no_debug_evaluate_comptime,
+        &mut interpreter_errors,
+    );
 
     let no_location = Location::dummy();
     interpreter.call_function(main_id, Vec::new(), HashMap::new(), no_location)
