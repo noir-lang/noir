@@ -178,7 +178,7 @@ mod bounded_vec_tests {
 
         #[test(should_fail_with = "Attempted to read past end of BoundedVec")]
         fn panics_when_reading_elements_past_end_of_vec() {
-            let mut vec: BoundedVec<Field, 5> = BoundedVec::new();
+            let vec: BoundedVec<Field, 5> = BoundedVec::new();
             
             println(vec.get(0));
         }
