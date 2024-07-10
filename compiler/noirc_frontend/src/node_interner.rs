@@ -44,6 +44,12 @@ use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeV
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
 const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
 
+#[derive(Debug)]
+pub struct ModuleAttributes {
+    pub name: String,
+    pub location: Location,
+}
+
 type StructAttributes = Vec<SecondaryAttribute>;
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
@@ -68,7 +74,7 @@ pub struct NodeInterner {
     function_modules: HashMap<FuncId, ModuleId>,
 
     // The location of each module
-    module_locations: HashMap<ModuleId, Location>,
+    module_attributes: HashMap<ModuleId, ModuleAttributes>,
 
     /// This graph tracks dependencies between different global definitions.
     /// This is used to ensure the absence of dependency cycles for globals and types.
@@ -553,7 +559,7 @@ impl Default for NodeInterner {
             function_definition_ids: HashMap::new(),
             function_modifiers: HashMap::new(),
             function_modules: HashMap::new(),
-            module_locations: HashMap::new(),
+            module_attributes: HashMap::new(),
             func_id_to_trait: HashMap::new(),
             dependency_graph: petgraph::graph::DiGraph::new(),
             dependency_graph_indices: HashMap::new(),
@@ -993,12 +999,12 @@ impl NodeInterner {
         &self.struct_attributes[struct_id]
     }
 
-    pub fn add_module_location(&mut self, module_id: ModuleId, location: Location) {
-        self.module_locations.insert(module_id, location);
+    pub fn add_module_attributes(&mut self, module_id: ModuleId, attributes: ModuleAttributes) {
+        self.module_attributes.insert(module_id, attributes);
     }
 
-    pub fn module_location(&self, module_id: &ModuleId) -> Location {
-        self.module_locations[module_id]
+    pub fn module_attributes(&self, module_id: &ModuleId) -> &ModuleAttributes {
+        &self.module_attributes[module_id]
     }
 
     pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {

@@ -60,9 +60,14 @@ fn format_reference(reference: ReferenceId, interner: &NodeInterner) -> String {
     }
 }
 fn format_module(id: ModuleId, interner: &NodeInterner) -> String {
+    let name = &interner.module_attributes(&id).name;
+
+    let mut string = String::new();
     // TODO: append the module path
-    // TODO: find out the module name
-    format!("    mod {:?}", id)
+    string.push_str("    ");
+    string.push_str("mod ");
+    string.push_str(name);
+    string
 }
 
 fn format_struct(id: StructId, interner: &NodeInterner) -> String {
