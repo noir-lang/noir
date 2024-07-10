@@ -50,6 +50,7 @@ pub enum InterpreterError {
     NonComptimeFnCallInSameCrate { function: String, location: Location },
     NoImpl { location: Location },
     NoMatchingImplFound { error: NoMatchingImplFoundError, file: FileId },
+    ImplMethodTypeMismatch { expected: Type, actual: Type, location: Location },
 
     Unimplemented { item: String, location: Location },
 
@@ -114,6 +115,7 @@ impl InterpreterError {
             | InterpreterError::NonComptimeFnCallInSameCrate { location, .. }
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::NoImpl { location, .. }
+            | InterpreterError::ImplMethodTypeMismatch { location, .. }
             | InterpreterError::BreakNotInLoop { location, .. }
             | InterpreterError::ContinueNotInLoop { location, .. } => *location,
             InterpreterError::FailedToParseMacro { error, file, .. } => {
@@ -342,6 +344,12 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::NoImpl { location } => {
                 let msg = "No impl found due to prior type error".into();
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::ImplMethodTypeMismatch { expected, actual, location } => {
+                let msg = format!(
+                    "Impl method type {actual} does not unify with trait method type {expected}"
+                );
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
             InterpreterError::NoMatchingImplFound { error, .. } => error.into(),
