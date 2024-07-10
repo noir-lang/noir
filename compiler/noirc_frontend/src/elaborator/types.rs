@@ -1051,7 +1051,7 @@ impl<'context> Elaborator<'context> {
                             return self.prefix_operand_type_rules(op, binding, span);
                         }
 
-                        // The `-` prefix operator is not valid for Field, so if this is a numeric
+                        // The `!` prefix operator is not valid for Field, so if this is a numeric
                         // type we constrain it to just (non-Field) integer types.
                         if matches!(op, crate::ast::UnaryOp::Not) && rhs_type.is_numeric() {
                             let integer_type = Type::polymorphic_integer(self.interner);
