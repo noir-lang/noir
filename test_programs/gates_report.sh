@@ -4,7 +4,7 @@ set -e
 BACKEND=${BACKEND:-bb}
 
 # These tests are incompatible with gas reporting
-excluded_dirs=("workspace" "workspace_default_member" "double_verify_nested_proof")
+excluded_dirs=("workspace" "workspace_default_member" "double_verify_nested_proof" "databus")
 
 current_dir=$(pwd)
 artifacts_path="$current_dir/acir_artifacts"
