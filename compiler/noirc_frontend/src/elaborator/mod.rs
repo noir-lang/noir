@@ -702,8 +702,7 @@ impl<'context> Elaborator<'context> {
 
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
-            .filter_map(|generic| self.find_generic(&generic.ident().0.contents))
-            .map(|ResolvedGeneric { name, type_var, .. }| (name.clone(), type_var.clone()))
+            .filter_map(|generic| self.find_generic(&generic.ident().0.contents).cloned())
             .collect();
 
         let statements = std::mem::take(&mut func.def.body.statements);
@@ -1288,11 +1287,11 @@ impl<'context> Elaborator<'context> {
             .map_err(|error| error.into_compilation_error_pair())?;
 
         if value != Value::Unit {
-            let item = value
-                .into_top_level_item(location)
+            let items = value
+                .into_top_level_items(location)
                 .map_err(|error| error.into_compilation_error_pair())?;
 
-            self.add_item(item, generated_items, location);
+            self.add_items(items, generated_items, location);
         }
 
         Ok(())
@@ -1349,6 +1348,8 @@ impl<'context> Elaborator<'context> {
         if comptime {
             self.elaborate_comptime_global(global_id);
         }
+
+        self.interner.add_definition_location(ReferenceId::Global(global_id));
 
         self.local_module = old_module;
         self.file = old_file;
@@ -1449,11 +1450,13 @@ impl<'context> Elaborator<'context> {
             self.generics.clear();
 
             if let Some(trait_id) = trait_id {
+                let trait_name = trait_impl.trait_path.last_segment();
+
                 let referenced = ReferenceId::Trait(trait_id);
-                let reference = ReferenceId::Variable(Location::new(
-                    trait_impl.trait_path.last_segment().span(),
-                    trait_impl.file_id,
-                ));
+                let reference = ReferenceId::Reference(
+                    Location::new(trait_name.span(), trait_impl.file_id),
+                    trait_name.is_self_type_name(),
+                );
                 self.interner.add_reference(referenced, reference);
             }
         }
@@ -1542,79 +1545,81 @@ impl<'context> Elaborator<'context> {
         (comptime, items)
     }
 
-    fn add_item(
+    fn add_items(
         &mut self,
-        item: TopLevelStatement,
+        items: Vec<TopLevelStatement>,
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
-        match item {
-            TopLevelStatement::Function(function) => {
-                let id = self.interner.push_empty_fn();
-                let module = self.module_id();
-                self.interner.push_function(id, &function.def, module, location);
-                let functions = vec![(self.local_module, id, function)];
-                generated_items.functions.push(UnresolvedFunctions {
-                    file_id: self.file,
-                    functions,
-                    trait_id: None,
-                    self_type: None,
-                });
-            }
-            TopLevelStatement::TraitImpl(mut trait_impl) => {
-                let methods = dc_mod::collect_trait_impl_functions(
-                    self.interner,
-                    &mut trait_impl,
-                    self.crate_id,
-                    self.file,
-                    self.local_module,
-                );
-
-                generated_items.trait_impls.push(UnresolvedTraitImpl {
-                    file_id: self.file,
-                    module_id: self.local_module,
-                    trait_generics: trait_impl.trait_generics,
-                    trait_path: trait_impl.trait_name,
-                    object_type: trait_impl.object_type,
-                    methods,
-                    generics: trait_impl.impl_generics,
-                    where_clause: trait_impl.where_clause,
-
-                    // These last fields are filled in later
-                    trait_id: None,
-                    impl_id: None,
-                    resolved_object_type: None,
-                    resolved_generics: Vec::new(),
-                    resolved_trait_generics: Vec::new(),
-                });
-            }
-            TopLevelStatement::Global(global) => {
-                let (global, error) = dc_mod::collect_global(
-                    self.interner,
-                    self.def_maps.get_mut(&self.crate_id).unwrap(),
-                    global,
-                    self.file,
-                    self.local_module,
-                );
-
-                generated_items.globals.push(global);
-                if let Some(error) = error {
-                    self.errors.push(error);
+        for item in items {
+            match item {
+                TopLevelStatement::Function(function) => {
+                    let id = self.interner.push_empty_fn();
+                    let module = self.module_id();
+                    self.interner.push_function(id, &function.def, module, location);
+                    let functions = vec![(self.local_module, id, function)];
+                    generated_items.functions.push(UnresolvedFunctions {
+                        file_id: self.file,
+                        functions,
+                        trait_id: None,
+                        self_type: None,
+                    });
                 }
-            }
-            // Assume that an error has already been issued
-            TopLevelStatement::Error => (),
+                TopLevelStatement::TraitImpl(mut trait_impl) => {
+                    let methods = dc_mod::collect_trait_impl_functions(
+                        self.interner,
+                        &mut trait_impl,
+                        self.crate_id,
+                        self.file,
+                        self.local_module,
+                    );
 
-            TopLevelStatement::Module(_)
-            | TopLevelStatement::Import(_)
-            | TopLevelStatement::Struct(_)
-            | TopLevelStatement::Trait(_)
-            | TopLevelStatement::Impl(_)
-            | TopLevelStatement::TypeAlias(_)
-            | TopLevelStatement::SubModule(_) => {
-                let item = item.to_string();
-                let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
-                self.errors.push(error.into_compilation_error_pair());
+                    generated_items.trait_impls.push(UnresolvedTraitImpl {
+                        file_id: self.file,
+                        module_id: self.local_module,
+                        trait_generics: trait_impl.trait_generics,
+                        trait_path: trait_impl.trait_name,
+                        object_type: trait_impl.object_type,
+                        methods,
+                        generics: trait_impl.impl_generics,
+                        where_clause: trait_impl.where_clause,
+
+                        // These last fields are filled in later
+                        trait_id: None,
+                        impl_id: None,
+                        resolved_object_type: None,
+                        resolved_generics: Vec::new(),
+                        resolved_trait_generics: Vec::new(),
+                    });
+                }
+                TopLevelStatement::Global(global) => {
+                    let (global, error) = dc_mod::collect_global(
+                        self.interner,
+                        self.def_maps.get_mut(&self.crate_id).unwrap(),
+                        global,
+                        self.file,
+                        self.local_module,
+                    );
+
+                    generated_items.globals.push(global);
+                    if let Some(error) = error {
+                        self.errors.push(error);
+                    }
+                }
+                // Assume that an error has already been issued
+                TopLevelStatement::Error => (),
+
+                TopLevelStatement::Module(_)
+                | TopLevelStatement::Import(_)
+                | TopLevelStatement::Struct(_)
+                | TopLevelStatement::Trait(_)
+                | TopLevelStatement::Impl(_)
+                | TopLevelStatement::TypeAlias(_)
+                | TopLevelStatement::SubModule(_) => {
+                    let item = item.to_string();
+                    let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
+                    self.errors.push(error.into_compilation_error_pair());
+                }
             }
         }
     }

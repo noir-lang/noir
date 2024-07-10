@@ -45,23 +45,23 @@ impl Ssa {
     /// This step should run after runtime separation, since it relies on the runtime of the called functions being final.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn inline_functions(self) -> Ssa {
-        Self::inline_functions_inner(self, true)
+        Self::inline_functions_inner(self, false)
     }
 
     // Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
     pub(crate) fn inline_functions_with_no_predicates(self) -> Ssa {
-        Self::inline_functions_inner(self, false)
+        Self::inline_functions_inner(self, true)
     }
 
-    fn inline_functions_inner(mut self, no_predicates_is_entry_point: bool) -> Ssa {
+    fn inline_functions_inner(mut self, inline_no_predicates_functions: bool) -> Ssa {
         let recursive_functions = find_all_recursive_functions(&self);
         self.functions = btree_map(
-            get_functions_to_inline_into(&self, no_predicates_is_entry_point),
+            get_functions_to_inline_into(&self, inline_no_predicates_functions),
             |entry_point| {
                 let new_function = InlineContext::new(
                     &self,
                     entry_point,
-                    no_predicates_is_entry_point,
+                    inline_no_predicates_functions,
                     recursive_functions.clone(),
                 )
                 .inline_all(&self);
@@ -86,7 +86,13 @@ struct InlineContext {
     // The FunctionId of the entry point function we're inlining into in the old, unmodified Ssa.
     entry_point: FunctionId,
 
-    no_predicates_is_entry_point: bool,
+    /// Whether the inlining pass should inline any functions marked with [`InlineType::NoPredicates`]
+    /// or whether these should be preserved as entrypoint functions.
+    ///
+    /// This is done as we delay inlining of functions with the attribute `#[no_predicates]` until after
+    /// the control flow graph has been flattened.
+    inline_no_predicates_functions: bool,
+
     // We keep track of the recursive functions in the SSA to avoid inlining them in a brillig context.
     recursive_functions: BTreeSet<FunctionId>,
 }
@@ -179,7 +185,7 @@ fn find_all_recursive_functions(ssa: &Ssa) -> BTreeSet<FunctionId> {
 ///  - Any Acir functions with a [fold inline type][InlineType::Fold],
 fn get_functions_to_inline_into(
     ssa: &Ssa,
-    no_predicates_is_entry_point: bool,
+    inline_no_predicates_functions: bool,
 ) -> BTreeSet<FunctionId> {
     let mut brillig_entry_points = BTreeSet::default();
     let mut acir_entry_points = BTreeSet::default();
@@ -190,10 +196,9 @@ fn get_functions_to_inline_into(
         }
 
         // If we have not already finished the flattening pass, functions marked
-        // to not have predicates should be marked as entry points.
-        let no_predicates_is_entry_point =
-            no_predicates_is_entry_point && function.is_no_predicates();
-        if function.runtime().is_entry_point() || no_predicates_is_entry_point {
+        // to not have predicates should be preserved.
+        let preserve_function = !inline_no_predicates_functions && function.is_no_predicates();
+        if function.runtime().is_entry_point() || preserve_function {
             acir_entry_points.insert(*func_id);
         }
 
@@ -228,7 +233,7 @@ impl InlineContext {
     fn new(
         ssa: &Ssa,
         entry_point: FunctionId,
-        no_predicates_is_entry_point: bool,
+        inline_no_predicates_functions: bool,
         recursive_functions: BTreeSet<FunctionId>,
     ) -> InlineContext {
         let source = &ssa.functions[&entry_point];
@@ -239,7 +244,7 @@ impl InlineContext {
             recursion_level: 0,
             entry_point,
             call_stack: CallStack::new(),
-            no_predicates_is_entry_point,
+            inline_no_predicates_functions,
             recursive_functions,
         }
     }
@@ -470,6 +475,8 @@ impl<'function> PerFunctionContext<'function> {
     /// Inline each instruction in the given block into the function being inlined into.
     /// This may recurse if it finds another function to inline if a call instruction is within this block.
     fn inline_block_instructions(&mut self, ssa: &Ssa, block_id: BasicBlockId) {
+        let mut side_effects_enabled: Option<ValueId> = None;
+
         let block = &self.source_function.dfg[block_id];
         for id in block.instructions() {
             match &self.source_function.dfg[*id] {
@@ -477,12 +484,28 @@ impl<'function> PerFunctionContext<'function> {
                     Some(func_id) => {
                         if self.should_inline_call(ssa, func_id) {
                             self.inline_function(ssa, *id, func_id, arguments);
+
+                            // This is only relevant during handling functions with `InlineType::NoPredicates` as these
+                            // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
+                            // resulting in predicates not being applied properly.
+                            //
+                            // Note that this doesn't cover the case in which there exists an `Instruction::EnabledSideEffects`
+                            // within the function being inlined whilst the source function has not encountered one yet.
+                            // In practice this isn't an issue as the last `Instruction::EnabledSideEffects` in the
+                            // function being inlined will be to turn off predicates rather than to create one.
+                            if let Some(condition) = side_effects_enabled {
+                                self.context.builder.insert_enable_side_effects_if(condition);
+                            }
                         } else {
                             self.push_instruction(*id);
                         }
                     }
                     None => self.push_instruction(*id),
                 },
+                Instruction::EnableSideEffects { condition } => {
+                    side_effects_enabled = Some(self.translate_value(*condition));
+                    self.push_instruction(*id);
+                }
                 _ => self.push_instruction(*id),
             }
         }
@@ -495,10 +518,10 @@ impl<'function> PerFunctionContext<'function> {
             // If the called function is acir, we inline if it's not an entry point
 
             // If we have not already finished the flattening pass, functions marked
-            // to not have predicates should be marked as entry points.
-            let no_predicates_is_entry_point =
-                self.context.no_predicates_is_entry_point && function.is_no_predicates();
-            !inline_type.is_entry_point() && !no_predicates_is_entry_point
+            // to not have predicates should be preserved.
+            let preserve_function =
+                !self.context.inline_no_predicates_functions && function.is_no_predicates();
+            !inline_type.is_entry_point() && !preserve_function
         } else {
             // If the called function is brillig, we inline only if it's into brillig and the function is not recursive
             ssa.functions[&self.context.entry_point].runtime() == RuntimeType::Brillig

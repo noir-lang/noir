@@ -326,9 +326,12 @@ impl Value {
         }
     }
 
-    pub(crate) fn into_top_level_item(self, location: Location) -> IResult<TopLevelStatement> {
+    pub(crate) fn into_top_level_items(
+        self,
+        location: Location,
+    ) -> IResult<Vec<TopLevelStatement>> {
         match self {
-            Value::Code(tokens) => parse_tokens(tokens, parser::top_level_item(), location.file),
+            Value::Code(tokens) => parse_tokens(tokens, parser::top_level_items(), location.file),
             value => Err(InterpreterError::CannotInlineMacro { value, location }),
         }
     }
