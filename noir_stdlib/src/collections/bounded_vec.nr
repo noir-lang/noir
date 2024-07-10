@@ -152,26 +152,6 @@ impl<T, let MaxLen: u32, let Len: u32> From<[T; Len]> for BoundedVec<T, MaxLen> 
 }
 
 mod bounded_vec_tests {
-    // TODO: Allow imports from "super"
-    use crate::collections::bounded_vec::BoundedVec;
-
-    #[test]
-    fn empty_equality() {
-        let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
-        let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
-
-        assert_eq(bounded_vec1, bounded_vec2);
-    }
-
-    #[test]
-    fn inequality() {
-        let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
-        let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
-        bounded_vec1.push(1);
-        bounded_vec2.push(2);
-
-        assert(bounded_vec1 != bounded_vec2);
-    }
 
     mod get {
         use crate::collections::bounded_vec::BoundedVec;
@@ -183,7 +163,6 @@ mod bounded_vec_tests {
             println(vec.get(0));
         }
     }
-
 
     mod set {
         use crate::collections::bounded_vec::BoundedVec;
@@ -305,6 +284,28 @@ mod bounded_vec_tests {
             assert_eq(bounded_vec.len(), 2);
             assert_eq(bounded_vec.storage()[0], 1);
             assert_eq(bounded_vec.storage()[1], 2);
+        }
+    }
+
+    mod trait_eq {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn empty_equality() {
+            let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
+            let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
+
+            assert_eq(bounded_vec1, bounded_vec2);
+        }
+
+        #[test]
+        fn inequality() {
+            let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
+            let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
+            bounded_vec1.push(1);
+            bounded_vec2.push(2);
+
+            assert(bounded_vec1 != bounded_vec2);
         }
     }
 }
