@@ -2,7 +2,7 @@
 
 BB_VERSION=$1
 
-sed -i "s/^VERSION=.*/VERSION=\"$BB_VERSION\"/" ./scripts/install_bb.sh
+sed -i.bak "s/^VERSION=.*/VERSION=\"$BB_VERSION\"/" ./scripts/install_bb.sh  && rm ./scripts/install_bb.sh.bak
 
 tmp=$(mktemp)
 BACKEND_BARRETENBERG_PACKAGE_JSON=./tooling/noir_js_backend_barretenberg/package.json
