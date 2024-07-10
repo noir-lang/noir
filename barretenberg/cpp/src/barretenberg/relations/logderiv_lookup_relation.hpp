@@ -135,6 +135,34 @@ template <typename FF_> class LogDerivLookupRelationImpl {
     }
 
     /**
+     * @brief Construct the polynomial I whose components are the inverse of the product of the read and write terms
+     * @details If the denominators of log derivative lookup relation are read_term and write_term, then I_i =
+     * (read_term_i*write_term_i)^{-1}.
+     * @note Importantly, I_i = 0 for rows i at which there is no read or write, so the cost of this method is
+     * proportional to the actual number of lookups.
+     *
+     */
+    template <typename Polynomials>
+    static void compute_logderivative_inverse(Polynomials& polynomials,
+                                              auto& relation_parameters,
+                                              const size_t circuit_size)
+    {
+        auto& inverse_polynomial = get_inverse_polynomial(polynomials);
+
+        for (size_t i = 0; i < circuit_size; ++i) {
+            // We only compute the inverse if this row contains a lookup gate or data that has been looked up
+            if (polynomials.q_lookup[i] == 1 || polynomials.lookup_read_tags[i] == 1) {
+                // TODO(https://github.com/AztecProtocol/barretenberg/issues/940): avoid get_row if possible.
+                auto row = polynomials.get_row(i); // Note: this is a copy. use sparingly!
+                inverse_polynomial[i] = compute_read_term<FF, 0>(row, relation_parameters) *
+                                        compute_write_term<FF, 0>(row, relation_parameters);
+            }
+        }
+        // Compute inverse polynomial I in place by inverting the product at each row
+        FF::batch_invert(inverse_polynomial);
+    };
+
+    /**
      * @brief Log-derivative style lookup argument for conventional lookups form tables with 3 or fewer columns
      * @details The identity to be checked is of the form
      *

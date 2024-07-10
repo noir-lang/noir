@@ -391,7 +391,7 @@ class MegaFlavor {
         void compute_logderivative_inverses(const RelationParameters<FF>& relation_parameters)
         {
             // Compute inverses for conventional lookups
-            compute_logderivative_inverse<MegaFlavor, LogDerivLookupRelation<FF>>(
+            LogDerivLookupRelation<FF>::compute_logderivative_inverse(
                 this->polynomials, relation_parameters, this->circuit_size);
 
             // Compute inverses for calldata reads
