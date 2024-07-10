@@ -245,12 +245,13 @@ pub enum ReferenceId {
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
-    Variable(Location, bool /* is Self */),
+    Local(DefinitionId),
+    Reference(Location, bool /* is Self */),
 }
 
 impl ReferenceId {
     pub fn is_self_type_name(&self) -> bool {
-        matches!(self, Self::Variable(_, true))
+        matches!(self, Self::Reference(_, true))
     }
 }
 
@@ -836,12 +837,19 @@ impl NodeInterner {
         location: Location,
     ) -> DefinitionId {
         let id = DefinitionId(self.definitions.len());
+        let is_local = matches!(definition, DefinitionKind::Local(_));
+
         if let DefinitionKind::Function(func_id) = definition {
             self.function_definition_ids.insert(func_id, id);
         }
 
         let kind = definition;
         self.definitions.push(DefinitionInfo { name, mutable, comptime, kind, location });
+
+        if is_local {
+            self.add_definition_location(ReferenceId::Local(id));
+        }
+
         id
     }
 

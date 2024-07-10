@@ -75,7 +75,8 @@ fn verify_collapse_hints_hint_length_mismatch() {
     verify_collapse_hints(original, collapsed, collapsed_to_input_index_mapping);
 }
 
-#[test(should_fail_with="Out of bounds index hint")]
+// https://github.com/noir-lang/noir/issues/5464
+#[test(should_fail)]
 fn verify_collapse_hints_out_of_bounds_index_hint() {
     let original = [Option::some(7), Option::none(), Option::some(3)];
     let collapsed = BoundedVec::from_array([7, 3]);

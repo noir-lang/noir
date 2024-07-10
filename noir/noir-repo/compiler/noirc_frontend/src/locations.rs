@@ -48,7 +48,8 @@ impl NodeInterner {
                 let alias_type = alias_type.borrow();
                 Location::new(alias_type.name.span(), alias_type.location.file)
             }
-            ReferenceId::Variable(location, _) => location,
+            ReferenceId::Local(id) => self.definition(id).location,
+            ReferenceId::Reference(location, _) => location,
         }
     }
 
@@ -117,26 +118,18 @@ impl NodeInterner {
         let node_index = self.location_indices.get_node_from_location(location)?;
 
         let reference_node = self.reference_graph[node_index];
-        let found_locations: Vec<Location> = match reference_node {
-            ReferenceId::Global(_) | ReferenceId::Module(_) => todo!(),
-            ReferenceId::Function(_)
-            | ReferenceId::Struct(_)
-            | ReferenceId::Trait(_)
-            | ReferenceId::Alias(_) => self.find_all_references_for_index(
-                node_index,
-                include_referenced,
-                include_self_type_name,
-            ),
-
-            ReferenceId::Variable(_, _) => {
-                let referenced_node_index = self.referenced_index(node_index)?;
-                self.find_all_references_for_index(
-                    referenced_node_index,
-                    include_referenced,
-                    include_self_type_name,
-                )
-            }
+        let referenced_node_index = if let ReferenceId::Reference(_, _) = reference_node {
+            self.referenced_index(node_index)?
+        } else {
+            node_index
         };
+
+        let found_locations = self.find_all_references_for_index(
+            referenced_node_index,
+            include_referenced,
+            include_self_type_name,
+        );
+
         Some(found_locations)
     }
 
