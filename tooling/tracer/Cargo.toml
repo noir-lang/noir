@@ -9,9 +9,10 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-runtime_tracing.workspace = true
 acvm.workspace = true
 fm.workspace = true
 nargo.workspace = true
 noir_debugger.workspace = true
 noirc_artifacts.workspace = true
+noirc_printable_type.workspace = true
+runtime_tracing.workspace = true

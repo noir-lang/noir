@@ -2827,6 +2827,7 @@ dependencies = [
  "nargo",
  "noir_debugger",
  "noirc_artifacts",
+ "noirc_printable_type",
  "runtime_tracing",
 ]
 
