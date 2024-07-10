@@ -29,20 +29,26 @@ fn assert_split_sorted_transformed_value_arrays<T, S, N>(
             let value = transformed_value_array[i];
             let sorted_index = index_hints[i];
             let is_lt = original.counter() < split_counter;
-            let mut sorted_array = sorted_transformed_value_array_gte;
-            let mut sorted_counters = sorted_counters_gte;
-            let mut num = num_gte;
-            if is_lt {
-                sorted_array = sorted_transformed_value_array_lt;
-                sorted_counters = sorted_counters_lt;
-                num = num_lt;
+            let (sorted_value, sorted_counter, num) = if is_lt {
+                (
+                    sorted_transformed_value_array_lt[sorted_index], sorted_counters_lt[sorted_index], num_lt
+                )
+            } else {
+                (
+                    sorted_transformed_value_array_gte[sorted_index], sorted_counters_gte[sorted_index], num_gte
+                )
             };
-            assert_eq(value, sorted_array[sorted_index], "mismatch sorted values");
-            assert_eq(original.counter(), sorted_counters[sorted_index], "mismatch counters");
+            assert_eq(value, sorted_value, "mismatch sorted values");
+            assert_eq(original.counter(), sorted_counter, "mismatch counters");
             if num != 0 {
-                let is_incrementing = sorted_counters[num] > sorted_counters[num - 1];
+                let (counter, prev_counter) = if is_lt {
+                    (sorted_counters_lt[num], sorted_counters_lt[num - 1])
+                } else {
+                    (sorted_counters_gte[num], sorted_counters_gte[num - 1])
+                };
+                let is_incrementing = counter > prev_counter;
                 assert(ascending == is_incrementing, "value array must be sorted by counter");
-                assert(sorted_counters[num] != sorted_counters[num - 1], "counters must not be the same");
+                assert(counter != prev_counter, "counters must not be the same");
             }
             if is_lt {
                 num_lt += 1;
