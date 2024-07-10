@@ -24,8 +24,8 @@ jobs:
       - name: Push to external libs repo
         run: |
           SUBREPO_PATH=external_libs/noir-edwards
-          git config --global user.name AztecBot
-          git config --global user.email tech@aztecprotocol.com
+          git config --global user.name noirwhal
+          git config --global user.email tomfrench@aztecprotocol.com
 
           if ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=master; then
             git fetch # in case a commit came after this
