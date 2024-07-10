@@ -440,8 +440,13 @@ impl<'context> Elaborator<'context> {
         let mut unseen_fields = struct_type.borrow().field_names();
 
         for (field_name, field) in fields {
-            let expected_type = field_types.iter().find(|(name, _)| name == &field_name.0.contents);
-            let expected_type = expected_type.map(|(_, typ)| typ).unwrap_or(&Type::Error);
+            let expected_field_with_index = field_types
+                .iter()
+                .enumerate()
+                .find(|(_, (name, _))| name == &field_name.0.contents);
+            let expected_index = expected_field_with_index.map(|(index, _)| index);
+            let expected_type =
+                expected_field_with_index.map(|(_, (_, typ))| typ).unwrap_or(&Type::Error);
 
             let field_span = field.span;
             let (resolved, field_type) = self.elaborate_expression(field);
@@ -468,6 +473,14 @@ impl<'context> Elaborator<'context> {
                 });
             }
 
+            if let Some(expected_index) = expected_index {
+                let struct_id = struct_type.borrow().id;
+                let referenced = ReferenceId::StructMember(struct_id, expected_index);
+                let reference =
+                    ReferenceId::Reference(Location::new(field_name.span(), self.file), false);
+                self.interner.add_reference(referenced, reference);
+            }
+
             ret.push((field_name, resolved));
         }
 
@@ -489,10 +502,11 @@ impl<'context> Elaborator<'context> {
     ) -> (ExprId, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(access.lhs);
         let rhs = access.rhs;
+        let rhs_span = rhs.span();
         // `is_offset` is only used when lhs is a reference and we want to return a reference to rhs
         let access = HirMemberAccess { lhs, rhs, is_offset: false };
         let expr_id = self.intern_expr(HirExpression::MemberAccess(access.clone()), span);
-        let typ = self.type_check_member_access(access, expr_id, lhs_type, span);
+        let typ = self.type_check_member_access(access, expr_id, lhs_type, rhs_span);
         self.interner.push_expr_type(expr_id, typ.clone());
         (expr_id, typ)
     }

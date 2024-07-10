@@ -202,9 +202,17 @@ impl<'context> Elaborator<'context> {
             new_definitions,
         );
 
-        let referenced = ReferenceId::Struct(struct_type.borrow().id);
+        let struct_id = struct_type.borrow().id;
+
+        let referenced = ReferenceId::Struct(struct_id);
         let reference = ReferenceId::Reference(Location::new(name_span, self.file), is_self_type);
         self.interner.add_reference(referenced, reference);
+
+        for (field_index, field) in fields.iter().enumerate() {
+            let referenced = ReferenceId::StructMember(struct_id, field_index);
+            let reference = ReferenceId::Reference(Location::new(field.0.span(), self.file), false);
+            self.interner.add_reference(referenced, reference);
+        }
 
         HirPattern::Struct(expected_type, fields, location)
     }
