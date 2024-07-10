@@ -1,0 +1,7 @@
+[package]
+name = "unary_not_on_field_type_variable"
+type = "bin"
+authors = [""]
+compiler_version = ""
+
+[dependencies]

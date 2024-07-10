@@ -1050,6 +1050,16 @@ impl<'context> Elaborator<'context> {
                         if let TypeBinding::Bound(binding) = &*int.borrow() {
                             return self.prefix_operand_type_rules(op, binding, span);
                         }
+
+                        // The `-` prefix operator is not valid for Field, so if this is a numeric
+                        // type we constrain it to just (non-Field) integer types.
+                        if matches!(op, crate::ast::UnaryOp::Not) && rhs_type.is_numeric() {
+                            let integer_type = Type::polymorphic_integer(self.interner);
+                            self.unify(rhs_type, &integer_type, || {
+                                TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span }
+                            });
+                        }
+
                         Ok((rhs_type.clone(), !rhs_type.is_numeric()))
                     }
                     Integer(sign_x, bit_width_x) => {
