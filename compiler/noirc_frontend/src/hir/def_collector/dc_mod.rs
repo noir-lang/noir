@@ -14,7 +14,7 @@ use crate::ast::{
     TypeImpl,
 };
 use crate::macros_api::NodeInterner;
-use crate::node_interner::ReferenceId;
+use crate::node_interner::{ModuleAttributes, ReferenceId};
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -720,7 +720,10 @@ impl<'a> ModCollector<'a> {
                 return Err(err);
             }
 
-            context.def_interner.add_module_location(mod_id, mod_location);
+            context.def_interner.add_module_attributes(
+                mod_id,
+                ModuleAttributes { name: mod_name.0.contents.clone(), location: mod_location },
+            );
         }
 
         Ok(mod_id)
