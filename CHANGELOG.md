@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.46.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.46.0...aztec-packages-v0.46.1) (2024-07-10)
+
+
+### Features
+
+* Apply `no_predicates` in stdlib (https://github.com/noir-lang/noir/pull/5454) ([6237d96](https://github.com/AztecProtocol/aztec-packages/commit/6237d96a0bc23a5ed656e7ba172fb57facd9c807))
+* Lsp rename/find-all-references for globals (https://github.com/noir-lang/noir/pull/5415) ([6237d96](https://github.com/AztecProtocol/aztec-packages/commit/6237d96a0bc23a5ed656e7ba172fb57facd9c807))
+* Lsp rename/find-all-references for local variables (https://github.com/noir-lang/noir/pull/5439) ([6237d96](https://github.com/AztecProtocol/aztec-packages/commit/6237d96a0bc23a5ed656e7ba172fb57facd9c807))
+* Remove duplicated array reads at constant indices (https://github.com/noir-lang/noir/pull/5445) ([6237d96](https://github.com/AztecProtocol/aztec-packages/commit/6237d96a0bc23a5ed656e7ba172fb57facd9c807))
+* Remove redundant `EnableSideEffects` instructions (https://github.com/noir-lang/noir/pull/5440) ([6237d96](https://github.com/AztecProtocol/aztec-packages/commit/6237d96a0bc23a5ed656e7ba172fb57facd9c807))
+
+
+### Bug Fixes
+
+* Account for the expected kind when resolving turbofish generics (https://github.com/noir-lang/noir/pull/5448) ([6237d96](https://github.com/AztecProtocol/aztec-packages/commit/6237d96a0bc23a5ed656e7ba172fb57facd9c807))
+* Added bb to noir-projects deps ([#7412](https://github.com/AztecProtocol/aztec-packages/issues/7412)) ([6d3ed3a](https://github.com/AztecProtocol/aztec-packages/commit/6d3ed3a5269f1354c8c722232fd6f1d46ac7a245))
+* Fix issue with unresolved results (https://github.com/noir-lang/noir/pull/5453) ([6237d96](https://github.com/AztecProtocol/aztec-packages/commit/6237d96a0bc23a5ed656e7ba172fb57facd9c807))
+* Prevent `no_predicates` from removing predicates in calling function (https://github.com/noir-lang/noir/pull/5452) ([6237d96](https://github.com/AztecProtocol/aztec-packages/commit/6237d96a0bc23a5ed656e7ba172fb57facd9c807))
+
+
+### Miscellaneous
+
+* Replace relative paths to noir-protocol-circuits ([db45302](https://github.com/AztecProtocol/aztec-packages/commit/db453026efa29dddc973f507b002c1c4fd1a3676))
+* Replace usage of `GrumpkinPoint` with `EmbeddedCurvePoint` ([#7382](https://github.com/AztecProtocol/aztec-packages/issues/7382)) ([5279695](https://github.com/AztecProtocol/aztec-packages/commit/52796958738f8f1eb90d9691ff489d189f9bce90))
+* Replace usage of `GrumpkinPrivateKey` with `EmbeddedCurveScalar` ([#7384](https://github.com/AztecProtocol/aztec-packages/issues/7384)) ([a917198](https://github.com/AztecProtocol/aztec-packages/commit/a917198c6a17063414087419d8cb1de93e6dc21e))
+
 ## [0.46.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.45.1...aztec-packages-v0.46.0) (2024-07-09)
 
 
