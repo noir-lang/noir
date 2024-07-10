@@ -1085,45 +1085,30 @@ impl<'a> Context<'a> {
             }
         };
 
-        let side_effects_always_enabled =
-            self.acir_context.is_constant_one(&self.current_side_effects_enabled_var);
-        let index_out_of_bounds = index >= array_size;
+        if index >= array_size {
+            return Ok(false);
+        }
 
-        // Note that the value of `side_effects_always_enabled` doesn't affect the value which we return here for valid
-        // indices, just whether we return an error for invalid indices at compile time or defer until execution.
-        match (side_effects_always_enabled, index_out_of_bounds) {
-            (true, false) => {
-                let value = match store_value {
-                    Some(store_value) => AcirValue::Array(array.update(index, store_value)),
-                    None => array[index].clone(),
-                };
+        if let Some(store_value) = store_value {
+            let side_effects_always_enabled =
+                self.acir_context.is_constant_one(&self.current_side_effects_enabled_var);
 
+            if side_effects_always_enabled {
+                // If we know that this write will always occur then we can perform it at compile time.
+                let value = AcirValue::Array(array.update(index, store_value));
                 self.define_result(dfg, instruction, value);
                 Ok(true)
+            } else {
+                // If a predicate is applied however we must wait until runtime.
+                Ok(false)
             }
-            (false, false) => {
-                if store_value.is_none() {
-                    // If there is a predicate and the index is not out of range, we can optimistically perform the
-                    // read at compile time as if the predicate is true.
-                    //
-                    // This is as if the predicate is false, any side-effects will be disabled so the value returned
-                    // will not affect the rest of execution.
-                    self.define_result(dfg, instruction, array[index].clone());
-                    Ok(true)
-                } else {
-                    // We do not do this for a array writes however.
-                    Ok(false)
-                }
-            }
-
-            // Report the error if side effects are enabled.
-            (true, true) => {
-                let call_stack = self.acir_context.get_call_stack();
-                Err(RuntimeError::IndexOutOfBounds { index, array_size, call_stack })
-            }
-            // Index is out of bounds but predicate may result in this array operation being skipped
-            // so we don't return an error now.
-            (false, true) => Ok(false),
+        } else {
+            // If the index is not out of range, we can optimistically perform the read at compile time
+            // as if the predicate were true. This is as if the predicate were to resolve to false then
+            // the result should not affect the rest of circuit execution.
+            let value = array[index].clone();
+            self.define_result(dfg, instruction, value);
+            Ok(true)
         }
     }
 
