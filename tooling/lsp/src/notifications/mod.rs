@@ -39,7 +39,7 @@ pub(super) fn on_did_open_text_document(
 
     let document_uri = params.text_document.uri;
 
-    match process_noir_document(document_uri, state) {
+    match process_workspace_for_noir_document(document_uri, state) {
         Ok(_) => {
             state.open_documents_count += 1;
             ControlFlow::Continue(())
@@ -114,13 +114,16 @@ pub(super) fn on_did_save_text_document(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let document_uri = params.text_document.uri;
 
-    match process_noir_document(document_uri, state) {
+    match process_workspace_for_noir_document(document_uri, state) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
 }
 
-fn process_noir_document(
+// Given a Noir document, find the workspace it's contained in (an assumed workspace is created if
+// it's only contained in a package), then type-checks the workspace's packages,
+// caching code lenses and type definitions, and notifying about compilation errors.
+pub(crate) fn process_workspace_for_noir_document(
     document_uri: lsp_types::Url,
     state: &mut LspState,
 ) -> Result<(), async_lsp::Error> {
