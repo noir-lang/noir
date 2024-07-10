@@ -87,12 +87,16 @@ struct Context {
     block_queue: Vec<BasicBlockId>,
 }
 
+/// HashMap from (Instruction, side_effects_enabled_var) to the results of the instruction.
+/// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
+type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, Vec<ValueId>>>;
+
 impl Context {
     fn fold_constants_in_block(&mut self, function: &mut Function, block: BasicBlockId) {
         let instructions = function.dfg[block].take_instructions();
 
         // Cache of instructions without any side-effects along with their outputs.
-        let mut cached_instruction_results: HashMap<Instruction, Vec<ValueId>> = HashMap::default();
+        let mut cached_instruction_results = HashMap::default();
 
         // Contains sets of values which are constrained to be equivalent to each other.
         //
@@ -124,7 +128,7 @@ impl Context {
         dfg: &mut DataFlowGraph,
         block: BasicBlockId,
         id: InstructionId,
-        instruction_result_cache: &mut HashMap<Instruction, Vec<ValueId>>,
+        instruction_result_cache: &mut InstructionResultCache,
         constraint_simplification_mappings: &mut HashMap<ValueId, HashMap<ValueId, ValueId>>,
         side_effects_enabled_var: &mut ValueId,
     ) {
@@ -134,7 +138,9 @@ impl Context {
         let old_results = dfg.instruction_results(id).to_vec();
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
-        if let Some(cached_results) = instruction_result_cache.get(&instruction) {
+        if let Some(cached_results) =
+            Self::get_cached(dfg, instruction_result_cache, &instruction, *side_effects_enabled_var)
+        {
             Self::replace_result_ids(dfg, &old_results, cached_results);
             return;
         }
@@ -150,6 +156,7 @@ impl Context {
             dfg,
             instruction_result_cache,
             constraint_simplification_mapping,
+            *side_effects_enabled_var,
         );
 
         // If we just inserted an `Instruction::EnableSideEffects`, we need to update `side_effects_enabled_var`
@@ -224,8 +231,9 @@ impl Context {
         instruction: Instruction,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
-        instruction_result_cache: &mut HashMap<Instruction, Vec<ValueId>>,
+        instruction_result_cache: &mut InstructionResultCache,
         constraint_simplification_mapping: &mut HashMap<ValueId, ValueId>,
+        side_effects_enabled_var: ValueId,
     ) {
         if self.use_constraint_info {
             // If the instruction was a constraint, then create a link between the two `ValueId`s
@@ -258,8 +266,15 @@ impl Context {
 
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
-        if instruction.can_be_deduplicated(dfg) {
-            instruction_result_cache.insert(instruction, instruction_results);
+        if instruction.can_be_deduplicated(dfg, self.use_constraint_info) {
+            let use_predicate =
+                self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+            let predicate = use_predicate.then_some(side_effects_enabled_var);
+
+            instruction_result_cache
+                .entry(instruction)
+                .or_default()
+                .insert(predicate, instruction_results);
         }
     }
 
@@ -272,6 +287,25 @@ impl Context {
         for (old_result, new_result) in old_results.iter().zip(new_results) {
             dfg.set_value_from_id(*old_result, *new_result);
         }
+    }
+
+    fn get_cached<'a>(
+        dfg: &DataFlowGraph,
+        instruction_result_cache: &'a mut InstructionResultCache,
+        instruction: &Instruction,
+        side_effects_enabled_var: ValueId,
+    ) -> Option<&'a Vec<ValueId>> {
+        let results_for_instruction = instruction_result_cache.get(instruction);
+
+        // See if there's a cached version with no predicate first
+        if let Some(results) = results_for_instruction.and_then(|map| map.get(&None)) {
+            return Some(results);
+        }
+
+        let predicate =
+            instruction.requires_acir_gen_predicate(dfg).then_some(side_effects_enabled_var);
+
+        results_for_instruction.and_then(|map| map.get(&predicate))
     }
 }
 
@@ -724,5 +758,87 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         let ending_instruction_count = instructions.len();
         assert_eq!(starting_instruction_count, ending_instruction_count);
+    }
+
+    #[test]
+    fn deduplicate_instructions_with_predicates() {
+        // fn main f0 {
+        //   b0(v0: bool, v1: bool, v2: [u32; 2]):
+        //     enable_side_effects v0
+        //     v3 = array_get v2, index u32 0
+        //     v4 = array_set v2, index u32 1, value: u32 2
+        //     v5 = array_get v4, index u32 0
+        //     constrain_eq v3, v5
+        //     enable_side_effects v1
+        //     v6 = array_get v2, index u32 0
+        //     v7 = array_set v2, index u32 1, value: u32 2
+        //     v8 = array_get v7, index u32 0
+        //     constrain_eq v6, v8
+        //     enable_side_effects v0
+        //     v9 = array_get v2, index u32 0
+        //     v10 = array_set v2, index u32 1, value: u32 2
+        //     v11 = array_get v10, index u32 0
+        //     constrain_eq v9, v11
+        // }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.add_parameter(Type::bool());
+        let v1 = builder.add_parameter(Type::bool());
+        let v2 = builder.add_parameter(Type::Array(Rc::new(vec![Type::field()]), 2));
+
+        let zero = builder.numeric_constant(0u128, Type::length_type());
+        let one = builder.numeric_constant(1u128, Type::length_type());
+        let two = builder.numeric_constant(2u128, Type::length_type());
+
+        builder.insert_enable_side_effects_if(v0);
+        let v3 = builder.insert_array_get(v2, zero, Type::length_type());
+        let v4 = builder.insert_array_set(v2, one, two);
+        let v5 = builder.insert_array_get(v4, zero, Type::length_type());
+        builder.insert_constrain(v3, v5, None);
+
+        builder.insert_enable_side_effects_if(v1);
+        let v6 = builder.insert_array_get(v2, zero, Type::length_type());
+        let v7 = builder.insert_array_set(v2, one, two);
+        let v8 = builder.insert_array_get(v7, zero, Type::length_type());
+        builder.insert_constrain(v6, v8, None);
+
+        // We expect all these instructions after the 'enable side effects' instruction to be removed.
+        builder.insert_enable_side_effects_if(v0);
+        let v9 = builder.insert_array_get(v2, zero, Type::length_type());
+        let v10 = builder.insert_array_set(v2, one, two);
+        let v11 = builder.insert_array_get(v10, zero, Type::length_type());
+        builder.insert_constrain(v9, v11, None);
+
+        let ssa = builder.finish();
+        println!("{ssa}");
+
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 15);
+
+        // Expected output:
+        //
+        // fn main f0 {
+        //   b0(v0: bool, v1: bool, v2: [Field; 2]):
+        //     enable_side_effects v0
+        //     v3 = array_get v2, index Field 0
+        //     v4 = array_set v2, index Field 1, value: Field 2
+        //     v5 = array_get v4, index Field 0
+        //     constrain_eq v3, v5
+        //     enable_side_effects v1
+        //     v7 = array_set v2, index Field 1, value: Field 2
+        //     v8 = array_get v7, index Field 0
+        //     constrain_eq v3, v8
+        //     enable_side_effects v0
+        // }
+        let ssa = ssa.fold_constants_using_constraints();
+        println!("{ssa}");
+
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        assert_eq!(instructions.len(), 10);
     }
 }
