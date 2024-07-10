@@ -77,8 +77,13 @@ describe('e2e_fees/private_refunds', () => {
 
     expect(tx.transactionFee).toBeGreaterThan(0);
 
-    // 3. Now we compute the contents of the note containing the refund for Alice. The refund note value is simply
-    // the fee limit less the final transaction fee. The other 2 fields in the note are Alice's npk_m_hash and
+    // 3. We check that randomness for Bob was correctly emitted as an unencrypted log (Bobs needs it to reconstruct his note).
+    const resp = await aliceWallet.getUnencryptedLogs({ txHash: tx.txHash });
+    const bobRandomnessFromLog = Fr.fromBuffer(resp.logs[0].log.data);
+    expect(bobRandomnessFromLog).toEqual(bobRandomness);
+
+    // 4. Now we compute the contents of the note containing the refund for Alice. The refund note value is simply
+    // the fee limit minus the final transaction fee. The other 2 fields in the note are Alice's npk_m_hash and
     // the randomness.
     const refundNoteValue = t.gasSettings.getFeeLimit().sub(new Fr(tx.transactionFee!));
     // TODO(#7324): The values in complete address are currently not updated after the keys are rotated so this does
@@ -86,7 +91,7 @@ describe('e2e_fees/private_refunds', () => {
     const aliceNpkMHash = t.aliceWallet.getCompleteAddress().publicKeys.masterNullifierPublicKey.hash();
     const aliceRefundNote = new Note([refundNoteValue, aliceNpkMHash, aliceRandomness]);
 
-    // 4. If the refund flow worked it should have added emitted a note hash of the note we constructed above and we
+    // 5. If the refund flow worked it should have added emitted a note hash of the note we constructed above and we
     // should be able to add the note to our PXE. Just calling `pxe.addNote(...)` is enough of a check that the note
     // hash was emitted because the endpoint will compute the hash and then it will try to find it in the note hash
     // tree. If the note hash is not found in the tree, an error is thrown.
@@ -101,13 +106,13 @@ describe('e2e_fees/private_refunds', () => {
       ),
     );
 
-    // 5. Now we reconstruct the note for the final fee payment. It should contain the transaction fee, Bob's
+    // 6. Now we reconstruct the note for the final fee payment. It should contain the transaction fee, Bob's
     // npk_m_hash (set in the paymentMethod above) and the randomness.
     // Note that FPC emits randomness as unencrypted log and the tx fee is publicly know so Bob is able to reconstruct
     // his note just from on-chain data.
     const bobFeeNote = new Note([new Fr(tx.transactionFee!), bobNpkMHash, bobRandomness]);
 
-    // 6. Once again we add the note to PXE which computes the note hash and checks that it is in the note hash tree.
+    // 7. Once again we add the note to PXE which computes the note hash and checks that it is in the note hash tree.
     await t.bobWallet.addNote(
       new ExtendedNote(
         bobFeeNote,
@@ -119,7 +124,7 @@ describe('e2e_fees/private_refunds', () => {
       ),
     );
 
-    // 7. At last we check that the gas balance of FPC has decreased exactly by the transaction fee ...
+    // 8. At last we check that the gas balance of FPC has decreased exactly by the transaction fee ...
     await expectMapping(t.getGasBalanceFn, [privateFPC.address], [initialFPCGasBalance - tx.transactionFee!]);
     // ... and that the transaction fee was correctly transferred from Alice to Bob.
     await expectMapping(
