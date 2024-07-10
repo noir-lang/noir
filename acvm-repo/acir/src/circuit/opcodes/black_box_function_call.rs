@@ -520,7 +520,7 @@ mod tests {
     use crate::{circuit::Opcode, native_types::Witness};
     use acir_field::{AcirField, FieldElement};
 
-    use super::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput};
+    use super::{BlackBoxFuncCall, FunctionInput};
 
     fn keccakf1600_opcode<F: AcirField>() -> Opcode<F> {
         let inputs: Box<[FunctionInput<F>; 25]> =
