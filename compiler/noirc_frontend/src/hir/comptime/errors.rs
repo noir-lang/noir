@@ -348,7 +348,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::ImplMethodTypeMismatch { expected, actual, location } => {
                 let msg = format!(
-                    "Impl method type {actual:?} does not unify with trait method type {expected:?}"
+                    "Impl method type {actual} does not unify with trait method type {expected}"
                 );
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
