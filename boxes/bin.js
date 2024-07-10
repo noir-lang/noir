@@ -1,23 +1,15 @@
 #!/usr/bin/env node
-import { Command, Option } from "commander";
+import { Command } from "commander";
 const program = new Command();
 import { chooseProject } from "./scripts/steps/chooseBox.js";
-import {
-  install,
-  update,
-  sandboxInstallOrUpdate,
-} from "./scripts/steps/sandbox/install.js";
+import { sandboxInstallOrUpdate } from "./scripts/steps/sandbox/install.js";
 import axios from "axios";
 import pino from "pino";
 import pretty from "pino-pretty";
 import ora from "ora";
 import { AZTEC_REPO } from "./scripts/config.js";
-import {
-  start,
-  stop,
-  log,
-  sandboxRunStep,
-} from "./scripts/steps/sandbox/run.js";
+import { sandboxRunStep } from "./scripts/steps/sandbox/run.js";
+import { init } from "./scripts/init.js";
 
 const getLatestStable = async () => {
   const { data } = await axios.get(
@@ -26,86 +18,88 @@ const getLatestStable = async () => {
   return data[0].tag_name.split("-v")[1];
 };
 
-const init = async ({ debug, github_token, version }) => {
-  const axiosOpts = {
-    timeout: 5000,
-    headers: github_token ? { Authorization: `token ${github_token}` } : {},
-  };
+program
+  .option("-v, --version <version>", "a version number or master tag")
+  .option("-d, --debug", "output extra debugging")
+  .option("-gh, --github_token <github_token>", "a github token")
+  .hook("preSubcommand", async (thisCommand) => {
+    const { debug, github_token, version } = thisCommand.opts();
+    const axiosOpts = {
+      timeout: 5000,
+      headers: github_token ? { Authorization: `token ${github_token}` } : {},
+    };
 
-  const prettyOpts = {
-    sync: true,
-    colorize: true,
-    include: debug ? "time" : "",
-    customLevels: "success:80",
-    customColors: "success:bgGreen",
-  };
+    const prettyOpts = {
+      sync: true,
+      colorize: true,
+      include: debug ? "time" : "",
+      customLevels: "success:80",
+      customColors: "success:bgGreen",
+    };
 
-  const prettyStream = pretty(prettyOpts);
-  const logger = pino(
-    {
-      customLevels: {
-        success: 80,
+    const prettyStream = pretty(prettyOpts);
+    const logger = pino(
+      {
+        customLevels: {
+          success: 80,
+        },
+        level: debug ? "debug" : "info",
       },
-      level: debug ? "debug" : "info",
-    },
-    prettyStream,
-  );
+      prettyStream,
+    );
 
-  global.debug = (msg) => logger.debug(msg);
-  global.info = (msg) => logger.info(msg);
-  global.success = (msg) => logger.success(msg);
+    global.debug = (msg) => logger.debug(msg);
+    global.info = (msg) => logger.info(msg);
+    global.success = (msg) => logger.success(msg);
 
-  global.warn = (msg) => logger.warn(msg);
-  global.error = (msg) => logger.error(msg);
+    global.warn = (msg) => logger.warn(msg);
+    global.error = (msg) => logger.error(msg);
 
-  global.github = async ({ path, raw = false }) => {
-    try {
-      const url = raw
-        ? `https://raw.githubusercontent.com/${AZTEC_REPO}/${path}`
-        : `https://api.github.com/repos/${AZTEC_REPO}/contents/${path}`;
-      const { data } = await axios.get(url, axiosOpts);
-      global.debug(data);
-      return data;
-    } catch (e) {
-      global.error(e);
-    }
-  };
+    global.github = async ({ path, raw = false }) => {
+      try {
+        const url = raw
+          ? `https://raw.githubusercontent.com/${AZTEC_REPO}/${path}`
+          : `https://api.github.com/repos/${AZTEC_REPO}/contents/${path}`;
+        const { data } = await axios.get(url, axiosOpts);
+        global.debug(data);
+        return data;
+      } catch (e) {
+        global.error(e);
+      }
+    };
 
-  // versioning is confusing here because "latest" and "master" point to the same thing at times
-  // so let's clarify a bit:
-  //
-  // if the user has set a version (ex. "master" or "0.23.0"), use that
-  // otherwise use the stable release (ex. 0.24.0)
-  global.latestStable = await getLatestStable();
-  global.version = version || global.latestStable;
+    // versioning is confusing here because "latest" and "master" point to the same thing at times
+    // so let's clarify a bit:
+    //
+    // if the user has set a version (ex. "master" or "0.23.0"), use that
+    // otherwise use the stable release (ex. 0.24.0)
+    global.latestStable = await getLatestStable();
+    global.version = version || global.latestStable;
 
-  // if the user has set a semver version (matches the regex), fetch that tag (i.e. aztec-packages-v0.23.0)
-  // otherwise use the version as the tag
-  global.tag = global.version.match(/^\d+\.\d+\.\d+$/)
-    ? `aztec-packages-v${global.version}`
-    : global.version;
+    // if the user has set a semver version (matches the regex), fetch that tag (i.e. aztec-packages-v0.23.0)
+    // otherwise use the version as the tag
+    global.tag = global.version.match(/^\d+\.\d+\.\d+$/)
+      ? `aztec-packages-v${global.version}`
+      : global.version;
 
-  global.debug(`Version: ${global.version}`);
-  global.debug(`Tag: ${global.tag}`);
-  global.debug(`LatestStable: ${global.latestStable}`);
+    global.debug(`Version: ${global.version}`);
+    global.debug(`Tag: ${global.tag}`);
+    global.debug(`LatestStable: ${global.latestStable}`);
 
-  global.spinner = ora({ color: "blue" });
-};
+    global.spinner = ora({ color: "blue" });
+  });
 
-const sandbox = program.command("sandbox");
-sandbox.description("Manage the Aztec Sandbox");
-sandbox.command("start").action(start);
-sandbox.command("logs").action(log);
-sandbox.command("stop").action(stop);
-sandbox.command("install").action(install);
-sandbox.command("update").action(update);
+program
+  .command("init")
+  .description("Bootstrap an empty Aztec contract")
+  .argument("[folder]", "optional folder to init your project into", ".")
+  .action(async (folder) => {
+    await init(folder);
+  });
 
 program
   .command("new", { isDefault: true })
   .description("An Aztec project with a built-in development network")
-  .option("-d, --debug", "output extra debugging")
-  .option("-gh, --github_token <github_token>", "a github token")
-  .option("-v, --version <version>", "a version number or master tag")
   .option(
     "-s, --skip-sandbox",
     "skip sandbox installation and run after cloning",
@@ -128,8 +122,7 @@ program
     }
 
     const { projectType, projectName, skipSandbox } = options;
-    // SETUP: Initialize global variables
-    await init(options);
+
     // // STEP 1: Choose the boilerplate
     await chooseProject({ projectType, projectName });
 

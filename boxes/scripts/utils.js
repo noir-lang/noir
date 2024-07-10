@@ -199,7 +199,7 @@ export async function replacePaths({ rootDir, prefix = "" }) {
           replaces.push(
             new Promise(async (resolve, reject) => {
               let content = parse(await fs.readFile(filePath, "utf8"));
-
+              if (!content.dependencies) return;
               Object.keys(content.dependencies).forEach((dep) => {
                 const directory = content.dependencies[dep].path.replace(
                   /^(..\/)+/,
@@ -224,6 +224,7 @@ export async function replacePaths({ rootDir, prefix = "" }) {
           replaces.push(
             new Promise(async (resolve, reject) => {
               let content = JSON.parse(await fs.readFile(filePath, "utf8"));
+              if (!content.dependencies) return;
               Object.keys(content.dependencies)
                 .filter((deps) => deps.match("@aztec"))
                 // "master" actually means "latest" for the npm release

@@ -1,4 +1,24 @@
-# Aztec Boxes
+# Aztec-App
+
+Aztec-App is a set of tools to ease development on Aztec. It consists of two main components:
+1. `npx` script
+2. boxes (starter kits)
+## npx script
+
+NPX is a tool bundled with `npm` and other package managers. It allows you to run a binary from a cache without installing it globally.
+
+To ease the development process, Aztec has developed this binary. To run it, install Node and run:
+
+```bash
+npx aztec-app
+```
+
+This will prompt you with some options to clone `Aztec Boxes` and install the sandbox. As the `npx` script evolves, other commands will be added or removed. You can run it with the `-h` flag to know what other commands and flags you can pass to it.
+
+> [!NOTE]  
+> As a tool that doesn't (yet) have automated testing, it versioning and release process is decoupled from `aztec`, and its deployment is entirely manual by running `yarn npm publish --access public`.
+
+## Aztec Boxes
 
 Aztec Boxes are the one-stop-shop for developing on Aztec. They often include a combination of:
 

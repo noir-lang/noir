@@ -1,0 +1,18 @@
+{
+  "name": "Sandbox Only",
+  "image": "node:lts-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "onCreateCommand": "cp -R /root/workspace /root/scripts && rm -rf /root/workspace/* && sh /root/scripts/onCreateCommand.sh sandbox_only",
+  "postAttachCommand": "sh /root/scripts/postAttachCommand.sh",
+  "customizations": {
+    "vscode": {
+      "settings": {},
+      "extensions": ["noir-lang.vscode-noir"]
+    }
+  },
+  "workspaceMount": "source=${localWorkspaceFolder}/.devcontainer/scripts,target=/root/workspace,type=bind",
+  "workspaceFolder": "/root/workspace",
+  "forwardPorts": [8080]
+}

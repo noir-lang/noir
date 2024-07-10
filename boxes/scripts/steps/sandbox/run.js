@@ -1,16 +1,5 @@
 import confirm from "@inquirer/confirm";
-import { execSync } from "child_process";
 import axios from "axios";
-
-const sandbox = (command) =>
-  execSync(
-    `docker compose -f $HOME/.aztec/docker-compose.yml -p sandbox ${command}`,
-    { stdio: "inherit" }
-  );
-
-export const start = () => sandbox("up -d");
-export const stop = () => sandbox("down");
-export const log = () => sandbox("logs -f");
 
 export async function sandboxRunStep() {
   spinner.text = "Trying to reach the sandbox...";
@@ -29,7 +18,7 @@ export async function sandboxRunStep() {
           Accept: "*/*",
           "Content-Type": "application/json",
         },
-      }
+      },
     );
     spinner.succeed();
     success("The Sandbox is already running!");

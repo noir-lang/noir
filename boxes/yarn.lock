@@ -15,15 +15,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/accounts@link:../yarn-project/accounts::locator=create-aztec-app%40workspace%3A.":
+"@aztec/accounts@link:../yarn-project/accounts::locator=aztec-app%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/accounts@link:../yarn-project/accounts::locator=create-aztec-app%40workspace%3A."
+  resolution: "@aztec/accounts@link:../yarn-project/accounts::locator=aztec-app%40workspace%3A."
   languageName: node
   linkType: soft
 
-"@aztec/aztec.js@link:../yarn-project/aztec.js::locator=create-aztec-app%40workspace%3A.":
+"@aztec/aztec.js@link:../yarn-project/aztec.js::locator=aztec-app%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/aztec.js@link:../yarn-project/aztec.js::locator=create-aztec-app%40workspace%3A."
+  resolution: "@aztec/aztec.js@link:../yarn-project/aztec.js::locator=aztec-app%40workspace%3A."
   languageName: node
   linkType: soft
 
@@ -51,15 +51,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/circuits.js@link:../yarn-project/circuits.js::locator=create-aztec-app%40workspace%3A.":
+"@aztec/circuits.js@link:../yarn-project/circuits.js::locator=aztec-app%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/circuits.js@link:../yarn-project/circuits.js::locator=create-aztec-app%40workspace%3A."
+  resolution: "@aztec/circuits.js@link:../yarn-project/circuits.js::locator=aztec-app%40workspace%3A."
   languageName: node
   linkType: soft
 
-"@aztec/foundation@link:../yarn-project/foundation::locator=create-aztec-app%40workspace%3A.":
+"@aztec/foundation@link:../yarn-project/foundation::locator=aztec-app%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/foundation@link:../yarn-project/foundation::locator=create-aztec-app%40workspace%3A."
+  resolution: "@aztec/foundation@link:../yarn-project/foundation::locator=aztec-app%40workspace%3A."
   languageName: node
   linkType: soft
 
@@ -113,9 +113,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/types@link:../yarn-project/types::locator=create-aztec-app%40workspace%3A.":
+"@aztec/types@link:../yarn-project/types::locator=aztec-app%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/types@link:../yarn-project/types::locator=create-aztec-app%40workspace%3A."
+  resolution: "@aztec/types@link:../yarn-project/types::locator=aztec-app%40workspace%3A."
   languageName: node
   linkType: soft
 
@@ -2353,6 +2353,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"aztec-app@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "aztec-app@workspace:."
+  dependencies:
+    "@iarna/toml": "npm:^2.2.5"
+    "@inquirer/confirm": "npm:^3.0.0"
+    "@inquirer/input": "npm:^2.0.0"
+    "@inquirer/select": "npm:^2.0.0"
+    "@playwright/test": "npm:1.42.0"
+    axios: "npm:^1.6.7"
+    commander: "npm:^12.0.0"
+    ora: "npm:^8.0.1"
+    pino: "npm:^8.19.0"
+    pino-pretty: "npm:^10.3.1"
+    tiged: "npm:^2.12.6"
+  bin:
+    aztec-app: bin.js
+  languageName: unknown
+  linkType: soft
+
 "babel-jest@npm:^29.7.0":
   version: 29.7.0
   resolution: "babel-jest@npm:29.7.0"
@@ -3095,26 +3115,6 @@ __metadata:
   checksum: 0382a9ed13208f8bfc22ca2f62b364855207dffdb73dc26e150ade78c3093f1cf56172df2dd460c8caf2afa91c0ed4ec8a88c62f8f9cd1cf423d26506aa8797a
   languageName: node
   linkType: hard
-
-"create-aztec-app@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "create-aztec-app@workspace:."
-  dependencies:
-    "@iarna/toml": "npm:^2.2.5"
-    "@inquirer/confirm": "npm:^3.0.0"
-    "@inquirer/input": "npm:^2.0.0"
-    "@inquirer/select": "npm:^2.0.0"
-    "@playwright/test": "npm:1.42.0"
-    axios: "npm:^1.6.7"
-    commander: "npm:^12.0.0"
-    ora: "npm:^8.0.1"
-    pino: "npm:^8.19.0"
-    pino-pretty: "npm:^10.3.1"
-    tiged: "npm:^2.12.6"
-  bin:
-    create-aztec-app: bin.js
-  languageName: unknown
-  linkType: soft
 
 "create-jest@npm:^29.7.0":
   version: 29.7.0
