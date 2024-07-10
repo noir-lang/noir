@@ -295,9 +295,17 @@ impl Context {
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
     ) -> Option<&'a Vec<ValueId>> {
+        let results_for_instruction = instruction_result_cache.get(instruction);
+
+        // See if there's a cached version with no predicate first
+        if let Some(results) = results_for_instruction.and_then(|map| map.get(&None)) {
+            return Some(results);
+        }
+
         let predicate =
             instruction.requires_acir_gen_predicate(dfg).then_some(side_effects_enabled_var);
-        instruction_result_cache.get(instruction).and_then(|map| map.get(&predicate))
+
+        results_for_instruction.and_then(|map| map.get(&predicate))
     }
 }
 
