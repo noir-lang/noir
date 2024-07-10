@@ -30,3 +30,17 @@ impl<T> MyType<T> {
         process_array(serialize_thing(self))
     }
 }
+
+trait MyTrait { }
+
+// Object type differs
+trait Foo<T> {
+    fn foo<U>() where U: MyTrait;
+    // fn foo<U>();
+}
+
+impl<A> Foo<A> for () {
+    fn foo<B>() where B: MyTrait {}
+    // fn foo<B>() where A: Default {}
+    // fn foo<B>() {}
+}

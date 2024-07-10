@@ -22,7 +22,7 @@ use crate::{
     hir_def::{
         expr::HirIdent,
         function::{FunctionBody, Parameters},
-        traits::TraitConstraint,
+        traits::{TraitConstraint, TraitFunction},
         types::{Generics, Kind, ResolvedGeneric},
     },
     macros_api::{
@@ -1068,7 +1068,8 @@ impl<'context> Elaborator<'context> {
         // while also mutating the interner
         let the_trait = self.interner.get_trait_mut(trait_id);
         let methods = std::mem::take(&mut the_trait.methods);
-
+        // dbg!(the_trait.generics.clone());
+        // dbg!(trait_impl.resolved_generics.clone());
         for method in &methods {
             let overrides: Vec<_> = trait_impl
                 .methods
@@ -1106,34 +1107,8 @@ impl<'context> Elaborator<'context> {
                 }
             } else {
                 for (_, func_id, _) in &overrides {
-                    let func_meta = self.interner.function_meta(func_id);
-                    for override_trait_constraint in func_meta.trait_constraints.clone() {
-                        // We allow where clauses on impls but during definition collection they are included as part of the where
-                        // clause of each function. This check is necessary so we do not unnecessarily error on trait impl where clauses.
-                        let override_constraint_is_from_impl =
-                            trait_impl_where_clause.iter().any(|impl_constraint| {
-                                impl_constraint.trait_id == override_trait_constraint.trait_id
-                            });
-                        if override_constraint_is_from_impl {
-                            continue;
-                        }
+                    self.check_where_clause_against_trait(func_id, method, trait_impl_where_clause, &trait_impl.resolved_generics);
 
-                        let override_constraint_is_on_trait_method =
-                            method.trait_constraints.iter().any(|method_constraint| {
-                                method_constraint.trait_id == override_trait_constraint.trait_id
-                            });
-                        if !override_constraint_is_on_trait_method {
-                            let the_trait =
-                                self.interner.get_trait(override_trait_constraint.trait_id);
-                            self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
-                                constraint_typ: override_trait_constraint.typ,
-                                constraint_name: the_trait.name.0.contents.clone(),
-                                constraint_span: override_trait_constraint.span,
-                                trait_method_name: method.name.0.contents.clone(),
-                                trait_method_span: method.location.span,
-                            });
-                        }
-                    }
                     func_ids_in_trait.insert(*func_id);
                 }
 
@@ -1166,6 +1141,131 @@ impl<'context> Elaborator<'context> {
 
         trait_impl.methods.functions = ordered_methods;
         trait_impl.methods.trait_id = Some(trait_id);
+    }
+
+    /// Issue an error if the impl is stricter than the trait. 
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// trait MyTrait { }
+    /// trait Foo<T> {
+    ///     fn foo<U>();
+    /// }
+    /// impl<A> Foo<A> for () {
+    ///     // Error issued here as `foo` does not have the `MyTrait` constraint
+    ///     fn foo<B>() where B: MyTrait {}
+    /// }
+    /// ```
+    fn check_where_clause_against_trait(
+        &mut self,
+        func_id: &FuncId,
+        method: &TraitFunction,
+        trait_impl_where_clause: &[TraitConstraint],
+        trait_impl_generics: &Generics,
+    ) {
+        let func_meta = self.interner.function_meta(func_id);
+        // dbg!(func_meta.trait_constraints.clone());
+        // dbg!(trait_impl_where_clause);
+        // dbg!(method.typ.clone());
+        let override_generics = func_meta.all_generics.clone();
+        // dbg!(override_generics.clone());
+        // dbg!(func_meta.direct_generics.clone());
+        // dbg!(method.trait_constraints.clone());
+        // dbg!(method.all_generics.clone());
+        let method_generics = method.all_generics.clone();
+        if self.interner.function_name(func_id) == "hash" && override_generics.len() == 2 {
+            dbg!(override_generics.clone());            
+            dbg!(method.all_generics.clone());
+            dbg!(trait_impl_generics.clone());
+        }
+
+        for override_trait_constraint in func_meta.trait_constraints.clone() {
+            match &override_trait_constraint.typ {
+                Type::NamedGeneric(_, name, _) => {
+                    // dbg!(name);
+                }
+                _ => {
+                    dbg!(override_trait_constraint.typ.clone());
+                }
+            }
+            // self.unify(actual, expected, make_error)
+            // We allow where clauses on impls but during definition collection they are included as part of the where
+            // clause of each function. This check is necessary so we do not unnecessarily error on trait impl where clauses.
+            let override_constraint_is_from_impl =
+                trait_impl_where_clause.iter().any(|impl_constraint| {
+                    impl_constraint.trait_id == override_trait_constraint.trait_id
+                });
+
+            // dbg!(override_constraint_is_from_impl);
+            if override_constraint_is_from_impl {
+                continue;
+            }
+
+            let override_constraint_is_on_trait_method =
+                method.trait_constraints.iter().any(|method_constraint| {
+                    method_constraint.trait_id == override_trait_constraint.trait_id
+                });
+
+            let method_constraint_typ_name = method.trait_constraints.iter().find(|method_constraint| {
+                method_constraint.trait_id == override_trait_constraint.trait_id
+            }).map(|found_constraint| {
+                let typ_as_string = found_constraint.typ.to_string();
+                // dbg!(typ_as_string.clone());
+                // let index = override_generics.iter().position(|generic| generic.name.as_str() == typ_as_string.as_str());
+                // dbg!(index)
+                typ_as_string
+            });
+            let override_constraint_typ_name = override_trait_constraint.typ.to_string();
+            // dbg!(override_constraint_typ_name.clone());
+            let override_generic_index = override_generics.iter().position(|generic| generic.name.as_str() == override_constraint_typ_name.as_str());
+            if let (Some(method_constraint_typ_name), Some(override_generic_index)) = (method_constraint_typ_name, override_generic_index) {
+                // dbg!(method_constraint_typ_name.clone());
+                dbg!(override_generic_index);
+                let mut method_generic_index = None;
+                let mut index = 0;
+                for method_generic in method_generics.iter() {
+                    if method_generic.name.as_str() == "Self" {
+                        continue;
+                    } 
+
+                    if method_generic.name.as_str() == method_constraint_typ_name.as_str() {
+                        method_generic_index = Some(index + trait_impl_generics.len());
+                        break;
+                    }
+
+                    index += 1;
+                }
+                dbg!(method_generic_index.clone());
+                let method_generic_index = method_generic_index.expect("Should have a method generic index");
+                if method_generic_index != override_generic_index {
+                    // dbg!()
+                    let the_trait =
+                        self.interner.get_trait(override_trait_constraint.trait_id);
+                    self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
+                        constraint_typ: override_trait_constraint.typ,
+                        constraint_name: the_trait.name.0.contents.clone(),
+                        constraint_span: override_trait_constraint.span,
+                        trait_method_name: method.name.0.contents.clone(),
+                        trait_method_span: method.location.span,
+                    });
+                } 
+            }
+            // dbg!(override_constraint_typ_name.clone());
+
+            // dbg!(override_constraint_is_on_trait_method);
+            // if !override_constraint_is_on_trait_method {
+            //     let the_trait =
+            //         self.interner.get_trait(override_trait_constraint.trait_id);
+            //     self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
+            //         constraint_typ: override_trait_constraint.typ,
+            //         constraint_name: the_trait.name.0.contents.clone(),
+            //         constraint_span: override_trait_constraint.span,
+            //         trait_method_name: method.name.0.contents.clone(),
+            //         trait_method_span: method.location.span,
+            //     });
+            // } 
+        }
     }
 
     fn check_trait_impl_crate_coherence(

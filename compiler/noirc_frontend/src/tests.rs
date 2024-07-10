@@ -1945,6 +1945,30 @@ fn impl_stricter_than_trait() {
 }
 
 #[test]
+fn impl_stricter_than_trait_different_generics() {
+    let src = r#"
+    trait Default { }
+
+    // Object type differs
+    trait Foo<T> {
+        fn foo<U>() where T: Default;
+        // fn foo<U>();
+    }
+
+    impl<A> Foo<A> for () {
+        fn foo<B>() where B: Default {}
+        // fn foo<B>() where A: Default {}
+
+        // fn foo<B>() {}
+    }
+    "#;
+    let errors = get_program_errors(src);
+    dbg!(errors.clone());
+
+    assert_eq!(errors.len(), 1);
+}
+
+#[test]
 fn impl_not_found_for_inner_impl() {
     // We want to guarantee that we get a no impl found error
     let src = r#"

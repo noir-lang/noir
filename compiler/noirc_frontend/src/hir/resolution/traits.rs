@@ -178,8 +178,9 @@ fn resolve_trait_methods(
                 location: Location::new(name.span(), unresolved_trait.file_id),
                 default_impl,
                 default_impl_module_id: unresolved_trait.module_id,
-                // This field is only used by the elaborator
+                // These fields are only used by the elaborator
                 trait_constraints: vec![],
+                all_generics: vec![],
             });
 
             let errors = resolver.take_errors().into_iter();
