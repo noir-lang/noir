@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.46.2](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.46.1...aztec-packages-v0.46.2) (2024-07-10)
+
+
+### Features
+
+* Optimize assert_split_sorted_transformed_value_arrays ([#7417](https://github.com/AztecProtocol/aztec-packages/issues/7417)) ([4355b3f](https://github.com/AztecProtocol/aztec-packages/commit/4355b3f3084696c54f6cd44aed7baf6f4caa925d))
+
+
+### Bug Fixes
+
+* Updated docs ([#7418](https://github.com/AztecProtocol/aztec-packages/issues/7418)) ([ad3da14](https://github.com/AztecProtocol/aztec-packages/commit/ad3da14eb715c1ec4a1e3b5ffc3d792eb738e404))
+
+
+### Miscellaneous
+
+* **docs:** Cleanup voting tutorial and deployment guide ([#7406](https://github.com/AztecProtocol/aztec-packages/issues/7406)) ([60cead2](https://github.com/AztecProtocol/aztec-packages/commit/60cead28dbdc397e80dfa14e180d01e53c202f15))
+
 ## [0.46.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.46.0...aztec-packages-v0.46.1) (2024-07-10)
 
 
