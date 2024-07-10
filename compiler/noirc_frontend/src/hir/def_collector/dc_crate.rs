@@ -551,7 +551,7 @@ fn add_import_reference(
 
     match def_id {
         crate::macros_api::ModuleDefId::ModuleId(module_id) => {
-            interner.add_module_location(module_id, location);
+            interner.add_module_reference(module_id, location);
         }
         crate::macros_api::ModuleDefId::FunctionId(func_id) => {
             interner.add_function_reference(func_id, location);
