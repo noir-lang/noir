@@ -650,7 +650,7 @@ impl<'a> ModCollector<'a> {
             Ok(child_mod_id) => {
                 // Track that the "foo" in `mod foo;` points to the module "foo"
                 let referenced = ReferenceId::Module(child_mod_id);
-                let reference = ReferenceId::Variable(location, false);
+                let reference = ReferenceId::Reference(location, false);
                 context.def_interner.add_reference(referenced, reference);
 
                 errors.extend(collect_defs(
