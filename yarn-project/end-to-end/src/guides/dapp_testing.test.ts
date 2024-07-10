@@ -124,7 +124,8 @@ describe('guides/dapp/testing', () => {
         cheats = CheatCodes.create(ETHEREUM_HOST, pxe);
       });
 
-      it('warps time to 1h into the future', async () => {
+      // TODO(@spalladino) Disabled due to flakiness after #7347. Note that warp is already tested in e2e_cheat_codes.
+      it.skip('warps time to 1h into the future', async () => {
         // docs:start:warp
         const newTimestamp = Math.floor(Date.now() / 1000) + 60 * 60 * 24;
         await cheats.aztec.warp(newTimestamp);
