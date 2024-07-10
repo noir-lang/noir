@@ -136,6 +136,7 @@ fn format_function(id: FuncId, interner: &NodeInterner) -> String {
     // TODO: append the module path
     string.push_str("    ");
     string.push_str("fn ");
+    format_generics(&func_meta.direct_generics, &mut string);
     string.push_str(&func_name_definition_id.name);
     string.push('(');
     let parameters = &func_meta.parameters;
