@@ -14,7 +14,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Get an element from the vector at the given index.
     /// Panics if the given index points beyond the end of the vector (`self.len()`).
     pub fn get(self, index: u32) -> T {
-        assert(index < self.len);
+        assert(index < self.len, "Attempted to read past end of BoundedVec");
         self.get_unchecked(index)
     }
 
@@ -172,6 +172,18 @@ mod bounded_vec_tests {
 
         assert(bounded_vec1 != bounded_vec2);
     }
+
+    mod get {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test(should_fail_with = "Attempted to read past end of BoundedVec")]
+        fn panics_when_reading_elements_past_end_of_vec() {
+            let mut vec: BoundedVec<Field, 5> = BoundedVec::new();
+            
+            println(vec.get(0));
+        }
+    }
+
 
     mod set {
         use crate::collections::bounded_vec::BoundedVec;
