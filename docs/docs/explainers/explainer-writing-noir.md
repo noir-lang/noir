@@ -2,7 +2,7 @@
 title: Writing Noir
 description: Understand new considerations when writing Noir
 keywords: [Noir, programming, rust]
-tags: [Optimisation]
+tags: [Optimization]
 sidebar_position: 0
 ---
 
@@ -60,13 +60,13 @@ For those coming from a primarily web app background, this article will explain 
 
 ## Code re-use
 
-For some applications using Noir, existing code might be a convenient starting point to then proceed to optimise the gate count of.
+For some applications using Noir, existing code might be a convenient starting point to then proceed to optimize the gate count of.
 
 :::note
 Many valuable functions and algorithms have been written in more established languages (C/C++), and converted to modern ones (like Rust).
 :::
 
-Fortunately for Noir devs, when needing a particular function a rust implementation can be readily compiled into Noir with some key changes. While the compiler does a decent amount of optimisations, it won't be able to change code that has been optimized for clock-cycles into code optimized for arithmetic gates.
+Fortunately for Noir developers, when needing a particular function a rust implementation can be readily compiled into Noir with some key changes. While the compiler does a decent amount of optimizations, it won't be able to change code that has been optimized for clock-cycles into code optimized for arithmetic gates.
 
 A few things to do when converting Rust code to Noir:
 - `println!` is not a macro, use `println` function (same for `assert_eq`)
@@ -103,7 +103,7 @@ Advanced: You can dig deeper and use the `--print-acir` param to take a closer l
 Since the native type of values in circuits are `Field`s, using them for variables in Noir means less gates converting them under the hood.
 
 :::tip
-Where possible, use `Field` type for values. Using smaller value types, and bitpacking strategies, will result in MORE gates
+Where possible, use `Field` type for values. Using smaller value types, and bit-packing strategies, will result in MORE gates
 :::
 
 **Note:** Need to remain mindful of overflow. Types with less bits may be used to limit the range of possible values prior to a calculation.
@@ -112,7 +112,7 @@ Where possible, use `Field` type for values. Using smaller value types, and bitp
 
 Since circuits are made of arithmetic gates, the cost of them tends to be one gate. Whereas for procedural code, they represent several clock cycles.
 
-Inversely, non-arithmetic operators are achieved with multipled gates, vs 1 clock cycle for procedural code.
+Inversely, non-arithmetic operators are achieved with multiple gates, vs 1 clock cycle for procedural code.
 
 | (cost\op)  | arithmetic<br>(eg `*`, `+`) | bit-wise ops<br>(eg `<`, `\|`, `>>`) |
 | - | - | - |
@@ -120,7 +120,7 @@ Inversely, non-arithmetic operators are achieved with multipled gates, vs 1 cloc
 | **gates**  | 1 | 10+ |
 
 :::tip
-Preference arithmetic operators where possible. Attempting to optimise a circuit with bit-wise operations will lead to MORE gates.
+Preference arithmetic operators where possible. Attempting to optimize a circuit with bit-wise operations will lead to MORE gates.
 :::
 
 ### Use static over dynamic values
@@ -161,7 +161,7 @@ Use bit-wise `&` or `|` to combine logical expressions efficiently.
 
 ## Advanced
 
-Unless you're well into the depth of gate optimisation, this advanced section can be ignored.
+Unless you're well into the depth of gate optimization, this advanced section can be ignored.
 
 ### Combine arithmetic operations
 
@@ -170,14 +170,14 @@ A Noir program can be honed further by combining arithmetic operators in a way t
 Eg Barretenberg backend (current default for Noir) is a width-4 PLONKish constraint system
 $ w_1*w_2*q_m + w_1*q_1 + w_2*q_2 + w_3*q_3 + w_4*q_4 + q_c = 0 $
 
-Here we see there is one occurance of witness 1 and 2 ($w_1$, $w_2$) being multiplied together, with addition to witnesses 1-4 ($w_1$ .. $w_4$) multiplied by 4 corresponding circuit constants ($q_1$ .. $q_4$) (plus a final circuit constant, $q_c$).
+Here we see there is one occurrence of witness 1 and 2 ($w_1$, $w_2$) being multiplied together, with addition to witnesses 1-4 ($w_1$ .. $w_4$) multiplied by 4 corresponding circuit constants ($q_1$ .. $q_4$) (plus a final circuit constant, $q_c$).
 
 Use `nargo info --print-acir`, to inspect the constraints, and it may present opportunities to amend the order of operations and reduce the number of constraints.
 
 ### Variable as witness vs expression
 
 `std::as_witness` means variable is interpreted as a witness not an expression.
-When used incorrecty will create **less** efficient circuits (higher gate count).
+When used incorrectly will create **less** efficient circuits (higher gate count).
 
 ## References
 ### Guillaume's "Cryptdoku" [video](https://www.youtube.com/watch?v=MrQyzuogxgg) (June'23):
