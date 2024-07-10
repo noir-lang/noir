@@ -1456,6 +1456,79 @@ fn specify_method_types_with_turbofish() {
 }
 
 #[test]
+fn incorrect_turbofish_count_function_call() {
+    let src = r#"
+        trait Default {
+            fn default() -> Self;
+        }
+
+        impl Default for Field {
+            fn default() -> Self { 0 }
+        }
+
+        impl Default for u64 {
+            fn default() -> Self { 0 }
+        }
+
+        // Need the above as we don't have access to the stdlib here.
+        // We also need to construct a concrete value of `U` without giving away its type
+        // as otherwise the unspecified type is ignored.
+
+        fn generic_func<T, U>() -> (T, U) where T: Default, U: Default {
+            (T::default(), U::default())
+        }
+
+        fn main() {
+            let _ = generic_func::<u64, Field, Field>();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::IncorrectTurbofishGenericCount { .. }),
+    ));
+}
+
+#[test]
+fn incorrect_turbofish_count_method_call() {
+    let src = r#"
+        trait Default {
+            fn default() -> Self;
+        }
+
+        impl Default for Field {
+            fn default() -> Self { 0 }
+        }
+
+        // Need the above as we don't have access to the stdlib here.
+        // We also need to construct a concrete value of `U` without giving away its type
+        // as otherwise the unspecified type is ignored.
+
+        struct Foo<T> {
+            inner: T
+        }
+        
+        impl<T> Foo<T> {
+            fn generic_method<U>(_self: Self) -> U where U: Default {
+                U::default()
+            }
+        }
+        
+        fn main() {
+            let foo: Foo<Field> = Foo { inner: 1 };
+            let _ = foo.generic_method::<Field, u32>();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::IncorrectTurbofishGenericCount { .. }),
+    ));
+}
+
+#[test]
 fn struct_numeric_generic_in_function() {
     let src = r#"
     struct Foo {
@@ -1982,4 +2055,57 @@ fn underflowing_i8() {
     } else {
         panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
     }
+}
+
+#[test]
+fn turbofish_numeric_generic_nested_call() {
+    // Check for turbofish numeric generics used with function calls
+    let src = r#"
+    fn foo<let N: u32>() -> [u8; N] {
+        [0; N]
+    }
+
+    fn bar<let N: u32>() -> [u8; N] {
+        foo::<N>()
+    }
+
+    global M: u32 = 3;
+
+    fn main() {
+        let _ = bar::<M>();
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+
+    // Check for turbofish numeric generics used with method calls
+    let src = r#"
+    struct Foo<T> {
+        a: T
+    }
+
+    impl<T> Foo<T> {
+        fn static_method<let N: u32>() -> [u8; N] {
+            [0; N]
+        }
+
+        fn impl_method<let N: u32>(self) -> [T; N] {
+            [self.a; N]
+        }
+    }
+
+    fn bar<let N: u32>() -> [u8; N] {
+        let _ = Foo::static_method::<N>();
+        let x: Foo<u8> = Foo { a: 0 };
+        x.impl_method::<N>()
+    }
+
+    global M: u32 = 3;
+
+    fn main() {
+        let _ = bar::<M>();
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
 }
