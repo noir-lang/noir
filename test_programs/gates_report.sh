@@ -19,6 +19,7 @@ ITER="1"
 for pathname in $test_dirs; do    
     ARTIFACT_NAME=$(basename "$pathname")
     if [[ " ${excluded_dirs[@]} " =~ "$ARTIFACT_NAME" ]]; then
+        ITER=$(( $ITER + 1 ))
         continue
     fi
 
