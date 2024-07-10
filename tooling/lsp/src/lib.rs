@@ -21,7 +21,7 @@ use async_lsp::{
 use fm::{codespan_files as files, FileManager};
 use fxhash::FxHashSet;
 use lsp_types::{
-    request::{PrepareRenameRequest, References, Rename},
+    request::{HoverRequest, PrepareRenameRequest, References, Rename},
     CodeLens,
 };
 use nargo::{
@@ -46,7 +46,7 @@ use notifications::{
 };
 use requests::{
     on_code_lens_request, on_formatting, on_goto_declaration_request, on_goto_definition_request,
-    on_goto_type_definition_request, on_initialize, on_prepare_rename_request,
+    on_goto_type_definition_request, on_hover_request, on_initialize, on_prepare_rename_request,
     on_profile_run_request, on_references_request, on_rename_request, on_shutdown,
     on_test_run_request, on_tests_request,
 };
@@ -129,6 +129,7 @@ impl NargoLspService {
             .request::<References, _>(on_references_request)
             .request::<PrepareRenameRequest, _>(on_prepare_rename_request)
             .request::<Rename, _>(on_rename_request)
+            .request::<HoverRequest, _>(on_hover_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
