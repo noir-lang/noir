@@ -1090,8 +1090,6 @@ impl<'a> Context<'a> {
         }
 
         if let Some(store_value) = store_value {
-            // Note that the value of `side_effects_always_enabled` doesn't affect the value which we return here for
-            // valid indices, just whether we return an error for invalid indices at compile time or defer until execution.
             let side_effects_always_enabled =
                 self.acir_context.is_constant_one(&self.current_side_effects_enabled_var);
 
