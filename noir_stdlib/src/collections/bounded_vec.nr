@@ -160,7 +160,7 @@ mod bounded_vec_tests {
         fn panics_when_reading_elements_past_end_of_vec() {
             let vec: BoundedVec<Field, 5> = BoundedVec::new();
             
-            println(vec.get(0));
+            crate::println(vec.get(0));
         }
     }
 
