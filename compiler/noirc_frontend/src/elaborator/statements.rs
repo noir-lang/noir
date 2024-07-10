@@ -381,6 +381,10 @@ impl<'context> Elaborator<'context> {
             Type::Struct(s, args) => {
                 let s = s.borrow();
                 if let Some((field, index)) = s.get_field(field_name, args) {
+                    let referenced = ReferenceId::StructMember(s.id, index);
+                    let reference = ReferenceId::Reference(Location::new(span, self.file), false);
+                    self.interner.add_reference(referenced, reference);
+
                     return Some((field, index));
                 }
             }
