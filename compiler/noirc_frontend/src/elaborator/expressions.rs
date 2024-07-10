@@ -9,22 +9,22 @@ use crate::{
         UnresolvedTypeExpression,
     },
     hir::{
-        comptime::{self, Interpreter, InterpreterError},
+        comptime::{self, InterpreterError},
         resolution::{errors::ResolverError, resolver::LambdaContext},
         type_check::TypeCheckError,
     },
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirIfExpression, HirIndexExpression, HirInfixExpression,
-            HirLambda, HirMemberAccess, HirMethodCallExpression, HirMethodReference,
-            HirPrefixExpression,
+            HirConstructorExpression, HirExpression, HirIfExpression, HirIndexExpression,
+            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
+            HirMethodReference, HirPrefixExpression,
         },
         traits::TraitConstraint,
     },
     macros_api::{
-        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirExpression,
-        HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
+        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirLiteral,
+        HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
         MethodCallExpression, PrefixExpression,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, ReferenceId},
@@ -674,12 +674,20 @@ impl<'context> Elaborator<'context> {
         // call is not yet solved for.
         self.function_context.push(Default::default());
         let (block, _typ) = self.elaborate_block_expression(block);
-        self.check_and_pop_function_context();
 
-        let mut interpreter =
-            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
+        self.check_and_pop_function_context();
+        let mut interpreter_errors = vec![];
+        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
         let value = interpreter.evaluate_block(block);
-        self.inline_comptime_value(value, span)
+        self.include_interpreter_errors(interpreter_errors);
+        let (id, typ) = self.inline_comptime_value(value, span);
+
+        let location = self.interner.id_location(id);
+        self.debug_comptime(location, |interner| {
+            interner.expression(&id).to_display_ast(interner, location.span).kind
+        });
+
+        (id, typ)
     }
 
     pub(super) fn inline_comptime_value(
@@ -750,9 +758,9 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        let mut interpreter =
-            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
-
+        let file = self.file;
+        let mut interpreter_errors = vec![];
+        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
         let mut comptime_args = Vec::new();
         let mut errors = Vec::new();
 
@@ -762,17 +770,19 @@ impl<'context> Elaborator<'context> {
                     let location = interpreter.interner.expr_location(&argument);
                     comptime_args.push((arg, location));
                 }
-                Err(error) => errors.push((error.into(), self.file)),
+                Err(error) => errors.push((error.into(), file)),
             }
         }
+
+        let bindings = interpreter.interner.get_instantiation_bindings(func).clone();
+        let result = interpreter.call_function(function, comptime_args, bindings, location);
+        self.include_interpreter_errors(interpreter_errors);
 
         if !errors.is_empty() {
             self.errors.append(&mut errors);
             return None;
         }
 
-        let bindings = interpreter.interner.get_instantiation_bindings(func).clone();
-        let result = interpreter.call_function(function, comptime_args, bindings, location);
         let (expr_id, typ) = self.inline_comptime_value(result, location.span);
         Some((self.interner.expression(&expr_id), typ))
     }
