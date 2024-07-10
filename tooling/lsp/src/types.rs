@@ -1,7 +1,7 @@
 use fm::FileId;
 use lsp_types::{
-    DeclarationCapability, DefinitionOptions, OneOf, ReferencesOptions, RenameOptions,
-    TypeDefinitionProviderCapability,
+    DeclarationCapability, DefinitionOptions, HoverOptions, OneOf, ReferencesOptions,
+    RenameOptions, TypeDefinitionProviderCapability,
 };
 use noirc_driver::DebugFile;
 use noirc_errors::{debug_info::OpCodesCount, Location};
@@ -144,6 +144,10 @@ pub(crate) struct ServerCapabilities {
     /// The server provides references support.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) references_provider: Option<OneOf<bool, ReferencesOptions>>,
+
+    /// The server provides hover support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) hover_provider: Option<OneOf<bool, HoverOptions>>,
 }
 
 #[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
