@@ -1,4 +1,5 @@
 use acvm::FieldElement;
+use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 use thiserror::Error;
@@ -6,7 +7,9 @@ use thiserror::Error;
 use crate::ast::{BinaryOpKind, FunctionReturnType, IntegerBitSize, Signedness};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
+use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::Type;
+use crate::macros_api::NodeInterner;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum Source {
@@ -32,7 +35,7 @@ pub enum Source {
 pub enum TypeCheckError {
     #[error("Operator {op:?} cannot be used in a {place:?}")]
     OpCannotBeUsed { op: HirBinaryOp, place: &'static str, span: Span },
-    #[error("The literal `{expr:?}` cannot fit into `{ty}` which has range `{range}`")]
+    #[error("The value `{expr:?}` cannot fit into `{ty}` which has range `{range}`")]
     OverflowingAssignment { expr: FieldElement, ty: Type, range: String, span: Span },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, span: Span },
@@ -114,7 +117,7 @@ pub enum TypeCheckError {
         parameter_index: usize,
     },
     #[error("No matching impl found")]
-    NoMatchingImplFound { constraints: Vec<(Type, String)>, span: Span },
+    NoMatchingImplFound(NoMatchingImplFoundError),
     #[error("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope")]
     UnneededTraitConstraint { trait_name: String, typ: Type, span: Span },
     #[error(
@@ -147,6 +150,12 @@ pub enum TypeCheckError {
     StringIndexAssign { span: Span },
     #[error("Macro calls may only return `Quoted` values")]
     MacroReturningNonExpr { typ: Type, span: Span },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoMatchingImplFoundError {
+    constraints: Vec<(Type, String)>,
+    pub span: Span,
 }
 
 impl TypeCheckError {
@@ -307,20 +316,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let msg = format!("Unused expression result of type {expr_type}");
                 Diagnostic::simple_warning(msg, String::new(), *expr_span)
             }
-            TypeCheckError::NoMatchingImplFound { constraints, span } => {
-                assert!(!constraints.is_empty());
-                let msg = format!("No matching impl found for `{}: {}`", constraints[0].0, constraints[0].1);
-                let mut diagnostic = Diagnostic::from_message(&msg);
-
-                diagnostic.add_secondary(format!("No impl for `{}: {}`", constraints[0].0, constraints[0].1), *span);
-
-                // These must be notes since secondaries are unordered
-                for (typ, trait_name) in &constraints[1..] {
-                    diagnostic.add_note(format!("Required by `{typ}: {trait_name}`"));
-                }
-
-                diagnostic
-            }
+            TypeCheckError::NoMatchingImplFound(error) => error.into(),
             TypeCheckError::UnneededTraitConstraint { trait_name, typ, span } => {
                 let msg = format!("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope");
                 Diagnostic::simple_warning(msg, "Unnecessary trait constraint in where clause".into(), *span)
@@ -350,7 +346,54 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 format!("Expected macro call to return a `Quoted` but found a(n) `{typ}`"),
                 "Macro calls must return quoted values, otherwise there is no code to insert".into(),
                 *span,
-                ),
+            ),
         }
+    }
+}
+
+impl<'a> From<&'a NoMatchingImplFoundError> for Diagnostic {
+    fn from(error: &'a NoMatchingImplFoundError) -> Self {
+        let constraints = &error.constraints;
+        let span = error.span;
+
+        assert!(!constraints.is_empty());
+        let msg =
+            format!("No matching impl found for `{}: {}`", constraints[0].0, constraints[0].1);
+        let mut diagnostic = Diagnostic::from_message(&msg);
+
+        let secondary = format!("No impl for `{}: {}`", constraints[0].0, constraints[0].1);
+        diagnostic.add_secondary(secondary, span);
+
+        // These must be notes since secondaries are unordered
+        for (typ, trait_name) in &constraints[1..] {
+            diagnostic.add_note(format!("Required by `{typ}: {trait_name}`"));
+        }
+
+        diagnostic
+    }
+}
+
+impl NoMatchingImplFoundError {
+    pub fn new(
+        interner: &NodeInterner,
+        failing_constraints: Vec<TraitConstraint>,
+        span: Span,
+    ) -> Option<Self> {
+        // Don't show any errors where try_get_trait returns None.
+        // This can happen if a trait is used that was never declared.
+        let constraints = failing_constraints
+            .into_iter()
+            .map(|constraint| {
+                let r#trait = interner.try_get_trait(constraint.trait_id)?;
+                let mut name = r#trait.name.to_string();
+                if !constraint.trait_generics.is_empty() {
+                    let generics = vecmap(&constraint.trait_generics, ToString::to_string);
+                    name += &format!("<{}>", generics.join(", "));
+                }
+                Some((constraint.typ, name))
+            })
+            .collect::<Option<Vec<_>>>()?;
+
+        Some(Self { constraints, span })
     }
 }

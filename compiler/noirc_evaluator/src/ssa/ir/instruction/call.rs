@@ -246,6 +246,21 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::StaticAssert => {
+            if arguments.len() != 2 {
+                panic!("ICE: static_assert called with wrong number of arguments")
+            }
+
+            if !dfg.is_constant(arguments[1]) {
+                return SimplifyResult::None;
+            }
+
+            if dfg.is_constant_true(arguments[0]) {
+                SimplifyResult::Remove
+            } else {
+                SimplifyResult::None
+            }
+        }
         Intrinsic::ApplyRangeConstraint => {
             let value = arguments[0];
             let max_bit_size = dfg.get_numeric_constant(arguments[1]);

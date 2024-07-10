@@ -1,3 +1,5 @@
+use std::io::IsTerminal;
+
 use crate::{FileDiagnostic, Location, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::Files;
@@ -15,6 +17,7 @@ pub struct CustomDiagnostic {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DiagnosticKind {
     Error,
+    Bug,
     Warning,
 }
 
@@ -60,6 +63,19 @@ impl CustomDiagnostic {
         }
     }
 
+    pub fn simple_bug(
+        primary_message: String,
+        secondary_message: String,
+        secondary_span: Span,
+    ) -> CustomDiagnostic {
+        CustomDiagnostic {
+            message: primary_message,
+            secondaries: vec![CustomLabel::new(secondary_message, secondary_span)],
+            notes: Vec::new(),
+            kind: DiagnosticKind::Bug,
+        }
+    }
+
     pub fn in_file(self, file_id: fm::FileId) -> FileDiagnostic {
         FileDiagnostic::new(file_id, self)
     }
@@ -78,6 +94,10 @@ impl CustomDiagnostic {
 
     pub fn is_warning(&self) -> bool {
         matches!(self.kind, DiagnosticKind::Warning)
+    }
+
+    pub fn is_bug(&self) -> bool {
+        matches!(self.kind, DiagnosticKind::Bug)
     }
 }
 
@@ -118,10 +138,13 @@ pub fn report_all<'files>(
     silence_warnings: bool,
 ) -> ReportedErrors {
     // Report warnings before any errors
-    let (warnings, mut errors): (Vec<_>, _) =
-        diagnostics.iter().partition(|item| item.diagnostic.is_warning());
+    let (warnings_and_bugs, mut errors): (Vec<_>, _) =
+        diagnostics.iter().partition(|item| !item.diagnostic.is_error());
 
+    let (warnings, mut bugs): (Vec<_>, _) =
+        warnings_and_bugs.iter().partition(|item| item.diagnostic.is_warning());
     let mut diagnostics = if silence_warnings { Vec::new() } else { warnings };
+    diagnostics.append(&mut bugs);
     diagnostics.append(&mut errors);
 
     let error_count =
@@ -148,7 +171,9 @@ pub fn report<'files>(
     call_stack: &[Location],
     deny_warnings: bool,
 ) -> bool {
-    let writer = StandardStream::stderr(ColorChoice::Always);
+    let color_choice =
+        if std::io::stderr().is_terminal() { ColorChoice::Auto } else { ColorChoice::Never };
+    let writer = StandardStream::stderr(color_choice);
     let config = codespan_reporting::term::Config::default();
 
     let stack_trace = stack_trace(files, call_stack);
@@ -166,6 +191,7 @@ fn convert_diagnostic(
 ) -> Diagnostic<fm::FileId> {
     let diagnostic = match (cd.kind, deny_warnings) {
         (DiagnosticKind::Warning, false) => Diagnostic::warning(),
+        (DiagnosticKind::Bug, ..) => Diagnostic::bug(),
         _ => Diagnostic::error(),
     };
 
@@ -202,14 +228,14 @@ fn stack_trace<'files>(
         let path = files.name(call_item.file).expect("should get file path");
         let source = files.source(call_item.file).expect("should get file source");
 
-        let (line, column) = location(source.as_ref(), call_item.span.start());
+        let (line, column) = line_and_column_from_span(source.as_ref(), &call_item.span);
         result += &format!("{}. {}:{}:{}\n", i + 1, path, line, column);
     }
 
     result
 }
 
-fn location(source: &str, span_start: u32) -> (u32, u32) {
+pub fn line_and_column_from_span(source: &str, span: &Span) -> (u32, u32) {
     let mut line = 1;
     let mut column = 0;
 
@@ -221,7 +247,7 @@ fn location(source: &str, span_start: u32) -> (u32, u32) {
             column = 0;
         }
 
-        if span_start <= i as u32 {
+        if span.start() <= i as u32 {
             break;
         }
     }

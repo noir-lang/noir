@@ -35,9 +35,6 @@ pub(crate) fn resolve_traits(
     traits: BTreeMap<TraitId, UnresolvedTrait>,
     crate_id: CrateId,
 ) -> Vec<(CompilationError, FileId)> {
-    for (trait_id, unresolved_trait) in &traits {
-        context.def_interner.push_empty_trait(*trait_id, unresolved_trait, vec![]);
-    }
     let mut all_errors = Vec::new();
 
     for (trait_id, unresolved_trait) in traits {
@@ -48,6 +45,8 @@ pub(crate) fn resolve_traits(
             file_id,
         );
         let generic_type_vars = generics.iter().map(|generic| generic.type_var.clone()).collect();
+
+        context.def_interner.push_empty_trait(trait_id, &unresolved_trait, generics);
 
         // Resolve order
         // 1. Trait Types ( Trait constants can have a trait type, therefore types before constants)
@@ -67,7 +66,6 @@ pub(crate) fn resolve_traits(
 
         context.def_interner.update_trait(trait_id, |trait_def| {
             trait_def.set_methods(methods);
-            trait_def.generics = generics;
         });
 
         // This check needs to be after the trait's methods are set since
@@ -390,7 +388,7 @@ pub(crate) fn resolve_trait_by_path(
 ) -> Result<(TraitId, Option<PathResolutionError>), DefCollectorErrorKind> {
     let path_resolver = StandardPathResolver::new(module);
 
-    match path_resolver.resolve(def_maps, path.clone()) {
+    match path_resolver.resolve(def_maps, path.clone(), &mut None) {
         Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), error }) => {
             Ok((trait_id, error))
         }

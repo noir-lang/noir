@@ -214,7 +214,7 @@ pub enum QuotedType {
     Quoted,
     TopLevelItem,
     Type,
-    TypeDefinition,
+    StructDefinition,
 }
 
 /// A list of TypeVariableIds to bind to a type. Storing the
@@ -663,6 +663,10 @@ impl Type {
 
     pub fn is_bool(&self) -> bool {
         matches!(self.follow_bindings(), Type::Bool)
+    }
+
+    pub fn is_integer(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Integer(_, _))
     }
 
     pub fn is_signed(&self) -> bool {
@@ -1176,7 +1180,7 @@ impl std::fmt::Display for QuotedType {
             QuotedType::Quoted => write!(f, "Quoted"),
             QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
             QuotedType::Type => write!(f, "Type"),
-            QuotedType::TypeDefinition => write!(f, "TypeDefinition"),
+            QuotedType::StructDefinition => write!(f, "StructDefinition"),
         }
     }
 }

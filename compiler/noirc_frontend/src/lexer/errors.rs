@@ -15,6 +15,8 @@ pub enum LexerErrorKind {
     NotADoubleChar { span: Span, found: Token },
     #[error("Invalid integer literal, {:?} is not a integer", found)]
     InvalidIntegerLiteral { span: Span, found: String },
+    #[error("Integer literal is too large")]
+    IntegerLiteralTooLarge { span: Span, limit: String },
     #[error("{:?} is not a valid attribute", found)]
     MalformedFuncAttribute { span: Span, found: String },
     #[error("Logical and used instead of bitwise and")]
@@ -46,6 +48,7 @@ impl LexerErrorKind {
             LexerErrorKind::UnexpectedCharacter { span, .. } => *span,
             LexerErrorKind::NotADoubleChar { span, .. } => *span,
             LexerErrorKind::InvalidIntegerLiteral { span, .. } => *span,
+            LexerErrorKind::IntegerLiteralTooLarge { span, .. } => *span,
             LexerErrorKind::MalformedFuncAttribute { span, .. } => *span,
             LexerErrorKind::LogicalAnd { span } => *span,
             LexerErrorKind::UnterminatedBlockComment { span } => *span,
@@ -81,6 +84,11 @@ impl LexerErrorKind {
             LexerErrorKind::InvalidIntegerLiteral { span, found } => (
                 "Invalid integer literal".to_string(),
                 format!(" {found} is not an integer"),
+                *span,
+            ),
+            LexerErrorKind::IntegerLiteralTooLarge { span, limit } => (
+                "Integer literal is too large".to_string(),
+                format!("value exceeds limit of {limit}"),
                 *span,
             ),
             LexerErrorKind::MalformedFuncAttribute { span, found } => (
