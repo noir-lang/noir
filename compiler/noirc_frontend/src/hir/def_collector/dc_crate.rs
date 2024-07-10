@@ -412,17 +412,13 @@ impl DefCollector {
             }
         }
 
-        let handle_missing_file = |err| {
-            errors.push((CompilationError::DebugComptimeScopeNotFound(err), root_file_id));
-            None
-        };
-        let debug_comptime_in_file: Option<FileId> =
-            debug_comptime_in_file.and_then(|debug_comptime_in_file| {
-                context
-                    .file_manager
-                    .find_by_path_suffix(debug_comptime_in_file)
-                    .unwrap_or_else(handle_missing_file)
-            });
+        let debug_comptime_in_file = debug_comptime_in_file.and_then(|debug_comptime_in_file| {
+            let file = context.file_manager.find_by_path_suffix(debug_comptime_in_file);
+            file.unwrap_or_else(|error| {
+                errors.push((CompilationError::DebugComptimeScopeNotFound(error), root_file_id));
+                None
+            })
+        });
 
         if !use_legacy {
             let mut more_errors = Elaborator::elaborate(
@@ -432,6 +428,14 @@ impl DefCollector {
                 debug_comptime_in_file,
             );
             errors.append(&mut more_errors);
+
+            for macro_processor in macro_processors {
+                macro_processor.process_typed_ast(&crate_id, context).unwrap_or_else(
+                    |(macro_err, file_id)| {
+                        errors.push((macro_err.into(), file_id));
+                    },
+                );
+            }
             return errors;
         }
 
