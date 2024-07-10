@@ -180,44 +180,6 @@ Use `nargo info --print-acir`, to inspect the constraints, and it may present op
 When used incorrectly will create **less** efficient circuits (higher gate count).
 
 ## References
-### Guillaume's "Cryptdoku" [video](https://www.youtube.com/watch?v=MrQyzuogxgg) (June'23):
-
-Notes from the video:
-- ROM lookup is cheaper than RAM lookup
-	- 2 gates for ROM vs 3.25 for RAM due to range check (from slack)
-- Fixed indices vs dynamic
-- Arithmetic operations over bitwise logic and comparisons
-- Fields better
-- Compilation from code to circuit (constraints in a field), all values must be a field in the circuit
-- If summing fields, risk overflow, can sum n-bit numbers with n and number of additions guaranteed not to overflow. But priority is use fields wherever possible.
-
-1527 ACIR gates generated for solving sudoku
-
-Q: Any existing guidance in changing a Rust program to Noir?
-A: No.
-
-
-### Tom's Tips (Jun'24):
-
-```
-- Try to avoid mutating arrays at unknown (until runtime) indices as this turns ROM into RAM which is more expensive. In this case it's best to construct the final output in an unconstrained function and then assert that it's correct.
-- Unconstrained gud, so also useful in non-array settings if you can prove the result cheaply once you know it.
-- Bitwise operations are bad and should be avoided if possible (notable as devs tend to use bitwise ops in an attempt to optimise their code)
-- We do as much compile-time execution as we can so calling "expensive" functions with constant arguments isn't a major concern and developers shouldn't feel the need to create hardcoded constants.
-
-```
-
-+ Tip from Jake: `One way to avoid accessing arrays with runtime indices is putting a `assert_constant(my_index);` on the line before an array access so that you get a compile-time error if it is not constant`
-
-### Idiomatic Noir (from vlayer)
-
- [aritcle](https://www.vlayer.xyz/blog/idiomatic-noir-part-1-collections)
-
-### Tips and Tricks from Zac:
-
-1. Compute and Measure
-2. If loops are producing non-linear costs, investigate!
-3. Compute in unconstrained, validate in constrained functions
-  - Take care to not create invalid constraints
-4. Optimise for happy path using unconstrained functions
-5. If statements in loops where predicate not known at compile time are dangerous!
+- Guillaume's "Cryptdoku" [video](https://www.youtube.com/watch?v=MrQyzuogxgg) (Jun'23)
+- Tips from Tom, Jake and Zac.
+- [Idiomatic Noir](https://www.vlayer.xyz/blog/idiomatic-noir-part-1-collections) (from vlayer) 
