@@ -124,6 +124,10 @@ pub enum HirArrayLiteral {
 pub struct HirPrefixExpression {
     pub operator: UnaryOp,
     pub rhs: ExprId,
+
+    /// The trait method id for the operator trait method that corresponds to this operator,
+    /// if such a trait exists (for example, there's no trait for the dereference operator).
+    pub trait_method_id: Option<TraitMethodId>,
 }
 
 #[derive(Debug, Clone)]

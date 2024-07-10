@@ -1,5 +1,6 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
+    fmt::Display,
     rc::Rc,
 };
 
@@ -157,6 +158,9 @@ pub struct Elaborator<'context> {
     /// up all currently visible definitions. The first scope is always the global scope.
     comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
+    /// The scope of --debug-comptime, or None if unset
+    debug_comptime_in_file: Option<FileId>,
+
     /// These are the globals that have yet to be elaborated.
     /// This map is used to lazily evaluate these globals if they're encountered before
     /// they are elaborated (e.g. in a function's type or another global's RHS).
@@ -178,7 +182,11 @@ struct FunctionContext {
 }
 
 impl<'context> Elaborator<'context> {
-    pub fn new(context: &'context mut Context, crate_id: CrateId) -> Self {
+    pub fn new(
+        context: &'context mut Context,
+        crate_id: CrateId,
+        debug_comptime_in_file: Option<FileId>,
+    ) -> Self {
         Self {
             scopes: ScopeForest::default(),
             errors: Vec::new(),
@@ -198,6 +206,7 @@ impl<'context> Elaborator<'context> {
             function_context: vec![FunctionContext::default()],
             current_trait_impl: None,
             comptime_scopes: vec![HashMap::default()],
+            debug_comptime_in_file,
             unresolved_globals: BTreeMap::new(),
         }
     }
@@ -206,8 +215,9 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         items: CollectedItems,
+        debug_comptime_in_file: Option<FileId>,
     ) -> Vec<(CompilationError, FileId)> {
-        let mut this = Self::new(context, crate_id);
+        let mut this = Self::new(context, crate_id, debug_comptime_in_file);
 
         // Filter out comptime items to execute their functions first if needed.
         // This step is why comptime items can only refer to other comptime items
@@ -1191,6 +1201,7 @@ impl<'context> Elaborator<'context> {
             let span = typ.struct_def.span;
 
             let fields = self.resolve_struct_fields(typ.struct_def, type_id);
+            let fields_len = fields.len();
             self.interner.update_struct(type_id, |struct_def| {
                 struct_def.set_fields(fields);
 
@@ -1216,6 +1227,11 @@ impl<'context> Elaborator<'context> {
                     }
                 }
             });
+
+            for field_index in 0..fields_len {
+                self.interner
+                    .add_definition_location(ReferenceId::StructMember(type_id, field_index));
+            }
 
             self.run_comptime_attributes_on_struct(attributes, type_id, span, &mut generated_items);
         }
@@ -1276,15 +1292,15 @@ impl<'context> Elaborator<'context> {
         let DefinitionKind::Function(function) = definition.kind else {
             return Err((ResolverError::NonFunctionInAnnotation { span }.into(), self.file));
         };
-        let mut interpreter =
-            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
-
         let location = Location::new(span, self.file);
+        let mut interpreter_errors = vec![];
+        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
         let arguments = vec![(Value::StructDefinition(struct_id), location)];
 
         let value = interpreter
             .call_function(function, arguments, TypeBindings::new(), location)
             .map_err(|error| error.into_compilation_error_pair())?;
+        self.include_interpreter_errors(interpreter_errors);
 
         if value != Value::Unit {
             let items = value
@@ -1365,9 +1381,8 @@ impl<'context> Elaborator<'context> {
         let global = self.interner.get_global(global_id);
         let definition_id = global.definition_id;
         let location = global.location;
-
-        let mut interpreter =
-            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
+        let mut interpreter_errors = vec![];
+        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
 
         if let Err(error) = interpreter.evaluate_let(let_statement) {
             self.errors.push(error.into_compilation_error_pair());
@@ -1376,8 +1391,13 @@ impl<'context> Elaborator<'context> {
                 .lookup_id(definition_id, location)
                 .expect("The global should be defined since evaluate_let did not error");
 
+            self.debug_comptime(location, |interner| {
+                interner.get_global(global_id).let_statement.to_display_ast(interner).kind
+            });
+
             self.interner.get_global_mut(global_id).value = Some(value);
         }
+        self.include_interpreter_errors(interpreter_errors);
     }
 
     fn define_function_metas(
@@ -1471,6 +1491,10 @@ impl<'context> Elaborator<'context> {
                 this.define_function_meta(func, *id, false);
             });
         }
+    }
+
+    fn include_interpreter_errors(&mut self, errors: Vec<InterpreterError>) {
+        self.errors.extend(errors.into_iter().map(InterpreterError::into_compilation_error_pair));
     }
 
     /// True if we're currently within a `comptime` block, function, or global
@@ -1621,6 +1645,33 @@ impl<'context> Elaborator<'context> {
                     self.errors.push(error.into_compilation_error_pair());
                 }
             }
+        }
+    }
+
+    fn setup_interpreter<'a>(
+        &'a mut self,
+        interpreter_errors: &'a mut Vec<InterpreterError>,
+    ) -> Interpreter {
+        Interpreter::new(
+            self.interner,
+            &mut self.comptime_scopes,
+            self.crate_id,
+            self.debug_comptime_in_file,
+            interpreter_errors,
+        )
+    }
+
+    fn debug_comptime<T: Display, F: FnMut(&mut NodeInterner) -> T>(
+        &mut self,
+        location: Location,
+        mut expr_f: F,
+    ) {
+        if Some(location.file) == self.debug_comptime_in_file {
+            let displayed_expr = expr_f(self.interner);
+            self.errors.push((
+                InterpreterError::debug_evaluate_comptime(displayed_expr, location).into(),
+                location.file,
+            ));
         }
     }
 }

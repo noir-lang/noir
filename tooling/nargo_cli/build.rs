@@ -69,6 +69,7 @@ const IGNORED_NEW_FEATURE_TESTS: [&str; 9] = [
     "derive_impl",
     "comptime_traits",
     "comptime_slice_methods",
+    "unary_operator_overloading",
     "unquote_multiple_items_from_annotation",
     "regression_5428",
 ];

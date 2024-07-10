@@ -9,25 +9,25 @@ use crate::{
         UnresolvedTypeExpression,
     },
     hir::{
-        comptime::{self, Interpreter, InterpreterError},
+        comptime::{self, InterpreterError},
         resolution::{errors::ResolverError, resolver::LambdaContext},
         type_check::TypeCheckError,
     },
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirIfExpression, HirIndexExpression, HirInfixExpression,
-            HirLambda, HirMemberAccess, HirMethodCallExpression, HirMethodReference,
-            HirPrefixExpression,
+            HirConstructorExpression, HirExpression, HirIfExpression, HirIndexExpression,
+            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
+            HirMethodReference, HirPrefixExpression,
         },
         traits::TraitConstraint,
     },
     macros_api::{
-        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirExpression,
-        HirLiteral, HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
+        BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, HirLiteral,
+        HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
         MethodCallExpression, PrefixExpression,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId, ReferenceId},
+    node_interner::{DefinitionKind, ExprId, FuncId, ReferenceId, TraitMethodId},
     token::Tokens,
     QuotedType, Shared, StructType, Type,
 };
@@ -39,7 +39,7 @@ impl<'context> Elaborator<'context> {
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.span),
             ExpressionKind::Block(block) => self.elaborate_block(block),
-            ExpressionKind::Prefix(prefix) => self.elaborate_prefix(*prefix),
+            ExpressionKind::Prefix(prefix) => return self.elaborate_prefix(*prefix),
             ExpressionKind::Index(index) => self.elaborate_index(*index),
             ExpressionKind::Call(call) => self.elaborate_call(*call, expr.span),
             ExpressionKind::MethodCall(call) => self.elaborate_method_call(*call, expr.span),
@@ -227,11 +227,22 @@ impl<'context> Elaborator<'context> {
         (HirExpression::Literal(HirLiteral::FmtStr(str, fmt_str_idents)), typ)
     }
 
-    fn elaborate_prefix(&mut self, prefix: PrefixExpression) -> (HirExpression, Type) {
+    fn elaborate_prefix(&mut self, prefix: PrefixExpression) -> (ExprId, Type) {
         let span = prefix.rhs.span;
         let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
-        let ret_type = self.type_check_prefix_operand(&prefix.operator, &rhs_type, span);
-        (HirExpression::Prefix(HirPrefixExpression { operator: prefix.operator, rhs }), ret_type)
+        let trait_id = self.interner.get_prefix_operator_trait_method(&prefix.operator);
+
+        let operator = prefix.operator;
+        let expr =
+            HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id: trait_id });
+        let expr_id = self.interner.push_expr(expr);
+        self.interner.push_expr_location(expr_id, span, self.file);
+
+        let result = self.prefix_operand_type_rules(&operator, &rhs_type, span);
+        let typ = self.handle_operand_type_rules_result(result, &rhs_type, trait_id, expr_id, span);
+
+        self.interner.push_expr_type(expr_id, typ.clone());
+        (expr_id, typ)
     }
 
     fn elaborate_index(&mut self, index_expr: IndexExpression) -> (HirExpression, Type) {
@@ -440,8 +451,13 @@ impl<'context> Elaborator<'context> {
         let mut unseen_fields = struct_type.borrow().field_names();
 
         for (field_name, field) in fields {
-            let expected_type = field_types.iter().find(|(name, _)| name == &field_name.0.contents);
-            let expected_type = expected_type.map(|(_, typ)| typ).unwrap_or(&Type::Error);
+            let expected_field_with_index = field_types
+                .iter()
+                .enumerate()
+                .find(|(_, (name, _))| name == &field_name.0.contents);
+            let expected_index = expected_field_with_index.map(|(index, _)| index);
+            let expected_type =
+                expected_field_with_index.map(|(_, (_, typ))| typ).unwrap_or(&Type::Error);
 
             let field_span = field.span;
             let (resolved, field_type) = self.elaborate_expression(field);
@@ -468,6 +484,14 @@ impl<'context> Elaborator<'context> {
                 });
             }
 
+            if let Some(expected_index) = expected_index {
+                let struct_id = struct_type.borrow().id;
+                let referenced = ReferenceId::StructMember(struct_id, expected_index);
+                let reference =
+                    ReferenceId::Reference(Location::new(field_name.span(), self.file), false);
+                self.interner.add_reference(referenced, reference);
+            }
+
             ret.push((field_name, resolved));
         }
 
@@ -489,10 +513,11 @@ impl<'context> Elaborator<'context> {
     ) -> (ExprId, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(access.lhs);
         let rhs = access.rhs;
+        let rhs_span = rhs.span();
         // `is_offset` is only used when lhs is a reference and we want to return a reference to rhs
         let access = HirMemberAccess { lhs, rhs, is_offset: false };
         let expr_id = self.intern_expr(HirExpression::MemberAccess(access.clone()), span);
-        let typ = self.type_check_member_access(access, expr_id, lhs_type, span);
+        let typ = self.type_check_member_access(access, expr_id, lhs_type, rhs_span);
         self.interner.push_expr_type(expr_id, typ.clone());
         (expr_id, typ)
     }
@@ -527,19 +552,38 @@ impl<'context> Elaborator<'context> {
         let expr_id = self.interner.push_expr(expr);
         self.interner.push_expr_location(expr_id, span, self.file);
 
-        let typ = match self.infix_operand_type_rules(&lhs_type, &operator, &rhs_type, span) {
+        let result = self.infix_operand_type_rules(&lhs_type, &operator, &rhs_type, span);
+        let typ =
+            self.handle_operand_type_rules_result(result, &lhs_type, Some(trait_id), expr_id, span);
+
+        self.interner.push_expr_type(expr_id, typ.clone());
+        (expr_id, typ)
+    }
+
+    fn handle_operand_type_rules_result(
+        &mut self,
+        result: Result<(Type, bool), TypeCheckError>,
+        operand_type: &Type,
+        trait_id: Option<TraitMethodId>,
+        expr_id: ExprId,
+        span: Span,
+    ) -> Type {
+        match result {
             Ok((typ, use_impl)) => {
                 if use_impl {
+                    let trait_id =
+                        trait_id.expect("ice: expected some trait_id when use_impl is true");
+
                     // Delay checking the trait constraint until the end of the function.
                     // Checking it now could bind an unbound type variable to any type
                     // that implements the trait.
                     let constraint = TraitConstraint {
-                        typ: lhs_type.clone(),
+                        typ: operand_type.clone(),
                         trait_id: trait_id.trait_id,
                         trait_generics: Vec::new(),
                     };
                     self.push_trait_constraint(constraint, expr_id);
-                    self.type_check_operator_method(expr_id, trait_id, &lhs_type, span);
+                    self.type_check_operator_method(expr_id, trait_id, operand_type, span);
                 }
                 typ
             }
@@ -547,10 +591,7 @@ impl<'context> Elaborator<'context> {
                 self.push_err(error);
                 Type::Error
             }
-        };
-
-        self.interner.push_expr_type(expr_id, typ.clone());
-        (expr_id, typ)
+        }
     }
 
     fn elaborate_if(&mut self, if_expr: IfExpression) -> (HirExpression, Type) {
@@ -660,12 +701,20 @@ impl<'context> Elaborator<'context> {
         // call is not yet solved for.
         self.function_context.push(Default::default());
         let (block, _typ) = self.elaborate_block_expression(block);
-        self.check_and_pop_function_context();
 
-        let mut interpreter =
-            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
+        self.check_and_pop_function_context();
+        let mut interpreter_errors = vec![];
+        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
         let value = interpreter.evaluate_block(block);
-        self.inline_comptime_value(value, span)
+        self.include_interpreter_errors(interpreter_errors);
+        let (id, typ) = self.inline_comptime_value(value, span);
+
+        let location = self.interner.id_location(id);
+        self.debug_comptime(location, |interner| {
+            interner.expression(&id).to_display_ast(interner, location.span).kind
+        });
+
+        (id, typ)
     }
 
     pub(super) fn inline_comptime_value(
@@ -736,9 +785,9 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        let mut interpreter =
-            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
-
+        let file = self.file;
+        let mut interpreter_errors = vec![];
+        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
         let mut comptime_args = Vec::new();
         let mut errors = Vec::new();
 
@@ -748,17 +797,19 @@ impl<'context> Elaborator<'context> {
                     let location = interpreter.interner.expr_location(&argument);
                     comptime_args.push((arg, location));
                 }
-                Err(error) => errors.push((error.into(), self.file)),
+                Err(error) => errors.push((error.into(), file)),
             }
         }
+
+        let bindings = interpreter.interner.get_instantiation_bindings(func).clone();
+        let result = interpreter.call_function(function, comptime_args, bindings, location);
+        self.include_interpreter_errors(interpreter_errors);
 
         if !errors.is_empty() {
             self.errors.append(&mut errors);
             return None;
         }
 
-        let bindings = interpreter.interner.get_instantiation_bindings(func).clone();
-        let result = interpreter.call_function(function, comptime_args, bindings, location);
         let (expr_id, typ) = self.inline_comptime_value(result, location.span);
         Some((self.interner.expression(&expr_id), typ))
     }

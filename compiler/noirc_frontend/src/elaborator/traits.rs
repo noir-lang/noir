@@ -47,7 +47,8 @@ impl<'context> Elaborator<'context> {
             // the interner may set `interner.ordering_type` based on the result type
             // of the Cmp trait, if this is it.
             if self.crate_id.is_stdlib() {
-                self.interner.try_add_operator_trait(trait_id);
+                self.interner.try_add_infix_operator_trait(trait_id);
+                self.interner.try_add_prefix_operator_trait(trait_id);
             }
         }
     }
