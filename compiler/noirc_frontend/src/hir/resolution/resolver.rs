@@ -17,7 +17,7 @@ use crate::hir_def::expr::{
     HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCapturedVar,
     HirCastExpression, HirConstructorExpression, HirExpression, HirIdent, HirIfExpression,
     HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess,
-    HirMethodCallExpression, HirPrefixExpression, HirQuoted, ImplKind,
+    HirMethodCallExpression, HirPrefixExpression, ImplKind,
 };
 
 use crate::hir_def::function::FunctionBody;
@@ -32,8 +32,9 @@ use crate::ast::{
     ArrayLiteral, BinaryOpKind, BlockExpression, Expression, ExpressionKind, ForRange,
     FunctionDefinition, FunctionKind, FunctionReturnType, Ident, ItemVisibility, LValue,
     LetStatement, Literal, NoirFunction, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
-    Statement, StatementKind, TraitBound, UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint,
-    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+    Statement, StatementKind, TraitBound, UnaryOp, UnresolvedGeneric, UnresolvedGenerics,
+    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    Visibility, ERROR_IDENT,
 };
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
@@ -47,7 +48,10 @@ use crate::node_interner::{
     DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
     StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
 };
-use crate::{Generics, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind};
+use crate::{
+    GenericTypeVars, Generics, Kind, ResolvedGeneric, Shared, StructType, Type, TypeAlias,
+    TypeVariable, TypeVariableKind,
+};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
@@ -131,7 +135,7 @@ pub struct Resolver<'a> {
     /// unique type variables if we're resolving a struct. Empty otherwise.
     /// This is a Vec rather than a map to preserve the order a functions generics
     /// were declared in.
-    generics: Vec<(Rc<String>, TypeVariable, Span)>,
+    generics: Vec<ResolvedGeneric>,
 
     /// When resolving lambda expressions, we need to keep track of the variables
     /// that are captured. We do this in order to create the hidden environment
@@ -223,7 +227,8 @@ impl<'a> Resolver<'a> {
                 let mut new_generic_ident: Ident =
                     format!("T{}_impl_{}", func_id, path.as_string()).into();
                 let mut new_generic_path = Path::from_ident(new_generic_ident.clone());
-                while impl_trait_generics.contains(&new_generic_ident)
+                let new_generic = UnresolvedGeneric::from(new_generic_ident.clone());
+                while impl_trait_generics.contains(&new_generic)
                     || self.lookup_generic_or_global_type(&new_generic_path).is_some()
                 {
                     new_generic_ident =
@@ -231,7 +236,7 @@ impl<'a> Resolver<'a> {
                     new_generic_path = Path::from_ident(new_generic_ident.clone());
                     counter += 1;
                 }
-                impl_trait_generics.insert(new_generic_ident.clone());
+                impl_trait_generics.insert(UnresolvedGeneric::from(new_generic_ident.clone()));
 
                 let is_synthesized = true;
                 let new_generic_type_data =
@@ -249,7 +254,7 @@ impl<'a> Resolver<'a> {
                 };
 
                 parameter.typ.typ = new_generic_type_data;
-                func.def.generics.push(new_generic_ident);
+                func.def.generics.push(new_generic_ident.into());
                 func.def.where_clause.push(new_trait_constraint);
             }
         }
@@ -394,8 +399,8 @@ impl<'a> Resolver<'a> {
         }
 
         let location = Location::new(name.span(), self.file);
-        let id =
-            self.interner.push_definition(name.0.contents.clone(), mutable, definition, location);
+        let var_name = name.0.contents.clone();
+        let id = self.interner.push_definition(var_name, mutable, false, definition, location);
         let ident = HirIdent::non_trait_method(id, location);
         let resolver_meta =
             ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused };
@@ -440,8 +445,8 @@ impl<'a> Resolver<'a> {
             (hir_ident, resolver_meta)
         } else {
             let location = Location::new(name.span(), self.file);
-            let id =
-                self.interner.push_definition(name.0.contents.clone(), false, definition, location);
+            let var_name = name.0.contents.clone();
+            let id = self.interner.push_definition(var_name, false, false, definition, location);
             let ident = HirIdent::non_trait_method(id, location);
             let resolver_meta =
                 ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused: true };
@@ -591,7 +596,7 @@ impl<'a> Resolver<'a> {
                 let env = Box::new(self.resolve_type_inner(*env));
 
                 match *env {
-                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
+                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _, _) => {
                         Type::Function(args, ret, env)
                     }
                     _ => {
@@ -607,6 +612,7 @@ impl<'a> Resolver<'a> {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element)))
             }
             Parenthesized(typ) => self.resolve_type_inner(*typ),
+            Resolved(id) => self.interner.get_quoted_type(id).clone(),
         };
 
         if let Type::Struct(_, _) = resolved_type {
@@ -621,8 +627,8 @@ impl<'a> Resolver<'a> {
         resolved_type
     }
 
-    fn find_generic(&self, target_name: &str) -> Option<&(Rc<String>, TypeVariable, Span)> {
-        self.generics.iter().find(|(name, _, _)| name.as_ref() == target_name)
+    fn find_generic(&self, target_name: &str) -> Option<&ResolvedGeneric> {
+        self.generics.iter().find(|generic| generic.name.as_ref() == target_name)
     }
 
     fn resolve_named_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
@@ -747,13 +753,19 @@ impl<'a> Resolver<'a> {
     fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = &path.last_segment().0.contents;
-            if let Some((name, var, _)) = self.find_generic(name) {
-                return Some(Type::NamedGeneric(var.clone(), name.clone()));
-            }
+            if let Some(generic) = self.find_generic(name) {
+                // We always insert a `TypeKind::Normal` as we do not support explicit numeric generics
+                // in the resolver
+                return Some(Type::NamedGeneric(
+                    generic.type_var.clone(),
+                    generic.name.clone(),
+                    Kind::Normal,
+                ));
+            };
         }
 
         // If we cannot find a local generic of the same name, try to look up a global
-        match self.path_resolver.resolve(self.def_maps, path.clone()) {
+        match self.path_resolver.resolve(self.def_maps, path.clone(), &mut None) {
             Ok(PathResolution { module_def_id: ModuleDefId::GlobalId(id), error }) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
@@ -848,14 +860,14 @@ impl<'a> Resolver<'a> {
     /// Return the current generics.
     /// Needed to keep referring to the same type variables across many
     /// methods in a single impl.
-    pub fn get_generics(&self) -> &[(Rc<String>, TypeVariable, Span)] {
+    pub fn get_generics(&self) -> &[ResolvedGeneric] {
         &self.generics
     }
 
     /// Set the current generics that are in scope.
     /// Unlike add_generics, this function will not create any new type variables,
     /// opting to reuse the existing ones it is directly given.
-    pub fn set_generics(&mut self, generics: Vec<(Rc<String>, TypeVariable, Span)>) {
+    pub fn set_generics(&mut self, generics: Vec<ResolvedGeneric>) {
         self.generics = generics;
     }
 
@@ -875,48 +887,79 @@ impl<'a> Resolver<'a> {
             // Map the generic to a fresh type variable
             let id = self.interner.next_type_variable_id();
             let typevar = TypeVariable::unbound(id);
-            let span = generic.0.span();
+            let ident = generic.ident();
+            let span = ident.0.span();
 
             // Check for name collisions of this generic
-            let name = Rc::new(generic.0.contents.clone());
+            let name = Rc::new(ident.0.contents.clone());
 
-            if let Some((_, _, first_span)) = self.find_generic(&name) {
+            let resolved_generic = ResolvedGeneric {
+                name: name.clone(),
+                type_var: typevar,
+                // We only support numeric generics in the elaborator
+                kind: Kind::Normal,
+                span,
+            };
+            if let Some(generic) = self.find_generic(&name) {
                 self.errors.push(ResolverError::DuplicateDefinition {
-                    name: generic.0.contents.clone(),
-                    first_span: *first_span,
+                    name: ident.0.contents.clone(),
+                    first_span: generic.span,
                     second_span: span,
                 });
             } else {
-                self.generics.push((name, typevar.clone(), span));
+                self.generics.push(resolved_generic.clone());
             }
 
-            typevar
+            resolved_generic
         })
     }
 
     /// Add the given existing generics to scope.
     /// This is useful for adding the same generics to many items. E.g. apply impl generics
     /// to each function in the impl or trait generics to each item in the trait.
-    pub fn add_existing_generics(&mut self, names: &UnresolvedGenerics, generics: &Generics) {
-        assert_eq!(names.len(), generics.len());
+    pub fn add_existing_generics(
+        &mut self,
+        unresolved_generics: &UnresolvedGenerics,
+        generics: &GenericTypeVars,
+    ) {
+        assert_eq!(unresolved_generics.len(), generics.len());
 
-        for (name, typevar) in names.iter().zip(generics) {
-            self.add_existing_generic(&name.0.contents, name.0.span(), typevar.clone());
+        for (unresolved_generic, typevar) in unresolved_generics.iter().zip(generics) {
+            self.add_existing_generic(
+                unresolved_generic,
+                unresolved_generic.span(),
+                typevar.clone(),
+            );
         }
     }
 
-    pub fn add_existing_generic(&mut self, name: &str, span: Span, typevar: TypeVariable) {
-        // Check for name collisions of this generic
-        let rc_name = Rc::new(name.to_owned());
+    pub fn add_existing_generic(
+        &mut self,
+        unresolved_generic: &UnresolvedGeneric,
+        span: Span,
+        typevar: TypeVariable,
+    ) {
+        let name = &unresolved_generic.ident().0.contents;
 
-        if let Some((_, _, first_span)) = self.find_generic(&rc_name) {
+        // Check for name collisions of this generic
+        let rc_name = Rc::new(name.clone());
+
+        if let Some(generic) = self.find_generic(&rc_name) {
             self.errors.push(ResolverError::DuplicateDefinition {
-                name: name.to_owned(),
-                first_span: *first_span,
+                name: name.clone(),
+                first_span: generic.span,
                 second_span: span,
             });
         } else {
-            self.generics.push((rc_name, typevar, span));
+            let resolved_generic = ResolvedGeneric {
+                name: rc_name,
+                type_var: typevar.clone(),
+                kind: unresolved_generic
+                    .kind()
+                    .expect("ICE: Deprecated code should only support normal kinds"),
+                span,
+            };
+            self.generics.push(resolved_generic);
         }
     }
 
@@ -992,7 +1035,7 @@ impl<'a> Resolver<'a> {
         // indicate we should code generate in the same way. Thus, we unify the attributes into one flag here.
         let has_inline_attribute = has_no_predicates_attribute || should_fold;
 
-        let generics = vecmap(&self.generics, |(_, typevar, _)| typevar.clone());
+        let generics = vecmap(&self.generics, |generic| generic.type_var.clone());
         let mut parameters = vec![];
         let mut parameter_types = vec![];
 
@@ -1053,8 +1096,7 @@ impl<'a> Resolver<'a> {
 
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
-            .filter_map(|generic| self.find_generic(&generic.0.contents))
-            .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
+            .filter_map(|generic| self.find_generic(&generic.ident().0.contents).cloned())
             .collect();
 
         FuncMeta {
@@ -1071,6 +1113,7 @@ impl<'a> Resolver<'a> {
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
             is_entry_point: self.is_entry_point_function(func),
             has_inline_attribute,
+            source_crate: self.path_resolver.module_id().krate,
 
             // These fields are only used by the elaborator
             all_generics: Vec::new(),
@@ -1107,6 +1150,7 @@ impl<'a> Resolver<'a> {
         !func.def.is_unconstrained
     }
 
+    // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this method in favor of explicit numeric generics
     fn declare_numeric_generics(&mut self, params: &[Type], return_type: &Type) {
         if self.generics.is_empty() {
             return;
@@ -1119,12 +1163,12 @@ impl<'a> Resolver<'a> {
             // We can fail to find the generic in self.generics if it is an implicit one created
             // by the compiler. This can happen when, e.g. eliding array lengths using the slice
             // syntax [T].
-            if let Some((name, _, span)) =
-                self.generics.iter().find(|(name, _, _)| name.as_ref() == &name_to_find)
+            if let Some(ResolvedGeneric { name, span, .. }) =
+                self.generics.iter().find(|generic| generic.name.as_ref() == &name_to_find)
             {
                 let ident = Ident::new(name.to_string(), *span);
                 let definition = DefinitionKind::GenericType(type_variable);
-                self.add_variable_decl_inner(ident, false, false, false, definition);
+                self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
             }
         }
     }
@@ -1150,7 +1194,7 @@ impl<'a> Resolver<'a> {
             | Type::Error
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
-            | Type::NamedGeneric(_, _)
+            | Type::NamedGeneric(_, _, _)
             | Type::Quoted(_)
             | Type::Forall(_, _) => (),
 
@@ -1161,7 +1205,7 @@ impl<'a> Resolver<'a> {
             }
 
             Type::Array(length, element_type) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                if let Type::NamedGeneric(type_variable, name, _) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
                 Self::find_numeric_generics_in_type(element_type, found);
@@ -1186,7 +1230,7 @@ impl<'a> Resolver<'a> {
 
             Type::Struct(struct_type, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
+                    if let Type::NamedGeneric(type_variable, name, _) = generic {
                         if struct_type.borrow().generic_is_numeric(i) {
                             found.insert(name.to_string(), type_variable.clone());
                         }
@@ -1197,7 +1241,7 @@ impl<'a> Resolver<'a> {
             }
             Type::Alias(alias, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
+                    if let Type::NamedGeneric(type_variable, name, _) = generic {
                         if alias.borrow().generic_is_numeric(i) {
                             found.insert(name.to_string(), type_variable.clone());
                         }
@@ -1208,12 +1252,12 @@ impl<'a> Resolver<'a> {
             }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
             Type::String(length) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                if let Type::NamedGeneric(type_variable, name, _) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
             }
             Type::FmtString(length, fields) => {
-                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                if let Type::NamedGeneric(type_variable, name, _) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
                 Self::find_numeric_generics_in_type(fields, found);
@@ -1467,7 +1511,7 @@ impl<'a> Resolver<'a> {
                     // Otherwise, then it is referring to an Identifier
                     // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
                     // If the expression is a singular indent, we search the resolver's current scope as normal.
-                    let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
+                    let (hir_ident, var_scope_index) = self.get_ident_from_path(path.clone());
 
                     if hir_ident.id != DefinitionId::dummy_id() {
                         match self.interner.definition(hir_ident.id).kind {
@@ -1504,6 +1548,7 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Prefix(prefix) => {
                 let operator = prefix.operator;
                 let rhs = self.resolve_expression(prefix.rhs);
+                let trait_method_id = self.interner.get_prefix_operator_trait_method(&operator);
 
                 if operator == UnaryOp::MutableReference {
                     if let Err(error) = verify_mutable_reference(self.interner, rhs) {
@@ -1511,7 +1556,7 @@ impl<'a> Resolver<'a> {
                     }
                 }
 
-                HirExpression::Prefix(HirPrefixExpression { operator, rhs })
+                HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id })
             }
             ExpressionKind::Infix(infix) => {
                 let lhs = self.resolve_expression(infix.lhs);
@@ -1634,10 +1679,7 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Parenthesized(sub_expr) => return self.resolve_expression(*sub_expr),
 
             // The quoted expression isn't resolved since we don't want errors if variables aren't defined
-            ExpressionKind::Quote(block, _) => {
-                let quoted = HirQuoted { quoted_block: block, unquoted_exprs: Vec::new() };
-                HirExpression::Quote(quoted)
-            }
+            ExpressionKind::Quote(block) => HirExpression::Quote(block),
             ExpressionKind::Comptime(block, _) => {
                 HirExpression::Comptime(self.resolve_block(block))
             }
@@ -1647,9 +1689,6 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Unquote(_) => {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
                 HirExpression::Literal(HirLiteral::Unit)
-            }
-            ExpressionKind::UnquoteMarker(index) => {
-                unreachable!("UnquoteMarker({index}) remaining in runtime code")
             }
         };
 
@@ -1880,7 +1919,9 @@ impl<'a> Resolver<'a> {
 
                 let constraint = TraitConstraint {
                     typ: self.self_type.clone()?,
-                    trait_generics: Type::from_generics(&the_trait.generics),
+                    trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| {
+                        generic.type_var.clone()
+                    })),
                     trait_id,
                 };
                 return Some((method, constraint, false));
@@ -1908,7 +1949,9 @@ impl<'a> Resolver<'a> {
                     the_trait.self_type_typevar.clone(),
                     TypeVariableKind::Normal,
                 ),
-                trait_generics: Type::from_generics(&the_trait.generics),
+                trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| {
+                    generic.type_var.clone()
+                })),
                 trait_id,
             };
             return Some((method, constraint, false));
@@ -1974,7 +2017,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
-        let path_resolution = self.path_resolver.resolve(self.def_maps, path)?;
+        let path_resolution = self.path_resolver.resolve(self.def_maps, path, &mut None)?;
 
         if let Some(error) = path_resolution.error {
             self.push_err(error.into());

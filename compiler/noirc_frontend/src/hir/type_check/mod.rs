@@ -11,7 +11,7 @@ mod errors;
 mod expr;
 mod stmt;
 
-pub use errors::TypeCheckError;
+pub use errors::{NoMatchingImplFoundError, TypeCheckError};
 use noirc_errors::Span;
 
 use crate::{
@@ -22,7 +22,7 @@ use crate::{
         traits::TraitConstraint,
     },
     node_interner::{ExprId, FuncId, GlobalId, NodeInterner},
-    Type, TypeBindings,
+    Kind, ResolvedGeneric, Type, TypeBindings,
 };
 
 pub use self::errors::Source;
@@ -263,7 +263,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 
     // Substitute each generic on the trait with the corresponding generic on the impl
     for (generic, arg) in trait_info.generics.iter().zip(&impl_.trait_generics) {
-        bindings.insert(generic.id(), (generic.clone(), arg.clone()));
+        bindings.insert(generic.type_var.id(), (generic.type_var.clone(), arg.clone()));
     }
 
     // If this is None, the trait does not have the corresponding function.
@@ -281,10 +281,12 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         }
 
         // Substitute each generic on the trait function with the corresponding generic on the impl function
-        for ((_, trait_fn_generic), (name, impl_fn_generic)) in
-            trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
+        for (
+            ResolvedGeneric { type_var: trait_fn_generic, .. },
+            ResolvedGeneric { name, type_var: impl_fn_generic, .. },
+        ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
-            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
+            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone(), Kind::Normal);
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), arg));
         }
 
@@ -461,7 +463,9 @@ pub mod test {
         function::{FuncMeta, HirFunction},
         stmt::HirStatement,
     };
-    use crate::node_interner::{DefinitionKind, FuncId, NodeInterner, TraitId, TraitMethodId};
+    use crate::node_interner::{
+        DefinitionKind, FuncId, NodeInterner, ReferenceId, TraitId, TraitMethodId,
+    };
     use crate::{
         hir::{
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -483,19 +487,34 @@ pub mod test {
         // let z = x + y;
         //
         // Push x variable
-        let x_id =
-            interner.push_definition("x".into(), false, DefinitionKind::Local(None), location);
+        let x_id = interner.push_definition(
+            "x".into(),
+            false,
+            false,
+            DefinitionKind::Local(None),
+            location,
+        );
 
         let x = HirIdent::non_trait_method(x_id, location);
 
         // Push y variable
-        let y_id =
-            interner.push_definition("y".into(), false, DefinitionKind::Local(None), location);
+        let y_id = interner.push_definition(
+            "y".into(),
+            false,
+            false,
+            DefinitionKind::Local(None),
+            location,
+        );
         let y = HirIdent::non_trait_method(y_id, location);
 
         // Push z variable
-        let z_id =
-            interner.push_definition("z".into(), false, DefinitionKind::Local(None), location);
+        let z_id = interner.push_definition(
+            "z".into(),
+            false,
+            false,
+            DefinitionKind::Local(None),
+            location,
+        );
         let z = HirIdent::non_trait_method(z_id, location);
 
         // Push x and y as expressions
@@ -531,7 +550,7 @@ pub mod test {
         let func_id = interner.push_fn(func);
 
         let definition = DefinitionKind::Local(None);
-        let id = interner.push_definition("test_func".into(), false, definition, location);
+        let id = interner.push_definition("test_func".into(), false, false, definition, location);
         let name = HirIdent::non_trait_method(id, location);
 
         // Add function meta
@@ -561,6 +580,7 @@ pub mod test {
             all_generics: Vec::new(),
             parameter_idents: Vec::new(),
             function_body: FunctionBody::Resolved,
+            source_crate: CrateId::dummy_id(),
         };
         interner.push_fn_meta(func_meta, func_id);
 
@@ -676,6 +696,7 @@ pub mod test {
             &self,
             _def_maps: &BTreeMap<CrateId, CrateDefMap>,
             path: Path,
+            _path_references: &mut Option<&mut Vec<ReferenceId>>,
         ) -> PathResolutionResult {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();
@@ -716,13 +737,15 @@ pub mod test {
         let mut interner = NodeInterner::default();
         interner.populate_dummy_operator_traits();
 
-        assert_eq!(
-            errors.len(),
-            0,
-            "expected 0 parser errors, but got {}, errors: {:?}",
-            errors.len(),
-            errors
-        );
+        if !errors.iter().all(|error| error.is_warning()) {
+            assert_eq!(
+                errors.len(),
+                0,
+                "expected 0 parser errors, but got {}, errors: {:?}",
+                errors.len(),
+                errors
+            );
+        }
 
         let func_ids = btree_map(&func_namespace, |name| {
             (name.to_string(), interner.push_test_function_definition(name.into()))

@@ -5,9 +5,11 @@ use crate::ast::{
     Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
+use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::macros_api::StructId;
 use crate::node_interner::ExprId;
-use crate::token::{Attributes, Token};
+use crate::token::{Attributes, Token, Tokens};
+use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
@@ -33,17 +35,9 @@ pub enum ExpressionKind {
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
-    Quote(BlockExpression, Span),
+    Quote(Tokens),
     Unquote(Box<Expression>),
     Comptime(BlockExpression, Span),
-
-    /// Unquote expressions are replaced with UnquoteMarkers when Quoted
-    /// expressions are resolved. Since the expression being quoted remains an
-    /// ExpressionKind (rather than a resolved ExprId), the UnquoteMarker must be
-    /// here in the AST even though it is technically HIR-only.
-    /// Each usize in an UnquoteMarker is an index which corresponds to the index of the
-    /// expression in the Hir::Quote expression list to replace it with.
-    UnquoteMarker(usize),
 
     // This variant is only emitted when inlining the result of comptime
     // code. It is used to translate function values back into the AST while
@@ -54,7 +48,72 @@ pub enum ExpressionKind {
 
 /// A Vec of unresolved names for type variables.
 /// For `fn foo<A, B>(...)` this corresponds to vec!["A", "B"].
-pub type UnresolvedGenerics = Vec<Ident>;
+pub type UnresolvedGenerics = Vec<UnresolvedGeneric>;
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum UnresolvedGeneric {
+    Variable(Ident),
+    Numeric { ident: Ident, typ: UnresolvedType },
+}
+
+impl UnresolvedGeneric {
+    pub fn span(&self) -> Span {
+        match self {
+            UnresolvedGeneric::Variable(ident) => ident.0.span(),
+            UnresolvedGeneric::Numeric { ident, typ } => {
+                ident.0.span().merge(typ.span.unwrap_or_default())
+            }
+        }
+    }
+
+    pub fn kind(&self) -> Result<Kind, DefCollectorErrorKind> {
+        match self {
+            UnresolvedGeneric::Variable(_) => Ok(Kind::Normal),
+            UnresolvedGeneric::Numeric { typ, .. } => {
+                let typ = self.resolve_numeric_kind_type(typ)?;
+                Ok(Kind::Numeric(Box::new(typ)))
+            }
+        }
+    }
+
+    fn resolve_numeric_kind_type(
+        &self,
+        typ: &UnresolvedType,
+    ) -> Result<Type, DefCollectorErrorKind> {
+        use crate::ast::UnresolvedTypeData::{FieldElement, Integer};
+
+        match typ.typ {
+            FieldElement => Ok(Type::FieldElement),
+            Integer(sign, bits) => Ok(Type::Integer(sign, bits)),
+            // Only fields and integers are supported for numeric kinds
+            _ => Err(DefCollectorErrorKind::UnsupportedNumericGenericType {
+                ident: self.ident().clone(),
+                typ: typ.typ.clone(),
+            }),
+        }
+    }
+
+    pub(crate) fn ident(&self) -> &Ident {
+        match self {
+            UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } => ident,
+        }
+    }
+}
+
+impl Display for UnresolvedGeneric {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UnresolvedGeneric::Variable(ident) => write!(f, "{ident}"),
+            UnresolvedGeneric::Numeric { ident, typ } => write!(f, "let {ident}: {typ}"),
+        }
+    }
+}
+
+impl From<Ident> for UnresolvedGeneric {
+    fn from(value: Ident) -> Self {
+        UnresolvedGeneric::Variable(value)
+    }
+}
 
 impl ExpressionKind {
     pub fn into_path(self) -> Option<Path> {
@@ -129,23 +188,6 @@ impl ExpressionKind {
             fields,
             struct_type: None,
         }))
-    }
-
-    /// Returns true if the expression is a literal integer
-    pub fn is_integer(&self) -> bool {
-        self.as_integer().is_some()
-    }
-
-    fn as_integer(&self) -> Option<FieldElement> {
-        let literal = match self {
-            ExpressionKind::Literal(literal) => literal,
-            _ => return None,
-        };
-
-        match literal {
-            Literal::Integer(integer, _) => Some(*integer),
-            _ => None,
-        }
     }
 }
 
@@ -557,12 +599,14 @@ impl Display for ExpressionKind {
             }
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
-            Quote(block, _) => write!(f, "quote {block}"),
             Comptime(block, _) => write!(f, "comptime {block}"),
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),
             Unquote(expr) => write!(f, "$({expr})"),
-            UnquoteMarker(index) => write!(f, "${index}"),
+            Quote(tokens) => {
+                let tokens = vecmap(&tokens.0, ToString::to_string);
+                write!(f, "quote {{ {} }}", tokens.join(" "))
+            }
         }
     }
 }
@@ -763,22 +807,32 @@ impl Display for FunctionDefinition {
         writeln!(f, "{:?}", self.attributes)?;
 
         let parameters = vecmap(&self.parameters, |Param { visibility, pattern, typ, span: _ }| {
-            format!("{pattern}: {visibility} {typ}")
+            if *visibility == Visibility::Public {
+                format!("{pattern}: {visibility} {typ}")
+            } else {
+                format!("{pattern}: {typ}")
+            }
         });
 
         let where_clause = vecmap(&self.where_clause, ToString::to_string);
         let where_clause_str = if !where_clause.is_empty() {
-            format!("where {}", where_clause.join(", "))
+            format!(" where {}", where_clause.join(", "))
         } else {
             "".to_string()
         };
 
+        let return_type = if matches!(&self.return_type, FunctionReturnType::Default(_)) {
+            String::new()
+        } else {
+            format!(" -> {}", self.return_type)
+        };
+
         write!(
             f,
-            "fn {}({}) -> {} {} {}",
+            "fn {}({}){}{} {}",
             self.name,
             parameters.join(", "),
-            self.return_type,
+            return_type,
             where_clause_str,
             self.body
         )

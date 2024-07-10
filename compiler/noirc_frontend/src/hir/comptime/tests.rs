@@ -7,15 +7,24 @@ use noirc_errors::Location;
 use super::errors::InterpreterError;
 use super::interpreter::Interpreter;
 use super::value::Value;
+use crate::graph::CrateId;
 use crate::hir::type_check::test::type_check_src_code;
 
 fn interpret_helper(src: &str, func_namespace: Vec<String>) -> Result<Value, InterpreterError> {
     let (mut interner, main_id) = type_check_src_code(src, func_namespace);
     let mut scopes = vec![HashMap::default()];
-    let mut interpreter = Interpreter::new(&mut interner, &mut scopes);
+    let no_debug_evaluate_comptime = None;
+    let mut interpreter_errors = vec![];
+    let mut interpreter = Interpreter::new(
+        &mut interner,
+        &mut scopes,
+        CrateId::Root(0),
+        no_debug_evaluate_comptime,
+        &mut interpreter_errors,
+    );
 
     let no_location = Location::dummy();
-    interpreter.call_function(main_id, Vec::new(), no_location)
+    interpreter.call_function(main_id, Vec::new(), HashMap::new(), no_location)
 }
 
 fn interpret(src: &str, func_namespace: Vec<String>) -> Value {
@@ -30,14 +39,14 @@ fn interpret_expect_error(src: &str, func_namespace: Vec<String>) -> Interpreter
 
 #[test]
 fn interpreter_works() {
-    let program = "fn main() -> pub Field { 3 }";
+    let program = "comptime fn main() -> pub Field { 3 }";
     let result = interpret(program, vec!["main".into()]);
     assert_eq!(result, Value::Field(3u128.into()));
 }
 
 #[test]
 fn mutation_works() {
-    let program = "fn main() -> pub i8 {
+    let program = "comptime fn main() -> pub i8 {
         let mut x = 3;
         x = 4;
         x
@@ -48,7 +57,7 @@ fn mutation_works() {
 
 #[test]
 fn mutating_references() {
-    let program = "fn main() -> pub i32 {
+    let program = "comptime fn main() -> pub i32 {
         let x = &mut 3;
         *x = 4;
         *x
@@ -59,7 +68,7 @@ fn mutating_references() {
 
 #[test]
 fn mutating_mutable_references() {
-    let program = "fn main() -> pub i64 {
+    let program = "comptime fn main() -> pub i64 {
         let mut x = &mut 3;
         *x = 4;
         *x
@@ -70,7 +79,7 @@ fn mutating_mutable_references() {
 
 #[test]
 fn mutating_arrays() {
-    let program = "fn main() -> pub u8 {
+    let program = "comptime fn main() -> pub u8 {
         let mut a1 = [1, 2, 3, 4];
         a1[1] = 22;
         a1[1]
@@ -81,7 +90,7 @@ fn mutating_arrays() {
 
 #[test]
 fn mutate_in_new_scope() {
-    let program = "fn main() -> pub u8 {
+    let program = "comptime fn main() -> pub u8 {
         let mut x = 0;
         x += 1;
         {
@@ -95,7 +104,7 @@ fn mutate_in_new_scope() {
 
 #[test]
 fn for_loop() {
-    let program = "fn main() -> pub u8 {
+    let program = "comptime fn main() -> pub u8 {
         let mut x = 0;
         for i in 0 .. 6 {
             x += i;
@@ -108,7 +117,7 @@ fn for_loop() {
 
 #[test]
 fn for_loop_u16() {
-    let program = "fn main() -> pub u16 {
+    let program = "comptime fn main() -> pub u16 {
         let mut x = 0;
         for i in 0 .. 6 {
             x += i;
@@ -121,7 +130,7 @@ fn for_loop_u16() {
 
 #[test]
 fn for_loop_with_break() {
-    let program = "unconstrained fn main() -> pub u32 {
+    let program = "unconstrained comptime fn main() -> pub u32 {
         let mut x = 0;
         for i in 0 .. 6 {
             if i == 4 {
@@ -137,7 +146,7 @@ fn for_loop_with_break() {
 
 #[test]
 fn for_loop_with_continue() {
-    let program = "unconstrained fn main() -> pub u64 {
+    let program = "unconstrained comptime fn main() -> pub u64 {
         let mut x = 0;
         for i in 0 .. 6 {
             if i == 4 {
@@ -153,7 +162,7 @@ fn for_loop_with_continue() {
 
 #[test]
 fn assert() {
-    let program = "fn main() {
+    let program = "comptime fn main() {
         assert(1 == 1);
     }";
     let result = interpret(program, vec!["main".into()]);
@@ -162,7 +171,7 @@ fn assert() {
 
 #[test]
 fn assert_fail() {
-    let program = "fn main() {
+    let program = "comptime fn main() {
         assert(1 == 2);
     }";
     let result = interpret_expect_error(program, vec!["main".into()]);
@@ -171,7 +180,7 @@ fn assert_fail() {
 
 #[test]
 fn lambda() {
-    let program = "fn main() -> pub u8 {
+    let program = "comptime fn main() -> pub u8 {
         let f = |x: u8| x + 1;
         f(1)
     }";
@@ -182,11 +191,11 @@ fn lambda() {
 #[test]
 fn non_deterministic_recursion() {
     let program = "
-    fn main() -> pub u64 {
+    comptime fn main() -> pub u64 {
         fib(10)
     }
 
-    fn fib(x: u64) -> u64 {
+    comptime fn fib(x: u64) -> u64 {
         if x <= 1 {
             x
         } else {
@@ -195,4 +204,19 @@ fn non_deterministic_recursion() {
     }";
     let result = interpret(program, vec!["main".into(), "fib".into()]);
     assert_eq!(result, Value::U64(55));
+}
+
+#[test]
+fn generic_functions() {
+    let program = "
+    fn main() -> pub u8 {
+        apply(1, |x| x + 1)
+    }
+
+    fn apply<T, Env, U>(x: T, f: fn[Env](T) -> U) -> U {
+        f(x)
+    }
+    ";
+    let result = interpret(program, vec!["main".into(), "apply".into()]);
+    assert!(matches!(result, Value::U8(2)));
 }

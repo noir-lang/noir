@@ -91,8 +91,6 @@ pub(crate) struct BrilligContext<F> {
     next_section: usize,
     /// IR printer
     debug_show: DebugShow,
-    /// Counter for generating bigint ids in unconstrained functions
-    bigint_new_id: u32,
 }
 
 impl<F: AcirField + DebugToString> BrilligContext<F> {
@@ -105,15 +103,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
             section_label: 0,
             next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),
-            bigint_new_id: 0,
         }
     }
 
-    pub(crate) fn get_new_bigint_id(&mut self) -> u32 {
-        let result = self.bigint_new_id;
-        self.bigint_new_id += 1;
-        result
-    }
     /// Adds a brillig instruction to the brillig byte code
     fn push_opcode(&mut self, opcode: BrilligOpcode<F>) {
         self.obj.push_opcode(opcode);
@@ -158,7 +150,20 @@ pub(crate) mod tests {
         ) -> Result<bool, BlackBoxResolutionError> {
             Ok(true)
         }
-
+        fn pedersen_commitment(
+            &self,
+            _inputs: &[FieldElement],
+            _domain_separator: u32,
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            Ok((2_u128.into(), 3_u128.into()))
+        }
+        fn pedersen_hash(
+            &self,
+            _inputs: &[FieldElement],
+            _domain_separator: u32,
+        ) -> Result<FieldElement, BlackBoxResolutionError> {
+            Ok(6_u128.into())
+        }
         fn multi_scalar_mul(
             &self,
             _points: &[FieldElement],

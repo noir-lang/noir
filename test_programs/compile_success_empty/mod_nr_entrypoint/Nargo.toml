@@ -1,0 +1,7 @@
+[package]
+name = "mod_nr_entrypoint"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.29.0"
+
+[dependencies]

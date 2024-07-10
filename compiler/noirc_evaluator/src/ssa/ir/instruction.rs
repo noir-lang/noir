@@ -52,6 +52,7 @@ pub(crate) enum Intrinsic {
     ArrayLen,
     AsSlice,
     AssertConstant,
+    StaticAssert,
     SlicePushBack,
     SlicePushFront,
     SlicePopBack,
@@ -76,6 +77,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::ArrayLen => write!(f, "array_len"),
             Intrinsic::AsSlice => write!(f, "as_slice"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
+            Intrinsic::StaticAssert => write!(f, "static_assert"),
             Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
             Intrinsic::SlicePushFront => write!(f, "slice_push_front"),
             Intrinsic::SlicePopBack => write!(f, "slice_pop_back"),
@@ -104,9 +106,10 @@ impl Intrinsic {
     /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
     pub(crate) fn has_side_effects(&self) -> bool {
         match self {
-            Intrinsic::AssertConstant | Intrinsic::ApplyRangeConstraint | Intrinsic::AsWitness => {
-                true
-            }
+            Intrinsic::AssertConstant
+            | Intrinsic::StaticAssert
+            | Intrinsic::ApplyRangeConstraint
+            | Intrinsic::AsWitness => true,
 
             // These apply a constraint that the input must fit into a specified number of limbs.
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
@@ -142,6 +145,7 @@ impl Intrinsic {
             "array_len" => Some(Intrinsic::ArrayLen),
             "as_slice" => Some(Intrinsic::AsSlice),
             "assert_constant" => Some(Intrinsic::AssertConstant),
+            "static_assert" => Some(Intrinsic::StaticAssert),
             "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
             "slice_push_back" => Some(Intrinsic::SlicePushBack),
             "slice_push_front" => Some(Intrinsic::SlicePushFront),
@@ -284,24 +288,32 @@ impl Instruction {
     }
 
     /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
-    pub(crate) fn can_be_deduplicated(&self, dfg: &DataFlowGraph) -> bool {
+    /// If `deduplicate_with_predicate` is set, we assume we're deduplicating with the instruction
+    /// and its predicate, rather than just the instruction. Setting this means instructions that
+    /// rely on predicates can be deduplicated as well.
+    pub(crate) fn can_be_deduplicated(
+        &self,
+        dfg: &DataFlowGraph,
+        deduplicate_with_predicate: bool,
+    ) -> bool {
         use Instruction::*;
 
         match self {
             // These either have side-effects or interact with memory
-            Constrain(..)
-            | EnableSideEffects { .. }
+            EnableSideEffects { .. }
             | Allocate
             | Load { .. }
             | Store { .. }
             | IncrementRc { .. }
-            | DecrementRc { .. }
-            | RangeCheck { .. } => false,
+            | DecrementRc { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
                 _ => false,
             },
+
+            // We can deduplicate these instructions if we know the predicate is also the same.
+            Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
 
             // These can have different behavior depending on the EnableSideEffectsIf context.
             // Replacing them with a similar instruction potentially enables replacing an instruction
@@ -313,7 +325,9 @@ impl Instruction {
             | Truncate { .. }
             | IfElse { .. }
             | ArrayGet { .. }
-            | ArraySet { .. } => !self.requires_acir_gen_predicate(dfg),
+            | ArraySet { .. } => {
+                deduplicate_with_predicate || !self.requires_acir_gen_predicate(dfg)
+            }
         }
     }
 
@@ -368,16 +382,24 @@ impl Instruction {
     }
 
     /// If true the instruction will depends on enable_side_effects context during acir-gen
-    fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
             Instruction::Binary(binary)
                 if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) =>
             {
                 true
             }
-            Instruction::EnableSideEffects { .. }
-            | Instruction::ArrayGet { .. }
-            | Instruction::ArraySet { .. } => true,
+
+            // `ArrayGet`s which read from "known good" indices from an array don't need a predicate.
+            Instruction::ArrayGet { array, index } => {
+                #[allow(clippy::match_like_matches_macro)]
+                match (dfg.type_of_value(*array), dfg.get_numeric_constant(*index)) {
+                    (Type::Array(_, len), Some(index)) if index.to_u128() < (len as u128) => false,
+                    _ => true,
+                }
+            }
+
+            Instruction::EnableSideEffects { .. } | Instruction::ArraySet { .. } => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(_) => true,

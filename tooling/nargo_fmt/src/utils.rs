@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::items::HasItem;
 use crate::rewrite;
 use crate::visitor::{FmtVisitor, Shape};
-use noirc_frontend::ast::{Expression, Ident, Param, Visibility};
+use noirc_frontend::ast::{Expression, Ident, Param, UnresolvedGeneric, Visibility};
 use noirc_frontend::hir::resolution::errors::Span;
 use noirc_frontend::lexer::Lexer;
 use noirc_frontend::token::Token;
@@ -80,6 +80,7 @@ pub(crate) fn find_comment_end(slice: &str, is_last: bool) -> usize {
                 std::cmp::max(find_comment_end(slice) + block, separator_index + 1)
             }
             (_, Some(newline)) if newline > separator_index => newline + 1,
+            (None, None) => 0,
             _ => slice.len(),
         }
     } else if let Some(newline_index) = newline_index {
@@ -167,6 +168,26 @@ impl HasItem for Ident {
 
     fn format(self, visitor: &FmtVisitor, _shape: Shape) -> String {
         visitor.slice(self.span()).into()
+    }
+}
+
+impl HasItem for UnresolvedGeneric {
+    fn span(&self) -> Span {
+        self.span()
+    }
+
+    fn format(self, visitor: &FmtVisitor, _shape: Shape) -> String {
+        match self {
+            UnresolvedGeneric::Variable(_) => visitor.slice(self.span()).into(),
+            UnresolvedGeneric::Numeric { ident, typ } => {
+                let mut result = "".to_owned();
+                result.push_str(&ident.0.contents);
+                result.push_str(": ");
+                let typ = rewrite::typ(visitor, _shape, typ);
+                result.push_str(&typ);
+                result
+            }
+        }
     }
 }
 

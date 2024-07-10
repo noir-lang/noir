@@ -137,6 +137,39 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                 )
             }
         }
+
+        BlackBoxFunc::PedersenCommitment => {
+            if let (
+                [message, BrilligVariable::SingleAddr(domain_separator)],
+                [BrilligVariable::BrilligArray(result_array)],
+            ) = (function_arguments, function_results)
+            {
+                let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
+                brillig_context.black_box_op_instruction(BlackBoxOp::PedersenCommitment {
+                    inputs: message_vector.to_heap_vector(),
+                    domain_separator: domain_separator.address,
+                    output: result_array.to_heap_array(),
+                });
+            } else {
+                unreachable!("ICE: Pedersen expects one array argument, a register for the domain separator, and one array result")
+            }
+        }
+        BlackBoxFunc::PedersenHash => {
+            if let (
+                [message, BrilligVariable::SingleAddr(domain_separator)],
+                [BrilligVariable::SingleAddr(result)],
+            ) = (function_arguments, function_results)
+            {
+                let message_vector = convert_array_or_vector(brillig_context, message, bb_func);
+                brillig_context.black_box_op_instruction(BlackBoxOp::PedersenHash {
+                    inputs: message_vector.to_heap_vector(),
+                    domain_separator: domain_separator.address,
+                    output: result.address,
+                });
+            } else {
+                unreachable!("ICE: Pedersen hash expects one array argument, a register for the domain separator, and one register result")
+            }
+        }
         BlackBoxFunc::SchnorrVerify => {
             if let (
                 [BrilligVariable::SingleAddr(public_key_x), BrilligVariable::SingleAddr(public_key_y), BrilligVariable::BrilligArray(signature), message],
@@ -210,13 +243,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(modulus_id)],
             ) = (function_arguments, function_results)
             {
-                prepare_bigint_output(
-                    brillig_context,
-                    lhs_modulus,
-                    rhs_modulus,
-                    output,
-                    modulus_id,
-                );
+                prepare_bigint_output(brillig_context, lhs_modulus, rhs_modulus, modulus_id);
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntAdd {
                     lhs: lhs.address,
                     rhs: rhs.address,
@@ -234,13 +261,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(modulus_id)],
             ) = (function_arguments, function_results)
             {
-                prepare_bigint_output(
-                    brillig_context,
-                    lhs_modulus,
-                    rhs_modulus,
-                    output,
-                    modulus_id,
-                );
+                prepare_bigint_output(brillig_context, lhs_modulus, rhs_modulus, modulus_id);
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntSub {
                     lhs: lhs.address,
                     rhs: rhs.address,
@@ -258,13 +279,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(modulus_id)],
             ) = (function_arguments, function_results)
             {
-                prepare_bigint_output(
-                    brillig_context,
-                    lhs_modulus,
-                    rhs_modulus,
-                    output,
-                    modulus_id,
-                );
+                prepare_bigint_output(brillig_context, lhs_modulus, rhs_modulus, modulus_id);
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntMul {
                     lhs: lhs.address,
                     rhs: rhs.address,
@@ -282,13 +297,7 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(modulus_id)],
             ) = (function_arguments, function_results)
             {
-                prepare_bigint_output(
-                    brillig_context,
-                    lhs_modulus,
-                    rhs_modulus,
-                    output,
-                    modulus_id,
-                );
+                prepare_bigint_output(brillig_context, lhs_modulus, rhs_modulus, modulus_id);
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntDiv {
                     lhs: lhs.address,
                     rhs: rhs.address,
@@ -308,8 +317,6 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
             {
                 let inputs_vector = convert_array_or_vector(brillig_context, inputs, bb_func);
                 let modulus_vector = convert_array_or_vector(brillig_context, modulus, bb_func);
-                let output_id = brillig_context.get_new_bigint_id();
-                brillig_context.const_instruction(*output, F::from(output_id as u128));
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntFromLeBytes {
                     inputs: inputs_vector.to_heap_vector(),
                     modulus: modulus_vector.to_heap_vector(),
@@ -391,8 +398,6 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString>(
                 unreachable!("ICE: AES128Encrypt expects three array arguments, one array result")
             }
         }
-        BlackBoxFunc::PedersenCommitment => todo!("Deprecated Blackbox"),
-        BlackBoxFunc::PedersenHash => todo!("Deprecated Blackbox"),
     }
 }
 
@@ -416,7 +421,6 @@ fn prepare_bigint_output<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F>,
     lhs_modulus: &SingleAddrVariable,
     rhs_modulus: &SingleAddrVariable,
-    output: &SingleAddrVariable,
     modulus_id: &SingleAddrVariable,
 ) {
     // Check moduli
@@ -433,8 +437,6 @@ fn prepare_bigint_output<F: AcirField + DebugToString>(
         Some("moduli should be identical in BigInt operation".to_string()),
     );
     brillig_context.deallocate_register(condition);
-    // Set output id
-    let output_id = brillig_context.get_new_bigint_id();
-    brillig_context.const_instruction(*output, F::from(output_id as u128));
+
     brillig_context.mov_instruction(modulus_id.address, lhs_modulus.address);
 }

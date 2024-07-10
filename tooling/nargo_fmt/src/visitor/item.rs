@@ -44,7 +44,7 @@ impl super::FmtVisitor<'_> {
 
         if !func.def.generics.is_empty() {
             let full_span = name_span.end()..params_open;
-            let start = name_span.end();
+            let start = self.span_before(full_span.clone(), Token::Less).start();
             let end = self.span_after(full_span, Token::Greater).start();
 
             let generics = func.def.generics;
@@ -188,8 +188,8 @@ impl super::FmtVisitor<'_> {
                         continue;
                     }
 
-                    let slice =
-                        self.slice(self.last_position..impl_.object_type.span.unwrap().end());
+                    let before_brace = self.span_before(span, Token::LeftBrace).start();
+                    let slice = self.slice(self.last_position..before_brace).trim();
                     let after_brace = self.span_after(span, Token::LeftBrace).start();
                     self.last_position = after_brace;
 
