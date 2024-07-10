@@ -8,10 +8,6 @@ struct EmbeddedCurvePoint {
 }
 
 impl EmbeddedCurvePoint {
-    fn new(x: Field, y: Field, is_infinite: bool) -> Self {
-        Self { x, y, is_infinite }
-    }
-
     fn double(self) -> EmbeddedCurvePoint {
         embedded_curve_add(self, self)
     }
