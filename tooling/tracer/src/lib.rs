@@ -8,7 +8,7 @@ mod debugger_glue;
 use debugger_glue::{get_current_source_locations, get_stack_frames};
 
 mod tracer_glue;
-use tracer_glue::{register_call, register_return, register_step};
+use tracer_glue::{register_call, register_return, register_step, register_variables};
 
 pub mod tail_diff_vecs;
 use tail_diff_vecs::tail_diff_vecs;
@@ -122,6 +122,9 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         let (_, _, new_source_locations) = tail_diff_vecs(&self.source_locations, source_locations);
         for location in new_source_locations {
             register_step(tracer, location);
+            if let Some(last_frame) = &self.stack_trace.last() {
+                register_variables(tracer, last_frame);
+            }
         }
     }
 }

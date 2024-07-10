@@ -1,4 +1,4 @@
-use crate::{SourceLocation, StackFrame};
+use crate::{stack_frame::Variable, SourceLocation, StackFrame};
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use nargo::errors::Location;
@@ -42,8 +42,9 @@ fn convert_debugger_stack_frame(
     debugger_stack_frame: &noirc_artifacts::debug::StackFrame<FieldElement>,
 ) -> StackFrame {
     let function_name = String::from(debugger_stack_frame.function_name);
-    // TODO(stanm): add call params and values
-    StackFrame { function_name }
+    // TODO(stanm): add call params
+    let variables = debugger_stack_frame.variables.iter().map(Variable::from_tuple).collect();
+    StackFrame { function_name, variables }
 }
 
 /// Converts a debugger `Location` into a tracer `SourceLocation`.
