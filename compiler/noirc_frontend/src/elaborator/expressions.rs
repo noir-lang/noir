@@ -437,7 +437,6 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<(Ident, ExprId)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::default();
-        let struct_id = struct_type.borrow().id;
         let mut unseen_fields = struct_type.borrow().field_names();
 
         for (field_name, field) in fields {
@@ -475,6 +474,7 @@ impl<'context> Elaborator<'context> {
             }
 
             if let Some(expected_index) = expected_index {
+                let struct_id = struct_type.borrow().id;
                 let referenced = ReferenceId::StructMember(struct_id, expected_index);
                 let reference =
                     ReferenceId::Reference(Location::new(field_name.span(), self.file), false);
