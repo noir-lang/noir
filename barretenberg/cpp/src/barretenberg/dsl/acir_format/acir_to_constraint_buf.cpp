@@ -643,7 +643,8 @@ AcirFormat circuit_serde_to_acir_format(Program::Circuit const& circuit, bool ho
                 } else if constexpr (std::is_same_v<T, Program::Opcode::MemoryInit>) {
                     auto block = handle_memory_init(arg);
                     uint32_t block_id = arg.block_id.value;
-                    block_id_to_block_constraint[block_id] = std::make_pair(block, std::vector<size_t>());
+                    std::vector<size_t> opcode_indices = { i };
+                    block_id_to_block_constraint[block_id] = std::make_pair(block, opcode_indices);
                 } else if constexpr (std::is_same_v<T, Program::Opcode::MemoryOp>) {
                     auto block = block_id_to_block_constraint.find(arg.block_id.value);
                     if (block == block_id_to_block_constraint.end()) {
