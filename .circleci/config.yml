@@ -562,6 +562,7 @@ workflows:
           requires:
             - avm-transpiler-ecr-manifest
             - noir-ecr-manifest
+            - barretenberg-x86_64-linux-clang
           <<: *defaults
 
       # Yarn Project
