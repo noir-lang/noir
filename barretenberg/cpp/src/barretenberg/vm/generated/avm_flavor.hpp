@@ -764,12 +764,6 @@ class AvmFlavor {
                         public WitnessEntities<DataType>,
                         public ShiftedEntities<DataType> {
       public:
-        AllEntities()
-            : PrecomputedEntities<DataType>{}
-            , WitnessEntities<DataType>{}
-            , ShiftedEntities<DataType>{}
-        {}
-
         DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>, WitnessEntities<DataType>, ShiftedEntities<DataType>)
 
         auto get_unshifted()
@@ -867,6 +861,920 @@ class AvmFlavor {
         using Base::Base;
     };
 
+    class AllConstRefValues {
+      public:
+        using DataType = const FF&;
+
+        DEFINE_FLAVOR_MEMBERS(DataType,
+                              main_clk,
+                              main_sel_first,
+                              kernel_kernel_inputs,
+                              kernel_kernel_value_out,
+                              kernel_kernel_side_effect_out,
+                              kernel_kernel_metadata_out,
+                              main_calldata,
+                              alu_a_hi,
+                              alu_a_lo,
+                              alu_b_hi,
+                              alu_b_lo,
+                              alu_borrow,
+                              alu_cf,
+                              alu_clk,
+                              alu_cmp_rng_ctr,
+                              alu_div_u16_r0,
+                              alu_div_u16_r1,
+                              alu_div_u16_r2,
+                              alu_div_u16_r3,
+                              alu_div_u16_r4,
+                              alu_div_u16_r5,
+                              alu_div_u16_r6,
+                              alu_div_u16_r7,
+                              alu_divisor_hi,
+                              alu_divisor_lo,
+                              alu_ff_tag,
+                              alu_ia,
+                              alu_ib,
+                              alu_ic,
+                              alu_in_tag,
+                              alu_op_add,
+                              alu_op_cast,
+                              alu_op_cast_prev,
+                              alu_op_div,
+                              alu_op_div_a_lt_b,
+                              alu_op_div_std,
+                              alu_op_eq,
+                              alu_op_eq_diff_inv,
+                              alu_op_lt,
+                              alu_op_lte,
+                              alu_op_mul,
+                              alu_op_not,
+                              alu_op_shl,
+                              alu_op_shr,
+                              alu_op_sub,
+                              alu_p_a_borrow,
+                              alu_p_b_borrow,
+                              alu_p_sub_a_hi,
+                              alu_p_sub_a_lo,
+                              alu_p_sub_b_hi,
+                              alu_p_sub_b_lo,
+                              alu_partial_prod_hi,
+                              alu_partial_prod_lo,
+                              alu_quotient_hi,
+                              alu_quotient_lo,
+                              alu_remainder,
+                              alu_res_hi,
+                              alu_res_lo,
+                              alu_sel_alu,
+                              alu_sel_cmp,
+                              alu_sel_div_rng_chk,
+                              alu_sel_rng_chk,
+                              alu_sel_rng_chk_lookup,
+                              alu_sel_shift_which,
+                              alu_shift_lt_bit_len,
+                              alu_t_sub_s_bits,
+                              alu_two_pow_s,
+                              alu_two_pow_t_sub_s,
+                              alu_u128_tag,
+                              alu_u16_r0,
+                              alu_u16_r1,
+                              alu_u16_r10,
+                              alu_u16_r11,
+                              alu_u16_r12,
+                              alu_u16_r13,
+                              alu_u16_r14,
+                              alu_u16_r2,
+                              alu_u16_r3,
+                              alu_u16_r4,
+                              alu_u16_r5,
+                              alu_u16_r6,
+                              alu_u16_r7,
+                              alu_u16_r8,
+                              alu_u16_r9,
+                              alu_u16_tag,
+                              alu_u32_tag,
+                              alu_u64_tag,
+                              alu_u8_r0,
+                              alu_u8_r1,
+                              alu_u8_tag,
+                              binary_acc_ia,
+                              binary_acc_ib,
+                              binary_acc_ic,
+                              binary_clk,
+                              binary_ia_bytes,
+                              binary_ib_bytes,
+                              binary_ic_bytes,
+                              binary_in_tag,
+                              binary_mem_tag_ctr,
+                              binary_mem_tag_ctr_inv,
+                              binary_op_id,
+                              binary_sel_bin,
+                              binary_start,
+                              byte_lookup_sel_bin,
+                              byte_lookup_table_byte_lengths,
+                              byte_lookup_table_in_tags,
+                              byte_lookup_table_input_a,
+                              byte_lookup_table_input_b,
+                              byte_lookup_table_op_id,
+                              byte_lookup_table_output,
+                              conversion_clk,
+                              conversion_input,
+                              conversion_num_limbs,
+                              conversion_radix,
+                              conversion_sel_to_radix_le,
+                              gas_da_gas_fixed_table,
+                              gas_l2_gas_fixed_table,
+                              gas_sel_gas_cost,
+                              keccakf1600_clk,
+                              keccakf1600_input,
+                              keccakf1600_output,
+                              keccakf1600_sel_keccakf1600,
+                              kernel_emit_l2_to_l1_msg_write_offset,
+                              kernel_emit_note_hash_write_offset,
+                              kernel_emit_nullifier_write_offset,
+                              kernel_emit_unencrypted_log_write_offset,
+                              kernel_kernel_in_offset,
+                              kernel_kernel_out_offset,
+                              kernel_l1_to_l2_msg_exists_write_offset,
+                              kernel_note_hash_exist_write_offset,
+                              kernel_nullifier_exists_write_offset,
+                              kernel_nullifier_non_exists_write_offset,
+                              kernel_q_public_input_kernel_add_to_table,
+                              kernel_q_public_input_kernel_out_add_to_table,
+                              kernel_side_effect_counter,
+                              kernel_sload_write_offset,
+                              kernel_sstore_write_offset,
+                              main_abs_da_rem_gas_hi,
+                              main_abs_da_rem_gas_lo,
+                              main_abs_l2_rem_gas_hi,
+                              main_abs_l2_rem_gas_lo,
+                              main_alu_in_tag,
+                              main_bin_op_id,
+                              main_call_ptr,
+                              main_da_gas_op_cost,
+                              main_da_gas_remaining,
+                              main_da_out_of_gas,
+                              main_ia,
+                              main_ib,
+                              main_ic,
+                              main_id,
+                              main_id_zero,
+                              main_ind_addr_a,
+                              main_ind_addr_b,
+                              main_ind_addr_c,
+                              main_ind_addr_d,
+                              main_internal_return_ptr,
+                              main_inv,
+                              main_l2_gas_op_cost,
+                              main_l2_gas_remaining,
+                              main_l2_out_of_gas,
+                              main_mem_addr_a,
+                              main_mem_addr_b,
+                              main_mem_addr_c,
+                              main_mem_addr_d,
+                              main_op_err,
+                              main_opcode_val,
+                              main_pc,
+                              main_r_in_tag,
+                              main_rwa,
+                              main_rwb,
+                              main_rwc,
+                              main_rwd,
+                              main_sel_alu,
+                              main_sel_bin,
+                              main_sel_gas_accounting_active,
+                              main_sel_last,
+                              main_sel_mem_op_a,
+                              main_sel_mem_op_activate_gas,
+                              main_sel_mem_op_b,
+                              main_sel_mem_op_c,
+                              main_sel_mem_op_d,
+                              main_sel_mov_ia_to_ic,
+                              main_sel_mov_ib_to_ic,
+                              main_sel_op_add,
+                              main_sel_op_address,
+                              main_sel_op_and,
+                              main_sel_op_block_number,
+                              main_sel_op_cast,
+                              main_sel_op_chain_id,
+                              main_sel_op_cmov,
+                              main_sel_op_coinbase,
+                              main_sel_op_dagasleft,
+                              main_sel_op_div,
+                              main_sel_op_emit_l2_to_l1_msg,
+                              main_sel_op_emit_note_hash,
+                              main_sel_op_emit_nullifier,
+                              main_sel_op_emit_unencrypted_log,
+                              main_sel_op_eq,
+                              main_sel_op_external_call,
+                              main_sel_op_fdiv,
+                              main_sel_op_fee_per_da_gas,
+                              main_sel_op_fee_per_l2_gas,
+                              main_sel_op_function_selector,
+                              main_sel_op_get_contract_instance,
+                              main_sel_op_halt,
+                              main_sel_op_internal_call,
+                              main_sel_op_internal_return,
+                              main_sel_op_jump,
+                              main_sel_op_jumpi,
+                              main_sel_op_keccak,
+                              main_sel_op_l1_to_l2_msg_exists,
+                              main_sel_op_l2gasleft,
+                              main_sel_op_lt,
+                              main_sel_op_lte,
+                              main_sel_op_mov,
+                              main_sel_op_mul,
+                              main_sel_op_not,
+                              main_sel_op_note_hash_exists,
+                              main_sel_op_nullifier_exists,
+                              main_sel_op_or,
+                              main_sel_op_pedersen,
+                              main_sel_op_poseidon2,
+                              main_sel_op_radix_le,
+                              main_sel_op_sender,
+                              main_sel_op_sha256,
+                              main_sel_op_shl,
+                              main_sel_op_shr,
+                              main_sel_op_sload,
+                              main_sel_op_sstore,
+                              main_sel_op_storage_address,
+                              main_sel_op_sub,
+                              main_sel_op_timestamp,
+                              main_sel_op_transaction_fee,
+                              main_sel_op_version,
+                              main_sel_op_xor,
+                              main_sel_q_kernel_lookup,
+                              main_sel_q_kernel_output_lookup,
+                              main_sel_resolve_ind_addr_a,
+                              main_sel_resolve_ind_addr_b,
+                              main_sel_resolve_ind_addr_c,
+                              main_sel_resolve_ind_addr_d,
+                              main_sel_rng_16,
+                              main_sel_rng_8,
+                              main_space_id,
+                              main_tag_err,
+                              main_w_in_tag,
+                              mem_addr,
+                              mem_clk,
+                              mem_diff_hi,
+                              mem_diff_lo,
+                              mem_diff_mid,
+                              mem_glob_addr,
+                              mem_last,
+                              mem_lastAccess,
+                              mem_one_min_inv,
+                              mem_r_in_tag,
+                              mem_rw,
+                              mem_sel_mem,
+                              mem_sel_mov_ia_to_ic,
+                              mem_sel_mov_ib_to_ic,
+                              mem_sel_op_a,
+                              mem_sel_op_b,
+                              mem_sel_op_c,
+                              mem_sel_op_cmov,
+                              mem_sel_op_d,
+                              mem_sel_resolve_ind_addr_a,
+                              mem_sel_resolve_ind_addr_b,
+                              mem_sel_resolve_ind_addr_c,
+                              mem_sel_resolve_ind_addr_d,
+                              mem_sel_rng_chk,
+                              mem_skip_check_tag,
+                              mem_space_id,
+                              mem_tag,
+                              mem_tag_err,
+                              mem_tsp,
+                              mem_val,
+                              mem_w_in_tag,
+                              pedersen_clk,
+                              pedersen_input,
+                              pedersen_output,
+                              pedersen_sel_pedersen,
+                              poseidon2_clk,
+                              poseidon2_input,
+                              poseidon2_output,
+                              poseidon2_sel_poseidon_perm,
+                              powers_power_of_2,
+                              sha256_clk,
+                              sha256_input,
+                              sha256_output,
+                              sha256_sel_sha256_compression,
+                              sha256_state,
+                              perm_main_alu,
+                              perm_main_bin,
+                              perm_main_conv,
+                              perm_main_pos2_perm,
+                              perm_main_pedersen,
+                              perm_main_mem_a,
+                              perm_main_mem_b,
+                              perm_main_mem_c,
+                              perm_main_mem_d,
+                              perm_main_mem_ind_addr_a,
+                              perm_main_mem_ind_addr_b,
+                              perm_main_mem_ind_addr_c,
+                              perm_main_mem_ind_addr_d,
+                              lookup_byte_lengths,
+                              lookup_byte_operations,
+                              lookup_opcode_gas,
+                              range_check_l2_gas_hi,
+                              range_check_l2_gas_lo,
+                              range_check_da_gas_hi,
+                              range_check_da_gas_lo,
+                              kernel_output_lookup,
+                              lookup_into_kernel,
+                              incl_main_tag_err,
+                              incl_mem_tag_err,
+                              lookup_mem_rng_chk_lo,
+                              lookup_mem_rng_chk_mid,
+                              lookup_mem_rng_chk_hi,
+                              lookup_pow_2_0,
+                              lookup_pow_2_1,
+                              lookup_u8_0,
+                              lookup_u8_1,
+                              lookup_u16_0,
+                              lookup_u16_1,
+                              lookup_u16_2,
+                              lookup_u16_3,
+                              lookup_u16_4,
+                              lookup_u16_5,
+                              lookup_u16_6,
+                              lookup_u16_7,
+                              lookup_u16_8,
+                              lookup_u16_9,
+                              lookup_u16_10,
+                              lookup_u16_11,
+                              lookup_u16_12,
+                              lookup_u16_13,
+                              lookup_u16_14,
+                              lookup_div_u16_0,
+                              lookup_div_u16_1,
+                              lookup_div_u16_2,
+                              lookup_div_u16_3,
+                              lookup_div_u16_4,
+                              lookup_div_u16_5,
+                              lookup_div_u16_6,
+                              lookup_div_u16_7,
+                              lookup_byte_lengths_counts,
+                              lookup_byte_operations_counts,
+                              lookup_opcode_gas_counts,
+                              range_check_l2_gas_hi_counts,
+                              range_check_l2_gas_lo_counts,
+                              range_check_da_gas_hi_counts,
+                              range_check_da_gas_lo_counts,
+                              kernel_output_lookup_counts,
+                              lookup_into_kernel_counts,
+                              incl_main_tag_err_counts,
+                              incl_mem_tag_err_counts,
+                              lookup_mem_rng_chk_lo_counts,
+                              lookup_mem_rng_chk_mid_counts,
+                              lookup_mem_rng_chk_hi_counts,
+                              lookup_pow_2_0_counts,
+                              lookup_pow_2_1_counts,
+                              lookup_u8_0_counts,
+                              lookup_u8_1_counts,
+                              lookup_u16_0_counts,
+                              lookup_u16_1_counts,
+                              lookup_u16_2_counts,
+                              lookup_u16_3_counts,
+                              lookup_u16_4_counts,
+                              lookup_u16_5_counts,
+                              lookup_u16_6_counts,
+                              lookup_u16_7_counts,
+                              lookup_u16_8_counts,
+                              lookup_u16_9_counts,
+                              lookup_u16_10_counts,
+                              lookup_u16_11_counts,
+                              lookup_u16_12_counts,
+                              lookup_u16_13_counts,
+                              lookup_u16_14_counts,
+                              lookup_div_u16_0_counts,
+                              lookup_div_u16_1_counts,
+                              lookup_div_u16_2_counts,
+                              lookup_div_u16_3_counts,
+                              lookup_div_u16_4_counts,
+                              lookup_div_u16_5_counts,
+                              lookup_div_u16_6_counts,
+                              lookup_div_u16_7_counts,
+                              alu_a_hi_shift,
+                              alu_a_lo_shift,
+                              alu_b_hi_shift,
+                              alu_b_lo_shift,
+                              alu_cmp_rng_ctr_shift,
+                              alu_div_u16_r0_shift,
+                              alu_div_u16_r1_shift,
+                              alu_div_u16_r2_shift,
+                              alu_div_u16_r3_shift,
+                              alu_div_u16_r4_shift,
+                              alu_div_u16_r5_shift,
+                              alu_div_u16_r6_shift,
+                              alu_div_u16_r7_shift,
+                              alu_op_add_shift,
+                              alu_op_cast_prev_shift,
+                              alu_op_cast_shift,
+                              alu_op_div_shift,
+                              alu_op_mul_shift,
+                              alu_op_shl_shift,
+                              alu_op_shr_shift,
+                              alu_op_sub_shift,
+                              alu_p_sub_a_hi_shift,
+                              alu_p_sub_a_lo_shift,
+                              alu_p_sub_b_hi_shift,
+                              alu_p_sub_b_lo_shift,
+                              alu_sel_alu_shift,
+                              alu_sel_cmp_shift,
+                              alu_sel_div_rng_chk_shift,
+                              alu_sel_rng_chk_lookup_shift,
+                              alu_sel_rng_chk_shift,
+                              alu_u16_r0_shift,
+                              alu_u16_r1_shift,
+                              alu_u16_r2_shift,
+                              alu_u16_r3_shift,
+                              alu_u16_r4_shift,
+                              alu_u16_r5_shift,
+                              alu_u16_r6_shift,
+                              alu_u8_r0_shift,
+                              alu_u8_r1_shift,
+                              binary_acc_ia_shift,
+                              binary_acc_ib_shift,
+                              binary_acc_ic_shift,
+                              binary_mem_tag_ctr_shift,
+                              binary_op_id_shift,
+                              kernel_emit_l2_to_l1_msg_write_offset_shift,
+                              kernel_emit_note_hash_write_offset_shift,
+                              kernel_emit_nullifier_write_offset_shift,
+                              kernel_emit_unencrypted_log_write_offset_shift,
+                              kernel_l1_to_l2_msg_exists_write_offset_shift,
+                              kernel_note_hash_exist_write_offset_shift,
+                              kernel_nullifier_exists_write_offset_shift,
+                              kernel_nullifier_non_exists_write_offset_shift,
+                              kernel_side_effect_counter_shift,
+                              kernel_sload_write_offset_shift,
+                              kernel_sstore_write_offset_shift,
+                              main_da_gas_remaining_shift,
+                              main_internal_return_ptr_shift,
+                              main_l2_gas_remaining_shift,
+                              main_pc_shift,
+                              mem_glob_addr_shift,
+                              mem_rw_shift,
+                              mem_sel_mem_shift,
+                              mem_tag_shift,
+                              mem_tsp_shift,
+                              mem_val_shift)
+
+        AllConstRefValues(const RefArray<FF const, 452>& il)
+            : main_clk(il[0])
+            , main_sel_first(il[1])
+            , kernel_kernel_inputs(il[2])
+            , kernel_kernel_value_out(il[3])
+            , kernel_kernel_side_effect_out(il[4])
+            , kernel_kernel_metadata_out(il[5])
+            , main_calldata(il[6])
+            , alu_a_hi(il[7])
+            , alu_a_lo(il[8])
+            , alu_b_hi(il[9])
+            , alu_b_lo(il[10])
+            , alu_borrow(il[11])
+            , alu_cf(il[12])
+            , alu_clk(il[13])
+            , alu_cmp_rng_ctr(il[14])
+            , alu_div_u16_r0(il[15])
+            , alu_div_u16_r1(il[16])
+            , alu_div_u16_r2(il[17])
+            , alu_div_u16_r3(il[18])
+            , alu_div_u16_r4(il[19])
+            , alu_div_u16_r5(il[20])
+            , alu_div_u16_r6(il[21])
+            , alu_div_u16_r7(il[22])
+            , alu_divisor_hi(il[23])
+            , alu_divisor_lo(il[24])
+            , alu_ff_tag(il[25])
+            , alu_ia(il[26])
+            , alu_ib(il[27])
+            , alu_ic(il[28])
+            , alu_in_tag(il[29])
+            , alu_op_add(il[30])
+            , alu_op_cast(il[31])
+            , alu_op_cast_prev(il[32])
+            , alu_op_div(il[33])
+            , alu_op_div_a_lt_b(il[34])
+            , alu_op_div_std(il[35])
+            , alu_op_eq(il[36])
+            , alu_op_eq_diff_inv(il[37])
+            , alu_op_lt(il[38])
+            , alu_op_lte(il[39])
+            , alu_op_mul(il[40])
+            , alu_op_not(il[41])
+            , alu_op_shl(il[42])
+            , alu_op_shr(il[43])
+            , alu_op_sub(il[44])
+            , alu_p_a_borrow(il[45])
+            , alu_p_b_borrow(il[46])
+            , alu_p_sub_a_hi(il[47])
+            , alu_p_sub_a_lo(il[48])
+            , alu_p_sub_b_hi(il[49])
+            , alu_p_sub_b_lo(il[50])
+            , alu_partial_prod_hi(il[51])
+            , alu_partial_prod_lo(il[52])
+            , alu_quotient_hi(il[53])
+            , alu_quotient_lo(il[54])
+            , alu_remainder(il[55])
+            , alu_res_hi(il[56])
+            , alu_res_lo(il[57])
+            , alu_sel_alu(il[58])
+            , alu_sel_cmp(il[59])
+            , alu_sel_div_rng_chk(il[60])
+            , alu_sel_rng_chk(il[61])
+            , alu_sel_rng_chk_lookup(il[62])
+            , alu_sel_shift_which(il[63])
+            , alu_shift_lt_bit_len(il[64])
+            , alu_t_sub_s_bits(il[65])
+            , alu_two_pow_s(il[66])
+            , alu_two_pow_t_sub_s(il[67])
+            , alu_u128_tag(il[68])
+            , alu_u16_r0(il[69])
+            , alu_u16_r1(il[70])
+            , alu_u16_r10(il[71])
+            , alu_u16_r11(il[72])
+            , alu_u16_r12(il[73])
+            , alu_u16_r13(il[74])
+            , alu_u16_r14(il[75])
+            , alu_u16_r2(il[76])
+            , alu_u16_r3(il[77])
+            , alu_u16_r4(il[78])
+            , alu_u16_r5(il[79])
+            , alu_u16_r6(il[80])
+            , alu_u16_r7(il[81])
+            , alu_u16_r8(il[82])
+            , alu_u16_r9(il[83])
+            , alu_u16_tag(il[84])
+            , alu_u32_tag(il[85])
+            , alu_u64_tag(il[86])
+            , alu_u8_r0(il[87])
+            , alu_u8_r1(il[88])
+            , alu_u8_tag(il[89])
+            , binary_acc_ia(il[90])
+            , binary_acc_ib(il[91])
+            , binary_acc_ic(il[92])
+            , binary_clk(il[93])
+            , binary_ia_bytes(il[94])
+            , binary_ib_bytes(il[95])
+            , binary_ic_bytes(il[96])
+            , binary_in_tag(il[97])
+            , binary_mem_tag_ctr(il[98])
+            , binary_mem_tag_ctr_inv(il[99])
+            , binary_op_id(il[100])
+            , binary_sel_bin(il[101])
+            , binary_start(il[102])
+            , byte_lookup_sel_bin(il[103])
+            , byte_lookup_table_byte_lengths(il[104])
+            , byte_lookup_table_in_tags(il[105])
+            , byte_lookup_table_input_a(il[106])
+            , byte_lookup_table_input_b(il[107])
+            , byte_lookup_table_op_id(il[108])
+            , byte_lookup_table_output(il[109])
+            , conversion_clk(il[110])
+            , conversion_input(il[111])
+            , conversion_num_limbs(il[112])
+            , conversion_radix(il[113])
+            , conversion_sel_to_radix_le(il[114])
+            , gas_da_gas_fixed_table(il[115])
+            , gas_l2_gas_fixed_table(il[116])
+            , gas_sel_gas_cost(il[117])
+            , keccakf1600_clk(il[118])
+            , keccakf1600_input(il[119])
+            , keccakf1600_output(il[120])
+            , keccakf1600_sel_keccakf1600(il[121])
+            , kernel_emit_l2_to_l1_msg_write_offset(il[122])
+            , kernel_emit_note_hash_write_offset(il[123])
+            , kernel_emit_nullifier_write_offset(il[124])
+            , kernel_emit_unencrypted_log_write_offset(il[125])
+            , kernel_kernel_in_offset(il[126])
+            , kernel_kernel_out_offset(il[127])
+            , kernel_l1_to_l2_msg_exists_write_offset(il[128])
+            , kernel_note_hash_exist_write_offset(il[129])
+            , kernel_nullifier_exists_write_offset(il[130])
+            , kernel_nullifier_non_exists_write_offset(il[131])
+            , kernel_q_public_input_kernel_add_to_table(il[132])
+            , kernel_q_public_input_kernel_out_add_to_table(il[133])
+            , kernel_side_effect_counter(il[134])
+            , kernel_sload_write_offset(il[135])
+            , kernel_sstore_write_offset(il[136])
+            , main_abs_da_rem_gas_hi(il[137])
+            , main_abs_da_rem_gas_lo(il[138])
+            , main_abs_l2_rem_gas_hi(il[139])
+            , main_abs_l2_rem_gas_lo(il[140])
+            , main_alu_in_tag(il[141])
+            , main_bin_op_id(il[142])
+            , main_call_ptr(il[143])
+            , main_da_gas_op_cost(il[144])
+            , main_da_gas_remaining(il[145])
+            , main_da_out_of_gas(il[146])
+            , main_ia(il[147])
+            , main_ib(il[148])
+            , main_ic(il[149])
+            , main_id(il[150])
+            , main_id_zero(il[151])
+            , main_ind_addr_a(il[152])
+            , main_ind_addr_b(il[153])
+            , main_ind_addr_c(il[154])
+            , main_ind_addr_d(il[155])
+            , main_internal_return_ptr(il[156])
+            , main_inv(il[157])
+            , main_l2_gas_op_cost(il[158])
+            , main_l2_gas_remaining(il[159])
+            , main_l2_out_of_gas(il[160])
+            , main_mem_addr_a(il[161])
+            , main_mem_addr_b(il[162])
+            , main_mem_addr_c(il[163])
+            , main_mem_addr_d(il[164])
+            , main_op_err(il[165])
+            , main_opcode_val(il[166])
+            , main_pc(il[167])
+            , main_r_in_tag(il[168])
+            , main_rwa(il[169])
+            , main_rwb(il[170])
+            , main_rwc(il[171])
+            , main_rwd(il[172])
+            , main_sel_alu(il[173])
+            , main_sel_bin(il[174])
+            , main_sel_gas_accounting_active(il[175])
+            , main_sel_last(il[176])
+            , main_sel_mem_op_a(il[177])
+            , main_sel_mem_op_activate_gas(il[178])
+            , main_sel_mem_op_b(il[179])
+            , main_sel_mem_op_c(il[180])
+            , main_sel_mem_op_d(il[181])
+            , main_sel_mov_ia_to_ic(il[182])
+            , main_sel_mov_ib_to_ic(il[183])
+            , main_sel_op_add(il[184])
+            , main_sel_op_address(il[185])
+            , main_sel_op_and(il[186])
+            , main_sel_op_block_number(il[187])
+            , main_sel_op_cast(il[188])
+            , main_sel_op_chain_id(il[189])
+            , main_sel_op_cmov(il[190])
+            , main_sel_op_coinbase(il[191])
+            , main_sel_op_dagasleft(il[192])
+            , main_sel_op_div(il[193])
+            , main_sel_op_emit_l2_to_l1_msg(il[194])
+            , main_sel_op_emit_note_hash(il[195])
+            , main_sel_op_emit_nullifier(il[196])
+            , main_sel_op_emit_unencrypted_log(il[197])
+            , main_sel_op_eq(il[198])
+            , main_sel_op_external_call(il[199])
+            , main_sel_op_fdiv(il[200])
+            , main_sel_op_fee_per_da_gas(il[201])
+            , main_sel_op_fee_per_l2_gas(il[202])
+            , main_sel_op_function_selector(il[203])
+            , main_sel_op_get_contract_instance(il[204])
+            , main_sel_op_halt(il[205])
+            , main_sel_op_internal_call(il[206])
+            , main_sel_op_internal_return(il[207])
+            , main_sel_op_jump(il[208])
+            , main_sel_op_jumpi(il[209])
+            , main_sel_op_keccak(il[210])
+            , main_sel_op_l1_to_l2_msg_exists(il[211])
+            , main_sel_op_l2gasleft(il[212])
+            , main_sel_op_lt(il[213])
+            , main_sel_op_lte(il[214])
+            , main_sel_op_mov(il[215])
+            , main_sel_op_mul(il[216])
+            , main_sel_op_not(il[217])
+            , main_sel_op_note_hash_exists(il[218])
+            , main_sel_op_nullifier_exists(il[219])
+            , main_sel_op_or(il[220])
+            , main_sel_op_pedersen(il[221])
+            , main_sel_op_poseidon2(il[222])
+            , main_sel_op_radix_le(il[223])
+            , main_sel_op_sender(il[224])
+            , main_sel_op_sha256(il[225])
+            , main_sel_op_shl(il[226])
+            , main_sel_op_shr(il[227])
+            , main_sel_op_sload(il[228])
+            , main_sel_op_sstore(il[229])
+            , main_sel_op_storage_address(il[230])
+            , main_sel_op_sub(il[231])
+            , main_sel_op_timestamp(il[232])
+            , main_sel_op_transaction_fee(il[233])
+            , main_sel_op_version(il[234])
+            , main_sel_op_xor(il[235])
+            , main_sel_q_kernel_lookup(il[236])
+            , main_sel_q_kernel_output_lookup(il[237])
+            , main_sel_resolve_ind_addr_a(il[238])
+            , main_sel_resolve_ind_addr_b(il[239])
+            , main_sel_resolve_ind_addr_c(il[240])
+            , main_sel_resolve_ind_addr_d(il[241])
+            , main_sel_rng_16(il[242])
+            , main_sel_rng_8(il[243])
+            , main_space_id(il[244])
+            , main_tag_err(il[245])
+            , main_w_in_tag(il[246])
+            , mem_addr(il[247])
+            , mem_clk(il[248])
+            , mem_diff_hi(il[249])
+            , mem_diff_lo(il[250])
+            , mem_diff_mid(il[251])
+            , mem_glob_addr(il[252])
+            , mem_last(il[253])
+            , mem_lastAccess(il[254])
+            , mem_one_min_inv(il[255])
+            , mem_r_in_tag(il[256])
+            , mem_rw(il[257])
+            , mem_sel_mem(il[258])
+            , mem_sel_mov_ia_to_ic(il[259])
+            , mem_sel_mov_ib_to_ic(il[260])
+            , mem_sel_op_a(il[261])
+            , mem_sel_op_b(il[262])
+            , mem_sel_op_c(il[263])
+            , mem_sel_op_cmov(il[264])
+            , mem_sel_op_d(il[265])
+            , mem_sel_resolve_ind_addr_a(il[266])
+            , mem_sel_resolve_ind_addr_b(il[267])
+            , mem_sel_resolve_ind_addr_c(il[268])
+            , mem_sel_resolve_ind_addr_d(il[269])
+            , mem_sel_rng_chk(il[270])
+            , mem_skip_check_tag(il[271])
+            , mem_space_id(il[272])
+            , mem_tag(il[273])
+            , mem_tag_err(il[274])
+            , mem_tsp(il[275])
+            , mem_val(il[276])
+            , mem_w_in_tag(il[277])
+            , pedersen_clk(il[278])
+            , pedersen_input(il[279])
+            , pedersen_output(il[280])
+            , pedersen_sel_pedersen(il[281])
+            , poseidon2_clk(il[282])
+            , poseidon2_input(il[283])
+            , poseidon2_output(il[284])
+            , poseidon2_sel_poseidon_perm(il[285])
+            , powers_power_of_2(il[286])
+            , sha256_clk(il[287])
+            , sha256_input(il[288])
+            , sha256_output(il[289])
+            , sha256_sel_sha256_compression(il[290])
+            , sha256_state(il[291])
+            , perm_main_alu(il[292])
+            , perm_main_bin(il[293])
+            , perm_main_conv(il[294])
+            , perm_main_pos2_perm(il[295])
+            , perm_main_pedersen(il[296])
+            , perm_main_mem_a(il[297])
+            , perm_main_mem_b(il[298])
+            , perm_main_mem_c(il[299])
+            , perm_main_mem_d(il[300])
+            , perm_main_mem_ind_addr_a(il[301])
+            , perm_main_mem_ind_addr_b(il[302])
+            , perm_main_mem_ind_addr_c(il[303])
+            , perm_main_mem_ind_addr_d(il[304])
+            , lookup_byte_lengths(il[305])
+            , lookup_byte_operations(il[306])
+            , lookup_opcode_gas(il[307])
+            , range_check_l2_gas_hi(il[308])
+            , range_check_l2_gas_lo(il[309])
+            , range_check_da_gas_hi(il[310])
+            , range_check_da_gas_lo(il[311])
+            , kernel_output_lookup(il[312])
+            , lookup_into_kernel(il[313])
+            , incl_main_tag_err(il[314])
+            , incl_mem_tag_err(il[315])
+            , lookup_mem_rng_chk_lo(il[316])
+            , lookup_mem_rng_chk_mid(il[317])
+            , lookup_mem_rng_chk_hi(il[318])
+            , lookup_pow_2_0(il[319])
+            , lookup_pow_2_1(il[320])
+            , lookup_u8_0(il[321])
+            , lookup_u8_1(il[322])
+            , lookup_u16_0(il[323])
+            , lookup_u16_1(il[324])
+            , lookup_u16_2(il[325])
+            , lookup_u16_3(il[326])
+            , lookup_u16_4(il[327])
+            , lookup_u16_5(il[328])
+            , lookup_u16_6(il[329])
+            , lookup_u16_7(il[330])
+            , lookup_u16_8(il[331])
+            , lookup_u16_9(il[332])
+            , lookup_u16_10(il[333])
+            , lookup_u16_11(il[334])
+            , lookup_u16_12(il[335])
+            , lookup_u16_13(il[336])
+            , lookup_u16_14(il[337])
+            , lookup_div_u16_0(il[338])
+            , lookup_div_u16_1(il[339])
+            , lookup_div_u16_2(il[340])
+            , lookup_div_u16_3(il[341])
+            , lookup_div_u16_4(il[342])
+            , lookup_div_u16_5(il[343])
+            , lookup_div_u16_6(il[344])
+            , lookup_div_u16_7(il[345])
+            , lookup_byte_lengths_counts(il[346])
+            , lookup_byte_operations_counts(il[347])
+            , lookup_opcode_gas_counts(il[348])
+            , range_check_l2_gas_hi_counts(il[349])
+            , range_check_l2_gas_lo_counts(il[350])
+            , range_check_da_gas_hi_counts(il[351])
+            , range_check_da_gas_lo_counts(il[352])
+            , kernel_output_lookup_counts(il[353])
+            , lookup_into_kernel_counts(il[354])
+            , incl_main_tag_err_counts(il[355])
+            , incl_mem_tag_err_counts(il[356])
+            , lookup_mem_rng_chk_lo_counts(il[357])
+            , lookup_mem_rng_chk_mid_counts(il[358])
+            , lookup_mem_rng_chk_hi_counts(il[359])
+            , lookup_pow_2_0_counts(il[360])
+            , lookup_pow_2_1_counts(il[361])
+            , lookup_u8_0_counts(il[362])
+            , lookup_u8_1_counts(il[363])
+            , lookup_u16_0_counts(il[364])
+            , lookup_u16_1_counts(il[365])
+            , lookup_u16_2_counts(il[366])
+            , lookup_u16_3_counts(il[367])
+            , lookup_u16_4_counts(il[368])
+            , lookup_u16_5_counts(il[369])
+            , lookup_u16_6_counts(il[370])
+            , lookup_u16_7_counts(il[371])
+            , lookup_u16_8_counts(il[372])
+            , lookup_u16_9_counts(il[373])
+            , lookup_u16_10_counts(il[374])
+            , lookup_u16_11_counts(il[375])
+            , lookup_u16_12_counts(il[376])
+            , lookup_u16_13_counts(il[377])
+            , lookup_u16_14_counts(il[378])
+            , lookup_div_u16_0_counts(il[379])
+            , lookup_div_u16_1_counts(il[380])
+            , lookup_div_u16_2_counts(il[381])
+            , lookup_div_u16_3_counts(il[382])
+            , lookup_div_u16_4_counts(il[383])
+            , lookup_div_u16_5_counts(il[384])
+            , lookup_div_u16_6_counts(il[385])
+            , lookup_div_u16_7_counts(il[386])
+            , alu_a_hi_shift(il[387])
+            , alu_a_lo_shift(il[388])
+            , alu_b_hi_shift(il[389])
+            , alu_b_lo_shift(il[390])
+            , alu_cmp_rng_ctr_shift(il[391])
+            , alu_div_u16_r0_shift(il[392])
+            , alu_div_u16_r1_shift(il[393])
+            , alu_div_u16_r2_shift(il[394])
+            , alu_div_u16_r3_shift(il[395])
+            , alu_div_u16_r4_shift(il[396])
+            , alu_div_u16_r5_shift(il[397])
+            , alu_div_u16_r6_shift(il[398])
+            , alu_div_u16_r7_shift(il[399])
+            , alu_op_add_shift(il[400])
+            , alu_op_cast_prev_shift(il[401])
+            , alu_op_cast_shift(il[402])
+            , alu_op_div_shift(il[403])
+            , alu_op_mul_shift(il[404])
+            , alu_op_shl_shift(il[405])
+            , alu_op_shr_shift(il[406])
+            , alu_op_sub_shift(il[407])
+            , alu_p_sub_a_hi_shift(il[408])
+            , alu_p_sub_a_lo_shift(il[409])
+            , alu_p_sub_b_hi_shift(il[410])
+            , alu_p_sub_b_lo_shift(il[411])
+            , alu_sel_alu_shift(il[412])
+            , alu_sel_cmp_shift(il[413])
+            , alu_sel_div_rng_chk_shift(il[414])
+            , alu_sel_rng_chk_lookup_shift(il[415])
+            , alu_sel_rng_chk_shift(il[416])
+            , alu_u16_r0_shift(il[417])
+            , alu_u16_r1_shift(il[418])
+            , alu_u16_r2_shift(il[419])
+            , alu_u16_r3_shift(il[420])
+            , alu_u16_r4_shift(il[421])
+            , alu_u16_r5_shift(il[422])
+            , alu_u16_r6_shift(il[423])
+            , alu_u8_r0_shift(il[424])
+            , alu_u8_r1_shift(il[425])
+            , binary_acc_ia_shift(il[426])
+            , binary_acc_ib_shift(il[427])
+            , binary_acc_ic_shift(il[428])
+            , binary_mem_tag_ctr_shift(il[429])
+            , binary_op_id_shift(il[430])
+            , kernel_emit_l2_to_l1_msg_write_offset_shift(il[431])
+            , kernel_emit_note_hash_write_offset_shift(il[432])
+            , kernel_emit_nullifier_write_offset_shift(il[433])
+            , kernel_emit_unencrypted_log_write_offset_shift(il[434])
+            , kernel_l1_to_l2_msg_exists_write_offset_shift(il[435])
+            , kernel_note_hash_exist_write_offset_shift(il[436])
+            , kernel_nullifier_exists_write_offset_shift(il[437])
+            , kernel_nullifier_non_exists_write_offset_shift(il[438])
+            , kernel_side_effect_counter_shift(il[439])
+            , kernel_sload_write_offset_shift(il[440])
+            , kernel_sstore_write_offset_shift(il[441])
+            , main_da_gas_remaining_shift(il[442])
+            , main_internal_return_ptr_shift(il[443])
+            , main_l2_gas_remaining_shift(il[444])
+            , main_pc_shift(il[445])
+            , mem_glob_addr_shift(il[446])
+            , mem_rw_shift(il[447])
+            , mem_sel_mem_shift(il[448])
+            , mem_tag_shift(il[449])
+            , mem_tsp_shift(il[450])
+            , mem_val_shift(il[451])
+        {}
+    };
+
     /**
      * @brief A container for the prover polynomials handles.
      */
@@ -897,13 +1805,460 @@ class AvmFlavor {
          * @brief Returns the evaluations of all prover polynomials at one point on the boolean hypercube, which
          * represents one row in the execution trace.
          */
-        [[nodiscard]] AllValues get_row(size_t row_idx) const
+        [[nodiscard]] AllConstRefValues get_row(size_t row_idx) const
         {
-            AllValues result;
-            for (auto [result_field, polynomial] : zip_view(result.get_all(), this->get_all())) {
-                result_field = polynomial[row_idx];
-            }
-            return result;
+            return AllConstRefValues(RefArray{ main_clk[row_idx],
+                                               main_sel_first[row_idx],
+                                               kernel_kernel_inputs[row_idx],
+                                               kernel_kernel_value_out[row_idx],
+                                               kernel_kernel_side_effect_out[row_idx],
+                                               kernel_kernel_metadata_out[row_idx],
+                                               main_calldata[row_idx],
+                                               alu_a_hi[row_idx],
+                                               alu_a_lo[row_idx],
+                                               alu_b_hi[row_idx],
+                                               alu_b_lo[row_idx],
+                                               alu_borrow[row_idx],
+                                               alu_cf[row_idx],
+                                               alu_clk[row_idx],
+                                               alu_cmp_rng_ctr[row_idx],
+                                               alu_div_u16_r0[row_idx],
+                                               alu_div_u16_r1[row_idx],
+                                               alu_div_u16_r2[row_idx],
+                                               alu_div_u16_r3[row_idx],
+                                               alu_div_u16_r4[row_idx],
+                                               alu_div_u16_r5[row_idx],
+                                               alu_div_u16_r6[row_idx],
+                                               alu_div_u16_r7[row_idx],
+                                               alu_divisor_hi[row_idx],
+                                               alu_divisor_lo[row_idx],
+                                               alu_ff_tag[row_idx],
+                                               alu_ia[row_idx],
+                                               alu_ib[row_idx],
+                                               alu_ic[row_idx],
+                                               alu_in_tag[row_idx],
+                                               alu_op_add[row_idx],
+                                               alu_op_cast[row_idx],
+                                               alu_op_cast_prev[row_idx],
+                                               alu_op_div[row_idx],
+                                               alu_op_div_a_lt_b[row_idx],
+                                               alu_op_div_std[row_idx],
+                                               alu_op_eq[row_idx],
+                                               alu_op_eq_diff_inv[row_idx],
+                                               alu_op_lt[row_idx],
+                                               alu_op_lte[row_idx],
+                                               alu_op_mul[row_idx],
+                                               alu_op_not[row_idx],
+                                               alu_op_shl[row_idx],
+                                               alu_op_shr[row_idx],
+                                               alu_op_sub[row_idx],
+                                               alu_p_a_borrow[row_idx],
+                                               alu_p_b_borrow[row_idx],
+                                               alu_p_sub_a_hi[row_idx],
+                                               alu_p_sub_a_lo[row_idx],
+                                               alu_p_sub_b_hi[row_idx],
+                                               alu_p_sub_b_lo[row_idx],
+                                               alu_partial_prod_hi[row_idx],
+                                               alu_partial_prod_lo[row_idx],
+                                               alu_quotient_hi[row_idx],
+                                               alu_quotient_lo[row_idx],
+                                               alu_remainder[row_idx],
+                                               alu_res_hi[row_idx],
+                                               alu_res_lo[row_idx],
+                                               alu_sel_alu[row_idx],
+                                               alu_sel_cmp[row_idx],
+                                               alu_sel_div_rng_chk[row_idx],
+                                               alu_sel_rng_chk[row_idx],
+                                               alu_sel_rng_chk_lookup[row_idx],
+                                               alu_sel_shift_which[row_idx],
+                                               alu_shift_lt_bit_len[row_idx],
+                                               alu_t_sub_s_bits[row_idx],
+                                               alu_two_pow_s[row_idx],
+                                               alu_two_pow_t_sub_s[row_idx],
+                                               alu_u128_tag[row_idx],
+                                               alu_u16_r0[row_idx],
+                                               alu_u16_r1[row_idx],
+                                               alu_u16_r10[row_idx],
+                                               alu_u16_r11[row_idx],
+                                               alu_u16_r12[row_idx],
+                                               alu_u16_r13[row_idx],
+                                               alu_u16_r14[row_idx],
+                                               alu_u16_r2[row_idx],
+                                               alu_u16_r3[row_idx],
+                                               alu_u16_r4[row_idx],
+                                               alu_u16_r5[row_idx],
+                                               alu_u16_r6[row_idx],
+                                               alu_u16_r7[row_idx],
+                                               alu_u16_r8[row_idx],
+                                               alu_u16_r9[row_idx],
+                                               alu_u16_tag[row_idx],
+                                               alu_u32_tag[row_idx],
+                                               alu_u64_tag[row_idx],
+                                               alu_u8_r0[row_idx],
+                                               alu_u8_r1[row_idx],
+                                               alu_u8_tag[row_idx],
+                                               binary_acc_ia[row_idx],
+                                               binary_acc_ib[row_idx],
+                                               binary_acc_ic[row_idx],
+                                               binary_clk[row_idx],
+                                               binary_ia_bytes[row_idx],
+                                               binary_ib_bytes[row_idx],
+                                               binary_ic_bytes[row_idx],
+                                               binary_in_tag[row_idx],
+                                               binary_mem_tag_ctr[row_idx],
+                                               binary_mem_tag_ctr_inv[row_idx],
+                                               binary_op_id[row_idx],
+                                               binary_sel_bin[row_idx],
+                                               binary_start[row_idx],
+                                               byte_lookup_sel_bin[row_idx],
+                                               byte_lookup_table_byte_lengths[row_idx],
+                                               byte_lookup_table_in_tags[row_idx],
+                                               byte_lookup_table_input_a[row_idx],
+                                               byte_lookup_table_input_b[row_idx],
+                                               byte_lookup_table_op_id[row_idx],
+                                               byte_lookup_table_output[row_idx],
+                                               conversion_clk[row_idx],
+                                               conversion_input[row_idx],
+                                               conversion_num_limbs[row_idx],
+                                               conversion_radix[row_idx],
+                                               conversion_sel_to_radix_le[row_idx],
+                                               gas_da_gas_fixed_table[row_idx],
+                                               gas_l2_gas_fixed_table[row_idx],
+                                               gas_sel_gas_cost[row_idx],
+                                               keccakf1600_clk[row_idx],
+                                               keccakf1600_input[row_idx],
+                                               keccakf1600_output[row_idx],
+                                               keccakf1600_sel_keccakf1600[row_idx],
+                                               kernel_emit_l2_to_l1_msg_write_offset[row_idx],
+                                               kernel_emit_note_hash_write_offset[row_idx],
+                                               kernel_emit_nullifier_write_offset[row_idx],
+                                               kernel_emit_unencrypted_log_write_offset[row_idx],
+                                               kernel_kernel_in_offset[row_idx],
+                                               kernel_kernel_out_offset[row_idx],
+                                               kernel_l1_to_l2_msg_exists_write_offset[row_idx],
+                                               kernel_note_hash_exist_write_offset[row_idx],
+                                               kernel_nullifier_exists_write_offset[row_idx],
+                                               kernel_nullifier_non_exists_write_offset[row_idx],
+                                               kernel_q_public_input_kernel_add_to_table[row_idx],
+                                               kernel_q_public_input_kernel_out_add_to_table[row_idx],
+                                               kernel_side_effect_counter[row_idx],
+                                               kernel_sload_write_offset[row_idx],
+                                               kernel_sstore_write_offset[row_idx],
+                                               main_abs_da_rem_gas_hi[row_idx],
+                                               main_abs_da_rem_gas_lo[row_idx],
+                                               main_abs_l2_rem_gas_hi[row_idx],
+                                               main_abs_l2_rem_gas_lo[row_idx],
+                                               main_alu_in_tag[row_idx],
+                                               main_bin_op_id[row_idx],
+                                               main_call_ptr[row_idx],
+                                               main_da_gas_op_cost[row_idx],
+                                               main_da_gas_remaining[row_idx],
+                                               main_da_out_of_gas[row_idx],
+                                               main_ia[row_idx],
+                                               main_ib[row_idx],
+                                               main_ic[row_idx],
+                                               main_id[row_idx],
+                                               main_id_zero[row_idx],
+                                               main_ind_addr_a[row_idx],
+                                               main_ind_addr_b[row_idx],
+                                               main_ind_addr_c[row_idx],
+                                               main_ind_addr_d[row_idx],
+                                               main_internal_return_ptr[row_idx],
+                                               main_inv[row_idx],
+                                               main_l2_gas_op_cost[row_idx],
+                                               main_l2_gas_remaining[row_idx],
+                                               main_l2_out_of_gas[row_idx],
+                                               main_mem_addr_a[row_idx],
+                                               main_mem_addr_b[row_idx],
+                                               main_mem_addr_c[row_idx],
+                                               main_mem_addr_d[row_idx],
+                                               main_op_err[row_idx],
+                                               main_opcode_val[row_idx],
+                                               main_pc[row_idx],
+                                               main_r_in_tag[row_idx],
+                                               main_rwa[row_idx],
+                                               main_rwb[row_idx],
+                                               main_rwc[row_idx],
+                                               main_rwd[row_idx],
+                                               main_sel_alu[row_idx],
+                                               main_sel_bin[row_idx],
+                                               main_sel_gas_accounting_active[row_idx],
+                                               main_sel_last[row_idx],
+                                               main_sel_mem_op_a[row_idx],
+                                               main_sel_mem_op_activate_gas[row_idx],
+                                               main_sel_mem_op_b[row_idx],
+                                               main_sel_mem_op_c[row_idx],
+                                               main_sel_mem_op_d[row_idx],
+                                               main_sel_mov_ia_to_ic[row_idx],
+                                               main_sel_mov_ib_to_ic[row_idx],
+                                               main_sel_op_add[row_idx],
+                                               main_sel_op_address[row_idx],
+                                               main_sel_op_and[row_idx],
+                                               main_sel_op_block_number[row_idx],
+                                               main_sel_op_cast[row_idx],
+                                               main_sel_op_chain_id[row_idx],
+                                               main_sel_op_cmov[row_idx],
+                                               main_sel_op_coinbase[row_idx],
+                                               main_sel_op_dagasleft[row_idx],
+                                               main_sel_op_div[row_idx],
+                                               main_sel_op_emit_l2_to_l1_msg[row_idx],
+                                               main_sel_op_emit_note_hash[row_idx],
+                                               main_sel_op_emit_nullifier[row_idx],
+                                               main_sel_op_emit_unencrypted_log[row_idx],
+                                               main_sel_op_eq[row_idx],
+                                               main_sel_op_external_call[row_idx],
+                                               main_sel_op_fdiv[row_idx],
+                                               main_sel_op_fee_per_da_gas[row_idx],
+                                               main_sel_op_fee_per_l2_gas[row_idx],
+                                               main_sel_op_function_selector[row_idx],
+                                               main_sel_op_get_contract_instance[row_idx],
+                                               main_sel_op_halt[row_idx],
+                                               main_sel_op_internal_call[row_idx],
+                                               main_sel_op_internal_return[row_idx],
+                                               main_sel_op_jump[row_idx],
+                                               main_sel_op_jumpi[row_idx],
+                                               main_sel_op_keccak[row_idx],
+                                               main_sel_op_l1_to_l2_msg_exists[row_idx],
+                                               main_sel_op_l2gasleft[row_idx],
+                                               main_sel_op_lt[row_idx],
+                                               main_sel_op_lte[row_idx],
+                                               main_sel_op_mov[row_idx],
+                                               main_sel_op_mul[row_idx],
+                                               main_sel_op_not[row_idx],
+                                               main_sel_op_note_hash_exists[row_idx],
+                                               main_sel_op_nullifier_exists[row_idx],
+                                               main_sel_op_or[row_idx],
+                                               main_sel_op_pedersen[row_idx],
+                                               main_sel_op_poseidon2[row_idx],
+                                               main_sel_op_radix_le[row_idx],
+                                               main_sel_op_sender[row_idx],
+                                               main_sel_op_sha256[row_idx],
+                                               main_sel_op_shl[row_idx],
+                                               main_sel_op_shr[row_idx],
+                                               main_sel_op_sload[row_idx],
+                                               main_sel_op_sstore[row_idx],
+                                               main_sel_op_storage_address[row_idx],
+                                               main_sel_op_sub[row_idx],
+                                               main_sel_op_timestamp[row_idx],
+                                               main_sel_op_transaction_fee[row_idx],
+                                               main_sel_op_version[row_idx],
+                                               main_sel_op_xor[row_idx],
+                                               main_sel_q_kernel_lookup[row_idx],
+                                               main_sel_q_kernel_output_lookup[row_idx],
+                                               main_sel_resolve_ind_addr_a[row_idx],
+                                               main_sel_resolve_ind_addr_b[row_idx],
+                                               main_sel_resolve_ind_addr_c[row_idx],
+                                               main_sel_resolve_ind_addr_d[row_idx],
+                                               main_sel_rng_16[row_idx],
+                                               main_sel_rng_8[row_idx],
+                                               main_space_id[row_idx],
+                                               main_tag_err[row_idx],
+                                               main_w_in_tag[row_idx],
+                                               mem_addr[row_idx],
+                                               mem_clk[row_idx],
+                                               mem_diff_hi[row_idx],
+                                               mem_diff_lo[row_idx],
+                                               mem_diff_mid[row_idx],
+                                               mem_glob_addr[row_idx],
+                                               mem_last[row_idx],
+                                               mem_lastAccess[row_idx],
+                                               mem_one_min_inv[row_idx],
+                                               mem_r_in_tag[row_idx],
+                                               mem_rw[row_idx],
+                                               mem_sel_mem[row_idx],
+                                               mem_sel_mov_ia_to_ic[row_idx],
+                                               mem_sel_mov_ib_to_ic[row_idx],
+                                               mem_sel_op_a[row_idx],
+                                               mem_sel_op_b[row_idx],
+                                               mem_sel_op_c[row_idx],
+                                               mem_sel_op_cmov[row_idx],
+                                               mem_sel_op_d[row_idx],
+                                               mem_sel_resolve_ind_addr_a[row_idx],
+                                               mem_sel_resolve_ind_addr_b[row_idx],
+                                               mem_sel_resolve_ind_addr_c[row_idx],
+                                               mem_sel_resolve_ind_addr_d[row_idx],
+                                               mem_sel_rng_chk[row_idx],
+                                               mem_skip_check_tag[row_idx],
+                                               mem_space_id[row_idx],
+                                               mem_tag[row_idx],
+                                               mem_tag_err[row_idx],
+                                               mem_tsp[row_idx],
+                                               mem_val[row_idx],
+                                               mem_w_in_tag[row_idx],
+                                               pedersen_clk[row_idx],
+                                               pedersen_input[row_idx],
+                                               pedersen_output[row_idx],
+                                               pedersen_sel_pedersen[row_idx],
+                                               poseidon2_clk[row_idx],
+                                               poseidon2_input[row_idx],
+                                               poseidon2_output[row_idx],
+                                               poseidon2_sel_poseidon_perm[row_idx],
+                                               powers_power_of_2[row_idx],
+                                               sha256_clk[row_idx],
+                                               sha256_input[row_idx],
+                                               sha256_output[row_idx],
+                                               sha256_sel_sha256_compression[row_idx],
+                                               sha256_state[row_idx],
+                                               perm_main_alu[row_idx],
+                                               perm_main_bin[row_idx],
+                                               perm_main_conv[row_idx],
+                                               perm_main_pos2_perm[row_idx],
+                                               perm_main_pedersen[row_idx],
+                                               perm_main_mem_a[row_idx],
+                                               perm_main_mem_b[row_idx],
+                                               perm_main_mem_c[row_idx],
+                                               perm_main_mem_d[row_idx],
+                                               perm_main_mem_ind_addr_a[row_idx],
+                                               perm_main_mem_ind_addr_b[row_idx],
+                                               perm_main_mem_ind_addr_c[row_idx],
+                                               perm_main_mem_ind_addr_d[row_idx],
+                                               lookup_byte_lengths[row_idx],
+                                               lookup_byte_operations[row_idx],
+                                               lookup_opcode_gas[row_idx],
+                                               range_check_l2_gas_hi[row_idx],
+                                               range_check_l2_gas_lo[row_idx],
+                                               range_check_da_gas_hi[row_idx],
+                                               range_check_da_gas_lo[row_idx],
+                                               kernel_output_lookup[row_idx],
+                                               lookup_into_kernel[row_idx],
+                                               incl_main_tag_err[row_idx],
+                                               incl_mem_tag_err[row_idx],
+                                               lookup_mem_rng_chk_lo[row_idx],
+                                               lookup_mem_rng_chk_mid[row_idx],
+                                               lookup_mem_rng_chk_hi[row_idx],
+                                               lookup_pow_2_0[row_idx],
+                                               lookup_pow_2_1[row_idx],
+                                               lookup_u8_0[row_idx],
+                                               lookup_u8_1[row_idx],
+                                               lookup_u16_0[row_idx],
+                                               lookup_u16_1[row_idx],
+                                               lookup_u16_2[row_idx],
+                                               lookup_u16_3[row_idx],
+                                               lookup_u16_4[row_idx],
+                                               lookup_u16_5[row_idx],
+                                               lookup_u16_6[row_idx],
+                                               lookup_u16_7[row_idx],
+                                               lookup_u16_8[row_idx],
+                                               lookup_u16_9[row_idx],
+                                               lookup_u16_10[row_idx],
+                                               lookup_u16_11[row_idx],
+                                               lookup_u16_12[row_idx],
+                                               lookup_u16_13[row_idx],
+                                               lookup_u16_14[row_idx],
+                                               lookup_div_u16_0[row_idx],
+                                               lookup_div_u16_1[row_idx],
+                                               lookup_div_u16_2[row_idx],
+                                               lookup_div_u16_3[row_idx],
+                                               lookup_div_u16_4[row_idx],
+                                               lookup_div_u16_5[row_idx],
+                                               lookup_div_u16_6[row_idx],
+                                               lookup_div_u16_7[row_idx],
+                                               lookup_byte_lengths_counts[row_idx],
+                                               lookup_byte_operations_counts[row_idx],
+                                               lookup_opcode_gas_counts[row_idx],
+                                               range_check_l2_gas_hi_counts[row_idx],
+                                               range_check_l2_gas_lo_counts[row_idx],
+                                               range_check_da_gas_hi_counts[row_idx],
+                                               range_check_da_gas_lo_counts[row_idx],
+                                               kernel_output_lookup_counts[row_idx],
+                                               lookup_into_kernel_counts[row_idx],
+                                               incl_main_tag_err_counts[row_idx],
+                                               incl_mem_tag_err_counts[row_idx],
+                                               lookup_mem_rng_chk_lo_counts[row_idx],
+                                               lookup_mem_rng_chk_mid_counts[row_idx],
+                                               lookup_mem_rng_chk_hi_counts[row_idx],
+                                               lookup_pow_2_0_counts[row_idx],
+                                               lookup_pow_2_1_counts[row_idx],
+                                               lookup_u8_0_counts[row_idx],
+                                               lookup_u8_1_counts[row_idx],
+                                               lookup_u16_0_counts[row_idx],
+                                               lookup_u16_1_counts[row_idx],
+                                               lookup_u16_2_counts[row_idx],
+                                               lookup_u16_3_counts[row_idx],
+                                               lookup_u16_4_counts[row_idx],
+                                               lookup_u16_5_counts[row_idx],
+                                               lookup_u16_6_counts[row_idx],
+                                               lookup_u16_7_counts[row_idx],
+                                               lookup_u16_8_counts[row_idx],
+                                               lookup_u16_9_counts[row_idx],
+                                               lookup_u16_10_counts[row_idx],
+                                               lookup_u16_11_counts[row_idx],
+                                               lookup_u16_12_counts[row_idx],
+                                               lookup_u16_13_counts[row_idx],
+                                               lookup_u16_14_counts[row_idx],
+                                               lookup_div_u16_0_counts[row_idx],
+                                               lookup_div_u16_1_counts[row_idx],
+                                               lookup_div_u16_2_counts[row_idx],
+                                               lookup_div_u16_3_counts[row_idx],
+                                               lookup_div_u16_4_counts[row_idx],
+                                               lookup_div_u16_5_counts[row_idx],
+                                               lookup_div_u16_6_counts[row_idx],
+                                               lookup_div_u16_7_counts[row_idx],
+                                               alu_a_hi_shift[row_idx],
+                                               alu_a_lo_shift[row_idx],
+                                               alu_b_hi_shift[row_idx],
+                                               alu_b_lo_shift[row_idx],
+                                               alu_cmp_rng_ctr_shift[row_idx],
+                                               alu_div_u16_r0_shift[row_idx],
+                                               alu_div_u16_r1_shift[row_idx],
+                                               alu_div_u16_r2_shift[row_idx],
+                                               alu_div_u16_r3_shift[row_idx],
+                                               alu_div_u16_r4_shift[row_idx],
+                                               alu_div_u16_r5_shift[row_idx],
+                                               alu_div_u16_r6_shift[row_idx],
+                                               alu_div_u16_r7_shift[row_idx],
+                                               alu_op_add_shift[row_idx],
+                                               alu_op_cast_prev_shift[row_idx],
+                                               alu_op_cast_shift[row_idx],
+                                               alu_op_div_shift[row_idx],
+                                               alu_op_mul_shift[row_idx],
+                                               alu_op_shl_shift[row_idx],
+                                               alu_op_shr_shift[row_idx],
+                                               alu_op_sub_shift[row_idx],
+                                               alu_p_sub_a_hi_shift[row_idx],
+                                               alu_p_sub_a_lo_shift[row_idx],
+                                               alu_p_sub_b_hi_shift[row_idx],
+                                               alu_p_sub_b_lo_shift[row_idx],
+                                               alu_sel_alu_shift[row_idx],
+                                               alu_sel_cmp_shift[row_idx],
+                                               alu_sel_div_rng_chk_shift[row_idx],
+                                               alu_sel_rng_chk_lookup_shift[row_idx],
+                                               alu_sel_rng_chk_shift[row_idx],
+                                               alu_u16_r0_shift[row_idx],
+                                               alu_u16_r1_shift[row_idx],
+                                               alu_u16_r2_shift[row_idx],
+                                               alu_u16_r3_shift[row_idx],
+                                               alu_u16_r4_shift[row_idx],
+                                               alu_u16_r5_shift[row_idx],
+                                               alu_u16_r6_shift[row_idx],
+                                               alu_u8_r0_shift[row_idx],
+                                               alu_u8_r1_shift[row_idx],
+                                               binary_acc_ia_shift[row_idx],
+                                               binary_acc_ib_shift[row_idx],
+                                               binary_acc_ic_shift[row_idx],
+                                               binary_mem_tag_ctr_shift[row_idx],
+                                               binary_op_id_shift[row_idx],
+                                               kernel_emit_l2_to_l1_msg_write_offset_shift[row_idx],
+                                               kernel_emit_note_hash_write_offset_shift[row_idx],
+                                               kernel_emit_nullifier_write_offset_shift[row_idx],
+                                               kernel_emit_unencrypted_log_write_offset_shift[row_idx],
+                                               kernel_l1_to_l2_msg_exists_write_offset_shift[row_idx],
+                                               kernel_note_hash_exist_write_offset_shift[row_idx],
+                                               kernel_nullifier_exists_write_offset_shift[row_idx],
+                                               kernel_nullifier_non_exists_write_offset_shift[row_idx],
+                                               kernel_side_effect_counter_shift[row_idx],
+                                               kernel_sload_write_offset_shift[row_idx],
+                                               kernel_sstore_write_offset_shift[row_idx],
+                                               main_da_gas_remaining_shift[row_idx],
+                                               main_internal_return_ptr_shift[row_idx],
+                                               main_l2_gas_remaining_shift[row_idx],
+                                               main_pc_shift[row_idx],
+                                               mem_glob_addr_shift[row_idx],
+                                               mem_rw_shift[row_idx],
+                                               mem_sel_mem_shift[row_idx],
+                                               mem_tag_shift[row_idx],
+                                               mem_tsp_shift[row_idx],
+                                               mem_val_shift[row_idx] });
         }
     };
 
