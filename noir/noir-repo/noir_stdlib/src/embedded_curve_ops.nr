@@ -61,8 +61,7 @@ impl EmbeddedCurveScalar {
     }
 
     pub fn derive_public_key(self) -> EmbeddedCurvePoint {
-        let public_key = fixed_base_scalar_mul(self.lo, self.hi);
-        EmbeddedCurvePoint { x: public_key[0], y: public_key[1], is_infinite: false }
+        fixed_base_scalar_mul(self)
     }
 
     #[field(bn254)]
@@ -84,24 +83,25 @@ impl Eq for EmbeddedCurveScalar {
 //
 // The embedded curve being used is decided by the 
 // underlying proof system.
-#[foreign(multi_scalar_mul)]
 // docs:start:multi_scalar_mul
 pub fn multi_scalar_mul<let N: u32>(
     points: [EmbeddedCurvePoint; N],
     scalars: [EmbeddedCurveScalar; N]
-) -> [Field; 3]
+) -> EmbeddedCurvePoint
 // docs:end:multi_scalar_mul
-{}
+{
+    let point_array = multi_scalar_mul_array_return(points, scalars);
+    EmbeddedCurvePoint { x: point_array[0], y: point_array[1], is_infinite: point_array[2] as bool }
+}
+
+#[foreign(multi_scalar_mul)]
+fn multi_scalar_mul_array_return<let N: u32>(points: [EmbeddedCurvePoint; N], scalars: [EmbeddedCurveScalar; N]) -> [Field; 3] {}
 
 // docs:start:fixed_base_scalar_mul
-pub fn fixed_base_scalar_mul(
-    scalar_low: Field,
-    scalar_high: Field
-) -> [Field; 3]
+pub fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
 // docs:end:fixed_base_scalar_mul
 {
     let g1 = EmbeddedCurvePoint { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };
-    let scalar = EmbeddedCurveScalar { lo: scalar_low, hi: scalar_high };
     multi_scalar_mul([g1], [scalar])
 }
 

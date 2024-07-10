@@ -50,7 +50,7 @@ pub fn verify_signature_noir<M>(public_key: embedded_curve_ops::EmbeddedCurvePoi
         let g1 = embedded_curve_ops::EmbeddedCurvePoint { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };
         let r = embedded_curve_ops::multi_scalar_mul([g1, public_key], [sig_s, sig_e]);
         // compare the _hashes_ rather than field elements modulo r
-        let pedersen_hash = std::hash::pedersen_hash([r[0], public_key.x, public_key.y]);
+        let pedersen_hash = std::hash::pedersen_hash([r.x, public_key.x, public_key.y]);
         let mut hash_input = [0; M];
         let pde = pedersen_hash.to_be_bytes(32);
 
@@ -62,7 +62,7 @@ pub fn verify_signature_noir<M>(public_key: embedded_curve_ops::EmbeddedCurvePoi
         }
         let result = std::hash::blake2s(hash_input);
 
-        is_ok = (r[2] == 0);
+        is_ok = !r.is_infinite;
         for i in 0..32 {
             if result[i] != signature[32 + i] {
                 is_ok = false;
@@ -101,7 +101,7 @@ pub fn assert_valid_signature<M>(public_key: embedded_curve_ops::EmbeddedCurvePo
     let g1 = embedded_curve_ops::EmbeddedCurvePoint { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };
     let r = embedded_curve_ops::multi_scalar_mul([g1, public_key], [sig_s, sig_e]);
     // compare the _hashes_ rather than field elements modulo r
-    let pedersen_hash = std::hash::pedersen_hash([r[0], public_key.x, public_key.y]);
+    let pedersen_hash = std::hash::pedersen_hash([r.x, public_key.x, public_key.y]);
     let mut hash_input = [0; M];
     let pde = pedersen_hash.to_be_bytes(32);
 
@@ -113,7 +113,7 @@ pub fn assert_valid_signature<M>(public_key: embedded_curve_ops::EmbeddedCurvePo
     }
     let result = std::hash::blake2s(hash_input);
 
-    assert(r[2] == 0);
+    assert(!r.is_infinite);
     for i in 0..32 {
         assert(result[i] == signature[32 + i]);
     }

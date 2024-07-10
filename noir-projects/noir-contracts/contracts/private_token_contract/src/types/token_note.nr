@@ -92,7 +92,7 @@ impl NoteInterface<TOKEN_NOTE_LEN, TOKEN_NOTE_BYTES_LEN> for TokenNote {
                 lo: random_lo,
                 hi: random_hi,
             }]
-        )[0]
+        ).x
     }
 }
 
@@ -238,15 +238,7 @@ impl PrivatelyRefundable for TokenNote {
         );
 
         // 5. At last we represent the points as Points and return them.
-        (Point {
-            x: incomplete_fee_payer_point[0],
-            y: incomplete_fee_payer_point[1],
-            is_infinite: incomplete_fee_payer_point[2] == 1
-        }, Point {
-            x: incomplete_user_point[0],
-            y: incomplete_user_point[1],
-            is_infinite: incomplete_user_point[2] == 1
-        })
+        (incomplete_fee_payer_point, incomplete_user_point)
     }
 
     fn complete_refund(incomplete_fee_payer_point: Point, incomplete_user_point: Point, transaction_fee: Field) -> (Field, Field) {
@@ -254,18 +246,13 @@ impl PrivatelyRefundable for TokenNote {
         let (transaction_fee_lo, transaction_fee_hi) = decompose(transaction_fee);
 
         // 2. We compute the fee point as `G ^ transaction_fee`
-        let fee_point_raw = multi_scalar_mul(
+        let fee_point = multi_scalar_mul(
             [G1],
             [Scalar {
                 lo: transaction_fee_lo,
                 hi: transaction_fee_hi,
             }]
         );
-        let fee_point = Point {
-            x: fee_point_raw[0],
-            y: fee_point_raw[1],
-            is_infinite: fee_point_raw[2] == 1
-        };
 
         // 3. Now we leverage homomorphism to privately add the fee to fee payer point and subtract it from
         // the sponsored user point in public.

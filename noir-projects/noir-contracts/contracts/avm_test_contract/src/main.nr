@@ -145,7 +145,7 @@ contract AvmTest {
     }
 
     #[aztec(public)]
-    fn variable_base_msm() -> [Field; 3] {
+    fn variable_base_msm() -> Point {
         let g = Point { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };
         let scalar = Scalar { lo: 3, hi: 0 };
         let scalar2 = Scalar { lo: 20, hi: 0 };

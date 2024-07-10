@@ -43,8 +43,7 @@ fn pedersen_commitment_with_separator_noir<let N: u32>(input: [Field; N], separa
         points[i] = EmbeddedCurveScalar::from_field(input[i]);
     }
     let generators = derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
-    let values = multi_scalar_mul(generators, points);
-    EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: values[2] as bool }
+    multi_scalar_mul(generators, points)
 }
 
 #[no_predicates]
@@ -80,7 +79,7 @@ fn pedersen_hash_with_separator_noir<let N: u32>(input: [Field; N], separator: u
     multi_scalar_mul(
         [length_generator[0], v1],
         [EmbeddedCurveScalar { lo: N as Field, hi: 0 }, EmbeddedCurveScalar { lo: 1, hi: 0 }]
-    )[0]
+    ).x
 }
 
 #[foreign(pedersen_hash)]
