@@ -6,9 +6,9 @@ global WORD_SIZE = 8;
 use crate::collections::bounded_vec::BoundedVec;
 
 #[foreign(keccakf1600)]
-pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
+fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
 
-pub fn hash<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32] {
+fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32] {
     // No var keccak for now
     assert(N == message_size);
 
@@ -48,24 +48,24 @@ pub fn hash<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32] {
     // populate a vector of 64-bit limbs from our byte array
     for i in 0..num_limbs {
         let mut sliced = 0;
-        if ((i as u32) * WORD_SIZE + WORD_SIZE > byte_size) {
+        if (i * WORD_SIZE + WORD_SIZE > byte_size) {
             let slice_size = byte_size - (i * WORD_SIZE);
             let byte_shift = (WORD_SIZE - slice_size) * 8;
             let mut v = 1;
             for k in 0..slice_size {
-                sliced += v*(block_bytes.get(i * WORD_SIZE+7-k) as Field);
-                v = v*256;
+                sliced += v * (block_bytes.get(i * WORD_SIZE+7-k) as Field);
+                v *= 256;
             }
             let w = 1 << (byte_shift as u8);
             sliced *= w as Field;
         } else {
             let mut v = 1;
             for k in 0..WORD_SIZE {
-                sliced += v*(block_bytes.get(i * WORD_SIZE+7-k) as Field);
-                v = v*256;
+                sliced += v * (block_bytes.get(i * WORD_SIZE+7-k) as Field);
+                v *= 256;
             }
         }
-        sliced_buffer[i] =sliced as u64;
+        sliced_buffer[i] = sliced as u64;
     }
 
     //2. sponge_absorb
@@ -97,17 +97,24 @@ pub fn hash<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32] {
     result
 }
 
-#[test]
-pub fn keccak_test() {
-    let input = [72, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 33];
-    let result = [
-        0xec, 0xd0, 0xe1, 0x8, 0xa9, 0x8e, 0x19, 0x2a, 0xf1, 0xd2, 0xc2, 0x50, 0x55, 0xf4, 0xe3, 0xbe, 0xd7, 0x84, 0xb5, 0xc8, 0x77, 0x20, 0x4e, 0x73, 0x21, 0x9a, 0x52, 0x3, 0x25, 0x1f, 0xea, 0xab
-    ];
-    assert_eq(hash(input, input.len()), result);
+mod tests {
+    #[test]
+    fn smoke_test() {
+        let input = [0xbd];
+        let result = [
+            0x5a, 0x50, 0x2f, 0x9f, 0xca, 0x46, 0x7b, 0x26, 0x6d, 0x5b, 0x78, 0x33, 0x65, 0x19, 0x37, 0xe8, 0x05, 0x27, 0x0c, 0xa3, 0xf3, 0xaf, 0x1c, 0x0d, 0xd2, 0x46, 0x2d, 0xca, 0x4b, 0x3b, 0x1a, 0xbf
+        ];
+        assert_eq(keccak256(input, input.len()), result);
+    }
 
-    let input = [0xbd];
-    let result = [
-        0x5a, 0x50, 0x2f, 0x9f, 0xca, 0x46, 0x7b, 0x26, 0x6d, 0x5b, 0x78, 0x33, 0x65, 0x19, 0x37, 0xe8, 0x05, 0x27, 0x0c, 0xa3, 0xf3, 0xaf, 0x1c, 0x0d, 0xd2, 0x46, 0x2d, 0xca, 0x4b, 0x3b, 0x1a, 0xbf
-    ];
-    assert_eq(hash(input, input.len()), result);
+    #[test]
+    fn hash_hello_world() {
+        // "hello world"
+        let input = [72, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 33];
+        let result = [
+            0xec, 0xd0, 0xe1, 0x8, 0xa9, 0x8e, 0x19, 0x2a, 0xf1, 0xd2, 0xc2, 0x50, 0x55, 0xf4, 0xe3, 0xbe, 0xd7, 0x84, 0xb5, 0xc8, 0x77, 0x20, 0x4e, 0x73, 0x21, 0x9a, 0x52, 0x3, 0x25, 0x1f, 0xea, 0xab
+        ];
+        assert_eq(keccak256(input, input.len()), result);
+    }
 }
+
