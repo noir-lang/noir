@@ -414,7 +414,7 @@ fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> boo
     if expr.mul_terms.len() > 1 {
         return false;
     };
-    
+
     expr.width() <= width
 }
 
