@@ -25,22 +25,22 @@ impl<T, Context> PublicMutable<T, Context> {
     // docs:end:public_mutable_struct_new
 }
 
-impl<T> PublicMutable<T, &mut PublicContext> {
+impl<T, T_SERIALIZED_LEN> PublicMutable<T, &mut PublicContext> where T: Serialize<T_SERIALIZED_LEN> + Deserialize<T_SERIALIZED_LEN> {
     // docs:start:public_mutable_struct_read
-    pub fn read<T_SERIALIZED_LEN>(self) -> T where T: Deserialize<T_SERIALIZED_LEN> {
+    pub fn read(self) -> T {
         self.context.storage_read(self.storage_slot)
     }
     // docs:end:public_mutable_struct_read
 
     // docs:start:public_mutable_struct_write
-    pub fn write<T_SERIALIZED_LEN>(self, value: T) where T: Serialize<T_SERIALIZED_LEN> {
+    pub fn write(self, value: T) {
         self.context.storage_write(self.storage_slot, value);
     }
     // docs:end:public_mutable_struct_write
 }
 
-impl<T> PublicMutable<T, UnconstrainedContext> {
-    unconstrained pub fn read<T_SERIALIZED_LEN>(self) -> T where T: Deserialize<T_SERIALIZED_LEN> {
+impl<T, T_SERIALIZED_LEN> PublicMutable<T, UnconstrainedContext> where T: Deserialize<T_SERIALIZED_LEN> {
+    unconstrained pub fn read(self) -> T {
         self.context.storage_read(self.storage_slot)
     }
 }

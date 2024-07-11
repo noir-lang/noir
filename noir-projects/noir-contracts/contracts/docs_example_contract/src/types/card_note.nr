@@ -1,7 +1,7 @@
 use dep::aztec::prelude::{AztecAddress, NoteInterface, NoteHeader, PrivateContext};
 use dep::aztec::{
     note::{utils::compute_note_hash_for_consumption}, keys::getters::get_nsk_app,
-    protocol_types::{traits::{Empty, Serialize}, constants::GENERATOR_INDEX__NOTE_NULLIFIER, hash::poseidon2_hash}
+    protocol_types::{traits::{Empty, Eq, Serialize}, constants::GENERATOR_INDEX__NOTE_NULLIFIER, hash::poseidon2_hash}
 };
 
 // Shows how to create a custom note
@@ -53,5 +53,13 @@ impl NoteInterface<CARD_NOTE_LEN, CARD_NOTE_BYTES_LEN> for CardNote {
 impl Serialize<3> for CardNote {
     fn serialize(self) -> [Field; 3] {
         [ self.points.to_field(), self.randomness, self.npk_m_hash.to_field() ]
+    }
+}
+
+impl Eq for CardNote {
+    fn eq(self, other: Self) -> bool {
+        (self.points == other.points) &
+        (self.npk_m_hash == other.npk_m_hash) &
+        (self.randomness == other.randomness)
     }
 }

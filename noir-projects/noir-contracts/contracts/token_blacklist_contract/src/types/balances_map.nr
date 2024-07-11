@@ -59,7 +59,7 @@ impl<T> BalancesMap<T, &mut PrivateContext> {
         self: Self,
         owner: AztecAddress,
         addend: U128
-    ) -> OuterNoteEmission<T> where T: NoteInterface<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN> + OwnedNote {
+    ) -> OuterNoteEmission<T> where T: NoteInterface<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN> + OwnedNote + Eq {
         if addend == U128::from_integer(0) {
             OuterNoteEmission::new(Option::none())
         } else {

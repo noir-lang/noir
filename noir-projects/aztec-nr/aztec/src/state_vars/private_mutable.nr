@@ -43,12 +43,9 @@ impl<Note, Context> PrivateMutable<Note, Context> {
     }
 }
 
-impl<Note> PrivateMutable<Note, &mut PrivateContext> {
+impl<Note, N, M> PrivateMutable<Note, &mut PrivateContext> where Note: NoteInterface<N, M> {
     // docs:start:initialize
-    pub fn initialize<N, M>(
-        self,
-        note: &mut Note
-    ) -> NoteEmission<Note> where Note: NoteInterface<N, M> {
+    pub fn initialize(self, note: &mut Note) -> NoteEmission<Note> {
         // Nullify the storage slot.
         let nullifier = self.compute_initialization_nullifier();
         self.context.push_nullifier(nullifier, 0);
@@ -58,10 +55,7 @@ impl<Note> PrivateMutable<Note, &mut PrivateContext> {
     // docs:end:initialize
 
     // docs:start:replace
-    pub fn replace<N, M>(
-        self,
-        new_note: &mut Note
-    ) -> NoteEmission<Note>  where Note: NoteInterface<N, M> {
+    pub fn replace(self, new_note: &mut Note) -> NoteEmission<Note> {
         let prev_note: Note = get_note(self.context, self.storage_slot);
 
         // Nullify previous note.
@@ -72,10 +66,7 @@ impl<Note> PrivateMutable<Note, &mut PrivateContext> {
     }
     // docs:end:replace
 
-    pub fn initialize_or_replace<N, M>(
-        self,
-        note: &mut Note
-    ) -> NoteEmission<Note>  where Note: NoteInterface<N, M> {
+    pub fn initialize_or_replace(self, note: &mut Note) -> NoteEmission<Note> {
         let is_initialized = check_nullifier_exists(self.compute_initialization_nullifier());
 
         // check_nullifier_exists() is an unconstrained function - we can constrain a true value by providing an 
@@ -96,7 +87,7 @@ impl<Note> PrivateMutable<Note, &mut PrivateContext> {
     }
 
     // docs:start:get_note
-    pub fn get_note<N, M>(self) -> NoteEmission<Note> where Note: NoteInterface<N, M> {
+    pub fn get_note(self) -> NoteEmission<Note> {
         let mut note = get_note(self.context, self.storage_slot);
 
         // Nullify current note to make sure it's reading the latest note.
@@ -109,14 +100,14 @@ impl<Note> PrivateMutable<Note, &mut PrivateContext> {
     // docs:end:get_note
 }
 
-impl<Note> PrivateMutable<Note, UnconstrainedContext> {
+impl<Note, N, M> PrivateMutable<Note, UnconstrainedContext> where Note: NoteInterface<N, M> {
     unconstrained pub fn is_initialized(self) -> bool {
         let nullifier = self.compute_initialization_nullifier();
         check_nullifier_exists(nullifier)
     }
 
     // docs:start:view_note
-    unconstrained pub fn view_note<N, M>(self) -> Note where Note: NoteInterface<N, M> {
+    unconstrained pub fn view_note(self) -> Note {
         let mut options = NoteViewerOptions::new();
         view_notes(self.storage_slot, options.set_limit(1)).get(0)
     }

@@ -25,7 +25,7 @@ struct SharedMutablePrivateGetter<T, INITIAL_DELAY> {
 
 // We have this as a view-only interface to reading Shared Mutables in other contracts.
 // Currently the Shared Mutable does not support this. We can adapt SharedMutable at a later date
-impl<T, INITIAL_DELAY> SharedMutablePrivateGetter<T, INITIAL_DELAY> {
+impl<T, INITIAL_DELAY> SharedMutablePrivateGetter<T, INITIAL_DELAY>  where T: FromField + ToField + Eq {
     pub fn new(
         context: &mut PrivateContext,
         other_contract_address: AztecAddress,
@@ -36,7 +36,7 @@ impl<T, INITIAL_DELAY> SharedMutablePrivateGetter<T, INITIAL_DELAY> {
         Self { context, other_contract_address, storage_slot, _dummy: [0; INITIAL_DELAY] }
     }
 
-    pub fn get_value_in_private(self, header: Header) -> T where T: FromField + ToField + Eq {
+    pub fn get_value_in_private(self, header: Header) -> T {
         // We create a dummy SharedMutable state variable so that we can reuse its historical_read_from_public_storage
         // method, greatly reducing code duplication. 
         let dummy: SharedMutable<T, INITIAL_DELAY, ()> = SharedMutable::new((), self.storage_slot);

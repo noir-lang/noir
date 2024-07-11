@@ -13,7 +13,7 @@ use dep::std::unsafe::zeroed;
 
 mod test;
 
-struct SharedMutable<T, INITIAL_DELAY, Context> {
+struct SharedMutable<T, let INITIAL_DELAY: u32, Context> {
     context: Context,
     storage_slot: Field,
 }
@@ -51,7 +51,7 @@ fn concat_arrays<N, M, O>(arr_n: [Field; N], arr_m: [Field; M]) -> [Field; O] {
 // future, so that they can guarantee the value will not have possibly changed by then (because of the delay).
 // The delay for changing a value is initially equal to INITIAL_DELAY, but can be changed by calling
 // `schedule_delay_change`.
-impl<T, INITIAL_DELAY, Context> SharedMutable<T, INITIAL_DELAY, Context> {
+impl<T, INITIAL_DELAY, Context> SharedMutable<T, INITIAL_DELAY, Context> where T: ToField + FromField + Eq {
     pub fn new(context: Context, storage_slot: Field) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         Self { context, storage_slot }
@@ -60,7 +60,7 @@ impl<T, INITIAL_DELAY, Context> SharedMutable<T, INITIAL_DELAY, Context> {
     fn hash_scheduled_data(
         value_change: ScheduledValueChange<T>,
         delay_change: ScheduledDelayChange<INITIAL_DELAY>
-    ) -> Field where T: ToField {
+    ) -> Field {
         // TODO(#5491 and https://github.com/noir-lang/noir/issues/4784): update this so that we don't need to rely on
         // ScheduledValueChange serializing to 3 and ScheduledDelayChange serializing to 1
         let concatenated: [Field; 4] = concat_arrays(value_change.serialize(), delay_change.serialize());
@@ -93,7 +93,7 @@ impl<T, INITIAL_DELAY, Context> SharedMutable<T, INITIAL_DELAY, Context> {
         self,
         header: Header,
         address: AztecAddress
-    ) -> (ScheduledValueChange<T>, ScheduledDelayChange<INITIAL_DELAY>, u32) where T: FromField + ToField + Eq {
+    ) -> (ScheduledValueChange<T>, ScheduledDelayChange<INITIAL_DELAY>, u32) {
         let historical_block_number = header.global_variables.block_number as u32;
 
         // We could simply produce historical inclusion proofs for both the ScheduledValueChange and
@@ -127,8 +127,8 @@ impl<T, INITIAL_DELAY, Context> SharedMutable<T, INITIAL_DELAY, Context> {
     }
 }
 
-impl<T, INITIAL_DELAY> SharedMutable<T, INITIAL_DELAY, &mut PublicContext> {
-    pub fn schedule_value_change(self, new_value: T) where T: ToField {
+impl<T, INITIAL_DELAY> SharedMutable<T, INITIAL_DELAY, &mut PublicContext> where T: ToField + FromField + Eq {
+    pub fn schedule_value_change(self, new_value: T) {
         let mut value_change = self.read_value_change();
         let delay_change = self.read_delay_change();
 
@@ -143,7 +143,7 @@ impl<T, INITIAL_DELAY> SharedMutable<T, INITIAL_DELAY, &mut PublicContext> {
         self.write(value_change, delay_change);
     }
 
-    pub fn schedule_delay_change(self, new_delay: u32) where T: ToField {
+    pub fn schedule_delay_change(self, new_delay: u32) {
         let mut delay_change = self.read_delay_change();
 
         let block_number = self.context.block_number() as u32;
@@ -183,7 +183,7 @@ impl<T, INITIAL_DELAY> SharedMutable<T, INITIAL_DELAY, &mut PublicContext> {
         self,
         value_change: ScheduledValueChange<T>,
         delay_change: ScheduledDelayChange<INITIAL_DELAY>
-    ) where T: ToField {
+    ) {
         // Whenever we write to public storage, we write both the value change and delay change as well as the hash of
         // them both. This guarantees that the hash is always kept up to date.
         // While this makes for more costly writes, it also makes private proofs much simpler because they only need to
@@ -199,8 +199,8 @@ impl<T, INITIAL_DELAY> SharedMutable<T, INITIAL_DELAY, &mut PublicContext> {
     }
 }
 
-impl<T, INITIAL_DELAY> SharedMutable<T, INITIAL_DELAY, &mut PrivateContext> {
-    pub fn get_current_value_in_private(self) -> T where T: FromField + ToField + Eq {
+impl<T, INITIAL_DELAY> SharedMutable<T, INITIAL_DELAY, &mut PrivateContext> where T: ToField + FromField + Eq {
+    pub fn get_current_value_in_private(self) -> T {
         // When reading the current value in private we construct a historical state proof for the public value.
         // However, since this value might change, we must constrain the maximum transaction block number as this proof
         // will only be valid for however many blocks we can ensure the value will not change, which will depend on the
@@ -229,12 +229,12 @@ unconstrained fn get_public_storage_hints<T, INITIAL_DELAY>(
     address: AztecAddress,
     storage_slot: Field,
     block_number: u32
-) -> (ScheduledValueChange<T>, ScheduledDelayChange<INITIAL_DELAY>) {
+) -> (ScheduledValueChange<T>, ScheduledDelayChange<INITIAL_DELAY>) where T: ToField + FromField + Eq {
     // This function cannot be part of the &mut PrivateContext impl because that'd mean that by passing `self` we'd also
     // be passing a mutable reference to an unconstrained function, which is not allowed. We therefore create a dummy
     // state variable here so that we can access the methods to compute storage slots. This will all be removed in the
     // future once we do proper storage slot allocation (#5492).
-    let dummy = SharedMutable::new((), storage_slot);
+    let dummy: SharedMutable<T, INITIAL_DELAY, ()> = SharedMutable::new((), storage_slot);
 
     (
         storage_read(address, dummy.get_value_change_storage_slot(), block_number), storage_read(address, dummy.get_delay_change_storage_slot(), block_number)

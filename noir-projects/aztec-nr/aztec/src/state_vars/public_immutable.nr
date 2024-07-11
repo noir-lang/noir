@@ -27,9 +27,9 @@ impl<T, Context> PublicImmutable<T, Context> {
     // docs:end:public_immutable_struct_new
 }
 
-impl <T> PublicImmutable<T, &mut PublicContext> {
+impl <T, T_SERIALIZED_LEN> PublicImmutable<T, &mut PublicContext> where T: Serialize<T_SERIALIZED_LEN> + Deserialize<T_SERIALIZED_LEN> {
     // docs:start:public_immutable_struct_write
-    pub fn initialize<T_SERIALIZED_LEN>(self, value: T) where T: Serialize<T_SERIALIZED_LEN> {
+    pub fn initialize(self, value: T) {
         // We check that the struct is not yet initialized by checking if the initialization slot is 0
         let initialization_slot = INITIALIZATION_SLOT_SEPARATOR + self.storage_slot;
         let init_field: Field = self.context.storage_read(initialization_slot);
@@ -43,14 +43,14 @@ impl <T> PublicImmutable<T, &mut PublicContext> {
 
     // Note that we don't access the context, but we do call oracles that are only available in public
     // docs:start:public_immutable_struct_read
-    pub fn read<T_SERIALIZED_LEN>(self) -> T where T: Deserialize<T_SERIALIZED_LEN> {
+    pub fn read(self) -> T {
         self.context.storage_read(self.storage_slot)
     }
     // docs:end:public_immutable_struct_read
 }
 
-impl<T> PublicImmutable<T, UnconstrainedContext> {
-    unconstrained pub fn read<T_SERIALIZED_LEN>(self) -> T where T: Deserialize<T_SERIALIZED_LEN> {
+impl<T, T_SERIALIZED_LEN> PublicImmutable<T, UnconstrainedContext>where T: Deserialize<T_SERIALIZED_LEN> {
+    unconstrained pub fn read(self) -> T {
         self.context.storage_read(self.storage_slot)
     }
 }

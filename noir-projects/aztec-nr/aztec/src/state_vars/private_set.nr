@@ -26,23 +26,23 @@ impl<Note, Context> PrivateSet<Note, Context> {
     // docs:end:new
 }
 
-impl<Note> PrivateSet<Note, &mut PublicContext> {
+impl<Note, N, M> PrivateSet<Note, &mut PublicContext> where Note: NoteInterface<N, M> {
     // docs:start:insert_from_public
-    pub fn insert_from_public<N, M>(self, note: &mut Note) where Note: NoteInterface<N, M> {
+    pub fn insert_from_public(self, note: &mut Note) {
         create_note_hash_from_public(self.context, self.storage_slot, note);
     }
     // docs:end:insert_from_public
 }
 
-impl<Note> PrivateSet<Note, &mut PrivateContext> {
+impl<Note, N, M> PrivateSet<Note, &mut PrivateContext> where Note: NoteInterface<N, M> + Eq {
     // docs:start:insert
-    pub fn insert<N, M>(self, note: &mut Note) -> NoteEmission<Note> where Note: NoteInterface<N, M> {
+    pub fn insert(self, note: &mut Note) -> NoteEmission<Note> {
         create_note(self.context, self.storage_slot, note)
     }
     // docs:end:insert
 
     // docs:start:remove
-    pub fn remove<N, M>(self, note: Note) where Note: NoteInterface<N, M> {
+    pub fn remove(self, note: Note) {
         let note_hash = compute_note_hash_for_read_request(note);
         let has_been_read = self.context.note_hash_read_requests.any(|r: ReadRequest| r.value == note_hash);
         assert(has_been_read, "Can only remove a note that has been read from the set.");
@@ -52,21 +52,21 @@ impl<Note> PrivateSet<Note, &mut PrivateContext> {
     // docs:end:remove
 
     // docs:start:get_notes
-    pub fn get_notes<N, M, FILTER_ARGS>(
+    pub fn get_notes<FILTER_ARGS>(
         self,
         options: NoteGetterOptions<Note, N, M, FILTER_ARGS>
-    ) -> BoundedVec<Note, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> where Note: NoteInterface<N, M> + Eq {
+    ) -> BoundedVec<Note, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> {
         get_notes(self.context, self.storage_slot, options)
     }
     // docs:end:get_notes
 }
 
-impl<Note> PrivateSet<Note, UnconstrainedContext> {
+impl<Note, N, M> PrivateSet<Note, UnconstrainedContext> where Note: NoteInterface<N, M> {
     // docs:start:view_notes
-    unconstrained pub fn view_notes<N, M>(
+    unconstrained pub fn view_notes(
         self,
         options: NoteViewerOptions<Note, N, M>
-    ) -> BoundedVec<Note, MAX_NOTES_PER_PAGE> where Note: NoteInterface<N, M> {
+    ) -> BoundedVec<Note, MAX_NOTES_PER_PAGE> {
         view_notes(self.storage_slot, options)
     }
     // docs:end:view_notes
