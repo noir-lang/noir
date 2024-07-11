@@ -578,6 +578,7 @@ impl<'interner> TypeChecker<'interner> {
                             self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
                                 operator: UnaryOp::MutableReference,
                                 rhs: method_call.object,
+                                trait_method_id: None,
                             }));
                         self.interner.push_expr_type(new_object, new_type);
                         self.interner.push_expr_location(new_object, location.span, location.file);
@@ -604,6 +605,7 @@ impl<'interner> TypeChecker<'interner> {
             let object = self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
                 operator: UnaryOp::Dereference { implicitly_added: true },
                 rhs: object,
+                trait_method_id: None,
             }));
             self.interner.push_expr_type(object, element.as_ref().clone());
             self.interner.push_expr_location(object, location.span, location.file);
@@ -799,9 +801,11 @@ impl<'interner> TypeChecker<'interner> {
 
         let dereference_lhs = |this: &mut Self, lhs_type, element| {
             let old_lhs = *access_lhs;
+
             *access_lhs = this.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
                 operator: crate::ast::UnaryOp::Dereference { implicitly_added: true },
                 rhs: old_lhs,
+                trait_method_id: None,
             }));
             this.interner.push_expr_type(old_lhs, lhs_type);
             this.interner.push_expr_type(*access_lhs, element);
