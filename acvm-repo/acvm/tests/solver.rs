@@ -17,6 +17,7 @@ use acvm_blackbox_solver::StubbedBlackBoxSolver;
 use brillig_vm::brillig::HeapValueType;
 
 use proptest::prelude::*;
+use proptest::arbitrary::any;
 
 // Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.
 
@@ -795,4 +796,62 @@ fn binary_operations() {
     assert_eq!(solve_blackbox_func_call(and_op.clone(), x, y), solve_blackbox_func_call(and_op, y, x));
 
 }
+
+fn and_op() -> BlackBoxFuncCall<FieldElement> {
+    BlackBoxFuncCall::AND {
+        lhs: FunctionInput::witness(Witness(1), FieldElement::max_num_bits()),
+        rhs: FunctionInput::witness(Witness(2), FieldElement::max_num_bits()),
+        output: Witness(3),
+    }
+}
+
+fn xor_op() -> BlackBoxFuncCall<FieldElement> {
+    BlackBoxFuncCall::XOR {
+        lhs: FunctionInput::witness(Witness(1), FieldElement::max_num_bits()),
+        rhs: FunctionInput::witness(Witness(2), FieldElement::max_num_bits()),
+        output: Witness(3),
+    }
+}
+
+fn prop_assert_eq(op: BlackBoxFuncCall<FieldElement>, x: u128, y: u128) -> TestCaseResult {
+    let assertion: Result<_, TestCaseError> = prop_assert_eq!(solve_blackbox_func_call(op.clone(), x, y), solve_blackbox_func_call(op, y, x));
+    assertion?;
+    Ok(())
+}
+
+
+proptest! {
+
+    #[test]
+    fn and_commutative(x in any::<u128>(), y in any::<u128>()) {
+        let op = and_op();
+        prop_assert_commutes(op, x, y)
+    }
+
+    #[test]
+    fn xor_commutative(x in any::<u128>(), y in any::<u128>()) {
+        let op = xor_op();
+        prop_assert_eq!(solve_blackbox_func_call(op.clone(), x, y), solve_blackbox_func_call(op, y, x));
+    }
+
+    // #[test]
+    // fn and_associative(x in any::<u128>(), y in any::<u128>()) {
+    //     let op = and_op();
+    //     prop_assert_eq!(solve_blackbox_func_call(op.clone(), x, y), solve_blackbox_func_call(op, y, x));
+    // }
+
+
+    // // This currently panics due to the fact that we allow inputs which are greater than the field modulus,
+    // // automatically reducing them to fit within the canonical range.
+    // #[test]
+    // #[should_panic(expected = "serialized field element is not equal to input")]
+    // fn recovers_original_hex_string(hex in "[0-9a-f]{64}") {
+    //     let fe: FieldElement::<ark_bn254::Fr> = FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string");
+    //     let output_hex = fe.to_hex();
+    //
+    //     prop_assert_eq!(hex, output_hex, "serialized field element is not equal to input");
+    // }
+
+}
+
 
