@@ -34,7 +34,7 @@ fn main() {
     generate_noir_test_success_tests(&mut test_file, &test_dir);
     generate_noir_test_failure_tests(&mut test_file, &test_dir);
     generate_compile_success_empty_tests(&mut test_file, &test_dir);
-    generate_compile_success_contract_tests(&mut test_file, &test_dir);
+    generate_compile_success_no_bugs_contract_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
 }
 
@@ -301,7 +301,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
     }
 }
 
-fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: &Path) {
+fn generate_compile_success_no_bugs_contract_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "compile_success_contract";
     let test_cases = read_test_cases(test_data_dir, test_type);
     for (test_name, test_dir) in test_cases {
@@ -326,7 +326,7 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             r#"
         nargo.arg("compile").arg("--force").arg("--use-legacy");
         
-        nargo.assert().success();"#,
+        nargo.assert().success().stderr(predicate::str::contains("bug").not());"#,
         );
     }
 }
