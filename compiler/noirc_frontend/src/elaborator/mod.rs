@@ -1344,7 +1344,7 @@ impl<'context> Elaborator<'context> {
 
             use crate::lexer::token::Token::*;
             if let (Ident(name), LeftParen, RightParen) = (first, second, last) {
-                let args = tokens.split(|token| matches!(token.token(), Comma));
+                let args = tokens.split(|token| *token.token() == Comma);
                 let args =
                     vecmap(args, |arg| (Value::Code(Rc::new(Tokens(arg.to_vec()))), location));
                 return Some((name, args));
