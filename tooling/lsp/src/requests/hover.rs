@@ -177,11 +177,13 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     let parameters = &func_meta.parameters;
     for (index, (pattern, typ, visibility)) in parameters.iter().enumerate() {
         format_pattern(pattern, args.interner, &mut string);
-        string.push_str(": ");
-        if matches!(visibility, Visibility::Public) {
-            string.push_str("pub ");
+        if !pattern_is_self(pattern, args.interner) {
+            string.push_str(": ");
+            if matches!(visibility, Visibility::Public) {
+                string.push_str("pub ");
+            }
+            string.push_str(&format!("{}", typ));
         }
-        string.push_str(&format!("{}", typ));
         if index != parameters.len() - 1 {
             string.push_str(", ");
         }
@@ -232,6 +234,9 @@ fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
         string.push_str("let ");
     }
     if definition_info.mutable {
+        if expr_id.is_none() {
+            string.push_str("let ");
+        }
         string.push_str("mut ");
     }
     string.push_str(&definition_info.name);
@@ -269,6 +274,17 @@ fn format_pattern(pattern: &HirPattern, interner: &NodeInterner, string: &mut St
         HirPattern::Tuple(..) | HirPattern::Struct(..) => {
             string.push('_');
         }
+    }
+}
+
+fn pattern_is_self(pattern: &HirPattern, interner: &NodeInterner) -> bool {
+    match pattern {
+        HirPattern::Identifier(ident) => {
+            let definition = interner.definition(ident.id);
+            definition.name == "self"
+        }
+        HirPattern::Mutable(pattern, _) => pattern_is_self(pattern, interner),
+        HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
     }
 }
 
@@ -315,6 +331,8 @@ fn format_parent_module_from_module_id(
 
     if wrote_crate {
         string.push_str("::");
+    } else {
+        string.push_str("    ");
     }
 
     let mut segments = Vec::new();
@@ -335,4 +353,189 @@ fn format_parent_module_from_module_id(
     string.push_str(&module_attributes.name);
 
     true
+}
+
+#[cfg(test)]
+mod hover_tests {
+    use crate::test_utils;
+
+    use super::*;
+    use lsp_types::{
+        Position, TextDocumentIdentifier, TextDocumentPositionParams, Url, WorkDoneProgressParams,
+    };
+    use tokio::test;
+
+    async fn assert_hover(directory: &str, file: &str, position: Position, expected_text: &str) {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
+
+        // noir_text_document is always `src/main.nr` in the workspace directory, so let's go to the workspace dir
+        let noir_text_document = noir_text_document.to_file_path().unwrap();
+        let workspace_dir = noir_text_document.parent().unwrap().parent().unwrap();
+
+        let file_uri = Url::from_file_path(workspace_dir.join(file)).unwrap();
+
+        let hover = on_hover_request(
+            &mut state,
+            HoverParams {
+                text_document_position_params: TextDocumentPositionParams {
+                    text_document: TextDocumentIdentifier { uri: file_uri },
+                    position: position,
+                },
+                work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+            },
+        )
+        .await
+        .expect("Could not execute hover")
+        .unwrap();
+
+        let HoverContents::Markup(markup) = hover.contents else {
+            panic!("Expected hover contents to be Markup");
+        };
+
+        assert_eq!(markup.value, expected_text);
+    }
+
+    #[test]
+    async fn hover_on_module() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 6, character: 9 },
+            r#"    one
+    mod subone"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_struct() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 9, character: 20 },
+            r#"    one::subone
+    struct SubOneStruct {
+        some_field: i32,
+        some_other_field: Field,
+    }"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_struct_member() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 9, character: 35 },
+            r#"    one::subone::SubOneStruct
+    some_field: i32"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_trait() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 12, character: 17 },
+            r#"    one::subone
+    trait SomeTrait"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_global() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 15, character: 25 },
+            r#"    one::subone
+    global some_global: Field"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_function() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 3, character: 4 },
+            r#"    one
+    fn function_one()"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_local_function() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 2, character: 7 },
+            r#"    two
+    fn function_two()"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_struct_method() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 20, character: 6 },
+            r#"    one::subone::SubOneStruct
+    fn foo(self, x: i32, y: i32) -> Field"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_local_var() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 25, character: 12 },
+            "    let regular_var: Field",
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_local_mut_var() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 27, character: 4 },
+            "    let mut mutable_var: Field",
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_parameter() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 31, character: 12 },
+            "    some_param: i32",
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_alias() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 34, character: 17 },
+            r#"    one::subone
+    type SomeAlias = i32"#,
+        )
+        .await;
+    }
 }
