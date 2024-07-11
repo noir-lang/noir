@@ -423,6 +423,19 @@ mod hover_tests {
     }
 
     #[test]
+    async fn hover_on_generic_struct() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 46, character: 17 },
+            r#"    one::subone
+    struct GenericStruct<A, B> {
+    }"#,
+        )
+        .await;
+    }
+
+    #[test]
     async fn hover_on_struct_member() {
         assert_hover(
             "workspace",

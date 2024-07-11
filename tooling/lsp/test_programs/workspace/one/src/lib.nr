@@ -18,4 +18,8 @@ mod subone {
     global some_global = 2;
 
     type SomeAlias = i32;
+
+    struct GenericStruct<A, B> {
+
+    }
 }

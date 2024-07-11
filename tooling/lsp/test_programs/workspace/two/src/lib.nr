@@ -43,3 +43,5 @@ fn use_impl_method() {
 mod other;
 use other::another_function;
 use crate::other::other_function;
+
+use one::subone::GenericStruct;
