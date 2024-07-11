@@ -259,33 +259,6 @@ impl<F: AcirField> AcirContext<F> {
         Ok(witness_var)
     }
 
-    pub(crate) fn get_or_create_witness_var_from_expr(
-        &mut self,
-        expression: Expression<F>,
-    ) -> Result<AcirVar, InternalError> {
-        let var_as_witness = self.expr_to_witness(expression)?;
-
-        let witness_var = self.add_data(AcirVarData::Witness(var_as_witness));
-
-        Ok(witness_var)
-    }
-
-    pub(crate) fn expr_to_witness(
-        &mut self,
-        expression: Expression<F>,
-    ) -> Result<Witness, InternalError> {
-        let witness = if let Some(constant) = expression.to_const() {
-            // Check if a witness has been assigned this value already, if so reuse it.
-            *self
-                .constant_witnesses
-                .entry(*constant)
-                .or_insert_with(|| self.acir_ir.get_or_create_witness(&expression))
-        } else {
-            self.acir_ir.get_or_create_witness(&expression)
-        };
-        Ok(witness)
-    }
-
     /// Converts an [`AcirVar`] to a [`Witness`]
     pub(crate) fn var_to_witness(&mut self, var: AcirVar) -> Result<Witness, InternalError> {
         let expression = self.var_to_expression(var)?;
@@ -654,7 +627,13 @@ impl<F: AcirField> AcirContext<F> {
             {
                 let mut expr = Expression::default();
                 for term in expression.linear_combinations.iter() {
+                    if expr.mul_terms.len() == 1 {
+                        dbg!("ABOUT TO ADD SECOND MUL TERM");
+                    }
                     expr.push_multiplication_term(term.0, term.1, witness);
+                }
+                if expr.width() == 4 {
+                    dbg!("ABOUT TO ADD TERM THAT GOES OVER");
                 }
                 expr.push_addition_term(expression.q_c, witness);
                 self.add_data(AcirVarData::Expr(expr))
@@ -671,7 +650,13 @@ impl<F: AcirField> AcirContext<F> {
                     let mut expr = Expression::default();
                     let rhs_term = univariate.linear_combinations[0];
                     for term in lin.linear_combinations.iter() {
+                        if expr.mul_terms.len() == 1 {
+                            dbg!("ABOUT TO ADD SECOND MUL TERM");
+                        }
                         expr.push_multiplication_term(term.0 * rhs_term.0, term.1, rhs_term.1);
+                    }
+                    if expr.width() == 4 {
+                        dbg!("ABOUT TO ADD TERM THAT GOES OVER");
                     }
                     expr.push_addition_term(lin.q_c * rhs_term.0, rhs_term.1);
                     expr.sort();
@@ -690,6 +675,12 @@ impl<F: AcirField> AcirContext<F> {
             }
         };
 
+        let result_expr = self.var_to_expression(result)?;
+        let result_expr_fits = fits_in_one_identity(&result_expr, self.expression_width);
+        if !result_expr_fits {
+            dbg!(result_expr);
+        }
+
         Ok(result)
     }
 
@@ -706,10 +697,19 @@ impl<F: AcirField> AcirContext<F> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
 
+        let lhs_expr_fits = fits_in_one_identity(&lhs_expr, self.expression_width);
+        if !lhs_expr_fits {
+            dbg!(lhs_expr.clone());
+        }
+        let rhs_expr_fits = fits_in_one_identity(&rhs_expr, self.expression_width);
+        if !rhs_expr_fits {
+            dbg!(rhs_expr.clone());
+        }
+
         let sum_expr = &lhs_expr + &rhs_expr;
         let sum_expr_fits = fits_in_one_identity(&sum_expr, self.expression_width);
 
-        let sum_expr = if !sum_expr_fits {
+        let sum_expr = if lhs_expr_fits && rhs_expr_fits && !sum_expr_fits {
             let lhs_witness_var = self.get_or_create_witness_var(lhs)?;
             let lhs_witness_expr = self.var_to_expression(lhs_witness_var)?;
             let rhs_witness_var = self.get_or_create_witness_var(rhs)?;

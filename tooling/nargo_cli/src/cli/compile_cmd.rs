@@ -190,7 +190,15 @@ fn compile_programs(
                 compile_options,
                 load_cached_program(package),
             )?;
+            println!(
+                "ACIR size pre-transformation: {}",
+                program.program.functions[0].opcodes.len()
+            );
             let program = nargo::ops::transform_program(program, compile_options.expression_width);
+            println!(
+                "ACIR size post-transformation: {}",
+                program.program.functions[0].opcodes.len()
+            );
             save_program_to_file(
                 &program.clone().into(),
                 &package.name,

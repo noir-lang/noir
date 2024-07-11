@@ -56,6 +56,12 @@ pub struct CompileOptions {
     #[arg(long, value_parser = parse_expression_width, default_value = "4")]
     pub expression_width: ExpressionWidth,
 
+    /// Generate ACIR without an expression width bound.
+    /// This should usually only be used by users looking to hand optimize
+    /// their circuits using the `as_witness` builtin.
+    #[arg(long)]
+    pub unbounded_codegen: bool,
+
     /// Force a full recompilation.
     #[arg(long = "force")]
     pub force_compile: bool,
@@ -558,7 +564,11 @@ pub fn compile_no_check(
         enable_brillig_logging: options.show_brillig,
         force_brillig_output: options.force_brillig,
         print_codegen_timings: options.benchmark_codegen,
-        expression_width: options.expression_width,
+        expression_width: if options.unbounded_codegen {
+            ExpressionWidth::default()
+        } else {
+            options.expression_width
+        },
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =
