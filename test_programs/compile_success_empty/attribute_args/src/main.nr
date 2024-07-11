@@ -17,4 +17,4 @@ comptime fn varargs(s: StructDefinition, t: [Quoted]) {
     assert(t.len() < 5);
 }
 
-fn main(){}
+fn main() {}
