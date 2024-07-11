@@ -30,8 +30,8 @@ jobs:
           git clone https://github.com/ingydotnet/git-subrepo
           git fetch
           git pull
-          ./git-subrepo/lib/git-subrep fetch $SUBREPO_PATH
-          ./git-subrepo/lib/git-subrep pull $SUBREPO_PATH
+          ./git-subrepo/lib/git-subrepo fetch $SUBREPO_PATH
+          ./git-subrepo/lib/git-subrepo pull $SUBREPO_PATH
           if ./git-subrepo/lib/git-subrepo push $SUBREPO_PATH --branch=master; then
             git fetch # in case a commit came after this
             git rebase origin/master
