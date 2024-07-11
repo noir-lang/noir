@@ -27,7 +27,7 @@ use crate::{
         HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
         MethodCallExpression, PrefixExpression,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId, ReferenceId, TraitMethodId},
+    node_interner::{DefinitionKind, ExprId, FuncId, TraitMethodId},
     token::Tokens,
     QuotedType, Shared, StructType, Type,
 };
@@ -429,9 +429,9 @@ impl<'context> Elaborator<'context> {
             struct_generics,
         });
 
-        let referenced = ReferenceId::Struct(struct_type.borrow().id);
-        let reference = ReferenceId::Reference(Location::new(span, self.file), is_self_type);
-        self.interner.add_reference(referenced, reference);
+        let struct_id = struct_type.borrow().id;
+        let reference_location = Location::new(span, self.file);
+        self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
 
         (expr, Type::Struct(struct_type, generics))
     }
@@ -485,11 +485,11 @@ impl<'context> Elaborator<'context> {
             }
 
             if let Some(expected_index) = expected_index {
-                let struct_id = struct_type.borrow().id;
-                let referenced = ReferenceId::StructMember(struct_id, expected_index);
-                let reference =
-                    ReferenceId::Reference(Location::new(field_name.span(), self.file), false);
-                self.interner.add_reference(referenced, reference);
+                self.interner.add_struct_member_reference(
+                    struct_type.borrow().id,
+                    expected_index,
+                    Location::new(field_name.span(), self.file),
+                );
             }
 
             ret.push((field_name, resolved));

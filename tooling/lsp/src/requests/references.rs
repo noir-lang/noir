@@ -5,32 +5,38 @@ use lsp_types::{Location, ReferenceParams};
 
 use crate::LspState;
 
-use super::{process_request, to_lsp_location};
+use super::{find_all_references_in_workspace, process_request};
 
 pub(crate) fn on_references_request(
     state: &mut LspState,
     params: ReferenceParams,
 ) -> impl Future<Output = Result<Option<Vec<Location>>, ResponseError>> {
-    let result =
-        process_request(state, params.text_document_position, |location, interner, files| {
-            interner.find_all_references(location, params.context.include_declaration, true).map(
-                |locations| {
-                    locations
-                        .iter()
-                        .filter_map(|location| to_lsp_location(files, location.file, location.span))
-                        .collect()
-                },
+    let include_declaration = params.context.include_declaration;
+    let result = process_request(
+        state,
+        params.text_document_position,
+        |location, interner, files, cached_interners| {
+            find_all_references_in_workspace(
+                location,
+                interner,
+                cached_interners,
+                files,
+                include_declaration,
+                true,
             )
-        });
+        },
+    );
     future::ready(result)
 }
 
 #[cfg(test)]
 mod references_tests {
     use super::*;
+    use crate::notifications;
     use crate::test_utils::{self, search_in_file};
     use lsp_types::{
-        PartialResultParams, ReferenceContext, TextDocumentPositionParams, WorkDoneProgressParams,
+        PartialResultParams, Position, Range, ReferenceContext, TextDocumentPositionParams, Url,
+        WorkDoneProgressParams,
     };
     use tokio::test;
 
@@ -90,5 +96,71 @@ mod references_tests {
     #[test]
     async fn test_on_references_request_without_including_declaration() {
         check_references_succeeds("rename_function", "another_function", 0, false).await;
+    }
+
+    #[test]
+    async fn test_on_references_request_works_accross_workspace_packages() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("workspace").await;
+
+        // noir_text_document is always `src/main.nr` in the workspace directory, so let's go to the workspace dir
+        let noir_text_document = noir_text_document.to_file_path().unwrap();
+        let workspace_dir = noir_text_document.parent().unwrap().parent().unwrap();
+
+        // Let's check that we can find references to `function_one` by doing that in the package "one"
+        // and getting results in the package "two" too.
+        let one_lib = Url::from_file_path(workspace_dir.join("one/src/lib.nr")).unwrap();
+        let two_lib = Url::from_file_path(workspace_dir.join("two/src/lib.nr")).unwrap();
+
+        // We call this to open the document, so that the entire workspace is analyzed
+        notifications::process_workspace_for_noir_document(one_lib.clone(), &mut state).unwrap();
+
+        let params = ReferenceParams {
+            text_document_position: TextDocumentPositionParams {
+                text_document: lsp_types::TextDocumentIdentifier { uri: one_lib.clone() },
+                position: Position { line: 0, character: 7 },
+            },
+            work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+            partial_result_params: PartialResultParams { partial_result_token: None },
+            context: ReferenceContext { include_declaration: true },
+        };
+
+        let mut locations = on_references_request(&mut state, params)
+            .await
+            .expect("Could not execute on_references_request")
+            .unwrap();
+
+        // The definition, a use in "two", and a call in "two"
+        assert_eq!(locations.len(), 3);
+
+        locations.sort_by_cached_key(|location| {
+            (location.uri.to_file_path().unwrap(), location.range.start.line)
+        });
+
+        assert_eq!(locations[0].uri, one_lib);
+        assert_eq!(
+            locations[0].range,
+            Range {
+                start: Position { line: 0, character: 7 },
+                end: Position { line: 0, character: 19 },
+            }
+        );
+
+        assert_eq!(locations[1].uri, two_lib);
+        assert_eq!(
+            locations[1].range,
+            Range {
+                start: Position { line: 0, character: 9 },
+                end: Position { line: 0, character: 21 },
+            }
+        );
+
+        assert_eq!(locations[2].uri, two_lib);
+        assert_eq!(
+            locations[2].range,
+            Range {
+                start: Position { line: 3, character: 4 },
+                end: Position { line: 3, character: 16 },
+            }
+        );
     }
 }

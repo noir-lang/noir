@@ -359,9 +359,11 @@ impl DefCollector {
                 let file_id = current_def_map.file_id(module_id);
 
                 for (referenced, ident) in references.iter().zip(&collected_import.path.segments) {
-                    let reference =
-                        ReferenceId::Reference(Location::new(ident.span(), file_id), false);
-                    context.def_interner.add_reference(*referenced, reference);
+                    context.def_interner.add_reference(
+                        *referenced,
+                        Location::new(ident.span(), file_id),
+                        false,
+                    );
                 }
 
                 resolved_import
@@ -545,18 +547,28 @@ fn add_import_reference(
         return;
     }
 
-    let referenced = match def_id {
-        crate::macros_api::ModuleDefId::ModuleId(module_id) => ReferenceId::Module(module_id),
-        crate::macros_api::ModuleDefId::FunctionId(func_id) => ReferenceId::Function(func_id),
-        crate::macros_api::ModuleDefId::TypeId(struct_id) => ReferenceId::Struct(struct_id),
-        crate::macros_api::ModuleDefId::TraitId(trait_id) => ReferenceId::Trait(trait_id),
-        crate::macros_api::ModuleDefId::TypeAliasId(type_alias_id) => {
-            ReferenceId::Alias(type_alias_id)
+    let location = Location::new(name.span(), file_id);
+
+    match def_id {
+        crate::macros_api::ModuleDefId::ModuleId(module_id) => {
+            interner.add_module_reference(module_id, location);
         }
-        crate::macros_api::ModuleDefId::GlobalId(global_id) => ReferenceId::Global(global_id),
+        crate::macros_api::ModuleDefId::FunctionId(func_id) => {
+            interner.add_function_reference(func_id, location);
+        }
+        crate::macros_api::ModuleDefId::TypeId(struct_id) => {
+            interner.add_struct_reference(struct_id, location, false);
+        }
+        crate::macros_api::ModuleDefId::TraitId(trait_id) => {
+            interner.add_trait_reference(trait_id, location, false);
+        }
+        crate::macros_api::ModuleDefId::TypeAliasId(type_alias_id) => {
+            interner.add_alias_reference(type_alias_id, location);
+        }
+        crate::macros_api::ModuleDefId::GlobalId(global_id) => {
+            interner.add_global_reference(global_id, location);
+        }
     };
-    let reference = ReferenceId::Reference(Location::new(name.span(), file_id), false);
-    interner.add_reference(referenced, reference);
 }
 
 fn inject_prelude(
