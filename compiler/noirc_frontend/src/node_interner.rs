@@ -48,6 +48,7 @@ const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
 pub struct ModuleAttributes {
     pub name: String,
     pub location: Location,
+    pub parent: LocalModuleId,
 }
 
 type StructAttributes = Vec<SecondaryAttribute>;
@@ -225,6 +226,10 @@ pub struct NodeInterner {
 
     /// Store the location of the references in the graph
     pub(crate) location_indices: LocationIndices,
+
+    // The module where each reference is
+    // (ReferenceId::Reference and ReferenceId::Local aren't included here)
+    pub(crate) reference_modules: HashMap<ReferenceId, ModuleId>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -592,6 +597,7 @@ impl Default for NodeInterner {
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::new(),
+            reference_modules: HashMap::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -860,7 +866,7 @@ impl NodeInterner {
         self.definitions.push(DefinitionInfo { name, mutable, comptime, kind, location });
 
         if is_local {
-            self.add_definition_location(ReferenceId::Local(id));
+            self.add_definition_location(ReferenceId::Local(id), None);
         }
 
         id
@@ -898,7 +904,7 @@ impl NodeInterner {
 
         // This needs to be done after pushing the definition since it will reference the
         // location that was stored
-        self.add_definition_location(ReferenceId::Function(id));
+        self.add_definition_location(ReferenceId::Function(id), Some(module));
         definition_id
     }
 
@@ -1005,6 +1011,10 @@ impl NodeInterner {
 
     pub fn module_attributes(&self, module_id: &ModuleId) -> &ModuleAttributes {
         &self.module_attributes[module_id]
+    }
+
+    pub fn try_module_attributes(&self, module_id: &ModuleId) -> Option<&ModuleAttributes> {
+        self.module_attributes.get(module_id)
     }
 
     pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {

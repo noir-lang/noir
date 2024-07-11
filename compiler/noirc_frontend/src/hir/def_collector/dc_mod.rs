@@ -90,7 +90,7 @@ pub fn collect_defs(
 
     errors.extend(collector.collect_structs(context, ast.types, crate_id));
 
-    errors.extend(collector.collect_type_aliases(context, ast.type_aliases));
+    errors.extend(collector.collect_type_aliases(context, ast.type_aliases, crate_id));
 
     errors.extend(collector.collect_functions(context, ast.functions, crate_id));
 
@@ -318,7 +318,10 @@ impl<'a> ModCollector<'a> {
             // And store the TypeId -> StructType mapping somewhere it is reachable
             self.def_collector.items.types.insert(id, unresolved);
 
-            context.def_interner.add_definition_location(ReferenceId::Struct(id));
+            context.def_interner.add_definition_location(
+                ReferenceId::Struct(id),
+                Some(ModuleId { krate: krate, local_id: self.module_id }),
+            );
         }
         definition_errors
     }
@@ -329,6 +332,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         type_aliases: Vec<NoirTypeAlias>,
+        krate: CrateId,
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for type_alias in type_aliases {
@@ -365,7 +369,10 @@ impl<'a> ModCollector<'a> {
 
             self.def_collector.items.type_aliases.insert(type_alias_id, unresolved);
 
-            context.def_interner.add_definition_location(ReferenceId::Alias(type_alias_id));
+            context.def_interner.add_definition_location(
+                ReferenceId::Alias(type_alias_id),
+                Some(ModuleId { krate: krate, local_id: self.module_id }),
+            );
         }
         errors
     }
@@ -532,7 +539,10 @@ impl<'a> ModCollector<'a> {
             };
             context.def_interner.push_empty_trait(trait_id, &unresolved, resolved_generics);
 
-            context.def_interner.add_definition_location(ReferenceId::Trait(trait_id));
+            context.def_interner.add_definition_location(
+                ReferenceId::Trait(trait_id),
+                Some(ModuleId { krate: krate, local_id: self.module_id }),
+            );
 
             self.def_collector.items.traits.insert(trait_id, unresolved);
         }
@@ -722,7 +732,11 @@ impl<'a> ModCollector<'a> {
 
             context.def_interner.add_module_attributes(
                 mod_id,
-                ModuleAttributes { name: mod_name.0.contents.clone(), location: mod_location },
+                ModuleAttributes {
+                    name: mod_name.0.contents.clone(),
+                    location: mod_location,
+                    parent: self.module_id,
+                },
             );
         }
 

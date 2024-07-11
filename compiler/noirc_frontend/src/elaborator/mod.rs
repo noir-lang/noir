@@ -1230,7 +1230,7 @@ impl<'context> Elaborator<'context> {
 
             for field_index in 0..fields_len {
                 self.interner
-                    .add_definition_location(ReferenceId::StructMember(type_id, field_index));
+                    .add_definition_location(ReferenceId::StructMember(type_id, field_index), None);
             }
 
             self.run_comptime_attributes_on_struct(attributes, type_id, span, &mut generated_items);
@@ -1365,7 +1365,8 @@ impl<'context> Elaborator<'context> {
             self.elaborate_comptime_global(global_id);
         }
 
-        self.interner.add_definition_location(ReferenceId::Global(global_id));
+        self.interner
+            .add_definition_location(ReferenceId::Global(global_id), Some(self.module_id()));
 
         self.local_module = old_module;
         self.file = old_file;
