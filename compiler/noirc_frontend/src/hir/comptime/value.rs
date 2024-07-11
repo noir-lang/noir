@@ -7,7 +7,7 @@ use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
 use crate::{
-    ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness},
+    ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness, TraitBound},
     hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
     macros_api::{
         Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
@@ -45,6 +45,7 @@ pub enum Value {
     Slice(Vector<Value>, Type),
     Code(Rc<Tokens>),
     StructDefinition(StructId),
+    TraitConstraint(TraitBound),
 }
 
 impl Value {
@@ -79,6 +80,7 @@ impl Value {
                 let element = element.borrow().get_type().into_owned();
                 Type::MutableReference(Box::new(element))
             }
+            Value::TraitConstraint { .. } => Type::Quoted(QuotedType::TraitConstraint),
         })
     }
 
@@ -192,7 +194,7 @@ impl Value {
                     }
                 };
             }
-            Value::Pointer(_) | Value::StructDefinition(_) => {
+            Value::Pointer(_) | Value::StructDefinition(_) | Value::TraitConstraint { .. } => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -298,7 +300,7 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
             Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
-            Value::Pointer(_) | Value::StructDefinition(_) => {
+            Value::Pointer(_) | Value::StructDefinition(_) | Value::TraitConstraint { .. } => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -402,6 +404,7 @@ impl Display for Value {
                 write!(f, " }}")
             }
             Value::StructDefinition(_) => write!(f, "(struct definition)"),
+            Value::TraitConstraint { .. } => write!(f, "(trait constraint)"),
         }
     }
 }

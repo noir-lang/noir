@@ -26,6 +26,7 @@ pub(super) fn parse_type_inner<'a>(
         string_type(),
         expr_type(),
         struct_definition_type(),
+        trait_constraint_type(),
         top_level_item_type(),
         type_of_quoted_types(),
         quoted_type(),
@@ -84,6 +85,13 @@ pub(super) fn expr_type() -> impl NoirParser<UnresolvedType> {
 pub(super) fn struct_definition_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::StructDefinition).map_with_span(|_, span| {
         UnresolvedTypeData::Quoted(QuotedType::StructDefinition).with_span(span)
+    })
+}
+
+/// This is the type `TraitConstraint` - the type of a quoted trait constraint
+pub(super) fn trait_constraint_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::TraitConstraint).map_with_span(|_, span| {
+        UnresolvedTypeData::Quoted(QuotedType::TraitConstraint).with_span(span)
     })
 }
 

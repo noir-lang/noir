@@ -408,7 +408,7 @@ fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
     trait_bound().separated_by(just(Token::Plus)).at_least(1).allow_trailing()
 }
 
-fn trait_bound() -> impl NoirParser<TraitBound> {
+pub fn trait_bound() -> impl NoirParser<TraitBound> {
     path().then(generic_type_args(parse_type())).map(|(trait_path, trait_generics)| TraitBound {
         trait_path,
         trait_generics,
