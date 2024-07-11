@@ -171,6 +171,11 @@ mod rename_tests {
     }
 
     #[test]
+    async fn test_rename_method() {
+        check_rename_succeeds("rename_function", "some_method").await;
+    }
+
+    #[test]
     async fn test_rename_struct() {
         check_rename_succeeds("rename_struct", "Foo").await;
     }
