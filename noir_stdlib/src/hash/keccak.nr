@@ -98,6 +98,8 @@ fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32] {
 }
 
 mod tests {
+    use crate::hash::keccak::keccak256;
+
     #[test]
     fn smoke_test() {
         let input = [0xbd];
