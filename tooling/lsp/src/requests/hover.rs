@@ -146,11 +146,11 @@ fn format_function(id: FuncId, interner: &NodeInterner) -> String {
     string.push('(');
     let parameters = &func_meta.parameters;
     for (index, (pattern, typ, visibility)) in parameters.iter().enumerate() {
+        format_pattern(pattern, interner, &mut string);
+        string.push_str(": ");
         if matches!(visibility, Visibility::Public) {
             string.push_str("pub ");
         }
-        format_pattern(pattern, interner, &mut string);
-        string.push_str(": ");
         string.push_str(&format!("{}", typ));
         if index != parameters.len() - 1 {
             string.push_str(", ");
