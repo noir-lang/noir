@@ -245,11 +245,6 @@ bool proveAndVerifyHonkProgram(const std::string& bytecodePath, const std::strin
     return true;
 }
 
-struct VectorOfAcirAndWitnesses {
-    std::vector<std::vector<uint8_t>> acirGzippedBincoes;
-    std::vector<std::map<uint8_t, std::string>> witnessMaps;
-};
-
 // TODO(#7371): this could probably be more idiomatic
 template <typename T> T unpack_from_file(const std::string& filename)
 {

@@ -354,7 +354,7 @@ template <typename FF_> class UltraHonkArith {
         std::array<uint32_t, 10> fixed_block_sizes{
             1 << 10, // ecc_op;
             30000,   // pub_inputs;
-            755000,  // arithmetic;
+            600000,  // arithmetic;
             140000,  // delta_range;
             600000,  // elliptic;
             1400000, // aux;
