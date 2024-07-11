@@ -19,14 +19,23 @@
 #include "barretenberg/relations/generated/{{snakeCase ../name}}/{{r}}.hpp"
 {{/each}}
 
-// Lookup relations
-#include "barretenberg/relations/generic_permutation/generic_permutation_relation.hpp"
+// Lookup and permutation relations
 {{#each lookups as |r|}}
 #include "barretenberg/relations/generated/{{snakeCase ../name}}/{{r}}.hpp"
 {{/each}}
 
 // Metaprogramming to concatenate tuple types.
 template <typename... input_t> using tuple_cat_t = decltype(std::tuple_cat(std::declval<input_t>()...));
+
+// The entities that will be used in the flavor.
+// clang-format off
+#define PRECOMPUTED_ENTITIES {{#each fixed as |item|}}{{#if @index}}, {{/if}}{{item}}{{/each}}
+#define WIRE_ENTITIES {{#each witness_without_inverses as |item|}}{{#if @index}}, {{/if}}{{item}}{{/each}}
+#define DERIVED_WITNESS_ENTITIES {{#each lookups as |item|}}{{#if @index}}, {{/if}}{{item}}{{/each}}
+#define SHIFTED_ENTITIES {{#each shifted as |item|}}{{#if @index}}, {{/if}}{{item}}{{/each}}
+#define TO_BE_SHIFTED(e) {{#each to_be_shifted as |item|}}{{#if @index}}, {{/if}}e.{{item}}{{/each}}
+#define ALL_ENTITIES PRECOMPUTED_ENTITIES, WIRE_ENTITIES, DERIVED_WITNESS_ENTITIES, SHIFTED_ENTITIES
+// clang-format on
 
 namespace bb {
 
@@ -86,11 +95,9 @@ class {{name}}Flavor {
         public:
           using DataType = DataType_;
 
-          DEFINE_FLAVOR_MEMBERS(DataType, {{#each fixed as |item|}}{{#if @index}},{{/if}}{{item}}{{/each}})
+          DEFINE_FLAVOR_MEMBERS(DataType, PRECOMPUTED_ENTITIES)
 
-          RefVector<DataType> get_selectors() { return {
-            {{#each fixed as |item|}}{{#if @index}},{{/if}}{{item}}{{/each}}
-          }; }
+          RefVector<DataType> get_selectors() { return get_all(); }
           RefVector<DataType> get_sigma_polynomials() { return {}; }
           RefVector<DataType> get_id_polynomials() { return {}; }
           RefVector<DataType> get_table_polynomials() { return {}; }
@@ -99,26 +106,24 @@ class {{name}}Flavor {
       template <typename DataType>
       class WireEntities {
         public:
-          DEFINE_FLAVOR_MEMBERS(DataType, {{#each witness_without_inverses as |item|}}{{#if @index}},{{/if}}{{item}}{{/each}})
+          DEFINE_FLAVOR_MEMBERS(DataType, WIRE_ENTITIES)
       };
 
       template <typename DataType>
       class DerivedWitnessEntities {
         public:
-          DEFINE_FLAVOR_MEMBERS(DataType, {{#each lookups as |item|}}{{#if @index}},{{/if}}{{item}}{{/each}})
+          DEFINE_FLAVOR_MEMBERS(DataType, DERIVED_WITNESS_ENTITIES)
       };
 
       template <typename DataType>
       class ShiftedEntities {
         public:
-          DEFINE_FLAVOR_MEMBERS(DataType, {{#each shifted as |item|}}{{#if @index}},{{/if}}{{item}}{{/each}})
+          DEFINE_FLAVOR_MEMBERS(DataType, SHIFTED_ENTITIES)
       };
 
       template <typename DataType, typename PrecomputedAndWitnessEntitiesSuperset>
       static auto get_to_be_shifted(PrecomputedAndWitnessEntitiesSuperset& entities) {
-          return RefArray{
-            {{#each to_be_shifted as |item|}}{{#if @index}},{{/if}}entities.{{item}}{{/each}}
-          };
+          return RefArray{ TO_BE_SHIFTED(entities) };
       }
 
       template <typename DataType>
@@ -151,9 +156,9 @@ class {{name}}Flavor {
           using Base = ProvingKey{{name}}_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>;
           using Base::Base;
 
-          RefVector<DataType> get_to_be_shifted() { return {
-            {{#each to_be_shifted as |item|}}{{#if @index}},{{/if}}{{item}}{{/each}}
-          }; }
+          auto get_to_be_shifted() { 
+            return {{name}}Flavor::get_to_be_shifted<DataType>(*this);
+           }
       };
 
       using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey>;
@@ -175,10 +180,12 @@ class {{name}}Flavor {
           If we did inherit from AllEntities, we have to define a special constructor for AllEntities, and all
           the classes that AllEntities inherits from, in cascade.
           --}}
-          DEFINE_FLAVOR_MEMBERS(DataType, {{#each all_cols_and_shifts as |item|}}{{#if @index}},{{/if}}{{item}}{{/each}})
+          DEFINE_FLAVOR_MEMBERS(DataType, ALL_ENTITIES)
 
           AllConstRefValues(const RefArray<FF const, {{len all_cols_and_shifts}}>& il) :
-            {{#each all_cols_and_shifts as |item|}}{{item}}(il[{{@index}}]){{#unless @last}},{{/unless}}{{/each}}
+            {{#each (join fixed witness_without_inverses lookups shifted) as |item|}}
+            {{item}}(il[{{@index}}]){{#unless @last}},{{/unless}}
+            {{/each}}
           {}
       };
 
@@ -226,7 +233,7 @@ class {{name}}Flavor {
               return AllConstRefValues(refs);
                --}}
               return AllConstRefValues(RefArray{
-                {{#each all_cols_and_shifts as |item|}}
+                {{#each (join fixed witness_without_inverses lookups shifted) as |item|}}
                 {{item}}[row_idx]{{#unless @last}},{{/unless}}
                 {{/each}}
               });

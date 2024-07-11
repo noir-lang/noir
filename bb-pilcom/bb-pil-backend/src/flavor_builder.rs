@@ -1,5 +1,6 @@
 use crate::{file_writer::BBFiles, utils::snake_case};
-use handlebars::Handlebars;
+use handlebars::{handlebars_helper, Handlebars};
+use itertools::Itertools;
 use serde_json::json;
 
 pub trait FlavorBuilder {
@@ -50,6 +51,11 @@ impl FlavorBuilder for BBFiles {
             "all_cols_and_shifts": all_cols_and_shifts,
             "witness_without_inverses": witness_without_inverses,
         });
+
+        handlebars_helper!(join: |*args|
+            args.iter().map(|v| v.as_array().unwrap().to_owned()).collect_vec().concat()
+        );
+        handlebars.register_helper("join", Box::new(join));
 
         handlebars
             .register_template_string(

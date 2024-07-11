@@ -37,6 +37,9 @@ template <typename T, typename... BaseClass> auto _concatenate_base_class_get_la
 }
 } // namespace bb::detail
 
+// Needed to force expansion of __VA_ARGS__ before converting to string.
+#define VARARGS_TO_STRING(...) #__VA_ARGS__
+
 #define DEFINE_REF_VIEW(...)                                                                                           \
     [[nodiscard]] auto get_all()                                                                                       \
     {                                                                                                                  \
@@ -57,9 +60,11 @@ template <typename T, typename... BaseClass> auto _concatenate_base_class_get_la
 #define DEFINE_FLAVOR_MEMBERS(DataType, ...)                                                                           \
     DataType __VA_ARGS__;                                                                                              \
     DEFINE_REF_VIEW(__VA_ARGS__)                                                                                       \
-    std::vector<std::string> get_labels() const                                                                        \
+    const std::vector<std::string>& get_labels() const                                                                 \
     {                                                                                                                  \
-        return bb::detail::split_and_trim(#__VA_ARGS__, ',');                                                          \
+        static const std::vector<std::string> labels =                                                                 \
+            bb::detail::split_and_trim(VARARGS_TO_STRING(__VA_ARGS__), ',');                                           \
+        return labels;                                                                                                 \
     }                                                                                                                  \
     constexpr std::size_t size() const                                                                                 \
     {                                                                                                                  \

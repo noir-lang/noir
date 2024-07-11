@@ -50,9 +50,9 @@ class {{name}}CircuitBuilder {
               {{/each}}
             }
 
-            {{#each to_be_shifted as |poly|}}
-            polys.{{poly}}_shift = Polynomial(polys.{{poly}}.shifted());
-            {{/each}}
+            for (auto [shifted, to_be_shifted] : zip_view(polys.get_shifted(), polys.get_to_be_shifted())) {
+                shifted = to_be_shifted.shifted();
+            }
 
             return polys;
         }
@@ -153,8 +153,7 @@ class {{name}}CircuitBuilder {
 
             // Wait for lookup evaluations to complete
             for (auto& future : relation_futures) {
-                int result = future.get();
-                if (!result) {
+                if (!future.get()) {
                     return false;
                 }
             }

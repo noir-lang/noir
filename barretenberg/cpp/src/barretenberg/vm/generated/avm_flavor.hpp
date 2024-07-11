@@ -29,7 +29,7 @@
 #include "barretenberg/relations/generated/avm/powers.hpp"
 #include "barretenberg/relations/generated/avm/sha256.hpp"
 
-// Lookup relations
+// Lookup and permutation relations
 #include "barretenberg/relations/generated/avm/incl_main_tag_err.hpp"
 #include "barretenberg/relations/generated/avm/incl_mem_tag_err.hpp"
 #include "barretenberg/relations/generated/avm/kernel_output_lookup.hpp"
@@ -88,10 +88,19 @@
 #include "barretenberg/relations/generated/avm/range_check_da_gas_lo.hpp"
 #include "barretenberg/relations/generated/avm/range_check_l2_gas_hi.hpp"
 #include "barretenberg/relations/generated/avm/range_check_l2_gas_lo.hpp"
-#include "barretenberg/relations/generic_permutation/generic_permutation_relation.hpp"
 
 // Metaprogramming to concatenate tuple types.
 template <typename... input_t> using tuple_cat_t = decltype(std::tuple_cat(std::declval<input_t>()...));
+
+// The entities that will be used in the flavor.
+// clang-format off
+#define PRECOMPUTED_ENTITIES main_clk, main_sel_first
+#define WIRE_ENTITIES kernel_kernel_inputs, kernel_kernel_value_out, kernel_kernel_side_effect_out, kernel_kernel_metadata_out, main_calldata, main_returndata, alu_a_hi, alu_a_lo, alu_b_hi, alu_b_lo, alu_borrow, alu_cf, alu_clk, alu_cmp_rng_ctr, alu_div_u16_r0, alu_div_u16_r1, alu_div_u16_r2, alu_div_u16_r3, alu_div_u16_r4, alu_div_u16_r5, alu_div_u16_r6, alu_div_u16_r7, alu_divisor_hi, alu_divisor_lo, alu_ff_tag, alu_ia, alu_ib, alu_ic, alu_in_tag, alu_op_add, alu_op_cast, alu_op_cast_prev, alu_op_div, alu_op_div_a_lt_b, alu_op_div_std, alu_op_eq, alu_op_eq_diff_inv, alu_op_lt, alu_op_lte, alu_op_mul, alu_op_not, alu_op_shl, alu_op_shr, alu_op_sub, alu_p_a_borrow, alu_p_b_borrow, alu_p_sub_a_hi, alu_p_sub_a_lo, alu_p_sub_b_hi, alu_p_sub_b_lo, alu_partial_prod_hi, alu_partial_prod_lo, alu_quotient_hi, alu_quotient_lo, alu_remainder, alu_res_hi, alu_res_lo, alu_sel_alu, alu_sel_cmp, alu_sel_div_rng_chk, alu_sel_rng_chk, alu_sel_rng_chk_lookup, alu_sel_shift_which, alu_shift_lt_bit_len, alu_t_sub_s_bits, alu_two_pow_s, alu_two_pow_t_sub_s, alu_u128_tag, alu_u16_r0, alu_u16_r1, alu_u16_r10, alu_u16_r11, alu_u16_r12, alu_u16_r13, alu_u16_r14, alu_u16_r2, alu_u16_r3, alu_u16_r4, alu_u16_r5, alu_u16_r6, alu_u16_r7, alu_u16_r8, alu_u16_r9, alu_u16_tag, alu_u32_tag, alu_u64_tag, alu_u8_r0, alu_u8_r1, alu_u8_tag, binary_acc_ia, binary_acc_ib, binary_acc_ic, binary_clk, binary_ia_bytes, binary_ib_bytes, binary_ic_bytes, binary_in_tag, binary_mem_tag_ctr, binary_mem_tag_ctr_inv, binary_op_id, binary_sel_bin, binary_start, byte_lookup_sel_bin, byte_lookup_table_byte_lengths, byte_lookup_table_in_tags, byte_lookup_table_input_a, byte_lookup_table_input_b, byte_lookup_table_op_id, byte_lookup_table_output, conversion_clk, conversion_input, conversion_num_limbs, conversion_radix, conversion_sel_to_radix_le, gas_da_gas_fixed_table, gas_l2_gas_fixed_table, gas_sel_gas_cost, keccakf1600_clk, keccakf1600_input, keccakf1600_output, keccakf1600_sel_keccakf1600, kernel_emit_l2_to_l1_msg_write_offset, kernel_emit_note_hash_write_offset, kernel_emit_nullifier_write_offset, kernel_emit_unencrypted_log_write_offset, kernel_kernel_in_offset, kernel_kernel_out_offset, kernel_l1_to_l2_msg_exists_write_offset, kernel_note_hash_exist_write_offset, kernel_nullifier_exists_write_offset, kernel_nullifier_non_exists_write_offset, kernel_q_public_input_kernel_add_to_table, kernel_q_public_input_kernel_out_add_to_table, kernel_side_effect_counter, kernel_sload_write_offset, kernel_sstore_write_offset, main_abs_da_rem_gas_hi, main_abs_da_rem_gas_lo, main_abs_l2_rem_gas_hi, main_abs_l2_rem_gas_lo, main_alu_in_tag, main_bin_op_id, main_call_ptr, main_da_gas_op_cost, main_da_gas_remaining, main_da_out_of_gas, main_ia, main_ib, main_ic, main_id, main_id_zero, main_ind_addr_a, main_ind_addr_b, main_ind_addr_c, main_ind_addr_d, main_internal_return_ptr, main_inv, main_l2_gas_op_cost, main_l2_gas_remaining, main_l2_out_of_gas, main_mem_addr_a, main_mem_addr_b, main_mem_addr_c, main_mem_addr_d, main_op_err, main_opcode_val, main_pc, main_r_in_tag, main_rwa, main_rwb, main_rwc, main_rwd, main_sel_alu, main_sel_bin, main_sel_calldata, main_sel_gas_accounting_active, main_sel_last, main_sel_mem_op_a, main_sel_mem_op_activate_gas, main_sel_mem_op_b, main_sel_mem_op_c, main_sel_mem_op_d, main_sel_mov_ia_to_ic, main_sel_mov_ib_to_ic, main_sel_op_add, main_sel_op_address, main_sel_op_and, main_sel_op_block_number, main_sel_op_calldata_copy, main_sel_op_cast, main_sel_op_chain_id, main_sel_op_cmov, main_sel_op_coinbase, main_sel_op_dagasleft, main_sel_op_div, main_sel_op_emit_l2_to_l1_msg, main_sel_op_emit_note_hash, main_sel_op_emit_nullifier, main_sel_op_emit_unencrypted_log, main_sel_op_eq, main_sel_op_external_call, main_sel_op_external_return, main_sel_op_fdiv, main_sel_op_fee_per_da_gas, main_sel_op_fee_per_l2_gas, main_sel_op_function_selector, main_sel_op_get_contract_instance, main_sel_op_halt, main_sel_op_internal_call, main_sel_op_internal_return, main_sel_op_jump, main_sel_op_jumpi, main_sel_op_keccak, main_sel_op_l1_to_l2_msg_exists, main_sel_op_l2gasleft, main_sel_op_lt, main_sel_op_lte, main_sel_op_mov, main_sel_op_mul, main_sel_op_not, main_sel_op_note_hash_exists, main_sel_op_nullifier_exists, main_sel_op_or, main_sel_op_pedersen, main_sel_op_poseidon2, main_sel_op_radix_le, main_sel_op_sender, main_sel_op_sha256, main_sel_op_shl, main_sel_op_shr, main_sel_op_sload, main_sel_op_sstore, main_sel_op_storage_address, main_sel_op_sub, main_sel_op_timestamp, main_sel_op_transaction_fee, main_sel_op_version, main_sel_op_xor, main_sel_q_kernel_lookup, main_sel_q_kernel_output_lookup, main_sel_resolve_ind_addr_a, main_sel_resolve_ind_addr_b, main_sel_resolve_ind_addr_c, main_sel_resolve_ind_addr_d, main_sel_returndata, main_sel_rng_16, main_sel_rng_8, main_sel_slice_gadget, main_space_id, main_tag_err, main_w_in_tag, mem_addr, mem_clk, mem_diff_hi, mem_diff_lo, mem_diff_mid, mem_glob_addr, mem_last, mem_lastAccess, mem_one_min_inv, mem_r_in_tag, mem_rw, mem_sel_mem, mem_sel_mov_ia_to_ic, mem_sel_mov_ib_to_ic, mem_sel_op_a, mem_sel_op_b, mem_sel_op_c, mem_sel_op_cmov, mem_sel_op_d, mem_sel_op_slice, mem_sel_resolve_ind_addr_a, mem_sel_resolve_ind_addr_b, mem_sel_resolve_ind_addr_c, mem_sel_resolve_ind_addr_d, mem_sel_rng_chk, mem_skip_check_tag, mem_space_id, mem_tag, mem_tag_err, mem_tsp, mem_val, mem_w_in_tag, pedersen_clk, pedersen_input, pedersen_output, pedersen_sel_pedersen, poseidon2_clk, poseidon2_input, poseidon2_output, poseidon2_sel_poseidon_perm, powers_power_of_2, sha256_clk, sha256_input, sha256_output, sha256_sel_sha256_compression, sha256_state, slice_addr, slice_clk, slice_cnt, slice_col_offset, slice_one_min_inv, slice_sel_cd_cpy, slice_sel_mem_active, slice_sel_return, slice_sel_start, slice_space_id, slice_val, lookup_byte_lengths_counts, lookup_byte_operations_counts, lookup_cd_value_counts, lookup_ret_value_counts, lookup_opcode_gas_counts, range_check_l2_gas_hi_counts, range_check_l2_gas_lo_counts, range_check_da_gas_hi_counts, range_check_da_gas_lo_counts, kernel_output_lookup_counts, lookup_into_kernel_counts, incl_main_tag_err_counts, incl_mem_tag_err_counts, lookup_mem_rng_chk_lo_counts, lookup_mem_rng_chk_mid_counts, lookup_mem_rng_chk_hi_counts, lookup_pow_2_0_counts, lookup_pow_2_1_counts, lookup_u8_0_counts, lookup_u8_1_counts, lookup_u16_0_counts, lookup_u16_1_counts, lookup_u16_2_counts, lookup_u16_3_counts, lookup_u16_4_counts, lookup_u16_5_counts, lookup_u16_6_counts, lookup_u16_7_counts, lookup_u16_8_counts, lookup_u16_9_counts, lookup_u16_10_counts, lookup_u16_11_counts, lookup_u16_12_counts, lookup_u16_13_counts, lookup_u16_14_counts, lookup_div_u16_0_counts, lookup_div_u16_1_counts, lookup_div_u16_2_counts, lookup_div_u16_3_counts, lookup_div_u16_4_counts, lookup_div_u16_5_counts, lookup_div_u16_6_counts, lookup_div_u16_7_counts
+#define DERIVED_WITNESS_ENTITIES perm_slice_mem, perm_main_alu, perm_main_bin, perm_main_conv, perm_main_pos2_perm, perm_main_pedersen, perm_main_slice, perm_main_mem_a, perm_main_mem_b, perm_main_mem_c, perm_main_mem_d, perm_main_mem_ind_addr_a, perm_main_mem_ind_addr_b, perm_main_mem_ind_addr_c, perm_main_mem_ind_addr_d, lookup_byte_lengths, lookup_byte_operations, lookup_cd_value, lookup_ret_value, lookup_opcode_gas, range_check_l2_gas_hi, range_check_l2_gas_lo, range_check_da_gas_hi, range_check_da_gas_lo, kernel_output_lookup, lookup_into_kernel, incl_main_tag_err, incl_mem_tag_err, lookup_mem_rng_chk_lo, lookup_mem_rng_chk_mid, lookup_mem_rng_chk_hi, lookup_pow_2_0, lookup_pow_2_1, lookup_u8_0, lookup_u8_1, lookup_u16_0, lookup_u16_1, lookup_u16_2, lookup_u16_3, lookup_u16_4, lookup_u16_5, lookup_u16_6, lookup_u16_7, lookup_u16_8, lookup_u16_9, lookup_u16_10, lookup_u16_11, lookup_u16_12, lookup_u16_13, lookup_u16_14, lookup_div_u16_0, lookup_div_u16_1, lookup_div_u16_2, lookup_div_u16_3, lookup_div_u16_4, lookup_div_u16_5, lookup_div_u16_6, lookup_div_u16_7
+#define SHIFTED_ENTITIES alu_a_hi_shift, alu_a_lo_shift, alu_b_hi_shift, alu_b_lo_shift, alu_cmp_rng_ctr_shift, alu_div_u16_r0_shift, alu_div_u16_r1_shift, alu_div_u16_r2_shift, alu_div_u16_r3_shift, alu_div_u16_r4_shift, alu_div_u16_r5_shift, alu_div_u16_r6_shift, alu_div_u16_r7_shift, alu_op_add_shift, alu_op_cast_prev_shift, alu_op_cast_shift, alu_op_div_shift, alu_op_mul_shift, alu_op_shl_shift, alu_op_shr_shift, alu_op_sub_shift, alu_p_sub_a_hi_shift, alu_p_sub_a_lo_shift, alu_p_sub_b_hi_shift, alu_p_sub_b_lo_shift, alu_sel_alu_shift, alu_sel_cmp_shift, alu_sel_div_rng_chk_shift, alu_sel_rng_chk_lookup_shift, alu_sel_rng_chk_shift, alu_u16_r0_shift, alu_u16_r1_shift, alu_u16_r2_shift, alu_u16_r3_shift, alu_u16_r4_shift, alu_u16_r5_shift, alu_u16_r6_shift, alu_u8_r0_shift, alu_u8_r1_shift, binary_acc_ia_shift, binary_acc_ib_shift, binary_acc_ic_shift, binary_mem_tag_ctr_shift, binary_op_id_shift, kernel_emit_l2_to_l1_msg_write_offset_shift, kernel_emit_note_hash_write_offset_shift, kernel_emit_nullifier_write_offset_shift, kernel_emit_unencrypted_log_write_offset_shift, kernel_l1_to_l2_msg_exists_write_offset_shift, kernel_note_hash_exist_write_offset_shift, kernel_nullifier_exists_write_offset_shift, kernel_nullifier_non_exists_write_offset_shift, kernel_side_effect_counter_shift, kernel_sload_write_offset_shift, kernel_sstore_write_offset_shift, main_da_gas_remaining_shift, main_internal_return_ptr_shift, main_l2_gas_remaining_shift, main_pc_shift, mem_glob_addr_shift, mem_rw_shift, mem_sel_mem_shift, mem_tag_shift, mem_tsp_shift, mem_val_shift, slice_addr_shift, slice_clk_shift, slice_cnt_shift, slice_col_offset_shift, slice_sel_cd_cpy_shift, slice_sel_mem_active_shift, slice_sel_return_shift, slice_sel_start_shift, slice_space_id_shift
+#define TO_BE_SHIFTED(e) e.alu_a_hi, e.alu_a_lo, e.alu_b_hi, e.alu_b_lo, e.alu_cmp_rng_ctr, e.alu_div_u16_r0, e.alu_div_u16_r1, e.alu_div_u16_r2, e.alu_div_u16_r3, e.alu_div_u16_r4, e.alu_div_u16_r5, e.alu_div_u16_r6, e.alu_div_u16_r7, e.alu_op_add, e.alu_op_cast_prev, e.alu_op_cast, e.alu_op_div, e.alu_op_mul, e.alu_op_shl, e.alu_op_shr, e.alu_op_sub, e.alu_p_sub_a_hi, e.alu_p_sub_a_lo, e.alu_p_sub_b_hi, e.alu_p_sub_b_lo, e.alu_sel_alu, e.alu_sel_cmp, e.alu_sel_div_rng_chk, e.alu_sel_rng_chk_lookup, e.alu_sel_rng_chk, e.alu_u16_r0, e.alu_u16_r1, e.alu_u16_r2, e.alu_u16_r3, e.alu_u16_r4, e.alu_u16_r5, e.alu_u16_r6, e.alu_u8_r0, e.alu_u8_r1, e.binary_acc_ia, e.binary_acc_ib, e.binary_acc_ic, e.binary_mem_tag_ctr, e.binary_op_id, e.kernel_emit_l2_to_l1_msg_write_offset, e.kernel_emit_note_hash_write_offset, e.kernel_emit_nullifier_write_offset, e.kernel_emit_unencrypted_log_write_offset, e.kernel_l1_to_l2_msg_exists_write_offset, e.kernel_note_hash_exist_write_offset, e.kernel_nullifier_exists_write_offset, e.kernel_nullifier_non_exists_write_offset, e.kernel_side_effect_counter, e.kernel_sload_write_offset, e.kernel_sstore_write_offset, e.main_da_gas_remaining, e.main_internal_return_ptr, e.main_l2_gas_remaining, e.main_pc, e.mem_glob_addr, e.mem_rw, e.mem_sel_mem, e.mem_tag, e.mem_tsp, e.mem_val, e.slice_addr, e.slice_clk, e.slice_cnt, e.slice_col_offset, e.slice_sel_cd_cpy, e.slice_sel_mem_active, e.slice_sel_return, e.slice_sel_start, e.slice_space_id
+#define ALL_ENTITIES PRECOMPUTED_ENTITIES, WIRE_ENTITIES, DERIVED_WITNESS_ENTITIES, SHIFTED_ENTITIES
+// clang-format on
 
 namespace bb {
 
@@ -218,9 +227,9 @@ class AvmFlavor {
       public:
         using DataType = DataType_;
 
-        DEFINE_FLAVOR_MEMBERS(DataType, main_clk, main_sel_first)
+        DEFINE_FLAVOR_MEMBERS(DataType, PRECOMPUTED_ENTITIES)
 
-        RefVector<DataType> get_selectors() { return { main_clk, main_sel_first }; }
+        RefVector<DataType> get_selectors() { return get_all(); }
         RefVector<DataType> get_sigma_polynomials() { return {}; }
         RefVector<DataType> get_id_polynomials() { return {}; }
         RefVector<DataType> get_table_polynomials() { return {}; }
@@ -228,579 +237,23 @@ class AvmFlavor {
 
     template <typename DataType> class WireEntities {
       public:
-        DEFINE_FLAVOR_MEMBERS(DataType,
-                              kernel_kernel_inputs,
-                              kernel_kernel_value_out,
-                              kernel_kernel_side_effect_out,
-                              kernel_kernel_metadata_out,
-                              main_calldata,
-                              main_returndata,
-                              alu_a_hi,
-                              alu_a_lo,
-                              alu_b_hi,
-                              alu_b_lo,
-                              alu_borrow,
-                              alu_cf,
-                              alu_clk,
-                              alu_cmp_rng_ctr,
-                              alu_div_u16_r0,
-                              alu_div_u16_r1,
-                              alu_div_u16_r2,
-                              alu_div_u16_r3,
-                              alu_div_u16_r4,
-                              alu_div_u16_r5,
-                              alu_div_u16_r6,
-                              alu_div_u16_r7,
-                              alu_divisor_hi,
-                              alu_divisor_lo,
-                              alu_ff_tag,
-                              alu_ia,
-                              alu_ib,
-                              alu_ic,
-                              alu_in_tag,
-                              alu_op_add,
-                              alu_op_cast,
-                              alu_op_cast_prev,
-                              alu_op_div,
-                              alu_op_div_a_lt_b,
-                              alu_op_div_std,
-                              alu_op_eq,
-                              alu_op_eq_diff_inv,
-                              alu_op_lt,
-                              alu_op_lte,
-                              alu_op_mul,
-                              alu_op_not,
-                              alu_op_shl,
-                              alu_op_shr,
-                              alu_op_sub,
-                              alu_p_a_borrow,
-                              alu_p_b_borrow,
-                              alu_p_sub_a_hi,
-                              alu_p_sub_a_lo,
-                              alu_p_sub_b_hi,
-                              alu_p_sub_b_lo,
-                              alu_partial_prod_hi,
-                              alu_partial_prod_lo,
-                              alu_quotient_hi,
-                              alu_quotient_lo,
-                              alu_remainder,
-                              alu_res_hi,
-                              alu_res_lo,
-                              alu_sel_alu,
-                              alu_sel_cmp,
-                              alu_sel_div_rng_chk,
-                              alu_sel_rng_chk,
-                              alu_sel_rng_chk_lookup,
-                              alu_sel_shift_which,
-                              alu_shift_lt_bit_len,
-                              alu_t_sub_s_bits,
-                              alu_two_pow_s,
-                              alu_two_pow_t_sub_s,
-                              alu_u128_tag,
-                              alu_u16_r0,
-                              alu_u16_r1,
-                              alu_u16_r10,
-                              alu_u16_r11,
-                              alu_u16_r12,
-                              alu_u16_r13,
-                              alu_u16_r14,
-                              alu_u16_r2,
-                              alu_u16_r3,
-                              alu_u16_r4,
-                              alu_u16_r5,
-                              alu_u16_r6,
-                              alu_u16_r7,
-                              alu_u16_r8,
-                              alu_u16_r9,
-                              alu_u16_tag,
-                              alu_u32_tag,
-                              alu_u64_tag,
-                              alu_u8_r0,
-                              alu_u8_r1,
-                              alu_u8_tag,
-                              binary_acc_ia,
-                              binary_acc_ib,
-                              binary_acc_ic,
-                              binary_clk,
-                              binary_ia_bytes,
-                              binary_ib_bytes,
-                              binary_ic_bytes,
-                              binary_in_tag,
-                              binary_mem_tag_ctr,
-                              binary_mem_tag_ctr_inv,
-                              binary_op_id,
-                              binary_sel_bin,
-                              binary_start,
-                              byte_lookup_sel_bin,
-                              byte_lookup_table_byte_lengths,
-                              byte_lookup_table_in_tags,
-                              byte_lookup_table_input_a,
-                              byte_lookup_table_input_b,
-                              byte_lookup_table_op_id,
-                              byte_lookup_table_output,
-                              conversion_clk,
-                              conversion_input,
-                              conversion_num_limbs,
-                              conversion_radix,
-                              conversion_sel_to_radix_le,
-                              gas_da_gas_fixed_table,
-                              gas_l2_gas_fixed_table,
-                              gas_sel_gas_cost,
-                              keccakf1600_clk,
-                              keccakf1600_input,
-                              keccakf1600_output,
-                              keccakf1600_sel_keccakf1600,
-                              kernel_emit_l2_to_l1_msg_write_offset,
-                              kernel_emit_note_hash_write_offset,
-                              kernel_emit_nullifier_write_offset,
-                              kernel_emit_unencrypted_log_write_offset,
-                              kernel_kernel_in_offset,
-                              kernel_kernel_out_offset,
-                              kernel_l1_to_l2_msg_exists_write_offset,
-                              kernel_note_hash_exist_write_offset,
-                              kernel_nullifier_exists_write_offset,
-                              kernel_nullifier_non_exists_write_offset,
-                              kernel_q_public_input_kernel_add_to_table,
-                              kernel_q_public_input_kernel_out_add_to_table,
-                              kernel_side_effect_counter,
-                              kernel_sload_write_offset,
-                              kernel_sstore_write_offset,
-                              main_abs_da_rem_gas_hi,
-                              main_abs_da_rem_gas_lo,
-                              main_abs_l2_rem_gas_hi,
-                              main_abs_l2_rem_gas_lo,
-                              main_alu_in_tag,
-                              main_bin_op_id,
-                              main_call_ptr,
-                              main_da_gas_op_cost,
-                              main_da_gas_remaining,
-                              main_da_out_of_gas,
-                              main_ia,
-                              main_ib,
-                              main_ic,
-                              main_id,
-                              main_id_zero,
-                              main_ind_addr_a,
-                              main_ind_addr_b,
-                              main_ind_addr_c,
-                              main_ind_addr_d,
-                              main_internal_return_ptr,
-                              main_inv,
-                              main_l2_gas_op_cost,
-                              main_l2_gas_remaining,
-                              main_l2_out_of_gas,
-                              main_mem_addr_a,
-                              main_mem_addr_b,
-                              main_mem_addr_c,
-                              main_mem_addr_d,
-                              main_op_err,
-                              main_opcode_val,
-                              main_pc,
-                              main_r_in_tag,
-                              main_rwa,
-                              main_rwb,
-                              main_rwc,
-                              main_rwd,
-                              main_sel_alu,
-                              main_sel_bin,
-                              main_sel_calldata,
-                              main_sel_gas_accounting_active,
-                              main_sel_last,
-                              main_sel_mem_op_a,
-                              main_sel_mem_op_activate_gas,
-                              main_sel_mem_op_b,
-                              main_sel_mem_op_c,
-                              main_sel_mem_op_d,
-                              main_sel_mov_ia_to_ic,
-                              main_sel_mov_ib_to_ic,
-                              main_sel_op_add,
-                              main_sel_op_address,
-                              main_sel_op_and,
-                              main_sel_op_block_number,
-                              main_sel_op_calldata_copy,
-                              main_sel_op_cast,
-                              main_sel_op_chain_id,
-                              main_sel_op_cmov,
-                              main_sel_op_coinbase,
-                              main_sel_op_dagasleft,
-                              main_sel_op_div,
-                              main_sel_op_emit_l2_to_l1_msg,
-                              main_sel_op_emit_note_hash,
-                              main_sel_op_emit_nullifier,
-                              main_sel_op_emit_unencrypted_log,
-                              main_sel_op_eq,
-                              main_sel_op_external_call,
-                              main_sel_op_external_return,
-                              main_sel_op_fdiv,
-                              main_sel_op_fee_per_da_gas,
-                              main_sel_op_fee_per_l2_gas,
-                              main_sel_op_function_selector,
-                              main_sel_op_get_contract_instance,
-                              main_sel_op_halt,
-                              main_sel_op_internal_call,
-                              main_sel_op_internal_return,
-                              main_sel_op_jump,
-                              main_sel_op_jumpi,
-                              main_sel_op_keccak,
-                              main_sel_op_l1_to_l2_msg_exists,
-                              main_sel_op_l2gasleft,
-                              main_sel_op_lt,
-                              main_sel_op_lte,
-                              main_sel_op_mov,
-                              main_sel_op_mul,
-                              main_sel_op_not,
-                              main_sel_op_note_hash_exists,
-                              main_sel_op_nullifier_exists,
-                              main_sel_op_or,
-                              main_sel_op_pedersen,
-                              main_sel_op_poseidon2,
-                              main_sel_op_radix_le,
-                              main_sel_op_sender,
-                              main_sel_op_sha256,
-                              main_sel_op_shl,
-                              main_sel_op_shr,
-                              main_sel_op_sload,
-                              main_sel_op_sstore,
-                              main_sel_op_storage_address,
-                              main_sel_op_sub,
-                              main_sel_op_timestamp,
-                              main_sel_op_transaction_fee,
-                              main_sel_op_version,
-                              main_sel_op_xor,
-                              main_sel_q_kernel_lookup,
-                              main_sel_q_kernel_output_lookup,
-                              main_sel_resolve_ind_addr_a,
-                              main_sel_resolve_ind_addr_b,
-                              main_sel_resolve_ind_addr_c,
-                              main_sel_resolve_ind_addr_d,
-                              main_sel_returndata,
-                              main_sel_rng_16,
-                              main_sel_rng_8,
-                              main_sel_slice_gadget,
-                              main_space_id,
-                              main_tag_err,
-                              main_w_in_tag,
-                              mem_addr,
-                              mem_clk,
-                              mem_diff_hi,
-                              mem_diff_lo,
-                              mem_diff_mid,
-                              mem_glob_addr,
-                              mem_last,
-                              mem_lastAccess,
-                              mem_one_min_inv,
-                              mem_r_in_tag,
-                              mem_rw,
-                              mem_sel_mem,
-                              mem_sel_mov_ia_to_ic,
-                              mem_sel_mov_ib_to_ic,
-                              mem_sel_op_a,
-                              mem_sel_op_b,
-                              mem_sel_op_c,
-                              mem_sel_op_cmov,
-                              mem_sel_op_d,
-                              mem_sel_op_slice,
-                              mem_sel_resolve_ind_addr_a,
-                              mem_sel_resolve_ind_addr_b,
-                              mem_sel_resolve_ind_addr_c,
-                              mem_sel_resolve_ind_addr_d,
-                              mem_sel_rng_chk,
-                              mem_skip_check_tag,
-                              mem_space_id,
-                              mem_tag,
-                              mem_tag_err,
-                              mem_tsp,
-                              mem_val,
-                              mem_w_in_tag,
-                              pedersen_clk,
-                              pedersen_input,
-                              pedersen_output,
-                              pedersen_sel_pedersen,
-                              poseidon2_clk,
-                              poseidon2_input,
-                              poseidon2_output,
-                              poseidon2_sel_poseidon_perm,
-                              powers_power_of_2,
-                              sha256_clk,
-                              sha256_input,
-                              sha256_output,
-                              sha256_sel_sha256_compression,
-                              sha256_state,
-                              slice_addr,
-                              slice_clk,
-                              slice_cnt,
-                              slice_col_offset,
-                              slice_one_min_inv,
-                              slice_sel_cd_cpy,
-                              slice_sel_mem_active,
-                              slice_sel_return,
-                              slice_sel_start,
-                              slice_space_id,
-                              slice_val,
-                              lookup_byte_lengths_counts,
-                              lookup_byte_operations_counts,
-                              lookup_cd_value_counts,
-                              lookup_ret_value_counts,
-                              lookup_opcode_gas_counts,
-                              range_check_l2_gas_hi_counts,
-                              range_check_l2_gas_lo_counts,
-                              range_check_da_gas_hi_counts,
-                              range_check_da_gas_lo_counts,
-                              kernel_output_lookup_counts,
-                              lookup_into_kernel_counts,
-                              incl_main_tag_err_counts,
-                              incl_mem_tag_err_counts,
-                              lookup_mem_rng_chk_lo_counts,
-                              lookup_mem_rng_chk_mid_counts,
-                              lookup_mem_rng_chk_hi_counts,
-                              lookup_pow_2_0_counts,
-                              lookup_pow_2_1_counts,
-                              lookup_u8_0_counts,
-                              lookup_u8_1_counts,
-                              lookup_u16_0_counts,
-                              lookup_u16_1_counts,
-                              lookup_u16_2_counts,
-                              lookup_u16_3_counts,
-                              lookup_u16_4_counts,
-                              lookup_u16_5_counts,
-                              lookup_u16_6_counts,
-                              lookup_u16_7_counts,
-                              lookup_u16_8_counts,
-                              lookup_u16_9_counts,
-                              lookup_u16_10_counts,
-                              lookup_u16_11_counts,
-                              lookup_u16_12_counts,
-                              lookup_u16_13_counts,
-                              lookup_u16_14_counts,
-                              lookup_div_u16_0_counts,
-                              lookup_div_u16_1_counts,
-                              lookup_div_u16_2_counts,
-                              lookup_div_u16_3_counts,
-                              lookup_div_u16_4_counts,
-                              lookup_div_u16_5_counts,
-                              lookup_div_u16_6_counts,
-                              lookup_div_u16_7_counts)
+        DEFINE_FLAVOR_MEMBERS(DataType, WIRE_ENTITIES)
     };
 
     template <typename DataType> class DerivedWitnessEntities {
       public:
-        DEFINE_FLAVOR_MEMBERS(DataType,
-                              perm_slice_mem,
-                              perm_main_alu,
-                              perm_main_bin,
-                              perm_main_conv,
-                              perm_main_pos2_perm,
-                              perm_main_pedersen,
-                              perm_main_slice,
-                              perm_main_mem_a,
-                              perm_main_mem_b,
-                              perm_main_mem_c,
-                              perm_main_mem_d,
-                              perm_main_mem_ind_addr_a,
-                              perm_main_mem_ind_addr_b,
-                              perm_main_mem_ind_addr_c,
-                              perm_main_mem_ind_addr_d,
-                              lookup_byte_lengths,
-                              lookup_byte_operations,
-                              lookup_cd_value,
-                              lookup_ret_value,
-                              lookup_opcode_gas,
-                              range_check_l2_gas_hi,
-                              range_check_l2_gas_lo,
-                              range_check_da_gas_hi,
-                              range_check_da_gas_lo,
-                              kernel_output_lookup,
-                              lookup_into_kernel,
-                              incl_main_tag_err,
-                              incl_mem_tag_err,
-                              lookup_mem_rng_chk_lo,
-                              lookup_mem_rng_chk_mid,
-                              lookup_mem_rng_chk_hi,
-                              lookup_pow_2_0,
-                              lookup_pow_2_1,
-                              lookup_u8_0,
-                              lookup_u8_1,
-                              lookup_u16_0,
-                              lookup_u16_1,
-                              lookup_u16_2,
-                              lookup_u16_3,
-                              lookup_u16_4,
-                              lookup_u16_5,
-                              lookup_u16_6,
-                              lookup_u16_7,
-                              lookup_u16_8,
-                              lookup_u16_9,
-                              lookup_u16_10,
-                              lookup_u16_11,
-                              lookup_u16_12,
-                              lookup_u16_13,
-                              lookup_u16_14,
-                              lookup_div_u16_0,
-                              lookup_div_u16_1,
-                              lookup_div_u16_2,
-                              lookup_div_u16_3,
-                              lookup_div_u16_4,
-                              lookup_div_u16_5,
-                              lookup_div_u16_6,
-                              lookup_div_u16_7)
+        DEFINE_FLAVOR_MEMBERS(DataType, DERIVED_WITNESS_ENTITIES)
     };
 
     template <typename DataType> class ShiftedEntities {
       public:
-        DEFINE_FLAVOR_MEMBERS(DataType,
-                              alu_a_hi_shift,
-                              alu_a_lo_shift,
-                              alu_b_hi_shift,
-                              alu_b_lo_shift,
-                              alu_cmp_rng_ctr_shift,
-                              alu_div_u16_r0_shift,
-                              alu_div_u16_r1_shift,
-                              alu_div_u16_r2_shift,
-                              alu_div_u16_r3_shift,
-                              alu_div_u16_r4_shift,
-                              alu_div_u16_r5_shift,
-                              alu_div_u16_r6_shift,
-                              alu_div_u16_r7_shift,
-                              alu_op_add_shift,
-                              alu_op_cast_prev_shift,
-                              alu_op_cast_shift,
-                              alu_op_div_shift,
-                              alu_op_mul_shift,
-                              alu_op_shl_shift,
-                              alu_op_shr_shift,
-                              alu_op_sub_shift,
-                              alu_p_sub_a_hi_shift,
-                              alu_p_sub_a_lo_shift,
-                              alu_p_sub_b_hi_shift,
-                              alu_p_sub_b_lo_shift,
-                              alu_sel_alu_shift,
-                              alu_sel_cmp_shift,
-                              alu_sel_div_rng_chk_shift,
-                              alu_sel_rng_chk_lookup_shift,
-                              alu_sel_rng_chk_shift,
-                              alu_u16_r0_shift,
-                              alu_u16_r1_shift,
-                              alu_u16_r2_shift,
-                              alu_u16_r3_shift,
-                              alu_u16_r4_shift,
-                              alu_u16_r5_shift,
-                              alu_u16_r6_shift,
-                              alu_u8_r0_shift,
-                              alu_u8_r1_shift,
-                              binary_acc_ia_shift,
-                              binary_acc_ib_shift,
-                              binary_acc_ic_shift,
-                              binary_mem_tag_ctr_shift,
-                              binary_op_id_shift,
-                              kernel_emit_l2_to_l1_msg_write_offset_shift,
-                              kernel_emit_note_hash_write_offset_shift,
-                              kernel_emit_nullifier_write_offset_shift,
-                              kernel_emit_unencrypted_log_write_offset_shift,
-                              kernel_l1_to_l2_msg_exists_write_offset_shift,
-                              kernel_note_hash_exist_write_offset_shift,
-                              kernel_nullifier_exists_write_offset_shift,
-                              kernel_nullifier_non_exists_write_offset_shift,
-                              kernel_side_effect_counter_shift,
-                              kernel_sload_write_offset_shift,
-                              kernel_sstore_write_offset_shift,
-                              main_da_gas_remaining_shift,
-                              main_internal_return_ptr_shift,
-                              main_l2_gas_remaining_shift,
-                              main_pc_shift,
-                              mem_glob_addr_shift,
-                              mem_rw_shift,
-                              mem_sel_mem_shift,
-                              mem_tag_shift,
-                              mem_tsp_shift,
-                              mem_val_shift,
-                              slice_addr_shift,
-                              slice_clk_shift,
-                              slice_cnt_shift,
-                              slice_col_offset_shift,
-                              slice_sel_cd_cpy_shift,
-                              slice_sel_mem_active_shift,
-                              slice_sel_return_shift,
-                              slice_sel_start_shift,
-                              slice_space_id_shift)
+        DEFINE_FLAVOR_MEMBERS(DataType, SHIFTED_ENTITIES)
     };
 
     template <typename DataType, typename PrecomputedAndWitnessEntitiesSuperset>
     static auto get_to_be_shifted(PrecomputedAndWitnessEntitiesSuperset& entities)
     {
-        return RefArray{ entities.alu_a_hi,
-                         entities.alu_a_lo,
-                         entities.alu_b_hi,
-                         entities.alu_b_lo,
-                         entities.alu_cmp_rng_ctr,
-                         entities.alu_div_u16_r0,
-                         entities.alu_div_u16_r1,
-                         entities.alu_div_u16_r2,
-                         entities.alu_div_u16_r3,
-                         entities.alu_div_u16_r4,
-                         entities.alu_div_u16_r5,
-                         entities.alu_div_u16_r6,
-                         entities.alu_div_u16_r7,
-                         entities.alu_op_add,
-                         entities.alu_op_cast_prev,
-                         entities.alu_op_cast,
-                         entities.alu_op_div,
-                         entities.alu_op_mul,
-                         entities.alu_op_shl,
-                         entities.alu_op_shr,
-                         entities.alu_op_sub,
-                         entities.alu_p_sub_a_hi,
-                         entities.alu_p_sub_a_lo,
-                         entities.alu_p_sub_b_hi,
-                         entities.alu_p_sub_b_lo,
-                         entities.alu_sel_alu,
-                         entities.alu_sel_cmp,
-                         entities.alu_sel_div_rng_chk,
-                         entities.alu_sel_rng_chk_lookup,
-                         entities.alu_sel_rng_chk,
-                         entities.alu_u16_r0,
-                         entities.alu_u16_r1,
-                         entities.alu_u16_r2,
-                         entities.alu_u16_r3,
-                         entities.alu_u16_r4,
-                         entities.alu_u16_r5,
-                         entities.alu_u16_r6,
-                         entities.alu_u8_r0,
-                         entities.alu_u8_r1,
-                         entities.binary_acc_ia,
-                         entities.binary_acc_ib,
-                         entities.binary_acc_ic,
-                         entities.binary_mem_tag_ctr,
-                         entities.binary_op_id,
-                         entities.kernel_emit_l2_to_l1_msg_write_offset,
-                         entities.kernel_emit_note_hash_write_offset,
-                         entities.kernel_emit_nullifier_write_offset,
-                         entities.kernel_emit_unencrypted_log_write_offset,
-                         entities.kernel_l1_to_l2_msg_exists_write_offset,
-                         entities.kernel_note_hash_exist_write_offset,
-                         entities.kernel_nullifier_exists_write_offset,
-                         entities.kernel_nullifier_non_exists_write_offset,
-                         entities.kernel_side_effect_counter,
-                         entities.kernel_sload_write_offset,
-                         entities.kernel_sstore_write_offset,
-                         entities.main_da_gas_remaining,
-                         entities.main_internal_return_ptr,
-                         entities.main_l2_gas_remaining,
-                         entities.main_pc,
-                         entities.mem_glob_addr,
-                         entities.mem_rw,
-                         entities.mem_sel_mem,
-                         entities.mem_tag,
-                         entities.mem_tsp,
-                         entities.mem_val,
-                         entities.slice_addr,
-                         entities.slice_clk,
-                         entities.slice_cnt,
-                         entities.slice_col_offset,
-                         entities.slice_sel_cd_cpy,
-                         entities.slice_sel_mem_active,
-                         entities.slice_sel_return,
-                         entities.slice_sel_start,
-                         entities.slice_space_id };
+        return RefArray{ TO_BE_SHIFTED(entities) };
     }
 
     template <typename DataType>
@@ -835,83 +288,7 @@ class AvmFlavor {
         using Base = ProvingKeyAvm_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>;
         using Base::Base;
 
-        RefVector<DataType> get_to_be_shifted()
-        {
-            return { alu_a_hi,
-                     alu_a_lo,
-                     alu_b_hi,
-                     alu_b_lo,
-                     alu_cmp_rng_ctr,
-                     alu_div_u16_r0,
-                     alu_div_u16_r1,
-                     alu_div_u16_r2,
-                     alu_div_u16_r3,
-                     alu_div_u16_r4,
-                     alu_div_u16_r5,
-                     alu_div_u16_r6,
-                     alu_div_u16_r7,
-                     alu_op_add,
-                     alu_op_cast_prev,
-                     alu_op_cast,
-                     alu_op_div,
-                     alu_op_mul,
-                     alu_op_shl,
-                     alu_op_shr,
-                     alu_op_sub,
-                     alu_p_sub_a_hi,
-                     alu_p_sub_a_lo,
-                     alu_p_sub_b_hi,
-                     alu_p_sub_b_lo,
-                     alu_sel_alu,
-                     alu_sel_cmp,
-                     alu_sel_div_rng_chk,
-                     alu_sel_rng_chk_lookup,
-                     alu_sel_rng_chk,
-                     alu_u16_r0,
-                     alu_u16_r1,
-                     alu_u16_r2,
-                     alu_u16_r3,
-                     alu_u16_r4,
-                     alu_u16_r5,
-                     alu_u16_r6,
-                     alu_u8_r0,
-                     alu_u8_r1,
-                     binary_acc_ia,
-                     binary_acc_ib,
-                     binary_acc_ic,
-                     binary_mem_tag_ctr,
-                     binary_op_id,
-                     kernel_emit_l2_to_l1_msg_write_offset,
-                     kernel_emit_note_hash_write_offset,
-                     kernel_emit_nullifier_write_offset,
-                     kernel_emit_unencrypted_log_write_offset,
-                     kernel_l1_to_l2_msg_exists_write_offset,
-                     kernel_note_hash_exist_write_offset,
-                     kernel_nullifier_exists_write_offset,
-                     kernel_nullifier_non_exists_write_offset,
-                     kernel_side_effect_counter,
-                     kernel_sload_write_offset,
-                     kernel_sstore_write_offset,
-                     main_da_gas_remaining,
-                     main_internal_return_ptr,
-                     main_l2_gas_remaining,
-                     main_pc,
-                     mem_glob_addr,
-                     mem_rw,
-                     mem_sel_mem,
-                     mem_tag,
-                     mem_tsp,
-                     mem_val,
-                     slice_addr,
-                     slice_clk,
-                     slice_cnt,
-                     slice_col_offset,
-                     slice_sel_cd_cpy,
-                     slice_sel_mem_active,
-                     slice_sel_return,
-                     slice_sel_start,
-                     slice_space_id };
-        }
+        auto get_to_be_shifted() { return AvmFlavor::get_to_be_shifted<DataType>(*this); }
     };
 
     using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey>;
@@ -926,492 +303,7 @@ class AvmFlavor {
       public:
         using DataType = const FF&;
 
-        DEFINE_FLAVOR_MEMBERS(DataType,
-                              main_clk,
-                              main_sel_first,
-                              kernel_kernel_inputs,
-                              kernel_kernel_value_out,
-                              kernel_kernel_side_effect_out,
-                              kernel_kernel_metadata_out,
-                              main_calldata,
-                              main_returndata,
-                              alu_a_hi,
-                              alu_a_lo,
-                              alu_b_hi,
-                              alu_b_lo,
-                              alu_borrow,
-                              alu_cf,
-                              alu_clk,
-                              alu_cmp_rng_ctr,
-                              alu_div_u16_r0,
-                              alu_div_u16_r1,
-                              alu_div_u16_r2,
-                              alu_div_u16_r3,
-                              alu_div_u16_r4,
-                              alu_div_u16_r5,
-                              alu_div_u16_r6,
-                              alu_div_u16_r7,
-                              alu_divisor_hi,
-                              alu_divisor_lo,
-                              alu_ff_tag,
-                              alu_ia,
-                              alu_ib,
-                              alu_ic,
-                              alu_in_tag,
-                              alu_op_add,
-                              alu_op_cast,
-                              alu_op_cast_prev,
-                              alu_op_div,
-                              alu_op_div_a_lt_b,
-                              alu_op_div_std,
-                              alu_op_eq,
-                              alu_op_eq_diff_inv,
-                              alu_op_lt,
-                              alu_op_lte,
-                              alu_op_mul,
-                              alu_op_not,
-                              alu_op_shl,
-                              alu_op_shr,
-                              alu_op_sub,
-                              alu_p_a_borrow,
-                              alu_p_b_borrow,
-                              alu_p_sub_a_hi,
-                              alu_p_sub_a_lo,
-                              alu_p_sub_b_hi,
-                              alu_p_sub_b_lo,
-                              alu_partial_prod_hi,
-                              alu_partial_prod_lo,
-                              alu_quotient_hi,
-                              alu_quotient_lo,
-                              alu_remainder,
-                              alu_res_hi,
-                              alu_res_lo,
-                              alu_sel_alu,
-                              alu_sel_cmp,
-                              alu_sel_div_rng_chk,
-                              alu_sel_rng_chk,
-                              alu_sel_rng_chk_lookup,
-                              alu_sel_shift_which,
-                              alu_shift_lt_bit_len,
-                              alu_t_sub_s_bits,
-                              alu_two_pow_s,
-                              alu_two_pow_t_sub_s,
-                              alu_u128_tag,
-                              alu_u16_r0,
-                              alu_u16_r1,
-                              alu_u16_r10,
-                              alu_u16_r11,
-                              alu_u16_r12,
-                              alu_u16_r13,
-                              alu_u16_r14,
-                              alu_u16_r2,
-                              alu_u16_r3,
-                              alu_u16_r4,
-                              alu_u16_r5,
-                              alu_u16_r6,
-                              alu_u16_r7,
-                              alu_u16_r8,
-                              alu_u16_r9,
-                              alu_u16_tag,
-                              alu_u32_tag,
-                              alu_u64_tag,
-                              alu_u8_r0,
-                              alu_u8_r1,
-                              alu_u8_tag,
-                              binary_acc_ia,
-                              binary_acc_ib,
-                              binary_acc_ic,
-                              binary_clk,
-                              binary_ia_bytes,
-                              binary_ib_bytes,
-                              binary_ic_bytes,
-                              binary_in_tag,
-                              binary_mem_tag_ctr,
-                              binary_mem_tag_ctr_inv,
-                              binary_op_id,
-                              binary_sel_bin,
-                              binary_start,
-                              byte_lookup_sel_bin,
-                              byte_lookup_table_byte_lengths,
-                              byte_lookup_table_in_tags,
-                              byte_lookup_table_input_a,
-                              byte_lookup_table_input_b,
-                              byte_lookup_table_op_id,
-                              byte_lookup_table_output,
-                              conversion_clk,
-                              conversion_input,
-                              conversion_num_limbs,
-                              conversion_radix,
-                              conversion_sel_to_radix_le,
-                              gas_da_gas_fixed_table,
-                              gas_l2_gas_fixed_table,
-                              gas_sel_gas_cost,
-                              keccakf1600_clk,
-                              keccakf1600_input,
-                              keccakf1600_output,
-                              keccakf1600_sel_keccakf1600,
-                              kernel_emit_l2_to_l1_msg_write_offset,
-                              kernel_emit_note_hash_write_offset,
-                              kernel_emit_nullifier_write_offset,
-                              kernel_emit_unencrypted_log_write_offset,
-                              kernel_kernel_in_offset,
-                              kernel_kernel_out_offset,
-                              kernel_l1_to_l2_msg_exists_write_offset,
-                              kernel_note_hash_exist_write_offset,
-                              kernel_nullifier_exists_write_offset,
-                              kernel_nullifier_non_exists_write_offset,
-                              kernel_q_public_input_kernel_add_to_table,
-                              kernel_q_public_input_kernel_out_add_to_table,
-                              kernel_side_effect_counter,
-                              kernel_sload_write_offset,
-                              kernel_sstore_write_offset,
-                              main_abs_da_rem_gas_hi,
-                              main_abs_da_rem_gas_lo,
-                              main_abs_l2_rem_gas_hi,
-                              main_abs_l2_rem_gas_lo,
-                              main_alu_in_tag,
-                              main_bin_op_id,
-                              main_call_ptr,
-                              main_da_gas_op_cost,
-                              main_da_gas_remaining,
-                              main_da_out_of_gas,
-                              main_ia,
-                              main_ib,
-                              main_ic,
-                              main_id,
-                              main_id_zero,
-                              main_ind_addr_a,
-                              main_ind_addr_b,
-                              main_ind_addr_c,
-                              main_ind_addr_d,
-                              main_internal_return_ptr,
-                              main_inv,
-                              main_l2_gas_op_cost,
-                              main_l2_gas_remaining,
-                              main_l2_out_of_gas,
-                              main_mem_addr_a,
-                              main_mem_addr_b,
-                              main_mem_addr_c,
-                              main_mem_addr_d,
-                              main_op_err,
-                              main_opcode_val,
-                              main_pc,
-                              main_r_in_tag,
-                              main_rwa,
-                              main_rwb,
-                              main_rwc,
-                              main_rwd,
-                              main_sel_alu,
-                              main_sel_bin,
-                              main_sel_calldata,
-                              main_sel_gas_accounting_active,
-                              main_sel_last,
-                              main_sel_mem_op_a,
-                              main_sel_mem_op_activate_gas,
-                              main_sel_mem_op_b,
-                              main_sel_mem_op_c,
-                              main_sel_mem_op_d,
-                              main_sel_mov_ia_to_ic,
-                              main_sel_mov_ib_to_ic,
-                              main_sel_op_add,
-                              main_sel_op_address,
-                              main_sel_op_and,
-                              main_sel_op_block_number,
-                              main_sel_op_calldata_copy,
-                              main_sel_op_cast,
-                              main_sel_op_chain_id,
-                              main_sel_op_cmov,
-                              main_sel_op_coinbase,
-                              main_sel_op_dagasleft,
-                              main_sel_op_div,
-                              main_sel_op_emit_l2_to_l1_msg,
-                              main_sel_op_emit_note_hash,
-                              main_sel_op_emit_nullifier,
-                              main_sel_op_emit_unencrypted_log,
-                              main_sel_op_eq,
-                              main_sel_op_external_call,
-                              main_sel_op_external_return,
-                              main_sel_op_fdiv,
-                              main_sel_op_fee_per_da_gas,
-                              main_sel_op_fee_per_l2_gas,
-                              main_sel_op_function_selector,
-                              main_sel_op_get_contract_instance,
-                              main_sel_op_halt,
-                              main_sel_op_internal_call,
-                              main_sel_op_internal_return,
-                              main_sel_op_jump,
-                              main_sel_op_jumpi,
-                              main_sel_op_keccak,
-                              main_sel_op_l1_to_l2_msg_exists,
-                              main_sel_op_l2gasleft,
-                              main_sel_op_lt,
-                              main_sel_op_lte,
-                              main_sel_op_mov,
-                              main_sel_op_mul,
-                              main_sel_op_not,
-                              main_sel_op_note_hash_exists,
-                              main_sel_op_nullifier_exists,
-                              main_sel_op_or,
-                              main_sel_op_pedersen,
-                              main_sel_op_poseidon2,
-                              main_sel_op_radix_le,
-                              main_sel_op_sender,
-                              main_sel_op_sha256,
-                              main_sel_op_shl,
-                              main_sel_op_shr,
-                              main_sel_op_sload,
-                              main_sel_op_sstore,
-                              main_sel_op_storage_address,
-                              main_sel_op_sub,
-                              main_sel_op_timestamp,
-                              main_sel_op_transaction_fee,
-                              main_sel_op_version,
-                              main_sel_op_xor,
-                              main_sel_q_kernel_lookup,
-                              main_sel_q_kernel_output_lookup,
-                              main_sel_resolve_ind_addr_a,
-                              main_sel_resolve_ind_addr_b,
-                              main_sel_resolve_ind_addr_c,
-                              main_sel_resolve_ind_addr_d,
-                              main_sel_returndata,
-                              main_sel_rng_16,
-                              main_sel_rng_8,
-                              main_sel_slice_gadget,
-                              main_space_id,
-                              main_tag_err,
-                              main_w_in_tag,
-                              mem_addr,
-                              mem_clk,
-                              mem_diff_hi,
-                              mem_diff_lo,
-                              mem_diff_mid,
-                              mem_glob_addr,
-                              mem_last,
-                              mem_lastAccess,
-                              mem_one_min_inv,
-                              mem_r_in_tag,
-                              mem_rw,
-                              mem_sel_mem,
-                              mem_sel_mov_ia_to_ic,
-                              mem_sel_mov_ib_to_ic,
-                              mem_sel_op_a,
-                              mem_sel_op_b,
-                              mem_sel_op_c,
-                              mem_sel_op_cmov,
-                              mem_sel_op_d,
-                              mem_sel_op_slice,
-                              mem_sel_resolve_ind_addr_a,
-                              mem_sel_resolve_ind_addr_b,
-                              mem_sel_resolve_ind_addr_c,
-                              mem_sel_resolve_ind_addr_d,
-                              mem_sel_rng_chk,
-                              mem_skip_check_tag,
-                              mem_space_id,
-                              mem_tag,
-                              mem_tag_err,
-                              mem_tsp,
-                              mem_val,
-                              mem_w_in_tag,
-                              pedersen_clk,
-                              pedersen_input,
-                              pedersen_output,
-                              pedersen_sel_pedersen,
-                              poseidon2_clk,
-                              poseidon2_input,
-                              poseidon2_output,
-                              poseidon2_sel_poseidon_perm,
-                              powers_power_of_2,
-                              sha256_clk,
-                              sha256_input,
-                              sha256_output,
-                              sha256_sel_sha256_compression,
-                              sha256_state,
-                              slice_addr,
-                              slice_clk,
-                              slice_cnt,
-                              slice_col_offset,
-                              slice_one_min_inv,
-                              slice_sel_cd_cpy,
-                              slice_sel_mem_active,
-                              slice_sel_return,
-                              slice_sel_start,
-                              slice_space_id,
-                              slice_val,
-                              perm_slice_mem,
-                              perm_main_alu,
-                              perm_main_bin,
-                              perm_main_conv,
-                              perm_main_pos2_perm,
-                              perm_main_pedersen,
-                              perm_main_slice,
-                              perm_main_mem_a,
-                              perm_main_mem_b,
-                              perm_main_mem_c,
-                              perm_main_mem_d,
-                              perm_main_mem_ind_addr_a,
-                              perm_main_mem_ind_addr_b,
-                              perm_main_mem_ind_addr_c,
-                              perm_main_mem_ind_addr_d,
-                              lookup_byte_lengths,
-                              lookup_byte_operations,
-                              lookup_cd_value,
-                              lookup_ret_value,
-                              lookup_opcode_gas,
-                              range_check_l2_gas_hi,
-                              range_check_l2_gas_lo,
-                              range_check_da_gas_hi,
-                              range_check_da_gas_lo,
-                              kernel_output_lookup,
-                              lookup_into_kernel,
-                              incl_main_tag_err,
-                              incl_mem_tag_err,
-                              lookup_mem_rng_chk_lo,
-                              lookup_mem_rng_chk_mid,
-                              lookup_mem_rng_chk_hi,
-                              lookup_pow_2_0,
-                              lookup_pow_2_1,
-                              lookup_u8_0,
-                              lookup_u8_1,
-                              lookup_u16_0,
-                              lookup_u16_1,
-                              lookup_u16_2,
-                              lookup_u16_3,
-                              lookup_u16_4,
-                              lookup_u16_5,
-                              lookup_u16_6,
-                              lookup_u16_7,
-                              lookup_u16_8,
-                              lookup_u16_9,
-                              lookup_u16_10,
-                              lookup_u16_11,
-                              lookup_u16_12,
-                              lookup_u16_13,
-                              lookup_u16_14,
-                              lookup_div_u16_0,
-                              lookup_div_u16_1,
-                              lookup_div_u16_2,
-                              lookup_div_u16_3,
-                              lookup_div_u16_4,
-                              lookup_div_u16_5,
-                              lookup_div_u16_6,
-                              lookup_div_u16_7,
-                              lookup_byte_lengths_counts,
-                              lookup_byte_operations_counts,
-                              lookup_cd_value_counts,
-                              lookup_ret_value_counts,
-                              lookup_opcode_gas_counts,
-                              range_check_l2_gas_hi_counts,
-                              range_check_l2_gas_lo_counts,
-                              range_check_da_gas_hi_counts,
-                              range_check_da_gas_lo_counts,
-                              kernel_output_lookup_counts,
-                              lookup_into_kernel_counts,
-                              incl_main_tag_err_counts,
-                              incl_mem_tag_err_counts,
-                              lookup_mem_rng_chk_lo_counts,
-                              lookup_mem_rng_chk_mid_counts,
-                              lookup_mem_rng_chk_hi_counts,
-                              lookup_pow_2_0_counts,
-                              lookup_pow_2_1_counts,
-                              lookup_u8_0_counts,
-                              lookup_u8_1_counts,
-                              lookup_u16_0_counts,
-                              lookup_u16_1_counts,
-                              lookup_u16_2_counts,
-                              lookup_u16_3_counts,
-                              lookup_u16_4_counts,
-                              lookup_u16_5_counts,
-                              lookup_u16_6_counts,
-                              lookup_u16_7_counts,
-                              lookup_u16_8_counts,
-                              lookup_u16_9_counts,
-                              lookup_u16_10_counts,
-                              lookup_u16_11_counts,
-                              lookup_u16_12_counts,
-                              lookup_u16_13_counts,
-                              lookup_u16_14_counts,
-                              lookup_div_u16_0_counts,
-                              lookup_div_u16_1_counts,
-                              lookup_div_u16_2_counts,
-                              lookup_div_u16_3_counts,
-                              lookup_div_u16_4_counts,
-                              lookup_div_u16_5_counts,
-                              lookup_div_u16_6_counts,
-                              lookup_div_u16_7_counts,
-                              alu_a_hi_shift,
-                              alu_a_lo_shift,
-                              alu_b_hi_shift,
-                              alu_b_lo_shift,
-                              alu_cmp_rng_ctr_shift,
-                              alu_div_u16_r0_shift,
-                              alu_div_u16_r1_shift,
-                              alu_div_u16_r2_shift,
-                              alu_div_u16_r3_shift,
-                              alu_div_u16_r4_shift,
-                              alu_div_u16_r5_shift,
-                              alu_div_u16_r6_shift,
-                              alu_div_u16_r7_shift,
-                              alu_op_add_shift,
-                              alu_op_cast_prev_shift,
-                              alu_op_cast_shift,
-                              alu_op_div_shift,
-                              alu_op_mul_shift,
-                              alu_op_shl_shift,
-                              alu_op_shr_shift,
-                              alu_op_sub_shift,
-                              alu_p_sub_a_hi_shift,
-                              alu_p_sub_a_lo_shift,
-                              alu_p_sub_b_hi_shift,
-                              alu_p_sub_b_lo_shift,
-                              alu_sel_alu_shift,
-                              alu_sel_cmp_shift,
-                              alu_sel_div_rng_chk_shift,
-                              alu_sel_rng_chk_lookup_shift,
-                              alu_sel_rng_chk_shift,
-                              alu_u16_r0_shift,
-                              alu_u16_r1_shift,
-                              alu_u16_r2_shift,
-                              alu_u16_r3_shift,
-                              alu_u16_r4_shift,
-                              alu_u16_r5_shift,
-                              alu_u16_r6_shift,
-                              alu_u8_r0_shift,
-                              alu_u8_r1_shift,
-                              binary_acc_ia_shift,
-                              binary_acc_ib_shift,
-                              binary_acc_ic_shift,
-                              binary_mem_tag_ctr_shift,
-                              binary_op_id_shift,
-                              kernel_emit_l2_to_l1_msg_write_offset_shift,
-                              kernel_emit_note_hash_write_offset_shift,
-                              kernel_emit_nullifier_write_offset_shift,
-                              kernel_emit_unencrypted_log_write_offset_shift,
-                              kernel_l1_to_l2_msg_exists_write_offset_shift,
-                              kernel_note_hash_exist_write_offset_shift,
-                              kernel_nullifier_exists_write_offset_shift,
-                              kernel_nullifier_non_exists_write_offset_shift,
-                              kernel_side_effect_counter_shift,
-                              kernel_sload_write_offset_shift,
-                              kernel_sstore_write_offset_shift,
-                              main_da_gas_remaining_shift,
-                              main_internal_return_ptr_shift,
-                              main_l2_gas_remaining_shift,
-                              main_pc_shift,
-                              mem_glob_addr_shift,
-                              mem_rw_shift,
-                              mem_sel_mem_shift,
-                              mem_tag_shift,
-                              mem_tsp_shift,
-                              mem_val_shift,
-                              slice_addr_shift,
-                              slice_clk_shift,
-                              slice_cnt_shift,
-                              slice_col_offset_shift,
-                              slice_sel_cd_cpy_shift,
-                              slice_sel_mem_active_shift,
-                              slice_sel_return_shift,
-                              slice_sel_start_shift,
-                              slice_space_id_shift)
+        DEFINE_FLAVOR_MEMBERS(DataType, ALL_ENTITIES)
 
         AllConstRefValues(const RefArray<FF const, 485>& il)
             : main_clk(il[0])
@@ -1724,107 +616,107 @@ class AvmFlavor {
             , slice_sel_start(il[307])
             , slice_space_id(il[308])
             , slice_val(il[309])
-            , perm_slice_mem(il[310])
-            , perm_main_alu(il[311])
-            , perm_main_bin(il[312])
-            , perm_main_conv(il[313])
-            , perm_main_pos2_perm(il[314])
-            , perm_main_pedersen(il[315])
-            , perm_main_slice(il[316])
-            , perm_main_mem_a(il[317])
-            , perm_main_mem_b(il[318])
-            , perm_main_mem_c(il[319])
-            , perm_main_mem_d(il[320])
-            , perm_main_mem_ind_addr_a(il[321])
-            , perm_main_mem_ind_addr_b(il[322])
-            , perm_main_mem_ind_addr_c(il[323])
-            , perm_main_mem_ind_addr_d(il[324])
-            , lookup_byte_lengths(il[325])
-            , lookup_byte_operations(il[326])
-            , lookup_cd_value(il[327])
-            , lookup_ret_value(il[328])
-            , lookup_opcode_gas(il[329])
-            , range_check_l2_gas_hi(il[330])
-            , range_check_l2_gas_lo(il[331])
-            , range_check_da_gas_hi(il[332])
-            , range_check_da_gas_lo(il[333])
-            , kernel_output_lookup(il[334])
-            , lookup_into_kernel(il[335])
-            , incl_main_tag_err(il[336])
-            , incl_mem_tag_err(il[337])
-            , lookup_mem_rng_chk_lo(il[338])
-            , lookup_mem_rng_chk_mid(il[339])
-            , lookup_mem_rng_chk_hi(il[340])
-            , lookup_pow_2_0(il[341])
-            , lookup_pow_2_1(il[342])
-            , lookup_u8_0(il[343])
-            , lookup_u8_1(il[344])
-            , lookup_u16_0(il[345])
-            , lookup_u16_1(il[346])
-            , lookup_u16_2(il[347])
-            , lookup_u16_3(il[348])
-            , lookup_u16_4(il[349])
-            , lookup_u16_5(il[350])
-            , lookup_u16_6(il[351])
-            , lookup_u16_7(il[352])
-            , lookup_u16_8(il[353])
-            , lookup_u16_9(il[354])
-            , lookup_u16_10(il[355])
-            , lookup_u16_11(il[356])
-            , lookup_u16_12(il[357])
-            , lookup_u16_13(il[358])
-            , lookup_u16_14(il[359])
-            , lookup_div_u16_0(il[360])
-            , lookup_div_u16_1(il[361])
-            , lookup_div_u16_2(il[362])
-            , lookup_div_u16_3(il[363])
-            , lookup_div_u16_4(il[364])
-            , lookup_div_u16_5(il[365])
-            , lookup_div_u16_6(il[366])
-            , lookup_div_u16_7(il[367])
-            , lookup_byte_lengths_counts(il[368])
-            , lookup_byte_operations_counts(il[369])
-            , lookup_cd_value_counts(il[370])
-            , lookup_ret_value_counts(il[371])
-            , lookup_opcode_gas_counts(il[372])
-            , range_check_l2_gas_hi_counts(il[373])
-            , range_check_l2_gas_lo_counts(il[374])
-            , range_check_da_gas_hi_counts(il[375])
-            , range_check_da_gas_lo_counts(il[376])
-            , kernel_output_lookup_counts(il[377])
-            , lookup_into_kernel_counts(il[378])
-            , incl_main_tag_err_counts(il[379])
-            , incl_mem_tag_err_counts(il[380])
-            , lookup_mem_rng_chk_lo_counts(il[381])
-            , lookup_mem_rng_chk_mid_counts(il[382])
-            , lookup_mem_rng_chk_hi_counts(il[383])
-            , lookup_pow_2_0_counts(il[384])
-            , lookup_pow_2_1_counts(il[385])
-            , lookup_u8_0_counts(il[386])
-            , lookup_u8_1_counts(il[387])
-            , lookup_u16_0_counts(il[388])
-            , lookup_u16_1_counts(il[389])
-            , lookup_u16_2_counts(il[390])
-            , lookup_u16_3_counts(il[391])
-            , lookup_u16_4_counts(il[392])
-            , lookup_u16_5_counts(il[393])
-            , lookup_u16_6_counts(il[394])
-            , lookup_u16_7_counts(il[395])
-            , lookup_u16_8_counts(il[396])
-            , lookup_u16_9_counts(il[397])
-            , lookup_u16_10_counts(il[398])
-            , lookup_u16_11_counts(il[399])
-            , lookup_u16_12_counts(il[400])
-            , lookup_u16_13_counts(il[401])
-            , lookup_u16_14_counts(il[402])
-            , lookup_div_u16_0_counts(il[403])
-            , lookup_div_u16_1_counts(il[404])
-            , lookup_div_u16_2_counts(il[405])
-            , lookup_div_u16_3_counts(il[406])
-            , lookup_div_u16_4_counts(il[407])
-            , lookup_div_u16_5_counts(il[408])
-            , lookup_div_u16_6_counts(il[409])
-            , lookup_div_u16_7_counts(il[410])
+            , lookup_byte_lengths_counts(il[310])
+            , lookup_byte_operations_counts(il[311])
+            , lookup_cd_value_counts(il[312])
+            , lookup_ret_value_counts(il[313])
+            , lookup_opcode_gas_counts(il[314])
+            , range_check_l2_gas_hi_counts(il[315])
+            , range_check_l2_gas_lo_counts(il[316])
+            , range_check_da_gas_hi_counts(il[317])
+            , range_check_da_gas_lo_counts(il[318])
+            , kernel_output_lookup_counts(il[319])
+            , lookup_into_kernel_counts(il[320])
+            , incl_main_tag_err_counts(il[321])
+            , incl_mem_tag_err_counts(il[322])
+            , lookup_mem_rng_chk_lo_counts(il[323])
+            , lookup_mem_rng_chk_mid_counts(il[324])
+            , lookup_mem_rng_chk_hi_counts(il[325])
+            , lookup_pow_2_0_counts(il[326])
+            , lookup_pow_2_1_counts(il[327])
+            , lookup_u8_0_counts(il[328])
+            , lookup_u8_1_counts(il[329])
+            , lookup_u16_0_counts(il[330])
+            , lookup_u16_1_counts(il[331])
+            , lookup_u16_2_counts(il[332])
+            , lookup_u16_3_counts(il[333])
+            , lookup_u16_4_counts(il[334])
+            , lookup_u16_5_counts(il[335])
+            , lookup_u16_6_counts(il[336])
+            , lookup_u16_7_counts(il[337])
+            , lookup_u16_8_counts(il[338])
+            , lookup_u16_9_counts(il[339])
+            , lookup_u16_10_counts(il[340])
+            , lookup_u16_11_counts(il[341])
+            , lookup_u16_12_counts(il[342])
+            , lookup_u16_13_counts(il[343])
+            , lookup_u16_14_counts(il[344])
+            , lookup_div_u16_0_counts(il[345])
+            , lookup_div_u16_1_counts(il[346])
+            , lookup_div_u16_2_counts(il[347])
+            , lookup_div_u16_3_counts(il[348])
+            , lookup_div_u16_4_counts(il[349])
+            , lookup_div_u16_5_counts(il[350])
+            , lookup_div_u16_6_counts(il[351])
+            , lookup_div_u16_7_counts(il[352])
+            , perm_slice_mem(il[353])
+            , perm_main_alu(il[354])
+            , perm_main_bin(il[355])
+            , perm_main_conv(il[356])
+            , perm_main_pos2_perm(il[357])
+            , perm_main_pedersen(il[358])
+            , perm_main_slice(il[359])
+            , perm_main_mem_a(il[360])
+            , perm_main_mem_b(il[361])
+            , perm_main_mem_c(il[362])
+            , perm_main_mem_d(il[363])
+            , perm_main_mem_ind_addr_a(il[364])
+            , perm_main_mem_ind_addr_b(il[365])
+            , perm_main_mem_ind_addr_c(il[366])
+            , perm_main_mem_ind_addr_d(il[367])
+            , lookup_byte_lengths(il[368])
+            , lookup_byte_operations(il[369])
+            , lookup_cd_value(il[370])
+            , lookup_ret_value(il[371])
+            , lookup_opcode_gas(il[372])
+            , range_check_l2_gas_hi(il[373])
+            , range_check_l2_gas_lo(il[374])
+            , range_check_da_gas_hi(il[375])
+            , range_check_da_gas_lo(il[376])
+            , kernel_output_lookup(il[377])
+            , lookup_into_kernel(il[378])
+            , incl_main_tag_err(il[379])
+            , incl_mem_tag_err(il[380])
+            , lookup_mem_rng_chk_lo(il[381])
+            , lookup_mem_rng_chk_mid(il[382])
+            , lookup_mem_rng_chk_hi(il[383])
+            , lookup_pow_2_0(il[384])
+            , lookup_pow_2_1(il[385])
+            , lookup_u8_0(il[386])
+            , lookup_u8_1(il[387])
+            , lookup_u16_0(il[388])
+            , lookup_u16_1(il[389])
+            , lookup_u16_2(il[390])
+            , lookup_u16_3(il[391])
+            , lookup_u16_4(il[392])
+            , lookup_u16_5(il[393])
+            , lookup_u16_6(il[394])
+            , lookup_u16_7(il[395])
+            , lookup_u16_8(il[396])
+            , lookup_u16_9(il[397])
+            , lookup_u16_10(il[398])
+            , lookup_u16_11(il[399])
+            , lookup_u16_12(il[400])
+            , lookup_u16_13(il[401])
+            , lookup_u16_14(il[402])
+            , lookup_div_u16_0(il[403])
+            , lookup_div_u16_1(il[404])
+            , lookup_div_u16_2(il[405])
+            , lookup_div_u16_3(il[406])
+            , lookup_div_u16_4(il[407])
+            , lookup_div_u16_5(il[408])
+            , lookup_div_u16_6(il[409])
+            , lookup_div_u16_7(il[410])
             , alu_a_hi_shift(il[411])
             , alu_a_lo_shift(il[412])
             , alu_b_hi_shift(il[413])
@@ -2244,6 +1136,49 @@ class AvmFlavor {
                                                slice_sel_start[row_idx],
                                                slice_space_id[row_idx],
                                                slice_val[row_idx],
+                                               lookup_byte_lengths_counts[row_idx],
+                                               lookup_byte_operations_counts[row_idx],
+                                               lookup_cd_value_counts[row_idx],
+                                               lookup_ret_value_counts[row_idx],
+                                               lookup_opcode_gas_counts[row_idx],
+                                               range_check_l2_gas_hi_counts[row_idx],
+                                               range_check_l2_gas_lo_counts[row_idx],
+                                               range_check_da_gas_hi_counts[row_idx],
+                                               range_check_da_gas_lo_counts[row_idx],
+                                               kernel_output_lookup_counts[row_idx],
+                                               lookup_into_kernel_counts[row_idx],
+                                               incl_main_tag_err_counts[row_idx],
+                                               incl_mem_tag_err_counts[row_idx],
+                                               lookup_mem_rng_chk_lo_counts[row_idx],
+                                               lookup_mem_rng_chk_mid_counts[row_idx],
+                                               lookup_mem_rng_chk_hi_counts[row_idx],
+                                               lookup_pow_2_0_counts[row_idx],
+                                               lookup_pow_2_1_counts[row_idx],
+                                               lookup_u8_0_counts[row_idx],
+                                               lookup_u8_1_counts[row_idx],
+                                               lookup_u16_0_counts[row_idx],
+                                               lookup_u16_1_counts[row_idx],
+                                               lookup_u16_2_counts[row_idx],
+                                               lookup_u16_3_counts[row_idx],
+                                               lookup_u16_4_counts[row_idx],
+                                               lookup_u16_5_counts[row_idx],
+                                               lookup_u16_6_counts[row_idx],
+                                               lookup_u16_7_counts[row_idx],
+                                               lookup_u16_8_counts[row_idx],
+                                               lookup_u16_9_counts[row_idx],
+                                               lookup_u16_10_counts[row_idx],
+                                               lookup_u16_11_counts[row_idx],
+                                               lookup_u16_12_counts[row_idx],
+                                               lookup_u16_13_counts[row_idx],
+                                               lookup_u16_14_counts[row_idx],
+                                               lookup_div_u16_0_counts[row_idx],
+                                               lookup_div_u16_1_counts[row_idx],
+                                               lookup_div_u16_2_counts[row_idx],
+                                               lookup_div_u16_3_counts[row_idx],
+                                               lookup_div_u16_4_counts[row_idx],
+                                               lookup_div_u16_5_counts[row_idx],
+                                               lookup_div_u16_6_counts[row_idx],
+                                               lookup_div_u16_7_counts[row_idx],
                                                perm_slice_mem[row_idx],
                                                perm_main_alu[row_idx],
                                                perm_main_bin[row_idx],
@@ -2302,49 +1237,6 @@ class AvmFlavor {
                                                lookup_div_u16_5[row_idx],
                                                lookup_div_u16_6[row_idx],
                                                lookup_div_u16_7[row_idx],
-                                               lookup_byte_lengths_counts[row_idx],
-                                               lookup_byte_operations_counts[row_idx],
-                                               lookup_cd_value_counts[row_idx],
-                                               lookup_ret_value_counts[row_idx],
-                                               lookup_opcode_gas_counts[row_idx],
-                                               range_check_l2_gas_hi_counts[row_idx],
-                                               range_check_l2_gas_lo_counts[row_idx],
-                                               range_check_da_gas_hi_counts[row_idx],
-                                               range_check_da_gas_lo_counts[row_idx],
-                                               kernel_output_lookup_counts[row_idx],
-                                               lookup_into_kernel_counts[row_idx],
-                                               incl_main_tag_err_counts[row_idx],
-                                               incl_mem_tag_err_counts[row_idx],
-                                               lookup_mem_rng_chk_lo_counts[row_idx],
-                                               lookup_mem_rng_chk_mid_counts[row_idx],
-                                               lookup_mem_rng_chk_hi_counts[row_idx],
-                                               lookup_pow_2_0_counts[row_idx],
-                                               lookup_pow_2_1_counts[row_idx],
-                                               lookup_u8_0_counts[row_idx],
-                                               lookup_u8_1_counts[row_idx],
-                                               lookup_u16_0_counts[row_idx],
-                                               lookup_u16_1_counts[row_idx],
-                                               lookup_u16_2_counts[row_idx],
-                                               lookup_u16_3_counts[row_idx],
-                                               lookup_u16_4_counts[row_idx],
-                                               lookup_u16_5_counts[row_idx],
-                                               lookup_u16_6_counts[row_idx],
-                                               lookup_u16_7_counts[row_idx],
-                                               lookup_u16_8_counts[row_idx],
-                                               lookup_u16_9_counts[row_idx],
-                                               lookup_u16_10_counts[row_idx],
-                                               lookup_u16_11_counts[row_idx],
-                                               lookup_u16_12_counts[row_idx],
-                                               lookup_u16_13_counts[row_idx],
-                                               lookup_u16_14_counts[row_idx],
-                                               lookup_div_u16_0_counts[row_idx],
-                                               lookup_div_u16_1_counts[row_idx],
-                                               lookup_div_u16_2_counts[row_idx],
-                                               lookup_div_u16_3_counts[row_idx],
-                                               lookup_div_u16_4_counts[row_idx],
-                                               lookup_div_u16_5_counts[row_idx],
-                                               lookup_div_u16_6_counts[row_idx],
-                                               lookup_div_u16_7_counts[row_idx],
                                                alu_a_hi_shift[row_idx],
                                                alu_a_lo_shift[row_idx],
                                                alu_b_hi_shift[row_idx],

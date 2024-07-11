@@ -402,86 +402,9 @@ class AvmCircuitBuilder {
             polys.lookup_div_u16_7_counts[i] = rows[i].lookup_div_u16_7_counts;
         }
 
-        polys.alu_a_hi_shift = Polynomial(polys.alu_a_hi.shifted());
-        polys.alu_a_lo_shift = Polynomial(polys.alu_a_lo.shifted());
-        polys.alu_b_hi_shift = Polynomial(polys.alu_b_hi.shifted());
-        polys.alu_b_lo_shift = Polynomial(polys.alu_b_lo.shifted());
-        polys.alu_cmp_rng_ctr_shift = Polynomial(polys.alu_cmp_rng_ctr.shifted());
-        polys.alu_div_u16_r0_shift = Polynomial(polys.alu_div_u16_r0.shifted());
-        polys.alu_div_u16_r1_shift = Polynomial(polys.alu_div_u16_r1.shifted());
-        polys.alu_div_u16_r2_shift = Polynomial(polys.alu_div_u16_r2.shifted());
-        polys.alu_div_u16_r3_shift = Polynomial(polys.alu_div_u16_r3.shifted());
-        polys.alu_div_u16_r4_shift = Polynomial(polys.alu_div_u16_r4.shifted());
-        polys.alu_div_u16_r5_shift = Polynomial(polys.alu_div_u16_r5.shifted());
-        polys.alu_div_u16_r6_shift = Polynomial(polys.alu_div_u16_r6.shifted());
-        polys.alu_div_u16_r7_shift = Polynomial(polys.alu_div_u16_r7.shifted());
-        polys.alu_op_add_shift = Polynomial(polys.alu_op_add.shifted());
-        polys.alu_op_cast_prev_shift = Polynomial(polys.alu_op_cast_prev.shifted());
-        polys.alu_op_cast_shift = Polynomial(polys.alu_op_cast.shifted());
-        polys.alu_op_div_shift = Polynomial(polys.alu_op_div.shifted());
-        polys.alu_op_mul_shift = Polynomial(polys.alu_op_mul.shifted());
-        polys.alu_op_shl_shift = Polynomial(polys.alu_op_shl.shifted());
-        polys.alu_op_shr_shift = Polynomial(polys.alu_op_shr.shifted());
-        polys.alu_op_sub_shift = Polynomial(polys.alu_op_sub.shifted());
-        polys.alu_p_sub_a_hi_shift = Polynomial(polys.alu_p_sub_a_hi.shifted());
-        polys.alu_p_sub_a_lo_shift = Polynomial(polys.alu_p_sub_a_lo.shifted());
-        polys.alu_p_sub_b_hi_shift = Polynomial(polys.alu_p_sub_b_hi.shifted());
-        polys.alu_p_sub_b_lo_shift = Polynomial(polys.alu_p_sub_b_lo.shifted());
-        polys.alu_sel_alu_shift = Polynomial(polys.alu_sel_alu.shifted());
-        polys.alu_sel_cmp_shift = Polynomial(polys.alu_sel_cmp.shifted());
-        polys.alu_sel_div_rng_chk_shift = Polynomial(polys.alu_sel_div_rng_chk.shifted());
-        polys.alu_sel_rng_chk_lookup_shift = Polynomial(polys.alu_sel_rng_chk_lookup.shifted());
-        polys.alu_sel_rng_chk_shift = Polynomial(polys.alu_sel_rng_chk.shifted());
-        polys.alu_u16_r0_shift = Polynomial(polys.alu_u16_r0.shifted());
-        polys.alu_u16_r1_shift = Polynomial(polys.alu_u16_r1.shifted());
-        polys.alu_u16_r2_shift = Polynomial(polys.alu_u16_r2.shifted());
-        polys.alu_u16_r3_shift = Polynomial(polys.alu_u16_r3.shifted());
-        polys.alu_u16_r4_shift = Polynomial(polys.alu_u16_r4.shifted());
-        polys.alu_u16_r5_shift = Polynomial(polys.alu_u16_r5.shifted());
-        polys.alu_u16_r6_shift = Polynomial(polys.alu_u16_r6.shifted());
-        polys.alu_u8_r0_shift = Polynomial(polys.alu_u8_r0.shifted());
-        polys.alu_u8_r1_shift = Polynomial(polys.alu_u8_r1.shifted());
-        polys.binary_acc_ia_shift = Polynomial(polys.binary_acc_ia.shifted());
-        polys.binary_acc_ib_shift = Polynomial(polys.binary_acc_ib.shifted());
-        polys.binary_acc_ic_shift = Polynomial(polys.binary_acc_ic.shifted());
-        polys.binary_mem_tag_ctr_shift = Polynomial(polys.binary_mem_tag_ctr.shifted());
-        polys.binary_op_id_shift = Polynomial(polys.binary_op_id.shifted());
-        polys.kernel_emit_l2_to_l1_msg_write_offset_shift =
-            Polynomial(polys.kernel_emit_l2_to_l1_msg_write_offset.shifted());
-        polys.kernel_emit_note_hash_write_offset_shift = Polynomial(polys.kernel_emit_note_hash_write_offset.shifted());
-        polys.kernel_emit_nullifier_write_offset_shift = Polynomial(polys.kernel_emit_nullifier_write_offset.shifted());
-        polys.kernel_emit_unencrypted_log_write_offset_shift =
-            Polynomial(polys.kernel_emit_unencrypted_log_write_offset.shifted());
-        polys.kernel_l1_to_l2_msg_exists_write_offset_shift =
-            Polynomial(polys.kernel_l1_to_l2_msg_exists_write_offset.shifted());
-        polys.kernel_note_hash_exist_write_offset_shift =
-            Polynomial(polys.kernel_note_hash_exist_write_offset.shifted());
-        polys.kernel_nullifier_exists_write_offset_shift =
-            Polynomial(polys.kernel_nullifier_exists_write_offset.shifted());
-        polys.kernel_nullifier_non_exists_write_offset_shift =
-            Polynomial(polys.kernel_nullifier_non_exists_write_offset.shifted());
-        polys.kernel_side_effect_counter_shift = Polynomial(polys.kernel_side_effect_counter.shifted());
-        polys.kernel_sload_write_offset_shift = Polynomial(polys.kernel_sload_write_offset.shifted());
-        polys.kernel_sstore_write_offset_shift = Polynomial(polys.kernel_sstore_write_offset.shifted());
-        polys.main_da_gas_remaining_shift = Polynomial(polys.main_da_gas_remaining.shifted());
-        polys.main_internal_return_ptr_shift = Polynomial(polys.main_internal_return_ptr.shifted());
-        polys.main_l2_gas_remaining_shift = Polynomial(polys.main_l2_gas_remaining.shifted());
-        polys.main_pc_shift = Polynomial(polys.main_pc.shifted());
-        polys.mem_glob_addr_shift = Polynomial(polys.mem_glob_addr.shifted());
-        polys.mem_rw_shift = Polynomial(polys.mem_rw.shifted());
-        polys.mem_sel_mem_shift = Polynomial(polys.mem_sel_mem.shifted());
-        polys.mem_tag_shift = Polynomial(polys.mem_tag.shifted());
-        polys.mem_tsp_shift = Polynomial(polys.mem_tsp.shifted());
-        polys.mem_val_shift = Polynomial(polys.mem_val.shifted());
-        polys.slice_addr_shift = Polynomial(polys.slice_addr.shifted());
-        polys.slice_clk_shift = Polynomial(polys.slice_clk.shifted());
-        polys.slice_cnt_shift = Polynomial(polys.slice_cnt.shifted());
-        polys.slice_col_offset_shift = Polynomial(polys.slice_col_offset.shifted());
-        polys.slice_sel_cd_cpy_shift = Polynomial(polys.slice_sel_cd_cpy.shifted());
-        polys.slice_sel_mem_active_shift = Polynomial(polys.slice_sel_mem_active.shifted());
-        polys.slice_sel_return_shift = Polynomial(polys.slice_sel_return.shifted());
-        polys.slice_sel_start_shift = Polynomial(polys.slice_sel_start.shifted());
-        polys.slice_space_id_shift = Polynomial(polys.slice_space_id.shifted());
+        for (auto [shifted, to_be_shifted] : zip_view(polys.get_shifted(), polys.get_to_be_shifted())) {
+            shifted = to_be_shifted.shifted();
+        }
 
         return polys;
     }
@@ -868,8 +791,7 @@ class AvmCircuitBuilder {
 
         // Wait for lookup evaluations to complete
         for (auto& future : relation_futures) {
-            int result = future.get();
-            if (!result) {
+            if (!future.get()) {
                 return false;
             }
         }
