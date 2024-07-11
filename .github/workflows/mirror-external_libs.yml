@@ -28,7 +28,7 @@ jobs:
           git config --global user.email tomfrench@aztecprotocol.com
 
           git clone https://github.com/ingydotnet/git-subrepo
-          if ./git_subrepo/lib/git_subrepo push $SUBREPO_PATH --branch=master; then
+          if ./git-subrepo/lib/git_subrepo push $SUBREPO_PATH --branch=master; then
             git fetch # in case a commit came after this
             git rebase origin/master
             git commit --amend -m "$(git log -1 --pretty=%B) [skip ci]"
