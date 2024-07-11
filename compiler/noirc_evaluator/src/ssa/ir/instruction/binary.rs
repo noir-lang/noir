@@ -329,7 +329,7 @@ fn eval_constant_binary_op(
             }
             let result = function(lhs, rhs)?;
             // Check for overflow
-            if result >= 2u128.pow(*bit_size) {
+            if result >= 1 << *bit_size {
                 return None;
             }
             result.into()
@@ -337,12 +337,8 @@ fn eval_constant_binary_op(
         Type::Numeric(NumericType::Signed { bit_size }) => {
             let function = operator.get_i128_function();
 
-            let lhs = truncate(lhs.try_into_u128()?, *bit_size);
-            let rhs = truncate(rhs.try_into_u128()?, *bit_size);
-            let l_pos = lhs < 2u128.pow(bit_size - 1);
-            let r_pos = rhs < 2u128.pow(bit_size - 1);
-            let lhs = if l_pos { lhs as i128 } else { -((2u128.pow(*bit_size) - lhs) as i128) };
-            let rhs = if r_pos { rhs as i128 } else { -((2u128.pow(*bit_size) - rhs) as i128) };
+            let lhs = try_convert_field_element_to_signed_integer(lhs, *bit_size)?;
+            let rhs = try_convert_field_element_to_signed_integer(rhs, *bit_size)?;
             // The divisor is being truncated into the type of the operand, which can potentially
             // lead to the rhs being zero.
             // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
@@ -354,12 +350,11 @@ fn eval_constant_binary_op(
 
             let result = function(lhs, rhs)?;
             // Check for overflow
-            if result >= 2i128.pow(*bit_size - 1) || result < -(2i128.pow(*bit_size - 1)) {
+            let two_pow_bit_size_minus_one = 1i128 << (*bit_size - 1);
+            if result >= two_pow_bit_size_minus_one || result < -two_pow_bit_size_minus_one {
                 return None;
             }
-            let result =
-                if result >= 0 { result as u128 } else { (2i128.pow(*bit_size) + result) as u128 };
-            result.into()
+            convert_signed_integer_to_field_element(result, *bit_size)
         }
         _ => return None,
     };
@@ -371,8 +366,37 @@ fn eval_constant_binary_op(
     Some((value, operand_type))
 }
 
+/// Values in the range `[0, 2^(bit_size-1))` are interpreted as positive integers
+///
+/// Values in the range `[2^(bit_size-1), 2^bit_size)` are interpreted as negative integers.
+fn try_convert_field_element_to_signed_integer(field: FieldElement, bit_size: u32) -> Option<i128> {
+    let unsigned_int = truncate(field.try_into_u128()?, bit_size);
+
+    let max_positive_value = 1 << (bit_size - 1);
+    let is_positive = unsigned_int < max_positive_value;
+
+    let signed_int = if is_positive {
+        unsigned_int as i128
+    } else {
+        let x = (1u128 << bit_size) - unsigned_int;
+        -(x as i128)
+    };
+
+    Some(signed_int)
+}
+
+fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldElement {
+    if int >= 0 {
+        FieldElement::from(int)
+    } else {
+        // We add an offset of `bit_size` bits to shift the negative values into the range [2^(bitsize-1), 2^bitsize)
+        let offset_int = (1i128 << bit_size) + int;
+        FieldElement::from(offset_int)
+    }
+}
+
 fn truncate(int: u128, bit_size: u32) -> u128 {
-    let max = 2u128.pow(bit_size);
+    let max = 1 << bit_size;
     int % max
 }
 
@@ -426,6 +450,27 @@ impl BinaryOp {
             BinaryOp::Lt => |x, y| Some((x < y) as i128),
             BinaryOp::Shl => |x, y| Some(x << y),
             BinaryOp::Shr => |x, y| Some(x >> y),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use proptest::prelude::*;
+
+    use super::{
+        convert_signed_integer_to_field_element, try_convert_field_element_to_signed_integer,
+    };
+
+    proptest! {
+        #[test]
+        fn signed_int_roundtrip(int: i128, bit_size in 1u32..=64) {
+            let int = int % (1i128 << (bit_size - 1));
+
+            let int_as_field = convert_signed_integer_to_field_element(int, bit_size);
+            let recovered_int = try_convert_field_element_to_signed_integer(int_as_field, bit_size).unwrap();
+
+            prop_assert_eq!(int, recovered_int);
         }
     }
 }

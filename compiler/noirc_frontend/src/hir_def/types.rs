@@ -214,7 +214,7 @@ pub enum QuotedType {
     Quoted,
     TopLevelItem,
     Type,
-    TypeDefinition,
+    StructDefinition,
 }
 
 /// A list of TypeVariableIds to bind to a type. Storing the
@@ -340,6 +340,11 @@ impl StructType {
     /// prefer to use `get_fields` whenever possible.
     pub fn get_fields_as_written(&self) -> Vec<(String, Type)> {
         vecmap(&self.fields, |(name, typ)| (name.0.contents.clone(), typ.clone()))
+    }
+
+    /// Returns the field at the given index. Panics if no field exists at the given index.
+    pub fn field_at(&self, index: usize) -> &(Ident, Type) {
+        &self.fields[index]
     }
 
     pub fn field_names(&self) -> BTreeSet<Ident> {
@@ -663,6 +668,10 @@ impl Type {
 
     pub fn is_bool(&self) -> bool {
         matches!(self.follow_bindings(), Type::Bool)
+    }
+
+    pub fn is_integer(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Integer(_, _))
     }
 
     pub fn is_signed(&self) -> bool {
@@ -1176,7 +1185,7 @@ impl std::fmt::Display for QuotedType {
             QuotedType::Quoted => write!(f, "Quoted"),
             QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
             QuotedType::Type => write!(f, "Type"),
-            QuotedType::TypeDefinition => write!(f, "TypeDefinition"),
+            QuotedType::StructDefinition => write!(f, "StructDefinition"),
         }
     }
 }

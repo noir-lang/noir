@@ -86,7 +86,8 @@ pub(crate) fn get_program(
             program.clone().into_sorted(),
             root_file_id,
             use_legacy,
-            &[], // No macro processors
+            None, // No debug_comptime_in_file
+            &[],  // No macro processors
         ));
     }
     (program, context, errors)
@@ -1456,6 +1457,79 @@ fn specify_method_types_with_turbofish() {
 }
 
 #[test]
+fn incorrect_turbofish_count_function_call() {
+    let src = r#"
+        trait Default {
+            fn default() -> Self;
+        }
+
+        impl Default for Field {
+            fn default() -> Self { 0 }
+        }
+
+        impl Default for u64 {
+            fn default() -> Self { 0 }
+        }
+
+        // Need the above as we don't have access to the stdlib here.
+        // We also need to construct a concrete value of `U` without giving away its type
+        // as otherwise the unspecified type is ignored.
+
+        fn generic_func<T, U>() -> (T, U) where T: Default, U: Default {
+            (T::default(), U::default())
+        }
+
+        fn main() {
+            let _ = generic_func::<u64, Field, Field>();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::IncorrectTurbofishGenericCount { .. }),
+    ));
+}
+
+#[test]
+fn incorrect_turbofish_count_method_call() {
+    let src = r#"
+        trait Default {
+            fn default() -> Self;
+        }
+
+        impl Default for Field {
+            fn default() -> Self { 0 }
+        }
+
+        // Need the above as we don't have access to the stdlib here.
+        // We also need to construct a concrete value of `U` without giving away its type
+        // as otherwise the unspecified type is ignored.
+
+        struct Foo<T> {
+            inner: T
+        }
+        
+        impl<T> Foo<T> {
+            fn generic_method<U>(_self: Self) -> U where U: Default {
+                U::default()
+            }
+        }
+        
+        fn main() {
+            let foo: Foo<Field> = Foo { inner: 1 };
+            let _ = foo.generic_method::<Field, u32>();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::IncorrectTurbofishGenericCount { .. }),
+    ));
+}
+
+#[test]
 fn struct_numeric_generic_in_function() {
     let src = r#"
     struct Foo {
@@ -1895,4 +1969,144 @@ fn quote_code_fragments() {
 
     use InterpreterError::FailingConstraint;
     assert!(matches!(&errors[0].0, CompilationError::InterpreterError(FailingConstraint { .. })));
+}
+
+// Regression for #5388
+#[test]
+fn comptime_let() {
+    let src = r#"fn main() {
+        comptime let my_var = 2;
+        assert_eq(my_var, 2);
+    }"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn overflowing_u8() {
+    let src = r#"
+        fn main() {
+            let _: u8 = 256;
+        }"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    if let CompilationError::TypeError(error) = &errors[0].0 {
+        assert_eq!(
+            error.to_string(),
+            "The value `2⁸` cannot fit into `u8` which has range `0..=255`"
+        );
+    } else {
+        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
+    }
+}
+
+#[test]
+fn underflowing_u8() {
+    let src = r#"
+        fn main() {
+            let _: u8 = -1;
+        }"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    if let CompilationError::TypeError(error) = &errors[0].0 {
+        assert_eq!(
+            error.to_string(),
+            "The value `-1` cannot fit into `u8` which has range `0..=255`"
+        );
+    } else {
+        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
+    }
+}
+
+#[test]
+fn overflowing_i8() {
+    let src = r#"
+        fn main() {
+            let _: i8 = 128;
+        }"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    if let CompilationError::TypeError(error) = &errors[0].0 {
+        assert_eq!(
+            error.to_string(),
+            "The value `2⁷` cannot fit into `i8` which has range `-128..=127`"
+        );
+    } else {
+        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
+    }
+}
+
+#[test]
+fn underflowing_i8() {
+    let src = r#"
+        fn main() {
+            let _: i8 = -129;
+        }"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    if let CompilationError::TypeError(error) = &errors[0].0 {
+        assert_eq!(
+            error.to_string(),
+            "The value `-129` cannot fit into `i8` which has range `-128..=127`"
+        );
+    } else {
+        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
+    }
+}
+
+#[test]
+fn turbofish_numeric_generic_nested_call() {
+    // Check for turbofish numeric generics used with function calls
+    let src = r#"
+    fn foo<let N: u32>() -> [u8; N] {
+        [0; N]
+    }
+
+    fn bar<let N: u32>() -> [u8; N] {
+        foo::<N>()
+    }
+
+    global M: u32 = 3;
+
+    fn main() {
+        let _ = bar::<M>();
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+
+    // Check for turbofish numeric generics used with method calls
+    let src = r#"
+    struct Foo<T> {
+        a: T
+    }
+
+    impl<T> Foo<T> {
+        fn static_method<let N: u32>() -> [u8; N] {
+            [0; N]
+        }
+
+        fn impl_method<let N: u32>(self) -> [T; N] {
+            [self.a; N]
+        }
+    }
+
+    fn bar<let N: u32>() -> [u8; N] {
+        let _ = Foo::static_method::<N>();
+        let x: Foo<u8> = Foo { a: 0 };
+        x.impl_method::<N>()
+    }
+
+    global M: u32 = 3;
+
+    fn main() {
+        let _ = bar::<M>();
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
 }

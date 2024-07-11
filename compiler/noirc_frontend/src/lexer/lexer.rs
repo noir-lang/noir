@@ -6,9 +6,11 @@ use super::{
         token_to_borrowed_token, BorrowedToken, IntType, Keyword, SpannedToken, Token, Tokens,
     },
 };
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use noirc_errors::{Position, Span};
-use std::str::CharIndices;
+use num_bigint::BigInt;
+use num_traits::{Num, One};
+use std::str::{CharIndices, FromStr};
 
 /// The job of the lexer is to transform an iterator of characters (`char_iter`)
 /// into an iterator of `SpannedToken`. Each `Token` corresponds roughly to 1 word or operator.
@@ -19,6 +21,7 @@ pub struct Lexer<'a> {
     done: bool,
     skip_comments: bool,
     skip_whitespaces: bool,
+    max_integer: BigInt,
 }
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
@@ -61,6 +64,8 @@ impl<'a> Lexer<'a> {
             done: false,
             skip_comments: true,
             skip_whitespaces: true,
+            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus())
+                - BigInt::one(),
         }
     }
 
@@ -376,14 +381,28 @@ impl<'a> Lexer<'a> {
         // Underscores needs to be stripped out before the literal can be converted to a `FieldElement.
         let integer_str = integer_str.replace('_', "");
 
-        let integer = match FieldElement::try_from_str(&integer_str) {
-            None => {
+        let bigint_result = match integer_str.strip_prefix("0x") {
+            Some(integer_str) => BigInt::from_str_radix(integer_str, 16),
+            None => BigInt::from_str(&integer_str),
+        };
+
+        let integer = match bigint_result {
+            Ok(bigint) => {
+                if bigint > self.max_integer {
+                    return Err(LexerErrorKind::IntegerLiteralTooLarge {
+                        span: Span::inclusive(start, end),
+                        limit: self.max_integer.to_string(),
+                    });
+                }
+                let big_uint = bigint.magnitude();
+                FieldElement::from_be_bytes_reduce(&big_uint.to_bytes_be())
+            }
+            Err(_) => {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
                     span: Span::inclusive(start, end),
                     found: integer_str,
                 })
             }
-            Some(integer) => integer,
         };
 
         let integer_token = Token::Int(integer);
@@ -897,6 +916,19 @@ mod tests {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
+    }
+
+    #[test]
+    fn test_int_too_large() {
+        let modulus = FieldElement::modulus();
+        let input = modulus.to_string();
+
+        let mut lexer = Lexer::new(&input);
+        let token = lexer.next_token();
+        assert!(
+            matches!(token, Err(LexerErrorKind::IntegerLiteralTooLarge { .. })),
+            "expected {input} to throw error"
+        );
     }
 
     #[test]

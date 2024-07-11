@@ -1,3 +1,5 @@
+use crate::append::Append;
+
 impl<T> [T] {
     #[builtin(array_len)]
     pub fn len(self) -> u32 {}
@@ -83,6 +85,33 @@ impl<T> [T] {
             accumulator = f(accumulator, self[i]);
         }
         accumulator
+    }
+
+    // Returns a new slice containing only elements for which the given predicate
+    // returns true.
+    pub fn filter<Env>(self, predicate: fn[Env](T) -> bool) -> Self {
+        let mut ret = &[];
+        for elem in self {
+            if predicate(elem) {
+                ret = ret.push_back(elem);
+            }
+        }
+        ret
+    }
+
+    // Flatten each element in the slice into one value, separated by `separator`.
+    pub fn join(self, separator: T) -> T where T: Append {
+        let mut ret = T::empty();
+
+        if self.len() != 0 {
+            ret = self[0];
+
+            for i in 1..self.len() {
+                ret = ret.append(separator).append(self[i]);
+            }
+        }
+
+        ret
     }
 
     // Returns true if all elements in the slice satisfy the predicate

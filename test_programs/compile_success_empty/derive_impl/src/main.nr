@@ -1,4 +1,4 @@
-comptime fn derive_default(typ: TypeDefinition) -> Quoted {
+comptime fn derive_default(typ: StructDefinition) -> Quoted {
     let generics: [Quoted] = typ.generics();
     assert_eq(
         generics.len(), 0, "derive_default: Deriving Default on generic types is currently unimplemented"
