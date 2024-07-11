@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.46.3](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.46.2...aztec-packages-v0.46.3) (2024-07-11)
+
+
+### Features
+
+* Add CLI argument for debugging comptime blocks (https://github.com/noir-lang/noir/pull/5192) ([97ecff5](https://github.com/AztecProtocol/aztec-packages/commit/97ecff5ea76a0da878bdccc453b121147f726ec4))
+* Add reset tiny and optimize tail ([#7422](https://github.com/AztecProtocol/aztec-packages/issues/7422)) ([399917b](https://github.com/AztecProtocol/aztec-packages/commit/399917b3e6916805bb55596b47183e44700fe8f5))
+* **avm:** Calldatacopy and return gadget ([#7415](https://github.com/AztecProtocol/aztec-packages/issues/7415)) ([ec39e4e](https://github.com/AztecProtocol/aztec-packages/commit/ec39e4e2ffecb6d6e355eb3963008b710cc11d2c)), closes [#7381](https://github.com/AztecProtocol/aztec-packages/issues/7381) [#7211](https://github.com/AztecProtocol/aztec-packages/issues/7211)
+* **avm:** Make ProverPolynomials::get_row return references ([#7419](https://github.com/AztecProtocol/aztec-packages/issues/7419)) ([108fc5f](https://github.com/AztecProtocol/aztec-packages/commit/108fc5f92e44b027b38fa31614e14f2b7a9f650a))
+* Integrate new proving systems in e2e ([#6971](https://github.com/AztecProtocol/aztec-packages/issues/6971)) ([723a0c1](https://github.com/AztecProtocol/aztec-packages/commit/723a0c10c9010f3869f103c77f71950efbf7106c))
+* Lsp rename/find-all-references for struct members (https://github.com/noir-lang/noir/pull/5443) ([97ecff5](https://github.com/AztecProtocol/aztec-packages/commit/97ecff5ea76a0da878bdccc453b121147f726ec4))
+* MSM sorting ([#7351](https://github.com/AztecProtocol/aztec-packages/issues/7351)) ([5cbdc54](https://github.com/AztecProtocol/aztec-packages/commit/5cbdc549f0ab137ab4fa601e20d80699871faaf4))
+* **optimization:** Deduplicate more instructions (https://github.com/noir-lang/noir/pull/5457) ([97ecff5](https://github.com/AztecProtocol/aztec-packages/commit/97ecff5ea76a0da878bdccc453b121147f726ec4))
+* Prefix operator overload trait dispatch (https://github.com/noir-lang/noir/pull/5423) ([97ecff5](https://github.com/AztecProtocol/aztec-packages/commit/97ecff5ea76a0da878bdccc453b121147f726ec4))
+* Remove proof from L1 Rollup process ([#7347](https://github.com/AztecProtocol/aztec-packages/issues/7347)) ([2645eab](https://github.com/AztecProtocol/aztec-packages/commit/2645eab19bac030835c959eb01f8f3af27f89adf)), closes [#7346](https://github.com/AztecProtocol/aztec-packages/issues/7346)
+* Remove ram tables in note_getter ([#7434](https://github.com/AztecProtocol/aztec-packages/issues/7434)) ([fd67da3](https://github.com/AztecProtocol/aztec-packages/commit/fd67da35da3949bf112392d7cf1d512c5eed23eb))
+* Sync from aztec-packages (https://github.com/noir-lang/noir/pull/5467) ([97ecff5](https://github.com/AztecProtocol/aztec-packages/commit/97ecff5ea76a0da878bdccc453b121147f726ec4))
+* Typing return values of embedded_curve_ops ([#7413](https://github.com/AztecProtocol/aztec-packages/issues/7413)) ([db96077](https://github.com/AztecProtocol/aztec-packages/commit/db960772abfead018e4f6da55ae259c6b3d574ef))
+
+
+### Bug Fixes
+
+* **avm:** Fixes AVM full tests and decrease timeout to 35 minutes ([#7438](https://github.com/AztecProtocol/aztec-packages/issues/7438)) ([2a7494b](https://github.com/AztecProtocol/aztec-packages/commit/2a7494baec4396b9fa62f0a9c240b4b02f23fb1d))
+* Memory init with no other ops gate counting ([#7427](https://github.com/AztecProtocol/aztec-packages/issues/7427)) ([e7177ba](https://github.com/AztecProtocol/aztec-packages/commit/e7177ba0f96c1da3edbcdffdaaf88c128bbdd719))
+* Pass secrets to ci-arm.yml ([#7436](https://github.com/AztecProtocol/aztec-packages/issues/7436)) ([619501d](https://github.com/AztecProtocol/aztec-packages/commit/619501df5aa4c544cd8607dae5d4e20595109b2f))
+* Remove compile-time error for invalid indices (https://github.com/noir-lang/noir/pull/5466) ([97ecff5](https://github.com/AztecProtocol/aztec-packages/commit/97ecff5ea76a0da878bdccc453b121147f726ec4))
+* Using different generators in private refund ([#7414](https://github.com/AztecProtocol/aztec-packages/issues/7414)) ([59b92ca](https://github.com/AztecProtocol/aztec-packages/commit/59b92ca0f72ca3705dd6933b304897c91edc81c3)), closes [#7320](https://github.com/AztecProtocol/aztec-packages/issues/7320)
+
+
+### Miscellaneous
+
+* **bb:** Fix double increment ([#7428](https://github.com/AztecProtocol/aztec-packages/issues/7428)) ([7870a58](https://github.com/AztecProtocol/aztec-packages/commit/7870a5815dc759aed7097dc9eb5ab8e10b3a1865))
+* **boxes:** Adding an init command for an empty project ([#7398](https://github.com/AztecProtocol/aztec-packages/issues/7398)) ([a6a605d](https://github.com/AztecProtocol/aztec-packages/commit/a6a605d3cd83b2f4b8e47722ff262382a7a2ea1d))
+* Bump bb to 0.45.1 (https://github.com/noir-lang/noir/pull/5469) ([97ecff5](https://github.com/AztecProtocol/aztec-packages/commit/97ecff5ea76a0da878bdccc453b121147f726ec4))
+* Disable flaky cheat code test ([7b8c2ba](https://github.com/AztecProtocol/aztec-packages/commit/7b8c2ba14600f4e51896bec15c6e7f3286885050))
+* Document EmbeddedCurvePoint (https://github.com/noir-lang/noir/pull/5468) ([97ecff5](https://github.com/AztecProtocol/aztec-packages/commit/97ecff5ea76a0da878bdccc453b121147f726ec4))
+* Minimize usage of get_row in inverse computation ([#7431](https://github.com/AztecProtocol/aztec-packages/issues/7431)) ([f177887](https://github.com/AztecProtocol/aztec-packages/commit/f1778876eac8ef65edd06c49d1ddf2429d6583e5))
+* Private refund cleanup ([#7403](https://github.com/AztecProtocol/aztec-packages/issues/7403)) ([ebec8ff](https://github.com/AztecProtocol/aztec-packages/commit/ebec8ff48900b48be3fce6bc9a52bcb566c79a7f))
+* Replace relative paths to noir-protocol-circuits ([842f6d1](https://github.com/AztecProtocol/aztec-packages/commit/842f6d1978aaeba9d39e3433f06f2f402145b754))
+* Unbundle `check_array_is_initialized` (https://github.com/noir-lang/noir/pull/5451) ([97ecff5](https://github.com/AztecProtocol/aztec-packages/commit/97ecff5ea76a0da878bdccc453b121147f726ec4))
+
 ## [0.46.2](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.46.1...aztec-packages-v0.46.2) (2024-07-10)
 
 
