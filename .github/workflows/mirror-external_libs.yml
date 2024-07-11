@@ -20,23 +20,22 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          ref: gd/temptest
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
       - name: Push to external libs repo
         run: |
           SUBREPO_PATH=external-libraries
           git config --global user.name noirwhal
           git config --global user.email tomfrench@aztecprotocol.com
-
+          
           git clone https://github.com/ingydotnet/git-subrepo
-          git fetch
-          git pull
-          ./git-subrepo/lib/git-subrepo fetch $SUBREPO_PATH
-          ./git-subrepo/lib/git-subrepo pull $SUBREPO_PATH
-          if ./git-subrepo/lib/git-subrepo push $SUBREPO_PATH --branch=master; then
+          git diff
+          if ./git-subrepo/lib/git-subrepo push $SUBREPO_PATH --branch=gd/temptest; then
             git fetch # in case a commit came after this
             git rebase origin/master
             git commit --amend -m "$(git log -1 --pretty=%B) [skip ci]"
             git push
           fi
+          git log -1 --pretty=%B
 
 
