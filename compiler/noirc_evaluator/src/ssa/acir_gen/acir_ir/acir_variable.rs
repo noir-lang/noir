@@ -689,7 +689,6 @@ impl<F: AcirField> AcirContext<F> {
                 self.mul_var(lhs, rhs)?
             }
         };
-        let result_expr = self.var_to_expression(result)?;
 
         Ok(result)
     }
@@ -706,7 +705,7 @@ impl<F: AcirField> AcirContext<F> {
     pub(crate) fn add_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, RuntimeError> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
-        
+
         let sum_expr = &lhs_expr + &rhs_expr;
         let sum_expr_fits = fits_in_one_identity(&sum_expr, self.expression_width);
 
