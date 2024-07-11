@@ -199,7 +199,7 @@ fn main() {
 
 ### reduce
 
-Same as fold, but uses the first element as starting element.
+Same as fold, but uses the first element as the starting element.
 
 ```rust
 fn reduce(self, f: fn(T, T) -> T) -> T

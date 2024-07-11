@@ -20,7 +20,10 @@ use async_lsp::{
 };
 use fm::{codespan_files as files, FileManager};
 use fxhash::FxHashSet;
-use lsp_types::CodeLens;
+use lsp_types::{
+    request::{PrepareRenameRequest, References, Rename},
+    CodeLens,
+};
 use nargo::{
     package::{Package, PackageType},
     parse_all,
@@ -43,7 +46,8 @@ use notifications::{
 };
 use requests::{
     on_code_lens_request, on_formatting, on_goto_declaration_request, on_goto_definition_request,
-    on_goto_type_definition_request, on_initialize, on_profile_run_request, on_shutdown,
+    on_goto_type_definition_request, on_initialize, on_prepare_rename_request,
+    on_profile_run_request, on_references_request, on_rename_request, on_shutdown,
     on_test_run_request, on_tests_request,
 };
 use serde_json::Value as JsonValue;
@@ -54,6 +58,9 @@ mod notifications;
 mod requests;
 mod solver;
 mod types;
+
+#[cfg(test)]
+mod test_utils;
 
 use solver::WrapperSolver;
 use types::{notification, request, NargoTest, NargoTestId, Position, Range, Url};
@@ -119,6 +126,9 @@ impl NargoLspService {
             .request::<request::GotoDefinition, _>(on_goto_definition_request)
             .request::<request::GotoDeclaration, _>(on_goto_declaration_request)
             .request::<request::GotoTypeDefinition, _>(on_goto_type_definition_request)
+            .request::<References, _>(on_references_request)
+            .request::<PrepareRenameRequest, _>(on_prepare_rename_request)
+            .request::<Rename, _>(on_rename_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
@@ -219,43 +229,84 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
     }
 }
 
-pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
-    if let Some(toml_path) = find_file_manifest(file_path) {
-        resolve_workspace_from_toml(
-            &toml_path,
-            PackageSelection::All,
-            Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-        )
-        .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()))
-    } else {
-        let Some(parent_folder) = file_path
-            .parent()
-            .and_then(|f| f.file_name())
-            .and_then(|file_name_os_str| file_name_os_str.to_str())
-        else {
-            return Err(LspError::WorkspaceResolutionError(format!(
-                "Could not resolve parent folder for file: {:?}",
-                file_path
-            )));
-        };
-        let assumed_package = Package {
-            version: None,
-            compiler_required_version: Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-            root_dir: PathBuf::from(parent_folder),
-            package_type: PackageType::Binary,
-            entry_path: PathBuf::from(file_path),
-            name: CrateName::from_str(parent_folder)
-                .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()))?,
-            dependencies: BTreeMap::new(),
-        };
-        let workspace = Workspace {
-            root_dir: PathBuf::from(parent_folder),
-            members: vec![assumed_package],
-            selected_package_index: Some(0),
-            is_assumed: true,
-        };
-        Ok(workspace)
+pub(crate) fn resolve_workspace_for_source_path(
+    file_path: &Path,
+    root_path: &Option<PathBuf>,
+) -> Result<Workspace, LspError> {
+    // If there's a LSP root path, starting from file_path go up the directory tree
+    // searching for Nargo.toml files. The last one we find is the one we'll use
+    // (we'll assume Noir workspaces aren't nested)
+    if let Some(root_path) = root_path {
+        let mut current_path = file_path;
+        let mut current_toml_path = None;
+        while current_path.starts_with(root_path) {
+            if let Some(toml_path) = find_file_manifest(current_path) {
+                current_toml_path = Some(toml_path);
+
+                if let Some(next_path) = current_path.parent() {
+                    current_path = next_path;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        if let Some(toml_path) = current_toml_path {
+            return resolve_workspace_from_toml(
+                &toml_path,
+                PackageSelection::All,
+                Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+            )
+            .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()));
+        }
     }
+
+    let Some(parent_folder) = file_path
+        .parent()
+        .and_then(|f| f.file_name())
+        .and_then(|file_name_os_str| file_name_os_str.to_str())
+    else {
+        return Err(LspError::WorkspaceResolutionError(format!(
+            "Could not resolve parent folder for file: {:?}",
+            file_path
+        )));
+    };
+    let assumed_package = Package {
+        version: None,
+        compiler_required_version: Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        root_dir: PathBuf::from(parent_folder),
+        package_type: PackageType::Binary,
+        entry_path: PathBuf::from(file_path),
+        name: CrateName::from_str(parent_folder)
+            .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()))?,
+        dependencies: BTreeMap::new(),
+    };
+    let workspace = Workspace {
+        root_dir: PathBuf::from(parent_folder),
+        members: vec![assumed_package],
+        selected_package_index: Some(0),
+        is_assumed: true,
+    };
+    Ok(workspace)
+}
+
+pub(crate) fn workspace_package_for_file<'a>(
+    workspace: &'a Workspace,
+    file_path: &Path,
+) -> Option<&'a Package> {
+    workspace.members.iter().find(|package| file_path.starts_with(&package.root_dir))
+}
+
+pub(crate) fn prepare_package<'file_manager, 'parsed_files>(
+    file_manager: &'file_manager FileManager,
+    parsed_files: &'parsed_files ParsedFiles,
+    package: &Package,
+) -> (Context<'file_manager, 'parsed_files>, CrateId) {
+    let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
+    context.track_references();
+    (context, crate_id)
 }
 
 /// Prepares a package from a source string
@@ -275,6 +326,8 @@ fn prepare_source(source: String, state: &mut LspState) -> (Context<'static, 'st
     let parsed_files = parse_diff(&file_manager, state);
 
     let mut context = Context::new(file_manager, parsed_files);
+    context.track_references();
+
     let root_crate_id = prepare_crate(&mut context, file_name);
 
     (context, root_crate_id)
@@ -351,7 +404,8 @@ fn prepare_package_from_source_string() {
     let mut state = LspState::new(&client, acvm::blackbox_solver::StubbedBlackBoxSolver);
 
     let (mut context, crate_id) = crate::prepare_source(source.to_string(), &mut state);
-    let _check_result = noirc_driver::check_crate(&mut context, crate_id, false, false, false);
+    let _check_result =
+        noirc_driver::check_crate(&mut context, crate_id, false, false, false, None);
     let main_func_id = context.get_main_function(&crate_id);
     assert!(main_func_id.is_some());
 }

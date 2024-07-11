@@ -165,7 +165,7 @@ impl<F: AcirField> GeneratedAcir<F> {
     pub(crate) fn call_black_box(
         &mut self,
         func_name: BlackBoxFunc,
-        inputs: &[Vec<FunctionInput>],
+        inputs: &[Vec<FunctionInput<F>>],
         constant_inputs: Vec<F>,
         constant_outputs: Vec<F>,
         output_count: usize,
@@ -439,7 +439,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         let inputs = vec![BrilligInputs::Single(expr)];
         let outputs = vec![BrilligOutputs::Simple(inverted_witness)];
         self.brillig_call(
-            Some(Expression::one()),
+            None,
             &inverse_code,
             inputs,
             outputs,
@@ -571,7 +571,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         };
 
         let constraint = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput { witness, num_bits },
+            input: FunctionInput::witness(witness, num_bits),
         });
         self.push_opcode(constraint);
 
@@ -709,6 +709,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::Poseidon2Permutation => None,
 
         BlackBoxFunc::Sha256Compression => Some(8),
+
         // Pedersen commitment returns a point
         BlackBoxFunc::PedersenCommitment => Some(2),
 

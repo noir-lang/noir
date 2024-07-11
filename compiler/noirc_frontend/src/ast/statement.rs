@@ -10,6 +10,7 @@ use super::{
     BlockExpression, Expression, ExpressionKind, IndexExpression, MemberAccessExpression,
     MethodCallExpression, UnresolvedType,
 };
+use crate::hir::resolution::resolver::SELF_TYPE_NAME;
 use crate::lexer::token::SpannedToken;
 use crate::macros_api::SecondaryAttribute;
 use crate::parser::{ParserError, ParserErrorReason};
@@ -164,6 +165,12 @@ impl StatementKind {
 
 #[derive(Eq, Debug, Clone)]
 pub struct Ident(pub Spanned<String>);
+
+impl Ident {
+    pub fn is_self_type_name(&self) -> bool {
+        self.0.contents == SELF_TYPE_NAME
+    }
+}
 
 impl PartialEq<Ident> for Ident {
     fn eq(&self, other: &Ident) -> bool {
@@ -728,7 +735,11 @@ impl Display for LValue {
 impl Display for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let segments = vecmap(&self.segments, ToString::to_string);
-        write!(f, "{}::{}", self.kind, segments.join("::"))
+        if self.kind == PathKind::Plain {
+            write!(f, "{}", segments.join("::"))
+        } else {
+            write!(f, "{}::{}", self.kind, segments.join("::"))
+        }
     }
 }
 

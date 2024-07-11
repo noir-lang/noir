@@ -12,6 +12,7 @@ mod schnorr;
 
 use ark_ec::AffineRepr;
 pub use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
+pub use generator::generators::derive_generators;
 pub use poseidon2::poseidon2_permutation;
 
 // Temporary hack, this ensure that we always use a bn254 field here
@@ -47,11 +48,13 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         let inputs: Vec<grumpkin::Fq> = inputs.iter().map(|input| input.into_repr()).collect();
         let result = pedersen::commitment::commit_native_with_index(&inputs, domain_separator);
-        let res_x =
-            FieldElement::from_repr(*result.x().expect("should not commit to point at infinity"));
-        let res_y =
-            FieldElement::from_repr(*result.y().expect("should not commit to point at infinity"));
-        Ok((res_x, res_y))
+        let result = if let Some((x, y)) = result.xy() {
+            (FieldElement::from_repr(*x), FieldElement::from_repr(*y))
+        } else {
+            (FieldElement::from(0_u128), FieldElement::from(0_u128))
+        };
+
+        Ok(result)
     }
 
     fn pedersen_hash(

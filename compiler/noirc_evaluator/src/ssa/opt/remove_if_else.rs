@@ -226,6 +226,7 @@ fn slice_capacity_change(
 
         // These cases don't affect slice capacities
         Intrinsic::AssertConstant
+        | Intrinsic::StaticAssert
         | Intrinsic::ApplyRangeConstraint
         | Intrinsic::ArrayLen
         | Intrinsic::StrAsBytes
@@ -233,6 +234,7 @@ fn slice_capacity_change(
         | Intrinsic::FromField
         | Intrinsic::AsField
         | Intrinsic::AsWitness
-        | Intrinsic::IsUnconstrained => SizeChange::None,
+        | Intrinsic::IsUnconstrained
+        | Intrinsic::DerivePedersenGenerators => SizeChange::None,
     }
 }

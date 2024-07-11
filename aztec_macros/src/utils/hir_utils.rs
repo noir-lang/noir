@@ -230,6 +230,7 @@ pub fn inject_global(
         file_id,
         global.attributes.clone(),
         false,
+        false,
     );
 
     // Add the statement to the scope so its path can be looked up later
@@ -268,20 +269,12 @@ pub fn fully_qualified_note_path(context: &HirContext, note_id: StructId) -> Opt
     if &module_id.krate == context.root_crate_id() {
         Some(module_path)
     } else {
-        find_non_contract_dependencies_bfs(context, context.root_crate_id(), &module_id.krate)
+        find_dependencies_bfs(context, context.root_crate_id(), &module_id.krate)
             .map(|crates| crates.join("::") + "::" + &module_path)
     }
 }
 
-fn filter_contract_modules(context: &HirContext, crate_id: &CrateId) -> bool {
-    if let Some(def_map) = context.def_map(crate_id) {
-        !def_map.modules().iter().any(|(_, module)| module.is_contract)
-    } else {
-        true
-    }
-}
-
-fn find_non_contract_dependencies_bfs(
+fn find_dependencies_bfs(
     context: &HirContext,
     crate_id: &CrateId,
     target_crate_id: &CrateId,
@@ -289,7 +282,6 @@ fn find_non_contract_dependencies_bfs(
     context.crate_graph[crate_id]
         .dependencies
         .iter()
-        .filter(|dep| filter_contract_modules(context, &dep.crate_id))
         .find_map(|dep| {
             if &dep.crate_id == target_crate_id {
                 Some(vec![dep.name.to_string()])
@@ -298,20 +290,16 @@ fn find_non_contract_dependencies_bfs(
             }
         })
         .or_else(|| {
-            context.crate_graph[crate_id]
-                .dependencies
-                .iter()
-                .filter(|dep| filter_contract_modules(context, &dep.crate_id))
-                .find_map(|dep| {
-                    if let Some(mut path) =
-                        find_non_contract_dependencies_bfs(context, &dep.crate_id, target_crate_id)
-                    {
-                        path.insert(0, dep.name.to_string());
-                        Some(path)
-                    } else {
-                        None
-                    }
-                })
+            context.crate_graph[crate_id].dependencies.iter().find_map(|dep| {
+                if let Some(mut path) =
+                    find_dependencies_bfs(context, &dep.crate_id, target_crate_id)
+                {
+                    path.insert(0, dep.name.to_string());
+                    Some(path)
+                } else {
+                    None
+                }
+            })
         })
 }
 
