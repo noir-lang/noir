@@ -60,13 +60,19 @@ fn format_reference(reference: ReferenceId, interner: &NodeInterner) -> String {
     }
 }
 fn format_module(id: ModuleId, interner: &NodeInterner) -> String {
-    let name = &interner.module_attributes(&id).name;
+    let module_attributes = interner.module_attributes(&id);
 
     let mut string = String::new();
-    // TODO: append the module path
+    if format_parent_module_from_module_id(
+        &ModuleId { krate: id.krate, local_id: module_attributes.parent },
+        interner,
+        &mut string,
+    ) {
+        string.push_str("\n");
+    }
     string.push_str("    ");
     string.push_str("mod ");
-    string.push_str(name);
+    string.push_str(&module_attributes.name);
     string
 }
 
@@ -75,7 +81,9 @@ fn format_struct(id: StructId, interner: &NodeInterner) -> String {
     let struct_type = struct_type.borrow();
 
     let mut string = String::new();
-    // TODO: append the module path
+    if format_parent_module(ReferenceId::Struct(id), interner, &mut string) {
+        string.push_str("\n");
+    }
     string.push_str("    ");
     string.push_str("struct ");
     string.push_str(&struct_type.name.0.contents);
@@ -98,7 +106,11 @@ fn format_struct_member(id: StructId, field_index: usize, interner: &NodeInterne
     let (field_name, field_type) = struct_type.field_at(field_index);
 
     let mut string = String::new();
-    // TODO: append the module path
+    if format_parent_module(ReferenceId::Struct(id), interner, &mut string) {
+        string.push_str("::");
+    }
+    string.push_str(&struct_type.name.0.contents);
+    string.push_str("\n");
     string.push_str("    ");
     string.push_str(&field_name.0.contents);
     string.push_str(": ");
@@ -110,7 +122,9 @@ fn format_trait(id: TraitId, interner: &NodeInterner) -> String {
     let a_trait = interner.get_trait(id);
 
     let mut string = String::new();
-    // TODO: append the module path
+    if format_parent_module(ReferenceId::Trait(id), interner, &mut string) {
+        string.push_str("\n");
+    }
     string.push_str("    ");
     string.push_str("trait ");
     string.push_str(&a_trait.name.0.contents);
@@ -124,7 +138,9 @@ fn format_global(id: GlobalId, interner: &NodeInterner) -> String {
     let typ = interner.definition_type(definition_id);
 
     let mut string = String::new();
-    // TODO: append the module path
+    if format_parent_module(ReferenceId::Global(id), interner, &mut string) {
+        string.push_str("\n");
+    }
     string.push_str("    ");
     string.push_str("global ");
     string.push_str(&global_info.ident.0.contents);
@@ -138,7 +154,8 @@ fn format_function(id: FuncId, interner: &NodeInterner) -> String {
     let func_name_definition_id = interner.definition(func_meta.name.id);
 
     let mut string = String::new();
-    // TODO: append the module path
+    format_parent_module(ReferenceId::Function(id), interner, &mut string);
+    string.push_str("\n");
     string.push_str("    ");
     string.push_str("fn ");
     format_generics(&func_meta.direct_generics, &mut string);
@@ -176,7 +193,8 @@ fn format_alias(id: TypeAliasId, interner: &NodeInterner) -> String {
     let type_alias = type_alias.borrow();
 
     let mut string = String::new();
-    // TODO: append the module path
+    format_parent_module(ReferenceId::Alias(id), interner, &mut string);
+    string.push_str("\n");
     string.push_str("    ");
     string.push_str("type ");
     string.push_str(&type_alias.name.0.contents);
@@ -239,4 +257,47 @@ fn format_pattern(pattern: &HirPattern, interner: &NodeInterner, string: &mut St
             string.push('_');
         }
     }
+}
+
+fn format_parent_module(
+    referenced: ReferenceId,
+    interner: &NodeInterner,
+    string: &mut String,
+) -> bool {
+    let Some(module) = interner.reference_module(referenced) else {
+        return false;
+    };
+
+    return format_parent_module_from_module_id(&module, interner, string);
+}
+
+fn format_parent_module_from_module_id(
+    module: &ModuleId,
+    interner: &NodeInterner,
+    string: &mut String,
+) -> bool {
+    let Some(module_attributes) = interner.try_module_attributes(module) else {
+        return false;
+    };
+
+    string.push_str("    ");
+
+    let mut segments = Vec::new();
+    let mut current_attributes = module_attributes;
+    while let Some(parent_attributes) = interner.try_module_attributes(&ModuleId {
+        krate: module.krate,
+        local_id: current_attributes.parent,
+    }) {
+        segments.push(&parent_attributes.name);
+        current_attributes = parent_attributes;
+    }
+
+    for segment in segments.iter().rev() {
+        string.push_str(segment);
+        string.push_str("::");
+    }
+
+    string.push_str(&module_attributes.name);
+
+    true
 }

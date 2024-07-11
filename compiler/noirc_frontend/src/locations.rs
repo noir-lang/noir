@@ -62,6 +62,10 @@ impl NodeInterner {
         }
     }
 
+    pub fn reference_module(&self, reference: ReferenceId) -> Option<&ModuleId> {
+        self.reference_modules.get(&reference)
+    }
+
     pub(crate) fn add_module_reference(&mut self, id: ModuleId, location: Location) {
         self.add_reference(ReferenceId::Module(id), location, false);
     }
@@ -129,7 +133,11 @@ impl NodeInterner {
         self.location_indices.add_location(reference_location, reference_index);
     }
 
-    pub(crate) fn add_definition_location(&mut self, referenced: ReferenceId) {
+    pub(crate) fn add_definition_location(
+        &mut self,
+        referenced: ReferenceId,
+        module_id: Option<ModuleId>,
+    ) {
         if !self.track_references {
             return;
         }
@@ -137,6 +145,9 @@ impl NodeInterner {
         let referenced_index = self.get_or_insert_reference(referenced);
         let referenced_location = self.reference_location(referenced);
         self.location_indices.add_location(referenced_location, referenced_index);
+        if let Some(module_id) = module_id {
+            self.reference_modules.insert(referenced, module_id);
+        }
     }
 
     #[tracing::instrument(skip(self), ret)]
