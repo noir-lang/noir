@@ -31,6 +31,15 @@ template <typename Curve> class FileCrsFactory : public CrsFactory<Curve> {
 
 template <typename Curve> class FileProverCrs : public ProverCrs<Curve> {
   public:
+    /**
+     * @brief Construct a prover CRS populated with a pippenger point table based on the SRS elements
+     * @details Allocates space in monomials_ for 2 * num_points affine elements, populates the first num_points with
+     * the raw SRS elements P_i, then overwrites the same memory with the 'pippenger point table' which contains the raw
+     * elements P_i at even indices and the endomorphism point (\beta * P_i.x, -P_i.y) at odd indices.
+     *
+     * @param num_points
+     * @param path
+     */
     FileProverCrs(const size_t num_points, std::string const& path)
         : num_points(num_points)
     {
