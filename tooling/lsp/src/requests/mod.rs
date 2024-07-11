@@ -277,7 +277,7 @@ pub(crate) struct ProcessRequestCallbackArgs<'a> {
     interner: &'a NodeInterner,
     interners: &'a HashMap<String, NodeInterner>,
     root_crate_name: String,
-    root_crate_dependnencies: &'a Vec<Dependency>,
+    root_crate_dependencies: &'a Vec<Dependency>,
 }
 
 pub(crate) fn process_request<F, T>(
@@ -331,7 +331,7 @@ where
         interner,
         interners: &state.cached_definitions,
         root_crate_name: format!("{}", package.name),
-        root_crate_dependnencies: &context.crate_graph[context.root_crate_id()].dependencies,
+        root_crate_dependencies: &context.crate_graph[context.root_crate_id()].dependencies,
     }))
 }
 pub(crate) fn find_all_references_in_workspace(
