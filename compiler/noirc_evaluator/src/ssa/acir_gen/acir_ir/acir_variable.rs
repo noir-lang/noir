@@ -388,11 +388,12 @@ impl<F: AcirField> AcirContext<F> {
         // `lhs == rhs` => `lhs - rhs == 0`
         let diff_expr = &lhs_expr - &rhs_expr;
 
+
         // Check to see if equality can be determined at compile-time.
         if diff_expr.is_const() {
             return Ok(self.add_constant(diff_expr.is_zero()));
         }
-
+        
         let is_equal_witness = self.acir_ir.is_equal(&lhs_expr, &rhs_expr);
         let result_var = self.add_data(AcirVarData::Witness(is_equal_witness));
         Ok(result_var)
@@ -2023,6 +2024,10 @@ impl<F: AcirField> From<Expression<F>> for AcirVarData<F> {
 
 /// Checks if this expression can fit into one arithmetic identity
 fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: ExpressionWidth) -> bool {
+    if expr.mul_terms.len() > 1 {
+        return false;
+    };
+
     let width = match &width {
         ExpressionWidth::Unbounded => {
             return true;

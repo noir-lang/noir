@@ -411,6 +411,10 @@ impl CSatTransformer {
 
 /// Checks if this expression can fit into one arithmetic identity
 fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> bool {
+    if expr.mul_terms.len() > 1 {
+        return false;
+    };
+    
     expr.width() <= width
 }
 
