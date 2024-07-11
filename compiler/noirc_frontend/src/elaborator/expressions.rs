@@ -320,6 +320,7 @@ impl<'context> Elaborator<'context> {
         let (mut object, mut object_type) = self.elaborate_expression(method_call.object);
         object_type = object_type.follow_bindings();
 
+        let method_name_span = method_call.method_name.span();
         let method_name = method_call.method_name.0.contents.as_str();
         match self.lookup_method(&object_type, method_name, span) {
             Some(method_ref) => {
@@ -384,6 +385,9 @@ impl<'context> Elaborator<'context> {
                     self.type_check_variable(function_name, function_id, turbofish_generics);
 
                 self.interner.push_expr_type(function_id, func_type.clone());
+
+                self.interner
+                    .add_function_reference(func_id, Location::new(method_name_span, self.file));
 
                 // Type check the new call now that it has been changed from a method call
                 // to a function call. This way we avoid duplicating code.
