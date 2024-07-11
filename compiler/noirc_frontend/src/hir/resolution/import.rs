@@ -3,6 +3,7 @@ use thiserror::Error;
 
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::node_interner::ReferenceId;
 use std::collections::BTreeMap;
 
 use crate::ast::{Ident, ItemVisibility, Path, PathKind};
@@ -38,8 +39,6 @@ pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionErro
 pub enum PathResolutionError {
     #[error("Could not resolve '{0}' in path")]
     Unresolved(Ident),
-    #[error("Contract variable '{0}' referenced from outside the contract")]
-    ExternalContractUsed(Ident),
     #[error("{0} is private and not visible from the current module")]
     Private(Ident),
 }
@@ -68,11 +67,6 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
             PathResolutionError::Unresolved(ident) => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.span())
             }
-            PathResolutionError::ExternalContractUsed(ident) => CustomDiagnostic::simple_error(
-                error.to_string(),
-                "Contracts may only be referenced from within a contract".to_string(),
-                ident.span(),
-            ),
             // This will be upgraded to an error in future versions
             PathResolutionError::Private(ident) => CustomDiagnostic::simple_warning(
                 error.to_string(),
@@ -87,16 +81,14 @@ pub fn resolve_import(
     crate_id: CrateId,
     import_directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> Result<ResolvedImport, PathResolutionError> {
-    let allow_contracts =
-        allow_referencing_contracts(def_maps, crate_id, import_directive.module_id);
-
     let module_scope = import_directive.module_id;
     let NamespaceResolution {
         module_id: resolved_module,
         namespace: resolved_namespace,
         mut error,
-    } = resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps, allow_contracts)?;
+    } = resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps, path_references)?;
 
     let name = resolve_path_name(import_directive);
 
@@ -129,20 +121,12 @@ pub fn resolve_import(
     })
 }
 
-fn allow_referencing_contracts(
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    krate: CrateId,
-    local_id: LocalModuleId,
-) -> bool {
-    ModuleId { krate, local_id }.module(def_maps).is_contract
-}
-
 fn resolve_path_to_ns(
     import_directive: &ImportDirective,
     crate_id: CrateId,
     importing_crate: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    allow_contracts: bool,
+    path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> NamespaceResolutionResult {
     let import_path = &import_directive.path.segments;
     let def_map = &def_maps[&crate_id];
@@ -155,7 +139,7 @@ fn resolve_path_to_ns(
                 importing_crate,
                 import_path,
                 def_maps,
-                allow_contracts,
+                path_references,
             )
         }
         crate::ast::PathKind::Plain => {
@@ -168,7 +152,7 @@ fn resolve_path_to_ns(
                     import_path,
                     import_directive.module_id,
                     def_maps,
-                    allow_contracts,
+                    path_references,
                 );
             }
 
@@ -181,7 +165,7 @@ fn resolve_path_to_ns(
                     def_map,
                     import_directive,
                     def_maps,
-                    allow_contracts,
+                    path_references,
                     importing_crate,
                 );
             }
@@ -192,7 +176,7 @@ fn resolve_path_to_ns(
                 import_path,
                 import_directive.module_id,
                 def_maps,
-                allow_contracts,
+                path_references,
             )
         }
 
@@ -200,7 +184,7 @@ fn resolve_path_to_ns(
             def_map,
             import_directive,
             def_maps,
-            allow_contracts,
+            path_references,
             importing_crate,
         ),
     }
@@ -212,7 +196,7 @@ fn resolve_path_from_crate_root(
 
     import_path: &[Ident],
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    allow_contracts: bool,
+    path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> NamespaceResolutionResult {
     resolve_name_in_module(
         crate_id,
@@ -220,7 +204,7 @@ fn resolve_path_from_crate_root(
         import_path,
         def_maps[&crate_id].root,
         def_maps,
-        allow_contracts,
+        path_references,
     )
 }
 
@@ -230,7 +214,7 @@ fn resolve_name_in_module(
     import_path: &[Ident],
     starting_mod: LocalModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    allow_contracts: bool,
+    path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> NamespaceResolutionResult {
     let def_map = &def_maps[&krate];
     let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
@@ -261,12 +245,27 @@ fn resolve_name_in_module(
 
         // In the type namespace, only Mod can be used in a path.
         current_mod_id = match typ {
-            ModuleDefId::ModuleId(id) => id,
+            ModuleDefId::ModuleId(id) => {
+                if let Some(path_references) = path_references {
+                    path_references.push(ReferenceId::Module(id));
+                }
+                id
+            }
             ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
             // TODO: If impls are ever implemented, types can be used in a path
-            ModuleDefId::TypeId(id) => id.module_id(),
+            ModuleDefId::TypeId(id) => {
+                if let Some(path_references) = path_references {
+                    path_references.push(ReferenceId::Struct(id));
+                }
+                id.module_id()
+            }
             ModuleDefId::TypeAliasId(_) => panic!("type aliases cannot be used in type namespace"),
-            ModuleDefId::TraitId(id) => id.0,
+            ModuleDefId::TraitId(id) => {
+                if let Some(path_references) = path_references {
+                    path_references.push(ReferenceId::Trait(id));
+                }
+                id.0
+            }
             ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
         };
 
@@ -293,10 +292,6 @@ fn resolve_name_in_module(
             return Err(PathResolutionError::Unresolved(current_segment.clone()));
         }
 
-        // Check if it is a contract and we're calling from a non-contract context
-        if current_mod.is_contract && !allow_contracts {
-            return Err(PathResolutionError::ExternalContractUsed(current_segment.clone()));
-        }
         current_ns = found_ns;
     }
 
@@ -314,7 +309,7 @@ fn resolve_external_dep(
     current_def_map: &CrateDefMap,
     directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    allow_contracts: bool,
+    path_references: &mut Option<&mut Vec<ReferenceId>>,
     importing_crate: CrateId,
 ) -> NamespaceResolutionResult {
     // Use extern_prelude to get the dep
@@ -344,7 +339,7 @@ fn resolve_external_dep(
         is_prelude: false,
     };
 
-    resolve_path_to_ns(&dep_directive, dep_module.krate, importing_crate, def_maps, allow_contracts)
+    resolve_path_to_ns(&dep_directive, dep_module.krate, importing_crate, def_maps, path_references)
 }
 
 // Issue an error if the given private function is being called from a non-child module, or

@@ -22,6 +22,7 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::{
+    node_interner::QuotedTypeId,
     parser::{ParserError, ParserErrorReason},
     token::IntType,
     BinaryTypeOperator,
@@ -119,6 +120,10 @@ pub enum UnresolvedTypeData {
     // The type of quoted code for metaprogramming
     Quoted(crate::QuotedType),
 
+    /// An already resolved type. These can only be parsed if they were present in the token stream
+    /// as a result of being spliced into a macro's token stream input.
+    Resolved(QuotedTypeId),
+
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
 }
@@ -146,7 +151,7 @@ pub struct UnaryRhsMethodCall {
 }
 
 /// The precursor to TypeExpression, this is the type that the parser allows
-/// to be used in the length position of an array type. Only constants, variables,
+/// to be used in the length position of an array type. Only constant integers, variables,
 /// and numeric binary operators are allowed here.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
@@ -221,6 +226,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
             Parenthesized(typ) => write!(f, "({typ})"),
+            Resolved(_) => write!(f, "(resolved type)"),
         }
     }
 }
@@ -258,6 +264,10 @@ impl UnresolvedType {
 
     pub fn unspecified() -> UnresolvedType {
         UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: None }
+    }
+
+    pub(crate) fn is_type_expression(&self) -> bool {
+        matches!(&self.typ, UnresolvedTypeData::Expression(_))
     }
 }
 

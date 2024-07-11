@@ -1,11 +1,11 @@
 use crate::{cmp::Eq, convert::From};
 
-struct BoundedVec<T, MaxLen> {
+struct BoundedVec<T, let MaxLen: u32> {
     storage: [T; MaxLen],
     len: u32,
 }
 
-impl<T, MaxLen> BoundedVec<T, MaxLen> {
+impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     pub fn new() -> Self {
         let zeroed = crate::unsafe::zeroed();
         BoundedVec { storage: [zeroed; MaxLen], len: 0 }
@@ -14,7 +14,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
     /// Get an element from the vector at the given index.
     /// Panics if the given index points beyond the end of the vector (`self.len()`).
     pub fn get(self, index: u32) -> T {
-        assert(index < self.len);
+        assert(index < self.len, "Attempted to read past end of BoundedVec");
         self.get_unchecked(index)
     }
 
@@ -61,7 +61,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self.storage
     }
 
-    pub fn extend_from_array<Len>(&mut self, array: [T; Len]) {
+    pub fn extend_from_array<let Len: u32>(&mut self, array: [T; Len]) {
         let new_len = self.len + array.len();
         assert(new_len <= MaxLen, "extend_from_array out of bounds");
         for i in 0..array.len() {
@@ -79,7 +79,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self.len = new_len;
     }
 
-    pub fn extend_from_bounded_vec<Len>(&mut self, vec: BoundedVec<T, Len>) {
+    pub fn extend_from_bounded_vec<let Len: u32>(&mut self, vec: BoundedVec<T, Len>) {
         let append_len = vec.len();
         let new_len = self.len + append_len;
         assert(new_len <= MaxLen, "extend_from_bounded_vec out of bounds");
@@ -94,7 +94,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self.len = new_len;
     }
 
-    pub fn from_array<Len>(array: [T; Len]) -> Self {
+    pub fn from_array<let Len: u32>(array: [T; Len]) -> Self {
         assert(Len <= MaxLen, "from array out of bounds");
         let mut vec: BoundedVec<T, MaxLen> = BoundedVec::new();
         vec.extend_from_array(array);
@@ -134,7 +134,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
     }
 }
 
-impl<T, MaxLen> Eq for BoundedVec<T, MaxLen> where T: Eq {
+impl<T, let MaxLen: u32> Eq for BoundedVec<T, MaxLen> where T: Eq {
     fn eq(self, other: BoundedVec<T, MaxLen>) -> bool {
         // TODO: https://github.com/noir-lang/noir/issues/4837
         //
@@ -145,32 +145,23 @@ impl<T, MaxLen> Eq for BoundedVec<T, MaxLen> where T: Eq {
     }
 }
 
-impl<T, MaxLen, Len> From<[T; Len]> for BoundedVec<T, MaxLen> {
+impl<T, let MaxLen: u32, let Len: u32> From<[T; Len]> for BoundedVec<T, MaxLen> {
     fn from(array: [T; Len]) -> BoundedVec<T, MaxLen>  {
         BoundedVec::from_array(array)
     }
 }
 
 mod bounded_vec_tests {
-    // TODO: Allow imports from "super"
-    use crate::collections::bounded_vec::BoundedVec;
 
-    #[test]
-    fn empty_equality() {
-        let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
-        let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
+    mod get {
+        use crate::collections::bounded_vec::BoundedVec;
 
-        assert_eq(bounded_vec1, bounded_vec2);
-    }
+        #[test(should_fail_with = "Attempted to read past end of BoundedVec")]
+        fn panics_when_reading_elements_past_end_of_vec() {
+            let vec: BoundedVec<Field, 5> = BoundedVec::new();
 
-    #[test]
-    fn inequality() {
-        let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
-        let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
-        bounded_vec1.push(1);
-        bounded_vec2.push(2);
-
-        assert(bounded_vec1 != bounded_vec2);
+            crate::println(vec.get(0));
+        }
     }
 
     mod set {
@@ -293,6 +284,28 @@ mod bounded_vec_tests {
             assert_eq(bounded_vec.len(), 2);
             assert_eq(bounded_vec.storage()[0], 1);
             assert_eq(bounded_vec.storage()[1], 2);
+        }
+    }
+
+    mod trait_eq {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn empty_equality() {
+            let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
+            let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
+
+            assert_eq(bounded_vec1, bounded_vec2);
+        }
+
+        #[test]
+        fn inequality() {
+            let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
+            let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
+            bounded_vec1.push(1);
+            bounded_vec2.push(2);
+
+            assert(bounded_vec1 != bounded_vec2);
         }
     }
 }

@@ -1,16 +1,12 @@
 use std::future::{self, Future};
 
-use crate::{parse_diff, resolve_workspace_for_source_path};
 use crate::{types::GotoDefinitionResult, LspState};
-use async_lsp::{ErrorCode, ResponseError};
+use async_lsp::ResponseError;
 
-use fm::PathString;
 use lsp_types::request::GotoTypeDefinitionParams;
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse};
-use nargo::insert_all_files_for_workspace_into_file_manager;
-use noirc_driver::file_manager_with_stdlib;
 
-use super::{position_to_location, to_lsp_location};
+use super::{process_request, to_lsp_location};
 
 pub(crate) fn on_goto_definition_request(
     state: &mut LspState,
@@ -33,93 +29,81 @@ fn on_goto_definition_inner(
     params: GotoDefinitionParams,
     return_type_location_instead: bool,
 ) -> Result<GotoDefinitionResult, ResponseError> {
-    let file_path =
-        params.text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
-            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
-        })?;
-
-    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
-    let package = workspace.members.first().unwrap();
-
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_diff(&workspace_file_manager, state);
-
-    let (mut context, crate_id) =
-        nargo::prepare_package(&workspace_file_manager, &parsed_files, package);
-
-    let package_root_path = package.root_dir.as_os_str().to_string_lossy().into_owned();
-    let interner = if let Some(def_interner) = state.cached_definitions.get(&package_root_path) {
-        def_interner
-    } else {
-        // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, false);
-        &context.def_interner
-    };
-
-    let files = workspace_file_manager.as_file_map();
-    let file_path = PathString::from(file_path);
-    let search_for_location =
-        position_to_location(files, &file_path, &params.text_document_position_params.position)?;
-
-    let goto_definition_response = interner
-        .get_definition_location_from(search_for_location, return_type_location_instead)
-        .and_then(|found_location| {
-            let file_id = found_location.file;
-            let definition_position = to_lsp_location(files, file_id, found_location.span)?;
-            let response = GotoDefinitionResponse::from(definition_position).to_owned();
-            Some(response)
-        });
-
-    Ok(goto_definition_response)
+    process_request(state, params.text_document_position_params, |location, interner, files| {
+        interner.get_definition_location_from(location, return_type_location_instead).and_then(
+            |found_location| {
+                let file_id = found_location.file;
+                let definition_position = to_lsp_location(files, file_id, found_location.span)?;
+                let response = GotoDefinitionResponse::from(definition_position).to_owned();
+                Some(response)
+            },
+        )
+    })
 }
 
 #[cfg(test)]
 mod goto_definition_tests {
+    use std::panic;
 
-    use acvm::blackbox_solver::StubbedBlackBoxSolver;
-    use async_lsp::ClientSocket;
-    use lsp_types::{Position, Url};
+    use crate::test_utils::{self, search_in_file};
+    use lsp_types::{Position, Range};
     use tokio::test;
 
     use super::*;
 
-    #[test]
-    async fn test_on_goto_definition() {
-        let client = ClientSocket::new_closed();
-        let mut state = LspState::new(&client, StubbedBlackBoxSolver);
+    async fn expect_goto_for_all_references(directory: &str, name: &str, definition_index: usize) {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
 
-        let root_path = std::env::current_dir()
-            .unwrap()
-            .join("../../test_programs/execution_success/7_function")
-            .canonicalize()
-            .expect("Could not resolve root path");
-        let noir_text_document = Url::from_file_path(root_path.join("src/main.nr").as_path())
-            .expect("Could not convert text document path to URI");
-        let root_uri = Some(
-            Url::from_file_path(root_path.as_path()).expect("Could not convert root path to URI"),
-        );
+        let ranges = search_in_file(noir_text_document.path(), name);
+        let expected_range = ranges[definition_index];
 
-        #[allow(deprecated)]
-        let initialize_params = lsp_types::InitializeParams {
-            process_id: Default::default(),
-            root_path: None,
-            root_uri,
-            initialization_options: None,
-            capabilities: Default::default(),
-            trace: Some(lsp_types::TraceValue::Verbose),
-            workspace_folders: None,
-            client_info: None,
-            locale: None,
-        };
-        let _initialize_response = crate::requests::on_initialize(&mut state, initialize_params)
-            .await
-            .expect("Could not initialize LSP server");
+        for (index, range) in ranges.iter().enumerate() {
+            // Ideally "go to" at the definition should return the same location, but this isn't currently
+            // working. But it's also not that important, so we'll keep it for later.
+            if index == definition_index {
+                continue;
+            }
+
+            let params = GotoDefinitionParams {
+                text_document_position_params: lsp_types::TextDocumentPositionParams {
+                    text_document: lsp_types::TextDocumentIdentifier {
+                        uri: noir_text_document.clone(),
+                    },
+                    position: range.start,
+                },
+                work_done_progress_params: Default::default(),
+                partial_result_params: Default::default(),
+            };
+
+            let response = on_goto_definition_request(&mut state, params)
+                .await
+                .expect("Could execute on_goto_definition_request")
+                .unwrap_or_else(|| {
+                    panic!("Didn't get a goto definition response for index {index}")
+                });
+
+            if let GotoDefinitionResponse::Scalar(location) = response {
+                assert_eq!(location.range, expected_range);
+            } else {
+                panic!("Expected a scalar response");
+            };
+        }
+    }
+
+    async fn expect_goto(
+        directory: &str,
+        position: Position,
+        expected_file: &str,
+        expected_range: Range,
+    ) {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
 
         let params = GotoDefinitionParams {
             text_document_position_params: lsp_types::TextDocumentPositionParams {
-                text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
-                position: Position { line: 95, character: 5 },
+                text_document: lsp_types::TextDocumentIdentifier {
+                    uri: noir_text_document.clone(),
+                },
+                position,
             },
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
@@ -127,8 +111,94 @@ mod goto_definition_tests {
 
         let response = on_goto_definition_request(&mut state, params)
             .await
-            .expect("Could execute on_goto_definition_request");
+            .expect("Could execute on_goto_definition_request")
+            .unwrap_or_else(|| panic!("Didn't get a goto definition response"));
 
-        assert!(&response.is_some());
+        if let GotoDefinitionResponse::Scalar(location) = response {
+            assert!(location.uri.to_string().ends_with(expected_file));
+            assert_eq!(location.range, expected_range);
+        } else {
+            panic!("Expected a scalar response");
+        };
+    }
+
+    #[test]
+    async fn goto_from_function_location_to_declaration() {
+        expect_goto_for_all_references("go_to_definition", "another_function", 0).await;
+    }
+
+    #[test]
+    async fn goto_from_use_as() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 7, character: 29 }, // The word after `as`,
+            "src/main.nr",
+            Range {
+                start: Position { line: 1, character: 11 },
+                end: Position { line: 1, character: 27 },
+            },
+        )
+        .await;
+    }
+
+    #[test]
+    async fn goto_module_from_call_path() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 17, character: 4 }, // "bar" in "bar::baz()"
+            "src/bar.nr",
+            Range {
+                start: Position { line: 0, character: 0 },
+                end: Position { line: 0, character: 0 },
+            },
+        )
+        .await;
+    }
+
+    #[test]
+    async fn goto_inline_module_from_call_path() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 18, character: 9 }, // "inline" in "bar::inline::qux()"
+            "src/bar.nr",
+            Range {
+                start: Position { line: 2, character: 4 },
+                end: Position { line: 2, character: 10 },
+            },
+        )
+        .await;
+    }
+
+    #[test]
+    async fn goto_module_from_use_path() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 6, character: 4 }, // "foo" in "use foo::another_function;"
+            "src/main.nr",
+            Range {
+                start: Position { line: 0, character: 4 },
+                end: Position { line: 0, character: 7 },
+            },
+        )
+        .await;
+    }
+
+    #[test]
+    async fn goto_module_from_mod() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 9, character: 4 }, // "bar" in "mod bar;"
+            "src/bar.nr",
+            Range {
+                start: Position { line: 0, character: 0 },
+                end: Position { line: 0, character: 0 },
+            },
+        )
+        .await;
+    }
+
+    #[test]
+    async fn goto_for_local_variable() {
+        expect_goto_for_all_references("local_variable", "some_var", 0).await;
     }
 }

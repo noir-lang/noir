@@ -4,6 +4,7 @@ use noirc_errors::Location;
 
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::node_interner::{DefinitionId, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId};
+use crate::token::Tokens;
 use crate::Shared;
 
 use super::stmt::HirPattern;
@@ -33,8 +34,8 @@ pub enum HirExpression {
     If(HirIfExpression),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
-    Quote(HirQuoted),
-    Unquote(crate::ast::BlockExpression),
+    Quote(Tokens),
+    Unquote(Tokens),
     Comptime(HirBlockExpression),
     Error,
 }
@@ -123,6 +124,10 @@ pub enum HirArrayLiteral {
 pub struct HirPrefixExpression {
     pub operator: UnaryOp,
     pub rhs: ExprId,
+
+    /// The trait method id for the operator trait method that corresponds to this operator,
+    /// if such a trait exists (for example, there's no trait for the dereference operator).
+    pub trait_method_id: Option<TraitMethodId>,
 }
 
 #[derive(Debug, Clone)]
@@ -290,14 +295,4 @@ pub struct HirLambda {
     pub return_type: Type,
     pub body: ExprId,
     pub captures: Vec<HirCapturedVar>,
-}
-
-#[derive(Debug, Clone)]
-pub struct HirQuoted {
-    pub quoted_block: crate::ast::BlockExpression,
-
-    /// Each expression here corresponds to a `ExpressionKind::UnquoteMarker(index)` in `quoted_block`.
-    /// The values of these expressions after evaluation will be inlined into the position
-    /// indicated by their corresponding UnquoteMarker with that index.
-    pub unquoted_exprs: Vec<ExprId>,
 }
