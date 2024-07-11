@@ -1,0 +1,3 @@
+pub foo() -> bool {
+    true
+}

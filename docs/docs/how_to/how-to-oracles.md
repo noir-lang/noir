@@ -141,10 +141,10 @@ server.addMethod("resolve_function_call", async (params) => {
   if params.function !== "getSqrt" {
     throw Error("Unexpected foreign call")
   };
-  const values = params.inputs[0].map((field) => {
+  const values = params.inputs[0].Array.map((field) => {
     return `${Math.sqrt(parseInt(field, 16))}`;
   });
-  return { values };
+  return { values: [{ Array: values }] };
 });
 ```
 

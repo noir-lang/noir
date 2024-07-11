@@ -1,7 +1,11 @@
+use std::fmt::Display;
 use std::rc::Rc;
 
 use crate::{
-    hir::def_collector::dc_crate::CompilationError, parser::ParserError, token::Tokens, Type,
+    hir::{def_collector::dc_crate::CompilationError, type_check::NoMatchingImplFoundError},
+    parser::ParserError,
+    token::Tokens,
+    Type,
 };
 use acvm::{acir::AcirField, FieldElement};
 use fm::FileId;
@@ -16,6 +20,7 @@ pub enum InterpreterError {
     ArgumentCountMismatch { expected: usize, actual: usize, location: Location },
     TypeMismatch { expected: Type, value: Value, location: Location },
     NonComptimeVarReferenced { name: String, location: Location },
+    VariableNotInScope { location: Location },
     IntegerOutOfRangeForType { value: FieldElement, typ: Type, location: Location },
     ErrorNodeEncountered { location: Location },
     NonFunctionCalled { value: Value, location: Location },
@@ -41,9 +46,13 @@ pub enum InterpreterError {
     NonStructInConstructor { typ: Type, location: Location },
     CannotInlineMacro { value: Value, location: Location },
     UnquoteFoundDuringEvaluation { location: Location },
+    DebugEvaluateComptime { diagnostic: CustomDiagnostic, location: Location },
     FailedToParseMacro { error: ParserError, tokens: Rc<Tokens>, rule: &'static str, file: FileId },
     UnsupportedTopLevelItemUnquote { item: String, location: Location },
     NonComptimeFnCallInSameCrate { function: String, location: Location },
+    NoImpl { location: Location },
+    NoMatchingImplFound { error: NoMatchingImplFoundError, file: FileId },
+    ImplMethodTypeMismatch { expected: Type, actual: Type, location: Location },
 
     Unimplemented { item: String, location: Location },
 
@@ -78,6 +87,7 @@ impl InterpreterError {
             InterpreterError::ArgumentCountMismatch { location, .. }
             | InterpreterError::TypeMismatch { location, .. }
             | InterpreterError::NonComptimeVarReferenced { location, .. }
+            | InterpreterError::VariableNotInScope { location, .. }
             | InterpreterError::IntegerOutOfRangeForType { location, .. }
             | InterpreterError::ErrorNodeEncountered { location, .. }
             | InterpreterError::NonFunctionCalled { location, .. }
@@ -106,15 +116,35 @@ impl InterpreterError {
             | InterpreterError::UnsupportedTopLevelItemUnquote { location, .. }
             | InterpreterError::NonComptimeFnCallInSameCrate { location, .. }
             | InterpreterError::Unimplemented { location, .. }
+            | InterpreterError::NoImpl { location, .. }
+            | InterpreterError::ImplMethodTypeMismatch { location, .. }
             | InterpreterError::BreakNotInLoop { location, .. }
-            | InterpreterError::ContinueNotInLoop { location, .. } => *location,
+            | InterpreterError::DebugEvaluateComptime { location, .. } => *location,
+            InterpreterError::ContinueNotInLoop { location, .. } => *location,
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
+            }
+            InterpreterError::NoMatchingImplFound { error, file } => {
+                Location::new(error.span, *file)
             }
             InterpreterError::Break | InterpreterError::Continue => {
                 panic!("Tried to get the location of Break/Continue error!")
             }
         }
+    }
+
+    pub(crate) fn debug_evaluate_comptime(expr: impl Display, location: Location) -> Self {
+        let mut formatted_result = format!("{}", expr);
+        // if multi-line, display on a separate line from the message
+        if formatted_result.contains('\n') {
+            formatted_result.insert(0, '\n');
+        }
+        let diagnostic = CustomDiagnostic::simple_info(
+            "`comptime` expression ran:".to_string(),
+            format!("After evaluation: {}", formatted_result),
+            location.span,
+        );
+        InterpreterError::DebugEvaluateComptime { diagnostic, location }
     }
 }
 
@@ -141,6 +171,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::NonComptimeVarReferenced { name, location } => {
                 let msg = format!("Non-comptime variable `{name}` referenced in comptime code");
                 let secondary = "Non-comptime variables can't be used in comptime code".to_string();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::VariableNotInScope { location } => {
+                let msg = "Variable not in scope".to_string();
+                let secondary = "Could not find variable".to_string();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::IntegerOutOfRangeForType { value, typ, location } => {
@@ -273,6 +308,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "This is a bug".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
+            InterpreterError::DebugEvaluateComptime { diagnostic, .. } => diagnostic.clone(),
             InterpreterError::FailedToParseMacro { error, tokens, rule, file: _ } => {
                 let message = format!("Failed to parse macro's token stream into {rule}");
                 let tokens = vecmap(&tokens.0, ToString::to_string).join(" ");
@@ -324,6 +360,17 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = "There is no loop to continue!".into();
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
+            InterpreterError::NoImpl { location } => {
+                let msg = "No impl found due to prior type error".into();
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::ImplMethodTypeMismatch { expected, actual, location } => {
+                let msg = format!(
+                    "Impl method type {actual} does not unify with trait method type {expected}"
+                );
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::NoMatchingImplFound { error, .. } => error.into(),
             InterpreterError::Break => unreachable!("Uncaught InterpreterError::Break"),
             InterpreterError::Continue => unreachable!("Uncaught InterpreterError::Continue"),
         }

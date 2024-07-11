@@ -7,6 +7,7 @@ mod file_map;
 
 pub use file_map::{File, FileId, FileMap, PathString};
 
+use iter_extended::vecmap;
 // Re-export for the lsp
 pub use codespan_reporting::files as codespan_files;
 
@@ -103,6 +104,26 @@ impl FileManager {
     pub fn name_to_id(&self, file_name: PathBuf) -> Option<FileId> {
         self.file_map.get_file_id(&PathString::from_path(file_name))
     }
+
+    /// Find a file by its path suffix, e.g. "src/main.nr" is a suffix of
+    /// "some_dir/package_name/src/main.nr"`
+    pub fn find_by_path_suffix(&self, suffix: &str) -> Result<Option<FileId>, Vec<PathBuf>> {
+        let suffix_path: Vec<_> = Path::new(suffix).components().rev().collect();
+        let results: Vec<_> = self
+            .path_to_id
+            .iter()
+            .filter(|(path, _id)| {
+                path.components().rev().zip(suffix_path.iter()).all(|(x, y)| &x == y)
+            })
+            .collect();
+        if results.is_empty() {
+            Ok(None)
+        } else if results.len() == 1 {
+            Ok(Some(*results[0].1))
+        } else {
+            Err(vecmap(results, |(path, _id)| path.clone()))
+        }
+    }
 }
 
 pub trait NormalizePath {
@@ -185,24 +206,17 @@ mod path_normalization {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::{tempdir, TempDir};
 
-    // Returns the absolute path to the file
-    fn create_dummy_file(dir: &TempDir, file_name: &Path) -> PathBuf {
-        let file_path = dir.path().join(file_name);
-        let _file = std::fs::File::create(&file_path).unwrap();
-        file_path
+    fn add_file(fm: &mut FileManager, file_name: &Path) -> FileId {
+        fm.add_file_with_source(file_name, "fn foo() {}".to_string()).unwrap()
     }
 
     #[test]
     fn path_resolve_file_module_other_ext() {
-        let dir = tempdir().unwrap();
-        let file_name = Path::new("foo.nr");
-        create_dummy_file(&dir, file_name);
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
 
-        let mut fm = FileManager::new(dir.path());
-
-        let file_id = fm.add_file_with_source(file_name, "fn foo() {}".to_string()).unwrap();
+        let file_id = add_file(&mut fm, &dir.join("foo.nr"));
 
         assert!(fm.path(file_id).unwrap().ends_with("foo.nr"));
     }
@@ -213,23 +227,19 @@ mod tests {
     /// they should both resolve to ../foo.nr
     #[test]
     fn path_resolve_modules_with_different_paths_as_same_file() {
-        let dir = tempdir().unwrap();
-        let sub_dir = TempDir::new_in(&dir).unwrap();
-        let sub_sub_dir = TempDir::new_in(&sub_dir).unwrap();
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
 
-        let mut fm = FileManager::new(dir.path());
+        // Create a lib.nr file at the root and add it to the file manager.
+        let file_id = add_file(&mut fm, &dir.join("lib.nr"));
 
-        // Create a lib.nr file at the root.
-        let file_name = Path::new("lib.nr");
-        create_dummy_file(&dir, file_name);
-
-        // Create another path with `./` and `../` inside it
-        let second_file_name = PathBuf::from(sub_sub_dir.path()).join("./../../lib.nr");
-
-        // Add both files to the file manager
-        let file_id = fm.add_file_with_source(file_name, "fn foo() {}".to_string()).unwrap();
-        let second_file_id =
-            fm.add_file_with_source(&second_file_name, "fn foo() {}".to_string()).unwrap();
+        // Create another path with `./` and `../` inside it, and add it to the file manager
+        let sub_dir = dir.join("sub_dir");
+        let sub_sub_dir = sub_dir.join("sub_sub_dir");
+        let second_file_id = add_file(
+            &mut fm,
+            PathBuf::from(sub_sub_dir.as_path()).join("./../../lib.nr").as_path(),
+        );
 
         assert_eq!(file_id, second_file_id);
     }

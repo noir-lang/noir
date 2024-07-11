@@ -1,10 +1,12 @@
-use std::{collections::HashMap, path::Path, vec};
+use std::path::Path;
+use std::vec;
 
 use acvm::{AcirField, FieldElement};
 use fm::{FileId, FileManager, FILE_EXTENSION};
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 use num_bigint::BigUint;
 use num_traits::Num;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
     FunctionDefinition, Ident, ItemVisibility, LetStatement, ModuleDeclaration, NoirFunction,
@@ -12,6 +14,7 @@ use crate::ast::{
     TypeImpl,
 };
 use crate::macros_api::NodeInterner;
+use crate::node_interner::ReferenceId;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -279,12 +282,18 @@ impl<'a> ModCollector<'a> {
             );
 
             // Create the corresponding module for the struct namespace
-            let id = match self.push_child_module(&name, self.file_id, false, false) {
-                Ok(local_id) => context.def_interner.new_struct(
+            let id = match self.push_child_module(
+                context,
+                &name,
+                Location::new(name.span(), self.file_id),
+                false,
+                false,
+            ) {
+                Ok(module_id) => context.def_interner.new_struct(
                     &unresolved,
                     resolved_generics,
                     krate,
-                    local_id,
+                    module_id.local_id,
                     self.file_id,
                 ),
                 Err(error) => {
@@ -308,6 +317,8 @@ impl<'a> ModCollector<'a> {
 
             // And store the TypeId -> StructType mapping somewhere it is reachable
             self.def_collector.items.types.insert(id, unresolved);
+
+            context.def_interner.add_definition_location(ReferenceId::Struct(id));
         }
         definition_errors
     }
@@ -353,6 +364,8 @@ impl<'a> ModCollector<'a> {
             }
 
             self.def_collector.items.type_aliases.insert(type_alias_id, unresolved);
+
+            context.def_interner.add_definition_location(ReferenceId::Alias(type_alias_id));
         }
         errors
     }
@@ -370,8 +383,14 @@ impl<'a> ModCollector<'a> {
             let name = trait_definition.name.clone();
 
             // Create the corresponding module for the trait namespace
-            let trait_id = match self.push_child_module(&name, self.file_id, false, false) {
-                Ok(local_id) => TraitId(ModuleId { krate, local_id }),
+            let trait_id = match self.push_child_module(
+                context,
+                &name,
+                Location::new(name.span(), self.file_id),
+                false,
+                false,
+            ) {
+                Ok(module_id) => TraitId(ModuleId { krate, local_id: module_id.local_id }),
                 Err(error) => {
                     errors.push((error.into(), self.file_id));
                     continue;
@@ -399,7 +418,7 @@ impl<'a> ModCollector<'a> {
                 self_type: None,
             };
 
-            let mut method_ids = HashMap::new();
+            let mut method_ids = HashMap::default();
             for trait_item in &trait_definition.items {
                 match trait_item {
                     TraitItem::Function {
@@ -413,6 +432,7 @@ impl<'a> ModCollector<'a> {
                         let func_id = context.def_interner.push_empty_fn();
                         method_ids.insert(name.to_string(), func_id);
 
+                        let location = Location::new(name.span(), self.file_id);
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
                             visibility: ItemVisibility::Public,
@@ -421,9 +441,9 @@ impl<'a> ModCollector<'a> {
                             is_unconstrained: false,
                             generic_count: generics.len(),
                             is_comptime: false,
+                            name_location: location,
                         };
 
-                        let location = Location::new(name.span(), self.file_id);
                         context
                             .def_interner
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
@@ -465,6 +485,7 @@ impl<'a> ModCollector<'a> {
                             trait_id.0.local_id,
                             self.file_id,
                             vec![],
+                            false,
                             false,
                         );
 
@@ -511,6 +532,8 @@ impl<'a> ModCollector<'a> {
             };
             context.def_interner.push_empty_trait(trait_id, &unresolved, resolved_generics);
 
+            context.def_interner.add_definition_location(ReferenceId::Trait(trait_id));
+
             self.def_collector.items.traits.insert(trait_id, unresolved);
         }
         errors
@@ -526,13 +549,19 @@ impl<'a> ModCollector<'a> {
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for submodule in submodules {
-            match self.push_child_module(&submodule.name, file_id, true, submodule.is_contract) {
+            match self.push_child_module(
+                context,
+                &submodule.name,
+                Location::new(submodule.name.span(), file_id),
+                true,
+                submodule.is_contract,
+            ) {
                 Ok(child) => {
                     errors.extend(collect_defs(
                         self.def_collector,
                         submodule.contents,
                         file_id,
-                        child,
+                        child.local_id,
                         crate_id,
                         context,
                         macro_processors,
@@ -557,17 +586,14 @@ impl<'a> ModCollector<'a> {
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
-        let child_file_id =
-            match find_module(&context.file_manager, self.file_id, &mod_decl.ident.0.contents) {
-                Ok(child_file_id) => child_file_id,
-                Err(expected_path) => {
-                    let mod_name = mod_decl.ident.clone();
-                    let err =
-                        DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path };
-                    errors.push((err.into(), self.file_id));
-                    return errors;
-                }
-            };
+        let child_file_id = match find_module(&context.file_manager, self.file_id, &mod_decl.ident)
+        {
+            Ok(child_file_id) => child_file_id,
+            Err(err) => {
+                errors.push((err.into(), self.file_id));
+                return errors;
+            }
+        };
 
         let location = Location { file: self.file_id, span: mod_decl.ident.span() };
 
@@ -614,13 +640,24 @@ impl<'a> ModCollector<'a> {
         );
 
         // Add module into def collector and get a ModuleId
-        match self.push_child_module(&mod_decl.ident, child_file_id, true, false) {
+        match self.push_child_module(
+            context,
+            &mod_decl.ident,
+            Location::new(Span::empty(0), child_file_id),
+            true,
+            false,
+        ) {
             Ok(child_mod_id) => {
+                // Track that the "foo" in `mod foo;` points to the module "foo"
+                let referenced = ReferenceId::Module(child_mod_id);
+                let reference = ReferenceId::Reference(location, false);
+                context.def_interner.add_reference(referenced, reference);
+
                 errors.extend(collect_defs(
                     self.def_collector,
                     ast,
                     child_file_id,
-                    child_mod_id,
+                    child_mod_id.local_id,
                     crate_id,
                     context,
                     macro_processors,
@@ -637,13 +674,22 @@ impl<'a> ModCollector<'a> {
     /// On error this returns None and pushes to `errors`
     fn push_child_module(
         &mut self,
+        context: &mut Context,
         mod_name: &Ident,
-        file_id: FileId,
+        mod_location: Location,
         add_to_parent_scope: bool,
         is_contract: bool,
-    ) -> Result<LocalModuleId, DefCollectorErrorKind> {
+    ) -> Result<ModuleId, DefCollectorErrorKind> {
         let parent = Some(self.module_id);
-        let location = Location::new(mod_name.span(), file_id);
+
+        // Note: the difference between `location` and `mod_location` is:
+        // - `mod_location` will point to either the token "foo" in `mod foo { ... }`
+        //   if it's an inline module, or the first char of a the file if it's an external module.
+        // - `location` will always point to the token "foo" in `mod foo` regardless of whether
+        //   it's inline or external.
+        // Eventually the location put in `ModuleData` is used for codelenses about `contract`s,
+        // so we keep using `location` so that it continues to work as usual.
+        let location = Location::new(mod_name.span(), mod_location.file);
         let new_module = ModuleData::new(parent, location, is_contract);
         let module_id = self.def_collector.def_map.modules.insert(new_module);
 
@@ -651,6 +697,11 @@ impl<'a> ModCollector<'a> {
 
         // Update the parent module to reference the child
         modules[self.module_id.0].children.insert(mod_name.clone(), LocalModuleId(module_id));
+
+        let mod_id = ModuleId {
+            krate: self.def_collector.def_map.krate,
+            local_id: LocalModuleId(module_id),
+        };
 
         // Add this child module into the scope of the parent module as a module definition
         // module definitions are definitions which can only exist at the module level.
@@ -660,11 +711,6 @@ impl<'a> ModCollector<'a> {
         // to a child module containing its methods) since the module name should not shadow
         // the struct name.
         if add_to_parent_scope {
-            let mod_id = ModuleId {
-                krate: self.def_collector.def_map.krate,
-                local_id: LocalModuleId(module_id),
-            };
-
             if let Err((first_def, second_def)) =
                 modules[self.module_id.0].declare_child_module(mod_name.to_owned(), mod_id)
             {
@@ -675,35 +721,58 @@ impl<'a> ModCollector<'a> {
                 };
                 return Err(err);
             }
+
+            context.def_interner.add_module_location(mod_id, mod_location);
         }
 
-        Ok(LocalModuleId(module_id))
+        Ok(mod_id)
     }
 }
 
 fn find_module(
     file_manager: &FileManager,
     anchor: FileId,
-    mod_name: &str,
-) -> Result<FileId, String> {
+    mod_name: &Ident,
+) -> Result<FileId, DefCollectorErrorKind> {
     let anchor_path = file_manager
         .path(anchor)
         .expect("File must exist in file manager in order for us to be resolving its imports.")
         .with_extension("");
     let anchor_dir = anchor_path.parent().unwrap();
 
-    // if `anchor` is a `main.nr`, `lib.nr`, `mod.nr` or `{mod_name}.nr`, we check siblings of
-    // the anchor at `base/mod_name.nr`.
-    let candidate = if should_check_siblings_for_module(&anchor_path, anchor_dir) {
-        anchor_dir.join(format!("{mod_name}.{FILE_EXTENSION}"))
+    // Assuming anchor is called "anchor.nr" and we are looking up a module named "mod_name"...
+    // This is "mod_name"
+    let mod_name_str = &mod_name.0.contents;
+
+    // If we are in a special name like "main.nr", "lib.nr", "mod.nr" or "{mod_name}.nr",
+    // the search starts at the same directory, otherwise it starts in a nested directory.
+    let start_dir = if should_check_siblings_for_module(&anchor_path, anchor_dir) {
+        anchor_dir
     } else {
-        // Otherwise, we check for children of the anchor at `base/anchor/mod_name.nr`
-        anchor_path.join(format!("{mod_name}.{FILE_EXTENSION}"))
+        anchor_path.as_path()
     };
 
-    file_manager
-        .name_to_id(candidate.clone())
-        .ok_or_else(|| candidate.as_os_str().to_string_lossy().to_string())
+    // Check "mod_name.nr"
+    let mod_name_candidate = start_dir.join(format!("{mod_name_str}.{FILE_EXTENSION}"));
+    let mod_name_result = file_manager.name_to_id(mod_name_candidate.clone());
+
+    // Check "mod_name/mod.nr"
+    let mod_nr_candidate = start_dir.join(mod_name_str).join(format!("mod.{FILE_EXTENSION}"));
+    let mod_nr_result = file_manager.name_to_id(mod_nr_candidate.clone());
+
+    match (mod_nr_result, mod_name_result) {
+        (Some(_), Some(_)) => Err(DefCollectorErrorKind::OverlappingModuleDecls {
+            mod_name: mod_name.clone(),
+            expected_path: mod_name_candidate.as_os_str().to_string_lossy().to_string(),
+            alternative_path: mod_nr_candidate.as_os_str().to_string_lossy().to_string(),
+        }),
+        (Some(id), None) | (None, Some(id)) => Ok(id),
+        (None, None) => Err(DefCollectorErrorKind::UnresolvedModuleDecl {
+            mod_name: mod_name.clone(),
+            expected_path: mod_name_candidate.as_os_str().to_string_lossy().to_string(),
+            alternative_path: mod_nr_candidate.as_os_str().to_string_lossy().to_string(),
+        }),
+    }
 }
 
 /// Returns true if a module's child modules are expected to be in the same directory.
@@ -785,6 +854,7 @@ pub(crate) fn collect_global(
         file_id,
         global.attributes.clone(),
         matches!(global.pattern, Pattern::Mutable { .. }),
+        global.comptime,
     );
 
     // Add the statement to the scope so its path can be looked up later
@@ -801,73 +871,186 @@ pub(crate) fn collect_global(
 }
 
 #[cfg(test)]
-mod tests {
+mod find_module_tests {
     use super::*;
 
-    use std::path::PathBuf;
-    use tempfile::{tempdir, TempDir};
+    use noirc_errors::Spanned;
+    use std::path::{Path, PathBuf};
 
-    // Returns the absolute path to the file
-    fn create_dummy_file(dir: &TempDir, file_name: &Path) -> PathBuf {
-        let file_path = dir.path().join(file_name);
-        let _file = std::fs::File::create(&file_path).unwrap();
-        file_path
+    fn add_file(file_manager: &mut FileManager, dir: &Path, file_name: &str) -> FileId {
+        let mut target_filename = PathBuf::from(&dir);
+        for path in file_name.split('/') {
+            target_filename = target_filename.join(path);
+        }
+
+        file_manager
+            .add_file_with_source(&target_filename, "fn foo() {}".to_string())
+            .expect("could not add file to file manager and obtain a FileId")
+    }
+
+    fn find_module(
+        file_manager: &FileManager,
+        anchor: FileId,
+        mod_name: &str,
+    ) -> Result<FileId, DefCollectorErrorKind> {
+        let mod_name = Ident(Spanned::from_position(0, 1, mod_name.to_string()));
+        super::find_module(file_manager, anchor, &mod_name)
     }
 
     #[test]
-    fn path_resolve_file_module() {
-        let dir = tempdir().unwrap();
+    fn errors_if_cannot_find_file() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&PathBuf::new());
 
-        let entry_file_name = Path::new("my_dummy_file.nr");
-        create_dummy_file(&dir, entry_file_name);
+        let file_id = add_file(&mut fm, &dir, "my_dummy_file.nr");
 
-        let mut fm = FileManager::new(dir.path());
-
-        let file_id = fm.add_file_with_source(entry_file_name, "fn foo() {}".to_string()).unwrap();
-
-        let dep_file_name = Path::new("foo.nr");
-        create_dummy_file(&dir, dep_file_name);
-        find_module(&fm, file_id, "foo").unwrap_err();
+        let result = find_module(&fm, file_id, "foo");
+        assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
     }
 
     #[test]
-    fn path_resolve_sub_module() {
-        let dir = tempdir().unwrap();
-        let mut fm = FileManager::new(dir.path());
+    fn errors_because_cannot_find_mod_relative_to_main() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
 
-        // Create a lib.nr file at the root.
-        // we now have dir/lib.nr
-        let lib_nr_path = create_dummy_file(&dir, Path::new("lib.nr"));
-        let file_id = fm
-            .add_file_with_source(lib_nr_path.as_path(), "fn foo() {}".to_string())
-            .expect("could not add file to file manager and obtain a FileId");
+        let main_file_id = add_file(&mut fm, &dir, "main.nr");
+        add_file(&mut fm, &dir, "main/foo.nr");
 
-        // Create a sub directory
-        // we now have:
-        // - dir/lib.nr
-        // - dir/sub_dir
-        let sub_dir = TempDir::new_in(&dir).unwrap();
-        let sub_dir_name = sub_dir.path().file_name().unwrap().to_str().unwrap();
+        let result = find_module(&fm, main_file_id, "foo");
+        assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
+    }
 
-        // Add foo.nr to the subdirectory
-        // we no have:
-        // - dir/lib.nr
-        // - dir/sub_dir/foo.nr
-        let foo_nr_path = create_dummy_file(&sub_dir, Path::new("foo.nr"));
-        fm.add_file_with_source(foo_nr_path.as_path(), "fn foo() {}".to_string());
+    #[test]
+    fn errors_because_cannot_find_mod_relative_to_lib() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
 
-        // Add a parent module for the sub_dir
-        // we no have:
-        // - dir/lib.nr
-        // - dir/sub_dir.nr
-        // - dir/sub_dir/foo.nr
-        let sub_dir_nr_path = create_dummy_file(&dir, Path::new(&format!("{sub_dir_name}.nr")));
-        fm.add_file_with_source(sub_dir_nr_path.as_path(), "fn foo() {}".to_string());
+        let lib_file_id = add_file(&mut fm, &dir, "lib.nr");
+        add_file(&mut fm, &dir, "lib/foo.nr");
 
-        // First check for the sub_dir.nr file and add it to the FileManager
-        let sub_dir_file_id = find_module(&fm, file_id, sub_dir_name).unwrap();
+        let result = find_module(&fm, lib_file_id, "foo");
+        assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
+    }
 
-        // Now check for files in it's subdirectory
+    #[test]
+    fn errors_because_cannot_find_sibling_mod_for_regular_name() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        let foo_file_id = add_file(&mut fm, &dir, "foo.nr");
+        add_file(&mut fm, &dir, "bar.nr");
+
+        let result = find_module(&fm, foo_file_id, "bar");
+        assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
+    }
+
+    #[test]
+    fn cannot_find_module_in_the_same_directory_for_regular_name() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        let lib_file_id = add_file(&mut fm, &dir, "lib.nr");
+        add_file(&mut fm, &dir, "bar.nr");
+        add_file(&mut fm, &dir, "foo.nr");
+
+        // `mod bar` from `lib.nr` should find `bar.nr`
+        let bar_file_id = find_module(&fm, lib_file_id, "bar").unwrap();
+
+        // `mod foo` from `bar.nr` should fail to find `foo.nr`
+        let result = find_module(&fm, bar_file_id, "foo");
+        assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
+    }
+
+    #[test]
+    fn finds_module_in_sibling_dir_for_regular_name() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        let sub_dir_file_id = add_file(&mut fm, &dir, "sub_dir.nr");
+        add_file(&mut fm, &dir, "sub_dir/foo.nr");
+
+        // `mod foo` from `sub_dir.nr` should find `sub_dir/foo.nr`
         find_module(&fm, sub_dir_file_id, "foo").unwrap();
+    }
+
+    #[test]
+    fn finds_module_in_sibling_dir_mod_nr_for_regular_name() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        let sub_dir_file_id = add_file(&mut fm, &dir, "sub_dir.nr");
+        add_file(&mut fm, &dir, "sub_dir/foo/mod.nr");
+
+        // `mod foo` from `sub_dir.nr` should find `sub_dir/foo.nr`
+        find_module(&fm, sub_dir_file_id, "foo").unwrap();
+    }
+
+    #[test]
+    fn finds_module_in_sibling_dir_for_special_name() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        let lib_file_id = add_file(&mut fm, &dir, "lib.nr");
+        add_file(&mut fm, &dir, "sub_dir.nr");
+        add_file(&mut fm, &dir, "sub_dir/foo.nr");
+
+        // `mod sub_dir` from `lib.nr` should find `sub_dir.nr`
+        let sub_dir_file_id = find_module(&fm, lib_file_id, "sub_dir").unwrap();
+
+        // `mod foo` from `sub_dir.nr` should find `sub_dir/foo.nr`
+        find_module(&fm, sub_dir_file_id, "foo").unwrap();
+    }
+
+    #[test]
+    fn finds_mod_dot_nr_for_special_name() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        let lib_file_id = add_file(&mut fm, &dir, "lib.nr");
+        add_file(&mut fm, &dir, "foo/mod.nr");
+
+        // Check that searching "foo" finds the mod.nr file
+        find_module(&fm, lib_file_id, "foo").unwrap();
+    }
+
+    #[test]
+    fn errors_mod_dot_nr_in_same_directory() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        let lib_file_id = add_file(&mut fm, &dir, "lib.nr");
+        add_file(&mut fm, &dir, "mod.nr");
+
+        // Check that searching "foo" does not pick up the mod.nr file
+        let result = find_module(&fm, lib_file_id, "foo");
+        assert!(matches!(result, Err(DefCollectorErrorKind::UnresolvedModuleDecl { .. })));
+    }
+
+    #[test]
+    fn errors_if_file_exists_at_both_potential_module_locations_for_regular_name() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        let foo_file_id = add_file(&mut fm, &dir, "foo.nr");
+        add_file(&mut fm, &dir, "foo/bar.nr");
+        add_file(&mut fm, &dir, "foo/bar/mod.nr");
+
+        // Check that `mod bar` from `foo` gives an error
+        let result = find_module(&fm, foo_file_id, "bar");
+        assert!(matches!(result, Err(DefCollectorErrorKind::OverlappingModuleDecls { .. })));
+    }
+
+    #[test]
+    fn errors_if_file_exists_at_both_potential_module_locations_for_special_name() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+
+        let lib_file_id = add_file(&mut fm, &dir, "lib.nr");
+        add_file(&mut fm, &dir, "foo.nr");
+        add_file(&mut fm, &dir, "foo/mod.nr");
+
+        // Check that searching "foo" gives an error
+        let result = find_module(&fm, lib_file_id, "foo");
+        assert!(matches!(result, Err(DefCollectorErrorKind::OverlappingModuleDecls { .. })));
     }
 }

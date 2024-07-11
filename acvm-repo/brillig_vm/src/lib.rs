@@ -16,9 +16,9 @@ use acir::brillig::{
     HeapVector, MemoryAddress, Opcode, ValueOrArray,
 };
 use acir::AcirField;
-use acvm_blackbox_solver::{BigIntSolver, BlackBoxFunctionSolver};
+use acvm_blackbox_solver::BlackBoxFunctionSolver;
 use arithmetic::{evaluate_binary_field_op, evaluate_binary_int_op, BrilligArithmeticError};
-use black_box::evaluate_black_box;
+use black_box::{evaluate_black_box, BrilligBigintSolver};
 use num_bigint::BigUint;
 
 // Re-export `brillig`.
@@ -88,7 +88,7 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     /// The solver for blackbox functions
     black_box_solver: &'a B,
     // The solver for big integers
-    bigint_solver: BigIntSolver,
+    bigint_solver: BrilligBigintSolver,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
