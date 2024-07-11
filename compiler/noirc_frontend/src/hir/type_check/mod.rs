@@ -570,6 +570,7 @@ pub mod test {
             .into(),
             return_visibility: Visibility::Private,
             has_body: true,
+            struct_id: None,
             trait_impl: None,
             return_type: FunctionReturnType::Default(Span::default()),
             trait_constraints: Vec::new(),
