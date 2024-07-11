@@ -207,7 +207,7 @@ impl NodeInterner {
 
     // Starting at the given location, find the node referenced by it. Then, gather
     // all locations that reference that node, and return all of them
-    // (the references and optionally the referenced node if `include_referencedd` is true).
+    // (the references and optionally the referenced node if `include_referenced` is true).
     // If `include_self_type_name` is true, references where "Self" is written are returned,
     // otherwise they are not.
     // Returns `None` if the location is not known to this interner.
