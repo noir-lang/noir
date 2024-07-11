@@ -412,7 +412,7 @@ TEST_F(AvmArithmeticTestsFF, subtraction)
     EXPECT_EQ(alu_row.alu_u8_r0, FF(0));
 
     std::vector<FF> const returndata = { 8, 9, 17 };
-    validate_trace(std::move(trace), public_inputs, calldata);
+    validate_trace(std::move(trace), public_inputs, calldata, returndata);
 }
 
 // Test on basic multiplication over finite field type.
@@ -483,7 +483,7 @@ TEST_F(AvmArithmeticTestsFF, fDivision)
     EXPECT_EQ(row->main_sel_mem_op_c, FF(1));
     EXPECT_EQ(row->main_rwc, FF(1));
 
-    std::vector<FF> const returndata = { 15, 315, 0 };
+    std::vector<FF> const returndata = { 15, 315, 21 };
     validate_trace(std::move(trace), public_inputs, calldata, returndata);
 }
 
@@ -619,7 +619,7 @@ TEST_F(AvmArithmeticTestsFF, nonEquality)
     gen_trace_builder(calldata);
     trace_builder.op_calldata_copy(0, 0, 2, 0);
     trace_builder.op_eq(0, 0, 1, 2, AvmMemoryTag::FF); // Memory Layout [q - 1, q, 0, 0..]
-    trace_builder.op_return(0, 0, 0);
+    trace_builder.op_return(0, 0, 3);
     auto trace = trace_builder.finalize();
 
     auto alu_row_index = common_validate_eq(trace, elem, FF(0), FF(0), FF(0), FF(1), FF(2), AvmMemoryTag::FF);

@@ -55,7 +55,7 @@ jobs:
           concurrency_key: avm-full-tests-x86
       - name: "AVM Full Tests"
         working-directory: ./barretenberg/cpp/
-        timeout-minutes: 70
+        timeout-minutes: 35
         run: |
-          sudo shutdown -P 70 # hack until core part of the scripts
+          sudo shutdown -P 35 # hack until core part of the scripts
           earthly-ci --no-output +vm-full-test --hardware_concurrency=64  # limit our parallelism to half our cores

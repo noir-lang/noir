@@ -1451,9 +1451,10 @@ TEST_F(AvmExecutionTests, kernelInputOpcodes)
 
     // The return data for this test should be a the opcodes in sequence, as the opcodes dst address lines up with
     // this array The returndata call above will then return this array
-    std::vector<FF> returndata = { sender,     address, storage_address, function_selector,       transaction_fee,
-                                   chainid,    version, blocknumber,     /*coinbase,*/ timestamp, feeperl2gas,
-                                   feeperdagas };
+    std::vector<FF> const expected_returndata = {
+        address,     storage_address,         sender,      function_selector, transaction_fee, chainid, version,
+        blocknumber, /*coinbase,*/ timestamp, feeperl2gas, feeperdagas,
+    };
 
     // Set up public inputs to contain the above values
     // TODO: maybe have a javascript like object construction so that this is readable
@@ -1476,7 +1477,11 @@ TEST_F(AvmExecutionTests, kernelInputOpcodes)
     public_inputs_vec[FEE_PER_DA_GAS_OFFSET] = feeperdagas;
     public_inputs_vec[FEE_PER_L2_GAS_OFFSET] = feeperl2gas;
 
+    std::vector<FF> returndata;
     auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
+
+    // Validate returndata
+    EXPECT_EQ(returndata, expected_returndata);
 
     // Validate that the opcode read the correct value into ia
     // Check address
@@ -1539,7 +1544,7 @@ TEST_F(AvmExecutionTests, kernelInputOpcodes)
         std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_fee_per_l2_gas == 1; });
     EXPECT_EQ(feeperl2gas_row->main_ia, feeperl2gas);
 
-    validate_trace(std::move(trace), Execution::convert_public_inputs(public_inputs_vec));
+    validate_trace(std::move(trace), Execution::convert_public_inputs(public_inputs_vec), calldata, returndata);
 }
 
 // Positive test for L2GASLEFT opcode
