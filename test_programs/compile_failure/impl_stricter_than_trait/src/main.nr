@@ -33,14 +33,28 @@ impl<T> MyType<T> {
 
 trait MyTrait { }
 
-// Object type differs
-trait Foo<T> {
-    fn foo<U>() where U: MyTrait;
-    // fn foo<U>();
+// // Object type differs
+// trait Foo<T> {
+//     fn foo<U>() where T: MyTrait;
+//     // fn foo<U>();
+// }
+
+// impl<A> Foo<A> for () {
+//     fn foo<B>() where B: MyTrait {}
+//     // fn foo<B>() where A: Default {}
+//     // fn foo<B>() {}
+// }
+
+struct MyStruct<T> {
+    inner: T,
 }
 
-impl<A> Foo<A> for () {
-    fn foo<B>() where B: MyTrait {}
-    // fn foo<B>() where A: Default {}
-    // fn foo<B>() {}
+trait OtherTrait {}
+
+trait Bar<T> {
+    fn bar<U>() where MyStruct<T>: MyTrait;
+}
+
+impl<A> Bar<A> for () {
+    fn bar<B>() where MyStruct<A>: OtherTrait {}
 }

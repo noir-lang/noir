@@ -1949,22 +1949,90 @@ fn impl_stricter_than_trait_different_generics() {
     let src = r#"
     trait Default { }
 
-    // Object type differs
+    // Object type of the trait constraint differs
     trait Foo<T> {
-        fn foo<U>() where T: Default;
-        // fn foo<U>();
+        fn foo_good<U>() where T: Default;
+
+        fn foo_bad<U>() where T: Default;
     }
 
     impl<A> Foo<A> for () {
-        fn foo<B>() where B: Default {}
-        // fn foo<B>() where A: Default {}
+        fn foo_good<B>() where A: Default {}
 
-        // fn foo<B>() {}
+        fn foo_bad<B>() where B: Default {}
     }
     "#;
     let errors = get_program_errors(src);
     dbg!(errors.clone());
 
+    assert_eq!(errors.len(), 1);
+    if let CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait {
+        constraint_typ,
+        ..
+    }) = &errors[0].0
+    {
+        assert!(matches!(constraint_typ.to_string().as_str(), "B"));
+    } else {
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+    }
+}
+
+#[test]
+fn impl_stricter_than_trait_different_object_generics() {
+    let src = r#"
+    trait Default { }
+
+    struct Option<T> {
+        inner: T
+    }
+
+    // Object type differs by 
+    trait Bar<T> {
+        fn bar<U>() where Option<T>: Default;
+    }
+
+    impl<A> Bar<A> for () {
+        fn bar<B>() where Option<B>: Default {}
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    dbg!(errors.clone());
+    assert_eq!(errors.len(), 1);
+    if let CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait {
+        constraint_typ,
+        ..
+    }) = &errors[0].0
+    {
+        assert!(matches!(constraint_typ.to_string().as_str(), "Option<B>"));
+    } else {
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+    }
+}
+
+#[test]
+fn impl_stricter_than_trait_different_trait() {
+    let src = r#"
+    trait Default { }
+
+    trait OtherDefault { }
+
+    struct Option<T> {
+        inner: T
+    }
+
+    // Object type differs by 
+    trait Bar<T> {
+        fn bar<U>() where Option<T>: Default;
+    }
+
+    impl<A> Bar<A> for () {
+        fn bar<B>() where Option<A>: OtherDefault {}
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    dbg!(errors.clone());
     assert_eq!(errors.len(), 1);
 }
 

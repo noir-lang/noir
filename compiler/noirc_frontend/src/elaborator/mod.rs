@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashMap as TypeBindingsMap},
     rc::Rc,
 };
 
@@ -34,7 +34,7 @@ use crate::{
         TypeAliasId,
     },
     parser::TopLevelStatement,
-    Shared, Type, TypeBindings, TypeVariable,
+    Shared, Type, TypeBindings, TypeVariable, TypeVariableId,
 };
 use crate::{
     ast::{TraitBound, UnresolvedGeneric, UnresolvedGenerics},
@@ -1107,7 +1107,18 @@ impl<'context> Elaborator<'context> {
                 }
             } else {
                 for (_, func_id, _) in &overrides {
-                    self.check_where_clause_against_trait(func_id, method, trait_impl_where_clause, &trait_impl.resolved_generics);
+                    self.check_where_clause_against_trait(
+                        func_id,
+                        method,
+                        trait_impl_where_clause,
+                        &trait_impl.resolved_generics,
+                    );
+                    self.check_where_clause_against_trait_new(
+                        func_id,
+                        method,
+                        trait_impl_where_clause,
+                        &trait_impl.resolved_generics,
+                    );
 
                     func_ids_in_trait.insert(*func_id);
                 }
@@ -1143,10 +1154,10 @@ impl<'context> Elaborator<'context> {
         trait_impl.methods.trait_id = Some(trait_id);
     }
 
-    /// Issue an error if the impl is stricter than the trait. 
-    /// 
+    /// Issue an error if the impl is stricter than the trait.
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// trait MyTrait { }
     /// trait Foo<T> {
@@ -1174,29 +1185,19 @@ impl<'context> Elaborator<'context> {
         // dbg!(method.trait_constraints.clone());
         // dbg!(method.all_generics.clone());
         let method_generics = method.all_generics.clone();
-        if self.interner.function_name(func_id) == "hash" && override_generics.len() == 2 {
-            dbg!(override_generics.clone());            
-            dbg!(method.all_generics.clone());
-            dbg!(trait_impl_generics.clone());
-        }
+        // if self.interner.function_name(func_id) == "hash" && (override_generics.len() == 1 || override_generics.len() == 2) {
+        //     dbg!(override_generics.clone());
+        //     dbg!(method.all_generics.clone());
+        //     dbg!(trait_impl_generics.clone());
+        // }
 
         for override_trait_constraint in func_meta.trait_constraints.clone() {
-            match &override_trait_constraint.typ {
-                Type::NamedGeneric(_, name, _) => {
-                    // dbg!(name);
-                }
-                _ => {
-                    dbg!(override_trait_constraint.typ.clone());
-                }
-            }
-            // self.unify(actual, expected, make_error)
             // We allow where clauses on impls but during definition collection they are included as part of the where
             // clause of each function. This check is necessary so we do not unnecessarily error on trait impl where clauses.
             let override_constraint_is_from_impl =
                 trait_impl_where_clause.iter().any(|impl_constraint| {
                     impl_constraint.trait_id == override_trait_constraint.trait_id
                 });
-
             // dbg!(override_constraint_is_from_impl);
             if override_constraint_is_from_impl {
                 continue;
@@ -1207,41 +1208,146 @@ impl<'context> Elaborator<'context> {
                     method_constraint.trait_id == override_trait_constraint.trait_id
                 });
 
-            let method_constraint_typ_name = method.trait_constraints.iter().find(|method_constraint| {
-                method_constraint.trait_id == override_trait_constraint.trait_id
-            }).map(|found_constraint| {
-                let typ_as_string = found_constraint.typ.to_string();
-                // dbg!(typ_as_string.clone());
-                // let index = override_generics.iter().position(|generic| generic.name.as_str() == typ_as_string.as_str());
-                // dbg!(index)
-                typ_as_string
-            });
-            let override_constraint_typ_name = override_trait_constraint.typ.to_string();
-            // dbg!(override_constraint_typ_name.clone());
-            let override_generic_index = override_generics.iter().position(|generic| generic.name.as_str() == override_constraint_typ_name.as_str());
-            if let (Some(method_constraint_typ_name), Some(override_generic_index)) = (method_constraint_typ_name, override_generic_index) {
-                // dbg!(method_constraint_typ_name.clone());
-                dbg!(override_generic_index);
-                let mut method_generic_index = None;
-                let mut index = 0;
-                for method_generic in method_generics.iter() {
-                    if method_generic.name.as_str() == "Self" {
-                        continue;
-                    } 
+            let method_generic_index = method
+                .trait_constraints
+                .iter()
+                .find(|method_constraint| {
+                    // TODO: need to change how this check is done as we want to check whether the type is the same
+                    // and the trait is different as well
+                    method_constraint.trait_id == override_trait_constraint.trait_id
+                })
+                .map(|method_constraint| {
+                    dbg!(method_constraint.clone());
+                    // TODO: this needs to be made a recursive check
+                    match (&method_constraint.typ, &override_trait_constraint.typ) {
+                        (
+                            Type::NamedGeneric(_, found_name, _),
+                            Type::NamedGeneric(_, override_name, _),
+                        ) => {
+                            dbg!(found_name);
+                            dbg!(override_name);
+                        }
+                        (
+                            Type::Struct(method_struct, method_struct_generics),
+                            Type::Struct(override_struct, override_struct_generics),
+                        ) => {
+                            dbg!(method_struct.borrow().id);
+                            dbg!(override_struct.borrow().id);
+                            if method_struct.borrow().id == override_struct.borrow().id {
+                                // for method_generic in method_struct_generics.iter() {
+                                //     dbg!(method_generic.to_string());
+                                // }
+                                // for override_generic in override_struct_generics.iter() {
+                                //     dbg!(override_generic.to_string());
+                                // }
+                                for (method_struct_generic, override_struct_generic) in
+                                    method_struct_generics.iter().zip(override_struct_generics)
+                                {
+                                    let method_constraint_typ_name =
+                                        method_struct_generic.to_string();
+                                    let mut method_generic_index = None;
+                                    let mut index = 0;
+                                    for method_generic in method_generics.iter() {
+                                        if method_generic.name.as_str() == "Self" {
+                                            continue;
+                                        }
 
-                    if method_generic.name.as_str() == method_constraint_typ_name.as_str() {
-                        method_generic_index = Some(index + trait_impl_generics.len());
-                        break;
+                                        if method_generic.name.as_str()
+                                            == method_constraint_typ_name.as_str()
+                                        {
+                                            method_generic_index = Some(index);
+                                            break;
+                                        }
+
+                                        index += 1;
+                                    }
+
+                                    let override_struct_generic_name =
+                                        override_struct_generic.to_string();
+                                    dbg!(override_struct_generic_name.clone());
+                                    let override_generic_index =
+                                        override_generics.iter().position(|generic| {
+                                            generic.name.as_str()
+                                                == override_struct_generic_name.as_str()
+                                        });
+                                    dbg!(method_generic_index);
+                                    dbg!(override_generic_index);
+                                    if let (
+                                        Some(method_generic_index),
+                                        Some(override_generic_index),
+                                    ) = (method_generic_index, override_generic_index)
+                                    {
+                                        dbg!(override_generic_index);
+
+                                        if method_generic_index != override_generic_index {
+                                            let the_trait = self
+                                                .interner
+                                                .get_trait(override_trait_constraint.trait_id);
+                                            self.push_err(
+                                                DefCollectorErrorKind::ImplIsStricterThanTrait {
+                                                    constraint_typ: override_trait_constraint
+                                                        .typ
+                                                        .clone(),
+                                                    constraint_name: the_trait
+                                                        .name
+                                                        .0
+                                                        .contents
+                                                        .clone(),
+                                                    constraint_span: override_trait_constraint.span,
+                                                    trait_method_name: method
+                                                        .name
+                                                        .0
+                                                        .contents
+                                                        .clone(),
+                                                    trait_method_span: method.location.span,
+                                                },
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        _ => {
+                            dbg!(method_constraint.typ.clone());
+                            dbg!(override_trait_constraint.typ.clone());
+                        }
                     }
 
-                    index += 1;
-                }
-                dbg!(method_generic_index.clone());
-                let method_generic_index = method_generic_index.expect("Should have a method generic index");
+                    let method_constraint_typ_name = method_constraint.typ.to_string();
+                    // dbg!(typ_as_string.clone());
+                    // let index = override_generics.iter().position(|generic| generic.name.as_str() == typ_as_string.as_str());
+                    // dbg!(index)
+                    // method_constraint_typ_name
+                    let mut method_generic_index = None;
+                    let mut index = 0;
+                    for method_generic in method_generics.iter() {
+                        if method_generic.name.as_str() == "Self" {
+                            continue;
+                        }
+
+                        if method_generic.name.as_str() == method_constraint_typ_name.as_str() {
+                            method_generic_index = Some(index);
+                            break;
+                        }
+
+                        index += 1;
+                    }
+                    method_generic_index
+                })
+                .flatten();
+
+            let override_constraint_typ_name = override_trait_constraint.typ.to_string();
+            // dbg!(override_constraint_typ_name.clone());
+            let override_generic_index = override_generics
+                .iter()
+                .position(|generic| generic.name.as_str() == override_constraint_typ_name.as_str());
+            if let (Some(method_generic_index), Some(override_generic_index)) =
+                (method_generic_index, override_generic_index)
+            {
+                dbg!(override_generic_index);
+
                 if method_generic_index != override_generic_index {
-                    // dbg!()
-                    let the_trait =
-                        self.interner.get_trait(override_trait_constraint.trait_id);
+                    let the_trait = self.interner.get_trait(override_trait_constraint.trait_id);
                     self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
                         constraint_typ: override_trait_constraint.typ,
                         constraint_name: the_trait.name.0.contents.clone(),
@@ -1249,23 +1355,130 @@ impl<'context> Elaborator<'context> {
                         trait_method_name: method.name.0.contents.clone(),
                         trait_method_span: method.location.span,
                     });
-                } 
+                }
             }
-            // dbg!(override_constraint_typ_name.clone());
-
-            // dbg!(override_constraint_is_on_trait_method);
-            // if !override_constraint_is_on_trait_method {
-            //     let the_trait =
-            //         self.interner.get_trait(override_trait_constraint.trait_id);
-            //     self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
-            //         constraint_typ: override_trait_constraint.typ,
-            //         constraint_name: the_trait.name.0.contents.clone(),
-            //         constraint_span: override_trait_constraint.span,
-            //         trait_method_name: method.name.0.contents.clone(),
-            //         trait_method_span: method.location.span,
-            //     });
-            // } 
         }
+    }
+
+    fn check_where_clause_against_trait_new(
+        &mut self,
+        func_id: &FuncId,
+        method: &TraitFunction,
+        trait_impl_where_clause: &[TraitConstraint],
+        trait_impl_generics: &Generics,
+    ) {
+        let func_meta = self.interner.function_meta(func_id);
+        let override_generics = func_meta.all_generics.clone();
+        let method_generics = method.all_generics.clone();
+
+        // TODO: this only will work with Type;:NamedGeneric get it working with types that themselves contain generics
+        let mut method_constraint_ids = HashSet::default();
+        let mut test_set = HashSet::default();
+        let mut substituted_method_ids = HashSet::default();
+        // let mut substituted_method_ids_new = HashSet::default();
+        for method_constraint in method.trait_constraints.iter() {
+            let method_generic_index =
+                Self::find_generic_index(&method_constraint.typ.to_string(), &method_generics);
+            dbg!(method_generic_index);
+            test_set.insert(method_constraint.typ.clone());
+            if let Some(method_generic_index) = method_generic_index {
+                method_constraint_ids.insert((method_generic_index, method_constraint.trait_id));
+
+                // TODO: possible new strategy
+                // substitute the bindings with the generic indices
+                // then just compare the types using Eq
+                // only works on a type var and named generic
+                let mut bindings: TypeBindings = TypeBindingsMap::new();
+                let current_type_var =
+                    method_constraint.typ.type_variable_id().expect("currently expect a type var");
+                bindings.insert(
+                    current_type_var,
+                    (
+                        method_generics[method_generic_index].type_var.clone(),
+                        Type::NamedGeneric(
+                            TypeVariable::unbound(TypeVariableId(method_generic_index)),
+                            method_generics[method_generic_index].name.clone(),
+                            method_generics[method_generic_index].kind.clone(),
+                        ),
+                    ),
+                );
+                substituted_method_ids.insert((method_constraint.typ.substitute(&bindings), method_constraint.trait_id));
+            }
+        }
+        dbg!(test_set.clone());
+        dbg!(substituted_method_ids.clone());
+
+        let mut override_test_set = HashSet::default();
+        for override_trait_constraint in func_meta.trait_constraints.clone() {
+            override_test_set.insert(override_trait_constraint.typ.clone());
+
+            let override_generic_index = Self::find_generic_index(
+                &override_trait_constraint.typ.to_string(),
+                &override_generics,
+            );
+            dbg!(override_generic_index);
+
+            if override_generic_index.is_none() {
+                continue;
+            }
+            let override_generic_index = override_generic_index.expect("Should have generic index");
+
+            if !method_constraint_ids
+                .contains(&(override_generic_index, override_trait_constraint.trait_id))
+            {
+                // TODO
+                dbg!("ISSUE ERROR IN NEW METHOD");
+            }
+
+            // NEW STRATEGY
+            let mut bindings: TypeBindings = TypeBindingsMap::new();
+            let current_type_var =
+                override_trait_constraint.typ.type_variable_id().expect("currently expect a type var");
+            bindings.insert(
+                current_type_var,
+                (
+                    override_generics[override_generic_index].type_var.clone(),
+                    Type::NamedGeneric(
+                        TypeVariable::unbound(TypeVariableId(override_generic_index)),
+                        override_generics[override_generic_index].name.clone(),
+                        override_generics[override_generic_index].kind.clone(),
+                    ),
+                ),
+            );
+            let substituted_constraint_type = override_trait_constraint.typ.substitute(&bindings);
+            dbg!(substituted_constraint_type.clone());
+            if !substituted_method_ids.contains(&(substituted_constraint_type, override_trait_constraint.trait_id)) {
+                dbg!("NEW STRATEGY ERR");
+                
+                let the_trait = self.interner.get_trait(override_trait_constraint.trait_id);
+                self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
+                    constraint_typ: override_trait_constraint.typ,
+                    constraint_name: the_trait.name.0.contents.clone(),
+                    constraint_span: override_trait_constraint.span,
+                    trait_method_name: method.name.0.contents.clone(),
+                    trait_method_span: method.location.span,
+                });
+            }
+        }
+        dbg!(override_test_set.clone());
+    }
+
+    fn find_generic_index(target_name: &str, generics: &Generics) -> Option<usize> {
+        let mut generic_index = None;
+        let mut index = 0;
+        for generic in generics.iter() {
+            if generic.name.as_str() == "Self" {
+                continue;
+            }
+
+            if generic.name.as_str() == target_name {
+                generic_index = Some(index);
+                break;
+            }
+
+            index += 1;
+        }
+        generic_index
     }
 
     fn check_trait_impl_crate_coherence(
