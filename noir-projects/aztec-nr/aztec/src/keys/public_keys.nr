@@ -96,10 +96,10 @@ impl Serialize<PUBLIC_KEYS_LENGTH> for PublicKeys {
 impl Deserialize<PUBLIC_KEYS_LENGTH> for PublicKeys {
     fn deserialize(serialized: [Field; PUBLIC_KEYS_LENGTH]) -> PublicKeys {
         PublicKeys {
-            npk_m: Point::new(serialized[0], serialized[1], serialized[2] as bool),
-            ivpk_m: Point::new(serialized[3], serialized[4], serialized[5] as bool),
-            ovpk_m: Point::new(serialized[6], serialized[7], serialized[8] as bool),
-            tpk_m: Point::new(serialized[9], serialized[10], serialized[11] as bool)
+            npk_m: Point { x:serialized[0], y:serialized[1], is_infinite: serialized[2] as bool },
+            ivpk_m: Point { x:serialized[3], y: serialized[4], is_infinite: serialized[5] as bool },
+            ovpk_m: Point { x:serialized[6], y: serialized[7], is_infinite: serialized[8] as bool },
+            tpk_m: Point { x:serialized[9], y: serialized[10], is_infinite: serialized[11] as bool }
         }
     }
 }

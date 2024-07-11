@@ -202,9 +202,17 @@ impl<'context> Elaborator<'context> {
             new_definitions,
         );
 
-        let referenced = ReferenceId::Struct(struct_type.borrow().id);
+        let struct_id = struct_type.borrow().id;
+
+        let referenced = ReferenceId::Struct(struct_id);
         let reference = ReferenceId::Reference(Location::new(name_span, self.file), is_self_type);
         self.interner.add_reference(referenced, reference);
+
+        for (field_index, field) in fields.iter().enumerate() {
+            let referenced = ReferenceId::StructMember(struct_id, field_index);
+            let reference = ReferenceId::Reference(Location::new(field.0.span(), self.file), false);
+            self.interner.add_reference(referenced, reference);
+        }
 
         HirPattern::Struct(expected_type, fields, location)
     }
@@ -456,9 +464,16 @@ impl<'context> Elaborator<'context> {
         // Comptime variables must be replaced with their values
         if let Some(definition) = self.interner.try_definition(definition_id) {
             if definition.comptime && !self.in_comptime_context() {
-                let mut interpreter =
-                    Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
+                let mut interpreter_errors = vec![];
+                let mut interpreter = Interpreter::new(
+                    self.interner,
+                    &mut self.comptime_scopes,
+                    self.crate_id,
+                    self.debug_comptime_in_file,
+                    &mut interpreter_errors,
+                );
                 let value = interpreter.evaluate(id);
+                self.include_interpreter_errors(interpreter_errors);
                 return self.inline_comptime_value(value, span);
             }
         }

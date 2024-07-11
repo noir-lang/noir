@@ -12,10 +12,10 @@ fn get_public_keys_and_partial_address(address: AztecAddress) -> (PublicKeys, Pa
     let result = get_public_keys_and_partial_address_oracle_wrapper(address);
 
     let keys = PublicKeys {
-        npk_m: Point::new(result[0], result[1], result[2] as bool),
-        ivpk_m: Point::new(result[3], result[4], result[5] as bool),
-        ovpk_m: Point::new(result[6], result[7], result[8] as bool),
-        tpk_m: Point::new(result[9], result[10], result[11] as bool)
+        npk_m: Point { x: result[0], y: result[1], is_infinite: result[2] as bool },
+        ivpk_m: Point { x: result[3], y: result[4], is_infinite: result[5] as bool },
+        ovpk_m: Point { x: result[6], y: result[7], is_infinite: result[8] as bool },
+        tpk_m: Point { x: result[9], y: result[10], is_infinite: result[11] as bool }
     };
 
     let partial_address = PartialAddress::from_field(result[12]);

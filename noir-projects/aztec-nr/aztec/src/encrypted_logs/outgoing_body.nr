@@ -2,7 +2,6 @@ use dep::protocol_types::{
     address::AztecAddress, scalar::Scalar, point::Point, constants::GENERATOR_INDEX__SYMMETRIC_KEY,
     hash::poseidon2_hash
 };
-
 use std::aes128::aes128_encrypt;
 
 use crate::keys::point_to_symmetric_key::point_to_symmetric_key;
@@ -65,26 +64,27 @@ mod test {
         address::AztecAddress, traits::Empty, constants::GENERATOR_INDEX__NOTE_NULLIFIER,
         scalar::Scalar, point::Point, hash::poseidon2_hash
     };
+    use std::embedded_curve_ops::fixed_base_scalar_mul as derive_public_key;
 
     use crate::context::PrivateContext;
 
     #[test]
     fn test_encrypted_log_outgoing_body() {
-        let eph_sk = Scalar::new(
-            0x00000000000000000000000000000000d0d302ee245dfaf2807e604eec4715fe,
-            0x000000000000000000000000000000000f096b423017226a18461115fa8d34bb
-        );
-        let recipient_ivsk_app = Scalar::new(
-            0x000000000000000000000000000000004828f8f95676ebb481df163f87fd4022,
-            0x000000000000000000000000000000000f4d97c25d578f9348251a71ca17ae31
-        );
-        let sender_ovsk_app = Scalar::new(
-            0x0000000000000000000000000000000074d2e28c6bc5176ac02cf7c7d36a444e,
-            0x00000000000000000000000000000000089c6887cb1446d86c64e81afc78048b
-        );
+        let eph_sk = Scalar {
+            lo: 0x00000000000000000000000000000000d0d302ee245dfaf2807e604eec4715fe,
+            hi: 0x000000000000000000000000000000000f096b423017226a18461115fa8d34bb
+        };
+        let recipient_ivsk_app = Scalar {
+            lo: 0x000000000000000000000000000000004828f8f95676ebb481df163f87fd4022,
+            hi: 0x000000000000000000000000000000000f4d97c25d578f9348251a71ca17ae31
+        };
+        let sender_ovsk_app = Scalar {
+            lo: 0x0000000000000000000000000000000074d2e28c6bc5176ac02cf7c7d36a444e,
+            hi: 0x00000000000000000000000000000000089c6887cb1446d86c64e81afc78048b
+        };
 
-        let eph_pk = eph_sk.derive_public_key();
-        let recipient_ivpk_app = recipient_ivsk_app.derive_public_key();
+        let eph_pk = derive_public_key(eph_sk);
+        let recipient_ivpk_app = derive_public_key(recipient_ivsk_app);
 
         let recipient = AztecAddress::from_field(0xdeadbeef);
 

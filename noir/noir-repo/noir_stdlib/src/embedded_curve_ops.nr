@@ -1,6 +1,9 @@
 use crate::ops::arith::{Add, Sub, Neg};
 use crate::cmp::Eq;
 
+/// A point on the embedded elliptic curve
+/// By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir Field.
+/// x and y denotes the Weierstrass coordinates of the point, if is_infinite is false.
 struct EmbeddedCurvePoint {
     x: Field,
     y: Field,
@@ -8,32 +11,35 @@ struct EmbeddedCurvePoint {
 }
 
 impl EmbeddedCurvePoint {
-    fn new(x: Field, y: Field, is_infinite: bool) -> Self {
-        Self { x, y, is_infinite }
-    }
-
+    /// Elliptic curve point doubling operation
+    /// returns the doubled point of a point P, i.e P+P
     fn double(self) -> EmbeddedCurvePoint {
         embedded_curve_add(self, self)
     }
 
+    /// Returns the null element of the curve; 'the point at infinity'
     fn point_at_infinity() -> EmbeddedCurvePoint {
         EmbeddedCurvePoint { x: 0, y: 0, is_infinite: true }
     }
 }
 
 impl Add for EmbeddedCurvePoint {
+    /// Adds two points P+Q, using the curve addition formula, and also handles point at infinity
     fn add(self, other: EmbeddedCurvePoint) -> EmbeddedCurvePoint { 
         embedded_curve_add(self, other)
     }
 }
 
 impl Sub for EmbeddedCurvePoint {
+    /// Points subtraction operation, using addition and negation
     fn sub(self, other: EmbeddedCurvePoint) -> EmbeddedCurvePoint { 
         self + other.neg()
     }
 }
 
 impl Neg for EmbeddedCurvePoint {
+    /// Negates a point P, i.e returns -P, by negating the y coordinate.
+    /// If the point is at infinity, then the result is also at infinity.
     fn neg(self) -> EmbeddedCurvePoint { 
         EmbeddedCurvePoint {
             x: self.x,
@@ -44,12 +50,15 @@ impl Neg for EmbeddedCurvePoint {
 }
 
 impl Eq for EmbeddedCurvePoint {
+    /// Checks whether two points are equal
     fn eq(self: Self, b: EmbeddedCurvePoint) -> bool {
         (self.is_infinite & b.is_infinite) | ((self.is_infinite == b.is_infinite) & (self.x == b.x) & (self.y == b.y))
     }
 }
 
-// Scalar represented as low and high limbs
+/// Scalar for the embedded curve represented as low and high limbs
+/// By definition, the scalar field of the embedded curve is base field of the proving system curve.
+/// It may not fit into a Field element, so it is represented with two Field elements; its low and high limbs.
 struct EmbeddedCurveScalar {
     lo: Field,
     hi: Field,
@@ -60,10 +69,6 @@ impl EmbeddedCurveScalar {
         EmbeddedCurveScalar { lo, hi }
     }
 
-    pub fn derive_public_key(self) -> EmbeddedCurvePoint {
-        fixed_base_scalar_mul(self)
-    }
-
     #[field(bn254)]
     fn from_field(scalar: Field) -> EmbeddedCurveScalar {
         let (a,b) = crate::field::bn254::decompose(scalar);
@@ -72,8 +77,8 @@ impl EmbeddedCurveScalar {
 }
 
 impl Eq for EmbeddedCurveScalar {
-    fn eq(self, key: EmbeddedCurveScalar) -> bool {
-        (key.hi == self.hi) & (key.lo == self.lo)
+    fn eq(self, other: Self) -> bool {
+        (other.hi == self.hi) & (other.lo == self.lo)
     }
 }
 

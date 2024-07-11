@@ -37,6 +37,7 @@ contract Test {
     };
     use dep::token_portal_content_hash_lib::{get_mint_private_content_hash, get_mint_public_content_hash};
     use dep::value_note::value_note::ValueNote;
+    use std::embedded_curve_ops::fixed_base_scalar_mul as derive_public_key;
 
     use crate::test_note::TestNote;
 
@@ -427,7 +428,7 @@ contract Test {
         recipient_ivpk_app: Point,
         ovsk_app: Scalar
     ) -> [u8; 176] {
-        let eph_pk = eph_sk.derive_public_key();
+        let eph_pk = derive_public_key(eph_sk);
         EncryptedLogOutgoingBody::new(eph_sk, recipient, recipient_ivpk_app).compute_ciphertext(ovsk_app, eph_pk)
     }
 

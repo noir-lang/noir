@@ -10,7 +10,7 @@ fn main(
     to_pubkey_x: Field,
     to_pubkey_y: Field
 ) -> pub [Field; 2] {
-    let priv_key_as_scalar = std::embedded_curve_ops::EmbeddedCurveScalar::new(priv_key, 0);
+    let priv_key_as_scalar = std::embedded_curve_ops::EmbeddedCurveScalar { lo: priv_key, hi: 0 };
     // Compute public key from private key to show ownership
     let pubkey = std::embedded_curve_ops::fixed_base_scalar_mul(priv_key_as_scalar);
     // Compute input note commitment

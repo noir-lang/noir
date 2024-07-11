@@ -694,6 +694,7 @@ name = "fm"
 version = "0.31.0"
 dependencies = [
  "codespan-reporting",
+ "iter-extended",
  "serde",
 ]
 

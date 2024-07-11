@@ -3,6 +3,7 @@ use dep::types::{
     constants::MAX_KEY_VALIDATION_REQUESTS_PER_TX, scalar::Scalar, hash::poseidon2_hash,
     utils::arrays::filter_array_to_bounded_vec
 };
+use std::embedded_curve_ops::fixed_base_scalar_mul as derive_public_key;
 
 struct KeyValidationHint {
   sk_m: Scalar,
@@ -44,7 +45,7 @@ pub fn reset_key_validation_requests<N>(
             let sk_app_generator = request_and_generator.sk_app_generator;
 
             // First we check that derived public key matches master public key from request
-            let pk_m = sk_m.derive_public_key();
+            let pk_m = derive_public_key(sk_m);
             assert(
                 pk_m.eq(request.pk_m), "Failed to derive matching master public key from the secret key."
             );

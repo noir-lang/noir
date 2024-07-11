@@ -150,7 +150,7 @@ mod tests {
     use crate::compiler::optimizers::redundant_range::RangeOptimizer;
     use acir::{
         circuit::{
-            opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
+            opcodes::{BlackBoxFuncCall, FunctionInput},
             Circuit, ExpressionWidth, Opcode, PublicInputs,
         },
         native_types::{Expression, Witness},

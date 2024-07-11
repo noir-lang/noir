@@ -86,7 +86,7 @@ fn fetch_key_from_registry(
     let x_coordinate = x_coordinate_registry.get_value_in_private(header);
     let y_coordinate = y_coordinate_registry.get_value_in_private(header);
 
-    Point::new(x_coordinate, y_coordinate, false)
+    Point { x: x_coordinate, y: y_coordinate, is_infinite: false }
 }
 
 // Passes only when keys were not rotated - is expected to be called only when keys were not registered yet

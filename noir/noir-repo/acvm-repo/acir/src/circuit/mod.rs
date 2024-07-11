@@ -360,7 +360,7 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::{
-        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
+        opcodes::{BlackBoxFuncCall, FunctionInput},
         Circuit, Compression, Opcode, PublicInputs,
     };
     use crate::{

@@ -2,7 +2,7 @@ use dep::protocol_types::{
     address::AztecAddress, scalar::Scalar, point::{Point, pub_key_to_bytes},
     constants::{GENERATOR_INDEX__IVSK_M, GENERATOR_INDEX__OVSK_M}, hash::poseidon2_hash
 };
-
+use std::embedded_curve_ops::fixed_base_scalar_mul as derive_public_key;
 use std::field::bytes32_to_field;
 
 use crate::oracle::unsafe_rand::unsafe_rand;
@@ -25,7 +25,7 @@ pub fn compute_encrypted_event_log<Event, NB, MB, OB>(
 ) -> [u8; OB] where Event: EventInterface<NB, MB> {
     // @todo Need to draw randomness from the full domain of Fq not only Fr
     let eph_sk: Scalar = fr_to_fq(unsafe_rand());
-    let eph_pk = eph_sk.derive_public_key();
+    let eph_pk = derive_public_key(eph_sk);
 
     // TODO: (#7177) This value needs to be populated!
     let recipient = AztecAddress::from_field(0);
@@ -82,7 +82,7 @@ pub fn compute_encrypted_note_log<Note, N, NB, M>(
 ) -> [u8; M] where Note: NoteInterface<N, NB> {
     // @todo Need to draw randomness from the full domain of Fq not only Fr
     let eph_sk: Scalar = fr_to_fq(unsafe_rand());
-    let eph_pk = eph_sk.derive_public_key();
+    let eph_pk = derive_public_key(eph_sk);
 
     // TODO: (#7177) This value needs to be populated!
     let recipient = AztecAddress::from_field(0);
@@ -142,10 +142,10 @@ fn fr_to_fq(r: Field) -> Scalar {
         low_bytes[16 + i] = r_bytes[i + 16];
     }
 
-    let low = bytes32_to_field(low_bytes);
-    let high = bytes32_to_field(high_bytes);
+    let lo = bytes32_to_field(low_bytes);
+    let hi = bytes32_to_field(high_bytes);
 
-    Scalar::new(low, high)
+    Scalar { lo, hi }
 }
 
 fn compute_ivpk_app(ivpk: Point, contract_address: AztecAddress) -> Point {
@@ -158,12 +158,12 @@ fn compute_ivpk_app(ivpk: Point, contract_address: AztecAddress) -> Point {
     assert((ivpk.x != 0) & (ivpk.y != 0), "ivpk is infinite");
 
     let i = fr_to_fq(poseidon2_hash([contract_address.to_field(), ivpk.x, ivpk.y, GENERATOR_INDEX__IVSK_M]));
-    let I = i.derive_public_key();
+    let I = derive_public_key(i);
 
     let embed_I = Point { x: I.x, y: I.y, is_infinite: false };
     let embed_ivpk = Point { x: ivpk.x, y: ivpk.y, is_infinite: false };
 
     let embed_result = embedded_curve_add(embed_I, embed_ivpk);
 
-    Point::new(embed_result.x, embed_result.y)*/
+    Point { x: embed_result.x, embed_result.y)*/
 }
