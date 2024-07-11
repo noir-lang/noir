@@ -92,6 +92,7 @@ describe('server_world_state_synchronizer', () => {
     const worldStateConfig: WorldStateConfig = {
       worldStateBlockCheckIntervalMS: blockCheckInterval,
       l2QueueSize: 1000,
+      worldStateProvenBlocksOnly: false,
     };
 
     return new ServerWorldStateSynchronizer(

@@ -28,6 +28,7 @@ import { type EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
+import { RollupAbi } from '@aztec/l1-artifacts';
 import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
 import { type TelemetryClient } from '@aztec/telemetry-client';
 import {
@@ -40,7 +41,7 @@ import {
 } from '@aztec/types/contracts';
 
 import groupBy from 'lodash.groupby';
-import { type Chain, type HttpTransport, type PublicClient, createPublicClient, http } from 'viem';
+import { type Chain, type HttpTransport, type PublicClient, createPublicClient, getAbiItem, http } from 'viem';
 
 import { type ArchiverDataStore } from './archiver_store.js';
 import { type ArchiverConfig } from './config.js';
@@ -297,6 +298,28 @@ export class Archiver implements ArchiveSource {
 
     await this.store.addBlocks(retrievedBlocks);
     this.instrumentation.processNewBlocks(retrievedBlocks.retrievedData);
+
+    // Fetch the logs for proven blocks in the block range and update the last proven block number.
+    // Note it's ok to read repeated data here, since we're just using the largest number we see on the logs.
+    await this.updateLastProvenL2Block(l1SynchPoint.blocksSynchedTo, currentL1BlockNumber);
+  }
+
+  private async updateLastProvenL2Block(fromBlock: bigint, toBlock: bigint) {
+    const logs = await this.publicClient.getLogs({
+      address: this.rollupAddress.toString(),
+      fromBlock,
+      toBlock,
+      strict: true,
+      event: getAbiItem({ abi: RollupAbi, name: 'L2ProofVerified' }),
+    });
+
+    const lastLog = logs[logs.length - 1];
+    if (!lastLog) {
+      return;
+    }
+
+    const provenBlockNumber = lastLog.args.blockNumber;
+    await this.store.setProvenL2BlockNumber(Number(provenBlockNumber));
   }
 
   /**
@@ -390,10 +413,14 @@ export class Archiver implements ArchiveSource {
    * Gets up to `limit` amount of L2 blocks starting from `from`.
    * @param from - Number of the first block to return (inclusive).
    * @param limit - The number of blocks to return.
+   * @param proven - If true, only return blocks that have been proven.
    * @returns The requested L2 blocks.
    */
-  public getBlocks(from: number, limit: number): Promise<L2Block[]> {
-    return this.store.getBlocks(from, limit);
+  public async getBlocks(from: number, limit: number, proven?: boolean): Promise<L2Block[]> {
+    const limitWithProven = proven
+      ? Math.min(limit, Math.max((await this.store.getProvenL2BlockNumber()) - from + 1, 0))
+      : limit;
+    return limitWithProven === 0 ? [] : this.store.getBlocks(from, limitWithProven);
   }
 
   /**
@@ -469,6 +496,10 @@ export class Archiver implements ArchiveSource {
    */
   public getBlockNumber(): Promise<number> {
     return this.store.getSynchedL2BlockNumber();
+  }
+
+  public getProvenBlockNumber(): Promise<number> {
+    return this.store.getProvenL2BlockNumber();
   }
 
   public getContractClass(id: Fr): Promise<ContractClassPublic | undefined> {

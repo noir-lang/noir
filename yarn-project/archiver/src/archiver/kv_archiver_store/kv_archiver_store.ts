@@ -246,6 +246,14 @@ export class KVArchiverDataStore implements ArchiverDataStore {
     return Promise.resolve(this.#blockStore.getSynchedL2BlockNumber());
   }
 
+  getProvenL2BlockNumber(): Promise<number> {
+    return Promise.resolve(this.#blockStore.getProvenL2BlockNumber());
+  }
+
+  async setProvenL2BlockNumber(blockNumber: number) {
+    await this.#blockStore.setProvenL2BlockNumber(blockNumber);
+  }
+
   /**
    * Gets the last L1 block number processed by the archiver
    */

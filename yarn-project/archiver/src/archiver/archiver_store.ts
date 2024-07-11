@@ -149,6 +149,18 @@ export interface ArchiverDataStore {
   getSynchedL2BlockNumber(): Promise<number>;
 
   /**
+   * Gets the number of the latest proven L2 block processed.
+   * @returns The number of the latest proven L2 block processed.
+   */
+  getProvenL2BlockNumber(): Promise<number>;
+
+  /**
+   * Stores the number of the latest proven L2 block processed.
+   * @param l2BlockNumber - The number of the latest proven L2 block processed.
+   */
+  setProvenL2BlockNumber(l2BlockNumber: number): Promise<void>;
+
+  /**
    * Gets the synch point of the archiver
    */
   getSynchPoint(): Promise<ArchiverL1SynchPoint>;

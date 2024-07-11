@@ -28,6 +28,12 @@ export interface L2BlockSource {
   getBlockNumber(): Promise<number>;
 
   /**
+   * Gets the number of the latest L2 block proven seen by the block source implementation.
+   * @returns The number of the latest L2 block proven seen by the block source implementation.
+   */
+  getProvenBlockNumber(): Promise<number>;
+
+  /**
    * Gets an l2 block. If a negative number is passed, the block returned is the most recent.
    * @param number - The block number to return (inclusive).
    * @returns The requested L2 block.
@@ -38,9 +44,10 @@ export interface L2BlockSource {
    * Gets up to `limit` amount of L2 blocks starting from `from`.
    * @param from - Number of the first block to return (inclusive).
    * @param limit - The maximum number of blocks to return.
+   * @param proven - If true, only return blocks that have been proven.
    * @returns The requested L2 blocks.
    */
-  getBlocks(from: number, limit: number): Promise<L2Block[]>;
+  getBlocks(from: number, limit: number, proven?: boolean): Promise<L2Block[]>;
 
   /**
    * Gets a tx effect.

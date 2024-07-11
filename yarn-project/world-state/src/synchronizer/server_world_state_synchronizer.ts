@@ -48,11 +48,11 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
     private log = createDebugLogger('aztec:world_state'),
   ) {
     this.blockNumber = store.openSingleton('world_state_synch_last_block_number');
-    this.l2BlockDownloader = new L2BlockDownloader(
-      l2BlockSource,
-      config.l2QueueSize,
-      config.worldStateBlockCheckIntervalMS,
-    );
+    this.l2BlockDownloader = new L2BlockDownloader(l2BlockSource, {
+      maxQueueSize: config.l2QueueSize,
+      pollIntervalMS: config.worldStateBlockCheckIntervalMS,
+      proven: config.worldStateProvenBlocksOnly,
+    });
   }
 
   public getLatest(): MerkleTreeOperations {

@@ -40,6 +40,10 @@ export class MockBlockSource implements L2BlockSource {
     return Promise.resolve(this.l2Blocks.length - 1);
   }
 
+  public getProvenBlockNumber(): Promise<number> {
+    return this.getBlockNumber();
+  }
+
   /**
    * Gets an l2 block.
    * @param number - The block number to return (inclusive).
