@@ -285,6 +285,7 @@ impl<'a> ModCollector<'a> {
             let id = match self.push_child_module(
                 context,
                 &name,
+                ItemVisibility::Public,
                 Location::new(name.span(), self.file_id),
                 false,
                 false,
@@ -386,6 +387,7 @@ impl<'a> ModCollector<'a> {
             let trait_id = match self.push_child_module(
                 context,
                 &name,
+                ItemVisibility::Public,
                 Location::new(name.span(), self.file_id),
                 false,
                 false,
@@ -552,6 +554,7 @@ impl<'a> ModCollector<'a> {
             match self.push_child_module(
                 context,
                 &submodule.name,
+                ItemVisibility::Public,
                 Location::new(submodule.name.span(), file_id),
                 true,
                 submodule.is_contract,
@@ -643,6 +646,7 @@ impl<'a> ModCollector<'a> {
         match self.push_child_module(
             context,
             &mod_decl.ident,
+            ItemVisibility::Public,
             Location::new(Span::empty(0), child_file_id),
             true,
             false,
@@ -676,6 +680,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         mod_name: &Ident,
+        visibility: ItemVisibility,
         mod_location: Location,
         add_to_parent_scope: bool,
         is_contract: bool,
@@ -711,9 +716,11 @@ impl<'a> ModCollector<'a> {
         // to a child module containing its methods) since the module name should not shadow
         // the struct name.
         if add_to_parent_scope {
-            if let Err((first_def, second_def)) =
-                modules[self.module_id.0].declare_child_module(mod_name.to_owned(), mod_id)
-            {
+            if let Err((first_def, second_def)) = modules[self.module_id.0].declare_child_module(
+                mod_name.to_owned(),
+                visibility,
+                mod_id,
+            ) {
                 let err = DefCollectorErrorKind::Duplicate {
                     typ: DuplicateType::Module,
                     first_def,

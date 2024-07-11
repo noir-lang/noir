@@ -280,10 +280,15 @@ pub trait Recoverable {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ModuleDeclaration {
     pub ident: Ident,
+    pub visibility: ItemVisibility,
 }
 
 impl std::fmt::Display for ModuleDeclaration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.visibility != ItemVisibility::Private {
+            write!(f, "{} ", self.visibility)?;
+        };
+
         write!(f, "mod {}", self.ident)
     }
 }
