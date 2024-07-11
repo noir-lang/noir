@@ -271,13 +271,20 @@ pub(crate) fn on_shutdown(
     async { Ok(()) }
 }
 
+pub(crate) struct ProcessRequestCallbackArgs<'a> {
+    location: noirc_errors::Location,
+    interner: &'a NodeInterner,
+    files: &'a FileMap,
+    interners: &'a HashMap<String, NodeInterner>,
+}
+
 pub(crate) fn process_request<F, T>(
     state: &mut LspState,
     text_document_position_params: TextDocumentPositionParams,
     callback: F,
 ) -> Result<T, ResponseError>
 where
-    F: FnOnce(noirc_errors::Location, &NodeInterner, &FileMap, &HashMap<String, NodeInterner>) -> T,
+    F: FnOnce(ProcessRequestCallbackArgs) -> T,
 {
     let file_path =
         text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
@@ -316,7 +323,12 @@ where
         &text_document_position_params.position,
     )?;
 
-    Ok(callback(location, interner, files, &state.cached_definitions))
+    Ok(callback(ProcessRequestCallbackArgs {
+        location,
+        interner,
+        files,
+        interners: &state.cached_definitions,
+    }))
 }
 pub(crate) fn find_all_references_in_workspace(
     location: noirc_errors::Location,
