@@ -26,7 +26,7 @@ void ClientIVC::accumulate(ClientCircuit& circuit, const std::shared_ptr<Verific
     goblin.merge(circuit);
 
     // Construct the prover instance for circuit
-    prover_instance = std::make_shared<ProverInstance>(circuit, structured_flag);
+    prover_instance = std::make_shared<ProverInstance>(circuit, trace_structure);
 
     // Track the maximum size of each block for all circuits porcessed (for debugging purposes only)
     max_block_sizes.update(circuit);
@@ -116,10 +116,10 @@ std::vector<std::shared_ptr<ClientIVC::VerificationKey>> ClientIVC::precompute_f
         vkeys.emplace_back(instance_vk);
     }
 
-    // Reset the scheme so it can be reused for actual accumulation, maintaining the structured trace flag as is
-    bool structured = structured_flag;
+    // Reset the scheme so it can be reused for actual accumulation, maintaining the trace structure setting as is
+    TraceStructure structure = trace_structure;
     *this = ClientIVC();
-    this->structured_flag = structured;
+    this->trace_structure = structure;
 
     return vkeys;
 }

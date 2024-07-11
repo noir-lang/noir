@@ -95,8 +95,8 @@ TEST_F(UltraHonkTests, StructuredTrace)
     MockCircuits::add_arithmetic_gates_with_public_inputs(builder, num_gates);
 
     // Construct an instance with a structured execution trace
-    bool structured = true;
-    auto instance = std::make_shared<ProverInstance>(builder, structured);
+    TraceStructure trace_structure = TraceStructure::SMALL_TEST;
+    auto instance = std::make_shared<ProverInstance>(builder, trace_structure);
     info(instance->proving_key.circuit_size);
     UltraProver prover(instance);
     auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);

@@ -86,8 +86,8 @@ TEST_F(MegaHonkComposerTests, BasicStructured)
     GoblinMockCircuits::construct_simple_circuit(builder);
 
     // Construct and verify Honk proof using a structured trace
-    bool structured = true;
-    auto instance = std::make_shared<ProverInstance_<MegaFlavor>>(builder, structured);
+    TraceStructure trace_structure = TraceStructure::SMALL_TEST;
+    auto instance = std::make_shared<ProverInstance_<MegaFlavor>>(builder, trace_structure);
     MegaProver prover(instance);
     auto verification_key = std::make_shared<MegaFlavor::VerificationKey>(instance->proving_key);
     MegaVerifier verifier(verification_key);

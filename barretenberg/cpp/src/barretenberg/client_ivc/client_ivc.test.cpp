@@ -146,12 +146,12 @@ TEST_F(ClientIVCTests, BasicLarge)
 TEST_F(ClientIVCTests, BasicStructured)
 {
     ClientIVC ivc;
-    ivc.structured_flag = true;
+    ivc.trace_structure = TraceStructure::SMALL_TEST;
 
     // Construct some circuits of varying size
     Builder circuit_0 = create_mock_circuit(ivc, /*log2_num_gates=*/5);
-    Builder circuit_1 = create_mock_circuit(ivc, /*log2_num_gates=*/10);
-    Builder circuit_2 = create_mock_circuit(ivc, /*log2_num_gates=*/15);
+    Builder circuit_1 = create_mock_circuit(ivc, /*log2_num_gates=*/8);
+    Builder circuit_2 = create_mock_circuit(ivc, /*log2_num_gates=*/11);
 
     // The circuits can be accumulated as normal due to the structured trace
     ivc.accumulate(circuit_0);
@@ -194,13 +194,13 @@ TEST_F(ClientIVCTests, PrecomputedVerificationKeys)
 TEST_F(ClientIVCTests, StructuredPrecomputedVKs)
 {
     ClientIVC ivc;
-    ivc.structured_flag = true;
+    ivc.trace_structure = TraceStructure::SMALL_TEST;
 
     // Construct a set of arbitrary circuits
     size_t NUM_CIRCUITS = 3;
     std::vector<Builder> circuits;
     for (size_t idx = 0; idx < NUM_CIRCUITS; ++idx) {
-        circuits.emplace_back(create_mock_circuit(ivc));
+        circuits.emplace_back(create_mock_circuit(ivc, /*log2_num_gates=*/5));
     }
 
     // Precompute the (structured) verification keys that will be needed for the IVC

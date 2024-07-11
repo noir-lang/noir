@@ -2827,7 +2827,7 @@ template <typename Arithmetization> msgpack::sbuffer UltraCircuitBuilder_<Arithm
 }
 
 template class UltraCircuitBuilder_<UltraArith<bb::fr>>;
-template class UltraCircuitBuilder_<UltraHonkArith<bb::fr>>;
+template class UltraCircuitBuilder_<MegaArith<bb::fr>>;
 // To enable this we need to template plookup
 // template class UltraCircuitBuilder_<grumpkin::fr>;
 

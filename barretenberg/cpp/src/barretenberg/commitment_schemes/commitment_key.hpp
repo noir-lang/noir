@@ -71,7 +71,13 @@ template <class Curve> class CommitmentKey {
     {
         BB_OP_COUNT_TIME();
         const size_t degree = polynomial.size();
-        ASSERT(degree <= srs->get_monomial_size());
+        if (degree > srs->get_monomial_size()) {
+            info("Attempting to commit to a polynomial of degree ",
+                 degree,
+                 " with an SRS of size ",
+                 srs->get_monomial_size());
+            ASSERT(false);
+        }
         return scalar_multiplication::pippenger_unsafe<Curve>(
             const_cast<Fr*>(polynomial.data()), srs->get_monomial_points(), degree, pippenger_runtime_state);
     };

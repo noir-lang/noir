@@ -19,7 +19,7 @@ template <typename CircuitBuilder> class MergeRecursiveVerifier_ {
     CircuitBuilder* builder;
     std::shared_ptr<Transcript> transcript;
 
-    static constexpr size_t NUM_WIRES = UltraHonkArith<FF>::NUM_WIRES;
+    static constexpr size_t NUM_WIRES = MegaArith<FF>::NUM_WIRES;
 
     explicit MergeRecursiveVerifier_(CircuitBuilder* builder);
 

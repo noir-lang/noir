@@ -347,7 +347,8 @@ void client_ivc_prove_output_all_msgpack(const std::string& bytecodePath,
     }
     // TODO(#7371) dedupe this with the rest of the similar code
     ClientIVC ivc;
-    ivc.structured_flag = true;
+    ivc.trace_structure = TraceStructure::E2E_FULL_TEST;
+
     // Accumulate the entire program stack into the IVC
     for (Program& program : folding_stack) {
         // auto& stack_item = program_stack.witness_stack[i];
@@ -390,7 +391,7 @@ bool foldAndVerifyProgram(const std::string& bytecodePath, const std::string& wi
     init_grumpkin_crs(1 << 16);
 
     ClientIVC ivc;
-    ivc.structured_flag = true;
+    ivc.trace_structure = TraceStructure::SMALL_TEST;
 
     auto program_stack = acir_format::get_acir_program_stack(
         bytecodePath, witnessPath, false); // TODO(https://github.com/AztecProtocol/barretenberg/issues/1013): this
@@ -432,7 +433,7 @@ void client_ivc_prove_output_all(const std::string& bytecodePath,
     init_grumpkin_crs(1 << 16);
 
     ClientIVC ivc;
-    ivc.structured_flag = true;
+    ivc.trace_structure = TraceStructure::E2E_FULL_TEST;
 
     auto program_stack = acir_format::get_acir_program_stack(
         bytecodePath, witnessPath, false); // TODO(https://github.com/AztecProtocol/barretenberg/issues/1013): this

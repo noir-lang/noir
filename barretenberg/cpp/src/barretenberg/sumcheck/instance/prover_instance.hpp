@@ -1,6 +1,8 @@
 #pragma once
 #include "barretenberg/execution_trace/execution_trace.hpp"
 #include "barretenberg/flavor/flavor.hpp"
+#include "barretenberg/plonk_honk_shared/arithmetization/mega_arithmetization.hpp"
+#include "barretenberg/plonk_honk_shared/arithmetization/ultra_arithmetization.hpp"
 #include "barretenberg/plonk_honk_shared/composer/composer_lib.hpp"
 #include "barretenberg/plonk_honk_shared/composer/permutation_lib.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
@@ -41,15 +43,22 @@ template <class Flavor> class ProverInstance_ {
     std::vector<FF> gate_challenges;
     FF target_sum;
 
-    ProverInstance_(Circuit& circuit, bool is_structured = false)
+    ProverInstance_(Circuit& circuit, TraceStructure trace_structure = TraceStructure::NONE)
     {
         BB_OP_COUNT_TIME_NAME("ProverInstance(Circuit&)");
         circuit.add_gates_to_ensure_all_polys_are_non_zero();
         circuit.finalize_circuit();
 
-        // If using a structured trace, ensure that no block exceeds the fixed size
+        // Set flag indicating whether the polynomials will be constructed with fixed block sizes for each gate type
+        const bool is_structured = (trace_structure != TraceStructure::NONE);
+
+        // If using a structured trace, set fixed block sizes, check their validity, and set the dyadic circuit size
         if (is_structured) {
-            circuit.blocks.check_within_fixed_sizes();
+            circuit.blocks.set_fixed_block_sizes(trace_structure); // set the fixed sizes for each block
+            circuit.blocks.check_within_fixed_sizes();             // ensure that no block exceeds its fixed size
+            dyadic_circuit_size = compute_structured_dyadic_size(circuit); // set the dyadic size accordingly
+        } else {
+            dyadic_circuit_size = compute_dyadic_size(circuit); // set dyadic size directly from circuit block sizes
         }
 
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/905): This is adding ops to the op queue but NOT to
@@ -57,12 +66,6 @@ template <class Flavor> class ProverInstance_ {
         // failure once https://github.com/AztecProtocol/barretenberg/issues/746 is resolved.
         if constexpr (IsGoblinFlavor<Flavor>) {
             circuit.op_queue->append_nonzero_ops();
-        }
-
-        if (is_structured) { // Compute dyadic size based on a structured trace with fixed block size
-            dyadic_circuit_size = compute_structured_dyadic_size(circuit);
-        } else { // Otherwise, compute conventional dyadic circuit size
-            dyadic_circuit_size = compute_dyadic_size(circuit);
         }
 
         proving_key = ProvingKey(dyadic_circuit_size, circuit.public_inputs.size());

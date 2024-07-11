@@ -172,7 +172,7 @@ BENCHMARK_DEFINE_F(ClientIVCBench, Full)(benchmark::State& state)
 BENCHMARK_DEFINE_F(ClientIVCBench, FullStructured)(benchmark::State& state)
 {
     ClientIVC ivc;
-    ivc.structured_flag = true;
+    ivc.trace_structure = TraceStructure::CLIENT_IVC_BENCH;
 
     auto num_circuits = static_cast<size_t>(state.range(0));
     auto precomputed_vks = precompute_verification_keys(ivc, num_circuits);

@@ -53,10 +53,10 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
     // Construct prover and verifier instance for a provided circuit and add to tuple
     static void construct_prover_and_verifier_instance(TupleOfInstances& instances,
                                                        Builder& builder,
-                                                       bool structured = false)
+                                                       TraceStructure structure = TraceStructure::NONE)
     {
 
-        auto prover_instance = std::make_shared<ProverInstance>(builder, structured);
+        auto prover_instance = std::make_shared<ProverInstance>(builder, structure);
         auto verification_key = std::make_shared<VerificationKey>(prover_instance->proving_key);
         auto verifier_instance = std::make_shared<VerifierInstance>(verification_key);
         get<0>(instances).emplace_back(prover_instance);
@@ -64,7 +64,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
     }
 
     // constructs num_insts number of prover and verifier instances
-    static TupleOfInstances construct_instances(size_t num_insts, bool structured = false)
+    static TupleOfInstances construct_instances(size_t num_insts, TraceStructure structure = TraceStructure::NONE)
     {
         TupleOfInstances instances;
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/938): Parallelize this loop
@@ -72,7 +72,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
             auto builder = typename Flavor::CircuitBuilder();
             construct_circuit(builder);
 
-            construct_prover_and_verifier_instance(instances, builder, structured);
+            construct_prover_and_verifier_instance(instances, builder, structure);
         }
         return instances;
     }
@@ -435,13 +435,14 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
      */
     static void test_full_protogalaxy_structured_trace()
     {
-        bool structured = true;
-        TupleOfInstances instances = construct_instances(2, structured);
+        TraceStructure trace_structure = TraceStructure::SMALL_TEST;
+        TupleOfInstances instances = construct_instances(2, trace_structure);
 
         auto [prover_accumulator, verifier_accumulator] = fold_and_verify(get<0>(instances), get<1>(instances));
         check_accumulator_target_sum_manual(prover_accumulator, true);
 
-        TupleOfInstances instances_2 = construct_instances(1, structured); // just one set of prover/verifier instances
+        TupleOfInstances instances_2 =
+            construct_instances(1, trace_structure); // just one set of prover/verifier instances
 
         auto [prover_accumulator_2, verifier_accumulator_2] = fold_and_verify(
             { prover_accumulator, get<0>(instances_2)[0] }, { verifier_accumulator, get<1>(instances_2)[0] });
@@ -458,7 +459,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
      */
     static void test_full_protogalaxy_structured_trace_inhomogeneous_circuits()
     {
-        bool structured = true;
+        TraceStructure trace_structure = TraceStructure::SMALL_TEST;
 
         // Construct three circuits to be folded, each with a different number of constraints
         Builder builder1;
@@ -475,8 +476,8 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
 
         // Construct the Prover/Verifier instances for the first two circuits
         TupleOfInstances instances;
-        construct_prover_and_verifier_instance(instances, builder1, structured);
-        construct_prover_and_verifier_instance(instances, builder2, structured);
+        construct_prover_and_verifier_instance(instances, builder1, trace_structure);
+        construct_prover_and_verifier_instance(instances, builder2, trace_structure);
 
         // Fold the first two instances
         auto [prover_accumulator, verifier_accumulator] = fold_and_verify(get<0>(instances), get<1>(instances));
@@ -484,7 +485,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
 
         // Construct the Prover/Verifier instance for the third circuit
         TupleOfInstances instances_2;
-        construct_prover_and_verifier_instance(instances_2, builder3, structured);
+        construct_prover_and_verifier_instance(instances_2, builder3, trace_structure);
 
         // Fold 3rd instance into accumulator
         auto [prover_accumulator_2, verifier_accumulator_2] = fold_and_verify(

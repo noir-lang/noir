@@ -91,7 +91,7 @@ WASM_EXPORT void acir_fold_and_verify_program_stack(uint8_t const* acir_vec, uin
     ProgramStack program_stack{ constraint_systems, witness_stack };
 
     ClientIVC ivc;
-    ivc.structured_flag = true;
+    ivc.trace_structure = TraceStructure::SMALL_TEST;
 
     while (!program_stack.empty()) {
         auto stack_item = program_stack.back();

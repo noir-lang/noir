@@ -13,7 +13,7 @@ namespace bb {
 template <typename FF> void MegaCircuitBuilder_<FF>::finalize_circuit()
 {
     // All of the gates involved in finalization are part of the Ultra arithmetization
-    UltraCircuitBuilder_<UltraHonkArith<FF>>::finalize_circuit();
+    UltraCircuitBuilder_<MegaArith<FF>>::finalize_circuit();
 }
 
 /**
@@ -29,7 +29,7 @@ template <typename FF> void MegaCircuitBuilder_<FF>::finalize_circuit()
 template <typename FF> void MegaCircuitBuilder_<FF>::add_gates_to_ensure_all_polys_are_non_zero()
 {
     // Most polynomials are handled via the conventional Ultra method
-    UltraCircuitBuilder_<UltraHonkArith<FF>>::add_gates_to_ensure_all_polys_are_non_zero();
+    UltraCircuitBuilder_<MegaArith<FF>>::add_gates_to_ensure_all_polys_are_non_zero();
 
     // All that remains is to handle databus related and poseidon2 related polynomials. In what follows we populate the
     // calldata with some mock data then constuct a single calldata read gate
