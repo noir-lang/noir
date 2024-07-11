@@ -180,12 +180,19 @@ pub fn create_program(
 
     let recursive = program.recursive;
     let (generated_acirs, generated_brillig, error_types) = optimize_into_acir(program, options)?;
-    assert_eq!(
-        generated_acirs.len(),
-        func_sigs.len(),
-        "The generated ACIRs should match the supplied function signatures"
-    );
-
+    if options.force_brillig_output {	
+        assert_eq!(	
+            generated_acirs.len(),	
+            1,	
+            "Only the main ACIR is expected when forcing Brillig output"	
+        );	
+    } else {
+        assert_eq!(
+            generated_acirs.len(),
+            func_sigs.len(),
+            "The generated ACIRs should match the supplied function signatures"
+        );
+    }
     let mut program_artifact = SsaProgramArtifact::new(generated_brillig, error_types);
     // For setting up the ABI we need separately specify main's input and return witnesses
     let mut is_main = true;
