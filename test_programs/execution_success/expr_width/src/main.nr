@@ -8,7 +8,7 @@ fn main(x: Field, y: pub Field) {
 
 fn oh_no_not_again(mut state: [Field; 2]) -> [Field; 2] {
     for _ in 0..500 {
-    // for _ in 0..4 {
+        // for _ in 0..4 {
         state[0] = state[0] * state[0] + state[1];
         state[1] += state[0];
     }
@@ -17,7 +17,7 @@ fn oh_no_not_again(mut state: [Field; 2]) -> [Field; 2] {
 
 fn oh_no_not_again_as_witness(mut state: [Field; 2]) -> [Field; 2] {
     for i in 0..500 {
-    // for i in 0..4 {
+        // for i in 0..4 {
         state[0] = state[0] * state[0] + state[1];
         std::as_witness(state[0]);
         state[1] += state[0];

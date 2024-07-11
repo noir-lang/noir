@@ -655,18 +655,8 @@ impl<F: AcirField> AcirContext<F> {
                 let mut expr = Expression::default();
                 for term in expression.linear_combinations.iter() {
                     expr.push_multiplication_term(term.0, term.1, witness);
-                    if !fits_in_one_identity(&expr, self.expression_width) {
-                        dbg!(fits_in_one_identity(&expr, self.expression_width));
-                        println!("lhs_data: {:#?}", lhs_data.clone());
-                        println!("rhs_data: {:#?}", rhs_data.clone());
-                    }
                 }
                 expr.push_addition_term(expression.q_c, witness);
-                if !fits_in_one_identity(&expr, self.expression_width) {
-                    dbg!(fits_in_one_identity(&expr, self.expression_width));
-                    println!("lhs_data: {:#?}", lhs_data.clone());
-                    println!("rhs_data: {:#?}", rhs_data.clone());
-                }
                 self.add_data(AcirVarData::Expr(expr))
             }
             (AcirVarData::Expr(lhs_expr), AcirVarData::Expr(rhs_expr)) => {
@@ -682,61 +672,25 @@ impl<F: AcirField> AcirContext<F> {
                     let rhs_term = univariate.linear_combinations[0];
                     for term in lin.linear_combinations.iter() {
                         expr.push_multiplication_term(term.0 * rhs_term.0, term.1, rhs_term.1);
-                        if !fits_in_one_identity(&expr, self.expression_width) {
-                            dbg!(fits_in_one_identity(&expr, self.expression_width));
-                            println!("lhs_data: {:#?}", lhs_data.clone());
-                            println!("rhs_data: {:#?}", rhs_data.clone());
-                        }
-                        if expr.mul_terms.len() > 1 {
-                            dbg!(expr.clone());
-                        }
                     }
                     expr.push_addition_term(lin.q_c * rhs_term.0, rhs_term.1);
-                    if !fits_in_one_identity(&expr, self.expression_width) {
-                        dbg!(fits_in_one_identity(&expr, self.expression_width));
-                        println!("lhs_data: {:#?}", lhs_data.clone());
-                        println!("rhs_data: {:#?}", rhs_data.clone());
-                    }
                     expr.sort();
                     expr = expr.add_mul(univariate.q_c, &lin);
-                    if !fits_in_one_identity(&expr, self.expression_width) {
-                        dbg!(fits_in_one_identity(&expr, self.expression_width));
-                        println!("lhs_data: {:#?}", lhs_data.clone());
-                        println!("rhs_data: {:#?}", rhs_data.clone());
-                    }
                     self.add_data(AcirVarData::Expr(expr))
                 } else {
                     let lhs = self.get_or_create_witness_var(lhs)?;
                     let rhs = self.get_or_create_witness_var(rhs)?;
-                    let lhs_expr = self.var_to_expression(lhs)?;
-                    if lhs_expr.mul_terms.len() > 1 {
-                        dbg!(lhs_expr.clone());
-                    }
-                    let rhs_expr = self.var_to_expression(rhs)?;
-                    if rhs_expr.mul_terms.len() > 1 {
-                        dbg!(rhs_expr.clone());
-                    }
                     self.mul_var(lhs, rhs)?
                 }
             }
             _ => {
                 let lhs = self.get_or_create_witness_var(lhs)?;
                 let rhs = self.get_or_create_witness_var(rhs)?;
-                let lhs_expr = self.var_to_expression(lhs)?;
-                if lhs_expr.mul_terms.len() > 1 {
-                    dbg!(lhs_expr.clone());
-                }
-                let rhs_expr = self.var_to_expression(rhs)?;
-                if rhs_expr.mul_terms.len() > 1 {
-                    dbg!(rhs_expr.clone());
-                }
                 self.mul_var(lhs, rhs)?
             }
         };
         let result_expr = self.var_to_expression(result)?;
-        if result_expr.mul_terms.len() > 1 {
-            dbg!(result_expr.clone());
-        }
+
         Ok(result)
     }
 
@@ -751,13 +705,8 @@ impl<F: AcirField> AcirContext<F> {
     /// be constrained to be the addition of `lhs` and `rhs`
     pub(crate) fn add_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, RuntimeError> {
         let lhs_expr = self.var_to_expression(lhs)?;
-        if lhs_expr.mul_terms.len() > 1 {
-            dbg!(lhs_expr.clone());
-        }
         let rhs_expr = self.var_to_expression(rhs)?;
-        if lhs_expr.mul_terms.len() > 1 {
-            dbg!(lhs_expr.clone());
-        }
+        
         let sum_expr = &lhs_expr + &rhs_expr;
         let sum_expr_fits = fits_in_one_identity(&sum_expr, self.expression_width);
 
