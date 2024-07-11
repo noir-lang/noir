@@ -48,7 +48,7 @@ fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -
         ReferenceId::Global(id) => format_global(id, args),
         ReferenceId::Function(id) => format_function(id, args),
         ReferenceId::Alias(id) => format_alias(id, args),
-        ReferenceId::Local(id) => format_local(id, &args),
+        ReferenceId::Local(id) => format_local(id, args),
         ReferenceId::Reference(location, _) => {
             format_reference(args.interner.find_referenced(location).unwrap(), args)
         }
@@ -63,7 +63,7 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> String {
         args,
         &mut string,
     ) {
-        string.push_str("\n");
+        string.push('\n');
     }
     string.push_str("    ");
     string.push_str("mod ");
@@ -77,7 +77,7 @@ fn format_struct(id: StructId, args: &ProcessRequestCallbackArgs) -> String {
 
     let mut string = String::new();
     if format_parent_module(ReferenceId::Struct(id), args, &mut string) {
-        string.push_str("\n");
+        string.push('\n');
     }
     string.push_str("    ");
     string.push_str("struct ");
@@ -109,7 +109,7 @@ fn format_struct_member(
         string.push_str("::");
     }
     string.push_str(&struct_type.name.0.contents);
-    string.push_str("\n");
+    string.push('\n');
     string.push_str("    ");
     string.push_str(&field_name.0.contents);
     string.push_str(": ");
@@ -122,7 +122,7 @@ fn format_trait(id: TraitId, args: &ProcessRequestCallbackArgs) -> String {
 
     let mut string = String::new();
     if format_parent_module(ReferenceId::Trait(id), args, &mut string) {
-        string.push_str("\n");
+        string.push('\n');
     }
     string.push_str("    ");
     string.push_str("trait ");
@@ -138,7 +138,7 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
 
     let mut string = String::new();
     if format_parent_module(ReferenceId::Global(id), args, &mut string) {
-        string.push_str("\n");
+        string.push('\n');
     }
     string.push_str("    ");
     string.push_str("global ");
@@ -167,7 +167,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         false
     };
     if formatted_parent_module || formatted_parent_struct {
-        string.push_str("\n");
+        string.push('\n');
     }
     string.push_str("    ");
     string.push_str("fn ");
@@ -209,7 +209,7 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
 
     let mut string = String::new();
     format_parent_module(ReferenceId::Alias(id), args, &mut string);
-    string.push_str("\n");
+    string.push('\n');
     string.push_str("    ");
     string.push_str("type ");
     string.push_str(&type_alias.name.0.contents);
@@ -297,7 +297,7 @@ fn format_parent_module(
         return false;
     };
 
-    return format_parent_module_from_module_id(&module, args, string);
+    format_parent_module_from_module_id(module, args, string)
 }
 
 fn format_parent_module_from_module_id(
@@ -379,7 +379,7 @@ mod hover_tests {
             HoverParams {
                 text_document_position_params: TextDocumentPositionParams {
                     text_document: TextDocumentIdentifier { uri: file_uri },
-                    position: position,
+                    position,
                 },
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
             },
