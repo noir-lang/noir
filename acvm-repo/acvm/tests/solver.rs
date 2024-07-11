@@ -5,7 +5,7 @@ use acir::{
     brillig::{BinaryFieldOp, HeapArray, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
     circuit::{
         brillig::{BrilligBytecode, BrilligInputs, BrilligOutputs},
-        opcodes::{BlockId, BlockType, MemOp},
+        opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
         Opcode, OpcodeLocation,
     },
     native_types::{Expression, Witness, WitnessMap},
@@ -15,6 +15,8 @@ use acir::{
 use acvm::pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError, ACVM};
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
 use brillig_vm::brillig::HeapValueType;
+
+use proptest::prelude::*;
 
 // Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.
 
@@ -722,3 +724,75 @@ fn memory_operations() {
 
     assert_eq!(witness_map[&Witness(8)], FieldElement::from(6u128));
 }
+
+// Solve the given BlackBoxFuncCall with witnesses: 1, 2 as x, y, resp.
+#[cfg(test)]
+fn solve_blackbox_func_call(blackbox_func_call: BlackBoxFuncCall<FieldElement>, x: u128, y: u128) -> FieldElement {
+    let initial_witness = WitnessMap::from(BTreeMap::from_iter([
+        (Witness(1), FieldElement::from(x)),
+        (Witness(2), FieldElement::from(y)),
+    ]));
+
+    let op = Opcode::BlackBoxFuncCall(blackbox_func_call);
+    let opcodes = vec![op];
+    let unconstrained_functions = vec![];
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
+    let solver_status = acvm.solve();
+    assert_eq!(solver_status, ACVMStatus::Solved);
+    let witness_map = acvm.finalize();
+
+    witness_map[&Witness(3)]
+}
+
+
+// TODO: cleanup new tests and rename this
+#[test]
+fn binary_operations() {
+
+    // // special cases
+    //         BlackBoxFuncCall::BigIntSub { .. } => BlackBoxFunc::BigIntSub,
+    //         BlackBoxFuncCall::BigIntDiv { .. }
+    //
+    // // BigInt:
+    // //
+    // // pub struct BigIntSolver {
+    // //     bigint_id_to_value: HashMap<u32, BigUint>,
+    // //     bigint_id_to_modulus: HashMap<u32, BigUint>,
+    // // }
+    // //
+    //         BlackBoxFuncCall::BigIntAdd { .. }
+    //         BlackBoxFuncCall::BigIntMul { .. }
+    //
+    // // unique calling convention
+    //         BlackBoxFuncCall::EmbeddedCurveAdd { .. }
+    //
+    // // 
+    //         BlackBoxFuncCall::AND { .. }
+    //         BlackBoxFuncCall::XOR { .. }
+    //
+    // AND | XOR {
+    //     lhs: FunctionInput<F>,
+    //     rhs: FunctionInput<F>,
+    //     output: Witness,
+    // },
+    //
+
+    // TODO:
+    // - commutativity
+    // - associativity
+    // - ..
+
+    let x = 1;
+    let y = 3;
+
+    let and_op = BlackBoxFuncCall::AND {
+        lhs: FunctionInput::witness(Witness(1), FieldElement::max_num_bits()),
+        rhs: FunctionInput::witness(Witness(2), FieldElement::max_num_bits()),
+        output: Witness(3),
+    };
+
+    assert_eq!(solve_blackbox_func_call(and_op.clone(), x, y), solve_blackbox_func_call(and_op, y, x));
+
+}
+
