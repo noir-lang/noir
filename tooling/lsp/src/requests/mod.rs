@@ -14,7 +14,7 @@ use lsp_types::{
 use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo_fmt::Config;
 use noirc_driver::file_manager_with_stdlib;
-use noirc_frontend::macros_api::NodeInterner;
+use noirc_frontend::{graph::Dependency, macros_api::NodeInterner};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -273,9 +273,11 @@ pub(crate) fn on_shutdown(
 
 pub(crate) struct ProcessRequestCallbackArgs<'a> {
     location: noirc_errors::Location,
-    interner: &'a NodeInterner,
     files: &'a FileMap,
+    interner: &'a NodeInterner,
     interners: &'a HashMap<String, NodeInterner>,
+    root_crate_name: String,
+    root_crate_dependnencies: &'a Vec<Dependency>,
 }
 
 pub(crate) fn process_request<F, T>(
@@ -325,9 +327,11 @@ where
 
     Ok(callback(ProcessRequestCallbackArgs {
         location,
-        interner,
         files,
+        interner,
         interners: &state.cached_definitions,
+        root_crate_name: format!("{}", package.name),
+        root_crate_dependnencies: &context.crate_graph[context.root_crate_id()].dependencies,
     }))
 }
 pub(crate) fn find_all_references_in_workspace(
