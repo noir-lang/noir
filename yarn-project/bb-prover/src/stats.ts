@@ -41,6 +41,8 @@ export function mapProtocolArtifactNameToCircuitName(
       return 'private-kernel-reset-medium';
     case 'PrivateKernelResetSmallArtifact':
       return 'private-kernel-reset-small';
+    case 'PrivateKernelResetTinyArtifact':
+      return 'private-kernel-reset-tiny';
     case 'EmptyNestedArtifact':
       return 'empty-nested';
     case 'PrivateKernelEmptyArtifact':

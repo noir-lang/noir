@@ -83,6 +83,7 @@ export type CircuitName =
   | 'private-kernel-reset-big'
   | 'private-kernel-reset-medium'
   | 'private-kernel-reset-small'
+  | 'private-kernel-reset-tiny'
   | 'private-kernel-tail'
   | 'private-kernel-tail-to-public'
   | 'app-circuit'

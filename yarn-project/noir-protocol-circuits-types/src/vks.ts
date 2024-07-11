@@ -13,6 +13,7 @@ import {
   PRIVATE_KERNEL_RESET_FULL_INDEX,
   PRIVATE_KERNEL_RESET_MEDIUM_INDEX,
   PRIVATE_KERNEL_RESET_SMALL_INDEX,
+  PRIVATE_KERNEL_RESET_TINY_INDEX,
   PRIVATE_KERNEL_TAIL_INDEX,
   PRIVATE_KERNEL_TAIL_TO_PUBLIC_INDEX,
   PUBLIC_KERNEL_APP_LOGIC_INDEX,
@@ -38,6 +39,7 @@ import PrivateKernelResetFullVkJson from '../artifacts/keys/private_kernel_reset
 import PrivateKernelResetBigVkJson from '../artifacts/keys/private_kernel_reset_big.vk.data.json' assert { type: 'json' };
 import PrivateKernelResetMediumVkJson from '../artifacts/keys/private_kernel_reset_medium.vk.data.json' assert { type: 'json' };
 import PrivateKernelResetSmallVkJson from '../artifacts/keys/private_kernel_reset_small.vk.data.json' assert { type: 'json' };
+import PrivateKernelResetTinyVkJson from '../artifacts/keys/private_kernel_reset_tiny.vk.data.json' assert { type: 'json' };
 import PrivateKernelTailVkJson from '../artifacts/keys/private_kernel_tail.vk.data.json' assert { type: 'json' };
 import PrivateKernelTailToPublicVkJson from '../artifacts/keys/private_kernel_tail_to_public.vk.data.json' assert { type: 'json' };
 import PublicKernelAppLogicVkJson from '../artifacts/keys/public_kernel_app_logic.vk.data.json' assert { type: 'json' };
@@ -90,6 +92,7 @@ const ClientCircuitVks: Record<ClientProtocolArtifact, VerificationKeyData> = {
   PrivateKernelResetBigArtifact: keyJsonToVKData(PrivateKernelResetBigVkJson),
   PrivateKernelResetMediumArtifact: keyJsonToVKData(PrivateKernelResetMediumVkJson),
   PrivateKernelResetSmallArtifact: keyJsonToVKData(PrivateKernelResetSmallVkJson),
+  PrivateKernelResetTinyArtifact: keyJsonToVKData(PrivateKernelResetTinyVkJson),
   PrivateKernelTailArtifact: keyJsonToVKData(PrivateKernelTailVkJson),
   PrivateKernelTailToPublicArtifact: keyJsonToVKData(PrivateKernelTailToPublicVkJson),
 };
@@ -108,6 +111,7 @@ export const ProtocolCircuitVkIndexes: Record<ProtocolArtifact, number> = {
   PrivateKernelResetBigArtifact: PRIVATE_KERNEL_RESET_BIG_INDEX,
   PrivateKernelResetMediumArtifact: PRIVATE_KERNEL_RESET_MEDIUM_INDEX,
   PrivateKernelResetSmallArtifact: PRIVATE_KERNEL_RESET_SMALL_INDEX,
+  PrivateKernelResetTinyArtifact: PRIVATE_KERNEL_RESET_TINY_INDEX,
   PrivateKernelTailArtifact: PRIVATE_KERNEL_TAIL_INDEX,
   PrivateKernelTailToPublicArtifact: PRIVATE_KERNEL_TAIL_TO_PUBLIC_INDEX,
   PublicKernelSetupArtifact: PUBLIC_KERNEL_SETUP_INDEX,

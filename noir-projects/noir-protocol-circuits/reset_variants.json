@@ -31,5 +31,16 @@
       "NULLIFIER_SETTLED_AMOUNT": 8,
       "NULLIFIER_KEYS": 8
     }
+  },
+  {
+    "tag": "tiny",
+    "priority": 101,
+    "replacements": {
+      "NOTE_HASH_PENDING_AMOUNT": 4,
+      "NOTE_HASH_SETTLED_AMOUNT": 4,
+      "NULLIFIER_PENDING_AMOUNT": 4,
+      "NULLIFIER_SETTLED_AMOUNT": 4,
+      "NULLIFIER_KEYS": 4
+    }
   }
 ]

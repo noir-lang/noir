@@ -29,32 +29,33 @@ fn assert_split_sorted_transformed_value_arrays<T, S, N>(
             let value = transformed_value_array[i];
             let sorted_index = index_hints[i];
             let is_lt = original.counter() < split_counter;
-            let (sorted_value, sorted_counter, num) = if is_lt {
-                (
-                    sorted_transformed_value_array_lt[sorted_index], sorted_counters_lt[sorted_index], num_lt
-                )
+            let (sorted_value, sorted_counter) = if is_lt {
+                (sorted_transformed_value_array_lt[sorted_index], sorted_counters_lt[sorted_index])
             } else {
-                (
-                    sorted_transformed_value_array_gte[sorted_index], sorted_counters_gte[sorted_index], num_gte
-                )
+                (sorted_transformed_value_array_gte[sorted_index], sorted_counters_gte[sorted_index])
             };
             assert_eq(value, sorted_value, "mismatch sorted values");
             assert_eq(original.counter(), sorted_counter, "mismatch counters");
-            if num != 0 {
-                let (counter, prev_counter) = if is_lt {
-                    (sorted_counters_lt[num], sorted_counters_lt[num - 1])
-                } else {
-                    (sorted_counters_gte[num], sorted_counters_gte[num - 1])
-                };
-                let is_incrementing = counter > prev_counter;
-                assert(ascending == is_incrementing, "value array must be sorted by counter");
-                assert(counter != prev_counter, "counters must not be the same");
-            }
             if is_lt {
                 num_lt += 1;
             } else {
                 num_gte += 1;
             }
+        }
+    }
+
+    for i in 1..N {
+        if i < num_lt {
+            let counter = sorted_counters_lt[i];
+            let prev_counter = sorted_counters_lt[i - 1];
+            assert(ascending == (counter > prev_counter), "value array must be sorted by counter");
+            assert(counter != prev_counter, "counters must not be the same");
+        }
+        if i < num_gte {
+            let counter = sorted_counters_gte[i];
+            let prev_counter = sorted_counters_gte[i - 1];
+            assert(ascending == (counter > prev_counter), "value array must be sorted by counter");
+            assert(counter != prev_counter, "counters must not be the same");
         }
     }
 
