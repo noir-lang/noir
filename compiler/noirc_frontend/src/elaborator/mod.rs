@@ -1292,7 +1292,7 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
     ) -> Result<(), (CompilationError, FileId)> {
         let location = Location::new(span, self.file);
-        let (function_name, mut arguments) = Self::parse_attribute(&attribute, location)
+        let (function_name, mut arguments) = Self::parse_attribute(attribute, location)
             .unwrap_or_else(|| (attribute.to_string(), Vec::new()));
 
         let id = self
