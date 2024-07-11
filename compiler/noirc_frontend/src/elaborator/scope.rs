@@ -48,6 +48,10 @@ impl<'context> Elaborator<'context> {
         let path_resolution;
 
         if self.interner.track_references {
+            let last_segment = path.last_segment();
+            let location = Location::new(last_segment.span(), self.file);
+            let is_self_type_name = last_segment.is_self_type_name();
+
             let mut references: Vec<ReferenceId> = Vec::new();
             path_resolution =
                 resolver.resolve(self.def_maps, path.clone(), &mut Some(&mut references))?;
@@ -59,6 +63,12 @@ impl<'context> Elaborator<'context> {
                     ident.is_self_type_name(),
                 );
             }
+
+            self.interner.add_module_def_id_reference(
+                path_resolution.module_def_id,
+                location,
+                is_self_type_name,
+            );
         } else {
             path_resolution = resolver.resolve(self.def_maps, path, &mut None)?;
         }

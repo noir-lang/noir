@@ -538,4 +538,16 @@ mod hover_tests {
         )
         .await;
     }
+
+    #[test]
+    async fn hover_on_trait_on_call() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 39, character: 17 },
+            r#"    std::default
+    trait Default"#,
+        )
+        .await;
+    }
 }

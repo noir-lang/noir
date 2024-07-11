@@ -4,7 +4,7 @@ use rangemap::RangeMap;
 use rustc_hash::FxHashMap;
 
 use crate::{
-    hir::def_map::ModuleId,
+    hir::def_map::{ModuleDefId, ModuleId},
     macros_api::{NodeInterner, StructId},
     node_interner::{DefinitionId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
 };
@@ -64,6 +64,34 @@ impl NodeInterner {
 
     pub fn reference_module(&self, reference: ReferenceId) -> Option<&ModuleId> {
         self.reference_modules.get(&reference)
+    }
+
+    pub(crate) fn add_module_def_id_reference(
+        &mut self,
+        def_id: ModuleDefId,
+        location: Location,
+        is_self_type: bool,
+    ) {
+        match def_id {
+            ModuleDefId::ModuleId(module_id) => {
+                self.add_module_reference(module_id, location);
+            }
+            ModuleDefId::FunctionId(func_id) => {
+                self.add_function_reference(func_id, location);
+            }
+            ModuleDefId::TypeId(struct_id) => {
+                self.add_struct_reference(struct_id, location, is_self_type);
+            }
+            ModuleDefId::TraitId(trait_id) => {
+                self.add_trait_reference(trait_id, location, is_self_type);
+            }
+            ModuleDefId::TypeAliasId(type_alias_id) => {
+                self.add_alias_reference(type_alias_id, location);
+            }
+            ModuleDefId::GlobalId(global_id) => {
+                self.add_global_reference(global_id, location);
+            }
+        };
     }
 
     pub(crate) fn add_module_reference(&mut self, id: ModuleId, location: Location) {

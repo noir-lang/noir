@@ -548,27 +548,7 @@ fn add_import_reference(
     }
 
     let location = Location::new(name.span(), file_id);
-
-    match def_id {
-        crate::macros_api::ModuleDefId::ModuleId(module_id) => {
-            interner.add_module_reference(module_id, location);
-        }
-        crate::macros_api::ModuleDefId::FunctionId(func_id) => {
-            interner.add_function_reference(func_id, location);
-        }
-        crate::macros_api::ModuleDefId::TypeId(struct_id) => {
-            interner.add_struct_reference(struct_id, location, false);
-        }
-        crate::macros_api::ModuleDefId::TraitId(trait_id) => {
-            interner.add_trait_reference(trait_id, location, false);
-        }
-        crate::macros_api::ModuleDefId::TypeAliasId(type_alias_id) => {
-            interner.add_alias_reference(type_alias_id, location);
-        }
-        crate::macros_api::ModuleDefId::GlobalId(global_id) => {
-            interner.add_global_reference(global_id, location);
-        }
-    };
+    interner.add_module_def_id_reference(def_id, location, false);
 }
 
 fn inject_prelude(

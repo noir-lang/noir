@@ -33,3 +33,9 @@ fn use_parameter(some_param: i32) {
 }
 
 use one::subone::SomeAlias;
+
+use std::default::Default;
+
+fn use_impl_method() {
+    let _: i32 = Default::default();
+}
