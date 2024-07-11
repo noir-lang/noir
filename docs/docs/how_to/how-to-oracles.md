@@ -46,7 +46,7 @@ unconstrained fn get_sqrt(number: Field) -> Field {
 }
 ```
 
-In this example, we're wrapping our oracle function in a unconstrained method, and decorating it with `oracle(getSqrt)`. We can then call the unconstrained function as we would call any other function:
+In this example, we're wrapping our oracle function in an unconstrained method, and decorating it with `oracle(getSqrt)`. We can then call the unconstrained function as we would call any other function:
 
 ```rust
 fn main(input: Field) {
@@ -234,7 +234,7 @@ const client = new JSONRPCClient((jsonRPCRequest) => {
 // declaring a function that takes the name of the foreign call (getSqrt) and the inputs
 const foreignCallHandler = async (name, input) => {
     // notice that the "inputs" parameter contains *all* the inputs
-    // in this case we to make the RPC request with the first parameter "numbers", which would be input[0]
+    // in this case we make the RPC request with the first parameter "numbers", which would be input[0]
     const oracleReturn = await client.request(name, [
       input[0].map((i) => i.toString("hex")),
     ]);
