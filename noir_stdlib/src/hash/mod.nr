@@ -1,6 +1,7 @@
 mod poseidon;
 mod mimc;
 mod poseidon2;
+mod keccak;
 
 use crate::default::Default;
 use crate::uint128::U128;
@@ -63,10 +64,7 @@ pub fn pedersen_hash<let N: u32>(input: [Field; N]) -> Field
 }
 
 #[field(bn254)]
-fn derive_generators<let N: u32, let M: u32>(
-    domain_separator_bytes: [u8; M],
-    starting_index: u32
-) -> [EmbeddedCurvePoint; N] {
+fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {
     crate::assert_constant(domain_separator_bytes);
     crate::assert_constant(starting_index);
     __derive_generators(domain_separator_bytes, starting_index)
@@ -74,7 +72,10 @@ fn derive_generators<let N: u32, let M: u32>(
 
 #[builtin(derive_pedersen_generators)]
 #[field(bn254)]
-fn __derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {}
+fn __derive_generators<let N: u32, let M: u32>(
+    domain_separator_bytes: [u8; M],
+    starting_index: u32
+) -> [EmbeddedCurvePoint; N] {}
 
 #[field(bn254)]
     // Same as from_field but:

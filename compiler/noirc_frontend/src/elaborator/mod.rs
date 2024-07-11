@@ -1471,13 +1471,11 @@ impl<'context> Elaborator<'context> {
 
             if let Some(trait_id) = trait_id {
                 let trait_name = trait_impl.trait_path.last_segment();
-
-                let referenced = ReferenceId::Trait(trait_id);
-                let reference = ReferenceId::Reference(
+                self.interner.add_trait_reference(
+                    trait_id,
                     Location::new(trait_name.span(), trait_impl.file_id),
                     trait_name.is_self_type_name(),
                 );
-                self.interner.add_reference(referenced, reference);
             }
         }
     }
