@@ -171,8 +171,8 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     }
     string.push_str("    ");
     string.push_str("fn ");
-    format_generics(&func_meta.direct_generics, &mut string);
     string.push_str(&func_name_definition_id.name);
+    format_generics(&func_meta.direct_generics, &mut string);
     string.push('(');
     let parameters = &func_meta.parameters;
     for (index, (pattern, typ, visibility)) in parameters.iter().enumerate() {
@@ -465,7 +465,7 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 3, character: 4 },
             r#"    one
-    fn function_one()"#,
+    fn function_one<A, B>()"#,
         )
         .await;
     }

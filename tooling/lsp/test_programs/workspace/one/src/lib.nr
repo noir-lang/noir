@@ -1,4 +1,4 @@
-pub fn function_one() {}
+pub fn function_one<A, B>() {}
 
 mod subone {
     struct SubOneStruct {
