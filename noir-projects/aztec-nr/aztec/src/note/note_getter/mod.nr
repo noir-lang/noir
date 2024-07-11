@@ -104,7 +104,7 @@ pub fn get_notes<Note, N, M, FILTER_ARGS>(
     context: &mut PrivateContext,
     storage_slot: Field,
     options: NoteGetterOptions<Note, N, M, FILTER_ARGS>
-) -> BoundedVec<Note, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> where Note: NoteInterface<N, M> {
+) -> BoundedVec<Note, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> where Note: NoteInterface<N, M> + Eq {
     let opt_notes = get_notes_internal(storage_slot, options);
 
     constrain_get_notes_internal(context, storage_slot, opt_notes, options)
@@ -115,9 +115,7 @@ fn constrain_get_notes_internal<Note, N, M, FILTER_ARGS>(
     storage_slot: Field,
     opt_notes: [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
     options: NoteGetterOptions<Note, N, M, FILTER_ARGS>
-) -> BoundedVec<Note, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> where Note: NoteInterface<N, M> {
-    let mut returned_notes = BoundedVec::new();
-
+) -> BoundedVec<Note, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> where Note: NoteInterface<N, M> + Eq {
     // The filter is applied first to avoid pushing note read requests for notes we're not interested in. Note that
     // while the filter function can technically mutate the contents of the notes (as opposed to simply removing some),
     // the private kernel will later validate that these note actually exist, so transformations would cause for that
@@ -126,11 +124,18 @@ fn constrain_get_notes_internal<Note, N, M, FILTER_ARGS>(
     let filter_args = options.filter_args;
     let filtered_notes = filter_fn(opt_notes, filter_args);
 
+    let notes = crate::utils::collapse(filtered_notes);
+
+    // We have now collapsed the sparse array of Options into a BoundedVec. This is a more ergonomic type and also
+    // results in reduced gate counts when setting a limit value, since we guarantee that the limit is an upper bound
+    // for the runtime length, and can therefore have fewer loop iterations.
+    assert(notes.len() <= options.limit, "Got more notes than limit.");
+    assert(notes.len() != 0, "Cannot return zero notes");
+
     let mut prev_fields = [0; N];
     for i in 0..options.limit {
-        let opt_note = filtered_notes[i];
-        if opt_note.is_some() {
-            let note = opt_note.unwrap_unchecked();
+        if i < notes.len() {
+            let note = notes.get_unchecked(i);
             let fields = note.serialize_content();
             check_note_header(*context, storage_slot, note);
             check_note_fields(fields, options.selects);
@@ -143,27 +148,10 @@ fn constrain_get_notes_internal<Note, N, M, FILTER_ARGS>(
             // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1410): test to ensure
             // failure if malicious oracle injects 0 nonce here for a "pre-existing" note.
             context.push_note_hash_read_request(note_hash_for_read_request);
-
-            // The below code is used to collapse a sparse array into one where the values are guaranteed to be at the 
-            // front of the array. This is highly useful because the caller knows that the returned array won't have
-            // more than option.limits notes, and can therefore loop over this limit value instead of the entire array,
-            // resulting in a smaller circuit and faster proving times.
-            // We write at returned_notes[num_notes] because num_notes is only advanced when we have a value in 
-            // filtered_notes.
-            returned_notes.push(note);
         };
     }
 
-    // As long as we only loop till `options.limit` the array will be guaranteed to be at most of length `options.limit`.
-    assert(returned_notes.len() <= options.limit, "Got more notes than limit.");
-    // We will however check that nothing else was returned after the limit.
-    for i in options.limit..filtered_notes.len() {
-        assert(filtered_notes[i].is_none(), "Got more notes than limit.");
-    }
-
-    assert(returned_notes.len() != 0, "Cannot return zero notes");
-
-    returned_notes
+    notes
 }
 
 unconstrained fn get_note_internal<Note, N, M>(storage_slot: Field) -> Note where Note: NoteInterface<N, M> {

@@ -64,3 +64,11 @@ impl OwnedNote for TokenNote {
         self.amount
     }
 }
+
+impl Eq for TokenNote {
+    fn eq(self, other: Self) -> bool {
+        (self.amount == other.amount) &
+        (self.npk_m_hash == other.npk_m_hash) &
+        (self.randomness == other.randomness)
+    }
+}

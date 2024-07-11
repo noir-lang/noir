@@ -34,3 +34,9 @@ impl TestNote {
         TestNote { value, header: NoteHeader::empty() }
     }
 }
+
+impl Eq for TestNote {
+    fn eq(self, other: Self) -> bool {
+        self.value == other.value
+    }
+}

@@ -95,6 +95,14 @@ impl NoteInterface<TOKEN_NOTE_LEN, TOKEN_NOTE_BYTES_LEN> for TokenNote {
     }
 }
 
+impl Eq for TokenNote {
+    fn eq(self, other: Self) -> bool {
+        (self.amount == other.amount) &
+        (self.npk_m_hash == other.npk_m_hash) &
+        (self.randomness == other.randomness)
+    }
+}
+
 impl OwnedNote for TokenNote {
     fn new(amount: U128, owner_npk_m_hash: Field) -> Self {
         Self {

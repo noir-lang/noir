@@ -78,4 +78,11 @@ impl TransparentNote {
         }
     }
 }
+
+impl Eq for TransparentNote {
+    fn eq(self, other: Self) -> bool {
+        (self.amount == other.amount) & (self.secret_hash == other.secret_hash)
+    }
+}
+
 // docs:end:token_types_all

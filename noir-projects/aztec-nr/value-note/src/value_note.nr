@@ -64,3 +64,11 @@ impl Serialize<7> for ValueNote {
         [self.value, self.npk_m_hash, self.randomness, header[0], header[1], header[2], header[3]]
     }
 }
+
+impl Eq for ValueNote {
+    fn eq(self, other: Self) -> bool {
+        (self.value == other.value) &
+        (self.npk_m_hash == other.npk_m_hash) &
+        (self.randomness == other.randomness)
+    }
+}
