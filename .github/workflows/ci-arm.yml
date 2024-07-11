@@ -36,7 +36,10 @@ jobs:
             set -eux
             git submodule update --init --recursive --recommend-shallow
             echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u aztecprotocolci --password-stdin
-            scripts/earthly-ci ./yarn-project+export-e2e-test-images
+            scripts/earthly-ci \
+              --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+              --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+              ./yarn-project+export-e2e-test-images
 
   # all the end-to-end integration tests for aztec
   e2e:
@@ -54,7 +57,10 @@ jobs:
             sudo shutdown -P 25 # hack until core part of the scripts
             set -eux
             echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u aztecprotocolci --password-stdin
-            scripts/earthly-ci -P --no-output ./yarn-project/end-to-end/+uniswap-trade-on-l1-from-l2
+            scripts/earthly-ci \
+              --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+              --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+              --no-output ./yarn-project/end-to-end/+uniswap-trade-on-l1-from-l2
 
   # not notifying failures right now
   # notify:
