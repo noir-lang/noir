@@ -623,4 +623,19 @@ mod hover_tests {
         )
         .await;
     }
+
+    #[test]
+    async fn hover_on_type_inside_generic_arguments() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 51, character: 30 },
+            r#"    one::subone
+    struct SubOneStruct {
+        some_field: i32,
+        some_other_field: Field,
+    }"#,
+        )
+        .await;
+    }
 }
