@@ -162,13 +162,8 @@ pub(crate) fn check_crate_and_report_errors(
     silence_warnings: bool,
     debug_comptime_in_file: Option<&str>,
 ) -> Result<(), CompileError> {
-    let result = check_crate(
-        context,
-        crate_id,
-        deny_warnings,
-        disable_macros,
-        debug_comptime_in_file,
-    );
+    let result =
+        check_crate(context, crate_id, deny_warnings, disable_macros, debug_comptime_in_file);
     report_errors(result, &context.file_manager, deny_warnings, silence_warnings)
 }
 

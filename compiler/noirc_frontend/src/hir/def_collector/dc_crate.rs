@@ -368,7 +368,8 @@ impl DefCollector {
             })
         });
 
-        let mut more_errors = Elaborator::elaborate(context, crate_id, def_collector.items, debug_comptime_in_file);
+        let mut more_errors =
+            Elaborator::elaborate(context, crate_id, def_collector.items, debug_comptime_in_file);
         errors.append(&mut more_errors);
 
         for macro_processor in macro_processors {
