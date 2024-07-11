@@ -6,7 +6,6 @@ use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
 use crate::hir::resolution::resolver::SELF_TYPE_NAME;
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
 use crate::macros_api::Ident;
-use crate::node_interner::ReferenceId;
 use crate::{
     hir::{
         def_map::{ModuleDefId, TryFromModuleDefId},
@@ -52,11 +51,14 @@ impl<'context> Elaborator<'context> {
             let location = Location::new(last_segment.span(), self.file);
             let is_self_type_name = last_segment.is_self_type_name();
 
-            let mut references: Vec<ReferenceId> = Vec::new();
+            let mut references: Vec<_> = Vec::new();
             path_resolution =
                 resolver.resolve(self.def_maps, path.clone(), &mut Some(&mut references))?;
 
             for (referenced, ident) in references.iter().zip(path.segments) {
+                let Some(referenced) = referenced else {
+                    continue;
+                };
                 self.interner.add_reference(
                     *referenced,
                     Location::new(ident.span(), self.file),
