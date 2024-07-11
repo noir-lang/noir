@@ -1,7 +1,7 @@
 fn main(x: Field, y: pub Field) {
     let state = [x, y];
-    // let state = oh_no_not_again(state);
-    let state = oh_no_not_again_as_witness(state);
+    let state = oh_no_not_again(state);
+    // let state = oh_no_not_again_as_witness(state);
 
     assert(state[0] + state[1] == 0);
 }
