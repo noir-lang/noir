@@ -35,7 +35,7 @@ use crate::{
         TypeAliasId,
     },
     parser::TopLevelStatement,
-    Shared, Type, TypeBindings, TypeVariable,
+    Shared, Type, TypeBindings, TypeVariable, lexer::Lexer, token::Tokens,
 };
 use crate::{
     ast::{TraitBound, UnresolvedGeneric, UnresolvedGenerics},
@@ -1284,18 +1284,23 @@ impl<'context> Elaborator<'context> {
         span: Span,
         generated_items: &mut CollectedItems,
     ) -> Result<(), (CompilationError, FileId)> {
+        let location = Location::new(span, self.file);
+        let (function_name, mut arguments) = Self::parse_attribute(&attribute, location)
+            .unwrap_or((attribute, Vec::new()));
+
         let id = self
-            .lookup_global(Path::from_single(attribute, span))
+            .lookup_global(Path::from_single(function_name, span))
             .map_err(|_| (ResolverError::UnknownAnnotation { span }.into(), self.file))?;
 
         let definition = self.interner.definition(id);
         let DefinitionKind::Function(function) = definition.kind else {
             return Err((ResolverError::NonFunctionInAnnotation { span }.into(), self.file));
         };
-        let location = Location::new(span, self.file);
+
         let mut interpreter_errors = vec![];
         let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
-        let arguments = vec![(Value::StructDefinition(struct_id), location)];
+
+        arguments.insert(0, (Value::StructDefinition(struct_id), location));
 
         let value = interpreter
             .call_function(function, arguments, TypeBindings::new(), location)
@@ -1311,6 +1316,30 @@ impl<'context> Elaborator<'context> {
         }
 
         Ok(())
+    }
+
+    fn parse_attribute(annotation: &str, location: Location) -> Option<(String, Vec<(Value, Location)>)> {
+        let (tokens, errors) = Lexer::lex(annotation);
+        if !errors.is_empty() {
+            return None;
+        }
+
+        let mut tokens = tokens.0;
+        if tokens.len() >= 3 {
+            // Remove the outer  `ident ( )` wrapping the function arguments
+            let first = tokens.remove(0).into_token();
+            let second = tokens.remove(0).into_token();
+            let last = tokens.pop().unwrap().into_token();
+
+            use crate::lexer::token::Token::*;
+            if let (Ident(name), LeftParen, RightParen) = (first, second, last) {
+                let args = tokens.split(|token| matches!(token.token(), Comma));
+                let args = vecmap(args, |arg| (Value::Code(Rc::new(Tokens(arg.to_vec()))), location));
+                return Some((name, args));
+            }
+        }
+
+        None
     }
 
     pub fn resolve_struct_fields(
