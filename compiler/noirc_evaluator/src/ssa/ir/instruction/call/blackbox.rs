@@ -105,6 +105,66 @@ pub(super) fn simplify_msm(
     }
 }
 
+pub(super) fn simplify_pedersen_commitment(
+    dfg: &mut DataFlowGraph,
+    solver: impl BlackBoxFunctionSolver<FieldElement>,
+    arguments: &[ValueId],
+) -> SimplifyResult {
+    match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
+        (Some((inputs, _)), Some(domain_separator)) if array_is_constant(dfg, &inputs) => {
+            let input_fields: Vec<_> = inputs
+                .iter()
+                .map(|id| {
+                    dfg.get_numeric_constant(*id)
+                        .expect("value id from array should point at constant")
+                })
+                .collect();
+
+            let Ok((result_x, result_y)) =
+                solver.pedersen_commitment(&input_fields, domain_separator.to_u128() as u32)
+            else {
+                return SimplifyResult::None;
+            };
+
+            let result_x = dfg.make_constant(result_x, Type::field());
+            let result_y = dfg.make_constant(result_y, Type::field());
+
+            let typ = Type::Array(Rc::new(vec![Type::field()]), 2);
+            let result_array = dfg.make_array(im::vector![result_x, result_y], typ);
+
+            SimplifyResult::SimplifiedTo(result_array)
+        }
+        _ => SimplifyResult::None,
+    }
+}
+
+pub(super) fn simplify_pedersen_hash(
+    dfg: &mut DataFlowGraph,
+    solver: impl BlackBoxFunctionSolver<FieldElement>,
+    arguments: &[ValueId],
+) -> SimplifyResult {
+    match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
+        (Some((inputs, _)), Some(domain_separator)) if array_is_constant(dfg, &inputs) => {
+            let input_fields: Vec<_> = inputs
+                .iter()
+                .map(|id| {
+                    dfg.get_numeric_constant(*id)
+                        .expect("value id from array should point at constant")
+                })
+                .collect();
+
+            let Ok(hash) = solver.pedersen_hash(&input_fields, domain_separator.to_u128() as u32)
+            else {
+                return SimplifyResult::None;
+            };
+
+            let hash_value = dfg.make_constant(hash, Type::field());
+            SimplifyResult::SimplifiedTo(hash_value)
+        }
+        _ => SimplifyResult::None,
+    }
+}
+
 pub(super) fn simplify_schnorr_verify(
     dfg: &mut DataFlowGraph,
     solver: impl BlackBoxFunctionSolver<FieldElement>,
