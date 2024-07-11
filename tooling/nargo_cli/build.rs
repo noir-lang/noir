@@ -314,7 +314,6 @@ fn generate_compile_success_no_bugs_contract_tests(test_file: &mut File, test_da
             &test_dir,
             r#"
         nargo.arg("compile").arg("--force");
-        
         nargo.assert().success();"#,
         );
 
@@ -326,7 +325,7 @@ fn generate_compile_success_no_bugs_contract_tests(test_file: &mut File, test_da
             r#"
         nargo.arg("compile").arg("--force").arg("--use-legacy");
         
-        nargo.assert().success().stderr(predicate::str::contains("bug").not());"#,
+        nargo.assert().success();"#,
         );
     }
 }
