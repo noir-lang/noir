@@ -26,6 +26,7 @@ use crate::{
         traits::TraitConstraint,
         types::{Generics, Kind, ResolvedGeneric},
     },
+    lexer::Lexer,
     macros_api::{
         BlockExpression, Ident, NodeInterner, NoirFunction, NoirStruct, Pattern,
         SecondaryAttribute, StructId,
@@ -35,7 +36,8 @@ use crate::{
         TypeAliasId,
     },
     parser::TopLevelStatement,
-    Shared, Type, TypeBindings, TypeVariable, lexer::Lexer, token::Tokens,
+    token::Tokens,
+    Shared, Type, TypeBindings, TypeVariable,
 };
 use crate::{
     ast::{TraitBound, UnresolvedGeneric, UnresolvedGenerics},
@@ -1285,8 +1287,8 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
     ) -> Result<(), (CompilationError, FileId)> {
         let location = Location::new(span, self.file);
-        let (function_name, mut arguments) = Self::parse_attribute(&attribute, location)
-            .unwrap_or((attribute, Vec::new()));
+        let (function_name, mut arguments) =
+            Self::parse_attribute(&attribute, location).unwrap_or((attribute, Vec::new()));
 
         let id = self
             .lookup_global(Path::from_single(function_name, span))
@@ -1297,10 +1299,11 @@ impl<'context> Elaborator<'context> {
             return Err((ResolverError::NonFunctionInAnnotation { span }.into(), self.file));
         };
 
+        self.handle_varargs_attribute(function, &mut arguments, location);
+        arguments.insert(0, (Value::StructDefinition(struct_id), location));
+
         let mut interpreter_errors = vec![];
         let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
-
-        arguments.insert(0, (Value::StructDefinition(struct_id), location));
 
         let value = interpreter
             .call_function(function, arguments, TypeBindings::new(), location)
@@ -1318,28 +1321,57 @@ impl<'context> Elaborator<'context> {
         Ok(())
     }
 
-    fn parse_attribute(annotation: &str, location: Location) -> Option<(String, Vec<(Value, Location)>)> {
+    /// Parses an attribute in the form of a function call (e.g. `#[foo(a b, c d)]`) into
+    /// the function and quoted arguments called (e.g. `("foo", vec![(a b, location), (c d, location)])`)
+    fn parse_attribute(
+        annotation: &str,
+        location: Location,
+    ) -> Option<(String, Vec<(Value, Location)>)> {
         let (tokens, errors) = Lexer::lex(annotation);
         if !errors.is_empty() {
             return None;
         }
 
         let mut tokens = tokens.0;
-        if tokens.len() >= 3 {
+        if tokens.len() >= 4 {
             // Remove the outer  `ident ( )` wrapping the function arguments
             let first = tokens.remove(0).into_token();
             let second = tokens.remove(0).into_token();
+
+            // Last token is always an EndOfInput
+            let _ = tokens.pop().unwrap().into_token();
             let last = tokens.pop().unwrap().into_token();
 
             use crate::lexer::token::Token::*;
             if let (Ident(name), LeftParen, RightParen) = (first, second, last) {
                 let args = tokens.split(|token| matches!(token.token(), Comma));
-                let args = vecmap(args, |arg| (Value::Code(Rc::new(Tokens(arg.to_vec()))), location));
+                let args =
+                    vecmap(args, |arg| (Value::Code(Rc::new(Tokens(arg.to_vec()))), location));
                 return Some((name, args));
             }
         }
 
         None
+    }
+
+    /// Checks if the given attribute function is a varargs function.
+    /// If so, we should pass its arguments in one slice rather than as separate arguments.
+    fn handle_varargs_attribute(
+        &mut self,
+        function: FuncId,
+        arguments: &mut Vec<(Value, Location)>,
+        location: Location,
+    ) {
+        let meta = self.interner.function_meta(&function);
+        let parameters = &meta.parameters.0;
+
+        // If the last parameter is a slice, this is a varargs function.
+        if parameters.last().map_or(false, |(_, typ, _)| matches!(typ, Type::Slice(_))) {
+            let typ = Type::Slice(Box::new(Type::Quoted(crate::QuotedType::Quoted)));
+            let slice_elements = arguments.drain(..).map(|(value, _)| value);
+            let slice = Value::Slice(slice_elements.collect(), typ);
+            arguments.push((slice, location));
+        }
     }
 
     pub fn resolve_struct_fields(

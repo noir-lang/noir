@@ -202,7 +202,7 @@ pub enum CompilationError {
 }
 
 impl CompilationError {
-    fn is_error(&self) -> bool {
+    pub fn is_error(&self) -> bool {
         let diagnostic = CustomDiagnostic::from(self);
         diagnostic.is_error()
     }
