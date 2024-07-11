@@ -670,57 +670,6 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn type_check_prefix_operand(
-        &mut self,
-        op: &crate::ast::UnaryOp,
-        rhs_type: &Type,
-        span: Span,
-    ) -> Type {
-        let unify = |this: &mut Self, expected| {
-            this.unify(rhs_type, &expected, || TypeCheckError::TypeMismatch {
-                expr_typ: rhs_type.to_string(),
-                expected_typ: expected.to_string(),
-                expr_span: span,
-            });
-            expected
-        };
-
-        match op {
-            crate::ast::UnaryOp::Minus => {
-                if rhs_type.is_unsigned() {
-                    self.push_err(TypeCheckError::InvalidUnaryOp {
-                        kind: rhs_type.to_string(),
-                        span,
-                    });
-                }
-                let expected = self.polymorphic_integer_or_field();
-                self.unify(rhs_type, &expected, || TypeCheckError::InvalidUnaryOp {
-                    kind: rhs_type.to_string(),
-                    span,
-                });
-                expected
-            }
-            crate::ast::UnaryOp::Not => {
-                let rhs_type = rhs_type.follow_bindings();
-
-                // `!` can work on booleans or integers
-                if matches!(rhs_type, Type::Integer(..)) {
-                    return rhs_type;
-                }
-
-                unify(self, Type::Bool)
-            }
-            crate::ast::UnaryOp::MutableReference => {
-                Type::MutableReference(Box::new(rhs_type.follow_bindings()))
-            }
-            crate::ast::UnaryOp::Dereference { implicitly_added: _ } => {
-                let element_type = self.interner.next_type_variable();
-                unify(self, Type::MutableReference(Box::new(element_type.clone())));
-                element_type
-            }
-        }
-    }
-
     /// Insert as many dereference operations as necessary to automatically dereference a method
     /// call object to its base value type T.
     pub(super) fn insert_auto_dereferences(&mut self, object: ExprId, typ: Type) -> (ExprId, Type) {
@@ -730,6 +679,7 @@ impl<'context> Elaborator<'context> {
             let object = self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
                 operator: UnaryOp::Dereference { implicitly_added: true },
                 rhs: object,
+                trait_method_id: None,
             }));
             self.interner.push_expr_type(object, element.as_ref().clone());
             self.interner.push_expr_location(object, location.span, location.file);
@@ -1073,6 +1023,84 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    // Given a unary operator and a type, this method will produce the output type
+    // and a boolean indicating whether to use the trait impl corresponding to the operator
+    // or not. A value of false indicates the caller to use a primitive operation for this
+    // operator, while a true value indicates a user-provided trait impl is required.
+    pub(super) fn prefix_operand_type_rules(
+        &mut self,
+        op: &UnaryOp,
+        rhs_type: &Type,
+        span: Span,
+    ) -> Result<(Type, bool), TypeCheckError> {
+        use Type::*;
+
+        match op {
+            crate::ast::UnaryOp::Minus | crate::ast::UnaryOp::Not => {
+                match rhs_type {
+                    // An error type will always return an error
+                    Error => Ok((Error, false)),
+                    Alias(alias, args) => {
+                        let alias = alias.borrow().get_type(args);
+                        self.prefix_operand_type_rules(op, &alias, span)
+                    }
+
+                    // Matches on TypeVariable must be first so that we follow any type
+                    // bindings.
+                    TypeVariable(int, _) => {
+                        if let TypeBinding::Bound(binding) = &*int.borrow() {
+                            return self.prefix_operand_type_rules(op, binding, span);
+                        }
+
+                        // The `!` prefix operator is not valid for Field, so if this is a numeric
+                        // type we constrain it to just (non-Field) integer types.
+                        if matches!(op, crate::ast::UnaryOp::Not) && rhs_type.is_numeric() {
+                            let integer_type = Type::polymorphic_integer(self.interner);
+                            self.unify(rhs_type, &integer_type, || {
+                                TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span }
+                            });
+                        }
+
+                        Ok((rhs_type.clone(), !rhs_type.is_numeric()))
+                    }
+                    Integer(sign_x, bit_width_x) => {
+                        if *op == UnaryOp::Minus && *sign_x == Signedness::Unsigned {
+                            return Err(TypeCheckError::InvalidUnaryOp {
+                                kind: rhs_type.to_string(),
+                                span,
+                            });
+                        }
+                        Ok((Integer(*sign_x, *bit_width_x), false))
+                    }
+                    // The result of a Field is always a witness
+                    FieldElement => {
+                        if *op == UnaryOp::Not {
+                            return Err(TypeCheckError::FieldNot { span });
+                        }
+                        Ok((FieldElement, false))
+                    }
+
+                    Bool => Ok((Bool, false)),
+
+                    _ => Ok((rhs_type.clone(), true)),
+                }
+            }
+            crate::ast::UnaryOp::MutableReference => {
+                Ok((Type::MutableReference(Box::new(rhs_type.follow_bindings())), false))
+            }
+            crate::ast::UnaryOp::Dereference { implicitly_added: _ } => {
+                let element_type = self.interner.next_type_variable();
+                let expected = Type::MutableReference(Box::new(element_type.clone()));
+                self.unify(rhs_type, &expected, || TypeCheckError::TypeMismatch {
+                    expr_typ: rhs_type.to_string(),
+                    expected_typ: expected.to_string(),
+                    expr_span: span,
+                });
+                Ok((element_type, false))
+            }
+        }
+    }
+
     /// Prerequisite: verify_trait_constraint of the operator's trait constraint.
     ///
     /// Although by this point the operator is expected to already have a trait impl,
@@ -1140,6 +1168,7 @@ impl<'context> Elaborator<'context> {
             *access_lhs = this.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
                 operator: crate::ast::UnaryOp::Dereference { implicitly_added: true },
                 rhs: old_lhs,
+                trait_method_id: None,
             }));
             this.interner.push_expr_type(old_lhs, lhs_type);
             this.interner.push_expr_type(*access_lhs, element);
@@ -1362,6 +1391,7 @@ impl<'context> Elaborator<'context> {
                             self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
                                 operator: UnaryOp::MutableReference,
                                 rhs: *object,
+                                trait_method_id: None,
                             }));
                         self.interner.push_expr_type(new_object, new_type);
                         self.interner.push_expr_location(new_object, location.span, location.file);

@@ -38,6 +38,11 @@ impl NodeInterner {
                 let struct_type = struct_type.borrow();
                 Location::new(struct_type.name.span(), struct_type.location.file)
             }
+            ReferenceId::StructMember(id, field_index) => {
+                let struct_type = self.get_struct(id);
+                let struct_type = struct_type.borrow();
+                Location::new(struct_type.field_at(field_index).0.span(), struct_type.location.file)
+            }
             ReferenceId::Trait(id) => {
                 let trait_type = self.get_trait(id);
                 Location::new(trait_type.name.span(), trait_type.location.file)
