@@ -1233,7 +1233,8 @@ impl<'context> Elaborator<'context> {
                     .add_definition_location(ReferenceId::StructMember(type_id, field_index));
             }
 
-            self.run_comptime_attributes_on_struct(attributes, type_id, span, &mut generated_items);
+            let item = Value::StructDefinition(type_id);
+            self.run_comptime_attributes_on_item(attributes, item, span, &mut generated_items);
         }
 
         // Check whether the struct fields have nested slices
@@ -1259,17 +1260,17 @@ impl<'context> Elaborator<'context> {
         generated_items
     }
 
-    fn run_comptime_attributes_on_struct(
+    fn run_comptime_attributes_on_item(
         &mut self,
         attributes: Vec<SecondaryAttribute>,
-        struct_id: StructId,
+        item: Value,
         span: Span,
         generated_items: &mut CollectedItems,
     ) {
         for attribute in attributes {
             if let SecondaryAttribute::Custom(name) = attribute {
                 if let Err(error) =
-                    self.run_comptime_attribute_on_struct(name, struct_id, span, generated_items)
+                    self.run_comptime_attribute_on_item(name, item, span, generated_items)
                 {
                     self.errors.push(error);
                 }
@@ -1277,10 +1278,10 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn run_comptime_attribute_on_struct(
+    fn run_comptime_attribute_on_item(
         &mut self,
         attribute: String,
-        struct_id: StructId,
+        item: Value,
         span: Span,
         generated_items: &mut CollectedItems,
     ) -> Result<(), (CompilationError, FileId)> {
@@ -1295,7 +1296,7 @@ impl<'context> Elaborator<'context> {
         let location = Location::new(span, self.file);
         let mut interpreter_errors = vec![];
         let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
-        let arguments = vec![(Value::StructDefinition(struct_id), location)];
+        let arguments = vec![(item, location)];
 
         let value = interpreter
             .call_function(function, arguments, TypeBindings::new(), location)

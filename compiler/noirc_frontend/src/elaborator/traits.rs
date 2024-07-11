@@ -41,6 +41,8 @@ impl<'context> Elaborator<'context> {
                 this.interner.update_trait(trait_id, |trait_def| {
                     trait_def.set_methods(methods);
                 });
+
+                this.run_comptime_attributes_on_item(attributes, item, span, &mut generated_items);
             });
 
             // This check needs to be after the trait's methods are set since

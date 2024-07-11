@@ -215,6 +215,9 @@ pub enum QuotedType {
     TopLevelItem,
     Type,
     StructDefinition,
+    TraitDefinition,
+    FunctionDefinition,
+    Module,
 }
 
 /// A list of TypeVariableIds to bind to a type. Storing the
@@ -1186,6 +1189,9 @@ impl std::fmt::Display for QuotedType {
             QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
             QuotedType::Type => write!(f, "Type"),
             QuotedType::StructDefinition => write!(f, "StructDefinition"),
+            QuotedType::TraitDefinition => write!(f, "TraitDefinition"),
+            QuotedType::FunctionDefinition => write!(f, "FunctionDefinition"),
+            QuotedType::Module => write!(f, "Module"),
         }
     }
 }
