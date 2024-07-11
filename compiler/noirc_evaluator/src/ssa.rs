@@ -108,7 +108,9 @@ pub(crate) fn optimize_into_acir(
 
     drop(ssa_gen_span_guard);
 
-    time("SSA to ACIR", options.print_codegen_timings, || ssa.into_acir(&brillig, options.expression_width))
+    time("SSA to ACIR", options.print_codegen_timings, || {
+        ssa.into_acir(&brillig, options.expression_width)
+    })
 }
 
 // Helper to time SSA passes

@@ -194,6 +194,7 @@ fn compile_programs(
             let program = nargo::ops::transform_program(program, compile_options.expression_width);
             println!("Optimized ACIR for main:");
             println!("{}", program.program.functions[0].opcodes.len());
+            // println!("{:#?}", program.program.functions[0].opcodes.clone());
             save_program_to_file(
                 &program.clone().into(),
                 &package.name,
