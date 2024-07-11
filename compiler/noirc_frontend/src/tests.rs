@@ -86,7 +86,8 @@ pub(crate) fn get_program(
             program.clone().into_sorted(),
             root_file_id,
             use_legacy,
-            &[], // No macro processors
+            None, // No debug_comptime_in_file
+            &[],  // No macro processors
         ));
     }
     (program, context, errors)
