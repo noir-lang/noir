@@ -627,13 +627,7 @@ impl<F: AcirField> AcirContext<F> {
             {
                 let mut expr = Expression::default();
                 for term in expression.linear_combinations.iter() {
-                    if expr.mul_terms.len() == 1 {
-                        dbg!("ABOUT TO ADD SECOND MUL TERM");
-                    }
                     expr.push_multiplication_term(term.0, term.1, witness);
-                }
-                if expr.width() == 4 {
-                    dbg!("ABOUT TO ADD TERM THAT GOES OVER");
                 }
                 expr.push_addition_term(expression.q_c, witness);
                 self.add_data(AcirVarData::Expr(expr))
@@ -650,13 +644,7 @@ impl<F: AcirField> AcirContext<F> {
                     let mut expr = Expression::default();
                     let rhs_term = univariate.linear_combinations[0];
                     for term in lin.linear_combinations.iter() {
-                        if expr.mul_terms.len() == 1 {
-                            dbg!("ABOUT TO ADD SECOND MUL TERM");
-                        }
                         expr.push_multiplication_term(term.0 * rhs_term.0, term.1, rhs_term.1);
-                    }
-                    if expr.width() == 4 {
-                        dbg!("ABOUT TO ADD TERM THAT GOES OVER");
                     }
                     expr.push_addition_term(lin.q_c * rhs_term.0, rhs_term.1);
                     expr.sort();
@@ -675,12 +663,6 @@ impl<F: AcirField> AcirContext<F> {
             }
         };
 
-        let result_expr = self.var_to_expression(result)?;
-        let result_expr_fits = fits_in_one_identity(&result_expr, self.expression_width);
-        if !result_expr_fits {
-            dbg!(result_expr);
-        }
-
         Ok(result)
     }
 
@@ -698,13 +680,7 @@ impl<F: AcirField> AcirContext<F> {
         let rhs_expr = self.var_to_expression(rhs)?;
 
         let lhs_expr_fits = fits_in_one_identity(&lhs_expr, self.expression_width);
-        if !lhs_expr_fits {
-            dbg!(lhs_expr.clone());
-        }
         let rhs_expr_fits = fits_in_one_identity(&rhs_expr, self.expression_width);
-        if !rhs_expr_fits {
-            dbg!(rhs_expr.clone());
-        }
 
         let sum_expr = &lhs_expr + &rhs_expr;
         let sum_expr_fits = fits_in_one_identity(&sum_expr, self.expression_width);
