@@ -8,6 +8,7 @@ import {
   MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   PUBLIC_DATA_TREE_HEIGHT,
 } from '../../constants.gen.js';
+import { ClientIvcProof } from '../client_ivc_proof.js';
 import { GlobalVariables } from '../global_variables.js';
 import { KernelData } from '../kernel/kernel_data.js';
 import { MembershipWitness } from '../membership_witness.js';
@@ -192,5 +193,59 @@ export class BaseRollupInputs {
       MembershipWitness.empty(ARCHIVE_HEIGHT),
       ConstantRollupData.empty(),
     );
+  }
+}
+
+export class TubeInputs {
+  constructor(public clientIVCData: ClientIvcProof) {}
+
+  static from(fields: FieldsOf<TubeInputs>): TubeInputs {
+    return new TubeInputs(...TubeInputs.getFields(fields));
+  }
+
+  static getFields(fields: FieldsOf<TubeInputs>) {
+    return [fields.clientIVCData] as const;
+  }
+
+  /**
+   * Serializes the inputs to a buffer.
+   * @returns The inputs serialized to a buffer.
+   */
+  toBuffer() {
+    return serializeToBuffer(...TubeInputs.getFields(this));
+  }
+
+  /**
+   * Serializes the inputs to a hex string.
+   * @returns The instance serialized to a hex string.
+   */
+  toString() {
+    return this.toBuffer().toString('hex');
+  }
+
+  /**
+   * Deserializes the inputs from a buffer.
+   * @param buffer - The buffer to deserialize from.
+   * @returns A new TubeInputs instance.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): TubeInputs {
+    const reader = BufferReader.asReader(buffer);
+    return new TubeInputs(reader.readObject(ClientIvcProof));
+  }
+
+  isEmpty(): boolean {
+    return this.clientIVCData.isEmpty();
+  }
+  /**
+   * Deserializes the inputs from a hex string.
+   * @param str - A hex string to deserialize from.
+   * @returns A new TubeInputs instance.
+   */
+  static fromString(str: string) {
+    return TubeInputs.fromBuffer(Buffer.from(str, 'hex'));
+  }
+
+  static empty() {
+    return new TubeInputs(ClientIvcProof.empty());
   }
 }

@@ -90,6 +90,38 @@ export function getProgram(log: LogFn): Command {
     });
 
   program
+    .command('write-vk')
+    .description('Generates the verification key for the specified circuit')
+    .requiredOption(
+      '-w, --working-directory <string>',
+      'A directory to use for storing input/output files',
+      BB_WORKING_DIRECTORY,
+    )
+    .requiredOption('-b, --bb-path <string>', 'The path to the BB binary', BB_BINARY_PATH)
+    .requiredOption('-c, --circuit <string>', 'The name of a protocol circuit')
+    .action(async options => {
+      const compiledCircuit = ProtocolCircuitArtifacts[options.circuit as ProtocolArtifact];
+      if (!compiledCircuit) {
+        log(`Failed to find circuit ${options.circuit}`);
+        return;
+      }
+      try {
+        await fs.access(options.workingDirectory, fs.constants.W_OK);
+      } catch (error) {
+        log(`Working directory does not exist`);
+        return;
+      }
+      await generateKeyForNoirCircuit(
+        options.bbPath,
+        options.workingDirectory,
+        options.circuit,
+        compiledCircuit,
+        'vk',
+        log,
+      );
+    });
+
+  program
     .command('write-contract')
     .description('Generates the verification contract for the specified circuit')
     .requiredOption(

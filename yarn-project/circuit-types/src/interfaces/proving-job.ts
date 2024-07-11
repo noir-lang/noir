@@ -15,6 +15,8 @@ import {
   type RootParityInputs,
   type RootRollupInputs,
   type RootRollupPublicInputs,
+  type TUBE_PROOF_LENGTH,
+  type TubeInputs,
   type VerificationKeyData,
 } from '@aztec/circuits.js';
 
@@ -28,6 +30,12 @@ export type ProofAndVerificationKey = {
 export type PublicInputsAndRecursiveProof<T> = {
   inputs: T;
   proof: RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>;
+  verificationKey: VerificationKeyData;
+};
+
+export type PublicInputsAndTubeProof<T> = {
+  inputs: T;
+  proof: RecursiveProof<typeof TUBE_PROOF_LENGTH>;
   verificationKey: VerificationKeyData;
 };
 
@@ -62,6 +70,8 @@ export enum ProvingRequestType {
 
   BASE_PARITY,
   ROOT_PARITY,
+  // Recursive Client IVC verification to connect private -> public or rollup
+  TUBE_PROOF,
 }
 
 export type ProvingRequest =
@@ -102,6 +112,10 @@ export type ProvingRequest =
   | {
       type: ProvingRequestType.PRIVATE_KERNEL_EMPTY;
       inputs: PrivateKernelEmptyInputData;
+    }
+  | {
+      type: ProvingRequestType.TUBE_PROOF;
+      inputs: TubeInputs;
     };
 
 export type ProvingRequestPublicInputs = {
@@ -117,6 +131,8 @@ export type ProvingRequestPublicInputs = {
 
   [ProvingRequestType.BASE_PARITY]: RootParityInput<typeof RECURSIVE_PROOF_LENGTH>;
   [ProvingRequestType.ROOT_PARITY]: RootParityInput<typeof NESTED_RECURSIVE_PROOF_LENGTH>;
+  // TODO(#7369) properly structure tube proof flow
+  [ProvingRequestType.TUBE_PROOF]: { tubeVK: VerificationKeyData; tubeProof: RecursiveProof<393> };
 };
 
 export type ProvingRequestResult<T extends ProvingRequestType> = ProvingRequestPublicInputs[T];

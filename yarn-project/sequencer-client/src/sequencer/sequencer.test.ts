@@ -22,7 +22,6 @@ import {
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   makeEmptyProof,
 } from '@aztec/circuits.js';
-import { makeProof } from '@aztec/circuits.js/testing';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { type Writeable } from '@aztec/foundation/types';
 import { type P2P, P2PClientState } from '@aztec/p2p';
@@ -81,7 +80,7 @@ describe('sequencer', () => {
 
     publicProcessor = mock<PublicProcessor>({
       process: async txs => [
-        await Promise.all(txs.map(tx => makeProcessedTx(tx, tx.data.toKernelCircuitPublicInputs(), makeProof(), []))),
+        await Promise.all(txs.map(tx => makeProcessedTx(tx, tx.data.toKernelCircuitPublicInputs(), []))),
         [],
         [],
       ],

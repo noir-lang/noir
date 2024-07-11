@@ -108,7 +108,8 @@ impl PublicKernelTeardownCircuitPrivateInputs {
         if !dep::std::runtime::is_unconstrained() {
             // verify the previous kernel proof
             self.previous_kernel.verify();
-            self.previous_kernel.validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
+            // TODO(#7410) currently stubbed out until tube vk handled
+            // self.previous_kernel.validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
         }
 
         // construct the circuit outputs
@@ -606,13 +607,10 @@ mod tests {
             let _res = builder.execute();
         }
     }
-
-    #[test(should_fail_with="Invalid vk index")]
-    fn invalid_previous_kernel() {
-        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
-
-        builder.previous_kernel = builder.previous_kernel.in_vk_tree(BASE_ROLLUP_INDEX);
-
-        let _res = builder.execute();
-    }
+    // #[test(should_fail_with="Invalid vk index")]
+    // fn invalid_previous_kernel() {
+    //     let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
+    //     builder.previous_kernel = builder.previous_kernel.in_vk_tree(BASE_ROLLUP_INDEX);
+    //     let _res = builder.execute();
+    // }
 }

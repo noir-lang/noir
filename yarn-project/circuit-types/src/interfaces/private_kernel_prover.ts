@@ -1,5 +1,5 @@
 import {
-  type NESTED_RECURSIVE_PROOF_LENGTH,
+  type ClientIvcProof,
   type PrivateCircuitPublicInputs,
   type PrivateKernelCircuitPublicInputs,
   type PrivateKernelInitCircuitPrivateInputs,
@@ -7,8 +7,6 @@ import {
   type PrivateKernelResetCircuitPrivateInputsVariants,
   type PrivateKernelTailCircuitPrivateInputs,
   type PrivateKernelTailCircuitPublicInputs,
-  type RECURSIVE_PROOF_LENGTH,
-  type RecursiveProof,
   type VerificationKeyAsFields,
 } from '@aztec/circuits.js';
 import { type Fr } from '@aztec/foundation/fields';
@@ -19,37 +17,31 @@ import { type WitnessMap } from '@noir-lang/acvm_js';
  * Represents the output of the proof creation process for init and inner private kernel circuit.
  * Contains the public inputs required for the init and inner private kernel circuit and the generated proof.
  */
-export type KernelProofOutput<PublicInputsType> = {
+export type PrivateKernelSimulateOutput<PublicInputsType> = {
   /**
    * The public inputs required for the proof generation process.
    */
   publicInputs: PublicInputsType;
-  /**
-   * The zk-SNARK proof for the kernel execution.
-   */
-  proof: RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>;
+
+  clientIvcProof?: ClientIvcProof;
 
   verificationKey: VerificationKeyAsFields;
+
+  outputWitness: WitnessMap;
 };
 
 /**
- * Represents the output of the proof creation process for init and inner private kernel circuit.
- * Contains the public inputs required for the init and inner private kernel circuit and the generated proof.
+ * Represents the output of the circuit simulation process for init and inner private kernel circuit.
  */
-export type AppCircuitProofOutput = {
-  /**
-   * The zk-SNARK proof for the kernel execution.
-   */
-  proof: RecursiveProof<typeof RECURSIVE_PROOF_LENGTH>;
-
+export type AppCircuitSimulateOutput = {
   verificationKey: VerificationKeyAsFields;
 };
 
 /**
- * ProofCreator provides functionality to create and validate proofs, and retrieve
+ * PrivateKernelProver provides functionality to simulate and validate circuits, and retrieve
  * siloed commitments necessary for maintaining transaction privacy and security on the network.
  */
-export interface ProofCreator {
+export interface PrivateKernelProver {
   /**
    * Computes the siloed commitments for a given set of public inputs.
    *
@@ -64,9 +56,9 @@ export interface ProofCreator {
    * @param privateKernelInputsInit - The private data structure for the initial iteration.
    * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
    */
-  createProofInit(
+  simulateProofInit(
     privateKernelInputsInit: PrivateKernelInitCircuitPrivateInputs,
-  ): Promise<KernelProofOutput<PrivateKernelCircuitPublicInputs>>;
+  ): Promise<PrivateKernelSimulateOutput<PrivateKernelCircuitPublicInputs>>;
 
   /**
    * Creates a proof output for a given previous kernel data and private call data for an inner iteration.
@@ -74,9 +66,9 @@ export interface ProofCreator {
    * @param privateKernelInputsInner - The private input data structure for the inner iteration.
    * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
    */
-  createProofInner(
+  simulateProofInner(
     privateKernelInputsInner: PrivateKernelInnerCircuitPrivateInputs,
-  ): Promise<KernelProofOutput<PrivateKernelCircuitPublicInputs>>;
+  ): Promise<PrivateKernelSimulateOutput<PrivateKernelCircuitPublicInputs>>;
 
   /**
    * Creates a proof output by resetting the arrays using the reset circuit.
@@ -84,9 +76,9 @@ export interface ProofCreator {
    * @param privateKernelInputsTail - The private input data structure for the reset circuit.
    * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
    */
-  createProofReset(
+  simulateProofReset(
     privateKernelInputsReset: PrivateKernelResetCircuitPrivateInputsVariants,
-  ): Promise<KernelProofOutput<PrivateKernelCircuitPublicInputs>>;
+  ): Promise<PrivateKernelSimulateOutput<PrivateKernelCircuitPublicInputs>>;
 
   /**
    * Creates a proof output based on the last inner kernel iteration kernel data for the final ordering iteration.
@@ -94,9 +86,16 @@ export interface ProofCreator {
    * @param privateKernelInputsTail - The private input data structure for the final ordering iteration.
    * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
    */
-  createProofTail(
+  simulateProofTail(
     privateKernelInputsTail: PrivateKernelTailCircuitPrivateInputs,
-  ): Promise<KernelProofOutput<PrivateKernelTailCircuitPublicInputs>>;
+  ): Promise<PrivateKernelSimulateOutput<PrivateKernelTailCircuitPublicInputs>>;
+
+  /**
+   * Based of a program stack, create a folding proof.
+   * @param acirs The program bytecode.
+   * @param witnessStack The witnessses for each program bytecode.
+   */
+  createClientIvcProof(acirs: Buffer[], witnessStack: WitnessMap[]): Promise<ClientIvcProof>;
 
   /**
    * Creates a proof for an app circuit.
@@ -106,9 +105,5 @@ export interface ProofCreator {
    * @param appCircuitName - Optionally specify the name of the app circuit
    * @returns A Promise resolving to a Proof object
    */
-  createAppCircuitProof(
-    partialWitness: WitnessMap,
-    bytecode: Buffer,
-    appCircuitName?: string,
-  ): Promise<AppCircuitProofOutput>;
+  computeAppCircuitVerificationKey(bytecode: Buffer, appCircuitName?: string): Promise<AppCircuitSimulateOutput>;
 }

@@ -80,7 +80,7 @@ struct FixtureBuilder {
     historical_header: Header,
     tx_context: TxContext,
     global_variables: GlobalVariables,
-    
+
     // Accumulated data.
     note_hashes: BoundedVec<ScopedNoteHash, MAX_NOTE_HASHES_PER_TX>,
     nullifiers: BoundedVec<ScopedNullifier, MAX_NULLIFIERS_PER_TX>,
@@ -128,7 +128,7 @@ struct FixtureBuilder {
     vk_index: u32,
     vk_path: [Field; VK_TREE_HEIGHT],
     vk_tree_root: Field,
-    
+
     // Counters.
     min_revertible_side_effect_counter: u32,
     counter_start: u32,
@@ -294,7 +294,6 @@ impl FixtureBuilder {
             call_stack_item: self.to_private_call_stack_item(),
             public_call_stack: subarray(self.public_call_requests.storage),
             public_teardown_call_request: self.public_teardown_call_stack.storage[0],
-            proof: RecursiveProof::empty(),
             vk: self.vk,
             function_leaf_membership_witness: self.function_leaf_membership_witness,
             salted_initialization_hash: self.salted_initialization_hash,
@@ -421,7 +420,7 @@ impl FixtureBuilder {
 
     pub fn to_private_kernel_data(self) -> PrivateKernelData {
         let public_inputs = self.to_private_kernel_circuit_public_inputs();
-        PrivateKernelData { public_inputs, proof: self.proof, vk: self.vk, vk_index: self.vk_index, vk_path: self.vk_path }
+        PrivateKernelData { public_inputs, vk: self.vk, vk_index: self.vk_index, vk_path: self.vk_path }
     }
 
     pub fn to_public_kernel_circuit_public_inputs(self, revertible: bool) -> PublicKernelCircuitPublicInputs {

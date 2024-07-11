@@ -35,9 +35,8 @@ impl PrivateKernelTailCircuitPrivateInputs {
         // Validate inputs.
         PreviousKernelValidator::new(self.previous_kernel.public_inputs).validate_for_private_tail();
         if !std::runtime::is_unconstrained() {
-            // verify/aggregate the previous kernel
-            self.previous_kernel.verify();
-            self.previous_kernel.validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
+            // TODO(#7410) currently stubbed out until tube vk handled
+            // self.previous_kernel.validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
         }
 
         // Validate output.
@@ -425,13 +424,11 @@ mod tests {
             let _res = builder.execute();
         }
     }
-
-    #[test(should_fail_with="Invalid vk index")]
-    fn invalid_previous_kernel() {
-        let mut builder = PrivateKernelTailInputsBuilder::new();
-
-        builder.previous_kernel = builder.previous_kernel.in_vk_tree(BASE_ROLLUP_INDEX);
-
-        let _res = builder.execute();
-    }
+    // TODO(#7410) we need the tube vk to reinstate this
+    // #[test(should_fail_with="Invalid vk index")]
+    // fn invalid_previous_kernel() {
+    //     let mut builder = PrivateKernelTailInputsBuilder::new();
+    //     builder.previous_kernel = builder.previous_kernel.in_vk_tree(BASE_ROLLUP_INDEX);
+    //     let _res = builder.execute();
+    // }
 }

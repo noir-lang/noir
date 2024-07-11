@@ -3,6 +3,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { NESTED_RECURSIVE_PROOF_LENGTH, VK_TREE_HEIGHT } from '../../constants.gen.js';
+import { ClientIvcProof } from '../client_ivc_proof.js';
 import { RecursiveProof, makeEmptyRecursiveProof } from '../recursive_proof.js';
 import { type UInt32 } from '../shared.js';
 import { VerificationKeyData } from '../verification_key.js';
@@ -33,6 +34,11 @@ export class PublicKernelData {
      * Sibling path of the previous kernel's vk in a tree of vks.
      */
     public vkPath: Tuple<Fr, typeof VK_TREE_HEIGHT>,
+
+    /**
+     * TODO(https://github.com/AztecProtocol/aztec-packages/issues/7369) this should be tube-proved for the first iteration and replace proof above
+     */
+    public clientIvcProof: ClientIvcProof = ClientIvcProof.empty(),
   ) {}
 
   static fromBuffer(buffer: Buffer | BufferReader): PublicKernelData {
@@ -43,6 +49,7 @@ export class PublicKernelData {
       reader.readObject(VerificationKeyData),
       reader.readNumber(),
       reader.readArray(VK_TREE_HEIGHT, Fr),
+      reader.readObject(ClientIvcProof),
     );
   }
 
@@ -53,6 +60,7 @@ export class PublicKernelData {
       VerificationKeyData.makeFake(),
       0,
       makeTuple(VK_TREE_HEIGHT, Fr.zero),
+      ClientIvcProof.empty(),
     );
   }
 
@@ -61,6 +69,6 @@ export class PublicKernelData {
    * @returns The buffer.
    */
   toBuffer() {
-    return serializeToBuffer(this.publicInputs, this.proof, this.vk, this.vkIndex, this.vkPath);
+    return serializeToBuffer(this.publicInputs, this.proof, this.vk, this.vkIndex, this.vkPath, this.clientIvcProof);
   }
 }

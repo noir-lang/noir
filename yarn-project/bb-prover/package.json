@@ -65,6 +65,7 @@
     "@aztec/noir-protocol-circuits-types": "workspace:^",
     "@aztec/simulator": "workspace:^",
     "@aztec/telemetry-client": "workspace:^",
+    "@msgpack/msgpack": "^3.0.0-beta2",
     "@noir-lang/noirc_abi": "portal:../../noir/packages/noirc_abi",
     "@noir-lang/types": "portal:../../noir/packages/types",
     "commander": "^9.0.0",

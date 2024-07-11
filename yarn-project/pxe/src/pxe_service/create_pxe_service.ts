@@ -1,5 +1,5 @@
-import { BBNativeProofCreator } from '@aztec/bb-prover';
-import { type AztecNode, type ProofCreator } from '@aztec/circuit-types';
+import { BBNativePrivateKernelProver } from '@aztec/bb-prover';
+import { type AztecNode, type PrivateKernelProver } from '@aztec/circuit-types';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { KeyStore } from '@aztec/key-store';
@@ -16,7 +16,7 @@ import { join } from 'path';
 
 import { type PXEServiceConfig } from '../config/index.js';
 import { KVPxeDatabase } from '../database/kv_pxe_database.js';
-import { TestProofCreator } from '../kernel_prover/test/test_circuit_prover.js';
+import { TestPrivateKernelProver } from '../kernel_prover/test/test_circuit_prover.js';
 import { PXEService } from './pxe_service.js';
 
 /**
@@ -34,7 +34,7 @@ export async function createPXEService(
   aztecNode: AztecNode,
   config: PXEServiceConfig,
   useLogSuffix: string | boolean | undefined = undefined,
-  proofCreator?: ProofCreator,
+  proofCreator?: PrivateKernelProver,
 ) {
   const logSuffix =
     typeof useLogSuffix === 'boolean' ? (useLogSuffix ? randomBytes(3).toString('hex') : undefined) : useLogSuffix;
@@ -47,14 +47,14 @@ export async function createPXEService(
   const db = new KVPxeDatabase(await initStoreForRollup(AztecLmdbStore.open(pxeDbPath), l1Contracts.rollupAddress));
 
   // (@PhilWindle) Temporary validation until WASM is implemented
-  let prover: ProofCreator | undefined = proofCreator;
+  let prover: PrivateKernelProver | undefined = proofCreator;
   if (!prover) {
     if (config.proverEnabled && (!config.bbBinaryPath || !config.bbWorkingDirectory)) {
       throw new Error(`Prover must be configured with binary path and working directory`);
     }
     prover = !config.proverEnabled
-      ? new TestProofCreator()
-      : new BBNativeProofCreator(
+      ? new TestPrivateKernelProver()
+      : new BBNativePrivateKernelProver(
           config.bbBinaryPath!,
           config.bbWorkingDirectory!,
           createDebugLogger('aztec:pxe:bb-native-prover' + (logSuffix ? `:${logSuffix}` : '')),

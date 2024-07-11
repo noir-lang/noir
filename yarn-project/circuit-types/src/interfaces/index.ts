@@ -8,4 +8,4 @@ export * from './prover-client.js';
 export * from './proving-job.js';
 export * from './block-prover.js';
 export * from './server_circuit_prover.js';
-export * from './proof_creator.js';
+export * from './private_kernel_prover.js';

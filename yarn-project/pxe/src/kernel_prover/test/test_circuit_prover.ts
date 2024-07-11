@@ -1,7 +1,11 @@
-import { type AppCircuitProofOutput, type KernelProofOutput, type ProofCreator } from '@aztec/circuit-types';
+import {
+  type AppCircuitSimulateOutput,
+  type PrivateKernelProver,
+  type PrivateKernelSimulateOutput,
+} from '@aztec/circuit-types';
 import type { CircuitName, CircuitSimulationStats } from '@aztec/circuit-types/stats';
 import {
-  NESTED_RECURSIVE_PROOF_LENGTH,
+  ClientIvcProof,
   type PrivateCircuitPublicInputs,
   type PrivateKernelCircuitPublicInputs,
   type PrivateKernelInitCircuitPrivateInputs,
@@ -9,9 +13,7 @@ import {
   type PrivateKernelResetCircuitPrivateInputsVariants,
   type PrivateKernelTailCircuitPrivateInputs,
   type PrivateKernelTailCircuitPublicInputs,
-  RECURSIVE_PROOF_LENGTH,
   VerificationKeyAsFields,
-  makeRecursiveProof,
 } from '@aztec/circuits.js';
 import { siloNoteHash } from '@aztec/circuits.js/hash';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -26,11 +28,17 @@ import {
   executeTailForPublic,
 } from '@aztec/noir-protocol-circuits-types';
 
+import { type WitnessMap } from '@noir-lang/types';
+
 /**
  * Test Proof Creator executes circuit simulations and provides fake proofs.
  */
-export class TestProofCreator implements ProofCreator {
+export class TestPrivateKernelProver implements PrivateKernelProver {
   constructor(private log = createDebugLogger('aztec:test_proof_creator')) {}
+
+  createClientIvcProof(_acirs: Buffer[], _witnessStack: WitnessMap[]): Promise<ClientIvcProof> {
+    return Promise.resolve(ClientIvcProof.empty());
+  }
 
   public getSiloedCommitments(publicInputs: PrivateCircuitPublicInputs) {
     const contractAddress = publicInputs.callContext.storageContractAddress;
@@ -38,9 +46,9 @@ export class TestProofCreator implements ProofCreator {
     return Promise.resolve(publicInputs.noteHashes.map(commitment => siloNoteHash(contractAddress, commitment.value)));
   }
 
-  public async createProofInit(
+  public async simulateProofInit(
     privateInputs: PrivateKernelInitCircuitPrivateInputs,
-  ): Promise<KernelProofOutput<PrivateKernelCircuitPublicInputs>> {
+  ): Promise<PrivateKernelSimulateOutput<PrivateKernelCircuitPublicInputs>> {
     const [duration, result] = await elapsed(() => executeInit(privateInputs));
     this.log.debug(`Simulated private kernel init`, {
       eventName: 'circuit-simulation',
@@ -49,12 +57,12 @@ export class TestProofCreator implements ProofCreator {
       inputSize: privateInputs.toBuffer().length,
       outputSize: result.toBuffer().length,
     } satisfies CircuitSimulationStats);
-    return this.makeEmptyKernelProofOutput<PrivateKernelCircuitPublicInputs>(result, 'PrivateKernelInitArtifact');
+    return this.makeEmptyKernelSimulateOutput<PrivateKernelCircuitPublicInputs>(result, 'PrivateKernelInitArtifact');
   }
 
-  public async createProofInner(
+  public async simulateProofInner(
     privateInputs: PrivateKernelInnerCircuitPrivateInputs,
-  ): Promise<KernelProofOutput<PrivateKernelCircuitPublicInputs>> {
+  ): Promise<PrivateKernelSimulateOutput<PrivateKernelCircuitPublicInputs>> {
     const [duration, result] = await elapsed(() => executeInner(privateInputs));
     this.log.debug(`Simulated private kernel inner`, {
       eventName: 'circuit-simulation',
@@ -63,12 +71,12 @@ export class TestProofCreator implements ProofCreator {
       inputSize: privateInputs.toBuffer().length,
       outputSize: result.toBuffer().length,
     } satisfies CircuitSimulationStats);
-    return this.makeEmptyKernelProofOutput<PrivateKernelCircuitPublicInputs>(result, 'PrivateKernelInnerArtifact');
+    return this.makeEmptyKernelSimulateOutput<PrivateKernelCircuitPublicInputs>(result, 'PrivateKernelInnerArtifact');
   }
 
-  public async createProofReset(
+  public async simulateProofReset(
     privateInputs: PrivateKernelResetCircuitPrivateInputsVariants,
-  ): Promise<KernelProofOutput<PrivateKernelCircuitPublicInputs>> {
+  ): Promise<PrivateKernelSimulateOutput<PrivateKernelCircuitPublicInputs>> {
     const [duration, result] = await elapsed(() => executeReset(privateInputs));
     this.log.debug(`Simulated private kernel reset`, {
       eventName: 'circuit-simulation',
@@ -77,12 +85,15 @@ export class TestProofCreator implements ProofCreator {
       inputSize: privateInputs.toBuffer().length,
       outputSize: result.toBuffer().length,
     } satisfies CircuitSimulationStats);
-    return this.makeEmptyKernelProofOutput<PrivateKernelCircuitPublicInputs>(result, 'PrivateKernelResetFullArtifact');
+    return this.makeEmptyKernelSimulateOutput<PrivateKernelCircuitPublicInputs>(
+      result,
+      'PrivateKernelResetFullArtifact',
+    );
   }
 
-  public async createProofTail(
+  public async simulateProofTail(
     privateInputs: PrivateKernelTailCircuitPrivateInputs,
-  ): Promise<KernelProofOutput<PrivateKernelTailCircuitPublicInputs>> {
+  ): Promise<PrivateKernelSimulateOutput<PrivateKernelTailCircuitPublicInputs>> {
     const isForPublic = privateInputs.isForPublic();
     const [duration, result] = await elapsed(() =>
       isForPublic ? executeTailForPublic(privateInputs) : executeTail(privateInputs),
@@ -94,25 +105,30 @@ export class TestProofCreator implements ProofCreator {
       inputSize: privateInputs.toBuffer().length,
       outputSize: result.toBuffer().length,
     } satisfies CircuitSimulationStats);
-    return this.makeEmptyKernelProofOutput<PrivateKernelTailCircuitPublicInputs>(
+    return this.makeEmptyKernelSimulateOutput<PrivateKernelTailCircuitPublicInputs>(
       result,
       isForPublic ? 'PrivateKernelTailToPublicArtifact' : 'PrivateKernelTailArtifact',
     );
   }
 
-  createAppCircuitProof(_1: Map<number, string>, _2: Buffer): Promise<AppCircuitProofOutput> {
-    const appCircuitProofOutput: AppCircuitProofOutput = {
-      proof: makeRecursiveProof<typeof RECURSIVE_PROOF_LENGTH>(RECURSIVE_PROOF_LENGTH),
+  computeAppCircuitVerificationKey(
+    _bytecode: Buffer,
+    _appCircuitName?: string | undefined,
+  ): Promise<AppCircuitSimulateOutput> {
+    const appCircuitProofOutput: AppCircuitSimulateOutput = {
       verificationKey: VerificationKeyAsFields.makeEmpty(),
     };
     return Promise.resolve(appCircuitProofOutput);
   }
 
-  private makeEmptyKernelProofOutput<PublicInputsType>(publicInputs: PublicInputsType, circuitType: ProtocolArtifact) {
-    const kernelProofOutput: KernelProofOutput<PublicInputsType> = {
+  private makeEmptyKernelSimulateOutput<PublicInputsType>(
+    publicInputs: PublicInputsType,
+    circuitType: ProtocolArtifact,
+  ) {
+    const kernelProofOutput: PrivateKernelSimulateOutput<PublicInputsType> = {
       publicInputs,
-      proof: makeRecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>(NESTED_RECURSIVE_PROOF_LENGTH),
       verificationKey: ProtocolCircuitVks[circuitType].keyAsFields,
+      outputWitness: new Map(),
     };
     return kernelProofOutput;
   }

@@ -5,8 +5,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "address": "${config:mainframeAddress}",
-      "port": 9221,
+      "port": 9229,
       "type": "node",
       "request": "attach",
       "name": "Attach to Remote",
@@ -14,5 +13,11 @@
       "localRoot": "${workspaceFolder}",
       "sourceMaps": true
     },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Attach",
+      "port": 9229
+    }
   ]
 }

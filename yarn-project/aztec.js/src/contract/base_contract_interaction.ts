@@ -25,7 +25,11 @@ export type SendMethodOptions = {
  * Implements the sequence create/simulate/send.
  */
 export abstract class BaseContractInteraction {
-  protected tx?: Tx;
+  /**
+   * The transaction execution result. Set by prove().
+   * Made public for simple mocking.
+   */
+  public tx?: Tx;
   protected txRequest?: TxExecutionRequest;
 
   protected log = createDebugLogger('aztec:js:contract_interaction');

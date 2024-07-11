@@ -18,8 +18,8 @@ struct PublicKernelSetupCircuitPrivateInputs {
     // And we just initialize the missing values to zero in TS before passing it to the circuit,
     // except for the constants.global_variables which we populate with the current block values.
     // This is a bit of a hack, but it allows us to reuse the setup circuit until
-    // the setup phase of the public kernel is complete. Maybe in a perfect world we would 
-    // have a SetupInit, SetupInner, etc, but this will change anyway once the public VM is able to 
+    // the setup phase of the public kernel is complete. Maybe in a perfect world we would
+    // have a SetupInit, SetupInner, etc, but this will change anyway once the public VM is able to
     // consume entire enqueued public calls.
     previous_kernel: PublicKernelData,
     public_call: PublicCallData,
@@ -46,9 +46,10 @@ impl PublicKernelSetupCircuitPrivateInputs {
 
     fn public_kernel_setup(self) -> PublicKernelCircuitPublicInputs {
         if !dep::std::runtime::is_unconstrained() {
-            // verify the previous kernel proof
+            // Recursively verify the tube proof or a previous public kernel proof
             self.previous_kernel.verify();
-            self.previous_kernel.validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
+            // TODO(#7410) currently stubbed out until tube vk handled
+            // self.previous_kernel.validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
         }
         // construct the circuit outputs
         let mut public_inputs = PublicKernelCircuitPublicInputsBuilder::empty();
@@ -626,13 +627,11 @@ mod tests {
             let _res = builder.execute();
         }
     }
-
-    #[test(should_fail_with="Invalid vk index")]
-    fn invalid_previous_kernel() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
-
-        builder.previous_kernel = builder.previous_kernel.in_vk_tree(BASE_ROLLUP_INDEX);
-
-        let _res = builder.execute();
-    }
+    // TODO(#7410) we need the tube vk to reinstate this
+    // #[test(should_fail_with="Invalid vk index")]
+    // fn invalid_previous_kernel() {
+    //     let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+    //     builder.previous_kernel = builder.previous_kernel.in_vk_tree(BASE_ROLLUP_INDEX);
+    //     let _res = builder.execute();
+    // }
 }

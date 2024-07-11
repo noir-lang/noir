@@ -157,7 +157,7 @@ jobs:
       - uses: ./.github/ci-setup-action
       - name: Setup and Test
         uses: ./.github/ensure-tester-with-images
-        timeout-minutes: 40
+        timeout-minutes: 45
         with:
           runner_type: ${{ contains(matrix.test, 'prover') && '64core-tester-x86' || '16core-tester-x86' }}
           builder_type: builder-x86
@@ -166,6 +166,7 @@ jobs:
           builder_images_to_copy: aztecprotocol/aztec:${{ env.GIT_COMMIT }} aztecprotocol/end-to-end:${{ env.GIT_COMMIT }}
           # command to produce the images in case they don't exist
           builder_command: cd yarn-project/end-to-end/ && ../../scripts/earthly-ci +${{ matrix.test }}
+          tester_ttl: 40
           run: |
             set -eux
             cd ./yarn-project/end-to-end/
@@ -381,7 +382,7 @@ jobs:
       - name: "Format noir-projects"
         working-directory: ./noir-projects/
         timeout-minutes: 40
-        run: | 
+        run: |
           earthly-ci --no-output \
           --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
           --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
@@ -465,7 +466,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ env.GIT_COMMIT }}" }
-      # Only allow one memory-hunger prover test to use this runner
       - uses: ./.github/ci-setup-action
         with:
           concurrency_key: yarn-project-formatting-x86
@@ -474,13 +474,11 @@ jobs:
         run: earthly-ci --no-output ./yarn-project/+format-check
 
   yarn-project-test:
-    # quiet machine
     needs: build
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ env.GIT_COMMIT }}" }
-      # Only allow one memory-hunger prover test to use this runner
       - uses: ./.github/ci-setup-action
         with:
           concurrency_key: yarn-project-test-x86
@@ -527,7 +525,7 @@ jobs:
       - name: "Docs Preview"
         if: github.event.number
         timeout-minutes: 40
-        run: | 
+        run: |
           earthly-ci --no-output \
           --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
           --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
@@ -639,7 +637,7 @@ jobs:
           earthly-ci \
           --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
           --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-          --artifact +gates-report/gates_report.json 
+          --artifact +gates-report/gates_report.json
           mv gates_report.json ../protocol_circuits_report.json
 
       - name: Compare gates reports

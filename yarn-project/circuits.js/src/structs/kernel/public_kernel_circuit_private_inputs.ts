@@ -1,5 +1,6 @@
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
+import { ClientIvcProof } from '../client_ivc_proof.js';
 import { PublicCallData } from './public_call_data.js';
 import { PublicKernelData } from './public_kernel_data.js';
 
@@ -12,6 +13,8 @@ export class PublicKernelCircuitPrivateInputs {
      * Kernels are recursive and this is the data from the previous kernel.
      */
     public readonly previousKernel: PublicKernelData,
+
+    public readonly clientIvcProof: ClientIvcProof,
     /**
      * Public calldata assembled from the execution result and proof.
      */
@@ -23,7 +26,7 @@ export class PublicKernelCircuitPrivateInputs {
    * @returns - Buffer representation of the object.
    */
   toBuffer() {
-    return serializeToBuffer(this.previousKernel, this.publicCall);
+    return serializeToBuffer(this.previousKernel, this.clientIvcProof, this.publicCall);
   }
 
   /**
@@ -42,8 +45,9 @@ export class PublicKernelCircuitPrivateInputs {
   static fromBuffer(buffer: BufferReader | Buffer) {
     const reader = BufferReader.asReader(buffer);
     const previousKernel = reader.readObject(PublicKernelData);
+    const clientIvcProof = reader.readObject(ClientIvcProof);
     const publicCall = reader.readObject(PublicCallData);
-    return new PublicKernelCircuitPrivateInputs(previousKernel, publicCall);
+    return new PublicKernelCircuitPrivateInputs(previousKernel, clientIvcProof, publicCall);
   }
 
   /**

@@ -3,6 +3,7 @@ export * from './avm/avm.js';
 export * from './call_context.js';
 export * from './call_request.js';
 export * from './caller_context.js';
+export * from './client_ivc_proof.js';
 export * from './complete_address.js';
 export * from './content_commitment.js';
 export * from './context/private_context_inputs.js';

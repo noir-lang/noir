@@ -55,42 +55,46 @@ std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> create_ho
     using RecursiveVerificationKey = Flavor::VerificationKey;
     using RecursiveVerifier = bb::stdlib::recursion::honk::UltraRecursiveVerifier_<Flavor>;
 
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/1044) reinstate aggregation
+    static_cast<void>(input_aggregation_object);
+    static_cast<void>(nested_aggregation_object);
     // Construct aggregation points from the nested aggregation witness indices
-    std::array<bn254::Group, 2> nested_aggregation_points =
-        agg_points_from_witness_indicies(builder, nested_aggregation_object);
+    // std::array<bn254::Group, 2> nested_aggregation_points =
+    //     agg_points_from_witness_indicies(builder, nested_aggregation_object);
 
     // Construct an in-circuit representation of the verification key.
     // For now, the v-key is a circuit constant and is fixed for the circuit.
     // (We may need a separate recursion opcode for this to vary, or add more config witnesses to this opcode)
-    const auto& aggregation_input = input_aggregation_object;
-    aggregation_state_ct cur_aggregation_object;
-    cur_aggregation_object.P0 = nested_aggregation_points[0];
-    cur_aggregation_object.P1 = nested_aggregation_points[1];
-    cur_aggregation_object.has_data = true; // the nested aggregation object always exists
+    // const auto& aggregation_input = input_aggregation_object;
+    // aggregation_state_ct cur_aggregation_object;
+    // cur_aggregation_object.P0 = nested_aggregation_points[0];
+    // cur_aggregation_object.P1 = nested_aggregation_points[1];
+    // cur_aggregation_object.has_data = true; // the nested aggregation object always exists
 
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/995): generate this challenge properly.
-    field_ct recursion_separator = bb::stdlib::witness_t<Builder>(&builder, 2);
+    // field_ct recursion_separator = bb::stdlib::witness_t<Builder>(&builder, 2);
 
     // If we have previously recursively verified proofs, `previous_aggregation_object_nonzero = true`
     // For now this is a complile-time constant i.e. whether this is true/false is fixed for the circuit!
-    bool previous_aggregation_indices_all_zero = true;
-    for (const auto& idx : aggregation_input) {
-        previous_aggregation_indices_all_zero &= (idx == 0);
-    }
+    // bool previous_aggregation_indices_all_zero = true;
+    // for (const auto& idx : aggregation_input) {
+    //     previous_aggregation_indices_all_zero &= (idx == 0);
+    // }
 
-    // Aggregate the aggregation object if it exists. It exists if we have previously verified proofs, i.e. if this is
-    // not the first recursion constraint.
-    if (!previous_aggregation_indices_all_zero) {
-        std::array<bn254::Group, 2> inner_agg_points = agg_points_from_witness_indicies(builder, aggregation_input);
-        // If we have a previous aggregation object, aggregate it into the current aggregation object.
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/995): Verify that using challenge and challenge
-        // squared is safe.
-        cur_aggregation_object.P0 += inner_agg_points[0] * recursion_separator;
-        cur_aggregation_object.P1 += inner_agg_points[1] * recursion_separator;
-        recursion_separator =
-            recursion_separator *
-            recursion_separator; // update the challenge to be challenge squared for the next aggregation
-    }
+    // // Aggregate the aggregation object if it exists. It exists if we have previously verified proofs, i.e. if this
+    // is
+    // // not the first recursion constraint.
+    // if (!previous_aggregation_indices_all_zero) {
+    //     std::array<bn254::Group, 2> inner_agg_points = agg_points_from_witness_indicies(builder, aggregation_input);
+    //     // If we have a previous aggregation object, aggregate it into the current aggregation object.
+    //     // TODO(https://github.com/AztecProtocol/barretenberg/issues/995): Verify that using challenge and challenge
+    //     // squared is safe.
+    //     cur_aggregation_object.P0 += inner_agg_points[0] * recursion_separator;
+    //     cur_aggregation_object.P1 += inner_agg_points[1] * recursion_separator;
+    //     recursion_separator =
+    //         recursion_separator *
+    //         recursion_separator; // update the challenge to be challenge squared for the next aggregation
+    // }
 
     std::vector<field_ct> key_fields;
     key_fields.reserve(input.key.size());
@@ -210,8 +214,10 @@ std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> create_ho
     std::array<typename Flavor::GroupElement, 2> pairing_points = verifier.verify_proof(proof_fields);
 
     // Aggregate the current aggregation object with these pairing points from verify_proof
-    cur_aggregation_object.P0 += pairing_points[0] * recursion_separator;
-    cur_aggregation_object.P1 += pairing_points[1] * recursion_separator;
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/1044): Reinstate aggregation
+    aggregation_state_ct cur_aggregation_object;
+    cur_aggregation_object.P0 = pairing_points[0]; // * recursion_separator;
+    cur_aggregation_object.P1 = pairing_points[1]; // * recursion_separator;
 
     std::vector<uint32_t> proof_witness_indices = {
         cur_aggregation_object.P0.x.binary_basis_limbs[0].element.normalize().witness_index,

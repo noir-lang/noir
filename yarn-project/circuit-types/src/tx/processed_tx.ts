@@ -3,6 +3,7 @@ import {
   EncryptedTxL2Logs,
   PublicDataWrite,
   type PublicInputsAndRecursiveProof,
+  type PublicInputsAndTubeProof,
   type SimulationError,
   type Tx,
   TxEffect,
@@ -11,20 +12,20 @@ import {
 } from '@aztec/circuit-types';
 import {
   type AvmExecutionHints,
+  ClientIvcProof,
   Fr,
   type Gas,
   type GasFees,
   type Header,
   KernelCircuitPublicInputs,
   type NESTED_RECURSIVE_PROOF_LENGTH,
-  type Proof,
   type PublicDataUpdateRequest,
   type PublicKernelCircuitPrivateInputs,
   type PublicKernelCircuitPublicInputs,
   type PublicKernelTailCircuitPrivateInputs,
   type RecursiveProof,
+  type TUBE_PROOF_LENGTH,
   type VerificationKeyData,
-  makeEmptyProof,
 } from '@aztec/circuits.js';
 
 import { type CircuitName } from '../stats/stats.js';
@@ -69,7 +70,7 @@ export type PublicProvingRequest = AvmProvingRequest | PublicKernelRequest;
  * Represents a tx that has been processed by the sequencer public processor,
  * so its kernel circuit public inputs are filled in.
  */
-export type ProcessedTx = Pick<Tx, 'proof' | 'noteEncryptedLogs' | 'encryptedLogs' | 'unencryptedLogs'> & {
+export type ProcessedTx = Pick<Tx, 'clientIvcProof' | 'noteEncryptedLogs' | 'encryptedLogs' | 'unencryptedLogs'> & {
   /**
    * Output of the private tail or public tail kernel circuit for this tx.
    */
@@ -151,7 +152,6 @@ export type FailedTx = {
 export function makeProcessedTx(
   tx: Tx,
   kernelOutput: KernelCircuitPublicInputs,
-  proof: Proof,
   publicProvingRequests: PublicProvingRequest[],
   revertReason?: SimulationError,
   gasUsed: ProcessedTx['gasUsed'] = {},
@@ -160,7 +160,7 @@ export function makeProcessedTx(
   return {
     hash: tx.getTxHash(),
     data: kernelOutput,
-    proof,
+    clientIvcProof: tx.clientIvcProof,
     // TODO(4712): deal with non-revertible logs here
     noteEncryptedLogs: tx.noteEncryptedLogs,
     encryptedLogs: tx.encryptedLogs,
@@ -178,6 +178,11 @@ export type PaddingProcessedTx = ProcessedTx & {
   recursiveProof: RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>;
 };
 
+export type PaddingProcessedTxFromTube = ProcessedTx & {
+  verificationKey: VerificationKeyData;
+  recursiveProof: RecursiveProof<typeof TUBE_PROOF_LENGTH>;
+};
+
 /**
  * Makes a padding empty tx with a valid proof.
  * @returns A valid padding processed tx.
@@ -192,7 +197,32 @@ export function makePaddingProcessedTx(
     encryptedLogs: EncryptedTxL2Logs.empty(),
     unencryptedLogs: UnencryptedTxL2Logs.empty(),
     data: kernelOutput.inputs,
-    proof: kernelOutput.proof.binaryProof,
+    clientIvcProof: ClientIvcProof.empty(),
+    isEmpty: true,
+    revertReason: undefined,
+    publicProvingRequests: [],
+    gasUsed: {},
+    finalPublicDataUpdateRequests: [],
+    verificationKey: kernelOutput.verificationKey,
+    recursiveProof: kernelOutput.proof,
+  };
+}
+
+/**
+ * Makes a padding empty tx with a valid proof.
+ * @returns A valid padding processed tx.
+ */
+export function makePaddingProcessedTxFromTubeProof(
+  kernelOutput: PublicInputsAndTubeProof<KernelCircuitPublicInputs>,
+): PaddingProcessedTxFromTube {
+  const hash = new TxHash(Fr.ZERO.toBuffer());
+  return {
+    hash,
+    noteEncryptedLogs: EncryptedNoteTxL2Logs.empty(),
+    encryptedLogs: EncryptedTxL2Logs.empty(),
+    unencryptedLogs: UnencryptedTxL2Logs.empty(),
+    data: kernelOutput.inputs,
+    clientIvcProof: ClientIvcProof.empty(),
     isEmpty: true,
     revertReason: undefined,
     publicProvingRequests: [],
@@ -213,7 +243,6 @@ export function makeEmptyProcessedTx(header: Header, chainId: Fr, version: Fr, v
   emptyKernelOutput.constants.txContext.chainId = chainId;
   emptyKernelOutput.constants.txContext.version = version;
   emptyKernelOutput.constants.vkTreeRoot = vkTreeRoot;
-  const emptyProof = makeEmptyProof();
 
   const hash = new TxHash(Fr.ZERO.toBuffer());
   return {
@@ -222,7 +251,7 @@ export function makeEmptyProcessedTx(header: Header, chainId: Fr, version: Fr, v
     encryptedLogs: EncryptedTxL2Logs.empty(),
     unencryptedLogs: UnencryptedTxL2Logs.empty(),
     data: emptyKernelOutput,
-    proof: emptyProof,
+    clientIvcProof: ClientIvcProof.empty(),
     isEmpty: true,
     revertReason: undefined,
     publicProvingRequests: [],

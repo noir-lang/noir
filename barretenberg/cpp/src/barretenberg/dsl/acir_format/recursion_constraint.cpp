@@ -44,8 +44,8 @@ void generate_dummy_proof() {}
 std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> create_recursion_constraints(
     Builder& builder,
     const RecursionConstraint& input,
-    std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> input_aggregation_object,
-    std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> nested_aggregation_object,
+    const std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE>& input_aggregation_object,
+    const std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE>& nested_aggregation_object,
     bool has_valid_witness_assignments)
 {
     const auto& nested_aggregation_indices = nested_aggregation_object;

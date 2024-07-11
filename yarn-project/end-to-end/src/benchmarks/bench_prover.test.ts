@@ -1,5 +1,5 @@
 import { getSchnorrAccount, getSchnorrWallet } from '@aztec/accounts/schnorr';
-import { PublicFeePaymentMethod, TxStatus } from '@aztec/aztec.js';
+import { PublicFeePaymentMethod, TxStatus, sleep } from '@aztec/aztec.js';
 import { type AccountWallet } from '@aztec/aztec.js/wallet';
 import { CompleteAddress, Fq, Fr, GasSettings } from '@aztec/circuits.js';
 import { FPCContract, GasTokenContract, TestContract, TokenContract } from '@aztec/noir-contracts.js';
@@ -144,6 +144,9 @@ describe('benchmarks/proving', () => {
 
       provingPxes.push(pxe);
     }
+    /*TODO(post-honk): We wait 5 seconds for a race condition in setting up 4 nodes.
+     What is a more robust solution? */
+    await sleep(5000);
   });
 
   afterAll(async () => {

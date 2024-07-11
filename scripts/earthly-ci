@@ -65,7 +65,7 @@ while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
         wipe_non_cache_docker_state
       fi
       sleep 20
-    elif grep 'status 125: docker: Error response from daemon: layer does not exist.' $OUTPUT_FILE >/dev/null || grep 'could not determine buildkit address - is Docker or Podman running?' $OUTPUT_FILE >/dev/null ; then
+    elif grep 'status 125: docker: Error response from daemon: layer does not exist.' $OUTPUT_FILE >/dev/null || grep 'could not determine buildkit address - is Docker or Podman running?' $OUTPUT_FILE >/dev/null || grep 'please make sure the URL is valid, and Docker 18.09 or later is installed on the remote host' $OUTPUT_FILE >/dev/null ; then
       wipe_non_cache_docker_state
       # wait for other docker restarts
       sleep 20

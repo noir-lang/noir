@@ -976,7 +976,6 @@ export function mapPrivateCallDataToNoir(privateCallData: PrivateCallData): Priv
     call_stack_item: mapPrivateCallStackItemToNoir(privateCallData.callStackItem),
     public_call_stack: mapTuple(privateCallData.publicCallStack, mapCallRequestToNoir),
     public_teardown_call_request: mapCallRequestToNoir(privateCallData.publicTeardownCallRequest),
-    proof: mapRecursiveProofToNoir(privateCallData.proof),
     vk: mapVerificationKeyToNoir(privateCallData.vk),
     function_leaf_membership_witness: mapMembershipWitnessToNoir(privateCallData.functionLeafMembershipWitness),
     contract_class_artifact_hash: mapFieldToNoir(privateCallData.contractClassArtifactHash),
@@ -1552,7 +1551,6 @@ export function mapPrivateKernelCircuitPublicInputsToNoir(
 export function mapPrivateKernelDataToNoir(privateKernelInnerData: PrivateKernelData): PrivateKernelDataNoir {
   return {
     public_inputs: mapPrivateKernelCircuitPublicInputsToNoir(privateKernelInnerData.publicInputs),
-    proof: mapRecursiveProofToNoir(privateKernelInnerData.proof),
     vk: mapVerificationKeyToNoir(privateKernelInnerData.vk),
     vk_index: mapFieldToNoir(new Fr(privateKernelInnerData.vkIndex)),
     vk_path: mapTuple(privateKernelInnerData.vkPath, mapFieldToNoir),

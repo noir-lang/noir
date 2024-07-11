@@ -166,7 +166,7 @@ struct AcirProgramStack {
     std::vector<AcirFormat> constraint_systems;
     WitnessVectorStack witness_stack;
 
-    AcirProgramStack(std::vector<AcirFormat>& constraint_systems_in, WitnessVectorStack& witness_stack_in)
+    AcirProgramStack(const std::vector<AcirFormat>& constraint_systems_in, const WitnessVectorStack& witness_stack_in)
         : constraint_systems(constraint_systems_in)
         , witness_stack(witness_stack_in)
     {}

@@ -11,6 +11,7 @@ import {
   type Wallet,
   computeSecretHash,
   retryUntil,
+  sleep,
 } from '@aztec/aztec.js';
 import { ChildContract, TestContract, TokenContract } from '@aztec/noir-contracts.js';
 
@@ -44,6 +45,9 @@ describe('e2e_2_pxes', () => {
     ({ pxe: pxeB, teardown: teardownB } = await setupPXEService(aztecNode!, {}, undefined, true));
 
     [walletB] = await createAccounts(pxeB, 1);
+    /*TODO(post-honk): We wait 5 seconds for a race condition in setting up two nodes.
+     What is a more robust solution? */
+    await sleep(5000);
   });
 
   afterEach(async () => {

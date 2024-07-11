@@ -239,6 +239,7 @@ __metadata:
     "@aztec/simulator": "workspace:^"
     "@aztec/telemetry-client": "workspace:^"
     "@jest/globals": ^29.5.0
+    "@msgpack/msgpack": ^3.0.0-beta2
     "@noir-lang/noirc_abi": "portal:../../noir/packages/noirc_abi"
     "@noir-lang/types": "portal:../../noir/packages/types"
     "@types/jest": ^29.5.0
@@ -820,7 +821,9 @@ __metadata:
     "@aztec/simulator": "workspace:^"
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
+    "@msgpack/msgpack": ^3.0.0-beta2
     "@noir-lang/noirc_abi": "portal:../../noir/packages/noirc_abi"
+    "@noir-lang/types": "workspace:*"
     "@types/jest": ^29.5.0
     "@types/lodash.omit": ^4.5.7
     "@types/node": ^18.7.23
@@ -2800,6 +2803,13 @@ __metadata:
   bin:
     workspaces-to-typescript-project-references: bin/cmd.js
   checksum: 34d539247bdcaff9f0182ec8654a5f63d81bd8b06e0947fb6ab3f8c72127684e45906510576fa1a15dd31d8b7d7ad99f29918e5a4ff9b21a74f45227f8b6ccef
+  languageName: node
+  linkType: hard
+
+"@msgpack/msgpack@npm:^3.0.0-beta2":
+  version: 3.0.0-beta2
+  resolution: "@msgpack/msgpack@npm:3.0.0-beta2"
+  checksum: d86e5d48146051952d6bea35a6cf733a401cf65ad5614d79689aa48c7076021737ca2c782978dd1b6c0c9c45888b246e379e45ae906179e3a0e8ef4ee6f221c1
   languageName: node
   linkType: hard
 

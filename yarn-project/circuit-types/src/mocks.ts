@@ -1,6 +1,7 @@
 import {
   AztecAddress,
   CallRequest,
+  ClientIvcProof,
   GasSettings,
   LogHash,
   MAX_NULLIFIERS_PER_TX,
@@ -12,7 +13,6 @@ import {
   PublicCallRequest,
   computeContractClassId,
   getContractClassFromArtifact,
-  makeEmptyProof,
 } from '@aztec/circuits.js';
 import {
   makeCombinedAccumulatedData,
@@ -162,7 +162,7 @@ export const mockTx = (
 
   const tx = new Tx(
     data,
-    makeEmptyProof(),
+    ClientIvcProof.empty(),
     noteEncryptedLogs,
     encryptedLogs,
     unencryptedLogs,

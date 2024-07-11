@@ -14,6 +14,7 @@ import {
   type AvmExecutionHints,
   AztecAddress,
   CallRequest,
+  ClientIvcProof,
   ContractStorageRead,
   ContractStorageUpdateRequest,
   Fr,
@@ -419,7 +420,7 @@ export abstract class AbstractPhaseManager {
     const previousKernel = this.getPreviousKernelData(previousOutput, previousCircuit);
 
     // We take a deep copy (clone) of these inputs to be passed to the prover
-    const inputs = new PublicKernelCircuitPrivateInputs(previousKernel, callData);
+    const inputs = new PublicKernelCircuitPrivateInputs(previousKernel, ClientIvcProof.empty(), callData);
     switch (this.phase) {
       case PublicKernelType.SETUP:
         return [inputs.clone(), await this.publicKernel.publicKernelCircuitSetup(inputs), 'PublicKernelSetupArtifact'];

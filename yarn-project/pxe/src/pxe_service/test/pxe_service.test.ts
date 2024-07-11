@@ -10,7 +10,7 @@ import { type MockProxy, mock } from 'jest-mock-extended';
 import { KVPxeDatabase } from '../../database/kv_pxe_database.js';
 import { type PxeDatabase } from '../../database/pxe_database.js';
 import { type PXEServiceConfig } from '../../index.js';
-import { TestProofCreator } from '../../kernel_prover/test/test_circuit_prover.js';
+import { TestPrivateKernelProver } from '../../kernel_prover/test/test_circuit_prover.js';
 import { PXEService } from '../pxe_service.js';
 import { pxeTestSuite } from './pxe_test_suite.js';
 
@@ -36,7 +36,7 @@ function createPXEService(): Promise<PXE> {
   };
   node.getL1ContractAddresses.mockResolvedValue(mockedContracts);
 
-  return Promise.resolve(new PXEService(keyStore, node, db, new TestProofCreator(), config));
+  return Promise.resolve(new PXEService(keyStore, node, db, new TestPrivateKernelProver(), config));
 }
 
 pxeTestSuite('PXEService', createPXEService);
@@ -61,7 +61,7 @@ describe('PXEService', () => {
 
     node.getTxEffect.mockResolvedValue(settledTx);
 
-    const pxe = new PXEService(keyStore, node, db, new TestProofCreator(), config);
+    const pxe = new PXEService(keyStore, node, db, new TestPrivateKernelProver(), config);
     await expect(pxe.sendTx(duplicateTx)).rejects.toThrow(/A settled tx with equal hash/);
   });
 });

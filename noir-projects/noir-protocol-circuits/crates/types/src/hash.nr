@@ -183,9 +183,9 @@ pub fn silo_l2_to_l1_message(msg: ScopedL2ToL1Message, rollup_version_id: Field,
 pub fn accumulate_sha256(input: [Field; 2]) -> Field {
     // This is a note about the cpp code, since it takes an array of Fields
     // instead of a U128.
-    // 4 Field elements when converted to bytes will usually 
+    // 4 Field elements when converted to bytes will usually
     // occupy 4 * 32 = 128 bytes.
-    // However, this function is making the assumption that each Field 
+    // However, this function is making the assumption that each Field
     // only occupies 128 bits.
     //
     // TODO(David): This does not seem to be getting guaranteed anywhere in the code?
@@ -205,7 +205,7 @@ pub fn accumulate_sha256(input: [Field; 2]) -> Field {
 
 // Computes the final logs hash for a tx.
 // NB: this assumes MAX_ENCRYPTED_LOGS_PER_TX == MAX_UNENCRYPTED_LOGS_PER_TX
-// to avoid doubling code, since we can't define the byte len to be 32*N directly. 
+// to avoid doubling code, since we can't define the byte len to be 32*N directly.
 pub fn compute_tx_logs_hash(logs: [LogHash; MAX_ENCRYPTED_LOGS_PER_TX]) -> Field {
     // Convert each field element into a byte array and append the bytes to `hash_input_flattened`
     let mut hash_input_flattened = [0; MAX_ENCRYPTED_LOGS_PER_TX * 32];

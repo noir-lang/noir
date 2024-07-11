@@ -2,15 +2,10 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
-import {
-  FUNCTION_TREE_HEIGHT,
-  MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-  RECURSIVE_PROOF_LENGTH,
-} from '../../constants.gen.js';
+import { FUNCTION_TREE_HEIGHT, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL } from '../../constants.gen.js';
 import { CallRequest } from '../call_request.js';
 import { MembershipWitness } from '../membership_witness.js';
 import { PrivateCallStackItem } from '../private_call_stack_item.js';
-import { RecursiveProof } from '../recursive_proof.js';
 import { VerificationKeyAsFields } from '../verification_key.js';
 
 /**
@@ -30,10 +25,6 @@ export class PrivateCallData {
      * The public call request for the teardown function.
      */
     public publicTeardownCallRequest: CallRequest,
-    /**
-     * The proof of the execution of this private call.
-     */
-    public proof: RecursiveProof<typeof RECURSIVE_PROOF_LENGTH>,
     /**
      * The verification key for the function being invoked.
      */
@@ -74,7 +65,6 @@ export class PrivateCallData {
       fields.callStackItem,
       fields.publicCallStack,
       fields.publicTeardownCallRequest,
-      fields.proof,
       fields.vk,
       fields.contractClassArtifactHash,
       fields.contractClassPublicBytecodeCommitment,
@@ -108,7 +98,6 @@ export class PrivateCallData {
       reader.readObject(PrivateCallStackItem),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, CallRequest),
       reader.readObject(CallRequest),
-      RecursiveProof.fromBuffer(reader, RECURSIVE_PROOF_LENGTH),
       reader.readObject(VerificationKeyAsFields),
       reader.readObject(Fr),
       reader.readObject(Fr),

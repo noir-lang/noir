@@ -65,9 +65,10 @@ struct BaseRollupInputs {
 impl BaseRollupInputs {
     pub fn base_rollup_circuit(self) -> BaseOrMergeRollupPublicInputs {
         if !dep::std::runtime::is_unconstrained() {
-            // Verify the kernel circuit proof
+            // Recursively verify the tube proof if straight from private, or the public kernel tail
             self.kernel_data.verify();
-            self.kernel_data.validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
+            // TODO(#7410) we need the tube vk to reinstate this
+            // self.kernel_data.validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
         }
         // Verify the kernel chain_id and versions
         assert(
@@ -259,7 +260,7 @@ impl BaseRollupInputs {
     }
 
     // Deducts the tx_fee from the GasToken balance of the fee_payer. If there is already a PublicDataUpdateRequest
-    // in this tx for their balance (because they issued a 'claim' to increase their balance by bridging from L1), 
+    // in this tx for their balance (because they issued a 'claim' to increase their balance by bridging from L1),
     // update it by subtracting the tx_fee. Otherwise, build a new PublicDataUpdateRequest to subtract the tx_fee
     // from the balance of the fee_payer, using the fee_payer_gas_token_balance_read_hint to read the current balance.
     // Returns the data update request that subtracts the tx_fee from the fee_payer's balance, and the index where it
@@ -1447,13 +1448,11 @@ mod tests {
 
         let _res = builder.execute();
     }
-
-    #[test(should_fail_with="Invalid vk index")]
-    fn invalid_previous_kernel() {
-        let mut builder = BaseRollupInputsBuilder::new();
-
-        builder.kernel_data = builder.kernel_data.in_vk_tree(BASE_ROLLUP_INDEX);
-
-        let _res = builder.execute();
-    }
+    // TODO(#7410) we need the tube vk to reinstate this
+    // #[test(should_fail_with="Invalid vk index")]
+    // fn invalid_previous_kernel() {
+    //     let mut builder = BaseRollupInputsBuilder::new();
+    //     builder.kernel_data = builder.kernel_data.in_vk_tree(BASE_ROLLUP_INDEX);
+    //     let _res = builder.execute();
+    // }
 }

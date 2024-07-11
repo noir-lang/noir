@@ -16,7 +16,7 @@ import {
   type OutgoingNotesFilter,
   type PXE,
   type PXEInfo,
-  type ProofCreator,
+  type PrivateKernelProver,
   SimulatedTx,
   SimulationError,
   TaggedLog,
@@ -72,7 +72,7 @@ import { IncomingNoteDao } from '../database/incoming_note_dao.js';
 import { type PxeDatabase } from '../database/index.js';
 import { KernelOracle } from '../kernel_oracle/index.js';
 import { KernelProver } from '../kernel_prover/kernel_prover.js';
-import { TestProofCreator } from '../kernel_prover/test/test_circuit_prover.js';
+import { TestPrivateKernelProver } from '../kernel_prover/test/test_circuit_prover.js';
 import { getAcirSimulator } from '../simulator/index.js';
 import { Synchronizer } from '../synchronizer/index.js';
 
@@ -89,13 +89,13 @@ export class PXEService implements PXE {
   // ensures that state is not changed while simulating
   private jobQueue = new SerialQueue();
 
-  private fakeProofCreator = new TestProofCreator();
+  private fakeProofCreator = new TestPrivateKernelProver();
 
   constructor(
     private keyStore: KeyStore,
     private node: AztecNode,
     private db: PxeDatabase,
-    private proofCreator: ProofCreator,
+    private proofCreator: PrivateKernelProver,
     private config: PXEServiceConfig,
     logSuffix?: string,
   ) {
@@ -750,7 +750,7 @@ export class PXEService implements PXE {
    */
   async #simulateAndProve(
     txExecutionRequest: TxExecutionRequest,
-    proofCreator: ProofCreator,
+    proofCreator: PrivateKernelProver,
     msgSender?: AztecAddress,
   ): Promise<SimulatedTx> {
     // Get values that allow us to reconstruct the block hash
@@ -759,7 +759,10 @@ export class PXEService implements PXE {
     const kernelOracle = new KernelOracle(this.contractDataOracle, this.keyStore, this.node);
     const kernelProver = new KernelProver(kernelOracle, proofCreator);
     this.log.debug(`Executing kernel prover...`);
-    const { proof, publicInputs } = await kernelProver.prove(txExecutionRequest.toTxRequest(), executionResult);
+    const { clientIvcProof, publicInputs } = await kernelProver.prove(
+      txExecutionRequest.toTxRequest(),
+      executionResult,
+    );
 
     const noteEncryptedLogs = new EncryptedNoteTxL2Logs([collectSortedNoteEncryptedLogs(executionResult)]);
     const unencryptedLogs = new UnencryptedTxL2Logs([collectSortedUnencryptedLogs(executionResult)]);
@@ -769,7 +772,7 @@ export class PXEService implements PXE {
 
     const tx = new Tx(
       publicInputs,
-      proof.binaryProof,
+      clientIvcProof!,
       noteEncryptedLogs,
       encryptedLogs,
       unencryptedLogs,

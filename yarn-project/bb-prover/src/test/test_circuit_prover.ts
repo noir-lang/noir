@@ -20,10 +20,13 @@ import {
   type Proof,
   type PublicKernelCircuitPublicInputs,
   RECURSIVE_PROOF_LENGTH,
+  type RecursiveProof,
   RootParityInput,
   type RootParityInputs,
   type RootRollupInputs,
   type RootRollupPublicInputs,
+  TUBE_PROOF_LENGTH,
+  type TubeInputs,
   VerificationKeyData,
   makeEmptyProof,
   makeEmptyRecursiveProof,
@@ -41,6 +44,7 @@ import {
   convertMergeRollupInputsToWitnessMap,
   convertMergeRollupOutputsFromWitnessMap,
   convertPrivateKernelEmptyInputsToWitnessMap,
+  convertPrivateKernelEmptyOutputsFromWitnessMap,
   convertRootParityInputsToWitnessMap,
   convertRootParityOutputsFromWitnessMap,
   convertRootRollupInputsToWitnessMap,
@@ -104,6 +108,34 @@ export class TestCircuitProver implements ServerCircuitProver {
       result,
       makeRecursiveProof(NESTED_RECURSIVE_PROOF_LENGTH),
       ProtocolCircuitVks['PrivateKernelEmptyArtifact'],
+    );
+  }
+
+  public async getEmptyTubeProof(
+    inputs: PrivateKernelEmptyInputData,
+  ): Promise<PublicInputsAndRecursiveProof<KernelCircuitPublicInputs>> {
+    const emptyNested = new EmptyNestedData(
+      makeRecursiveProof(RECURSIVE_PROOF_LENGTH),
+      ProtocolCircuitVks['EmptyNestedArtifact'].keyAsFields,
+    );
+    const kernelInputs = new PrivateKernelEmptyInputs(
+      emptyNested,
+      inputs.header,
+      inputs.chainId,
+      inputs.version,
+      inputs.vkTreeRoot,
+    );
+    const witnessMap = convertPrivateKernelEmptyInputsToWitnessMap(kernelInputs);
+    const witness = await this.wasmSimulator.simulateCircuit(
+      witnessMap,
+      SimulatedServerCircuitArtifacts.PrivateKernelEmptyArtifact,
+    );
+    const result = convertPrivateKernelEmptyOutputsFromWitnessMap(witness);
+
+    return makePublicInputsAndRecursiveProof(
+      result,
+      makeRecursiveProof(NESTED_RECURSIVE_PROOF_LENGTH),
+      VerificationKeyData.makeFake(),
     );
   }
 
@@ -217,6 +249,16 @@ export class TestCircuitProver implements ServerCircuitProver {
       ProtocolCircuitVks['BaseRollupArtifact'],
     );
   }
+
+  public getTubeProof(
+    _tubeInput: TubeInputs,
+  ): Promise<{ tubeVK: VerificationKeyData; tubeProof: RecursiveProof<typeof TUBE_PROOF_LENGTH> }> {
+    return Promise.resolve({
+      tubeVK: VerificationKeyData.makeFake(),
+      tubeProof: makeEmptyRecursiveProof(TUBE_PROOF_LENGTH),
+    });
+  }
+
   /**
    * Simulates the merge rollup circuit from its inputs.
    * @param input - Inputs to the circuit.
