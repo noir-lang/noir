@@ -1,8 +1,38 @@
+# We push using git subrepo (https://github.com/ingydotnet/git-subrepo)
+# with some logic to recover from squashed parent commits
+# We first identify ourselves, needed to commit.
+# Then push to subrepo, commit to master. The commit is needed
+# to continue to replay. If we still hit issues such as this
+# action failing due to upstream changes, a manual resolution
+# will be needed.
 name: Mirror Repositories
 on:
+  schedule:
+    # Run the workflow every night at 2:00 AM UTC.
+    - cron: "0 2 * * *"
   workflow_dispatch: {} 
+
 jobs:
-  lint:
+  mirror-to-noir-edwards-lib:
     runs-on: ubuntu-latest
     steps:
-      - run: echo Dummy workflow TODO
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
+      - name: Push to external libs repo
+        run: |
+          SUBREPO_PATH=external-libraries
+          git config --global user.name noirwhal
+          git config --global user.email tomfrench@aztecprotocol.com
+
+          git clone https://github.com/ingydotnet/git-subrepo
+          if ./git-subrepo/lib/git-subrepo push $SUBREPO_PATH --branch=master; then
+            git fetch # in case a commit came after this
+            git rebase origin/master
+            git commit --amend -m "$(git log -1 --pretty=%B) [skip ci]"
+            git push
+          fi
+
+
