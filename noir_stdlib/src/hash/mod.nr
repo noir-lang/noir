@@ -1,7 +1,7 @@
 mod poseidon;
 mod mimc;
 mod poseidon2;
-mod keccak256;
+mod keccak;
 
 use crate::default::Default;
 use crate::uint128::U128;
@@ -70,7 +70,10 @@ fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], st
 
 #[builtin(derive_pedersen_generators)]
 #[field(bn254)]
-fn __derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {}
+fn __derive_generators<let N: u32, let M: u32>(
+    domain_separator_bytes: [u8; M],
+    starting_index: u32
+) -> [EmbeddedCurvePoint; N] {}
 
 fn pedersen_hash_with_separator_noir<let N: u32>(input: [Field; N], separator: u32) -> Field {
     let v1 = pedersen_commitment_with_separator(input, separator);
