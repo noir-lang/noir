@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.46.4](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.46.3...barretenberg-v0.46.4) (2024-07-11)
+
+
+### Miscellaneous
+
+* **avm:** Codegen cleanup ([#7439](https://github.com/AztecProtocol/aztec-packages/issues/7439)) ([e31887e](https://github.com/AztecProtocol/aztec-packages/commit/e31887e0091e31fcec59b8c792ec6af36d835f04))
+* **proving:** Post honk branch fixes ([#7435](https://github.com/AztecProtocol/aztec-packages/issues/7435)) ([86eafa0](https://github.com/AztecProtocol/aztec-packages/commit/86eafa0ca43645252852d1aa4def33de86156ff6))
+
 ## [0.46.3](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.46.2...barretenberg-v0.46.3) (2024-07-11)
 
 

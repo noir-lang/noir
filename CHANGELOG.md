@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.46.4](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.46.3...aztec-packages-v0.46.4) (2024-07-11)
+
+
+### Features
+
+* Configure world-state to follow the proven chain only ([#7430](https://github.com/AztecProtocol/aztec-packages/issues/7430)) ([2e41ac7](https://github.com/AztecProtocol/aztec-packages/commit/2e41ac7d6b3c0e9e0bf02a8687f9c3d7446a08c6))
+
+
+### Bug Fixes
+
+* Missing secrets in docs publish ([#7445](https://github.com/AztecProtocol/aztec-packages/issues/7445)) ([840a4b9](https://github.com/AztecProtocol/aztec-packages/commit/840a4b987f363626667b48febd46787f13a0f917))
+* Use simulated circuit for tiny reset ([#7442](https://github.com/AztecProtocol/aztec-packages/issues/7442)) ([f79a7c0](https://github.com/AztecProtocol/aztec-packages/commit/f79a7c0d85e11bf7e2b59a033ef58dac31d4f77b))
+
+
+### Miscellaneous
+
+* Apply where statement to impls instead of fns ([#7433](https://github.com/AztecProtocol/aztec-packages/issues/7433)) ([bb201f2](https://github.com/AztecProtocol/aztec-packages/commit/bb201f2fc8543cf752e2b5d5ec7ec15d3e7cdac5))
+* **avm:** Codegen cleanup ([#7439](https://github.com/AztecProtocol/aztec-packages/issues/7439)) ([e31887e](https://github.com/AztecProtocol/aztec-packages/commit/e31887e0091e31fcec59b8c792ec6af36d835f04))
+* **proving:** Post honk branch fixes ([#7435](https://github.com/AztecProtocol/aztec-packages/issues/7435)) ([86eafa0](https://github.com/AztecProtocol/aztec-packages/commit/86eafa0ca43645252852d1aa4def33de86156ff6))
+
 ## [0.46.3](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.46.2...aztec-packages-v0.46.3) (2024-07-11)
 
 

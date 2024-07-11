@@ -1,6 +1,6 @@
 {
   "name": "@aztec/aztec",
-  "version": "0.46.3",
+  "version": "0.46.4",
   "type": "module",
   "exports": {
     ".": "./dest/index.js"
