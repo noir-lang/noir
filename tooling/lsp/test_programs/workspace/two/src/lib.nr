@@ -39,3 +39,7 @@ use std::default::Default;
 fn use_impl_method() {
     let _: i32 = Default::default();
 }
+
+mod other;
+use other::another_function;
+use crate::other::other_function;

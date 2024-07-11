@@ -403,7 +403,8 @@ impl<'context> Elaborator<'context> {
         constructor: ConstructorExpression,
     ) -> (HirExpression, Type) {
         let span = constructor.type_name.span();
-        let is_self_type = constructor.type_name.last_segment().is_self_type_name();
+        let last_segment = constructor.type_name.last_segment();
+        let is_self_type = last_segment.is_self_type_name();
 
         let (r#type, struct_generics) = if let Some(struct_id) = constructor.struct_type {
             let typ = self.interner.get_struct(struct_id);
@@ -434,7 +435,7 @@ impl<'context> Elaborator<'context> {
         });
 
         let struct_id = struct_type.borrow().id;
-        let reference_location = Location::new(span, self.file);
+        let reference_location = Location::new(last_segment.span(), self.file);
         self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
 
         (expr, Type::Struct(struct_type, generics))

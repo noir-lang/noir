@@ -550,4 +550,64 @@ mod hover_tests {
         )
         .await;
     }
+
+    #[test]
+    async fn hover_on_std_module_in_use() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 36, character: 9 },
+            r#"    std
+    mod default"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_crate_module_in_call() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 15, character: 17 },
+            r#"    one
+    mod subone"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_module_without_crate_or_std_prefix() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 43, character: 4 },
+            r#"    two
+    mod other"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_module_with_crate_prefix() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 44, character: 11 },
+            r#"    two
+    mod other"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_module_on_struct_constructor() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 19, character: 12 },
+            r#"    one
+    mod subone"#,
+        )
+        .await;
+    }
 }
