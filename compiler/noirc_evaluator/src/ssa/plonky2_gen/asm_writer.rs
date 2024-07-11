@@ -216,10 +216,10 @@ impl AsmWriter {
         let result = self.builder.is_equal(x, y);
         if self.output_enabled() {
             self.handle_output(format!(
-                "is_equal\t{},{},{}",
+                "{} = is_equal {},{}",
+                BoolTargetDisplay { t: result },
                 TargetDisplay { t: x },
                 TargetDisplay { t: y },
-                BoolTargetDisplay { t: result },
             ));
         }
         result
@@ -228,7 +228,7 @@ impl AsmWriter {
     pub fn zero(&mut self) -> Target {
         let result = self.builder.zero();
         if self.output_enabled() {
-            self.handle_output(format!("zero\t{}", TargetDisplay { t: result }));
+            self.handle_output(format!("{} = zero", TargetDisplay { t: result }));
         }
         result
     }
@@ -236,7 +236,7 @@ impl AsmWriter {
     pub fn one(&mut self) -> Target {
         let result = self.builder.one();
         if self.output_enabled() {
-            self.handle_output(format!("one\t{}", TargetDisplay { t: result }));
+            self.handle_output(format!("{} = one", TargetDisplay { t: result }));
         }
         result
     }
@@ -244,7 +244,7 @@ impl AsmWriter {
     pub fn two(&mut self) -> Target {
         let result = self.builder.two();
         if self.output_enabled() {
-            self.handle_output(format!("two\t{}", TargetDisplay { t: result }));
+            self.handle_output(format!("{} = two", TargetDisplay { t: result }));
         }
         result
     }
@@ -253,10 +253,10 @@ impl AsmWriter {
         let result = self.builder.split_le(integer, num_bits);
         if self.output_enabled() {
             self.handle_output(format!(
-                "split_le\t{},{},{}",
+                "{} = split_le {},{}",
+                VecBoolTargetDisplay { t: &result },
                 TargetDisplay { t: integer },
                 num_bits,
-                VecBoolTargetDisplay { t: &result }
             ));
         }
         result
@@ -266,11 +266,11 @@ impl AsmWriter {
         let result = self.builder._if(b, x, y);
         if self.output_enabled() {
             self.handle_output(format!(
-                "if\t{},{},{},{}",
+                "{} = if {},{},{}",
+                TargetDisplay { t: result },
                 BoolTargetDisplay { t: b },
                 TargetDisplay { t: x },
                 TargetDisplay { t: y },
-                TargetDisplay { t: result }
             ));
         }
         result
@@ -280,10 +280,10 @@ impl AsmWriter {
         let result = self.builder.exp_u64(base, exponent);
         if self.output_enabled() {
             self.handle_output(format!(
-                "exp_u64\t{},{},{}",
+                "{} = exp_u64 {},{}",
+                TargetDisplay { t: result },
                 TargetDisplay { t: base },
                 exponent,
-                TargetDisplay { t: result }
             ));
         }
         result
@@ -292,7 +292,7 @@ impl AsmWriter {
     pub fn constant(&mut self, c: P2Field) -> Target {
         let result = self.builder.constant(c);
         if self.output_enabled() {
-            self.handle_output(format!("constant\t{},{}", c, TargetDisplay { t: result }));
+            self.handle_output(format!("{} = constant {}", TargetDisplay { t: result }, c));
         }
         result
     }
@@ -300,7 +300,11 @@ impl AsmWriter {
     pub fn constant_bool(&mut self, b: bool) -> BoolTarget {
         let result = self.builder.constant_bool(b);
         if self.output_enabled() {
-            self.handle_output(format!("constant_bool\t{},{}", b, BoolTargetDisplay { t: result }));
+            self.handle_output(format!(
+                "{} = constant_bool {}",
+                BoolTargetDisplay { t: result },
+                b
+            ));
         }
         result
     }
@@ -309,10 +313,10 @@ impl AsmWriter {
         let result = self.builder.mul(x, y);
         if self.output_enabled() {
             self.handle_output(format!(
-                "mul\t{},{},{}",
+                "{} = mul {},{}",
+                TargetDisplay { t: result },
                 TargetDisplay { t: x },
                 TargetDisplay { t: y },
-                TargetDisplay { t: result }
             ));
         }
         result
@@ -322,10 +326,10 @@ impl AsmWriter {
         let result = self.builder.and(b1, b2);
         if self.output_enabled() {
             self.handle_output(format!(
-                "and\t{},{},{}",
+                "{} = and {},{}",
+                BoolTargetDisplay { t: result },
                 BoolTargetDisplay { t: b1 },
                 BoolTargetDisplay { t: b2 },
-                BoolTargetDisplay { t: result }
             ));
         }
         result
@@ -335,10 +339,10 @@ impl AsmWriter {
         let result = self.builder.or(b1, b2);
         if self.output_enabled() {
             self.handle_output(format!(
-                "or\t{},{},{}",
+                "{} = or {},{}",
+                BoolTargetDisplay { t: result },
                 BoolTargetDisplay { t: b1 },
                 BoolTargetDisplay { t: b2 },
-                BoolTargetDisplay { t: result }
             ));
         }
         result
@@ -348,10 +352,10 @@ impl AsmWriter {
         let result = self.builder.add(x, y);
         if self.output_enabled() {
             self.handle_output(format!(
-                "add\t{},{},{}",
+                "{} = add {},{}",
+                TargetDisplay { t: result },
                 TargetDisplay { t: x },
                 TargetDisplay { t: y },
-                TargetDisplay { t: result }
             ));
         }
         result
@@ -361,10 +365,10 @@ impl AsmWriter {
         let result = self.builder.sub(x, y);
         if self.output_enabled() {
             self.handle_output(format!(
-                "sub\t{},{},{}",
+                "{} = sub {},{}",
+                TargetDisplay { t: result },
                 TargetDisplay { t: x },
                 TargetDisplay { t: y },
-                TargetDisplay { t: result }
             ));
         }
         result
@@ -374,9 +378,9 @@ impl AsmWriter {
         let result = self.builder.not(b);
         if self.output_enabled() {
             self.handle_output(format!(
-                "not\t{},{}",
+                "{} = not {}",
+                BoolTargetDisplay { t: result },
                 BoolTargetDisplay { t: b },
-                BoolTargetDisplay { t: result }
             ));
         }
         result
@@ -385,7 +389,7 @@ impl AsmWriter {
     pub fn assert_bool(&mut self, b: BoolTarget) {
         self.builder.assert_bool(b);
         if self.output_enabled() {
-            self.handle_output(format!("assert_bool\t{}", BoolTargetDisplay { t: b }));
+            self.handle_output(format!("assert_bool {}", BoolTargetDisplay { t: b }));
         }
     }
 
@@ -393,7 +397,7 @@ impl AsmWriter {
         self.builder.connect(x, y);
         if self.output_enabled() {
             self.handle_output(format!(
-                "connect\t{},{}",
+                "connect {},{}",
                 TargetDisplay { t: x },
                 TargetDisplay { t: y }
             ));
@@ -404,7 +408,7 @@ impl AsmWriter {
         self.builder.register_public_inputs(targets);
         if self.output_enabled() {
             self.handle_output(format!(
-                "register_public_inputs\t{}",
+                "register_public_inputs {}",
                 TargetSliceDisplay { t: targets }
             ));
         }
@@ -417,9 +421,9 @@ impl AsmWriter {
         if self.output_enabled() {
             let result = self.builder.add_many(terms.clone());
             self.handle_output(format!(
-                "add_many\t{},{}",
+                "{} = add_many {}",
+                TargetDisplay { t: result },
                 TargetIntoIteratorDisplay { t: terms },
-                TargetDisplay { t: result }
             ));
             result
         } else {
@@ -434,9 +438,9 @@ impl AsmWriter {
         if self.output_enabled() {
             let result = self.builder.le_sum(bits.clone());
             self.handle_output(format!(
-                "le_sum\t{},{}",
+                "{} = le_sum {}",
+                TargetDisplay { t: result },
                 BoolTargetIteratorDisplay { t: bits },
-                TargetDisplay { t: result }
             ));
             result
         } else {
@@ -455,7 +459,7 @@ impl AsmWriter {
         let result = self.builder.add_virtual_bool_target_unsafe();
         if self.output_enabled() {
             self.handle_output(format!(
-                "add_virtual_bool_target_unsafe\t{}",
+                "{} = add_virtual_bool_target_unsafe",
                 BoolTargetDisplay { t: result }
             ));
         }
@@ -466,7 +470,7 @@ impl AsmWriter {
         let result = self.builder.add_virtual_bool_target_safe();
         if self.output_enabled() {
             self.handle_output(format!(
-                "add_virtual_bool_target_safe\t{}",
+                "{} = add_virtual_bool_target_safe",
                 BoolTargetDisplay { t: result }
             ));
         }
@@ -476,7 +480,7 @@ impl AsmWriter {
     pub fn constant_u32(&mut self, c: u32) -> U32Target {
         let result = self.builder.constant_u32(c);
         if self.output_enabled() {
-            self.handle_output(format!("constant_u32\t{},{}", c, U32TargetDisplay { t: result }));
+            self.handle_output(format!("{} = constant_u32 {}", U32TargetDisplay { t: result }, c));
         }
         result
     }
@@ -485,11 +489,11 @@ impl AsmWriter {
         let result = self.builder.add_u32(a, b);
         if self.output_enabled() {
             self.handle_output(format!(
-                "add_u32\t{},{},({},{})",
+                "({},{}) = add_u32 {},{}",
+                U32TargetDisplay { t: result.0 },
+                U32TargetDisplay { t: result.1 },
                 U32TargetDisplay { t: a },
                 U32TargetDisplay { t: b },
-                U32TargetDisplay { t: result.0 },
-                U32TargetDisplay { t: result.1 }
             ));
         }
         result
@@ -499,11 +503,11 @@ impl AsmWriter {
         let result = self.builder.split_le_base::<B>(x, num_limbs);
         if self.output_enabled() {
             self.handle_output(format!(
-                "split_le_base\t{},{},{},{}",
+                "{} = split_le_base\t{},{},{}",
+                VecTargetDisplay { t: &result },
                 B,
                 TargetDisplay { t: x },
                 num_limbs,
-                VecTargetDisplay { t: &result }
             ))
         }
         result
@@ -512,7 +516,7 @@ impl AsmWriter {
     pub fn add_virtual_target(&mut self) -> Target {
         let result = self.builder.add_virtual_target();
         if self.output_enabled() {
-            self.handle_output(format!("add_virtual_target\t{}", TargetDisplay { t: result }));
+            self.handle_output(format!("{} = add_virtual_target", TargetDisplay { t: result }));
         }
         result
     }
