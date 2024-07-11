@@ -154,8 +154,22 @@ fn format_function(id: FuncId, interner: &NodeInterner) -> String {
     let func_name_definition_id = interner.definition(func_meta.name.id);
 
     let mut string = String::new();
-    format_parent_module(ReferenceId::Function(id), interner, &mut string);
-    string.push_str("\n");
+    let formatted_parent_module =
+        format_parent_module(ReferenceId::Function(id), interner, &mut string);
+    let formatted_parent_struct = if let Some(struct_id) = func_meta.struct_id {
+        let struct_type = interner.get_struct(struct_id);
+        let struct_type = struct_type.borrow();
+        if formatted_parent_module {
+            string.push_str("::");
+        }
+        string.push_str(&struct_type.name.0.contents);
+        true
+    } else {
+        false
+    };
+    if formatted_parent_module || formatted_parent_struct {
+        string.push_str("\n");
+    }
     string.push_str("    ");
     string.push_str("fn ");
     format_generics(&func_meta.direct_generics, &mut string);
