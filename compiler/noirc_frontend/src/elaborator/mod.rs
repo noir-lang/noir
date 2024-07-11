@@ -250,11 +250,11 @@ impl<'context> Elaborator<'context> {
         }
 
         // Must resolve structs before we resolve globals.
-        let generated_items = self.collect_struct_definitions(items.types);
+        let mut generated_items = self.collect_struct_definitions(items.types);
 
         self.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
 
-        self.collect_traits(items.traits);
+        self.collect_traits(items.traits, &mut generated_items);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -275,6 +275,10 @@ impl<'context> Elaborator<'context> {
         while let Some((_, global)) = self.unresolved_globals.pop_first() {
             self.elaborate_global(global);
         }
+
+        // We have to run any comptime attributes on functions before the function is elaborated
+        // since the generated items are checked beforehand as well.
+        self.run_attributes_on_functions(&items.functions, &mut generated_items);
 
         // After everything is collected, we can elaborate our generated items.
         // It may be better to inline these within `items` entirely since elaborating them
@@ -1234,7 +1238,7 @@ impl<'context> Elaborator<'context> {
             }
 
             let item = Value::StructDefinition(type_id);
-            self.run_comptime_attributes_on_item(attributes, item, span, &mut generated_items);
+            self.run_comptime_attributes_on_item(&attributes, item, span, &mut generated_items);
         }
 
         // Check whether the struct fields have nested slices
@@ -1262,7 +1266,7 @@ impl<'context> Elaborator<'context> {
 
     fn run_comptime_attributes_on_item(
         &mut self,
-        attributes: Vec<SecondaryAttribute>,
+        attributes: &[SecondaryAttribute],
         item: Value,
         span: Span,
         generated_items: &mut CollectedItems,
@@ -1270,7 +1274,7 @@ impl<'context> Elaborator<'context> {
         for attribute in attributes {
             if let SecondaryAttribute::Custom(name) = attribute {
                 if let Err(error) =
-                    self.run_comptime_attribute_on_item(name, item, span, generated_items)
+                    self.run_comptime_attribute_on_item(name, item.clone(), span, generated_items)
                 {
                     self.errors.push(error);
                 }
@@ -1280,13 +1284,13 @@ impl<'context> Elaborator<'context> {
 
     fn run_comptime_attribute_on_item(
         &mut self,
-        attribute: String,
+        attribute: &str,
         item: Value,
         span: Span,
         generated_items: &mut CollectedItems,
     ) -> Result<(), (CompilationError, FileId)> {
         let id = self
-            .lookup_global(Path::from_single(attribute, span))
+            .lookup_global(Path::from_single(attribute.to_string(), span))
             .map_err(|_| (ResolverError::UnknownAnnotation { span }.into(), self.file))?;
 
         let definition = self.interner.definition(id);
@@ -1671,6 +1675,25 @@ impl<'context> Elaborator<'context> {
                 InterpreterError::debug_evaluate_comptime(displayed_expr, location).into(),
                 location.file,
             ));
+        }
+    }
+
+    fn run_attributes_on_functions(
+        &mut self,
+        function_sets: &[UnresolvedFunctions],
+        generated_items: &mut CollectedItems,
+    ) {
+        for function_set in function_sets {
+            self.file = function_set.file_id;
+            self.self_type = function_set.self_type.clone();
+
+            for (local_module, function_id, function) in &function_set.functions {
+                self.local_module = *local_module;
+                let attributes = function.secondary_attributes();
+                let item = Value::FunctionDefinition(*function_id);
+                let span = function.span();
+                self.run_comptime_attributes_on_item(attributes, item, span, generated_items);
+            }
         }
     }
 }
