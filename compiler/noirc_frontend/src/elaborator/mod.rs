@@ -731,7 +731,7 @@ impl<'context> Elaborator<'context> {
             typ,
             direct_generics,
             all_generics: self.generics.clone(),
-            struct_id: struct_id,
+            struct_id,
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
             parameter_idents,

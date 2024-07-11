@@ -320,7 +320,7 @@ impl<'a> ModCollector<'a> {
 
             context.def_interner.add_definition_location(
                 ReferenceId::Struct(id),
-                Some(ModuleId { krate: krate, local_id: self.module_id }),
+                Some(ModuleId { krate, local_id: self.module_id }),
             );
         }
         definition_errors
@@ -371,7 +371,7 @@ impl<'a> ModCollector<'a> {
 
             context.def_interner.add_definition_location(
                 ReferenceId::Alias(type_alias_id),
-                Some(ModuleId { krate: krate, local_id: self.module_id }),
+                Some(ModuleId { krate, local_id: self.module_id }),
             );
         }
         errors
@@ -541,7 +541,7 @@ impl<'a> ModCollector<'a> {
 
             context.def_interner.add_definition_location(
                 ReferenceId::Trait(trait_id),
-                Some(ModuleId { krate: krate, local_id: self.module_id }),
+                Some(ModuleId { krate, local_id: self.module_id }),
             );
 
             self.def_collector.items.traits.insert(trait_id, unresolved);
