@@ -8,7 +8,7 @@ use crate::collections::bounded_vec::BoundedVec;
 #[foreign(keccakf1600)]
 pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
 
-pub fn hash<N>(input: [u8; N], message_size: u32) -> [u8; 32] {
+pub fn hash<let N:u32>(input: [u8; N], message_size: u32) -> [u8; 32] {
     // No var keccak for now
     assert(N == message_size);
 
