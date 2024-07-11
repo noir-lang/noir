@@ -6,7 +6,6 @@ use crate::hash::poseidon::{PoseidonConfig, absorb};
 
 // Variable-length Poseidon-128 sponge as suggested in second bullet point of §3 of https://eprint.iacr.org/2019/458.pdf
 #[field(bn254)]
-#[no_predicates]
 pub fn sponge<let N: u32>(msg: [Field; N]) -> Field {
     absorb(consts::x5_5_config(), [0; 5], 4, 1, msg)[1]
 }

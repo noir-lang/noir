@@ -15,7 +15,9 @@ fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
 
     msg32
 }
+
 // SHA-256 hash function
+#[no_predicates]
 pub fn digest<let N: u32>(msg: [u8; N]) -> [u8; 32] {
     sha256_var(msg, N as u64)
 }
@@ -38,7 +40,6 @@ fn hash_final_block(msg_block: [u8; 64], mut state: [u32; 8]) -> [u8; 32] {
 }
 
 // Variable size SHA-256 hash
-#[no_predicates]
 pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     let mut msg_block: [u8; 64] = [0; 64];
     let mut h: [u32; 8] = [1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225]; // Intermediate hash, starting with the canonical initial value

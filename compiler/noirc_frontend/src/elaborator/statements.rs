@@ -3,7 +3,6 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{AssignStatement, ConstrainStatement, LValue},
     hir::{
-        comptime::Interpreter,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
@@ -86,8 +85,8 @@ impl<'context> Elaborator<'context> {
                     expr_span,
                 }
             });
-            if annotated_type.is_unsigned() {
-                let errors = lints::overflowing_uint(self.interner, &expression, &annotated_type);
+            if annotated_type.is_integer() {
+                let errors = lints::overflowing_int(self.interner, &expression, &annotated_type);
                 for error in errors {
                     self.push_err(error);
                 }
@@ -206,9 +205,8 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_jump(&mut self, is_break: bool, span: noirc_errors::Span) -> (HirStatement, Type) {
-        let in_constrained_function = self
-            .current_function
-            .map_or(true, |func_id| !self.interner.function_modifiers(&func_id).is_unconstrained);
+        let in_constrained_function = self.in_constrained_function();
+
         if in_constrained_function {
             self.push_err(ResolverError::JumpInConstrainedFn { is_break, span });
         }
@@ -256,6 +254,9 @@ impl<'context> Elaborator<'context> {
                     let typ = self.interner.definition_type(ident.id).instantiate(self.interner).0;
                     typ.follow_bindings()
                 };
+
+                let reference_location = Location::new(span, self.file);
+                self.interner.add_local_reference(ident.id, reference_location);
 
                 (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable)
             }
@@ -378,6 +379,9 @@ impl<'context> Elaborator<'context> {
             Type::Struct(s, args) => {
                 let s = s.borrow();
                 if let Some((field, index)) = s.get_field(field_name, args) {
+                    let reference_location = Location::new(span, self.file);
+                    self.interner.add_struct_member_reference(s.id, index, reference_location);
+
                     return Some((field, index));
                 }
             }
@@ -433,12 +437,23 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
+        // We have to push a new FunctionContext so that we can resolve any constraints
+        // in this comptime block early before the function as a whole finishes elaborating.
+        // Otherwise the interpreter below may find expressions for which the underlying trait
+        // call is not yet solved for.
+        self.function_context.push(Default::default());
         let span = statement.span;
         let (hir_statement, _typ) = self.elaborate_statement(statement);
-        let mut interpreter =
-            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
+        self.check_and_pop_function_context();
+        let mut interpreter_errors = vec![];
+        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
         let value = interpreter.evaluate_statement(hir_statement);
         let (expr, typ) = self.inline_comptime_value(value, span);
+        self.include_interpreter_errors(interpreter_errors);
+
+        let location = self.interner.id_location(hir_statement);
+        self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);
+
         (HirStatement::Expression(expr), typ)
     }
 }

@@ -4,7 +4,7 @@ global NUM_HASHES = 2;
 global HASH_LENGTH = 10;
 
 #[fold]
-pub fn poseidon_hash<N>(inputs: [Field; N]) -> Field {
+pub fn poseidon_hash<let N: u32>(inputs: [Field; N]) -> Field {
     Poseidon2::hash(inputs, inputs.len())
 }
 

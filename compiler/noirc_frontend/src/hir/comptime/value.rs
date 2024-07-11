@@ -44,7 +44,7 @@ pub enum Value {
     Array(Vector<Value>, Type),
     Slice(Vector<Value>, Type),
     Code(Rc<Tokens>),
-    TypeDefinition(StructId),
+    StructDefinition(StructId),
 }
 
 impl Value {
@@ -74,7 +74,7 @@ impl Value {
             Value::Array(_, typ) => return Cow::Borrowed(typ),
             Value::Slice(_, typ) => return Cow::Borrowed(typ),
             Value::Code(_) => Type::Quoted(QuotedType::Quoted),
-            Value::TypeDefinition(_) => Type::Quoted(QuotedType::TypeDefinition),
+            Value::StructDefinition(_) => Type::Quoted(QuotedType::StructDefinition),
             Value::Pointer(element) => {
                 let element = element.borrow().get_type().into_owned();
                 Type::MutableReference(Box::new(element))
@@ -192,7 +192,7 @@ impl Value {
                     }
                 };
             }
-            Value::Pointer(_) | Value::TypeDefinition(_) => {
+            Value::Pointer(_) | Value::StructDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -298,7 +298,7 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
             Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
-            Value::Pointer(_) | Value::TypeDefinition(_) => {
+            Value::Pointer(_) | Value::StructDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -326,9 +326,12 @@ impl Value {
         }
     }
 
-    pub(crate) fn into_top_level_item(self, location: Location) -> IResult<TopLevelStatement> {
+    pub(crate) fn into_top_level_items(
+        self,
+        location: Location,
+    ) -> IResult<Vec<TopLevelStatement>> {
         match self {
-            Value::Code(tokens) => parse_tokens(tokens, parser::top_level_item(), location.file),
+            Value::Code(tokens) => parse_tokens(tokens, parser::top_level_items(), location.file),
             value => Err(InterpreterError::CannotInlineMacro { value, location }),
         }
     }
@@ -398,7 +401,7 @@ impl Display for Value {
                 }
                 write!(f, " }}")
             }
-            Value::TypeDefinition(_) => write!(f, "(type definition)"),
+            Value::StructDefinition(_) => write!(f, "(struct definition)"),
         }
     }
 }

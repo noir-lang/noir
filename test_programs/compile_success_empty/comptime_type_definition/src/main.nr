@@ -6,7 +6,7 @@ struct MyType<A, B, C> {
     field2: (B, C),
 }
 
-comptime fn my_comptime_fn(typ: TypeDefinition) {
+comptime fn my_comptime_fn(typ: StructDefinition) {
     let _ = typ.as_type();
     assert_eq(typ.generics().len(), 3);
     assert_eq(typ.fields().len(), 2);
