@@ -149,17 +149,6 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             
                 nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
         );
-
-        generate_test_case(
-            test_file,
-            test_type,
-            &format!("legacy_{test_name}"),
-            &test_dir,
-            r#"
-                nargo.arg("execute").arg("--force").arg("--use-legacy");
-            
-                nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
-        );
     }
 }
 
@@ -179,17 +168,6 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
         
         nargo.assert().success();"#,
         );
-
-        generate_test_case(
-            test_file,
-            test_type,
-            &format!("legacy_{test_name}"),
-            &test_dir,
-            r#"
-        nargo.arg("test").arg("--use-legacy");
-        
-        nargo.assert().success();"#,
-        );
     }
 }
 
@@ -205,17 +183,6 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_dir,
             r#"
         nargo.arg("test");
-        
-        nargo.assert().failure();"#,
-        );
-
-        generate_test_case(
-            test_file,
-            test_type,
-            &format!("legacy_{test_name}"),
-            &test_dir,
-            r#"
-        nargo.arg("test").arg("--use-legacy");
         
         nargo.assert().failure();"#,
         );
@@ -271,17 +238,6 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             &test_dir,
             r#"
         nargo.arg("compile").arg("--force");
-        
-        nargo.assert().success();"#,
-        );
-
-        generate_test_case(
-            test_file,
-            test_type,
-            &format!("legacy_{test_name}"),
-            &test_dir,
-            r#"
-        nargo.arg("compile").arg("--force").arg("--use-legacy");
         
         nargo.assert().success();"#,
         );
