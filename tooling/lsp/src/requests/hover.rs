@@ -21,23 +21,19 @@ pub(crate) fn on_hover_request(
     state: &mut LspState,
     params: HoverParams,
 ) -> impl Future<Output = Result<Option<Hover>, ResponseError>> {
-    let result = process_request(
-        state,
-        params.text_document_position_params,
-        |location, interner, files, _| {
-            interner.reference_at_location(location).map(|reference| {
-                let location = interner.reference_location(reference);
-                let lsp_location = to_lsp_location(files, location.file, location.span);
-                Hover {
-                    range: lsp_location.map(|location| location.range),
-                    contents: HoverContents::Markup(MarkupContent {
-                        kind: MarkupKind::Markdown,
-                        value: format_reference(reference, interner),
-                    }),
-                }
-            })
-        },
-    );
+    let result = process_request(state, params.text_document_position_params, |args| {
+        args.interner.reference_at_location(args.location).map(|reference| {
+            let location = args.interner.reference_location(reference);
+            let lsp_location = to_lsp_location(args.files, location.file, location.span);
+            Hover {
+                range: lsp_location.map(|location| location.range),
+                contents: HoverContents::Markup(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: format_reference(reference, args.interner),
+                }),
+            }
+        })
+    });
 
     future::ready(result)
 }
