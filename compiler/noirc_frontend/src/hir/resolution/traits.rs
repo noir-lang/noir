@@ -287,7 +287,6 @@ fn collect_trait_impl(
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
     let unresolved_type = trait_impl.object_type.clone();
     let module = ModuleId { local_id: trait_impl.module_id, krate: crate_id };
-
     trait_impl.trait_id =
         match resolve_trait_by_path(def_maps, module, trait_impl.trait_path.clone()) {
             Ok((trait_id, warning)) => {
@@ -363,7 +362,6 @@ fn check_trait_impl_crate_coherence(
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
 
     let module = ModuleId { krate: current_crate, local_id: trait_impl.module_id };
-
     let file = def_maps[&current_crate].file_id(trait_impl.module_id);
     let path_resolver = StandardPathResolver::new(module);
     let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
@@ -386,10 +384,10 @@ fn check_trait_impl_crate_coherence(
 
 pub(crate) fn resolve_trait_by_path(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    module_id: ModuleId,
+    module: ModuleId,
     path: Path,
 ) -> Result<(TraitId, Option<PathResolutionError>), DefCollectorErrorKind> {
-    let path_resolver = StandardPathResolver::new(module_id);
+    let path_resolver = StandardPathResolver::new(module);
 
     match path_resolver.resolve(def_maps, path.clone(), &mut None) {
         Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), error }) => {

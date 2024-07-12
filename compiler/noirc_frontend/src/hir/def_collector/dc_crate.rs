@@ -346,7 +346,6 @@ impl DefCollector {
         // Resolve unresolved imports collected from the crate, one by one.
         for collected_import in std::mem::take(&mut def_collector.imports) {
             let module_id = collected_import.module_id;
-
             let resolved_import = if context.def_interner.track_references {
                 let mut references: Vec<Option<ReferenceId>> = Vec::new();
                 let resolved_import = resolve_import(
