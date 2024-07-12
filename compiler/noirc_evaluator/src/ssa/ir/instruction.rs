@@ -608,7 +608,7 @@ impl Instruction {
                     {
                         // If we're reading from an index of the array which we just wrote to, we can return
                         // the value which we wrote without performing the read.
-                        if write_index == *index {
+                        if dfg.resolve(write_index) == dfg.resolve(*index) {
                             return SimplifiedTo(value);
                         }
                     }
