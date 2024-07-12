@@ -54,15 +54,7 @@ pub(super) fn parenthesized_type(
 }
 
 pub(super) fn maybe_comp_time() -> impl NoirParser<bool> {
-    keyword(Keyword::Comptime).or_not().validate(|opt, span, emit| {
-        if opt.is_some() {
-            emit(ParserError::with_reason(
-                ParserErrorReason::ExperimentalFeature("Comptime values"),
-                span,
-            ));
-        }
-        opt.is_some()
-    })
+    keyword(Keyword::Comptime).or_not().map(|opt| opt.is_some())
 }
 
 pub(super) fn field_type() -> impl NoirParser<UnresolvedType> {
