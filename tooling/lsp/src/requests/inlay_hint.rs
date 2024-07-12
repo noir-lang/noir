@@ -3,7 +3,8 @@ use std::future::{self, Future};
 use async_lsp::ResponseError;
 use fm::{FileId, PathString};
 use lsp_types::{
-    InlayHint, InlayHintKind, InlayHintLabel, InlayHintParams, Position, TextDocumentPositionParams,
+    InlayHint, InlayHintKind, InlayHintLabel, InlayHintLabelPart, InlayHintParams, Position,
+    TextDocumentPositionParams,
 };
 use noirc_errors::Location;
 use noirc_frontend::{
@@ -14,7 +15,7 @@ use noirc_frontend::{
     },
     node_interner::ReferenceId,
     parser::{Item, ItemKind},
-    ParsedModule,
+    ParsedModule, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
 use crate::LspState;
@@ -244,26 +245,17 @@ impl<'a> InlayHintCollector<'a> {
                                 let global_info = self.args.interner.get_global(global_id);
                                 let definition_id = global_info.definition_id;
                                 let typ = self.args.interner.definition_type(definition_id);
-                                self.inlay_hints.push(new_type_hint(
-                                    lsp_location.range.end,
-                                    format!(": {}", typ),
-                                ))
+                                self.push_type_hint(lsp_location, &typ);
                             }
                             ReferenceId::Local(definition_id) => {
                                 let typ = self.args.interner.definition_type(definition_id);
-                                self.inlay_hints.push(new_type_hint(
-                                    lsp_location.range.end,
-                                    format!(": {}", typ),
-                                ))
+                                self.push_type_hint(lsp_location, &typ);
                             }
                             ReferenceId::StructMember(struct_id, field_index) => {
                                 let struct_type = self.args.interner.get_struct(struct_id);
                                 let struct_type = struct_type.borrow();
                                 let (_field_name, field_type) = struct_type.field_at(field_index);
-                                self.inlay_hints.push(new_type_hint(
-                                    lsp_location.range.end,
-                                    format!(": {}", field_type),
-                                ))
+                                self.push_type_hint(lsp_location, field_type);
                             }
                             ReferenceId::Module(_)
                             | ReferenceId::Struct(_)
@@ -292,17 +284,163 @@ impl<'a> InlayHintCollector<'a> {
             }
         }
     }
+
+    fn push_type_hint(&mut self, location: lsp_types::Location, typ: &Type) {
+        let position = location.range.end;
+
+        let mut parts = Vec::new();
+        parts.push(str_part(": "));
+        self.push_type_parts(typ, &mut parts);
+
+        self.inlay_hints.push(InlayHint {
+            position,
+            label: InlayHintLabel::LabelParts(parts),
+            kind: Some(InlayHintKind::TYPE),
+            text_edits: None,
+            tooltip: None,
+            padding_left: None,
+            padding_right: None,
+            data: None,
+        });
+    }
+
+    fn push_type_parts(&self, typ: &Type, parts: &mut Vec<InlayHintLabelPart>) {
+        match typ {
+            Type::Array(size, typ) => {
+                parts.push(str_part("["));
+                self.push_type_parts(typ, parts);
+                parts.push(str_part("; "));
+                self.push_type_parts(size, parts);
+                parts.push(str_part("]"));
+            }
+            Type::Slice(typ) => {
+                parts.push(str_part("["));
+                self.push_type_parts(typ, parts);
+                parts.push(str_part("]"));
+            }
+            Type::Tuple(types) => {
+                parts.push(str_part("("));
+                for (index, typ) in types.iter().enumerate() {
+                    self.push_type_parts(typ, parts);
+                    if index != types.len() - 1 {
+                        parts.push(str_part(", "))
+                    }
+                }
+                parts.push(str_part(")"));
+            }
+            Type::Struct(struct_type, generics) => {
+                let struct_type = struct_type.borrow();
+                let location = Location::new(struct_type.name.span(), struct_type.location.file);
+                parts.push(self.text_part_with_location(struct_type.name.to_string(), location));
+                if !generics.is_empty() {
+                    parts.push(str_part("<"));
+                    for (index, generic) in generics.iter().enumerate() {
+                        self.push_type_parts(generic, parts);
+                        if index != generics.len() - 1 {
+                            parts.push(str_part(", "))
+                        }
+                    }
+                    parts.push(str_part(">"));
+                }
+            }
+            Type::Alias(type_alias, generics) => {
+                let type_alias = type_alias.borrow();
+                let location = Location::new(type_alias.name.span(), type_alias.location.file);
+                parts.push(self.text_part_with_location(type_alias.name.to_string(), location));
+                if !generics.is_empty() {
+                    parts.push(str_part("<"));
+                    for (index, generic) in generics.iter().enumerate() {
+                        self.push_type_parts(generic, parts);
+                        if index != generics.len() - 1 {
+                            parts.push(str_part(", "))
+                        }
+                    }
+                    parts.push(str_part(">"));
+                }
+            }
+            Type::Function(args, return_type, _env) => {
+                parts.push(str_part("fn("));
+                for (index, arg) in args.iter().enumerate() {
+                    self.push_type_parts(arg, parts);
+                    if index != args.len() - 1 {
+                        parts.push(str_part(", "))
+                    }
+                }
+                parts.push(str_part(") -> "));
+                self.push_type_parts(return_type, parts);
+            }
+            Type::MutableReference(typ) => {
+                parts.push(str_part("&mut "));
+                self.push_type_parts(typ, parts);
+            }
+            Type::TypeVariable(var, TypeVariableKind::Normal) => {
+                self.push_type_variable_parts(var, parts);
+            }
+            Type::TypeVariable(binding, TypeVariableKind::Integer) => {
+                if let TypeBinding::Unbound(_) = &*binding.borrow() {
+                    self.push_type_parts(&Type::default_int_type(), parts)
+                } else {
+                    self.push_type_variable_parts(binding, parts);
+                }
+            }
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
+                if let TypeBinding::Unbound(_) = &*binding.borrow() {
+                    parts.push(str_part("Field"));
+                } else {
+                    self.push_type_variable_parts(binding, parts);
+                }
+            }
+            Type::TypeVariable(binding, TypeVariableKind::Constant(n)) => {
+                if let TypeBinding::Unbound(_) = &*binding.borrow() {
+                    // TypeVariableKind::Constant(n) binds to Type::Constant(n) by default, so just show that.
+                    parts.push(string_part(n.to_string()));
+                } else {
+                    self.push_type_variable_parts(binding, parts);
+                }
+            }
+
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::FmtString(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::NamedGeneric(..)
+            | Type::Forall(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::Error => {
+                parts.push(string_part(typ.to_string()));
+            }
+        }
+    }
+    fn push_type_variable_parts(&self, var: &TypeVariable, parts: &mut Vec<InlayHintLabelPart>) {
+        let var = &*var.borrow();
+        match var {
+            TypeBinding::Bound(typ) => {
+                self.push_type_parts(&typ, parts);
+            }
+            TypeBinding::Unbound(..) => {
+                parts.push(string_part(var.to_string()));
+            }
+        }
+    }
+
+    fn text_part_with_location(&self, str: String, location: Location) -> InlayHintLabelPart {
+        InlayHintLabelPart {
+            value: str,
+            location: to_lsp_location(self.args.files, location.file, location.span),
+            tooltip: None,
+            command: None,
+        }
+    }
 }
 
-fn new_type_hint(position: Position, typ: String) -> InlayHint {
-    InlayHint {
-        position,
-        label: InlayHintLabel::String(typ),
-        kind: Some(InlayHintKind::TYPE),
-        text_edits: None,
-        tooltip: None,
-        padding_left: None,
-        padding_right: None,
-        data: None,
-    }
+fn string_part(str: String) -> InlayHintLabelPart {
+    InlayHintLabelPart { value: str, location: None, tooltip: None, command: None }
+}
+
+fn str_part(str: &str) -> InlayHintLabelPart {
+    string_part(str.to_string())
 }
