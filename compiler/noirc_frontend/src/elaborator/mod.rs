@@ -28,7 +28,7 @@ use crate::{
     },
     lexer::Lexer,
     macros_api::{
-        BlockExpression, Ident, NodeInterner, NoirFunction, NoirStruct, PathKind, Pattern,
+        BlockExpression, Ident, NodeInterner, NoirFunction, NoirStruct, Pattern,
         SecondaryAttribute, StructId,
     },
     node_interner::{
@@ -545,11 +545,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
-        // Optimization: no need to pass a parent module ID if the path is not a super path
-        let parent_module_id =
-            if let PathKind::Super = path.kind { self.parent_module_id() } else { None };
-
-        let path_resolver = StandardPathResolver::new(self.module_id(), parent_module_id);
+        let path_resolver = StandardPathResolver::new(self.module_id());
 
         let error = match path_resolver.resolve(self.def_maps, path.clone(), &mut None) {
             Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), error }) => {

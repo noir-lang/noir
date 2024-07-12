@@ -14,7 +14,6 @@ use super::errors::ResolverError;
 #[derive(Debug, Clone)]
 pub struct ImportDirective {
     pub module_id: LocalModuleId,
-    pub parent_module_id: Option<LocalModuleId>,
     pub path: Path,
     pub alias: Option<Ident>,
     pub is_prelude: bool,
@@ -195,7 +194,9 @@ fn resolve_path_to_ns(
         ),
 
         crate::ast::PathKind::Super => {
-            if let Some(parent_module_id) = import_directive.parent_module_id {
+            if let Some(parent_module_id) =
+                def_maps[&crate_id].modules[import_directive.module_id.0].parent
+            {
                 resolve_name_in_module(
                     crate_id,
                     importing_crate,
@@ -362,7 +363,6 @@ fn resolve_external_dep(
     };
     let dep_directive = ImportDirective {
         module_id: dep_module.local_id,
-        parent_module_id: None, // At this point the Path is not `super::`
         path,
         alias: directive.alias.clone(),
         is_prelude: false,

@@ -24,10 +24,8 @@ pub(crate) fn resolve_globals(
 ) -> ResolvedGlobals {
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
     let globals = vecmap(globals, |global| {
-        let interner = &context.def_interner;
         let module_id = ModuleId { local_id: global.module_id, krate: crate_id };
-        let parent_module_id = interner.try_module_parent(&module_id);
-        let path_resolver = StandardPathResolver::new(module_id, parent_module_id);
+        let path_resolver = StandardPathResolver::new(module_id);
 
         let mut resolver = Resolver::new(
             &mut context.def_interner,

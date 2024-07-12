@@ -73,8 +73,7 @@ fn resolve_struct_fields(
     unresolved: UnresolvedStruct,
 ) -> (Generics, Vec<(Ident, Type)>, Vec<ResolverError>) {
     let module_id = ModuleId { local_id: unresolved.module_id, krate };
-    let parent_module_id = context.def_interner.try_module_parent(&module_id);
-    let path_resolver = StandardPathResolver::new(module_id, parent_module_id);
+    let path_resolver = StandardPathResolver::new(module_id);
     let file_id = unresolved.file_id;
     let (generics, fields, errors) =
         Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file_id)

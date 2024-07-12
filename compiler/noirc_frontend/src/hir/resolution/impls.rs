@@ -35,8 +35,7 @@ pub(crate) fn collect_impls(
 
     for ((unresolved_type, local_module_id), methods) in collected_impls {
         let module_id = ModuleId { local_id: *local_module_id, krate: crate_id };
-        let parent_module_id = interner.try_module_parent(&module_id);
-        let path_resolver = StandardPathResolver::new(module_id, parent_module_id);
+        let path_resolver = StandardPathResolver::new(module_id);
 
         let file = def_maps[&crate_id].file_id(*local_module_id);
 
@@ -102,8 +101,7 @@ pub(crate) fn resolve_impls(
 
     for ((unresolved_type, local_module_id), methods) in collected_impls {
         let module_id = ModuleId { local_id: local_module_id, krate: crate_id };
-        let parent_module_id = interner.try_module_parent(&module_id);
-        let path_resolver = StandardPathResolver::new(module_id, parent_module_id);
+        let path_resolver = StandardPathResolver::new(module_id);
 
         let file = def_maps[&crate_id].file_id(local_module_id);
 

@@ -26,16 +26,11 @@ pub trait PathResolver {
 pub struct StandardPathResolver {
     // Module that we are resolving the path in
     module_id: ModuleId,
-    // The module's parent, if any
-    parent_module_id: Option<LocalModuleId>,
 }
 
 impl StandardPathResolver {
-    pub fn new(
-        module_id: ModuleId,
-        parent_module_id: Option<LocalModuleId>,
-    ) -> StandardPathResolver {
-        Self { module_id, parent_module_id }
+    pub fn new(module_id: ModuleId) -> StandardPathResolver {
+        Self { module_id }
     }
 }
 
@@ -46,7 +41,7 @@ impl PathResolver for StandardPathResolver {
         path: Path,
         path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
     ) -> PathResolutionResult {
-        resolve_path(def_maps, self.module_id, self.parent_module_id, path, path_references)
+        resolve_path(def_maps, self.module_id, path, path_references)
     }
 
     fn local_module_id(&self) -> LocalModuleId {
@@ -63,18 +58,12 @@ impl PathResolver for StandardPathResolver {
 pub fn resolve_path(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     module_id: ModuleId,
-    parent_module_id: Option<LocalModuleId>,
     path: Path,
     path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> PathResolutionResult {
     // lets package up the path into an ImportDirective and resolve it using that
-    let import = ImportDirective {
-        module_id: module_id.local_id,
-        parent_module_id,
-        path,
-        alias: None,
-        is_prelude: false,
-    };
+    let import =
+        ImportDirective { module_id: module_id.local_id, path, alias: None, is_prelude: false };
     let resolved_import = resolve_import(module_id.krate, &import, def_maps, path_references)?;
 
     let namespace = resolved_import.resolved_namespace;
