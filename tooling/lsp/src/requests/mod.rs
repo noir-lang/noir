@@ -43,6 +43,7 @@ mod code_lens_request;
 mod goto_declaration;
 mod goto_definition;
 mod hover;
+mod inlay_hint;
 mod profile_run;
 mod references;
 mod rename;
@@ -53,9 +54,9 @@ pub(crate) use {
     code_lens_request::collect_lenses_for_package, code_lens_request::on_code_lens_request,
     goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
     goto_definition::on_goto_type_definition_request, hover::on_hover_request,
-    profile_run::on_profile_run_request, references::on_references_request,
-    rename::on_prepare_rename_request, rename::on_rename_request, test_run::on_test_run_request,
-    tests::on_tests_request,
+    inlay_hint::on_inlay_hint_request, profile_run::on_profile_run_request,
+    references::on_references_request, rename::on_prepare_rename_request,
+    rename::on_rename_request, test_run::on_test_run_request, tests::on_tests_request,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -140,6 +141,12 @@ pub(crate) fn on_initialize(
                     work_done_progress_options: WorkDoneProgressOptions {
                         work_done_progress: None,
                     },
+                })),
+                inlay_hint_provider: Some(lsp_types::OneOf::Right(lsp_types::InlayHintOptions {
+                    work_done_progress_options: WorkDoneProgressOptions {
+                        work_done_progress: None,
+                    },
+                    resolve_provider: None,
                 })),
             },
             server_info: None,
