@@ -679,13 +679,10 @@ impl<F: AcirField> AcirContext<F> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
 
-        let lhs_expr_fits = fits_in_one_identity(&lhs_expr, self.expression_width);
-        let rhs_expr_fits = fits_in_one_identity(&rhs_expr, self.expression_width);
-
         let sum_expr = &lhs_expr + &rhs_expr;
         let sum_expr_fits = fits_in_one_identity(&sum_expr, self.expression_width);
 
-        let sum_expr = if lhs_expr_fits && rhs_expr_fits && !sum_expr_fits {
+        let sum_expr = if !sum_expr_fits {
             let lhs_witness_var = self.get_or_create_witness_var(lhs)?;
             let lhs_witness_expr = self.var_to_expression(lhs_witness_var)?;
             let rhs_witness_var = self.get_or_create_witness_var(rhs)?;
@@ -2023,6 +2020,7 @@ impl<F: AcirField> From<Expression<F>> for AcirVarData<F> {
 
 /// Checks if this expression can fit into one arithmetic identity
 fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: ExpressionWidth) -> bool {
+    // A Polynomial with more than one mul term cannot fit into one opcode
     if expr.mul_terms.len() > 1 {
         return false;
     };
