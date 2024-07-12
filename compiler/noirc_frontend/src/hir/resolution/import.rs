@@ -41,6 +41,8 @@ pub enum PathResolutionError {
     Unresolved(Ident),
     #[error("{0} is private and not visible from the current module")]
     Private(Ident),
+    #[error("There is no super module")]
+    NoSuper(Span),
 }
 
 #[derive(Debug)]
@@ -73,6 +75,9 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                 format!("{ident} is private"),
                 ident.span(),
             ),
+            PathResolutionError::NoSuper(span) => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), *span)
+            }
         }
     }
 }
@@ -81,6 +86,7 @@ pub fn resolve_import(
     crate_id: CrateId,
     import_directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    parent_module_id: Option<LocalModuleId>,
     path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> Result<ResolvedImport, PathResolutionError> {
     let module_scope = import_directive.module_id;
@@ -88,7 +94,14 @@ pub fn resolve_import(
         module_id: resolved_module,
         namespace: resolved_namespace,
         mut error,
-    } = resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps, path_references)?;
+    } = resolve_path_to_ns(
+        import_directive,
+        crate_id,
+        crate_id,
+        def_maps,
+        parent_module_id,
+        path_references,
+    )?;
 
     let name = resolve_path_name(import_directive);
 
@@ -126,6 +139,7 @@ fn resolve_path_to_ns(
     crate_id: CrateId,
     importing_crate: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    parent_module_id: Option<LocalModuleId>,
     path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> NamespaceResolutionResult {
     let import_path = &import_directive.path.segments;
@@ -187,6 +201,23 @@ fn resolve_path_to_ns(
             path_references,
             importing_crate,
         ),
+
+        crate::ast::PathKind::Super => {
+            if let Some(parent_module_id) = parent_module_id {
+                resolve_name_in_module(
+                    crate_id,
+                    importing_crate,
+                    import_path,
+                    parent_module_id,
+                    def_maps,
+                    path_references,
+                )
+            } else {
+                let span_start = import_directive.path.span().start();
+                let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
+                Err(PathResolutionError::NoSuper(span))
+            }
+        }
     }
 }
 
@@ -344,7 +375,14 @@ fn resolve_external_dep(
         is_prelude: false,
     };
 
-    resolve_path_to_ns(&dep_directive, dep_module.krate, importing_crate, def_maps, path_references)
+    resolve_path_to_ns(
+        &dep_directive,
+        dep_module.krate,
+        importing_crate,
+        def_maps,
+        None,
+        path_references,
+    )
 }
 
 // Issue an error if the given private function is being called from a non-child module, or
