@@ -679,24 +679,22 @@ impl<F: AcirField> AcirContext<F> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
 
-        let sum_expr = &lhs_expr + &rhs_expr;
+        let mut sum_expr = &lhs_expr + &rhs_expr;
         let sum_expr_fits = fits_in_one_identity(&sum_expr, self.expression_width);
 
-        let sum_expr = if !sum_expr_fits {
+        if !sum_expr_fits {
             let lhs_witness_var = self.get_or_create_witness_var(lhs)?;
             let lhs_witness_expr = self.var_to_expression(lhs_witness_var)?;
             let rhs_witness_var = self.get_or_create_witness_var(rhs)?;
             let rhs_witness_expr = self.var_to_expression(rhs_witness_var)?;
 
-            let sum_expr = &lhs_witness_expr + &rhs_witness_expr;
+            let new_sum_expr = &lhs_witness_expr + &rhs_witness_expr;
+            let sum_var = self.add_data(AcirVarData::from(new_sum_expr.clone()));
 
-            let sum_var = self.add_data(AcirVarData::from(sum_expr));
-
+            // Create new witness for the sum expression
             let sum_witness_var = self.get_or_create_witness_var(sum_var)?;
-            self.var_to_expression(sum_witness_var)?
-        } else {
-            sum_expr
-        };
+            sum_expr = self.var_to_expression(sum_witness_var)?;
+        }
 
         let sum_var = self.add_data(AcirVarData::from(sum_expr));
 
