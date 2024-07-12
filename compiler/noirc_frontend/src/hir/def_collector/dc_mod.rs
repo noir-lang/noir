@@ -44,6 +44,7 @@ struct ModCollector<'a> {
 /// Walk a module and collect its definitions.
 ///
 /// This performs the entirety of the definition collection phase of the name resolution pass.
+#[allow(clippy::too_many_arguments)]
 pub fn collect_defs(
     def_collector: &mut DefCollector,
     ast: SortedModule,
