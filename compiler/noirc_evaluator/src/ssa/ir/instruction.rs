@@ -602,6 +602,18 @@ impl Instruction {
                 }
             }
             Instruction::ArrayGet { array, index } => {
+                if let Value::Instruction { instruction, .. } = &dfg[*array] {
+                    if let Instruction::ArraySet { index: write_index, value, .. } =
+                        dfg[*instruction]
+                    {
+                        // If we're reading from an index of the array which we just wrote to, we can return
+                        // the value which we wrote without performing the read.
+                        if dfg.resolve(write_index) == dfg.resolve(*index) {
+                            return SimplifiedTo(value);
+                        }
+                    }
+                }
+
                 let array = dfg.get_array_constant(*array);
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, _)), Some(index)) = (array, index) {
