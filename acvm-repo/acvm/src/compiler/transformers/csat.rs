@@ -411,6 +411,7 @@ impl CSatTransformer {
 
 /// Checks if this expression can fit into one arithmetic identity
 fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> bool {
+    // A Polynomial with more than one mul term cannot fit into one opcode
     if expr.mul_terms.len() > 1 {
         return false;
     };
