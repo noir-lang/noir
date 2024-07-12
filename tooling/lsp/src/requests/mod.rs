@@ -1,4 +1,4 @@
-use std::future::Future;
+use std::{collections::HashMap, future::Future};
 
 use crate::{
     parse_diff, resolve_workspace_for_source_path,
@@ -14,7 +14,7 @@ use lsp_types::{
 use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo_fmt::Config;
 use noirc_driver::file_manager_with_stdlib;
-use noirc_frontend::macros_api::NodeInterner;
+use noirc_frontend::{graph::Dependency, macros_api::NodeInterner};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -35,6 +35,7 @@ use crate::{
 mod code_lens_request;
 mod goto_declaration;
 mod goto_definition;
+mod hover;
 mod profile_run;
 mod references;
 mod rename;
@@ -44,9 +45,10 @@ mod tests;
 pub(crate) use {
     code_lens_request::collect_lenses_for_package, code_lens_request::on_code_lens_request,
     goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
-    goto_definition::on_goto_type_definition_request, profile_run::on_profile_run_request,
-    references::on_references_request, rename::on_prepare_rename_request,
-    rename::on_rename_request, test_run::on_test_run_request, tests::on_tests_request,
+    goto_definition::on_goto_type_definition_request, hover::on_hover_request,
+    profile_run::on_profile_run_request, references::on_references_request,
+    rename::on_prepare_rename_request, rename::on_rename_request, test_run::on_test_run_request,
+    tests::on_tests_request,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -123,6 +125,11 @@ pub(crate) fn on_initialize(
                     },
                 })),
                 references_provider: Some(lsp_types::OneOf::Right(lsp_types::ReferencesOptions {
+                    work_done_progress_options: WorkDoneProgressOptions {
+                        work_done_progress: None,
+                    },
+                })),
+                hover_provider: Some(lsp_types::OneOf::Right(lsp_types::HoverOptions {
                     work_done_progress_options: WorkDoneProgressOptions {
                         work_done_progress: None,
                     },
@@ -264,21 +271,33 @@ pub(crate) fn on_shutdown(
     async { Ok(()) }
 }
 
+pub(crate) struct ProcessRequestCallbackArgs<'a> {
+    location: noirc_errors::Location,
+    files: &'a FileMap,
+    interner: &'a NodeInterner,
+    interners: &'a HashMap<String, NodeInterner>,
+    root_crate_name: String,
+    root_crate_dependencies: &'a Vec<Dependency>,
+}
+
 pub(crate) fn process_request<F, T>(
     state: &mut LspState,
     text_document_position_params: TextDocumentPositionParams,
     callback: F,
 ) -> Result<T, ResponseError>
 where
-    F: FnOnce(noirc_errors::Location, &NodeInterner, &FileMap) -> T,
+    F: FnOnce(ProcessRequestCallbackArgs) -> T,
 {
     let file_path =
         text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
         })?;
 
-    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
-    let package = workspace.members.first().unwrap();
+    let workspace =
+        resolve_workspace_for_source_path(file_path.as_path(), &state.root_path).unwrap();
+    let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
+    })?;
 
     let package_root_path: String = package.root_dir.as_os_str().to_string_lossy().into();
 
@@ -294,7 +313,7 @@ where
         interner = def_interner;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, false);
+        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, false, None);
         interner = &context.def_interner;
     }
 
@@ -306,7 +325,88 @@ where
         &text_document_position_params.position,
     )?;
 
-    Ok(callback(location, interner, files))
+    Ok(callback(ProcessRequestCallbackArgs {
+        location,
+        files,
+        interner,
+        interners: &state.cached_definitions,
+        root_crate_name: package.name.to_string(),
+        root_crate_dependencies: &context.crate_graph[context.root_crate_id()].dependencies,
+    }))
+}
+pub(crate) fn find_all_references_in_workspace(
+    location: noirc_errors::Location,
+    interner: &NodeInterner,
+    cached_interners: &HashMap<String, NodeInterner>,
+    files: &FileMap,
+    include_declaration: bool,
+    include_self_type_name: bool,
+) -> Option<Vec<Location>> {
+    // First find the node that's referenced by the given location, if any
+    let referenced = interner.find_referenced(location);
+
+    if let Some(referenced) = referenced {
+        // If we found the referenced node, find its location
+        let referenced_location = interner.reference_location(referenced);
+
+        // Now we find all references that point to this location, in all interners
+        // (there's one interner per package, and all interners in a workspace rely on the
+        // same FileManager so a Location/FileId in one package is the same as in another package)
+        let mut locations = find_all_references(
+            referenced_location,
+            interner,
+            files,
+            include_declaration,
+            include_self_type_name,
+        );
+        for interner in cached_interners.values() {
+            locations.extend(find_all_references(
+                referenced_location,
+                interner,
+                files,
+                include_declaration,
+                include_self_type_name,
+            ));
+        }
+
+        // The LSP client usually removes duplicate loctions, but we do it here just in case they don't
+        locations.sort_by_key(|location| {
+            (
+                location.uri.to_string(),
+                location.range.start.line,
+                location.range.start.character,
+                location.range.end.line,
+                location.range.end.character,
+            )
+        });
+        locations.dedup();
+
+        if locations.is_empty() {
+            None
+        } else {
+            Some(locations)
+        }
+    } else {
+        None
+    }
+}
+
+pub(crate) fn find_all_references(
+    referenced_location: noirc_errors::Location,
+    interner: &NodeInterner,
+    files: &FileMap,
+    include_declaration: bool,
+    include_self_type_name: bool,
+) -> Vec<Location> {
+    interner
+        .find_all_references(referenced_location, include_declaration, include_self_type_name)
+        .map(|locations| {
+            locations
+                .iter()
+                .filter_map(|location| to_lsp_location(files, location.file, location.span))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 #[cfg(test)]

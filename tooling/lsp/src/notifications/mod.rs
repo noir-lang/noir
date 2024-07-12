@@ -14,7 +14,7 @@ use crate::types::{
 
 use crate::{
     byte_span_to_range, get_package_tests_in_crate, parse_diff, prepare_source,
-    resolve_workspace_for_source_path, LspState,
+    resolve_workspace_for_source_path, workspace_package_for_file, LspState,
 };
 
 pub(super) fn on_initialized(
@@ -39,7 +39,7 @@ pub(super) fn on_did_open_text_document(
 
     let document_uri = params.text_document.uri;
 
-    match process_noir_document(document_uri, state) {
+    match process_workspace_for_noir_document(document_uri, state) {
         Ok(_) => {
             state.open_documents_count += 1;
             ControlFlow::Continue(())
@@ -55,11 +55,14 @@ pub(super) fn on_did_change_text_document(
     let text = params.content_changes.into_iter().next().unwrap().text;
     state.input_files.insert(params.text_document.uri.to_string(), text.clone());
 
+    let file_path = params.text_document.uri.to_file_path().unwrap();
+
     let (mut context, crate_id) = prepare_source(text, state);
-    let _ = check_crate(&mut context, crate_id, false, false, false);
+    let _ = check_crate(&mut context, crate_id, false, false, false, None);
 
     let workspace = match resolve_workspace_for_source_path(
         params.text_document.uri.to_file_path().unwrap().as_path(),
+        &state.root_path,
     ) {
         Ok(workspace) => workspace,
         Err(lsp_error) => {
@@ -70,7 +73,8 @@ pub(super) fn on_did_change_text_document(
             .into()))
         }
     };
-    let package = match workspace.members.first() {
+
+    let package = match workspace_package_for_file(&workspace, &file_path) {
         Some(package) => package,
         None => {
             return ControlFlow::Break(Err(ResponseError::new(
@@ -110,13 +114,16 @@ pub(super) fn on_did_save_text_document(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let document_uri = params.text_document.uri;
 
-    match process_noir_document(document_uri, state) {
+    match process_workspace_for_noir_document(document_uri, state) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
 }
 
-fn process_noir_document(
+// Given a Noir document, find the workspace it's contained in (an assumed workspace is created if
+// it's only contained in a package), then type-checks the workspace's packages,
+// caching code lenses and type definitions, and notifying about compilation errors.
+pub(crate) fn process_workspace_for_noir_document(
     document_uri: lsp_types::Url,
     state: &mut LspState,
 ) -> Result<(), async_lsp::Error> {
@@ -124,9 +131,10 @@ fn process_noir_document(
         ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
     })?;
 
-    let workspace = resolve_workspace_for_source_path(&file_path).map_err(|lsp_error| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
-    })?;
+    let workspace =
+        resolve_workspace_for_source_path(&file_path, &state.root_path).map_err(|lsp_error| {
+            ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
+        })?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
@@ -139,10 +147,11 @@ fn process_noir_document(
             let (mut context, crate_id) =
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
-            let file_diagnostics = match check_crate(&mut context, crate_id, false, false, false) {
-                Ok(((), warnings)) => warnings,
-                Err(errors_and_warnings) => errors_and_warnings,
-            };
+            let file_diagnostics =
+                match check_crate(&mut context, crate_id, false, false, false, None) {
+                    Ok(((), warnings)) => warnings,
+                    Err(errors_and_warnings) => errors_and_warnings,
+                };
 
             let package_root_dir: String = package.root_dir.as_os_str().to_string_lossy().into();
 
@@ -190,6 +199,7 @@ fn process_noir_document(
                     let severity = match diagnostic.kind {
                         DiagnosticKind::Error => DiagnosticSeverity::ERROR,
                         DiagnosticKind::Warning => DiagnosticSeverity::WARNING,
+                        DiagnosticKind::Info => DiagnosticSeverity::INFORMATION,
                         DiagnosticKind::Bug => DiagnosticSeverity::WARNING,
                     };
                     Some(Diagnostic {

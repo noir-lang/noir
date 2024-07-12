@@ -83,6 +83,8 @@ pub enum TypeCheckError {
     IntegerAndFieldBinaryOperation { span: Span },
     #[error("Cannot do modulo on Fields, try casting to an integer first")]
     FieldModulo { span: Span },
+    #[error("Cannot do not (`!`) on Fields, try casting to an integer first")]
+    FieldNot { span: Span },
     #[error("Fields cannot be compared, try casting to an integer first")]
     FieldComparison { span: Span },
     #[error("The bit count in a bit-shift operation must fit in a u8, try casting the right hand side into a u8 first")]
@@ -256,6 +258,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::IntegerAndFieldBinaryOperation { span }
             | TypeCheckError::OverflowingAssignment { span, .. }
             | TypeCheckError::FieldModulo { span }
+            | TypeCheckError::FieldNot { span }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { span }
             | TypeCheckError::UnconstrainedReferenceToConstrained { span }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { span }

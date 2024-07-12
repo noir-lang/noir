@@ -29,6 +29,8 @@ use super::{
     Value,
 };
 
+use noirc_errors::Location;
+
 #[allow(dead_code)]
 impl<'interner> Interpreter<'interner> {
     /// Scan through a function, evaluating any Comptime nodes found.
@@ -80,9 +82,10 @@ impl<'interner> Interpreter<'interner> {
             HirExpression::Lambda(lambda) => self.scan_lambda(lambda),
             HirExpression::Comptime(block) => {
                 let location = self.interner.expr_location(&expr);
-                let new_expr =
+                let new_expr_id =
                     self.evaluate_block(block)?.into_hir_expression(self.interner, location)?;
-                let new_expr = self.interner.expression(&new_expr);
+                let new_expr = self.interner.expression(&new_expr_id);
+                self.debug_comptime(new_expr_id, location);
                 self.interner.replace_expr(&expr, new_expr);
                 Ok(())
             }
@@ -118,7 +121,9 @@ impl<'interner> Interpreter<'interner> {
                 if let Ok(value) = self.evaluate_ident(ident, id) {
                     // TODO(#4922): Inlining closures is currently unimplemented
                     if !matches!(value, Value::Closure(..)) {
-                        self.inline_expression(value, id)?;
+                        let new_expr = self.inline_expression(value, id)?;
+                        let location = self.interner.id_location(id);
+                        self.debug_comptime(new_expr, location);
                     }
                 }
                 Ok(())
@@ -231,6 +236,7 @@ impl<'interner> Interpreter<'interner> {
                 let new_expr = self
                     .evaluate_comptime(comptime)?
                     .into_hir_expression(self.interner, location)?;
+                self.debug_comptime(new_expr, location);
                 self.interner.replace_statement(statement, HirStatement::Expression(new_expr));
                 Ok(())
             }
@@ -247,11 +253,19 @@ impl<'interner> Interpreter<'interner> {
         Ok(())
     }
 
-    fn inline_expression(&mut self, value: Value, expr: ExprId) -> IResult<()> {
+    fn inline_expression(&mut self, value: Value, expr: ExprId) -> IResult<ExprId> {
         let location = self.interner.expr_location(&expr);
-        let new_expr = value.into_hir_expression(self.interner, location)?;
-        let new_expr = self.interner.expression(&new_expr);
+        let new_expr_id = value.into_hir_expression(self.interner, location)?;
+        let new_expr = self.interner.expression(&new_expr_id);
         self.interner.replace_expr(&expr, new_expr);
-        Ok(())
+        Ok(new_expr_id)
+    }
+
+    fn debug_comptime(&mut self, expr: ExprId, location: Location) {
+        if Some(location.file) == self.debug_comptime_in_file {
+            let expr = expr.to_display_ast(self.interner);
+            self.debug_comptime_evaluations
+                .push(InterpreterError::debug_evaluate_comptime(expr, location));
+        }
     }
 }
