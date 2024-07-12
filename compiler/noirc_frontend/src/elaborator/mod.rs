@@ -720,6 +720,12 @@ impl<'context> Elaborator<'context> {
         let statements = std::mem::take(&mut func.def.body.statements);
         let body = BlockExpression { statements };
 
+        let struct_id = if let Some(Type::Struct(struct_type, _)) = &self.self_type {
+            Some(struct_type.borrow().id)
+        } else {
+            None
+        };
+
         let meta = FuncMeta {
             name: name_ident,
             kind: func.kind,
@@ -727,6 +733,7 @@ impl<'context> Elaborator<'context> {
             typ,
             direct_generics,
             all_generics: self.generics.clone(),
+            struct_id,
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
             parameter_idents,
@@ -1232,7 +1239,7 @@ impl<'context> Elaborator<'context> {
 
             for field_index in 0..fields_len {
                 self.interner
-                    .add_definition_location(ReferenceId::StructMember(type_id, field_index));
+                    .add_definition_location(ReferenceId::StructMember(type_id, field_index), None);
             }
 
             self.run_comptime_attributes_on_struct(attributes, type_id, span, &mut generated_items);
@@ -1426,7 +1433,8 @@ impl<'context> Elaborator<'context> {
             self.elaborate_comptime_global(global_id);
         }
 
-        self.interner.add_definition_location(ReferenceId::Global(global_id));
+        self.interner
+            .add_definition_location(ReferenceId::Global(global_id), Some(self.module_id()));
 
         self.local_module = old_module;
         self.file = old_file;
