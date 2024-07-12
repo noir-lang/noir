@@ -163,7 +163,7 @@ impl OwnedNote for TokenNote {
  * way to deduce what s is. This is the discrete log problem.
  *
  * However we can still perform addition/subtraction on points! That is why we generate those two points, which are:
- * incomplete_fee_payer_point := G_npk * fee_payer_npk + G_amt * fee_payer_randomness
+ * incomplete_fee_payer_point := G_npk * fee_payer_npk + G_rnd * fee_payer_randomness
  * incomplete_user_point := G_npk * user_npk + G_amt * funded_amount + G_rnd * user_randomness
  *
  * where `funded_amount` is the total amount in tokens that the sponsored user initially supplied, from which

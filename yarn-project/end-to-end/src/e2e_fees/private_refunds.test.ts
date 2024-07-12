@@ -187,6 +187,7 @@ class PrivateRefundPaymentMethod implements FeePaymentMethod {
    * @returns The function call to pay the fee.
    */
   async getFunctionCalls(gasSettings: GasSettings): Promise<FunctionCall[]> {
+    // we assume 1:1 exchange rate between fee juice and token. But in reality you would need to convert feeLimit (maxFee) to be in token denomination
     const maxFee = gasSettings.getFeeLimit();
 
     await this.wallet.createAuthWit({
