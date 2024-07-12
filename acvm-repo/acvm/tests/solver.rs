@@ -16,8 +16,10 @@ use acvm::pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolution
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
 use brillig_vm::brillig::HeapValueType;
 
-use proptest::prelude::*;
 use proptest::arbitrary::any;
+use proptest::prelude::*;
+use proptest::result::maybe_ok;
+use proptest::sample::select;
 
 // Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.
 
@@ -728,13 +730,30 @@ fn memory_operations() {
 
 // Solve the given BlackBoxFuncCall with witnesses: 1, 2 as x, y, resp.
 #[cfg(test)]
-fn solve_blackbox_func_call(blackbox_func_call: BlackBoxFuncCall<FieldElement>, x: u128, y: u128) -> FieldElement {
+fn solve_blackbox_func_call(
+    blackbox_func_call: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    x: (FieldElement, bool), // if false, use a Witness
+    y: (FieldElement, bool), // if false, use a Witness
+) -> FieldElement {
+    let (x, x_constant) = x;
+    let (y, y_constant) = y;
+
     let initial_witness = WitnessMap::from(BTreeMap::from_iter([
-        (Witness(1), FieldElement::from(x)),
-        (Witness(2), FieldElement::from(y)),
+        (Witness(1), x),
+        (Witness(2), y),
     ]));
 
-    let op = Opcode::BlackBoxFuncCall(blackbox_func_call);
+    let mut lhs = None;
+    if x_constant {
+        lhs = Some(x);
+    }
+
+    let mut rhs = None;
+    if y_constant {
+        rhs = Some(y);
+    }
+
+    let op = Opcode::BlackBoxFuncCall(blackbox_func_call(lhs, rhs));
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
     let mut acvm =
@@ -744,6 +763,29 @@ fn solve_blackbox_func_call(blackbox_func_call: BlackBoxFuncCall<FieldElement>, 
     let witness_map = acvm.finalize();
 
     witness_map[&Witness(3)]
+}
+
+
+fn allowed_bigint_moduli() -> Vec<Vec<u8>> {
+    let bn254_fq: Vec<u8> = vec![0x47, 0xFD, 0x7C, 0xD8, 0x16, 0x8C, 0x20, 0x3C, 0x8d, 0xca, 0x71, 0x68, 0x91, 0x6a, 0x81, 0x97,
+                                 0x5d, 0x58, 0x81, 0x81, 0xb6, 0x45, 0x50, 0xb8, 0x29, 0xa0, 0x31, 0xe1, 0x72, 0x4e, 0x64, 0x30];
+    let bn254_fr: Vec<u8> = vec![1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129, 129, 182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48];
+    let secpk1_fr: Vec<u8> = vec![0x41, 0x41, 0x36, 0xD0, 0x8C, 0x5E, 0xD2, 0xBF, 0x3B, 0xA0, 0x48, 0xAF, 0xE6, 0xDC, 0xAE, 0xBA,
+                                  0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
+    let secpk1_fq: Vec<u8> = vec![0x2F, 0xFC, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                                  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
+    let secpr1_fq: Vec<u8> = vec![0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+                                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF];
+    let secpr1_fr: Vec<u8> = vec![81, 37, 99, 252, 194, 202, 185, 243, 132, 158, 23, 167, 173, 250, 230, 188, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 255, 255, 255, 255];
+
+    vec![
+        bn254_fq,
+        bn254_fr,
+        secpk1_fr,
+        secpk1_fq,
+        secpr1_fq,
+        secpr1_fr,
+    ]
 }
 
 
@@ -767,90 +809,276 @@ fn binary_operations() {
     //
     // // unique calling convention
     //         BlackBoxFuncCall::EmbeddedCurveAdd { .. }
-    //
-    // // 
-    //         BlackBoxFuncCall::AND { .. }
-    //         BlackBoxFuncCall::XOR { .. }
-    //
-    // AND | XOR {
-    //     lhs: FunctionInput<F>,
-    //     rhs: FunctionInput<F>,
-    //     output: Witness,
-    // },
-    //
 
     // TODO:
     // - commutativity
     // - associativity
-    // - ..
+    // - left/right identity
 
-    let x = 1;
-    let y = 3;
+    // let x = FieldElement::from(1u128);
+    // let y = FieldElement::from(3u128);
 
-    let and_op = BlackBoxFuncCall::AND {
-        lhs: FunctionInput::witness(Witness(1), FieldElement::max_num_bits()),
-        rhs: FunctionInput::witness(Witness(2), FieldElement::max_num_bits()),
-        output: Witness(3),
+
+
+
+    let zero_constant = false;
+    let modulus = &allowed_bigint_moduli()[0];
+
+    let initial_witness = WitnessMap::from(BTreeMap::from_iter([
+        (Witness(1), FieldElement::zero()),
+    ]));
+
+    let zero_function_input = if zero_constant {
+        FunctionInput::constant(FieldElement::zero(), FieldElement::max_num_bits())
+    } else {
+        FunctionInput::witness(Witness(1), FieldElement::max_num_bits())
+
+    };
+    let zero: Vec<_> = modulus.clone().into_iter().map(|_| zero_function_input).collect();
+
+    let bigint_from_op = BlackBoxFuncCall::BigIntFromLeBytes {
+        inputs: zero,
+        modulus: modulus.clone(),
+        output: 0,
     };
 
-    assert_eq!(solve_blackbox_func_call(and_op.clone(), x, y), solve_blackbox_func_call(and_op, y, x));
+    // BigIntToLeBytes {
+    //     input: u32,
+    //     outputs: Vec<Witness>,
+    // },
+
+    // let add_op = BlackBoxFuncCall::BigIntAdd {
+    //     lhs: 0,
+    //     rhs: 1,
+    //     output: 2,
+    // };
+
+    let op = Opcode::BlackBoxFuncCall(bigint_from_op);
+    let opcodes = vec![op];
+    let unconstrained_functions = vec![];
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
+    let solver_status = acvm.solve();
+    assert_eq!(solver_status, ACVMStatus::Solved);
+    let witness_map = acvm.finalize();
+    
+    dbg!(witness_map[&Witness(1)]);
+
 
 }
 
-fn and_op() -> BlackBoxFuncCall<FieldElement> {
+fn function_input_from_option(witness: Witness, opt_constant: Option<FieldElement>) -> FunctionInput<FieldElement> {
+    opt_constant
+        .map(|constant| FunctionInput::constant(constant, FieldElement::max_num_bits()))
+        .unwrap_or(FunctionInput::witness(witness, FieldElement::max_num_bits()))
+}
+
+fn and_op(x: Option<FieldElement>, y: Option<FieldElement>) -> BlackBoxFuncCall<FieldElement> {
+    let lhs = function_input_from_option(Witness(1), x);
+    let rhs = function_input_from_option(Witness(2), y);
     BlackBoxFuncCall::AND {
-        lhs: FunctionInput::witness(Witness(1), FieldElement::max_num_bits()),
-        rhs: FunctionInput::witness(Witness(2), FieldElement::max_num_bits()),
+        lhs,
+        rhs,
         output: Witness(3),
     }
 }
 
-fn xor_op() -> BlackBoxFuncCall<FieldElement> {
+fn xor_op(x: Option<FieldElement>, y: Option<FieldElement>) -> BlackBoxFuncCall<FieldElement> {
+    let lhs = function_input_from_option(Witness(1), x);
+    let rhs = function_input_from_option(Witness(2), y);
     BlackBoxFuncCall::XOR {
-        lhs: FunctionInput::witness(Witness(1), FieldElement::max_num_bits()),
-        rhs: FunctionInput::witness(Witness(2), FieldElement::max_num_bits()),
+        lhs,
+        rhs,
         output: Witness(3),
     }
 }
 
-fn prop_assert_eq(op: BlackBoxFuncCall<FieldElement>, x: u128, y: u128) -> TestCaseResult {
-    let assertion: Result<_, TestCaseError> = prop_assert_eq!(solve_blackbox_func_call(op.clone(), x, y), solve_blackbox_func_call(op, y, x));
-    assertion?;
-    Ok(())
+
+
+fn prop_assert_commutative(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    x: (FieldElement, bool),
+    y: (FieldElement, bool),
+) -> (FieldElement, FieldElement) {
+    (solve_blackbox_func_call(&op, x, y), solve_blackbox_func_call(&op, y, x))
 }
+
+fn prop_assert_associative(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    x: (FieldElement, bool),
+    y: (FieldElement, bool),
+) -> (FieldElement, FieldElement) {
+    (solve_blackbox_func_call(&op, x, y), solve_blackbox_func_call(&op, y, x))
+}
+
+fn prop_assert_identity_l(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    op_identity: (FieldElement, bool),
+    x: (FieldElement, bool),
+) -> (FieldElement, FieldElement) {
+    (solve_blackbox_func_call(op, op_identity, x), x.0)
+}
+
+fn prop_assert_identity_r(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    op_identity: (FieldElement, bool),
+    x: (FieldElement, bool),
+) -> (FieldElement, FieldElement) {
+    (solve_blackbox_func_call(op, x, op_identity), x.0)
+}
+
+prop_compose! {
+    // Use both `u128` and hex proptest strategies
+    fn field_element()
+        (u128_or_hex in maybe_ok(any::<u128>(), "[0-9a-f]{64}"),
+         constant_input in any::<bool>())
+        -> (FieldElement, bool)
+    {
+        match u128_or_hex {
+            Ok(number) => (FieldElement::from(number), constant_input),
+            Err(hex) => (FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string"), constant_input),
+        }
+    }
+}
+
+fn field_element_ones() -> FieldElement {
+    let exponent: FieldElement = (FieldElement::max_num_bits() as u128).into();
+    FieldElement::from(2u128).pow(&exponent) - FieldElement::one()
+}
+
+fn bigint_solve_from_to_le_bytes(modulus: Vec<u8>, zero_constant: bool) -> WitnessMap<FieldElement> {
+    let initial_witness_vec: Vec<_> = (1..2 + modulus.len())
+        .map(|i| (Witness(i as u32), FieldElement::zero()))
+        .collect();
+    let output_witnesses: Vec<_> = initial_witness_vec
+        .iter()
+        .skip(1)
+        .map(|(witness, _)| *witness)
+        .collect();
+
+    let initial_witness = WitnessMap::from(BTreeMap::from_iter(initial_witness_vec));
+    let zero_function_input = if zero_constant {
+        FunctionInput::constant(FieldElement::zero(), FieldElement::max_num_bits())
+    } else {
+        FunctionInput::witness(Witness(1), FieldElement::max_num_bits())
+
+    };
+    let zero: Vec<_> = modulus.iter().map(|_| zero_function_input).collect();
+
+    let bigint_from_op = BlackBoxFuncCall::BigIntFromLeBytes {
+        inputs: zero,
+        modulus: modulus.clone(),
+        output: 0,
+    };
+    let bigint_to_op = BlackBoxFuncCall::BigIntToLeBytes {
+        input: 0,
+        outputs: output_witnesses,
+    };
+
+    let bigint_from_op = Opcode::BlackBoxFuncCall(bigint_from_op);
+    let bigint_to_op = Opcode::BlackBoxFuncCall(bigint_to_op);
+    let opcodes = vec![bigint_from_op, bigint_to_op];
+    let unconstrained_functions = vec![];
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
+    let solver_status = acvm.solve();
+    assert_eq!(solver_status, ACVMStatus::Solved);
+    let witness_map = acvm.finalize();
+
+    witness_map
+}
+
 
 
 proptest! {
 
     #[test]
-    fn and_commutative(x in any::<u128>(), y in any::<u128>()) {
-        let op = and_op();
-        prop_assert_commutes(op, x, y)
+    fn and_commutative(x in field_element(), y in field_element()) {
+        let (lhs, rhs) = prop_assert_commutative(and_op, x, y);
+        prop_assert_eq!(lhs, rhs);
     }
 
     #[test]
-    fn xor_commutative(x in any::<u128>(), y in any::<u128>()) {
-        let op = xor_op();
-        prop_assert_eq!(solve_blackbox_func_call(op.clone(), x, y), solve_blackbox_func_call(op, y, x));
+    fn xor_commutative(x in field_element(), y in field_element()) {
+        let (lhs, rhs) = prop_assert_commutative(xor_op, x, y);
+        prop_assert_eq!(lhs, rhs);
     }
 
-    // #[test]
-    // fn and_associative(x in any::<u128>(), y in any::<u128>()) {
-    //     let op = and_op();
-    //     prop_assert_eq!(solve_blackbox_func_call(op.clone(), x, y), solve_blackbox_func_call(op, y, x));
-    // }
+    #[test]
+    fn and_associative(x in field_element(), y in field_element()) {
+        let (lhs, rhs) = prop_assert_associative(and_op, x, y);
+        prop_assert_eq!(lhs, rhs);
+    }
 
+    #[test]
+    fn xor_associative(x in field_element(), y in field_element()) {
+        let (lhs, rhs) = prop_assert_associative(xor_op, x, y);
+        prop_assert_eq!(lhs, rhs);
+    }
 
-    // // This currently panics due to the fact that we allow inputs which are greater than the field modulus,
-    // // automatically reducing them to fit within the canonical range.
-    // #[test]
-    // #[should_panic(expected = "serialized field element is not equal to input")]
-    // fn recovers_original_hex_string(hex in "[0-9a-f]{64}") {
-    //     let fe: FieldElement::<ark_bn254::Fr> = FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string");
-    //     let output_hex = fe.to_hex();
-    //
-    //     prop_assert_eq!(hex, output_hex, "serialized field element is not equal to input");
-    // }
+    #[test]
+    fn and_identity_l(x in field_element(), ones_constant in any::<bool>()) {
+        let ones = (field_element_ones(), ones_constant);
+        let (lhs, rhs) = prop_assert_identity_l(and_op, ones, x);
+        if x <= ones {
+            prop_assert_eq!(lhs, rhs);
+        } else {
+            // TODO
+            prop_assert!(lhs != rhs);
+        }
+    }
+
+    #[test]
+    fn xor_identity_l(x in field_element(), zero_constant in any::<bool>()) {
+        let zero = (FieldElement::zero(), zero_constant);
+        let (lhs, rhs) = prop_assert_identity_l(xor_op, zero, x);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn and_identity_r(x in field_element(), ones_constant in any::<bool>()) {
+        let ones = (field_element_ones(), ones_constant);
+        let (lhs, rhs) = prop_assert_identity_r(and_op, ones, x);
+        if x <= ones {
+            prop_assert_eq!(lhs, rhs);
+        } else {
+            // TODO
+            prop_assert!(lhs != rhs);
+        }
+    }
+
+    #[test]
+    fn xor_identity_r(x in field_element(), zero_constant in any::<bool>()) {
+        let zero = (FieldElement::zero(), zero_constant);
+        let (lhs, rhs) = prop_assert_identity_r(xor_op, zero, x);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn bigint_from_to_le_bytes(modulus in select(allowed_bigint_moduli()), zero_constant in any::<bool>()) {
+        let modulus_len = modulus.len();
+        let witness_map = bigint_solve_from_to_le_bytes(modulus.clone(), zero_constant);
+        for i in 1..2 + modulus_len {
+            prop_assert_eq!(witness_map.get(&Witness(i as u32)).cloned(), Some(FieldElement::zero()));
+        }
+    }
+
+    #[test]
+    // TODO: this test attempts to use a guaranteed-invalid BigInt modulus
+    #[should_panic(expected = "attempt to add with overflow")]
+    fn bigint_from_to_le_bytes_disallowed_modulus(modulus in select(allowed_bigint_moduli()), patch_location: usize, patch_amount: u8, zero_constant in any::<bool>()) {
+        let patch_location = patch_location % modulus.len();
+        let patch_amount = patch_amount.clamp(1, u8::MAX);
+
+        let mut modulus = modulus;
+        modulus[patch_location] += patch_amount;
+        let modulus_len = modulus.len();
+
+        let witness_map = bigint_solve_from_to_le_bytes(modulus, zero_constant);
+        for i in 1..2 + modulus_len {
+            prop_assert_eq!(witness_map.get(&Witness(i as u32)).cloned(), Some(FieldElement::zero()));
+        }
+    }
 
 }
 
