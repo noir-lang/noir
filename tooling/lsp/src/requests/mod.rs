@@ -330,7 +330,7 @@ where
         files,
         interner,
         interners: &state.cached_definitions,
-        root_crate_name: format!("{}", package.name),
+        root_crate_name: package.name.to_string(),
         root_crate_dependencies: &context.crate_graph[context.root_crate_id()].dependencies,
     }))
 }
