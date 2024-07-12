@@ -7,6 +7,7 @@ use crate::ast::{
     BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
     UnresolvedType,
 };
+use crate::macros_api::SecondaryAttribute;
 use crate::node_interner::TraitId;
 
 /// AST node for trait definitions:
@@ -18,6 +19,7 @@ pub struct NoirTrait {
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub span: Span,
     pub items: Vec<TraitItem>,
+    pub attributes: Vec<SecondaryAttribute>,
 }
 
 /// Any declaration inside the body of a trait that a user is required to

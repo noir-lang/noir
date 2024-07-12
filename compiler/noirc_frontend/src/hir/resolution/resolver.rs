@@ -1105,6 +1105,7 @@ impl<'a> Resolver<'a> {
             location,
             typ,
             direct_generics,
+            struct_id: None,
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
             return_type: func.def.return_type.clone(),

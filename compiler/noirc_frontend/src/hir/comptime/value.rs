@@ -8,12 +8,13 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness, TraitBound},
+    hir::def_map::ModuleId,
     hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
     macros_api::{
         Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
         StructId,
     },
-    node_interner::{ExprId, FuncId},
+    node_interner::{ExprId, FuncId, TraitId},
     parser::{self, NoirParser, TopLevelStatement},
     token::{SpannedToken, Token, Tokens},
     QuotedType, Shared, Type, TypeBindings,
@@ -46,6 +47,9 @@ pub enum Value {
     Code(Rc<Tokens>),
     StructDefinition(StructId),
     TraitConstraint(TraitBound),
+    TraitDefinition(TraitId),
+    FunctionDefinition(FuncId),
+    ModuleDefinition(ModuleId),
 }
 
 impl Value {
@@ -81,6 +85,9 @@ impl Value {
                 Type::MutableReference(Box::new(element))
             }
             Value::TraitConstraint { .. } => Type::Quoted(QuotedType::TraitConstraint),
+            Value::TraitDefinition(_) => Type::Quoted(QuotedType::TraitDefinition),
+            Value::FunctionDefinition(_) => Type::Quoted(QuotedType::FunctionDefinition),
+            Value::ModuleDefinition(_) => Type::Quoted(QuotedType::Module),
         })
     }
 
@@ -194,7 +201,12 @@ impl Value {
                     }
                 };
             }
-            Value::Pointer(_) | Value::StructDefinition(_) | Value::TraitConstraint { .. } => {
+            Value::Pointer(_)
+            | Value::StructDefinition(_)
+            | Value::TraitConstraint(_)
+            | Value::TraitDefinition(_)
+            | Value::FunctionDefinition(_)
+            | Value::ModuleDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -300,7 +312,12 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
             Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
-            Value::Pointer(_) | Value::StructDefinition(_) | Value::TraitConstraint { .. } => {
+            Value::Pointer(_)
+            | Value::StructDefinition(_)
+            | Value::TraitConstraint(_)
+            | Value::TraitDefinition(_)
+            | Value::FunctionDefinition(_)
+            | Value::ModuleDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -405,6 +422,9 @@ impl Display for Value {
             }
             Value::StructDefinition(_) => write!(f, "(struct definition)"),
             Value::TraitConstraint { .. } => write!(f, "(trait constraint)"),
+            Value::TraitDefinition(_) => write!(f, "(trait definition)"),
+            Value::FunctionDefinition(_) => write!(f, "(function definition)"),
+            Value::ModuleDefinition(_) => write!(f, "(module)"),
         }
     }
 }
