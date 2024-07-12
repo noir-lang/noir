@@ -97,9 +97,17 @@ pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
     get_program(src, false).2
 }
 
+fn assert_no_errors(src: &str) {
+    let errors = get_program_errors(src);
+    if !errors.is_empty() {
+        panic!("Expected no errors, got: {:?}", errors);
+    }
+}
+
 #[test]
 fn check_trait_implemented_for_all_t() {
-    let src = "
+    assert_no_errors(
+        "
     trait Default {
         fn default() -> Self;
     }
@@ -140,11 +148,8 @@ fn check_trait_implemented_for_all_t() {
     
     fn main(a: Foo) -> pub bool {
         a.is_default()
-    }";
-
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    }",
+    );
 }
 
 #[test]
@@ -753,7 +758,8 @@ fn check_trait_duplicate_implementation_with_alias() {
 
 #[test]
 fn test_impl_self_within_default_def() {
-    let src = "
+    assert_no_errors(
+        "
     trait Bar {
         fn ok(self) -> Self;
 
@@ -766,15 +772,14 @@ fn test_impl_self_within_default_def() {
         fn ok(self) -> Self {
             self
         }
-    }";
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    }",
+    );
 }
 
 #[test]
 fn check_trait_as_type_as_fn_parameter() {
-    let src = "
+    assert_no_errors(
+        "
     trait Eq {
         fn eq(self, other: Self) -> bool;
     }
@@ -793,16 +798,14 @@ fn check_trait_as_type_as_fn_parameter() {
 
     fn main(a: Foo) -> pub bool {
         test_eq(a)
-    }";
-
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    }",
+    );
 }
 
 #[test]
 fn check_trait_as_type_as_two_fn_parameters() {
-    let src = "
+    assert_no_errors(
+        "
     trait Eq {
         fn eq(self, other: Self) -> bool;
     }
@@ -829,11 +832,8 @@ fn check_trait_as_type_as_two_fn_parameters() {
 
     fn main(a: Foo, b: u64) -> pub bool {
         test_eq(a, b)
-    }";
-
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    }",
+    );
 }
 
 fn get_program_captures(src: &str) -> Vec<Vec<String>> {
@@ -893,22 +893,24 @@ fn get_lambda_captures(
 
 #[test]
 fn resolve_empty_function() {
-    let src = "
+    assert_no_errors(
+        "
         fn main() {
 
         }
-    ";
-    assert!(get_program_errors(src).is_empty());
+    ",
+    );
 }
 #[test]
 fn resolve_basic_function() {
-    let src = r#"
+    assert_no_errors(
+        r#"
         fn main(x : Field) {
             let y = x + x;
             assert(y == x);
         }
-    "#;
-    assert!(get_program_errors(src).is_empty());
+    "#,
+    );
 }
 #[test]
 fn resolve_unused_var() {
@@ -975,13 +977,14 @@ fn unresolved_path() {
 
 #[test]
 fn resolve_literal_expr() {
-    let src = r#"
+    assert_no_errors(
+        r#"
         fn main(x : Field) {
             let y = 5;
             assert(y == x);
         }
-    "#;
-    assert!(get_program_errors(src).is_empty());
+    "#,
+    );
 }
 
 #[test]
@@ -1023,29 +1026,32 @@ fn multiple_resolution_errors() {
 
 #[test]
 fn resolve_prefix_expr() {
-    let src = r#"
+    assert_no_errors(
+        r#"
         fn main(x : Field) {
             let _y = -x;
         }
-    "#;
-    assert!(get_program_errors(src).is_empty());
+    "#,
+    );
 }
 
 #[test]
 fn resolve_for_expr() {
-    let src = r#"
+    assert_no_errors(
+        r#"
         fn main(x : u64) {
             for i in 1..20 {
                 let _z = x + i;
             };
         }
-    "#;
-    assert!(get_program_errors(src).is_empty());
+    "#,
+    );
 }
 
 #[test]
 fn resolve_call_expr() {
-    let src = r#"
+    assert_no_errors(
+        r#"
         fn main(x : Field) {
             let _z = foo(x);
         }
@@ -1053,13 +1059,14 @@ fn resolve_call_expr() {
         fn foo(x : Field) -> Field {
             x
         }
-    "#;
-    assert!(get_program_errors(src).is_empty());
+    "#,
+    );
 }
 
 #[test]
 fn resolve_shadowing() {
-    let src = r#"
+    assert_no_errors(
+        r#"
         fn main(x : Field) {
             let x = foo(x);
             let x = x;
@@ -1070,19 +1077,20 @@ fn resolve_shadowing() {
         fn foo(x : Field) -> Field {
             x
         }
-    "#;
-    assert!(get_program_errors(src).is_empty());
+    "#,
+    );
 }
 
 #[test]
 fn resolve_basic_closure() {
-    let src = r#"
+    assert_no_errors(
+        r#"
         fn main(x : Field) -> pub Field {
             let closure = |y| y + x;
             closure(x)
         }
-    "#;
-    assert!(get_program_errors(src).is_empty());
+    "#,
+    );
 }
 
 #[test]
@@ -1133,7 +1141,7 @@ fn resolve_complex_closures() {
             a + b + c + closure_with_transitive_captures(6)
         }
     "#;
-    assert!(get_program_errors(src).is_empty(), "there should be no errors");
+    assert_no_errors(src);
 
     let expected_captures = vec![
         vec![],
@@ -1633,11 +1641,11 @@ fn bool_generic_as_loop_bound() {
 
 #[test]
 fn numeric_generic_in_function_signature() {
-    let src = r#"
+    assert_no_errors(
+        r#"
     fn foo<let N: u8>(arr: [Field; N]) -> [Field; N] { arr }
-    "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    "#,
+    );
 }
 
 #[test]
@@ -1740,7 +1748,8 @@ fn normal_generic_used_in_nested_array_length_fail() {
 fn numeric_generic_used_in_nested_type_pass() {
     // The order of these structs should not be changed to make sure
     // that we are accurately resolving all struct generics before struct fields
-    let src = r#"
+    assert_no_errors(
+        r#"
     struct NestedNumeric<let N: u32> {
         a: Field,
         b: InnerNumeric<N>
@@ -1748,14 +1757,17 @@ fn numeric_generic_used_in_nested_type_pass() {
     struct InnerNumeric<let N: u32> {
         inner: [u64; N],
     }    
-    "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    "#,
+    );
 }
 
 #[test]
 fn numeric_generic_used_in_trait() {
-    let src = r#"
+    // We want to make sure that `N` in `impl<let N: u64, T> Deserialize<N, T>` does
+    // not trigger `expected type, found numeric generic parameter N` as the trait
+    // does in fact expect a numeric generic.
+    assert_no_errors(
+        r#"
     struct MyType<T> {
         a: Field,
         b: Field,
@@ -1772,17 +1784,14 @@ fn numeric_generic_used_in_trait() {
     trait Deserialize<let N: u32, T> {
         fn deserialize(fields: [Field; N], other: T) -> Self;
     }
-    "#;
-    let errors = get_program_errors(src);
-    // We want to make sure that `N` in `impl<let N: u64, T> Deserialize<N, T>` does
-    // not trigger `expected type, found numeric generic parameter N` as the trait
-    // does in fact expect a numeric generic.
-    assert!(errors.is_empty());
+    "#,
+    );
 }
 
 #[test]
 fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
-    let src = r#"
+    assert_no_errors(
+        r#"
     trait Default {
         fn default() -> Self;
     }
@@ -1807,14 +1816,14 @@ fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
     trait Deserialize<let N: u32> {
         fn deserialize(fields: [Field; N]) -> Self;
     }
-    "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    "#,
+    );
 }
 
 #[test]
 fn numeric_generic_used_in_where_clause() {
-    let src = r#"
+    assert_no_errors(
+        r#"
     trait Deserialize<let N: u32> {
         fn deserialize(fields: [Field; N]) -> Self;
     }
@@ -1826,14 +1835,14 @@ fn numeric_generic_used_in_where_clause() {
         }
         T::deserialize(fields)
     }
-    "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    "#,
+    );
 }
 
 #[test]
 fn numeric_generic_used_in_turbofish() {
-    let src = r#"
+    assert_no_errors(
+        r#"
     fn double<let N: u32>() -> u32 {
         // Used as an expression
         N * 2
@@ -1844,14 +1853,14 @@ fn numeric_generic_used_in_turbofish() {
         assert(double::<9>() == 18);
         assert(double::<7 + 8>() == 30);
     }
-    "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    "#,
+    );
 }
 
 #[test]
 fn constant_used_with_numeric_generic() {
-    let src = r#"
+    assert_no_errors(
+        r#"
     struct ValueNote {
         value: Field,
     }
@@ -1865,9 +1874,8 @@ fn constant_used_with_numeric_generic() {
             [self.value]
         }
     }
-    "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    "#,
+    );
 }
 
 #[test]
@@ -2061,7 +2069,8 @@ fn underflowing_i8() {
 #[test]
 fn turbofish_numeric_generic_nested_call() {
     // Check for turbofish numeric generics used with function calls
-    let src = r#"
+    assert_no_errors(
+        r#"
     fn foo<let N: u32>() -> [u8; N] {
         [0; N]
     }
@@ -2075,12 +2084,12 @@ fn turbofish_numeric_generic_nested_call() {
     fn main() {
         let _ = bar::<M>();
     }
-    "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    "#,
+    );
 
     // Check for turbofish numeric generics used with method calls
-    let src = r#"
+    assert_no_errors(
+        r#"
     struct Foo<T> {
         a: T
     }
@@ -2106,7 +2115,6 @@ fn turbofish_numeric_generic_nested_call() {
     fn main() {
         let _ = bar::<M>();
     }
-    "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    "#,
+    );
 }
