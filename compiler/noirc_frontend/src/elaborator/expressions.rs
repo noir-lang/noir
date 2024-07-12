@@ -27,7 +27,7 @@ use crate::{
         HirStatement, Ident, IndexExpression, Literal, MemberAccessExpression,
         MethodCallExpression, PrefixExpression,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId, ReferenceId, TraitMethodId},
+    node_interner::{DefinitionKind, ExprId, FuncId, TraitMethodId},
     token::Tokens,
     QuotedType, Shared, StructType, Type,
 };
@@ -320,6 +320,7 @@ impl<'context> Elaborator<'context> {
         let (mut object, mut object_type) = self.elaborate_expression(method_call.object);
         object_type = object_type.follow_bindings();
 
+        let method_name_span = method_call.method_name.span();
         let method_name = method_call.method_name.0.contents.as_str();
         match self.lookup_method(&object_type, method_name, span) {
             Some(method_ref) => {
@@ -385,6 +386,9 @@ impl<'context> Elaborator<'context> {
 
                 self.interner.push_expr_type(function_id, func_type.clone());
 
+                self.interner
+                    .add_function_reference(func_id, Location::new(method_name_span, self.file));
+
                 // Type check the new call now that it has been changed from a method call
                 // to a function call. This way we avoid duplicating code.
                 let typ = self.type_check_call(&function_call, func_type, function_args, span);
@@ -399,7 +403,8 @@ impl<'context> Elaborator<'context> {
         constructor: ConstructorExpression,
     ) -> (HirExpression, Type) {
         let span = constructor.type_name.span();
-        let is_self_type = constructor.type_name.last_segment().is_self_type_name();
+        let last_segment = constructor.type_name.last_segment();
+        let is_self_type = last_segment.is_self_type_name();
 
         let (r#type, struct_generics) = if let Some(struct_id) = constructor.struct_type {
             let typ = self.interner.get_struct(struct_id);
@@ -429,9 +434,9 @@ impl<'context> Elaborator<'context> {
             struct_generics,
         });
 
-        let referenced = ReferenceId::Struct(struct_type.borrow().id);
-        let reference = ReferenceId::Reference(Location::new(span, self.file), is_self_type);
-        self.interner.add_reference(referenced, reference);
+        let struct_id = struct_type.borrow().id;
+        let reference_location = Location::new(last_segment.span(), self.file);
+        self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
 
         (expr, Type::Struct(struct_type, generics))
     }
@@ -485,11 +490,11 @@ impl<'context> Elaborator<'context> {
             }
 
             if let Some(expected_index) = expected_index {
-                let struct_id = struct_type.borrow().id;
-                let referenced = ReferenceId::StructMember(struct_id, expected_index);
-                let reference =
-                    ReferenceId::Reference(Location::new(field_name.span(), self.file), false);
-                self.interner.add_reference(referenced, reference);
+                self.interner.add_struct_member_reference(
+                    struct_type.borrow().id,
+                    expected_index,
+                    Location::new(field_name.span(), self.file),
+                );
             }
 
             ret.push((field_name, resolved));

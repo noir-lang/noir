@@ -65,10 +65,20 @@ struct EmbeddedCurveScalar {
 }
 
 impl EmbeddedCurveScalar {
+    pub fn new(lo: Field, hi: Field) -> Self {
+        EmbeddedCurveScalar { lo, hi }
+    }
+
     #[field(bn254)]
     fn from_field(scalar: Field) -> EmbeddedCurveScalar {
         let (a,b) = crate::field::bn254::decompose(scalar);
         EmbeddedCurveScalar { lo: a, hi: b }
+    }
+}
+
+impl Eq for EmbeddedCurveScalar {
+    fn eq(self, other: Self) -> bool {
+        (other.hi == self.hi) & (other.lo == self.lo)
     }
 }
 

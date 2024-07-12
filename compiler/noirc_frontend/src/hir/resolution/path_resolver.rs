@@ -9,12 +9,13 @@ use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 pub trait PathResolver {
     /// Resolve the given path returning the resolved ModuleDefId.
     /// If `path_references` is `Some`, a `ReferenceId` for each segment in `path`
-    /// will be resolved and pushed.
+    /// will be resolved and pushed (some entries will be None if they don't refer to
+    /// a module or type).
     fn resolve(
         &self,
         def_maps: &BTreeMap<CrateId, CrateDefMap>,
         path: Path,
-        path_references: &mut Option<&mut Vec<ReferenceId>>,
+        path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
     ) -> PathResolutionResult;
 
     fn local_module_id(&self) -> LocalModuleId;
@@ -38,7 +39,7 @@ impl PathResolver for StandardPathResolver {
         &self,
         def_maps: &BTreeMap<CrateId, CrateDefMap>,
         path: Path,
-        path_references: &mut Option<&mut Vec<ReferenceId>>,
+        path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
     ) -> PathResolutionResult {
         resolve_path(def_maps, self.module_id, path, path_references)
     }
@@ -58,7 +59,7 @@ pub fn resolve_path(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     module_id: ModuleId,
     path: Path,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
+    path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> PathResolutionResult {
     // lets package up the path into an ImportDirective and resolve it using that
     let import =
