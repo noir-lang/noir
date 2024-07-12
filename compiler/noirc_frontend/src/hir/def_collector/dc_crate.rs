@@ -77,14 +77,11 @@ impl UnresolvedFunctions {
         let mut errors = Vec::new();
 
         for (local_id, _, func) in &mut self.functions {
-            let module_id = ModuleId { krate: crate_id, local_id: *local_id };
+            let module = ModuleId { krate: crate_id, local_id: *local_id };
 
             for bound in &mut func.def.where_clause {
-                match resolve_trait_by_path(
-                    def_maps,
-                    module_id,
-                    bound.trait_bound.trait_path.clone(),
-                ) {
+                match resolve_trait_by_path(def_maps, module, bound.trait_bound.trait_path.clone())
+                {
                     Ok((trait_id, warning)) => {
                         bound.trait_bound.trait_id = Some(trait_id);
                         if let Some(warning) = warning {

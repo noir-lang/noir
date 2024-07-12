@@ -192,9 +192,8 @@ pub fn inject_fn(
 
     let def_maps = &mut context.def_maps;
 
-    let module_id = ModuleId { local_id: module_id, krate: *crate_id };
-
-    let path_resolver = StandardPathResolver::new(module_id);
+    let path_resolver =
+        StandardPathResolver::new(ModuleId { local_id: module_id, krate: *crate_id });
 
     let resolver = Resolver::new(&mut context.def_interner, &path_resolver, def_maps, file_id);
 
@@ -246,9 +245,8 @@ pub fn inject_global(
 
     let def_maps = &mut context.def_maps;
 
-    let module_id = ModuleId { local_id: module_id, krate: *crate_id };
-
-    let path_resolver = StandardPathResolver::new(module_id);
+    let path_resolver =
+        StandardPathResolver::new(ModuleId { local_id: module_id, krate: *crate_id });
 
     let mut resolver = Resolver::new(&mut context.def_interner, &path_resolver, def_maps, file_id);
 

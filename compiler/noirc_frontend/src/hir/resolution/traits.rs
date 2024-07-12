@@ -106,9 +106,10 @@ fn resolve_trait_methods(
     let interner = &mut context.def_interner;
     let def_maps = &mut context.def_maps;
 
-    let module_id = ModuleId { local_id: unresolved_trait.module_id, krate: crate_id };
-
-    let path_resolver = StandardPathResolver::new(module_id);
+    let path_resolver = StandardPathResolver::new(ModuleId {
+        local_id: unresolved_trait.module_id,
+        krate: crate_id,
+    });
     let file = def_maps[&crate_id].file_id(unresolved_trait.module_id);
 
     let mut functions = vec![];
@@ -285,10 +286,10 @@ fn collect_trait_impl(
     let def_maps = &mut context.def_maps;
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
     let unresolved_type = trait_impl.object_type.clone();
-    let module_id = ModuleId { local_id: trait_impl.module_id, krate: crate_id };
+    let module = ModuleId { local_id: trait_impl.module_id, krate: crate_id };
 
     trait_impl.trait_id =
-        match resolve_trait_by_path(def_maps, module_id, trait_impl.trait_path.clone()) {
+        match resolve_trait_by_path(def_maps, module, trait_impl.trait_path.clone()) {
             Ok((trait_id, warning)) => {
                 if let Some(warning) = warning {
                     errors.push((
@@ -308,7 +309,7 @@ fn collect_trait_impl(
         errors
             .extend(collect_trait_impl_methods(interner, def_maps, crate_id, trait_id, trait_impl));
 
-        let path_resolver = StandardPathResolver::new(module_id);
+        let path_resolver = StandardPathResolver::new(module);
         let file = def_maps[&crate_id].file_id(trait_impl.module_id);
         let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
         resolver.add_generics(&trait_impl.generics);
@@ -361,10 +362,10 @@ fn check_trait_impl_crate_coherence(
 ) -> Vec<(CompilationError, FileId)> {
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
 
-    let module_id = ModuleId { krate: current_crate, local_id: trait_impl.module_id };
+    let module = ModuleId { krate: current_crate, local_id: trait_impl.module_id };
 
     let file = def_maps[&current_crate].file_id(trait_impl.module_id);
-    let path_resolver = StandardPathResolver::new(module_id);
+    let path_resolver = StandardPathResolver::new(module);
     let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
 
     let object_crate = match resolver.resolve_type(trait_impl.object_type.clone()) {
