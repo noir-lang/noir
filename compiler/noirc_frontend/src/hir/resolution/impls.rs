@@ -33,11 +33,12 @@ pub(crate) fn collect_impls(
     let def_maps = &mut context.def_maps;
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
 
-    for ((unresolved_type, module_id), methods) in collected_impls {
-        let path_resolver =
-            StandardPathResolver::new(ModuleId { local_id: *module_id, krate: crate_id });
+    for ((unresolved_type, local_module_id), methods) in collected_impls {
+        let module_id = ModuleId { local_id: *local_module_id, krate: crate_id };
+        let parent_module_id = interner.try_module_parent(&module_id);
+        let path_resolver = StandardPathResolver::new(module_id, parent_module_id);
 
-        let file = def_maps[&crate_id].file_id(*module_id);
+        let file = def_maps[&crate_id].file_id(*local_module_id);
 
         for (generics, span, unresolved) in methods {
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
@@ -99,11 +100,12 @@ pub(crate) fn resolve_impls(
 ) -> Vec<(FileId, FuncId)> {
     let mut file_method_ids = Vec::new();
 
-    for ((unresolved_type, module_id), methods) in collected_impls {
-        let path_resolver =
-            StandardPathResolver::new(ModuleId { local_id: module_id, krate: crate_id });
+    for ((unresolved_type, local_module_id), methods) in collected_impls {
+        let module_id = ModuleId { local_id: local_module_id, krate: crate_id };
+        let parent_module_id = interner.try_module_parent(&module_id);
+        let path_resolver = StandardPathResolver::new(module_id, parent_module_id);
 
-        let file = def_maps[&crate_id].file_id(module_id);
+        let file = def_maps[&crate_id].file_id(local_module_id);
 
         for (generics, _, functions) in methods {
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);

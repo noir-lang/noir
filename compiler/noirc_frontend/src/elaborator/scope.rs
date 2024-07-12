@@ -42,8 +42,13 @@ impl<'context> Elaborator<'context> {
         ModuleId { krate: self.crate_id, local_id: self.local_module }
     }
 
+    pub(super) fn parent_module_id(&self) -> Option<LocalModuleId> {
+        let module_id = self.module_id();
+        self.interner.try_module_parent(&module_id)
+    }
+
     pub(super) fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
-        let resolver = StandardPathResolver::new(self.module_id());
+        let resolver = StandardPathResolver::new(self.module_id(), self.parent_module_id());
         let path_resolution;
 
         if self.interner.track_references {

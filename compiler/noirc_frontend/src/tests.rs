@@ -2133,6 +2133,21 @@ fn use_super() {
 }
 
 #[test]
+fn use_super_in_path() {
+    assert_no_errors(
+        r#"
+    fn some_func() {}
+
+    mod foo {
+        fn func() {
+            super::some_func();
+        }
+    }
+    "#,
+    );
+}
+
+#[test]
 fn no_super() {
     let src = "use super::some_func;";
     let errors = get_program_errors(src);

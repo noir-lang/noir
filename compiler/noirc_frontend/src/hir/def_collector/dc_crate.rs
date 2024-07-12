@@ -72,16 +72,22 @@ impl UnresolvedFunctions {
     pub fn resolve_trait_bounds_trait_ids(
         &mut self,
         def_maps: &BTreeMap<CrateId, CrateDefMap>,
+        interner: &mut NodeInterner,
         crate_id: CrateId,
     ) -> Vec<DefCollectorErrorKind> {
         let mut errors = Vec::new();
 
         for (local_id, _, func) in &mut self.functions {
-            let module = ModuleId { krate: crate_id, local_id: *local_id };
+            let module_id = ModuleId { krate: crate_id, local_id: *local_id };
+            let parent_module_id = interner.try_module_parent(&module_id);
 
             for bound in &mut func.def.where_clause {
-                match resolve_trait_by_path(def_maps, module, bound.trait_bound.trait_path.clone())
-                {
+                match resolve_trait_by_path(
+                    def_maps,
+                    module_id,
+                    parent_module_id,
+                    bound.trait_bound.trait_path.clone(),
+                ) {
                     Ok((trait_id, warning)) => {
                         bound.trait_bound.trait_id = Some(trait_id);
                         if let Some(warning) = warning {
@@ -591,6 +597,7 @@ fn inject_prelude(
         if let Ok(PathResolution { module_def_id, error }) = path_resolver::resolve_path(
             &context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
+            None, // Parent module isn't needed to solve "std::prelude"
             path,
             &mut None,
         ) {

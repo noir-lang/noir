@@ -5,6 +5,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::ast::{Ident, ItemVisibility, Path, TraitItem, UnresolvedGeneric};
+use crate::hir::def_map::LocalModuleId;
 use crate::{
     graph::CrateId,
     hir::{
@@ -106,10 +107,10 @@ fn resolve_trait_methods(
     let interner = &mut context.def_interner;
     let def_maps = &mut context.def_maps;
 
-    let path_resolver = StandardPathResolver::new(ModuleId {
-        local_id: unresolved_trait.module_id,
-        krate: crate_id,
-    });
+    let module_id = ModuleId { local_id: unresolved_trait.module_id, krate: crate_id };
+    let parent_module_id = interner.try_module_parent(&module_id);
+
+    let path_resolver = StandardPathResolver::new(module_id, parent_module_id);
     let file = def_maps[&crate_id].file_id(unresolved_trait.module_id);
 
     let mut functions = vec![];
@@ -286,29 +287,36 @@ fn collect_trait_impl(
     let def_maps = &mut context.def_maps;
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
     let unresolved_type = trait_impl.object_type.clone();
-    let module = ModuleId { local_id: trait_impl.module_id, krate: crate_id };
-    trait_impl.trait_id =
-        match resolve_trait_by_path(def_maps, module, trait_impl.trait_path.clone()) {
-            Ok((trait_id, warning)) => {
-                if let Some(warning) = warning {
-                    errors.push((
-                        DefCollectorErrorKind::PathResolutionError(warning).into(),
-                        trait_impl.file_id,
-                    ));
-                }
-                Some(trait_id)
+    let module_id = ModuleId { local_id: trait_impl.module_id, krate: crate_id };
+    let parent_module_id = interner.try_module_parent(&module_id);
+
+    trait_impl.trait_id = match resolve_trait_by_path(
+        def_maps,
+        module_id,
+        parent_module_id,
+        trait_impl.trait_path.clone(),
+    ) {
+        Ok((trait_id, warning)) => {
+            if let Some(warning) = warning {
+                errors.push((
+                    DefCollectorErrorKind::PathResolutionError(warning).into(),
+                    trait_impl.file_id,
+                ));
             }
-            Err(error) => {
-                errors.push((error.into(), trait_impl.file_id));
-                None
-            }
-        };
+            Some(trait_id)
+        }
+        Err(error) => {
+            errors.push((error.into(), trait_impl.file_id));
+            None
+        }
+    };
 
     if let Some(trait_id) = trait_impl.trait_id {
         errors
             .extend(collect_trait_impl_methods(interner, def_maps, crate_id, trait_id, trait_impl));
 
-        let path_resolver = StandardPathResolver::new(module);
+        let parent_module_id = interner.try_module_parent(&module_id);
+        let path_resolver = StandardPathResolver::new(module_id, parent_module_id);
         let file = def_maps[&crate_id].file_id(trait_impl.module_id);
         let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
         resolver.add_generics(&trait_impl.generics);
@@ -361,9 +369,11 @@ fn check_trait_impl_crate_coherence(
 ) -> Vec<(CompilationError, FileId)> {
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
 
-    let module = ModuleId { krate: current_crate, local_id: trait_impl.module_id };
+    let module_id = ModuleId { krate: current_crate, local_id: trait_impl.module_id };
+    let parent_module_id = interner.try_module_parent(&module_id);
+
     let file = def_maps[&current_crate].file_id(trait_impl.module_id);
-    let path_resolver = StandardPathResolver::new(module);
+    let path_resolver = StandardPathResolver::new(module_id, parent_module_id);
     let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
 
     let object_crate = match resolver.resolve_type(trait_impl.object_type.clone()) {
@@ -384,10 +394,11 @@ fn check_trait_impl_crate_coherence(
 
 pub(crate) fn resolve_trait_by_path(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    module: ModuleId,
+    module_id: ModuleId,
+    parent_module_id: Option<LocalModuleId>,
     path: Path,
 ) -> Result<(TraitId, Option<PathResolutionError>), DefCollectorErrorKind> {
-    let path_resolver = StandardPathResolver::new(module);
+    let path_resolver = StandardPathResolver::new(module_id, parent_module_id);
 
     match path_resolver.resolve(def_maps, path.clone(), &mut None) {
         Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), error }) => {
@@ -411,7 +422,8 @@ pub(crate) fn resolve_trait_impls(
         let unresolved_type = trait_impl.object_type;
         let local_mod_id = trait_impl.module_id;
         let module_id = ModuleId { krate: crate_id, local_id: local_mod_id };
-        let path_resolver = StandardPathResolver::new(module_id);
+        let parent_module_id = interner.try_module_attributes(&module_id).map(|attrs| attrs.parent);
+        let path_resolver = StandardPathResolver::new(module_id, parent_module_id);
 
         let self_type_span = unresolved_type.span;
 

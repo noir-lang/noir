@@ -29,12 +29,13 @@ pub(crate) fn resolve_function_set(
     let file_id = unresolved_functions.file_id;
 
     let where_clause_errors =
-        unresolved_functions.resolve_trait_bounds_trait_ids(def_maps, crate_id);
+        unresolved_functions.resolve_trait_bounds_trait_ids(def_maps, interner, crate_id);
     errors.extend(where_clause_errors.iter().cloned().map(|e| (e.into(), file_id)));
 
     vecmap(unresolved_functions.functions, |(mod_id, func_id, func)| {
         let module_id = ModuleId { krate: crate_id, local_id: mod_id };
-        let path_resolver = StandardPathResolver::new(module_id);
+        let parent_module_id = interner.try_module_parent(&module_id);
+        let path_resolver = StandardPathResolver::new(module_id, parent_module_id);
 
         let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file_id);
         // Must use set_generics here to ensure we re-use the same generics from when
