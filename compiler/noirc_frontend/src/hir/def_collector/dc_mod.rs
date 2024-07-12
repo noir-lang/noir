@@ -74,10 +74,15 @@ pub fn collect_defs(
         macro_processors,
     ));
 
+    let parent_module_id = context
+        .def_interner
+        .try_module_parent(&ModuleId { krate: crate_id, local_id: collector.module_id });
+
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
     for import in ast.imports {
         collector.def_collector.imports.push(ImportDirective {
             module_id: collector.module_id,
+            parent_module_id,
             path: import.path,
             alias: import.alias,
             is_prelude: false,

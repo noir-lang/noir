@@ -68,10 +68,14 @@ pub fn resolve_path(
     path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> PathResolutionResult {
     // lets package up the path into an ImportDirective and resolve it using that
-    let import =
-        ImportDirective { module_id: module_id.local_id, path, alias: None, is_prelude: false };
-    let resolved_import =
-        resolve_import(module_id.krate, &import, def_maps, parent_module_id, path_references)?;
+    let import = ImportDirective {
+        module_id: module_id.local_id,
+        parent_module_id,
+        path,
+        alias: None,
+        is_prelude: false,
+    };
+    let resolved_import = resolve_import(module_id.krate, &import, def_maps, path_references)?;
 
     let namespace = resolved_import.resolved_namespace;
     let id =

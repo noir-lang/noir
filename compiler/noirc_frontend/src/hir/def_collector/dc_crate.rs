@@ -352,10 +352,6 @@ impl DefCollector {
         // Resolve unresolved imports collected from the crate, one by one.
         for collected_import in std::mem::take(&mut def_collector.imports) {
             let module_id = collected_import.module_id;
-            let parent_module_id = context
-                .def_interner
-                .try_module_attributes(&ModuleId { krate: crate_id, local_id: module_id })
-                .map(|attrs| attrs.parent);
 
             let resolved_import = if context.def_interner.track_references {
                 let mut references: Vec<Option<ReferenceId>> = Vec::new();
@@ -363,7 +359,6 @@ impl DefCollector {
                     crate_id,
                     &collected_import,
                     &context.def_maps,
-                    parent_module_id,
                     &mut Some(&mut references),
                 );
 
@@ -383,13 +378,7 @@ impl DefCollector {
 
                 resolved_import
             } else {
-                resolve_import(
-                    crate_id,
-                    &collected_import,
-                    &context.def_maps,
-                    parent_module_id,
-                    &mut None,
-                )
+                resolve_import(crate_id, &collected_import, &context.def_maps, &mut None)
             };
             match resolved_import {
                 Ok(resolved_import) => {
@@ -613,6 +602,7 @@ fn inject_prelude(
                     0,
                     ImportDirective {
                         module_id: crate_root,
+                        parent_module_id: None,
                         path: Path { segments, kind: PathKind::Plain, span: Span::default() },
                         alias: None,
                         is_prelude: true,

@@ -14,6 +14,7 @@ use super::errors::ResolverError;
 #[derive(Debug, Clone)]
 pub struct ImportDirective {
     pub module_id: LocalModuleId,
+    pub parent_module_id: Option<LocalModuleId>,
     pub path: Path,
     pub alias: Option<Ident>,
     pub is_prelude: bool,
@@ -86,7 +87,6 @@ pub fn resolve_import(
     crate_id: CrateId,
     import_directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    parent_module_id: Option<LocalModuleId>,
     path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> Result<ResolvedImport, PathResolutionError> {
     let module_scope = import_directive.module_id;
@@ -94,14 +94,7 @@ pub fn resolve_import(
         module_id: resolved_module,
         namespace: resolved_namespace,
         mut error,
-    } = resolve_path_to_ns(
-        import_directive,
-        crate_id,
-        crate_id,
-        def_maps,
-        parent_module_id,
-        path_references,
-    )?;
+    } = resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps, path_references)?;
 
     let name = resolve_path_name(import_directive);
 
@@ -139,7 +132,6 @@ fn resolve_path_to_ns(
     crate_id: CrateId,
     importing_crate: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    parent_module_id: Option<LocalModuleId>,
     path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> NamespaceResolutionResult {
     let import_path = &import_directive.path.segments;
@@ -203,7 +195,7 @@ fn resolve_path_to_ns(
         ),
 
         crate::ast::PathKind::Super => {
-            if let Some(parent_module_id) = parent_module_id {
+            if let Some(parent_module_id) = import_directive.parent_module_id {
                 resolve_name_in_module(
                     crate_id,
                     importing_crate,
@@ -370,19 +362,13 @@ fn resolve_external_dep(
     };
     let dep_directive = ImportDirective {
         module_id: dep_module.local_id,
+        parent_module_id: None, // At this point the Path is not `super::`
         path,
         alias: directive.alias.clone(),
         is_prelude: false,
     };
 
-    resolve_path_to_ns(
-        &dep_directive,
-        dep_module.krate,
-        importing_crate,
-        def_maps,
-        None,
-        path_references,
-    )
+    resolve_path_to_ns(&dep_directive, dep_module.krate, importing_crate, def_maps, path_references)
 }
 
 // Issue an error if the given private function is being called from a non-child module, or
