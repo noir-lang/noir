@@ -158,7 +158,9 @@ template <class base_uint> class uintx {
     base_uint lo;
     base_uint hi;
 
+    template <base_uint modulus> constexpr std::pair<uintx, uintx> barrett_reduction() const;
     constexpr std::pair<uintx, uintx> divmod(const uintx& b) const;
+    constexpr std::pair<uintx, uintx> divmod_base(const uintx& b) const;
 };
 
 template <typename B, typename Params> inline void read(B& it, uintx<Params>& value)

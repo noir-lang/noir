@@ -4,7 +4,7 @@
 
 namespace bb::numeric {
 template <class base_uint>
-constexpr std::pair<uintx<base_uint>, uintx<base_uint>> uintx<base_uint>::divmod(const uintx& b) const
+constexpr std::pair<uintx<base_uint>, uintx<base_uint>> uintx<base_uint>::divmod_base(const uintx& b) const
 {
     ASSERT(b != 0);
     if (*this == 0) {
@@ -335,5 +335,88 @@ template <class base_uint> constexpr uintx<base_uint> uintx<base_uint>::operator
         result.hi = shifted_limbs[0];
     }
     return result;
+}
+
+template <class base_uint>
+constexpr std::pair<uintx<base_uint>, uintx<base_uint>> uintx<base_uint>::divmod(const uintx& b) const
+{
+    constexpr uint256_t BN254FQMODULUS256 =
+        uint256_t(0x3C208C16D87CFD47UL, 0x97816a916871ca8dUL, 0xb85045b68181585dUL, 0x30644e72e131a029UL);
+    constexpr uint256_t SECP256K1FQMODULUS256 =
+        uint256_t(0xFFFFFFFEFFFFFC2FULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL);
+    constexpr uint256_t SECP256R1FQMODULUS256 =
+        uint256_t(0xFFFFFFFFFFFFFFFFULL, 0x00000000FFFFFFFFULL, 0x0000000000000000ULL, 0xFFFFFFFF00000001ULL);
+
+    if (b == uintx(BN254FQMODULUS256)) {
+        return (*this).template barrett_reduction<BN254FQMODULUS256>();
+    }
+    if (b == uintx(SECP256K1FQMODULUS256)) {
+        return (*this).template barrett_reduction<SECP256K1FQMODULUS256>();
+    }
+    if (b == uintx(SECP256R1FQMODULUS256)) {
+        return (*this).template barrett_reduction<SECP256R1FQMODULUS256>();
+    }
+
+    return divmod_base(b);
+}
+
+/**
+ * @brief Compute fast division via a barrett reduction
+ *        Evaluates x = qm + r where m = modulus. returns q, r
+ * @details This implementation is less efficient due to making no assumptions about the value of *self.
+ *          When using this method to perform modular reductions e.g. (*self) mod m, if (*self) < m^2 a lot of the
+ *          `uintx` operations in this method could be replaced with `base_uint` operations
+ *
+ * @tparam base_uint
+ * @tparam modulus
+ * @return constexpr std::pair<uintx<base_uint>, uintx<base_uint>>
+ */
+template <class base_uint>
+template <base_uint modulus>
+constexpr std::pair<uintx<base_uint>, uintx<base_uint>> uintx<base_uint>::barrett_reduction() const
+{
+    // N.B. k could be modulus.get_msb() + 1 if we have strong bounds on the max value of (*self)
+    //      (a smaller k would allow us to fit `redc_parameter` into `base_uint` and not `uintx`)
+    constexpr size_t k = base_uint::length() - 1;
+    // N.B. computation of redc_parameter requires division operation - if this cannot be precomputed (or amortized over
+    // multiple reductions over the same modulus), barrett_reduction is much slower than divmod
+    constexpr uintx redc_parameter = ((uintx(1) << (k * 2)).divmod_base(uintx(modulus))).first;
+
+    const auto x = *this;
+
+    // compute x * redc_parameter
+    const auto mul_result = x.mul_extended(redc_parameter);
+    constexpr size_t shift = 2 * k;
+
+    // compute (x * redc_parameter) >> 2k
+    // This is equivalent to (x * (2^{2k} / modulus) / 2^{2k})
+    // which approximates to x / modulus
+    const uintx downshifted_hi_bits = mul_result.second & ((uintx(1) << shift) - 1);
+    const uintx mul_hi_underflow = uintx(downshifted_hi_bits) << (length() - shift);
+    uintx quotient = (mul_result.first >> shift) | mul_hi_underflow;
+
+    // compute remainder by determining value of x - quotient * modulus
+    uintx qm_lo(0);
+    {
+        const auto lolo = quotient.lo.mul_extended(modulus);
+        const auto lohi = quotient.hi.mul_extended(modulus);
+        base_uint t0 = lolo.first;
+        base_uint t1 = lolo.second;
+        t1 = t1 + lohi.first;
+        qm_lo = uintx(t0, t1);
+    }
+    uintx remainder = x - qm_lo;
+
+    // because redc_parameter is an imperfect representation of 2^{2k} / n (might be too small),
+    // the computed quotient may be off by up to 3 (classic algorithm should be up to 1,
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/1051): investigate, why)
+    size_t i = 0;
+    while (remainder >= uintx(modulus)) {
+        ASSERT(i < 3);
+        remainder = remainder - modulus;
+        quotient = quotient + 1;
+        i++;
+    }
+    return std::make_pair(quotient, remainder);
 }
 } // namespace bb::numeric

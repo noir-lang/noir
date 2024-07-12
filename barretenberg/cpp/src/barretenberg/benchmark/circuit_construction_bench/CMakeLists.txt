@@ -1,0 +1,1 @@
+barretenberg_module(circuit_construction_bench stdlib_primitives)
