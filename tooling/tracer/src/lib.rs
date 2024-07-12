@@ -48,7 +48,7 @@ pub struct TracingContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
 impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
     pub fn new(
         blackbox_solver: &'a B,
-        circuit: &'a Circuit<FieldElement>,
+        circuits: &'a [Circuit<FieldElement>],
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap<FieldElement>,
         unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
@@ -57,7 +57,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
         let debug_context = DebugContext::new(
             blackbox_solver,
-            circuit,
+            circuits,
             debug_artifact,
             initial_witness.clone(),
             foreign_call_executor,
@@ -128,7 +128,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
 
 pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
     blackbox_solver: &B,
-    circuit: &Circuit<FieldElement>,
+    circuits: &[Circuit<FieldElement>],
     debug_artifact: &DebugArtifact,
     initial_witness: WitnessMap<FieldElement>,
     unconstrained_functions: &[BrilligBytecode<FieldElement>],
@@ -136,13 +136,13 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
 ) -> Result<(), NargoError<FieldElement>> {
     let mut tracing_context = TracingContext::new(
         blackbox_solver,
-        circuit,
+        circuits,
         debug_artifact,
         initial_witness,
         unconstrained_functions,
     );
 
-    if tracing_context.debug_context.get_current_opcode_location().is_none() {
+    if tracing_context.debug_context.get_current_debug_location().is_none() {
         println!("Warning: circuit contains no opcodes; generating no trace");
         return Ok(());
     }

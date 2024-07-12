@@ -9,23 +9,18 @@ use std::io::{Read, Write};
 
 use ::dap::errors::ServerError;
 use ::dap::server::Server;
-use acvm::acir::circuit::brillig::BrilligBytecode;
-use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
+use acvm::acir::native_types::{WitnessMap, WitnessStack};
 use acvm::{BlackBoxFunctionSolver, FieldElement};
-
-use noirc_artifacts::debug::DebugArtifact;
 
 use nargo::NargoError;
 use noirc_driver::CompiledProgram;
 
-pub fn debug_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
-    blackbox_solver: &B,
-    circuit: &Circuit<FieldElement>,
-    debug_artifact: DebugArtifact,
+pub fn run_repl_session<B: BlackBoxFunctionSolver<FieldElement>>(
+    solver: &B,
+    program: CompiledProgram,
     initial_witness: WitnessMap<FieldElement>,
-    unconstrained_functions: &[BrilligBytecode<FieldElement>],
-) -> Result<Option<WitnessMap<FieldElement>>, NargoError<FieldElement>> {
-    repl::run(blackbox_solver, circuit, &debug_artifact, initial_witness, unconstrained_functions)
+) -> Result<Option<WitnessStack<FieldElement>>, NargoError<FieldElement>> {
+    repl::run(solver, program, initial_witness)
 }
 
 pub fn run_dap_loop<R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>>(

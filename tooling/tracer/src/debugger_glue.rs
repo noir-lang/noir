@@ -20,8 +20,8 @@ pub(crate) fn get_current_source_locations<B: BlackBoxFunctionSolver<FieldElemen
     let call_stack = debug_context.get_call_stack();
 
     let mut result: Vec<SourceLocation> = vec![];
-    for opcode_location in call_stack {
-        let locations = debug_context.get_source_location_for_opcode_location(&opcode_location);
+    for debug_location in call_stack {
+        let locations = debug_context.get_source_location_for_debug_location(&debug_location);
         for location in locations {
             let source_location = convert_debugger_location(debug_context, location);
             result.push(source_location);

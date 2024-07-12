@@ -96,7 +96,7 @@ pub(crate) fn trace_program(
 
     match noir_tracer::trace_circuit(
         &Bn254BlackBoxSolver,
-        &compiled_program.program.functions[0],
+        &compiled_program.program.functions,
         &debug_artifact,
         initial_witness,
         &compiled_program.program.unconstrained_functions,

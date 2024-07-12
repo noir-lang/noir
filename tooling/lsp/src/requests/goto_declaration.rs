@@ -20,7 +20,7 @@ fn on_goto_definition_inner(
     state: &mut LspState,
     params: GotoDeclarationParams,
 ) -> Result<GotoDeclarationResult, ResponseError> {
-    process_request(state, params.text_document_position_params, |location, interner, files| {
+    process_request(state, params.text_document_position_params, |location, interner, files, _| {
         interner.get_declaration_location_from(location).and_then(|found_location| {
             let file_id = found_location.file;
             let definition_position = to_lsp_location(files, file_id, found_location.span)?;
