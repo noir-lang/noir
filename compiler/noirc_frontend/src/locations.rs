@@ -4,7 +4,7 @@ use rangemap::RangeMap;
 use rustc_hash::FxHashMap;
 
 use crate::{
-    hir::def_map::ModuleId,
+    hir::def_map::{ModuleDefId, ModuleId},
     macros_api::{NodeInterner, StructId},
     node_interner::{DefinitionId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
 };
@@ -17,7 +17,7 @@ pub(crate) struct LocationIndices {
 
 impl LocationIndices {
     pub(crate) fn add_location(&mut self, location: Location, node_index: PetGraphIndex) {
-        // Some location spans are empty: maybe they are from ficticious nodes?
+        // Some location spans are empty: maybe they are from fictitious nodes?
         if location.span.start() == location.span.end() {
             return;
         }
@@ -35,7 +35,7 @@ impl LocationIndices {
 impl NodeInterner {
     pub fn reference_location(&self, reference: ReferenceId) -> Location {
         match reference {
-            ReferenceId::Module(id) => self.module_location(&id),
+            ReferenceId::Module(id) => self.module_attributes(&id).location,
             ReferenceId::Function(id) => self.function_modifiers(&id).name_location,
             ReferenceId::Struct(id) => {
                 let struct_type = self.get_struct(id);
@@ -60,6 +60,38 @@ impl NodeInterner {
             ReferenceId::Local(id) => self.definition(id).location,
             ReferenceId::Reference(location, _) => location,
         }
+    }
+
+    pub fn reference_module(&self, reference: ReferenceId) -> Option<&ModuleId> {
+        self.reference_modules.get(&reference)
+    }
+
+    pub(crate) fn add_module_def_id_reference(
+        &mut self,
+        def_id: ModuleDefId,
+        location: Location,
+        is_self_type: bool,
+    ) {
+        match def_id {
+            ModuleDefId::ModuleId(module_id) => {
+                self.add_module_reference(module_id, location);
+            }
+            ModuleDefId::FunctionId(func_id) => {
+                self.add_function_reference(func_id, location);
+            }
+            ModuleDefId::TypeId(struct_id) => {
+                self.add_struct_reference(struct_id, location, is_self_type);
+            }
+            ModuleDefId::TraitId(trait_id) => {
+                self.add_trait_reference(trait_id, location, is_self_type);
+            }
+            ModuleDefId::TypeAliasId(type_alias_id) => {
+                self.add_alias_reference(type_alias_id, location);
+            }
+            ModuleDefId::GlobalId(global_id) => {
+                self.add_global_reference(global_id, location);
+            }
+        };
     }
 
     pub(crate) fn add_module_reference(&mut self, id: ModuleId, location: Location) {
@@ -129,7 +161,11 @@ impl NodeInterner {
         self.location_indices.add_location(reference_location, reference_index);
     }
 
-    pub(crate) fn add_definition_location(&mut self, referenced: ReferenceId) {
+    pub(crate) fn add_definition_location(
+        &mut self,
+        referenced: ReferenceId,
+        module_id: Option<ModuleId>,
+    ) {
         if !self.track_references {
             return;
         }
@@ -137,6 +173,9 @@ impl NodeInterner {
         let referenced_index = self.get_or_insert_reference(referenced);
         let referenced_location = self.reference_location(referenced);
         self.location_indices.add_location(referenced_location, referenced_index);
+        if let Some(module_id) = module_id {
+            self.reference_modules.insert(referenced, module_id);
+        }
     }
 
     #[tracing::instrument(skip(self), ret)]
@@ -168,7 +207,7 @@ impl NodeInterner {
 
     // Starting at the given location, find the node referenced by it. Then, gather
     // all locations that reference that node, and return all of them
-    // (the references and optionally the referenced node if `include_referencedd` is true).
+    // (the references and optionally the referenced node if `include_referenced` is true).
     // If `include_self_type_name` is true, references where "Self" is written are returned,
     // otherwise they are not.
     // Returns `None` if the location is not known to this interner.

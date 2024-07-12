@@ -44,6 +44,13 @@ use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeV
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
 const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
 
+#[derive(Debug)]
+pub struct ModuleAttributes {
+    pub name: String,
+    pub location: Location,
+    pub parent: LocalModuleId,
+}
+
 type StructAttributes = Vec<SecondaryAttribute>;
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
@@ -68,7 +75,7 @@ pub struct NodeInterner {
     function_modules: HashMap<FuncId, ModuleId>,
 
     // The location of each module
-    module_locations: HashMap<ModuleId, Location>,
+    module_attributes: HashMap<ModuleId, ModuleAttributes>,
 
     /// This graph tracks dependencies between different global definitions.
     /// This is used to ensure the absence of dependency cycles for globals and types.
@@ -219,6 +226,10 @@ pub struct NodeInterner {
 
     /// Store the location of the references in the graph
     pub(crate) location_indices: LocationIndices,
+
+    // The module where each reference is
+    // (ReferenceId::Reference and ReferenceId::Local aren't included here)
+    pub(crate) reference_modules: HashMap<ReferenceId, ModuleId>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -553,7 +564,7 @@ impl Default for NodeInterner {
             function_definition_ids: HashMap::new(),
             function_modifiers: HashMap::new(),
             function_modules: HashMap::new(),
-            module_locations: HashMap::new(),
+            module_attributes: HashMap::new(),
             func_id_to_trait: HashMap::new(),
             dependency_graph: petgraph::graph::DiGraph::new(),
             dependency_graph_indices: HashMap::new(),
@@ -586,6 +597,7 @@ impl Default for NodeInterner {
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::new(),
+            reference_modules: HashMap::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -854,7 +866,7 @@ impl NodeInterner {
         self.definitions.push(DefinitionInfo { name, mutable, comptime, kind, location });
 
         if is_local {
-            self.add_definition_location(ReferenceId::Local(id));
+            self.add_definition_location(ReferenceId::Local(id), None);
         }
 
         id
@@ -892,7 +904,7 @@ impl NodeInterner {
 
         // This needs to be done after pushing the definition since it will reference the
         // location that was stored
-        self.add_definition_location(ReferenceId::Function(id));
+        self.add_definition_location(ReferenceId::Function(id), Some(module));
         definition_id
     }
 
@@ -993,12 +1005,16 @@ impl NodeInterner {
         &self.struct_attributes[struct_id]
     }
 
-    pub fn add_module_location(&mut self, module_id: ModuleId, location: Location) {
-        self.module_locations.insert(module_id, location);
+    pub fn add_module_attributes(&mut self, module_id: ModuleId, attributes: ModuleAttributes) {
+        self.module_attributes.insert(module_id, attributes);
     }
 
-    pub fn module_location(&self, module_id: &ModuleId) -> Location {
-        self.module_locations[module_id]
+    pub fn module_attributes(&self, module_id: &ModuleId) -> &ModuleAttributes {
+        &self.module_attributes[module_id]
+    }
+
+    pub fn try_module_attributes(&self, module_id: &ModuleId) -> Option<&ModuleAttributes> {
+        self.module_attributes.get(module_id)
     }
 
     pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {
