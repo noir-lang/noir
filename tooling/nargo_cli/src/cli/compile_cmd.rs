@@ -57,7 +57,6 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
         Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
     )?;
 
-    // let x = args.
     if args.watch {
         watch_workspace(&workspace, &args.compile_options)
             .map_err(|err| CliError::Generic(err.to_string()))?;
