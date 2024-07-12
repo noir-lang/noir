@@ -1,13 +1,5 @@
 brillig_references
 debug_logs
-fold_after_inlined_calls
-fold_basic
-fold_basic_nested_call
-fold_call_witness_condition
-fold_complex_outputs
-fold_distinct_return
-fold_fibonacci
-fold_numeric_generic_poseidon
 is_unconstrained
 macros
 references

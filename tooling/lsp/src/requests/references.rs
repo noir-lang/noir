@@ -12,20 +12,16 @@ pub(crate) fn on_references_request(
     params: ReferenceParams,
 ) -> impl Future<Output = Result<Option<Vec<Location>>, ResponseError>> {
     let include_declaration = params.context.include_declaration;
-    let result = process_request(
-        state,
-        params.text_document_position,
-        |location, interner, files, cached_interners| {
-            find_all_references_in_workspace(
-                location,
-                interner,
-                cached_interners,
-                files,
-                include_declaration,
-                true,
-            )
-        },
-    );
+    let result = process_request(state, params.text_document_position, |args| {
+        find_all_references_in_workspace(
+            args.location,
+            args.interner,
+            args.interners,
+            args.files,
+            include_declaration,
+            true,
+        )
+    });
     future::ready(result)
 }
 
