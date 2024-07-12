@@ -336,6 +336,7 @@ impl DefCollector {
             root_file_id,
             crate_root,
             crate_id,
+            None,
             context,
             macro_processors,
         ));

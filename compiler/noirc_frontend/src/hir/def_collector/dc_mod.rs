@@ -50,6 +50,7 @@ pub fn collect_defs(
     file_id: FileId,
     module_id: LocalModuleId,
     crate_id: CrateId,
+    parent_module_id: Option<LocalModuleId>,
     context: &mut Context,
     macro_processors: &[&dyn MacroProcessor],
 ) -> Vec<(CompilationError, FileId)> {
@@ -73,10 +74,6 @@ pub fn collect_defs(
         file_id,
         macro_processors,
     ));
-
-    let parent_module_id = context
-        .def_interner
-        .try_module_parent(&ModuleId { krate: crate_id, local_id: collector.module_id });
 
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
     for import in ast.imports {
@@ -563,6 +560,7 @@ impl<'a> ModCollector<'a> {
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
+        let parent_module_id = Some(self.module_id);
         for submodule in submodules {
             match self.push_child_module(
                 context,
@@ -578,6 +576,7 @@ impl<'a> ModCollector<'a> {
                         file_id,
                         child.local_id,
                         crate_id,
+                        parent_module_id,
                         context,
                         macro_processors,
                     ));
@@ -654,6 +653,8 @@ impl<'a> ModCollector<'a> {
             parsing_errors.iter().map(|e| (e.clone().into(), child_file_id)).collect::<Vec<_>>(),
         );
 
+        let parent_module_id = Some(self.module_id);
+
         // Add module into def collector and get a ModuleId
         match self.push_child_module(
             context,
@@ -672,6 +673,7 @@ impl<'a> ModCollector<'a> {
                     child_file_id,
                     child_mod_id.local_id,
                     crate_id,
+                    parent_module_id,
                     context,
                     macro_processors,
                 ));

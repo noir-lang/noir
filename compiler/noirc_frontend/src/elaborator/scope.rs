@@ -5,7 +5,7 @@ use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
 use crate::hir::resolution::resolver::SELF_TYPE_NAME;
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
-use crate::macros_api::Ident;
+use crate::macros_api::{Ident, PathKind};
 use crate::{
     hir::{
         def_map::{ModuleDefId, TryFromModuleDefId},
@@ -48,7 +48,11 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(super) fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
-        let resolver = StandardPathResolver::new(self.module_id(), self.parent_module_id());
+        // Optimization: no need to pass a parent module ID if the path is not a super path
+        let parent_module_id =
+            if let PathKind::Super = path.kind { self.parent_module_id() } else { None };
+
+        let resolver = StandardPathResolver::new(self.module_id(), parent_module_id);
         let path_resolution;
 
         if self.interner.track_references {
