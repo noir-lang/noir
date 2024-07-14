@@ -164,3 +164,46 @@ TEST_F(DataBusTests, CallDataAndReturnData)
     bool result = construct_and_verify_proof(builder);
     EXPECT_TRUE(result);
 }
+
+/**
+ * @brief Test proof construction/verification for a circuit with duplicate calldata reads
+ *
+ */
+TEST_F(DataBusTests, CallDataDuplicateRead)
+{
+    // Construct a circuit and add some ecc op gates and arithmetic gates
+    auto builder = construct_test_builder();
+
+    // Add some values to calldata
+    std::vector<FF> calldata_values = { 7, 10, 3, 12, 1 };
+    for (auto& val : calldata_values) {
+        builder.add_public_calldata(builder.add_variable(val));
+    }
+
+    // Define some read indices with a duplicate
+    std::vector<uint32_t> read_indices = { 1, 4, 1 };
+
+    // Create some calldata read gates and store the variable indices of the result for later
+    std::vector<uint32_t> result_witness_indices;
+    for (uint32_t& read_idx : read_indices) {
+        // Create a variable corresponding to the index at which we want to read into calldata
+        uint32_t read_idx_witness_idx = builder.add_variable(read_idx);
+
+        auto value_witness_idx = builder.read_calldata(read_idx_witness_idx);
+        result_witness_indices.emplace_back(value_witness_idx);
+    }
+
+    // Check that the read result is as expected and that the duplicate reads produce the same result
+    auto expected_read_result_at_1 = calldata_values[1];
+    auto expected_read_result_at_4 = calldata_values[4];
+    auto duplicate_read_result_0 = builder.get_variable(result_witness_indices[0]);
+    auto duplicate_read_result_1 = builder.get_variable(result_witness_indices[1]);
+    auto duplicate_read_result_2 = builder.get_variable(result_witness_indices[2]);
+    EXPECT_EQ(duplicate_read_result_0, expected_read_result_at_1);
+    EXPECT_EQ(duplicate_read_result_1, expected_read_result_at_4);
+    EXPECT_EQ(duplicate_read_result_2, expected_read_result_at_1);
+
+    // Construct and verify Honk proof
+    bool result = construct_and_verify_proof(builder);
+    EXPECT_TRUE(result);
+}

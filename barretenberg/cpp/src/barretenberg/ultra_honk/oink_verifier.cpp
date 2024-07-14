@@ -62,22 +62,16 @@ template <IsUltraFlavor Flavor> void OinkVerifier<Flavor>::execute_wire_commitme
 
     // If Goblin, get commitments to ECC op wire polynomials and DataBus columns
     if constexpr (IsGoblinFlavor<Flavor>) {
-        witness_comms.ecc_op_wire_1 =
-            transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.ecc_op_wire_1);
-        witness_comms.ecc_op_wire_2 =
-            transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.ecc_op_wire_2);
-        witness_comms.ecc_op_wire_3 =
-            transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.ecc_op_wire_3);
-        witness_comms.ecc_op_wire_4 =
-            transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.ecc_op_wire_4);
-        witness_comms.calldata =
-            transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.calldata);
-        witness_comms.calldata_read_counts =
-            transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.calldata_read_counts);
-        witness_comms.return_data =
-            transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.return_data);
-        witness_comms.return_data_read_counts = transcript->template receive_from_prover<Commitment>(
-            domain_separator + comm_labels.return_data_read_counts);
+        // Receive ECC op wire commitments
+        for (auto [commitment, label] : zip_view(witness_comms.get_ecc_op_wires(), comm_labels.get_ecc_op_wires())) {
+            commitment = transcript->template receive_from_prover<Commitment>(domain_separator + label);
+        }
+
+        // Receive DataBus related polynomial commitments
+        for (auto [commitment, label] :
+             zip_view(witness_comms.get_databus_entities(), comm_labels.get_databus_entities())) {
+            commitment = transcript->template receive_from_prover<Commitment>(domain_separator + label);
+        }
     }
 }
 

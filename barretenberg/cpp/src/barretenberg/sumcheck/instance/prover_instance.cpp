@@ -43,20 +43,24 @@ void ProverInstance_<Flavor>::construct_databus_polynomials(Circuit& circuit)
 {
     auto& public_calldata = proving_key.polynomials.calldata;
     auto& calldata_read_counts = proving_key.polynomials.calldata_read_counts;
+    auto& calldata_read_tags = proving_key.polynomials.calldata_read_tags;
     auto& public_return_data = proving_key.polynomials.return_data;
     auto& return_data_read_counts = proving_key.polynomials.return_data_read_counts;
+    auto& return_data_read_tags = proving_key.polynomials.return_data_read_tags;
 
     auto calldata = circuit.get_calldata();
     auto return_data = circuit.get_return_data();
 
     // Note: We do not utilize a zero row for databus columns
     for (size_t idx = 0; idx < calldata.size(); ++idx) {
-        public_calldata[idx] = circuit.get_variable(calldata[idx]);
-        calldata_read_counts[idx] = calldata.get_read_count(idx);
+        public_calldata[idx] = circuit.get_variable(calldata[idx]);      // calldata values
+        calldata_read_counts[idx] = calldata.get_read_count(idx);        // read counts
+        calldata_read_tags[idx] = calldata_read_counts[idx] > 0 ? 1 : 0; // has row been read or not
     }
     for (size_t idx = 0; idx < return_data.size(); ++idx) {
-        public_return_data[idx] = circuit.get_variable(return_data[idx]);
-        return_data_read_counts[idx] = return_data.get_read_count(idx);
+        public_return_data[idx] = circuit.get_variable(return_data[idx]);      // return data values
+        return_data_read_counts[idx] = return_data.get_read_count(idx);        // read counts
+        return_data_read_tags[idx] = return_data_read_counts[idx] > 0 ? 1 : 0; // has row been read or not
     }
 
     auto& databus_id = proving_key.polynomials.databus_id;

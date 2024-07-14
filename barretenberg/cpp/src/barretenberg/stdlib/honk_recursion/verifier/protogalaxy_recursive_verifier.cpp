@@ -35,22 +35,16 @@ void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::receive_and_finalise_inst
     witness_commitments.w_o = transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.w_o);
 
     if constexpr (IsGoblinFlavor<Flavor>) {
-        witness_commitments.ecc_op_wire_1 =
-            transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.ecc_op_wire_1);
-        witness_commitments.ecc_op_wire_2 =
-            transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.ecc_op_wire_2);
-        witness_commitments.ecc_op_wire_3 =
-            transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.ecc_op_wire_3);
-        witness_commitments.ecc_op_wire_4 =
-            transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.ecc_op_wire_4);
-        witness_commitments.calldata =
-            transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.calldata);
-        witness_commitments.calldata_read_counts =
-            transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.calldata_read_counts);
-        witness_commitments.return_data =
-            transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.return_data);
-        witness_commitments.return_data_read_counts = transcript->template receive_from_prover<Commitment>(
-            domain_separator + "_" + labels.return_data_read_counts);
+        // Receive ECC op wire commitments
+        for (auto [commitment, label] : zip_view(witness_commitments.get_ecc_op_wires(), labels.get_ecc_op_wires())) {
+            commitment = transcript->template receive_from_prover<Commitment>(domain_separator + "_" + label);
+        }
+
+        // Receive DataBus related polynomial commitments
+        for (auto [commitment, label] :
+             zip_view(witness_commitments.get_databus_entities(), labels.get_databus_entities())) {
+            commitment = transcript->template receive_from_prover<Commitment>(domain_separator + "_" + label);
+        }
     }
 
     // Get eta challenges

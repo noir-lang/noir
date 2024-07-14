@@ -137,3 +137,46 @@ TEST(Databus, BadCopyFailure)
     // Since the output data is not a copy of the input, the checker should fail
     EXPECT_FALSE(CircuitChecker::check(builder));
 }
+
+/**
+ * @brief Check that multiple reads from the same index results in a valid circuit
+ *
+ */
+TEST(Databus, DuplicateRead)
+{
+    Builder builder;
+    databus_ct databus;
+
+    // Define some arbitrary bus data
+    std::array<bb::fr, 3> raw_calldata_values = { 5, 1, 2 };
+    std::array<bb::fr, 3> raw_return_data_values = { 25, 6, 3 };
+
+    // Populate the calldata in the databus
+    std::vector<field_ct> calldata_values;
+    for (auto& value : raw_calldata_values) {
+        calldata_values.emplace_back(witness_ct(&builder, value));
+    }
+    databus.calldata.set_values(calldata_values);
+
+    // Populate the return data in the databus
+    std::vector<field_ct> return_data_values;
+    for (auto& value : raw_return_data_values) {
+        return_data_values.emplace_back(witness_ct(&builder, value));
+    }
+    databus.return_data.set_values(return_data_values);
+
+    // Perform some arbitrary reads from both calldata and return data with some repeated indices
+    field_ct idx_1(witness_ct(&builder, 1));
+    field_ct idx_2(witness_ct(&builder, 2));
+
+    databus.calldata[idx_1];
+    databus.calldata[idx_1];
+    databus.calldata[idx_1];
+    databus.calldata[idx_2];
+
+    databus.return_data[idx_2];
+    databus.return_data[idx_2];
+    databus.return_data[idx_1];
+
+    EXPECT_TRUE(CircuitChecker::check(builder));
+}

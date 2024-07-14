@@ -39,12 +39,12 @@ class MegaFlavor {
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often
     // need containers of this size to hold related data, so we choose a name more agnostic than `NUM_POLYNOMIALS`.
-    static constexpr size_t NUM_ALL_ENTITIES = 57;
+    static constexpr size_t NUM_ALL_ENTITIES = 59;
     // The number of polynomials precomputed to describe a circuit and to aid a prover in constructing a satisfying
     // assignment of witnesses. We again choose a neutral name.
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 30;
     // The total number of witness entities not including shifts.
-    static constexpr size_t NUM_WITNESS_ENTITIES = 18;
+    static constexpr size_t NUM_WITNESS_ENTITIES = 20;
     // Total number of folded polynomials, which is just all polynomials except the shifts
     static constexpr size_t NUM_FOLDED_ENTITIES = NUM_PRECOMPUTED_ENTITIES + NUM_WITNESS_ENTITIES;
 
@@ -186,10 +186,12 @@ class MegaFlavor {
                               ecc_op_wire_4,           // column 11
                               calldata,                // column 12
                               calldata_read_counts,    // column 13
-                              calldata_inverses,       // column 14
-                              return_data,             // column 15
-                              return_data_read_counts, // column 16
-                              return_data_inverses);   // column 17
+                              calldata_read_tags,      // column 14
+                              calldata_inverses,       // column 15
+                              return_data,             // column 16
+                              return_data_read_counts, // column 17
+                              return_data_read_tags,   // column 18
+                              return_data_inverses);   // column 19
     };
 
     /**
@@ -207,6 +209,11 @@ class MegaFlavor {
         {
             return RefArray{ this->ecc_op_wire_1, this->ecc_op_wire_2, this->ecc_op_wire_3, this->ecc_op_wire_4 };
         }
+        auto get_databus_entities() // Excludes the derived inverse polynomials
+        {
+            return RefArray{ this->calldata,    this->calldata_read_counts,    this->calldata_read_tags,
+                             this->return_data, this->return_data_read_counts, this->return_data_read_tags };
+        }
 
         MSGPACK_FIELDS(this->w_l,
                        this->w_r,
@@ -222,9 +229,11 @@ class MegaFlavor {
                        this->ecc_op_wire_4,
                        this->calldata,
                        this->calldata_read_counts,
+                       this->calldata_read_tags,
                        this->calldata_inverses,
                        this->return_data,
                        this->return_data_read_counts,
+                       this->return_data_read_tags,
                        this->return_data_inverses);
     };
 
@@ -264,10 +273,6 @@ class MegaFlavor {
         auto get_sigmas() { return RefArray{ this->sigma_1, this->sigma_2, this->sigma_3, this->sigma_4 }; };
         auto get_ids() { return RefArray{ this->id_1, this->id_2, this->id_3, this->id_4 }; };
         auto get_tables() { return RefArray{ this->table_1, this->table_2, this->table_3, this->table_4 }; };
-        auto get_ecc_op_wires()
-        {
-            return RefArray{ this->ecc_op_wire_1, this->ecc_op_wire_2, this->ecc_op_wire_3, this->ecc_op_wire_4 };
-        };
         // Gemini-specific getters.
         auto get_unshifted()
         {
@@ -622,9 +627,11 @@ class MegaFlavor {
             ecc_op_wire_4 = "ECC_OP_WIRE_4";
             calldata = "CALLDATA";
             calldata_read_counts = "CALLDATA_READ_COUNTS";
+            calldata_read_tags = "CALLDATA_READ_TAGS";
             calldata_inverses = "CALLDATA_INVERSES";
             return_data = "RETURN_DATA";
             return_data_read_counts = "RETURN_DATA_READ_COUNTS";
+            return_data_read_tags = "RETURN_DATA_READ_TAGS";
             return_data_inverses = "RETURN_DATA_INVERSES";
 
             q_c = "Q_C";
@@ -715,9 +722,11 @@ class MegaFlavor {
                 this->ecc_op_wire_4 = commitments.ecc_op_wire_4;
                 this->calldata = commitments.calldata;
                 this->calldata_read_counts = commitments.calldata_read_counts;
+                this->calldata_read_tags = commitments.calldata_read_tags;
                 this->calldata_inverses = commitments.calldata_inverses;
                 this->return_data = commitments.return_data;
                 this->return_data_read_counts = commitments.return_data_read_counts;
+                this->return_data_read_tags = commitments.return_data_read_tags;
                 this->return_data_inverses = commitments.return_data_inverses;
             }
         }
@@ -745,9 +754,11 @@ class MegaFlavor {
         Commitment ecc_op_wire_4_comm;
         Commitment calldata_comm;
         Commitment calldata_read_counts_comm;
+        Commitment calldata_read_tags_comm;
         Commitment calldata_inverses_comm;
         Commitment return_data_comm;
         Commitment return_data_read_counts_comm;
+        Commitment return_data_read_tags_comm;
         Commitment return_data_inverses_comm;
         Commitment w_4_comm;
         Commitment z_perm_comm;
@@ -801,9 +812,11 @@ class MegaFlavor {
             ecc_op_wire_4_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
             calldata_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
             calldata_read_counts_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            calldata_read_tags_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
             calldata_inverses_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
             return_data_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
             return_data_read_counts_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            return_data_read_tags_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
             return_data_inverses_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
             lookup_read_counts_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
             lookup_read_tags_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
@@ -842,9 +855,11 @@ class MegaFlavor {
             serialize_to_buffer(ecc_op_wire_4_comm, proof_data);
             serialize_to_buffer(calldata_comm, proof_data);
             serialize_to_buffer(calldata_read_counts_comm, proof_data);
+            serialize_to_buffer(calldata_read_tags_comm, proof_data);
             serialize_to_buffer(calldata_inverses_comm, proof_data);
             serialize_to_buffer(return_data_comm, proof_data);
             serialize_to_buffer(return_data_read_counts_comm, proof_data);
+            serialize_to_buffer(return_data_read_tags_comm, proof_data);
             serialize_to_buffer(return_data_inverses_comm, proof_data);
             serialize_to_buffer(lookup_read_counts_comm, proof_data);
             serialize_to_buffer(lookup_read_tags_comm, proof_data);
