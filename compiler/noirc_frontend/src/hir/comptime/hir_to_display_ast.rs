@@ -423,6 +423,6 @@ impl HirBlockExpression {
     fn to_display_ast(&self, interner: &NodeInterner) -> BlockExpression {
         let statements =
             vecmap(self.statements.clone(), |statement| statement.to_display_ast(interner));
-        BlockExpression { statements }
+        BlockExpression { statements, is_unsafe: self.is_unsafe }
     }
 }
