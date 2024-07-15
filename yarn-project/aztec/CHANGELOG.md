@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.46.6](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.46.5...aztec-package-v0.46.6) (2024-07-15)
+
+
+### Features
+
+* Modular CLI + `aztec test` ([#7426](https://github.com/AztecProtocol/aztec-packages/issues/7426)) ([cca2a9b](https://github.com/AztecProtocol/aztec-packages/commit/cca2a9b393f781a2518e7fb6cbb376e4ae6fbd4e))
+
 ## [0.46.5](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.46.4...aztec-package-v0.46.5) (2024-07-14)
 
 

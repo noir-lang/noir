@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.46.6](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.46.5...barretenberg-v0.46.6) (2024-07-15)
+
+
+### Features
+
+* Modular CLI + `aztec test` ([#7426](https://github.com/AztecProtocol/aztec-packages/issues/7426)) ([cca2a9b](https://github.com/AztecProtocol/aztec-packages/commit/cca2a9b393f781a2518e7fb6cbb376e4ae6fbd4e))
+
+
+### Miscellaneous
+
+* **ci:** Recover from earthly bug with --no-cache, build images from registry ([#7462](https://github.com/AztecProtocol/aztec-packages/issues/7462)) ([09299e3](https://github.com/AztecProtocol/aztec-packages/commit/09299e34082047ec0e84ee3229381ff25e3b85e5))
+
 ## [0.46.5](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.46.4...barretenberg-v0.46.5) (2024-07-14)
 
 

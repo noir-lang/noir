@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.46.6](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.46.5...aztec-packages-v0.46.6) (2024-07-15)
+
+
+### Features
+
+* Modular CLI + `aztec test` ([#7426](https://github.com/AztecProtocol/aztec-packages/issues/7426)) ([cca2a9b](https://github.com/AztecProtocol/aztec-packages/commit/cca2a9b393f781a2518e7fb6cbb376e4ae6fbd4e))
+* Pass through unencrypted logs to base rollup ([#7457](https://github.com/AztecProtocol/aztec-packages/issues/7457)) ([0381502](https://github.com/AztecProtocol/aztec-packages/commit/03815025a1422e9fd70981ab38cc19d0ee415d80))
+
+
+### Bug Fixes
+
+* Add trailing extra arguments for backend in gates_flamegraph ([#7472](https://github.com/AztecProtocol/aztec-packages/issues/7472)) ([66d257b](https://github.com/AztecProtocol/aztec-packages/commit/66d257bdb9121a5663759da5a6363ab1e7cfce07))
+* Aws secrets in docs CI ([#7470](https://github.com/AztecProtocol/aztec-packages/issues/7470)) ([3b2acc7](https://github.com/AztecProtocol/aztec-packages/commit/3b2acc75dd8efbd938cad1d2e8a7e88a41d83afd))
+
+
+### Miscellaneous
+
+* **ci:** Recover from earthly bug with --no-cache, build images from registry ([#7462](https://github.com/AztecProtocol/aztec-packages/issues/7462)) ([09299e3](https://github.com/AztecProtocol/aztec-packages/commit/09299e34082047ec0e84ee3229381ff25e3b85e5))
+* Minor link fix ([#7469](https://github.com/AztecProtocol/aztec-packages/issues/7469)) ([fcbc399](https://github.com/AztecProtocol/aztec-packages/commit/fcbc399bb9042d3c88f31bfda14ed3b222a0f1f8))
+
+
+### Documentation
+
+* Documenting fields ([#7468](https://github.com/AztecProtocol/aztec-packages/issues/7468)) ([05a11a1](https://github.com/AztecProtocol/aztec-packages/commit/05a11a1c0d2600a7dc561af9c336fab61aaead1a))
+
 ## [0.46.5](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.46.4...aztec-packages-v0.46.5) (2024-07-14)
 
 
