@@ -6,7 +6,7 @@ use lsp_types::{
     InlayHint, InlayHintKind, InlayHintLabel, InlayHintLabelPart, InlayHintParams, Position,
     TextDocumentPositionParams,
 };
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 use noirc_frontend::{
     self,
     ast::{
@@ -38,7 +38,26 @@ pub(crate) fn on_inlay_hint_request(
             let source = file.source();
             let (parsed_moduled, _errors) = noirc_frontend::parse_program(source);
 
-            let mut collector = InlayHintCollector::new(args, file_id);
+            // The version of codespan_lsp is pretty old and relies on an old version of lsp-types.
+            // We can't downgrade because we need some types from the latest version, and there's
+            // no newer version of codespan_lsp... but we just need this type here, so we create
+            // a copy of a Range to get an older type.
+            let range = lsp_types_0_88_0::Range {
+                start: lsp_types_0_88_0::Position {
+                    line: params.range.start.line,
+                    character: params.range.start.character,
+                },
+                end: lsp_types_0_88_0::Position {
+                    line: params.range.end.line,
+                    character: params.range.end.character,
+                },
+            };
+
+            let span = codespan_lsp::range_to_byte_span(args.files, file_id, &range)
+                .ok()
+                .map(|range| Span::from(range.start as u32..range.end as u32));
+
+            let mut collector = InlayHintCollector::new(args, file_id, span);
             collector.collect_in_parsed_module(&parsed_moduled);
             collector.inlay_hints
         })
@@ -49,12 +68,17 @@ pub(crate) fn on_inlay_hint_request(
 pub(crate) struct InlayHintCollector<'a> {
     args: ProcessRequestCallbackArgs<'a>,
     file_id: FileId,
-    pub(crate) inlay_hints: Vec<InlayHint>,
+    span: Option<Span>,
+    inlay_hints: Vec<InlayHint>,
 }
 
 impl<'a> InlayHintCollector<'a> {
-    fn new(args: ProcessRequestCallbackArgs<'a>, file_id: FileId) -> InlayHintCollector<'a> {
-        InlayHintCollector { args, file_id, inlay_hints: Vec::new() }
+    fn new(
+        args: ProcessRequestCallbackArgs<'a>,
+        file_id: FileId,
+        span: Option<Span>,
+    ) -> InlayHintCollector<'a> {
+        InlayHintCollector { args, file_id, span, inlay_hints: Vec::new() }
     }
     fn collect_in_parsed_module(&mut self, parsed_module: &ParsedModule) {
         for item in &parsed_module.items {
@@ -63,6 +87,10 @@ impl<'a> InlayHintCollector<'a> {
     }
 
     fn collect_in_item(&mut self, item: &Item) {
+        if !self.intersects_span(item.span) {
+            return;
+        }
+
         match &item.kind {
             ItemKind::Function(noir_function) => self.collect_in_noir_function(noir_function),
             ItemKind::Trait(noir_trait) => {
@@ -139,6 +167,10 @@ impl<'a> InlayHintCollector<'a> {
     }
 
     fn collect_in_statement(&mut self, statement: &Statement) {
+        if !self.intersects_span(statement.span) {
+            return;
+        }
+
         match &statement.kind {
             StatementKind::Let(let_statement) => self.collect_in_let_statement(let_statement),
             StatementKind::Constrain(constrain_statement) => {
@@ -161,6 +193,10 @@ impl<'a> InlayHintCollector<'a> {
     }
 
     fn collect_in_expression(&mut self, expression: &Expression) {
+        if !self.intersects_span(expression.span) {
+            return;
+        }
+
         match &expression.kind {
             ExpressionKind::Block(block_expression) => {
                 self.collect_in_block_expression(block_expression);
@@ -429,6 +465,14 @@ impl<'a> InlayHintCollector<'a> {
             location: to_lsp_location(self.args.files, location.file, location.span),
             tooltip: None,
             command: None,
+        }
+    }
+
+    fn intersects_span(&self, other_span: Span) -> bool {
+        if let Some(span) = self.span {
+            span.intersects(&other_span)
+        } else {
+            true
         }
     }
 }
