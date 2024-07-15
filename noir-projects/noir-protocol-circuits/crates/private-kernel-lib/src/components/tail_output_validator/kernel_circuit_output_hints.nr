@@ -7,10 +7,7 @@ use dep::types::{
     MAX_ENCRYPTED_LOGS_PER_TX, MAX_L2_TO_L1_MSGS_PER_TX, MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX,
     MAX_NOTE_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX
 },
-    hash::{
-    silo_encrypted_log_hash, silo_l2_to_l1_message, silo_note_hash, silo_nullifier,
-    silo_unencrypted_log_hash
-},
+    hash::{silo_encrypted_log_hash, silo_l2_to_l1_message, silo_note_hash, silo_nullifier},
     messaging::l2_to_l1_message::ScopedL2ToL1Message, traits::{Empty, is_empty},
     utils::arrays::{OrderHint, sort_by_counters_asc, sort_get_order_hints_asc}
 };
@@ -34,8 +31,7 @@ struct Hints {
     sorted_siloed_encrypted_log_hashes: [LogHash; MAX_ENCRYPTED_LOGS_PER_TX],
     sorted_encrypted_log_hash_hints: [OrderHint; MAX_ENCRYPTED_LOGS_PER_TX],
     // Unencrypted log hashes.
-    siloed_unencrypted_log_hashes: [LogHash; MAX_UNENCRYPTED_LOGS_PER_TX],
-    sorted_siloed_unencrypted_log_hashes: [LogHash; MAX_UNENCRYPTED_LOGS_PER_TX],
+    sorted_unencrypted_log_hashes: [ScopedLogHash; MAX_UNENCRYPTED_LOGS_PER_TX],
     sorted_unencrypted_log_hash_hints: [OrderHint; MAX_UNENCRYPTED_LOGS_PER_TX],
 }
 
@@ -83,12 +79,7 @@ unconstrained pub fn generate_kernel_circuit_output_hints(previous_kernel: Priva
     let sorted_encrypted_log_hash_hints = sort_get_order_hints_asc(previous_kernel.end.encrypted_logs_hashes);
 
     // unencrypted_logs
-    let mut siloed_log_hashes = previous_kernel.end.unencrypted_logs_hashes;
-    for i in 0..siloed_log_hashes.len() {
-        siloed_log_hashes[i].log_hash.value = silo_unencrypted_log_hash(previous_kernel.end.unencrypted_logs_hashes[i]);
-    }
-    let sorted_siloed_unencrypted_log_hashes = sort_by_counters_asc(siloed_log_hashes).map(|h: ScopedLogHash| h.inner());
-    let siloed_unencrypted_log_hashes = siloed_log_hashes.map(|h: ScopedLogHash| h.inner());
+    let sorted_unencrypted_log_hashes = sort_by_counters_asc(previous_kernel.end.unencrypted_logs_hashes);
     let sorted_unencrypted_log_hash_hints = sort_get_order_hints_asc(previous_kernel.end.unencrypted_logs_hashes);
 
     Hints {
@@ -104,8 +95,7 @@ unconstrained pub fn generate_kernel_circuit_output_hints(previous_kernel: Priva
         sorted_note_encrypted_log_hash_hints,
         siloed_encrypted_log_hashes,
         sorted_encrypted_log_hash_hints,
-        siloed_unencrypted_log_hashes,
-        sorted_siloed_unencrypted_log_hashes,
+        sorted_unencrypted_log_hashes,
         sorted_unencrypted_log_hash_hints
     }
 }

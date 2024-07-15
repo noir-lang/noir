@@ -10,10 +10,7 @@ use dep::types::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NOTE_HASHES_PER_TX,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL
 },
-    hash::{
-    silo_encrypted_log_hash, silo_l2_to_l1_message, silo_note_hash, silo_nullifier,
-    silo_unencrypted_log_hash
-},
+    hash::{silo_encrypted_log_hash, silo_l2_to_l1_message, silo_note_hash, silo_nullifier},
     traits::is_empty, transaction::tx_request::TxRequest,
     utils::arrays::{array_length, array_to_bounded_vec, sort_by_counters_asc, sort_by_counters_desc}
 };
@@ -293,7 +290,6 @@ impl PrivateKernelCircuitPublicInputsComposer {
         self.silo_nullifiers();
         self.silo_l2_to_l1_messages();
         self.silo_encrypted_logs();
-        self.silo_unencrypted_logs();
     }
 
     fn silo_note_hashes(&mut self) {
@@ -331,13 +327,6 @@ impl PrivateKernelCircuitPublicInputsComposer {
         let logs = self.public_inputs.end.encrypted_logs_hashes.storage;
         for i in 0..logs.len() {
             self.public_inputs.end.encrypted_logs_hashes.storage[i].log_hash.value = silo_encrypted_log_hash(logs[i]);
-        }
-    }
-
-    fn silo_unencrypted_logs(&mut self) {
-        let logs = self.public_inputs.end.unencrypted_logs_hashes.storage;
-        for i in 0..logs.len() {
-            self.public_inputs.end.unencrypted_logs_hashes.storage[i].log_hash.value = silo_unencrypted_log_hash(logs[i]);
         }
     }
 }

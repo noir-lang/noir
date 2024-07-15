@@ -4,7 +4,7 @@ use dep::types::{
     kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder,
     public_kernel_data::PublicKernelData, note_hash::NoteHash, nullifier::Nullifier,
     public_call_data::PublicCallData, public_data_read::PublicDataRead,
-    public_data_update_request::PublicDataUpdateRequest, log_hash::LogHash,
+    public_data_update_request::PublicDataUpdateRequest, log_hash::{ScopedLogHash, LogHash},
     global_variables::GlobalVariables, combined_constant_data::CombinedConstantData
 },
     address::AztecAddress,
@@ -15,10 +15,7 @@ use dep::types::{
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
     MAX_PUBLIC_DATA_READS_PER_CALL, MAX_UNENCRYPTED_LOGS_PER_CALL
 },
-    hash::{
-    compute_siloed_note_hash, compute_siloed_nullifier, compute_l2_to_l1_hash,
-    compute_siloed_unencrypted_log_hash
-},
+    hash::{compute_siloed_note_hash, compute_siloed_nullifier, compute_l2_to_l1_hash},
     utils::{arrays::{array_length, array_to_bounded_vec}}, traits::{is_empty, is_empty_array}
 };
 
@@ -514,12 +511,11 @@ pub fn propagate_new_unencrypted_logs(public_call: PublicCallData, public_inputs
     // new unencrypted logs
     let new_logs = public_call.call_stack_item.public_inputs.unencrypted_logs_hashes;
     let storage_contract_address = public_call.call_stack_item.public_inputs.call_context.storage_contract_address;
-    let mut new_logs_to_insert : BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_CALL> = BoundedVec::new();
+    let mut new_logs_to_insert : BoundedVec<ScopedLogHash, MAX_UNENCRYPTED_LOGS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_UNENCRYPTED_LOGS_PER_CALL {
         let new_log = new_logs[i];
         if new_log.value != 0 {
-            let siloed_new_log = compute_siloed_unencrypted_log_hash(storage_contract_address, new_log.value);
-            new_logs_to_insert.push(LogHash { value: siloed_new_log, counter: new_log.counter, length: new_log.length });
+            new_logs_to_insert.push(ScopedLogHash { log_hash: new_log, contract_address: storage_contract_address });
         }
     }
     public_inputs.end.unencrypted_logs_hashes.extend_from_bounded_vec(new_logs_to_insert);
@@ -532,12 +528,11 @@ pub fn propagate_new_unencrypted_logs_non_revertible(
     // new unencrypted logs
     let new_logs = public_call.call_stack_item.public_inputs.unencrypted_logs_hashes;
     let storage_contract_address = public_call.call_stack_item.public_inputs.call_context.storage_contract_address;
-    let mut new_logs_to_insert : BoundedVec<LogHash, MAX_UNENCRYPTED_LOGS_PER_CALL> = BoundedVec::new();
+    let mut new_logs_to_insert : BoundedVec<ScopedLogHash, MAX_UNENCRYPTED_LOGS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_UNENCRYPTED_LOGS_PER_CALL {
         let new_log = new_logs[i];
         if new_log.value != 0 {
-            let siloed_new_log = compute_siloed_unencrypted_log_hash(storage_contract_address, new_log.value);
-            new_logs_to_insert.push(LogHash { value: siloed_new_log, counter: new_log.counter, length: new_log.length });
+            new_logs_to_insert.push(ScopedLogHash { log_hash: new_log, contract_address: storage_contract_address });
         }
     }
     public_inputs.end_non_revertible.unencrypted_logs_hashes.extend_from_bounded_vec(new_logs_to_insert);

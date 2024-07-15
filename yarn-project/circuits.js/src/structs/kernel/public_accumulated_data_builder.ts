@@ -13,7 +13,7 @@ import {
 } from '../../constants.gen.js';
 import { CallRequest } from '../call_request.js';
 import { Gas } from '../gas.js';
-import { LogHash } from '../log_hash.js';
+import { LogHash, ScopedLogHash } from '../log_hash.js';
 import { NoteHash } from '../note_hash.js';
 import { Nullifier } from '../nullifier.js';
 import { PublicDataUpdateRequest } from '../public_data_update_request.js';
@@ -31,7 +31,7 @@ export class PublicAccumulatedDataBuilder {
   private l2ToL1Msgs: Fr[] = [];
   private noteEncryptedLogsHashes: LogHash[] = [];
   private encryptedLogsHashes: LogHash[] = [];
-  private unencryptedLogsHashes: LogHash[] = [];
+  private unencryptedLogsHashes: ScopedLogHash[] = [];
   private publicDataUpdateRequests: PublicDataUpdateRequest[] = [];
   private publicCallStack: CallRequest[] = [];
   private gasUsed: Gas = Gas.empty();
@@ -86,12 +86,12 @@ export class PublicAccumulatedDataBuilder {
     return this;
   }
 
-  pushUnencryptedLogsHash(unencryptedLogsHash: LogHash) {
+  pushUnencryptedLogsHash(unencryptedLogsHash: ScopedLogHash) {
     this.unencryptedLogsHashes.push(unencryptedLogsHash);
     return this;
   }
 
-  withUnencryptedLogsHashes(unencryptedLogsHashes: LogHash[]) {
+  withUnencryptedLogsHashes(unencryptedLogsHashes: ScopedLogHash[]) {
     this.unencryptedLogsHashes = unencryptedLogsHashes;
     return this;
   }
@@ -128,7 +128,7 @@ export class PublicAccumulatedDataBuilder {
       padArrayEnd(this.l2ToL1Msgs, Fr.ZERO, MAX_L2_TO_L1_MSGS_PER_TX),
       padArrayEnd(this.noteEncryptedLogsHashes, LogHash.empty(), MAX_NOTE_ENCRYPTED_LOGS_PER_TX),
       padArrayEnd(this.encryptedLogsHashes, LogHash.empty(), MAX_ENCRYPTED_LOGS_PER_TX),
-      padArrayEnd(this.unencryptedLogsHashes, LogHash.empty(), MAX_UNENCRYPTED_LOGS_PER_TX),
+      padArrayEnd(this.unencryptedLogsHashes, ScopedLogHash.empty(), MAX_UNENCRYPTED_LOGS_PER_TX),
       padArrayEnd(
         this.publicDataUpdateRequests,
         PublicDataUpdateRequest.empty(),

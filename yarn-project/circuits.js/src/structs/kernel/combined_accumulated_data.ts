@@ -10,8 +10,10 @@ import {
   MAX_NOTE_HASHES_PER_TX,
   MAX_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  MAX_UNENCRYPTED_LOGS_PER_TX,
 } from '../../constants.gen.js';
 import { Gas } from '../gas.js';
+import { ScopedLogHash } from '../log_hash.js';
 import { PublicDataUpdateRequest } from '../public_data_update_request.js';
 
 /**
@@ -45,7 +47,7 @@ export class CombinedAccumulatedData {
      * Accumulated unencrypted logs hash from all the previous kernel iterations.
      * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public unencryptedLogsHash: Fr,
+    public unencryptedLogsHashes: Tuple<ScopedLogHash, typeof MAX_UNENCRYPTED_LOGS_PER_TX>,
     /**
      * Total accumulated length of the encrypted note log preimages emitted in all the previous kernel iterations
      */
@@ -74,7 +76,7 @@ export class CombinedAccumulatedData {
       arraySerializedSizeOfNonEmpty(this.l2ToL1Msgs) +
       this.noteEncryptedLogsHash.size +
       this.encryptedLogsHash.size +
-      this.unencryptedLogsHash.size +
+      arraySerializedSizeOfNonEmpty(this.unencryptedLogsHashes) +
       this.noteEncryptedLogPreimagesLength.size +
       this.encryptedLogPreimagesLength.size +
       this.unencryptedLogPreimagesLength.size +
@@ -90,7 +92,7 @@ export class CombinedAccumulatedData {
       fields.l2ToL1Msgs,
       fields.noteEncryptedLogsHash,
       fields.encryptedLogsHash,
-      fields.unencryptedLogsHash,
+      fields.unencryptedLogsHashes,
       fields.noteEncryptedLogPreimagesLength,
       fields.encryptedLogPreimagesLength,
       fields.unencryptedLogPreimagesLength,
@@ -124,7 +126,7 @@ export class CombinedAccumulatedData {
       reader.readArray(MAX_L2_TO_L1_MSGS_PER_TX, Fr),
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
-      Fr.fromBuffer(reader),
+      reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, ScopedLogHash),
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
@@ -149,7 +151,7 @@ export class CombinedAccumulatedData {
       makeTuple(MAX_L2_TO_L1_MSGS_PER_TX, Fr.zero),
       Fr.zero(),
       Fr.zero(),
-      Fr.zero(),
+      makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, ScopedLogHash.empty),
       Fr.zero(),
       Fr.zero(),
       Fr.zero(),
@@ -174,7 +176,10 @@ export class CombinedAccumulatedData {
         .join(', ')}],
       noteEncryptedLogsHash: ${this.noteEncryptedLogsHash.toString()},
       encryptedLogsHash: ${this.encryptedLogsHash.toString()},
-      unencryptedLogsHash: ${this.unencryptedLogsHash.toString()},
+      unencryptedLogsHashes: : [${this.unencryptedLogsHashes
+        .filter(x => !x.isEmpty())
+        .map(x => inspect(x))
+        .join(', ')}],
       noteEncryptedLogPreimagesLength: ${this.noteEncryptedLogPreimagesLength.toString()},
       encryptedLogPreimagesLength: ${this.encryptedLogPreimagesLength.toString()},
       unencryptedLogPreimagesLength: ${this.unencryptedLogPreimagesLength.toString()},

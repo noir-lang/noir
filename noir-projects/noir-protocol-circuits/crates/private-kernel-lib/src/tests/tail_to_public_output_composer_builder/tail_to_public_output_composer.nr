@@ -32,7 +32,6 @@ fn tail_to_public_output_composer_succeeds() {
     siloed_data_builder.add_siloed_encrypted_log_hash(2001, 2);
 
     builder.previous_kernel.add_unencrypted_log_hash(3001, 51);
-    siloed_data_builder.add_siloed_unencrypted_log_hash(3001, 51);
 
     builder.previous_kernel.append_public_call_requests(2);
 
@@ -56,7 +55,6 @@ fn tail_to_public_output_composer_succeeds() {
     siloed_data_builder.add_siloed_encrypted_log_hash(2003, 24);
 
     builder.previous_kernel.add_unencrypted_log_hash(3002, 4);
-    siloed_data_builder.add_siloed_unencrypted_log_hash(3002, 4);
 
     builder.previous_kernel.append_public_call_requests(3);
 
@@ -112,12 +110,12 @@ fn tail_to_public_output_composer_succeeds() {
     assert_array_eq(output.end.encrypted_logs_hashes, [siloed[1], siloed[2]]);
 
     // unencrypted_logs_hashes
-    let siloed = siloed_data.unencrypted_logs_hashes;
+    let unsiloed = unsiloed_data.unencrypted_logs_hashes;
     assert_array_eq(
         output.end_non_revertible.unencrypted_logs_hashes,
-        [siloed[0]]
+        [unsiloed[0]]
     );
-    assert_array_eq(output.end.unencrypted_logs_hashes, [siloed[1]]);
+    assert_array_eq(output.end.unencrypted_logs_hashes, [unsiloed[1]]);
 
     // public_call_stack
     let unsiloed = unsiloed_data.public_call_stack;

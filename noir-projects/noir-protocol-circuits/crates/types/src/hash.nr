@@ -113,7 +113,7 @@ pub fn silo_encrypted_log_hash(log_hash: ScopedEncryptedLogHash) -> Field {
     }
 }
 
-pub fn compute_siloed_unencrypted_log_hash(address: AztecAddress, log_hash: Field) -> Field {
+fn compute_siloed_unencrypted_log_hash(address: AztecAddress, log_hash: Field) -> Field {
     accumulate_sha256([address.to_field(), log_hash])
 }
 

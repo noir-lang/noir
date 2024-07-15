@@ -1,16 +1,17 @@
 use crate::abis::base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInputs;
 use crate::abis::previous_rollup_data::PreviousRollupData;
 use dep::types::{
-    hash::accumulate_sha256, merkle_tree::VariableMerkleTree,
+    hash::{accumulate_sha256, silo_unencrypted_log_hash, compute_tx_logs_hash},
+    merkle_tree::VariableMerkleTree,
     constants::{
     MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX, MAX_L2_TO_L1_MSGS_PER_TX,
     MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX
 },
     utils::{uint256::U256, arrays::array_length},
     abis::{
     append_only_tree_snapshot::AppendOnlyTreeSnapshot, accumulated_data::CombinedAccumulatedData,
-    public_data_update_request::PublicDataUpdateRequest
+    public_data_update_request::PublicDataUpdateRequest, log_hash::{LogHash, ScopedLogHash}
 }
 };
 
@@ -111,6 +112,19 @@ pub fn compute_txs_effects_hash(previous_rollup_data: [PreviousRollupData; 2]) -
     )
 }
 
+fn scope_and_hash_unencrypted_logs(unencrypted_logs_hashes: [ScopedLogHash; MAX_UNENCRYPTED_LOGS_PER_TX]) -> Field {
+    let scoped_logs = unencrypted_logs_hashes.map(
+        |log: ScopedLogHash| {
+        LogHash {
+            value: silo_unencrypted_log_hash(log),
+            counter: log.log_hash.counter,
+            length: log.log_hash.length
+        }
+    }
+    );
+    compute_tx_logs_hash(scoped_logs)
+}
+
 // Tx effects hash consists of
 // 1 field for revert code
 // 1 field for transaction fee
@@ -149,7 +163,7 @@ pub fn compute_tx_effects_hash(
     let unencrypted_logs_length = combined.unencrypted_log_preimages_length;
     let note_encrypted_logs_hash = combined.note_encrypted_logs_hash;
     let encrypted_logs_hash = combined.encrypted_logs_hash;
-    let unencrypted_logs_hash = combined.unencrypted_logs_hash;
+    let unencrypted_logs_hash = scope_and_hash_unencrypted_logs(combined.unencrypted_logs_hashes);
 
     let mut offset = 0;
 

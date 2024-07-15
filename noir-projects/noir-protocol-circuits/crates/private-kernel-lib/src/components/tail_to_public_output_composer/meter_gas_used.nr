@@ -1,7 +1,7 @@
 use dep::types::{
     abis::{
     accumulated_data::{public_accumulated_data_builder::PublicAccumulatedDataBuilder}, gas::Gas,
-    log_hash::LogHash
+    log_hash::{LogHash, ScopedLogHash}
 },
     constants::{
     DA_BYTES_PER_FIELD, DA_GAS_PER_BYTE, FIXED_AVM_STARTUP_L2_GAS, L2_GAS_PER_NOTE_HASH,
@@ -29,7 +29,7 @@ fn meter_gas_used(data: PublicAccumulatedDataBuilder) -> Gas {
     metered_da_bytes += encrypted_log_preimages_length as u32;
     metered_l2_gas += encrypted_log_preimages_length as u32 * L2_GAS_PER_LOG_BYTE;
 
-    let unencrypted_log_preimages_length = data.unencrypted_logs_hashes.storage.fold(0, |len, l: LogHash| len + l.length);
+    let unencrypted_log_preimages_length = data.unencrypted_logs_hashes.storage.fold(0, |len, l: ScopedLogHash| len + l.log_hash.length);
     metered_da_bytes += unencrypted_log_preimages_length as u32;
     metered_l2_gas += unencrypted_log_preimages_length as u32 * L2_GAS_PER_LOG_BYTE;
 

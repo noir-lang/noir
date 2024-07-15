@@ -60,13 +60,11 @@ mod tests {
     use dep::types::{
         abis::{
         kernel_circuit_public_inputs::KernelCircuitPublicInputs, max_block_number::MaxBlockNumber,
-        note_hash::{NoteHash, ScopedNoteHash}, nullifier::{Nullifier, ScopedNullifier}, gas::Gas
+        note_hash::{NoteHash, ScopedNoteHash}, nullifier::{Nullifier, ScopedNullifier}, gas::Gas,
+        log_hash::ScopedLogHash
     },
         address::{AztecAddress, EthAddress}, scalar::Scalar,
-        hash::{
-        sha256_to_field, silo_note_hash, silo_nullifier, compute_siloed_encrypted_log_hash,
-        compute_siloed_unencrypted_log_hash
-    },
+        hash::{sha256_to_field, silo_note_hash, silo_nullifier, compute_siloed_encrypted_log_hash},
         tests::fixture_builder::FixtureBuilder, utils::{arrays::array_length},
         traits::{Empty, is_empty}, point::Point
     };
@@ -176,23 +174,9 @@ mod tests {
         let expected_encrypted_logs_hash = sha256_to_field(hash_bytes);
         assert_eq(public_inputs.end.encrypted_logs_hash, expected_encrypted_logs_hash);
 
-        let siloed_unencrypted_logs_hashes = [
-            compute_siloed_unencrypted_log_hash(
-                builder.previous_kernel.storage_contract_address,
-                prev_unencrypted_logs_hash
-            ), compute_siloed_unencrypted_log_hash(
-                builder.previous_kernel.storage_contract_address,
-                unencrypted_logs_hash
-            )
-        ];
-        // noir-fmt:ignore
-        let hash_bytes: [u8; MAX_UNENCRYPTED_LOGS_PER_TX * 32] = siloed_unencrypted_logs_hashes[0]
-            .to_be_bytes(32)
-            .append(siloed_unencrypted_logs_hashes[1].to_be_bytes(32))
-            .append(&[0; MAX_UNENCRYPTED_LOGS_PER_TX * 32 - 64])
-            .as_array();
-        let expected_unencrypted_logs_hash = sha256_to_field(hash_bytes);
-        assert_eq(public_inputs.end.unencrypted_logs_hash, expected_unencrypted_logs_hash);
+        assert_eq(
+            public_inputs.end.unencrypted_logs_hashes, builder.previous_kernel.unencrypted_logs_hashes.storage.map(|log: ScopedLogHash| log.expose_to_public())
+        );
     }
 
     unconstrained fn compute_hash_bytes(

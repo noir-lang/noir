@@ -127,6 +127,7 @@ import {
   RootRollupInputs,
   RootRollupPublicInputs,
   ScopedKeyValidationRequestAndGenerator,
+  ScopedLogHash,
   ScopedReadRequest,
   StateDiffHints,
   StateReference,
@@ -169,6 +170,10 @@ function makeEncryptedLogHash(seed: number) {
 
 function makeNoteLogHash(seed: number) {
   return new NoteLogHash(fr(seed + 3), seed + 1, fr(seed + 2), seed);
+}
+
+function makeScopedLogHash(seed: number) {
+  return new ScopedLogHash(makeLogHash(seed), makeAztecAddress(seed + 3));
 }
 
 function makeNoteHash(seed: number) {
@@ -347,7 +352,7 @@ export function makeCombinedAccumulatedData(seed = 1, full = false): CombinedAcc
     tupleGenerator(MAX_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600, Fr.zero),
     fr(seed + 0x700), // note encrypted logs hash
     fr(seed + 0x800), // encrypted logs hash
-    fr(seed + 0x900), // unencrypted logs hash
+    tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_TX, makeScopedLogHash, seed + 0x900, ScopedLogHash.empty), // unencrypted logs
     fr(seed + 0xa00), // note_encrypted_log_preimages_length
     fr(seed + 0xb00), // encrypted_log_preimages_length
     fr(seed + 0xc00), // unencrypted_log_preimages_length
@@ -379,7 +384,7 @@ export function makePublicAccumulatedData(seed = 1, full = false): PublicAccumul
     tupleGenerator(MAX_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600, Fr.zero),
     tupleGenerator(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, makeLogHash, seed + 0x700, LogHash.empty), // note encrypted logs hashes
     tupleGenerator(MAX_ENCRYPTED_LOGS_PER_TX, makeLogHash, seed + 0x800, LogHash.empty), // encrypted logs hashes
-    tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_TX, makeLogHash, seed + 0x900, LogHash.empty), // unencrypted logs hashes
+    tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_TX, makeScopedLogHash, seed + 0x900, ScopedLogHash.empty), // unencrypted logs hashes
     tupleGenerator(
       MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
       makePublicDataUpdateRequest,
@@ -707,7 +712,7 @@ export function makeCombineHints(seed = 1): CombineHints {
   return CombineHints.from({
     sortedNoteHashes: makeTuple(MAX_NOTE_HASHES_PER_TX, makeNoteHash, seed + 0x100),
     sortedNoteHashesIndexes: makeTuple(MAX_NOTE_HASHES_PER_TX, i => i, seed + 0x200),
-    sortedUnencryptedLogsHashes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, makeLogHash, seed + 0x300),
+    sortedUnencryptedLogsHashes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, makeScopedLogHash, seed + 0x300),
     sortedUnencryptedLogsHashesIndexes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, i => i, seed + 0x400),
     sortedPublicDataUpdateRequests: makeTuple(
       MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,

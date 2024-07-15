@@ -7,6 +7,7 @@ import {
   PublicKernelType,
   Tx,
   type TxEffect,
+  UnencryptedTxL2Logs,
   makeEmptyProcessedTx,
   makePaddingProcessedTx,
   mapPublicKernelToCircuitName,
@@ -648,15 +649,17 @@ export class ProvingOrchestrator {
       );
       return;
     }
-    if (
-      !tx.baseRollupInputs.kernelData.publicInputs.end.unencryptedLogsHash
-        .toBuffer()
-        .equals(tx.processedTx.unencryptedLogs.hash())
-    ) {
+
+    const txUnencryptedLogs = UnencryptedTxL2Logs.hashSiloedLogs(
+      tx.baseRollupInputs.kernelData.publicInputs.end.unencryptedLogsHashes
+        .filter(log => !log.isEmpty())
+        .map(log => log.getSiloedHash()),
+    );
+    if (!txUnencryptedLogs.equals(tx.processedTx.unencryptedLogs.hash())) {
       provingState.reject(
-        `Unencrypted logs hash mismatch: ${
-          tx.baseRollupInputs.kernelData.publicInputs.end.unencryptedLogsHash
-        } === ${Fr.fromBuffer(tx.processedTx.unencryptedLogs.hash())}`,
+        `Unencrypted logs hash mismatch: ${Fr.fromBuffer(txUnencryptedLogs)} === ${Fr.fromBuffer(
+          tx.processedTx.unencryptedLogs.hash(),
+        )}`,
       );
       return;
     }

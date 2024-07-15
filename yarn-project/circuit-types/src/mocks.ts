@@ -6,11 +6,13 @@ import {
   LogHash,
   MAX_NULLIFIERS_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+  MAX_UNENCRYPTED_LOGS_PER_TX,
   Nullifier,
   PartialPrivateTailPublicInputsForPublic,
   PrivateKernelTailCircuitPublicInputs,
   PublicAccumulatedDataBuilder,
   PublicCallRequest,
+  ScopedLogHash,
   computeContractClassId,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
@@ -136,11 +138,14 @@ export const mockTx = (
       unencryptedLogs.functionLogs.forEach(functionLog => {
         functionLog.logs.forEach(log => {
           if (data.forPublic) {
-            const hash = new LogHash(
-              Fr.fromBuffer(log.getSiloedHash()),
-              i++,
-              // +4 for encoding the length of the buffer
-              new Fr(log.length + 4),
+            const hash = new ScopedLogHash(
+              new LogHash(
+                Fr.fromBuffer(log.hash()),
+                i++,
+                // +4 for encoding the length of the buffer
+                new Fr(log.length + 4),
+              ),
+              log.contractAddress,
             );
             // make the first log non-revertible
             if (functionCount === 0) {
@@ -157,7 +162,13 @@ export const mockTx = (
     data.forRollup!.end.nullifiers[0] = firstNullifier.value;
     data.forRollup!.end.noteEncryptedLogsHash = Fr.fromBuffer(noteEncryptedLogs.hash());
     data.forRollup!.end.encryptedLogsHash = Fr.fromBuffer(encryptedLogs.hash());
-    data.forRollup!.end.unencryptedLogsHash = Fr.fromBuffer(unencryptedLogs.hash());
+    data.forRollup!.end.unencryptedLogsHashes = makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, ScopedLogHash.empty);
+    unencryptedLogs.unrollLogs().forEach((log, i) => {
+      data.forRollup!.end.unencryptedLogsHashes[i] = new ScopedLogHash(
+        new LogHash(Fr.fromBuffer(log.hash()), 0, new Fr(log.length)),
+        log.contractAddress,
+      );
+    });
   }
 
   const tx = new Tx(

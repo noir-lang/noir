@@ -110,15 +110,12 @@ mod tests {
     use dep::types::{
         abis::{
         gas::Gas, kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs,
-        note_hash::{NoteHash, ScopedNoteHash}, nullifier::{Nullifier, ScopedNullifier},
-        public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
-        read_request::ReadRequest
+        note_hash::{NoteHash, ScopedNoteHash}, log_hash::ScopedLogHash,
+        nullifier::{Nullifier, ScopedNullifier}, public_data_read::PublicDataRead,
+        public_data_update_request::PublicDataUpdateRequest, read_request::ReadRequest
     },
         address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
-        hash::{
-        compute_l2_to_l1_hash, compute_siloed_note_hash, compute_siloed_nullifier,
-        compute_siloed_unencrypted_log_hash
-    },
+        hash::{compute_l2_to_l1_hash, compute_siloed_note_hash, compute_siloed_nullifier},
         messaging::l2_to_l1_message::L2ToL1Message,
         tests::{fixture_builder::FixtureBuilder, public_call_data_builder::PublicCallDataBuilder},
         utils::arrays::{array_eq, array_length}, traits::is_empty
@@ -361,11 +358,12 @@ mod tests {
         );
         let prev_data = builder.previous_kernel.to_public_accumulated_data();
 
-        let mut expected_unencrypted_logs = [
-            prev_data.unencrypted_logs_hashes[0], builder.public_call.public_inputs.unencrypted_logs_hashes.storage[0]
+        let expected_unencrypted_logs = [
+            prev_data.unencrypted_logs_hashes[0], ScopedLogHash {
+                log_hash: builder.public_call.public_inputs.unencrypted_logs_hashes.storage[0],
+                contract_address: builder.public_call.contract_address
+            }
         ];
-        // silo the new log hash
-        expected_unencrypted_logs[1].value = compute_siloed_unencrypted_log_hash(builder.public_call.contract_address, expected_unencrypted_logs[1].value);
         // we assume the encrypted log is already siloed from private kernels
         let expected_encrypted_logs = [prev_data.encrypted_logs_hashes[0]];
 

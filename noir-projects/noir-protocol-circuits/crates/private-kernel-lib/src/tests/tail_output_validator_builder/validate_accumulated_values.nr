@@ -113,15 +113,14 @@ fn validate_accumulated_values_unencrypted_log_hashes_unordered_succeeds() {
     builder.validate();
 }
 
-#[test(should_fail_with="mismatch unencrypted_logs_hash")]
-fn validate_accumulated_values_unencrypted_log_hashes_wrong_hash_fails() {
+#[test(should_fail_with="mismatch unencrypted_logs_hashes")]
+fn validate_accumulated_values_unencrypted_log_hashes_wrong_order_fails() {
     let mut builder = TailOutputValidatorBuilder::new();
 
     builder.previous_kernel.append_unencrypted_log_hashes(3);
     builder.output.append_unencrypted_log_hashes(3);
-    // Swap the items in the output, making them out of order, and then hash.
+    // Swap the items in the output, making them out of order
     swap_items(&mut builder.output.unencrypted_logs_hashes, 0, 2);
-    builder.output.hash_unencrypted_log_hashes();
 
     builder.validate();
 }

@@ -274,7 +274,7 @@ export class Tx {
       EncryptedTxL2Logs.empty(),
     );
 
-    this.unencryptedLogs = this.unencryptedLogs.filter(
+    this.unencryptedLogs = this.unencryptedLogs.filterScoped(
       kernelOutput.endNonRevertibleData.unencryptedLogsHashes,
       UnencryptedTxL2Logs.empty(),
     );

@@ -115,7 +115,8 @@ mod tests {
         kernel_circuit_public_inputs::KernelCircuitPublicInputs, public_kernel_data::PublicKernelData,
         nullifier::ScopedNullifier, nullifier_leaf_preimage::NullifierLeafPreimage,
         accumulated_data::{CombinedAccumulatedData, CombineHints},
-        public_data_update_request::PublicDataUpdateRequest, note_hash::NoteHash, log_hash::LogHash
+        public_data_update_request::PublicDataUpdateRequest, note_hash::NoteHash,
+        log_hash::{ScopedLogHash, LogHash}
     },
         address::AztecAddress,
         constants::{
@@ -326,7 +327,10 @@ mod tests {
                 previous_kernel.public_inputs.end_non_revertible.unencrypted_logs_hashes,
                 previous_kernel.public_inputs.end.unencrypted_logs_hashes
             );
-            let sorted = sort_get_sorted_hints(merged, |a: LogHash, b: LogHash| a.counter() < b.counter());
+            let sorted = sort_get_sorted_hints(
+                merged,
+                |a: ScopedLogHash, b: ScopedLogHash| a.counter() < b.counter()
+            );
             let sorted_unencrypted_logs_hashes = sorted.sorted_array;
             let sorted_unencrypted_logs_hashes_indexes = sorted.sorted_index_hints;
 
@@ -414,9 +418,9 @@ mod tests {
         let expected_encrypted_logs_hash = sha256_to_field(hash_bytes);
         assert_eq(public_inputs.end.encrypted_logs_hash, expected_encrypted_logs_hash);
 
-        let hash_bytes: [u8; MAX_UNENCRYPTED_LOGS_PER_TX * 32] = prev_unencrypted_logs_hash.to_be_bytes(32).append(unencrypted_logs_hash.to_be_bytes(32)).append(&[0; MAX_UNENCRYPTED_LOGS_PER_TX * 32 - 64]).as_array();
-        let expected_unencrypted_logs_hash = sha256_to_field(hash_bytes);
-        assert_eq(public_inputs.end.unencrypted_logs_hash, expected_unencrypted_logs_hash);
+        assert_eq(
+            public_inputs.end.unencrypted_logs_hashes, builder.previous_revertible.unencrypted_logs_hashes.storage
+        );
     }
 
     #[test]

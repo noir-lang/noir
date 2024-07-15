@@ -8,7 +8,7 @@ mod sort_get_sorted_tuple;
 mod sort_get_split_order_hints;
 
 // Re-exports.
-use assert_sorted_array::assert_sorted_array;
+use assert_sorted_array::{assert_sorted_array_with_order_hints, assert_sorted_array};
 use assert_split_sorted_transformed_value_arrays::{assert_split_sorted_transformed_value_arrays_asc, assert_split_sorted_transformed_value_arrays_desc};
 use assert_sorted_transformed_value_array::assert_sorted_transformed_value_array;
 use sort_by_counters::{sort_by_counters_asc, sort_by_counters_desc};

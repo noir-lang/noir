@@ -1,4 +1,5 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { sha256Trunc } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -83,6 +84,10 @@ export class ScopedLogHash implements Ordered {
 
   toString(): string {
     return `logHash=${this.logHash} contractAddress=${this.contractAddress}`;
+  }
+
+  getSiloedHash(): Buffer {
+    return sha256Trunc(Buffer.concat([this.contractAddress.toBuffer(), this.value.toBuffer()]));
   }
 }
 

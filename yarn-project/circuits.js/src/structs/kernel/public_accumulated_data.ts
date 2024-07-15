@@ -17,7 +17,7 @@ import {
 } from '../../constants.gen.js';
 import { CallRequest } from '../call_request.js';
 import { Gas } from '../gas.js';
-import { LogHash } from '../log_hash.js';
+import { LogHash, ScopedLogHash } from '../log_hash.js';
 import { NoteHash } from '../note_hash.js';
 import { Nullifier } from '../nullifier.js';
 import { PublicDataUpdateRequest } from '../public_data_update_request.js';
@@ -50,7 +50,7 @@ export class PublicAccumulatedData {
      * Accumulated unencrypted logs hashes from all the previous kernel iterations.
      * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public readonly unencryptedLogsHashes: Tuple<LogHash, typeof MAX_UNENCRYPTED_LOGS_PER_TX>,
+    public readonly unencryptedLogsHashes: Tuple<ScopedLogHash, typeof MAX_UNENCRYPTED_LOGS_PER_TX>,
     /**
      * All the public data update requests made in this transaction.
      */
@@ -165,7 +165,7 @@ export class PublicAccumulatedData {
       reader.readArray(MAX_L2_TO_L1_MSGS_PER_TX, Fr),
       reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, LogHash),
       reader.readArray(MAX_ENCRYPTED_LOGS_PER_TX, LogHash),
-      reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, LogHash),
+      reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, ScopedLogHash),
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
       reader.readObject(Gas),
@@ -180,7 +180,7 @@ export class PublicAccumulatedData {
       reader.readFieldArray(MAX_L2_TO_L1_MSGS_PER_TX),
       reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, LogHash),
       reader.readArray(MAX_ENCRYPTED_LOGS_PER_TX, LogHash),
-      reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, LogHash),
+      reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, ScopedLogHash),
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
       reader.readObject(Gas),
@@ -203,7 +203,7 @@ export class PublicAccumulatedData {
       makeTuple(MAX_L2_TO_L1_MSGS_PER_TX, Fr.zero),
       makeTuple(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, LogHash.empty),
       makeTuple(MAX_ENCRYPTED_LOGS_PER_TX, LogHash.empty),
-      makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, LogHash.empty),
+      makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, ScopedLogHash.empty),
       makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest.empty),
       makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
       Gas.empty(),

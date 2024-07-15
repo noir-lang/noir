@@ -191,7 +191,6 @@ describe('L1Publisher integration', () => {
     processedTx.data.end.nullifiers[processedTx.data.end.nullifiers.length - 1] = Fr.ZERO;
     processedTx.data.end.l2ToL1Msgs = makeTuple(MAX_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
     processedTx.data.end.encryptedLogsHash = Fr.fromBuffer(processedTx.encryptedLogs.hash());
-    processedTx.data.end.unencryptedLogsHash = Fr.fromBuffer(processedTx.unencryptedLogs.hash());
 
     return processedTx;
   };

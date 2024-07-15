@@ -297,7 +297,11 @@ function validateProcessedTxLogs(tx: ProcessedTx): void {
     );
   }
   const unencryptedLogs = tx.unencryptedLogs || UnencryptedTxL2Logs.empty();
-  kernelHash = tx.data.end.unencryptedLogsHash;
+  kernelHash = Fr.fromBuffer(
+    UnencryptedTxL2Logs.hashSiloedLogs(
+      tx.data.end.unencryptedLogsHashes.filter(hash => !hash.isEmpty()).map(h => h.getSiloedHash()),
+    ),
+  );
   referenceHash = Fr.fromBuffer(unencryptedLogs.hash());
   if (!referenceHash.equals(kernelHash)) {
     throw new Error(
