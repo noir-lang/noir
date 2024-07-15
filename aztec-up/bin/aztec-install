@@ -40,11 +40,9 @@ function title() {
     echo -e "${r}"
   fi
   echo -e "This will install the following scripts and update your PATH if necessary:"
-  echo -e "  ${bold}${g}aztec${r}         - launches various infrastructure subsystems (node, sequencer, prover, pxe, etc)."
+  echo -e "  ${bold}${g}aztec${r}         - a collection of tools to launch subsystems and interact with the aztec network."
   echo -e "  ${bold}${g}aztec-nargo${r}   - aztec's build of nargo, the noir compiler toolchain."
-  echo -e "  ${bold}${g}aztec-sandbox${r} - a wrapper around docker-compose that launches services needed for sandbox testing."
   echo -e "  ${bold}${g}aztec-up${r}      - a tool to upgrade the aztec toolchain to the latest, or specific versions."
-  echo -e "  ${bold}${g}aztec-builder${r} - a tool to generate typescript interfaces of Noir contracts"
   echo
   read -p "Do you wish to continue? (y/n)" -n 1 -r
   echo
@@ -107,11 +105,11 @@ if [ -z "${SKIP_PULL:-}" ]; then
   info "Pulling aztec version $VERSION..."
   pull_container aztec-nargo
   pull_container aztec
-  pull_container aztec-builder
 fi
 
 # Download the Docker Compose file. Used by aztec.
-curl -fsSL http://$INSTALL_HOST/docker-compose.yml -o $AZTEC_PATH/docker-compose.yml
+curl -fsSL http://$INSTALL_HOST/docker-compose.sandbox.yml -o $AZTEC_PATH/docker-compose.sandbox.yml
+curl -fsSL http://$INSTALL_HOST/docker-compose.test.yml -o $AZTEC_PATH/docker-compose.test.yml
 
 function install_bin {
   curl -fsSL http://$INSTALL_HOST/$1 -o $BIN_PATH/$1
@@ -123,10 +121,8 @@ info "Installing scripts in $BIN_PATH..."
 rm -f $BIN_PATH/aztec*
 install_bin .aztec-run
 install_bin aztec
-install_bin aztec-sandbox
 install_bin aztec-up
 install_bin aztec-nargo
-install_bin aztec-builder
 
 function update_path_env_var {
   TARGET_DIR="${1}"

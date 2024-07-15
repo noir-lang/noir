@@ -8,9 +8,6 @@
   },
   "references": [
     {
-      "path": "../builder"
-    },
-    {
       "path": "../circuits.js"
     },
     {
@@ -26,5 +23,5 @@
       "path": "../merkle-tree"
     }
   ],
-  "include": ["src", "artifacts/*.d.json.ts", "artifacts/**/*.d.json.ts", ]
+  "include": ["src", "artifacts/*.d.json.ts", "artifacts/**/*.d.json.ts"]
 }

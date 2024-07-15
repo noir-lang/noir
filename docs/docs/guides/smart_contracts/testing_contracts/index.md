@@ -37,21 +37,14 @@ So to summarize:
 In order to use the TXE, it must be running on a known address. 
 
 :::tip
-If you have [the sandbox](../../../getting_started.md) installed, you can quickly deploy a TXE by running:
+If you have [the sandbox](../../../getting_started.md) installed, you can run TXE tests using:
 
-`docker run --workdir /usr/src/yarn-project --entrypoint bash --name txe -p 8080:8080 --rm -it aztecprotocol/aztec -c "yarn workspaces focus @aztec/txe && cd txe && yarn build && yarn start"`
+`aztec test`
 
-This will be improved in the future with a dedicated command.
 :::
-
-By default, TXE runs at `http://localhost:8080`. Using `aztec-nargo`, contract tests can be run with:
-
-`aztec-nargo test --use-legacy --silence-warnings --oracle-resolver http://host.docker.internal:8080`
 
 :::warning
 Since TXE tests are written in Noir and executed with `aztec-nargo`, they all run in parallel. This also means every test creates their own isolated environment, so state modifications are local to each one of them.
-
-Executing many tests in parallel might slow processing of the RPC calls down to the point of making them timeout. To control this timeout the `NARGO_FOREIGN_CALL_TIMEOUT` env variable is used.
 :::
 
 ### Writing TXE tests

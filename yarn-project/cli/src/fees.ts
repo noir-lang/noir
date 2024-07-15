@@ -13,7 +13,7 @@ import { type LogFn } from '@aztec/foundation/log';
 
 import { Option } from 'commander';
 
-import { parseBigint } from './parse_args.js';
+import { parseBigint } from './utils/commands.js';
 
 export type CliFeeArgs = {
   estimateGasOnly: boolean;

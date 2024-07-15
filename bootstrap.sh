@@ -6,6 +6,11 @@
 #   clean: Force a complete clean of the repo. Erases untracked files, be careful!
 set -eu
 
+if [ "$(uname)" == "Darwin" ]; then
+  shopt -s expand_aliases
+  alias clang++-16="clang++"
+fi
+
 cd "$(dirname "$0")"
 
 CMD=${1:-}

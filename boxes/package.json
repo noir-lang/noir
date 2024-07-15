@@ -31,7 +31,7 @@
     "@inquirer/input": "^2.0.0",
     "@inquirer/select": "^2.0.0",
     "axios": "^1.6.7",
-    "commander": "^12.0.0",
+    "commander": "^12.1.0",
     "ora": "^8.0.1",
     "pino": "^8.19.0",
     "pino-pretty": "^10.3.1",

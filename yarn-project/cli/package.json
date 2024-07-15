@@ -2,13 +2,17 @@
   "name": "@aztec/cli",
   "version": "0.32.0",
   "type": "module",
-  "main": "./dest/index.js",
-  "bin": {
-    "aztec-cli": "./dest/bin/index.js"
+  "exports": {
+    "./builder": "./dest/cmds/builder/index.js",
+    "./contracts": "./dest/cmds/contracts/index.js",
+    "./infrastructure": "./dest/cmds/infrastructure/index.js",
+    "./l1": "./dest/cmds/l1/index.js",
+    "./pxe": "./dest/cmds/pxe/index.js",
+    "./utils": "./dest/cmds/utils/index.js"
   },
   "typedocOptions": {
     "entryPoints": [
-      "./src/index.ts"
+      "./dest/builder/index.js"
     ],
     "name": "Aztec CLI",
     "tsconfig": "./tsconfig.json"
@@ -19,8 +23,7 @@
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests",
-    "start": "yarn build && node --no-warnings ./dest/bin/index.js"
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests"
   },
   "inherits": [
     "../package.common.json"
@@ -58,26 +61,14 @@
     ]
   },
   "dependencies": {
-    "@aztec/accounts": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
-    "@aztec/bb-prover": "workspace:^",
     "@aztec/circuit-types": "workspace:^",
-    "@aztec/circuits.js": "workspace:^",
-    "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
-    "@aztec/l1-artifacts": "workspace:^",
-    "@aztec/noir-contracts.js": "workspace:^",
-    "@aztec/noir-protocol-circuits-types": "workspace:^",
-    "@aztec/protocol-contracts": "workspace:^",
-    "@aztec/simulator": "workspace:^",
     "@aztec/types": "workspace:^",
     "@iarna/toml": "^2.2.5",
     "@libp2p/peer-id-factory": "^3.0.4",
     "axios": "^1.7.2",
-    "commander": "^9.0.0",
-    "jszip": "^3.10.1",
-    "lodash.startcase": "^4.4.0",
-    "node-fetch": "^3.3.2",
+    "commander": "^12.1.0",
     "semver": "^7.5.4",
     "solc": "^0.8.26",
     "source-map-support": "^0.5.21",
@@ -85,6 +76,11 @@
     "viem": "^2.7.15"
   },
   "devDependencies": {
+    "@aztec/accounts": "workspace:^",
+    "@aztec/circuits.js": "workspace:^",
+    "@aztec/ethereum": "workspace:^",
+    "@aztec/l1-artifacts": "workspace:^",
+    "@aztec/protocol-contracts": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@types/jest": "^29.5.0",
     "@types/lodash.startcase": "^4.4.7",
@@ -96,6 +92,16 @@
     "ts-jest": "^29.1.0",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4"
+  },
+  "peerDependencies": {
+    "@aztec/accounts": "workspace:^",
+    "@aztec/bb-prover": "workspace:^",
+    "@aztec/circuits.js": "workspace:^",
+    "@aztec/ethereum": "workspace:^",
+    "@aztec/l1-artifacts": "workspace:^",
+    "@aztec/noir-contracts.js": "workspace:^",
+    "@aztec/noir-protocol-circuits-types": "workspace:^",
+    "@aztec/protocol-contracts": "workspace:^"
   },
   "files": [
     "dest",

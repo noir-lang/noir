@@ -1,21 +1,39 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Call cli image if used with `aztec cli ...args`
-if [ -n "${1-}" ] && [ "$1" != "--help" ]; then
-  if [ "$1" == "cli" ]; then
-    shift
-    SKIP_PORT_ASSIGNMENT=1 $(dirname $0)/.aztec-run aztecprotocol/cli "$@"
-  elif [ "$1" == "sandbox" ]; then
-    $(dirname $0)/aztec-sandbox
-  else
-    $(dirname $0)/.aztec-run aztecprotocol/aztec "$@"
-  fi
-else
-  # TODO - display help message
-  echo
-  echo "Using 'aztec' CLI:"
-  echo "  aztec start <args>  - Start aztec infrastructure components. See 'aztec start --help' for detailed command info."
-  echo "  aztec sandbox       - Run a local sandbox network (same as aztec-sandbox)."
-  echo "  aztec cli <args>    - Run the aztec client CLI. See 'aztec cli --help' for detailed command info."
+function get_compose {
+  # Favour 'docker compose', falling back on docker-compose.
+  CMD="docker compose"
+  $CMD &>/dev/null || CMD="docker-compose"
+  $CMD $@
+}
+
+CALLED_FROM=$PWD
+
+if [ "${1:-}" == "test" ]; then
+  # Change working dir, so relative volume mounts are in the right place.
+  cd $(dirname $0)/..
+  # Compose file to use
+  FILE_ARG="-f $HOME/.aztec/docker-compose.test.yml"
+  # Aztec contract test args for nargo
+  TEST_ARGS="$@ --silence-warnings --use-legacy --oracle-resolver http://aztec:8081"
+  get_compose -p aztec-test $FILE_ARG run -e NARGO_FOREIGN_CALL_TIMEOUT=300000 --workdir $CALLED_FROM --rm -it aztec-nargo $TEST_ARGS
+elif [ $# == 2 ] && [ "$1" == "start" ] && [ "$2" == "--sandbox" ]; then
+  # Change working dir, so relative volume mounts are in the right place.
+  cd $(dirname $0)/..
+  # Compose file to use
+  FILE_ARG="-f $HOME/.aztec/docker-compose.sandbox.yml"
+
+   # Function to be executed when SIGINT is received.
+  cleanup() {
+    get_compose $FILE_ARG down
+  }
+
+  # Set trap to catch SIGINT and call the cleanup function.
+  trap cleanup SIGINT
+
+ get_compose -p sandbox $FILE_ARG up --force-recreate --remove-orphans
+else 
+  $(dirname $0)/.aztec-run aztecprotocol/aztec "$@"
 fi
+

@@ -81,4 +81,8 @@ export const cliTexts = {
     'Starts a P2P bootstrap node with options.\n' +
     'Available options are listed below as cliProperty:ENV_VARIABLE_NAME.\n' +
     p2pOptions,
+  txe:
+    'Starts a TXE with options\n' +
+    'Available options are listed below as cliProperty:ENV_VARIABLE_NAME.\n' +
+    'txePort:TXE_PORT - number - The port on which the TXE should listen for connections. Default: 8081\n',
 };

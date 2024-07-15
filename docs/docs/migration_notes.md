@@ -6,7 +6,24 @@ keywords: [sandbox, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
-## 0.45.0
+## 0.xx.0
+### [Aztec sandbox] Command refactor and unification + `aztec test`
+
+Sandbox commands have been cleaned up and simplified. Doing `aztec-up` now gets you the following top-level commands:
+
+`aztec`: All the previous commands + all the CLI ones without having to prefix them with cli. Run `aztec` for help!
+`aztec-nargo`: No changes
+
+**REMOVED/RENAMED**:
+
+* `aztec-sandbox` and `aztec sandbox`: now `aztec start --sandbox`
+* `aztec-builder`: now `aztec codegen` and `aztec update`
+
+**ADDED**:
+
+* `aztec test [options]`: runs `aztec start --txe && aztec-nargo test --use-legacy --oracle-resolver http://aztec:8081 --silence-warnings [options]` via docker-compose allowing users to easily run contract tests using TXE
+
+## 0.45.0
 ### [Aztec.nr] Remove unencrypted logs from private
 They leak privacy so is a footgun!
 

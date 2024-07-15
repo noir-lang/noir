@@ -68,7 +68,7 @@
     "@aztec/telemetry-client": "workspace:^",
     "@aztec/world-state": "workspace:^",
     "@noir-lang/types": "portal:../../noir/packages/types",
-    "commander": "^9.0.0",
+    "commander": "^12.1.0",
     "lodash.chunk": "^4.2.0",
     "source-map-support": "^0.5.21",
     "tslib": "^2.4.0"

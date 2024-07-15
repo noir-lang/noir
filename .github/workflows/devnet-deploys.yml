@@ -58,13 +58,6 @@ jobs:
             const fileChanged = changedFiles.includes('l1-contracts/REDEPLOY');
             return fileChanged
 
-      - name: "Build & Push cli image"
-        if: steps.check_changes_build.outputs.result == 'true'
-        timeout-minutes: 40
-        # Run the build steps for each image with version and arch, push to dockerhub
-        run: |
-          earthly-ci --no-output --push ./yarn-project+export-cli --DIST_TAG=${{ env.DEPLOY_TAG }}
-
   terraform_deploy:
     runs-on: ubuntu-latest
     needs: build
@@ -97,8 +90,8 @@ jobs:
       - name: Deploy L1 Contracts
         if: steps.check_changes_release.outputs.result == 'true'
         run: |
-          docker pull aztecprotocol/cli:${{ env.DEPLOY_TAG }}
-          docker run aztecprotocol/cli:${{ env.DEPLOY_TAG }} \
+          docker pull aztecprotocol/aztec:${{ env.DEPLOY_TAG }}
+          docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} \
             deploy-l1-contracts -p ${{ secrets.SEQ_1_PUBLISHER_PRIVATE_KEY }} \
             -u https://${{ env.DEPLOY_TAG }}-mainnet-fork.aztec.network:8545/${{ secrets.FORK_API_KEY }} \
             | tee ${{ env.FILE_PATH }}

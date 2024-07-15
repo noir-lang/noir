@@ -15,6 +15,7 @@ services:
 
   sandbox:
     image: aztecprotocol/aztec:${AZTEC_DOCKER_TAG:-latest}
+    command: 'start --sandbox'
     environment:
       DEBUG: 'aztec:*'
       DEBUG_COLORS: 1

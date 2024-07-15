@@ -54,7 +54,6 @@
     ]
   },
   "dependencies": {
-    "@aztec/builder": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/types": "workspace:^",

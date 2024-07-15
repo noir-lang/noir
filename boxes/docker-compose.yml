@@ -6,6 +6,7 @@ services:
 
   aztec:
     image: aztecprotocol/aztec:${AZTEC_DOCKER_TAG:-latest}
+    command: 'start --sandbox'
     environment:
       ETHEREUM_HOST: http://ethereum:8545
       CHAIN_ID: 31337

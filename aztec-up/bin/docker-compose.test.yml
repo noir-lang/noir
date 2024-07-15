@@ -1,0 +1,19 @@
+services:
+  aztec:
+    image: "aztecprotocol/aztec"
+    environment:
+      DEBUG: # Loaded from the user shell if explicitly set
+      HOST_WORKDIR: "${PWD}" # Loaded from the user shell to show log files absolute path in host
+    volumes:
+      - ./log:/usr/src/yarn-project/aztec/log:rw
+    command: start --txe
+      
+  aztec-nargo:
+    image: "aztecprotocol/aztec-nargo"
+    environment:
+      HOME: # Loaded from the user shell
+      NARGO_FOREIGN_CALL_TIMEOUT: 300000 # To avoid timeouts when many tests run at once
+    volumes:
+      - ${HOME}:${HOME}
+    depends_on:
+      - aztec

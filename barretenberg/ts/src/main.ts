@@ -419,7 +419,7 @@ export async function vkAsFieldsUltraHonk(vkPath: string, vkeyOutputPath: string
   }
 }
 
-const program = new Command();
+const program = new Command('bb');
 
 program.option('-v, --verbose', 'enable verbose logging', false);
 program.option('-c, --crs-path <path>', 'set crs path', './crs');

@@ -7,16 +7,19 @@
   },
   "references": [
     {
-      "path": "../accounts"
-    },
-    {
       "path": "../aztec.js"
     },
     {
-      "path": "../bb-prover"
+      "path": "../circuit-types"
     },
     {
-      "path": "../circuit-types"
+      "path": "../foundation"
+    },
+    {
+      "path": "../types"
+    },
+    {
+      "path": "../accounts"
     },
     {
       "path": "../circuits.js"
@@ -25,25 +28,10 @@
       "path": "../ethereum"
     },
     {
-      "path": "../foundation"
-    },
-    {
       "path": "../l1-artifacts"
     },
     {
-      "path": "../noir-contracts.js"
-    },
-    {
-      "path": "../noir-protocol-circuits-types"
-    },
-    {
       "path": "../protocol-contracts"
-    },
-    {
-      "path": "../simulator"
-    },
-    {
-      "path": "../types"
     }
   ],
   "include": ["src"],
