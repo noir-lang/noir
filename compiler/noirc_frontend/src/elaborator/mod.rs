@@ -252,11 +252,11 @@ impl<'context> Elaborator<'context> {
         }
 
         // Must resolve structs before we resolve globals.
-        let generated_items = self.collect_struct_definitions(items.types);
+        let mut generated_items = self.collect_struct_definitions(items.types);
 
         self.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
 
-        self.collect_traits(items.traits);
+        self.collect_traits(items.traits, &mut generated_items);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -277,6 +277,10 @@ impl<'context> Elaborator<'context> {
         while let Some((_, global)) = self.unresolved_globals.pop_first() {
             self.elaborate_global(global);
         }
+
+        // We have to run any comptime attributes on functions before the function is elaborated
+        // since the generated items are checked beforehand as well.
+        self.run_attributes_on_functions(&items.functions, &mut generated_items);
 
         // After everything is collected, we can elaborate our generated items.
         // It may be better to inline these within `items` entirely since elaborating them
@@ -1242,7 +1246,8 @@ impl<'context> Elaborator<'context> {
                     .add_definition_location(ReferenceId::StructMember(type_id, field_index), None);
             }
 
-            self.run_comptime_attributes_on_struct(attributes, type_id, span, &mut generated_items);
+            let item = Value::StructDefinition(type_id);
+            self.run_comptime_attributes_on_item(&attributes, item, span, &mut generated_items);
         }
 
         // Check whether the struct fields have nested slices
@@ -1268,17 +1273,17 @@ impl<'context> Elaborator<'context> {
         generated_items
     }
 
-    fn run_comptime_attributes_on_struct(
+    fn run_comptime_attributes_on_item(
         &mut self,
-        attributes: Vec<SecondaryAttribute>,
-        struct_id: StructId,
+        attributes: &[SecondaryAttribute],
+        item: Value,
         span: Span,
         generated_items: &mut CollectedItems,
     ) {
         for attribute in attributes {
             if let SecondaryAttribute::Custom(name) = attribute {
                 if let Err(error) =
-                    self.run_comptime_attribute_on_struct(name, struct_id, span, generated_items)
+                    self.run_comptime_attribute_on_item(name, item.clone(), span, generated_items)
                 {
                     self.errors.push(error);
                 }
@@ -1286,16 +1291,16 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn run_comptime_attribute_on_struct(
+    fn run_comptime_attribute_on_item(
         &mut self,
-        attribute: String,
-        struct_id: StructId,
+        attribute: &str,
+        item: Value,
         span: Span,
         generated_items: &mut CollectedItems,
     ) -> Result<(), (CompilationError, FileId)> {
         let location = Location::new(span, self.file);
-        let (function_name, mut arguments) =
-            Self::parse_attribute(&attribute, location).unwrap_or((attribute, Vec::new()));
+        let (function_name, mut arguments) = Self::parse_attribute(attribute, location)
+            .unwrap_or_else(|| (attribute.to_string(), Vec::new()));
 
         let id = self
             .lookup_global(Path::from_single(function_name, span))
@@ -1307,7 +1312,7 @@ impl<'context> Elaborator<'context> {
         };
 
         self.handle_varargs_attribute(function, &mut arguments, location);
-        arguments.insert(0, (Value::StructDefinition(struct_id), location));
+        arguments.insert(0, (item, location));
 
         let mut interpreter_errors = vec![];
         let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
@@ -1739,6 +1744,25 @@ impl<'context> Elaborator<'context> {
                 InterpreterError::debug_evaluate_comptime(displayed_expr, location).into(),
                 location.file,
             ));
+        }
+    }
+
+    fn run_attributes_on_functions(
+        &mut self,
+        function_sets: &[UnresolvedFunctions],
+        generated_items: &mut CollectedItems,
+    ) {
+        for function_set in function_sets {
+            self.file = function_set.file_id;
+            self.self_type = function_set.self_type.clone();
+
+            for (local_module, function_id, function) in &function_set.functions {
+                self.local_module = *local_module;
+                let attributes = function.secondary_attributes();
+                let item = Value::FunctionDefinition(*function_id);
+                let span = function.span();
+                self.run_comptime_attributes_on_item(attributes, item, span, generated_items);
+            }
         }
     }
 }
