@@ -2594,6 +2594,7 @@ dependencies = [
  "dirs",
  "fm",
  "nargo",
+ "noirc_driver",
  "noirc_frontend",
  "semver",
  "serde",
