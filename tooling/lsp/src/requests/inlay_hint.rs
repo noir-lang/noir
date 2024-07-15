@@ -95,17 +95,17 @@ impl<'a> InlayHintCollector<'a> {
             ItemKind::Function(noir_function) => self.collect_in_noir_function(noir_function),
             ItemKind::Trait(noir_trait) => {
                 for item in &noir_trait.items {
-                    self.collect_in_trait_item(item)
+                    self.collect_in_trait_item(item);
                 }
             }
             ItemKind::TraitImpl(noir_trait_impl) => {
                 for item in &noir_trait_impl.items {
-                    self.collect_in_trait_impl_item(item)
+                    self.collect_in_trait_impl_item(item);
                 }
             }
             ItemKind::Impl(type_impl) => {
                 for (noir_function, _) in &type_impl.methods {
-                    self.collect_in_noir_function(&noir_function)
+                    self.collect_in_noir_function(noir_function);
                 }
             }
             ItemKind::Global(let_statement) => self.collect_in_let_statement(let_statement),
@@ -137,7 +137,7 @@ impl<'a> InlayHintCollector<'a> {
 
     fn collect_in_trait_impl_item(&mut self, item: &TraitImplItem) {
         match item {
-            TraitImplItem::Function(noir_function) => self.collect_in_noir_function(&noir_function),
+            TraitImplItem::Function(noir_function) => self.collect_in_noir_function(noir_function),
             TraitImplItem::Constant(_name, _typ, default_value) => {
                 self.collect_in_expression(default_value);
             }
@@ -160,7 +160,7 @@ impl<'a> InlayHintCollector<'a> {
 
     fn collect_in_block_expression(&mut self, block_expression: &BlockExpression) {
         for statement in &block_expression.statements {
-            self.collect_in_statement(statement)
+            self.collect_in_statement(statement);
         }
     }
 
@@ -172,14 +172,14 @@ impl<'a> InlayHintCollector<'a> {
         match &statement.kind {
             StatementKind::Let(let_statement) => self.collect_in_let_statement(let_statement),
             StatementKind::Constrain(constrain_statement) => {
-                self.collect_in_expression(&constrain_statement.0)
+                self.collect_in_expression(&constrain_statement.0);
             }
             StatementKind::Expression(expression) => self.collect_in_expression(expression),
             StatementKind::Assign(assign_statement) => {
-                self.collect_in_expression(&assign_statement.expression)
+                self.collect_in_expression(&assign_statement.expression);
             }
             StatementKind::For(for_loop_statement) => {
-                self.collect_in_expression(&for_loop_statement.block)
+                self.collect_in_expression(&for_loop_statement.block);
             }
             StatementKind::Comptime(statement) => self.collect_in_statement(statement),
             StatementKind::Semi(expression) => self.collect_in_expression(expression),
@@ -247,7 +247,7 @@ impl<'a> InlayHintCollector<'a> {
             }
             ExpressionKind::Lambda(lambda) => self.collect_in_expression(&lambda.body),
             ExpressionKind::Parenthesized(parenthesized) => {
-                self.collect_in_expression(&parenthesized);
+                self.collect_in_expression(parenthesized);
             }
             ExpressionKind::Unquote(expression) => {
                 self.collect_in_expression(expression);
@@ -352,7 +352,7 @@ impl<'a> InlayHintCollector<'a> {
                 for (index, typ) in types.iter().enumerate() {
                     self.push_type_parts(typ, parts);
                     if index != types.len() - 1 {
-                        parts.push(str_part(", "))
+                        parts.push(str_part(", "));
                     }
                 }
                 parts.push(str_part(")"));
@@ -366,7 +366,7 @@ impl<'a> InlayHintCollector<'a> {
                     for (index, generic) in generics.iter().enumerate() {
                         self.push_type_parts(generic, parts);
                         if index != generics.len() - 1 {
-                            parts.push(str_part(", "))
+                            parts.push(str_part(", "));
                         }
                     }
                     parts.push(str_part(">"));
@@ -381,7 +381,7 @@ impl<'a> InlayHintCollector<'a> {
                     for (index, generic) in generics.iter().enumerate() {
                         self.push_type_parts(generic, parts);
                         if index != generics.len() - 1 {
-                            parts.push(str_part(", "))
+                            parts.push(str_part(", "));
                         }
                     }
                     parts.push(str_part(">"));
@@ -392,7 +392,7 @@ impl<'a> InlayHintCollector<'a> {
                 for (index, arg) in args.iter().enumerate() {
                     self.push_type_parts(arg, parts);
                     if index != args.len() - 1 {
-                        parts.push(str_part(", "))
+                        parts.push(str_part(", "));
                     }
                 }
                 parts.push(str_part(") -> "));
@@ -407,7 +407,7 @@ impl<'a> InlayHintCollector<'a> {
             }
             Type::TypeVariable(binding, TypeVariableKind::Integer) => {
                 if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    self.push_type_parts(&Type::default_int_type(), parts)
+                    self.push_type_parts(&Type::default_int_type(), parts);
                 } else {
                     self.push_type_variable_parts(binding, parts);
                 }
@@ -448,7 +448,7 @@ impl<'a> InlayHintCollector<'a> {
         let var = &*var.borrow();
         match var {
             TypeBinding::Bound(typ) => {
-                self.push_type_parts(&typ, parts);
+                self.push_type_parts(typ, parts);
             }
             TypeBinding::Unbound(..) => {
                 parts.push(string_part(var.to_string()));
@@ -552,7 +552,7 @@ mod inlay_hints_tests {
                     start: Position { line: 4, character: 7 },
                     end: Position { line: 4, character: 10 }
                 }
-            )
+            );
         } else {
             panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
         }
