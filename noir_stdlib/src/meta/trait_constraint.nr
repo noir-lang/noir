@@ -1,4 +1,4 @@
-use crate::hash::{ Hash, Hasher };
+use crate::hash::{Hash, Hasher};
 use crate::cmp::Eq;
 
 impl Eq for TraitConstraint {
