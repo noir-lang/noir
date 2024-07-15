@@ -3,7 +3,7 @@ use dep::protocol_types::{
     traits::{FromField, ToField}
 };
 
-use crate::context::{PrivateContext, PublicContext};
+use crate::context::{PrivateContext, PublicContext, UnconstrainedContext};
 use crate::state_vars::{
     storage::Storage,
     shared_mutable::{scheduled_value_change::ScheduledValueChange, scheduled_delay_change::ScheduledDelayChange}
@@ -222,6 +222,17 @@ impl<T, INITIAL_DELAY> SharedMutable<T, INITIAL_DELAY, &mut PrivateContext> wher
         // historical public value matches the current one, since it can only change after the horizon.
         self.context.set_tx_max_block_number(block_horizon);
         value_change.get_current_at(historical_block_number)
+    }
+}
+
+impl<T, INITIAL_DELAY> SharedMutable<T, INITIAL_DELAY, UnconstrainedContext> where T: ToField + FromField + Eq {
+    unconstrained pub fn get_current_value_in_unconstrained(self) -> T {
+        let block_number = self.context.block_number() as u32;
+        self.read_value_change().get_current_at(block_number)
+    }
+
+    unconstrained fn read_value_change(self) -> ScheduledValueChange<T> {
+        self.context.storage_read(self.get_value_change_storage_slot())
     }
 }
 

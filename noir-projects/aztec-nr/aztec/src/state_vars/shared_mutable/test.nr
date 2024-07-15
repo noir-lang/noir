@@ -341,3 +341,63 @@ fn test_get_current_value_in_private_bad_zero_hash_delay_hints() {
 
     let _ = state_var.get_current_value_in_private();
 }
+
+#[test]
+fn test_get_current_value_in_unconstrained_initial() {
+    let env = setup();
+    let state_var = in_unconstrained(env);
+
+    assert_eq(state_var.get_current_value_in_unconstrained(), zeroed());
+}
+
+#[test]
+fn test_get_current_value_in_unconstrained_before_scheduled_change() {
+    let mut env = setup();
+    let state_var_public = in_public(env);
+
+    state_var_public.schedule_value_change(new_value);
+
+    let (_, block_of_change) = state_var_public.get_scheduled_value_in_public();
+
+    let original_value = zeroed();
+
+    let mut state_var_unconstrained = in_unconstrained(env);
+
+    // The current value has not changed
+    assert_eq(state_var_unconstrained.get_current_value_in_unconstrained(), original_value);
+
+    // The current value still does not change right before the block of change
+    env.advance_block_to(block_of_change - 1);
+
+    state_var_unconstrained = in_unconstrained(env);
+    assert_eq(state_var_unconstrained.get_current_value_in_unconstrained(), original_value);
+}
+
+#[test]
+fn test_get_current_value_in_unconstrained_at_scheduled_change() {
+    let mut env = setup();
+    let state_var_public = in_public(env);
+
+    state_var_public.schedule_value_change(new_value);
+
+    let (_, block_of_change) = state_var_public.get_scheduled_value_in_public();
+
+    env.advance_block_to(block_of_change);
+
+    let state_var_unconstrained = in_unconstrained(env);
+    assert_eq(state_var_unconstrained.get_current_value_in_unconstrained(), new_value);
+}
+
+#[test]
+fn test_get_current_value_in_unconstrained_after_scheduled_change() {
+    let mut env = setup();
+    let state_var_public = in_public(env);
+
+    state_var_public.schedule_value_change(new_value);
+
+    let (_, block_of_change) = state_var_public.get_scheduled_value_in_public();
+
+    env.advance_block_to(block_of_change + 10);
+    let state_var_unconstrained = in_unconstrained(env);
+    assert_eq(state_var_unconstrained.get_current_value_in_unconstrained(), new_value);
+}
