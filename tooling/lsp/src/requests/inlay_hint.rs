@@ -127,7 +127,6 @@ impl<'a> InlayHintCollector<'a> {
                 }
             }
             TraitItem::Constant { name: _, typ: _, default_value } => {
-                // TODO: show hint for constant?
                 if let Some(default_value) = default_value {
                     self.collect_in_expression(default_value);
                 }
@@ -140,7 +139,6 @@ impl<'a> InlayHintCollector<'a> {
         match item {
             TraitImplItem::Function(noir_function) => self.collect_in_noir_function(&noir_function),
             TraitImplItem::Constant(_name, _typ, default_value) => {
-                // TODO: show hint for constant?
                 self.collect_in_expression(default_value);
             }
             TraitImplItem::Type { .. } => (),
@@ -181,7 +179,6 @@ impl<'a> InlayHintCollector<'a> {
                 self.collect_in_expression(&assign_statement.expression)
             }
             StatementKind::For(for_loop_statement) => {
-                // TODO: show type for for identifier
                 self.collect_in_expression(&for_loop_statement.block)
             }
             StatementKind::Comptime(statement) => self.collect_in_statement(statement),
