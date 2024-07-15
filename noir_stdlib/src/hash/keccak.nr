@@ -76,10 +76,10 @@ pub(crate) fn keccak256<let N: u32>(mut input: [u8; N], message_size: u32) -> [u
     let mut state : [u64;NUM_KECCAK_LANES]= [0; NUM_KECCAK_LANES];
     let mut under_block = true;
     for i in 0..num_blocks {
-        if  i == real_max_blocks {
+        if i == real_max_blocks {
             under_block = false;
         }
-        if under_block  {
+        if under_block {
             if (i == 0) {
                 for j in 0..LIMBS_PER_BLOCK {
                     state[j] = sliced_buffer.get(j);
