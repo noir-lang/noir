@@ -2140,3 +2140,20 @@ fn no_super() {
     assert_eq!(span.start(), 4);
     assert_eq!(span.end(), 9);
 }
+
+#[test]
+fn cannot_call_unconstrained_function_outside_of_unsafe() {
+    let src = r#"
+    fn main() {
+        foo();
+    }
+
+    unconstrained fn foo() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::Unsafe { .. }) = &errors[0].0 else {
+        panic!("Expected an 'unsafe' error, got {:?}", errors[0].0);
+    };
+}
