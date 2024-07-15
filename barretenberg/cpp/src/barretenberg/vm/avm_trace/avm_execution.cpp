@@ -11,6 +11,7 @@
 #include "barretenberg/vm/avm_trace/avm_trace.hpp"
 #include "barretenberg/vm/avm_trace/aztec_constants.hpp"
 #include "barretenberg/vm/avm_trace/constants.hpp"
+#include "barretenberg/vm/avm_trace/stats.hpp"
 #include "barretenberg/vm/generated/avm_circuit_builder.hpp"
 #include "barretenberg/vm/generated/avm_composer.hpp"
 
@@ -64,7 +65,9 @@ std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<u
     vinfo("Deserialized " + std::to_string(instructions.size()) + " instructions");
 
     std::vector<FF> returndata;
-    auto trace = gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
+    std::vector<Row> trace;
+    AVM_TRACK_TIME("prove/gen_trace",
+                   (trace = gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints)));
     if (!avm_dump_trace_path.empty()) {
         info("Dumping trace as CSV to: " + avm_dump_trace_path.string());
         dump_trace_as_csv(trace, avm_dump_trace_path);
@@ -72,12 +75,13 @@ std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<u
     auto circuit_builder = bb::AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
 
-    circuit_builder.check_circuit();
+    AVM_TRACK_TIME("prove/check_circuit", circuit_builder.check_circuit());
 
     auto composer = AvmComposer();
     auto prover = composer.create_prover(circuit_builder);
     auto verifier = composer.create_verifier(circuit_builder);
 
+    vinfo("------- PROVING EXECUTION -------");
     // Proof structure: public_inputs | calldata_size | calldata | returndata_size | returndata | raw proof
     HonkProof proof(public_inputs_vec);
     proof.emplace_back(calldata.size());
@@ -746,7 +750,9 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
         }
     }
 
-    return trace_builder.finalize();
+    auto trace = trace_builder.finalize();
+    vinfo("Final trace size: ", trace.size());
+    return trace;
 }
 
 } // namespace bb::avm_trace

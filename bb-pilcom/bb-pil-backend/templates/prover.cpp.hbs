@@ -2,6 +2,7 @@
 
 #include "barretenberg/commitment_schemes/claim.hpp"
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
+#include "barretenberg/common/constexpr_utils.hpp"
 #include "barretenberg/honk/proof_system/logderivative_library.hpp"
 #include "barretenberg/honk/proof_system/permutation_library.hpp"
 #include "barretenberg/plonk_honk_shared/library/grand_product_library.hpp"
@@ -15,27 +16,6 @@ namespace bb {
 
 using Flavor = {{name}}Flavor;
 using FF = Flavor::FF;
-
-namespace {
-
-// Loops through LookupRelations and calculates the logderivatives.
-// Metaprogramming is used to loop through the relations, because they are types.
-template <size_t relation_idx = 0, typename PP>
-void compute_logderivative_rel(const RelationParameters<FF>& relation_parameters,
-                               PP& prover_polynomials,
-                               size_t circuit_size)
-{
-    using Relation = std::tuple_element_t<relation_idx, Flavor::LookupRelations>;
-    AVM_TRACK_TIME(
-        Relation::NAME + std::string("_ms"),
-        (compute_logderivative_inverse<Flavor, Relation>(prover_polynomials, relation_parameters, circuit_size)));
-
-    if constexpr (relation_idx + 1 < std::tuple_size_v<Flavor::LookupRelations>) {
-        compute_logderivative_rel<relation_idx + 1, PP>(relation_parameters, prover_polynomials, circuit_size);
-    }
-}
-
-} // namespace
 
 /**
  * Create {{name}}Prover from proving key, witness and manifest.
@@ -94,8 +74,16 @@ void {{name}}Prover::execute_log_derivative_inverse_round()
     relation_parameters.gamma = gamm;
 
     auto prover_polynomials = ProverPolynomials(*key);
-    compute_logderivative_rel(relation_parameters, prover_polynomials, key->circuit_size);
+    bb::constexpr_for<0, std::tuple_size_v<Flavor::LookupRelations>, 1>([&]<size_t relation_idx>() {
+        using Relation = std::tuple_element_t<relation_idx, Flavor::LookupRelations>;
+        AVM_TRACK_TIME(Relation::NAME + std::string("_ms"),
+                       (compute_logderivative_inverse<Flavor, Relation>(
+                           prover_polynomials, relation_parameters, key->circuit_size)));
+    });
+}
 
+void {{name}}Prover::execute_log_derivative_inverse_commitments_round()
+{
     // Commit to all logderivative inverse polynomials
     for (auto [commitment, key_poly] : zip_view(witness_commitments.get_derived(), key->get_derived())) {
        commitment = commitment_key->commit(key_poly);
@@ -155,18 +143,21 @@ HonkProof {{name}}Prover::construct_proof()
     execute_preamble_round();
 
     // Compute wire commitments
-    execute_wire_commitments_round();
+    AVM_TRACK_TIME("prove/execute_wire_commitments_round_ms", execute_wire_commitments_round());
 
-    // Compute sorted list accumulator and commitment
-    execute_log_derivative_inverse_round();
+    // Compute sorted list accumulator
+    AVM_TRACK_TIME("prove/execute_log_derivative_inverse_round_ms", execute_log_derivative_inverse_round());
+
+    // Compute commitments to logderivative inverse polynomials
+    AVM_TRACK_TIME("prove/execute_log_derivative_inverse_commitments_round_ms", execute_log_derivative_inverse_commitments_round());
 
     // Fiat-Shamir: alpha
     // Run sumcheck subprotocol.
-    execute_relation_check_rounds();
+    AVM_TRACK_TIME("prove/execute_relation_check_rounds_ms", execute_relation_check_rounds());
 
     // Fiat-Shamir: rho, y, x, z
     // Execute Zeromorph multilinear PCS
-    execute_pcs_rounds();
+    AVM_TRACK_TIME("prove/execute_pcs_rounds_ms", execute_pcs_rounds());
 
     return export_proof();
 }
