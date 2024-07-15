@@ -570,6 +570,7 @@ pub mod test {
             .into(),
             return_visibility: Visibility::Private,
             has_body: true,
+            struct_id: None,
             trait_impl: None,
             return_type: FunctionReturnType::Default(Span::default()),
             trait_constraints: Vec::new(),
@@ -696,7 +697,7 @@ pub mod test {
             &self,
             _def_maps: &BTreeMap<CrateId, CrateDefMap>,
             path: Path,
-            _path_references: &mut Option<&mut Vec<ReferenceId>>,
+            _path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
         ) -> PathResolutionResult {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();
