@@ -48,7 +48,6 @@ const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
 pub struct ModuleAttributes {
     pub name: String,
     pub location: Location,
-    pub parent: LocalModuleId,
 }
 
 type StructAttributes = Vec<SecondaryAttribute>;
