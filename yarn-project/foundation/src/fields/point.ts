@@ -1,4 +1,4 @@
-import { poseidon2Hash } from '../crypto/index.js';
+import { poseidon2Hash, randomBoolean } from '../crypto/index.js';
 import { BufferReader, FieldReader, serializeToBuffer } from '../serialize/index.js';
 import { Fr } from './fields.js';
 
@@ -10,6 +10,7 @@ import { Fr } from './fields.js';
 export class Point {
   static ZERO = new Point(Fr.ZERO, Fr.ZERO, false);
   static SIZE_IN_BYTES = Fr.SIZE_IN_BYTES * 2;
+  static COMPRESSED_SIZE_IN_BYTES = Fr.SIZE_IN_BYTES + 1;
 
   /** Used to differentiate this class from AztecAddress */
   public readonly kind = 'point';
@@ -37,8 +38,17 @@ export class Point {
    * @returns A randomly generated Point instance.
    */
   static random() {
-    // TODO make this return an actual point on curve.
-    return new Point(Fr.random(), Fr.random(), false);
+    while (true) {
+      try {
+        return Point.fromXAndSign(Fr.random(), randomBoolean());
+      } catch (e: any) {
+        if (!(e instanceof NotOnCurveError)) {
+          throw e;
+        }
+        // The random point is not on the curve - we try again
+        continue;
+      }
+    }
   }
 
   /**
@@ -51,6 +61,18 @@ export class Point {
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new this(Fr.fromBuffer(reader), Fr.fromBuffer(reader), false);
+  }
+
+  /**
+   * Create a Point instance from a compressed buffer.
+   * The input 'buffer' should have exactly 33 bytes representing the x coordinate and the sign of the y coordinate.
+   *
+   * @param buffer - The buffer containing the x coordinate and the sign of the y coordinate.
+   * @returns A Point instance.
+   */
+  static fromCompressedBuffer(buffer: Buffer | BufferReader) {
+    const reader = BufferReader.asReader(buffer);
+    return this.fromXAndSign(Fr.fromBuffer(reader), reader.readBoolean());
   }
 
   /**
@@ -76,6 +98,46 @@ export class Point {
   static fromFields(fields: Fr[] | FieldReader) {
     const reader = FieldReader.asReader(fields);
     return new this(reader.readField(), reader.readField(), reader.readBoolean());
+  }
+
+  /**
+   * Uses the x coordinate and isPositive flag (+/-) to reconstruct the point.
+   * @dev The y coordinate can be derived from the x coordinate and the "sign" flag by solving the grumpkin curve
+   * equation for y.
+   * @param x - The x coordinate of the point
+   * @param sign - The "sign" of the y coordinate - note that this is not a sign as is known in integer arithmetic.
+   * Instead it is a boolean flag that determines whether the y coordinate is <= (Fr.MODULUS - 1) / 2
+   * @returns The point as an array of 2 fields
+   */
+  static fromXAndSign(x: Fr, sign: boolean) {
+    // Calculate y^2 = x^3 - 17
+    const ySquared = x.square().mul(x).sub(new Fr(17));
+
+    // Calculate the square root of ySquared
+    const y = ySquared.sqrt();
+
+    // If y is null, the x-coordinate is not on the curve
+    if (y === null) {
+      throw new NotOnCurveError();
+    }
+
+    const yPositiveBigInt = y.toBigInt() > (Fr.MODULUS - 1n) / 2n ? Fr.MODULUS - y.toBigInt() : y.toBigInt();
+    const yNegativeBigInt = Fr.MODULUS - yPositiveBigInt;
+
+    // Choose the positive or negative root based on isPositive
+    const finalY = sign ? new Fr(yPositiveBigInt) : new Fr(yNegativeBigInt);
+
+    // Create and return the new Point
+    return new this(x, finalY, false);
+  }
+
+  /**
+   * Returns the x coordinate and the sign of the y coordinate.
+   * @dev The y sign can be determined by checking if the y coordinate is greater than half of the modulus.
+   * @returns The x coordinate and the sign of the y coordinate.
+   */
+  toXAndSign(): [Fr, boolean] {
+    return [this.x, this.y.toBigInt() <= (Fr.MODULUS - 1n) / 2n];
   }
 
   /**
@@ -109,6 +171,14 @@ export class Point {
       throw new Error(`Invalid buffer length for Point: ${buf.length}`);
     }
     return buf;
+  }
+
+  /**
+   * Converts the Point instance to a compressed Buffer representation of the coordinates.
+   * @returns A Buffer representation of the Point instance
+   */
+  toCompressedBuffer() {
+    return serializeToBuffer(this.toXAndSign());
   }
 
   /**
@@ -193,4 +263,11 @@ export function isPoint(obj: object): obj is Point {
   }
   const point = obj as Point;
   return point.kind === 'point' && point.x !== undefined && point.y !== undefined;
+}
+
+class NotOnCurveError extends Error {
+  constructor() {
+    super('The given x-coordinate is not on the Grumpkin curve');
+    this.name = 'NotOnCurveError';
+  }
 }

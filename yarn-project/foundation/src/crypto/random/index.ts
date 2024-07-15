@@ -74,3 +74,12 @@ export const randomBigInt = (max: bigint) => {
   const randomBigInt = BigInt(`0x${randomBuffer.toString('hex')}`); // Convert buffer to a large integer.
   return randomBigInt % max; // Use modulo to ensure the result is less than max.
 };
+
+/**
+ * Generate a random boolean value.
+ * @returns A random boolean value.
+ */
+export const randomBoolean = () => {
+  const randomByte = randomBytes(1)[0]; // Generate a single random byte.
+  return randomByte % 2 === 0; // Use modulo to determine if the byte is even or odd.
+};

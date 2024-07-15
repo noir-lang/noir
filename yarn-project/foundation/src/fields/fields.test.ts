@@ -109,7 +109,7 @@ describe('Bn254 arithmetic', () => {
       expect(actual).toEqual(expected);
     });
 
-    it('High Bonudary', () => {
+    it('High Boundary', () => {
       // -1 - (-1) = 0
       const a = new Fr(Fr.MODULUS - 1n);
       const b = new Fr(Fr.MODULUS - 1n);
@@ -181,6 +181,30 @@ describe('Bn254 arithmetic', () => {
       const b = Fr.ZERO;
 
       expect(() => a.div(b)).toThrow();
+    });
+  });
+
+  describe('Square root', () => {
+    it.each([
+      [new Fr(0), 0n],
+      [new Fr(4), 2n],
+      [new Fr(9), 3n],
+      [new Fr(16), 4n],
+    ])('Should return the correct square root for %p', (input, expected) => {
+      const actual = input.sqrt()!.toBigInt();
+
+      // The square root can be either the expected value or the modulus - expected value
+      const isValid = actual == expected || actual == Fr.MODULUS - expected;
+
+      expect(isValid).toBeTruthy();
+    });
+
+    it('Should return the correct square root for random value', () => {
+      const a = Fr.random();
+      const squared = a.mul(a);
+
+      const actual = squared.sqrt();
+      expect(actual!.mul(actual!)).toEqual(squared);
     });
   });
 
