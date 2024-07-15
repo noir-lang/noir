@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.46.5](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.46.4...aztec-packages-v0.46.5) (2024-07-14)
+
+
+### Features
+
+* Added barrett_reduction implementation into uintx ([#6768](https://github.com/AztecProtocol/aztec-packages/issues/6768)) ([abced57](https://github.com/AztecProtocol/aztec-packages/commit/abced575d43d062ed936445e7e60f017efb1de4e))
+* Databus allows arbitrarily many reads per index ([#6524](https://github.com/AztecProtocol/aztec-packages/issues/6524)) ([f07200c](https://github.com/AztecProtocol/aztec-packages/commit/f07200c110a9cce1a2bb4a7892063acd928e86cf))
+* Let LSP always work in a Noir workspace if there's any (https://github.com/noir-lang/noir/pull/5461) ([8403e84](https://github.com/AztecProtocol/aztec-packages/commit/8403e849dff51c99a38ae15a4c39a40edc558214))
+* Multiple trace structuring configurations  ([#7408](https://github.com/AztecProtocol/aztec-packages/issues/7408)) ([e4abe1d](https://github.com/AztecProtocol/aztec-packages/commit/e4abe1d9cd577304d56efff5969cdaa7542dccfd))
+* Verify ClientIVC proofs through Bb binary ([#7407](https://github.com/AztecProtocol/aztec-packages/issues/7407)) ([3760c64](https://github.com/AztecProtocol/aztec-packages/commit/3760c64532dd8b55a46a75e0d98896b7131e754f))
+
+
+### Bug Fixes
+
+* Lagrange interpolation ([#7440](https://github.com/AztecProtocol/aztec-packages/issues/7440)) ([76bcd72](https://github.com/AztecProtocol/aztec-packages/commit/76bcd726d4e5b0c1a2a2bf44b51081142e4ae30a))
+* Move BigInt modulus checks to runtime in brillig (https://github.com/noir-lang/noir/pull/5374) ([8403e84](https://github.com/AztecProtocol/aztec-packages/commit/8403e849dff51c99a38ae15a4c39a40edc558214))
+* Run macro processors in the elaborator (https://github.com/noir-lang/noir/pull/5472) ([8403e84](https://github.com/AztecProtocol/aztec-packages/commit/8403e849dff51c99a38ae15a4c39a40edc558214))
+
+
+### Miscellaneous
+
+* Keccak256 in Noir (https://github.com/noir-lang/noir/pull/5316) ([8403e84](https://github.com/AztecProtocol/aztec-packages/commit/8403e849dff51c99a38ae15a4c39a40edc558214))
+* Redo typo PR by omahs (https://github.com/noir-lang/noir/pull/5487) ([8403e84](https://github.com/AztecProtocol/aztec-packages/commit/8403e849dff51c99a38ae15a4c39a40edc558214))
+* Replace relative paths to noir-protocol-circuits ([e89bfd8](https://github.com/AztecProtocol/aztec-packages/commit/e89bfd8d440b2671f1577145c2bf2a152d2929b7))
+* Replace relative paths to noir-protocol-circuits ([fae353e](https://github.com/AztecProtocol/aztec-packages/commit/fae353e5cc5913dc58f8e170a13129016f65f074))
+
+
+### Documentation
+
+* Minor comments for private refunds/partial notes ([#7447](https://github.com/AztecProtocol/aztec-packages/issues/7447)) ([9bcbb6c](https://github.com/AztecProtocol/aztec-packages/commit/9bcbb6c2e8a84a9462430f7a110fd6c2548e75ae))
+
 ## [0.46.4](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.46.3...aztec-packages-v0.46.4) (2024-07-11)
 
 
