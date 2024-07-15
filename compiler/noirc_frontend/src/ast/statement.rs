@@ -10,6 +10,7 @@ use super::{
     BlockExpression, Expression, ExpressionKind, IndexExpression, MemberAccessExpression,
     MethodCallExpression, UnresolvedType,
 };
+use crate::hir::resolution::resolver::SELF_TYPE_NAME;
 use crate::lexer::token::SpannedToken;
 use crate::macros_api::SecondaryAttribute;
 use crate::parser::{ParserError, ParserErrorReason};
@@ -165,6 +166,12 @@ impl StatementKind {
 #[derive(Eq, Debug, Clone)]
 pub struct Ident(pub Spanned<String>);
 
+impl Ident {
+    pub fn is_self_type_name(&self) -> bool {
+        self.0.contents == SELF_TYPE_NAME
+    }
+}
+
 impl PartialEq<Ident> for Ident {
     fn eq(&self, other: &Ident) -> bool {
         self.0.contents == other.0.contents
@@ -292,6 +299,7 @@ pub enum PathKind {
     Crate,
     Dep,
     Plain,
+    Super,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -745,6 +753,7 @@ impl Display for PathKind {
         match self {
             PathKind::Crate => write!(f, "crate"),
             PathKind::Dep => write!(f, "dep"),
+            PathKind::Super => write!(f, "super"),
             PathKind::Plain => write!(f, "plain"),
         }
     }

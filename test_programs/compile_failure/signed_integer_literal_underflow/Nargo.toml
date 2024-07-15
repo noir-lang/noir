@@ -1,0 +1,5 @@
+[package]
+name = "signed_integer_literal_underflow"
+type = "bin"
+authors = [""]
+[dependencies]

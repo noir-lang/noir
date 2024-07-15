@@ -4,7 +4,7 @@ set -e
 BACKEND=${BACKEND:-bb}
 
 # These tests are incompatible with gas reporting
-excluded_dirs=("workspace" "workspace_default_member" "double_verify_nested_proof")
+excluded_dirs=("workspace" "workspace_default_member" "databus")
 
 current_dir=$(pwd)
 artifacts_path="$current_dir/acir_artifacts"
@@ -18,6 +18,10 @@ NUM_ARTIFACTS=$(ls -1q "$artifacts_path" | wc -l)
 ITER="1"
 for pathname in $test_dirs; do    
     ARTIFACT_NAME=$(basename "$pathname")
+    if [[ " ${excluded_dirs[@]} " =~ "$ARTIFACT_NAME" ]]; then
+        ITER=$(( $ITER + 1 ))
+        continue
+    fi
 
     GATES_INFO=$($BACKEND gates -b "$artifacts_path/$ARTIFACT_NAME/target/program.json")
     MAIN_FUNCTION_INFO=$(echo $GATES_INFO | jq -r '.functions[0] | .name = "main"')

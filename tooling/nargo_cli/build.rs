@@ -61,8 +61,21 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
 /// Certain features are only available in the elaborator.
 /// We skip these tests for non-elaborator code since they are not
 /// expected to work there. This can be removed once the old code is removed.
-const IGNORED_NEW_FEATURE_TESTS: [&str; 3] =
-    ["macros", "wildcard_type", "type_definition_annotation"];
+const IGNORED_NEW_FEATURE_TESTS: [&str; 13] = [
+    "macros",
+    "wildcard_type",
+    "type_definition_annotation",
+    "numeric_generics_explicit",
+    "derive_impl",
+    "comptime_traits",
+    "comptime_slice_methods",
+    "unary_operator_overloading",
+    "unquote_multiple_items_from_annotation",
+    "function_attribute",
+    "trait_attribute",
+    "regression_5428",
+    "unquote",
+];
 
 fn read_test_cases(
     test_data_dir: &Path,

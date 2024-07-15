@@ -1,3 +1,4 @@
+use super::primitives::token_kind;
 use super::{
     expression_with_precedence, keyword, nothing, parenthesized, path, NoirParser, ParserError,
     ParserErrorReason, Precedence,
@@ -6,7 +7,7 @@ use crate::ast::{Recoverable, UnresolvedType, UnresolvedTypeData, UnresolvedType
 use crate::QuotedType;
 
 use crate::parser::labels::ParsingRuleLabel;
-use crate::token::{Keyword, Token};
+use crate::token::{Keyword, Token, TokenKind};
 
 use chumsky::prelude::*;
 use noirc_errors::Span;
@@ -24,9 +25,14 @@ pub(super) fn parse_type_inner<'a>(
         bool_type(),
         string_type(),
         expr_type(),
-        type_definition_type(),
+        struct_definition_type(),
+        trait_definition_type(),
+        function_definition_type(),
+        module_type(),
         top_level_item_type(),
+        type_of_quoted_types(),
         quoted_type(),
+        resolved_type(),
         format_string_type(recursive_type_parser.clone()),
         named_type(recursive_type_parser.clone()),
         named_trait(recursive_type_parser.clone()),
@@ -51,15 +57,7 @@ pub(super) fn parenthesized_type(
 }
 
 pub(super) fn maybe_comp_time() -> impl NoirParser<bool> {
-    keyword(Keyword::Comptime).or_not().validate(|opt, span, emit| {
-        if opt.is_some() {
-            emit(ParserError::with_reason(
-                ParserErrorReason::ExperimentalFeature("Comptime values"),
-                span,
-            ));
-        }
-        opt.is_some()
-    })
+    keyword(Keyword::Comptime).or_not().map(|opt| opt.is_some())
 }
 
 pub(super) fn field_type() -> impl NoirParser<UnresolvedType> {
@@ -77,11 +75,28 @@ pub(super) fn expr_type() -> impl NoirParser<UnresolvedType> {
         .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Expr).with_span(span))
 }
 
-/// This is the type `TypeDefinition` - the type of a quoted type definition
-pub(super) fn type_definition_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::TypeDefinition).map_with_span(|_, span| {
-        UnresolvedTypeData::Quoted(QuotedType::TypeDefinition).with_span(span)
+/// This is the type `StructDefinition` - the type of a quoted struct definition
+pub(super) fn struct_definition_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::StructDefinition).map_with_span(|_, span| {
+        UnresolvedTypeData::Quoted(QuotedType::StructDefinition).with_span(span)
     })
+}
+
+pub(super) fn trait_definition_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::TraitDefinition).map_with_span(|_, span| {
+        UnresolvedTypeData::Quoted(QuotedType::TraitDefinition).with_span(span)
+    })
+}
+
+pub(super) fn function_definition_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::FunctionDefinition).map_with_span(|_, span| {
+        UnresolvedTypeData::Quoted(QuotedType::FunctionDefinition).with_span(span)
+    })
+}
+
+pub(super) fn module_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::Module)
+        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Module).with_span(span))
 }
 
 /// This is the type `TopLevelItem` - the type of a quoted statement in the top level.
@@ -93,9 +108,25 @@ fn top_level_item_type() -> impl NoirParser<UnresolvedType> {
 }
 
 /// This is the type `Type` - the type of a quoted noir type.
-fn quoted_type() -> impl NoirParser<UnresolvedType> {
+fn type_of_quoted_types() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::TypeType)
         .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Type).with_span(span))
+}
+
+/// This is the type of a quoted, unparsed token stream.
+fn quoted_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::Quoted)
+        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Quoted).with_span(span))
+}
+
+/// This is the type of an already resolved type.
+/// The only way this can appear in the token input is if an already resolved `Type` object
+/// was spliced into a macro's token stream via the `$` operator.
+fn resolved_type() -> impl NoirParser<UnresolvedType> {
+    token_kind(TokenKind::QuotedType).map_with_span(|token, span| match token {
+        Token::QuotedType(id) => UnresolvedTypeData::Resolved(id).with_span(span),
+        _ => unreachable!("token_kind(QuotedType) guarantees we parse a quoted type"),
+    })
 }
 
 pub(super) fn string_type() -> impl NoirParser<UnresolvedType> {

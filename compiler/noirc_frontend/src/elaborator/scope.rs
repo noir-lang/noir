@@ -1,4 +1,4 @@
-use noirc_errors::Spanned;
+use noirc_errors::{Location, Spanned};
 
 use crate::ast::ERROR_IDENT;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
@@ -44,7 +44,36 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
         let resolver = StandardPathResolver::new(self.module_id());
-        let path_resolution = resolver.resolve(self.def_maps, path)?;
+        let path_resolution;
+
+        if self.interner.track_references {
+            let last_segment = path.last_segment();
+            let location = Location::new(last_segment.span(), self.file);
+            let is_self_type_name = last_segment.is_self_type_name();
+
+            let mut references: Vec<_> = Vec::new();
+            path_resolution =
+                resolver.resolve(self.def_maps, path.clone(), &mut Some(&mut references))?;
+
+            for (referenced, ident) in references.iter().zip(path.segments) {
+                let Some(referenced) = referenced else {
+                    continue;
+                };
+                self.interner.add_reference(
+                    *referenced,
+                    Location::new(ident.span(), self.file),
+                    ident.is_self_type_name(),
+                );
+            }
+
+            self.interner.add_module_def_id_reference(
+                path_resolution.module_def_id,
+                location,
+                is_self_type_name,
+            );
+        } else {
+            path_resolution = resolver.resolve(self.def_maps, path, &mut None)?;
+        }
 
         if let Some(error) = path_resolution.error {
             self.push_err(error);

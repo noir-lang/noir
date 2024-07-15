@@ -1215,6 +1215,31 @@ impl<F: AcirField> AcirContext<F> {
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
         let (constant_inputs, constant_outputs) = match name {
+            BlackBoxFunc::PedersenCommitment | BlackBoxFunc::PedersenHash => {
+                // The last argument of pedersen is the domain separator, which must be a constant
+                let domain_var = match inputs.pop() {
+                    Some(domain_var) => domain_var.into_var()?,
+                    None => {
+                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
+                            name: "pedersen call".to_string(),
+                            arg: "domain separator".to_string(),
+                            call_stack: self.get_call_stack(),
+                        }))
+                    }
+                };
+
+                let domain_constant = match self.vars[&domain_var].as_constant() {
+                    Some(domain_constant) => domain_constant,
+                    None => {
+                        return Err(RuntimeError::InternalError(InternalError::NotAConstant {
+                            name: "domain separator".to_string(),
+                            call_stack: self.get_call_stack(),
+                        }))
+                    }
+                };
+
+                (vec![*domain_constant], Vec::new())
+            }
             BlackBoxFunc::Poseidon2Permutation => {
                 // The last argument is the state length, which must be a constant
                 let state_len = match inputs.pop() {
@@ -1341,9 +1366,10 @@ impl<F: AcirField> AcirContext<F> {
             }
             _ => (vec![], vec![]),
         };
-
+        // Allow constant inputs only for MSM for now
+        let allow_constant_inputs = name.eq(&BlackBoxFunc::MultiScalarMul);
         // Convert `AcirVar` to `FunctionInput`
-        let inputs = self.prepare_inputs_for_black_box_func_call(inputs)?;
+        let inputs = self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
         // Call Black box with `FunctionInput`
         let mut results = vecmap(&constant_outputs, |c| self.add_constant(*c));
         let outputs = self.acir_ir.call_black_box(
@@ -1371,18 +1397,23 @@ impl<F: AcirField> AcirContext<F> {
     fn prepare_inputs_for_black_box_func_call(
         &mut self,
         inputs: Vec<AcirValue>,
-    ) -> Result<Vec<Vec<FunctionInput>>, RuntimeError> {
+        allow_constant_inputs: bool,
+    ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
         let mut witnesses = Vec::new();
         for input in inputs {
             let mut single_val_witnesses = Vec::new();
             for (input, typ) in self.flatten(input)? {
-                // Intrinsics only accept Witnesses. This is not a limitation of the
-                // intrinsics, its just how we have defined things. Ideally, we allow
-                // constants too.
-                let witness_var = self.get_or_create_witness_var(input)?;
-                let witness = self.var_to_witness(witness_var)?;
                 let num_bits = typ.bit_size::<F>();
-                single_val_witnesses.push(FunctionInput { witness, num_bits });
+                match self.vars[&input].as_constant() {
+                    Some(constant) if allow_constant_inputs => {
+                        single_val_witnesses.push(FunctionInput::constant(*constant, num_bits));
+                    }
+                    _ => {
+                        let witness_var = self.get_or_create_witness_var(input)?;
+                        let witness = self.var_to_witness(witness_var)?;
+                        single_val_witnesses.push(FunctionInput::witness(witness, num_bits));
+                    }
+                }
             }
             witnesses.push(single_val_witnesses);
         }
@@ -1522,6 +1553,26 @@ impl<F: AcirField> AcirContext<F> {
         brillig_function_index: u32,
         brillig_stdlib_func: Option<BrilligStdlibFunc>,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
+        let predicate = self.var_to_expression(predicate)?;
+        if predicate.is_zero() {
+            // If the predicate has a constant value of zero, the brillig call will never be executed.
+            // We can then immediately zero out all of its outputs as this is the value which would be written
+            // if we waited until runtime to resolve this call.
+            let outputs_var = vecmap(outputs, |output| match output {
+                AcirType::NumericType(_) => {
+                    let var = self.add_constant(F::zero());
+                    AcirValue::Var(var, output.clone())
+                }
+                AcirType::Array(element_types, size) => {
+                    self.zeroed_array_output(&element_types, size)
+                }
+            });
+
+            return Ok(outputs_var);
+        }
+        // Remove "always true" predicates.
+        let predicate = if predicate == Expression::one() { None } else { Some(predicate) };
+
         let brillig_inputs: Vec<BrilligInputs<F>> =
             try_vecmap(inputs, |i| -> Result<_, InternalError> {
                 match i {
@@ -1569,10 +1620,9 @@ impl<F: AcirField> AcirContext<F> {
                 acir_value
             }
         });
-        let predicate = self.var_to_expression(predicate)?;
 
         self.acir_ir.brillig_call(
-            Some(predicate),
+            predicate,
             generated_brillig,
             brillig_inputs,
             brillig_outputs,
@@ -1641,6 +1691,27 @@ impl<F: AcirField> AcirContext<F> {
             }
         }
         Ok(())
+    }
+
+    /// Recursively create zeroed-out acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
+    fn zeroed_array_output(&mut self, element_types: &[AcirType], size: usize) -> AcirValue {
+        let mut array_values = im::Vector::new();
+        for _ in 0..size {
+            for element_type in element_types {
+                match element_type {
+                    AcirType::Array(nested_element_types, nested_size) => {
+                        let nested_acir_value =
+                            self.zeroed_array_output(nested_element_types, *nested_size);
+                        array_values.push_back(nested_acir_value);
+                    }
+                    AcirType::NumericType(_) => {
+                        let var = self.add_constant(F::zero());
+                        array_values.push_back(AcirValue::Var(var, element_type.clone()));
+                    }
+                }
+            }
+        }
+        AcirValue::Array(array_values)
     }
 
     /// Recursively create acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
@@ -1831,10 +1902,10 @@ impl<F: AcirField> AcirContext<F> {
         output_count: usize,
         predicate: AcirVar,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
-        let inputs = self.prepare_inputs_for_black_box_func_call(inputs)?;
+        let inputs = self.prepare_inputs_for_black_box_func_call(inputs, false)?;
         let inputs = inputs
             .iter()
-            .flat_map(|input| vecmap(input, |input| input.witness))
+            .flat_map(|input| vecmap(input, |input| input.to_witness()))
             .collect::<Vec<_>>();
         let outputs = vecmap(0..output_count, |_| self.acir_ir.next_witness_index());
 

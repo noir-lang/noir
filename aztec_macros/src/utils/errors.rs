@@ -14,6 +14,7 @@ pub enum AztecMacroError {
     CouldNotAssignStorageSlots { secondary_message: Option<String> },
     CouldNotImplementComputeNoteHashAndOptionallyANullifier { secondary_message: Option<String> },
     CouldNotImplementNoteInterface { span: Option<Span>, secondary_message: Option<String> },
+    CouldNotImplementEventInterface { secondary_message: Option<String> },
     MultipleStorageDefinitions { span: Option<Span> },
     CouldNotExportStorageLayout { span: Option<Span>, secondary_message: Option<String> },
     CouldNotInjectContextGenericInStorage { secondary_message: Option<String> },
@@ -66,6 +67,11 @@ impl From<AztecMacroError> for MacroError {
                 primary_message: "Could not implement automatic methods for note, please provide an implementation of the NoteInterface trait".to_string(),
                 secondary_message,
                 span
+            },
+            AztecMacroError::CouldNotImplementEventInterface { secondary_message } => MacroError {
+                primary_message: "Could not implement automatic methods for event, please provide an implementation of the EventInterface trait".to_string(),
+                secondary_message,
+                span: None,
             },
             AztecMacroError::MultipleStorageDefinitions { span } => MacroError {
                 primary_message: "Only one struct can be tagged as #[aztec(storage)]".to_string(),
