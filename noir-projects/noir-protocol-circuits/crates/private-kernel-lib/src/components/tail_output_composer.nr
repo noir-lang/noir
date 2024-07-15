@@ -1,12 +1,16 @@
-use crate::components::private_kernel_circuit_public_inputs_composer::PrivateKernelCircuitPublicInputsComposer;
+mod meter_gas_used;
+
+use crate::components::{
+    private_kernel_circuit_public_inputs_composer::PrivateKernelCircuitPublicInputsComposer,
+    tail_output_composer::meter_gas_used::meter_gas_used
+};
 use dep::types::{
     abis::{
-    accumulated_data::combined_accumulated_data::CombinedAccumulatedData, gas::Gas,
+    accumulated_data::combined_accumulated_data::CombinedAccumulatedData,
     kernel_circuit_public_inputs::{KernelCircuitPublicInputs, PrivateKernelCircuitPublicInputs},
     log_hash::{ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash}, note_hash::ScopedNoteHash,
     nullifier::ScopedNullifier
 },
-    constants::{DA_BYTES_PER_FIELD, DA_GAS_PER_BYTE, L2_GAS_PER_NOTE_HASH, L2_GAS_PER_NULLIFIER, L2_GAS_PER_LOG_BYTE},
     hash::{compute_tx_logs_hash, compute_tx_note_logs_hash},
     messaging::l2_to_l1_message::ScopedL2ToL1Message
 };
@@ -45,37 +49,7 @@ impl TailOutputComposer {
         data.note_encrypted_log_preimages_length = source.note_encrypted_logs_hashes.storage.fold(0, |len, l: NoteLogHash| len + l.length);
         data.encrypted_log_preimages_length = source.encrypted_logs_hashes.storage.fold(0, |len, l: ScopedEncryptedLogHash| len + l.log_hash.length);
         data.unencrypted_log_preimages_length = source.unencrypted_logs_hashes.storage.fold(0, |len, l: ScopedLogHash| len + l.log_hash.length);
-        data.gas_used = self.meter_gas_used(data);
+        data.gas_used = meter_gas_used(data, self.output_composer.public_inputs.constants.tx_context.gas_settings);
         data
-    }
-
-    fn meter_gas_used(self, data: CombinedAccumulatedData) -> Gas {
-        let mut metered_da_bytes = 0;
-        let mut metered_l2_gas = 0;
-
-        let data_builder = self.output_composer.public_inputs.end;
-        // IMPORTANT: Must use data_builder.__.len(), which is the the number of items pushed to the BoundedVec. 
-        // Do not use data.__.len(), which is the array's max length.
-        metered_da_bytes += data_builder.note_hashes.len() * DA_BYTES_PER_FIELD;
-        metered_l2_gas += data_builder.note_hashes.len() * L2_GAS_PER_NOTE_HASH;
-
-        metered_da_bytes += data_builder.nullifiers.len() * DA_BYTES_PER_FIELD;
-        metered_l2_gas += data_builder.nullifiers.len() * L2_GAS_PER_NULLIFIER;
-
-        metered_da_bytes += data_builder.l2_to_l1_msgs.len() * DA_BYTES_PER_FIELD;
-
-        metered_da_bytes += data.note_encrypted_log_preimages_length as u32;
-        metered_l2_gas += data.note_encrypted_log_preimages_length as u32 * L2_GAS_PER_LOG_BYTE;
-
-        metered_da_bytes += data.encrypted_log_preimages_length as u32;
-        metered_l2_gas += data.encrypted_log_preimages_length as u32 * L2_GAS_PER_LOG_BYTE;
-
-        metered_da_bytes += data.unencrypted_log_preimages_length as u32;
-        metered_l2_gas += data.unencrypted_log_preimages_length as u32 * L2_GAS_PER_LOG_BYTE;
-
-        let teardown_gas = self.output_composer.public_inputs.constants.tx_context.gas_settings.teardown_gas_limits;
-        Gas::new(metered_da_bytes * DA_GAS_PER_BYTE, metered_l2_gas)
-            + Gas::tx_overhead()
-            + teardown_gas
     }
 }

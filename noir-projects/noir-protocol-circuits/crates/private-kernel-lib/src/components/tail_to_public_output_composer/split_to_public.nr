@@ -1,6 +1,7 @@
 use dep::types::abis::{
     accumulated_data::{
     private_accumulated_data_builder::PrivateAccumulatedDataBuilder,
+    public_accumulated_data::PublicAccumulatedData,
     public_accumulated_data_builder::PublicAccumulatedDataBuilder
 }
 };
@@ -8,7 +9,7 @@ use dep::types::abis::{
 pub fn split_to_public(
     data: PrivateAccumulatedDataBuilder,
     min_revertible_side_effect_counter: u32
-) -> (PublicAccumulatedDataBuilder, PublicAccumulatedDataBuilder) {
+) -> (PublicAccumulatedData, PublicAccumulatedData) {
     assert(min_revertible_side_effect_counter != 0, "min_revertible_side_effect_counter must not be 0");
 
     let mut non_revertible_builder = PublicAccumulatedDataBuilder::empty();
@@ -106,5 +107,5 @@ pub fn split_to_public(
         }
     }
 
-    (non_revertible_builder, revertible_builder)
+    (non_revertible_builder.finish(), revertible_builder.finish())
 }

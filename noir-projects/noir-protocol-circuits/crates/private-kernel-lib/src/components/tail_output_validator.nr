@@ -1,9 +1,12 @@
 mod kernel_circuit_output_hints;
 mod validate_value_transformation;
 
-use crate::components::tail_output_validator::{
+use crate::components::{
+    tail_output_composer::meter_gas_used::meter_gas_used,
+    tail_output_validator::{
     kernel_circuit_output_hints::{generate_kernel_circuit_output_hints, Hints},
     validate_value_transformation::{validate_transformed_values, validate_value_transformation}
+}
 };
 use dep::types::{
     abis::{
@@ -37,7 +40,7 @@ impl TailOutputValidator {
         self.validate_propagated_values();
         self.validate_propagated_sorted_siloed_values(hints);
         self.validate_accumulated_values(hints);
-        self.validate_gas_limits();
+        self.validate_gas_used();
     }
 
     fn validate_empty_values(self) {
@@ -149,7 +152,13 @@ impl TailOutputValidator {
         );
     }
 
-    fn validate_gas_limits(self) {
+    fn validate_gas_used(self) {
+        let gas_used = meter_gas_used(
+            self.output.end,
+            self.output.constants.tx_context.gas_settings
+        );
+        assert(self.output.end.gas_used == gas_used, "incorrect metered gas used");
+
         let limits = self.previous_kernel.constants.tx_context.gas_settings.gas_limits;
         assert(self.output.end.gas_used.within(limits), "The gas used exceeds the gas limits");
     }

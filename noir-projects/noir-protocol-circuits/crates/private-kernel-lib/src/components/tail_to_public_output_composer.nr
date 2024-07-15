@@ -34,8 +34,8 @@ impl TailToPublicOutputComposer {
         end_non_revertible.gas_used = meter_gas_used_non_revertible(end_non_revertible);
         let teardown_gas = source.constants.tx_context.gas_settings.teardown_gas_limits;
         end.gas_used = meter_gas_used_revertible(end, teardown_gas);
-        output.end_non_revertible = end_non_revertible.finish();
-        output.end = end.finish();
+        output.end_non_revertible = end_non_revertible;
+        output.end = end;
 
         output
     }

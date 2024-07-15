@@ -31,56 +31,47 @@ fn split_to_public_succeeds() {
 
     // note_hashes
     let expected = combined_data.note_hashes;
+    assert_array_eq(non_revertible.note_hashes, [expected[0], expected[1]]);
     assert_array_eq(
-        non_revertible.note_hashes.storage,
-        [expected[0], expected[1]]
-    );
-    assert_array_eq(
-        revertible.note_hashes.storage,
+        revertible.note_hashes,
         [expected[2], expected[3], expected[4]]
     );
 
     // nullifiers
     let expected = combined_data.nullifiers;
-    assert_array_eq(non_revertible.nullifiers.storage, [expected[0], expected[1]]);
-    assert_array_eq(revertible.nullifiers.storage, [expected[2]]);
+    assert_array_eq(non_revertible.nullifiers, [expected[0], expected[1]]);
+    assert_array_eq(revertible.nullifiers, [expected[2]]);
 
     // l2_to_l1_msgs
     let expected = combined_data.l2_to_l1_msgs;
-    assert_array_eq(non_revertible.l2_to_l1_msgs.storage, [expected[0]]);
-    assert_array_eq(revertible.l2_to_l1_msgs.storage, [expected[1]]);
+    assert_array_eq(non_revertible.l2_to_l1_msgs, [expected[0]]);
+    assert_array_eq(revertible.l2_to_l1_msgs, [expected[1]]);
 
     // note_encrypted_logs_hashes
     let expected = combined_data.note_encrypted_logs_hashes;
     assert_array_eq(
-        non_revertible.note_encrypted_logs_hashes.storage,
+        non_revertible.note_encrypted_logs_hashes,
         [expected[0], expected[1], expected[2]]
     );
-    assert_array_eq(revertible.note_encrypted_logs_hashes.storage, [expected[3]]);
+    assert_array_eq(revertible.note_encrypted_logs_hashes, [expected[3]]);
 
     // encrypted_logs_hashes
     let expected = combined_data.encrypted_logs_hashes;
     assert_array_eq(
-        non_revertible.encrypted_logs_hashes.storage,
+        non_revertible.encrypted_logs_hashes,
         [expected[0], expected[1]]
     );
-    assert_array_eq(
-        revertible.encrypted_logs_hashes.storage,
-        [expected[2], expected[3]]
-    );
+    assert_array_eq(revertible.encrypted_logs_hashes, [expected[2], expected[3]]);
 
     // unencrypted_logs_hashes
     let expected = combined_data.unencrypted_logs_hashes;
-    assert_array_eq(non_revertible.unencrypted_logs_hashes.storage, [expected[0]]);
-    assert_array_eq(revertible.unencrypted_logs_hashes.storage, [expected[1]]);
+    assert_array_eq(non_revertible.unencrypted_logs_hashes, [expected[0]]);
+    assert_array_eq(revertible.unencrypted_logs_hashes, [expected[1]]);
 
     // public_call_stack
     let expected = combined_data.public_call_stack;
-    assert_array_eq(non_revertible.public_call_stack.storage, [expected[0]]);
-    assert_array_eq(
-        revertible.public_call_stack.storage,
-        [expected[1], expected[2]]
-    );
+    assert_array_eq(non_revertible.public_call_stack, [expected[0]]);
+    assert_array_eq(revertible.public_call_stack, [expected[1], expected[2]]);
 }
 
 #[test(should_fail_with="min_revertible_side_effect_counter must not be 0")]

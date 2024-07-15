@@ -1,3 +1,5 @@
+mod meter_gas_used;
+
 use crate::components::tail_output_composer::TailOutputComposer;
 use dep::types::{abis::kernel_circuit_public_inputs::KernelCircuitPublicInputs, tests::fixture_builder::FixtureBuilder};
 

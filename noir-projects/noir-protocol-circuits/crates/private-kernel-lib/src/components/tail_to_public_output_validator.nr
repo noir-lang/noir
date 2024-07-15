@@ -2,6 +2,7 @@ mod tail_to_public_output_hints;
 
 use crate::components::{
     tail_output_validator::validate_value_transformation::{validate_transformed_values, validate_value_transformation},
+    tail_to_public_output_composer::meter_gas_used::{meter_gas_used_non_revertible, meter_gas_used_revertible},
     tail_to_public_output_validator::tail_to_public_output_hints::{generate_tail_to_public_output_hints, TailToPublicOutputHints}
 };
 use dep::types::{
@@ -33,7 +34,7 @@ impl TailToPublicOutputValidator {
         self.validate_empty_values();
         self.validate_propagated_values();
         self.validate_propagated_sorted_siloed_values(hints);
-        self.validate_gas_limits();
+        self.validate_gas_used();
     }
 
     fn validate_empty_values(self) {
@@ -180,7 +181,18 @@ impl TailToPublicOutputValidator {
         )
     }
 
-    fn validate_gas_limits(self) {
+    fn validate_gas_used(self) {
+        let gas_used = meter_gas_used_non_revertible(self.output.end_non_revertible);
+        assert(
+            self.output.end_non_revertible.gas_used == gas_used, "incorrect metered non-revertible gas used"
+        );
+
+        let gas_used = meter_gas_used_revertible(
+            self.output.end,
+            self.output.constants.tx_context.gas_settings.teardown_gas_limits
+        );
+        assert(self.output.end.gas_used == gas_used, "incorrect metered revertible gas used");
+
         let limits = self.previous_kernel.constants.tx_context.gas_settings.gas_limits;
         let total_gas_used = self.output.end_non_revertible.gas_used + self.output.end.gas_used;
         assert(total_gas_used.within(limits), "The gas used exceeds the gas limits");
