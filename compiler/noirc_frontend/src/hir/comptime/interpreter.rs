@@ -595,7 +595,7 @@ impl<'a> Interpreter<'a> {
         let rhs = self.evaluate(prefix.rhs)?;
 
         if self.interner.get_selected_impl_for_expression(id).is_some() {
-            self.evaluate_overloaded_prefix(prefix, rhs, id);
+            self.evaluate_overloaded_prefix(prefix, rhs, id)
         } else {
             self.evaluate_prefix_with_value(rhs, prefix.operator, id)
         }
