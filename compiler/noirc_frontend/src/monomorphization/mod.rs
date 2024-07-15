@@ -21,7 +21,7 @@ use crate::{
         types,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
-    Type, TypeBinding, TypeBindings, TypeVariable, TypeVariableKind,
+    Type, TypeBinding, TypeBindings,
 };
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::{btree_map, try_vecmap, vecmap};
@@ -1788,24 +1788,21 @@ pub fn perform_impl_bindings(
     if let Some(trait_method) = trait_method {
         let the_trait = interner.get_trait(trait_method.trait_id);
 
-        let trait_method_type = the_trait.methods[trait_method.method_index].typ.as_monotype();
+        let mut trait_method_type =
+            the_trait.methods[trait_method.method_index].typ.as_monotype().clone();
+
+        let mut impl_method_type =
+            interner.function_meta(&impl_method).typ.unwrap_forall().1.clone();
 
         // Make each NamedGeneric in this type bindable by replacing it with a TypeVariable
         // with the same internal id and binding.
-        let (generics, impl_method_type) = interner.function_meta(&impl_method).typ.unwrap_forall();
-
-        let replace_type_variable = |var: &TypeVariable| {
-            (var.id(), (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
-        };
-
-        // Replace each NamedGeneric with a TypeVariable containing the same internal type variable
-        let type_bindings = generics.iter().map(replace_type_variable).collect();
-        let impl_method_type = impl_method_type.force_substitute(&type_bindings);
+        trait_method_type.replace_named_generics_with_type_variables();
+        impl_method_type.replace_named_generics_with_type_variables();
 
         trait_method_type.try_unify(&impl_method_type, &mut bindings).map_err(|_| {
             InterpreterError::ImplMethodTypeMismatch {
-                expected: trait_method_type.clone(),
-                actual: impl_method_type,
+                expected: trait_method_type.follow_bindings(),
+                actual: impl_method_type.follow_bindings(),
                 location,
             }
         })?;
