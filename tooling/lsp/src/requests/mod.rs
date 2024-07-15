@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    future::Future,
-};
+use std::{collections::HashMap, future::Future};
 
 use crate::{
     parse_diff, resolve_workspace_for_source_path,
@@ -17,11 +14,7 @@ use lsp_types::{
 use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo_fmt::Config;
 use noirc_driver::file_manager_with_stdlib;
-use noirc_frontend::{
-    graph::{CrateId, Dependency},
-    hir::def_map::CrateDefMap,
-    macros_api::NodeInterner,
-};
+use noirc_frontend::{graph::Dependency, macros_api::NodeInterner};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -285,7 +278,6 @@ pub(crate) struct ProcessRequestCallbackArgs<'a> {
     interners: &'a HashMap<String, NodeInterner>,
     root_crate_name: String,
     root_crate_dependencies: &'a Vec<Dependency>,
-    def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
 }
 
 pub(crate) fn process_request<F, T>(
@@ -340,7 +332,6 @@ where
         interners: &state.cached_definitions,
         root_crate_name: package.name.to_string(),
         root_crate_dependencies: &context.crate_graph[context.root_crate_id()].dependencies,
-        def_maps: &context.def_maps,
     }))
 }
 pub(crate) fn find_all_references_in_workspace(
