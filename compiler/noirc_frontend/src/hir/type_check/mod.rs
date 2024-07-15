@@ -51,7 +51,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let declared_return_type = meta.return_type().clone();
     let can_ignore_ret = meta.is_stub();
 
-    let function_body_id = &interner.function(&func_id).as_expr();
+    let function_body_id = interner.function(&func_id).try_as_expr();
 
     let mut type_checker = TypeChecker::new(interner);
     type_checker.current_function = Some(func_id);
@@ -88,45 +88,49 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         type_checker.bind_pattern(&param.0, param.1);
     }
 
-    let function_last_type = type_checker.check_function_body(function_body_id);
-    // Check declared return type and actual return type
-    if !can_ignore_ret {
-        let (expr_span, empty_function) = function_info(type_checker.interner, function_body_id);
-        let func_span = type_checker.interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        if let Type::TraitAsType(trait_id, _, generics) = &declared_return_type {
-            if type_checker
-                .interner
-                .lookup_trait_implementation(&function_last_type, *trait_id, generics)
-                .is_err()
-            {
-                let error = TypeCheckError::TypeMismatchWithSource {
-                    expected: declared_return_type.clone(),
-                    actual: function_last_type,
-                    span: func_span,
-                    source: Source::Return(expected_return_type, expr_span),
-                };
-                errors.push(error);
-            }
-        } else {
-            function_last_type.unify_with_coercions(
-                &declared_return_type,
-                *function_body_id,
-                type_checker.interner,
-                &mut errors,
-                || {
-                    let mut error = TypeCheckError::TypeMismatchWithSource {
+    if let Some(function_body_id) = function_body_id {
+        let function_last_type = type_checker.check_function_body(&function_body_id);
+
+        // Check declared return type and actual return type
+        if !can_ignore_ret {
+            let (expr_span, empty_function) =
+                function_info(type_checker.interner, &function_body_id);
+            let func_span = type_checker.interner.expr_span(&function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+            if let Type::TraitAsType(trait_id, _, generics) = &declared_return_type {
+                if type_checker
+                    .interner
+                    .lookup_trait_implementation(&function_last_type, *trait_id, generics)
+                    .is_err()
+                {
+                    let error = TypeCheckError::TypeMismatchWithSource {
                         expected: declared_return_type.clone(),
-                        actual: function_last_type.clone(),
+                        actual: function_last_type,
                         span: func_span,
                         source: Source::Return(expected_return_type, expr_span),
                     };
+                    errors.push(error);
+                }
+            } else {
+                function_last_type.unify_with_coercions(
+                    &declared_return_type,
+                    function_body_id,
+                    type_checker.interner,
+                    &mut errors,
+                    || {
+                        let mut error = TypeCheckError::TypeMismatchWithSource {
+                            expected: declared_return_type.clone(),
+                            actual: function_last_type.clone(),
+                            span: func_span,
+                            source: Source::Return(expected_return_type, expr_span),
+                        };
 
-                    if empty_function {
-                        error = error.add_context("implicitly returns `()` as its body has no tail or `return` expression");
-                    }
-                    error
-                },
-            );
+                        if empty_function {
+                            error = error.add_context("implicitly returns `()` as its body has no tail or `return` expression");
+                        }
+                        error
+                    },
+                );
+            }
         }
     }
 
